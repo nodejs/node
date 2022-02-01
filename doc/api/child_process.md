@@ -386,7 +386,7 @@ controller.abort();
 added: v0.5.0
 changes:
   - version:
-      - REPLACEME
+      - v16.14.0
     pr-url: https://github.com/nodejs/node/pull/41225
     description: The `modulePath` parameter can be a WHATWG `URL` object using
                  `file:` protocol.

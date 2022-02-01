@@ -1133,7 +1133,7 @@ certificate.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.14.0
     pr-url: https://github.com/nodejs/node/pull/39809
     description: Add fingerprint512.
   - version: v11.4.0

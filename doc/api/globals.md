@@ -51,7 +51,7 @@ added:
   - v15.0.0
   - v14.17.0
 changes:
-  - version: REPLACEME
+  - version: v16.14.0
     pr-url: https://github.com/nodejs/node/pull/40807
     description: Added the new optional reason argument.
 -->
@@ -88,7 +88,7 @@ added:
   - v15.12.0
   - v14.17.0
 changes:
-  - version: REPLACEME
+  - version: v16.14.0
     pr-url: https://github.com/nodejs/node/pull/40807
     description: Added the new optional reason argument.
 -->
@@ -101,7 +101,7 @@ Returns a new already aborted `AbortSignal`.
 #### Static method: `AbortSignal.timeout(delay)`
 
 <!-- YAML
-added: REPLACEME
+added: v16.14.0
 -->
 
 * `delay` {number} The number of milliseconds to wait before triggering
@@ -166,7 +166,7 @@ when the `abortController.abort()` function has been called.
 #### `abortSignal.reason`
 
 <!-- YAML
-added: REPLACEME
+added: v16.14.0
 -->
 
 * Type: {any}

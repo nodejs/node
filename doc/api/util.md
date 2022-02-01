@@ -483,7 +483,7 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
-  - version: REPLACEME
+  - version: v16.14.0
     pr-url: https://github.com/nodejs/node/pull/41003
     description: The `numericSeparator` option is supported now.
   - version:
@@ -875,7 +875,7 @@ ignored, if not supported.
 <!-- YAML
 added: v0.1.97
 changes:
-  - version: REPLACEME
+  - version: v16.14.0
     pr-url: https://github.com/nodejs/node/pull/41019
     description: The inspect argument is added for more interoperability.
 -->

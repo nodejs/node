@@ -1822,7 +1822,7 @@ previous setting of `process.exitCode`.
 ## `process.getActiveResourcesInfo()`
 
 <!-- YAML
-added: REPLACEME
+added: v16.14.0
 -->
 
 > Stability: 1 - Experimental

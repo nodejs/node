@@ -7,7 +7,7 @@
 <!-- YAML
 added: v8.5.0
 changes:
-  - version: REPLACEME
+  - version: v16.14.0
     pr-url: https://github.com/nodejs/node/pull/40250
     description: Add support for import assertions.
   - version:
@@ -222,7 +222,7 @@ import fs from 'node:fs/promises';
 ## Import assertions
 
 <!-- YAML
-added: REPLACEME
+added: v16.14.0
 -->
 
 > Stability: 1 - Experimental
@@ -650,7 +650,7 @@ won't apply to `require` calls; those still follow [CommonJS][] rules.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.14.0
     pr-url: https://github.com/nodejs/node/pull/40250
     description: Add support for import assertions.
 -->
