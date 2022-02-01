@@ -69,7 +69,7 @@ It will be closed after 6 months after the last non-automated comment unless the
 discussion or collaborators advocating that it be kept
 open. For more information on how the project manages
 feature requests please consult the
-[feature request management document](https://github.com/nodejs/node/blob/master/doc/guides/feature-request-management.md).
+[feature request management document](https://github.com/nodejs/node/blob/HEAD/doc/guides/feature-request-management.md).
 ```
 
 If there is no additional activity/discussion on the
