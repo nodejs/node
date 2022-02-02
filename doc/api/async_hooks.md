@@ -339,7 +339,8 @@ TTYWRAP, UDPSENDWRAP, UDPWRAP, WRITEWRAP, ZLIB, SSLCONNECTION, PBKDF2REQUEST,
 RANDOMBYTESREQUEST, TLSWRAP, Microtask, Timeout, Immediate, TickObject
 ```
 
-These values can change in any Node.js release.
+These values can change in any Node.js release. Furthermore users of [`AsyncResource`][]
+likely provide other values.
 
 There is also the `PROMISE` resource type, which is used to track `Promise`
 instances and asynchronous work scheduled by them.
