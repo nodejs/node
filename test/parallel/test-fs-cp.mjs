@@ -108,6 +108,16 @@ function nextdir() {
 }
 
 
+// It throws an error when both dereference and verbatimSymlinks are enabled.
+{
+  const src = './test/fixtures/copy/kitchen-sink';
+  assert.throws(
+    () => cpSync(src, src, { dereference: true, verbatimSymlinks: true }),
+    { code: 'ERR_INVALID_ARG_TYPE' }
+  );
+}
+
+
 // It resolves relative symlinks to their absolute path by default.
 {
   const src = nextdir();
