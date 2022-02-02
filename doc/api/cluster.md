@@ -761,7 +761,7 @@ The `addressType` is one of:
 * `4` (TCPv4)
 * `6` (TCPv6)
 * `-1` (Unix domain socket)
-* `'udp4'` or `'udp6'` (UDP v4 or v6)
+* `'udp4'` or `'udp6'` (UDPv4 or UDPv6)
 
 ## Event: `'message'`
 
