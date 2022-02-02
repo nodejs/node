@@ -16,7 +16,7 @@
 #define CHECK_TO_NUMBER(env, context, result, src) \
   CHECK_TO_TYPE((env), Number, (context), (result), (src), napi_number_expected)
 
-// n-api defines NAPI_AUTO_LENGHTH as the indicator that a string
+// n-api defines NAPI_AUTO_LENGTH as the indicator that a string
 // is null terminated. For V8 the equivalent is -1. The assert
 // validates that our cast of NAPI_AUTO_LENGTH results in -1 as
 // needed by V8.
