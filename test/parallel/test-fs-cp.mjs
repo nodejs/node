@@ -95,19 +95,19 @@ function nextdir() {
 }
 
 
-// It throws error when absolute is not a boolean
+// It throws error when verbatimSymlinks is not a boolean.
 {
   const src = './test/fixtures/copy/kitchen-sink';
-  [1, [], {}, null, 1n, undefined, null].forEach((absolute) => {
+  [1, [], {}, null, 1n, undefined, null].forEach((verbatimSymlinks) => {
     assert.throws(
-      () => cpSync(src, src, {absolute}),
+      () => cpSync(src, src, {verbatimSymlinks}),
       { code: 'ERR_INVALID_ARG_TYPE' }
     );
   });
 }
 
 
-// It resolves relative symlinks to absolute path by default
+// It resolves relative symlinks to their absolute path by default.
 {
   const src = nextdir();
   mkdirSync(src, { recursive: true });
@@ -123,7 +123,7 @@ function nextdir() {
 }
 
 
-// It resolves relative symlinks to absolute path when absolute is true
+// It resolves relative symlinks when verbatimSymlinks is false.
 {
   const src = nextdir();
   mkdirSync(src, { recursive: true });
@@ -133,13 +133,13 @@ function nextdir() {
   const dest = nextdir();
   mkdirSync(dest, { recursive: true });
 
-  cpSync(src, dest, { recursive: true, absolute: true });
+  cpSync(src, dest, { recursive: true, verbatimSymlinks: false });
   const link = readlinkSync(join(dest, 'bar.js'));
   assert.strictEqual(link, join(src, 'foo.js'));
 }
 
 
-// It copies relative symlink when absolute is false
+// It does not resolve relative symlinks when verbatimSymlinks is true.
 {
   const src = nextdir();
   mkdirSync(src, { recursive: true });
@@ -149,7 +149,7 @@ function nextdir() {
   const dest = nextdir();
   mkdirSync(dest, { recursive: true });
 
-  cpSync(src, dest, { recursive: true, absolute: false });
+  cpSync(src, dest, { recursive: true, verbatimSymlinks: true });
   const link = readlinkSync(join(dest, 'bar.js'));
   assert.strictEqual(link, 'foo.js');
 }
