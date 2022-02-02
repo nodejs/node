@@ -100,7 +100,7 @@ function nextdir() {
   const src = './test/fixtures/copy/kitchen-sink';
   [1, [], {}, null, 1n, undefined, null].forEach((verbatimSymlinks) => {
     assert.throws(
-      () => cpSync(src, src, {verbatimSymlinks}),
+      () => cpSync(src, src, { verbatimSymlinks }),
       { code: 'ERR_INVALID_ARG_TYPE' }
     );
   });
