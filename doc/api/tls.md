@@ -1365,7 +1365,7 @@ Returns the string representation of the local IP address.
 added: v0.11.4
 -->
 
-* {number}
+* {integer}
 
 Returns the numeric representation of the local port.
 
@@ -1396,7 +1396,7 @@ Returns the string representation of the remote IP family. `'IPv4'` or `'IPv6'`.
 added: v0.11.4
 -->
 
-* {number}
+* {integer}
 
 Returns the numeric representation of the remote port. For example, `443`.
 
