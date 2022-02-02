@@ -901,7 +901,7 @@ changes:
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
-  * `verbatimSymlinks` {boolean} When `true` path resolution for symlinks will
+  * `verbatimSymlinks` {boolean} When `true`, path resolution for symlinks will
     be skipped. **Default:** `false`
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
@@ -2103,7 +2103,7 @@ added: v16.7.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/41819
-    description: Accepts an additional `verbatimSymlinks` parameter to specify
+    description: Accepts an additional `verbatimSymlinks` option to specify
                  whether to perform path resolution for symlinks.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/41678
@@ -2130,7 +2130,7 @@ changes:
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
-  * `verbatimSymlinks` {boolean} When `true` path resolution for symlinks will
+  * `verbatimSymlinks` {boolean} When `true`, path resolution for symlinks will
     be skipped. **Default:** `false`
 * `callback` {Function}
 
@@ -4893,7 +4893,7 @@ changes:
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
-  * `verbatimSymlinks` {boolean} When `true` path resolution for symlinks will
+  * `verbatimSymlinks` {boolean} When `true`, path resolution for symlinks will
     be skipped. **Default:** `false`
 
 Synchronously copies the entire directory structure from `src` to `dest`,
