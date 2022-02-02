@@ -39,7 +39,7 @@ terms of priority within existing or new APIs is:
 * HTTP 3 is the future need to plan in support.
 
 The current strategy is to build out 2 new client APIs and 2 new Server APIs
-in line with the key elements above.
+in line with the high level strategy above.
 
 While transport-level APIs are important (e.g. socket level), the HTTP APIs
 should not be tied to a specific transport-level API. Therefore,
