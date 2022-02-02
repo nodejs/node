@@ -120,7 +120,6 @@ function nextdir() {
 
   const dest = nextdir();
   mkdirSync(dest, { recursive: true });
-  const destFile = join(dest, 'foo.js');
 
   cpSync(src, dest, { recursive: true, absolute: false });
   const link = readlinkSync(join(dest, 'bar.js'));
