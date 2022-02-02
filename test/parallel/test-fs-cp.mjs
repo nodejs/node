@@ -95,6 +95,34 @@ function nextdir() {
 }
 
 
+// It throws error when absolute is not a boolean
+{
+  const src = './test/fixtures/copy/kitchen-sink';
+  [1, [], {}, null, 1n, undefined, null].forEach((absolute) => {
+    assert.throws(
+      () => cpSync(src, src, {absolute}),
+      { code: 'ERR_INVALID_ARG_TYPE' }
+    );
+  });
+}
+
+
+// It resolves relative symlinks to absolute path by default
+{
+  const src = nextdir();
+  mkdirSync(src, { recursive: true });
+  writeFileSync(join(src, 'foo.js'), 'foo', 'utf8');
+  symlinkSync('foo.js', join(src, 'bar.js'));
+
+  const dest = nextdir();
+  mkdirSync(dest, { recursive: true });
+
+  cpSync(src, dest, { recursive: true });
+  const link = readlinkSync(join(dest, 'bar.js'));
+  assert.strictEqual(link, join(src, 'foo.js'));
+}
+
+
 // It resolves relative symlinks to absolute path when absolute is true
 {
   const src = nextdir();
