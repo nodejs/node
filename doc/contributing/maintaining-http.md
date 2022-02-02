@@ -6,7 +6,7 @@ Node.js as captured in the project's
 
 The current high level strategy is based on the discussion in the
 [Next-10](https://github.com/nodejs/next-10)
- [mini-summit](https://github.com/nodejs/next-10/blob/main/meetings/summit-jan-2022.md)
+[mini-summit](https://github.com/nodejs/next-10/blob/main/meetings/summit-jan-2022.md)
 on modern HTTP which was held on Jan 27 2022.
 
 ## High level strategy
