@@ -896,6 +896,8 @@ added: v16.7.0
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
+  * `absolute` {boolean} convert relative symlinks to absolute symlinks.
+    **Default:** `true`
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously copies the entire directory structure from `src` to `dest`,
@@ -2119,6 +2121,8 @@ changes:
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
+  * `absolute` {boolean} convert relative symlinks to absolute symlinks.
+    **Default:** `true`
 * `callback` {Function}
 
 Asynchronously copies the entire directory structure from `src` to `dest`,
@@ -4875,6 +4879,8 @@ added: v16.7.0
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
+  * `absolute` {boolean} convert relative symlinks to absolute symlinks.
+    **Default:** `true`
 
 Synchronously copies the entire directory structure from `src` to `dest`,
 including subdirectories and files.

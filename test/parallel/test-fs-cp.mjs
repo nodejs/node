@@ -95,6 +95,39 @@ function nextdir() {
 }
 
 
+// It resolves relative symlinks to absolute path when absolute is true
+{
+  const src = nextdir();
+  mkdirSync(src, { recursive: true });
+  writeFileSync(join(src, 'foo.js'), 'foo', 'utf8');
+  symlinkSync('foo.js', join(src, 'bar.js'));
+
+  const dest = nextdir();
+  mkdirSync(dest, { recursive: true });
+
+  cpSync(src, dest, { recursive: true, absolute: true });
+  const link = readlinkSync(join(dest, 'bar.js'));
+  assert.strictEqual(link, join(src, 'foo.js'));
+}
+
+
+// It copies relative symlink when absolute is false
+{
+  const src = nextdir();
+  mkdirSync(src, { recursive: true });
+  writeFileSync(join(src, 'foo.js'), 'foo', 'utf8');
+  symlinkSync('foo.js', join(src, 'bar.js'));
+
+  const dest = nextdir();
+  mkdirSync(dest, { recursive: true });
+  const destFile = join(dest, 'foo.js');
+
+  cpSync(src, dest, { recursive: true, absolute: false });
+  const link = readlinkSync(join(dest, 'bar.js'));
+  assert.strictEqual(link, 'foo.js');
+}
+
+
 // It throws error when src and dest are identical.
 {
   const src = './test/fixtures/copy/kitchen-sink';
