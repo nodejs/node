@@ -1,22 +1,16 @@
 'use strict';
 
-// Flags: --expose-internals
 const common = require('../common');
 const assert = require('assert');
 const { Worker } = require('worker_threads');
-const { HeapSnapshotStream } = require('internal/heap_utils');
-const { kHandle } = require('internal/worker');
+const { once } = require('events');
 
-const worker = new Worker(__filename);
-const snapShotResult = { ondone: () => {} };
-worker[kHandle].takeHeapSnapshot = common.mustCall(() => snapShotResult);
+// Ensure that worker.getHeapSnapshot() returns a valid JSON
+(async () => {
+  const worker = new Worker('setInterval(() => {}, 1000);', { eval: true });
+  await once(worker, 'online');
+  const stream = await worker.getHeapSnapshot();
+  assert.ok(JSON.parse(stream.read()));
 
-worker.on('online', common.mustCall(() => {
-  const snapShotResponse = worker.getHeapSnapshot();
-  snapShotResult.ondone({});
-
-  snapShotResponse.then(common.mustCall((heapSnapshotStream) => {
-    assert.ok(heapSnapshotStream instanceof HeapSnapshotStream);
-    worker.terminate();
-  }));
-}));
+  await worker.terminate();
+})().then(common.mustCall());
