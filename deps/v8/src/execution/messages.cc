@@ -858,7 +858,8 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
   Handle<FixedArray> elems = Handle<FixedArray>::cast(raw_stack);
 
   const bool in_recursion = isolate->formatting_stack_trace();
-  if (!in_recursion) {
+  const bool has_overflowed = i::StackLimitCheck{isolate}.HasOverflowed();
+  if (!in_recursion && !has_overflowed) {
     Handle<Context> error_context = error->GetCreationContext();
     DCHECK(error_context->IsNativeContext());
 
