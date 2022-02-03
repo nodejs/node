@@ -93,4 +93,10 @@ const naturals = () => from(async function*() {
   for (const example of invalidArgs) {
     throws(() => from([]).take(example).toArray(), /ERR_OUT_OF_RANGE/);
   }
+
+  throws(() => Readable.from([1]).drop(1, 1), /ERR_INVALID_ARG_TYPE/);
+  throws(() => Readable.from([1]).drop(1, { signal: true }), /ERR_INVALID_ARG_TYPE/);
+
+  throws(() => Readable.from([1]).take(1, 1), /ERR_INVALID_ARG_TYPE/);
+  throws(() => Readable.from([1]).take(1, { signal: true }), /ERR_INVALID_ARG_TYPE/);
 }
