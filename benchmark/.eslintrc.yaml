@@ -5,6 +5,5 @@ env:
   es6: true
 
 rules:
-  no-empty: error
   no-var: error
   prefer-arrow-callback: error
