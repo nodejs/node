@@ -3067,10 +3067,8 @@ changes:
 
 Type: End-of-Life
 
-This error was removed due to adding more confusion to
+This error code was removed due to adding more confusion to
 the errors used for value type validation.
-
-Use [`ERR_INVALID_ARG_TYPE`][] instead.
 
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
@@ -3086,7 +3084,6 @@ Use [`ERR_INVALID_ARG_TYPE`][] instead.
 [`Buffer.isBuffer()`]: buffer.md#static-method-bufferisbufferobj
 [`Cipher`]: crypto.md#class-cipher
 [`Decipher`]: crypto.md#class-decipher
-[`ERR_INVALID_ARG_TYPE`]: errors.md#err_invalid_arg_type
 [`REPLServer.clearBufferedCommand()`]: repl.md#replserverclearbufferedcommand
 [`ReadStream.open()`]: fs.md#class-fsreadstream
 [`Server.getConnections()`]: net.md#servergetconnectionscallback
