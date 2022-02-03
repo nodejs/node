@@ -5335,6 +5335,52 @@ Use of `crypto.timingSafeEqual` does not guarantee that the _surrounding_ code
 is timing-safe. Care should be taken to ensure that the surrounding code does
 not introduce timing vulnerabilities.
 
+As a rule of thumb, if you would like to use `crypto.timingSafeEqual` to
+compare a known secret against an input of unknown length, you should size both
+`a` and `b` to the length of the input rather than to the length of the secret.
+If `crypto.timingSafeEqual` returns `true`, you should then check that the
+original input is of the same length as the secret. If your surrounding code
+compares the lengths of secret and input and rejects an input of different
+length without calling `crypto.timingSafeEqual`, you may leak timing
+information. Likewise, if you truncate or grow `a` and `b` based on the length
+of the secret rather than the length of the input, you may leak timing
+information, since `crypto.timingSafeEqual` will take different amounts of time
+to execute for inputs of different length.
+
+```mjs
+import { Buffer } from 'buffer';
+const { timingSafeEqual } = await import('crypto');
+
+function timingSafeStringCompare(input, secret) {
+  const inputBuffer = Buffer.from(input);
+  const secretBuffer = Buffer.alloc(inputBuffer.length);
+  secretBuffer.write(secret);
+
+  return timingSafeEqual(inputBuffer, secretBuffer) &&
+    inputBuffer.length === Buffer.byteLength(secret);
+}
+
+// Perform a timing-safe comparison of two utf-8 strings.
+console.log(timingSafeStringCompare('evil_hacker', 'verysecret'));
+```
+
+```cjs
+const { Buffer } = require('buffer');
+const { timingSafeEqual } = require('crypto');
+
+function timingSafeStringCompare(input, secret) {
+  const inputBuffer = Buffer.from(input);
+  const secretBuffer = Buffer.alloc(inputBuffer.length);
+  secretBuffer.write(secret);
+
+  return timingSafeEqual(inputBuffer, secretBuffer) &&
+    inputBuffer.length === Buffer.byteLength(secret);
+}
+
+// Perform a timing-safe comparison of two utf-8 strings.
+console.log(timingSafeStringCompare('evil_hacker', 'verysecret'));
+```
+
 ### `crypto.verify(algorithm, data, key, signature[, callback])`
 
 <!-- YAML
