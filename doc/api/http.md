@@ -22,7 +22,7 @@ HTTP message headers are represented by an object like this:
 { 'content-length': '123',
   'content-type': 'text/plain',
   'connection': 'keep-alive',
-  'host': 'mysite.com',
+  'host': 'example.com',
   'accept': '*/*' }
 ```
 
@@ -47,7 +47,7 @@ list like the following:
   'content-LENGTH', '123',
   'content-type', 'text/plain',
   'CONNECTION', 'keep-alive',
-  'Host', 'mysite.com',
+  'Host', 'example.com',
   'accepT', '*/*' ]
 ```
 
