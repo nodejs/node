@@ -1255,7 +1255,9 @@ import {
 
 if (isMainThread) {
   new Worker(new URL(import.meta.url));
-  for (let n = 0; n < 1e10; n++) {}
+  for (let n = 0; n < 1e10; n++) {
+    // Looping to simulate work.
+  }
 } else {
   // This output will be blocked by the for loop in the main thread.
   console.log('foo');
@@ -1272,7 +1274,9 @@ const {
 
 if (isMainThread) {
   new Worker(__filename);
-  for (let n = 0; n < 1e10; n++) {}
+  for (let n = 0; n < 1e10; n++) {
+    // Looping to simulate work.
+  }
 } else {
   // This output will be blocked by the for loop in the main thread.
   console.log('foo');
