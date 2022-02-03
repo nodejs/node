@@ -79,3 +79,15 @@ const assert = require('assert');
   const result = Readable.from([1, 2, 3, 4, 5]).toArray();
   assert.strictEqual(result instanceof Promise, true);
 }
+{
+  // Error cases
+  assert.rejects(async () => {
+    await Readable.from([1]).toArray(1);
+  }, /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
+
+  assert.rejects(async () => {
+    await Readable.from([1]).toArray({
+      signal: true
+    });
+  }, /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
+}

@@ -1,6 +1,6 @@
 import '../common/index.mjs';
 import { Readable } from 'stream';
-import { deepStrictEqual, rejects } from 'assert';
+import { deepStrictEqual, rejects, throws } from 'assert';
 
 {
   // asIndexedPairs with a synchronous stream
@@ -44,4 +44,10 @@ import { deepStrictEqual, rejects } from 'assert';
     const signal = AbortSignal.abort();
     await Readable.from([1, 2, 3]).asIndexedPairs({ signal }).toArray();
   }, /AbortError/);
+}
+
+{
+  // Error cases
+  throws(() => Readable.from([1]).asIndexedPairs(1), /ERR_INVALID_ARG_TYPE/);
+  throws(() => Readable.from([1]).asIndexedPairs({ signal: true }), /ERR_INVALID_ARG_TYPE/);
 }

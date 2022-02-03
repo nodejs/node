@@ -91,6 +91,7 @@ const { setTimeout } = require('timers/promises');
     concurrency: 'Foo'
   }), /ERR_OUT_OF_RANGE/);
   assert.throws(() => Readable.from([1]).map((x) => x, 1), /ERR_INVALID_ARG_TYPE/);
+  assert.throws(() => Readable.from([1]).map((x) => x, { signal: true }), /ERR_INVALID_ARG_TYPE/);
 }
 {
   // Test result is a Readable
