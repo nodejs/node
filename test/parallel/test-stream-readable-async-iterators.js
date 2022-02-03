@@ -242,8 +242,8 @@ async function tests() {
 
     let err;
     try {
-      // eslint-disable-next-line no-unused-vars
-      for await (const k of readable) {}
+      // eslint-disable-next-line no-unused-vars, no-empty
+      for await (const k of readable) { }
     } catch (e) {
       err = e;
     }
@@ -449,12 +449,10 @@ async function tests() {
         this.push(null);
       }
     });
-    // eslint-disable-next-line no-unused-vars
-    for await (const a of r) {
-    }
-    // eslint-disable-next-line no-unused-vars
-    for await (const b of r) {
-    }
+    // eslint-disable-next-line no-unused-vars, no-empty
+    for await (const a of r) { }
+    // eslint-disable-next-line no-unused-vars, no-empty
+    for await (const b of r) { }
   }
 
   {
@@ -594,7 +592,7 @@ async function tests() {
       }
     });
 
-    for await (const chunk of r) {} // eslint-disable-line no-unused-vars
+    for await (const chunk of r) { } // eslint-disable-line no-unused-vars, no-empty
     assert.strictEqual(r.destroyed, false);
   }
 
@@ -627,8 +625,7 @@ async function tests() {
       assert.strictEqual(r.destroyed, false);
     });
 
-    for await (const chunk of r) {} // eslint-disable-line no-unused-vars
-
+    for await (const chunk of r) { } // eslint-disable-line no-unused-vars, no-empty
     assert.strictEqual(r.destroyed, true);
   }
 }
@@ -737,7 +734,7 @@ async function tests() {
     const readable = createErrorReadable();
     try {
       // eslint-disable-next-line no-unused-vars
-      for await (const chunk of readable) { }
+      for await (const chunk of readable);
       assert.fail('should have thrown');
     } catch (err) {
       assert.strictEqual(err.message, 'inner');
@@ -752,7 +749,7 @@ async function tests() {
     const opts = { destroyOnError: true, destroyOnReturn: false };
     try {
       // eslint-disable-next-line no-unused-vars
-      for await (const chunk of readable.iterator(opts)) { }
+      for await (const chunk of readable.iterator(opts));
       assert.fail('should have thrown');
     } catch (err) {
       assert.strictEqual(err.message, 'inner');
@@ -767,7 +764,7 @@ async function tests() {
     const opts = { destroyOnError: false, destroyOnReturn: true };
     try {
       // eslint-disable-next-line no-unused-vars
-      for await (const chunk of readable.iterator(opts)) { }
+      for await (const chunk of readable.iterator(opts));
       assert.fail('should have thrown');
     } catch (err) {
       assert.strictEqual(err.message, 'inner');
@@ -827,8 +824,8 @@ async function tests() {
 
         let _err;
         try {
-          // eslint-disable-next-line no-unused-vars
-          for await (const chunk of res) {}
+          // eslint-disable-next-line no-unused-vars, no-empty
+          for await (const chunk of res) { }
         } catch (err) {
           _err = err;
         }

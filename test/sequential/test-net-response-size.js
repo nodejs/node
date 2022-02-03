@@ -65,7 +65,7 @@ if (process.argv[2] === 'server') {
 
       // Block the event loop for 1 second
       const start = (new Date()).getTime();
-      while ((new Date()).getTime() < start + 1000) {}
+      while ((new Date()).getTime() < start + 1000);
 
       client.write(alittle);
 
