@@ -774,6 +774,9 @@ This file contains the dependencies <code>renderized</code> and <code>super-stre
 can be installed in a new project by executing <code>npm install awesome-web-framework-1.0.0.tgz</code>.  Note that the package names do not
 include any versions, as that information is specified in <code>dependencies</code>.</p>
 <p>If this is spelled <code>"bundleDependencies"</code>, then that is also honored.</p>
+<p>Alternatively, <code>"bundledDependencies"</code> can be defined as a boolean value. A
+value of <code>true</code> will bundle all dependencies, a value of <code>false</code> will bundle
+none.</p>
 <h3 id="optionaldependencies">optionalDependencies</h3>
 <p>If a dependency can be used, but you would like npm to proceed if it cannot
 be found or fails to install, then you may put it in the

@@ -4,11 +4,14 @@ const errors = require('./errors.js')
 const { Response } = require('minipass-fetch')
 const defaultOpts = require('./default-opts.js')
 
+/* eslint-disable-next-line max-len */
+const moreInfoUrl = 'https://github.com/npm/cli/wiki/No-auth-for-URI,-but-auth-present-for-scoped-registry'
 const checkResponse =
   async ({ method, uri, res, registry, startTime, auth, opts }) => {
     opts = { ...defaultOpts, ...opts }
-    if (res.headers.has('npm-notice') && !res.headers.has('x-local-cache'))
+    if (res.headers.has('npm-notice') && !res.headers.has('x-local-cache')) {
       opts.log.notice('', res.headers.get('npm-notice'))
+    }
 
     if (res.status >= 400) {
       logRequest(method, res, startTime, opts)
@@ -21,7 +24,7 @@ const checkResponse =
 URI: ${uri}
 Scoped Registry Key: ${auth.scopeAuthKey}
 
-More info here: https://github.com/npm/cli/wiki/No-auth-for-URI,-but-auth-present-for-scoped-registry`)
+More info here: ${moreInfoUrl}`)
       }
       return checkErrors(method, res, startTime, opts)
     } else {
@@ -46,8 +49,9 @@ function logRequest (method, res, startTime, opts) {
   try {
     const { URL } = require('url')
     const url = new URL(res.url)
-    if (url.password)
+    if (url.password) {
       url.password = '***'
+    }
 
     urlStr = url.toString()
   } catch (er) {
@@ -85,7 +89,11 @@ function checkErrors (method, res, startTime, opts) {
             method, res, parsed, opts.spec
           )
         }
-      } else if (res.status === 401 && body != null && /one-time pass/.test(body.toString('utf8'))) {
+      } else if (
+        res.status === 401 &&
+        body != null &&
+        /one-time pass/.test(body.toString('utf8'))
+      ) {
         // Heuristic for malformed OTP responses that don't include the
         // www-authenticate header.
         throw new errors.HttpErrorAuthOTP(

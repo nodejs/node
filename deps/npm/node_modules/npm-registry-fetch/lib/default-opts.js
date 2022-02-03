@@ -1,4 +1,4 @@
-const pkg = require('./package.json')
+const pkg = require('../package.json')
 module.exports = {
   log: require('./silentlog.js'),
   maxSockets: 12,
