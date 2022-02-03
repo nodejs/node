@@ -469,10 +469,10 @@ Stops a timer that was previously started by calling [`console.time()`][] and
 prints the result to `stdout`:
 
 ```js
-console.time('100-elements');
-for (let i = 0; i < 100; i++) {}
-console.timeEnd('100-elements');
-// prints 100-elements: 225.438ms
+console.time('bunch-of-stuff');
+// Do a bunch of stuff.
+console.timeEnd('bunch-of-stuff');
+// Prints: bunch-of-stuff: 225.438ms
 ```
 
 ### `console.timeLog([label][, ...data])`
