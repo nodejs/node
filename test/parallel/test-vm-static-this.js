@@ -45,9 +45,7 @@ const code = 'foo = 1;' +
              'throw new Error(\'test fail\');';
 global.foo = 2;
 global.obj = { foo: 0, baz: 3 };
-/* eslint-disable no-unused-vars */
-const baz = vm.runInThisContext(code);
-/* eslint-enable no-unused-vars */
+vm.runInThisContext(code);
 assert.strictEqual(global.obj.foo, 0);
 assert.strictEqual(global.bar, 2);
 assert.strictEqual(global.foo, 1);

@@ -10,8 +10,7 @@ async function processLineByLine_SymbolAsyncError(filename) {
     input: fileStream,
     crlfDelay: Infinity
   });
-  // eslint-disable-next-line no-unused-vars
-  for await (const line of rl) {
+  for await (const {} of rl) {
     /* check SymbolAsyncIterator `errorListener` */
   }
 }

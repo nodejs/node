@@ -65,9 +65,7 @@ const Script = require('vm').Script;
   global.foo = 2;
   global.obj = { foo: 0, baz: 3 };
   const script = new Script(global.code);
-  /* eslint-disable no-unused-vars */
-  const baz = script.runInNewContext(global.obj);
-  /* eslint-enable no-unused-vars */
+  script.runInNewContext(global.obj);
   assert.strictEqual(global.obj.foo, 1);
   assert.strictEqual(global.obj.bar, 2);
   assert.strictEqual(global.foo, 2);

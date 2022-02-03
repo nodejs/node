@@ -54,8 +54,7 @@ async function error() {
   let thrown = false;
 
   try {
-    // eslint-disable-next-line no-unused-vars
-    for await (const event of iterable) {
+    for await (const {} of iterable) {
       looped = true;
     }
   } catch (err) {

@@ -38,8 +38,7 @@ assert.ok(r.external > 0);
 assert.strictEqual(typeof r.arrayBuffers, 'number');
 if (r.arrayBuffers > 0) {
   const size = 10 * 1024 * 1024;
-  // eslint-disable-next-line no-unused-vars
-  const ab = new ArrayBuffer(size);
+  new ArrayBuffer(size);
 
   const after = process.memoryUsage();
   assert.ok(after.external - r.external >= size,

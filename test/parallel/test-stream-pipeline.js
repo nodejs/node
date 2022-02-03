@@ -700,7 +700,7 @@ const tsp = require('timers/promises');
     await Promise.resolve();
     yield 'hello';
   }, async function*(source) { // eslint-disable-line require-yield
-    for await (const chunk of source) {} // eslint-disable-line no-unused-vars
+    for await (const {} of source) {}
   }, common.mustCall((err) => {
     assert.strictEqual(err, undefined);
   }));
@@ -716,7 +716,7 @@ const tsp = require('timers/promises');
     await Promise.resolve();
     throw new Error('kaboom');
   }, async function*(source) { // eslint-disable-line require-yield
-    for await (const chunk of source) {} // eslint-disable-line no-unused-vars
+    for await (const {} of source) {}
   }, common.mustCall((err) => {
     assert.strictEqual(err.message, 'kaboom');
   }));
@@ -771,7 +771,7 @@ const tsp = require('timers/promises');
     yield 'hello';
     yield 'world';
   }, s, async function(source) {
-    for await (const chunk of source) { // eslint-disable-line no-unused-vars
+    for await (const {} of source) {
       throw new Error('kaboom');
     }
   }, common.mustCall((err, val) => {
@@ -785,7 +785,7 @@ const tsp = require('timers/promises');
   const ret = pipeline(function() {
     return ['hello', 'world'];
   }, s, async function*(source) { // eslint-disable-line require-yield
-    for await (const chunk of source) { // eslint-disable-line no-unused-vars
+    for await (const {} of source) {
       throw new Error('kaboom');
     }
   }, common.mustCall((err) => {
@@ -1055,7 +1055,7 @@ const tsp = require('timers/promises');
     write: common.mustNotCall()
   });
   pipeline(rs, async function*(stream) { // eslint-disable-line require-yield
-    for await (const chunk of stream) { // eslint-disable-line no-unused-vars
+    for await (const {} of stream) {
       throw new Error('kaboom');
     }
   }, async function *(source) { // eslint-disable-line require-yield

@@ -49,9 +49,7 @@ global.code = 'foo = 1;' +
               'if (baz !== 3) throw new Error(\'test fail\');';
 global.foo = 2;
 global.obj = { foo: 0, baz: 3 };
-/* eslint-disable no-unused-vars */
-const baz = vm.runInNewContext(global.code, global.obj);
-/* eslint-enable no-unused-vars */
+vm.runInNewContext(global.code, global.obj);
 assert.strictEqual(global.obj.foo, 1);
 assert.strictEqual(global.obj.bar, 2);
 assert.strictEqual(global.foo, 2);

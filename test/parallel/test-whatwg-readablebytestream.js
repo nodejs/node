@@ -161,8 +161,7 @@ class Source {
   assert(stream[kState].controller instanceof ReadableByteStreamController);
 
   async function read(stream) {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream)
+    for await (const {} of stream)
       break;
   }
 
@@ -176,8 +175,7 @@ class Source {
   const error = new Error('boom');
 
   async function read(stream) {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream)
+    for await (const {} of stream)
       throw error;
   }
 

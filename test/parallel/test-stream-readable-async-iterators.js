@@ -63,7 +63,7 @@ async function tests() {
     });
 
     await (async () => {
-      for await (const d of readable) { // eslint-disable-line no-unused-vars
+      for await (const {} of readable) {
         return;
       }
     })();
@@ -243,8 +243,7 @@ async function tests() {
 
     let err;
     try {
-      // eslint-disable-next-line no-unused-vars
-      for await (const k of readable) {}
+      for await (const {} of readable) {}
     } catch (e) {
       err = e;
     }
@@ -271,8 +270,7 @@ async function tests() {
 
     let err = null;
     try {
-      // eslint-disable-next-line no-unused-vars
-      for await (const k of readable) {
+      for await (const {} of readable) {
         received++;
       }
     } catch (e) {
@@ -461,11 +459,9 @@ async function tests() {
         this.push(null);
       }
     });
-    // eslint-disable-next-line no-unused-vars
-    for await (const a of r) {
+    for await (const {} of r) {
     }
-    // eslint-disable-next-line no-unused-vars
-    for await (const b of r) {
+    for await (const {} of r) {
     }
   }
 
@@ -481,8 +477,7 @@ async function tests() {
 
     let err = null;
     try {
-      // eslint-disable-next-line no-unused-vars
-      for await (const a of r) {
+      for await (const {} of r) {
         r.destroy(null);
       }
     } catch (_err) {
@@ -616,7 +611,7 @@ async function tests() {
       }
     });
 
-    for await (const chunk of r) {} // eslint-disable-line no-unused-vars
+    for await (const {} of r) {}
     assert.strictEqual(r.destroyed, false);
   }
 
@@ -631,7 +626,7 @@ async function tests() {
       }
     });
 
-    for await (const chunk of r) { // eslint-disable-line no-unused-vars
+    for await (const {} of r) {
       break;
     }
     assert.strictEqual(r.destroyed, true);
@@ -649,7 +644,7 @@ async function tests() {
       assert.strictEqual(r.destroyed, false);
     });
 
-    for await (const chunk of r) {} // eslint-disable-line no-unused-vars
+    for await (const {} of r) {}
 
     assert.strictEqual(r.destroyed, true);
   }
@@ -724,8 +719,7 @@ async function tests() {
     const readable = fs.createReadStream(__filename);
 
     try {
-      // eslint-disable-next-line no-unused-vars
-      for await (const chunk of readable) {
+      for await (const {} of readable) {
         readable.close();
       }
 
@@ -812,8 +806,7 @@ async function tests() {
 
         let _err;
         try {
-          // eslint-disable-next-line no-unused-vars
-          for await (const chunk of res) {}
+          for await (const {} of res) {}
         } catch (err) {
           _err = err;
         }

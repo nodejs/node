@@ -39,10 +39,8 @@ onresponse.responses = [];
 
 function allSame(list) {
   assert(list.length >= 2);
-  // eslint-disable-next-line no-unused-vars
-  for (const elt of list) eval('%DebugPrint(elt)');
-  // eslint-disable-next-line no-unused-vars
-  for (const elt of list) assert(eval('%HaveSameMap(list[0], elt)'));
+  for (const {} of list) eval('%DebugPrint(elt)');
+  for (const {} of list) assert(eval('%HaveSameMap(list[0], elt)'));
 }
 
 process.on('exit', () => {

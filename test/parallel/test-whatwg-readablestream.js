@@ -1255,8 +1255,7 @@ class Source {
   });
 
   async function read(stream) {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream.values({ preventCancel: true }))
+    for await (const {} of stream.values({ preventCancel: true }))
       return;
   }
 
@@ -1270,8 +1269,7 @@ class Source {
   const stream = new ReadableStream(source);
 
   async function read(stream) {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream.values({ preventCancel: false }))
+    for await (const {} of stream.values({ preventCancel: false }))
       return;
   }
 
@@ -1287,8 +1285,7 @@ class Source {
   const error = new Error('boom');
 
   async function read(stream) {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream.values({ preventCancel: true }))
+    for await (const {} of stream.values({ preventCancel: true }))
       throw error;
   }
 
@@ -1304,8 +1301,7 @@ class Source {
   const error = new Error('boom');
 
   async function read(stream) {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream.values({ preventCancel: false }))
+    for await (const {} of stream.values({ preventCancel: false }))
       throw error;
   }
 

@@ -19,8 +19,7 @@ const buf = Buffer.from('foo');
 function testIterator(list, count) {
   // test iterator
   let len = 0;
-  // eslint-disable-next-line no-unused-vars
-  for (const x of list) {
+  for (const {} of list) {
     len++;
   }
   assert.strictEqual(len, count);

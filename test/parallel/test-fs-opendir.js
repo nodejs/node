@@ -157,7 +157,7 @@ doAsyncIterTest().then(common.mustCall());
 
 async function doAsyncIterBreakTest() {
   const dir = await fs.promises.opendir(testDir);
-  for await (const dirent of dir) { // eslint-disable-line no-unused-vars
+  for await (const {} of dir) {
     break;
   }
 
@@ -168,7 +168,7 @@ doAsyncIterBreakTest().then(common.mustCall());
 async function doAsyncIterReturnTest() {
   const dir = await fs.promises.opendir(testDir);
   await (async function() {
-    for await (const dirent of dir) { // eslint-disable-line no-unused-vars
+    for await (const {} of dir) {
       return;
     }
   })();
@@ -180,7 +180,7 @@ doAsyncIterReturnTest().then(common.mustCall());
 async function doAsyncIterThrowTest() {
   const dir = await fs.promises.opendir(testDir);
   try {
-    for await (const dirent of dir) { // eslint-disable-line no-unused-vars
+    for await (const {} of dir) {
       throw new Error('oh no');
     }
   } catch (err) {

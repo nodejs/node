@@ -316,8 +316,7 @@ const assert = require('assert');
     assert.strictEqual(e.name, 'AbortError');
   }));
   assert.rejects((async () => {
-    /* eslint-disable-next-line no-unused-vars */
-    for await (const chunk of read) {}
+    for await (const {} of read) {}
   })(), /AbortError/);
   setTimeout(() => controller.abort(), 0);
 }

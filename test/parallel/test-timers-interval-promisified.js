@@ -136,8 +136,7 @@ process.on('multipleResolves', common.mustNotCall());
   async function tryBreak() {
     const iterator = setInterval(10, undefined, { signal });
     let i = 0;
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of iterator) {
+    for await (const {} of iterator) {
       if (i === 0) {
         assert.strictEqual(signal.listenerCount('abort'), 1);
       }
@@ -251,8 +250,7 @@ process.on('multipleResolves', common.mustNotCall());
   const signal = AbortSignal.abort('boom');
   try {
     const iterable = timerPromises.setInterval(2, undefined, { signal });
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of iterable) {}
+    for await (const {} of iterable) {}
     assert.fail('should have failed');
   } catch (err) {
     assert.strictEqual(err.cause, 'boom');
