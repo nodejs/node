@@ -369,7 +369,7 @@ The first three are enabled by default. The two `CCM`-based suites are supported
 by TLSv1.3 because they may be more performant on constrained systems, but they
 are not enabled by default since they offer less security.
 
-## X509 Certificate Error codes
+## X509 certificate error codes
 
 Multiple functions can fail due to certificate errors that are reported by
 OpenSSL. In such a case, the function provides an {Error} via its callback that
