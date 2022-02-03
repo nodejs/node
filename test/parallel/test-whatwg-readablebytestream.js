@@ -232,7 +232,3 @@ class Source {
     code: 'ERR_INVALID_STATE',
   });
 }
-
-{
-
-}
