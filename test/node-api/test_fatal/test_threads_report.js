@@ -16,7 +16,7 @@ if (common.buildType === 'Debug')
 if (process.argv[2] === 'child') {
   test_fatal.TestThread();
   // Busy loop to allow the work thread to abort.
-  while (true) {}
+  while (true);
 }
 
 tmpdir.refresh();

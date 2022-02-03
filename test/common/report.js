@@ -46,7 +46,9 @@ function validateContent(report, fields = []) {
   } catch (err) {
     try {
       err.stack += util.format('\n------\nFailing Report:\n%O', report);
-    } catch {}
+    } catch {
+      // Continue regardless of error.
+    }
     throw err;
   }
 }
