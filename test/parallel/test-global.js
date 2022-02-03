@@ -36,7 +36,9 @@ builtinModules.forEach((moduleName) => {
       // This could throw for e.g., crypto if the binary is not compiled
       // accordingly.
       require(moduleName);
-    } catch {}
+    } catch {
+      // Continue regardless of error.
+    }
   }
 });
 

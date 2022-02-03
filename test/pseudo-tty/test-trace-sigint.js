@@ -26,5 +26,5 @@ function main() {
   // Deactivate colors even if the tty does support colors.
   process.env.NODE_DISABLE_COLORS = '1';
   process.kill(process.pid, 'SIGINT');
-  while (true) {}
+  while (true);
 }

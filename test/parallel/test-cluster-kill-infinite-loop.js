@@ -17,5 +17,5 @@ if (cluster.isPrimary) {
     assert.strictEqual(signal, 'SIGTERM');
   }));
 } else {
-  while (true) {}
+  while (true);
 }

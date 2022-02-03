@@ -49,7 +49,7 @@ function write(out) {
   let endCb = false;
 
   // First, write until it gets some backpressure
-  while (out.write(buf, common.mustSucceed())) {}
+  while (out.write(buf, common.mustSucceed()));
 
   // Now end, and make sure that we don't get the 'finish' event
   // before the tick where the cb gets called.  We give it until

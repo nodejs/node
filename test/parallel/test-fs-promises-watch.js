@@ -75,33 +75,45 @@ for (const testCase of kCases) {
 }
 
 assert.rejects(
-  // eslint-disable-next-line no-unused-vars
-  async () => { for await (const _ of watch(1)) {} },
+  async () => {
+    // eslint-disable-next-line no-unused-vars, no-empty
+    for await (const _ of watch(1)) { }
+  },
   { code: 'ERR_INVALID_ARG_TYPE' });
 
 assert.rejects(
-  // eslint-disable-next-line no-unused-vars
-  async () => { for await (const _ of watch(__filename, 1)) {} },
+  async () => {
+    // eslint-disable-next-line no-unused-vars, no-empty
+    for await (const _ of watch(__filename, 1)) { }
+  },
   { code: 'ERR_INVALID_ARG_TYPE' });
 
 assert.rejects(
-  // eslint-disable-next-line no-unused-vars
-  async () => { for await (const _ of watch('', { persistent: 1 })) {} },
+  async () => {
+    // eslint-disable-next-line no-unused-vars, no-empty
+    for await (const _ of watch('', { persistent: 1 })) { }
+  },
   { code: 'ERR_INVALID_ARG_TYPE' });
 
 assert.rejects(
-  // eslint-disable-next-line no-unused-vars
-  async () => { for await (const _ of watch('', { recursive: 1 })) {} },
+  async () => {
+    // eslint-disable-next-line no-unused-vars, no-empty
+    for await (const _ of watch('', { recursive: 1 })) { }
+  },
   { code: 'ERR_INVALID_ARG_TYPE' });
 
 assert.rejects(
-  // eslint-disable-next-line no-unused-vars
-  async () => { for await (const _ of watch('', { encoding: 1 })) {} },
+  async () => {
+    // eslint-disable-next-line no-unused-vars, no-empty
+    for await (const _ of watch('', { encoding: 1 })) { }
+  },
   { code: 'ERR_INVALID_ARG_VALUE' });
 
 assert.rejects(
-  // eslint-disable-next-line no-unused-vars
-  async () => { for await (const _ of watch('', { signal: 1 })) {} },
+  async () => {
+    // eslint-disable-next-line no-unused-vars, no-empty
+    for await (const _ of watch('', { signal: 1 })) { }
+  },
   { code: 'ERR_INVALID_ARG_TYPE' });
 
 (async () => {
@@ -109,8 +121,8 @@ assert.rejects(
   const { signal } = ac;
   setImmediate(() => ac.abort());
   try {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of watch(__filename, { signal })) {}
+    // eslint-disable-next-line no-unused-vars, no-empty
+    for await (const _ of watch(__filename, { signal })) { }
   } catch (err) {
     assert.strictEqual(err.name, 'AbortError');
   }

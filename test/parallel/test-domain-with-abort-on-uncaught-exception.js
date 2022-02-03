@@ -49,6 +49,7 @@ if (process.argv[2] === 'child') {
         try {
           throw new Error(domainErrHandlerExMessage);
         } catch {
+          // Continue regardless of error.
         }
       } else {
         throw new Error(domainErrHandlerExMessage);

@@ -60,6 +60,7 @@ if (!common.isWindows && process.getuid() === 0) {
     process.setuid('nobody');
     hasWriteAccessForReadonlyFile = false;
   } catch {
+    // Continue regardless of error.
   }
 }
 

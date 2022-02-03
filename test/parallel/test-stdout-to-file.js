@@ -19,7 +19,9 @@ function test(size, useBuffer, cb) {
 
   try {
     fs.unlinkSync(tmpFile);
-  } catch {}
+  } catch {
+    // Continue regardless of error.
+  }
 
   console.log(`${size} chars to ${tmpFile}...`);
 

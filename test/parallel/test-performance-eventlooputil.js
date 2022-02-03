@@ -37,7 +37,7 @@ setTimeout(mustCall(function r() {
     return setTimeout(mustCall(r), 5);
 
   const t = Date.now();
-  while (Date.now() - t < SPIN_DUR) { }
+  while (Date.now() - t < SPIN_DUR);
 
   const elu2 = eventLoopUtilization(elu1);
   const elu3 = eventLoopUtilization();
