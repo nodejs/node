@@ -2464,7 +2464,7 @@ added: v15.6.0
 added: v15.6.0
 -->
 
-* Type: {boolean} Will be `true` if this is a Certificate Authority (ca)
+* Type: {boolean} Will be `true` if this is a Certificate Authority (CA)
   certificate.
 
 ### `x509.checkEmail(email[, options])`
