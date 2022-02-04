@@ -5335,17 +5335,22 @@ Use of `crypto.timingSafeEqual` does not guarantee that the _surrounding_ code
 is timing-safe. Care should be taken to ensure that the surrounding code does
 not introduce timing vulnerabilities.
 
-As a rule of thumb, if you would like to use `crypto.timingSafeEqual` to
-compare a known secret against an input of unknown length, you should size both
-`a` and `b` to the length of the input rather than to the length of the secret.
-If `crypto.timingSafeEqual` returns `true`, you should then check that the
-original input is of the same length as the secret. If your surrounding code
-compares the lengths of secret and input and rejects an input of different
-length without calling `crypto.timingSafeEqual`, you may leak timing
-information. Likewise, if you truncate or grow `a` and `b` based on the length
-of the secret rather than the length of the input, you may leak timing
-information, since `crypto.timingSafeEqual` will take different amounts of time
-to execute for inputs of different length.
+Particular care must be taken if `crypto.timingSafeEqual` is used in scenarios
+where one or both arguments may vary in length, as its algorithm is only
+constant-time with respect to a byte length that is consistent. For example, if
+you are comparing a known secret to an input of unknown length, do not truncate
+the longer of the two to match the length of the shorter one. Doing so may seem
+more efficient, but it can leak timing information. In this case, you might
+instead choose to always size `a` and `b` to the length of the input; this
+means that `crypto.timingSafeEqual` may not always execute in the same amount
+of time, but its variance will be strictly dependent on the attacker's input
+rather than on the length of your secret.
+
+In the above scenario you'll also need to check that the original input is of
+the same length as the secret, but this should be done _in addition_ to calling
+`crypto.timingSafeEqual`, not as a precondition to it. If your code compares
+the lengths of secret and input and rejects an input of different length
+without calling `crypto.timingSafeEqual`, you may leak timing information.
 
 ```mjs
 import { Buffer } from 'buffer';
