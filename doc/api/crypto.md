@@ -5339,12 +5339,13 @@ Particular care must be taken if `crypto.timingSafeEqual` is used in scenarios
 where one or both arguments may vary in length, as its algorithm is only
 constant-time with respect to a byte length that is consistent. For example, if
 you are comparing a known secret to an input of unknown length, do not truncate
-the longer of the two to match the length of the shorter one. Doing so may seem
-more efficient, but it can leak timing information. In this case, you might
-instead choose to always size `a` and `b` to the length of the input; this
-means that `crypto.timingSafeEqual` may not always execute in the same amount
-of time, but its variance will be strictly dependent on the attacker's input
-rather than on the length of your secret.
+whichever of the two happens to be longer to match the length of the shorter
+one. Doing so may seem more efficient, but it can leak timing information. In
+this case, you might instead choose to _always_ size `a` and `b` to the length
+of the input, regardless of whether it's longer or shorter than the secret.
+This would mean that `crypto.timingSafeEqual` might not always execute in the
+same amount of time across calls, but its variance will be strictly dependent
+on the attacker's input rather than on the length of your secret.
 
 In the above scenario you'll also need to check that the original input is of
 the same length as the secret, but this should be done _in addition_ to calling
