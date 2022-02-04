@@ -64,8 +64,7 @@ function readAndPause() {
   const target3 = new PassThrough();
 
   const chunk = Buffer.allocUnsafe(1000);
-  let chunks = 1;
-  while (target3.write(chunk)) chunks++;
+  while (target3.write(chunk));
 
   source3.pipe(target3);
   target3.on('drain', common.mustCall(() => {
