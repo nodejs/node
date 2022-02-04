@@ -35,7 +35,7 @@ template <typename... Args>
 inline std::string SPrintF(const char* format, Args&&... args);
 template <typename... Args>
 inline void FPrintF(FILE* file, const char* format, Args&&... args);
-void FWrite(FILE* file, const std::string& str);
+void NODE_EXTERN_PRIVATE FWrite(FILE* file, const std::string& str);
 
 // Listing the AsyncWrap provider types first enables us to cast directly
 // from a provider type to a debug category.
@@ -57,7 +57,7 @@ enum class DebugCategory {
       CATEGORY_COUNT
 };
 
-class EnabledDebugList {
+class NODE_EXTERN_PRIVATE EnabledDebugList {
  public:
   bool enabled(DebugCategory category) const {
     DCHECK_GE(static_cast<int>(category), 0);
@@ -168,7 +168,7 @@ void CheckedUvLoopClose(uv_loop_t* loop);
 void PrintLibuvHandleInformation(uv_loop_t* loop, FILE* stream);
 
 namespace per_process {
-extern EnabledDebugList enabled_debug_list;
+extern NODE_EXTERN_PRIVATE EnabledDebugList enabled_debug_list;
 
 template <typename... Args>
 inline void FORCE_INLINE Debug(DebugCategory cat,

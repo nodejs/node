@@ -558,7 +558,7 @@ class Environment;
 struct AllocatedBuffer;
 
 typedef size_t SnapshotIndex;
-class IsolateData : public MemoryRetainer {
+class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
  public:
   IsolateData(v8::Isolate* isolate,
               uv_loop_t* event_loop,
