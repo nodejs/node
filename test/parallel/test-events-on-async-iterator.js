@@ -25,7 +25,7 @@ async function basic() {
   for await (const event of iterable) {
     const current = expected.shift();
 
-    assert.deepStrictEqual(current, event);
+    assert.deepStrictEqual(event, current);
 
     if (expected.length === 0) {
       break;
@@ -113,39 +113,6 @@ async function throwInLoop() {
   assert.strictEqual(ee.listenerCount('error'), 0);
 }
 
-async function next() {
-  const ee = new EventEmitter();
-  const iterable = on(ee, 'foo');
-
-  process.nextTick(function() {
-    ee.emit('foo', 'bar');
-    ee.emit('foo', 42);
-    iterable.return();
-  });
-
-  const results = await Promise.all([
-    iterable.next(),
-    iterable.next(),
-    iterable.next(),
-  ]);
-
-  assert.deepStrictEqual(results, [{
-    value: ['bar'],
-    done: false
-  }, {
-    value: [42],
-    done: false
-  }, {
-    value: undefined,
-    done: true
-  }]);
-
-  assert.deepStrictEqual(await iterable.next(), {
-    value: undefined,
-    done: true
-  });
-}
-
 async function nextError() {
   const ee = new EventEmitter();
   const iterable = on(ee, 'foo');
@@ -175,44 +142,6 @@ async function nextError() {
     }
   }]);
   assert.strictEqual(ee.listeners('error').length, 0);
-}
-
-async function iterableThrow() {
-  const ee = new EventEmitter();
-  const iterable = on(ee, 'foo');
-
-  process.nextTick(() => {
-    ee.emit('foo', 'bar');
-    ee.emit('foo', 42); // lost in the queue
-    iterable.throw(_err);
-  });
-
-  const _err = new Error('kaboom');
-  let thrown = false;
-
-  assert.throws(() => {
-    // No argument
-    iterable.throw();
-  }, {
-    message: 'The "EventEmitter.AsyncIterator" property must be' +
-    ' an instance of Error. Received undefined',
-    name: 'TypeError'
-  });
-
-  const expected = [['bar'], [42]];
-
-  try {
-    for await (const event of iterable) {
-      assert.deepStrictEqual(event, expected.shift());
-    }
-  } catch (err) {
-    thrown = true;
-    assert.strictEqual(err, _err);
-  }
-  assert.strictEqual(thrown, true);
-  assert.strictEqual(expected.length, 0);
-  assert.strictEqual(ee.listenerCount('foo'), 0);
-  assert.strictEqual(ee.listenerCount('error'), 0);
 }
 
 async function eventTarget() {
@@ -370,9 +299,7 @@ async function run() {
     error,
     errorDelayed,
     throwInLoop,
-    next,
     nextError,
-    iterableThrow,
     eventTarget,
     errorListenerCount,
     nodeEventTarget,
