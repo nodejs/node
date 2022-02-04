@@ -133,20 +133,17 @@ def files(action):
   output_file = 'node'
   output_prefix = 'out/Release/'
 
-  if 'false' == variables.get('node_shared'):
+  if is_windows:
+    output_file += '.exe'
+  action([output_prefix + output_file], 'bin/' + output_file)
+
+  if 'true' == variables.get('node_shared'):
     if is_windows:
-      output_file += '.exe'
-  else:
-    if is_windows:
-      output_file += '.dll'
+      action([output_prefix + 'libnode.dll'], 'bin/libnode.dll')
+      action([output_prefix + 'libnode.lib'], 'lib/libnode.lib')
     else:
-      output_file = 'lib' + output_file + '.' + variables.get('shlib_suffix')
-
-  if 'false' == variables.get('node_shared'):
-    action([output_prefix + output_file], 'bin/' + output_file)
-  else:
-    action([output_prefix + output_file], 'lib/' + output_file)
-
+      output_lib = 'libnode.' + variables.get('shlib_suffix')
+      action([output_prefix + output_lib], 'lib/' + output_lib)
   if 'true' == variables.get('node_use_dtrace'):
     action(['out/Release/node.d'], 'lib/dtrace/node.d')
 

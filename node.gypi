@@ -29,7 +29,7 @@
     [ 'clang==1', {
       'cflags': [ '-Werror=undefined-inline', ]
     }],
-    [ 'node_shared=="false" and "<(_type)"=="executable"', {
+    [ '"<(_type)"=="executable"', {
       'msvs_settings': {
         'VCManifestTool': {
           'EmbedManifest': 'true',
@@ -40,6 +40,19 @@
     [ 'node_shared=="true"', {
       'defines': [
         'NODE_SHARED_MODE',
+      ],
+      'conditions': [
+        ['"<(_type)"=="executable"', {
+          'defines': [
+            'USING_UV_SHARED',
+            'USING_V8_SHARED',
+            'BUILDING_NODE_EXTENSION'
+          ],
+          'defines!': [
+            'BUILDING_V8_SHARED=1',
+            'BUILDING_UV_SHARED=1'
+          ]
+        }],
       ],
     }],
     [ 'OS=="win"', {

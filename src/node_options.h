@@ -492,7 +492,7 @@ void Parse(
 namespace per_process {
 
 extern Mutex cli_options_mutex;
-extern std::shared_ptr<PerProcessOptions> cli_options;
+extern NODE_EXTERN_PRIVATE std::shared_ptr<PerProcessOptions> cli_options;
 
 }  // namespace per_process
 
