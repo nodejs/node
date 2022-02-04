@@ -196,6 +196,11 @@
           'dependencies': [ 'node_aix_shared' ],
         }, {
           'dependencies': [ '<(node_lib_target_name)' ],
+          'conditions': [
+            ['OS=="win" and node_shared=="true"', {
+              'dependencies': ['copy_libnode_implib']
+            }],
+          ],
         }],
         [ 'node_intermediate_lib_type=="static_library" and node_shared=="false"', {
           'xcode_settings': {
@@ -235,8 +240,15 @@
         }],
         [ 'node_shared=="true"', {
           'xcode_settings': {
-            'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
+            'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', '-Wl,-rpath,@loader_path/../lib'],
           },
+          'conditions': [
+            ['OS=="linux"', {
+               'ldflags': [
+                 '-Wl,-rpath,\\$$ORIGIN/../lib'
+               ],
+            }],
+          ],
         }],
         [ 'enable_lto=="true"', {
           'xcode_settings': {
@@ -749,6 +761,7 @@
           'libraries': [
             'Dbghelp',
             'Psapi',
+            'Winmm',
             'Ws2_32',
           ],
         }],
@@ -1502,5 +1515,30 @@
         },
       ]
     }], # end aix section
+    ['OS=="win" and node_shared=="true"', {
+      'targets': [
+        {
+          'target_name': 'copy_libnode_implib',
+          'type': 'none',
+          'dependencies': ['<(node_lib_target_name)'],
+          'actions': [
+            {
+              'action_name': 'copy_libnode_implib_action',
+              'inputs': [
+                '<(PRODUCT_DIR)/<(node_lib_target_name).lib'
+              ],
+              'outputs': [
+                '<(PRODUCT_DIR)/<(node_core_target_name).lib',
+              ],
+              'action': [
+                'python', 'tools/copyfile.py',
+                '<@(_inputs)',
+                '<@(_outputs)',
+              ],
+            },
+          ],
+        },
+      ],
+    }], # end win and node_shared section
   ], # end conditions block
 }

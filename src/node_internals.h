@@ -320,13 +320,13 @@ enum InitializationSettingsFlags : uint64_t {
 };
 
 // TODO(codebytere): eventually document and expose to embedders.
-InitializationResult InitializeOncePerProcess(int argc, char** argv);
-InitializationResult InitializeOncePerProcess(
+InitializationResult NODE_EXTERN InitializeOncePerProcess(int argc, char** argv);
+InitializationResult NODE_EXTERN InitializeOncePerProcess(
   int argc,
   char** argv,
   InitializationSettingsFlags flags,
   ProcessFlags::Flags process_flags = ProcessFlags::kNoFlags);
-void TearDownOncePerProcess();
+void NODE_EXTERN TearDownOncePerProcess();
 void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s);
 void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s);
 void SetIsolateCreateParamsForNode(v8::Isolate::CreateParams* params);
