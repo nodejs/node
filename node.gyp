@@ -196,6 +196,16 @@
           'dependencies': [ 'node_aix_shared' ],
         }, {
           'dependencies': [ '<(node_lib_target_name)' ],
+          'conditions': [
+            ['OS=="win" and node_shared=="true"', {
+              'dependencies': ['generate_node_def'],
+              'msvs_settings': {
+                'VCLinkerTool': {
+                  'ModuleDefinitionFile': '<(PRODUCT_DIR)/<(node_core_target_name).def',
+                },
+              },
+            }],
+          ],
         }],
         [ 'node_intermediate_lib_type=="static_library" and node_shared=="false"', {
           'xcode_settings': {
@@ -235,8 +245,15 @@
         }],
         [ 'node_shared=="true"', {
           'xcode_settings': {
-            'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
+            'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', '-Wl,-rpath,@loader_path/../lib'],
           },
+          'conditions': [
+            ['OS=="linux"', {
+               'ldflags': [
+                 '-Wl,-rpath,\\$$ORIGIN/../lib'
+               ],
+            }],
+          ],
         }],
         [ 'enable_lto=="true"', {
           'xcode_settings': {
@@ -751,6 +768,7 @@
           'libraries': [
             'Dbghelp',
             'Psapi',
+            'Winmm',
             'Ws2_32',
           ],
         }],
@@ -1504,5 +1522,40 @@
         },
       ]
     }], # end aix section
+    ['OS=="win" and node_shared=="true"', {
+     'targets': [
+       {
+         'target_name': 'gen_node_def',
+         'type': 'executable',
+         'sources': [
+           'tools/gen_node_def.cc'
+         ],
+       },
+       {
+         'target_name': 'generate_node_def',
+         'dependencies': [
+           'gen_node_def',
+           '<(node_lib_target_name)',
+         ],
+         'type': 'none',
+         'actions': [
+           {
+             'action_name': 'generate_node_def_action',
+             'inputs': [
+               '<(PRODUCT_DIR)/<(node_lib_target_name).dll'
+             ],
+             'outputs': [
+               '<(PRODUCT_DIR)/<(node_core_target_name).def',
+             ],
+             'action': [
+               '<(PRODUCT_DIR)/gen_node_def.exe',
+               '<@(_inputs)',
+               '<@(_outputs)',
+             ],
+           },
+         ],
+       },
+     ],
+   }], # end win section
   ], # end conditions block
 }

@@ -29,7 +29,7 @@ using NativeModuleCacheMap =
 // This class should not depend on any Environment, or depend on access to
 // the its own singleton - that should be encapsulated in NativeModuleEnv
 // instead.
-class NativeModuleLoader {
+class NODE_EXTERN_PRIVATE NativeModuleLoader {
  public:
   NativeModuleLoader(const NativeModuleLoader&) = delete;
   NativeModuleLoader& operator=(const NativeModuleLoader&) = delete;
