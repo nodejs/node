@@ -452,8 +452,8 @@ added: v6.0.0
 
 * {boolean}
 
-This property is `true` if the worker exited due to `.kill()` or
-`.disconnect()`. If the worker exited any other way, it is `false`. If the
+This property is `true` if the worker exited due to `.disconnect()`.
+If the worker exited any other way, it is `false`. If the
 worker has not exited, it is `undefined`.
 
 The boolean [`worker.exitedAfterDisconnect`][] allows distinguishing between
@@ -577,19 +577,14 @@ added: v0.9.12
 * `signal` {string} Name of the kill signal to send to the worker
   process. **Default:** `'SIGTERM'`
 
-This function will kill the worker. In the primary, it does this
-by disconnecting the `worker.process`, and once disconnected, killing
-with `signal`. In the worker, it does it by disconnecting the channel,
-and then exiting with code `0`.
+This function will kill the worker. In the primary worker, it does this by
+disconnecting the `worker.process`, and once disconnected, killing with
+`signal`. In the worker, it does it by killing the process with `signal`.
 
-Because `kill()` attempts to gracefully disconnect the worker process, it is
-susceptible to waiting indefinitely for the disconnect to complete. For example,
-if the worker enters an infinite loop, a graceful disconnect will never occur.
-If the graceful disconnect behavior is not needed, use `worker.process.kill()`.
+The `kill()` function kills the worker process without waiting for a graceful
+disconnect, it has the same behavior as `worker.process.kill()`.
 
-Causes `.exitedAfterDisconnect` to be set.
-
-This method is aliased as `worker.destroy()` for backward compatibility.
+This method is aliased as `worker.destroy()` for backwards compatibility.
 
 In a worker, `process.kill()` exists, but it is not this function;
 it is [`kill()`][].
