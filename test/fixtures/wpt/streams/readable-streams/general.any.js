@@ -630,7 +630,6 @@ promise_test(() => {
   let pullCalled = 0;
   let cancelCalled = 0;
 
-  /* eslint-disable no-use-before-define */
   class Source {
     start(c) {
       startCalled++;
