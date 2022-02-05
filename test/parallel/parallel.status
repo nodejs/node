@@ -11,8 +11,6 @@ test-repl-sigint-nested-eval: PASS, FLAKY
 [$system==win32]
 # https://github.com/nodejs/node/issues/24497
 test-timers-immediate-queue: PASS,FLAKY
-# https://github.com/nodejs/node/issues/23277
-test-worker-memory: PASS,FLAKY
 # https://github.com/nodejs/node/issues/41206
 test-crypto-keygen: PASS,FLAKY
 # https://github.com/nodejs/node/issues/41201
