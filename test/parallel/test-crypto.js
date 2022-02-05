@@ -121,6 +121,19 @@ function validateList(list) {
 const cryptoCiphers = crypto.getCiphers();
 assert(crypto.getCiphers().includes('aes-128-cbc'));
 validateList(cryptoCiphers);
+// Make sure all of the ciphers are supported by OpenSSL
+for (const algo of cryptoCiphers) {
+  const { ivLength, keyLength, mode } = crypto.getCipherInfo(algo);
+  let options;
+  if (mode === 'ccm')
+    options = { authTagLength: 8 };
+  else if (mode === 'ocb' || algo === 'chacha20-poly1305')
+    options = { authTagLength: 16 };
+  crypto.createCipheriv(algo,
+                        crypto.randomBytes(keyLength),
+                        crypto.randomBytes(ivLength || 0),
+                        options);
+}
 
 // Assume that we have at least AES256-SHA.
 const tlsCiphers = tls.getCiphers();
@@ -140,6 +153,9 @@ assert(!crypto.getHashes().includes('SHA256'));
 assert(crypto.getHashes().includes('RSA-SHA1'));
 assert(!crypto.getHashes().includes('rsa-sha1'));
 validateList(crypto.getHashes());
+// Make sure all of the hashes are supported by OpenSSL
+for (const algo of crypto.getHashes())
+  crypto.createHash(algo);
 
 // Assume that we have at least secp384r1.
 assert.notStrictEqual(crypto.getCurves().length, 0);
