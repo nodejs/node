@@ -630,10 +630,10 @@ changes:
 
 Send a message to a worker or primary, optionally with a handle.
 
-In the primary this sends a message to a specific worker. It is identical to
+In the primary, this sends a message to a specific worker. It is identical to
 [`ChildProcess.send()`][].
 
-In a worker this sends a message to the primary. It is identical to
+In a worker, this sends a message to the primary. It is identical to
 `process.send()`.
 
 This example will echo back all messages from the primary:
@@ -736,7 +736,7 @@ added: v0.7.0
 * `address` {Object}
 
 After calling `listen()` from a worker, when the `'listening'` event is emitted
-on the server a `'listening'` event will also be emitted on `cluster` in the
+on the server, a `'listening'` event will also be emitted on `cluster` in the
 primary.
 
 The event handler is executed with two arguments, the `worker` contains the
