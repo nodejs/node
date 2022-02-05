@@ -24,11 +24,12 @@ const REPETITIONS = 3;
   });
 
   const it = rli[Symbol.asyncIterator]();
-  const highWaterMark = it.highWaterMark;
+  const watermarkData = it[Symbol.for('nodejs.watermarkData')];
+  const highWaterMark = watermarkData.high;
 
   // For this test to work, we have to queue up more than the number of
   // highWaterMark items in rli. Make sure that is the case.
-  assert(TOTAL_LINES > highWaterMark);
+  assert(TOTAL_LINES > highWaterMark, `TOTAL_LINES (${TOTAL_LINES}) isn't greater than highWaterMark (${highWaterMark})`);
 
   let iterations = 0;
   let readableEnded = false;
@@ -36,8 +37,8 @@ const REPETITIONS = 3;
   for await (const line of it) {
     assert.strictEqual(readableEnded, false);
     assert.strictEqual(line, CONTENT);
-    assert.ok(it.queueSize <= TOTAL_LINES);
-    assert.strictEqual(readable.isPaused(), it.queueSize >= 1);
+    assert.ok(watermarkData.size <= TOTAL_LINES);
+    assert.strictEqual(readable.isPaused(), watermarkData.size >= 1);
     if (!readable.isPaused()) {
       notPaused++;
     }
