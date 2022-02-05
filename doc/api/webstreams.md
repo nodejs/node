@@ -425,7 +425,8 @@ added: v16.5.0
 -->
 
 * Type: {Promise} Fulfilled with `undefined` when the associated
-  {ReadableStream} is closed or this reader's lock is released.
+  {ReadableStream} is closed or rejected if the stream errors or the reader's
+  lock is released before the stream finishes closing.
 
 #### `readableStreamDefaultReader.read()`
 
@@ -552,7 +553,8 @@ added: v16.5.0
 -->
 
 * Type: {Promise} Fulfilled with `undefined` when the associated
-  {ReadableStream} is closed or this reader's lock is released.
+  {ReadableStream} is closed or rejected if the stream errors or the reader's
+  lock is released before the stream finishes closing.
 
 #### `readableStreamBYOBReader.read(view)`
 
@@ -902,9 +904,9 @@ Closes the `WritableStream` when no additional writes are expected.
 added: v16.5.0
 -->
 
-* Type: A promise that is fulfilled with `undefined` when the
-  associated {WritableStream} is closed or this writer's lock is
-  released.
+* Type: {Promise} Fulfilled with `undefined` when the associated
+  {WritableStream} is closed or rejected if the stream errors or the writer's
+  lock is released before the stream finishes closing.
 
 #### `writableStreamDefaultWriter.desiredSize`
 
