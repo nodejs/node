@@ -5826,8 +5826,8 @@ See the [list of SSL OP Flags][] for details.
   </tr>
   <tr>
     <td><code>SSL_OP_PRIORITIZE_CHACHA</code></td>
-    <td>Instructs OpenSSL server to prioritize ChaCha20Poly1305
-    when client does.
+    <td>Instructs OpenSSL server to prioritize ChaCha20-Poly1305
+    when the client does.
     This option has no effect if
     <code>SSL_OP_CIPHER_SERVER_PREFERENCE</code>
     is not enabled.</td>
