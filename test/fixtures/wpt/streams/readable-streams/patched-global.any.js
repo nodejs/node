@@ -22,7 +22,6 @@ test(t => {
 
   const trappedProperties = ['highWaterMark', 'size', 'start', 'type', 'mode'];
   for (const property of trappedProperties) {
-    // eslint-disable-next-line no-extend-native, accessor-pairs
     Object.defineProperty(Object.prototype, property, {
       get() { throw new Error(`${property} getter called`); },
       configurable: true
