@@ -748,7 +748,7 @@ releases on a rotation basis as outlined in the
   * [mcollina](https://github.com/mcollina) -
     **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
 * Red Hat and IBM
-  * [joesepi](https://github.com/joesepi)-
+  * [joesepi](https://github.com/joesepi) -
     **Joe Sepi** <<joesepi@ibm.com>> (he/him)
   * [mhdawson](https://github.com/mhdawson) -
     **Michael Dawson** <<midawson@redhat.com>> (he/him)
