@@ -2522,6 +2522,28 @@ run().catch(console.error);
 after the `callback` has been invoked. In the case of reuse of streams after
 failure, this can cause event listener leaks and swallowed errors.
 
+`stream.pipeline()` closes all the streams when an error is raised.
+The `IncomingRequest` usage with `pipeline` could lead to an unexpected behavior
+once it would destroy the socket without sending the expected response.
+See the example below:
+
+```js
+const fs = require('fs');
+const http = require('http');
+const { pipeline } = require('stream');
+
+const server = http.createServer((req, res) => {
+  const fileStream = fs.createReadStream('./fileNotExist.txt');
+  pipeline(fileStream, res, (err) => {
+    if (err) {
+      console.log(err); // No such file
+      // this message can't be sent once `pipeline` already destroyed the socket
+      return res.end('error!!!');
+    }
+  });
+});
+```
+
 ### `stream.compose(...streams)`
 
 <!-- YAML
