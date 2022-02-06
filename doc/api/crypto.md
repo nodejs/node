@@ -543,7 +543,7 @@ once will result in an error being thrown.
 added: v1.0.0
 -->
 
-* Returns: {Buffer} When using an authenticated encryption mode (`GCM`, `CCM`
+* Returns: {Buffer} When using an authenticated encryption mode (`GCM`, `CCM`,
   and `OCB` are currently supported), the `cipher.getAuthTag()` method returns a
   [`Buffer`][] containing the _authentication tag_ that has been computed from
   the given data.
@@ -566,7 +566,7 @@ added: v1.0.0
   * `encoding` {string} The string encoding to use when `buffer` is a string.
 * Returns: {Cipher} for method chaining.
 
-When using an authenticated encryption mode (`GCM`, `CCM` and `OCB` are
+When using an authenticated encryption mode (`GCM`, `CCM`, and `OCB` are
 currently supported), the `cipher.setAAD()` method sets the value used for the
 _additional authenticated data_ (AAD) input parameter.
 
@@ -863,7 +863,7 @@ changes:
   * `encoding` {string} String encoding to use when `buffer` is a string.
 * Returns: {Decipher} for method chaining.
 
-When using an authenticated encryption mode (`GCM`, `CCM` and `OCB` are
+When using an authenticated encryption mode (`GCM`, `CCM`, and `OCB` are
 currently supported), the `decipher.setAAD()` method sets the value used for the
 _additional authenticated data_ (AAD) input parameter.
 
@@ -897,7 +897,7 @@ changes:
 * `encoding` {string} String encoding to use when `buffer` is a string.
 * Returns: {Decipher} for method chaining.
 
-When using an authenticated encryption mode (`GCM`, `CCM` and `OCB` are
+When using an authenticated encryption mode (`GCM`, `CCM`, and `OCB` are
 currently supported), the `decipher.setAuthTag()` method is used to pass in the
 received _authentication tag_. If no tag is provided, or if the cipher text
 has been tampered with, [`decipher.final()`][] will throw, indicating that the
