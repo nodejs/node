@@ -701,7 +701,7 @@ gpg --keyserver pool.sks-keyservers.net --recv-keys 108F52B48DB57BB0CC439B2997B0
 gpg --keyserver pool.sks-keyservers.net --recv-keys B9E2F5981AA6E0CD28160D9FF13993A75599653C
 ```
 
-See the section above on [Verifying Binaries](#verifying-binaries) for how to
+See the section above on [Verifying binaries](#verifying-binaries) for how to
 use these keys to verify a downloaded file.
 
 <details>
