@@ -1,4 +1,4 @@
-name: license update
+name: License update
 on:
   schedule:
     # 00:00:00 every Monday
