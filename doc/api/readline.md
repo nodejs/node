@@ -1374,7 +1374,18 @@ const { createInterface } = require('readline');
   <tr>
     <td><kbd>Ctrl</kbd>+<kbd>-</kbd></td>
     <td>Undo previous change</td>
-    <td>Any keystroke emits key code <code>0x1F</code> would do this action.</td>
+    <td>Any keystroke that emits key code <code>0x1F</code> will do this action.
+    In many terminals, for example <code>xterm</code>,
+    this is bound to <kbd>Ctrl</kbd>+<kbd>-</kbd>.</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><kbd>Ctrl</kbd>+<kbd>6</kbd></td>
+    <td>Redo previous change</td>
+    <td>Many terminals don't have a default redo keystroke.
+    We choose key code <code>0x1E</code> to perform redo.
+    In <code>xterm</code>, it is bound to <kbd>Ctrl</kbd>+<kbd>6</kbd>
+    by default.</td>
     <td></td>
   </tr>
   <tr>
