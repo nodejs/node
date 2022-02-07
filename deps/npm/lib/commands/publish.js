@@ -61,7 +61,7 @@ class Publish extends BaseCommand {
       throw new Error('Tag name must not be a valid SemVer range: ' + defaultTag.trim())
     }
 
-    const opts = { ...this.npm.flatOptions }
+    const opts = { ...this.npm.flatOptions, log }
 
     // you can publish name@version, ./foo.tgz, etc.
     // even though the default is the 'file:.' cwd.

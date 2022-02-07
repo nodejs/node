@@ -25,7 +25,7 @@ t.test(
   /* eslint-disable-next-line max-len */
   'should publish with libnpmpublish, passing through flatOptions and respecting publishConfig.registry',
   async t => {
-    t.plan(6)
+    t.plan(7)
 
     const registry = 'https://some.registry'
     const publishConfig = { registry }
@@ -59,6 +59,7 @@ t.test(
           t.match(manifest, { name: 'my-cool-pkg', version: '1.0.0' }, 'gets manifest')
           t.type(tarData, Buffer, 'tarData is a buffer')
           t.ok(opts, 'gets opts object')
+          t.ok(opts.log, 'gets passed a logger')
           t.same(opts.customValue, true, 'flatOptions values are passed through')
           t.same(opts.registry, registry, 'publishConfig.registry is passed through')
         },
@@ -81,7 +82,7 @@ t.test(
 )
 
 t.test('re-loads publishConfig.registry if added during script process', async t => {
-  t.plan(5)
+  t.plan(6)
   const registry = 'https://some.registry'
   const publishConfig = { registry }
   const testDir = t.testdir({
@@ -112,6 +113,7 @@ t.test('re-loads publishConfig.registry if added during script process', async t
         t.match(manifest, { name: 'my-cool-pkg', version: '1.0.0' }, 'gets manifest')
         t.type(tarData, Buffer, 'tarData is a buffer')
         t.ok(opts, 'gets opts object')
+        t.ok(opts.log, 'gets passed a logger')
         t.same(opts.registry, registry, 'publishConfig.registry is passed through')
       },
     },
@@ -292,7 +294,7 @@ t.test('throws when invalid tag', async t => {
 })
 
 t.test('can publish a tarball', async t => {
-  t.plan(3)
+  t.plan(4)
 
   const testDir = t.testdir({
     tarball: {},
@@ -317,6 +319,7 @@ t.test('can publish a tarball', async t => {
   const Publish = t.mock('../../../lib/commands/publish.js', {
     libnpmpublish: {
       publish: (manifest, tarData, opts) => {
+        t.ok(opts.log, 'gets passed a logger')
         t.match(
           manifest,
           {
@@ -412,7 +415,7 @@ t.test('should check auth for scope specific registry', async t => {
 })
 
 t.test('should use auth for scope specific registry', async t => {
-  t.plan(3)
+  t.plan(4)
   const registry = 'https://some.registry'
   const testDir = t.testdir({
     'package.json': JSON.stringify(
@@ -429,6 +432,7 @@ t.test('should use auth for scope specific registry', async t => {
     libnpmpublish: {
       publish: (manifest, tarData, opts) => {
         t.ok(opts, 'gets opts object')
+        t.ok(opts.log, 'gets passed a logger')
         t.same(opts['@npm:registry'], registry, 'scope specific registry is passed through')
       },
     },
@@ -446,7 +450,7 @@ t.test('should use auth for scope specific registry', async t => {
 })
 
 t.test('read registry only from publishConfig', async t => {
-  t.plan(3)
+  t.plan(4)
 
   const registry = 'https://some.registry'
   const publishConfig = { registry }
@@ -465,6 +469,7 @@ t.test('read registry only from publishConfig', async t => {
   const Publish = t.mock('../../../lib/commands/publish.js', {
     libnpmpublish: {
       publish: (manifest, tarData, opts) => {
+        t.ok(opts.log, 'gets passed a logger')
         t.match(manifest, { name: 'my-cool-pkg', version: '1.0.0' }, 'gets manifest')
         t.same(opts.registry, registry, 'publishConfig is passed through')
       },
@@ -481,7 +486,7 @@ t.test('read registry only from publishConfig', async t => {
 })
 
 t.test('able to publish after if encountered multiple configs', async t => {
-  t.plan(2)
+  t.plan(3)
 
   const registry = 'https://some.registry'
   const tag = 'better-tag'
@@ -510,6 +515,7 @@ t.test('able to publish after if encountered multiple configs', async t => {
   const Publish = t.mock('../../../lib/commands/publish.js', {
     libnpmpublish: {
       publish: (manifest, tarData, opts) => {
+        t.ok(opts.log, 'gets passed a logger')
         t.same(opts.defaultTag, tag, 'gets option for expected tag')
       },
     },
@@ -748,7 +754,7 @@ t.test('private workspaces', async t => {
           if (manifest.private) {
             throw new Error('ERR')
           }
-
+          t.ok(opts.log, 'gets passed a logger')
           publishes.push(manifest)
         },
       },

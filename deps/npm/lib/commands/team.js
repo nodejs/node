@@ -1,6 +1,7 @@
 const columns = require('cli-columns')
 const libteam = require('libnpmteam')
 
+const log = require('../utils/log-shim.js')
 const otplease = require('../utils/otplease.js')
 
 const BaseCommand = require('../base-command.js')
@@ -42,7 +43,7 @@ class Team extends BaseCommand {
     // XXX: "description" option to libnpmteam is used as a description of the
     // team, but in npm's options, this is a boolean meaning "show the
     // description in npm search output".  Hence its being set to null here.
-    await otplease(this.npm.flatOptions, opts => {
+    await otplease({ ...this.npm.flatOptions, log }, opts => {
       entity = entity.replace(/^@/, '')
       switch (cmd) {
         case 'create': return this.create(entity, opts)

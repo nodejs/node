@@ -838,6 +838,10 @@ include any versions, as that information is specified in `dependencies`.
 
 If this is spelled `"bundleDependencies"`, then that is also honored.
 
+Alternatively, `"bundledDependencies"` can be defined as a boolean value. A
+value of `true` will bundle all dependencies, a value of `false` will bundle
+none.
+
 ### optionalDependencies
 
 If a dependency can be used, but you would like npm to proceed if it cannot

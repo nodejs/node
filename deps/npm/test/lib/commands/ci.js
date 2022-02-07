@@ -19,6 +19,17 @@ t.test('should ignore scripts with --ignore-scripts', async t => {
       this.reify = () => {
         REIFY_CALLED = true
       }
+      this.buildIdealTree = () => {}
+      this.virtualTree = {
+        inventory: new Map([
+          ['foo', { name: 'foo', version: '1.0.0' }],
+        ]),
+      }
+      this.idealTree = {
+        inventory: new Map([
+          ['foo', { name: 'foo', version: '1.0.0' }],
+        ]),
+      }
     },
   })
 
@@ -99,6 +110,17 @@ t.test('should use Arborist and run-script', async t => {
       this.reify = () => {
         t.ok(true, 'reify is called')
       }
+      this.buildIdealTree = () => {}
+      this.virtualTree = {
+        inventory: new Map([
+          ['foo', { name: 'foo', version: '1.0.0' }],
+        ]),
+      }
+      this.idealTree = {
+        inventory: new Map([
+          ['foo', { name: 'foo', version: '1.0.0' }],
+        ]),
+      }
     },
     rimraf: (path, ...args) => {
       actualRimrafs++
@@ -137,6 +159,17 @@ t.test('should pass flatOptions to Arborist.reify', async t => {
       this.loadVirtual = () => Promise.resolve(true)
       this.reify = async (options) => {
         t.equal(options.production, true, 'should pass flatOptions to Arborist.reify')
+      }
+      this.buildIdealTree = () => {}
+      this.virtualTree = {
+        inventory: new Map([
+          ['foo', { name: 'foo', version: '1.0.0' }],
+        ]),
+      }
+      this.idealTree = {
+        inventory: new Map([
+          ['foo', { name: 'foo', version: '1.0.0' }],
+        ]),
       }
     },
   })
@@ -199,7 +232,7 @@ t.test('should throw ECIGLOBAL', async t => {
 })
 
 t.test('should remove existing node_modules before installing', async t => {
-  t.plan(2)
+  t.plan(3)
   const testDir = t.testdir({
     node_modules: {
       'some-file': 'some contents',
@@ -212,11 +245,23 @@ t.test('should remove existing node_modules before installing', async t => {
     '@npmcli/arborist': function () {
       this.loadVirtual = () => Promise.resolve(true)
       this.reify = async (options) => {
+        t.equal(options.packageLock, true, 'npm ci should never ignore lock')
         t.equal(options.save, false, 'npm ci should never save')
         // check if node_modules was removed before reifying
         const contents = await readdir(testDir)
         const nodeModules = contents.filter((path) => path.startsWith('node_modules'))
         t.same(nodeModules, ['node_modules'], 'should only have the node_modules directory')
+      }
+      this.buildIdealTree = () => {}
+      this.virtualTree = {
+        inventory: new Map([
+          ['foo', { name: 'foo', version: '1.0.0' }],
+        ]),
+      }
+      this.idealTree = {
+        inventory: new Map([
+          ['foo', { name: 'foo', version: '1.0.0' }],
+        ]),
       }
     },
   })
@@ -230,4 +275,42 @@ t.test('should remove existing node_modules before installing', async t => {
   const ci = new CI(npm)
 
   await ci.exec(null)
+})
+
+t.test('should throw error when ideal inventory mismatches virtual', async t => {
+  const CI = t.mock('../../../lib/commands/ci.js', {
+    '../../../lib/utils/reify-finish.js': async () => {},
+    '@npmcli/run-script': ({ event }) => {},
+    '@npmcli/arborist': function () {
+      this.loadVirtual = async () => {}
+      this.reify = () => {}
+      this.buildIdealTree = () => {}
+      this.virtualTree = {
+        inventory: new Map([
+          ['foo', { name: 'foo', version: '1.0.0' }],
+        ]),
+      }
+      this.idealTree = {
+        inventory: new Map([
+          ['foo', { name: 'foo', version: '2.0.0' }],
+        ]),
+      }
+    },
+  })
+
+  const npm = mockNpm({
+    globalDir: 'path/to/node_modules/',
+    prefix: 'foo',
+    config: {
+      global: false,
+      'ignore-scripts': true,
+    },
+  })
+  const ci = new CI(npm)
+
+  try {
+    await ci.exec([])
+  } catch (err) {
+    t.matchSnapshot(err.message)
+  }
 })

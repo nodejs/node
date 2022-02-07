@@ -56,7 +56,8 @@ class ERR_FS_EISDIR extends Error {
     this.errno = errnos.EISDIR
     this.syscall = 'rm'
     this.path = path
-    this.message = `Path is a directory: ${this.syscall} returned ${this.info.code} (is a directory) ${path}`
+    this.message = `Path is a directory: ${this.syscall} returned ` +
+      `${this.info.code} (is a directory) ${path}`
   }
 
   toString () {

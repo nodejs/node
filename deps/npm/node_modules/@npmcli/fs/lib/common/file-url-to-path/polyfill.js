@@ -29,7 +29,8 @@ class ERR_INVALID_FILE_URL_PATH extends TypeError {
 
 class ERR_INVALID_ARG_TYPE extends TypeError {
   constructor (name, actual) {
-    super(`The "${name}" argument must be one of type string or an instance of URL. Received type ${typeof actual} ${actual}`)
+    super(`The "${name}" argument must be one of type string or an instance ` +
+      `of URL. Received type ${typeof actual} ${actual}`)
     this.code = 'ERR_INVALID_ARG_TYPE'
   }
 

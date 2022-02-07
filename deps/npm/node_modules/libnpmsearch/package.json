@@ -1,6 +1,6 @@
 {
   "name": "libnpmsearch",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Programmatic API for searching in npm and compatible registries.",
   "author": "GitHub Inc.",
   "main": "lib/index.js",
@@ -41,7 +41,7 @@
   "bugs": "https://github.com/npm/libnpmsearch/issues",
   "homepage": "https://npmjs.com/package/libnpmsearch",
   "dependencies": {
-    "npm-registry-fetch": "^11.0.0"
+    "npm-registry-fetch": "^12.0.1"
   },
   "engines": {
     "node": "^12.13.0 || ^14.15.0 || >=16"

@@ -42,6 +42,17 @@ npm {CWD}
 
 `
 
+exports[`smoke-tests/index.js TAP npm ci > should throw mismatch deps in lock file error 1`] = `
+npm ERR! \`npm ci\` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync. Please update your lock file with \`npm install\` before continuing.
+npm ERR!
+npm ERR! Invalid: lock file's abbrev@1.0.4 does not satisfy abbrev@1.1.1
+npm ERR!
+
+npm ERR! A complete log of this run can be found in:
+
+
+`
+
 exports[`smoke-tests/index.js TAP npm diff > should have expected diff output 1`] = `
 diff --git a/package.json b/package.json
 index v1.0.4..v1.1.1 100644

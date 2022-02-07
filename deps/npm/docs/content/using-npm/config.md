@@ -1190,6 +1190,8 @@ When package package-locks are disabled, automatic pruning of extraneous
 modules will also be disabled. To remove extraneous modules with
 package-locks disabled use `npm prune`.
 
+This configuration does not affect `npm ci`.
+
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
 

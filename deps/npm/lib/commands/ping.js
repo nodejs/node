@@ -10,7 +10,7 @@ class Ping extends BaseCommand {
   async exec (args) {
     log.notice('PING', this.npm.config.get('registry'))
     const start = Date.now()
-    const details = await pingUtil(this.npm.flatOptions)
+    const details = await pingUtil({ ...this.npm.flatOptions, log })
     const time = Date.now() - start
     log.notice('PONG', `${time}ms`)
     if (this.npm.config.get('json')) {

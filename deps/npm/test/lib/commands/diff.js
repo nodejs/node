@@ -61,9 +61,10 @@ const diff = new Diff(npm)
 
 t.test('no args', t => {
   t.test('in a project dir', async t => {
-    t.plan(3)
+    t.plan(4)
 
     libnpmdiff = async ([a, b], opts) => {
+      t.ok(opts.log, 'should be passed a logger')
       t.equal(a, 'foo@latest', 'should have default spec comparison')
       t.equal(b, `file:${fooPath}`, 'should compare to cwd')
       t.match(opts, npm.flatOptions, 'should forward flat options')

@@ -54,9 +54,9 @@ function parseLanguage(str, i) {
   var match = simpleLanguageRegExp.exec(str);
   if (!match) return null;
 
-  var prefix = match[1],
-    suffix = match[2],
-    full = prefix;
+  var prefix = match[1]
+  var suffix = match[2]
+  var full = prefix
 
   if (suffix) full += "-" + suffix;
 

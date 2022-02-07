@@ -5,6 +5,7 @@ const pacote = require('pacote')
 const AuditReport = require('../audit-report.js')
 const { subset, intersects } = require('semver')
 const npa = require('npm-package-arg')
+const semver = require('semver')
 const debug = require('../debug.js')
 const walkUp = require('walk-up-path')
 
@@ -1273,6 +1274,21 @@ module.exports = cls => class Reifier extends cls {
       }
     }
 
+    // Returns true if any of the edges from this node has a semver
+    // range definition that is an exact match to the version installed
+    // e.g: should return true if for a given an installed version 1.0.0,
+    // range is either =1.0.0 or 1.0.0
+    const exactVersion = node => {
+      for (const edge of node.edgesIn) {
+        try {
+          if (semver.subset(edge.spec, node.version)) {
+            return false
+          }
+        } catch {}
+      }
+      return true
+    }
+
     // helper that retrieves an array of nodes that were
     // potentially updated during the reify process, in order
     // to limit the number of nodes to check and update, only
@@ -1284,6 +1300,8 @@ module.exports = cls => class Reifier extends cls {
       const filterDirectDependencies = node =>
         !node.isRoot && node.resolveParent.isRoot
         && (!names || names.includes(node.name))
+        && exactVersion(node) // skip update for exact ranges
+
       const directDeps = this.idealTree.inventory
         .filter(filterDirectDependencies)
 

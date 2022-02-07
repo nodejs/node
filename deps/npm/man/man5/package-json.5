@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "January 2022" "" ""
+.TH "PACKAGE\.JSON" "5" "February 2022" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SS Description
@@ -926,6 +926,10 @@ awesome\-web\-framework\-1\.0\.0\.tgz\fP\|\.  Note that the package names do not
 include any versions, as that information is specified in \fBdependencies\fP\|\.
 .P
 If this is spelled \fB"bundleDependencies"\fP, then that is also honored\.
+.P
+Alternatively, \fB"bundledDependencies"\fP can be defined as a boolean value\. A
+value of \fBtrue\fP will bundle all dependencies, a value of \fBfalse\fP will bundle
+none\.
 .SS optionalDependencies
 .P
 If a dependency can be used, but you would like npm to proceed if it cannot

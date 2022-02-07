@@ -609,3 +609,28 @@ t.test('workspaces', async t => {
   t.matchSnapshot(logs,
     'should display missing deps when filtering by ws')
 })
+
+t.test('aliases', async t => {
+  const testDir = t.testdir({
+    'package.json': JSON.stringify({
+      name: 'display-aliases',
+      version: '1.0.0',
+      dependencies: {
+        cat: 'npm:dog@latest',
+      },
+    }),
+    node_modules: {
+      cat: {
+        'package.json': JSON.stringify({
+          name: 'dog',
+          version: '1.0.0',
+        }),
+      },
+    },
+  })
+
+  await outdated(testDir, {}).exec([])
+
+  t.matchSnapshot(logs, 'should display aliased outdated dep output')
+  t.equal(process.exitCode, 1)
+})

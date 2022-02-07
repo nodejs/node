@@ -269,6 +269,22 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     this[_complete] = !!options.complete
     this[_preferDedupe] = !!options.preferDedupe
     this[_legacyBundling] = !!options.legacyBundling
+
+    // validates list of update names, they must
+    // be dep names only, no semver ranges are supported
+    for (const name of update.names) {
+      const spec = npa(name)
+      const validationError =
+        new TypeError(`Update arguments must not contain package version specifiers
+
+Try using the package name instead, e.g:
+    npm update ${spec.name}`)
+      validationError.code = 'EUPDATEARGS'
+
+      if (spec.fetchSpec !== 'latest') {
+        throw validationError
+      }
+    }
     this[_updateNames] = update.names
 
     this[_updateAll] = update.all
@@ -320,7 +336,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
       // Load on a new Arborist object, so the Nodes aren't the same,
       // or else it'll get super confusing when we change them!
       .then(async root => {
-        if (!this[_updateAll] && !this[_global] && !root.meta.loadedFromDisk) {
+        if ((!this[_updateAll] && !this[_global] && !root.meta.loadedFromDisk) || (this[_global] && this[_updateNames].length)) {
           await new this.constructor(this.options).loadActual({ root })
           const tree = root.target
           // even though we didn't load it from a package-lock.json FILE,

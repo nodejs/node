@@ -2,6 +2,7 @@ const hookApi = require('libnpmhook')
 const otplease = require('../utils/otplease.js')
 const relativeDate = require('tiny-relative-date')
 const Table = require('cli-table3')
+const log = require('../utils/log-shim.js')
 
 const BaseCommand = require('../base-command.js')
 class Hook extends BaseCommand {
@@ -20,7 +21,10 @@ class Hook extends BaseCommand {
   ]
 
   async exec (args) {
-    return otplease(this.npm.flatOptions, (opts) => {
+    return otplease({
+      ...this.npm.flatOptions,
+      log,
+    }, (opts) => {
       switch (args[0]) {
         case 'add':
           return this.add(args[1], args[2], args[3], opts)

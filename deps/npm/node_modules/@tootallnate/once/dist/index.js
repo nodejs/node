@@ -1,39 +1,24 @@
 "use strict";
-function noop() { }
-function once(emitter, name) {
-    const o = once.spread(emitter, name);
-    const r = o.then((args) => args[0]);
-    r.cancel = o.cancel;
-    return r;
-}
-(function (once) {
-    function spread(emitter, name) {
-        let c = null;
-        const p = new Promise((resolve, reject) => {
-            function cancel() {
-                emitter.removeListener(name, onEvent);
-                emitter.removeListener('error', onError);
-                p.cancel = noop;
-            }
-            function onEvent(...args) {
-                cancel();
-                resolve(args);
-            }
-            function onError(err) {
-                cancel();
-                reject(err);
-            }
-            c = cancel;
-            emitter.on(name, onEvent);
-            emitter.on('error', onError);
-        });
-        if (!c) {
-            throw new TypeError('Could not get `cancel()` function');
+Object.defineProperty(exports, "__esModule", { value: true });
+function once(emitter, name, { signal } = {}) {
+    return new Promise((resolve, reject) => {
+        function cleanup() {
+            signal === null || signal === void 0 ? void 0 : signal.removeEventListener('abort', cleanup);
+            emitter.removeListener(name, onEvent);
+            emitter.removeListener('error', onError);
         }
-        p.cancel = c;
-        return p;
-    }
-    once.spread = spread;
-})(once || (once = {}));
-module.exports = once;
+        function onEvent(...args) {
+            cleanup();
+            resolve(args);
+        }
+        function onError(err) {
+            cleanup();
+            reject(err);
+        }
+        signal === null || signal === void 0 ? void 0 : signal.addEventListener('abort', cleanup);
+        emitter.on(name, onEvent);
+        emitter.on('error', onError);
+    });
+}
+exports.default = once;
 //# sourceMappingURL=index.js.map

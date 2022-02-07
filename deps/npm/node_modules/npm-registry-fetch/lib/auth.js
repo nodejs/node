@@ -12,8 +12,9 @@ const regKeyFromURI = (uri, opts) => {
   let regKey = `//${parsed.host}${parsed.pathname}`
   while (regKey.length > '//'.length) {
     // got some auth for this URI
-    if (hasAuth(regKey, opts))
+    if (hasAuth(regKey, opts)) {
       return regKey
+    }
 
     // can be either //host/some/path/:_auth or //host/some/path:_auth
     // walk up by removing EITHER what's after the slash OR the slash itself
@@ -44,8 +45,9 @@ const getRegistry = opts => {
 
 const getAuth = (uri, opts = {}) => {
   const { forceAuth } = opts
-  if (!uri)
+  if (!uri) {
     throw new Error('URI is required')
+  }
   const regKey = regKeyFromURI(uri, forceAuth || opts)
 
   // we are only allowed to use what's in forceAuth if specified
@@ -62,9 +64,9 @@ const getAuth = (uri, opts = {}) => {
   // no auth for this URI, but might have it for the registry
   if (!regKey) {
     const registry = getRegistry(opts)
-    if (registry && uri !== registry && sameHost(uri, registry))
+    if (registry && uri !== registry && sameHost(uri, registry)) {
       return getAuth(registry, opts)
-    else if (registry !== opts.registry) {
+    } else if (registry !== opts.registry) {
       // If making a tarball request to a different base URI than the
       // registry where we logged in, but the same auth SHOULD be sent
       // to that artifact host, then we track where it was coming in from,
@@ -96,11 +98,11 @@ class Auth {
     this.token = null
     this.auth = null
     this.isBasicAuth = false
-    if (token)
+    if (token) {
       this.token = token
-    else if (auth)
+    } else if (auth) {
       this.auth = auth
-    else if (username && password) {
+    } else if (username && password) {
       const p = Buffer.from(password, 'base64').toString('utf8')
       this.auth = Buffer.from(`${username}:${p}`, 'utf8').toString('base64')
       this.isBasicAuth = true
