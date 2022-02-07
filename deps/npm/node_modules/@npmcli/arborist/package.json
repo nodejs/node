@@ -1,6 +1,6 @@
 {
   "name": "@npmcli/arborist",
-  "version": "4.2.1",
+  "version": "4.3.0",
   "description": "Manage node_modules trees",
   "dependencies": {
     "@isaacs/string-locale-compare": "^1.1.0",
@@ -22,7 +22,7 @@
     "npm-install-checks": "^4.0.0",
     "npm-package-arg": "^8.1.5",
     "npm-pick-manifest": "^6.1.0",
-    "npm-registry-fetch": "^11.0.0",
+    "npm-registry-fetch": "^12.0.1",
     "pacote": "^12.0.2",
     "parse-conflict-json": "^2.0.1",
     "proc-log": "^1.0.0",

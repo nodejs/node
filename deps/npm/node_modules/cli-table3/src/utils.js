@@ -1,4 +1,3 @@
-const objectAssign = require('object-assign');
 const stringWidth = require('string-width');
 
 function codeRegex(capture) {
@@ -235,9 +234,9 @@ function defaultOptions() {
 function mergeOptions(options, defaults) {
   options = options || {};
   defaults = defaults || defaultOptions();
-  let ret = objectAssign({}, defaults, options);
-  ret.chars = objectAssign({}, defaults.chars, options.chars);
-  ret.style = objectAssign({}, defaults.style, options.style);
+  let ret = Object.assign({}, defaults, options);
+  ret.chars = Object.assign({}, defaults.chars, options.chars);
+  ret.style = Object.assign({}, defaults.style, options.style);
   return ret;
 }
 
@@ -286,7 +285,7 @@ function colorizeLines(input) {
   for (let i = 0; i < input.length; i++) {
     let line = rewindState(state, input[i]);
     state = readState(line);
-    let temp = objectAssign({}, state);
+    let temp = Object.assign({}, state);
     output.push(unwindState(temp, line));
   }
   return output;

@@ -31,7 +31,7 @@ t.afterEach(() => {
 })
 
 t.test('token logout', async t => {
-  t.plan(5)
+  t.plan(6)
 
   flatOptions['//registry.npmjs.org/:_authToken'] = '@foo/'
 
@@ -62,7 +62,8 @@ t.test('token logout', async t => {
 
   await logout.exec([])
 
-  t.same(
+  t.ok(result.opts.log, 'should pass a logger')
+  t.match(
     result,
     {
       url: '/-/user/token/%40foo%2F',
@@ -91,7 +92,7 @@ t.test('token scoped logout', async t => {
     config.save = null
   })
 
-  t.plan(7)
+  t.plan(8)
 
   flatOptions['//diff-registry.npmjs.com/:_authToken'] = '@bar/'
   flatOptions['//registry.npmjs.org/:_authToken'] = '@foo/'
@@ -132,7 +133,8 @@ t.test('token scoped logout', async t => {
 
   await logout.exec([])
 
-  t.same(
+  t.ok(result.opts.log, 'should pass a logger')
+  t.match(
     result,
     {
       url: '/-/user/token/%40bar%2F',
@@ -202,7 +204,7 @@ t.test('ignore invalid scoped registry config', async t => {
     config.delete = null
     config.save = null
   })
-  t.plan(4)
+  t.plan(5)
 
   flatOptions['//registry.npmjs.org/:_authToken'] = '@foo/'
   config.scope = '@myscope'
@@ -234,7 +236,8 @@ t.test('ignore invalid scoped registry config', async t => {
 
   await logout.exec([])
 
-  t.same(
+  t.ok(result.opts.log, 'should pass a logger')
+  t.match(
     result,
     {
       url: '/-/user/token/%40foo%2F',

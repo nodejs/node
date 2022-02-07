@@ -57,7 +57,10 @@ class Owner extends BaseCommand {
   }
 
   async exec ([action, ...args]) {
-    const opts = this.npm.flatOptions
+    const opts = {
+      ...this.npm.flatOptions,
+      log,
+    }
     switch (action) {
       case 'ls':
       case 'list':
@@ -195,6 +198,7 @@ class Owner extends BaseCommand {
         method: 'PUT',
         body,
         spec,
+        log,
       })
     })
 

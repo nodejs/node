@@ -1,6 +1,6 @@
 {
   "name": "@tootallnate/once",
-  "version": "1.1.2",
+  "version": "2.0.0",
   "description": "Creates a Promise that waits for a single event",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -10,8 +10,7 @@
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "tsc",
-    "test": "mocha --reporter spec",
-    "test-lint": "eslint src --ext .js,.ts",
+    "test": "jest",
     "prepublishOnly": "npm run build"
   },
   "repository": {
@@ -25,21 +24,29 @@
     "url": "https://github.com/TooTallNate/once/issues"
   },
   "devDependencies": {
+    "@types/jest": "^27.0.2",
     "@types/node": "^12.12.11",
-    "@typescript-eslint/eslint-plugin": "1.6.0",
-    "@typescript-eslint/parser": "1.1.0",
-    "eslint": "5.16.0",
-    "eslint-config-airbnb": "17.1.0",
-    "eslint-config-prettier": "4.1.0",
-    "eslint-import-resolver-typescript": "1.1.1",
-    "eslint-plugin-import": "2.16.0",
-    "eslint-plugin-jsx-a11y": "6.2.1",
-    "eslint-plugin-react": "7.12.4",
-    "mocha": "^6.2.2",
+    "abort-controller": "^3.0.0",
+    "jest": "^27.2.1",
     "rimraf": "^3.0.0",
-    "typescript": "^3.7.3"
+    "ts-jest": "^27.0.5",
+    "typescript": "^4.4.3"
   },
   "engines": {
-    "node": ">= 6"
+    "node": ">= 10"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "globals": {
+      "ts-jest": {
+        "diagnostics": false,
+        "isolatedModules": true
+      }
+    },
+    "verbose": false,
+    "testEnvironment": "node",
+    "testMatch": [
+      "<rootDir>/test/**/*.test.ts"
+    ]
   }
 }

@@ -476,8 +476,13 @@ class Shrinkwrap {
       // all good!  hidden lockfile is the newest thing in here.
       return data
     }).catch(er => {
-      const rel = relpath(this.path, this.filename)
-      this.log.verbose('shrinkwrap', `failed to load ${rel}`, er)
+      /* istanbul ignore else */
+      if (typeof this.filename === 'string') {
+        const rel = relpath(this.path, this.filename)
+        this.log.verbose('shrinkwrap', `failed to load ${rel}`, er)
+      } else {
+        this.log.verbose('shrinkwrap', `failed to load ${this.path}`, er)
+      }
       this.loadingError = er
       this.loadedFromDisk = false
       this.ancientLockfile = false

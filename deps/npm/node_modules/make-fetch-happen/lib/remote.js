@@ -29,11 +29,13 @@ const RETRY_TYPES = [
 // and verifying response integrity
 const remoteFetch = (request, options) => {
   const agent = getAgent(request.url, options)
-  if (!request.headers.has('connection'))
+  if (!request.headers.has('connection')) {
     request.headers.set('connection', agent ? 'keep-alive' : 'close')
+  }
 
-  if (!request.headers.has('user-agent'))
+  if (!request.headers.has('user-agent')) {
     request.headers.set('user-agent', USER_AGENT)
+  }
 
   // keep our own options since we're overriding the agent
   // and the redirect mode
@@ -64,8 +66,9 @@ const remoteFetch = (request, options) => {
           ([408, 420, 429].includes(res.status) || res.status >= 500)
 
       if (isRetriable) {
-        if (typeof options.onRetry === 'function')
+        if (typeof options.onRetry === 'function') {
           options.onRetry(res)
+        }
 
         return retryHandler(res)
       }
@@ -82,18 +85,21 @@ const remoteFetch = (request, options) => {
       const isRetryError = err.retried instanceof fetch.Response ||
         (RETRY_ERRORS.includes(code) && RETRY_TYPES.includes(err.type))
 
-      if (req.method === 'POST' || isRetryError)
+      if (req.method === 'POST' || isRetryError) {
         throw err
+      }
 
-      if (typeof options.onRetry === 'function')
+      if (typeof options.onRetry === 'function') {
         options.onRetry(err)
+      }
 
       return retryHandler(err)
     }
   }, options.retry).catch((err) => {
     // don't reject for http errors, just return them
-    if (err.status >= 400 && err.type !== 'system')
+    if (err.status >= 400 && err.type !== 'system') {
       return err
+    }
 
     throw err
   })

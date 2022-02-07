@@ -32,7 +32,7 @@ class Unpublish extends BaseCommand {
       return []
     }
 
-    const opts = this.npm.flatOptions
+    const opts = { ...this.npm.flatOptions, log }
     const username = await getIdentity(this.npm, { ...opts }).catch(() => null)
     if (!username) {
       return []
