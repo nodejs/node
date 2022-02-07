@@ -1,9 +1,9 @@
-name: test-linux
+name: Test Linux
 
 on:
   pull_request:
     paths-ignore:
-      - "README.md"
+      - README.md
       - .github/**
       - '!.github/workflows/test-linux.yml'
     types: [opened, synchronize, reopened, ready_for_review]
@@ -15,7 +15,7 @@ on:
       - v[0-9]+.x-staging
       - v[0-9]+.x
     paths-ignore:
-      - "README.md"
+      - README.md
       - .github/**
       - '!.github/workflows/test-linux.yml'
 

@@ -1,4 +1,4 @@
-name: "authors update"
+name: Authors update
 on:
   schedule:
     # Run once a week at 00:05 AM UTC on Sunday.

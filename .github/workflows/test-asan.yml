@@ -1,4 +1,4 @@
-name: test-asan
+name: Test ASan
 
 on:
   pull_request:

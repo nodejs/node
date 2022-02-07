@@ -8,7 +8,7 @@ name: Notify on Force Push
 jobs:
   slackNotification:
     name: Slack Notification
-    if: ${{ github.event.forced && github.repository == 'nodejs/node' }}
+    if: github.repository == 'nodejs/node' && github.event.forced
     runs-on: ubuntu-latest
     steps:
       - name: Slack Notification

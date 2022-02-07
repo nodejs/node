@@ -1,9 +1,9 @@
-name: build-windows
+name: Build Windows
 
 on:
   pull_request:
     paths-ignore:
-      - "README.md"
+      - README.md
       - .github/**
       - '!.github/workflows/build-windows.yml'
     types: [opened, synchronize, reopened, ready_for_review]
@@ -15,7 +15,7 @@ on:
       - v[0-9]+.x-staging
       - v[0-9]+.x
     paths-ignore:
-      - "README.md"
+      - README.md
       - .github/**
       - '!.github/workflows/build-windows.yml'
 

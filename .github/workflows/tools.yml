@@ -1,4 +1,4 @@
-name: "tools update"
+name: Tools update
 on:
   schedule:
     # Run once a week at 00:05 AM UTC on Saturday.
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  tools_update:
+  tools-update:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     strategy:
