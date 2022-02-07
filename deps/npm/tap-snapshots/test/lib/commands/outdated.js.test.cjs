@@ -5,6 +5,12 @@
  * Make sure to inspect the output below.  Do not ignore changes!
  */
 'use strict'
+exports[`test/lib/commands/outdated.js TAP aliases > should display aliased outdated dep output 1`] = `
+
+Package         Current  Wanted  Latest  Location          Depended by
+cat:dog@latest    1.0.0   2.0.0   2.0.0  node_modules/cat  tap-testdir-outdated-aliases
+`
+
 exports[`test/lib/commands/outdated.js TAP should display outdated deps outdated --all > must match snapshot 1`] = `
 
 Package  Current  Wanted  Latest  Location           Depended by
