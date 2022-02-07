@@ -25,13 +25,12 @@ on:
       - '!.github/workflows/build-tarball.yml'
 
 env:
+  PYTHON_VERSION: '3.10'
   FLAKY_TESTS: dontcare
 
 jobs:
   build-tarball:
     if: github.event.pull_request.draft == false
-    env:
-      PYTHON_VERSION: '3.10'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -57,8 +56,6 @@ jobs:
           name: tarballs
           path: tarballs
   test-tarball-linux:
-    env:
-      PYTHON_VERSION: '3.10'
     needs: build-tarball
     runs-on: ubuntu-latest
     steps:
