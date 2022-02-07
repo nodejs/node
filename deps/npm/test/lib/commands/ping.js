@@ -2,12 +2,13 @@ const t = require('tap')
 const { fake: mockNpm } = require('../../fixtures/mock-npm')
 
 t.test('pings', async t => {
-  t.plan(6)
+  t.plan(7)
 
   const registry = 'https://registry.npmjs.org'
   let noticeCalls = 0
   const Ping = t.mock('../../../lib/commands/ping.js', {
     '../../../lib/utils/ping.js': function (spec) {
+      t.ok(spec.log, 'is passed a logger')
       t.equal(spec.registry, registry, 'passes flatOptions')
       return {}
     },
@@ -35,13 +36,14 @@ t.test('pings', async t => {
 })
 
 t.test('pings and logs details', async t => {
-  t.plan(8)
+  t.plan(9)
 
   const registry = 'https://registry.npmjs.org'
   const details = { extra: 'data' }
   let noticeCalls = 0
   const Ping = t.mock('../../../lib/commands/ping.js', {
     '../../../lib/utils/ping.js': function (spec) {
+      t.ok(spec.log, 'is passed a logger')
       t.equal(spec.registry, registry, 'passes flatOptions')
       return details
     },
@@ -73,13 +75,14 @@ t.test('pings and logs details', async t => {
 })
 
 t.test('pings and returns json', async t => {
-  t.plan(9)
+  t.plan(10)
 
   const registry = 'https://registry.npmjs.org'
   const details = { extra: 'data' }
   let noticeCalls = 0
   const Ping = t.mock('../../../lib/commands/ping.js', {
     '../../../lib/utils/ping.js': function (spec) {
+      t.ok(spec.log, 'is passed a logger')
       t.equal(spec.registry, registry, 'passes flatOptions')
       return details
     },

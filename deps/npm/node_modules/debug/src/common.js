@@ -34,7 +34,7 @@ function setup(env) {
 
 	/**
 	* Selects a color for a debug namespace
-	* @param {String} namespace The namespace string for the for the debug instance to be colored
+	* @param {String} namespace The namespace string for the debug instance to be colored
 	* @return {Number|String} An ANSI color code for the given namespace
 	* @api private
 	*/

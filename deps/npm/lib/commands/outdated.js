@@ -193,7 +193,12 @@ class Outdated extends ArboristWorkspaceCmd {
   }
 
   async getOutdatedInfo (edge) {
-    const spec = npa(edge.name)
+    let alias = false
+    try {
+      alias = npa(edge.spec).subSpec
+    } catch (err) {
+    }
+    const spec = npa(alias ? alias.name : edge.name)
     const node = edge.to || edge
     const { path, location } = node
     const { version: current } = node.package || {}
@@ -217,7 +222,7 @@ class Outdated extends ArboristWorkspaceCmd {
 
     try {
       const packument = await this.getPackument(spec)
-      const expected = edge.spec
+      const expected = alias ? alias.fetchSpec : edge.spec
       // if it's not a range, version, or tag, skip it
       try {
         if (!npa(`${edge.name}@${edge.spec}`).registry) {
@@ -239,7 +244,7 @@ class Outdated extends ArboristWorkspaceCmd {
           : 'global'
 
         this.list.push({
-          name: edge.name,
+          name: alias ? edge.spec.replace('npm', edge.name) : edge.name,
           path,
           type,
           current,

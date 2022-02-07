@@ -50,11 +50,13 @@ function getAgent (uri, opts) {
     : isHttps ? require('https').globalAgent
     : require('http').globalAgent
 
-  if (isLambda && !pxuri)
+  if (isLambda && !pxuri) {
     return lambdaAgent
+  }
 
-  if (AGENT_CACHE.peek(key))
+  if (AGENT_CACHE.peek(key)) {
     return AGENT_CACHE.get(key)
+  }
 
   if (pxuri) {
     const pxopts = isLambda ? {
@@ -86,16 +88,19 @@ function getAgent (uri, opts) {
 function checkNoProxy (uri, opts) {
   const host = new url.URL(uri).hostname.split('.').reverse()
   let noproxy = (opts.noProxy || getProcessEnv('no_proxy'))
-  if (typeof noproxy === 'string')
+  if (typeof noproxy === 'string') {
     noproxy = noproxy.split(/\s*,\s*/g)
+  }
 
   return noproxy && noproxy.some(no => {
     const noParts = no.split('.').filter(x => x).reverse()
-    if (!noParts.length)
+    if (!noParts.length) {
       return false
+    }
     for (let i = 0; i < noParts.length; i++) {
-      if (host[i] !== noParts[i])
+      if (host[i] !== noParts[i]) {
         return false
+      }
     }
     return true
   })
@@ -104,8 +109,9 @@ function checkNoProxy (uri, opts) {
 module.exports.getProcessEnv = getProcessEnv
 
 function getProcessEnv (env) {
-  if (!env)
+  if (!env) {
     return
+  }
 
   let value
 
@@ -114,8 +120,9 @@ function getProcessEnv (env) {
       value = process.env[e] ||
         process.env[e.toUpperCase()] ||
         process.env[e.toLowerCase()]
-      if (typeof value !== 'undefined')
+      if (typeof value !== 'undefined') {
         break
+      }
     }
   }
 
@@ -141,8 +148,9 @@ function getProxyUri (uri, opts) {
       protocol === 'http:' &&
       getProcessEnv(['https_proxy', 'http_proxy', 'proxy'])
     )
-  if (!proxy)
+  if (!proxy) {
     return null
+  }
 
   const parsedProxy = (typeof proxy === 'string') ? new url.URL(proxy) : proxy
 
@@ -177,13 +185,14 @@ function getProxy (proxyUrl, opts, isHttps) {
   }
 
   if (proxyUrl.protocol === 'http:' || proxyUrl.protocol === 'https:') {
-    if (!isHttps)
+    if (!isHttps) {
       return new HttpProxyAgent(popts)
-    else
+    } else {
       return new HttpsProxyAgent(popts)
-  } else if (proxyUrl.protocol.startsWith('socks'))
+    }
+  } else if (proxyUrl.protocol.startsWith('socks')) {
     return new SocksProxyAgent(popts)
-  else {
+  } else {
     throw Object.assign(
       new Error(`unsupported proxy protocol: '${proxyUrl.protocol}'`),
       {

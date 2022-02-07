@@ -75,12 +75,13 @@ t.test('access public on unscoped package', async t => {
 })
 
 t.test('access public on scoped package', async t => {
-  t.plan(2)
+  t.plan(3)
   const name = '@scoped/npm-access-public-pkg'
   const { npm } = await loadMockNpm(t, {
     mocks: {
       libnpmaccess: {
-        public: (pkg, { registry }) => {
+        public: (pkg, { registry, log }) => {
+          t.ok(log, 'should pass a logger')
           t.equal(pkg, name, 'should use pkg name ref')
           t.equal(
             registry,
