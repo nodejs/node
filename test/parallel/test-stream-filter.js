@@ -98,3 +98,11 @@ const { setTimeout } = require('timers/promises');
   const stream = Readable.from([1, 2, 3, 4, 5]).filter((x) => true);
   assert.strictEqual(stream.readable, true);
 }
+{
+  const stream = Readable.from([1, 2, 3, 4, 5]);
+  Object.defineProperty(stream, 'map', {
+    value: common.mustNotCall(() => {}),
+  });
+  // Check that map isn't getting called.
+  stream.filter(() => true);
+}
