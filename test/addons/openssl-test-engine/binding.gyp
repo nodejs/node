@@ -5,7 +5,7 @@
       'type': 'none',
       'includes': ['../common.gypi'],
       'conditions': [
-        ['(OS=="mac" or (OS=="linux")) and '
+        ['(OS=="mac" or OS=="linux") and '
          'node_use_openssl=="true" and '
          'node_shared=="false" and '
          'node_shared_openssl=="false"', {
