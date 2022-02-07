@@ -1,4 +1,4 @@
-name: coverage-linux
+name: Coverage Linux
 
 on:
   pull_request:
@@ -11,9 +11,7 @@ on:
       - .github/**
       - '!.github/workflows/coverage-linux.yml'
   push:
-    branches:
-      - master
-      - main
+    branches: [master, main]
     paths-ignore:
       - '**.md'
       - 'benchmark/**'
