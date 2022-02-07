@@ -4360,7 +4360,7 @@ changes:
 -->
 
 * `fd` {integer}
-* `buffer` {Buffer|TypedArray|DataView|string|Object}
+* `buffer` {Buffer|TypedArray|DataView}
 * `offset` {integer}
 * `length` {integer}
 * `position` {integer}
@@ -4369,8 +4369,7 @@ changes:
   * `bytesWritten` {integer}
   * `buffer` {Buffer|TypedArray|DataView}
 
-Write `buffer` to the file specified by `fd`. If `buffer` is a normal object, it
-must have an own `toString` function property.
+Write `buffer` to the file specified by `fd`.
 
 `offset` determines the part of the buffer to be written, and `length` is
 an integer specifying the number of bytes to write.
@@ -5752,14 +5751,11 @@ changes:
 -->
 
 * `fd` {integer}
-* `buffer` {Buffer|TypedArray|DataView|string|Object}
+* `buffer` {Buffer|TypedArray|DataView}
 * `offset` {integer}
 * `length` {integer}
 * `position` {integer}
 * Returns: {number} The number of bytes written.
-
-If `buffer` is a plain object, it must have an own (not inherited) `toString`
-function property.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.write(fd, buffer...)`][].
