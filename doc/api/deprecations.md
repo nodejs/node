@@ -3061,6 +3061,20 @@ This method was deprecated because it is not compatible with
 
 Use [`buffer.subarray`][] which does the same thing instead.
 
+### DEPXXXX: `process.on('multipleResolves', handler)`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41872
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+This event was deprecated because it did not work with V8 promise combinators
+which diminished its usefulness.
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
