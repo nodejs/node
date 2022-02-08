@@ -3076,11 +3076,14 @@ the errors used for value type validation.
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41896
+    description: Runtime deprecation.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/41872
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime.
 
 This event was deprecated because it did not work with V8 promise combinators
 which diminished its usefulness.
