@@ -3049,7 +3049,7 @@ const w = new Writable({
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v17.5.0
     pr-url: https://github.com/nodejs/node/pull/41596
     description: Documentation-only deprecation.
 -->

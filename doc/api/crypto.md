@@ -2472,12 +2472,12 @@ added: v15.6.0
 <!-- YAML
 added: v15.6.0
 changes:
-  - version: REPLACEME
+  - version: v17.5.0
     pr-url: https://github.com/nodejs/node/pull/41599
     description: The `wildcards`, `partialWildcards`, `multiLabelWildcards`, and
                  `singleLabelSubdomains` options have been removed since they
                  had no effect.
-  - version: REPLACEME
+  - version: v17.5.0
     pr-url: https://github.com/nodejs/node/pull/41569
     description: The subject option can now be set to `'default'`.
 -->
@@ -2507,7 +2507,7 @@ considered, even if the certificate contains no subject alternative names.
 <!-- YAML
 added: v15.6.0
 changes:
-  - version: REPLACEME
+  - version: v17.5.0
     pr-url: https://github.com/nodejs/node/pull/41569
     description: The subject option can now be set to `'default'`.
 -->
@@ -2548,7 +2548,7 @@ considered, even if the certificate contains no subject alternative names.
 <!-- YAML
 added: v15.6.0
 changes:
-  - version: REPLACEME
+  - version: v17.5.0
     pr-url: https://github.com/nodejs/node/pull/41571
     description: The `options` argument has been removed since it had no effect.
 -->
