@@ -23,7 +23,7 @@ jobs:
         run: gh issue comment "$NUMBER" --repo ${{ github.repository }} --body "$STALE_MESSAGE"
 
   fast-track:
-    if: github.repository == 'nodejs/node' && github.event.issue.pull_request && github.event.label.name == 'fast-track'
+    if: github.repository == 'nodejs/node' && github.event_name == 'pull_request_target' && github.event.label.name == 'fast-track'
     runs-on: ubuntu-latest
     steps:
       - name: Request Fast-Track
