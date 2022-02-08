@@ -2891,10 +2891,9 @@ changes:
 
 Type: Runtime
 
-The `process.config` property is intended to provide access to configuration
-settings set when the Node.js binary was compiled. However, the property has
-been mutable by user code making it impossible to rely on. The ability to
-change the value has been deprecated and will be disabled in the future.
+The `process.config` property provides access to Node.js compile-time settings.
+However, the property is mutable and therefore subject to tampering. The ability
+to change the value will be removed in a future version of Node.js.
 
 ### DEP0151: Main index lookup and extension searching
 
