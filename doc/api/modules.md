@@ -171,7 +171,7 @@ The `.mjs` extension is reserved for [ECMAScript Modules][] which cannot be
 loaded via `require()`. See [Determining module system][] section for more info
 regarding which files are parsed as ECMAScript modules.
 
-## All together...
+## All together
 
 <!-- type=misc -->
 
