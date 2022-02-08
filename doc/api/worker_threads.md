@@ -68,7 +68,7 @@ added:
   - v15.12.0
   - v14.18.0
 changes:
-  - version: REPLACEME
+  - version: v17.5.0
     pr-url: https://github.com/nodejs/node/pull/41272
     description: No longer experimental.
 -->
@@ -298,7 +298,7 @@ added:
   - v15.12.0
   - v14.18.0
 changes:
-  - version: REPLACEME
+  - version: v17.5.0
     pr-url: https://github.com/nodejs/node/pull/41272
     description: No longer experimental.
 -->
