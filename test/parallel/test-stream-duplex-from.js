@@ -149,7 +149,7 @@ const { Blob } = require('buffer');
 // Ensure that isDuplexNodeStream was called
 {
   const duplex = new Duplex();
-  assert.deepStrictEqual(Duplex.from(duplex), duplex);
+  assert.strictEqual(Duplex.from(duplex), duplex);
 }
 
 // Ensure that Duplex.from works for blobs
@@ -167,7 +167,7 @@ const { Blob } = require('buffer');
   const myErrorMessage = 'myCustomError';
   Duplex.from(Promise.reject(myErrorMessage))
     .on('error', common.mustCall((error) => {
-      assert.deepStrictEqual(error, myErrorMessage);
+      assert.strictEqual(error, myErrorMessage);
     }));
 }
 
@@ -180,7 +180,7 @@ const { Blob } = require('buffer');
 
   Duplex.from(asyncFn)
     .on('error', common.mustCall((error) => {
-      assert.deepStrictEqual(error, myErrorMessage);
+      assert.strictEqual(error, myErrorMessage);
     }));
 }
 
@@ -202,7 +202,7 @@ const { Blob } = require('buffer');
       }
     })
   }).on('data', common.mustCall((data) => {
-    assert.deepStrictEqual(data, msg);
+    assert.strictEqual(data, msg);
   }));
 
   assert.strictEqual(duplex.writable, false);
@@ -214,7 +214,7 @@ const { Blob } = require('buffer');
   const duplex = Duplex.from({
     writable: Writable({
       write: common.mustCall((data) => {
-        assert.deepStrictEqual(data, msg);
+        assert.strictEqual(data, msg);
       })
     })
   });
@@ -236,14 +236,14 @@ const { Blob } = require('buffer');
     }),
     writable: Writable({
       write: common.mustCall((data) => {
-        assert.deepStrictEqual(data, msg);
+        assert.strictEqual(data, msg);
       })
     })
   });
 
   duplex.pipe(duplex)
     .on('data', common.mustCall((data) => {
-      assert.deepStrictEqual(data, msg);
+      assert.strictEqual(data, msg);
       assert.strictEqual(duplex.readable, true);
       assert.strictEqual(duplex.writable, true);
     }))
