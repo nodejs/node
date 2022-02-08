@@ -1838,7 +1838,7 @@ for await (const result of dnsResults) {
 ### `readable.forEach(fn[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental
@@ -1897,7 +1897,7 @@ console.log('done'); // Stream has finished
 ### `readable.toArray([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental
@@ -1935,7 +1935,7 @@ const dnsResults = await Readable.from([
 ### `readable.some(fn[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental
@@ -1984,7 +1984,7 @@ console.log('done'); // Stream has finished
 ### `readable.find(fn[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental
@@ -2034,7 +2034,7 @@ console.log('done'); // Stream has finished
 ### `readable.every(fn[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental
@@ -2083,7 +2083,7 @@ console.log('done'); // Stream has finished
 ### `readable.flatMap(fn[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental
@@ -2132,7 +2132,7 @@ for await (const result of concatResult) {
 ### `readable.drop(limit[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental
@@ -2154,7 +2154,7 @@ await Readable.from([1, 2, 3, 4]).drop(2).toArray(); // [3, 4]
 ### `readable.take(limit[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental
@@ -2176,7 +2176,7 @@ await Readable.from([1, 2, 3, 4]).take(2).toArray(); // [1, 2]
 ### `readable.asIndexedPairs([options])`
 
 <!-- YAML
-added: REPLACEME
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental
@@ -2200,7 +2200,7 @@ console.log(pairs); // [[0, 'a'], [1, 'b'], [2, 'c']]
 ### `readable.reduce(fn[, initial[, options]])`
 
 <!-- YAML
-added: REPLACEME
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental

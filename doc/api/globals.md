@@ -344,7 +344,7 @@ This variable may appear to be global but is not. See [`exports`][].
 ## `fetch`
 
 <!-- YAML
-added: REPLACEME
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with the [`--experimental-fetch`][]
@@ -370,7 +370,7 @@ Node.js this is different. The top-level scope is not the global scope;
 ## Class `Headers`
 
 <!-- YAML
-added: REPLACEME
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with the [`--experimental-fetch`][]
@@ -475,7 +475,7 @@ This variable may appear to be global but is not. See [`require()`][].
 ## `Response`
 
 <!-- YAML
-added: REPLACEME
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with the [`--experimental-fetch`][]
@@ -486,7 +486,7 @@ A browser-compatible implementation of {Response}.
 ## `Request`
 
 <!-- YAML
-added: REPLACEME
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with the [`--experimental-fetch`][]

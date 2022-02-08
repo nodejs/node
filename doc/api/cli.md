@@ -283,7 +283,7 @@ modifying the stack trace.
 ### `--experimental-fetch`
 
 <!-- YAML
-added: REPLACEME
+added: v17.5.0
 -->
 
 Enable experimental support for the [Fetch API][].
