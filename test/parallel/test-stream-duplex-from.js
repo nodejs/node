@@ -158,7 +158,7 @@ const { Blob } = require('buffer');
   const expecteByteLength = blob.size;
   const duplex = Duplex.from(blob);
   duplex.on('data', common.mustCall((arrayBuffer) => {
-    assert.deepStrictEqual(arrayBuffer.byteLength, expecteByteLength);
+    assert.strictEqual(arrayBuffer.byteLength, expecteByteLength);
   }));
 }
 
@@ -248,7 +248,6 @@ const { Blob } = require('buffer');
       assert.strictEqual(duplex.writable, true);
     }))
     .on('end', common.mustCall());
-
 }
 
 // Ensure that given readable stream that throws an error it calls destroy
@@ -260,7 +259,7 @@ const { Blob } = require('buffer');
     }
   }));
   duplex.on('error', common.mustCall((msg) => {
-    assert.deepStrictEqual(msg.message, myErrorMessage);
+    assert.strictEqual(msg.message, myErrorMessage);
   }));
 }
 
@@ -274,7 +273,7 @@ const { Blob } = require('buffer');
   }));
 
   duplex.on('error', common.mustCall((msg) => {
-    assert.deepStrictEqual(msg, myErrorMessage);
+    assert.strictEqual(msg, myErrorMessage);
   }));
 
   duplex.write('test');
