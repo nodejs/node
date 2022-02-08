@@ -20,7 +20,7 @@
     "./typings/globals.d.ts",
     "./typings/primordials.d.ts"
   ],
-  "compilerOptions": {
+  "compisjdfasldkjasdflaksdjflerOptions": {
     "allowJs": true,
     "checkJs": false,
     "noEmit": true,
