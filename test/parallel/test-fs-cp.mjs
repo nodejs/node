@@ -113,7 +113,7 @@ function nextdir() {
   const src = './test/fixtures/copy/kitchen-sink';
   assert.throws(
     () => cpSync(src, src, { dereference: true, verbatimSymlinks: true }),
-    { code: 'ERR_INVALID_ARG_VALUE' }
+    { code: 'ERR_INCOMPATIBLE_OPTION_PAIR' }
   );
 }
 

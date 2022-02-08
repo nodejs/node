@@ -879,7 +879,7 @@ added: v16.7.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/41819
-    description: Accepts an additional `verbatimSymlinks` parameter to specify
+    description: Accepts an additional `verbatimSymlinks` option to specify
                  whether to perform path resolution for symlinks.
 -->
 
@@ -4872,7 +4872,7 @@ added: v16.7.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/41819
-    description: Accepts an additional `verbatimSymlinks` parameter to specify
+    description: Accepts an additional `verbatimSymlinks` option to specify
                  whether to perform path resolution for symlinks.
 -->
 
