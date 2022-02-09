@@ -268,6 +268,7 @@ let knownGlobals = [
   setInterval,
   setTimeout,
   queueMicrotask,
+  reportError,
 ];
 
 // TODO(@jasnell): This check can be temporary. AbortController is

@@ -649,6 +649,21 @@ The object that acts as the namespace for all W3C
 [Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
 
 [Web Crypto API]: webcrypto.md
+## `reportError(error)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+<!-- type=global -->
+
+* `error` {Error|any} an error to report.
+
+The `reportError(error)` method triggers an uncaught exception with the error
+`error`. This will crash the Node.js process by default.
+
+It is based on the [`reportError`][] web standard.
+
 [`--experimental-fetch`]: cli.md#--experimental-fetch
 [`--experimental-global-webcrypto`]: cli.md#--experimental-global-webcrypto
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
@@ -657,6 +672,7 @@ The object that acts as the namespace for all W3C
 [`MessageChannel`]: worker_threads.md#class-messagechannel
 [`MessageEvent`]: https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent/MessageEvent
 [`MessagePort`]: worker_threads.md#class-messageport
+[`reportError`][]: https://developer.mozilla.org/en-US/docs/Web/API/reportError
 [`TextDecoder`]: util.md#class-utiltextdecoder
 [`TextEncoder`]: util.md#class-utiltextencoder
 [`URLSearchParams`]: url.md#class-urlsearchparams

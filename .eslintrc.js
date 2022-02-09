@@ -344,5 +344,6 @@ module.exports = {
     Crypto: 'readable',
     CryptoKey: 'readable',
     SubtleCrypto: 'readable',
+    reportError: 'readable',
   },
 };
