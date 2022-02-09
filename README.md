@@ -360,6 +360,8 @@ For information about the governance of the Node.js project, see
   **Jan Krems** <<jan.krems@gmail.com>> (he/him)
 * [joaocgreis](https://github.com/joaocgreis) -
   **João Reis** <<reis@janeasystems.com>>
+* [joesepi](https://github.com/joesepi) -
+  **Joe Sepi** <<sepi@joesepi.com>> (he/him)
 * [joyeecheung](https://github.com/joyeecheung) -
   **Joyee Cheung** <<joyeec9h3@gmail.com>> (she/her)
 * [juanarbol](https://github.com/juanarbol) -
