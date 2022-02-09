@@ -54,6 +54,7 @@
 * [Report](report.md)
 * [Stream](stream.md)
 * [String decoder](string_decoder.md)
+* [Test runner](test.md)
 * [Timers](timers.md)
 * [TLS/SSL](tls.md)
 * [Trace events](tracing.md)
