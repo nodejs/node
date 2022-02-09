@@ -60,7 +60,7 @@ try {
   assert.ok(caught, 'execSync should throw');
   const end = Date.now() - start;
   assert(end < SLEEP);
-  assert(err.status > 128 || err.signal);
+  assert(err.status > 128 || err.signal, `status: ${err.status}, signal: ${err.signal}`);
 }
 
 assert.throws(function() {
