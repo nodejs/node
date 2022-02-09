@@ -11,6 +11,7 @@
   --red1: #d60027;
   --red2: #d50027;
   --red3: #ca5010;
+  --red4: #ff7070;
   --green1: #3e7a38;
   --green2: #5a8147;
   --green3: #64de64;
@@ -29,6 +30,7 @@
   --background-color-highlight: var(--white-smoke);
   --color-brand-primary: var(--gray6);
   --color-brand-secondary: var(--green1);
+  --color-critical: var(--red1);
   --color-fill-app: var(--white);
   --color-fill-side-nav: var(--gray6);
   --color-links: var(--green1);
@@ -40,6 +42,7 @@
 
 .dark-mode {
   --background-color-highlight: var(--black2);
+  --color-critical: var(--red4);
   --color-fill-app: var(--black1);
   --color-fill-side-nav: var(--black3);
   --color-links: var(--green5);
@@ -163,6 +166,10 @@ em code {
   list-style: none;
   margin-left: 0;
   line-height: 1.5rem;
+}
+
+.critical, .critical code {
+  color: var(--color-critical);
 }
 
 li.version-picker {
