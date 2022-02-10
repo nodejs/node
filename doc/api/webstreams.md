@@ -149,7 +149,7 @@ added: v16.5.0
   {ReadableStream}.
 
 The `readableStream.locked` property is `false` by default, and is
-switch to `true` while there is an active reader consuming the
+switched to `true` while there is an active reader consuming the
 stream's data.
 
 #### `readableStream.cancel([reason])`
