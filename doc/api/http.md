@@ -296,7 +296,7 @@ the agent when `keepAlive` is enabled. Do not modify.
 Sockets in the `freeSockets` list will be automatically destroyed and
 removed from the array on `'timeout'`.
 
-### `agent.getName(options)`
+### `agent.getName([options])`
 
 <!-- YAML
 added: v0.11.4
