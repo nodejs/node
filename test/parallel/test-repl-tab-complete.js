@@ -558,6 +558,26 @@ testMe.complete('obj.', common.mustCall(function(error, data) {
 putIn.run(['.clear']);
 testMe.complete('Buffer.prototype.', common.mustCall());
 
+// Make sure repl gives correct autocomplete on literals
+testMe.complete('``.a', common.mustCall((err, data) => {
+  assert.strictEqual(data[0].includes('``.at'), true);
+}));
+testMe.complete('\'\'.a', common.mustCall((err, data) => {
+  assert.strictEqual(data[0].includes('\'\'.at'), true);
+}));
+testMe.complete('"".a', common.mustCall((err, data) => {
+  assert.strictEqual(data[0].includes('"".at'), true);
+}));
+testMe.complete('("").a', common.mustCall((err, data) => {
+  assert.strictEqual(data[0].includes('("").at'), true);
+}));
+testMe.complete('[].a', common.mustCall((err, data) => {
+  assert.strictEqual(data[0].includes('[].at'), true);
+}));
+testMe.complete('{}.a', common.mustCall((err, data) => {
+  assert.deepStrictEqual(data[0], []);
+}));
+
 const testNonGlobal = repl.start({
   input: putIn,
   output: putIn,
