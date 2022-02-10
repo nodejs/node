@@ -388,3 +388,4 @@ project.
 * [npm stop](/commands/npm-stop)
 * [npm config](/commands/npm-config)
 * [npm workspaces](/using-npm/workspaces)
+* [npx](/commands/npx)

@@ -1,5 +1,6 @@
 'use strict'
 const npa = require('npm-package-arg')
+const { URL } = require('url')
 
 // Find the longest registry key that is used for some kind of auth
 // in the options.

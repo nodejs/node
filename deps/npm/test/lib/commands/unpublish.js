@@ -76,8 +76,9 @@ t.test('no args --force', async t => {
 
   const libnpmpublish = {
     unpublish (spec, opts) {
+      t.ok(opts.log, 'gets passed a logger')
       t.equal(spec.raw, 'pkg@1.0.0', 'should unpublish expected spec')
-      t.same(
+      t.match(
         opts,
         {
           publishConfig: undefined,
@@ -177,12 +178,8 @@ t.test('unpublish <pkg>@version', async t => {
 
   const libnpmpublish = {
     unpublish (spec, opts) {
+      t.ok(opts.log, 'gets passed a logger')
       t.equal(spec.raw, 'pkg@1.0.0', 'should unpublish expected parsed spec')
-      t.same(
-        opts,
-        {},
-        'should unpublish with expected opts'
-      )
     },
   }
 

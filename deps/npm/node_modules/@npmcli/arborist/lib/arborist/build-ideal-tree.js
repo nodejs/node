@@ -1250,24 +1250,40 @@ This is a one-time fix-up, please be patient...
     // Don't bother to load the manifest for link deps, because the target
     // might be within another package that doesn't exist yet.
     const { legacyPeerDeps } = this
-    return spec.type === 'directory'
-      ? this[_linkFromSpec](name, spec, parent, edge)
-      : this[_fetchManifest](spec)
-        .then(pkg => new Node({ name, pkg, parent, legacyPeerDeps }), error => {
-          error.requiredBy = edge.from.location || '.'
 
-          // failed to load the spec, either because of enotarget or
-          // fetch failure of some other sort.  save it so we can verify
-          // later that it's optional, otherwise the error is fatal.
-          const n = new Node({
-            name,
-            parent,
-            error,
-            legacyPeerDeps,
-          })
-          this[_loadFailures].add(n)
-          return n
+    // spec is a directory, link it
+    if (spec.type === 'directory') {
+      return this[_linkFromSpec](name, spec, parent, edge)
+    }
+
+    // if the spec matches a workspace name, then see if the workspace node will
+    // satisfy the edge. if it does, we return the workspace node to make sure it
+    // takes priority.
+    if (this.idealTree.workspaces && this.idealTree.workspaces.has(spec.name)) {
+      const existingNode = this.idealTree.edgesOut.get(spec.name).to
+      if (existingNode && existingNode.isWorkspace && existingNode.satisfies(edge)) {
+        return edge.to
+      }
+    }
+
+    // spec isn't a directory, and either isn't a workspace or the workspace we have
+    // doesn't satisfy the edge. try to fetch a manifest and build a node from that.
+    return this[_fetchManifest](spec)
+      .then(pkg => new Node({ name, pkg, parent, legacyPeerDeps }), error => {
+        error.requiredBy = edge.from.location || '.'
+
+        // failed to load the spec, either because of enotarget or
+        // fetch failure of some other sort.  save it so we can verify
+        // later that it's optional, otherwise the error is fatal.
+        const n = new Node({
+          name,
+          parent,
+          error,
+          legacyPeerDeps,
         })
+        this[_loadFailures].add(n)
+        return n
+      })
   }
 
   [_linkFromSpec] (name, spec, parent, edge) {
