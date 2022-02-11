@@ -288,6 +288,14 @@ added: v17.5.0
 
 Enable experimental support for the [Fetch API][].
 
+### `--experimental-global-webcrypto`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Expose the [Web Crypto API][] on the global scope.
+
 ### `--experimental-import-meta-resolve`
 
 <!-- YAML
@@ -1580,6 +1588,7 @@ Node.js options that are allowed are:
 * `--enable-source-maps`
 * `--experimental-abortcontroller`
 * `--experimental-fetch`
+* `--experimental-global-webcrypto`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
@@ -1982,6 +1991,7 @@ $ node --max-old-space-size=1536 index.js
 [Source Map]: https://sourcemaps.info/spec.html
 [Subresource Integrity]: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
+[Web Crypto API]: webcrypto.md
 [`"type"`]: packages.md#type
 [`--cpu-prof-dir`]: #--cpu-prof-dir
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory

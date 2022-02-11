@@ -340,5 +340,6 @@ module.exports = {
     Headers: 'readable',
     Request: 'readable',
     Response: 'readable',
+    crypto: 'readable',
   },
 };

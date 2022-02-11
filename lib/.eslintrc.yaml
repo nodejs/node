@@ -79,6 +79,8 @@ rules:
       message: "Use `const { atob } = require('buffer');` instead of the global."
     - name: btoa
       message: "Use `const { btoa } = require('buffer');` instead of the global."
+    - name: crypto
+      message: "Use `const { crypto } = require('internal/crypto/webcrypto');` instead of the global."
     - name: global
       message: "Use `const { globalThis } = primordials;` instead of `global`."
     - name: globalThis
