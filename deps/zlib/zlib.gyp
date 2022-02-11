@@ -65,7 +65,7 @@
                 'USE_FILE32API'
               ],
             }],
-            ['(target_arch in "ia32 x64 x32" and OS!="ios") or arm_fpu=="neon"', {
+            ['(target_arch in "ia32 x64" and OS!="ios") or arm_fpu=="neon"', {
               'sources': [
                 'adler32_simd.c',
                 'adler32_simd.h',
@@ -78,7 +78,7 @@
               'sources': [ 'inflate.c', ],
             }],
             # Incorporate optimizations where possible
-            ['target_arch in "ia32 x64 x32" and OS!="ios"', {
+            ['target_arch in "ia32 x64" and OS!="ios"', {
               'defines': [
                 'ADLER32_SIMD_SSSE3',
                 'INFLATE_CHUNK_SIMD_SSE2',
