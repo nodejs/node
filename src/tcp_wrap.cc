@@ -360,16 +360,20 @@ Local<Object> AddressToJS(Environment* env,
     a6 = reinterpret_cast<const sockaddr_in6*>(addr);
     uv_inet_ntop(AF_INET6, &a6->sin6_addr, ip, sizeof ip);
     // Add an interface identifier to a link local address.
-    if (IN6_IS_ADDR_LINKLOCAL(&a6->sin6_addr)) {
-        const size_t addrlen = strlen(ip);
-        CHECK_LT(addrlen, sizeof(ip));
-        ip[addrlen] = '%';
-        size_t scopeidlen = sizeof(ip) - addrlen - 1;
-        CHECK_GE(scopeidlen, UV_IF_NAMESIZE);
-        const int r = uv_if_indextoiid(a6->sin6_scope_id,
-                                       ip + addrlen + 1,
-                                       &scopeidlen);
-        CHECK_EQ(r, 0);
+    if (IN6_IS_ADDR_LINKLOCAL(&a6->sin6_addr) && a6->sin6_scope_id > 0) {
+      const size_t addrlen = strlen(ip);
+      CHECK_LT(addrlen, sizeof(ip));
+      ip[addrlen] = '%';
+      size_t scopeidlen = sizeof(ip) - addrlen - 1;
+      CHECK_GE(scopeidlen, UV_IF_NAMESIZE);
+      const int r = uv_if_indextoiid(a6->sin6_scope_id,
+                                     ip + addrlen + 1,
+                                     &scopeidlen);
+      if (r) {
+        env->ThrowUVException(r, "uv_if_indextoiid");
+        // TODO(addaleax): Do proper MaybeLocal handling here
+        return scope.Escape(info);
+      }
     }
     port = ntohs(a6->sin6_port);
     info->Set(env->context(),
