@@ -63,14 +63,17 @@ const getFileName = (i) => path.join(tmpdir.path, `writev_${i}.txt`);
   const filename = getFileName(3);
   const fd = fs.openSync(filename, 'w');
   const bufferArr = [];
+  let afterSyncCall = false;
 
   const done = common.mustSucceed((written, buffers) => {
     assert.strictEqual(buffers.length, 0);
     assert.strictEqual(written, 0);
+    assert(afterSyncCall);
     fs.closeSync(fd);
   });
 
   fs.writev(fd, bufferArr, done);
+  afterSyncCall = true;
 }
 
 /**
