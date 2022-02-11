@@ -170,7 +170,7 @@ npm dedupe
 
 Options:
 [--global-style] [--legacy-bundling] [--strict-peer-deps] [--no-package-lock]
-[-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer]
+[-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
 [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
@@ -447,7 +447,7 @@ npm install <git:// url>
 npm install <github username>/<github project>
 
 Options:
-[-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer]
+[-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
 [-E|--save-exact] [-g|--global] [--global-style] [--legacy-bundling]
 [--strict-peer-deps] [--no-package-lock]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
@@ -494,7 +494,7 @@ npm install-test <git:// url>
 npm install-test <github username>/<github project>
 
 Options:
-[-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer]
+[-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
 [-E|--save-exact] [-g|--global] [--global-style] [--legacy-bundling]
 [--strict-peer-deps] [--no-package-lock]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
@@ -517,7 +517,7 @@ npm link (in package dir)
 npm link [<@scope>/]<pkg>[@<version>]
 
 Options:
-[-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer]
+[-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
 [-E|--save-exact] [-g|--global] [--global-style] [--legacy-bundling]
 [--strict-peer-deps] [--no-package-lock]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
@@ -1013,7 +1013,7 @@ Usage:
 npm uninstall [<@scope>/]<pkg>...
 
 Options:
-[-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer]
+[-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root]
 
@@ -1063,7 +1063,7 @@ npm update [<pkg>...]
 Options:
 [-g|--global] [--global-style] [--legacy-bundling] [--strict-peer-deps]
 [--no-package-lock]
-[-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer]
+[-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
 [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]

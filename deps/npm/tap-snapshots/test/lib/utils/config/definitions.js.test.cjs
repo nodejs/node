@@ -1430,7 +1430,7 @@ If a package would be saved at install time by the use of \`--save\`,
 \`--save-dev\`, or \`--save-optional\`, then also put it in the
 \`bundleDependencies\` list.
 
-Ignore if \`--save-peer\` is set, since peerDependencies cannot be bundled.
+Ignored if \`--save-peer\` is set, since peerDependencies cannot be bundled.
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for save-dev 1`] = `
