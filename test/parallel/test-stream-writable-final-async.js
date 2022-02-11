@@ -9,7 +9,6 @@ const { setTimeout } = require('timers/promises');
 {
   class Foo extends Duplex {
     async _final(callback) {
-      // eslint-disable-next-line no-restricted-syntax
       await setTimeout(common.platformTimeout(1));
       callback();
     }

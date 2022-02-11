@@ -12,7 +12,6 @@ const assert = require('assert');
 {
   class Foo extends Duplex {
     async _destroy(err, cb) {
-      // eslint-disable-next-line no-restricted-syntax
       await setTimeout(common.platformTimeout(1));
       throw new Error('boom');
     }
@@ -31,7 +30,6 @@ const assert = require('assert');
 {
   class Foo extends Duplex {
     async _destroy(err, cb) {
-      // eslint-disable-next-line no-restricted-syntax
       await setTimeout(common.platformTimeout(1));
     }
   }
@@ -46,7 +44,6 @@ const assert = require('assert');
 {
   class Foo extends Duplex {
     async _construct() {
-      // eslint-disable-next-line no-restricted-syntax
       await setTimeout(common.platformTimeout(1));
     }
 
@@ -64,7 +61,6 @@ const assert = require('assert');
 {
   class Foo extends Duplex {
     async _construct(callback) {
-      // eslint-disable-next-line no-restricted-syntax
       await setTimeout(common.platformTimeout(1));
       callback();
     }
@@ -88,7 +84,6 @@ const assert = require('assert');
     });
 
     async _final() {
-      // eslint-disable-next-line no-restricted-syntax
       await setTimeout(common.platformTimeout(1));
     }
   }
@@ -105,7 +100,6 @@ const assert = require('assert');
     });
 
     async _final(callback) {
-      // eslint-disable-next-line no-restricted-syntax
       await setTimeout(common.platformTimeout(1));
       callback();
     }
@@ -123,7 +117,6 @@ const assert = require('assert');
     });
 
     async _final() {
-      // eslint-disable-next-line no-restricted-syntax
       await setTimeout(common.platformTimeout(1));
       throw new Error('boom');
     }

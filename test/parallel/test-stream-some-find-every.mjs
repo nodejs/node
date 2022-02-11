@@ -59,7 +59,6 @@ function oneTo5Async() {
 
 {
   async function checkDestroyed(stream) {
-    // eslint-disable-next-line no-restricted-syntax
     await setTimeout();
     assert.strictEqual(stream.destroyed, true);
   }
@@ -109,7 +108,6 @@ function oneTo5Async() {
   // Concurrency doesn't affect which value is found.
   const found = await Readable.from([1, 2]).find(async (val) => {
     if (val === 1) {
-      // eslint-disable-next-line no-restricted-syntax
       await setTimeout(100);
     }
     return true;
