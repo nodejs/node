@@ -482,8 +482,6 @@ InternalFieldInfo* BlobBindingData::Serialize(int index) {
   return info;
 }
 
-constexpr FastStringKey BlobBindingData::type_name;
-
 void Blob::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Blob::New);
   registry->Register(Blob::ToArrayBuffer);
