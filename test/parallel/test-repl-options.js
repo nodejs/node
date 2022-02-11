@@ -29,7 +29,7 @@ const repl = require('repl');
 const cp = require('child_process');
 
 assert.strictEqual(repl.repl, undefined);
-repl._builtinLibs; // eslint-disable-line no-unused-expressions
+void repl._builtinLibs;
 
 common.expectWarning({
   DeprecationWarning: {

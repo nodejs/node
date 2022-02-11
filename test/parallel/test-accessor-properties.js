@@ -17,7 +17,7 @@ const UDP = internalBinding('udp_wrap').UDP;
 {
   // Should throw instead of raise assertions
   assert.throws(() => {
-    UDP.prototype.fd; // eslint-disable-line no-unused-expressions
+    void UDP.prototype.fd;
   }, TypeError);
 
   const StreamWrapProto = Object.getPrototypeOf(TTY.prototype);
@@ -26,7 +26,7 @@ const UDP = internalBinding('udp_wrap').UDP;
   properties.forEach((property) => {
     // Should throw instead of raise assertions
     assert.throws(() => {
-      TTY.prototype[property]; // eslint-disable-line no-unused-expressions
+      void TTY.prototype[property];
     }, TypeError, `Missing expected TypeError for TTY.prototype.${property}`);
 
     // Should not throw for Object.getOwnPropertyDescriptor
@@ -42,8 +42,7 @@ const UDP = internalBinding('udp_wrap').UDP;
     const crypto = internalBinding('crypto');
 
     assert.throws(() => {
-      // eslint-disable-next-line no-unused-expressions
-      crypto.SecureContext.prototype._external;
+      void crypto.SecureContext.prototype._external;
     }, TypeError);
 
     assert.strictEqual(

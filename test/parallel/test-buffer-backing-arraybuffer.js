@@ -31,7 +31,7 @@ for (const { length, expectOnHeap } of tests) {
                        `for ${array.constructor.name}, length = ${length}`);
 
     // Consistency check: Accessing .buffer should create it.
-    array.buffer; // eslint-disable-line no-unused-expressions
+    void array.buffer;
     assert(arrayBufferViewHasBuffer(array));
   }
 }

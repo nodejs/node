@@ -26,7 +26,7 @@ server.listen(0, common.mustCall(() => {
     // informative error.
     setImmediate(common.mustCall(() => {
       assert.throws(() => {
-        socket.example; // eslint-disable-line no-unused-expressions
+        void socket.example;
       }, {
         code: 'ERR_HTTP2_SOCKET_UNBOUND'
       });
@@ -36,8 +36,7 @@ server.listen(0, common.mustCall(() => {
         code: 'ERR_HTTP2_SOCKET_UNBOUND'
       });
       assert.throws(() => {
-        // eslint-disable-next-line no-unused-expressions
-        socket instanceof net.Socket;
+        void (socket instanceof net.Socket);
       }, {
         code: 'ERR_HTTP2_SOCKET_UNBOUND'
       });
