@@ -3,6 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { Duplex, Readable, Writable, pipeline } = require('stream');
+const { Blob } = require('buffer');
 
 {
   const d = Duplex.from({
@@ -143,4 +144,137 @@ const { Duplex, Readable, Writable, pipeline } = require('stream');
     },
     common.mustCall(() => {}),
   );
+}
+
+// Ensure that isDuplexNodeStream was called
+{
+  const duplex = new Duplex();
+  assert.strictEqual(Duplex.from(duplex), duplex);
+}
+
+// Ensure that Duplex.from works for blobs
+{
+  const blob = new Blob(['blob']);
+  const expecteByteLength = blob.size;
+  const duplex = Duplex.from(blob);
+  duplex.on('data', common.mustCall((arrayBuffer) => {
+    assert.strictEqual(arrayBuffer.byteLength, expecteByteLength);
+  }));
+}
+
+// Ensure that given a promise rejection it emits an error
+{
+  const myErrorMessage = 'myCustomError';
+  Duplex.from(Promise.reject(myErrorMessage))
+    .on('error', common.mustCall((error) => {
+      assert.strictEqual(error, myErrorMessage);
+    }));
+}
+
+// Ensure that given a promise rejection on an async function it emits an error
+{
+  const myErrorMessage = 'myCustomError';
+  async function asyncFn() {
+    return Promise.reject(myErrorMessage);
+  }
+
+  Duplex.from(asyncFn)
+    .on('error', common.mustCall((error) => {
+      assert.strictEqual(error, myErrorMessage);
+    }));
+}
+
+// Ensure that Duplex.from throws an Invalid return value when function is void
+{
+  assert.throws(() => Duplex.from(() => {}), {
+    code: 'ERR_INVALID_RETURN_VALUE',
+  });
+}
+
+// Ensure data if a sub object has a readable stream it's duplexified
+{
+  const msg = Buffer.from('hello');
+  const duplex = Duplex.from({
+    readable: Readable({
+      read() {
+        this.push(msg);
+        this.push(null);
+      }
+    })
+  }).on('data', common.mustCall((data) => {
+    assert.strictEqual(data, msg);
+  }));
+
+  assert.strictEqual(duplex.writable, false);
+}
+
+// Ensure data if a sub object has a writable stream it's duplexified
+{
+  const msg = Buffer.from('hello');
+  const duplex = Duplex.from({
+    writable: Writable({
+      write: common.mustCall((data) => {
+        assert.strictEqual(data, msg);
+      })
+    })
+  });
+
+  duplex.write(msg);
+  assert.strictEqual(duplex.readable, false);
+}
+
+// Ensure data if a sub object has a writable and readable stream it's duplexified
+{
+  const msg = Buffer.from('hello');
+
+  const duplex = Duplex.from({
+    readable: Readable({
+      read() {
+        this.push(msg);
+        this.push(null);
+      }
+    }),
+    writable: Writable({
+      write: common.mustCall((data) => {
+        assert.strictEqual(data, msg);
+      })
+    })
+  });
+
+  duplex.pipe(duplex)
+    .on('data', common.mustCall((data) => {
+      assert.strictEqual(data, msg);
+      assert.strictEqual(duplex.readable, true);
+      assert.strictEqual(duplex.writable, true);
+    }))
+    .on('end', common.mustCall());
+}
+
+// Ensure that given readable stream that throws an error it calls destroy
+{
+  const myErrorMessage = 'error!';
+  const duplex = Duplex.from(Readable({
+    read() {
+      throw new Error(myErrorMessage);
+    }
+  }));
+  duplex.on('error', common.mustCall((msg) => {
+    assert.strictEqual(msg.message, myErrorMessage);
+  }));
+}
+
+// Ensure that given writable stream that throws an error it calls destroy
+{
+  const myErrorMessage = 'error!';
+  const duplex = Duplex.from(Writable({
+    write(chunk, enc, cb) {
+      cb(myErrorMessage);
+    }
+  }));
+
+  duplex.on('error', common.mustCall((msg) => {
+    assert.strictEqual(msg, myErrorMessage);
+  }));
+
+  duplex.write('test');
 }
