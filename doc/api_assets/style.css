@@ -772,6 +772,10 @@ kbd {
   display: none;
 }
 
+.dark-mode {
+  color-scheme: dark;
+}
+
 .dark-mode .dark-icon {
   display: none;
 }
