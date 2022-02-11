@@ -107,9 +107,6 @@ class BindingData : public BaseObject {
   SET_MEMORY_INFO_NAME(BindingData)
 };
 
-// TODO(addaleax): Remove once we're on C++17.
-constexpr FastStringKey BindingData::type_name;
-
 // helper class for the Parser
 struct StringPtr {
   StringPtr() {
