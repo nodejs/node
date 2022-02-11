@@ -84,8 +84,9 @@ const { setTimeout } = require('timers/promises');
     assert.deepStrictEqual(result, expected);
   })().then(common.mustCall());
 }
+
 {
-  // Throwing an error during `map` (sync)
+  // Throwing an error during `filter` (sync)
   const stream = Readable.from([1, 2, 3, 4, 5]).filter((x) => {
     if (x === 3) {
       throw new Error('boom');
