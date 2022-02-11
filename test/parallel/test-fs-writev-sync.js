@@ -56,11 +56,21 @@ const getFileName = (i) => path.join(tmpdir.path, `writev_sync_${i}.txt`);
   assert(Buffer.concat(bufferArr).equals(fs.readFileSync(filename)));
 }
 
+// fs.writevSync with empty array of buffers
+{
+  const filename = getFileName(3);
+  const fd = fs.openSync(filename, 'w');
+  const written = fs.writevSync(fd, []);
+  assert.strictEqual(written, 0);
+  fs.closeSync(fd);
+
+}
+
 /**
  * Testing with wrong input types
  */
 {
-  const filename = getFileName(3);
+  const filename = getFileName(4);
   const fd = fs.openSync(filename, 'w');
 
   [false, 'test', {}, [{}], ['sdf'], null, undefined].forEach((i) => {
