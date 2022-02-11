@@ -5,8 +5,6 @@
 
 #if defined(OPENSSL_LINUX) && defined(__i386__)
 # include "./archs/linux-elf/no-asm/crypto/include/internal/bn_conf.h"
-#elif defined(OPENSSL_LINUX) && defined(__ILP32__)
-# include "./archs/linux-x32/no-asm/crypto/include/internal/bn_conf.h"
 #elif defined(OPENSSL_LINUX) && defined(__x86_64__)
 # include "./archs/linux-x86_64/no-asm/crypto/include/internal/bn_conf.h"
 #elif defined(OPENSSL_LINUX) && defined(__arm__)

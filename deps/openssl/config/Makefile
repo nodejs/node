@@ -11,7 +11,7 @@ PERL    = perl
 # Supported architecture list
 ASM_ARCHS = aix-gcc aix64-gcc BSD-x86 BSD-x86_64 \
 darwin64-x86_64-cc darwin-i386-cc darwin64-arm64-cc linux-aarch64 \
-linux-armv4 linux-elf linux-x32 linux-x86_64 linux-ppc \
+linux-armv4 linux-elf linux-x86_64 linux-ppc \
 linux-ppc64 linux-ppc64le linux32-s390x linux64-s390x linux64-mips64\
 solaris-x86-gcc solaris64-x86_64-gcc VC-WIN64A VC-WIN32
 
