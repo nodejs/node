@@ -110,7 +110,7 @@ The project has a venue for real-time discussion:
     contents should not be shared externally.
   * Node.js has a moderation team which you should contact when unsure
     about taking action in the Node.js org.
-  * You can moderate non-collaborator posts yourself. When done please
+  * You can moderate non-collaborator posts yourself. Please
     report the moderation action taken in accordance to the moderation
     policy.
   * You can find the full moderation policy
