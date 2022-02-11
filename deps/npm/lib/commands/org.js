@@ -2,6 +2,7 @@ const liborg = require('libnpmorg')
 const otplease = require('../utils/otplease.js')
 const Table = require('cli-table3')
 const BaseCommand = require('../base-command.js')
+const log = require('../utils/log-shim.js')
 
 class Org extends BaseCommand {
   static description = 'Manage orgs'
@@ -32,7 +33,10 @@ class Org extends BaseCommand {
   }
 
   async exec ([cmd, orgname, username, role], cb) {
-    return otplease(this.npm.flatOptions, opts => {
+    return otplease({
+      ...this.npm.flatOptions,
+      log,
+    }, opts => {
       switch (cmd) {
         case 'add':
         case 'set':

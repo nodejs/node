@@ -3,6 +3,9 @@
 const pacote = require('pacote')
 const npa = require('npm-package-arg')
 const runScript = require('@npmcli/run-script')
+const path = require('path')
+const util = require('util')
+const writeFile = util.promisify(require('fs').writeFile)
 
 module.exports = pack
 async function pack (spec = 'file:.', opts = {}) {
@@ -32,6 +35,14 @@ async function pack (spec = 'file:.', opts = {}) {
     ...opts,
     integrity: manifest._integrity,
   })
+
+  // check for explicit `false` so the default behavior is to skip writing to disk
+  if (opts.dryRun === false) {
+    const filename = `${manifest.name}-${manifest.version}.tgz`
+      .replace(/^@/, '').replace(/\//, '-')
+    const destination = path.resolve(opts.packDestination, filename)
+    await writeFile(destination, tarball)
+  }
 
   if (spec.type === 'directory') {
     // postpack

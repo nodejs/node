@@ -22,15 +22,17 @@ const sameConfigValue = (def, val) =>
   : sameArrayValue(def, val)
 
 const sameArrayValue = (def, val) => {
-  if (def.length !== val.length)
+  if (def.length !== val.length) {
     return false
+  }
 
   for (let i = 0; i < def.length; i++) {
     /* istanbul ignore next - there are no array configs where the default
      * is not an empty array, so this loop is a no-op, but it's the correct
      * thing to do if we ever DO add a config like that. */
-    if (def[i] !== val[i])
+    if (def[i] !== val[i]) {
       return false
+    }
   }
   return true
 }
@@ -38,16 +40,15 @@ const sameArrayValue = (def, val) => {
 const setEnv = (env, rawKey, rawVal) => {
   const val = envVal(rawVal)
   const key = envKey(rawKey, val)
-  if (key && val !== null)
+  if (key && val !== null) {
     env[key] = val
+  }
 }
 
 const setEnvs = (config) => {
   // This ensures that all npm config values that are not the defaults are
   // shared appropriately with child processes, without false positives.
   const {
-    globalPrefix,
-    platform,
     env,
     defaults,
     definitions,
@@ -68,19 +69,22 @@ const setEnvs = (config) => {
   const envSet = new Set(Object.keys(envConf))
   for (const key in cliConf) {
     const { deprecated, envExport = true } = definitions[key] || {}
-    if (deprecated || envExport === false)
+    if (deprecated || envExport === false) {
       continue
+    }
 
     if (sameConfigValue(defaults[key], cliConf[key])) {
       // config is the default, if the env thought different, then we
       // have to set it BACK to the default in the environment.
-      if (!sameConfigValue(envConf[key], cliConf[key]))
+      if (!sameConfigValue(envConf[key], cliConf[key])) {
         setEnv(env, key, cliConf[key])
+      }
     } else {
       // config is not the default.  if the env wasn't the one to set
       // it that way, then we have to put it in the env
-      if (!(envSet.has(key) && !cliSet.has(key)))
+      if (!(envSet.has(key) && !cliSet.has(key))) {
         setEnv(env, key, cliConf[key])
+      }
     }
   }
 
@@ -88,16 +92,19 @@ const setEnvs = (config) => {
   env.HOME = config.home
   env.npm_config_global_prefix = config.globalPrefix
   env.npm_config_local_prefix = config.localPrefix
-  if (cliConf.editor)
+  if (cliConf.editor) {
     env.EDITOR = cliConf.editor
+  }
 
   // note: this doesn't afect the *current* node process, of course, since
   // it's already started, but it does affect the options passed to scripts.
-  if (cliConf['node-options'])
+  if (cliConf['node-options']) {
     env.NODE_OPTIONS = cliConf['node-options']
+  }
 
-  if (require.main && require.main.filename)
+  if (require.main && require.main.filename) {
     env.npm_execpath = require.main.filename
+  }
   env.NODE = env.npm_node_execpath = config.execPath
 }
 

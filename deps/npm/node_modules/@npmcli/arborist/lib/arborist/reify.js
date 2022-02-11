@@ -1369,6 +1369,10 @@ module.exports = cls => class Reifier extends cls {
         devDependencies = {},
         optionalDependencies = {},
         peerDependencies = {},
+        // bundleDependencies is not required by PackageJson like the other fields here
+        // PackageJson also doesn't omit an empty array for this field so defaulting this
+        // to an empty array would add that field to every package.json file.
+        bundleDependencies,
       } = tree.package
 
       pkgJson.update({
@@ -1376,6 +1380,7 @@ module.exports = cls => class Reifier extends cls {
         devDependencies,
         optionalDependencies,
         peerDependencies,
+        bundleDependencies,
       })
       await pkgJson.save()
     }

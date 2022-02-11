@@ -89,7 +89,7 @@ function checkNoProxy (uri, opts) {
   const host = new url.URL(uri).hostname.split('.').reverse()
   let noproxy = (opts.noProxy || getProcessEnv('no_proxy'))
   if (typeof noproxy === 'string') {
-    noproxy = noproxy.split(/\s*,\s*/g)
+    noproxy = noproxy.split(',').map(n => n.trim())
   }
 
   return noproxy && noproxy.some(no => {

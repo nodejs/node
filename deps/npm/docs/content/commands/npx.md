@@ -175,3 +175,4 @@ This resulted in some shifts in its functionality:
 * [npm restart](/commands/npm-restart)
 * [npm stop](/commands/npm-stop)
 * [npm config](/commands/npm-config)
+* [npm exec](/commands/npm-exec)

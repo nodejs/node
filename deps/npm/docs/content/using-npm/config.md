@@ -1351,7 +1351,7 @@ If a package would be saved at install time by the use of `--save`,
 `--save-dev`, or `--save-optional`, then also put it in the
 `bundleDependencies` list.
 
-Ignore if `--save-peer` is set, since peerDependencies cannot be bundled.
+Ignored if `--save-peer` is set, since peerDependencies cannot be bundled.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->

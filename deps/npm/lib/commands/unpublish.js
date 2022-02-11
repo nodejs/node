@@ -84,7 +84,7 @@ class Unpublish extends BaseCommand {
       )
     }
 
-    const opts = this.npm.flatOptions
+    const opts = { ...this.npm.flatOptions, log }
     if (!spec || path.resolve(spec.name) === this.npm.localPrefix) {
       // if there's a package.json in the current folder, then
       // read the package name and version out of that.

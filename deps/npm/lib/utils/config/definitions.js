@@ -1455,6 +1455,7 @@ define('pack-destination', {
   description: `
     Directory in which \`npm pack\` will save tarballs.
   `,
+  flatten,
 })
 
 define('parseable', {
@@ -1587,7 +1588,7 @@ define('save', {
   default: true,
   defaultDescription: `\`true\` unless when using \`npm update\` or
   \`npm dedupe\` where it defaults to \`false\``,
-  usage: '-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer',
+  usage: '-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle',
   type: Boolean,
   short: 'S',
   description: `
@@ -1610,7 +1611,7 @@ define('save-bundle', {
     \`--save-dev\`, or \`--save-optional\`, then also put it in the
     \`bundleDependencies\` list.
 
-    Ignore if \`--save-peer\` is set, since peerDependencies cannot be bundled.
+    Ignored if \`--save-peer\` is set, since peerDependencies cannot be bundled.
   `,
   flatten (key, obj, flatOptions) {
     // XXX update arborist to just ignore it if resulting saveType is peer
