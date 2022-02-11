@@ -308,8 +308,8 @@ if (global.fetch) {
     global.Headers,
   );
 }
-if(global.crypto) {
-  knownGlobals.push(global.crypto)
+if (global.crypto) {
+  knownGlobals.push(global.crypto);
 }
 
 function allowGlobals(...allowlist) {
