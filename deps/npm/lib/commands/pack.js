@@ -1,11 +1,8 @@
-const util = require('util')
 const pacote = require('pacote')
 const libpack = require('libnpmpack')
 const npa = require('npm-package-arg')
-const path = require('path')
 const log = require('../utils/log-shim')
 const { getContents, logTar } = require('../utils/tar.js')
-const writeFile = util.promisify(require('fs').writeFile)
 const BaseCommand = require('../base-command.js')
 
 class Pack extends BaseCommand {
@@ -28,7 +25,6 @@ class Pack extends BaseCommand {
     }
 
     const unicode = this.npm.config.get('unicode')
-    const dryRun = this.npm.config.get('dry-run')
     const json = this.npm.config.get('json')
 
     // Get the manifests and filenames first so we can bail early on manifest
@@ -40,24 +36,15 @@ class Pack extends BaseCommand {
       if (!manifest._id) {
         throw new Error('Invalid package, must have name and version')
       }
-
-      const filename = `${manifest.name}-${manifest.version}.tgz`
-        .replace(/^@/, '').replace(/\//, '-')
-      manifests.push({ arg, filename, manifest })
+      manifests.push({ arg, manifest })
     }
 
     // Load tarball names up for printing afterward to isolate from the
     // noise generated during packing
     const tarballs = []
-    for (const { arg, filename, manifest } of manifests) {
+    for (const { arg, manifest } of manifests) {
       const tarballData = await libpack(arg, this.npm.flatOptions)
       const pkgContents = await getContents(manifest, tarballData)
-      const tarballFilename = path.resolve(this.npm.config.get('pack-destination'), filename)
-
-      if (!dryRun) {
-        await writeFile(tarballFilename, tarballData)
-      }
-
       tarballs.push(pkgContents)
     }
 
