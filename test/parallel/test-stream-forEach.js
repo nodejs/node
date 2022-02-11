@@ -5,7 +5,7 @@ const {
   Readable,
 } = require('stream');
 const assert = require('assert');
-const { setTimeout } = require('timers/promises');
+const { once } = require('events');
 
 {
   // forEach works on synchronous streams with a synchronous predicate
@@ -44,13 +44,58 @@ const { setTimeout } = require('timers/promises');
 }
 
 {
+  // forEach works on an infinite stream
+  const ac = new AbortController();
+  const { signal } = ac;
+  const stream = Readable.from(async function* () {
+    while (true) yield 1;
+  }(), { signal });
+  let i = 0;
+  assert.rejects(stream.forEach(common.mustCall((x) => {
+    i++;
+    if (i === 10) ac.abort();
+    assert.strictEqual(x, 1);
+  }, 10)), { name: 'AbortError' }).then(common.mustCall());
+}
+
+{
+  // Emitting an error during `forEach`
+  const stream = Readable.from([1, 2, 3, 4, 5]);
+  assert.rejects(stream.forEach(async (x) => {
+    if (x === 3) {
+      stream.emit('error', new Error('boom'));
+    }
+  }), /boom/).then(common.mustCall());
+}
+
+{
+  // Throwing an error during `forEach` (sync)
+  const stream = Readable.from([1, 2, 3, 4, 5]);
+  assert.rejects(stream.forEach((x) => {
+    if (x === 3) {
+      throw new Error('boom');
+    }
+  }), /boom/).then(common.mustCall());
+}
+
+{
+  // Throwing an error during `forEach` (async)
+  const stream = Readable.from([1, 2, 3, 4, 5]);
+  assert.rejects(stream.forEach(async (x) => {
+    if (x === 3) {
+      return Promise.reject(new Error('boom'));
+    }
+  }), /boom/).then(common.mustCall());
+}
+
+{
   // Concurrency + AbortSignal
   const ac = new AbortController();
   let calls = 0;
   const forEachPromise =
     Readable.from([1, 2, 3, 4]).forEach(async (_, { signal }) => {
       calls++;
-      await setTimeout(100, { signal });
+      await once(signal, 'abort');
     }, { signal: ac.signal, concurrency: 2 });
   // pump
   assert.rejects(async () => {
