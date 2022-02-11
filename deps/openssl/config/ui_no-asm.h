@@ -5,8 +5,6 @@
 
 #if defined(OPENSSL_LINUX) && defined(__i386__)
 # include "./archs/linux-elf/no-asm/include/openssl/ui.h"
-#elif defined(OPENSSL_LINUX) && defined(__ILP32__)
-# include "./archs/linux-x32/no-asm/include/openssl/ui.h"
 #elif defined(OPENSSL_LINUX) && defined(__x86_64__)
 # include "./archs/linux-x86_64/no-asm/include/openssl/ui.h"
 #elif defined(OPENSSL_LINUX) && defined(__arm__)
