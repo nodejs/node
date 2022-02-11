@@ -113,10 +113,10 @@ The project has a venue for real-time discussion:
   * You can moderate non-collaborator posts yourself. Please
     report the moderation action taken in accordance to the moderation
     policy.
-  * You can find the full moderation policy
-    [here](https://github.com/nodejs/admin/blob/HEAD/Moderation-Policy.md).
-  * There is a full list of moderation team members you can contact
-    [here](https://github.com/nodejs/moderation#moderation-team-members)
+  * You can always refer to the
+    [full moderation policy](https://github.com/nodejs/admin/blob/HEAD/Moderation-Policy.md).
+  * You can contact someone in the
+    [full list of moderation team members](https://github.com/nodejs/moderation#moderation-team-members).
 
 ## Reviewing pull requests
 
