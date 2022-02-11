@@ -108,8 +108,15 @@ The project has a venue for real-time discussion:
   * This is a repository to which all members of the `nodejs` GitHub
     organization (not just collaborators on Node.js core) have access. Its
     contents should not be shared externally.
+  * Node.js has a moderation team which you should contact when unsure
+    about taking action in the Node.js org.
+  * You can moderate non-collaborator posts yourself. When done please
+    report the moderation action taken in accordance to the moderation
+    policy.
   * You can find the full moderation policy
     [here](https://github.com/nodejs/admin/blob/HEAD/Moderation-Policy.md).
+  * There is a full list of moderation team members you can contact
+    [here](https://github.com/nodejs/moderation#moderation-team-members)
 
 ## Reviewing pull requests
 
