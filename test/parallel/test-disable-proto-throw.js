@@ -10,8 +10,8 @@ const { Worker, isMainThread } = require('worker_threads');
 assert(Object.hasOwn(Object.prototype, '__proto__'));
 
 assert.throws(() => {
-  // eslint-disable-next-line no-proto,no-unused-expressions
-  ({}).__proto__;
+  // eslint-disable-next-line no-proto
+  void ({}).__proto__;
 }, {
   code: 'ERR_PROTO_ACCESS'
 });

@@ -31,7 +31,7 @@ const propertyCases = propertiesToTest.map((propName) => {
         `Socket.prototype.${propName} is deprecated`,
         'DEP0112'
       );
-      sock[propName]; // eslint-disable-line no-unused-expressions
+      void sock[propName];
     },
     () => {
       // Test property setter

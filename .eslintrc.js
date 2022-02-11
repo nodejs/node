@@ -257,7 +257,7 @@ module.exports = {
     'no-useless-concat': 'error',
     'no-useless-constructor': 'error',
     'no-useless-return': 'error',
-    'no-void': 'error',
+    'no-void': ['error', { allowAsStatement: true }],
     'no-whitespace-before-property': 'error',
     'object-curly-newline': 'error',
     'object-curly-spacing': ['error', 'always'],

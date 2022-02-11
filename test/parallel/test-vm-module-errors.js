@@ -86,7 +86,7 @@ async function checkModuleState() {
 
   assert.throws(() => {
     const m = new SourceTextModule('');
-    m.error; // eslint-disable-line no-unused-expressions
+    void m.error;
   }, {
     code: 'ERR_VM_MODULE_STATUS',
     message: 'Module status must be errored'
@@ -95,7 +95,7 @@ async function checkModuleState() {
   await assert.rejects(async () => {
     const m = await createEmptyLinkedModule();
     await m.evaluate();
-    m.error; // eslint-disable-line no-unused-expressions
+    void m.error;
   }, {
     code: 'ERR_VM_MODULE_STATUS',
     message: 'Module status must be errored'
@@ -103,7 +103,7 @@ async function checkModuleState() {
 
   assert.throws(() => {
     const m = new SourceTextModule('');
-    m.namespace; // eslint-disable-line no-unused-expressions
+    void m.namespace;
   }, {
     code: 'ERR_VM_MODULE_STATUS',
     message: 'Module status must not be unlinked or linking'
@@ -242,18 +242,15 @@ function checkGettersErrors() {
   const getters = ['identifier', 'context', 'namespace', 'status', 'error'];
   getters.forEach((getter) => {
     assert.throws(() => {
-      // eslint-disable-next-line no-unused-expressions
-      Module.prototype[getter];
+      void Module.prototype[getter];
     }, expectedError);
     assert.throws(() => {
-      // eslint-disable-next-line no-unused-expressions
-      SourceTextModule.prototype[getter];
+      void SourceTextModule.prototype[getter];
     }, expectedError);
   });
   // `dependencySpecifiers` getter is just part of SourceTextModule
   assert.throws(() => {
-    // eslint-disable-next-line no-unused-expressions
-    SourceTextModule.prototype.dependencySpecifiers;
+    void SourceTextModule.prototype.dependencySpecifiers;
   }, expectedError);
 }
 

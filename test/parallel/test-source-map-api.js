@@ -54,8 +54,7 @@ const { readFileSync } = require('fs');
     // Require a file that throws an exception, and has a source map.
     require('../fixtures/source-map/typescript-throw.js');
   } catch (err) {
-    // eslint-disable-next-line no-unused-expressions
-    err.stack; // Force prepareStackTrace() to be called.
+    void err.stack; // Force prepareStackTrace() to be called.
   }
   assert(callSite);
   assert(sourceMap);

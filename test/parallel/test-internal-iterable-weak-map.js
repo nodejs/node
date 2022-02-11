@@ -24,7 +24,7 @@ Reflect.getPrototypeOf(new Set()[Symbol.iterator]()).next =
   wm.set(_cache.moduleC, 'goodbye');
   delete _cache.moduleB;
   setImmediate(() => {
-    _cache; // eslint-disable-line no-unused-expressions
+    void _cache;
     globalThis.gc();
     const values = [...wm];
     deepStrictEqual(values, ['hello', 'goodbye']);

@@ -33,6 +33,6 @@ switch (who) {
                        process.stderr ] });
     break;
   case 'bottom':
-    process.stdin; // eslint-disable-line no-unused-expressions
+    void process.stdin;
     break;
 }
