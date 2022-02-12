@@ -114,7 +114,7 @@ The project has a venue for real-time discussion:
     report the moderation action taken in accordance to the moderation
     policy.
   * You can always refer to the
-    [full moderation policy](https://github.com/nodejs/admin/blob/HEAD/Moderation-Policy.md).
+    [full moderation policy](https://github.com/nodejs/admin/blob/main/Moderation-Policy.md).
   * You can contact someone in the
     [full list of moderation team members](https://github.com/nodejs/moderation#moderation-team-members).
 
