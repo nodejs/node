@@ -9,8 +9,10 @@
 <!-- source_link=lib/vm.js -->
 
 The `vm` module enables compiling and running code within V8 Virtual
-Machine contexts. **The `vm` module is not a security mechanism. Do
-not use it to run untrusted code.**
+Machine contexts.
+
+<strong class="critical">The `vm` module is not a security
+mechanism. Do not use it to run untrusted code.</strong>
 
 JavaScript code can be compiled and run immediately or
 compiled, saved, and run later.
