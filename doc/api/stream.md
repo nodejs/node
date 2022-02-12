@@ -1683,7 +1683,7 @@ async function showBoth() {
 showBoth();
 ```
 
-### `readable.map(fn[, options])`
+##### `readable.map(fn[, options])`
 
 <!-- YAML
 added: v17.4.0
@@ -1728,7 +1728,7 @@ for await (const result of dnsResults) {
 }
 ```
 
-### `readable.filter(fn[, options])`
+##### `readable.filter(fn[, options])`
 
 <!-- YAML
 added: v17.4.0
@@ -1777,7 +1777,7 @@ for await (const result of dnsResults) {
 }
 ```
 
-### `readable.forEach(fn[, options])`
+##### `readable.forEach(fn[, options])`
 
 <!-- YAML
 added: v17.5.0
@@ -1836,7 +1836,7 @@ await dnsResults.forEach((result) => {
 console.log('done'); // Stream has finished
 ```
 
-### `readable.toArray([options])`
+##### `readable.toArray([options])`
 
 <!-- YAML
 added: v17.5.0
@@ -1874,7 +1874,7 @@ const dnsResults = await Readable.from([
 }, { concurrency: 2 }).toArray();
 ```
 
-### `readable.some(fn[, options])`
+##### `readable.some(fn[, options])`
 
 <!-- YAML
 added: v17.5.0
@@ -1923,7 +1923,7 @@ console.log(anyBigFile); // `true` if any file in the list is bigger than 1MB
 console.log('done'); // Stream has finished
 ```
 
-### `readable.find(fn[, options])`
+##### `readable.find(fn[, options])`
 
 <!-- YAML
 added: v17.5.0
@@ -1973,7 +1973,7 @@ console.log(foundBigFile); // File name of large file, if any file in the list i
 console.log('done'); // Stream has finished
 ```
 
-### `readable.every(fn[, options])`
+##### `readable.every(fn[, options])`
 
 <!-- YAML
 added: v17.5.0
@@ -2022,7 +2022,7 @@ console.log(allBigFiles);
 console.log('done'); // Stream has finished
 ```
 
-### `readable.flatMap(fn[, options])`
+##### `readable.flatMap(fn[, options])`
 
 <!-- YAML
 added: v17.5.0
@@ -2071,7 +2071,7 @@ for await (const result of concatResult) {
 }
 ```
 
-### `readable.drop(limit[, options])`
+##### `readable.drop(limit[, options])`
 
 <!-- YAML
 added: v17.5.0
@@ -2093,7 +2093,7 @@ import { Readable } from 'stream';
 await Readable.from([1, 2, 3, 4]).drop(2).toArray(); // [3, 4]
 ```
 
-### `readable.take(limit[, options])`
+##### `readable.take(limit[, options])`
 
 <!-- YAML
 added: v17.5.0
@@ -2115,7 +2115,7 @@ import { Readable } from 'stream';
 await Readable.from([1, 2, 3, 4]).take(2).toArray(); // [1, 2]
 ```
 
-### `readable.asIndexedPairs([options])`
+##### `readable.asIndexedPairs([options])`
 
 <!-- YAML
 added: v17.5.0
@@ -2139,7 +2139,7 @@ const pairs = await Readable.from(['a', 'b', 'c']).asIndexedPairs().toArray();
 console.log(pairs); // [[0, 'a'], [1, 'b'], [2, 'c']]
 ```
 
-### `readable.reduce(fn[, initial[, options]])`
+##### `readable.reduce(fn[, initial[, options]])`
 
 <!-- YAML
 added: v17.5.0
