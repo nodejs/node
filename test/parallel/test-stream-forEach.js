@@ -55,7 +55,7 @@ const { setTimeout } = require('timers/promises');
     i++;
     if (i === 10) ac.abort();
     assert.strictEqual(x, 1);
-  }, 10)), { name: 'AbortError' });
+  }, 10)), { name: 'AbortError' }).then(common.mustCall());
 }
 
 {
