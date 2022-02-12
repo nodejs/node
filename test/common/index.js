@@ -308,7 +308,7 @@ if (global.fetch) {
     global.Headers,
   );
 }
-if (global.crypto) {
+if (hasCrypto && global.crypto) {
   knownGlobals.push(global.crypto);
 }
 
