@@ -47,4 +47,13 @@ tmpdir.refresh();
     assert(Buffer.concat(bufferArr).equals(await fs.readFile(filename)));
     handle.close();
   }
+
+  {
+    // Writev with empty array behavior
+    const handle = await fs.open(getFileName(), 'w');
+    const result = await handle.writev([]);
+    assert.strictEqual(result.bytesWritten, 0);
+    assert.strictEqual(result.buffers.length, 0);
+    handle.close();
+  }
 })().then(common.mustCall());
