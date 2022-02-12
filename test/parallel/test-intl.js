@@ -106,8 +106,8 @@ if (!common.hasIntl) {
   }
   // If list is specified and doesn't contain 'en-US' then return.
   if (process.config.variables.icu_locales && !haveLocale('en-US')) {
-    common.printSkipMessage(
-      'detailed Intl tests because Node.js was built with small ICU.');
+    common.printSkipMessage('detailed Intl tests because American English is ' +
+                            'not listed as supported.');
     return;
   }
   // Number format resolved options
