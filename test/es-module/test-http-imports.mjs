@@ -64,6 +64,11 @@ for (const { protocol, createServer } of [
     const server = createServer(function(_req, res) {
       const url = new URL(_req.url, host);
       const redirect = url.searchParams.get('redirect');
+      if (url.pathname === '/not-found') {
+        res.writeHead(404);
+        res.end();
+        return;
+      }
       if (redirect) {
         const { status, location } = JSON.parse(redirect);
         res.writeHead(status, {
@@ -164,6 +169,12 @@ for (const { protocol, createServer } of [
     await assert.rejects(
       import(unsupportedMIME.href),
       { code: 'ERR_UNKNOWN_MODULE_FORMAT' }
+    );
+    const notFound = new URL(url.href);
+    notFound.pathname = '/not-found';
+    await assert.rejects(
+      import(notFound.href),
+      { code: 'ERR_MODULE_NOT_FOUND' },
     );
 
     server.close();
