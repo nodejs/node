@@ -37,6 +37,8 @@ rules:
       # disabled with --no-harmony-atomics CLI flag.
     - name: Atomics
       message: Use `const { Atomics } = globalThis;` instead of the global.
+    - name: BroadcastChannel
+      message: Use `const { BroadcastChannel } = require('internal/worker/io');` instead of the global.
     - name: Buffer
       message: Use `const { Buffer } = require('buffer');` instead of the global.
     - name: Event
@@ -57,6 +59,10 @@ rules:
       message: Use `const { MessageEvent } = require('internal/worker/io');` instead of the global.
     - name: MessagePort
       message: Use `const { MessagePort } = require('internal/worker/io');` instead of the global.
+    - name: Request
+      message: Use `const { Request } = require('internal/deps/undici/undici');` instead of the global.
+    - name: Response
+      message: Use `const { Response } = require('internal/deps/undici/undici');` instead of the global.
       # SharedArrayBuffer is not available in primordials because it can be
       # disabled with --no-harmony-sharedarraybuffer CLI flag.
     - name: SharedArrayBuffer
@@ -83,6 +89,8 @@ rules:
       message: Use `const { Crypto } = require('internal/crypto/webcrypto');` instead of the global.
     - name: CryptoKey
       message: Use `const { CryptoKey } = require('internal/crypto/webcrypto');` instead of the global.
+    - name: fetch
+      message: Use `const { fetch } = require('internal/deps/undici/undici');` instead of the global.
     - name: global
       message: Use `const { globalThis } = primordials;` instead of `global`.
     - name: globalThis
