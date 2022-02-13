@@ -307,6 +307,19 @@ added: v0.1.100
 
 Used to print to stdout and stderr. See the [`console`][] section.
 
+## `Crypto`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental. Enable this API with the
+> [`--experimental-global-webcrypto`][] CLI flag.
+
+A browser-compatible implementation of {Crypto}. This global is available
+only if the Node.js binary was compiled with including support for the
+`crypto` module.
+
 ## `crypto`
 
 <!-- YAML
@@ -317,6 +330,19 @@ added: REPLACEME
 > [`--experimental-global-webcrypto`][] CLI flag.
 
 A browser-compatible implementation of the [Web Crypto API][].
+
+## `CryptoKey`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental. Enable this API with the
+> [`--experimental-global-webcrypto`][] CLI flag.
+
+A browser-compatible implementation of {CryptoKey}. This global is available
+only if the Node.js binary was compiled with including support for the
+`crypto` module.
 
 ## `Event`
 
@@ -544,6 +570,19 @@ added: v17.0.0
 <!-- type=global -->
 
 The WHATWG [`structuredClone`][] method.
+
+## `SubtleCrypto`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental. Enable this API with the
+> [`--experimental-global-webcrypto`][] CLI flag.
+
+A browser-compatible implementation of {SubtleCrypto}. This global is available
+only if the Node.js binary was compiled with including support for the
+`crypto` module.
 
 ## `DOMException`
 
