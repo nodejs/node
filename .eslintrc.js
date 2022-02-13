@@ -341,8 +341,8 @@ module.exports = {
     Request: 'readable',
     Response: 'readable',
     crypto: 'readable',
-    Crypto: 'writable',
-    CryptoKey: 'writable',
-    SubtleCrypto: 'writable',
+    Crypto: 'readable',
+    CryptoKey: 'readable',
+    SubtleCrypto: 'readable',
   },
 };
