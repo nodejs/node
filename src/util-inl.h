@@ -404,7 +404,7 @@ inline char* UncheckedCalloc(size_t n) { return UncheckedCalloc<char>(n); }
 void ThrowErrStringTooLong(v8::Isolate* isolate);
 
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
-                                    const std::string& str,
+                                    std::string_view str,
                                     v8::Isolate* isolate) {
   if (isolate == nullptr) isolate = context->GetIsolate();
   if (UNLIKELY(str.size() >= static_cast<size_t>(v8::String::kMaxLength))) {
@@ -434,6 +434,25 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
   }
 
   return handle_scope.Escape(v8::Array::New(isolate, arr.out(), arr.length()));
+}
+
+template <typename T>
+v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                    const std::set<T>& set,
+                                    v8::Isolate* isolate) {
+  if (isolate == nullptr) isolate = context->GetIsolate();
+  v8::Local<v8::Set> set_js = v8::Set::New(isolate);
+  v8::HandleScope handle_scope(isolate);
+
+  for (const T& entry : set) {
+    v8::Local<v8::Value> value;
+    if (!ToV8Value(context, entry, isolate).ToLocal(&value))
+      return {};
+    if (set_js->Add(context, value).IsEmpty())
+      return {};
+  }
+
+  return set_js;
 }
 
 template <typename T, typename U>
