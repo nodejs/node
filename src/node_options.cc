@@ -1199,4 +1199,5 @@ std::vector<std::string> ParseNodeOptionsEnvVar(
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(options, node::options_parser::Initialize)
-NODE_MODULE_EXTERNAL_REFERENCE(options, node::options_parser::RegisterExternalReferences)
+NODE_MODULE_EXTERNAL_REFERENCE(options,
+                               node::options_parser::RegisterExternalReferences)
