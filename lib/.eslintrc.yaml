@@ -39,6 +39,8 @@ rules:
       message: Use `const { Atomics } = globalThis;` instead of the global.
     - name: Blob
       message: Use `const { Blob } = require('buffer');` instead of the global.
+    - name: BroadcastChannel
+      message: Use `const { BroadcastChannel } = require('internal/worker/io');` instead of the global.
     - name: Buffer
       message: Use `const { Buffer } = require('buffer');` instead of the global.
     - name: DOMException
@@ -47,18 +49,22 @@ rules:
       message: Use `const { Event } = require('internal/event_target');` instead of the global.
     - name: EventTarget
       message: Use `const { EventTarget } = require('internal/event_target');` instead of the global.
+    - name: Headers
+      message: Use `const { Headers } = require('internal/deps/undici/undici');` instead of the global.
       # Intl is not available in primordials because it can be
       # disabled with --without-intl build flag.
     - name: Intl
       message: Use `const { Intl } = globalThis;` instead of the global.
-    - name: BroadcastChannel
-      message: Use `const { BroadcastChannel } = require('internal/worker/io');` instead of the global.
     - name: MessageChannel
       message: Use `const { MessageChannel } = require('internal/worker/io');` instead of the global.
     - name: MessageEvent
       message: Use `const { MessageEvent } = require('internal/worker/io');` instead of the global.
     - name: MessagePort
       message: Use `const { MessagePort } = require('internal/worker/io');` instead of the global.
+    - name: Request
+      message: Use `const { Request } = require('internal/deps/undici/undici');` instead of the global.
+    - name: Response
+      message: Use `const { Response } = require('internal/deps/undici/undici');` instead of the global.
       # SharedArrayBuffer is not available in primordials because it can be
       # disabled with --no-harmony-sharedarraybuffer CLI flag.
     - name: SharedArrayBuffer
@@ -85,6 +91,8 @@ rules:
       message: Use `const { Crypto } = require('internal/crypto/webcrypto');` instead of the global.
     - name: CryptoKey
       message: Use `const { CryptoKey } = require('internal/crypto/webcrypto');` instead of the global.
+    - name: fetch
+      message: Use `const { fetch } = require('internal/deps/undici/undici');` instead of the global.
     - name: global
       message: Use `const { globalThis } = primordials;` instead of `global`.
     - name: globalThis
