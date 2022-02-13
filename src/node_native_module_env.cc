@@ -22,17 +22,6 @@ using v8::SideEffectType;
 using v8::String;
 using v8::Value;
 
-// TODO(joyeecheung): make these more general and put them into util.h
-Local<Set> ToJsSet(Local<Context> context, const std::set<std::string>& in) {
-  Isolate* isolate = context->GetIsolate();
-  Local<Set> out = Set::New(isolate);
-  for (auto const& x : in) {
-    out->Add(context, OneByteString(isolate, x.c_str(), x.size()))
-        .ToLocalChecked();
-  }
-  return out;
-}
-
 bool NativeModuleEnv::Add(const char* id, const UnionBytes& source) {
   return NativeModuleLoader::GetInstance()->Add(id, source);
 }
@@ -67,16 +56,26 @@ void NativeModuleEnv::GetModuleCategories(
     cannot_be_required.insert("trace_events");
   }
 
-  result
+  Local<Value> cannot_be_required_js;
+  Local<Value> can_be_required_js;
+
+  if (!ToV8Value(context, cannot_be_required).ToLocal(&cannot_be_required_js))
+    return;
+  if (result
       ->Set(context,
             OneByteString(isolate, "cannotBeRequired"),
-            ToJsSet(context, cannot_be_required))
-      .FromJust();
-  result
+            cannot_be_required_js)
+      .IsNothing())
+    return;
+  if (!ToV8Value(context, can_be_required).ToLocal(&can_be_required_js))
+    return;
+  if (result
       ->Set(context,
             OneByteString(isolate, "canBeRequired"),
-            ToJsSet(context, can_be_required))
-      .FromJust();
+            can_be_required_js)
+      .IsNothing()) {
+    return;
+  }
   info.GetReturnValue().Set(result);
 }
 
@@ -85,23 +84,45 @@ void NativeModuleEnv::GetCacheUsage(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   Local<Object> result = Object::New(isolate);
-  result
+
+  Local<Value> native_modules_with_cache_js;
+  Local<Value> native_modules_without_cache_js;
+  Local<Value> native_modules_in_snapshot_js;
+  if (!ToV8Value(context, env->native_modules_with_cache)
+      .ToLocal(&native_modules_with_cache_js)) {
+    return;
+  }
+  if (result
       ->Set(env->context(),
             OneByteString(isolate, "compiledWithCache"),
-            ToJsSet(context, env->native_modules_with_cache))
-      .FromJust();
-  result
+            native_modules_with_cache_js)
+      .IsNothing()) {
+    return;
+  }
+
+  if (!ToV8Value(context, env->native_modules_without_cache)
+      .ToLocal(&native_modules_without_cache_js)) {
+    return;
+  }
+  if (result
       ->Set(env->context(),
             OneByteString(isolate, "compiledWithoutCache"),
-            ToJsSet(context, env->native_modules_without_cache))
-      .FromJust();
+            native_modules_without_cache_js)
+      .IsNothing()) {
+    return;
+  }
 
-  result
+  if (!ToV8Value(context, env->native_modules_in_snapshot)
+      .ToLocal(&native_modules_without_cache_js)) {
+    return;
+  }
+  if (result
       ->Set(env->context(),
             OneByteString(isolate, "compiledInSnapshot"),
-            ToV8Value(env->context(), env->native_modules_in_snapshot)
-                .ToLocalChecked())
-      .FromJust();
+            native_modules_without_cache_js)
+      .IsNothing()) {
+    return;
+  }
 
   args.GetReturnValue().Set(result);
 }
