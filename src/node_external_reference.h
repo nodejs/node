@@ -68,6 +68,7 @@ class ExternalReferenceRegistry {
   V(messaging)                                                                 \
   V(native_module)                                                             \
   V(os)                                                                        \
+  V(options)                                                                   \
   V(performance)                                                               \
   V(process_methods)                                                           \
   V(process_object)                                                            \
