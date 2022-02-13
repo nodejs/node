@@ -68,7 +68,7 @@ import assert from 'assert';
   );
   assert.strictEqual(descriptor.enumerable, false);
   assert.strictEqual(descriptor.configurable, true);
-  // assert.strictEqual(descriptor.writable, false);
+  assert.strictEqual(descriptor.writable, false);
 }
 {
   // drop/length
@@ -79,7 +79,7 @@ import assert from 'assert';
   );
   assert.strictEqual(descriptor.enumerable, false);
   assert.strictEqual(descriptor.configurable, true);
-  // assert.strictEqual(descriptor.writable, false);
+  assert.strictEqual(descriptor.writable, false);
   // drop/limit-equals-total
   const iterator = Readable.from([1, 2]).drop(2);
   const result = await iterator[Symbol.asyncIterator]().next();
