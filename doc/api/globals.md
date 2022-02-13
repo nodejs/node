@@ -389,6 +389,17 @@ added: v17.5.0
 
 A browser-compatible implementation of the [`fetch()`][] function.
 
+## Class `FormData`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental. Enable this API with the [`--experimental-fetch`][]
+> CLI flag.
+
+A browser-compatible implementation of {FormData}.
+
 ## `global`
 
 <!-- YAML
