@@ -1,14 +1,14 @@
-# Investigating memory leaks with valgrind
+# Investigating memory leaks with Valgrind
 
 A Node.js process may run out of memory due to excessive consumption of
 native memory. Native Memory is memory which is not managed by the
 V8 Garbage collector and is allocated either by the Node.js runtime, its
 dependencies or native [addons](https://nodejs.org/docs/latest/api/n-api.html).
 
-This guide provides information on how to use valgrind to investigate these
+This guide provides information on how to use Valgrind to investigate these
 issues on Linux platforms.
 
-## valgrind
+## Valgrind
 
 [Valgrind](https://valgrind.org/docs/manual/quick-start.html) is a
 tool available on Linux distributions which can be used to investigate
@@ -16,9 +16,9 @@ memory usage including identifying memory leaks (memory which is
 allocated and not freed) and other memory related problems
 like double freeing memory.
 
-To use valgrind:
+To use Valgrind:
 
-* Be patient, running under valgrind slows execution significantly
+* Be patient, running under Valgrind slows execution significantly
   due to the checks being performed.
 * Reduce your test case to the smallest reproduce. Due to the slowdown it is
   important to run the minimum test case in order to be able to do it in
@@ -35,7 +35,7 @@ apt-get install valgrind
 
 ## Invocation
 
-The simplest invocation of valgrind is:
+The simplest invocation of Valgrind is:
 
 ```console
 valgrind node test.js
@@ -317,7 +317,7 @@ From the stack trace we can tell that the leak came from a native addon:
 
 What we can't tell is where in the native addon the memory is being
 allocated. This is because by default the addon is compiled without
-the debug symbols which valgrind needs to be able to provide more
+the debug symbols which Valgrind needs to be able to provide more
 information.
 
 ## Enabling debug symbols to get more information
@@ -345,7 +345,7 @@ npm install --debug
 npm rebuild
 ```
 
-The next step is to run valgrind after the rebuild. This time the information
+The next step is to run Valgrind after the rebuild. This time the information
 for the leaking location includes the name of the source file and the
 line number:
 
@@ -409,7 +409,7 @@ its symbols using `-rdynamic` so that they can be used by addons. If the stack
 gives you enough information to track down where the leak is, that's great,
 otherwise the next step is to compile a debug build of Node.js.
 
-To get additional information with valgrind:
+To get additional information with Valgrind:
 
 * Check out the Node.js source corresponding to the release that you
   want to debug. For example:
@@ -432,7 +432,7 @@ make -j4
   `./configure --debug`, two binaries will have been built when `make` was run.
   You must use the one which is in `out/Debug`.
 
-Running valgrind using the debug build of Node.js shows:
+Running Valgrind using the debug build of Node.js shows:
 
 ```console
 ==44112== 592 bytes in 1 blocks are possibly lost in loss record 26 of 27
