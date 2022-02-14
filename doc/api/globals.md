@@ -672,7 +672,6 @@ It is based on the [`reportError`][] web standard.
 [`MessageChannel`]: worker_threads.md#class-messagechannel
 [`MessageEvent`]: https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent/MessageEvent
 [`MessagePort`]: worker_threads.md#class-messageport
-[`reportError`][]: https://developer.mozilla.org/en-US/docs/Web/API/reportError
 [`TextDecoder`]: util.md#class-utiltextdecoder
 [`TextEncoder`]: util.md#class-utiltextencoder
 [`URLSearchParams`]: url.md#class-urlsearchparams
@@ -691,6 +690,7 @@ It is based on the [`reportError`][] web standard.
 [`perf_hooks.performance`]: perf_hooks.md#perf_hooksperformance
 [`process.nextTick()`]: process.md#processnexttickcallback-args
 [`process` object]: process.md#process
+[`reportError`]: https://developer.mozilla.org/en-US/docs/Web/API/reportError
 [`require()`]: modules.md#requireid
 [`setImmediate`]: timers.md#setimmediatecallback-args
 [`setInterval`]: timers.md#setintervalcallback-delay-args
