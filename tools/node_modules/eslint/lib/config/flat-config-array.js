@@ -58,7 +58,11 @@ class FlatConfigArray extends ConfigArray {
             schema: flatConfigSchema
         });
 
-        this.unshift(...baseConfig);
+        if (baseConfig[Symbol.iterator]) {
+            this.unshift(...baseConfig);
+        } else {
+            this.unshift(baseConfig);
+        }
     }
 
     /* eslint-disable class-methods-use-this -- Desired as instance method */

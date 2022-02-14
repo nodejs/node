@@ -4,6 +4,10 @@
  */
 import KEYS from "./visitor-keys.js";
 
+/**
+ * @typedef {{ readonly [type: string]: ReadonlyArray<string> }} VisitorKeys
+ */
+
 // List to ignore keys.
 const KEY_BLACKLIST = new Set([
     "parent",
@@ -22,8 +26,8 @@ function filterKey(key) {
 
 /**
  * Get visitor keys of a given node.
- * @param {Object} node The AST node to get keys.
- * @returns {string[]} Visitor keys of the node.
+ * @param {object} node The AST node to get keys.
+ * @returns {readonly string[]} Visitor keys of the node.
  */
 export function getKeys(node) {
     return Object.keys(node).filter(filterKey);
@@ -33,11 +37,13 @@ export function getKeys(node) {
 // eslint-disable-next-line valid-jsdoc
 /**
  * Make the union set with `KEYS` and given keys.
- * @param {Object} additionalKeys The additional keys.
- * @returns {{ [type: string]: string[] | undefined }} The union set.
+ * @param {VisitorKeys} additionalKeys The additional keys.
+ * @returns {VisitorKeys} The union set.
  */
 export function unionWith(additionalKeys) {
-    const retv = Object.assign({}, KEYS);
+    const retv = /** @type {{
+        [type: string]: ReadonlyArray<string>
+    }} */ (Object.assign({}, KEYS));
 
     for (const type of Object.keys(additionalKeys)) {
         if (Object.prototype.hasOwnProperty.call(retv, type)) {
