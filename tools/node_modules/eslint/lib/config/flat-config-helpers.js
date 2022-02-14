@@ -57,11 +57,47 @@ function getRuleFromConfig(ruleId, config) {
     return rule;
 }
 
+/**
+ * Gets a complete options schema for a rule.
+ * @param {{create: Function, schema: (Array|null)}} rule A new-style rule object
+ * @returns {Object} JSON Schema for the rule's options.
+ */
+function getRuleOptionsSchema(rule) {
+
+    if (!rule) {
+        return null;
+    }
+
+    const schema = rule.schema || rule.meta && rule.meta.schema;
+
+    if (Array.isArray(schema)) {
+        if (schema.length) {
+            return {
+                type: "array",
+                items: schema,
+                minItems: 0,
+                maxItems: schema.length
+            };
+        }
+        return {
+            type: "array",
+            minItems: 0,
+            maxItems: 0
+        };
+
+    }
+
+    // Given a full schema, leave it alone
+    return schema || null;
+}
+
+
 //-----------------------------------------------------------------------------
 // Exports
 //-----------------------------------------------------------------------------
 
 module.exports = {
     parseRuleId,
-    getRuleFromConfig
+    getRuleFromConfig,
+    getRuleOptionsSchema
 };
