@@ -307,6 +307,43 @@ added: v0.1.100
 
 Used to print to stdout and stderr. See the [`console`][] section.
 
+## `Crypto`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental. Enable this API with the
+> [`--experimental-global-webcrypto`][] CLI flag.
+
+A browser-compatible implementation of {Crypto}. This global is available
+only if the Node.js binary was compiled with including support for the
+`crypto` module.
+
+## `crypto`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental. Enable this API with the
+> [`--experimental-global-webcrypto`][] CLI flag.
+
+A browser-compatible implementation of the [Web Crypto API][].
+
+## `CryptoKey`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental. Enable this API with the
+> [`--experimental-global-webcrypto`][] CLI flag.
+
+A browser-compatible implementation of {CryptoKey}. This global is available
+only if the Node.js binary was compiled with including support for the
+`crypto` module.
+
 ## `Event`
 
 <!-- YAML
@@ -534,6 +571,19 @@ added: v17.0.0
 
 The WHATWG [`structuredClone`][] method.
 
+## `SubtleCrypto`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental. Enable this API with the
+> [`--experimental-global-webcrypto`][] CLI flag.
+
+A browser-compatible implementation of {SubtleCrypto}. This global is available
+only if the Node.js binary was compiled with including support for the
+`crypto` module.
+
 ## `DOMException`
 
 <!-- YAML
@@ -598,7 +648,9 @@ The object that acts as the namespace for all W3C
 [WebAssembly][webassembly-org] related functionality. See the
 [Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
 
+[Web Crypto API]: webcrypto.md
 [`--experimental-fetch`]: cli.md#--experimental-fetch
+[`--experimental-global-webcrypto`]: cli.md#--experimental-global-webcrypto
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 [`DOMException`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException
 [`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api
