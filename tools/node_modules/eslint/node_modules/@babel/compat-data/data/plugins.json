@@ -47,6 +47,7 @@
     "node": "12.5",
     "ios": "13",
     "samsung": "11",
+    "rhino": "1.7.14",
     "electron": "6.0"
   },
   "proposal-logical-assignment-operators": {
@@ -90,6 +91,7 @@
     "node": "10",
     "ios": "12",
     "samsung": "9",
+    "rhino": "1.7.14",
     "electron": "3.0"
   },
   "proposal-optional-catch-binding": {
@@ -187,6 +189,7 @@
     "node": "7",
     "ios": "10.3",
     "samsung": "6",
+    "rhino": "1.7.14",
     "electron": "1.3"
   },
   "transform-template-literals": {
@@ -277,6 +280,7 @@
     "node": "4",
     "ios": "9",
     "samsung": "4",
+    "rhino": "1.7.14",
     "electron": "0.27"
   },
   "transform-duplicate-keys": {

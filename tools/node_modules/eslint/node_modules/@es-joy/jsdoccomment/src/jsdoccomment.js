@@ -15,13 +15,17 @@ const isCommentToken = (token) => {
     token.type === 'Shebang';
 };
 
+/**
+ * @param {AST} node
+ * @returns {boolean}
+ */
 const getDecorator = (node) => {
   return node?.declaration?.decorators?.[0] || node?.decorators?.[0] ||
       node?.parent?.decorators?.[0];
 };
 
 /**
- * Check to see if its a ES6 export declaration.
+ * Check to see if it is a ES6 export declaration.
  *
  * @param {ASTNode} astNode An AST node.
  * @returns {boolean} whether the given node represents an export declaration.
@@ -34,6 +38,10 @@ const looksLikeExport = function (astNode) {
     astNode.type === 'ExportSpecifier';
 };
 
+/**
+ * @param {AST} astNode
+ * @returns {AST}
+ */
 const getTSFunctionComment = function (astNode) {
   const {parent} = astNode;
   const grandparent = parent.parent;
@@ -129,7 +137,6 @@ const allowableCommentNode = new Set([
  * @param {SourceCode} sourceCode The ESLint SourceCode.
  * @returns {ASTNode} The AST node that can be evaluated for appropriate
  * JSDoc comments.
- * @private
  */
 const getReducedASTNode = function (node, sourceCode) {
   let {parent} = node;

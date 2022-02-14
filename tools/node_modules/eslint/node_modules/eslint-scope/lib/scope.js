@@ -263,7 +263,9 @@ class Scope {
          * Whether 'use strict' is in effect in this scope.
          * @member {boolean} Scope#isStrict
          */
-        this.isStrict = isStrictScope(this, block, isMethodDefinition, scopeManager.__useDirective());
+        this.isStrict = scopeManager.isStrictModeSupported()
+            ? isStrictScope(this, block, isMethodDefinition, scopeManager.__useDirective())
+            : false;
 
         /**
          * List of nested {@link Scope}s.

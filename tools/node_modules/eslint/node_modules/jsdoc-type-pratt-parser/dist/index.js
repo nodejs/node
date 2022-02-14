@@ -470,12 +470,10 @@
             }
             return null;
         };
-        if (options.name !== undefined) {
-            // for debugging
-            Object.defineProperty(parslet, 'name', {
-                value: options.name
-            });
-        }
+        // for debugging
+        Object.defineProperty(parslet, 'name', {
+            value: options.name
+        });
         return parslet;
     }
 
@@ -1436,6 +1434,7 @@
     });
 
     const objectFieldGrammar = [
+        readonlyPropertyParslet,
         createNameParslet({
             allowedAdditionalTokens: ['module', 'event', 'keyof', 'event', 'external']
         }),
@@ -1478,7 +1477,6 @@
             allowedTypes: ['module'],
             pathGrammar
         }),
-        readonlyPropertyParslet,
         arrayBracketsParslet,
         arrowFunctionParslet,
         createNamePathParslet({
@@ -2331,18 +2329,16 @@
     function _traverse(node, parentNode, property, onEnter, onLeave) {
         onEnter === null || onEnter === void 0 ? void 0 : onEnter(node, parentNode, property);
         const keysToVisit = visitorKeys[node.type];
-        if (keysToVisit !== undefined) {
-            for (const key of keysToVisit) {
-                const value = node[key];
-                if (value !== undefined) {
-                    if (Array.isArray(value)) {
-                        for (const element of value) {
-                            _traverse(element, node, key, onEnter, onLeave);
-                        }
+        for (const key of keysToVisit) {
+            const value = node[key];
+            if (value !== undefined) {
+                if (Array.isArray(value)) {
+                    for (const element of value) {
+                        _traverse(element, node, key, onEnter, onLeave);
                     }
-                    else {
-                        _traverse(value, node, key, onEnter, onLeave);
-                    }
+                }
+                else {
+                    _traverse(value, node, key, onEnter, onLeave);
                 }
             }
         }

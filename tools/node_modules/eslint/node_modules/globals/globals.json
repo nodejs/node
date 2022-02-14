@@ -388,7 +388,7 @@
 		"AudioParam": false,
 		"AudioProcessingEvent": false,
 		"AudioScheduledSourceNode": false,
-		"AudioWorkletGlobalScope ": false,
+		"AudioWorkletGlobalScope": false,
 		"AudioWorkletNode": false,
 		"AudioWorkletProcessor": false,
 		"BarProp": false,
