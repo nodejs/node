@@ -1,11 +1,10 @@
 # Maintaining types for Node.js
 
-While JavaScript is an untyped language, there are a number of complementary
-technologies like [TypeScript](https://www.typescriptlang.org/) and
-[Flow](https://flow.org/) which allow developers to use types within their
-JavaScript projects. While many people don't use types, there are enough
-who do that the project has agreed it's important to work towards having
-[suitable types for end-users](https://github.com/nodejs/node/blob/master/doc/contributing/technical-priorities.md#suitable-types-for-end-users).
+While JavaScript is a weakly-typed language, there are some complementary tools
+like [TypeScript][] and [Flow][], which allow developers to annotate the source
+code of their JavaScript projects. While many people don't annotate their code,
+or make use of annotations at all, there are enough who do that the project has
+agreed it's important to work towards having [suitable types for end-users][].
 
 ## High level approach
 
@@ -13,9 +12,8 @@ There are a number of ways that types could be maintained for Node.js ranging
 from shipping them with the Node.js runtime to having them be externally
 maintained.
 
-The different options were discussed as part of the
-[next-10](https://github.com/nodejs/next-10/blob/main/meetings/summit-nov-2021.md#suitable-types-for-end-users)
-effort and it was agreed that maintaining them externally is the best approach.
+The different options were discussed as part of the [next-10][] effort and it
+was agreed that maintaining them externally is the best approach.
 Some of the advantages to this approach include:
 
 * Node.js maintainers do not need to be familiar with any given type
@@ -34,22 +32,22 @@ The agreement was that the ideal flow would be as follows:
 
 When you run `make doc` the canonical markdown files used to
 document the Node.js APIs in the
-[doc/api](https://github.com/nodejs/node/tree/master/doc/api)
+[doc/api][]
 directory are converted to both an `.html` file and a `.json` file.
 
 As part of the regular build/release process both the `html` and
-`json` files are published to [nodejs.org](https://nodejs.org/en/docs/).
+`json` files are published to [nodejs.org][].
 
 The generator that does the conversion is in the
-[tools/doc](https://github.com/nodejs/node/tree/master/tools/doc)
+[tools/doc][]
 directory.
 
 ## Markdown structure
 
 The constraints required on the markdown files in the
-[doc/api](https://github.com/nodejs/node/tree/master/doc/api) directory
+[doc/api][] directory
 in order to be able to generate the JSON files are defined in the
-[documentation-style-guide](https://github.com/nodejs/node/blob/master/doc/README.md#documentation-style-guide).
+[documentation-style-guide][].
 
 ## Planned changes (as of Jan 1 2022)
 
@@ -61,3 +59,12 @@ afterwards.
 There is an ongoing effort to add additional markdown constraints and
 then update the flow in order to be able to generate a better
 JSON output.
+
+[Flow]: https://flow.org/
+[TypeScript]: https://www.typescriptlang.org/
+[doc/api]: https://github.com/nodejs/node/tree/HEAD/doc/api
+[documentation-style-guide]: https://github.com/nodejs/node/blob/HEAD/doc/README.md#documentation-style-guide
+[next-10]: https://github.com/nodejs/next-10/blob/HEAD/meetings/summit-nov-2021.md#suitable-types-for-end-users
+[nodejs.org]: https://nodejs.org/en/docs/
+[suitable types for end-users]: https://github.com/nodejs/node/blob/HEAD/doc/contributing/technical-priorities.md#suitable-types-for-end-users
+[tools/doc]: https://github.com/nodejs/node/tree/HEAD/tools/doc
