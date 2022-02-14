@@ -655,6 +655,8 @@ The object that acts as the namespace for all W3C
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental.
+
 <!-- type=global -->
 
 * `error` {Error|any} an error to report.
