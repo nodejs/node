@@ -323,7 +323,7 @@ const vm = require('vm');
     global
   );
 
-  // Test compileFunction cachedDataProduced option
+  // Test compileFunction produceCachedData option
   const result = vm.compileFunction('console.log("Hello, World!")', [], {
     produceCachedData: true,
   });
