@@ -1320,6 +1320,7 @@ They are accessed using:
 import {
   arrayBuffer,
   blob,
+  buffer,
   json,
   text,
 } from 'node:stream/consumers';
@@ -1329,6 +1330,7 @@ import {
 const {
   arrayBuffer,
   blob,
+  buffer,
   json,
   text,
 } = require('stream/consumers');
