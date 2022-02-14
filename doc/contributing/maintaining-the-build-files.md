@@ -13,17 +13,17 @@ There are three main build files that may be directly run when building Node.js:
   create platform-dependent build files. Its output is usually in one of these
   formats: Makefile, MSbuild, ninja, or XCode project files (the main
   Makefile mentioned below is maintained separately by humans). For a detailed
-  guide on this script, see [configure](#configure).
+  guide on this script, see [configure][].
 * `vcbuild.bat`: A Windows Batch Script that locates build tools, provides a
-  subset of the targets available in the [Makefile](#makefile), and a few
+  subset of the targets available in the [Makefile][], and a few
   targets of its own. For a detailed guide on this script, see
   [vcbuild.bat](#vcbuildbat).
 * `Makefile`: A Makefile that can be run with GNU Make. It provides a set of
   targets that build and test the Node.js binary, produce releases and
   documentation, and interact with the CI to run benchmarks or tests. For a
-  detailed guide on this file, see [Makefile](#makefile).
+  detailed guide on this file, see [Makefile][].
 
-On Windows `vcbuild.bat` runs [configure](#configure) before building the
+On Windows `vcbuild.bat` runs [configure][] before building the
 Node.js binary, on other systems `configure` must be run manually before running
 `make` on the `Makefile`.
 
@@ -58,3 +58,5 @@ maintained by humans. This is not usually run on Windows, where
   of this option.
 
 [GYP]: https://gyp.gsrc.io/docs/UserDocumentation.md
+[Makefile]: #makefile
+[configure]: #configure
