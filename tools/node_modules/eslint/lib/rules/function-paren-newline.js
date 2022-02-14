@@ -227,9 +227,13 @@ module.exports = {
                         return null;
                     }
 
+                    const rightParen = node.params.length
+                        ? sourceCode.getTokenAfter(node.params[node.params.length - 1], astUtils.isClosingParenToken)
+                        : sourceCode.getTokenAfter(firstToken);
+
                     return {
                         leftParen: firstToken,
-                        rightParen: sourceCode.getTokenBefore(node.body, astUtils.isClosingParenToken)
+                        rightParen
                     };
                 }
 

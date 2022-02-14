@@ -1,3 +1,10 @@
+/**
+ * @typedef {import('./index.js').VisitorKeys} VisitorKeys
+ */
+
+/**
+ * @type {VisitorKeys}
+ */
 const KEYS = {
     AssignmentExpression: [
         "left",
