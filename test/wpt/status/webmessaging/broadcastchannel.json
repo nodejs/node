@@ -1,0 +1,26 @@
+{
+  "basics.any.js": {
+    "fail": {
+      "unexpected": [
+        "assert_equals: origin expected \"https://example.com\" but got \"\"",
+        "assert_equals: target for event 0 expected object \"[object EventTarget]\" but got object \"[object EventTarget]\""
+      ]
+    }
+  },
+  "interface.any.js": {
+    "fail": {
+      "unexpected": [
+        "assert_throws_dom: function \"() => c.postMessage('')\" threw object \"Error: BroadcastChannel is closed.\" that is not a DOMException InvalidStateError: property \"code\" is equal to 0, expected 11",
+        "assert_not_equals: got disallowed value undefined",
+        "assert_throws_dom: function \"() => c.postMessage(new Symbol())\" threw object \"Error: BroadcastChannel is closed.\" that is not a DOMException InvalidStateError: property \"code\" is equal to 0, expected 11"
+      ]
+    }
+  },
+  "origin.window.js": {
+    "fail": {
+      "expected": [
+        "document is not defined"
+      ]
+    }
+  }
+}
