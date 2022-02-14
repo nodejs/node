@@ -108,7 +108,6 @@
     "firefox": "2",
     "node": "6",
     "samsung": "5",
-    "rhino": "1.7.13",
     "electron": "0.37"
   },
   "transform-template-literals": {
@@ -131,6 +130,7 @@
     "node": "4",
     "ios": "13",
     "samsung": "3.4",
+    "rhino": "1.7.14",
     "electron": "0.21"
   },
   "proposal-optional-chaining": {

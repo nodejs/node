@@ -27,7 +27,7 @@ export const defaultNoNames = [
   'access', 'author',
   'default', 'defaultvalue',
   'description',
-  'example', 'exception',
+  'example', 'exception', 'kind',
   'license',
   'return', 'returns',
   'since', 'summary',
