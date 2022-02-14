@@ -41,6 +41,8 @@ calling `require('crypto')` will result in an error being thrown.
 
 When using CommonJS, the error thrown can be caught using try/catch:
 
+<!-- eslint-skip -->
+
 ```cjs
 let crypto;
 try {
