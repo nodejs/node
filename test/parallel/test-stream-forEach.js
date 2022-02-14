@@ -5,7 +5,7 @@ const {
   Readable,
 } = require('stream');
 const assert = require('assert');
-const { setTimeout } = require('timers/promises');
+const { once } = require('events');
 
 {
   // forEach works on synchronous streams with a synchronous predicate
@@ -95,7 +95,7 @@ const { setTimeout } = require('timers/promises');
   const forEachPromise =
     Readable.from([1, 2, 3, 4]).forEach(async (_, { signal }) => {
       calls++;
-      await setTimeout(100, { signal });
+      await once(signal, 'abort');
     }, { signal: ac.signal, concurrency: 2 });
   // pump
   assert.rejects(async () => {
