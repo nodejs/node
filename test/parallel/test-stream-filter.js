@@ -5,6 +5,7 @@ const {
   Readable,
 } = require('stream');
 const assert = require('assert');
+const { once } = require('events');
 const { setTimeout } = require('timers/promises');
 
 {
@@ -119,7 +120,7 @@ const { setTimeout } = require('timers/promises');
   let calls = 0;
   const stream = Readable.from([1, 2, 3, 4]).filter(async (_, { signal }) => {
     calls++;
-    await setTimeout(100, { signal });
+    await once(signal, 'abort');
   }, { signal: ac.signal, concurrency: 2 });
   // pump
   assert.rejects(async () => {
