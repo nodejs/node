@@ -2575,7 +2575,9 @@ run().catch(console.error);
 
 `stream.pipeline()` leaves dangling event listeners on the streams
 after the `callback` has been invoked. In the case of reuse of streams after
-failure, this can cause event listener leaks and swallowed errors.
+failure, this can cause event listener leaks and swallowed errors. If the last
+stream is readable, dangling event listeners will be removed so that the last
+stream can be consumed later.
 
 `stream.pipeline()` closes all the streams when an error is raised.
 The `IncomingRequest` usage with `pipeline` could lead to an unexpected behavior
