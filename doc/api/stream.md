@@ -1586,7 +1586,7 @@ function parseHeader(stream, callback) {
     let chunk;
     while (null !== (chunk = stream.read())) {
       const str = decoder.write(chunk);
-      if (str.match(/\n\n/)) {
+      if (str.includes('\n\n')) {
         // Found the header boundary.
         const split = str.split(/\n\n/);
         header += split.shift();
@@ -1599,10 +1599,10 @@ function parseHeader(stream, callback) {
           stream.unshift(buf);
         // Now the body of the message can be read from the stream.
         callback(null, header, stream);
-      } else {
-        // Still reading the header.
-        header += str;
+        return;
       }
+      // Still reading the header.
+      header += str;
     }
   }
 }
