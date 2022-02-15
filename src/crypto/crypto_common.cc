@@ -1299,6 +1299,7 @@ MaybeLocal<Object> X509ToObject(
   Local<Object> info = Object::New(env->isolate());
 
   BIOPointer bio(BIO_new(BIO_s_mem()));
+  CHECK(bio);
 
   if (names_as_string) {
     // TODO(tniessen): this branch should not have to exist. It is only here
