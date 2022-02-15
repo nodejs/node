@@ -451,5 +451,5 @@ Running Valgrind using the debug build of Node.js shows:
 Now we can see the specific file name and line in the Node.js code which
 caused the allocation (inspector\_agent.cc:140).
 
-Thus, we can examine the line (and its surrounding code) in order
-to find a potential solution for the memory leak.
+We can examine that line (and its surrounding code) to
+find a solution for the memory leak.
