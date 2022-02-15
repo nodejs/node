@@ -10,11 +10,11 @@ issues on Linux platforms.
 
 ## Valgrind
 
- [Valgrind](https://valgrind.org/docs/manual/quick-start.html) is a
- tool available on Linux distributions which can be used to investigate
- memory usage including identifying memory leaks (memory which is
- allocated and not freed) and other memory related problems
- like double freeing memory.
+[Valgrind](https://valgrind.org/docs/manual/quick-start.html) is a
+tool available on Linux distributions which can be used to investigate
+memory usage including identifying memory leaks (memory which is
+allocated and not freed) and other memory related problems
+like double freeing memory.
 
  To use Valgrind:
 
