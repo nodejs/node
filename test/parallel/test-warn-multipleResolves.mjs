@@ -3,7 +3,7 @@ import { expectWarning, mustCall } from '../common/index.mjs';
 expectWarning(
   'DeprecationWarning',
   'The multipleResolves event has been deprecated.',
-  'DEPXXXX',
+  'DEP0160',
 );
 
 process.on('multipleResolves', mustCall());
