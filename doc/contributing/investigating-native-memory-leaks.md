@@ -8,7 +8,7 @@ dependencies or native [addons](https://nodejs.org/docs/latest/api/n-api.html).
 This guide provides information on how to use Valgrind to investigate these
 issues on Linux platforms.
 
- ## Valgrind
+## Valgrind
 
  [Valgrind](https://valgrind.org/docs/manual/quick-start.html) is a
  tool available on Linux distributions which can be used to investigate
