@@ -25,6 +25,11 @@ tmpdir.refresh();
   const reportedFilename = require(urlTestFile).filename;
   assert.doesNotMatch(reportedFilename, /foo%#bar/);
   assert.strictEqual(reportedFilename, url.pathToFileURL(urlTestFile).href);
+  fs.rmSync(urlTestDir, {
+    force: true,
+    recursive: true,
+    maxRetries: 256
+  });
 }
 
 {
