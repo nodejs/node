@@ -1,8 +1,8 @@
 name: Tools update
 on:
   schedule:
-    # Run once a week at 00:05 AM UTC on Saturday.
-    - cron: 5 0 * * 6
+    # Run once a week at 00:05 AM UTC on Sunday.
+    - cron: 5 0 * * 0
 
   workflow_dispatch:
 
