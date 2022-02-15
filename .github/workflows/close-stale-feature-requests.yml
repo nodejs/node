@@ -8,7 +8,7 @@ env:
   CLOSE_MESSAGE: >
     There has been no activity on this feature request
     and it is being closed. We value your input
-    and if you feel closing this issue was not the
+    and if you feel closing this issue is not the
     right thing to do, please leave a comment.
 
     For more information on how the project manages
