@@ -827,6 +827,11 @@ try {
 
 <!-- YAML
 added: v16.7.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41819
+    description: Accepts an additional `verbatimSymlinks` option to specify
+                 whether to perform path resolution for symlinks.
 -->
 
 > Stability: 1 - Experimental
@@ -847,6 +852,8 @@ added: v16.7.0
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
+  * `verbatimSymlinks` {boolean} When `true`, path resolution for symlinks will
+    be skipped. **Default:** `false`
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously copies the entire directory structure from `src` to `dest`,
@@ -2006,6 +2013,11 @@ copyFile('source.txt', 'destination.txt', constants.COPYFILE_EXCL, callback);
 
 <!-- YAML
 added: v16.7.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41819
+    description: Accepts an additional `verbatimSymlinks` option to specify
+                 whether to perform path resolution for symlinks.
 -->
 
 > Stability: 1 - Experimental
@@ -2026,6 +2038,8 @@ added: v16.7.0
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
+  * `verbatimSymlinks` {boolean} When `true`, path resolution for symlinks will
+    be skipped. **Default:** `false`
 * `callback` {Function}
 
 Asynchronously copies the entire directory structure from `src` to `dest`,
@@ -4581,6 +4595,11 @@ copyFileSync('source.txt', 'destination.txt', constants.COPYFILE_EXCL);
 
 <!-- YAML
 added: v16.7.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41819
+    description: Accepts an additional `verbatimSymlinks` option to specify
+                 whether to perform path resolution for symlinks.
 -->
 
 > Stability: 1 - Experimental
@@ -4600,6 +4619,8 @@ added: v16.7.0
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
+  * `verbatimSymlinks` {boolean} When `true`, path resolution for symlinks will
+    be skipped. **Default:** `false`
 
 Synchronously copies the entire directory structure from `src` to `dest`,
 including subdirectories and files.
