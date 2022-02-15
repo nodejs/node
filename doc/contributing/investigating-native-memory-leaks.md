@@ -5,8 +5,8 @@ native memory. Native Memory is memory which is not managed by the
 V8 Garbage collector and is allocated either by the Node.js runtime, its
 dependencies or native [addons](https://nodejs.org/docs/latest/api/n-api.html).
 
- This guide provides information on how to use Valgrind to investigate these
- issues on Linux platforms.
+This guide provides information on how to use Valgrind to investigate these
+issues on Linux platforms.
 
  ## Valgrind
 
