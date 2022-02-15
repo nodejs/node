@@ -16,7 +16,7 @@ memory usage including identifying memory leaks (memory which is
 allocated and not freed) and other memory related problems
 like double freeing memory.
 
- To use Valgrind:
+To use Valgrind:
 
 * Be patient, running under Valgrind slows execution significantly
    due to the checks being performed.
