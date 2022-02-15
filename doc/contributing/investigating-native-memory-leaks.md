@@ -8,7 +8,7 @@
  This guide provides information on how to use Valgrind to investigate these
  issues on Linux platforms.
 
- ## valgrind
+ ## Valgrind
 
  [Valgrind](https://valgrind.org/docs/manual/quick-start.html) is a
  tool available on Linux distributions which can be used to investigate
