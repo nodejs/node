@@ -18,7 +18,7 @@ env:
   WARN_MESSAGE: >
     There has been no activity on this feature request for
     5 months and it is unlikely to be implemented.
-    It will be closed after 6 months after the last non-automated comment
+    It will be closed 6 months after the last non-automated comment.
     unless there is renewed discussion or collaborators advocating that
     it be kept open. For more information on how the project manages
     feature requests, please consult the
