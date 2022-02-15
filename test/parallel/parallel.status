@@ -67,5 +67,5 @@ test-http-client-parse-error: PASS, FLAKY
 test-http-multi-line-headers: PASS, FLAKY
 test-http-server-unconsume: PASS, FLAKY
 test-http-upgrade-advertise: PASS, FLAKY
-test-http-client-mindhsize: PASS, FLAKY
-test-http-tls-write-error: PASS, FLAKY
+test-tls-client-mindhsize: PASS, FLAKY
+test-tls-write-error: PASS, FLAKY
