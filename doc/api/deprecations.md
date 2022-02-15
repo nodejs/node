@@ -3071,7 +3071,7 @@ Type: End-of-Life
 This error code was removed due to adding more confusion to
 the errors used for value type validation.
 
-### DEPXXXX: `process.on('multipleResolves', handler)`
+### DEP0160: `process.on('multipleResolves', handler)`
 
 <!-- YAML
 changes:
