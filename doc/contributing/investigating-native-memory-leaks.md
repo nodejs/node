@@ -18,7 +18,7 @@ like double freeing memory.
 
  To use Valgrind:
 
- * Be patient, running under Valgrind slows execution significantly
+* Be patient, running under Valgrind slows execution significantly
    due to the checks being performed.
  * Reduce your test case to the smallest reproduce. Due to the slowdown it is
    important to run the minimum test case in order to be able to do it in
