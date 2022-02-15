@@ -3047,7 +3047,9 @@ This method was deprecated because it is not compatible with
 
 Use [`buffer.subarray`][] which does the same thing instead.
 
-### DEPXXXX: `process.on('multipleResolves', handler)`
+<!-- md-lint skip-deprecation DEP0159 -->
+
+### DEP0160: `process.on('multipleResolves', handler)`
 
 <!-- YAML
 changes:
