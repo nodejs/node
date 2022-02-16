@@ -8,7 +8,7 @@ on:
     # ./doc/contributing/commit-queue.md
     - cron: '*/5 * * * *'
 
-concurrency: auto-start-ci
+concurrency: ${{ github.workflow }}
 
 env:
   NODE_VERSION: lts/*
