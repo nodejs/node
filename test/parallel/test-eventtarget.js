@@ -408,6 +408,13 @@ let asyncTest = Promise.resolve();
   target.onfoo = common.mustCall();
   target.dispatchEvent(new Event('foo'));
 }
+
+{
+  const target = new EventTarget();
+  defineEventHandler(target, 'foo');
+  strictEqual(target.onfoo, null);
+}
+
 {
   const target = new EventTarget();
   defineEventHandler(target, 'foo');
@@ -623,14 +630,14 @@ let asyncTest = Promise.resolve();
   strictEqual(et.constructor.name, 'EventTarget');
 }
 {
-  // Weak event handlers work
+  // Weak event listeners work
   const et = new EventTarget();
   const listener = common.mustCall();
   et.addEventListener('foo', listener, { [kWeakHandler]: et });
   et.dispatchEvent(new Event('foo'));
 }
 {
-  // Weak event handlers can be removed and weakness is not part of the key
+  // Weak event listeners can be removed and weakness is not part of the key
   const et = new EventTarget();
   const listener = common.mustNotCall();
   et.addEventListener('foo', listener, { [kWeakHandler]: et });
