@@ -8,6 +8,8 @@ on:
     # ./doc/contributing/commit-queue.md
     - cron: '*/5 * * * *'
 
+concurrency: ${{ github.workflow }}
+
 env:
   NODE_VERSION: lts/*
 
