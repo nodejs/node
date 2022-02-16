@@ -13,6 +13,8 @@ on:
   schedule:
     - cron: '*/5 * * * *'
 
+concurrency: ${{ github.workflow }}
+
 env:
   NODE_VERSION: lts/*
 
