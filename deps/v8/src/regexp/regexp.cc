@@ -584,6 +584,8 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
 
   subject = String::Flatten(isolate, subject);
 
+  PrintF("Regexp Exec: /%s/\n", regexp->Pattern().toCString().get());
+
 #ifdef DEBUG
   if (FLAG_trace_regexp_bytecodes && regexp->ShouldProduceBytecode()) {
     String pattern = regexp->Pattern();
