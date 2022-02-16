@@ -5,6 +5,9 @@ import assert from 'assert';
 
 const { ESMLoader } = esmLoaderModule;
 
+/**
+ * Verify custom hooks are called with appropriate arguments.
+ */
 {
   const esmLoader = new ESMLoader();
 
@@ -16,6 +19,7 @@ const { ESMLoader } = esmLoaderModule;
 
   function resolve(specifier, context, defaultResolve) {
     assert.strictEqual(specifier, originalSpecifier);
+    // Ensure `context` has all and only the properties it's supposed to
     assert.deepStrictEqual(Object.keys(context), [
       'conditions',
       'importAssertions',
@@ -35,6 +39,7 @@ const { ESMLoader } = esmLoaderModule;
   function load(resolvedURL, context, defaultLoad) {
     assert.strictEqual(resolvedURL, resolvedURL);
     assert.ok(new URL(resolvedURL));
+    // Ensure `context` has all and only the properties it's supposed to
     assert.deepStrictEqual(Object.keys(context), [
       'format',
       'importAssertions',
@@ -51,12 +56,14 @@ const { ESMLoader } = esmLoaderModule;
   }
 
   const customLoader1 = {
+    // Ensure ESMLoader actually calls the custom hooks
     resolve: mustCall(resolve),
     load: mustCall(load),
   };
 
   esmLoader.addCustomLoaders(customLoader1);
 
+  // Manually trigger hook chains (since ESMLoader is not actually running)
   esmLoader.resolve(
     originalSpecifier,
     parentURL,
@@ -68,6 +75,5 @@ const { ESMLoader } = esmLoaderModule;
       format: suggestedFormat,
       importAssertions,
     },
-    function mockDefaultLoad() {},
   );
 }
