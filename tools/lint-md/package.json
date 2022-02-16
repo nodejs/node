@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "remark-parse": "^10.0.1",
-    "remark-preset-lint-node": "^3.3.0",
+    "remark-preset-lint-node": "^3.3.1",
     "remark-stringify": "^10.0.2",
     "to-vfile": "^7.2.3",
     "unified": "^10.1.1",
