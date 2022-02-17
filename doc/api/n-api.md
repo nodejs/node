@@ -1645,7 +1645,14 @@ the corresponding object on the heap being retained forever.
 
 There can be multiple persistent references created which refer to the same
 object, each of which will either keep the object live or not based on its
-individual count.
+individual count. Multiple persistent references to the same object
+can result in unexpectedly keeping alive native memory. The native structures
+for a persistent reference must be kept alive until finalizers for the
+referenced object are executed. If a new persistent reference is created
+for the same object, the finalizers for that object will not be
+run and the native memory pointed by the earlier persistent reference
+will not be freed. This can be avoided by calling
+`napi_delete_reference` in addition to `napi_reference_unref` when possible.
 
 #### `napi_create_reference`
 
