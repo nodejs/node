@@ -27,55 +27,48 @@ class Stream;
 
 constexpr size_t kMaxVectorCount = 16;
 
-// When data is sent over QUIC, we are required to retain it in memory
-// until we receive an acknowledgement that it has been successfully
-// received by the peer. The Buffer object is what we use to handle
-// that and track until it is acknowledged. To understand the Buffer
-// object itself, it is important to understand how ngtcp2 and nghttp3
-// handle data that is given to it to serialize into QUIC packets.
+// When data is sent over QUIC, we are required to retain it in memory until we receive an
+// acknowledgement that it has been successfully received by the peer. The Buffer object is what we
+// use to handle that and track until it is acknowledged. To understand the Buffer object itself,
+// it is important to understand how ngtcp2 and nghttp3 handle data that is given to it to
+// serialize into QUIC packets.
 //
-// An individual QUIC packet may contain multiple QUIC frames. Whenever
-// we create a QUIC packet, we really have no idea what frames are going
-// to be encoded or how much buffered handshake or stream data is going
-// to be included within that Packet (if any). If there is buffered data
-// available for a stream, we provide an array of pointers to that data
-// and an indication about how much data is available, then we leave it
-// entirely up to ngtcp2 and nghttp3 to determine how much of the data
-// to encode into the QUIC packet. It is only *after* the QUIC packet
-// is encoded that we can know how much was actually written.
+// An individual QUIC packet may contain multiple QUIC frames. Whenever we create a QUIC packet, we
+// really have no idea what frames are going to be encoded or how much buffered handshake or stream
+// data is going to be included within that Packet (if any). If there is buffered data available
+// for a stream, we provide an array of pointers to that data and an indication about how much data
+// is available, then we leave it entirely up to ngtcp2 and nghttp3 to determine how much of the
+// data to encode into the QUIC packet. It is only *after* the QUIC packet is encoded that we can
+// know how much was actually written.
 //
-// Once written to a QUIC Packet, we have to keep the data in memory
-// until an acknowledgement is received. In QUIC, acknowledgements are
-// received per range of packets, but (fortunately) ngtcp2 gives us that
-// information as byte offsets instead.
+// Once written to a QUIC Packet, we have to keep the data in memory until an acknowledgement is
+// received. In QUIC, acknowledgements are received per range of packets, but (fortunately) ngtcp2
+// gives us that information as byte offsets instead.
 //
-// Buffer is complicated because it needs to be able to accomplish
-// three things: (a) buffering v8::BackingStore instances passed down
-// from JavaScript without memcpy, (b) tracking what data has already been
-// encoded in a QUIC packet and what data is remaining to be read, and
-// (c) tracking which data has been acknowledged and which hasn't.
+// Buffer is complicated because it needs to be able to accomplish three things: (a) buffering
+// v8::BackingStore instances passed down from JavaScript without memcpy, (b) tracking what data
+// has already been encoded in a QUIC packet and what data is remaining to be read, and (c)
+// tracking which data has been acknowledged and which hasn't.
 //
-// Buffer contains a deque of Buffer::Chunk instances.
-// A single Buffer::Chunk wraps a v8::BackingStore with length and
-// offset. When the Buffer::Chunk is created, we capture the total
-// length of the buffer and the total number of bytes remaining to be sent.
-// Initially, these numbers are identical.
+// Buffer contains a deque of Buffer::Chunk instances. A single Buffer::Chunk wraps a
+// v8::BackingStore with length and offset. When the Buffer::Chunk is created, we capture the total
+// length of the buffer and the total number of bytes remaining to be sent. Initially, these
+// numbers are identical.
 //
-// When data is encoded into a Packet, we advance the Buffer::Chunk's
-// remaining-to-be-read by the number of bytes actually encoded. If there
-// are no more bytes remaining to be encoded, we move to the next chunk
-// in the deque (but we do not yet pop it off the deque).
+// When data is encoded into a Packet, we advance the Buffer::Chunk's remaining-to-be-read by the
+// number of bytes actually encoded. If there are no more bytes remaining to be encoded, we move to
+// the next chunk in the deque (but we do not yet pop it off the deque).
 //
-// When an acknowledgement is received, we decrement the Buffer::Chunk's
-// length by the number of acknowledged bytes. Once the unacknowledged
-// length reaches 0 we pop the chunk off the deque.
+// When an acknowledgement is received, we decrement the Buffer::Chunk's length by the number of
+// acknowledged bytes. Once the unacknowledged length reaches 0 we pop the chunk off the deque.
 
-class Buffer final : public bob::SourceImpl<ngtcp2_vec>,
+using Ngtcp2Source = bob::SourceImpl<ngtcp2_vec>;
+
+class Buffer final : public Ngtcp2Source,
                      public MemoryRetainer {
  public:
-  // Stores chunks of both inbound and outbound data. Each chunk
-  // stores a shared pointer to a v8::BackingStore with appropriate
-  // length and offset details. Each Buffer::Chunk is stored in a
+  // Stores chunks of both inbound and outbound data. Each chunk stores a shared pointer to a
+  // v8::BackingStore with appropriate length and offset details. Each Buffer::Chunk is stored in a
   // deque in Buffer which manages the aggregate collection of all chunks.
   class Chunk final : public MemoryRetainer {
    public:
@@ -156,7 +149,7 @@ class Buffer final : public bob::SourceImpl<ngtcp2_vec>,
   };
 
   // Provides outbound data for a stream
-  class Source : public bob::SourceImpl<ngtcp2_vec>,
+  class Source : public Ngtcp2Source,
                  public MemoryRetainer {
    public:
     enum InternalFields {
@@ -210,9 +203,8 @@ class Buffer final : public bob::SourceImpl<ngtcp2_vec>,
          size_t length,
          size_t offset);
 
-  // Marks the Buffer as having ended, preventing new Buffer::Chunk
-  // instances from being added and allowing the Pull operation to know when
-  // to signal that the flow of data is completed.
+  // Marks the Buffer as having ended, preventing new Buffer::Chunk instances from being added and
+  // allowing the Pull operation to know when to signal that the flow of data is completed.
   inline void End() { ended_ = true; }
   inline bool is_ended() const { return ended_; }
   inline bool is_finished() const {
@@ -230,14 +222,12 @@ class Buffer final : public bob::SourceImpl<ngtcp2_vec>,
       size_t length,
       size_t offset = 0);
 
-  // Increment the given number of bytes within the buffer. If amount
-  // is greater than length(), length() bytes are advanced. Returns
-  // the actual number of bytes advanced. Will not cause bytes to be
-  // freed.
+  // Increment the given number of bytes within the buffer. If amount is greater than length(),
+  // length() bytes are advanced. Returns the actual number of bytes advanced. Will not cause bytes
+  // to be freed.
   size_t Seek(size_t amount);
 
-  // Acknowledge the given number of bytes in the buffer. May cause
-  // bytes to be freed.
+  // Acknowledge the given number of bytes in the buffer. May cause bytes to be freed.
   size_t Acknowledge(size_t amount);
 
   // Clears any bytes remaining in the buffer.
@@ -248,17 +238,16 @@ class Buffer final : public bob::SourceImpl<ngtcp2_vec>,
     remaining_ = 0;
   }
 
-  // The total number of unacknowledged bytes remaining. The length
-  // is incremented by Push and decremented by Acknowledge.
+  // The total number of unacknowledged bytes remaining. The length is incremented by Push and
+  // decremented by Acknowledge.
   inline size_t length() const { return length_; }
 
-  // The total number of unread bytes remaining. The remaining
-  // length is incremental by Push and decremented by Seek.
+  // The total number of unread bytes remaining. The remaining length is incremental by Push and
+  // decremented by Seek.
   inline size_t remaining() const { return remaining_; }
 
-  // Flushes the entire inbound queue into a v8::Local<v8::Array>
-  // of Uint8Array instances, returning the total number of bytes
-  // released to the consumer.
+  // Flushes the entire inbound queue into a v8::Local<v8::Array> of Uint8Array instances,
+  // returning the total number of bytes released to the consumer.
   v8::Maybe<size_t> Release(Consumer* consumer);
 
   int DoPull(
@@ -285,16 +274,13 @@ class Buffer final : public bob::SourceImpl<ngtcp2_vec>,
   size_t remaining_ = 0;
 };
 
-// The JSQuicBufferConsumer receives inbound data for a Stream
-// and forwards that up as Uint8Array instances to the JavaScript
-// API.
+// The JSQuicBufferConsumer receives inbound data for a Stream and forwards that up as Uint8Array
+// instances to the JavaScript API.
 //
-// Someone reviewing this code might notice that this is definitely
-// not a StreamBase although it serves a similar purpose -- pushing
-// chunks of data out to the JavaScript side. In this case, StreamBase
-// would be way too complicated for what is strictly needed here.
-// We don't need all of the mechanism that StreamBase brings along
-// with it so we don't use it.
+// Someone reviewing this code might notice that this is definitely not a StreamBase although it
+// serves a similar purpose -- pushing chunks of data out to the JavaScript side. In this case,
+// StreamBase would be way too complicated for what is strictly needed here. We don't need all of
+// the mechanism that StreamBase brings along with it so we don't use it.
 class JSQuicBufferConsumer final : public Buffer::Consumer,
                                    public AsyncWrap {
  public:
@@ -322,9 +308,8 @@ class JSQuicBufferConsumer final : public Buffer::Consumer,
       v8::Local<v8::Object> wrap);
 };
 
-// The NullSource is used when no payload source is provided
-// for a Stream. Whenever DoPull is called, it simply
-// immediately responds with no data and EOS set.
+// The NullSource is used when no payload source is provided for a Stream. Whenever DoPull is
+// called, it simply immediately responds with no data and EOS set.
 class NullSource final : public Buffer::Source,
                          public BaseObject {
  public:
@@ -359,8 +344,8 @@ class NullSource final : public Buffer::Source,
   bool finished_ = false;
 };
 
-// Receives a single ArrayBufferView and uses it's contents as the
-// complete source of outbound data for the Stream.
+// Receives a single ArrayBufferView and uses it's contents as the complete source of outbound data
+// for the Stream.
 class ArrayBufferViewSource final : public Buffer::Source,
                                     public BaseObject {
  public:
@@ -438,8 +423,7 @@ class BlobSource final : public AsyncWrap,
   Buffer buffer_;
 };
 
-// Implements StreamBase to asynchronously accept outbound data from the
-// JavaScript side.
+// Implements StreamBase to asynchronously accept outbound data from the JavaScript side.
 class StreamSource final : public AsyncWrap,
                            public Buffer::Source {
  public:
@@ -481,8 +465,7 @@ class StreamSource final : public AsyncWrap,
   Buffer queue_;
 };
 
-// Implements StreamListener to receive data from any native level
-// StreamBase implementation.
+// Implements StreamListener to receive data from any native level StreamBase implementation.
 class StreamBaseSource final : public AsyncWrap,
                                public Buffer::Source,
                                public StreamListener {

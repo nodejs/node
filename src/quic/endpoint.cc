@@ -49,12 +49,9 @@ using v8::Value;
 namespace quic {
 
 namespace {
-// The reserved version is a mechanism QUIC endpoints
-// can use to ensure correct handling of version
-// negotiation. It is defined by the QUIC spec in
-// https://tools.ietf.org/html/draft-ietf-quic-transport-24#section-6.3
-// Specifically, any version that follows the pattern
-// 0x?a?a?a?a may be used to force version negotiation.
+// The reserved version is a mechanism QUIC endpoints can use to ensure correct handling of version
+// negotiation. Specifically, any version that follows the pattern 0x?a?a?a?a may be used to force
+// version negotiation.
 inline quic_version GenerateReservedVersion(
     const std::shared_ptr<SocketAddress>& addr,
     const quic_version version) {
@@ -122,10 +119,7 @@ Endpoint::Config::Config(const Config& other) noexcept
       udp_receive_buffer_size(other.udp_receive_buffer_size),
       udp_send_buffer_size(other.udp_send_buffer_size),
       udp_ttl(other.udp_ttl) {
-  memcpy(
-      reset_token_secret,
-      other.reset_token_secret,
-      NGTCP2_STATELESS_RESET_TOKENLEN);
+  memcpy(reset_token_secret, other.reset_token_secret, NGTCP2_STATELESS_RESET_TOKENLEN);
 }
 
 void Endpoint::Config::GenerateResetTokenSecret() {
@@ -140,9 +134,7 @@ bool Endpoint::SocketAddressInfoTraits::CheckExpired(
   return (uv_hrtime() - type.timestamp) > kSocketAddressInfoTimeout;
 }
 
-void Endpoint::SocketAddressInfoTraits::Touch(
-    const SocketAddress& address,
-    Type* type) {
+void Endpoint::SocketAddressInfoTraits::Touch(const SocketAddress& address, Type* type) {
   type->timestamp = uv_hrtime();
 }
 
@@ -159,8 +151,7 @@ bool ConfigObject::HasInstance(Environment* env, const Local<Value>& value) {
   return GetConstructorTemplate(env)->HasInstance(value);
 }
 
-Local<FunctionTemplate> ConfigObject::GetConstructorTemplate(
-    Environment* env) {
+Local<FunctionTemplate> ConfigObject::GetConstructorTemplate(Environment* env) {
   BindingState* state = BindingState::Get(env);
   Local<FunctionTemplate> tmpl = state->endpoint_config_constructor_template();
   if (tmpl.IsEmpty()) {
@@ -168,14 +159,8 @@ Local<FunctionTemplate> ConfigObject::GetConstructorTemplate(
     tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
     tmpl->InstanceTemplate()->SetInternalFieldCount(kInternalFieldCount);
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "ConfigObject"));
-    env->SetProtoMethod(
-        tmpl,
-        "generateResetTokenSecret",
-        GenerateResetTokenSecret);
-    env->SetProtoMethod(
-        tmpl,
-        "setResetTokenSecret",
-        SetResetTokenSecret);
+    env->SetProtoMethod(tmpl, "generateResetTokenSecret", GenerateResetTokenSecret);
+    env->SetProtoMethod(tmpl, "setResetTokenSecret", SetResetTokenSecret);
     state->set_endpoint_config_constructor_template(tmpl);
   }
   return tmpl;
@@ -409,21 +394,19 @@ void ConfigObject::New(const FunctionCallbackInfo<Value>& args) {
             object,
             state->udp_ttl_string(),
             &Endpoint::Config::udp_ttl).IsNothing())) {
-      // The if block intentionally does nothing. The code is structured
-      // like this to shortcircuit if any of the SetOptions() returns Nothing.
+      // The if block intentionally does nothing. The code is structured like this to shortcircuit
+      // if any of the SetOptions() returns Nothing.
     }
   }
 }
 
-void ConfigObject::GenerateResetTokenSecret(
-    const FunctionCallbackInfo<Value>& args) {
+void ConfigObject::GenerateResetTokenSecret(const FunctionCallbackInfo<Value>& args) {
   ConfigObject* config;
   ASSIGN_OR_RETURN_UNWRAP(&config, args.Holder());
   config->data()->GenerateResetTokenSecret();
 }
 
-void ConfigObject::SetResetTokenSecret(
-    const FunctionCallbackInfo<Value>& args) {
+void ConfigObject::SetResetTokenSecret(const FunctionCallbackInfo<Value>& args) {
   ConfigObject* config;
   ASSIGN_OR_RETURN_UNWRAP(&config, args.Holder());
 
@@ -445,16 +428,14 @@ void ConfigObject::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("config", config_);
 }
 
-Local<FunctionTemplate> Endpoint::SendWrap::GetConstructorTemplate(
-    Environment* env) {
+Local<FunctionTemplate> Endpoint::SendWrap::GetConstructorTemplate(Environment* env) {
   BindingState* state = BindingState::Get(env);
   CHECK_NOT_NULL(state);
   Local<FunctionTemplate> tmpl = state->send_wrap_constructor_template();
   if (tmpl.IsEmpty()) {
     tmpl = FunctionTemplate::New(env->isolate());
     tmpl->Inherit(UdpSendWrap::GetConstructorTemplate(env));
-    tmpl->InstanceTemplate()->SetInternalFieldCount(
-        SendWrap::kInternalFieldCount);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(SendWrap::kInternalFieldCount);
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "QuicSendWrap"));
     state->set_send_wrap_constructor_template(tmpl);
   }
@@ -473,12 +454,7 @@ BaseObjectPtr<Endpoint::SendWrap> Endpoint::SendWrap::Create(
     return BaseObjectPtr<SendWrap>();
   }
 
-  return MakeBaseObject<SendWrap>(
-      env,
-      obj,
-      destination,
-      std::move(packet),
-      std::move(endpoint));
+  return MakeBaseObject<SendWrap>(env, obj, destination, std::move(packet), std::move(endpoint));
 }
 
 Endpoint::SendWrap::SendWrap(
@@ -521,9 +497,7 @@ Endpoint::Endpoint(Environment* env, const Config& config)
       token_aead_(CryptoAeadAes128GCM()),
       token_md_(CryptoMDSha256()),
       addrLRU_(config.address_lru_size) {
-  crypto::EntropySource(
-      reinterpret_cast<unsigned char*>(token_secret_),
-      kTokenSecretLen);
+  crypto::EntropySource(reinterpret_cast<unsigned char*>(token_secret_), kTokenSecretLen);
   env->AddCleanupHook(OnCleanup, this);
 }
 
@@ -598,12 +572,7 @@ bool Endpoint::AcceptInitialPacket(
       // Send Version Negotiation
       Debug(env_, DebugCategory::QUICENDPOINT,
             "Requested version %llu is not supported.\n", version);
-      SendVersionNegotiation(
-          version,
-          dcid,
-          scid,
-          local_address,
-          remote_address);
+      SendVersionNegotiation(version, dcid, scid, local_address, remote_address);
       // Fall through
     case -1:
       // Either a version negotiation packet was sent or the packet is
@@ -617,11 +586,9 @@ bool Endpoint::AcceptInitialPacket(
   // immediately.
   if (UNLIKELY(busy_) ||
       sessions_.size() >= config_.max_connections_total ||
-      current_socket_address_count(remote_address) >=
-          config_.max_connections_per_host) {
+      current_socket_address_count(remote_address) >= config_.max_connections_per_host) {
     // Endpoint is busy or the connection count is exceeded
-    Debug(env_, DebugCategory::QUICENDPOINT,
-          "Server is busy. Connection refused\n");
+    Debug(env_, DebugCategory::QUICENDPOINT, "Server is busy. Connection refused\n");
     IncrementStat(&EndpointStats::server_busy_count);
     ImmediateConnectionClose(
       version,
@@ -654,12 +621,7 @@ bool Endpoint::AcceptInitialPacket(
 
           if (hd.token.base[0] != kRetryTokenMagic &&
               hd.dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN) {
-            ImmediateConnectionClose(
-                version,
-                scid,
-                dcid,
-                local_address,
-                remote_address);
+            ImmediateConnectionClose(version, scid, dcid, local_address, remote_address);
             return BaseObjectPtr<Session>();
           }
 
@@ -721,23 +683,14 @@ bool Endpoint::AcceptInitialPacket(
     }
   }
 
-  // Iterate through the available listeners, if any. If a listener
-  // accepts the packet, that listener will be moved to the end of
-  // the list so that another listener has the option of picking
-  // up the next one.
+  // Iterate through the available listeners, if any. If a listener accepts the packet, that
+  // listener will be moved to the end of the list so that another listener has the option of
+  // picking up the next one.
   {
     Lock lock(this);
     for (auto it = listeners_.begin(); it != listeners_.end(); it++) {
       InitialPacketListener* listener = *it;
-      if (listener->Accept(
-              config,
-              store,
-              nread,
-              local_address,
-              remote_address,
-              dcid,
-              scid,
-              ocid)) {
+      if (listener->Accept(config, store, nread, local_address, remote_address, dcid, scid, ocid)) {
         listeners_.erase(it);
         listeners_.emplace_back(listener);
         return true;
@@ -774,8 +727,7 @@ void Endpoint::ImmediateConnectionClose(
     const std::shared_ptr<SocketAddress>& local_address,
     const std::shared_ptr<SocketAddress>& remote_address,
     error_code reason) {
-  std::unique_ptr<Packet> packet =
-      std::make_unique<Packet>("immediate connection close");
+  std::unique_ptr<Packet> packet = std::make_unique<Packet>("immediate connection close");
 
   Debug(env_, DebugCategory::QUICENDPOINT,
         "Endpoint: Sending immediate connection close\n"
@@ -876,8 +828,7 @@ void Endpoint::OnReceive(
   // When diagnostic packet loss is enabled, the packet will be randomly
   // dropped based on the rx_loss probability.
   if (UNLIKELY(is_diagnostic_packet_loss(config_.rx_loss))) {
-    Debug(env_, DebugCategory::QUICENDPOINT,
-          "Endpoint: Simulating rx packet loss\n");
+    Debug(env_, DebugCategory::QUICENDPOINT, "Endpoint: Simulating rx packet loss\n");
     return;
   }
 
@@ -906,11 +857,10 @@ void Endpoint::OnReceive(
   const uint8_t* pscid;
   size_t pscidlen;
 
-  // This is our first check to see if the received data can be
-  // processed as a QUIC packet. If this fails, then the QUIC packet
-  // header is invalid and cannot be processed; all we can do is ignore
-  // it. If it succeeds, we have a valid QUIC header but there is still
-  // no guarantee that the packet can be successfully processed.
+  // This is our first check to see if the received data can be processed as a QUIC packet. If this
+  // fails, then the QUIC packet header is invalid and cannot be processed; all we can do is ignore
+  // it. If it succeeds, we have a valid QUIC header but there is still no guarantee that the
+  // packet can be successfully processed.
   if (ngtcp2_pkt_decode_version_cid(
         &pversion,
         &pdcid,
@@ -923,10 +873,9 @@ void Endpoint::OnReceive(
     return;  // Ignore the packet!
   }
 
-  // QUIC currently requires CID lengths of max NGTCP2_MAX_CIDLEN. The
-  // ngtcp2 API allows non-standard lengths, and we may want to allow
-  // non-standard lengths later. But for now, we're going to ignore any
-  // packet with a non-standard CID length.
+  // QUIC currently requires CID lengths of max NGTCP2_MAX_CIDLEN. The ngtcp2 API allows
+  // non-standard lengths, and we may want to allow non-standard lengths later. But for now, we're
+  // going to ignore any packet with a non-standard CID length.
   if (pdcidlen > NGTCP2_MAX_CIDLEN || pscidlen > NGTCP2_MAX_CIDLEN)
     return;  // Ignore the packet!
 
@@ -954,10 +903,9 @@ void Endpoint::OnReceive(
     Debug(env_, DebugCategory::QUICENDPOINT, "Endpoint: No existing session\n");
     bool is_short_header = (pversion == NGTCP2_PROTO_VER_MAX && !scid);
 
-    // Handle possible reception of a stateless reset token...
-    // If it is a stateless reset, the packet will be handled with
-    // no additional action necessary here. We want to return immediately
-    // without committing any further resources.
+    // Handle possible reception of a stateless reset token... If it is a stateless reset, the
+    // packet will be handled with no additional action necessary here. We want to return
+    // immediately without committing any further resources.
     if (is_short_header &&
         MaybeStatelessReset(
             dcid,
@@ -970,38 +918,21 @@ void Endpoint::OnReceive(
       return;  // Ignore the packet!
     }
 
-    if (AcceptInitialPacket(
-          pversion,
-          dcid,
-          scid,
-          store,
-          nread,
-          local_address(),
-          remote_address)) {
-      Debug(env_, DebugCategory::QUICENDPOINT,
-            "Endpoint: Initial packet accepted\n");
+    if (AcceptInitialPacket(pversion, dcid, scid, store, nread, local_address(), remote_address)) {
+      Debug(env_, DebugCategory::QUICENDPOINT, "Endpoint: Initial packet accepted\n");
       return IncrementStat(&EndpointStats::packets_received);
     }
     return;  // Ignore the packet!
   }
 
-  Debug(env_, DebugCategory::QUICENDPOINT,
-        "Endpoint: Passing packet to session\n");
-  if (listener->Receive(
-          dcid,
-          scid,
-          std::move(store),
-          nread,
-          local_address(),
-          remote_address)) {
+  Debug(env_, DebugCategory::QUICENDPOINT, "Endpoint: Passing packet to session\n");
+  if (listener->Receive(dcid, scid, std::move(store), nread, local_address(), remote_address)) {
     IncrementStat(&EndpointStats::packets_received);
   }
 }
 
 void Endpoint::ProcessOutbound() {
-  Debug(env_,
-        DebugCategory::QUICENDPOINT,
-        "Endpoint: Processing outbound queue\n");
+  Debug(env_, DebugCategory::QUICENDPOINT, "Endpoint: Processing outbound queue\n");
   SendWrap::Queue queue;
   {
     Lock lock(this);
@@ -1033,9 +964,7 @@ void Endpoint::ProcessOutbound() {
 }
 
 void Endpoint::ProcessSendFailure(int status) {
-  Debug(env_, DebugCategory::QUICENDPOINT,
-        "Endpoint: Processing send failure (%d)",
-        status);
+  Debug(env_, DebugCategory::QUICENDPOINT, "Endpoint: Processing send failure (%d)", status);
   Close(CloseListener::Context::SEND_FAILURE, status);
 }
 
@@ -1048,11 +977,7 @@ bool Endpoint::SendPacket(
     const std::shared_ptr<SocketAddress>& remote_address,
     std::unique_ptr<Packet> packet) {
   HandleScope scope(env()->isolate());
-  BaseObjectPtr<SendWrap> wrap(
-      SendWrap::Create(
-          env(),
-          remote_address,
-          std::move(packet)));
+  BaseObjectPtr<SendWrap> wrap(SendWrap::Create(env(), remote_address, std::move(packet)));
   if (!wrap) return false;
   SendPacket(std::move(wrap));
   return true;
@@ -1061,8 +986,7 @@ bool Endpoint::SendPacket(
 void Endpoint::SendPacket(BaseObjectPtr<SendWrap> packet) {
   IncrementStat(&EndpointStats::bytes_sent, packet->packet()->length());
   IncrementStat(&EndpointStats::packets_sent);
-  Debug(env_, DebugCategory::QUICENDPOINT,
-        "Endpoint: Enqueing outbound packet\n");
+  Debug(env_, DebugCategory::QUICENDPOINT, "Endpoint: Enqueing outbound packet\n");
   {
     Lock lock(this);
     outbound_.emplace_back(std::move(packet));
@@ -1134,8 +1058,7 @@ bool Endpoint::SendStatelessReset(
   // Per the QUIC spec, we need to protect against sending too
   // many stateless reset tokens to an endpoint to prevent
   // endless looping.
-  if (current_stateless_reset_count(remote_address) >=
-          config_.max_stateless_resets) {
+  if (current_stateless_reset_count(remote_address) >= config_.max_stateless_resets) {
     return false;
   }
   // Per the QUIC spec, a stateless reset token must be strictly
@@ -1153,8 +1076,7 @@ bool Endpoint::SendStatelessReset(
   StatelessResetToken token(config_.reset_token_secret, cid);
   crypto::EntropySource(random, kRandlen);
 
-  std::unique_ptr<Packet> packet =
-      std::make_unique<Packet>(pktlen, "stateless reset");
+  std::unique_ptr<Packet> packet = std::make_unique<Packet>(pktlen, "stateless reset");
   ssize_t nwrite =
       ngtcp2_pkt_write_stateless_reset(
         packet->data(),
@@ -1175,13 +1097,7 @@ Maybe<size_t> Endpoint::GenerateNewToken(
     const std::shared_ptr<SocketAddress>& remote_address) {
   size_t tokenlen = kMaxTokenLen;
   Debug(env_, DebugCategory::QUICENDPOINT, "Endpoint: Generating new token\n");
-  if (!GenerateToken(
-          token,
-          &tokenlen,
-          remote_address,
-          token_secret_,
-          token_aead_,
-          token_md_)) {
+  if (!GenerateToken( token, &tokenlen, remote_address, token_secret_, token_aead_, token_md_)) {
     return Nothing<size_t>();
   }
   return Just(tokenlen);
@@ -1274,23 +1190,20 @@ bool Endpoint::is_diagnostic_packet_loss(double prob) const {
   return (static_cast<double>(c) / 255) < prob;
 }
 
-void Endpoint::set_validated_address(
-    const std::shared_ptr<SocketAddress>& addr) {
+void Endpoint::set_validated_address(const std::shared_ptr<SocketAddress>& addr) {
   CHECK(addr);
   Debug(env_, DebugCategory::QUICENDPOINT,
-        "Endpoint: Setting validated address (%s)\n", addr->ToString());
+      "Endpoint: Setting validated address (%s)\n", addr->ToString());
   addrLRU_.Upsert(*(addr.get()))->validated = true;
 }
 
-bool Endpoint::is_validated_address(
-    const std::shared_ptr<SocketAddress>& addr) const {
+bool Endpoint::is_validated_address(const std::shared_ptr<SocketAddress>& addr) const {
   CHECK(addr);
   auto info = addrLRU_.Peek(*(addr.get()));
   return info != nullptr ? info->validated : false;
 }
 
-void Endpoint::IncrementStatelessResetCounter(
-    const std::shared_ptr<SocketAddress>& addr) {
+void Endpoint::IncrementStatelessResetCounter(const std::shared_ptr<SocketAddress>& addr) {
   CHECK(addr);
   Debug(env_, DebugCategory::QUICENDPOINT,
         "Endpoint: Increment stateless reset counter (%s)\n",
@@ -1298,8 +1211,7 @@ void Endpoint::IncrementStatelessResetCounter(
   addrLRU_.Upsert(*(addr.get()))->reset_count++;
 }
 
-void Endpoint::IncrementSocketAddressCounter(
-    const std::shared_ptr<SocketAddress>& addr) {
+void Endpoint::IncrementSocketAddressCounter(const std::shared_ptr<SocketAddress>& addr) {
   CHECK(addr);
   Debug(env_, DebugCategory::QUICENDPOINT,
         "Endpoint: Increment socket address counter (%s)\n",
@@ -1307,8 +1219,7 @@ void Endpoint::IncrementSocketAddressCounter(
   addrLRU_.Upsert(*(addr.get()))->active_connections++;
 }
 
-void Endpoint::DecrementSocketAddressCounter(
-    const std::shared_ptr<SocketAddress>& addr) {
+void Endpoint::DecrementSocketAddressCounter(const std::shared_ptr<SocketAddress>& addr) {
   CHECK(addr);
   Debug(env_, DebugCategory::QUICENDPOINT,
         "Endpoint: Decrement socket address counter (%s)\n",
@@ -1318,15 +1229,13 @@ void Endpoint::DecrementSocketAddressCounter(
     counts->active_connections--;
 }
 
-size_t Endpoint::current_socket_address_count(
-    const std::shared_ptr<SocketAddress>& addr) const {
+size_t Endpoint::current_socket_address_count(const std::shared_ptr<SocketAddress>& addr) const {
   CHECK(addr);
   SocketAddressInfoTraits::Type* counts = addrLRU_.Peek(*(addr.get()));
   return counts != nullptr ? counts->active_connections : 0;
 }
 
-size_t Endpoint::current_stateless_reset_count(
-    const std::shared_ptr<SocketAddress>& addr) const {
+size_t Endpoint::current_stateless_reset_count(const std::shared_ptr<SocketAddress>& addr) const {
   CHECK(addr);
   SocketAddressInfoTraits::Type* counts = addrLRU_.Peek(*(addr.get()));
   return counts != nullptr ? counts->reset_count : 0;
@@ -1343,18 +1252,14 @@ Local<FunctionTemplate> Endpoint::UDP::GetConstructorTemplate(
   if (tmpl.IsEmpty()) {
     tmpl = FunctionTemplate::New(env->isolate());
     tmpl->Inherit(HandleWrap::GetConstructorTemplate(env));
-    tmpl->InstanceTemplate()->SetInternalFieldCount(
-        HandleWrap::kInternalFieldCount);
-    tmpl->SetClassName(
-        FIXED_ONE_BYTE_STRING(env->isolate(), "Session::UDP"));
+    tmpl->InstanceTemplate()->SetInternalFieldCount(HandleWrap::kInternalFieldCount);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Session::UDP"));
     state->set_udp_constructor_template(tmpl);
   }
   return tmpl;
 }
 
-Endpoint::UDP* Endpoint::UDP::Create(
-    Environment* env,
-    Endpoint* endpoint) {
+Endpoint::UDP* Endpoint::UDP::Create(Environment* env, Endpoint* endpoint) {
   Local<Object> obj;
   if (UNLIKELY(!GetConstructorTemplate(env)
           ->InstanceTemplate()
@@ -1390,25 +1295,19 @@ int Endpoint::UDP::Bind(const Endpoint::Config& config) {
   if (config.local_address->family() == AF_INET6 && config.ipv6_only)
     flags |= UV_UDP_IPV6ONLY;
 
-  int err = uv_udp_bind(
-      &handle_,
-      config.local_address->data(), flags);
+  int err = uv_udp_bind(&handle_, config.local_address->data(), flags);
   int size;
 
   if (!err) {
     size = static_cast<int>(config.udp_receive_buffer_size);
     if (size > 0) {
-      err = uv_recv_buffer_size(
-          reinterpret_cast<uv_handle_t*>(&handle_),
-          &size);
+      err = uv_recv_buffer_size(reinterpret_cast<uv_handle_t*>(&handle_), &size);
       if (err) return err;
     }
 
     size = static_cast<int>(config.udp_send_buffer_size);
     if (size > 0) {
-      err = uv_send_buffer_size(
-          reinterpret_cast<uv_handle_t*>(&handle_),
-          &size);
+      err = uv_send_buffer_size(reinterpret_cast<uv_handle_t*>(&handle_), &size);
       if (err) return err;
     }
 
@@ -1430,8 +1329,7 @@ void Endpoint::UDP::CloseHandle() {
 
 void Endpoint::UDP::ClosedCb(uv_handle_t* handle) {
   std::unique_ptr<UDP> ptr(
-      ContainerOf(&Endpoint::UDP::handle_,
-                  reinterpret_cast<uv_udp_t*>(handle)));
+      ContainerOf(&Endpoint::UDP::handle_, reinterpret_cast<uv_udp_t*>(handle)));
 }
 
 void Endpoint::UDP::Ref() {
@@ -1473,20 +1371,13 @@ int Endpoint::UDP::SendPacket(BaseObjectPtr<SendWrap> req) {
       &buf, 1,
       dest,
       uv_udp_send_cb{[](uv_udp_send_t* req, int status) {
-        std::unique_ptr<SendWrap> ptr(
-          static_cast<SendWrap*>(UdpSendWrap::from_req(req)));
+        std::unique_ptr<SendWrap> ptr(static_cast<SendWrap*>(UdpSendWrap::from_req(req)));
         ptr->Done(status);
       }});
 }
 
-void Endpoint::UDP::OnAlloc(
-    uv_handle_t* handle,
-    size_t suggested_size,
-    uv_buf_t* buf) {
-  UDP* udp =
-      ContainerOf(
-        &Endpoint::UDP::handle_,
-        reinterpret_cast<uv_udp_t*>(handle));
+void Endpoint::UDP::OnAlloc(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
+  UDP* udp = ContainerOf(&Endpoint::UDP::handle_, reinterpret_cast<uv_udp_t*>(handle));
   *buf = udp->endpoint_->OnAlloc(suggested_size);
 }
 
@@ -1548,32 +1439,18 @@ bool EndpointWrap::HasInstance(Environment* env, const Local<Value>& value) {
   return GetConstructorTemplate(env)->HasInstance(value);
 }
 
-Local<FunctionTemplate> EndpointWrap::GetConstructorTemplate(
-    Environment* env) {
+Local<FunctionTemplate> EndpointWrap::GetConstructorTemplate(Environment* env) {
   BindingState* state = BindingState::Get(env);
   Local<FunctionTemplate> tmpl = state->endpoint_constructor_template();
   if (tmpl.IsEmpty()) {
     tmpl = env->NewFunctionTemplate(IllegalConstructor);
     tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Endpoint"));
-    tmpl->InstanceTemplate()->SetInternalFieldCount(
-        EndpointWrap::kInternalFieldCount);
-    env->SetProtoMethod(
-        tmpl,
-        "listen",
-        StartListen);
-    env->SetProtoMethod(
-        tmpl,
-        "waitForPendingCallbacks",
-        StartWaitForPendingCallbacks);
-    env->SetProtoMethod(
-        tmpl,
-        "createClientSession",
-        CreateClientSession);
-    env->SetProtoMethodNoSideEffect(
-        tmpl,
-        "address",
-        LocalAddress);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(EndpointWrap::kInternalFieldCount);
+    env->SetProtoMethod(tmpl, "listen", StartListen);
+    env->SetProtoMethod(tmpl, "waitForPendingCallbacks", StartWaitForPendingCallbacks);
+    env->SetProtoMethod(tmpl, "createClientSession", CreateClientSession);
+    env->SetProtoMethodNoSideEffect(tmpl, "address", LocalAddress);
     env->SetProtoMethod(tmpl, "ref", Ref);
     env->SetProtoMethod(tmpl, "unref", Unref);
     state->set_endpoint_constructor_template(tmpl);
@@ -1609,8 +1486,7 @@ void EndpointWrap::Initialize(Environment* env, Local<Object> target) {
 #undef CLOSE_CONSTANT
 }
 
-void EndpointWrap::CreateClientSession(
-    const FunctionCallbackInfo<Value>& args) {
+void EndpointWrap::CreateClientSession(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   EndpointWrap* endpoint;
   ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.Holder());
@@ -1627,9 +1503,7 @@ void EndpointWrap::CreateClientSession(
   ASSIGN_OR_RETURN_UNWRAP(&options, args[1]);
   ASSIGN_OR_RETURN_UNWRAP(&context, args[2]);
 
-  Session::Config config(
-    endpoint->inner_.get(),
-    NGTCP2_PROTO_VER_MAX);
+  Session::Config config(endpoint->inner_.get(), NGTCP2_PROTO_VER_MAX);
 
   if (options->options()->qlog)
     config.EnableQLog();
@@ -1639,8 +1513,7 @@ void EndpointWrap::CreateClientSession(
   CHECK_IMPLIES(args[3]->IsUndefined(), args[4]->IsUndefined());
   if (!args[3]->IsUndefined()) {
     session_ticket = crypto::ArrayBufferOrViewContents<uint8_t>(args[3]);
-    remote_transport_params =
-        crypto::ArrayBufferOrViewContents<uint8_t>(args[4]);
+    remote_transport_params = crypto::ArrayBufferOrViewContents<uint8_t>(args[4]);
   }
 
   BaseObjectPtr<Session> session = endpoint->CreateClient(
@@ -1651,10 +1524,8 @@ void EndpointWrap::CreateClientSession(
     session_ticket,
     remote_transport_params);
 
-  if (UNLIKELY(!session)) {
-    return THROW_ERR_QUIC_INTERNAL_ERROR(
-        env, "Failure to create new client session");
-  }
+  if (UNLIKELY(!session))
+    return THROW_ERR_QUIC_INTERNAL_ERROR(env, "Failure to create new client session");
 
   args.GetReturnValue().Set(session->object());
 }
@@ -1681,13 +1552,10 @@ void EndpointWrap::StartListen(const FunctionCallbackInfo<Value>& args) {
   CHECK(crypto::SecureContext::HasInstance(env, args[1]));
   crypto::SecureContext* context;
   ASSIGN_OR_RETURN_UNWRAP(&context, args[1]);
-  endpoint->Listen(
-      options->options(),
-      BaseObjectPtr<crypto::SecureContext>(context));
+  endpoint->Listen(options->options(), BaseObjectPtr<crypto::SecureContext>(context));
 }
 
-void EndpointWrap::StartWaitForPendingCallbacks(
-    const FunctionCallbackInfo<Value>& args) {
+void EndpointWrap::StartWaitForPendingCallbacks(const FunctionCallbackInfo<Value>& args) {
   EndpointWrap* endpoint;
   ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.Holder());
   endpoint->WaitForPendingCallbacks();
@@ -1725,9 +1593,7 @@ void EndpointWrap::Unref(const FunctionCallbackInfo<Value>& args) {
   wrap->inner_->Unref();
 }
 
-BaseObjectPtr<EndpointWrap> EndpointWrap::Create(
-    Environment* env,
-    const Endpoint::Config& config) {
+BaseObjectPtr<EndpointWrap> EndpointWrap::Create(Environment* env, const Endpoint::Config& config) {
   Local<Object> obj;
   if (UNLIKELY(!GetConstructorTemplate(env)
           ->InstanceTemplate()
@@ -1751,19 +1617,10 @@ BaseObjectPtr<EndpointWrap> EndpointWrap::Create(
   return MakeBaseObject<EndpointWrap>(env, obj, std::move(endpoint));
 }
 
-EndpointWrap::EndpointWrap(
-    Environment* env,
-    Local<Object> object,
-    const Endpoint::Config& config)
-    : EndpointWrap(
-          env,
-          object,
-          std::make_shared<Endpoint>(env, config)) {}
+EndpointWrap::EndpointWrap(Environment* env, Local<Object> object, const Endpoint::Config& config)
+    : EndpointWrap(env, object, std::make_shared<Endpoint>(env, config)) {}
 
-EndpointWrap::EndpointWrap(
-    Environment* env,
-    Local<Object> object,
-    std::shared_ptr<Endpoint> inner)
+EndpointWrap::EndpointWrap(Environment* env, Local<Object> object, std::shared_ptr<Endpoint> inner)
     : AsyncWrap(env, object, AsyncWrap::PROVIDER_QUICENDPOINT),
       state_(env),
       inner_(std::move(inner)),
@@ -1801,9 +1658,7 @@ EndpointWrap::~EndpointWrap() {
   Debug(this, "Destroyed");
 }
 
-void EndpointWrap::EndpointClosed(
-    Endpoint::CloseListener::Context context,
-    int status) {
+void EndpointWrap::EndpointClosed(Endpoint::CloseListener::Context context, int status) {
   Debug(this, "Closed (%d, %d)", static_cast<int>(context), status);
   close_context_ = context;
   close_status_ = status;
@@ -1834,9 +1689,7 @@ void EndpointWrap::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("sessions", sessions_);
 }
 
-void EndpointWrap::AddSession(
-    const CID& cid,
-    const BaseObjectPtr<Session>& session) {
+void EndpointWrap::AddSession(const CID& cid, const BaseObjectPtr<Session>& session) {
   Debug(this, "Adding session for CID %s\n", cid);
   sessions_[cid] = session;
   {
@@ -1844,9 +1697,7 @@ void EndpointWrap::AddSession(
     inner_->AssociateCID(cid, this);
     inner_->IncrementSocketAddressCounter(session->remote_address());
     inner_->IncrementStat(
-        session->is_server()
-            ? &EndpointStats::server_sessions
-            : &EndpointStats::client_sessions);
+        session->is_server() ? &EndpointStats::server_sessions : &EndpointStats::client_sessions);
     ClearWeak();
   }
   if (session->is_server())
@@ -1880,8 +1731,7 @@ void EndpointWrap::DisassociateCID(const CID& cid) {
   }
 }
 
-void EndpointWrap::DisassociateStatelessResetToken(
-    const StatelessResetToken& token) {
+void EndpointWrap::DisassociateStatelessResetToken(const StatelessResetToken& token) {
   Debug(this, "Removing stateless reset token %s", token);
   Endpoint::Lock lock(inner_);
   inner_->DisassociateStatelessResetToken(token);

@@ -68,16 +68,13 @@ class Http3Application final : public Session::Application {
     // The maximum header section size
     uint64_t max_field_section_size = kVarintMax;
 
-    // The maximum number of concurrent push streams
-    // accepted from a remote endpoint
+    // The maximum number of concurrent push streams accepted from a remote endpoint
     uint64_t max_pushes = DEFAULT_HTTP3_MAX_PUSHES;
 
-    // The maximum size of the the qpack (header compression)
-    // dynamic table.
+    // The maximum size of the the qpack (header compression) dynamic table.
     uint64_t qpack_max_table_capacity = DEFAULT_HTTP3_QPACK_MAX_TABLE_CAPACITY;
 
-    // The maximum number of streams that can be blocked during
-    // qpack decoding.
+    // The maximum number of streams that can be blocked during qpack decoding.
     uint64_t qpack_blocked_streams = DEFAULT_HTTP3_QPACK_BLOCKED_STREAMS;
 
     Options() = default;

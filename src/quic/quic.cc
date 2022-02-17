@@ -51,13 +51,11 @@ BindingState* BindingState::Get(Environment* env) {
 }
 
 bool BindingState::Initialize(Environment* env, Local<Object> target) {
-  BindingState* const state =
-      env->AddBindingData<BindingState>(env->context(), target);
+  BindingState* const state = env->AddBindingData<BindingState>(env->context(), target);
   return state != nullptr;
 }
 
-BindingState::BindingState(Environment* env, Local<Object> object)
-    : BaseObject(env, object) {}
+BindingState::BindingState(Environment* env, Local<Object> object) : BaseObject(env, object) {}
 
 ngtcp2_mem BindingState::GetAllocator(Environment* env) {
   return BindingState::Get(env)->MakeAllocator();
@@ -228,29 +226,16 @@ Path::Path(
     const std::shared_ptr<SocketAddress>& remote) {
   CHECK(local);
   CHECK(remote);
-  ngtcp2_addr_init(
-      &this->local,
-      local->data(),
-      local->length(),
-      nullptr);
-  ngtcp2_addr_init(
-      &this->remote,
-      remote->data(),
-      remote->length(),
-      nullptr);
+  ngtcp2_addr_init(&this->local, local->data(), local->length(), nullptr);
+  ngtcp2_addr_init(&this->remote, remote->data(), remote->length(), nullptr);
 }
 
-StatelessResetToken::StatelessResetToken(
-    uint8_t* token,
-    const uint8_t* secret,
-    const CID& cid) {
+StatelessResetToken::StatelessResetToken(uint8_t* token, const uint8_t* secret, const CID& cid) {
   GenerateResetToken(token, secret, cid);
   memcpy(buf_, token, sizeof(buf_));
 }
 
-StatelessResetToken::StatelessResetToken(
-    const uint8_t* secret,
-    const CID& cid) {
+StatelessResetToken::StatelessResetToken(const uint8_t* secret, const CID& cid) {
   GenerateResetToken(buf_, secret, cid);
 }
 
@@ -261,39 +246,31 @@ void RandomConnectionIDTraits::NewConnectionID(
   ngtcp2_cid* cid,
   size_t length_hint) {
   CHECK_NOT_NULL(cid);
-  crypto::EntropySource(
-      reinterpret_cast<unsigned char*>(cid->data),
-      length_hint);
+  crypto::EntropySource(reinterpret_cast<unsigned char*>(cid->data), length_hint);
   cid->data[0] |= 0xc0;
   cid->datalen = length_hint;
 }
 
-void RandomConnectionIDTraits::New(
-    const FunctionCallbackInfo<Value>& args) {
+void RandomConnectionIDTraits::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args);
   new RandomConnectionIDBase(env, args.This());
 }
 
-Local<FunctionTemplate> RandomConnectionIDTraits::GetConstructorTemplate(
-    Environment* env) {
+Local<FunctionTemplate> RandomConnectionIDTraits::GetConstructorTemplate(Environment* env) {
   BindingState* state = env->GetBindingData<BindingState>(env->context());
-  Local<FunctionTemplate> tmpl =
-      state->random_connection_id_strategy_constructor_template();
+  Local<FunctionTemplate> tmpl = state->random_connection_id_strategy_constructor_template();
   if (tmpl.IsEmpty()) {
     tmpl = env->NewFunctionTemplate(New);
     tmpl->SetClassName(OneByteString(env->isolate(), name));
     tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
-    tmpl->InstanceTemplate()->SetInternalFieldCount(
-        BaseObject::kInternalFieldCount);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(BaseObject::kInternalFieldCount);
     state->set_random_connection_id_strategy_constructor_template(tmpl);
   }
   return tmpl;
 }
 
-bool RandomConnectionIDTraits::HasInstance(
-    Environment* env,
-    Local<Value> value) {
+bool RandomConnectionIDTraits::HasInstance(Environment* env, Local<Value> value) {
   return GetConstructorTemplate(env)->HasInstance(value);
 }
 

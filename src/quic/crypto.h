@@ -43,40 +43,33 @@ constexpr size_t kMaxTokenLen = 1 + sizeof(uint64_t) + 16 + kTokenRandLen;
 // Forward declaration
 class Session;
 
-// many ngtcp2 functions return 0 to indicate success
-// and non-zero to indicate failure. Most of the time,
-// for such functions we don't care about the specific
-// return value so we simplify using a macro.
+// many ngtcp2 functions re0turn 0 to indicate success and non-zero to indicate failure. Most of
+// the time, for such functions we don't care about the specific return value so we simplify using
+// a macro.
 
 #define NGTCP2_ERR(V) (V != 0)
 #define NGTCP2_OK(V) (V == 0)
 
-// Called by QuicInitSecureContext to initialize the
-// given SecureContext with the defaults for the given
-// QUIC side (client or server).
+// Called by QuicInitSecureContext to initialize the given SecureContext with the defaults for the
+// given QUIC side (client or server).
 void InitializeSecureContext(
     crypto::SecureContext* sc,
     ngtcp2_crypto_side side);
 
 void InitializeTLS(Session* session, const crypto::SSLPointer& ssl);
 
-// Generates a stateless reset token using HKDF with the
-// cid and token secret as input. The token secret is
-// either provided by user code when an Endpoint is
-// created or is generated randomly.
+// Generates a stateless reset token using HKDF with the cid and token secret as input. The token
+// secret is either provided by user code when an Endpoint is created or is generated randomly.
 //
-// QUIC leaves the generation of stateless session tokens
-// up to the implementation to figure out. The idea, however,
-// is that it ought to be possible to generate a stateless
-// reset token reliably even when all state for a connection
-// has been lost. We use the cid as it's the only reliably
+// QUIC leaves the generation of stateless session tokens up to the implementation to figure out.
+// The idea, however, is that it ought to be possible to generate a stateless reset token reliably
+// even when all state for a connection has been lost. We use the cid as it's the only reliably
 // consistent bit of data we have when a session is destroyed.
 bool GenerateResetToken(uint8_t* token, const uint8_t* secret, const CID& cid);
 
-// The Retry Token is an encrypted token that is sent to the client
-// by the server as part of the path validation flow. The plaintext
-// format within the token is opaque and only meaningful the server.
-// We can structure it any way we want. It needs to:
+// The Retry Token is an encrypted token that is sent to the client by the server as part of the
+// path validation flow. The plaintext format within the token is opaque and only meaningful the
+// server. We can structure it any way we want. It needs to:
 //   * be hard to guess
 //   * be time limited
 //   * be specific to the client address
@@ -92,12 +85,10 @@ std::unique_ptr<Packet> GenerateRetryPacket(
     const ngtcp2_crypto_aead& aead,
     const ngtcp2_crypto_md& md);
 
-// The IPv6 Flow Label is generated and set whenever IPv6 is used.
-// The label is derived as a cryptographic function of the CID,
-// local and remote addresses, and the given secret, that is then
-// truncated to a 20-bit value (per IPv6 requirements). In QUIC,
-// the flow label *may* be used as a way of disambiguating IP
-// packets that belong to the same flow from a remote peer.
+// The IPv6 Flow Label is generated and set whenever IPv6 is used. The label is derived as a
+// cryptographic function of the CID, local and remote addresses, and the given secret, that is
+// then truncated to a 20-bit value (per IPv6 requirements). In QUIC, the flow label *may* be used
+// as a way of disambiguating IP packets that belong to the same flow from a remote peer.
 uint32_t GenerateFlowLabel(
     const std::shared_ptr<SocketAddress>& local,
     const std::shared_ptr<SocketAddress>& remote,
@@ -115,8 +106,8 @@ v8::MaybeLocal<v8::Value> GetCertificateData(
     crypto::SecureContext* sc,
     GetCertificateType type = GetCertificateType::SELF);
 
-// Validates a retry token. Returns Nothing<CID>() if the
-// token is *not valid*, returns the OCID otherwise.
+// Validates a retry token. Returns Nothing<CID>() if the token is *not valid*, returns the OCID
+// otherwise.
 v8::Maybe<CID> ValidateRetryToken(
     const ngtcp2_vec& token,
     const std::shared_ptr<SocketAddress>& addr,
@@ -148,14 +139,11 @@ v8::Local<v8::Value> GetALPNProtocol(const Session& session);
 ngtcp2_crypto_level from_ossl_level(OSSL_ENCRYPTION_LEVEL ossl_level);
 const char* crypto_level_name(ngtcp2_crypto_level level);
 
-// SessionTicketAppData is a utility class that is used only during
-// the generation or access of TLS stateless sesson tickets. It
-// exists solely to provide a easier way for QuicApplication instances
-// to set relevant metadata in the session ticket when it is created,
-// and the exract and subsequently verify that data when a ticket is
-// received and is being validated. The app data is completely opaque
-// to anything other than the server-side of the QuicApplication that
-// sets it.
+// SessionTicketAppData is a utility class that is used only during the generation or access of TLS
+// stateless sesson tickets. It exists solely to provide a easier way for QuicApplication instances
+// to set relevant metadata in the session ticket when it is created, and the exract and
+// subsequently verify that data when a ticket is received and is being validated. The app data is
+// completely opaque to anything other than the server-side of the QuicApplication that sets it.
 class SessionTicketAppData final {
  public:
   enum class Status {

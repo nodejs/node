@@ -84,8 +84,7 @@ void Buffer::Source::RejectDone(Local<Value> reason) {
   BaseObjectPtr<BaseObject> ptr = GetStrongPtr();
   if (!ptr) return;
   HandleScope scope(env_->isolate());
-  Local<Value> val = ptr->object()->GetInternalField(
-      Buffer::Source::kDonePromise);
+  Local<Value> val = ptr->object()->GetInternalField(Buffer::Source::kDonePromise);
   if (val.IsEmpty() || val->IsUndefined())
     return;
 
@@ -97,10 +96,7 @@ void Buffer::Source::RejectDone(Local<Value> reason) {
   }
 }
 
-Buffer::Chunk::Chunk(
-    const std::shared_ptr<v8::BackingStore>& data,
-    size_t length,
-    size_t offset)
+Buffer::Chunk::Chunk(const std::shared_ptr<v8::BackingStore>& data, size_t length, size_t offset)
     : data_(std::move(data)),
       offset_(offset),
       length_(length),
@@ -110,28 +106,22 @@ std::unique_ptr<Buffer::Chunk> Buffer::Chunk::Create(
     Environment* env,
     const uint8_t* data,
     size_t len) {
-  std::shared_ptr<v8::BackingStore> store =
-      v8::ArrayBuffer::NewBackingStore(env->isolate(), len);
+  std::shared_ptr<v8::BackingStore> store = v8::ArrayBuffer::NewBackingStore(env->isolate(), len);
   memcpy(store->Data(), data, len);
-  return std::unique_ptr<Buffer::Chunk>(
-      new Buffer::Chunk(std::move(store), len));
+  return std::unique_ptr<Buffer::Chunk>(new Buffer::Chunk(std::move(store), len));
 }
 
 std::unique_ptr<Buffer::Chunk> Buffer::Chunk::Create(
     const std::shared_ptr<v8::BackingStore>& data,
     size_t length,
     size_t offset) {
-  return std::unique_ptr<Buffer::Chunk>(
-      new Buffer::Chunk(std::move(data), length, offset));
+  return std::unique_ptr<Buffer::Chunk>(new Buffer::Chunk(std::move(data), length, offset));
 }
 
 MaybeLocal<Value> Buffer::Chunk::Release(Environment* env) {
   EscapableHandleScope scope(env->isolate());
   Local<Uint8Array> ret =
-      Uint8Array::New(
-          ArrayBuffer::New(env->isolate(), std::move(data_)),
-          offset_,
-          length_);
+      Uint8Array::New(ArrayBuffer::New(env->isolate(), std::move(data_)), offset_, length_);
   CHECK(!data_);
   offset_ = 0;
   length_ = 0;
@@ -191,10 +181,7 @@ void Buffer::Push(Environment* env, const uint8_t* data, size_t len) {
   remaining_ += len;
 }
 
-void Buffer::Push(
-    std::shared_ptr<v8::BackingStore> data,
-    size_t length,
-    size_t offset) {
+void Buffer::Push(std::shared_ptr<v8::BackingStore> data, size_t length, size_t offset) {
   CHECK(!ended_);
   queue_.emplace_back(Buffer::Chunk::Create(std::move(data), length, offset));
   length_ += length;
@@ -268,9 +255,7 @@ int Buffer::DoPull(
 
   // There's no data to read.
   if (queue_.empty() || !remaining_) {
-    status = ended_ ?
-        bob::Status::STATUS_END :
-        bob::Status::STATUS_BLOCK;
+    status = ended_ ? bob::Status::STATUS_END : bob::Status::STATUS_BLOCK;
     std::move(next)(status, nullptr, 0, [](size_t len) {});
     return status;
   }
@@ -279,9 +264,7 @@ int Buffer::DoPull(
   MaybeStackBuffer<ngtcp2_vec, kMaxVectorCount> vec;
   size_t queue_size = queue_.size() - head_;
 
-  max_count_hint = (max_count_hint == 0)
-      ? queue_size
-      : std::min(max_count_hint, queue_size);
+  max_count_hint = (max_count_hint == 0) ? queue_size : std::min(max_count_hint, queue_size);
 
   CHECK_IMPLIES(data == nullptr, count == 0);
   if (data == nullptr) {
@@ -291,9 +274,7 @@ int Buffer::DoPull(
   }
 
   // Build the list of buffers.
-  for (size_t n = head_;
-       n < queue_.size() && len < count;
-       n++, len++) {
+  for (size_t n = head_; n < queue_.size() && len < count; n++, len++) {
     data[len] = queue_[n]->vec();
     numbytes += data[len].len;
   }
@@ -301,21 +282,15 @@ int Buffer::DoPull(
   // If the buffer is ended, and the number of bytes
   // matches the total remaining, and OPTIONS_END is
   // used, set the status to STATUS_END.
-  if (is_ended() &&
-      numbytes == remaining() &&
-      options & bob::OPTIONS_END) {
+  if (is_ended() && numbytes == remaining() && options & bob::OPTIONS_END) {
     status = bob::Status::STATUS_END;
   }
 
   // Pass the data back out to the caller.
-  std::move(next)(
-      status,
-      data,
-      len,
-      [this](size_t len) {
-        size_t actual = Seek(len);
-        CHECK_LE(actual, len);
-      });
+  std::move(next)(status, data, len, [this](size_t len) {
+    size_t actual = Seek(len);
+    CHECK_LE(actual, len);
+  });
 
   return status;
 }
@@ -332,9 +307,7 @@ Maybe<size_t> Buffer::Release(Consumer* consumer) {
 JSQuicBufferConsumer::JSQuicBufferConsumer(Environment* env, Local<Object> wrap)
     : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_JSQUICBUFFERCONSUMER) {}
 
-Maybe<size_t> JSQuicBufferConsumer::Process(
-    Buffer::Chunk::Queue queue,
-    bool ended) {
+Maybe<size_t> JSQuicBufferConsumer::Process(Buffer::Chunk::Queue queue, bool ended) {
   EscapableHandleScope scope(env()->isolate());
   std::vector<Local<Value>> items;
   size_t len = 0;
@@ -365,15 +338,12 @@ bool JSQuicBufferConsumer::HasInstance(Environment* env, Local<Value> value) {
 Local<FunctionTemplate> JSQuicBufferConsumer::GetConstructorTemplate(
     Environment* env) {
   BindingState* state = BindingState::Get(env);
-  Local<FunctionTemplate> tmpl =
-      state->jsquicbufferconsumer_constructor_template();
+  Local<FunctionTemplate> tmpl = state->jsquicbufferconsumer_constructor_template();
   if (tmpl.IsEmpty()) {
     tmpl = env->NewFunctionTemplate(New);
-    tmpl->InstanceTemplate()->SetInternalFieldCount(
-        JSQuicBufferConsumer::kInternalFieldCount);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(JSQuicBufferConsumer::kInternalFieldCount);
     tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
-    tmpl->SetClassName(
-        FIXED_ONE_BYTE_STRING(env->isolate(), "JSQuicBufferConsumer"));
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "JSQuicBufferConsumer"));
     state->set_jsquicbufferconsumer_constructor_template(tmpl);
   }
   return tmpl;
@@ -391,18 +361,14 @@ bool ArrayBufferViewSource::HasInstance(Environment* env, Local<Value> value) {
   return GetConstructorTemplate(env)->HasInstance(value);
 }
 
-Local<FunctionTemplate> ArrayBufferViewSource::GetConstructorTemplate(
-    Environment* env) {
+Local<FunctionTemplate> ArrayBufferViewSource::GetConstructorTemplate(Environment* env) {
   BindingState* state = BindingState::Get(env);
-  Local<FunctionTemplate> tmpl =
-      state->arraybufferviewsource_constructor_template();
+  Local<FunctionTemplate> tmpl = state->arraybufferviewsource_constructor_template();
   if (tmpl.IsEmpty()) {
     tmpl = env->NewFunctionTemplate(New);
     tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
-    tmpl->InstanceTemplate()->SetInternalFieldCount(
-        Buffer::Source::kInternalFieldCount);
-    tmpl->SetClassName(
-        FIXED_ONE_BYTE_STRING(env->isolate(), "ArrayBufferViewSource"));
+    tmpl->InstanceTemplate()->SetInternalFieldCount(Buffer::Source::kInternalFieldCount);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "ArrayBufferViewSource"));
     state->set_arraybufferviewsource_constructor_template(tmpl);
   }
   return tmpl;
@@ -426,8 +392,7 @@ Local<FunctionTemplate> StreamSource::GetConstructorTemplate(Environment* env) {
   if (tmpl.IsEmpty()) {
     tmpl = env->NewFunctionTemplate(New);
     tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
-    tmpl->InstanceTemplate()->SetInternalFieldCount(
-        Buffer::Source::kInternalFieldCount);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(Buffer::Source::kInternalFieldCount);
     env->SetProtoMethod(tmpl, "end", End);
     env->SetProtoMethod(tmpl, "write", Write);
     env->SetProtoMethod(tmpl, "writev", WriteV);
@@ -450,17 +415,14 @@ bool StreamBaseSource::HasInstance(Environment* env, Local<Value> value) {
   return GetConstructorTemplate(env)->HasInstance(value);
 }
 
-Local<FunctionTemplate> StreamBaseSource::GetConstructorTemplate(
-    Environment* env) {
+Local<FunctionTemplate> StreamBaseSource::GetConstructorTemplate(Environment* env) {
   BindingState* state = BindingState::Get(env);
   Local<FunctionTemplate> tmpl = state->streambasesource_constructor_template();
   if (tmpl.IsEmpty()) {
     tmpl = env->NewFunctionTemplate(New);
     tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
-    tmpl->InstanceTemplate()->SetInternalFieldCount(
-        Buffer::Source::kInternalFieldCount);
-    tmpl->SetClassName(
-        FIXED_ONE_BYTE_STRING(env->isolate(), "StreamBaseSource"));
+    tmpl->InstanceTemplate()->SetInternalFieldCount(Buffer::Source::kInternalFieldCount);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "StreamBaseSource"));
     state->set_streambasesource_constructor_template(tmpl);
   }
   return tmpl;
@@ -486,8 +448,7 @@ Local<FunctionTemplate> NullSource::GetConstructorTemplate(Environment* env) {
   if (tmpl.IsEmpty()) {
     tmpl = FunctionTemplate::New(env->isolate());
     tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
-    tmpl->InstanceTemplate()->SetInternalFieldCount(
-        Buffer::Source::kInternalFieldCount);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(Buffer::Source::kInternalFieldCount);
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "NullSource"));
     state->set_nullsource_constructor_template(tmpl);
   }
@@ -558,9 +519,7 @@ int ArrayBufferViewSource::DoPull(
   return buffer_.Pull(std::move(next), options, data, count, max_count_hint);
 }
 
-size_t ArrayBufferViewSource::Acknowledge(
-    uint64_t offset,
-    size_t datalen) {
+size_t ArrayBufferViewSource::Acknowledge(uint64_t offset, size_t datalen) {
   return buffer_.Acknowledge(datalen);
 }
 
@@ -771,8 +730,7 @@ Local<FunctionTemplate> BlobSource::GetConstructorTemplate(Environment* env) {
   if (tmpl.IsEmpty()) {
     tmpl = env->NewFunctionTemplate(New);
     tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
-    tmpl->InstanceTemplate()->SetInternalFieldCount(
-        Buffer::Source::kInternalFieldCount);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(Buffer::Source::kInternalFieldCount);
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "BlobSource"));
     state->set_blobsource_constructor_template(tmpl);
   }

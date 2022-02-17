@@ -122,40 +122,27 @@ bool DeriveTokenKey(
           kCryptoTokenSecretlen));
 }
 
-// Retry tokens are generated only by QUIC servers. They
-// are opaque to QUIC clients and must not be guessable by
-// on- or off-path attackers. A QUIC server sends a RETRY
-// token as a way of initiating explicit path validation
-// with a client in response to an initial QUIC packet.
-// The client, upon receiving a RETRY, must abandon the
-// initial connection attempt and try again, including the
-// received retry token in the new initial packet sent to
-// the server. If the server is performing explicit
-// valiation, it will look for the presence of the retry
-// token and validate it if found. The internal structure
-// of the retry token must be meaningful to the server,
-// and the server must be able to validate the token without
-// relying on any state left over from the previous connection
-// attempt. The implementation here is entirely Node.js
-// specific.
+// Retry tokens are generated only by QUIC servers. They are opaque to QUIC clients and must not be
+// guessable by on- or off-path attackers. A QUIC server sends a RETRY token as a way of initiating
+// explicit path validation with a client in response to an initial QUIC packet. The client, upon
+// receiving a RETRY, must abandon the initial connection attempt and try again, including the
+// received retry token in the new initial packet sent to the server. If the server is performing
+// explicit valiation, it will look for the presence of the retry token and validate it if found.
+// The internal structure of the retry token must be meaningful to the server, and the server must
+// be able to validate the token without relying on any state left over from the previous
+// connection attempt. The implementation here is entirely Node.js specific.
 //
-// The token secret must be kept secret on the QUIC server that
-// generated the retry. When multiple QUIC servers are used in a
-// cluster, it cannot be guaranteed that the same QUIC server
-// instance will receive the subsequent new Initial packet. Therefore,
-// all QUIC servers in the cluster should either share or be aware
-// of the same token secret or a mechanism needs to be implemented
-// to ensure that subsequent packets are routed to the same QUIC
-// server instance.
+// The token secret must be kept secret on the QUIC server that generated the retry. When multiple
+// QUIC servers are used in a cluster, it cannot be guaranteed that the same QUIC server instance
+// will receive the subsequent new Initial packet. Therefore, all QUIC servers in the cluster
+// should either share or be aware of the same token secret or a mechanism needs to be implemented
+// to ensure that subsequent packets are routed to the same QUIC server instance.
 //
-// A malicious peer could attempt to guess the token secret by
-// sending a large number specially crafted RETRY-eliciting packets
-// to a server then analyzing the resulting retry tokens. To reduce
-// the possibility of such attacks, the current implementation of
-// QuicSocket generates the token secret randomly for each instance,
-// and the number of RETRY responses sent to a given remote address
-// should be limited. Such attacks should be of little actual value
-// in most cases.
+// A malicious peer could attempt to guess the token secret by sending a large number specially
+// crafted RETRY-eliciting packets to a server then analyzing the resulting retry tokens. To reduce
+// the possibility of such attacks, the current implementation of QuicSocket generates the token
+// secret randomly for each instance, and the number of RETRY responses sent to a given remote
+// address should be limited. Such attacks should be of little actual value in most cases.
 bool GenerateRetryToken(
     uint8_t* token,
     size_t* tokenlen,
@@ -184,10 +171,7 @@ bool GenerateRetryToken(
     return false;
   }
 
-  AeadContextPointer aead_ctx(
-      AeadContextPointer::Mode::ENCRYPT,
-      token_key,
-      aead);
+  AeadContextPointer aead_ctx(AeadContextPointer::Mode::ENCRYPT, token_key, aead);
   if (UNLIKELY(!aead_ctx)) return false;
 
   uint64_t now = uv_hrtime();
@@ -227,20 +211,15 @@ bool GenerateRetryToken(
 }
 }  // namespace
 
-// A stateless reset token is used when a QUIC endpoint receives a
-// QUIC packet with a short header but the associated connection ID
-// cannot be matched to any known Session. In such cases, the
-// receiver may choose to send a subtle opaque indication to the
-// sending peer that state for the Session has apparently been
-// lost. For any on- or off- path attacker, a stateless reset packet
-// resembles any other QUIC packet with a short header. In order to
-// be successfully handled as a stateless reset, the peer must have
-// already seen a reset token issued to it associated with the given
-// CID. The token itself is opaque to the peer that receives is but
-// must be possible to statelessly recreate by the peer that
-// originally created it. The actual implementation is Node.js
-// specific but we currently defer to a utility function provided
-// by ngtcp2.
+// A stateless reset token is used when a QUIC endpoint receives a QUIC packet with a short header
+// but the associated connection ID cannot be matched to any known Session. In such cases, the
+// receiver may choose to send a subtle opaque indication to the sending peer that state for the
+// Session has apparently been lost. For any on- or off- path attacker, a stateless reset packet
+// resembles any other QUIC packet with a short header. In order to be successfully handled as a
+// stateless reset, the peer must have already seen a reset token issued to it associated with the
+// given CID. The token itself is opaque to the peer that receives is but must be possible to
+// statelessly recreate by the peer that originally created it. The actual implementation is
+// Node.js specific but we currently defer to a utility function provided by ngtcp2.
 bool GenerateResetToken(uint8_t* token, const uint8_t* secret, const CID& cid) {
   ngtcp2_crypto_ctx ctx;
   ngtcp2_crypto_ctx_initial(&ctx);
@@ -252,14 +231,12 @@ bool GenerateResetToken(uint8_t* token, const uint8_t* secret, const CID& cid) {
       cid.cid()));
 }
 
-// Validates a retry token included in the given header. This will return
-// true if the token cannot be validated, false otherwise. A token is
-// valid if it can be successfully decrypted using the key derived from
-// random data embedded in the token, the structure of the token matches
-// that generated by the GenerateRetryToken function, and the token was
-// not generated earlier than now - verification_expiration. If validation
-// is successful, ocid will be updated to the original connection ID encoded
-// in the encrypted token.
+// Validates a retry token included in the given header. This will return true if the token cannot
+// be validated, false otherwise. A token is valid if it can be successfully decrypted using the
+// key derived from random data embedded in the token, the structure of the token matches that
+// generated by the GenerateRetryToken function, and the token was not generated earlier than now -
+// verification_expiration. If validation is successful, ocid will be updated to the original
+// connection ID encoded in the encrypted token.
 Maybe<CID> ValidateRetryToken(
     const ngtcp2_vec& token,
     const std::shared_ptr<SocketAddress>& addr,
@@ -273,9 +250,8 @@ Maybe<CID> ValidateRetryToken(
   uint8_t plaintext[4096];
   uint8_t aad[256];
 
-  // Quick checks. If the token is too short, too long, or does not
-  // contain the right token magic byte, assume invalid and skip further
-  // checks.
+  // Quick checks. If the token is too short, too long, or does not contain the right token magic
+  // byte, assume invalid and skip further checks.
   if (UNLIKELY(token.len < kMinRetryTokenLen ||
       token.len > kMaxRetryTokenLen ||
       token.base[0] != kRetryTokenMagic)) {
@@ -336,9 +312,8 @@ Maybe<CID> ValidateRetryToken(
   uint64_t t;
   memcpy(&t, plaintext, sizeof(uint64_t));
 
-  // 10-second window by default, but configurable for each
-  // Endpoint instance with a MIN_RETRYTOKEN_EXPIRATION second
-  // minimum and a MAX_RETRYTOKEN_EXPIRATION second maximum.
+  // 10-second window by default, but configurable for each Endpoint instance with a
+  // MIN_RETRYTOKEN_EXPIRATION second minimum and a MAX_RETRYTOKEN_EXPIRATION second maximum.
   if (t + verification_expiration * NGTCP2_SECONDS < uv_hrtime())
     return Nothing<CID>();
 
@@ -467,10 +442,7 @@ bool ValidateToken(
     return false;
   }
 
-  AeadContextPointer aead_ctx(
-      AeadContextPointer::Mode::DECRYPT,
-      token_key,
-      aead);
+  AeadContextPointer aead_ctx(AeadContextPointer::Mode::DECRYPT, token_key, aead);
   if (UNLIKELY(!aead_ctx)) return false;
 
   const uint8_t* rand_data = token.base + token.len - kTokenRandLen;
@@ -508,9 +480,8 @@ bool ValidateToken(
   uint64_t t;
   memcpy(&t, plaintext, sizeof(uint64_t));
 
-  // 1 hour window by default, but configurable for each
-  // Endpoint instance with a MIN_RETRYTOKEN_EXPIRATION second
-  // minimum and a MAX_RETRYTOKEN_EXPIRATION second maximum.
+  // 1 hour window by default, but configurable for each Endpoint instance with a
+  // MIN_RETRYTOKEN_EXPIRATION second minimum and a MAX_RETRYTOKEN_EXPIRATION second maximum.
   return t + verification_expiration * NGTCP2_SECONDS >= uv_hrtime();
 }
 
@@ -523,10 +494,7 @@ Local<Value> GetALPNProtocol(const Session& session) {
   if (alpn == &NGHTTP3_ALPN_H3[1]) {
     return state->http3_alpn_string();
   } else {
-    return ToV8Value(
-      env->context(),
-      alpn,
-      env->isolate()).FromMaybe(Local<Value>());
+    return ToV8Value(env->context(), alpn, env->isolate()).FromMaybe(Local<Value>());
   }
 }
 
@@ -548,10 +516,7 @@ void Keylog_CB(const SSL* ssl, const char* line) {
   session->crypto_context()->Keylog(line);
 }
 
-int Client_Hello_CB(
-    SSL* ssl,
-    int* tls_alert,
-    void* arg) {
+int Client_Hello_CB(SSL* ssl, int* tls_alert, void* arg) {
   Session* session = static_cast<Session*>(SSL_get_app_data(ssl));
 
   int ret = session->crypto_context()->OnClientHello();
@@ -583,10 +548,10 @@ int AlpnSelection(
   size_t alpn_len = session->alpn().length();
   if (alpn_len > 255) return SSL_TLSEXT_ERR_NOACK;
 
-  // The QuicServerSession supports exactly one ALPN identifier. If that does
-  // not match any of the ALPN identifiers provided in the client request,
-  // then we fail here. Note that this will not fail the TLS handshake, so
-  // we have to check later if the ALPN matches the expected identifier or not.
+  // The QuicServerSession supports exactly one ALPN identifier. If that does not match any of the
+  // ALPN identifiers provided in the client request, then we fail here. Note that this will not
+  // fail the TLS handshake, so we have to check later if the ALPN matches the expected identifier
+  // or not.
   if (SSL_select_next_proto(
           const_cast<unsigned char**>(out),
           outlen,
@@ -678,19 +643,13 @@ int AddHandshakeData(
     const uint8_t* data,
     size_t len) {
   Session* session = static_cast<Session*>(SSL_get_app_data(ssl));
-  session->crypto_context()->WriteHandshake(
-      from_ossl_level(ossl_level),
-      data,
-      len);
+  session->crypto_context()->WriteHandshake(from_ossl_level(ossl_level), data, len);
   return 1;
 }
 
 int FlushFlight(SSL* ssl) { return 1; }
 
-int SendAlert(
-    SSL* ssl,
-    ssl_encryption_level_t level,
-    uint8_t alert) {
+int SendAlert(SSL* ssl, ssl_encryption_level_t level, uint8_t alert) {
   Session* session = static_cast<Session*>(SSL_get_app_data(ssl));
   session->crypto_context()->set_tls_alert(alert);
   return 1;
@@ -705,8 +664,7 @@ bool SetTransportParams(Session* session, const crypto::SSLPointer& ssl) {
       arraysize(buf),
       NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
       &params);
-  return nwrite >= 0 &&
-         SSL_set_quic_transport_params(ssl.get(), buf, nwrite) == 1;
+  return nwrite >= 0 && SSL_set_quic_transport_params(ssl.get(), buf, nwrite) == 1;
 }
 
 SSL_QUIC_METHOD quic_method = SSL_QUIC_METHOD{
@@ -717,10 +675,9 @@ SSL_QUIC_METHOD quic_method = SSL_QUIC_METHOD{
 };
 
 void SetHostname(const crypto::SSLPointer& ssl, const std::string& hostname) {
-  // If the hostname is an IP address, use an empty string
-  // as the hostname instead.
-    X509_VERIFY_PARAM* param = SSL_get0_param(ssl.get());
-    X509_VERIFY_PARAM_set_hostflags(param, 0);
+  // If the hostname is an IP address, use an empty string as the hostname instead.
+  X509_VERIFY_PARAM* param = SSL_get0_param(ssl.get());
+  X509_VERIFY_PARAM_set_hostflags(param, 0);
 
   if (UNLIKELY(SocketAddress::is_numeric_host(hostname.c_str()))) {
     SSL_set_tlsext_host_name(ssl.get(), "");
@@ -729,9 +686,7 @@ void SetHostname(const crypto::SSLPointer& ssl, const std::string& hostname) {
   }
 
   SSL_set_tlsext_host_name(ssl.get(), hostname.c_str());
-  CHECK_EQ(
-    X509_VERIFY_PARAM_set1_host(param, hostname.c_str(), hostname.length()),
-    1);
+  CHECK_EQ(X509_VERIFY_PARAM_set1_host(param, hostname.c_str(), hostname.length()), 1);
 }
 
 }  // namespace
@@ -757,8 +712,7 @@ void InitializeTLS(Session* session, const crypto::SSLPointer& ssl) {
     if (state->warn_trace_tls) {
       state->warn_trace_tls = false;
       ProcessEmitWarning(env,
-          "Enabling --trace-tls can expose sensitive data "
-          "in the resulting log");
+          "Enabling --trace-tls can expose sensitive data in the resulting log");
     }
   }
 
@@ -789,9 +743,7 @@ void InitializeTLS(Session* session, const crypto::SSLPointer& ssl) {
   SetTransportParams(session, ssl);
 }
 
-void InitializeSecureContext(
-    crypto::SecureContext* sc,
-    ngtcp2_crypto_side side) {
+void InitializeSecureContext(crypto::SecureContext* sc, ngtcp2_crypto_side side) {
   sc->ctx_.reset(SSL_CTX_new(TLS_method()));
   SSL_CTX_set_app_data(**sc, sc);
 
@@ -862,19 +814,16 @@ const char* crypto_level_name(ngtcp2_crypto_level level) {
   }
 }
 
-// When using IPv6, QUIC recommends the use of IPv6 Flow Labels
-// as specified in https://tools.ietf.org/html/rfc6437. These
-// are used as a means of reliably associating packets exchanged
-// as part of a single flow and protecting against certain kinds
-// of attacks.
+// When using IPv6, QUIC recommends the use of IPv6 Flow Labels as specified in
+// https://tools.ietf.org/html/rfc6437. These are used as a means of reliably associating packets
+// exchanged as part of a single flow and protecting against certain kinds of attacks.
 uint32_t GenerateFlowLabel(
     const std::shared_ptr<SocketAddress>& local,
     const std::shared_ptr<SocketAddress>& remote,
     const CID& cid,
     const uint8_t* secret,
     size_t secretlen) {
-  static constexpr size_t kInfoLen =
-      (sizeof(sockaddr_in6) * 2) + NGTCP2_MAX_CIDLEN;
+  static constexpr size_t kInfoLen = (sizeof(sockaddr_in6) * 2) + NGTCP2_MAX_CIDLEN;
 
   uint32_t label = 0;
 
@@ -939,8 +888,7 @@ MaybeLocal<Value> GetCertificateData(
   Local<Value> ret = v8::Undefined(env->isolate());
   int size = i2d_X509(cert, nullptr);
   if (size > 0) {
-    std::shared_ptr<BackingStore> store =
-        ArrayBuffer::NewBackingStore(env->isolate(), size);
+    std::shared_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(env->isolate(), size);
     unsigned char* buf = reinterpret_cast<unsigned char*>(store->Data());
     i2d_X509(cert, &buf);
     ret = ArrayBuffer::New(env->isolate(), store);

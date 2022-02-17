@@ -70,9 +70,8 @@ namespace quic {
   V(RECEIVE_RATE, receive_rate, "Receive Rate / Sec")                          \
   V(SEND_RATE, send_rate, "Send Rate  Sec")
 
-// Every Session instance maintains an AliasedStruct that is used to quickly
-// toggle certain settings back and forth or to access various details with
-// lower cost.
+// Every Session instance maintains an AliasedStruct that is used to quickly toggle certain
+// settings back and forth or to access various details with lower cost.
 #define SESSION_STATE(V)                                                       \
   V(CLIENT_HELLO, client_hello, uint8_t)                                       \
   V(CLIENT_HELLO_DONE, client_hello_done, uint8_t)                             \
@@ -137,42 +136,35 @@ struct SessionStats final {
 
 using SessionStatsBase = StatsBase<StatsTraitsImpl<SessionStats, Session>>;
 
-// A Session is a persistent connection between two QUIC peers,
-// one acting as a server, the other acting as a client. Every
-// Session is established first by performing a TLS 1.3 handshake
-// in which the client sends an initial packet to the server
-// containing a TLS client hello. Once the TLS handshake has
-// been completed, the Session can be used to open one or more
-// Streams for the actual data flow back and forth.
+// A Session is a persistent connection between two QUIC peers, one acting as a server, the other
+// acting as a client. Every Session is established first by performing a TLS 1.3 handshake in
+// which the client sends an initial packet to the server containing a TLS client hello. Once the
+// TLS handshake has been completed, the Session can be used to open one or more Streams for the
+// actual data flow back and forth.
 class Session final : public AsyncWrap,
                       public SessionStatsBase {
  public:
   class Application;
 
-  // Used only by client Sessions, this PreferredAddressStrategy
-  // ignores the server provided preference communicated via the
-  // transport parameters.
+  // Used only by client Sessions, this PreferredAddressStrategy ignores the server provided
+  // preference communicated via the transport parameters.
   static void IgnorePreferredAddressStrategy(
       Session* session,
       const PreferredAddress& preferred_address);
 
-  // Used only by client Sessions, this PreferredAddressStrategy
-  // uses the server provided preference that matches the local
-  // port type (IPv4 or IPv6) used by the Endpoint. That is, if
-  // the Endpoint is IPv4, and the server advertises an IPv4
-  // preferred address, then that preference will be used. Otherwise,
-  // the preferred address preference is ignored.
+  // Used only by client Sessions, this PreferredAddressStrategy uses the server provided
+  // preference that matches the local port type (IPv4 or IPv6) used by the Endpoint. That is, if
+  // the Endpoint is IPv4, and the server advertises an IPv4 preferred address, then that
+  // preference will be used. Otherwise, the preferred address preference is ignored.
   static void UsePreferredAddressStrategy(
       Session* session,
       const PreferredAddress& preferred_address);
 
-  // An Application encapsulates the ALPN-identified application
-  // specific semantics associated with the Session. The Application
-  // class itself is an abstract base class that must be specialized.
-  // Every Session has exactly one associated Application that is
-  // selected using the ALPN identifier when the Session is created.
-  // Once selected, the Session will defer many actions to be handled
-  // by the Application.
+  // An Application encapsulates the ALPN-identified application specific semantics associated with
+  // the Session. The Application class itself is an abstract base class that must be specialized.
+  // Every Session has exactly one associated Application that is selected using the ALPN
+  // identifier when the Session is created. Once selected, the Session will defer many actions to
+  // be handled by the Application.
   class Application : public MemoryRetainer {
    public:
     // A base class for configuring the Application. Specific
@@ -349,9 +341,8 @@ class Session final : public AsyncWrap,
     bool needs_init_ = true;
   };
 
-  // A utility that wraps the configuration settings for the
-  // Session and the underlying ngtcp2_conn. This struct is
-  // created when a new Client or Server session is created.
+  // A utility that wraps the configuration settings for the Session and the underlying
+  // ngtcp2_conn. This struct is created when a new Client or Server session is created.
   struct Config final : public ngtcp2_settings {
     // The QUIC protocol version requested for the Session.
     quic_version version;
@@ -378,10 +369,9 @@ class Session final : public AsyncWrap,
     void EnableQLog(const CID& ocid = CID());
   };
 
-  // The Options struct contains all of the usercode specified
-  // options for the session. Most of the options correlate to
-  // the transport parameters that are communicated to the remote
-  // peer once the session is created.
+  // The Options struct contains all of the usercode specified options for the session. Most of the
+  // options correlate to the transport parameters that are communicated to the remote peer once
+  // the session is created.
   struct Options final : public MemoryRetainer {
     // The protocol identifier to be used by this Session.
     std::string alpn = NGHTTP3_ALPN_H3;
@@ -531,8 +521,7 @@ class Session final : public AsyncWrap,
   };
   #undef V
 
-  // A utility struct used to prepare the ngtcp2_transport_params
-  // when creating a new Session.
+  // A utility struct used to prepare the ngtcp2_transport_params when creating a new Session.
   struct TransportParams final : public ngtcp2_transport_params {
     TransportParams(
         const std::shared_ptr<Options>& options,
@@ -547,11 +536,10 @@ class Session final : public AsyncWrap,
         CID* pscid);
   };
 
-  // Every Session has exactly one CryptoContext that maintains the
-  // state of the TLS handshake and negotiated cipher keys after the
-  // handshake has been completed. It is separated out from the main
-  // Session class only as a convenience to help make the code more
-  // maintainable and understandable.
+  // Every Session has exactly one CryptoContext that maintains the state of the TLS handshake and
+  // negotiated cipher keys after the handshake has been completed. It is separated out from the
+  // main Session class only as a convenience to help make the code more maintainable and
+  // understandable.
   class CryptoContext final : public MemoryRetainer {
    public:
     CryptoContext(
@@ -561,22 +549,20 @@ class Session final : public AsyncWrap,
         ngtcp2_crypto_side side);
     ~CryptoContext() override;
 
-    // Outgoing crypto data must be retained in memory until it is
-    // explicitly acknowledged. AcknowledgeCryptoData will be invoked
-    // when ngtcp2 determines that it has received an acknowledgement
-    // for crypto data at the specified level. This is our indication
-    // that the data for that level can be released.
+    // Outgoing crypto data must be retained in memory until it is explicitly acknowledged.
+    // AcknowledgeCryptoData will be invoked when ngtcp2 determines that it has received an
+    // acknowledgement for crypto data at the specified level. This is our indication that the data
+    // for that level can be released.
     void AcknowledgeCryptoData(ngtcp2_crypto_level level, size_t datalen);
 
-    // Cancels the TLS handshake and returns the number of unprocessed
-    // bytes that were still in the queue when canceled.
+    // Cancels the TLS handshake and returns the number of unprocessed bytes that were still in the
+    // queue when canceled.
     size_t Cancel();
 
     void Initialize();
 
-    // Returns the server's prepared OCSP response for transmission
-    // (if any). The shared_ptr will be empty if there was an error
-    // or if no OCSP response was provided. If release is true, the
+    // Returns the server's prepared OCSP response for transmission (if any). The shared_ptr will
+    // be empty if there was an error or if no OCSP response was provided. If release is true, the
     // internal std::shared_ptr will be reset.
     std::shared_ptr<v8::BackingStore> ocsp_response(bool release = true);
 
@@ -586,52 +572,45 @@ class Session final : public AsyncWrap,
     // Returns ngtcp2's understanding of the current outbound crypto level
     ngtcp2_crypto_level write_crypto_level() const;
 
-    // TLS Keylogging is enabled per-Session by attaching an handler to the
-    // "keylog" event. Each keylog line is emitted to JavaScript where it can
-    // be routed to whatever destination makes sense. Typically, this will be
-    // to a keylog file that can be consumed by tools like Wireshark to
-    // intercept and decrypt QUIC network traffic.
+    // TLS Keylogging is enabled per-Session by attaching an handler to the "keylog" event. Each
+    // keylog line is emitted to JavaScript where it can be routed to whatever destination makes
+    // sense. Typically, this will be to a keylog file that can be consumed by tools like Wireshark
+    // to intercept and decrypt QUIC network traffic.
     void Keylog(const char* line);
 
     int OnClientHello();
 
     void OnClientHelloDone(BaseObjectPtr<crypto::SecureContext> context);
 
-    // The OnCert callback provides an opportunity to prompt the server to
-    // perform on OCSP request on behalf of the client (when the client
-    // requests it). If there is a listener for the 'OCSPRequest' event
-    // on the JavaScript side, the IDX_QUIC_SESSION_STATE_CERT_ENABLED
-    // session state slot will equal 1, which will cause the callback to
-    // be invoked. The callback will be given a reference to a JavaScript
-    // function that must be called in order for the TLS handshake to
-    // continue.
+    // The OnCert callback provides an opportunity to prompt the server to perform on OCSP request
+    // on behalf of the client (when the client requests it). If there is a listener for the
+    // 'OCSPRequest' event on the JavaScript side, the IDX_QUIC_SESSION_STATE_CERT_ENABLED session
+    // state slot will equal 1, which will cause the callback to be invoked. The callback will be
+    // given a reference to a JavaScript function that must be called in order for the TLS
+    // handshake to continue.
     int OnOCSP();
 
-    // The OnOCSP function is called by the OnOCSPDone
-    // function when usercode is done handling the OCSP request
+    // The OnOCSP function is called by the OnOCSPDone function when usercode is done handling the
+    // OCSP request
     void OnOCSPDone(std::shared_ptr<v8::BackingStore> ocsp_response);
 
-    // At this point in time, the TLS handshake secrets have been
-    // generated by openssl for this end of the connection and are
-    // ready to be used. Within this function, we need to install
-    // the secrets into the ngtcp2 connection object, store the
-    // remote transport parameters, and begin initialization of
-    // the Application that was selected.
+    // At this point in time, the TLS handshake secrets have been generated by openssl for this end
+    // of the connection and are ready to be used. Within this function, we need to install the
+    // secrets into the ngtcp2 connection object, store the remote transport parameters, and begin
+    // initialization of the Application that was selected.
     bool OnSecrets(
         ngtcp2_crypto_level level,
         const uint8_t* rx_secret,
         const uint8_t* tx_secret,
         size_t secretlen);
 
-    // When the client has requested OSCP, this function will be called to
-    // provide the OSCP response. The OnOSCP() callback should have already
-    // been called by this point if any data is to be provided. If it hasn't,
-    // and ocsp_response_ is empty, no OCSP response will be sent.
+    // When the client has requested OSCP, this function will be called to provide the OSCP
+    // response. The OnOSCP() callback should have already been called by this point if any data is
+    // to be provided. If it hasn't, and ocsp_response_ is empty, no OCSP response will be sent.
     int OnTLSStatus();
 
-    // Called by ngtcp2 when a chunk of peer TLS handshake data is received.
-    // For every chunk, we move the TLS handshake further along until it
-    // is complete.
+    // Called by ngtcp2 when a chunk of peer TLS handshake data is received. For every chunk, we
+    // move the TLS handshake further along until it is complete.
     int Receive(
         ngtcp2_crypto_level crypto_level,
         uint64_t offset,
@@ -654,24 +633,21 @@ class Session final : public AsyncWrap,
 
     void set_tls_alert(int err);
 
-    // Write outbound TLS handshake data into the ngtcp2 connection
-    // to prepare it to be serialized. The outbound data must be
-    // stored in the handshake_ until it is acknowledged by the
-    // remote peer. It's important to keep in mind that there is
-    // a potential security risk here -- that is, a malicious peer
-    // can cause the local session to keep sent handshake data in
-    // memory by failing to acknowledge it or slowly acknowledging
-    // it. We currently do not track how much data is being buffered
-    // here but we do record statistics on how long the handshake
-    // data is foreced to be kept in memory.
+    // Write outbound TLS handshake data into the ngtcp2 connection to prepare it to be serialized.
+    // The outbound data must be stored in the handshake_ until it is acknowledged by the remote
+    // peer. It's important to keep in mind that there is a potential security risk here -- that
+    // is, a malicious peer can cause the local session to keep sent handshake data in memory by
+    // failing to acknowledge it or slowly acknowledging it. We currently do not track how much
+    // data is being buffered here but we do record statistics on how long the handshake data is
+    // foreced to be kept in memory.
     void WriteHandshake(
         ngtcp2_crypto_level level,
         const uint8_t* data,
         size_t datalen);
 
-    // Triggers key update to begin. This will fail and return false
-    // if either a previous key update is in progress and has not been
-    // confirmed or if the initial handshake has not yet been confirmed.
+    // Triggers key update to begin. This will fail and return false if either a previous key
+    // update is in progress and has not been confirmed or if the initial handshake has not yet
+    // been confirmed.
     bool InitiateKeyUpdate();
 
     int VerifyPeerIdentity();
@@ -904,8 +880,8 @@ class Session final : public AsyncWrap,
   BaseObjectPtr<Stream> FindStream(stream_id id) const;
   void AddStream(const BaseObjectPtr<Stream>& stream);
 
-  // Removes the given stream from the Session. All streams must
-  // be removed before the Session is destroyed.
+  // Removes the given stream from the Session. All streams must be removed before the Session is
+  // destroyed.
   void RemoveStream(stream_id id);
   void ResumeStream(stream_id id);
   bool HasStream(stream_id id) const;
@@ -921,9 +897,8 @@ class Session final : public AsyncWrap,
       const std::shared_ptr<SocketAddress>& local_address,
       const std::shared_ptr<SocketAddress>& remote_address);
 
-  // Called by ngtcp2 when a chunk of stream data has been received. If
-  // the stream does not yet exist, it is created, then the data is
-  // forwarded on.
+  // Called by ngtcp2 when a chunk of stream data has been received. If the stream does not yet
+  // exist, it is created, then the data is forwarded on.
   bool ReceiveStreamData(
       uint32_t flags,
       stream_id id,
@@ -949,37 +924,32 @@ class Session final : public AsyncWrap,
     return true;
   }
 
-  // Returns true if the Session has entered the closing period after sending
-  // a CONNECTION_CLOSE. While true, the Session is only permitted to transmit
-  // CONNECTION_CLOSE frames until either the idle timeout period elapses or
-  // until the Session is explicitly destroyed.
+  // Returns true if the Session has entered the closing period after sending a CONNECTION_CLOSE.
+  // While true, the Session is only permitted to transmit CONNECTION_CLOSE frames until either the
+  // idle timeout period elapses or until the Session is explicitly destroyed.
   bool is_in_closing_period() const;
 
-  // Returns true if the Session has received a CONNECTION_CLOSE frame from the
-  // peer. Once in the draining period, the Session is not permitted to send
-  // any frames to the peer. The Session will be silently closed after either
-  // the idle timeout period elapses or until the Session is explicitly
-  // destroyed.
+  // Returns true if the Session has received a CONNECTION_CLOSE frame from the peer. Once in the
+  // draining period, the Session is not permitted to send any frames to the peer. The Session will
+  // be silently closed after either the idle timeout period elapses or until the Session is
+  // explicitly destroyed.
   bool is_in_draining_period() const;
 
-  // Starting a GracefulClose disables the ability to open or accept
-  // new streams for this session. Existing streams are allowed to
-  // close naturally on their own. Once called, the Session will
-  // be immediately closed once there are no remaining streams. Note
-  // that no notification is given to the connecting peer that we're
-  // in a graceful closing state. A CONNECTION_CLOSE will be sent only
-  // once Close() is called.
+  // Starting a GracefulClose disables the ability to open or accept new streams for this session.
+  // Existing streams are allowed to close naturally on their own. Once called, the Session will be
+  // immediately closed once there are no remaining streams. Note that no notification is given to
+  // the connecting peer that we're in a graceful closing state. A CONNECTION_CLOSE will be sent
+  // only once Close() is called.
   void StartGracefulClose();
 
   bool AttachToNewEndpoint(EndpointWrap* endpoint, bool nat_rebinding = false);
 
-  // Error handling for the Session. client and server instances will do
-  // different things here, but ultimately an error means that the Session
-  // should be torn down.
+  // Error handling for the Session. client and server instances will do different things here, but
+  // ultimately an error means that the Session should be torn down.
   void HandleError();
 
-  // Transmits either a protocol or application connection close to the peer.
-  // The choice of which is send is based on the current value of last_error_.
+  // Transmits either a protocol or application connection close to the peer. The choice of which
+  // is send is based on the current value of last_error_.
   bool SendConnectionClose();
 
   enum class SessionCloseFlags {
@@ -988,24 +958,22 @@ class Session final : public AsyncWrap,
     STATELESS_RESET
   };
 
-  // Initiate closing of the Session. This will round trip through JavaScript,
-  // causing all currently opened streams to be closed. If the SILENT flag is
-  // set, the connected peer will not be notified, otherwise an attempt will be
-  // made to send a CONNECTION_CLOSE frame to the peer. If Close is called
-  // while within the ngtcp2 callback scope, sending the CONNECTION_CLOSE will
+  // Initiate closing of the Session. This will round trip through JavaScript, causing all
+  // currently opened streams to be closed. If the SILENT flag is set, the connected peer will not
+  // be notified, otherwise an attempt will be made to send a CONNECTION_CLOSE frame to the peer.
+  // If Close is called while within the ngtcp2 callback scope, sending the CONNECTION_CLOSE will
   // be deferred until the ngtcp2 callback scope exits.
   void Close(SessionCloseFlags close_flags = SessionCloseFlags::NONE);
 
   bool IsResetToken(const CID& cid, const uint8_t* data, size_t datalen);
 
-  // Mark the Session instance destroyed. This will either be invoked
-  // synchronously within the callstack of the Session::Close() method or not.
-  // If it is invoked within Session::Close(), the Session::Close() will handle
-  // sending the CONNECTION_CLOSE frame.
+  // Mark the Session instance destroyed. This will either be invoked synchronously within the
+  // callstack of the Session::Close() method or not. If it is invoked within Session::Close(), the
+  // Session::Close() will handle sending the CONNECTION_CLOSE frame.
   void Destroy();
 
-  // Extends the QUIC stream flow control window. This is called after received
-  // data has been consumed and we want to allow the peer to send more data.
+  // Extends the QUIC stream flow control window. This is called after received data has been
+  // consumed and we want to allow the peer to send more data.
   void ExtendStreamOffset(stream_id id, size_t amount);
 
   // Extends the QUIC session flow control window
@@ -1020,9 +988,9 @@ class Session final : public AsyncWrap,
 
   inline size_t max_packet_length() const { return max_pkt_len_; }
 
-  // When completing the TLS handshake, the TLS session information is provided
-  // to the Session so that the session ticket and the remote transport
-  // parameters can be captured to support 0RTT session resumption.
+  // When completing the TLS handshake, the TLS session information is provided to the Session so
+  // that the session ticket and the remote transport parameters can be captured to support 0RTT
+  // session resumption.
   int set_session(SSL_SESSION* session);
 
   // True only if ngtcp2 considers the TLS handshake to be completed
@@ -1038,13 +1006,12 @@ class Session final : public AsyncWrap,
       const SessionTicketAppData& app_data,
       SessionTicketAppData::Flag flag);
 
-  // When a server advertises a preferred address in its initial transport
-  // parameters, ngtcp2 on the client side will trigger the
-  // OnSelectPreferredAdddress callback which will call this. The paddr
-  // argument contains the advertised preferred address. If the new address is
-  // going to be used, it needs to be copied over to dest, otherwise dest is
-  // left alone. There are two possible strategies that we currently support
-  // via user configuration: use the preferred address or ignore it.
+  // When a server advertises a preferred address in its initial transport parameters, ngtcp2 on
+  // the client side will trigger the OnSelectPreferredAdddress callback which will call this. The
+  // paddr argument contains the advertised preferred address. If the new address is going to be
+  // used, it needs to be copied over to dest, otherwise dest is left alone. There are two possible
+  // strategies that we currently support via user configuration: use the preferred address or
+  // ignore it.
   void SelectPreferredAddress(const PreferredAddress& preferred_address);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -1084,9 +1051,8 @@ class Session final : public AsyncWrap,
     }
   };
 
-  // ConnectionCloseScope triggers sending a CONNECTION_CLOSE when not
-  // executing within the context of an ngtcp2 callback and the session is in
-  // the correct state.
+  // ConnectionCloseScope triggers sending a CONNECTION_CLOSE when not executing within the context
+  // of an ngtcp2 callback and the session is in the correct state.
   struct ConnectionCloseScope final {
     BaseObjectPtr<Session> session;
     bool silent = false;
@@ -1114,8 +1080,8 @@ class Session final : public AsyncWrap,
     }
   };
 
-  // Used as a guard in the static callback functions (e.g.
-  // Session::OnStreamClose) to prevent re-entry into the ngtcp2 callbacks
+  // Used as a guard in the static callback functions (e.g. Session::OnStreamClose) to prevent
+  // re-entry into the ngtcp2 callbacks
   struct NgCallbackScope final {
     BaseObjectPtr<Session> session;
     inline explicit NgCallbackScope(Session* session_)
@@ -1134,9 +1100,9 @@ class Session final : public AsyncWrap,
     }
   };
 
-  // SendSessionScope triggers SendPendingData() when not executing within the
-  // context of an ngtcp2 callback. When within an ngtcp2 callback,
-  // SendPendingData will always be called when the callbacks complete.
+  // SendSessionScope triggers SendPendingData() when not executing within the context of an ngtcp2
+  // callback. When within an ngtcp2 callback, SendPendingData will always be called when the
+  // callbacks complete.
   struct SendSessionScope final {
     BaseObjectPtr<Session> session;
 

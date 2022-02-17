@@ -34,23 +34,18 @@ Http3Application::Options::Options(const Http3Application::Options& other)
       qpack_max_table_capacity(other.qpack_max_table_capacity),
       qpack_blocked_streams(other.qpack_blocked_streams) {}
 
-bool Http3OptionsObject::HasInstance(
-    Environment* env,
-    const Local<Value>& value) {
+bool Http3OptionsObject::HasInstance(Environment* env, const Local<Value>& value) {
   return GetConstructorTemplate(env)->HasInstance(value);
 }
 
-Local<FunctionTemplate> Http3OptionsObject::GetConstructorTemplate(
-    Environment* env) {
+Local<FunctionTemplate> Http3OptionsObject::GetConstructorTemplate(Environment* env) {
   BindingState* state = env->GetBindingData<BindingState>(env->context());
   Local<FunctionTemplate> tmpl = state->http3_options_constructor_template();
   if (tmpl.IsEmpty()) {
     tmpl = env->NewFunctionTemplate(New);
     tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
-    tmpl->InstanceTemplate()->SetInternalFieldCount(
-        Http3OptionsObject::kInternalFieldCount);
-    tmpl->SetClassName(
-        FIXED_ONE_BYTE_STRING(env->isolate(), "Http3OptionsObject"));
+    tmpl->InstanceTemplate()->SetInternalFieldCount(Http3OptionsObject::kInternalFieldCount);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Http3OptionsObject"));
     state->set_http3_options_constructor_template(tmpl);
   }
   return tmpl;
@@ -76,33 +71,27 @@ void Http3OptionsObject::New(const FunctionCallbackInfo<Value>& args) {
     if (UNLIKELY(options->SetOption(
             obj,
             state->max_field_section_size_string(),
-            &Http3Application::Options::max_field_section_size)
-                .IsNothing()) ||
+            &Http3Application::Options::max_field_section_size).IsNothing()) ||
         UNLIKELY(options->SetOption(
             obj,
             state->max_pushes_string(),
-            &Http3Application::Options::max_pushes)
-                .IsNothing()) ||
+            &Http3Application::Options::max_pushes).IsNothing()) ||
         UNLIKELY(options->SetOption(
             obj,
             state->qpack_max_table_capacity_string(),
-            &Http3Application::Options::qpack_max_table_capacity)
-                .IsNothing()) ||
+            &Http3Application::Options::qpack_max_table_capacity).IsNothing()) ||
         UNLIKELY(options->SetOption(
             obj,
             state->qpack_blocked_streams_string(),
-            &Http3Application::Options::qpack_blocked_streams)
-                .IsNothing()) ||
+            &Http3Application::Options::qpack_blocked_streams).IsNothing()) ||
         UNLIKELY(options->SetOption(
             obj,
             state->max_header_pairs_string(),
-            &Http3Application::Options::max_header_pairs)
-                .IsNothing()) ||
+            &Http3Application::Options::max_header_pairs).IsNothing()) ||
         UNLIKELY(options->SetOption(
             obj,
             state->max_header_length_string(),
-            &Http3Application::Options::max_header_length)
-                .IsNothing())) {
+            &Http3Application::Options::max_header_length).IsNothing())) {
       return;
     }
   }
@@ -152,11 +141,9 @@ void Http3OptionsObject::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("options", options_);
 }
 
-// nghttp3 uses a numeric identifier for a large number
-// of known HTTP header names. These allow us to use
-// static strings for those rather than allocating new
-// strings all of the time. The list of strings supported
-// is included in node_http_common.h
+// nghttp3 uses a numeric identifier for a large number of known HTTP header names. These allow us
+// to use static strings for those rather than allocating new strings all of the time. The list of
+// strings supported is included in node_http_common.h
 #define V1(name, value) case NGHTTP3_QPACK_TOKEN__##name: return value;
 #define V2(name, value) case NGHTTP3_QPACK_TOKEN_##name: return value;
 const char* Http3HeaderTraits::ToHttpHeaderName(int32_t token) {
@@ -181,8 +168,8 @@ Http3Application::Http3Application(
 }
 
 void Http3Application::CreateConnection() {
-  // nghttp3_conn_server_new and nghttp3_conn_client_new share
-  // identical definitions, so new_fn will work for both.
+  // nghttp3_conn_server_new and nghttp3_conn_client_new share identical definitions, so new_fn
+  // will work for both.
   using new_fn = decltype(&nghttp3_conn_server_new);
   static new_fn fns[] = {
     nghttp3_conn_client_new,  // NGTCP2_CRYPTO_SIDE_CLIENT
@@ -208,9 +195,8 @@ void Http3Application::CreateConnection() {
   connection_.reset(conn);
 }
 
-// The HTTP/3 QUIC binding uses a single unidirectional control
-// stream in each direction to exchange frames impacting the entire
-// connection.
+// The HTTP/3 QUIC binding uses a single unidirectional control stream in each direction to
+// exchange frames impacting the entire connection.
 bool Http3Application::CreateAndBindControlStream() {
   if (!session()->OpenStream(Stream::Direction::UNIDIRECTIONAL)
           .To(&control_stream_id_)) {
@@ -225,13 +211,11 @@ bool Http3Application::CreateAndBindControlStream() {
       control_stream_id_) == 0;
 }
 
-// The HTTP/3 QUIC binding creates two unidirectional streams in
-// each direction to exchange header compression details.
+// The HTTP/3 QUIC binding creates two unidirectional streams in each direction to exchange header
+// compression details.
 bool Http3Application::CreateAndBindQPackStreams() {
-  if (!session()->OpenStream(Stream::Direction::UNIDIRECTIONAL)
-          .To(&qpack_enc_stream_id_) ||
-      !session()->OpenStream(Stream::Direction::UNIDIRECTIONAL)
-          .To(&qpack_dec_stream_id_)) {
+  if (!session()->OpenStream(Stream::Direction::UNIDIRECTIONAL).To(&qpack_enc_stream_id_) ||
+      !session()->OpenStream(Stream::Direction::UNIDIRECTIONAL).To(&qpack_dec_stream_id_)) {
     return false;
   }
   Debug(
@@ -246,18 +230,14 @@ bool Http3Application::CreateAndBindQPackStreams() {
 }
 
 bool Http3Application::Initialize() {
-  // The Session must allow for at least three local unidirectional streams.
-  // This number is fixed by the http3 specification and represent the
-  // control stream and two qpack management streams.
+  // The Session must allow for at least three local unidirectional streams. This number is fixed
+  // by the http3 specification and represent the control stream and two qpack management streams.
   if (session()->max_local_streams_uni() < 3)
     return false;
 
-  Debug(session(), "QPack Max Table Capacity: %" PRIu64,
-        options().qpack_max_table_capacity);
-  Debug(session(), "QPack Blocked Streams: %" PRIu64,
-        options().qpack_blocked_streams);
-  Debug(session(), "Max Header List Size: %" PRIu64,
-        options().max_field_section_size);
+  Debug(session(), "QPack Max Table Capacity: %" PRIu64, options().qpack_max_table_capacity);
+  Debug(session(), "QPack Blocked Streams: %" PRIu64, options().qpack_blocked_streams);
+  Debug(session(), "Max Header List Size: %" PRIu64, options().max_field_section_size);
 
   CreateConnection();
   Debug(session(), "HTTP/3 connection created");
@@ -266,9 +246,7 @@ bool Http3Application::Initialize() {
   session()->GetLocalTransportParams(&params);
 
   if (session()->is_server()) {
-    nghttp3_conn_set_max_client_streams_bidi(
-        connection_.get(),
-        params.initial_max_streams_bidi);
+    nghttp3_conn_set_max_client_streams_bidi(connection_.get(), params.initial_max_streams_bidi);
   }
 
   if (!CreateAndBindControlStream() || !CreateAndBindQPackStreams())
@@ -306,13 +284,9 @@ bool Http3Application::ReceiveStreamData(
   return true;
 }
 
-// This is the QUIC-level stream data acknowledgement. It is called for
-// all streams, including unidirectional streams. This has to forward on
-// to nghttp3 for processing.
-void Http3Application::AcknowledgeStreamData(
-    stream_id stream_id,
-    uint64_t offset,
-    size_t datalen) {
+// This is the QUIC-level stream data acknowledgement. It is called for all streams, including
+// unidirectional streams. This has to forward on to nghttp3 for processing.
+void Http3Application::AcknowledgeStreamData(stream_id stream_id, uint64_t offset, size_t datalen) {
   if (nghttp3_conn_add_ack_offset(connection_.get(), stream_id, datalen) != 0)
     Debug(session(), "Failure to acknowledge HTTP/3 Stream Data");
 }
@@ -372,10 +346,7 @@ bool Http3Application::BlockStream(stream_id id) {
 }
 
 bool Http3Application::StreamCommit(StreamData* stream_data, size_t datalen) {
-  error_code err = nghttp3_conn_add_write_offset(
-      connection_.get(),
-      stream_data->id,
-      datalen);
+  error_code err = nghttp3_conn_add_write_offset(connection_.get(), stream_data->id, datalen);
   if (err != 0) {
     session()->set_last_error(QuicError{QuicError::Type::APPLICATION, err});
     return false;
@@ -414,9 +385,7 @@ int Http3Application::GetStreamData(StreamData* stream_data) {
 
 // Determines whether SendPendingData should set fin on the Stream
 bool Http3Application::ShouldSetFin(const StreamData& stream_data) {
-  return stream_data.id > -1 &&
-         !is_control_stream(stream_data.id) &&
-         stream_data.fin == 1;
+  return stream_data.id > -1 && !is_control_stream(stream_data.id) && stream_data.fin == 1;
 }
 
 void Http3Application::ScheduleStream(stream_id id) {}
@@ -441,11 +410,7 @@ ssize_t Http3Application::ReadData(
 
   ssize_t ret = NGHTTP3_ERR_WOULDBLOCK;
 
-  auto next = [&](
-      int status,
-      const ngtcp2_vec* data,
-      size_t count,
-      bob::Done done) {
+  auto next = [&](int status, const ngtcp2_vec* data, size_t count, bob::Done done) {
     CHECK_LE(count, veccnt);
 
     switch (status) {
@@ -465,15 +430,10 @@ ssize_t Http3Application::ReadData(
     }
 
     ret = count;
-    size_t numbytes =
-        nghttp3_vec_len(
-            reinterpret_cast<const nghttp3_vec*>(data),
-            count);
+    size_t numbytes = nghttp3_vec_len(reinterpret_cast<const nghttp3_vec*>(data), count);
     std::move(done)(numbytes);
 
-    Debug(session(),
-          "Sending %" PRIu64 " bytes for stream %" PRId64,
-          numbytes, id);
+    Debug(session(), "Sending %" PRIu64 " bytes for stream %" PRId64, numbytes, id);
   };
 
   CHECK_GE(stream->Pull(
@@ -488,8 +448,7 @@ ssize_t Http3Application::ReadData(
   return ret;
 }
 
-void Http3Application::SetSessionTicketAppData(
-    const SessionTicketAppData& app_data) {
+void Http3Application::SetSessionTicketAppData(const SessionTicketAppData& app_data) {
   // TODO(@jasnell): Implement!!
 }
 
@@ -530,10 +489,7 @@ void Http3Application::StreamClosed(stream_id id, error_code app_error_code) {
   Application::StreamClose(id, app_error_code);
 }
 
-void Http3Application::ReceiveData(
-    stream_id id,
-    const uint8_t* data,
-    size_t datalen) {
+void Http3Application::ReceiveData(stream_id id, const uint8_t* data, size_t datalen) {
   FindOrCreateStream(id)->ReceiveData(0, data, datalen, 0);
 }
 
@@ -570,13 +526,7 @@ void Http3Application::ReceiveHeader(
       else
         stream->set_headers_kind(Stream::HeadersKind::INITIAL);
     }
-    auto header = std::make_unique<Http3Header>(
-        env(),
-        token,
-        name,
-        value,
-        flags);
-    stream->AddHeader(std::move(header));
+    stream->AddHeader(std::make_unique<Http3Header>(env(), token, name, value, flags));
   }
 }
 
@@ -604,13 +554,7 @@ void Http3Application::ReceiveTrailer(
     Debug(session(), "Receiving header for stream %" PRId64, id);
     BaseObjectPtr<Stream> stream = session()->FindStream(id);
     CHECK(stream);
-    auto header = std::make_unique<Http3Header>(
-        env(),
-        token,
-        name,
-        value,
-        flags);
-    stream->AddHeader(std::move(header));
+    stream->AddHeader(std::make_unique<Http3Header>(env(), token, name, value, flags));
   }
 }
 
@@ -645,9 +589,7 @@ void Http3Application::PushStream(int64_t push_id, stream_id id) {
   // TODO(@jasnell): Implement support
 }
 
-void Http3Application::SendStopSending(
-    stream_id id,
-    error_code app_error_code) {
+void Http3Application::SendStopSending(stream_id id, error_code app_error_code) {
   ngtcp2_conn_shutdown_stream_read(session()->connection(), id, app_error_code);
 }
 
@@ -671,16 +613,11 @@ bool Http3Application::SendHeaders(
 
   switch (kind) {
     case Stream::HeadersKind::INFO: {
-      return nghttp3_conn_submit_info(
-          connection_.get(),
-          id,
-          nva.data(),
-          nva.length()) == 0;
+      return nghttp3_conn_submit_info(connection_.get(), id, nva.data(), nva.length()) == 0;
       break;
     }
     case Stream::HeadersKind::INITIAL: {
-      static constexpr nghttp3_data_reader reader = {
-          Http3Application::OnReadData };
+      static constexpr nghttp3_data_reader reader = { Http3Application::OnReadData };
       const nghttp3_data_reader* reader_ptr = nullptr;
 
       // If the terminal flag is set, that means that we

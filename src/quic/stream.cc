@@ -45,19 +45,15 @@ namespace {
 MaybeLocal<Value> AppErrorCodeToException(
     Environment* env,
     error_code app_error_code) {
-  if (app_error_code == NGHTTP3_H3_NO_ERROR ||
-      app_error_code == NGTCP2_NO_ERROR) {
+  if (app_error_code == NGHTTP3_H3_NO_ERROR || app_error_code == NGTCP2_NO_ERROR)
     return MaybeLocal<Value>();
-  }
 
   BindingState* state = BindingState::Get(env);
   EscapableHandleScope scope(env->isolate());
   Local<Value> arg;
 
-  std::string message =
-      SPrintF("Stream closed", static_cast<uint64_t>(app_error_code));
-  Local<String> msg =
-      OneByteString(env->isolate(), message.c_str(), message.length());
+  std::string message = SPrintF("Stream closed", static_cast<uint64_t>(app_error_code));
+  Local<String> msg = OneByteString(env->isolate(), message.c_str(), message.length());
   Local<Object> except;
   if (!Exception::Error(msg)->ToObject(env->context()).ToLocal(&except))
     return MaybeLocal<Value>();
@@ -80,8 +76,7 @@ Local<FunctionTemplate> Stream::GetConstructorTemplate(Environment* env) {
     tmpl = FunctionTemplate::New(env->isolate());
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Stream"));
     tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
-    tmpl->InstanceTemplate()->SetInternalFieldCount(
-        Stream::kInternalFieldCount);
+    tmpl->InstanceTemplate()->SetInternalFieldCount(Stream::kInternalFieldCount);
     env->SetProtoMethod(tmpl, "destroy", DoDestroy);
     env->SetProtoMethod(tmpl, "attachSource", AttachSource);
     env->SetProtoMethod(tmpl, "attachConsumer", AttachConsumer);
@@ -113,17 +108,12 @@ void Stream::Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, IDX_STATE_STREAM_COUNT);
 #undef V
 
-  constexpr int QUIC_STREAM_HEADERS_KIND_INFO =
-      static_cast<int>(Stream::HeadersKind::INFO);
-  constexpr int QUIC_STREAM_HEADERS_KIND_INITIAL =
-      static_cast<int>(Stream::HeadersKind::INITIAL);
-  constexpr int QUIC_STREAM_HEADERS_KIND_TRAILING =
-      static_cast<int>(Stream::HeadersKind::TRAILING);
+  constexpr int QUIC_STREAM_HEADERS_KIND_INFO = static_cast<int>(Stream::HeadersKind::INFO);
+  constexpr int QUIC_STREAM_HEADERS_KIND_INITIAL = static_cast<int>(Stream::HeadersKind::INITIAL);
+  constexpr int QUIC_STREAM_HEADERS_KIND_TRAILING = static_cast<int>(Stream::HeadersKind::TRAILING);
 
-  constexpr int QUIC_STREAM_HEADERS_FLAGS_NONE =
-      static_cast<int>(SendHeadersFlags::NONE);
-  constexpr int QUIC_STREAM_HEADERS_FLAGS_TERMINAL =
-      static_cast<int>(SendHeadersFlags::TERMINAL);
+  constexpr int QUIC_STREAM_HEADERS_FLAGS_NONE = static_cast<int>(SendHeadersFlags::NONE);
+  constexpr int QUIC_STREAM_HEADERS_FLAGS_TERMINAL = static_cast<int>(SendHeadersFlags::TERMINAL);
 
   NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_INFO);
   NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_INITIAL);
@@ -133,10 +123,7 @@ void Stream::Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_FLAGS_TERMINAL);
 }
 
-BaseObjectPtr<Stream> Stream::Create(
-    Environment* env,
-    Session* session,
-    stream_id id) {
+BaseObjectPtr<Stream> Stream::Create(Environment* env, Session* session, stream_id id) {
   Local<Object> obj;
   Local<FunctionTemplate> tmpl = GetConstructorTemplate(env);
   CHECK(!tmpl.IsEmpty());
@@ -146,11 +133,7 @@ BaseObjectPtr<Stream> Stream::Create(
   return MakeBaseObject<Stream>(session, obj, id);
 }
 
-Stream::Stream(
-    Session* session,
-    Local<Object> object,
-    stream_id id,
-    Buffer::Source* source)
+Stream::Stream(Session* session, Local<Object> object, stream_id id, Buffer::Source* source)
     : AsyncWrap(session->env(), object, AsyncWrap::PROVIDER_QUICSTREAM),
       StreamStatsBase(session->env()),
       session_(session),
@@ -233,20 +216,16 @@ bool Stream::AddHeader(std::unique_ptr<Header> header) {
   return true;
 }
 
-void Stream::AttachInboundConsumer(
-    Buffer::Consumer* consumer,
-    BaseObjectPtr<AsyncWrap> strong_ptr) {
+void Stream::AttachInboundConsumer(Buffer::Consumer* consumer, BaseObjectPtr<AsyncWrap> strong_ptr) {
   CHECK_IMPLIES(strong_ptr, consumer != nullptr);
-  Debug(this, "%s data consumer",
-      consumer != nullptr ? "Attaching" : "Clearing");
+  Debug(this, "%s data consumer", consumer != nullptr ? "Attaching" : "Clearing");
   inbound_consumer_ = consumer;
   inbound_consumer_strong_ptr_ = std::move(strong_ptr);
   ProcessInbound();
 }
 
 void Stream::AttachOutboundSource(Buffer::Source* source) {
-  Debug(this, "%s data source",
-        source != nullptr ? "Attaching" : "Clearing");
+  Debug(this, "%s data source", source != nullptr ? "Attaching" : "Clearing");
   outbound_source_ = source;
   if (source != nullptr) {
     outbound_source_strong_ptr_ = source->GetStrongPtr();
@@ -269,10 +248,7 @@ void Stream::OnBlocked() {
   Context::Scope context_scope(env()->context());
 
   BaseObjectPtr<Stream> ptr(this);
-  USE(state->stream_blocked_callback()->Call(
-      env()->context(),
-      object(),
-      0, nullptr));
+  USE(state->stream_blocked_callback()->Call(env()->context(), object(), 0, nullptr));
 }
 
 void Stream::OnReset(error_code app_error_code) {
@@ -281,8 +257,7 @@ void Stream::OnReset(error_code app_error_code) {
   Context::Scope context_scope(env()->context());
 
   Local<Value> arg;
-  if (AppErrorCodeToException(env(), app_error_code).ToLocal(&arg) &&
-      outbound_source_ != nullptr) {
+  if (AppErrorCodeToException(env(), app_error_code).ToLocal(&arg) && outbound_source_ != nullptr) {
     outbound_source_->RejectDone(arg);
   } else {
     arg = Undefined(env()->isolate());
@@ -290,10 +265,7 @@ void Stream::OnReset(error_code app_error_code) {
 
   BaseObjectPtr<Stream> ptr(this);
 
-  USE(state->stream_reset_callback()->Call(
-      env()->context(),
-      session()->object(),
-      1, &arg));
+  USE(state->stream_reset_callback()->Call(env()->context(), session()->object(), 1, &arg));
 }
 
 void Stream::OnClose(error_code app_error_code) {
@@ -302,28 +274,21 @@ void Stream::OnClose(error_code app_error_code) {
   Context::Scope context_scope(env()->context());
 
   Local<Value> arg;
-  if (AppErrorCodeToException(env(), app_error_code).ToLocal(&arg) &&
-      outbound_source_ != nullptr) {
+  if (AppErrorCodeToException(env(), app_error_code).ToLocal(&arg) && outbound_source_ != nullptr) {
     outbound_source_->RejectDone(arg);
   } else {
     arg = Undefined(env()->isolate());
   }
 
   BaseObjectPtr<Stream> ptr(this);
-  USE(state->stream_close_callback()->Call(
-      env()->context(),
-      object(),
-      1, &arg));
+  USE(state->stream_close_callback()->Call(env()->context(), object(), 1, &arg));
 }
 
 // Sends a signal to the remote peer to stop transmitting.
 void Stream::StopSending(const QuicError& error) {
   CHECK_EQ(error.type, QuicError::Type::APPLICATION);
   Session::SendSessionScope send_scope(session());
-  ngtcp2_conn_shutdown_stream_read(
-      session()->connection(),
-      id_,
-      error.code);
+  ngtcp2_conn_shutdown_stream_read(session()->connection(), id_, error.code);
   state_->read_ended = 1;
 }
 
@@ -351,12 +316,7 @@ int Stream::DoPull(
     return status;
   }
 
-  return outbound_source_->Pull(
-      std::move(next),
-      options,
-      data,
-      count,
-      max_count_hint);
+  return outbound_source_->Pull(std::move(next), options, data, count, max_count_hint);
 }
 
 void Stream::EndHeaders() {
@@ -371,19 +331,13 @@ void Stream::EndHeaders() {
 
   Local<Value> argv[] = {
     Array::New(env()->isolate(), headers_.data(), headers_.size()),
-    Integer::NewFromUnsigned(
-        env()->isolate(),
-        static_cast<uint32_t>(headers_kind_))
+    Integer::NewFromUnsigned(env()->isolate(), static_cast<uint32_t>(headers_kind_))
   };
 
   headers_.clear();
 
   BaseObjectPtr<Stream> ptr(this);
-  USE(state->stream_headers_callback()->Call(
-      env()->context(),
-      object(),
-      arraysize(argv),
-      argv));
+  USE(state->stream_headers_callback()->Call(env()->context(), object(), arraysize(argv), argv));
 }
 
 void Stream::DoSendHeaders(const FunctionCallbackInfo<Value>& args) {
@@ -393,11 +347,9 @@ void Stream::DoSendHeaders(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsArray());  // Headers
   CHECK(args[2]->IsUint32());  // Flags
 
-  HeadersKind kind =
-      static_cast<HeadersKind>(args[0].As<Uint32>()->Value());
+  HeadersKind kind = static_cast<HeadersKind>(args[0].As<Uint32>()->Value());
   Local<Array> headers = args[1].As<Array>();
-  SendHeadersFlags flags =
-      static_cast<SendHeadersFlags>(args[2].As<Uint32>()->Value());
+  SendHeadersFlags flags = static_cast<SendHeadersFlags>(args[2].As<Uint32>()->Value());
 
   args.GetReturnValue().Set(stream->SendHeaders(kind, headers, flags));
 }
@@ -453,9 +405,10 @@ void Stream::AttachConsumer(const FunctionCallbackInfo<Value>& args) {
     JSQuicBufferConsumer* consumer;
     ASSIGN_OR_RETURN_UNWRAP(&consumer, args[0]);
     stream->AttachInboundConsumer(consumer, BaseObjectPtr<AsyncWrap>(consumer));
-  } else {
-    UNREACHABLE();
+    return;
   }
+
+  UNREACHABLE();
 }
 
 void Stream::Destroy() {
@@ -507,8 +460,7 @@ void Stream::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("outbound", outbound_source_);
   tracker->TrackField("outbound_strong_ptr", outbound_source_strong_ptr_);
   tracker->TrackField("inbound", inbound_);
-  tracker->TrackField("inbound_consumer_strong_ptr_",
-                      inbound_consumer_strong_ptr_);
+  tracker->TrackField("inbound_consumer_strong_ptr_", inbound_consumer_strong_ptr_);
   tracker->TrackField("headers", headers_);
   StatsBase::StatsMemoryInfo(tracker);
 }
@@ -521,17 +473,10 @@ void Stream::ReadyForTrailers() {
   Context::Scope context_scope(env()->context());
 
   BaseObjectPtr<Stream> ptr(this);
-  USE(state->stream_trailers_callback()->Call(
-      env()->context(),
-      object(),
-      0, nullptr));
+  USE(state->stream_trailers_callback()->Call(env()->context(), object(), 0, nullptr));
 }
 
-void Stream::ReceiveData(
-    uint32_t flags,
-    const uint8_t* data,
-    size_t datalen,
-    uint64_t offset) {
+void Stream::ReceiveData(uint32_t flags, const uint8_t* data, size_t datalen, uint64_t offset) {
   CHECK(!is_destroyed());
   Debug(this, "Receiving %d bytes. Final? %s",
         datalen,
@@ -584,10 +529,7 @@ void Stream::Resume() {
     session()->ResumeStream(id_);
 }
 
-bool Stream::SendHeaders(
-    HeadersKind kind,
-    const Local<Array>& headers,
-    SendHeadersFlags flags) {
+bool Stream::SendHeaders(HeadersKind kind, const Local<Array>& headers, SendHeadersFlags flags) {
   return session_->application()->SendHeaders(id_, kind, headers, flags);
 }
 
@@ -597,24 +539,19 @@ void Stream::UpdateStats(size_t datalen) {
 }
 
 void Stream::set_final_size(uint64_t final_size) {
-  CHECK_IMPLIES(
-      state_->fin_received == 1,
-      final_size <= GetStat(&StreamStats::final_size));
+  CHECK_IMPLIES(state_->fin_received == 1, final_size <= GetStat(&StreamStats::final_size));
   state_->fin_received = 1;
   SetStat(&StreamStats::final_size, final_size);
   Debug(this, "Set final size to %" PRIu64, final_size);
 }
 
 void Stream::Schedule(Queue* queue) {
-  if (stream_queue_.IsEmpty()) {
+  if (stream_queue_.IsEmpty())
     queue->PushBack(this);
-  }
 }
 
 template <>
-void StatsTraitsImpl<StreamStats, Stream>::ToString(
-    const Stream& ptr,
-    AddStatsField add_field) {
+void StatsTraitsImpl<StreamStats, Stream>::ToString(const Stream& ptr, AddStatsField add_field) {
 #define V(_, name, label) add_field(label, ptr.GetStat(&StreamStats::name));
   STREAM_STATS(V)
 #undef V

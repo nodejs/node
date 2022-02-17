@@ -56,26 +56,20 @@ constexpr uint64_t DEFAULT_MAX_STREAMS_UNI = 3;
 constexpr uint64_t DEFAULT_MAX_DATA = 1 * 1024 * 1024;
 constexpr uint64_t DEFAULT_MAX_IDLE_TIMEOUT = 10;
 constexpr size_t DEFAULT_MAX_CONNECTIONS =
-    std::min<size_t>(
-        kMaxSizeT,
-        static_cast<size_t>(kMaxSafeJsInteger));
+    std::min<size_t>(kMaxSizeT, static_cast<size_t>(kMaxSafeJsInteger));
 constexpr size_t DEFAULT_MAX_CONNECTIONS_PER_HOST = 100;
-constexpr size_t DEFAULT_MAX_SOCKETADDRESS_LRU_SIZE =
-   (DEFAULT_MAX_CONNECTIONS_PER_HOST * 10);
+constexpr size_t DEFAULT_MAX_SOCKETADDRESS_LRU_SIZE = (DEFAULT_MAX_CONNECTIONS_PER_HOST * 10);
 constexpr size_t DEFAULT_MAX_STATELESS_RESETS = 10;
 constexpr size_t DEFAULT_MAX_RETRY_LIMIT = 10;
 constexpr uint64_t DEFAULT_RETRYTOKEN_EXPIRATION = 10;
 constexpr uint64_t DEFAULT_TOKEN_EXPIRATION = 3600;
 constexpr uint64_t NGTCP2_APP_NOERROR = 65280;
 
-// The constructors are v8::FunctionTemplates that are stored
-// persistently in the quic::BindingState class. These are
-// used for creating instances of the various objects, as well
-// as for performing HasInstance type checks. We choose to
-// store these on the BindingData instead of the Environment
-// in order to keep like-things together and to reduce the
-// additional memory overhead on the Environment when QUIC is
-// not being used.
+// The constructors are v8::FunctionTemplates that are stored persistently in the
+// quic::BindingState class. These are used for creating instances of the various objects, as well
+// as for performing HasInstance type checks. We choose to store these on the BindingData instead
+// of the Environment in order to keep like-things together and to reduce the additional memory
+// overhead on the Environment when QUIC is not being used.
 #define QUIC_CONSTRUCTORS(V)                                                   \
   V(arraybufferviewsource)                                                     \
   V(blobsource)                                                                \
@@ -94,14 +88,11 @@ constexpr uint64_t NGTCP2_APP_NOERROR = 65280;
   V(streambasesource)                                                          \
   V(udp)
 
-// The callbacks are persistent v8::Function references that
-// are set in the quic::BindingState used to communicate data
-// and events back out to the JS environment. They are set once
-// from the JavaScript side when the internalBinding('quic') is
-// first loaded.
+// The callbacks are persistent v8::Function references that are set in the quic::BindingState used
+// to communicate data and events back out to the JS environment. They are set once from the
+// JavaScript side when the internalBinding('quic') is first loaded.
 //
-// The corresponding implementations of the callbacks can be
-// found in lib/internal/quic/binding.js
+// The corresponding implementations of the callbacks can be found in lib/internal/quic/binding.js
 #define QUIC_JS_CALLBACKS(V)                                                   \
   V(endpoint_done, EndpointDone)                                               \
   V(endpoint_error, EndpointError)                                             \
@@ -121,8 +112,7 @@ constexpr uint64_t NGTCP2_APP_NOERROR = 65280;
   V(stream_blocked, StreamBlocked)                                             \
   V(stream_trailers, StreamTrailers)
 
-// The strings are persistent/eternal v8::Strings that are set in
-// the quic::BindingState.
+// The strings are persistent/eternal v8::Strings that are set in the quic::BindingState.
 #define QUIC_STRINGS(V)                                                        \
   V(http3_alpn, &NGHTTP3_ALPN_H3[1])                                           \
   V(ack_delay_exponent, "ackDelayExponent")                                    \
@@ -330,9 +320,9 @@ class CID final : public MemoryRetainer {
   const ngtcp2_cid* ptr_;
 };
 
-// A serialized QUIC packet. Packets are transient. They are created, filled
-// with the contents of a serialized packet, and passed off immediately to the
-// Endpoint to be sent. As soon as the packet is sent, it is freed.
+// A serialized QUIC packet. Packets are transient. They are created, filled with the contents of a
+// serialized packet, and passed off immediately to the Endpoint to be sent. As soon as the packet
+// is sent, it is freed.
 class Packet final : public MemoryRetainer {
  public:
   inline static std::unique_ptr<Packet> Copy(
@@ -415,10 +405,9 @@ struct PathStorage final : public ngtcp2_path_storage {
   inline PathStorage() { ngtcp2_path_storage_zero(this); }
 };
 
-// PreferredAddress is a helper class used only when a client Session
-// receives an advertised preferred address from a server. The helper provides
-// information about the servers advertised preferred address. Call Use()
-// to let ngtcp2 know which preferred address to use (if any).
+// PreferredAddress is a helper class used only when a client Session receives an advertised
+// preferred address from a server. The helper provides information about the servers advertised
+// preferred address. Call Use() to let ngtcp2 know which preferred address to use (if any).
 class PreferredAddress final {
  public:
   enum class Policy {
@@ -476,22 +465,19 @@ class PreferredAddress final {
   // using uv_getaddrinfo it is ignored.
   bool Use(const Address& address) const;
 
-  void CopyToTransportParams(
-      ngtcp2_transport_params* params,
-      const sockaddr* addr);
+  void CopyToTransportParams(ngtcp2_transport_params* params, const sockaddr* addr);
 
  private:
-  inline bool Resolve(const Address& address, uv_getaddrinfo_t* req) const;
+  bool Resolve(const Address& address, uv_getaddrinfo_t* req) const;
 
   Environment* env_;
   mutable ngtcp2_addr* dest_;
   const ngtcp2_preferred_addr* paddr_;
 };
 
-// Encapsulates a QUIC Error. QUIC makes a distinction between Transport and
-// Application error codes but allows the error code values to overlap. That
-// is, a Transport error and Application error can both use code 1 to mean
-// entirely different things.
+// Encapsulates a QUIC Error. QUIC makes a distinction between Transport and Application error
+// codes but allows the error code values to overlap. That is, a Transport error and Application
+// error can both use code 1 to mean entirely different things.
 struct QuicError final {
   enum class Type {
     TRANSPORT,
@@ -538,18 +524,12 @@ static constexpr QuicError kQuicInternalError =
 static constexpr QuicError kQuicAppNoError =
     QuicError { QuicError::Type::APPLICATION, NGTCP2_APP_NOERROR };
 
-// A Stateless Reset Token is a mechanism by which a QUIC
-// endpoint can discreetly signal to a peer that it has
-// lost all state associated with a connection. This
-// helper class is used to both store received tokens and
-// provide storage when creating new tokens to send.
+// A Stateless Reset Token is a mechanism by which a QUIC endpoint can discreetly signal to a peer
+// that it has lost all state associated with a connection. This helper class is used to both store
+// received tokens and provide storage when creating new tokens to send.
 class StatelessResetToken final : public MemoryRetainer {
  public:
-  StatelessResetToken(
-      uint8_t* token,
-      const uint8_t* secret,
-      const CID& cid);
-
+  StatelessResetToken(uint8_t* token, const uint8_t* secret, const CID& cid);
   StatelessResetToken(const uint8_t* secret, const CID& cid);
 
   explicit inline StatelessResetToken(const uint8_t* token) {
@@ -604,30 +584,22 @@ class StatelessResetToken final : public MemoryRetainer {
   SET_SELF_SIZE(StatelessResetToken)
 
   template <typename T>
-  using Map =
-      std::unordered_map<
-          StatelessResetToken, T,
-          StatelessResetToken::Hash>;
+  using Map = std::unordered_map<StatelessResetToken, T, StatelessResetToken::Hash>;
 
  private:
   uint8_t buf_[NGTCP2_STATELESS_RESET_TOKENLEN]{};
 };
 
-// The https://tools.ietf.org/html/draft-ietf-quic-load-balancers-06
-// specification defines a model for creation of Connection Identifiers
-// (CIDs) that embed information usable by load balancers for intelligently
-// routing QUIC packets and sessions.
+// The https://tools.ietf.org/html/draft-ietf-quic-load-balancers-06 specification defines a model
+// for creation of Connection Identifiers (CIDs) that embed information usable by load balancers
+// for intelligently routing QUIC packets and sessions.
 class RoutableConnectionIDStrategy {
  public:
-  virtual ~RoutableConnectionIDStrategy() {}
+  virtual ~RoutableConnectionIDStrategy() = default;
 
-  virtual void NewConnectionID(
-      ngtcp2_cid* cid,
-      size_t length_hint = NGTCP2_MAX_CIDLEN) = 0;
+  virtual void NewConnectionID(ngtcp2_cid* cid, size_t length_hint = NGTCP2_MAX_CIDLEN) = 0;
 
-  inline void NewConnectionID(
-      CID* cid,
-      size_t length_hint = NGTCP2_MAX_CIDLEN) {
+  inline void NewConnectionID(CID* cid, size_t length_hint = NGTCP2_MAX_CIDLEN) {
     NewConnectionID(cid->cid(), length_hint);
   }
 
@@ -635,22 +607,17 @@ class RoutableConnectionIDStrategy {
 };
 
 template <typename Traits>
-class RoutableConnectionIDStrategyImpl final
-    : public RoutableConnectionIDStrategy,
-      public MemoryRetainer {
+class RoutableConnectionIDStrategyImpl final : public RoutableConnectionIDStrategy,
+                                               public MemoryRetainer {
  public:
   using Options = typename Traits::Options;
   using State = typename Traits::State;
 
-  RoutableConnectionIDStrategyImpl(
-      Session* session,
-      const Options& options)
+  RoutableConnectionIDStrategyImpl(Session* session, const Options& options)
       : session_(session),
         options_(options) {}
 
-  void NewConnectionID(
-      ngtcp2_cid* cid,
-      size_t length_hint = NGTCP2_MAX_CIDLEN) override {
+  void NewConnectionID(ngtcp2_cid* cid, size_t length_hint = NGTCP2_MAX_CIDLEN) override {
     Traits::NewConnectionID(
         options_,
         &state_,
@@ -677,19 +644,16 @@ class RoutableConnectionIDStrategyImpl final
 
 class RoutableConnectionIDConfig {
  public:
-  virtual std::unique_ptr<RoutableConnectionIDStrategy> NewInstance(
-      Session* session) = 0;
+  virtual std::unique_ptr<RoutableConnectionIDStrategy> NewInstance(Session* session) = 0;
 };
 
 template <typename Traits>
-class RoutableConnectionIDConfigImpl final
-    : public RoutableConnectionIDConfig,
-      public MemoryRetainer {
+class RoutableConnectionIDConfigImpl final : public RoutableConnectionIDConfig,
+                                             public MemoryRetainer {
  public:
   using Options = typename Traits::Options;
 
-  std::unique_ptr<RoutableConnectionIDStrategy> NewInstance(
-      Session* session) override {
+  std::unique_ptr<RoutableConnectionIDStrategy> NewInstance(Session* session) override {
     return std::make_unique<RoutableConnectionIDStrategyImpl<Traits>>(
         session, options());
   }
@@ -728,8 +692,7 @@ struct RandomConnectionIDTraits final {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static bool HasInstance(Environment* env, v8::Local<v8::Value> value);
-  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
-      Environment* env);
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(Environment* env);
 };
 
 template <typename Traits>
@@ -815,11 +778,8 @@ class RoutableConnectionIDStrategyBase final : public BaseObject {
   std::shared_ptr<RoutableConnectionIDConfigImpl<Traits>> strategy_;
 };
 
-using RandomConnectionIDBase =
-    RoutableConnectionIDStrategyBase<RandomConnectionIDTraits>;
-
-using RandomConnectionIDConfig =
-    RoutableConnectionIDConfigImpl<RandomConnectionIDTraits>;
+using RandomConnectionIDBase = RoutableConnectionIDStrategyBase<RandomConnectionIDTraits>;
+using RandomConnectionIDConfig = RoutableConnectionIDConfigImpl<RandomConnectionIDTraits>;
 
 void IllegalConstructor(const v8::FunctionCallbackInfo<v8::Value>& args);
 

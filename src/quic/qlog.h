@@ -22,16 +22,13 @@ struct Chunk {
 
 class LogStream final : public AsyncWrap, public StreamBase {
  public:
-  inline static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
-      Environment* env) {
+  inline static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(Environment* env) {
     BindingState* state = env->GetBindingData<BindingState>(env->context());
-    v8::Local<v8::FunctionTemplate> tmpl =
-        state->logstream_constructor_template();
+    v8::Local<v8::FunctionTemplate> tmpl = state->logstream_constructor_template();
     if (tmpl.IsEmpty()) {
       tmpl = v8::FunctionTemplate::New(env->isolate());
       tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
-      tmpl->InstanceTemplate()->SetInternalFieldCount(
-          StreamBase::kInternalFieldCount);
+      tmpl->InstanceTemplate()->SetInternalFieldCount(StreamBase::kInternalFieldCount);
       tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "LogStream"));
       StreamBase::AddMethods(env, tmpl);
       state->set_logstream_constructor_template(tmpl);
@@ -64,10 +61,8 @@ class LogStream final : public AsyncWrap, public StreamBase {
       memcpy(buf.base, data, avail);
       remaining -= avail;
       data += avail;
-      if (reading_)
-        EmitRead(avail, buf);
-      else
-        buffer_.emplace_back(Chunk{ buf, avail });
+      if (reading_) EmitRead(avail, buf);
+      else buffer_.emplace_back(Chunk{ buf, avail });
     }
 
     if (ended_ && flags & NGTCP2_QLOG_WRITE_FLAG_FIN)

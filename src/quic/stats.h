@@ -30,22 +30,17 @@ struct StatsTraits {
 
 using AddStatsField = std::function<void(const char*, uint64_t)>;
 
-// StatsBase is a utility help for classes (like Session)
+// StatsBase is a utility helper for classes (like Session)
 // that record performance statistics. The template takes a
 // single Traits argument (see StreamStatsTraits in
-// stream.h as an example). When the StatsBase
-// is deconstructed, collected statistics are output to
-// Debug automatically.
+// stream.h as an example).
 template <typename T>
 class StatsBase {
  public:
   typedef typename T::Stats Stats;
 
   inline explicit StatsBase(Environment* env)
-      : stats_store_(
-            v8::ArrayBuffer::NewBackingStore(
-                env->isolate(),
-                sizeof(Stats))),
+      : stats_store_(v8::ArrayBuffer::NewBackingStore(env->isolate(), sizeof(Stats))),
         stats_(new (stats_store_->Data()) Stats) {
     DCHECK_NOT_NULL(stats_);
     stats_->created_at = uv_hrtime();
@@ -54,8 +49,7 @@ class StatsBase {
   inline v8::Local<v8::BigUint64Array> ToBigUint64Array(Environment* env) {
     size_t size = sizeof(Stats);
     size_t count = size / sizeof(uint64_t);
-    v8::Local<v8::ArrayBuffer> stats_buffer =
-        v8::ArrayBuffer::New(env->isolate(), stats_store_);
+    v8::Local<v8::ArrayBuffer> stats_buffer = v8::ArrayBuffer::New(env->isolate(), stats_store_);
     return v8::BigUint64Array::New(stats_buffer, 0, count);
   }
 
