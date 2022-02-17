@@ -1430,7 +1430,7 @@ read by the original process. To begin reading data from a paused socket, call
 The server can be a TCP server or an [IPC][] server, depending on what it
 [`listen()`][`server.listen()`] to.
 
-Here is an example of an TCP echo server which listens for connections
+Here is an example of a TCP echo server which listens for connections
 on port 8124:
 
 ```js

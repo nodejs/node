@@ -1277,7 +1277,7 @@ changes:
     be removed from the output. This option is only used when `encoding` is
     `'utf-8'`, `'utf-16be'` or `'utf-16le'`. **Default:** `false`.
 
-Creates an new `TextDecoder` instance. The `encoding` may specify one of the
+Creates a new `TextDecoder` instance. The `encoding` may specify one of the
 supported encodings or an alias.
 
 The `TextDecoder` class is also available on the global object.
