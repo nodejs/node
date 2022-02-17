@@ -42,7 +42,7 @@ using v8::Undefined;
 using v8::Value;
 
 namespace crypto {
-static constexpr int X509_NAME_FLAGS =
+static constexpr int kX509NameFlagsMultiline =
     ASN1_STRFLGS_ESC_2253 |
     ASN1_STRFLGS_ESC_CTRL |
     ASN1_STRFLGS_UTF8_CONVERT |
@@ -988,7 +988,11 @@ MaybeLocal<Value> GetIssuerString(
     const BIOPointer& bio,
     X509* cert) {
   X509_NAME* issuer_name = X509_get_issuer_name(cert);
-  if (X509_NAME_print_ex(bio.get(), issuer_name, 0, X509_NAME_FLAGS) <= 0) {
+  if (X509_NAME_print_ex(
+          bio.get(),
+          issuer_name,
+          0,
+          kX509NameFlagsMultiline) <= 0) {
     USE(BIO_reset(bio.get()));
     return Undefined(env->isolate());
   }
@@ -1004,7 +1008,7 @@ MaybeLocal<Value> GetSubject(
           bio.get(),
           X509_get_subject_name(cert),
           0,
-          X509_NAME_FLAGS) <= 0) {
+          kX509NameFlagsMultiline) <= 0) {
     USE(BIO_reset(bio.get()));
     return Undefined(env->isolate());
   }
