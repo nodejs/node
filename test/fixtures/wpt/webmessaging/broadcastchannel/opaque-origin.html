@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+<meta charset=utf-8>
+<title></title>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+</head>
+<body>
+<script>
+<!--
+promise_test(t => {
+  return new Promise((resolve) => {
+    let ifr = document.createElement("iframe");
+    ifr.src =
+      "data:text/html,<script> let bc = new BroadcastChannel(\"test\");" +
+      "bc.onmessage = (e) => {" +
+      "  if (e.data == \"ping\") bc.postMessage('pong');"+
+      "  else parent.postMessage({workerMessageOrigin: e.data, messageOrigin: e.origin}, \"*\"); };" +
+      "new Worker(URL.createObjectURL(new Blob([\"" +
+      "let bc2 = new BroadcastChannel('test'); bc2.postMessage('ping'); " +
+      "bc2.onmessage = e => bc2.postMessage(e.origin);" +
+      "\"], {type: 'text/javascript'}))); </script>";
+    window.addEventListener("message", t.step_func(e => {
+        assert_equals(e.data.workerMessageOrigin, "null");
+        assert_equals(e.data.messageOrigin, "null");
+        resolve();
+      }), {once: true});
+    document.body.appendChild(ifr);
+    });
+}, "Opaque origin should be serialized to \"null\"");
+//-->
+</script>
+</body>
+</html>
