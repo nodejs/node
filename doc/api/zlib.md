@@ -128,7 +128,7 @@ The `zlib` module can be used to implement support for the `gzip`, `deflate`
 and `br` content-encoding mechanisms defined by
 [HTTP](https://tools.ietf.org/html/rfc7230#section-4.2).
 
-The HTTP [`Accept-Encoding`][] header is used within an http request to identify
+The HTTP [`Accept-Encoding`][] header is used within an HTTP request to identify
 the compression encodings accepted by the client. The [`Content-Encoding`][]
 header is used to identify the compression encodings actually applied to a
 message.
