@@ -1,5 +1,6 @@
 name: Close stale feature requests
 on:
+  workflow_dispatch:
   schedule:
     # Run every day at 1:00 AM UTC.
     - cron: 0 1 * * *
