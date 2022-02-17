@@ -27,8 +27,8 @@ themes.addTheme('colorASCII', themes.getTheme('ASCII'), {
 })
 
 themes.addTheme('brailleSpinner', {
-  preProgressbar: '⸨',
-  postProgressbar: '⸩',
+  preProgressbar: '(',
+  postProgressbar: ')',
   progressbarTheme: {
     complete: '#',
     remaining: '⠂',

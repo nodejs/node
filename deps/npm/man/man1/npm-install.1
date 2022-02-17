@@ -87,11 +87,23 @@ NOTE: The \fB\-\-production\fP flag has no particular meaning when adding a
 .
 .IP \(bu 2
 \fBnpm install <folder>\fP:
-  Install the package in the directory as a symlink in the current
-  project\.  Its dependencies will be installed before it's linked\. If
-  \fB<folder>\fP sits inside the root of your project, its dependencies may
+  If \fB<folder>\fP sits inside the root of your project, its dependencies will be installed and may
   be hoisted to the top\-level \fBnode_modules\fP as they would for other
-  types of dependencies\.
+  types of dependencies\. If \fB<folder>\fP sits outside the root of your project,
+  \fInpm will not install the package dependencies\fR in the directory \fB<folder>\fP,
+  but it will create a symlink to \fB<folder>\fP\|\.
+.QP
+NOTE: If you want to install the content of a directory like a package from the registry instead of creating a link, you would need to use npm help \fBpack\fP while in the \fB<folder>\fP directory, and then install the resulting tarball instead of the \fB<folder>\fP using \fBnpm install <tarball file>\fP
+
+.
+  Example:
+.P
+.RS 2
+.nf
+  npm install \.\./\.\./other\-package
+  npm install \./sub\-package
+.fi
+.RE
 .IP \(bu 2
 \fBnpm install <tarball file>\fP:
   Install a package that is sitting on the filesystem\.  Note: if you just
