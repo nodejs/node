@@ -12,7 +12,10 @@ const { ESMLoader } = esmLoaderModule;
   const esmLoader = new ESMLoader();
 
   const originalSpecifier = 'foo/bar';
-  const importAssertions = { type: 'json' };
+  const importAssertions = Object.assign(
+    Object.create(null),
+    { type: 'json' },
+  );
   const parentURL = 'file:///entrypoint.js';
   const resolvedURL = 'file:///foo/bar.js';
   const suggestedFormat = 'test';
@@ -26,7 +29,7 @@ const { ESMLoader } = esmLoaderModule;
       'parentURL',
     ]);
     assert.ok(Array.isArray(context.conditions));
-    assert.strictEqual(context.importAssertions, importAssertions);
+    assert.deepStrictEqual(context.importAssertions, importAssertions);
     assert.strictEqual(context.parentURL, parentURL);
     assert.strictEqual(typeof defaultResolve, 'function');
 
@@ -45,7 +48,7 @@ const { ESMLoader } = esmLoaderModule;
       'importAssertions',
     ]);
     assert.strictEqual(context.format, suggestedFormat);
-    assert.strictEqual(context.importAssertions, importAssertions);
+    assert.deepStrictEqual(context.importAssertions, importAssertions);
     assert.strictEqual(typeof defaultLoad, 'function');
 
     // This doesn't matter (just to avoid errors)
@@ -55,25 +58,19 @@ const { ESMLoader } = esmLoaderModule;
     };
   }
 
-  const customLoader1 = {
+  const customLoader = {
     // Ensure ESMLoader actually calls the custom hooks
     resolve: mustCall(resolve),
     load: mustCall(load),
   };
 
-  esmLoader.addCustomLoaders(customLoader1);
+  esmLoader.addCustomLoaders(customLoader);
 
-  // Manually trigger hook chains (since ESMLoader is not actually running)
-  esmLoader.resolve(
+  // Manually trigger hooks (since ESMLoader is not actually running)
+  const job = await esmLoader.getModuleJob(
     originalSpecifier,
     parentURL,
     importAssertions,
   );
-  esmLoader.load(
-    resolvedURL,
-    {
-      format: suggestedFormat,
-      importAssertions,
-    },
-  );
+  await job.modulePromise;
 }
