@@ -4,6 +4,7 @@ on:
     # Run every day at 1:00 AM UTC.
     - cron: 0 1 * * *
 
+# yamllint disable rule:empty-lines
 env:
   CLOSE_MESSAGE: >
     There has been no activity on this feature request
@@ -20,9 +21,11 @@ env:
     5 months and it is unlikely to be implemented.
     It will be closed 6 months after the last non-automated comment.
 
+
     For more information on how the project manages
     feature requests, please consult the
     [feature request management document](https://github.com/nodejs/node/blob/HEAD/doc/guides/feature-request-management.md).
+# yamllint enable
 
 jobs:
   stale:
