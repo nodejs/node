@@ -171,9 +171,7 @@ rules:
     - name: WeakSet
       into: Safe
 globals:
-  Intl: false
   # Parameters passed to internal modules
-  global: false
   require: false
   process: false
   exports: false
