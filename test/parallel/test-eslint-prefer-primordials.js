@@ -99,6 +99,34 @@ new RuleTester({
         `,
         options: [{ name: 'Function' }],
       },
+      {
+        code: 'function identifier() {}',
+        options: [{ name: 'identifier' }]
+      },
+      {
+        code: 'function* identifier() {}',
+        options: [{ name: 'identifier' }]
+      },
+      {
+        code: 'class identifier {}',
+        options: [{ name: 'identifier' }]
+      },
+      {
+        code: 'new class { identifier(){} }',
+        options: [{ name: 'identifier' }]
+      },
+      {
+        code: 'const a = { identifier: \'4\' }',
+        options: [{ name: 'identifier' }]
+      },
+      {
+        code: 'identifier:{const a = 4}',
+        options: [{ name: 'identifier' }]
+      },
+      {
+        code: 'switch(0){case identifier:}',
+        options: [{ name: 'identifier' }]
+      },
     ],
     invalid: [
       {
