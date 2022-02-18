@@ -36,9 +36,11 @@ if (process.argv[2] !== 'child') {
     child.stderr.on('data', (data) => {
       stderr += data;
     });
+    child.stderr.on('end', common.mustCall(() => {
+      assert.match(stderr, /Unexpected extra warning received/);
+    }));
     child.on('exit', common.mustCall((status) => {
       assert.notStrictEqual(status, 0);
-      assert.match(stderr, /Unexpected extra warning received/);
     }));
   }
 } else {
