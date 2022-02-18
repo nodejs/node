@@ -296,6 +296,7 @@ if (global.PerformanceMeasure) {
 if (global.fetch) {
   knownGlobals.push(
     global.fetch,
+    global.FormData,
     global.Request,
     global.Response,
     global.Headers,
