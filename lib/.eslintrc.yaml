@@ -49,6 +49,8 @@ rules:
       message: Use `const { Event } = require('internal/event_target');` instead of the global.
     - name: EventTarget
       message: Use `const { EventTarget } = require('internal/event_target');` instead of the global.
+    - name: FormData
+      message: Use `const { FormData } = require('internal/deps/undici/undici');` instead of the global.
     - name: Headers
       message: Use `const { Headers } = require('internal/deps/undici/undici');` instead of the global.
       # Intl is not available in primordials because it can be

@@ -271,6 +271,7 @@ const customTypesMap = {
   'TextDecoderStream':
     'webstreams.md#class-textdecoderstream',
 
+  'FormData': 'https://developer.mozilla.org/en-US/docs/Web/API/FormData',
   'Headers': 'https://developer.mozilla.org/en-US/docs/Web/API/Headers',
   'Response': 'https://developer.mozilla.org/en-US/docs/Web/API/Response',
   'Request': 'https://developer.mozilla.org/en-US/docs/Web/API/Request',

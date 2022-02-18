@@ -319,6 +319,7 @@ module.exports = {
     Crypto: 'readable',
     CryptoKey: 'readable',
     fetch: 'readable',
+    FormData: 'readable',
     globalThis: 'readable',
     Response: 'readable',
     SubtleCrypto: 'readable',
