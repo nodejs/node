@@ -83,6 +83,12 @@ rules:
       message: Use `const { atob } = require('buffer');` instead of the global.
     - name: btoa
       message: Use `const { btoa } = require('buffer');` instead of the global.
+    - name: clearImmediate
+      message: Use `const { clearImmediate } = require('timers');` instead of the global.
+    - name: clearInterval
+      message: Use `const { clearInterval } = require('timers');` instead of the global.
+    - name: clearTimeout
+      message: Use `const { clearTimeout } = require('timers');` instead of the global.
     - name: crypto
       message: Use `const { crypto } = require('internal/crypto/webcrypto');` instead of the global.
     - name: Crypto
@@ -99,6 +105,12 @@ rules:
       message: Use `const { performance } = require('perf_hooks');` instead of the global.
     - name: queueMicrotask
       message: Use `const { queueMicrotask } = require('internal/process/task_queues');` instead of the global.
+    - name: setImmediate
+      message: Use `const { setImmediate } = require('timers');` instead of the global.
+    - name: setInterval
+      message: Use `const { setInterval } = require('timers');` instead of the global.
+    - name: setTimeout
+      message: Use `const { setTimeout } = require('timers');` instead of the global.
     - name: SubtleCrypto
       message: Use `const { SubtleCrypto } = require('internal/crypto/webcrypto');` instead of the global.
   # Custom rules in tools/eslint-rules
