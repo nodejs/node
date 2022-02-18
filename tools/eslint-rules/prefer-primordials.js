@@ -57,8 +57,18 @@ function getDestructuringAssignmentParent(scope, node) {
   return declaration.defs[0].node.init;
 }
 
-const identifierSelector =
-  '[type!=VariableDeclarator][type!=MemberExpression]>Identifier';
+const parentSelectors = [
+  // We want to select identifiers that refer to other references, not the ones
+  // that create a new reference.
+  'ClassDeclaration',
+  'FunctionDeclaration',
+  'LabeledStatement',
+  'MemberExpression',
+  'MethodDefinition',
+  'SwitchCase',
+  'VariableDeclarator',
+];
+const identifierSelector = parentSelectors.map((selector) => `[type!=${selector}]`).join('') + '>Identifier';
 
 module.exports = {
   meta: {
@@ -90,6 +100,11 @@ module.exports = {
         reported = new Set();
       },
       [identifierSelector](node) {
+        if (node.parent.type === 'Property' && node.parent.key === node) {
+          // If the identifier is the key for this property declaration, it
+          // can't be referring to a primordials member.
+          return;
+        }
         if (reported.has(node.range[0])) {
           return;
         }
