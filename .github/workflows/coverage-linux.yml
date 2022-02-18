@@ -20,6 +20,10 @@ on:
       - .github/**
       - '!.github/workflows/coverage-linux.yml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 env:
   PYTHON_VERSION: '3.10'
   FLAKY_TESTS: dontcare
