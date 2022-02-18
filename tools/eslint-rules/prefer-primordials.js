@@ -58,7 +58,7 @@ function getDestructuringAssignmentParent(scope, node) {
 }
 
 const parentSelectors = [
-  // We want to select identifier that refer to another reference, not the one
+  // We want to select identifiers that refer to other references, not the ones
   // that create a new reference.
   'ClassDeclaration',
   'FunctionDeclaration',
