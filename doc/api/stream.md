@@ -2680,7 +2680,7 @@ const s2 = compose(async function*(source) {
 let res = '';
 
 // Convert AsyncFunction into writable Duplex.
-const s3 = compose(async function(source) {
+const s3 = compose(async (source) => {
   for await (const chunk of source) {
     res += chunk;
   }
