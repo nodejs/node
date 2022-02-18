@@ -230,18 +230,6 @@ assert.throws(() => new Blob({}), {
       code: 'ERR_INVALID_ARG_VALUE',
     });
   });
-
-  try {
-    const overSizedArray = [new Uint8Array(0xffffffff), [1]];
-    assert.throws(() => new Blob(overSizedArray), {
-      code: 'ERR_BUFFER_TOO_LARGE',
-    });
-  } catch (e) {
-    if (e.message !== 'Array buffer allocation failed') throw e;
-    common.skip(
-      'Insufficient memory on this platform for oversized buffer test.'
-    );
-  }
 }
 
 {
