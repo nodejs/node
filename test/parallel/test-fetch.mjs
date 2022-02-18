@@ -7,6 +7,7 @@ import events from 'events';
 import http from 'http';
 
 assert.strictEqual(typeof globalThis.fetch, 'function');
+assert.strictEqual(typeof globalThis.FormData, 'function');
 assert.strictEqual(typeof globalThis.Headers, 'function');
 assert.strictEqual(typeof globalThis.Request, 'function');
 assert.strictEqual(typeof globalThis.Response, 'function');
