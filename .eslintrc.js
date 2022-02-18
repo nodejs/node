@@ -335,6 +335,7 @@ module.exports = {
     atob: 'readable',
     performance: 'readable',
     fetch: 'readable',
+    FormData: 'readable',
     Headers: 'readable',
     Request: 'readable',
     Response: 'readable',
