@@ -17,15 +17,18 @@ If it works it will output something like:
 .P
 .RS 2
 .nf
-Ping success: {*Details about registry*}
+npm notice PING https://registry\.npmjs\.org/
+npm notice PONG 255ms
 .fi
 .RE
 .P
-otherwise you will get:
+otherwise you will get an error:
 .P
 .RS 2
 .nf
-Ping error: {*Detail about error}
+npm notice PING http://foo\.com/
+npm ERR! code E404
+npm ERR! 404 Not Found \- GET http://www\.foo\.com/\-/ping?write=true
 .fi
 .RE
 .SS Configuration

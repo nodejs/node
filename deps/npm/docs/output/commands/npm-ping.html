@@ -152,10 +152,13 @@ npm command-line interface
 <h3 id="description">Description</h3>
 <p>Ping the configured or given npm registry and verify authentication.
 If it works it will output something like:</p>
-<pre lang="bash"><code>Ping success: {*Details about registry*}
+<pre lang="bash"><code>npm notice PING https://registry.npmjs.org/
+npm notice PONG 255ms
 </code></pre>
-<p>otherwise you will get:</p>
-<pre lang="bash"><code>Ping error: {*Detail about error}
+<p>otherwise you will get an error:</p>
+<pre lang="bash"><code>npm notice PING http://foo.com/
+npm ERR! code E404
+npm ERR! 404 Not Found - GET http://www.foo.com/-/ping?write=true
 </code></pre>
 <h3 id="configuration">Configuration</h3>
 <!-- raw HTML omitted -->

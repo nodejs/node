@@ -690,6 +690,8 @@ Usage:
 npm pkg set <key>=<value> [<key>=<value> ...]
 npm pkg get [<key> [<key> ...]]
 npm pkg delete <key> [<key> ...]
+npm pkg set [<array>[<index>].<key>=<value> ...]
+npm pkg set [<array>[].<key>=<value> ...]
 
 Options:
 [-f|--force] [--json]
