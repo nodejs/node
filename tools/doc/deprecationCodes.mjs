@@ -37,8 +37,8 @@ const testHeading = (headingNode, expectedDeprecationCode) => {
 const testYAMLComment = (commentNode) => {
   try {
     assert.match(
-      commentNode?.value?.substring(0, 19),
-      /<!-- YAML\r?\nchanges:\r?\n/,
+      commentNode?.value?.substring(0, 20),
+      /^<!-- YAML\r?\nchanges:\r?\n/,
       'Missing or ill-formed YAML comment.'
     );
   } catch (e) {
