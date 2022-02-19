@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-if (!common.hasCrypto)
+if (!common.hasCrypto || !common.hasIntl)
   common.skip('missing crypto');
 common.skipIfEslintMissing();
 
