@@ -89,6 +89,8 @@ rules:
       message: Use `const { clearInterval } = require('timers');` instead of the global.
     - name: clearTimeout
       message: Use `const { clearTimeout } = require('timers');` instead of the global.
+    - name: console
+      message: Use `const { console } = require('internal/console/global');` instead of the global.
     - name: crypto
       message: Use `const { crypto } = require('internal/crypto/webcrypto');` instead of the global.
     - name: Crypto
