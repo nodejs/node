@@ -1822,6 +1822,10 @@ Type: End-of-Life
 `runInAsyncIdScope` doesn't emit the `'before'` or `'after'` event and can thus
 cause a lot of issues. See <https://github.com/nodejs/node/issues/14328>.
 
+<!-- md-lint skip-deprecation DEP0087 -->
+
+<!-- md-lint skip-deprecation DEP0088 -->
+
 ### DEP0089: `require('assert')`
 
 <!-- YAML
@@ -2262,9 +2266,9 @@ Type: End-of-Life
 The `crypto._toBuf()` function was not designed to be used by modules outside
 of Node.js core and was removed.
 
-### DEP0115: `crypto.prng()`, `crypto.pseudoRandomBytes()`, `crypto.rng()`
-
 <!--lint disable nodejs-yaml-comments -->
+
+### DEP0115: `crypto.prng()`, `crypto.pseudoRandomBytes()`, `crypto.rng()`
 
 <!-- YAML
 changes:
@@ -2276,9 +2280,9 @@ changes:
                  with `--pending-deprecation` support.
 -->
 
-<!--lint enable nodejs-yaml-comments -->
-
 Type: Documentation-only (supports [`--pending-deprecation`][])
+
+<!--lint enable nodejs-yaml-comments -->
 
 In recent versions of Node.js, there is no difference between
 [`crypto.randomBytes()`][] and `crypto.pseudoRandomBytes()`. The latter is
