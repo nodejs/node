@@ -114,7 +114,7 @@ for (const { protocol, createServer } of [
     }));
     await assert.rejects(
       import(crossProtocolRedirect.href),
-      'should not be able to redirect across protocols'
+      { code: 'ERR_NETWORK_IMPORT_DISALLOWED' }
     );
 
     const deps = new URL(url.href);
@@ -135,7 +135,8 @@ for (const { protocol, createServer } of [
       export default 1;`);
     await assert.rejects(
       import(fileDep.href),
-      'should not be able to load file: from http:');
+      { code: 'ERR_INVALID_URL_SCHEME' }
+    );
 
     const builtinDep = new URL(url.href);
     builtinDep.searchParams.set('body', `
@@ -144,7 +145,7 @@ for (const { protocol, createServer } of [
     `);
     await assert.rejects(
       import(builtinDep.href),
-      'should not be able to load node: from http:'
+      { code: 'ERR_INVALID_URL_SCHEME' }
     );
 
     const unprefixedBuiltinDep = new URL(url.href);
@@ -154,7 +155,7 @@ for (const { protocol, createServer } of [
     `);
     await assert.rejects(
       import(unprefixedBuiltinDep.href),
-      'should not be able to load unprefixed builtins from http:'
+      { code: 'ERR_INVALID_URL_SCHEME' }
     );
 
     const unsupportedMIME = new URL(url.href);
@@ -162,7 +163,7 @@ for (const { protocol, createServer } of [
     unsupportedMIME.searchParams.set('body', '');
     await assert.rejects(
       import(unsupportedMIME.href),
-      'should not be able to load unsupported MIMEs from http:'
+      { code: 'ERR_UNKNOWN_MODULE_FORMAT' }
     );
 
     server.close();
