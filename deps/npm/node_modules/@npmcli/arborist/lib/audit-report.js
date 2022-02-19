@@ -304,7 +304,7 @@ class AuditReport extends Map {
 
   async [_getReport] () {
     // if we're not auditing, just return false
-    if (this.options.audit === false || this.tree.inventory.size === 1) {
+    if (this.options.audit === false || this.options.offline === true || this.tree.inventory.size === 1) {
       return null
     }
 

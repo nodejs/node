@@ -78,11 +78,20 @@ into a tarball (b).
 
 * `npm install <folder>`:
 
-    Install the package in the directory as a symlink in the current
-    project.  Its dependencies will be installed before it's linked. If
-    `<folder>` sits inside the root of your project, its dependencies may
+    If `<folder>` sits inside the root of your project, its dependencies will be installed and may
     be hoisted to the top-level `node_modules` as they would for other
-    types of dependencies.
+    types of dependencies. If `<folder>` sits outside the root of your project,
+    *npm will not install the package dependencies* in the directory `<folder>`,
+    but it will create a symlink to `<folder>`.
+
+    > NOTE: If you want to install the content of a directory like a package from the registry instead of creating a link, you would need to use [`npm pack`](/commands/npm-pack) while in the `<folder>` directory, and then install the resulting tarball instead of the `<folder>` using `npm install <tarball file>`
+
+    Example:
+
+    ```bash
+    npm install ../../other-package
+    npm install ./sub-package
+    ```
 
 * `npm install <tarball file>`:
 

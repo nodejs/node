@@ -27,27 +27,28 @@ npm help \fBpackage\.json\fP file, e\.g:
 {
   "name": "my\-workspaces\-powered\-project",
   "workspaces": [
-    "workspace\-a"
+    "packages/a"
   ]
 }
 .fi
 .RE
 .P
 Given the above \fBpackage\.json\fP example living at a current working
-directory \fB\|\.\fP that contains a folder named \fBworkspace\-a\fP that itself contains
+directory \fB\|\.\fP that contains a folder named \fBpackages/a\fP that itself contains
 a \fBpackage\.json\fP inside it, defining a Node\.js package, e\.g:
 .P
 .RS 2
 .nf
 \|\.
 +\-\- package\.json
-`\-\- workspace\-a
-   `\-\- package\.json
+`\-\- packages
+   +\-\- a
+   |   `\-\- package\.json
 .fi
 .RE
 .P
 The expected result once running \fBnpm install\fP in this current working
-directory \fB\|\.\fP is that the folder \fBworkspace\-a\fP will get symlinked to the
+directory \fB\|\.\fP is that the folder \fBpackages/a\fP will get symlinked to the
 \fBnode_modules\fP folder of the current working dir\.
 .P
 Below is a post \fBnpm install\fP example, given that same previous example
@@ -57,11 +58,12 @@ structure of files and folders:
 .nf
 \|\.
 +\-\- node_modules
-|  `\-\- workspace\-a \-> \.\./workspace\-a
+|  `\-\- packages/a \-> \.\./packages/a
 +\-\- package\-lock\.json
 +\-\- package\.json
-`\-\- workspace\-a
-   `\-\- package\.json
+`\-\- packages
+   +\-\- a
+   |   `\-\- package\.json
 .fi
 .RE
 .SS Getting started with workspaces

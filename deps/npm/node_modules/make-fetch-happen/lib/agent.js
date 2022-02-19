@@ -76,10 +76,12 @@ function getAgent (uri, opts) {
     localAddress: opts.localAddress,
     rejectUnauthorized: opts.rejectUnauthorized,
     timeout: agentTimeout,
+    freeSocketTimeout: 15000,
   }) : new HttpAgent({
     maxSockets: agentMaxSockets,
     localAddress: opts.localAddress,
     timeout: agentTimeout,
+    freeSocketTimeout: 15000,
   })
   AGENT_CACHE.set(key, agent)
   return agent
