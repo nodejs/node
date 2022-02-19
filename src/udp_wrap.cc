@@ -728,9 +728,12 @@ void UDPWrap::OnRecv(ssize_t nread,
     bs = BackingStore::Reallocate(isolate, std::move(bs), nread);
   }
 
+  Local<Object> address;
+  if (!AddressToJS(env, addr).ToLocal(&address)) return;
+
   Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
   argv[2] = Buffer::New(env, ab, 0, ab->ByteLength()).ToLocalChecked();
-  argv[3] = AddressToJS(env, addr);
+  argv[3] = address;
   MakeCallback(env->onmessage_string(), arraysize(argv), argv);
 }
 

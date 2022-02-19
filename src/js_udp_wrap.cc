@@ -100,10 +100,13 @@ ssize_t JSUDPWrap::Send(uv_buf_t* bufs,
     total_len += bufs[i].len;
   }
 
+  Local<Object> address;
+  if (!AddressToJS(env(), addr).ToLocal(&address)) return -1;
+
   Local<Value> args[] = {
     listener()->CreateSendWrap(total_len)->object(),
     Array::New(env()->isolate(), buffers.out(), nbufs),
-    AddressToJS(env(), addr)
+    address,
   };
 
   if (!MakeCallback(env()->onwrite_string(), arraysize(args), args)
