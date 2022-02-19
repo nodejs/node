@@ -18,11 +18,14 @@ Ping the configured or given npm registry and verify authentication.
 If it works it will output something like:
 
 ```bash
-Ping success: {*Details about registry*}
+npm notice PING https://registry.npmjs.org/
+npm notice PONG 255ms
 ```
-otherwise you will get:
+otherwise you will get an error:
 ```bash
-Ping error: {*Detail about error}
+npm notice PING http://foo.com/
+npm ERR! code E404
+npm ERR! 404 Not Found - GET http://www.foo.com/-/ping?write=true
 ```
 
 ### Configuration

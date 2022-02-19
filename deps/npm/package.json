@@ -1,5 +1,5 @@
 {
-  "version": "8.5.0",
+  "version": "8.5.1",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -56,7 +56,7 @@
   "dependencies": {
     "@isaacs/string-locale-compare": "^1.1.0",
     "@npmcli/arborist": "^4.3.1",
-    "@npmcli/ci-detect": "^1.4.0",
+    "@npmcli/ci-detect": "^2.0.0",
     "@npmcli/config": "^3.0.0",
     "@npmcli/map-workspaces": "^2.0.0",
     "@npmcli/package-json": "^1.0.1",
@@ -90,7 +90,7 @@
     "libnpmsearch": "^4.0.1",
     "libnpmteam": "^3.0.1",
     "libnpmversion": "^2.0.2",
-    "make-fetch-happen": "^10.0.2",
+    "make-fetch-happen": "^10.0.3",
     "minipass": "^3.1.6",
     "minipass-pipeline": "^1.2.4",
     "mkdirp": "^1.0.4",

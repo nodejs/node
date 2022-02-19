@@ -13,6 +13,7 @@ module.exports = () =>
   : process.env.DSARI ? 'dsari'
   : process.env.GITHUB_ACTION ? 'github-actions'
   : process.env.TDDIUM ? 'tddium'
+  : process.env.SCREWDRIVER ? 'screwdriver'
   : process.env.STRIDER ? 'strider'
   : process.env.TASKCLUSTER_ROOT_URL ? 'taskcluster'
   : process.env.JENKINS_URL ? 'jenkins'

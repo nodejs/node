@@ -211,11 +211,18 @@ dependency to a project.</p>
 </li>
 <li>
 <p><code>npm install &lt;folder&gt;</code>:</p>
-<p>Install the package in the directory as a symlink in the current
-project.  Its dependencies will be installed before it's linked. If
-<code>&lt;folder&gt;</code> sits inside the root of your project, its dependencies may
+<p>If <code>&lt;folder&gt;</code> sits inside the root of your project, its dependencies will be installed and may
 be hoisted to the top-level <code>node_modules</code> as they would for other
-types of dependencies.</p>
+types of dependencies. If <code>&lt;folder&gt;</code> sits outside the root of your project,
+<em>npm will not install the package dependencies</em> in the directory <code>&lt;folder&gt;</code>,
+but it will create a symlink to <code>&lt;folder&gt;</code>.</p>
+<blockquote>
+<p>NOTE: If you want to install the content of a directory like a package from the registry instead of creating a link, you would need to use <a href="../commands/npm-pack.html"><code>npm pack</code></a> while in the <code>&lt;folder&gt;</code> directory, and then install the resulting tarball instead of the <code>&lt;folder&gt;</code> using <code>npm install &lt;tarball file&gt;</code></p>
+</blockquote>
+<p>Example:</p>
+<pre lang="bash"><code>npm install ../../other-package
+npm install ./sub-package
+</code></pre>
 </li>
 <li>
 <p><code>npm install &lt;tarball file&gt;</code>:</p>

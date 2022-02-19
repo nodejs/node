@@ -51,7 +51,7 @@
   },
   "dependencies": {
     "@npmcli/arborist": "^4.0.0",
-    "@npmcli/ci-detect": "^1.3.0",
+    "@npmcli/ci-detect": "^2.0.0",
     "@npmcli/run-script": "^2.0.0",
     "chalk": "^4.1.0",
     "mkdirp-infer-owner": "^2.0.0",
