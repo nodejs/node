@@ -12,7 +12,7 @@ assert.strictEqual(typeof globalThis.Response, 'function');
 
 common.expectWarning(
   'ExperimentalWarning',
-  'Fetch is an experimental feature. This feature could change at any time'
+  'The Fetch API is an experimental feature. This feature could change at any time'
 );
 
 const server = http.createServer((req, res) => {
