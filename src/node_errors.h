@@ -35,6 +35,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_CLOSED_MESSAGE_PORT, Error)                                            \
   V(ERR_CONSTRUCT_CALL_REQUIRED, TypeError)                                    \
   V(ERR_CONSTRUCT_CALL_INVALID, TypeError)                                     \
+  V(ERR_ILLEGAL_CONSTRUCTOR, TypeError)                                        \
   V(ERR_CRYPTO_INITIALIZATION_FAILED, Error)                                   \
   V(ERR_CRYPTO_INVALID_AUTH_TAG, TypeError)                                    \
   V(ERR_CRYPTO_INVALID_COUNTER, TypeError)                                     \
@@ -124,6 +125,7 @@ ERRORS_WITH_CODE(V)
     "Buffer is not available for the current Context")                         \
   V(ERR_CLOSED_MESSAGE_PORT, "Cannot send data on closed MessagePort")         \
   V(ERR_CONSTRUCT_CALL_INVALID, "Constructor cannot be called")                \
+  V(ERR_ILLEGAL_CONSTRUCTOR, "Illegal constructor")                            \
   V(ERR_CONSTRUCT_CALL_REQUIRED, "Cannot call constructor without `new`")      \
   V(ERR_CRYPTO_INITIALIZATION_FAILED, "Initialization failed")                 \
   V(ERR_CRYPTO_INVALID_AUTH_TAG, "Invalid authentication tag")                 \

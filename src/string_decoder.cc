@@ -37,7 +37,7 @@ MaybeLocal<String> MakeString(Isolate* isolate,
         v8::NewStringType::kNormal,
         length);
     if (utf8_string.IsEmpty()) {
-      isolate->ThrowException(node::ERR_STRING_TOO_LONG(isolate));
+      isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
       return MaybeLocal<String>();
     } else {
       return utf8_string;
@@ -264,18 +264,28 @@ MaybeLocal<String> StringDecoder::FlushData(Isolate* isolate) {
 namespace {
 
 void DecodeData(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+
+  Local<Value> decoder_value = args[0];
+  if (!decoder_value->IsArrayBufferView()) {
+    isolate->ThrowException(ERR_ILLEGAL_CONSTRUCTOR(isolate));
+    return;
+  }
+
   StringDecoder* decoder =
-      reinterpret_cast<StringDecoder*>(Buffer::Data(args[0]));
+      reinterpret_cast<StringDecoder*>(Buffer::Data(decoder_value));
   CHECK_NOT_NULL(decoder);
 
   CHECK(args[1]->IsArrayBufferView());
   ArrayBufferViewContents<char> content(args[1].As<ArrayBufferView>());
   size_t length = content.length();
 
-  MaybeLocal<String> ret =
-      decoder->DecodeData(args.GetIsolate(), content.data(), &length);
-  if (!ret.IsEmpty())
-    args.GetReturnValue().Set(ret.ToLocalChecked());
+  Local<String> decoded_data;
+  if (!decoder->DecodeData(isolate,
+                           content.data(),
+                           &length).ToLocal(&decoded_data)) return;
+
+  args.GetReturnValue().Set(decoded_data);
 }
 
 void FlushData(const FunctionCallbackInfo<Value>& args) {
