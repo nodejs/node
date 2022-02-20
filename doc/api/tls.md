@@ -2101,6 +2101,9 @@ Returns an array with the names of the supported TLS ciphers. The names are
 lower-case for historical reasons, but must be uppercased to be used in
 the `ciphers` option of [`tls.createSecureContext()`][].
 
+Not all supported ciphers are enabled by default. See
+[modifying the default cipher suite][].
+
 Cipher names that start with `'tls_'` are for TLSv1.3, all the others are for
 TLSv1.2 and below.
 
