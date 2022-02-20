@@ -35,6 +35,9 @@ Module._findPath = (request, paths, isMain) => {
 
 module.exports = {
   root: true,
+  env: {
+    es2022: true,
+  },
   extends: ['eslint:recommended', 'plugin:jsdoc/recommended'],
   plugins: ['jsdoc', 'markdown', 'node-core'],
   parser: '@babel/eslint-parser',
@@ -314,13 +317,10 @@ module.exports = {
     'node-core/no-duplicate-requires': 'error',
   },
   globals: {
-    Atomics: 'readable',
-    BigInt: 'readable',
     Crypto: 'readable',
     CryptoKey: 'readable',
     fetch: 'readable',
     FormData: 'readable',
-    globalThis: 'readable',
     Response: 'readable',
     SubtleCrypto: 'readable',
   },
