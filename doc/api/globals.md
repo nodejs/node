@@ -284,7 +284,7 @@ Used to print to stdout and stderr. See the [`console`][] section.
 ## `Crypto`
 
 <!-- YAML
-added: REPLACEME
+added: v17.6.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with the
@@ -297,7 +297,7 @@ only if the Node.js binary was compiled with including support for the
 ## `crypto`
 
 <!-- YAML
-added: REPLACEME
+added: v17.6.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with the
@@ -308,7 +308,7 @@ A browser-compatible implementation of the [Web Crypto API][].
 ## `CryptoKey`
 
 <!-- YAML
-added: REPLACEME
+added: v17.6.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with the
@@ -366,7 +366,7 @@ A browser-compatible implementation of the [`fetch()`][] function.
 ## Class `FormData`
 
 <!-- YAML
-added: REPLACEME
+added: v17.6.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with the [`--experimental-fetch`][]
@@ -559,7 +559,7 @@ The WHATWG [`structuredClone`][] method.
 ## `SubtleCrypto`
 
 <!-- YAML
-added: REPLACEME
+added: v17.6.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with the

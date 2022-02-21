@@ -3070,7 +3070,7 @@ Use [`buffer.subarray`][] which does the same thing instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v17.6.0
     pr-url: https://github.com/nodejs/node/pull/41872
     description: Documentation-only deprecation.
 -->
@@ -3084,7 +3084,7 @@ which diminished its usefulness.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v17.6.0
     pr-url: https://github.com/nodejs/node/pull/41587
     description: Documentation-only deprecation.
 -->
