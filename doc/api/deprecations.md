@@ -3082,7 +3082,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/41896
     description: Runtime deprecation.
-  - version: REPLACEME
+  - version: v17.6.0
     pr-url: https://github.com/nodejs/node/pull/41872
     description: Documentation-only deprecation.
 -->
@@ -3096,7 +3096,7 @@ which diminished its usefulness.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v17.6.0
     pr-url: https://github.com/nodejs/node/pull/41587
     description: Documentation-only deprecation.
 -->
