@@ -134,6 +134,8 @@ rules:
     - name: decodeURIComponent
     - name: encodeURI
     - name: encodeURIComponent
+    - name: escape
+    - name: eval
     - name: Error
       ignore:
         - prepareStackTrace
@@ -177,6 +179,7 @@ rules:
     - name: Uint32Array
     - name: Uint8Array
     - name: Uint8ClampedArray
+    - name: unescape
     - name: URIError
     - name: WeakMap
       into: Safe
