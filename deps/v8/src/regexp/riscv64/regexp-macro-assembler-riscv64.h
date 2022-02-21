@@ -144,10 +144,10 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
 
   // Register holding the current input position as negative offset from
   // the end of the string.
-  inline Register current_input_offset() { return a6; }
+  inline Register current_input_offset() { return s1; }
 
   // The register containing the current character after LoadCurrentCharacter.
-  inline Register current_character() { return a7; }
+  inline Register current_character() { return s2; }
 
   // Register holding address of the end of the input string.
   inline Register end_of_input_address() { return t2; }
@@ -161,7 +161,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
   inline Register backtrack_stackpointer() { return t0; }
 
   // Register holding pointer to the current code object.
-  inline Register code_pointer() { return a5; }
+  inline Register code_pointer() { return s4; }
 
   // Byte size of chars in the string to match (decided by the Mode argument).
   inline int char_size() { return static_cast<int>(mode_); }
