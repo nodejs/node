@@ -192,11 +192,11 @@ Creates a new `PerformanceMark` entry in the Performance Timeline. A
 `performanceEntry.duration` is always `0`. Performance marks are used
 to mark specific significant moments in the Performance Timeline.
 
-The created `PerformanceMark` entry is put in the global performance timeline
-and can be queries with `performance.getEntries`,
+The created `PerformanceMark` entry is put in the global Performance Timeline
+and can be queried with `performance.getEntries`,
 `performance.getEntriesByName`, and `performance.getEntriesByType`. When the
 observation is performed, the entries should be cleared from the global
-performance timeline manually with `performance.clearMarks`.
+Performance Timeline manually with `performance.clearMarks`.
 
 ### `performance.measure(name[, startMarkOrOptions[, endMark]])`
 
@@ -241,11 +241,11 @@ in the Performance Timeline or any of the timestamp properties provided by the
 if no parameter is passed, otherwise if the named `endMark` does not exist, an
 error will be thrown.
 
-The created `PerformanceMeasure` entry is put in the global performance timeline
-and can be queries with `performance.getEntries`,
+The created `PerformanceMeasure` entry is put in the global Performance Timeline
+and can be queried with `performance.getEntries`,
 `performance.getEntriesByName`, and `performance.getEntriesByType`. When the
 observation is performed, the entries should be cleared from the global
-performance timeline manually with `performance.clearMeasures`.
+Performance Timeline manually with `performance.clearMeasures`.
 
 ### `performance.nodeTiming`
 
