@@ -877,7 +877,7 @@ try {
 <!-- YAML
 added: v16.7.0
 changes:
-  - version: REPLACEME
+  - version: v17.6.0
     pr-url: https://github.com/nodejs/node/pull/41819
     description: Accepts an additional `verbatimSymlinks` option to specify
                  whether to perform path resolution for symlinks.
@@ -2102,14 +2102,14 @@ copyFile('source.txt', 'destination.txt', constants.COPYFILE_EXCL, callback);
 added: v16.7.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/41819
-    description: Accepts an additional `verbatimSymlinks` option to specify
-                 whether to perform path resolution for symlinks.
-  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
                  `ERR_INVALID_CALLBACK`.
+  - version: v17.6.0
+    pr-url: https://github.com/nodejs/node/pull/41819
+    description: Accepts an additional `verbatimSymlinks` option to specify
+                 whether to perform path resolution for symlinks.
 -->
 
 > Stability: 1 - Experimental
@@ -4872,7 +4872,7 @@ copyFileSync('source.txt', 'destination.txt', constants.COPYFILE_EXCL);
 <!-- YAML
 added: v16.7.0
 changes:
-  - version: REPLACEME
+  - version: v17.6.0
     pr-url: https://github.com/nodejs/node/pull/41819
     description: Accepts an additional `verbatimSymlinks` option to specify
                  whether to perform path resolution for symlinks.
