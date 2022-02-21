@@ -384,7 +384,7 @@ This variable may appear to be global but is not. See [`exports`][].
 added: v17.5.0
 -->
 
-> Stability: 1 - Experimental. Enable this API with the [`--experimental-fetch`][]
+> Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
 > CLI flag.
 
 A browser-compatible implementation of the [`fetch()`][] function.
@@ -395,7 +395,7 @@ A browser-compatible implementation of the [`fetch()`][] function.
 added: REPLACEME
 -->
 
-> Stability: 1 - Experimental. Enable this API with the [`--experimental-fetch`][]
+> Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
 > CLI flag.
 
 A browser-compatible implementation of {FormData}.
@@ -421,7 +421,7 @@ Node.js this is different. The top-level scope is not the global scope;
 added: v17.5.0
 -->
 
-> Stability: 1 - Experimental. Enable this API with the [`--experimental-fetch`][]
+> Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
 > CLI flag.
 
 A browser-compatible implementation of {Headers}.
@@ -526,7 +526,7 @@ This variable may appear to be global but is not. See [`require()`][].
 added: v17.5.0
 -->
 
-> Stability: 1 - Experimental. Enable this API with the [`--experimental-fetch`][]
+> Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
 > CLI flag.
 
 A browser-compatible implementation of {Response}.
@@ -537,7 +537,7 @@ A browser-compatible implementation of {Response}.
 added: v17.5.0
 -->
 
-> Stability: 1 - Experimental. Enable this API with the [`--experimental-fetch`][]
+> Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
 > CLI flag.
 
 A browser-compatible implementation of {Request}.
@@ -660,8 +660,8 @@ The object that acts as the namespace for all W3C
 [Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
 
 [Web Crypto API]: webcrypto.md
-[`--experimental-fetch`]: cli.md#--experimental-fetch
 [`--experimental-global-webcrypto`]: cli.md#--experimental-global-webcrypto
+[`--no-experimental-fetch`]: cli.md#--no-experimental-fetch
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 [`DOMException`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException
 [`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api

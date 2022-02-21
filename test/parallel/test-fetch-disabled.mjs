@@ -1,3 +1,4 @@
+// Flags: --no-experimental-fetch
 import '../common/index.mjs';
 
 import assert from 'assert';
