@@ -28,6 +28,8 @@ const assert = require('assert');
 const repl = require('repl');
 const cp = require('child_process');
 
+common.allowGlobals('require', '_', '_error', ...require('module').builtinModules);
+
 assert.strictEqual(repl.repl, undefined);
 repl._builtinLibs; // eslint-disable-line no-unused-expressions
 

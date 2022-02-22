@@ -20,6 +20,8 @@ const Duplex = require('stream').Duplex;
 // Invoking the REPL should create a repl history file at the specified path
 // and mode 600.
 
+common.allowGlobals('require', '_', '_error', ...require('module').builtinModules);
+
 const stream = new Duplex();
 stream.pause = stream.resume = () => {};
 // ends immediately

@@ -189,6 +189,7 @@ testclean:
 # Next one is legacy remove this at some point
 	$(RM) -r test/tmp*
 	$(RM) -r test/.tmp*
+	$(RM) -d test/common/knownGlobals.json
 
 .PHONY: distclean
 .NOTPARALLEL: distclean
@@ -280,8 +281,11 @@ v8:
 	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
 		tools/make-v8.sh $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
+test/common/knownGlobals.json: test/common/parseEslintConfigForKnownGlobals.js lib/.eslintrc.yaml
+	$(NODE) $< > $@
+
 .PHONY: jstest
-jstest: build-addons build-js-native-api-tests build-node-api-tests ## Runs addon tests and JS tests
+jstest: build-addons build-js-native-api-tests build-node-api-tests test/common/knownGlobals.json ## Runs addon tests and JS tests
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
 		$(TEST_CI_ARGS) \
 		--skip-tests=$(CI_SKIP_TESTS) \

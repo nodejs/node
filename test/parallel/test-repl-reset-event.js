@@ -26,7 +26,7 @@ const assert = require('assert');
 const repl = require('repl');
 const util = require('util');
 
-common.allowGlobals(42);
+common.allowGlobals(42, 'require', '_', '_error', ...require('module').builtinModules);
 
 // Create a dummy stream that does nothing
 const dummy = new ArrayStream();
