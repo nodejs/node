@@ -351,16 +351,6 @@ added:
 
 Expose the [CustomEvent Web API][] on the global scope.
 
-### `--experimental-global-webcrypto`
-
-<!-- YAML
-added:
-  - v17.6.0
-  - v16.15.0
--->
-
-Expose the [Web Crypto API][] on the global scope.
-
 ### `--experimental-import-meta-resolve`
 
 <!-- YAML
@@ -412,6 +402,14 @@ added: v18.0.0
 -->
 
 Disable experimental support for the [Fetch API][].
+
+### `--no-experimental-global-webcrypto`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Disable exposition of [Web Crypto API][] on the global scope.
 
 ### `--no-experimental-repl-await`
 
@@ -1839,7 +1837,6 @@ Node.js options that are allowed are:
 * `--enable-source-maps`
 * `--experimental-abortcontroller`
 * `--experimental-global-customevent`
-* `--experimental-global-webcrypto`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
@@ -1872,6 +1869,7 @@ Node.js options that are allowed are:
 * `--no-addons`
 * `--no-deprecation`
 * `--no-experimental-fetch`
+* `--no-experimental-global-webcrypto`
 * `--no-experimental-repl-await`
 * `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`

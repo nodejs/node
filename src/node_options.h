@@ -110,7 +110,7 @@ class EnvironmentOptions : public Options {
   bool enable_source_maps = false;
   bool experimental_fetch = true;
   bool experimental_global_customevent = false;
-  bool experimental_global_web_crypto = false;
+  bool experimental_global_web_crypto = true;
   bool experimental_https_modules = false;
   std::string experimental_specifier_resolution;
   bool experimental_wasm_modules = false;

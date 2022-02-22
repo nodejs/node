@@ -288,3 +288,69 @@ child.exec(
   common.mustSucceed((stdout) => {
     assert.strictEqual(stdout, '.mjs file\n');
   }));
+
+if (common.hasCrypto) {
+  // Assert that calls to crypto utils work without require.
+  child.exec(
+    `${nodejs} ` +
+      '-e "console.log(crypto.randomBytes(16).toString(\'hex\'))"',
+    common.mustSucceed((stdout) => {
+      assert.match(stdout, /[0-9a-f]{32}/i);
+    }));
+  child.exec(
+    `${nodejs} ` +
+      '-p "crypto.randomBytes(16).toString(\'hex\')"',
+    common.mustSucceed((stdout) => {
+      assert.match(stdout, /[0-9a-f]{32}/i);
+    }));
+}
+// Assert that overriding crypto works.
+child.exec(
+  `${nodejs} ` +
+      '-p "crypto=Symbol(\'test\')"',
+  common.mustSucceed((stdout) => {
+    assert.match(stdout, /Symbol\(test\)/i);
+  }));
+child.exec(
+  `${nodejs} ` +
+    '-e "crypto = {};console.log(\'randomBytes\', typeof crypto.randomBytes)"',
+  common.mustSucceed((stdout) => {
+    assert.match(stdout, /randomBytes\sundefined/);
+  }));
+// Assert that overriding crypto with a local variable works.
+child.exec(
+  `${nodejs} ` +
+    '-e "const crypto = {};console.log(\'randomBytes\', typeof crypto.randomBytes)"',
+  common.mustSucceed((stdout) => {
+    assert.match(stdout, /randomBytes\sundefined/);
+  }));
+child.exec(
+  `${nodejs} ` +
+    '-e "let crypto = {};console.log(\'randomBytes\', typeof crypto.randomBytes)"',
+  common.mustSucceed((stdout) => {
+    assert.match(stdout, /randomBytes\sundefined/);
+  }));
+child.exec(
+  `${nodejs} ` +
+    '-e "var crypto = {};console.log(\'randomBytes\', typeof crypto.randomBytes)"',
+  common.mustSucceed((stdout) => {
+    assert.match(stdout, /randomBytes\sundefined/);
+  }));
+child.exec(
+  `${nodejs} ` +
+    '-p "const crypto = {randomBytes:1};typeof crypto.randomBytes"',
+  common.mustSucceed((stdout) => {
+    assert.match(stdout, /^number/);
+  }));
+child.exec(
+  `${nodejs} ` +
+    '-p "let crypto = {randomBytes:1};typeof crypto.randomBytes"',
+  common.mustSucceed((stdout) => {
+    assert.match(stdout, /^number/);
+  }));
+child.exec(
+  `${nodejs} --no-experimental-global-webcrypto ` +
+    '-p "var crypto = {randomBytes:1};typeof crypto.randomBytes"',
+  common.mustSucceed((stdout) => {
+    assert.match(stdout, /^number/);
+  }));
