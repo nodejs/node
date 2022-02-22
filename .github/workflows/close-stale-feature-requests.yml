@@ -15,7 +15,7 @@ env:
 
     For more information on how the project manages
     feature requests, please consult the
-    [feature request management document](https://github.com/nodejs/node/blob/HEAD/doc/guides/feature-request-management.md).
+    [feature request management document](https://github.com/nodejs/node/blob/HEAD/doc/contributing/feature-request-management.md).
 
   WARN_MESSAGE: >
     There has been no activity on this feature request for
@@ -25,7 +25,7 @@ env:
 
     For more information on how the project manages
     feature requests, please consult the
-    [feature request management document](https://github.com/nodejs/node/blob/HEAD/doc/guides/feature-request-management.md).
+    [feature request management document](https://github.com/nodejs/node/blob/HEAD/doc/contributing/feature-request-management.md).
 # yamllint enable
 
 jobs:
@@ -36,9 +36,9 @@ jobs:
       - uses: actions/stale@v4
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          days-before-stale: 1226
+          days-before-stale: 906
           days-before-close: 30
-          stale-issue-label: stalled
+          stale-issue-label: stale
           close-issue-message: ${{ env.CLOSE_MESSAGE }}
           stale-issue-message: ${{ env.WARN_MESSAGE }}
           only-labels: feature request
