@@ -805,6 +805,14 @@ kbd {
   background-color: var(--color-fill-app);
 }
 
+@media only screen and (min-height: 1001px) {
+  .header {
+    z-index: 1;
+    top: -1px;
+    position: sticky;
+  }
+}
+
 .header-container {
   display: flex;
   align-items: center;
