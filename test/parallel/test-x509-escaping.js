@@ -66,21 +66,21 @@ const { hasOpenSSL3 } = common;
     'email:foo@example.com',
     // ... but should be escaped if they contain commas.
     'email:"foo@example.com\\u002c DNS:good.example.com"',
-    'DirName:/C=DE/L=Hannover',
-    // TODO(tniessen): support UTF8 in DirName
-    'DirName:"/C=DE/L=M\\\\xC3\\\\xBCnchen"',
-    'DirName:"/C=DE/L=Berlin\\u002c DNS:good.example.com"',
-    'DirName:"/C=DE/L=Berlin\\u002c DNS:good.example.com\\\\x00' +
-      'evil.example.com"',
-    'DirName:"/C=DE/L=Berlin\\u002c DNS:good.example.com\\\\\\\\x00' +
-      'evil.example.com"',
-    // These next two tests might be surprising. OpenSSL applies its own rules
-    // first, which introduce backslashes, which activate node's escaping.
-    // Unfortunately, there are also differences between OpenSSL 1.1.1 and 3.0.
-    'DirName:"/C=DE/L=Berlin\\\\x0D\\\\x0A"',
-    hasOpenSSL3 ?
-      'DirName:"/C=DE/L=Berlin\\\\/CN=good.example.com"' :
-      'DirName:/C=DE/L=Berlin/CN=good.example.com',
+    // New versions of Node.js use RFC2253 to print DirName entries, which
+    // almost always results in commas, which should be escaped properly.
+    'DirName:"L=Hannover\\u002cC=DE"',
+    // Node.js unsets ASN1_STRFLGS_ESC_MSB to prevent unnecessarily escaping
+    // Unicode characters, so Unicode characters should be preserved.
+    'DirName:"L=München\\u002cC=DE"',
+    'DirName:"L=Berlin\\\\\\u002c DNS:good.example.com\\u002cC=DE"',
+    // Node.js also unsets ASN1_STRFLGS_ESC_CTRL and relies on JSON-compatible
+    // escaping rules to safely escape control characters.
+    'DirName:"L=Berlin\\\\\\u002c DNS:good.example.com\\u0000' +
+      'evil.example.com\\u002cC=DE"',
+    'DirName:"L=Berlin\\\\\\u002c DNS:good.example.com\\\\\\\\\\u0000' +
+      'evil.example.com\\u002cC=DE"',
+    'DirName:"L=Berlin\\u000d\\u000a\\u002cC=DE"',
+    'DirName:"L=Berlin/CN=good.example.com\\u002cC=DE"',
     // Even OIDs that are well-known (such as the following, which is
     // sha256WithRSAEncryption) should be represented numerically only.
     'Registered ID:1.2.840.113549.1.1.11',

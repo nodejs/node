@@ -48,6 +48,11 @@ static constexpr int kX509NameFlagsMultiline =
     XN_FLAG_SEP_MULTILINE |
     XN_FLAG_FN_SN;
 
+static constexpr int kX509NameFlagsRFC2253WithinUtf8JSON =
+    XN_FLAG_RFC2253 &
+    ~ASN1_STRFLGS_ESC_MSB &
+    ~ASN1_STRFLGS_ESC_CTRL;
+
 int SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer) {
   X509_STORE* store = SSL_CTX_get_cert_store(ctx);
   DeleteFnPtr<X509_STORE_CTX, X509_STORE_CTX_free> store_ctx(
@@ -740,20 +745,31 @@ static bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
     // escaping.
     PrintLatin1AltName(out, name);
   } else if (gen->type == GEN_DIRNAME) {
-    // For backward compatibility, use X509_NAME_oneline to print the
-    // X509_NAME object. The format is non standard and should be avoided
-    // elsewhere, but conveniently, the function produces ASCII and the output
-    // is unlikely to contains commas or other characters that would require
-    // escaping. With that in mind, note that it SHOULD NOT produce ASCII
-    // output since an RFC5280 AttributeValue may be a UTF8String.
-    // TODO(tniessen): switch to RFC2253 rules in a major release
+    // Earlier versions of Node.js used X509_NAME_oneline to print the X509_NAME
+    // object. The format was non standard and should be avoided. The use of
+    // X509_NAME_oneline is discouraged by OpenSSL but was required for backward
+    // compatibility. Conveniently, X509_NAME_oneline produced ASCII and the
+    // output was unlikely to contains commas or other characters that would
+    // require escaping. However, it SHOULD NOT produce ASCII output since an
+    // RFC5280 AttributeValue may be a UTF8String.
+    // Newer versions of Node.js have since switched to X509_NAME_print_ex to
+    // produce a better format at the cost of backward compatibility. The new
+    // format may contain Unicode characters and it is likely to contain commas,
+    // which require escaping. Fortunately, the recently safeguarded function
+    // PrintAltName handles all of that safely.
     BIO_printf(out.get(), "DirName:");
-    char oline[256];
-    if (X509_NAME_oneline(gen->d.dirn, oline, sizeof(oline)) != nullptr) {
-      PrintAltName(out, oline, strlen(oline), false, nullptr);
-    } else {
+    BIOPointer tmp(BIO_new(BIO_s_mem()));
+    CHECK(tmp);
+    if (X509_NAME_print_ex(tmp.get(),
+                           gen->d.dirn,
+                           0,
+                           kX509NameFlagsRFC2253WithinUtf8JSON) < 0) {
       return false;
     }
+    char* oline = nullptr;
+    size_t n_bytes = BIO_get_mem_data(tmp.get(), &oline);
+    CHECK_IMPLIES(n_bytes != 0, oline != nullptr);
+    PrintAltName(out, oline, n_bytes, true, nullptr);
   } else if (gen->type == GEN_IPADD) {
     BIO_printf(out.get(), "IP Address:");
     const ASN1_OCTET_STRING* ip = gen->d.ip;
