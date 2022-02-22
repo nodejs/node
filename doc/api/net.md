@@ -854,6 +854,14 @@ For TCP connections, available `options` are:
   `0` indicates that both IPv4 and IPv6 addresses are allowed. **Default:** `0`.
 * `hints` {number} Optional [`dns.lookup()` hints][].
 * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
+* `noDelay` {boolean} If set to `true`, it disables the use of Nagle's algorithm immediately
+  after the socket is established. **Default:** `false`.
+* `keepAlive` {boolean} If set to `true`, it enables keep-alive functionality on the socket
+  immediately after the connection is established, similarly on what is done in
+  [`socket.setKeepAlive([enable][, initialDelay])`][`socket.setKeepAlive(enable, initialDelay)`].
+  **Default:** `false`.
+* `keepAliveInitialDelay` {number} If set to a positive number, it sets the initial delay before
+  the first keepalive probe is sent on an idle socket.**Default:** `0`.
 
 For [IPC][] connections, available `options` are:
 
@@ -1415,8 +1423,18 @@ added: v0.5.0
     **Default:** `false`.
   * `pauseOnConnect` {boolean} Indicates whether the socket should be
     paused on incoming connections. **Default:** `false`.
+  * `noDelay` {boolean} If set to `true`, it disables the use of Nagle's algorithm immediately
+    after a new incoming connection is received. **Default:** `false`.
+  * `keepAlive` {boolean} If set to `true`, it enables keep-alive functionality on the socket
+    immediately after a new incoming connection is received, similarly on what is done in
+    [`socket.setKeepAlive([enable][, initialDelay])`][`socket.setKeepAlive(enable, initialDelay)`].
+    **Default:** `false`.
+  * `keepAliveInitialDelay` {number} If set to a positive number, it sets the initial delay before
+    the first keepalive probe is sent on an idle socket.**Default:** `0`.
+
 * `connectionListener` {Function} Automatically set as a listener for the
   [`'connection'`][] event.
+
 * Returns: {net.Server}
 
 Creates a new TCP or [IPC][] server.
@@ -1582,6 +1600,7 @@ net.isIPv6('fhqwhgads'); // returns false
 [`socket.pause()`]: #socketpause
 [`socket.resume()`]: #socketresume
 [`socket.setEncoding()`]: #socketsetencodingencoding
+[`socket.setKeepAlive(enable, initialDelay)`]: #socketsetkeepaliveenable-initialdelay
 [`socket.setTimeout()`]: #socketsettimeouttimeout-callback
 [`socket.setTimeout(timeout)`]: #socketsettimeouttimeout-callback
 [`writable.destroy()`]: stream.md#writabledestroyerror
