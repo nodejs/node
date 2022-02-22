@@ -800,16 +800,17 @@ kbd {
 }
 
 .header {
-  position: relative;
+  position: sticky;
+  top: -1px;
+  z-index: 1;
   padding-top: 1rem;
   background-color: var(--color-fill-app);
 }
 
-@media only screen and (min-height: 1001px) {
+@media not screen, (max-height: 1000px) {
   .header {
-    z-index: 1;
-    top: -1px;
-    position: sticky;
+    position: relative;
+    top: 0;
   }
 }
 
