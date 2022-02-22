@@ -36,12 +36,12 @@ jobs:
       - uses: actions/stale@v4
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          days-before-stale: 150
+          days-before-stale: 1226
           days-before-close: 30
           stale-issue-label: stalled
           close-issue-message: ${{ env.CLOSE_MESSAGE }}
           stale-issue-message: ${{ env.WARN_MESSAGE }}
-          only-labels: feature request,test-action
+          only-labels: feature request
           exempt-pr-labels: never-stale
           # max requests it will send per run to the GitHub API before it deliberately exits to avoid hitting API rate limits
           operations-per-run: 30
