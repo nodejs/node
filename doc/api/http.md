@@ -2865,6 +2865,16 @@ changes:
     [`--max-http-header-size`][] for requests received by this server, i.e.
     the maximum length of request headers in bytes.
     **Default:** 16384 (16 KB).
+  * `noDelay` {boolean} If set to `true`, it disables the use of Nagle's
+    algorithm immediately after a new incoming connection is received.
+    **Default:** `false`.
+  * `keepAlive` {boolean} If set to `true`, it enables keep-alive functionality
+    on the socket immediately after a new incoming connection is received,
+    similarly on what is done in \[`socket.setKeepAlive([enable][, initialDelay])`]\[`socket.setKeepAlive(enable, initialDelay)`].
+    **Default:** `false`.
+  * `keepAliveInitialDelay` {number} If set to a positive number, it sets the
+    initial delay before the first keepalive probe is sent on an idle socket.
+    **Default:** `0`.
 
 * `requestListener` {Function}
 
@@ -3107,6 +3117,8 @@ changes:
     request.
 * `callback` {Function}
 * Returns: {http.ClientRequest}
+
+`options` in [`socket.connect()`][] are also supported.
 
 Node.js maintains several connections per server to make HTTP requests.
 This function allows one to transparently issue requests.
