@@ -10,6 +10,7 @@ const {
 const {
   deepStrictEqual,
   strictEqual,
+  throws,
 } = require('assert');
 
 const {
@@ -130,3 +131,29 @@ function makeHook(trackedTypes) {
     ],
   ]));
 })().then(common.mustCall());
+
+// Member methods ERR_INVALID_THIS
+throws(
+  () => EventEmitterAsyncResource.prototype.emit(),
+  { code: 'ERR_INVALID_THIS' }
+);
+
+throws(
+  () => EventEmitterAsyncResource.prototype.emitDestroy(),
+  { code: 'ERR_INVALID_THIS' }
+);
+
+throws(
+  () => Reflect.get(EventEmitterAsyncResource.prototype, 'asyncId', {}),
+  { code: 'ERR_INVALID_THIS' }
+);
+
+throws(
+  () => Reflect.get(EventEmitterAsyncResource.prototype, 'triggerAsyncId', {}),
+  { code: 'ERR_INVALID_THIS' }
+);
+
+throws(
+  () => Reflect.get(EventEmitterAsyncResource.prototype, 'asyncResource', {}),
+  { code: 'ERR_INVALID_THIS' }
+);
