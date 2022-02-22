@@ -1785,7 +1785,7 @@ changes:
     See [OpenSSL man pages](https://www.openssl.org/docs/man1.1.1/man3/SSL_CTX_set1_sigalgs_list.html)
     for more info.
   * `ciphers` {string} Cipher suite specification, replacing the default. For
-    more information, see [modifying the default cipher suite][]. Permitted
+    more information, see [Modifying the default TLS cipher suite][]. Permitted
     ciphers can be obtained via [`tls.getCiphers()`][]. Cipher names must be
     uppercased in order for OpenSSL to accept them.
   * `clientCertEngine` {string} Name of an OpenSSL engine which can provide the
@@ -2087,6 +2087,9 @@ Returns an array with the names of the supported TLS ciphers. The names are
 lower-case for historical reasons, but must be uppercased to be used in
 the `ciphers` option of [`tls.createSecureContext()`][].
 
+Not all supported ciphers are enabled by default. See
+[Modifying the default TLS cipher suite][].
+
 Cipher names that start with `'tls_'` are for TLSv1.3, all the others are for
 TLSv1.2 and below.
 
@@ -2155,6 +2158,7 @@ added: v11.4.0
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
 [DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
+[Modifying the default TLS cipher suite]: #modifying-the-default-tls-cipher-suite
 [Mozilla's publicly trusted list of CAs]: https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt
 [OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
 [OpenSSL Options]: crypto.md#openssl-options
@@ -2206,6 +2210,5 @@ added: v11.4.0
 [certificate object]: #certificate-object
 [cipher list format]: https://www.openssl.org/docs/man1.1.1/man1/ciphers.html#CIPHER-LIST-FORMAT
 [forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
-[modifying the default cipher suite]: #modifying-the-default-tls-cipher-suite
 [perfect forward secrecy]: #perfect-forward-secrecy
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
