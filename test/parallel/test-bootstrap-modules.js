@@ -206,6 +206,17 @@ if (common.hasIntl) {
   expectedModules.add('NativeModule url');
 }
 
+if (common.hasCrypto) {
+  expectedModules.add('Internal Binding crypto')
+    .add('NativeModule internal/crypto/hash')
+    .add('NativeModule internal/crypto/hashnames')
+    .add('NativeModule internal/crypto/keys')
+    .add('NativeModule internal/crypto/random')
+    .add('NativeModule internal/crypto/util')
+    .add('NativeModule internal/crypto/webcrypto')
+    .add('NativeModule internal/streams/lazy_transform');
+}
+
 if (process.features.inspector) {
   expectedModules.add('Internal Binding inspector');
   expectedModules.add('NativeModule internal/inspector_async_hook');

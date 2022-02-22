@@ -322,6 +322,7 @@ module.exports = {
     CompressionStream: 'readable',
     CountQueuingStrategy: 'readable',
     CustomEvent: 'readable',
+    crypto: 'readable',
     Crypto: 'readable',
     CryptoKey: 'readable',
     DecompressionStream: 'readable',
