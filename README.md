@@ -294,6 +294,8 @@ For information about the governance of the Node.js project, see
   **Bradley Farias** <<bradley.meck@gmail.com>>
 * [bnb](https://github.com/bnb) -
   **Tierney Cyren** <<hello@bnb.im>> (they/he)
+* [bnoordhuis](https://github.com/bnoordhuis) -
+  **Ben Noordhuis** <<info@bnoordhuis.nl>>
 * [boneskull](https://github.com/boneskull) -
   **Christopher Hiller** <<boneskull@boneskull.com>> (he/him)
 * [BridgeAR](https://github.com/BridgeAR) -
@@ -476,8 +478,6 @@ For information about the governance of the Node.js project, see
   **Alexey Orlenko** <<eaglexrlnk@gmail.com>> (he/him)
 * [bmeurer](https://github.com/bmeurer) -
   **Benedikt Meurer** <<benedikt.meurer@gmail.com>>
-* [bnoordhuis](https://github.com/bnoordhuis) -
-  **Ben Noordhuis** <<info@bnoordhuis.nl>>
 * [brendanashworth](https://github.com/brendanashworth) -
   **Brendan Ashworth** <<brendan.ashworth@me.com>>
 * [calvinmetcalf](https://github.com/calvinmetcalf) -
