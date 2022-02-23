@@ -885,3 +885,20 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert(!first.privateKey.equals(second.publicKey));
   assert(!first.privateKey.equals(secret));
 }
+
+{
+  const first = generateKeyPairSync('ed25519');
+  const second = generateKeyPairSync('ed448');
+
+  assert(first.publicKey.equals(first.publicKey));
+  assert(first.publicKey.equals(createPublicKey(
+    first.publicKey.export({ format: 'pem', type: 'spki' }))));
+  assert(!first.publicKey.equals(second.publicKey));
+  assert(!first.publicKey.equals(second.privateKey));
+
+  assert(first.privateKey.equals(first.privateKey));
+  assert(first.privateKey.equals(createPrivateKey(
+    first.privateKey.export({ format: 'pem', type: 'pkcs8' }))));
+  assert(!first.privateKey.equals(second.privateKey));
+  assert(!first.privateKey.equals(second.publicKey));
+}
