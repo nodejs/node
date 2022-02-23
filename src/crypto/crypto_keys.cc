@@ -1166,7 +1166,8 @@ void KeyObjectHandle::Equals(const FunctionCallbackInfo<Value>& args) {
         ret = EVP_PKEY_eq(
           key->GetAsymmetricKey().get(),
           key2->GetAsymmetricKey().get()) == 1;
-      } else {ret = false;
+      } else {
+        ret = false;
       }
       break;
     default:
