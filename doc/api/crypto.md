@@ -2082,6 +2082,17 @@ encryption mechanism, PEM-level encryption is not supported when encrypting
 a PKCS#8 key. See [RFC 5208][] for PKCS#8 encryption and [RFC 1421][] for
 PKCS#1 and SEC1 encryption.
 
+### `keyObject.equals(otherKeyObject)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `otherKeyObject`: {KeyObject} A `KeyObject` with which to
+  compare `keyObject`.
+* Returns: {boolean} `true` or `false` depending on the whether the
+  keys have exactly the same type, value, and parameters.
+
 ### `keyObject.symmetricKeySize`
 
 <!-- YAML

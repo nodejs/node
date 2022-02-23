@@ -921,6 +921,7 @@ v8::Local<v8::Function> KeyObjectHandle::Initialize(Environment* env) {
   env->SetProtoMethod(t, "initEDRaw", InitEDRaw);
   env->SetProtoMethod(t, "initJwk", InitJWK);
   env->SetProtoMethod(t, "keyDetail", GetKeyDetail);
+  env->SetProtoMethod(t, "equals", Equals);
 
   auto function = t->GetFunction(env->context()).ToLocalChecked();
   env->set_crypto_key_object_handle_constructor(function);
@@ -939,6 +940,7 @@ void KeyObjectHandle::RegisterExternalReferences(
   registry->Register(InitEDRaw);
   registry->Register(InitJWK);
   registry->Register(GetKeyDetail);
+  registry->Register(Equals);
 }
 
 MaybeLocal<Object> KeyObjectHandle::Create(
@@ -1132,6 +1134,42 @@ void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
   }
 
   args.GetReturnValue().Set(true);
+}
+
+void KeyObjectHandle::Equals(const FunctionCallbackInfo<Value>& args) {
+  std::shared_ptr<KeyObjectData> key =
+    Unwrap<KeyObjectHandle>(args.Holder())->Data();
+  std::shared_ptr<KeyObjectData> key2 =
+    Unwrap<KeyObjectHandle>(args[0].As<Object>())->Data();
+
+  KeyType keyType = key->GetKeyType();
+  CHECK_EQ(keyType, key2->GetKeyType());
+
+  bool ret;
+  switch (keyType) {
+    case kKeyTypeSecret: {
+      size_t size = key->GetSymmetricKeySize();
+      if (size == key2->GetSymmetricKeySize())
+        ret = CRYPTO_memcmp(
+          key->GetSymmetricKey(),
+          key2->GetSymmetricKey(),
+          key->GetSymmetricKeySize()) == 0;
+      else
+        ret = false;
+      break;
+    }
+    case kKeyTypePublic:
+      // Fall through
+    case kKeyTypePrivate:
+      ret = EVP_PKEY_eq(
+        key->GetAsymmetricKey().get(),
+        key2->GetAsymmetricKey().get()) == 1;
+      break;
+    default:
+      CHECK(false);
+  }
+
+  args.GetReturnValue().Set(ret);
 }
 
 void KeyObjectHandle::GetKeyDetail(const FunctionCallbackInfo<Value>& args) {
