@@ -1160,16 +1160,15 @@ void KeyObjectHandle::Equals(const FunctionCallbackInfo<Value>& args) {
     }
     case kKeyTypePublic:
       // Fall through
-    case kKeyTypePrivate:
-      if (EVP_PKEY_id(key->GetAsymmetricKey().get()) ==
-        EVP_PKEY_id(key2->GetAsymmetricKey().get())) {
-        ret = EVP_PKEY_eq(
-          key->GetAsymmetricKey().get(),
-          key2->GetAsymmetricKey().get()) == 1;
-      } else {
+    case kKeyTypePrivate: {
+      EVP_PKEY* fkey = key->GetAsymmetricKey().get();
+      EVP_PKEY* fkey2 = key2->GetAsymmetricKey().get();
+      if (EVP_PKEY_id(fkey) == EVP_PKEY_id(fkey2))
+        ret = EVP_PKEY_eq(fkey, fkey2) == 1;
+      else
         ret = false;
-      }
       break;
+    }
     default:
       CHECK(false);
   }
