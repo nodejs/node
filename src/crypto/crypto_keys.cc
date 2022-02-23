@@ -1164,11 +1164,11 @@ void KeyObjectHandle::Equals(const FunctionCallbackInfo<Value>& args) {
       EVP_PKEY* pkey = key->GetAsymmetricKey().get();
       EVP_PKEY* pkey2 = key2->GetAsymmetricKey().get();
       if (EVP_PKEY_id(pkey) == EVP_PKEY_id(pkey2)) {
-        #if OPENSSL_VERSION_MAJOR >= 3
+#if OPENSSL_VERSION_MAJOR >= 3
           ret = EVP_PKEY_eq(pkey, pkey2) == 1;
-        #else
+#else
           ret = EVP_PKEY_cmp(pkey, pkey2) == 1;
-        #endif
+#endif
       } else {
         ret = false;
       }
