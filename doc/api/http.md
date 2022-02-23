@@ -2185,7 +2185,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/35281
     description: >-
       `message.headers` is now lazily computed using an accessor property
-      on the prototype.
+      on the prototype and is no longer enumerable.
 -->
 
 * {Object}
