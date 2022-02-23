@@ -2090,7 +2090,7 @@ added: REPLACEME
 
 * `otherKeyObject`: {KeyObject} A `KeyObject` with which to
   compare `keyObject`.
-* Returns: {boolean} `true` or `false` depending on the whether the
+* Returns: {boolean} `true` or `false` depending on whether the
   keys have exactly the same type, value, and parameters.
 
 ### `keyObject.symmetricKeySize`
