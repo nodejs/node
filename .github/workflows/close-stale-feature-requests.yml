@@ -36,7 +36,7 @@ jobs:
       - uses: actions/stale@v4
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          days-before-stale: 783
+          days-before-stale: 906
           days-before-close: 30
           stale-issue-label: stale
           close-issue-message: ${{ env.CLOSE_MESSAGE }}
