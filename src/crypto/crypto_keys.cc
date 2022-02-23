@@ -1161,12 +1161,17 @@ void KeyObjectHandle::Equals(const FunctionCallbackInfo<Value>& args) {
     case kKeyTypePublic:
       // Fall through
     case kKeyTypePrivate: {
-      EVP_PKEY* fkey = key->GetAsymmetricKey().get();
-      EVP_PKEY* fkey2 = key2->GetAsymmetricKey().get();
-      if (EVP_PKEY_id(fkey) == EVP_PKEY_id(fkey2))
-        ret = EVP_PKEY_eq(fkey, fkey2) == 1;
-      else
+      EVP_PKEY* pkey = key->GetAsymmetricKey().get();
+      EVP_PKEY* pkey2 = key2->GetAsymmetricKey().get();
+      if (EVP_PKEY_id(pkey) == EVP_PKEY_id(pkey2)) {
+        #if OPENSSL_VERSION_MAJOR >= 3
+          ret = EVP_PKEY_eq(pkey, pkey2) == 1;
+        #else
+          ret = EVP_PKEY_cmp(pkey, pkey2) == 1;
+        #endif
+      } else {
         ret = false;
+      }
       break;
     }
     default:
