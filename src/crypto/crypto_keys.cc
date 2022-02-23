@@ -1153,7 +1153,7 @@ void KeyObjectHandle::Equals(const FunctionCallbackInfo<Value>& args) {
         ret = CRYPTO_memcmp(
           key->GetSymmetricKey(),
           key2->GetSymmetricKey(),
-          key->GetSymmetricKeySize()) == 0;
+          size) == 0;
       else
         ret = false;
       break;
