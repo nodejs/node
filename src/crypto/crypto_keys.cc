@@ -1137,29 +1137,31 @@ void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
 }
 
 void KeyObjectHandle::Equals(const FunctionCallbackInfo<Value>& args) {
-  std::shared_ptr<KeyObjectData> key =
-    Unwrap<KeyObjectHandle>(args.Holder())->Data();
-  std::shared_ptr<KeyObjectData> key2 =
-    Unwrap<KeyObjectHandle>(args[0].As<Object>())->Data();
+  KeyObjectHandle* self_handle;
+  KeyObjectHandle* arg_handle;
+  ASSIGN_OR_RETURN_UNWRAP(&self_handle, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&arg_handle, args[0].As<Object>());
+  std::shared_ptr<KeyObjectData> key = self_handle->Data();
+  std::shared_ptr<KeyObjectData> key2 = arg_handle->Data();
 
-  KeyType keyType = key->GetKeyType();
-  CHECK_EQ(keyType, key2->GetKeyType());
+  KeyType key_type = key->GetKeyType();
+  CHECK_EQ(key_type, key2->GetKeyType());
 
   bool ret;
-  switch (keyType) {
+  switch (key_type) {
     case kKeyTypeSecret: {
       size_t size = key->GetSymmetricKeySize();
-      if (size == key2->GetSymmetricKeySize())
+      if (size == key2->GetSymmetricKeySize()) {
         ret = CRYPTO_memcmp(
           key->GetSymmetricKey(),
           key2->GetSymmetricKey(),
           size) == 0;
-      else
+      } else {
         ret = false;
+      }
       break;
     }
     case kKeyTypePublic:
-      // Fall through
     case kKeyTypePrivate: {
       EVP_PKEY* pkey = key->GetAsymmetricKey().get();
       EVP_PKEY* pkey2 = key2->GetAsymmetricKey().get();
