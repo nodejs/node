@@ -438,7 +438,12 @@ enum Flags : uint64_t {
   // $HOME/.node_modules and $NODE_PATH. This is used by standalone apps that
   // do not expect to have their behaviors changed because of globally
   // installed modules.
-  kNoGlobalSearchPaths = 1 << 7
+  kNoGlobalSearchPaths = 1 << 7,
+  // Controls whether or not the Environment should call V8Inspector::create().
+  // This control is needed by embedders who may not want to initialize the V8
+  // inspector in situations where one has already been created,
+  // e.g. Blink's in Chromium.
+  kNoCreateInspector = 1 << 9
 };
 }  // namespace EnvironmentFlags
 
