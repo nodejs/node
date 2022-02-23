@@ -1,4 +1,4 @@
-import '../common/index.mjs';
+import { mustCall } from '../common/index.mjs';
 import { Readable } from 'stream';
 import assert from 'assert';
 
@@ -68,7 +68,7 @@ import assert from 'assert';
   );
   assert.strictEqual(descriptor.enumerable, false);
   assert.strictEqual(descriptor.configurable, true);
-  assert.strictEqual(descriptor.writable, false);
+  assert.strictEqual(descriptor.writable, true);
 }
 {
   // drop/length
@@ -79,7 +79,7 @@ import assert from 'assert';
   );
   assert.strictEqual(descriptor.enumerable, false);
   assert.strictEqual(descriptor.configurable, true);
-  assert.strictEqual(descriptor.writable, false);
+  assert.strictEqual(descriptor.writable, true);
   // drop/limit-equals-total
   const iterator = Readable.from([1, 2]).drop(2);
   const result = await iterator[Symbol.asyncIterator]().next();
@@ -111,5 +111,58 @@ import assert from 'assert';
   // drop/proto
   const proto = Object.getPrototypeOf(Readable.prototype.drop);
   assert.strictEqual(proto, Function.prototype);
+}
+{
+  // every/abrupt-iterator-close
+  const stream = Readable.from([1, 2, 3]);
+  const e = new Error();
+  await assert.rejects(stream.every(mustCall(() => {
+    throw e;
+  }, 1)), e);
+}
+{
+  // every/callable-fn
+  await assert.rejects(Readable.from([1, 2]).every({}), TypeError);
+}
+{
+  // every/callable
+  Readable.prototype.every.call(Readable.from([]), () => {});
+  // eslint-disable-next-line array-callback-return
+  Readable.from([]).every(() => {});
+  assert.throws(() => {
+    const r = Readable.from([]);
+    new r.every(() => {});
+  }, TypeError);
+}
 
+{
+  // every/false
+  const iterator = Readable.from([1, 2, 3]);
+  const result = await iterator.every((v) => v === 1);
+  assert.strictEqual(result, false);
+}
+{
+  // every/every
+  const iterator = Readable.from([1, 2, 3]);
+  const result = await iterator.every((v) => true);
+  assert.strictEqual(result, true);
+}
+
+{
+  // every/is-function
+  assert.strictEqual(typeof Readable.prototype.every, 'function');
+}
+{
+  // every/length
+  assert.strictEqual(Readable.prototype.every.length, 1);
+  // every/name
+  assert.strictEqual(Readable.prototype.every.name, 'every');
+  // every/propdesc
+  const descriptor = Object.getOwnPropertyDescriptor(
+    Readable.prototype,
+    'every'
+  );
+  assert.strictEqual(descriptor.enumerable, false);
+  assert.strictEqual(descriptor.configurable, true);
+  assert.strictEqual(descriptor.writable, true);
 }
