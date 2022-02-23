@@ -23,6 +23,9 @@ jobs:
                 echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
                 ./update-eslint.sh
               fi
+          - id: corepack
+            run: |
+              make corepack-update
           - id: lint-md-dependencies
             run: |
               cd tools/lint-md
