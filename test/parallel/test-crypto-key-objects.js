@@ -858,7 +858,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.throws(() => keyObject.equals(0), {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_TYPE',
-    message: `The "otherKeyObject" argument must be an instance of KeyObject. Received type number (0)`
+    message: 'The "otherKeyObject" argument must be an instance of KeyObject. Received type number (0)'
   });
 
   assert(keyObject.equals(keyObject));
