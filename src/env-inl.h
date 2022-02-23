@@ -869,6 +869,10 @@ inline bool Environment::owns_inspector() const {
   return flags_ & EnvironmentFlags::kOwnsInspector;
 }
 
+inline bool Environment::should_create_inspector() const {
+  return (flags_ & EnvironmentFlags::kNoCreateInspector) == 0;
+}
+
 inline bool Environment::tracks_unmanaged_fds() const {
   return flags_ & EnvironmentFlags::kTrackUnmanagedFds;
 }

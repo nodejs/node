@@ -442,6 +442,11 @@ enum Flags : uint64_t {
   kNoGlobalSearchPaths = 1 << 7,
   // Do not export browser globals like setTimeout, console, etc.
   kNoBrowserGlobals = 1 << 8,
+  // Controls whether or not the Environment should call V8Inspector::create().
+  // This control is needed by embedders who may not want to initialize the V8
+  // inspector in situations where one has already been created,
+  // e.g. Blink's in Chromium.
+  kNoCreateInspector = 1 << 9
 };
 }  // namespace EnvironmentFlags
 
