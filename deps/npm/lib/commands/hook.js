@@ -2,7 +2,6 @@ const hookApi = require('libnpmhook')
 const otplease = require('../utils/otplease.js')
 const relativeDate = require('tiny-relative-date')
 const Table = require('cli-table3')
-const log = require('../utils/log-shim.js')
 
 const BaseCommand = require('../base-command.js')
 class Hook extends BaseCommand {
@@ -23,7 +22,6 @@ class Hook extends BaseCommand {
   async exec (args) {
     return otplease({
       ...this.npm.flatOptions,
-      log,
     }, (opts) => {
       switch (args[0]) {
         case 'add':
@@ -48,7 +46,7 @@ class Hook extends BaseCommand {
     } else if (opts.parseable) {
       this.npm.output(Object.keys(hook).join('\t'))
       this.npm.output(Object.keys(hook).map(k => hook[k]).join('\t'))
-    } else if (!opts.silent && opts.loglevel !== 'silent') {
+    } else if (!this.npm.silent) {
       this.npm.output(`+ ${this.hookName(hook)} ${
         opts.unicode ? ' ➜ ' : ' -> '
       } ${hook.endpoint}`)
@@ -66,7 +64,7 @@ class Hook extends BaseCommand {
       })
     } else if (!hooks.length) {
       this.npm.output("You don't have any hooks configured yet.")
-    } else if (!opts.silent && opts.loglevel !== 'silent') {
+    } else if (!this.npm.silent) {
       if (hooks.length === 1) {
         this.npm.output('You have one hook configured.')
       } else {
@@ -103,7 +101,7 @@ class Hook extends BaseCommand {
     } else if (opts.parseable) {
       this.npm.output(Object.keys(hook).join('\t'))
       this.npm.output(Object.keys(hook).map(k => hook[k]).join('\t'))
-    } else if (!opts.silent && opts.loglevel !== 'silent') {
+    } else if (!this.npm.silent) {
       this.npm.output(`- ${this.hookName(hook)} ${
         opts.unicode ? ' ✘ ' : ' X '
       } ${hook.endpoint}`)
@@ -117,7 +115,7 @@ class Hook extends BaseCommand {
     } else if (opts.parseable) {
       this.npm.output(Object.keys(hook).join('\t'))
       this.npm.output(Object.keys(hook).map(k => hook[k]).join('\t'))
-    } else if (!opts.silent && opts.loglevel !== 'silent') {
+    } else if (!this.npm.silent) {
       this.npm.output(`+ ${this.hookName(hook)} ${
         opts.unicode ? ' ➜ ' : ' -> '
       } ${hook.endpoint}`)

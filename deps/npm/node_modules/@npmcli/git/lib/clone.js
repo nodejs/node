@@ -15,7 +15,7 @@ const shallowHosts = new Set([
   'gist.github.com',
   'gitlab.com',
   'bitbucket.com',
-  'bitbucket.org'
+  'bitbucket.org',
 ])
 // we have to use url.parse until we add the same shim that hosted-git-info has
 // to handle scp:// urls
@@ -113,10 +113,14 @@ const branch = (repo, revDoc, target, opts) => {
     revDoc.ref,
     repo,
     target,
-    '--recurse-submodules'
+    '--recurse-submodules',
   ]
-  if (maybeShallow(repo, opts)) { args.push('--depth=1') }
-  if (isWindows(opts)) { args.push('--config', 'core.longpaths=true') }
+  if (maybeShallow(repo, opts)) {
+    args.push('--depth=1')
+  }
+  if (isWindows(opts)) {
+    args.push('--config', 'core.longpaths=true')
+  }
   return spawn(args, opts).then(() => revDoc.sha)
 }
 
@@ -126,10 +130,14 @@ const plain = (repo, revDoc, target, opts) => {
     'clone',
     repo,
     target,
-    '--recurse-submodules'
+    '--recurse-submodules',
   ]
-  if (maybeShallow(repo, opts)) { args.push('--depth=1') }
-  if (isWindows(opts)) { args.push('--config', 'core.longpaths=true') }
+  if (maybeShallow(repo, opts)) {
+    args.push('--depth=1')
+  }
+  if (isWindows(opts)) {
+    args.push('--config', 'core.longpaths=true')
+  }
   return spawn(args, opts).then(() => revDoc.sha)
 }
 
@@ -143,7 +151,7 @@ const updateSubmodules = (target, opts) => new Promise(resolve =>
       'update',
       '-q',
       '--init',
-      '--recursive'
+      '--recursive',
     ], { ...opts, cwd: target }))
   }))
 

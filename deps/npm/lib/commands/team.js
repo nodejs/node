@@ -1,7 +1,6 @@
 const columns = require('cli-columns')
 const libteam = require('libnpmteam')
 
-const log = require('../utils/log-shim.js')
 const otplease = require('../utils/otplease.js')
 
 const BaseCommand = require('../base-command.js')
@@ -43,7 +42,7 @@ class Team extends BaseCommand {
     // XXX: "description" option to libnpmteam is used as a description of the
     // team, but in npm's options, this is a boolean meaning "show the
     // description in npm search output".  Hence its being set to null here.
-    await otplease({ ...this.npm.flatOptions, log }, opts => {
+    await otplease({ ...this.npm.flatOptions }, opts => {
       entity = entity.replace(/^@/, '')
       switch (cmd) {
         case 'create': return this.create(entity, opts)
@@ -73,7 +72,7 @@ class Team extends BaseCommand {
       }))
     } else if (opts.parseable) {
       this.npm.output(`${entity}\tcreated`)
-    } else if (!opts.silent && opts.loglevel !== 'silent') {
+    } else if (!this.npm.silent) {
       this.npm.output(`+@${entity}`)
     }
   }
@@ -87,7 +86,7 @@ class Team extends BaseCommand {
       }))
     } else if (opts.parseable) {
       this.npm.output(`${entity}\tdeleted`)
-    } else if (!opts.silent && opts.loglevel !== 'silent') {
+    } else if (!this.npm.silent) {
       this.npm.output(`-@${entity}`)
     }
   }
@@ -102,7 +101,7 @@ class Team extends BaseCommand {
       }))
     } else if (opts.parseable) {
       this.npm.output(`${user}\t${entity}\tadded`)
-    } else if (!opts.silent && opts.loglevel !== 'silent') {
+    } else if (!this.npm.silent) {
       this.npm.output(`${user} added to @${entity}`)
     }
   }
@@ -117,7 +116,7 @@ class Team extends BaseCommand {
       }))
     } else if (opts.parseable) {
       this.npm.output(`${user}\t${entity}\tremoved`)
-    } else if (!opts.silent && opts.loglevel !== 'silent') {
+    } else if (!this.npm.silent) {
       this.npm.output(`${user} removed from @${entity}`)
     }
   }
@@ -128,7 +127,7 @@ class Team extends BaseCommand {
       this.npm.output(JSON.stringify(users, null, 2))
     } else if (opts.parseable) {
       this.npm.output(users.join('\n'))
-    } else if (!opts.silent && opts.loglevel !== 'silent') {
+    } else if (!this.npm.silent) {
       const plural = users.length === 1 ? '' : 's'
       const more = users.length === 0 ? '' : ':\n'
       this.npm.output(`\n@${entity} has ${users.length} user${plural}${more}`)
@@ -142,7 +141,7 @@ class Team extends BaseCommand {
       this.npm.output(JSON.stringify(teams, null, 2))
     } else if (opts.parseable) {
       this.npm.output(teams.join('\n'))
-    } else if (!opts.silent && opts.loglevel !== 'silent') {
+    } else if (!this.npm.silent) {
       const plural = teams.length === 1 ? '' : 's'
       const more = teams.length === 0 ? '' : ':\n'
       this.npm.output(`\n@${entity} has ${teams.length} team${plural}${more}`)

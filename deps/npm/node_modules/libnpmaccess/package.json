@@ -1,6 +1,6 @@
 {
   "name": "libnpmaccess",
-  "version": "5.0.1",
+  "version": "6.0.0",
   "description": "programmatic library for `npm access` commands",
   "author": "GitHub Inc.",
   "license": "ISC",
@@ -31,8 +31,8 @@
   "dependencies": {
     "aproba": "^2.0.0",
     "minipass": "^3.1.1",
-    "npm-package-arg": "^8.1.2",
-    "npm-registry-fetch": "^12.0.1"
+    "npm-package-arg": "^9.0.0",
+    "npm-registry-fetch": "^13.0.0"
   },
   "engines": {
     "node": "^12.13.0 || ^14.15.0 || >=16"
