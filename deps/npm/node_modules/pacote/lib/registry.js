@@ -2,11 +2,11 @@ const Fetcher = require('./fetcher.js')
 const RemoteFetcher = require('./remote.js')
 const _tarballFromResolved = Symbol.for('pacote.Fetcher._tarballFromResolved')
 const pacoteVersion = require('../package.json').version
+const removeTrailingSlashes = require('./util/trailing-slashes.js')
 const npa = require('npm-package-arg')
 const rpj = require('read-package-json-fast')
 const pickManifest = require('npm-pick-manifest')
 const ssri = require('ssri')
-const Minipass = require('minipass')
 
 // Corgis are cute. 🐕🐶
 const corgiDoc = 'application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8, */*'
@@ -32,10 +32,11 @@ class RegistryFetcher extends Fetcher {
     // handle case when npm-package-arg guesses wrong.
     if (this.spec.type === 'tag' &&
         this.spec.rawSpec === '' &&
-        this.defaultTag !== 'latest')
+        this.defaultTag !== 'latest') {
       this.spec = npa(`${this.spec.name}@${this.defaultTag}`)
+    }
     this.registry = fetch.pickRegistry(spec, opts)
-    this.packumentUrl = this.registry.replace(/\/*$/, '/') +
+    this.packumentUrl = removeTrailingSlashes(this.registry) + '/' +
       this.spec.escapedName
 
     // XXX pacote <=9 has some logic to ignore opts.resolved if
@@ -45,13 +46,15 @@ class RegistryFetcher extends Fetcher {
   }
 
   resolve () {
-    if (this.resolved)
+    if (this.resolved) {
       return Promise.resolve(this.resolved)
+    }
 
     // fetching the manifest sets resolved and (usually) integrity
     return this.manifest().then(() => {
-      if (this.resolved)
+      if (this.resolved) {
         return this.resolved
+      }
 
       throw Object.assign(
         new Error('Invalid package manifest: no `dist.tarball` field'),
@@ -77,8 +80,9 @@ class RegistryFetcher extends Fetcher {
     // note this might be either an in-flight promise for a request,
     // or the actual packument, but we never want to make more than
     // one request at a time for the same thing regardless.
-    if (this.packumentCache && this.packumentCache.has(this.packumentUrl))
+    if (this.packumentCache && this.packumentCache.has(this.packumentUrl)) {
       return this.packumentCache.get(this.packumentUrl)
+    }
 
     // npm-registry-fetch the packument
     // set the appropriate header for corgis if fullMetadata isn't set
@@ -92,12 +96,14 @@ class RegistryFetcher extends Fetcher {
     }).then(res => res.json().then(packument => {
       packument._cached = res.headers.has('x-local-cache')
       packument._contentLength = +res.headers.get('content-length')
-      if (this.packumentCache)
+      if (this.packumentCache) {
         this.packumentCache.set(this.packumentUrl, packument)
+      }
       return packument
     })).catch(er => {
-      if (this.packumentCache)
+      if (this.packumentCache) {
         this.packumentCache.delete(this.packumentUrl)
+      }
       if (er.code === 'E404' && !this.fullMetadata) {
         // possible that corgis are not supported by this registry
         this.fullMetadata = true
@@ -105,14 +111,16 @@ class RegistryFetcher extends Fetcher {
       }
       throw er
     })
-    if (this.packumentCache)
+    if (this.packumentCache) {
       this.packumentCache.set(this.packumentUrl, p)
+    }
     return p
   }
 
   manifest () {
-    if (this.package)
+    if (this.package) {
       return Promise.resolve(this.package)
+    }
 
     return this.packument()
       .then(packument => pickManifest(packument, this.spec.fetchSpec, {
@@ -127,12 +135,12 @@ class RegistryFetcher extends Fetcher {
           this.resolved = mani._resolved = dist.tarball
           mani._from = this.from
           const distIntegrity = dist.integrity ? ssri.parse(dist.integrity)
-            : dist.shasum ? ssri.fromHex(dist.shasum, 'sha1', {...this.opts})
+            : dist.shasum ? ssri.fromHex(dist.shasum, 'sha1', { ...this.opts })
             : null
           if (distIntegrity) {
-            if (!this.integrity)
+            if (!this.integrity) {
               this.integrity = distIntegrity
-            else if (!this.integrity.match(distIntegrity)) {
+            } else if (!this.integrity.match(distIntegrity)) {
               // only bork if they have algos in common.
               // otherwise we end up breaking if we have saved a sha512
               // previously for the tarball, but the manifest only
@@ -143,7 +151,7 @@ class RegistryFetcher extends Fetcher {
               for (const algo of Object.keys(this.integrity)) {
                 if (distIntegrity[algo]) {
                   throw Object.assign(new Error(
-                    `Integrity checksum failed when using ${algo}: `+
+                    `Integrity checksum failed when using ${algo}: ` +
                     `wanted ${this.integrity} but got ${distIntegrity}.`
                   ), { code: 'EINTEGRITY' })
                 }
@@ -155,8 +163,9 @@ class RegistryFetcher extends Fetcher {
             }
           }
         }
-        if (this.integrity)
+        if (this.integrity) {
           mani._integrity = String(this.integrity)
+        }
         this.package = rpj.normalize(mani)
         return this.package
       })

@@ -43,7 +43,6 @@ const routeMap = {
 // XXX overriding this does not appear to do anything, adding t.plan to things
 // that use it fails the test
 let npmRegistryFetchMock = (url, opts) => {
-  npmRegistryFetchLog = opts.log
   if (url === '/-/package/foo/dist-tags') {
     throw new Error('no package found')
   }
@@ -51,9 +50,7 @@ let npmRegistryFetchMock = (url, opts) => {
   return routeMap[url]
 }
 
-let npmRegistryFetchLog
 npmRegistryFetchMock.json = async (url, opts) => {
-  npmRegistryFetchLog = opts.log
   return routeMap[url]
 }
 
@@ -86,10 +83,6 @@ const npm = mockNpm({
 })
 const distTag = new DistTag(npm)
 
-t.afterEach(() => {
-  npmRegistryFetchLog = null
-})
-
 t.test('ls in current package', async t => {
   npm.prefix = t.testdir({
     'package.json': JSON.stringify({
@@ -97,7 +90,6 @@ t.test('ls in current package', async t => {
     }),
   })
   await distTag.exec(['ls'])
-  t.ok(npmRegistryFetchLog, 'is passed a logger')
   t.matchSnapshot(
     result,
     'should list available tags for current package'
@@ -299,7 +291,6 @@ t.test('add new tag', async t => {
   })
 
   npmRegistryFetchMock = async (url, opts) => {
-    t.ok(opts.log, 'is passed a logger')
     t.equal(opts.method, 'PUT', 'should trigger request to add new tag')
     t.equal(opts.body, '7.7.7', 'should point to expected version')
   }
@@ -366,7 +357,6 @@ t.test('remove existing tag', async t => {
   }
   npm.prefix = t.testdir({})
   await distTag.exec(['rm', '@scoped/another', 'c'])
-  t.ok(npmRegistryFetchLog, 'is passed a logger')
   t.matchSnapshot(log, 'should log remove info')
   t.matchSnapshot(result, 'should return success msg')
 })

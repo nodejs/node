@@ -4,7 +4,7 @@
 const pacote = require('pacote')
 const cacache = require('cacache')
 const Advisory = require('./advisory.js')
-const {homedir} = require('os')
+const { homedir } = require('os')
 const jsonParse = require('json-parse-even-better-errors')
 
 const _packument = Symbol('packument')
@@ -37,8 +37,9 @@ class Calculator {
 
   async calculate (name, source) {
     const k = `security-advisory:${name}:${source.id}`
-    if (this[_advisories].has(k))
+    if (this[_advisories].has(k)) {
       return this[_advisories].get(k)
+    }
 
     const p = this[_calculate](name, source)
     this[_advisories].set(k, p)
@@ -58,8 +59,9 @@ class Calculator {
     process.emit('time', `metavuln:load:${k}`)
     advisory.load(cached, packument)
     process.emit('timeEnd', `metavuln:load:${k}`)
-    if (advisory.updated)
+    if (advisory.updated) {
       await this[_cachePut](advisory)
+    }
     this[_advisories].set(k, advisory)
     process.emit('timeEnd', t)
     return advisory
@@ -81,8 +83,9 @@ class Calculator {
     const key = `security-advisory:${name}:${id}`
     /* istanbul ignore if - should be impossible, since we memoize the
      * advisory object itself using the same key, just being cautious */
-    if (this[_cacheData].has(key))
+    if (this[_cacheData].has(key)) {
       return this[_cacheData].get(key)
+    }
 
     process.emit('time', `metavuln:cache:get:${key}`)
     const p = cacache.get(this[_cache], key, { ...this[_options] })
@@ -98,8 +101,9 @@ class Calculator {
   }
 
   async [_packument] (name) {
-    if (this[_packuments].has(name))
+    if (this[_packuments].has(name)) {
       return this[_packuments].get(name)
+    }
 
     process.emit('time', `metavuln:packument:${name}`)
     const p = pacote.packument(name, { ...this[_options] })

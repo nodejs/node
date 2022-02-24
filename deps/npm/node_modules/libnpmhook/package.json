@@ -1,6 +1,6 @@
 {
   "name": "libnpmhook",
-  "version": "7.0.1",
+  "version": "8.0.0",
   "description": "programmatic API for managing npm registry hooks",
   "main": "lib/index.js",
   "files": [
@@ -34,7 +34,7 @@
   "license": "ISC",
   "dependencies": {
     "aproba": "^2.0.0",
-    "npm-registry-fetch": "^12.0.1"
+    "npm-registry-fetch": "^13.0.0"
   },
   "devDependencies": {
     "@npmcli/template-oss": "^2.4.2",

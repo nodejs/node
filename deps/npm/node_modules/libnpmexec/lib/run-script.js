@@ -4,6 +4,8 @@ const chalk = require('chalk')
 const ciDetect = require('@npmcli/ci-detect')
 const runScript = require('@npmcli/run-script')
 const readPackageJson = require('read-package-json-fast')
+const npmlog = require('npmlog')
+const log = require('proc-log')
 const noTTY = require('./no-tty.js')
 
 const nocolor = {
@@ -18,7 +20,6 @@ const run = async ({
   color,
   flatOptions,
   locationMsg,
-  log,
   output = () => {},
   path,
   pathArr,
@@ -41,9 +42,7 @@ const run = async ({
     },
   }
 
-  if (log && log.disableProgress) {
-    log.disableProgress()
-  }
+  npmlog.disableProgress()
 
   try {
     if (script === scriptShell) {
@@ -80,9 +79,7 @@ const run = async ({
       stdio: 'inherit',
     })
   } finally {
-    if (log && log.enableProgress) {
-      log.enableProgress()
-    }
+    npmlog.enableProgress()
   }
 }
 

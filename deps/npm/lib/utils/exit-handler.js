@@ -49,8 +49,8 @@ process.on('exit', code => {
 
   // npm must be loaded to know where the log file was written
   if (showLogFileMessage && hasLoadedNpm) {
-    // just a line break
-    if (log.levels[log.level] <= log.levels.error) {
+    // just a line break if not in silent mode
+    if (!npm.silent) {
       console.error('')
     }
 
@@ -175,7 +175,7 @@ const exitHandler = err => {
 
   log.verbose('exit', exitCode || 0)
 
-  showLogFileMessage = log.level === 'silent' || noLogMessage
+  showLogFileMessage = (hasLoadedNpm && npm.silent) || noLogMessage
     ? false
     : !!exitCode
 

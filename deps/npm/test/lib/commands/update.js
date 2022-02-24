@@ -27,7 +27,7 @@ t.afterEach(() => {
 })
 
 t.test('no args', async t => {
-  t.plan(5)
+  t.plan(4)
 
   npm.prefix = '/project/a'
 
@@ -44,7 +44,6 @@ t.test('no args', async t => {
         },
         'should call arborist contructor with expected args'
       )
-      t.match(log, {}, 'log is passed in')
     }
 
     reify ({ save, update }) {
@@ -66,7 +65,7 @@ t.test('no args', async t => {
 })
 
 t.test('with args', async t => {
-  t.plan(5)
+  t.plan(4)
 
   npm.prefix = '/project/a'
   config.save = true
@@ -84,7 +83,6 @@ t.test('with args', async t => {
         },
         'should call arborist contructor with expected args'
       )
-      t.match(log, {}, 'log is passed in')
     }
 
     reify ({ save, update }) {
@@ -130,7 +128,7 @@ t.test('update --depth=<number>', async t => {
 })
 
 t.test('update --global', async t => {
-  t.plan(3)
+  t.plan(2)
 
   const normalizePath = p => p.replace(/\\+/g, '/')
   const redactCwd = (path) => normalizePath(path)
@@ -148,8 +146,6 @@ t.test('update --global', async t => {
         { ...npm.flatOptions, save: true, workspaces: undefined },
         'should call arborist contructor with expected options'
       )
-
-      t.match(log, {}, 'log is passed in')
 
       t.equal(
         redactCwd(path),

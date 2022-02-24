@@ -147,7 +147,6 @@ class Install extends ArboristWorkspaceCmd {
 
     const opts = {
       ...this.npm.flatOptions,
-      log,
       auditLevel: null,
       path: where,
       add: args,
@@ -173,7 +172,7 @@ class Install extends ArboristWorkspaceCmd {
           scriptShell,
           stdio: 'inherit',
           stdioString: true,
-          banner: log.level !== 'silent',
+          banner: !this.npm.silent,
           event,
         })
       }

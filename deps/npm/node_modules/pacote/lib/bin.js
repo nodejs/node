@@ -4,26 +4,28 @@ const run = conf => {
   const pacote = require('../')
   switch (conf._[0]) {
     case 'resolve':
-      if (conf.long)
+    case 'manifest':
+    case 'packument':
+      if (conf._[0] === 'resolve' && conf.long) {
         return pacote.manifest(conf._[1], conf).then(mani => ({
           resolved: mani._resolved,
           integrity: mani._integrity,
           from: mani._from,
         }))
-    case 'manifest':
-    case 'packument':
+      }
       return pacote[conf._[0]](conf._[1], conf)
 
     case 'tarball':
       if (!conf._[2] || conf._[2] === '-') {
         return pacote.tarball.stream(conf._[1], stream => {
           stream.pipe(conf.testStdout ||
-            /* istanbul ignore next */ process.stdout)
+          /* istanbul ignore next */ process.stdout)
           // make sure it resolves something falsey
           return stream.promise().then(() => {})
         }, conf)
-      } else
+      } else {
         return pacote.tarball.file(conf._[1], conf._[2], conf)
+      }
 
     case 'extract':
       return pacote.extract(conf._[1], conf._[2], conf)
@@ -81,8 +83,9 @@ const pretty = (conf, result) =>
 let addedLogListener = false
 const main = args => {
   const conf = parse(args)
-  if (conf.help || conf.h)
+  if (conf.help || conf.h) {
     return console.log(usage())
+  }
 
   if (!addedLogListener) {
     process.on('log', console.error)
@@ -121,14 +124,14 @@ const parse = args => {
   }
   let dashdash = false
   args.forEach(arg => {
-    if (dashdash)
+    if (dashdash) {
       conf._.push(arg)
-    else if (arg === '--')
+    } else if (arg === '--') {
       dashdash = true
-    else if (arg === '-h')
+    } else if (arg === '-h') {
       conf.help = true
-    else if (/^--/.test(arg)) {
-      const {key, value} = parseArg(arg)
+    } else if (/^--/.test(arg)) {
+      const { key, value } = parseArg(arg)
       conf[key] = value
     } else {
       conf._.push(arg)
@@ -137,9 +140,9 @@ const parse = args => {
   return conf
 }
 
-if (module === require.main)
+if (module === require.main) {
   main(process.argv.slice(2))
-else
+} else {
   module.exports = {
     main,
     run,
@@ -147,3 +150,4 @@ else
     parseArg,
     parse,
   }
+}

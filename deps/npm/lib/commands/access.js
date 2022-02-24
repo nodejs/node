@@ -3,7 +3,6 @@ const path = require('path')
 const libaccess = require('libnpmaccess')
 const readPackageJson = require('read-package-json-fast')
 
-const log = require('../utils/log-shim.js')
 const otplease = require('../utils/otplease.js')
 const getIdentity = require('../utils/get-identity.js')
 const BaseCommand = require('../base-command.js')
@@ -79,7 +78,6 @@ class Access extends BaseCommand {
 
     return this[cmd](args, {
       ...this.npm.flatOptions,
-      log,
     })
   }
 

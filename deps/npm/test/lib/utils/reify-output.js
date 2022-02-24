@@ -1,9 +1,4 @@
 const t = require('tap')
-const log = require('../../../lib/utils/log-shim')
-
-const _level = log.level
-t.beforeEach(() => log.level = 'warn')
-t.teardown(() => log.level = _level)
 
 t.cleanSnapshot = str => str.replace(/in [0-9]+m?s/g, 'in {TIME}')
 
@@ -13,6 +8,7 @@ const settings = {
 const npm = {
   started: Date.now(),
   flatOptions: settings,
+  silent: false,
 }
 const reifyOutput = require('../../../lib/utils/reify-output.js')
 t.test('missing info', (t) => {
@@ -236,10 +232,13 @@ t.test('showing and not showing audit report', async t => {
   }
 
   t.test('no output when silent', t => {
+    t.teardown(() => {
+      delete npm.silent
+    })
+    npm.silent = true
     npm.output = out => {
       t.fail('should not get output when silent', { actual: out })
     }
-    log.level = 'silent'
     reifyOutput(npm, {
       actualTree: { inventory: { size: 999 }, children: [] },
       auditReport,

@@ -31,7 +31,6 @@ class AddUser extends BaseCommand {
       creds,
       registry,
       scope,
-      log,
     })
 
     await this.updateConfig({

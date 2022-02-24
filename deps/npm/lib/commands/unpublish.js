@@ -32,7 +32,7 @@ class Unpublish extends BaseCommand {
       return []
     }
 
-    const opts = { ...this.npm.flatOptions, log }
+    const opts = { ...this.npm.flatOptions }
     const username = await getIdentity(this.npm, { ...opts }).catch(() => null)
     if (!username) {
       return []
@@ -68,8 +68,7 @@ class Unpublish extends BaseCommand {
 
     const spec = args.length && npa(args[0])
     const force = this.npm.config.get('force')
-    const loglevel = this.npm.config.get('loglevel')
-    const silent = loglevel === 'silent'
+    const { silent } = this.npm
     const dryRun = this.npm.config.get('dry-run')
     let pkgName
     let pkgVersion
@@ -84,7 +83,7 @@ class Unpublish extends BaseCommand {
       )
     }
 
-    const opts = { ...this.npm.flatOptions, log }
+    const opts = { ...this.npm.flatOptions }
     if (!spec || path.resolve(spec.name) === this.npm.localPrefix) {
       // if there's a package.json in the current folder, then
       // read the package name and version out of that.

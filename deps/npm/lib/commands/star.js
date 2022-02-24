@@ -29,13 +29,12 @@ class Star extends BaseCommand {
     const pkgs = args.map(npa)
     for (const pkg of pkgs) {
       const [username, fullData] = await Promise.all([
-        getIdentity(this.npm, { ...this.npm.flatOptions, log }),
+        getIdentity(this.npm, { ...this.npm.flatOptions }),
         fetch.json(pkg.escapedName, {
           ...this.npm.flatOptions,
           spec: pkg,
           query: { write: true },
           preferOnline: true,
-          log,
         }),
       ])
 
@@ -64,7 +63,6 @@ class Star extends BaseCommand {
         spec: pkg,
         method: 'PUT',
         body,
-        log,
       })
 
       this.npm.output(show + ' ' + pkg.name)

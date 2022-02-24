@@ -1,6 +1,5 @@
 // prune extraneous packages
 const Arborist = require('@npmcli/arborist')
-const log = require('../utils/log-shim.js')
 const reifyFinish = require('../utils/reify-finish.js')
 
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
@@ -15,7 +14,6 @@ class Prune extends ArboristWorkspaceCmd {
     const opts = {
       ...this.npm.flatOptions,
       path: where,
-      log,
       workspaces: this.workspaceNames,
     }
     const arb = new Arborist(opts)

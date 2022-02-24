@@ -193,6 +193,8 @@ class Sandbox extends EventEmitter {
   // test.teardown hook
   teardown () {
     if (this[_parent]) {
+      const sandboxProcess = sandboxes.get(this[_parent])
+      sandboxProcess.removeAllListeners('log')
       sandboxes.delete(this[_parent])
     }
     if (this[_npm]) {
@@ -211,20 +213,7 @@ class Sandbox extends EventEmitter {
       return Reflect.get(this, prop, this)
     }
 
-    const actual = Reflect.get(target, prop, receiver)
-    if (typeof actual === 'function') {
-      // in node 10.1 there's an interesting bug where if a function on process
-      // is called without explicitly forcing the 'this' arg to something, we
-      // get 'Illegal invocation' errors. wrapping function properties in their
-      // own proxy so that we can make sure the context is right fixes it
-      return new Proxy(actual, {
-        apply: (target, context, args) => {
-          return Reflect.apply(target, _process, args)
-        },
-      })
-    }
-
-    return actual
+    return Reflect.get(target, prop, receiver)
   }
 
   // proxy set handler
@@ -278,17 +267,15 @@ class Sandbox extends EventEmitter {
       ...this[_mocks],
       ...mockedLogs.logMocks,
     })
+    this.process.on('log', (l, ...args) => {
+      if (l !== 'pause' && l !== 'resume') {
+        this[_logs].push([l, ...args])
+      }
+    })
+
     this[_npm] = new Npm()
     this[_npm].output = (...args) => this[_output].push(args)
     await this[_npm].load()
-    // in some node versions (later 10.x) our executionAsyncId at this point
-    // will for some reason appear to have been triggered by a different parent
-    // so immediately after load, if we can see that we lost our ancestry, we
-    // fix it here with a hammer
-    if (chain.get(executionAsyncId()) !== this[_parent]) {
-      chain.set(executionAsyncId(), this[_parent])
-      process = this[_proxy]
-    }
 
     const cmd = this[_npm].argv.shift()
     return this[_npm].exec(cmd, this[_npm].argv)
@@ -330,17 +317,15 @@ class Sandbox extends EventEmitter {
       ...this[_mocks],
       ...mockedLogs.logMocks,
     })
+    this.process.on('log', (l, ...args) => {
+      if (l !== 'pause' && l !== 'resume') {
+        this[_logs].push([l, ...args])
+      }
+    })
+
     this[_npm] = new Npm()
     this[_npm].output = (...args) => this[_output].push(args)
     await this[_npm].load()
-    // in some node versions (later 10.x) our executionAsyncId at this point
-    // will for some reason appear to have been triggered by a different parent
-    // so immediately after load, if we can see that we lost our ancestry, we
-    // fix it here with a hammer
-    if (chain.get(executionAsyncId()) !== this[_parent]) {
-      chain.set(executionAsyncId(), this[_parent])
-      process = this[_proxy]
-    }
 
     const impl = await this[_npm].cmd(command)
     return impl.completion({

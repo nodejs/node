@@ -33,7 +33,7 @@ const mismatch = (a, b) => a && b && a !== b
 // After calling this.commit(), any nodes not present in the tree will have
 // been removed from the shrinkwrap data as well.
 
-const procLog = require('proc-log')
+const log = require('proc-log')
 const YarnLock = require('./yarn-lock.js')
 const { promisify } = require('util')
 const rimraf = promisify(require('rimraf'))
@@ -80,8 +80,8 @@ const swKeyOrder = [
 ]
 
 // used to rewrite from yarn registry to npm registry
-const yarnRegRe = /^https?:\/\/registry.yarnpkg.com\//
-const npmRegRe = /^https?:\/\/registry.npmjs.org\//
+const yarnRegRe = /^https?:\/\/registry\.yarnpkg\.com\//
+const npmRegRe = /^https?:\/\/registry\.npmjs\.org\//
 
 // sometimes resolved: is weird or broken, or something npa can't handle
 const specFromResolved = resolved => {
@@ -329,14 +329,12 @@ class Shrinkwrap {
       newline = '\n',
       shrinkwrapOnly = false,
       hiddenLockfile = false,
-      log = procLog,
       lockfileVersion,
     } = options
 
     this.lockfileVersion = hiddenLockfile ? 3
       : lockfileVersion ? parseInt(lockfileVersion, 10)
       : null
-    this.log = log
     this[_awaitingUpdate] = new Map()
     this.tree = null
     this.path = resolve(path || '.')
@@ -479,9 +477,9 @@ class Shrinkwrap {
       /* istanbul ignore else */
       if (typeof this.filename === 'string') {
         const rel = relpath(this.path, this.filename)
-        this.log.verbose('shrinkwrap', `failed to load ${rel}`, er)
+        log.verbose('shrinkwrap', `failed to load ${rel}`, er)
       } else {
-        this.log.verbose('shrinkwrap', `failed to load ${this.path}`, er)
+        log.verbose('shrinkwrap', `failed to load ${this.path}`, er)
       }
       this.loadingError = er
       this.loadedFromDisk = false

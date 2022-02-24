@@ -31,6 +31,18 @@ const RealMockNpm = (t, otherMocks = {}) => {
   return mock
 }
 
+const setLoglevel = (t, loglevel, reset = true) => {
+  if (t && reset) {
+    const _level = log.level
+    t.teardown(() => log.level = _level)
+  }
+
+  if (loglevel) {
+    // Set log level on the npmlog singleton and shared across everything
+    log.level = loglevel
+  }
+}
+
 // Resolve some options to a function call with supplied args
 const result = (fn, ...args) => typeof fn === 'function' ? fn(...args) : fn
 
@@ -62,14 +74,8 @@ const LoadMockNpm = async (t, {
     throw new Error('cant `load` without `init`')
   }
 
-  const _level = log.level
-  t.teardown(() => log.level = _level)
-
-  if (config.loglevel) {
-    // Set log level as early as possible since it is set
-    // on the npmlog singleton and shared across everything
-    log.level = config.loglevel
-  }
+  // Set log level as early as possible since
+  setLoglevel(t, config.loglevel)
 
   const dir = t.testdir({ root: testdir, cache: {} })
   const prefix = path.join(dir, 'root')
@@ -93,11 +99,9 @@ const LoadMockNpm = async (t, {
     for (const [k, v] of Object.entries(result(config, { npm, prefix, cache }))) {
       npm.config.set(k, v)
     }
-    if (config.loglevel) {
-      // Set global loglevel *again* since it possibly got reset during load
-      // XXX: remove with npmlog
-      log.level = config.loglevel
-    }
+    // Set global loglevel *again* since it possibly got reset during load
+    // XXX: remove with npmlog
+    setLoglevel(t, config.loglevel, false)
     npm.prefix = prefix
     npm.cache = cache
   }
@@ -129,7 +133,7 @@ const realConfig = require('../../lib/utils/config')
 // npm.config You still need a separate flatOptions. Tests should migrate to
 // using the real npm mock above
 class MockNpm {
-  constructor (base = {}) {
+  constructor (base = {}, t) {
     this._mockOutputs = []
     this.isMockNpm = true
     this.base = base
@@ -150,8 +154,23 @@ class MockNpm {
       // for now isDefault is going to just return false if a value was defined
       isDefault: (k) => !Object.prototype.hasOwnProperty.call(config, k),
       get: (k) => ({ ...realConfig.defaults, ...config })[k],
-      set: (k, v) => config[k] = v,
+      set: (k, v) => {
+        config[k] = v
+        // mock how real npm derives silent
+        if (k === 'loglevel') {
+          this.flatOptions.silent = v === 'silent'
+          this.silent = v === 'silent'
+        }
+      },
       list: [{ ...realConfig.defaults, ...config }],
+    }
+
+    if (t && config.loglevel) {
+      setLoglevel(t, config.loglevel)
+    }
+
+    if (config.loglevel) {
+      this.config.set('loglevel', config.loglevel)
     }
   }
 
@@ -163,8 +182,8 @@ class MockNpm {
   }
 }
 
-const FakeMockNpm = (base = {}) => {
-  return new MockNpm(base)
+const FakeMockNpm = (base = {}, t) => {
+  return new MockNpm(base, t)
 }
 
 module.exports = {

@@ -1,10 +1,11 @@
 // add and remove dependency specs to/from pkg manifest
 
+const log = require('proc-log')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 
-const add = ({ pkg, add, saveBundle, saveType, log }) => {
+const add = ({ pkg, add, saveBundle, saveType }) => {
   for (const spec of add) {
-    addSingle({ pkg, spec, saveBundle, saveType, log })
+    addSingle({ pkg, spec, saveBundle, saveType })
   }
 
   return pkg
@@ -20,7 +21,7 @@ const saveTypeMap = new Map([
   ['peer', 'peerDependencies'],
 ])
 
-const addSingle = ({ pkg, spec, saveBundle, saveType, log }) => {
+const addSingle = ({ pkg, spec, saveBundle, saveType }) => {
   const { name, rawSpec } = spec
 
   // if the user does not give us a type, we infer which type(s)
@@ -34,19 +35,19 @@ const addSingle = ({ pkg, spec, saveBundle, saveType, log }) => {
   if (saveType === 'prod') {
     // a production dependency can only exist as production (rpj ensures it
     // doesn't coexist w/ optional)
-    deleteSubKey(pkg, 'devDependencies', name, 'dependencies', log)
-    deleteSubKey(pkg, 'peerDependencies', name, 'dependencies', log)
+    deleteSubKey(pkg, 'devDependencies', name, 'dependencies')
+    deleteSubKey(pkg, 'peerDependencies', name, 'dependencies')
   } else if (saveType === 'dev') {
     // a dev dependency may co-exist as peer, or optional, but not production
-    deleteSubKey(pkg, 'dependencies', name, 'devDependencies', log)
+    deleteSubKey(pkg, 'dependencies', name, 'devDependencies')
   } else if (saveType === 'optional') {
     // an optional dependency may co-exist as dev (rpj ensures it doesn't
     // coexist w/ prod)
-    deleteSubKey(pkg, 'peerDependencies', name, 'optionalDependencies', log)
+    deleteSubKey(pkg, 'peerDependencies', name, 'optionalDependencies')
   } else { // peer or peerOptional is all that's left
     // a peer dependency may coexist as dev
-    deleteSubKey(pkg, 'dependencies', name, 'peerDependencies', log)
-    deleteSubKey(pkg, 'optionalDependencies', name, 'peerDependencies', log)
+    deleteSubKey(pkg, 'dependencies', name, 'peerDependencies')
+    deleteSubKey(pkg, 'optionalDependencies', name, 'peerDependencies')
   }
 
   const depType = saveTypeMap.get(saveType)
@@ -108,9 +109,9 @@ const hasSubKey = (pkg, depType, name) => {
 }
 
 // Removes a subkey and warns about it if it's being replaced
-const deleteSubKey = (pkg, depType, name, replacedBy, log) => {
+const deleteSubKey = (pkg, depType, name, replacedBy) => {
   if (hasSubKey(pkg, depType, name)) {
-    if (replacedBy && log) {
+    if (replacedBy) {
       log.warn('idealTree', `Removing ${depType}.${name} in favor of ${replacedBy}.${name}`)
     }
     delete pkg[depType][name]

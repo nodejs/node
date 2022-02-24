@@ -3,7 +3,7 @@ let handlersInstalled = false
 
 const forwardedSignals = [
   'SIGINT',
-  'SIGTERM'
+  'SIGTERM',
 ]
 
 const handleSignal = signal => {
@@ -30,8 +30,9 @@ const cleanupListeners = () => {
 
 const add = proc => {
   runningProcs.add(proc)
-  if (!handlersInstalled)
+  if (!handlersInstalled) {
     setupListeners()
+  }
 
   proc.once('exit', () => {
     runningProcs.delete(proc)
@@ -42,5 +43,5 @@ const add = proc => {
 module.exports = {
   add,
   handleSignal,
-  forwardedSignals
+  forwardedSignals,
 }

@@ -447,6 +447,11 @@ for anything else. You should almost never have to explicitly set a
 preinstall or install script. If you are doing this, please consider if
 there is another option. The only valid use of <code>install</code> or <code>preinstall</code>
 scripts is for compilation which must be done on the target architecture.</li>
+<li>Scripts are run from the root of the package folder, regardless of what the
+current working directory is when <code>npm</code> is invoked. If you want your
+script to use different behavior based on what subdirectory you're in, you
+can use the <code>INIT_CWD</code> environment variable, which holds the full path you
+were in when you ran <code>npm run</code>.</li>
 </ul>
 <h3 id="see-also">See Also</h3>
 <ul>

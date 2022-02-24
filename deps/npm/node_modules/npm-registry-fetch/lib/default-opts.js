@@ -1,6 +1,5 @@
 const pkg = require('../package.json')
 module.exports = {
-  log: require('./silentlog.js'),
   maxSockets: 12,
   method: 'GET',
   registry: 'https://registry.npmjs.org/',

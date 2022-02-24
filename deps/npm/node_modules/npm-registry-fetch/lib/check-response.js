@@ -3,23 +3,24 @@
 const errors = require('./errors.js')
 const { Response } = require('minipass-fetch')
 const defaultOpts = require('./default-opts.js')
+const log = require('proc-log')
 
 /* eslint-disable-next-line max-len */
 const moreInfoUrl = 'https://github.com/npm/cli/wiki/No-auth-for-URI,-but-auth-present-for-scoped-registry'
 const checkResponse =
-  async ({ method, uri, res, registry, startTime, auth, opts }) => {
+  async ({ method, uri, res, startTime, auth, opts }) => {
     opts = { ...defaultOpts, ...opts }
     if (res.headers.has('npm-notice') && !res.headers.has('x-local-cache')) {
-      opts.log.notice('', res.headers.get('npm-notice'))
+      log.notice('', res.headers.get('npm-notice'))
     }
 
     if (res.status >= 400) {
-      logRequest(method, res, startTime, opts)
+      logRequest(method, res, startTime)
       if (auth && auth.scopeAuthKey && !auth.token && !auth.auth) {
       // we didn't have auth for THIS request, but we do have auth for
       // requests to the registry indicated by the spec's scope value.
       // Warn the user.
-        opts.log.warn('registry', `No auth for URI, but auth present for scoped registry.
+        log.warn('registry', `No auth for URI, but auth present for scoped registry.
 
 URI: ${uri}
 Scoped Registry Key: ${auth.scopeAuthKey}
@@ -38,7 +39,7 @@ More info here: ${moreInfoUrl}`)
   }
 module.exports = checkResponse
 
-function logRequest (method, res, startTime, opts) {
+function logRequest (method, res, startTime) {
   const elapsedTime = Date.now() - startTime
   const attempt = res.headers.get('x-fetch-attempts')
   const attemptStr = attempt && attempt > 1 ? ` attempt #${attempt}` : ''
@@ -58,7 +59,7 @@ function logRequest (method, res, startTime, opts) {
     urlStr = res.url
   }
 
-  opts.log.http(
+  log.http(
     'fetch',
     `${method.toUpperCase()} ${res.status} ${urlStr} ${elapsedTime}ms${attemptStr}${cacheStr}`
   )

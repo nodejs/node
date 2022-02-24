@@ -1,23 +1,19 @@
 const Arborist = require('../')
-const print = require('./lib/print-tree.js')
-const options = require('./lib/options.js')
-require('./lib/logging.js')
-require('./lib/timers.js')
 
-const start = process.hrtime()
-new Arborist(options).loadActual(options).then(tree => {
-  const end = process.hrtime(start)
-  if (!process.argv.includes('--quiet')) {
-    print(tree)
-  }
+const printTree = require('./lib/print-tree.js')
 
-  console.error(`read ${tree.inventory.size} deps in ${end[0] * 1000 + end[1] / 1e6}ms`)
-  if (options.save) {
-    tree.meta.save()
-  }
-  if (options.saveHidden) {
-    tree.meta.hiddenLockfile = true
-    tree.meta.filename = options.path + '/node_modules/.package-lock.json'
-    tree.meta.save()
-  }
-}).catch(er => console.error(er))
+module.exports = (options, time) => new Arborist(options)
+  .loadActual(options)
+  .then(time)
+  .then(async ({ timing, result: tree }) => {
+    printTree(tree)
+    if (options.save) {
+      await tree.meta.save()
+    }
+    if (options.saveHidden) {
+      tree.meta.hiddenLockfile = true
+      tree.meta.filename = options.path + '/node_modules/.package-lock.json'
+      await tree.meta.save()
+    }
+    return `read ${tree.inventory.size} deps in ${timing.ms}`
+  })

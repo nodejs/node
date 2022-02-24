@@ -1,5 +1,4 @@
 const { resolve } = require('path')
-const log = require('../utils/log-shim.js')
 const Arborist = require('@npmcli/arborist')
 const rpj = require('read-package-json-fast')
 
@@ -49,7 +48,6 @@ class Uninstall extends ArboristWorkspaceCmd {
     const opts = {
       ...this.npm.flatOptions,
       path,
-      log,
       rm: args,
       workspaces: this.workspaceNames,
     }

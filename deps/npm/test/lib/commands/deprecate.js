@@ -2,15 +2,12 @@ const t = require('tap')
 
 let getIdentityImpl = () => 'someperson'
 let npmFetchBody = null
-let npmFetchLog = null
 
 const npmFetch = async (uri, opts) => {
   npmFetchBody = opts.body
-  npmFetchLog = opts.log
 }
 
 npmFetch.json = async (uri, opts) => {
-  npmFetchLog = opts.log
   return {
     versions: {
       '1.0.0': {},
@@ -87,10 +84,8 @@ t.test('invalid semver range', async t => {
 t.test('undeprecate', async t => {
   t.teardown(() => {
     npmFetchBody = null
-    npmFetchLog = null
   })
   await deprecate.exec(['foo', ''])
-  t.ok(npmFetchLog, 'was passed a logger')
   t.match(npmFetchBody, {
     versions: {
       '1.0.0': { deprecated: '' },
@@ -103,11 +98,9 @@ t.test('undeprecate', async t => {
 t.test('deprecates given range', async t => {
   t.teardown(() => {
     npmFetchBody = null
-    npmFetchLog = null
   })
 
   await deprecate.exec(['foo@1.0.0', 'this version is deprecated'])
-  t.ok(npmFetchLog, 'was passed a logger')
   t.match(npmFetchBody, {
     versions: {
       '1.0.0': {

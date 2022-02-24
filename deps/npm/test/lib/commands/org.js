@@ -1,18 +1,20 @@
 const t = require('tap')
 const ansiTrim = require('../../../lib/utils/ansi-trim.js')
+const { fake: mockNpm } = require('../../fixtures/mock-npm')
 
 const output = []
-const npm = {
+const npm = mockNpm({
   flatOptions: {
     json: false,
     parseable: false,
-    silent: false,
+  },
+  config: {
     loglevel: 'info',
   },
   output: msg => {
     output.push(msg)
   },
-}
+})
 
 let orgSize = 1
 let orgSetArgs = null
@@ -83,7 +85,6 @@ t.test('npm org add', async t => {
 
   await org.exec(['add', 'orgname', 'username'])
 
-  t.ok(orgSetArgs.opts.log, 'got passed a logger')
   t.match(
     orgSetArgs,
     {
@@ -149,7 +150,6 @@ t.test('npm org add - more users', async t => {
   })
 
   await org.exec(['add', 'orgname', 'username'])
-  t.ok(orgSetArgs.opts.log, 'got passed a logger')
   t.match(
     orgSetArgs,
     {
@@ -177,7 +177,6 @@ t.test('npm org add - json output', async t => {
 
   await org.exec(['add', 'orgname', 'username'])
 
-  t.ok(orgSetArgs.opts.log, 'got passed a logger')
   t.match(
     orgSetArgs,
     {
@@ -212,7 +211,6 @@ t.test('npm org add - parseable output', async t => {
 
   await org.exec(['add', 'orgname', 'username'])
 
-  t.ok(orgSetArgs.opts.log, 'got passed a logger')
   t.match(
     orgSetArgs,
     {
@@ -234,16 +232,15 @@ t.test('npm org add - parseable output', async t => {
 })
 
 t.test('npm org add - silent output', async t => {
-  npm.flatOptions.silent = true
+  npm.config.set('loglevel', 'silent')
   t.teardown(() => {
-    npm.flatOptions.silent = false
+    npm.config.set('loglevel', 'info')
     orgSetArgs = null
     output.length = 0
   })
 
   await org.exec(['add', 'orgname', 'username'])
 
-  t.ok(orgSetArgs.opts.log, 'got passed a logger')
   t.match(
     orgSetArgs,
     {
@@ -266,7 +263,6 @@ t.test('npm org rm', async t => {
 
   await org.exec(['rm', 'orgname', 'username'])
 
-  t.ok(orgRmArgs.opts.log, 'got passed a logger')
   t.match(
     orgRmArgs,
     {
@@ -276,7 +272,6 @@ t.test('npm org rm', async t => {
     },
     'libnpmorg.rm received the correct args'
   )
-  t.ok(orgLsArgs.opts.log, 'got passed a logger')
   t.match(
     orgLsArgs,
     {
@@ -330,7 +325,6 @@ t.test('npm org rm - one user left', async t => {
 
   await org.exec(['rm', 'orgname', 'username'])
 
-  t.ok(orgRmArgs.opts.log, 'got passed a logger')
   t.match(
     orgRmArgs,
     {
@@ -340,7 +334,6 @@ t.test('npm org rm - one user left', async t => {
     },
     'libnpmorg.rm received the correct args'
   )
-  t.ok(orgLsArgs.opts.log, 'got passed a logger')
   t.match(
     orgLsArgs,
     {
@@ -367,7 +360,6 @@ t.test('npm org rm - json output', async t => {
 
   await org.exec(['rm', 'orgname', 'username'])
 
-  t.ok(orgRmArgs.opts.log, 'got passed a logger')
   t.match(
     orgRmArgs,
     {
@@ -377,7 +369,6 @@ t.test('npm org rm - json output', async t => {
     },
     'libnpmorg.rm received the correct args'
   )
-  t.ok(orgLsArgs.opts.log, 'got passed a logger')
   t.match(
     orgLsArgs,
     {
@@ -409,7 +400,6 @@ t.test('npm org rm - parseable output', async t => {
 
   await org.exec(['rm', 'orgname', 'username'])
 
-  t.ok(orgRmArgs.opts.log, 'got passed a logger')
   t.match(
     orgRmArgs,
     {
@@ -419,7 +409,6 @@ t.test('npm org rm - parseable output', async t => {
     },
     'libnpmorg.rm received the correct args'
   )
-  t.ok(orgLsArgs.opts.log, 'got passed a logger')
   t.match(
     orgLsArgs,
     {
@@ -439,9 +428,9 @@ t.test('npm org rm - parseable output', async t => {
 })
 
 t.test('npm org rm - silent output', async t => {
-  npm.flatOptions.silent = true
+  npm.config.set('loglevel', 'silent')
   t.teardown(() => {
-    npm.flatOptions.silent = false
+    npm.config.set('loglevel', 'info')
     orgRmArgs = null
     orgLsArgs = null
     output.length = 0
@@ -449,7 +438,6 @@ t.test('npm org rm - silent output', async t => {
 
   await org.exec(['rm', 'orgname', 'username'])
 
-  t.ok(orgRmArgs.opts.log, 'got passed a logger')
   t.match(
     orgRmArgs,
     {
@@ -459,7 +447,6 @@ t.test('npm org rm - silent output', async t => {
     },
     'libnpmorg.rm received the correct args'
   )
-  t.ok(orgLsArgs.opts.log, 'got passed a logger')
   t.match(
     orgLsArgs,
     {
@@ -485,7 +472,6 @@ t.test('npm org ls', async t => {
 
   await org.exec(['ls', 'orgname'])
 
-  t.ok(orgLsArgs.opts.log, 'got passed a logger')
   t.match(
     orgLsArgs,
     {
@@ -513,7 +499,6 @@ t.test('npm org ls - user filter', async t => {
 
   await org.exec(['ls', 'orgname', 'username'])
 
-  t.ok(orgLsArgs.opts.log, 'got passed a logger')
   t.match(
     orgLsArgs,
     {
@@ -539,7 +524,6 @@ t.test('npm org ls - user filter, missing user', async t => {
 
   await org.exec(['ls', 'orgname', 'username'])
 
-  t.ok(orgLsArgs.opts.log, 'got passed a logger')
   t.match(
     orgLsArgs,
     {
@@ -578,7 +562,6 @@ t.test('npm org ls - json output', async t => {
 
   await org.exec(['ls', 'orgname'])
 
-  t.ok(orgLsArgs.opts.log, 'got passed a logger')
   t.match(
     orgLsArgs,
     {
@@ -606,7 +589,6 @@ t.test('npm org ls - parseable output', async t => {
 
   await org.exec(['ls', 'orgname'])
 
-  t.ok(orgLsArgs.opts.log, 'got passed a logger')
   t.match(
     orgLsArgs,
     {
@@ -628,14 +610,14 @@ t.test('npm org ls - parseable output', async t => {
 })
 
 t.test('npm org ls - silent output', async t => {
-  npm.flatOptions.silent = true
+  npm.config.set('loglevel', 'silent')
   orgList = {
     one: 'developer',
     two: 'admin',
     three: 'owner',
   }
   t.teardown(() => {
-    npm.flatOptions.silent = false
+    npm.config.set('loglevel', 'info')
     orgList = {}
     orgLsArgs = null
     output.length = 0
@@ -643,7 +625,6 @@ t.test('npm org ls - silent output', async t => {
 
   await org.exec(['ls', 'orgname'])
 
-  t.ok(orgLsArgs.opts.log, 'got passed a logger')
   t.match(
     orgLsArgs,
     {

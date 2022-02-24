@@ -52,7 +52,6 @@ class Npm extends EventEmitter {
       definitions,
       flatten,
       shorthands,
-      log,
     })
     this[_title] = process.title
     this.updateNotification = null
@@ -251,6 +250,7 @@ class Npm extends EventEmitter {
       // Use logColor since that is based on stderr
       color: this.logColor,
       progress: this.flatOptions.progress,
+      silent: this.silent,
       timing: this.config.get('timing'),
       loglevel: this.config.get('loglevel'),
       unicode: this.config.get('unicode'),
@@ -298,6 +298,10 @@ class Npm extends EventEmitter {
 
   get logColor () {
     return this.flatOptions.logColor
+  }
+
+  get silent () {
+    return this.flatOptions.silent
   }
 
   get lockfileVersion () {

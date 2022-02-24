@@ -146,21 +146,25 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm install (with no args, in package dir)
-npm install [&lt;@scope&gt;/]&lt;name&gt;
-npm install [&lt;@scope&gt;/]&lt;name&gt;@&lt;tag&gt;
-npm install [&lt;@scope&gt;/]&lt;name&gt;@&lt;version&gt;
-npm install [&lt;@scope&gt;/]&lt;name&gt;@&lt;version range&gt;
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<pre lang="bash"><code>npm install [&lt;@scope&gt;/]&lt;pkg&gt;
+npm install [&lt;@scope&gt;/]&lt;pkg&gt;@&lt;tag&gt;
+npm install [&lt;@scope&gt;/]&lt;pkg&gt;@&lt;version&gt;
+npm install [&lt;@scope&gt;/]&lt;pkg&gt;@&lt;version range&gt;
 npm install &lt;alias&gt;@npm:&lt;name&gt;
-npm install &lt;git-host&gt;:&lt;git-user&gt;/&lt;repo-name&gt;
-npm install &lt;git repo url&gt;
+npm install &lt;folder&gt;
 npm install &lt;tarball file&gt;
 npm install &lt;tarball url&gt;
-npm install &lt;folder&gt;
+npm install &lt;git:// url&gt;
+npm install &lt;github username&gt;/&lt;github project&gt;
 
-aliases: npm i, npm add
-common options: [-P|--save-prod|-D|--save-dev|-O|--save-optional|--save-peer] [-E|--save-exact] [-B|--save-bundle] [--no-save] [--dry-run]
+aliases: i, in, ins, inst, insta, instal, isnt, isnta, isntal, add
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
 <p>This command installs a package and any packages that it depends on. If the
 package has a package-lock, or an npm shrinkwrap file, or a yarn lock file,
@@ -496,12 +500,14 @@ does.</p>
 <!-- raw HTML omitted -->
 <h4 id="save"><code>save</code></h4>
 <ul>
-<li>Default: true</li>
+<li>Default: <code>true</code> unless when using <code>npm update</code> or <code>npm dedupe</code> where it
+defaults to <code>false</code></li>
 <li>Type: Boolean</li>
 </ul>
-<p>Save installed packages to a package.json file as dependencies.</p>
+<p>Save installed packages to a <code>package.json</code> file as dependencies.</p>
 <p>When used with the <code>npm rm</code> command, removes the dependency from
-package.json.</p>
+<code>package.json</code>.</p>
+<p>Will also prevent writing to <code>package-lock.json</code> if set to <code>false</code>.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="save-exact"><code>save-exact</code></h4>
@@ -581,6 +587,7 @@ will also prevent <em>writing</em> <code>package-lock.json</code> if <code>save<
 <p>When package package-locks are disabled, automatic pruning of extraneous
 modules will also be disabled. To remove extraneous modules with
 package-locks disabled use <code>npm prune</code>.</p>
+<p>This configuration does not affect <code>npm ci</code>.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="omit"><code>omit</code></h4>

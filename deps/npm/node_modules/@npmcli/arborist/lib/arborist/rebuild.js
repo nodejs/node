@@ -13,6 +13,7 @@ const {
   isNodeGypPackage,
   defaultGypInstallScript,
 } = require('@npmcli/node-gyp')
+const log = require('proc-log')
 
 const boolEnv = b => b ? '1' : ''
 const sortNodes = (a, b) =>
@@ -297,7 +298,7 @@ module.exports = cls => class Builder extends cls {
 
       const timer = `build:run:${event}:${location}`
       process.emit('time', timer)
-      this.log.info('run', pkg._id, event, location, pkg.scripts[event])
+      log.info('run', pkg._id, event, location, pkg.scripts[event])
       const env = {
         npm_package_resolved: resolved,
         npm_package_integrity: integrity,
@@ -319,7 +320,7 @@ module.exports = cls => class Builder extends cls {
       }
       const p = runScript(runOpts).catch(er => {
         const { code, signal } = er
-        this.log.info('run', pkg._id, event, { code, signal })
+        log.info('run', pkg._id, event, { code, signal })
         throw er
       }).then(({ args, code, signal, stdout, stderr }) => {
         this.scriptsRun.add({
@@ -333,7 +334,7 @@ module.exports = cls => class Builder extends cls {
           stdout,
           stderr,
         })
-        this.log.info('run', pkg._id, event, { code, signal })
+        log.info('run', pkg._id, event, { code, signal })
       })
 
       await (this[_doHandleOptionalFailure]

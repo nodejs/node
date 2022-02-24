@@ -1,5 +1,5 @@
-const {createHash} = require('crypto')
+const { createHash } = require('crypto')
 
-module.exports = ({name, source}) => createHash('sha512')
+module.exports = ({ name, source }) => createHash('sha512')
   .update(JSON.stringify([name, source]))
   .digest('base64')

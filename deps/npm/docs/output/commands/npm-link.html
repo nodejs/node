@@ -146,11 +146,17 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <pre lang="bash"><code>npm link (in package dir)
 npm link [&lt;@scope&gt;/]&lt;pkg&gt;[@&lt;version&gt;]
 
-alias: npm ln
+alias: ln
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
 <p>This is handy for installing your own stuff, so that you can work on it and
 test iteratively without having to continually rebuild.</p>
@@ -223,12 +229,14 @@ workspace(s).</p>
 <!-- raw HTML omitted -->
 <h4 id="save"><code>save</code></h4>
 <ul>
-<li>Default: true</li>
+<li>Default: <code>true</code> unless when using <code>npm update</code> or <code>npm dedupe</code> where it
+defaults to <code>false</code></li>
 <li>Type: Boolean</li>
 </ul>
-<p>Save installed packages to a package.json file as dependencies.</p>
+<p>Save installed packages to a <code>package.json</code> file as dependencies.</p>
 <p>When used with the <code>npm rm</code> command, removes the dependency from
-package.json.</p>
+<code>package.json</code>.</p>
+<p>Will also prevent writing to <code>package-lock.json</code> if set to <code>false</code>.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="save-exact"><code>save-exact</code></h4>
@@ -308,6 +316,7 @@ will also prevent <em>writing</em> <code>package-lock.json</code> if <code>save<
 <p>When package package-locks are disabled, automatic pruning of extraneous
 modules will also be disabled. To remove extraneous modules with
 package-locks disabled use <code>npm prune</code>.</p>
+<p>This configuration does not affect <code>npm ci</code>.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="omit"><code>omit</code></h4>

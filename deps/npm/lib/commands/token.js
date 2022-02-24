@@ -168,7 +168,7 @@ class Token extends BaseCommand {
   }
 
   config () {
-    const conf = { ...this.npm.flatOptions, log }
+    const conf = { ...this.npm.flatOptions }
     const creds = this.npm.config.getCredentialsByURI(conf.registry)
     if (creds.token) {
       conf.auth = { token: creds.token }

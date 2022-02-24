@@ -1,21 +1,14 @@
 const Arborist = require('../')
 
-const { inspect } = require('util')
-const options = require('./lib/options.js')
-const print = require('./lib/print-tree.js')
-require('./lib/logging.js')
-require('./lib/timers.js')
+const printTree = require('./lib/print-tree.js')
 
-const start = process.hrtime()
-new Arborist(options).buildIdealTree(options).then(tree => {
-  const end = process.hrtime(start)
-  print(tree)
-  console.error(`resolved ${tree.inventory.size} deps in ${end[0] + end[1] / 10e9}s`)
-  if (tree.meta && options.save) {
-    tree.meta.save()
-  }
-}).catch(er => {
-  const opt = { depth: Infinity, color: true }
-  console.error(er.code === 'ERESOLVE' ? inspect(er, opt) : er)
-  process.exitCode = 1
-})
+module.exports = (options, time) => new Arborist(options)
+  .buildIdealTree(options)
+  .then(time)
+  .then(async ({ timing, result: tree }) => {
+    printTree(tree)
+    if (tree.meta && options.save) {
+      await tree.meta.save()
+    }
+    return `resolved ${tree.inventory.size} deps in ${timing.seconds}`
+  })

@@ -1,4 +1,4 @@
-const {resolve, dirname} = require('path')
+const { resolve, dirname } = require('path')
 const isWindows = require('./is-windows.js')
 // the path here is relative, even though it does not need to be
 // in order to make the posix tests pass in windows
@@ -34,8 +34,9 @@ const setPATH = (projectPath, env) => {
   // npm or arborist or whoever to just provide that by putting it in
   // the PATH environ, since that's preserved anyway.
   for (const key of Object.keys(env)) {
-    if (/^path$/i.test(key))
+    if (/^path$/i.test(key)) {
       env[key] = pathVal
+    }
   }
 
   return env
