@@ -2,14 +2,13 @@
 
 var wcwidth = require('./width');
 
-var _require = require('./utils');
-
-var padRight = _require.padRight;
-var padCenter = _require.padCenter;
-var padLeft = _require.padLeft;
-var splitIntoLines = _require.splitIntoLines;
-var splitLongWords = _require.splitLongWords;
-var truncateString = _require.truncateString;
+var _require = require('./utils'),
+    padRight = _require.padRight,
+    padCenter = _require.padCenter,
+    padLeft = _require.padLeft,
+    splitIntoLines = _require.splitIntoLines,
+    splitLongWords = _require.splitLongWords,
+    truncateString = _require.truncateString;
 
 var DEFAULT_HEADING_TRANSFORM = function DEFAULT_HEADING_TRANSFORM(key) {
   return key.toUpperCase();
@@ -33,7 +32,8 @@ var DEFAULTS = Object.freeze({
 });
 
 module.exports = function (items) {
-  var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+  var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+
 
   var columnConfigs = options.config || {};
   delete options.config; // remove config so doesn't appear on every column.
@@ -244,9 +244,7 @@ function createRows(items, columns, columnNames, paddingChr) {
  */
 
 function mixin() {
-  var _Object;
-
-  if (Object.assign) return (_Object = Object).assign.apply(_Object, arguments);
+  if (Object.assign) return Object.assign.apply(Object, arguments);
   return ObjectAssign.apply(undefined, arguments);
 }
 

@@ -146,11 +146,18 @@ npm command-line interface
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
-<pre lang="bash"><code>npm init [--yes|-y|--scope]
-npm init &lt;@scope&gt; (same as `npm exec &lt;@scope&gt;/create`)
-npm init [&lt;@scope&gt;/]&lt;name&gt; (same as `npm exec [&lt;@scope&gt;/]create-&lt;name&gt;`)
-npm init [-w &lt;dir&gt;] [args...]
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<pre lang="bash"><code>npm init [--force|-f|--yes|-y|--scope]
+npm init &lt;@scope&gt; (same as `npx &lt;@scope&gt;/create`)
+npm init [&lt;@scope&gt;/]&lt;name&gt; (same as `npx [&lt;@scope&gt;/]create-&lt;name&gt;`)
+
+aliases: create, innit
 </code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h3 id="description">Description</h3>
 <p><code>npm init &lt;initializer&gt;</code> can be used to set up a new or existing npm
 package.</p>
@@ -172,6 +179,15 @@ guesses based on existing fields, dependencies, and options selected. It is
 strictly additive, so it will keep any fields and values that were already
 set. You can also use <code>-y</code>/<code>--yes</code> to skip the questionnaire altogether. If
 you pass <code>--scope</code>, it will create a scoped package.</p>
+<p><em>Note:</em> if a user already has the <code>create-&lt;initializer&gt;</code> package
+globally installed, that will be what <code>npm init</code> uses.  If you want npm
+to use the latest version, or another specific version you must specify
+it:</p>
+<ul>
+<li><code>npm init foo@latest</code> # fetches and runs the latest <code>create-foo</code> from
+the registry</li>
+<li><code>npm init foo@1.2.3</code> #  runs <code>create-foo@1.2.3</code> specifically</li>
+</ul>
 <h4 id="forwarding-additional-options">Forwarding additional options</h4>
 <p>Any additional options will be passed directly to the command, so <code>npm init foo -- --hello</code> will map to <code>npm exec -- create-foo --hello</code>.</p>
 <p>To better illustrate how options are forwarded, here's a more evolved

@@ -25,7 +25,6 @@ class Logout extends BaseCommand {
         ...this.npm.flatOptions,
         method: 'DELETE',
         ignoreBody: true,
-        log,
       })
     } else if (auth.isBasicAuth) {
       log.verbose('logout', `clearing user credentials for ${reg}`)

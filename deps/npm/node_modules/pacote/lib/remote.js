@@ -3,7 +3,6 @@ const FileFetcher = require('./file.js')
 const _tarballFromResolved = Symbol.for('pacote.Fetcher._tarballFromResolved')
 const pacoteVersion = require('../package.json').version
 const fetch = require('npm-registry-fetch')
-const ssri = require('ssri')
 const Minipass = require('minipass')
 // The default registry URL is a string of great magic.
 const magic = /^https?:\/\/registry\.npmjs\.org\//
@@ -14,8 +13,9 @@ class RemoteFetcher extends Fetcher {
   constructor (spec, opts) {
     super(spec, opts)
     this.resolved = this.spec.fetchSpec
-    if (magic.test(this.resolved) && !magic.test(this.registry + '/'))
+    if (magic.test(this.resolved) && !magic.test(this.registry + '/')) {
       this.resolved = this.resolved.replace(magic, this.registry + '/')
+    }
 
     // nam is a fermented pork sausage that is good to eat
     const nameat = this.spec.name ? `${this.spec.name}@` : ''
@@ -35,7 +35,7 @@ class RemoteFetcher extends Fetcher {
       headers: this[_headers](),
       spec: this.spec,
       integrity: this.integrity,
-      algorithms: [ this.pickIntegrityAlgorithm() ],
+      algorithms: [this.pickIntegrityAlgorithm()],
     }
     fetch(this.resolved, fetchOpts).then(res => {
       const hash = res.headers.get('x-local-cache-hash')
@@ -62,7 +62,7 @@ class RemoteFetcher extends Fetcher {
       'pacote-req-type': 'tarball',
       'pacote-pkg-id': this.pkgid,
       ...(this.integrity ? { 'pacote-integrity': String(this.integrity) }
-        : {}),
+      : {}),
       ...(this.opts.headers || {}),
     }
   }

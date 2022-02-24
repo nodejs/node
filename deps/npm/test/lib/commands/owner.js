@@ -51,14 +51,13 @@ t.test('owner no args', async t => {
 })
 
 t.test('owner ls no args', async t => {
-  t.plan(5)
+  t.plan(4)
 
   result = ''
 
   readPackageNameResponse = '@npmcli/map-workspaces'
   pacote.packument = async (spec, opts) => {
     t.equal(spec.name, '@npmcli/map-workspaces', 'should use expect pkg name')
-    t.ok(opts.log, 'is passed a logger')
     t.match(
       opts,
       {
@@ -173,11 +172,10 @@ t.test('owner ls <pkg> no maintainers', async t => {
 })
 
 t.test('owner add <user> <pkg>', async t => {
-  t.plan(11)
+  t.plan(8)
 
   result = ''
   npmFetch.json = async (uri, opts) => {
-    t.ok(opts.log, 'is passed a logger')
     // retrieve user info from couchdb request
     if (uri === '/-/user/org.couchdb.user:foo') {
       t.ok('should request user info')
@@ -218,7 +216,6 @@ t.test('owner add <user> <pkg>', async t => {
     }
   }
   pacote.packument = async (spec, opts) => {
-    t.ok(opts.log, 'is passed a logger')
     t.equal(spec.name, '@npmcli/map-workspaces', 'should use expect pkg name')
     t.match(
       opts,
@@ -247,7 +244,6 @@ t.test('owner add <user> cwd package', async t => {
   result = ''
   readPackageNameResponse = '@npmcli/map-workspaces'
   npmFetch.json = async (uri, opts) => {
-    t.ok(opts.log, 'is passed a logger')
     // retrieve user info from couchdb request
     if (uri === '/-/user/org.couchdb.user:foo') {
       return {
@@ -277,7 +273,7 @@ t.test('owner add <user> cwd package', async t => {
 })
 
 t.test('owner add <user> <pkg> already an owner', async t => {
-  t.plan(3)
+  t.plan(2)
 
   result = ''
   log.info = (title, msg) => {
@@ -289,7 +285,6 @@ t.test('owner add <user> <pkg> already an owner', async t => {
     )
   }
   npmFetch.json = async (uri, opts) => {
-    t.ok(opts.log, 'is passed a logger')
     // retrieve user info from couchdb request
     if (uri === '/-/user/org.couchdb.user:ruyadorno') {
       return {
@@ -321,7 +316,6 @@ t.test('owner add <user> <pkg> fails to retrieve user', async t => {
   result = ''
   readPackageNameResponse =
   npmFetch.json = async (uri, opts) => {
-    t.ok(opts.log, 'is passed a logger')
     // retrieve borked user info from couchdb request
     if (uri === '/-/user/org.couchdb.user:foo') {
       return { ok: false }
@@ -352,7 +346,6 @@ t.test('owner add <user> <pkg> fails to retrieve user', async t => {
 t.test('owner add <user> <pkg> fails to PUT updates', async t => {
   result = ''
   npmFetch.json = async (uri, opts) => {
-    t.ok(opts.log, 'is passed a logger')
     // retrieve user info from couchdb request
     if (uri === '/-/user/org.couchdb.user:foo') {
       return {
@@ -389,7 +382,7 @@ t.test('owner add <user> <pkg> fails to PUT updates', async t => {
 })
 
 t.test('owner add <user> <pkg> fails to retrieve user info', async t => {
-  t.plan(4)
+  t.plan(3)
 
   result = ''
   log.error = (title, msg) => {
@@ -397,7 +390,6 @@ t.test('owner add <user> <pkg> fails to retrieve user info', async t => {
     t.equal(msg, 'Error getting user data for foo')
   }
   npmFetch.json = async (uri, opts) => {
-    t.ok(opts.log, 'is passed a logger')
     // retrieve user info from couchdb request
     if (uri === '/-/user/org.couchdb.user:foo') {
       throw Object.assign(
@@ -429,7 +421,6 @@ t.test('owner add <user> <pkg> fails to retrieve user info', async t => {
 t.test('owner add <user> <pkg> no previous maintainers property from server', async t => {
   result = ''
   npmFetch.json = async (uri, opts) => {
-    t.ok(opts.log, 'is passed a logger')
     // retrieve user info from couchdb request
     if (uri === '/-/user/org.couchdb.user:foo') {
       return {
@@ -496,11 +487,10 @@ t.test('owner add <user> no cwd package', async t => {
 })
 
 t.test('owner rm <user> <pkg>', async t => {
-  t.plan(11)
+  t.plan(8)
 
   result = ''
   npmFetch.json = async (uri, opts) => {
-    t.ok(opts.log, 'is passed a logger')
     // retrieve user info from couchdb request
     if (uri === '/-/user/org.couchdb.user:ruyadorno') {
       t.ok('should request user info')
@@ -534,7 +524,6 @@ t.test('owner rm <user> <pkg>', async t => {
     }
   }
   pacote.packument = async (spec, opts) => {
-    t.ok(opts.log, 'is passed a logger')
     t.equal(spec.name, '@npmcli/map-workspaces', 'should use expect pkg name')
     t.match(
       opts,
@@ -560,7 +549,7 @@ t.test('owner rm <user> <pkg>', async t => {
 })
 
 t.test('owner rm <user> <pkg> not a current owner', async t => {
-  t.plan(3)
+  t.plan(2)
 
   result = ''
   log.info = (title, msg) => {
@@ -568,7 +557,6 @@ t.test('owner rm <user> <pkg> not a current owner', async t => {
     t.equal(msg, 'Not a package owner: foo', 'should log.info not a package owner msg')
   }
   npmFetch.json = async (uri, opts) => {
-    t.ok(opts.log, 'is passed a logger')
     // retrieve user info from couchdb request
     if (uri === '/-/user/org.couchdb.user:foo') {
       return {
@@ -602,7 +590,6 @@ t.test('owner rm <user> cwd package', async t => {
   result = ''
   readPackageNameResponse = '@npmcli/map-workspaces'
   npmFetch.json = async (uri, opts) => {
-    t.ok(opts.log, 'is passed a logger')
     // retrieve user info from couchdb request
     if (uri === '/-/user/org.couchdb.user:ruyadorno') {
       return {
@@ -635,7 +622,6 @@ t.test('owner rm <user> only user', async t => {
   result = ''
   readPackageNameResponse = 'ipt'
   npmFetch.json = async (uri, opts) => {
-    t.ok(opts.log, 'is passed a logger')
     // retrieve user info from couchdb request
     if (uri === '/-/user/org.couchdb.user:ruyadorno') {
       return {

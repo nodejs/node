@@ -61,7 +61,6 @@ class Diff extends BaseCommand {
       ...this.npm.flatOptions,
       diffFiles: args,
       where: this.top,
-      log,
     })
     return this.npm.output(res)
   }
@@ -194,7 +193,6 @@ class Diff extends BaseCommand {
         const packument = await pacote.packument(spec, {
           ...this.npm.flatOptions,
           preferOnline: true,
-          log,
         })
         bSpec = pickManifest(
           packument,

@@ -40,7 +40,6 @@ class CI extends ArboristWorkspaceCmd {
       ...this.npm.flatOptions,
       packageLock: true, // npm ci should never skip lock files
       path: where,
-      log,
       save: false, // npm ci should never modify the lockfile or package.json
       workspaces: this.workspaceNames,
     }
@@ -101,7 +100,7 @@ class CI extends ArboristWorkspaceCmd {
           scriptShell,
           stdio: 'inherit',
           stdioString: true,
-          banner: log.level !== 'silent',
+          banner: !this.npm.silent,
           event,
         })
       }

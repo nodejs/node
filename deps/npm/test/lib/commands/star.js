@@ -42,10 +42,9 @@ t.test('no args', async t => {
 })
 
 t.test('star a package', async t => {
-  t.plan(6)
+  t.plan(4)
   const pkgName = '@npmcli/arborist'
   npmFetch.json = async (uri, opts) => {
-    t.ok(opts.log, 'is passed a logger')
     return {
       _id: pkgName,
       _rev: 'hash',
@@ -70,11 +69,10 @@ t.test('star a package', async t => {
 })
 
 t.test('unstar a package', async t => {
-  t.plan(6)
+  t.plan(4)
   const pkgName = '@npmcli/arborist'
   config['star.unstar'] = true
   npmFetch.json = async (uri, opts) => {
-    t.ok(opts.log, 'is passed a logger')
     return {
       _id: pkgName,
       _rev: 'hash',

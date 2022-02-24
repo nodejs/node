@@ -344,6 +344,11 @@ file.
   preinstall or install script. If you are doing this, please consider if
   there is another option. The only valid use of `install` or `preinstall`
   scripts is for compilation which must be done on the target architecture.
+* Scripts are run from the root of the package folder, regardless of what the
+  current working directory is when `npm` is invoked. If you want your
+  script to use different behavior based on what subdirectory you're in, you
+  can use the `INIT_CWD` environment variable, which holds the full path you
+  were in when you ran `npm run`.
 
 ### See Also
 
