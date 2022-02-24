@@ -22,7 +22,7 @@
     </div>
 
     <div id="column1" data-id="__ID__" class="interior">
-      <header>
+      <header class="header">
         <div class="header-container">
           <h1>Node.js __VERSION__ documentation</h1>
           <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle dark mode/light mode" aria-label="Toggle dark mode/light mode" hidden>
@@ -39,17 +39,27 @@
         </div>
         <div id="gtoc">
           <ul>
-            <li>
-              <a href="index.html">Index</a>
-            </li>
-            <li>
-              <a href="all.html">View on single page</a>
-            </li>
-            <li>
-              <a href="__FILENAME__.json">View as JSON</a>
-            </li>
+            __TOC_PICKER__
+            __GTOC_PICKER__
             __ALTDOCS__
-            __EDIT_ON_GITHUB__
+            <li class="picker-header">
+              <a href="#">
+                <span class="collapsed-arrow">&#x25ba;</span><span class="expanded-arrow">&#x25bc;</span>
+                Options
+              </a>
+        
+              <div class="picker">
+                <ul>
+                  <li>
+                    <a href="all.html">View on single page</a>
+                  </li>
+                  <li>
+                    <a href="__FILENAME__.json">View as JSON</a>
+                  </li>
+                  __EDIT_ON_GITHUB__    
+                </ul>
+              </div>
+            </li>
           </ul>
         </div>
         <hr>
