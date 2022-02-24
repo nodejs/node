@@ -932,7 +932,10 @@ void URL::Parse(const char* input,
             url->flags &= ~URL_FLAGS_SPECIAL;
             special = false;
           }
-          special_back_slash = (special && ch == '\\');
+          // `special_back_slash` equals to `(special && ch == '\\')` and `ch`
+          // here always not equals to `\\`. So `special_back_slash` here always
+          // equals to `false`.
+          special_back_slash = false;
           buffer.clear();
           if (has_state_override)
             return;
