@@ -162,7 +162,7 @@ em code {
   margin-bottom: 1rem;
 }
 
-#gtoc ul {
+#gtoc > ul {
   list-style: none;
   margin-left: 0;
   line-height: 1.5rem;
@@ -172,42 +172,73 @@ em code {
   color: var(--color-critical);
 }
 
-li.version-picker {
+li.picker-header {
   position: relative;
 }
 
-li.version-picker:hover > a {
+li.picker-header .collapsed-arrow, li.picker-header .expanded-arrow {
+  width: 1.5ch;
+  height: 1.5em;
+}
+
+li.picker-header .collapsed-arrow {
+  display: inline-block;
+}
+
+li.picker-header .expanded-arrow {
+  display: none;
+}
+
+li.picker-header:hover .collapsed-arrow {
+  display: none;
+}
+
+li.picker-header:hover .expanded-arrow {
+  display: inline-block;
+}
+
+li.picker-header:hover > a {
   border-radius: 2px 2px 0 0;
 }
 
-li.version-picker:hover > ol {
+li.picker-header:hover > .picker {
   display: block;
   z-index: 1;
 }
 
-li.version-picker a span {
+li.picker-header a span {
   font-size: .7rem;
 }
 
-ol.version-picker {
+.picker {
   background-color: var(--color-fill-app);
   border: 1px solid var(--color-brand-secondary);
   border-radius: 0 0 2px 2px;
   display: none;
   list-style: none;
   position: absolute;
-  right: 0;
+  left: 0;
   top: 100%;
-  width: 100%;
+  width: max-content;
+  min-width: min(300px, 75vw);
+  max-width: 75vw;
+  max-height: min(600px, 60vh);
+  overflow-y: auto;
 }
 
-#gtoc ol.version-picker li {
+.picker > ul, .picker > ol {
+  list-style: none;
+  margin-left: 0;
+  line-height: 1.5rem;
+}
+
+.picker li {
   display: block;
   border-right: 0;
   margin-right: 0;
 }
 
-ol.version-picker li a {
+.picker li a {
   border-radius: 0;
   display: block;
   margin: 0;
@@ -215,15 +246,30 @@ ol.version-picker li a {
   padding-left: 1rem;
 }
 
-ol.version-picker li:last-child a {
+.picker li a.active,
+.picker li a.active:hover,
+.picker li a.active:focus {
+  font-weight: 700;
+}
+
+.picker li:last-child a {
   border-bottom-right-radius: 1px;
   border-bottom-left-radius: 1px;
+}
+
+.gtoc-picker-header {
+  display: none;
 }
 
 .line {
   width: calc(100% - 1rem);
   display: block;
   padding-bottom: 1px;
+}
+
+.picker .line {
+  margin: 0;
+  width: 100%;
 }
 
 .api_stability {
@@ -506,6 +552,41 @@ hr {
   margin-top: .666rem;
 }
 
+.toc ul {
+  margin: 0
+}
+
+.toc li a::before {
+  content: "■";
+  color: var(--color-text-primary);
+  padding-right: 1em;
+  font-size: 0.9em;
+}
+
+.toc li a:hover::before {
+  color: var(--white);
+}
+
+.toc ul ul a {
+  padding-left: 1rem;
+}
+
+.toc ul ul ul a {
+  padding-left: 2rem;
+}
+
+.toc ul ul ul ul a {
+  padding-left: 3rem;
+}
+
+.toc ul ul ul ul ul a {
+  padding-left: 4rem;
+}
+
+.toc ul ul ul ul ul ul a {
+  padding-left: 5rem;
+}
+
 #toc .stability_0::after {
   background-color: var(--red2);
   color: var(--white);
@@ -718,10 +799,25 @@ kbd {
   }
 }
 
+.header {
+  position: sticky;
+  top: -1px;
+  z-index: 1;
+  padding-top: 1rem;
+  background-color: var(--color-fill-app);
+}
+
+@media not screen, (max-height: 1000px) {
+  .header {
+    position: relative;
+    top: 0;
+  }
+}
+
 .header-container {
   display: flex;
   align-items: center;
-  margin: 1.5rem 0 1rem;
+  margin-bottom: 1rem;
   justify-content: space-between;
 }
 
@@ -735,7 +831,7 @@ kbd {
   outline: var(--brand3) dotted 2px;
 }
 
-@media only screen and (min-width: 577px) {
+@media only screen and (min-width: 601px) {
   #gtoc > ul > li {
     display: inline;
     border-right: 1px currentColor solid;
@@ -747,6 +843,10 @@ kbd {
     border-right: none;
     margin-right: 0;
     padding-right: 0;
+  }
+
+  #gtoc > ul > li.gtoc-picker-header {
+    display: none;
   }
 }
 
@@ -763,6 +863,10 @@ kbd {
   }
   #column2 {
     display: none;
+  }
+
+  #gtoc > ul > li.gtoc-picker-header {
+    display: inline;
   }
 }
 
