@@ -22,8 +22,9 @@ class Advisory {
     this[_source] = source
     this[_options] = options
     this.name = name
-    if (!source.name)
+    if (!source.name) {
       source.name = name
+    }
 
     this.dependency = source.name
 
@@ -70,11 +71,13 @@ class Advisory {
   // load up the data from a cache entry and a fetched packument
   load (cached, packument) {
     // basic data integrity gutcheck
-    if (!cached || typeof cached !== 'object')
+    if (!cached || typeof cached !== 'object') {
       throw new TypeError('invalid cached data, expected object')
+    }
 
-    if (!packument || typeof packument !== 'object')
+    if (!packument || typeof packument !== 'object') {
       throw new TypeError('invalid packument data, expected object')
+    }
 
     if (cached.id && cached.id !== this.id) {
       throw Object.assign(new Error('loading from incorrect cache entry'), {
@@ -88,14 +91,16 @@ class Advisory {
         actual: packument.name,
       })
     }
-    if (this[_packument])
+    if (this[_packument]) {
       throw new Error('advisory object already loaded')
+    }
 
     // if we have a range from the initialization, and the cached
     // data has a *different* range, then we know we have to recalc.
     // just don't use the cached data, so we will definitely not match later
-    if (!this.range || cached.range && cached.range === this.range)
+    if (!this.range || cached.range && cached.range === this.range) {
       Object.assign(this, cached)
+    }
 
     this[_packument] = packument
 
@@ -107,8 +112,9 @@ class Advisory {
       if (!this.versions.includes(v)) {
         versionsAdded.push(v)
         this.versions.push(v)
-      } else if (!pakuVersions.includes(v))
+      } else if (!pakuVersions.includes(v)) {
         versionsRemoved.push(v)
+      }
     }
 
     // strip out any removed versions from our lists, and sort by semver
@@ -138,14 +144,16 @@ class Advisory {
     this[_updated] = true
 
     // test any versions newly added
-    if (!unchanged || versionsAdded.length)
+    if (!unchanged || versionsAdded.length) {
       this[_testVersions](unchanged ? versionsAdded : this.versions)
+    }
     this.vulnerableVersions = semver.sort(this.vulnerableVersions, semverOpt)
 
     // metavulns have to calculate their range, since cache is invalidated
     // advisories just get their range from the advisory above
-    if (this.type === 'metavuln')
+    if (this.type === 'metavuln') {
       this[_calculateRange]()
+    }
 
     return this
   }
@@ -170,10 +178,11 @@ class Advisory {
           }
           break
         }
-        if (vr.length > 1)
+        if (vr.length > 1) {
           vr[1] = this.versions[v]
-        else
+        } else {
           vr.push(this.versions[v])
+        }
         v++
         vulnVer++
       }
@@ -198,26 +207,30 @@ class Advisory {
   // we use the dependency version from the manifest.
   testVersion (version, spec = null) {
     const sv = String(version)
-    if (this[_versionVulnMemo].has(sv))
+    if (this[_versionVulnMemo].has(sv)) {
       return this[_versionVulnMemo].get(sv)
+    }
 
     const result = this[_testVersion](version, spec)
-    if (result)
+    if (result) {
       this[_markVulnerable](version)
+    }
     this[_versionVulnMemo].set(sv, !!result)
     return result
   }
 
   [_markVulnerable] (version) {
     const sv = String(version)
-    if (!this.vulnerableVersions.includes(sv))
+    if (!this.vulnerableVersions.includes(sv)) {
       this.vulnerableVersions.push(sv)
+    }
   }
 
   [_testVersion] (version, spec) {
     const sv = String(version)
-    if (this.vulnerableVersions.includes(sv))
+    if (this.vulnerableVersions.includes(sv)) {
       return true
+    }
 
     if (this.type === 'advisory') {
       // advisory, just test range
@@ -233,12 +246,14 @@ class Advisory {
       },
     }
 
-    if (!spec)
+    if (!spec) {
       spec = getDepSpec(mani, this.dependency)
+    }
 
     // no dep, no vuln
-    if (spec === null)
+    if (spec === null) {
       return false
+    }
 
     if (!semver.validRange(spec, semverOpt)) {
       // not a semver range, nothing we can hope to do about it
@@ -252,8 +267,9 @@ class Advisory {
     // try to pick a version of the dep that isn't vulnerable
     const avoid = this[_source].range
 
-    if (bundled)
+    if (bundled) {
       return semver.intersects(spec, avoid, semverOpt)
+    }
 
     return this[_source].testSpec(spec)
   }
@@ -263,8 +279,9 @@ class Advisory {
     // consistent across multiple versions, so memoize this as well, in case
     // we're testing lots of versions.
     const memo = this[_specVulnMemo]
-    if (memo.has(spec))
+    if (memo.has(spec)) {
       return memo.get(spec)
+    }
 
     const res = this[_testSpec](spec)
     memo.set(spec, res)
@@ -274,10 +291,12 @@ class Advisory {
   [_testSpec] (spec) {
     for (const v of this.versions) {
       const satisfies = semver.satisfies(v, spec)
-      if (!satisfies)
+      if (!satisfies) {
         continue
-      if (!this.testVersion(v))
+      }
+      if (!this.testVersion(v)) {
         return false
+      }
     }
     // either vulnerable, or not installable because nothing satisfied
     // either way, best avoided.
@@ -285,8 +304,9 @@ class Advisory {
   }
 
   [_testVersions] (versions) {
-    if (!versions.length)
+    if (!versions.length) {
       return
+    }
 
     // set of lists of versions
     const versionSets = new Set()
@@ -328,30 +348,34 @@ class Advisory {
       // version in the list, then start there instead.
       let h = 0
       const origHeadVuln = this.testVersion(list[h])
-      while (h < list.length && /-/.test(String(list[h])))
+      while (h < list.length && /-/.test(String(list[h]))) {
         h++
+      }
 
       // don't filter out the whole list!  they might all be pr's
-      if (h === list.length)
+      if (h === list.length) {
         h = 0
-      else if (origHeadVuln) {
+      } else if (origHeadVuln) {
         // if the original was vulnerable, assume so are all of these
-        for (let hh = 0; hh < h; hh++)
+        for (let hh = 0; hh < h; hh++) {
           this[_markVulnerable](list[hh])
+        }
       }
 
       let t = list.length - 1
       const origTailVuln = this.testVersion(list[t])
-      while (t > h && /-/.test(String(list[t])))
+      while (t > h && /-/.test(String(list[t]))) {
         t--
+      }
 
       // don't filter out the whole list!  might all be pr's
-      if (t === h)
+      if (t === h) {
         t = list.length - 1
-      else if (origTailVuln) {
+      } else if (origTailVuln) {
         // if original tail was vulnerable, assume these are as well
-        for (let tt = list.length - 1; tt > t; tt--)
+        for (let tt = list.length - 1; tt > t; tt--) {
           this[_markVulnerable](list[tt])
+        }
       }
 
       const headVuln = h === 0 ? origHeadVuln
@@ -362,14 +386,16 @@ class Advisory {
 
       // if head and tail both vulnerable, whole list is thrown out
       if (headVuln && tailVuln) {
-        for (let v = h; v < t; v++)
+        for (let v = h; v < t; v++) {
           this[_markVulnerable](list[v])
+        }
         continue
       }
 
       // if length is 2 or 1, then we marked them all already
-      if (t < h + 2)
+      if (t < h + 2) {
         continue
+      }
 
       const mid = Math.floor(list.length / 2)
       const pre = list.slice(0, mid)
@@ -382,8 +408,9 @@ class Advisory {
         const midVuln = this.testVersion(pre[pre.length - 1])
         while (/-/.test(String(pre[pre.length - 1]))) {
           const v = pre.pop()
-          if (midVuln)
+          if (midVuln) {
             this[_markVulnerable](v)
+          }
         }
       }
 
@@ -391,8 +418,9 @@ class Advisory {
         const midVuln = this.testVersion(post[0])
         while (/-/.test(String(post[0]))) {
           const v = post.shift()
-          if (midVuln)
+          if (midVuln) {
             this[_markVulnerable](v)
+          }
         }
       }
 

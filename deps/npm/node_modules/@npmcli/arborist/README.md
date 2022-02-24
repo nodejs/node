@@ -333,3 +333,13 @@ pruning nodes from the tree.
 
 Note: `devOptional` is only set in the shrinkwrap/package-lock file if
 _neither_ `dev` nor `optional` are set, as it would be redundant.
+
+## BIN
+
+Arborist ships with a cli that can be used to run arborist specific commands outside of the context of the npm CLI. This script is currently not part of the public API and is subject to breaking changes outside of major version bumps.
+
+To see the usage run:
+
+```
+npx @npmcli/arborist --help
+```

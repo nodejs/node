@@ -31,7 +31,6 @@ class DistTag extends BaseCommand {
   async exec ([cmdName, pkg, tag]) {
     const opts = {
       ...this.npm.flatOptions,
-      log,
     }
 
     if (['add', 'a', 'set', 's'].includes(cmdName)) {

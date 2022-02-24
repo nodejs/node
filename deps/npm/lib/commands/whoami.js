@@ -1,5 +1,4 @@
 const getIdentity = require('../utils/get-identity.js')
-const log = require('../utils/log-shim.js')
 
 const BaseCommand = require('../base-command.js')
 class Whoami extends BaseCommand {
@@ -8,7 +7,7 @@ class Whoami extends BaseCommand {
   static params = ['registry']
 
   async exec (args) {
-    const username = await getIdentity(this.npm, { ...this.npm.flatOptions, log })
+    const username = await getIdentity(this.npm, { ...this.npm.flatOptions })
     this.npm.output(
       this.npm.config.get('json') ? JSON.stringify(username) : username
     )

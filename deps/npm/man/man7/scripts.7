@@ -443,6 +443,12 @@ for anything else\. You should almost never have to explicitly set a
 preinstall or install script\. If you are doing this, please consider if
 there is another option\. The only valid use of \fBinstall\fP or \fBpreinstall\fP
 scripts is for compilation which must be done on the target architecture\.
+.IP \(bu 2
+Scripts are run from the root of the package folder, regardless of what the
+current working directory is when \fBnpm\fP is invoked\. If you want your
+script to use different behavior based on what subdirectory you're in, you
+can use the \fBINIT_CWD\fP environment variable, which holds the full path you
+were in when you ran \fBnpm run\fP\|\.
 
 .RE
 .SS See Also

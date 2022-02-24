@@ -1,6 +1,6 @@
 {
   "name": "libnpmexec",
-  "version": "3.0.3",
+  "version": "4.0.0",
   "files": [
     "bin",
     "lib"
@@ -50,14 +50,15 @@
     "tap": "^15.0.6"
   },
   "dependencies": {
-    "@npmcli/arborist": "^4.0.0",
+    "@npmcli/arborist": "^5.0.0",
     "@npmcli/ci-detect": "^2.0.0",
-    "@npmcli/run-script": "^2.0.0",
+    "@npmcli/run-script": "^3.0.0",
     "chalk": "^4.1.0",
     "mkdirp-infer-owner": "^2.0.0",
-    "npm-package-arg": "^8.1.2",
-    "pacote": "^12.0.0",
-    "proc-log": "^1.0.0",
+    "npm-package-arg": "^9.0.0",
+    "npmlog": "^6.0.1",
+    "pacote": "^13.0.2",
+    "proc-log": "^2.0.0",
     "read": "^1.0.7",
     "read-package-json-fast": "^2.0.2",
     "walk-up-path": "^1.0.0"

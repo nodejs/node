@@ -8,6 +8,7 @@ const npa = require('npm-package-arg')
 const semver = require('semver')
 const debug = require('../debug.js')
 const walkUp = require('walk-up-path')
+const log = require('proc-log')
 
 const { dirname, resolve, relative } = require('path')
 const { depth: dfwalk } = require('treeverse')
@@ -390,7 +391,7 @@ module.exports = cls => class Reifier extends cls {
   [_addNodeToTrashList] (node, retire = false) {
     const paths = [node.path, ...node.binPaths]
     const moves = this[_retiredPaths]
-    this.log.silly('reify', 'mark', retire ? 'retired' : 'deleted', paths)
+    log.silly('reify', 'mark', retire ? 'retired' : 'deleted', paths)
     for (const path of paths) {
       if (retire) {
         const retired = retirePath(path)
@@ -413,7 +414,7 @@ module.exports = cls => class Reifier extends cls {
         this[_addNodeToTrashList](diff.actual, true)
       }
     }
-    this.log.silly('reify', 'moves', moves)
+    log.silly('reify', 'moves', moves)
     const movePromises = Object.entries(moves)
       .map(([from, to]) => this[_renamePath](from, to))
     return promiseAllRejectLate(movePromises)
@@ -532,7 +533,7 @@ module.exports = cls => class Reifier extends cls {
     return promiseAllRejectLate(unlinks)
       .then(() => {
         if (failures.length) {
-          this.log.warn('cleanup', 'Failed to remove some directories', failures)
+          log.warn('cleanup', 'Failed to remove some directories', failures)
         }
       })
       .then(() => process.emit('timeEnd', 'reify:rollback:createSparse'))
@@ -624,7 +625,7 @@ module.exports = cls => class Reifier extends cls {
       this[_nmValidated].add(nm)
       return
     }
-    this.log.warn('reify', 'Removing non-directory', nm)
+    log.warn('reify', 'Removing non-directory', nm)
     await rimraf(nm)
   }
 
@@ -647,8 +648,8 @@ module.exports = cls => class Reifier extends cls {
         'please re-try this operation once it completes\n' +
         'so that the damage can be corrected, or perform\n' +
         'a fresh install with no lockfile if the problem persists.'
-      this.log.warn('reify', warning)
-      this.log.verbose('reify', 'unrecognized node in tree', node.path)
+      log.warn('reify', warning)
+      log.verbose('reify', 'unrecognized node in tree', node.path)
       node.parent = null
       node.fsParent = null
       this[_addNodeToTrashList](node)
@@ -691,7 +692,7 @@ module.exports = cls => class Reifier extends cls {
   [_warnDeprecated] (node) {
     const { _id, deprecated } = node.package
     if (deprecated) {
-      this.log.warn('deprecated', `${_id}: ${deprecated}`)
+      log.warn('deprecated', `${_id}: ${deprecated}`)
     }
   }
 
@@ -701,7 +702,7 @@ module.exports = cls => class Reifier extends cls {
     return (node.optional ? p.catch(er => {
       const set = optionalSet(node)
       for (node of set) {
-        this.log.verbose('reify', 'failed optional dependency', node.path)
+        log.verbose('reify', 'failed optional dependency', node.path)
         this[_addNodeToTrashList](node)
       }
     }) : p).then(() => node)
@@ -716,7 +717,7 @@ module.exports = cls => class Reifier extends cls {
     // Shrinkwrap and Node classes carefully, so for now, just treat
     // the default reg as the magical animal that it has been.
     return resolved && resolved
-      .replace(/^https?:\/\/registry.npmjs.org\//, this.registry)
+      .replace(/^https?:\/\/registry\.npmjs\.org\//, this.registry)
   }
 
   // bundles are *sort of* like shrinkwraps, in that the branch is defined
@@ -1129,7 +1130,7 @@ module.exports = cls => class Reifier extends cls {
 
     return promiseAllRejectLate(promises).then(() => {
       if (failures.length) {
-        this.log.warn('cleanup', 'Failed to remove some directories', failures)
+        log.warn('cleanup', 'Failed to remove some directories', failures)
       }
     })
       .then(() => process.emit('timeEnd', 'reify:trash'))

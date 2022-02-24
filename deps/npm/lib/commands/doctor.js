@@ -125,8 +125,7 @@ class Doctor extends BaseCommand {
       stringLength: s => ansiTrim(s).length,
     }
 
-    const silent = log.levels[log.level] > log.levels.error
-    if (!silent) {
+    if (!this.npm.silent) {
       this.npm.output(table(outTable, tableOpts))
       if (!allOk) {
         console.error('')

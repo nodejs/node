@@ -54,7 +54,6 @@ class Update extends ArboristWorkspaceCmd {
 
     const opts = {
       ...this.npm.flatOptions,
-      log,
       path: where,
       save,
       workspaces: this.workspaceNames,

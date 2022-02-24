@@ -1,20 +1,14 @@
 const _progress = Symbol('_progress')
 const _onError = Symbol('_onError')
-const procLog = require('proc-log')
+const npmlog = require('npmlog')
 
 module.exports = cls => class Tracker extends cls {
   constructor (options = {}) {
     super(options)
-    this.log = options.log || procLog
     this[_progress] = new Map()
   }
 
   addTracker (section, subsection = null, key = null) {
-    // TrackerGroup type object not found
-    if (!this.log.newGroup) {
-      return
-    }
-
     if (section === null || section === undefined) {
       this[_onError](`Tracker can't be null or undefined`)
     }
@@ -31,13 +25,13 @@ module.exports = cls => class Tracker extends cls {
       this[_onError](`Tracker "${section}" already exists`)
     } else if (!hasTracker && subsection === null) {
       // 1. no existing tracker, no subsection
-      // Create a new tracker from this.log
+      // Create a new tracker from npmlog
       // starts progress bar
       if (this[_progress].size === 0) {
-        this.log.enableProgress()
+        npmlog.enableProgress()
       }
 
-      this[_progress].set(section, this.log.newGroup(section))
+      this[_progress].set(section, npmlog.newGroup(section))
     } else if (!hasTracker && subsection !== null) {
       // 2. no parent tracker and subsection
       this[_onError](`Parent tracker "${section}" does not exist`)
@@ -53,11 +47,6 @@ module.exports = cls => class Tracker extends cls {
   }
 
   finishTracker (section, subsection = null, key = null) {
-    // TrackerGroup type object not found
-    if (!this.log.newGroup) {
-      return
-    }
-
     if (section === null || section === undefined) {
       this[_onError](`Tracker can't be null or undefined`)
     }
@@ -88,7 +77,7 @@ module.exports = cls => class Tracker extends cls {
       // remove progress bar if all
       // trackers are finished
       if (this[_progress].size === 0) {
-        this.log.disableProgress()
+        npmlog.disableProgress()
       }
     } else if (!hasTracker && subsection === null) {
       // 1. no existing parent tracker, no subsection
@@ -103,7 +92,7 @@ module.exports = cls => class Tracker extends cls {
   }
 
   [_onError] (msg) {
-    this.log.disableProgress()
+    npmlog.disableProgress()
     throw new Error(msg)
   }
 }
