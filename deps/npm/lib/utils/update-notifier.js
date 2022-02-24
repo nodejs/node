@@ -10,7 +10,6 @@ const { promisify } = require('util')
 const stat = promisify(require('fs').stat)
 const writeFile = promisify(require('fs').writeFile)
 const { resolve } = require('path')
-const log = require('./log-shim.js')
 
 const isGlobalNpmUpdate = npm => {
   return npm.flatOptions.global &&
@@ -62,7 +61,7 @@ const updateNotifier = async (npm, spec = 'latest') => {
 
   // if they're currently using a prerelease, nudge to the next prerelease
   // otherwise, nudge to latest.
-  const useColor = log.useColor()
+  const useColor = npm.logColor
 
   const mani = await pacote.manifest(`npm@${spec}`, {
     // always prefer latest, even if doing --tag=whatever on the cmd

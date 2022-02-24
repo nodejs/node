@@ -1,6 +1,6 @@
 // replace any ${ENV} values with the appropriate environ.
 
-const envExpr = /(\\*)\$\{([^}]+)\}/g
+const envExpr = /(?<!\\)(\\*)\$\{([^${}]+)\}/g
 
 module.exports = (f, env) => f.replace(envExpr, (orig, esc, name) => {
   const val = env[name] !== undefined ? env[name] : `$\{${name}}`

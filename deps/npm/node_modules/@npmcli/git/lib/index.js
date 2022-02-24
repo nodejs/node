@@ -5,5 +5,5 @@ module.exports = {
   is: require('./is.js'),
   find: require('./find.js'),
   isClean: require('./is-clean.js'),
-  errors: require('./errors.js')
+  errors: require('./errors.js'),
 }

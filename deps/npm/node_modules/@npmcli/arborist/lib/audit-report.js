@@ -13,7 +13,7 @@ const _fixAvailable = Symbol('fixAvailable')
 const _checkTopNode = Symbol('checkTopNode')
 const _init = Symbol('init')
 const _omit = Symbol('omit')
-const procLog = require('proc-log')
+const log = require('proc-log')
 
 const fetch = require('npm-registry-fetch')
 
@@ -98,14 +98,13 @@ class AuditReport extends Map {
     this.calculator = new Calculator(opts)
     this.error = null
     this.options = opts
-    this.log = opts.log || procLog
     this.tree = tree
     this.filterSet = opts.filterSet
   }
 
   async run () {
     this.report = await this[_getReport]()
-    this.log.silly('audit report', this.report)
+    log.silly('audit report', this.report)
     if (this.report) {
       await this[_init]()
     }
@@ -313,7 +312,7 @@ class AuditReport extends Map {
       try {
         // first try the super fast bulk advisory listing
         const body = prepareBulkData(this.tree, this[_omit], this.filterSet)
-        this.log.silly('audit', 'bulk request', body)
+        log.silly('audit', 'bulk request', body)
 
         // no sense asking if we don't have anything to audit,
         // we know it'll be empty
@@ -331,7 +330,7 @@ class AuditReport extends Map {
 
         return await res.json()
       } catch (er) {
-        this.log.silly('audit', 'bulk request failed', String(er.body))
+        log.silly('audit', 'bulk request failed', String(er.body))
         // that failed, try the quick audit endpoint
         const body = prepareData(this.tree, this.options)
         const res = await fetch('/-/npm/v1/security/audits/quick', {
@@ -344,8 +343,8 @@ class AuditReport extends Map {
         return AuditReport.auditToBulk(await res.json())
       }
     } catch (er) {
-      this.log.verbose('audit error', er)
-      this.log.silly('audit error', String(er.body))
+      log.verbose('audit error', er)
+      log.silly('audit error', String(er.body))
       this.error = er
       return null
     } finally {

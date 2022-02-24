@@ -1222,6 +1222,9 @@ define('loglevel', {
 
     See also the \`foreground-scripts\` config.
   `,
+  flatten (key, obj, flatOptions) {
+    flatOptions.silent = obj[key] === 'silent'
+  },
 })
 
 define('logs-max', {

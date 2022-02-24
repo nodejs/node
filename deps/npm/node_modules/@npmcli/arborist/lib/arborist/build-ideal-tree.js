@@ -14,6 +14,7 @@ const fs = require('fs')
 const lstat = promisify(fs.lstat)
 const readlink = promisify(fs.readlink)
 const { depth } = require('treeverse')
+const log = require('proc-log')
 
 const {
   OK,
@@ -248,7 +249,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
       try {
         c()
       } catch (er) {
-        this.log.warn(er.code, er.message, {
+        log.warn(er.code, er.message, {
           package: er.pkgid,
           required: er.required,
           current: er.current,
@@ -532,7 +533,6 @@ Try using the package name instead, e.g:
         saveBundle,
         saveType,
         path: this.path,
-        log: this.log,
       })
     })
   }
@@ -602,7 +602,7 @@ Try using the package name instead, e.g:
         // be printed by npm-audit-report as if they can be fixed, because
         // they can't.
         if (bundler) {
-          this.log.warn(`audit fix ${node.name}@${node.version}`,
+          log.warn(`audit fix ${node.name}@${node.version}`,
             `${node.location}\nis a bundled dependency of\n${
             bundler.name}@${bundler.version} at ${bundler.location}\n` +
             'It cannot be fixed automatically.\n' +
@@ -637,14 +637,14 @@ Try using the package name instead, e.g:
           if (!node.isProjectRoot && !node.isWorkspace) {
             // not something we're going to fix, sorry.  have to cd into
             // that directory and fix it yourself.
-            this.log.warn('audit', 'Manual fix required in linked project ' +
+            log.warn('audit', 'Manual fix required in linked project ' +
               `at ./${node.location} for ${name}@${simpleRange}.\n` +
               `'cd ./${node.location}' and run 'npm audit' for details.`)
             continue
           }
 
           if (!fixAvailable) {
-            this.log.warn('audit', `No fix available for ${name}@${simpleRange}`)
+            log.warn('audit', `No fix available for ${name}@${simpleRange}`)
             continue
           }
 
@@ -652,7 +652,7 @@ Try using the package name instead, e.g:
           const breakingMessage = isSemVerMajor
             ? 'a SemVer major change'
             : 'outside your stated dependency range'
-          this.log.warn('audit', `Updating ${name} to ${version},` +
+          log.warn('audit', `Updating ${name} to ${version},` +
             `which is ${breakingMessage}.`)
 
           await this[_add](node, { add: [`${name}@${version}`] })
@@ -727,7 +727,7 @@ Try using the package name instead, e.g:
     const heading = ancient ? 'ancient lockfile' : 'old lockfile'
     if (ancient || !this.options.lockfileVersion ||
         this.options.lockfileVersion >= defaultLockfileVersion) {
-      this.log.warn(heading,
+      log.warn(heading,
         `
 The ${meta.type} file was created with an old version of npm,
 so supplemental metadata must be fetched from the registry.
@@ -744,7 +744,7 @@ This is a one-time fix-up, please be patient...
       }
 
       queue.push(async () => {
-        this.log.silly('inflate', node.location)
+        log.silly('inflate', node.location)
         const { resolved, version, path, name, location, integrity } = node
         // don't try to hit the registry for linked deps
         const useResolved = resolved && (
@@ -753,8 +753,7 @@ This is a one-time fix-up, please be patient...
         const id = useResolved ? resolved
           : version || `file:${node.path}`
         const spec = npa.resolve(name, id, dirname(path))
-        const sloc = location.substr('node_modules/'.length)
-        const t = `idealTree:inflate:${sloc}`
+        const t = `idealTree:inflate:${location}`
         this.addTracker(t)
         await pacote.manifest(spec, {
           ...this.options,
@@ -765,7 +764,7 @@ This is a one-time fix-up, please be patient...
           node.package = { ...mani, _id: `${mani.name}@${mani.version}` }
         }).catch((er) => {
           const warning = `Could not fetch metadata for ${name}@${id}`
-          this.log.warn(heading, warning, er)
+          log.warn(heading, warning, er)
         })
         this.finishTracker(t)
       })
@@ -794,7 +793,7 @@ This is a one-time fix-up, please be patient...
     this[_depsQueue].push(tree)
     // XXX also push anything that depends on a node with a name
     // in the override list
-    this.log.silly('idealTree', 'buildDeps')
+    log.silly('idealTree', 'buildDeps')
     this.addTracker('idealTree', tree.name, '')
     return this[_buildDepStep]()
       .then(() => process.emit('timeEnd', 'idealTree:buildDeps'))
@@ -1233,7 +1232,7 @@ This is a one-time fix-up, please be patient...
     if (this[_manifests].has(spec.raw)) {
       return this[_manifests].get(spec.raw)
     } else {
-      this.log.silly('fetch manifest', spec.raw)
+      log.silly('fetch manifest', spec.raw)
       const p = pacote.manifest(spec, options)
         .then(mani => {
           this[_manifests].set(spec.raw, mani)

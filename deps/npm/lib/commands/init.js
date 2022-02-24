@@ -114,7 +114,6 @@ class Init extends BaseCommand {
       color,
       localBin,
       locationMsg,
-      log,
       globalBin,
       output,
       path,

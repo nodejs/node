@@ -116,7 +116,7 @@ class RunScript extends BaseCommand {
       stdio: 'inherit',
       stdioString: true,
       pkg,
-      banner: log.level !== 'silent',
+      banner: !this.npm.silent,
     }
 
     for (const [event, args] of events) {
@@ -139,7 +139,7 @@ class RunScript extends BaseCommand {
     }
 
     const allScripts = Object.keys(scripts)
-    if (log.level === 'silent') {
+    if (this.npm.silent) {
       return allScripts
     }
 
@@ -233,7 +233,7 @@ class RunScript extends BaseCommand {
   async listWorkspaces (args, filters) {
     await this.setWorkspaces(filters)
 
-    if (log.level === 'silent') {
+    if (this.npm.silent) {
       return
     }
 

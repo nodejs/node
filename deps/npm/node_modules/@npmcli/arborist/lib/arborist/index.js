@@ -28,7 +28,6 @@
 
 const { resolve } = require('path')
 const { homedir } = require('os')
-const procLog = require('proc-log')
 const { depth } = require('treeverse')
 const { saveTypeMap } = require('../add-rm-pkg-deps.js')
 
@@ -74,7 +73,6 @@ class Arborist extends Base {
       path: options.path || '.',
       cache: options.cache || `${homedir()}/.npm/_cacache`,
       packumentCache: options.packumentCache || new Map(),
-      log: options.log || procLog,
       workspacesEnabled: options.workspacesEnabled !== false,
       lockfileVersion: lockfileVersion(options.lockfileVersion),
     }
@@ -94,7 +92,7 @@ class Arborist extends Base {
 
   // returns an array of the actual nodes for all the workspaces
   workspaceNodes (tree, workspaces) {
-    return getWorkspaceNodes(tree, workspaces, this.log)
+    return getWorkspaceNodes(tree, workspaces)
   }
 
   // returns a set of workspace nodes and all their deps

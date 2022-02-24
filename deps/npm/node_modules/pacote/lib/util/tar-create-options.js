@@ -9,7 +9,7 @@ const tarCreateOptions = manifest => ({
     // platform specific optimizations that cause
     // integrity mismatch errors due to differing
     // end results after compression
-    level: 9
+    level: 9,
   },
 
   // ensure that package bins are always executable
@@ -17,8 +17,9 @@ const tarCreateOptions = manifest => ({
   // anything that is not a regular file, ignored by
   // .npmignore or package.json "files", etc.
   filter: (path, stat) => {
-    if (isPackageBin(manifest, path))
+    if (isPackageBin(manifest, path)) {
       stat.mode |= 0o111
+    }
     return true
   },
 

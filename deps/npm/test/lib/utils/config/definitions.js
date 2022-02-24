@@ -929,3 +929,12 @@ t.test('lockfile version', t => {
   t.match(flat.lockfileVersion, 3, 'flattens to a number')
   t.end()
 })
+
+t.test('loglevel silent', t => {
+  const flat = {}
+  definitions.loglevel.flatten('loglevel', {
+    loglevel: 'silent',
+  }, flat)
+  t.match(flat.silent, true, 'flattens to assign silent')
+  t.end()
+})

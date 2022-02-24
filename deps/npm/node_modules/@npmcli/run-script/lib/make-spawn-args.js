@@ -1,7 +1,7 @@
 /* eslint camelcase: "off" */
 const isWindows = require('./is-windows.js')
 const setPATH = require('./set-path.js')
-const {resolve} = require('path')
+const { resolve } = require('path')
 const npm_config_node_gyp = require.resolve('node-gyp/bin/node-gyp.js')
 
 const makeSpawnArgs = options => {
