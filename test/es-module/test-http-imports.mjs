@@ -145,7 +145,6 @@ for (const { protocol, createServer } of [
     const relativeDepsNS = await import(relativeDeps.href);
     assert.strict.deepStrictEqual(Object.keys(relativeDepsNS), ['http']);
     assert.strict.equal(relativeDepsNS.http, ns);
-  
     const fileDep = new URL(url.href);
     const { href } = pathToFileURL(path('/es-modules/message.mjs'));
     fileDep.searchParams.set('body', `
