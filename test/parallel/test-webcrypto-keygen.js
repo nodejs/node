@@ -9,7 +9,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const { types: { isCryptoKey } } = require('util');
 const {
-  webcrypto: { subtle, CryptoKey },
+  webcrypto: { subtle },
   createSecretKey,
   KeyObject,
 } = require('crypto');
