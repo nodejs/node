@@ -1120,7 +1120,7 @@ pkg: $(PKG)
 .PHONY: corepack-update
 corepack-update:
 	mkdir -p /tmp/node-corepack
-	wget -q "$$(npm view corepack dist.tarball)" -O /tmp/node-corepack/package.tgz
+	curl -qLo /tmp/node-corepack/package.tgz "$$(npm view corepack dist.tarball)"
 
 	rm -rf deps/corepack && mkdir deps/corepack
 	cd deps/corepack && tar xf /tmp/node-corepack/package.tgz --strip-components=1
