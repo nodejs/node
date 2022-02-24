@@ -40,7 +40,8 @@ const links = toc.match(globalRe);
 assert.notStrictEqual(links, null);
 
 // Filter out duplicate links, leave just filenames, add expected JSON files.
-const linkedHtmls = [...new Set(links)].map((link) => link.match(re)[1]);
+const linkedHtmls = [...new Set(links)].map((link) => link.match(re)[1])
+                      .concat(['index.html']);
 const expectedJsons = linkedHtmls
                        .map((name) => name.replace('.html', '.json'));
 const expectedDocs = linkedHtmls.concat(expectedJsons);
