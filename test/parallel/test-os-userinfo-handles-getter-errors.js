@@ -6,7 +6,7 @@ const common = require('../common');
 const assert = require('assert');
 const execFile = require('child_process').execFile;
 
-const script = `os.userInfo({
+const script = `node.os.userInfo({
   get encoding() {
     throw new Error('xyz');
   }

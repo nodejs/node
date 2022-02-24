@@ -11,7 +11,7 @@ const scripts = [];
 
 ['filename', 'cachedData', 'produceCachedData', 'lineOffset', 'columnOffset']
   .forEach((prop) => {
-    scripts.push(`vm.createScript('', {
+    scripts.push(`node.vm.createScript('', {
       get ${prop} () {
         throw new Error('xyz');
       }
@@ -20,7 +20,7 @@ const scripts = [];
 
 ['breakOnSigint', 'timeout', 'displayErrors']
   .forEach((prop) => {
-    scripts.push(`vm.createScript('').runInThisContext({
+    scripts.push(`node.vm.createScript('').runInThisContext({
       get ${prop} () {
         throw new Error('xyz');
       }

@@ -13,7 +13,7 @@ function runTest(fd, streamName, testOutputStream, expectedName) {
     '-e',
     `const { internalBinding } = require('internal/test/binding');
     internalBinding('process_methods').resetStdioForTesting();
-    fs.closeSync(${fd});
+    node.fs.closeSync(${fd});
     const ctorName = process.${streamName}.constructor.name;
     process.${testOutputStream}.write(ctorName);
     `]);

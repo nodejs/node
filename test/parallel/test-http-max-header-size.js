@@ -7,5 +7,5 @@ const http = require('http');
 
 assert.strictEqual(http.maxHeaderSize, 16 * 1024);
 const child = spawnSync(process.execPath, ['--max-http-header-size=10', '-p',
-                                           'http.maxHeaderSize']);
+                                           'node.http.maxHeaderSize']);
 assert.strictEqual(+child.stdout.toString().trim(), 10);

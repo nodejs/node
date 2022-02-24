@@ -24,9 +24,9 @@ function doCheck(arg, expression, check) {
 }
 
 // Test the default unmodified version
-doCheck([], 'crypto.constants.defaultCipherList', defaultCoreList);
-doCheck([], 'tls.DEFAULT_CIPHERS', defaultCoreList);
+doCheck([], 'node.crypto.constants.defaultCipherList', defaultCoreList);
+doCheck([], 'node.tls.DEFAULT_CIPHERS', defaultCoreList);
 
 // Test the command line switch by itself
-doCheck(['--tls-cipher-list=ABC'], 'crypto.constants.defaultCipherList', 'ABC');
-doCheck(['--tls-cipher-list=ABC'], 'tls.DEFAULT_CIPHERS', 'ABC');
+doCheck(['--tls-cipher-list=ABC'], 'node.crypto.constants.defaultCipherList', 'ABC');
+doCheck(['--tls-cipher-list=ABC'], 'node.tls.DEFAULT_CIPHERS', 'ABC');

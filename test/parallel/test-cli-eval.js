@@ -83,7 +83,7 @@ child.exec(`${nodejs} --eval "console.error(42)"`,
 }
 
 // Check that builtin modules are pre-defined.
-child.exec(`${nodejs} --print "os.platform()"`,
+child.exec(`${nodejs} --print "node.os.platform()"`,
            common.mustSucceed((stdout, stderr) => {
              assert.strictEqual(stderr, '');
              assert.strictEqual(stdout.trim(), require('os').platform());

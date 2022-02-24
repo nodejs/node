@@ -16,102 +16,102 @@ if (!common.isWindows) {
   uid = process.getuid();
 }
 
-tests['fs.sync.access'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                          'fs.accessSync("fs.txt");' +
-                          'fs.unlinkSync("fs.txt")';
-tests['fs.sync.chmod'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                         'fs.chmodSync("fs.txt",100);' +
-                         'fs.unlinkSync("fs.txt")';
-tests['fs.sync.chown'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                         `fs.chownSync("fs.txt", ${uid}, ${gid});` +
-                         'fs.unlinkSync("fs.txt")';
-tests['fs.sync.close'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                         'fs.unlinkSync("fs.txt")';
-tests['fs.sync.copyfile'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                            'fs.copyFileSync("fs.txt","a.txt");' +
-                            'fs.unlinkSync("fs.txt")';
-tests['fs.sync.fchmod'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                          'const fd = fs.openSync("fs.txt", "r+");' +
-                          'fs.fchmodSync(fd,100);' +
-                          'fs.unlinkSync("fs.txt")';
-tests['fs.sync.fchown'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                          'const fd = fs.openSync("fs.txt", "r+");' +
-                          `fs.fchownSync(fd, ${uid}, ${gid});` +
-                          'fs.unlinkSync("fs.txt")';
-tests['fs.sync.fdatasync'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                             'const fd = fs.openSync("fs.txt", "r+");' +
-                             'fs.fdatasyncSync(fd);' +
-                             'fs.unlinkSync("fs.txt")';
-tests['fs.sync.fstat'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                         'fs.readFileSync("fs.txt");' +
-                         'fs.unlinkSync("fs.txt")';
-tests['fs.sync.fsync'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                         'const fd = fs.openSync("fs.txt", "r+");' +
-                         'fs.fsyncSync(fd);' +
-                         'fs.unlinkSync("fs.txt")';
-tests['fs.sync.ftruncate'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                             'const fd = fs.openSync("fs.txt", "r+");' +
-                             'fs.ftruncateSync(fd, 1);' +
-                             'fs.unlinkSync("fs.txt")';
-tests['fs.sync.futimes'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                           'const fd = fs.openSync("fs.txt", "r+");' +
-                           'fs.futimesSync(fd,1,1);' +
-                           'fs.unlinkSync("fs.txt")';
-tests['fs.sync.lchown'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                          `fs.lchownSync("fs.txt", ${uid}, ${gid});` +
-                          'fs.unlinkSync("fs.txt")';
-tests['fs.sync.link'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                        'fs.linkSync("fs.txt", "linkx");' +
-                        'fs.unlinkSync("linkx");' +
-                        'fs.unlinkSync("fs.txt")';
-tests['fs.sync.lstat'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                         'fs.lstatSync("fs.txt");' +
-                         'fs.unlinkSync("fs.txt")';
-tests['fs.sync.mkdir'] = 'fs.mkdirSync("fstemp");' +
-                         'fs.rmdirSync("fstemp")';
-tests['fs.sync.mkdtemp'] = 'const fp = fs.mkdtempSync("fstest");' +
-                           'fs.rmdirSync(fp)';
-tests['fs.sync.open'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                        'fs.unlinkSync("fs.txt")';
-tests['fs.sync.read'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                        'fs.readFileSync("fs.txt");' +
-                        'fs.unlinkSync("fs.txt")';
-tests['fs.sync.readdir'] = 'fs.readdirSync("./")';
-tests['fs.sync.realpath'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                            'fs.linkSync("fs.txt", "linkx");' +
-                            'fs.realpathSync.native("linkx");' +
-                            'fs.unlinkSync("linkx");' +
-                            'fs.unlinkSync("fs.txt")';
-tests['fs.sync.rename'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                          'fs.renameSync("fs.txt","xyz.txt"); ' +
-                          'fs.unlinkSync("xyz.txt")';
-tests['fs.sync.rmdir'] = 'fs.mkdirSync("fstemp");' +
-                         'fs.rmdirSync("fstemp")';
-tests['fs.sync.stat'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                        'fs.statSync("fs.txt");' +
-                        'fs.unlinkSync("fs.txt")';
-tests['fs.sync.unlink'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                          'fs.linkSync("fs.txt", "linkx");' +
-                          'fs.unlinkSync("linkx");' +
-                          'fs.unlinkSync("fs.txt")';
-tests['fs.sync.utimes'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                          'fs.utimesSync("fs.txt",1,1);' +
-                          'fs.unlinkSync("fs.txt")';
-tests['fs.sync.write'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                         'fs.unlinkSync("fs.txt")';
+tests['fs.sync.access'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                          'node.fs.accessSync("fs.txt");' +
+                          'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.chmod'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                         'node.fs.chmodSync("fs.txt",100);' +
+                         'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.chown'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                         `node.fs.chownSync("fs.txt", ${uid}, ${gid});` +
+                         'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.close'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                         'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.copyfile'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                            'node.fs.copyFileSync("fs.txt","a.txt");' +
+                            'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.fchmod'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                          'const fd = node.fs.openSync("fs.txt", "r+");' +
+                          'node.fs.fchmodSync(fd,100);' +
+                          'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.fchown'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                          'const fd = node.fs.openSync("fs.txt", "r+");' +
+                          `node.fs.fchownSync(fd, ${uid}, ${gid});` +
+                          'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.fdatasync'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                             'const fd = node.fs.openSync("fs.txt", "r+");' +
+                             'node.fs.fdatasyncSync(fd);' +
+                             'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.fstat'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                         'node.fs.readFileSync("fs.txt");' +
+                         'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.fsync'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                         'const fd = node.fs.openSync("fs.txt", "r+");' +
+                         'node.fs.fsyncSync(fd);' +
+                         'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.ftruncate'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                             'const fd = node.fs.openSync("fs.txt", "r+");' +
+                             'node.fs.ftruncateSync(fd, 1);' +
+                             'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.futimes'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                           'const fd = node.fs.openSync("fs.txt", "r+");' +
+                           'node.fs.futimesSync(fd,1,1);' +
+                           'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.lchown'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                          `node.fs.lchownSync("fs.txt", ${uid}, ${gid});` +
+                          'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.link'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                        'node.fs.linkSync("fs.txt", "linkx");' +
+                        'node.fs.unlinkSync("linkx");' +
+                        'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.lstat'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                         'node.fs.lstatSync("fs.txt");' +
+                         'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.mkdir'] = 'node.fs.mkdirSync("fstemp");' +
+                         'node.fs.rmdirSync("fstemp")';
+tests['fs.sync.mkdtemp'] = 'const fp = node.fs.mkdtempSync("fstest");' +
+                           'node.fs.rmdirSync(fp)';
+tests['fs.sync.open'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                        'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.read'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                        'node.fs.readFileSync("fs.txt");' +
+                        'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.readdir'] = 'node.fs.readdirSync("./")';
+tests['fs.sync.realpath'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                            'node.fs.linkSync("fs.txt", "linkx");' +
+                            'node.fs.realpathSync.native("linkx");' +
+                            'node.fs.unlinkSync("linkx");' +
+                            'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.rename'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                          'node.fs.renameSync("fs.txt","xyz.txt"); ' +
+                          'node.fs.unlinkSync("xyz.txt")';
+tests['fs.sync.rmdir'] = 'node.fs.mkdirSync("fstemp");' +
+                         'node.fs.rmdirSync("fstemp")';
+tests['fs.sync.stat'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                        'node.fs.statSync("fs.txt");' +
+                        'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.unlink'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                          'node.fs.linkSync("fs.txt", "linkx");' +
+                          'node.fs.unlinkSync("linkx");' +
+                          'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.utimes'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                          'node.fs.utimesSync("fs.txt",1,1);' +
+                          'node.fs.unlinkSync("fs.txt")';
+tests['fs.sync.write'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                         'node.fs.unlinkSync("fs.txt")';
 
 // On windows, we need permissions to test symlink and readlink.
 // We'll only try to run these tests if we have enough privileges.
 if (common.canCreateSymLink()) {
-  tests['fs.sync.symlink'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                             'fs.symlinkSync("fs.txt", "linkx");' +
-                             'fs.unlinkSync("linkx");' +
-                             'fs.unlinkSync("fs.txt")';
-  tests['fs.sync.readlink'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
-                              'fs.symlinkSync("fs.txt", "linkx");' +
-                              'fs.readlinkSync("linkx");' +
-                              'fs.unlinkSync("linkx");' +
-                              'fs.unlinkSync("fs.txt")';
+  tests['fs.sync.symlink'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                             'node.fs.symlinkSync("fs.txt", "linkx");' +
+                             'node.fs.unlinkSync("linkx");' +
+                             'node.fs.unlinkSync("fs.txt")';
+  tests['fs.sync.readlink'] = 'node.fs.writeFileSync("fs.txt", "123", "utf8");' +
+                              'node.fs.symlinkSync("fs.txt", "linkx");' +
+                              'node.fs.readlinkSync("linkx");' +
+                              'node.fs.unlinkSync("linkx");' +
+                              'node.fs.unlinkSync("fs.txt")';
 }
 
 const tmpdir = require('../common/tmpdir');

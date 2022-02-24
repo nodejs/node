@@ -11,7 +11,7 @@ function test(main, callSite, expected) {
   const { stderr } = child_process.spawnSync(process.execPath, ['-p', `
   process.mainModule = { filename: ${JSON.stringify(main)} };
 
-  vm.runInNewContext('new Buffer(10)', { Buffer }, {
+  node.vm.runInNewContext('new Buffer(10)', { Buffer }, {
     filename: ${JSON.stringify(callSite)}
   });`], { encoding: 'utf8' });
   if (expected)
