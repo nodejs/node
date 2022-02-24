@@ -7,7 +7,7 @@ module.exports = lines => finish(lines.reduce(linesToRevsReducer, {
   versions: {},
   'dist-tags': {},
   refs: {},
-  shas: {}
+  shas: {},
 }))
 
 const finish = revs => distTags(shaList(peelTags(revs)))
@@ -52,7 +52,9 @@ const distTags = revs => {
       revs['dist-tags'].latest = v
     } else if (ver.sha === HEAD.sha) {
       revs['dist-tags'].HEAD = v
-      if (!revs.refs.latest) { revs['dist-tags'].latest = v }
+      if (!revs.refs.latest) {
+        revs['dist-tags'].latest = v
+      }
     }
   })
   return revs
@@ -79,7 +81,9 @@ const refType = ref => {
 // return the doc, or null if we should ignore it.
 const lineToRevDoc = line => {
   const split = line.trim().split(/\s+/, 2)
-  if (split.length < 2) { return null }
+  if (split.length < 2) {
+    return null
+  }
 
   const sha = split[0].trim()
   const rawRef = split[1].trim()
@@ -122,7 +126,9 @@ const lineToRevDoc = line => {
 const linesToRevsReducer = (revs, line) => {
   const doc = lineToRevDoc(line)
 
-  if (!doc) { return revs }
+  if (!doc) {
+    return revs
+  }
 
   revs.refs[doc.ref] = doc
   revs.refs[doc.rawRef] = doc

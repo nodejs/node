@@ -2,7 +2,6 @@ const liborg = require('libnpmorg')
 const otplease = require('../utils/otplease.js')
 const Table = require('cli-table3')
 const BaseCommand = require('../base-command.js')
-const log = require('../utils/log-shim.js')
 
 class Org extends BaseCommand {
   static description = 'Manage orgs'
@@ -35,7 +34,6 @@ class Org extends BaseCommand {
   async exec ([cmd, orgname, username, role], cb) {
     return otplease({
       ...this.npm.flatOptions,
-      log,
     }, opts => {
       switch (cmd) {
         case 'add':
@@ -76,7 +74,7 @@ class Org extends BaseCommand {
         this.npm.output(
           [memDeets.org.name, memDeets.org.size, memDeets.user, memDeets.role].join('\t')
         )
-      } else if (!opts.silent && opts.loglevel !== 'silent') {
+      } else if (!this.npm.silent) {
         this.npm.output(
           `Added ${memDeets.user} as ${memDeets.role} to ${memDeets.org.name}. You now have ${
             memDeets.org.size
@@ -118,7 +116,7 @@ class Org extends BaseCommand {
         } else if (opts.parseable) {
           this.npm.output(['user', 'org', 'userCount', 'deleted'].join('\t'))
           this.npm.output([user, org, userCount, true].join('\t'))
-        } else if (!opts.silent && opts.loglevel !== 'silent') {
+        } else if (!this.npm.silent) {
           this.npm.output(
             `Successfully removed ${user} from ${org}. You now have ${userCount} member${
               userCount === 1 ? '' : 's'
@@ -149,7 +147,7 @@ class Org extends BaseCommand {
         Object.keys(roster).forEach(user => {
           this.npm.output([user, roster[user]].join('\t'))
         })
-      } else if (!opts.silent && opts.loglevel !== 'silent') {
+      } else if (!this.npm.silent) {
         const table = new Table({ head: ['user', 'role'] })
         Object.keys(roster)
           .sort()

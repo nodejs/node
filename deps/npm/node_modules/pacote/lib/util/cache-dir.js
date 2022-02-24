@@ -1,5 +1,5 @@
 const os = require('os')
-const {resolve} = require('path')
+const { resolve } = require('path')
 
 module.exports = (fakePlatform = false) => {
   const temp = os.tmpdir()

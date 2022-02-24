@@ -4,6 +4,7 @@ const { join } = require('path')
 const fs = require('fs')
 const ansiTrim = require('../../../lib/utils/ansi-trim.js')
 const isWindows = require('../../../lib/utils/is-windows.js')
+const { fake: mockNpm } = require('../../fixtures/mock-npm')
 
 // getuid and getgid do not exist in windows, so we shim them
 // to return 0, as that is the value that lstat will assign the
@@ -61,15 +62,18 @@ const clearLogs = () => {
   }
 }
 
-const npm = {
+const npm = mockNpm({
   flatOptions: {
     registry: 'https://registry.npmjs.org/',
+  },
+  config: {
+    loglevel: 'info',
   },
   version: '7.1.0',
   output: data => {
     output.push(data)
   },
-}
+})
 
 let latestNpm = npm.version
 const pacote = {
@@ -211,7 +215,7 @@ t.test('node versions', t => {
         npm.globalDir = dir
         npm.localBin = dir
         npm.globalBin = dir
-        mocks.npmlog.level = 'info'
+        npm.config.set('loglevel', 'silent')
 
         st.teardown(() => {
           delete npm.cache
@@ -220,7 +224,7 @@ t.test('node versions', t => {
           delete npm.globalDir
           delete npm.localBin
           delete npm.globalBin
-          mocks.npmlog.level = 'error'
+          npm.config.set('loglevel', 'info')
           clearLogs()
         })
 

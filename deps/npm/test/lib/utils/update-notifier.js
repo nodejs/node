@@ -84,12 +84,11 @@ t.afterEach(() => {
 })
 
 const runUpdateNotifier = async ({ color = true, ...npmOptions } = {}) => {
-  const _npm = { ...defaultNpm, ...npmOptions }
+  const _npm = { ...defaultNpm, ...npmOptions, logColor: color }
   await t.mock('../../../lib/utils/update-notifier.js', {
     '@npmcli/ci-detect': () => ciMock,
     pacote,
     fs,
-    npmlog: { useColor: () => color },
   })(_npm)
   return _npm.updateNotification
 }

@@ -1,6 +1,6 @@
 {
   "name": "libnpmdiff",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "The registry diff",
   "repository": "https://github.com/npm/libnpmdiff",
   "main": "lib/index.js",
@@ -53,8 +53,8 @@
     "binary-extensions": "^2.2.0",
     "diff": "^5.0.0",
     "minimatch": "^3.0.4",
-    "npm-package-arg": "^8.1.4",
-    "pacote": "^12.0.0",
+    "npm-package-arg": "^9.0.0",
+    "pacote": "^13.0.2",
     "tar": "^6.1.0"
   },
   "templateOSS": {

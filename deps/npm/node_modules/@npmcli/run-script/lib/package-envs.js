@@ -6,12 +6,13 @@ const envVal = val => Array.isArray(val) ? val.map(v => envVal(v)).join('\n\n')
 
 const packageEnvs = (env, vals, prefix) => {
   for (const [key, val] of Object.entries(vals)) {
-    if (val === undefined)
+    if (val === undefined) {
       continue
-    else if (val && !Array.isArray(val) && typeof val === 'object')
+    } else if (val && !Array.isArray(val) && typeof val === 'object') {
       packageEnvs(env, val, `${prefix}${key}_`)
-    else
+    } else {
       env[`${prefix}${key}`] = envVal(val)
+    }
   }
   return env
 }
