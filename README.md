@@ -663,6 +663,8 @@ Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
 
 * **Beth Griggs** <<bgriggs@redhat.com>>
   `4ED778F539E3634C779C87C6D7062848A1AB005C`
+* **Bryan English** <<bryan@bryanenglish.com>>
+  `141F07595B7B3FFE74309A937405533BE57C7D57`
 * **Colin Ihrig** <<cjihrig@gmail.com>>
   `94AE36675C464D64BAFA68DD7434390BDBE9B9C5`
 * **Danielle Adams** <<adamzdanielle@gmail.com>>
@@ -689,6 +691,7 @@ to sign releases):
 
 ```bash
 gpg --keyserver pool.sks-keyservers.net --recv-keys 4ED778F539E3634C779C87C6D7062848A1AB005C
+gpg --keyserver pool.sks-keyservers.net --recv-keys 141F07595B7B3FFE74309A937405533BE57C7D57
 gpg --keyserver pool.sks-keyservers.net --recv-keys 94AE36675C464D64BAFA68DD7434390BDBE9B9C5
 gpg --keyserver pool.sks-keyservers.net --recv-keys 74F12602B6F1C4E913FAA37AD3A89613643B6201
 gpg --keyserver pool.sks-keyservers.net --recv-keys 71DCFD284A79C3B38668286BC97EC7A07EDE3FC1
