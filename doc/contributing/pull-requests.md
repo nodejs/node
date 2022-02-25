@@ -244,6 +244,10 @@ test suite. To run the tests (including code linting) on Unix / macOS:
 ./configure && make -j4 test
 ```
 
+We can speed up the builds by using [Ninja](https://ninja-build.org/). For more
+information, see
+[Building Node.js with Ninja](building-node-with-ninja.md).
+
 And on Windows:
 
 ```text
