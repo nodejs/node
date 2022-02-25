@@ -2090,8 +2090,11 @@ added: REPLACEME
 
 * `otherKeyObject`: {KeyObject} A `KeyObject` with which to
   compare `keyObject`.
-* Returns: {boolean} `true` or `false` depending on whether the
-  keys have exactly the same type, value, and parameters.
+* Returns: {boolean}
+
+Returns `true` or `false` depending on whether the keys have exactly the same
+type, value, and parameters. This method is not 
+[constant time](https://en.wikipedia.org/wiki/Timing_attack).
 
 ### `keyObject.symmetricKeySize`
 
