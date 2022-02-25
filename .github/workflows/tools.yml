@@ -23,6 +23,10 @@ jobs:
                 echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
                 ./update-eslint.sh
               fi
+          - id: corepack
+            run: |
+              make corepack-update
+              echo "NEW_VERSION=$(node deps/corepack/dist/corepack.js --version)" >> $GITHUB_ENV
           - id: lint-md-dependencies
             run: |
               cd tools/lint-md
