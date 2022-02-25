@@ -120,7 +120,7 @@ for (const { protocol, createServer } of [
     // entry on Web
     const relativeAfterRedirect = new URL(url.href + 'foo/index.js');
     const redirected = new URL(url.href + 'bar/index.js');
-    redirected.searchParams.set('body', `export let relativeDepURL = (await import("./baz.js")).url`);
+    redirected.searchParams.set('body', 'export let relativeDepURL = (await import("./baz.js")).url');
     relativeAfterRedirect.searchParams.set('redirect', JSON.stringify({
       status: 302,
       location: redirected.href
