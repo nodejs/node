@@ -767,9 +767,9 @@ static bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
       return false;
     }
     char* oline = nullptr;
-    size_t n_bytes = BIO_get_mem_data(tmp.get(), &oline);
-    CHECK_IMPLIES(n_bytes != 0, oline != nullptr);
-    PrintAltName(out, oline, n_bytes, true, nullptr);
+    long n_bytes = BIO_get_mem_data(tmp.get(), &oline);  // NOLINT(runtime/int)
+    CHECK_IMPLIES(n_bytes > 0, oline != nullptr);
+    PrintAltName(out, oline, static_cast<size_t>(n_bytes), true, nullptr);
   } else if (gen->type == GEN_IPADD) {
     BIO_printf(out.get(), "IP Address:");
     const ASN1_OCTET_STRING* ip = gen->d.ip;
