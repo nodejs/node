@@ -1263,6 +1263,8 @@ int nghttp2_hd_inflate_change_table_size(
     return NGHTTP2_ERR_INVALID_STATE;
   }
 
+  inflater->settings_hd_table_bufsize_max = settings_max_dynamic_table_size;
+
   /* It seems that encoder is not required to send dynamic table size
      update if the table size is not changed after applying
      SETTINGS_HEADER_TABLE_SIZE.  RFC 7541 is ambiguous here, but this
@@ -1275,13 +1277,12 @@ int nghttp2_hd_inflate_change_table_size(
     /* Remember minimum value, and validate that encoder sends the
        value less than or equal to this. */
     inflater->min_hd_table_bufsize_max = settings_max_dynamic_table_size;
+
+    inflater->ctx.hd_table_bufsize_max = settings_max_dynamic_table_size;
+
+    hd_context_shrink_table_size(&inflater->ctx, NULL);
   }
 
-  inflater->settings_hd_table_bufsize_max = settings_max_dynamic_table_size;
-
-  inflater->ctx.hd_table_bufsize_max = settings_max_dynamic_table_size;
-
-  hd_context_shrink_table_size(&inflater->ctx, NULL);
   return 0;
 }
 
