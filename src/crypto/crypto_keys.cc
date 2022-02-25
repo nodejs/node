@@ -1178,7 +1178,7 @@ void KeyObjectHandle::Equals(const FunctionCallbackInfo<Value>& args) {
       break;
     }
     default:
-      CHECK(false);
+      UNREACHABLE("unsupported key type");
   }
 
   args.GetReturnValue().Set(ret);
