@@ -116,7 +116,7 @@ for (const { protocol, createServer } of [
     assert.strict.notEqual(redirectedNS.default, ns.default);
     assert.strict.equal(redirectedNS.url, url.href);
 
-    // Redirects have same import.meta.url but different cache
+    // Redirects have the same import.meta.url but different cache
     // entry on Web
     const relativeAfterRedirect = new URL(url.href + 'foo/index.js');
     const redirected = new URL(url.href + 'bar/index.js');
