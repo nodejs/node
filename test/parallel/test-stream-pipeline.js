@@ -1511,3 +1511,18 @@ const tsp = require('timers/promises');
     assert.strictEqual(s.destroyed, true);
   }));
 }
+
+{
+  const s = new PassThrough({ objectMode: true });
+  pipeline(async function*() {
+    await Promise.resolve();
+    yield 'hello';
+    yield 'world';
+    yield 'world';
+  }, s, async function(source) {
+    return null;
+  }, common.mustCall((err, val) => {
+    assert.strictEqual(err, undefined);
+    assert.strictEqual(val, null);
+  }));
+}
