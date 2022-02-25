@@ -1,10 +1,13 @@
 // Flags: --experimental-wasm-modules
 import '../common/index.mjs';
 import { path } from '../common/fixtures.mjs';
-import { add, addImported } from '../fixtures/es-modules/simple.wasm';
+import * as ns from '../fixtures/es-modules/simple.wasm';
+const { add, addImported, circularAdd }  = ns;
 import { state } from '../fixtures/es-modules/wasm-dep.mjs';
 import { strictEqual, ok } from 'assert';
 import { spawn } from 'child_process';
+
+console.dir(ns);
 
 strictEqual(state, 'WASM Start Executed');
 

@@ -2,10 +2,13 @@
 ;; $ wat2wasm simple.wat -o simple.wasm
 
 (module
+  ;; test cycles
+  (import "./simple.wasm" "add" (func $circularAdd (param $a i32) (param $b i32) (result i32)))
   (import "./wasm-dep.mjs" "jsFn" (func $jsFn (result i32)))
   (import "./wasm-dep.mjs" "jsInitFn" (func $jsInitFn))
   (export "add" (func $add))
   (export "addImported" (func $addImported))
+  (export "circularAdd" (func $circularAdd))
   (start $startFn)
   (func $startFn
     call $jsInitFn
