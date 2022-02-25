@@ -1,9 +1,11 @@
 name: Close stale feature requests
 on:
   workflow_dispatch:
-  schedule:
-    # Run every day at 1:00 AM UTC.
-    - cron: 0 1 * * *
+    daysBeforeStale:
+    description: Idle number of days before marking feature requests stale
+    required: true 
+    default: 906
+    type: number
 
 # yamllint disable rule:empty-lines
 env:
@@ -36,7 +38,7 @@ jobs:
       - uses: actions/stale@v4
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          days-before-stale: 906
+          days-before-stale: ${{ github.event.input.daysBeforeStale }}
           days-before-close: 30
           stale-issue-label: stale
           close-issue-message: ${{ env.CLOSE_MESSAGE }}
