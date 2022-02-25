@@ -44,5 +44,5 @@ jobs:
           only-labels: feature request
           exempt-pr-labels: never-stale
           # max requests it will send per run to the GitHub API before it deliberately exits to avoid hitting API rate limits
-          operations-per-run: 30
+          operations-per-run: 500
           remove-stale-when-updated: true
