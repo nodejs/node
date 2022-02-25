@@ -2093,7 +2093,7 @@ added: REPLACEME
 * Returns: {boolean}
 
 Returns `true` or `false` depending on whether the keys have exactly the same
-type, value, and parameters. This method is not 
+type, value, and parameters. This method is not
 [constant time](https://en.wikipedia.org/wiki/Timing_attack).
 
 ### `keyObject.symmetricKeySize`
