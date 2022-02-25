@@ -111,6 +111,21 @@ for (const { protocol, createServer } of [
     assert.strict.notEqual(redirectedNS.default, ns.default);
     assert.strict.equal(redirectedNS.url, url.href);
 
+    // Redirects have the same import.meta.url but different cache
+    // entry on Web
+    const relativeAfterRedirect = new URL(url.href + 'foo/index.js');
+    const redirected = new URL(url.href + 'bar/index.js');
+    redirected.searchParams.set('body', 'export let relativeDepURL = (await import("./baz.js")).url');
+    relativeAfterRedirect.searchParams.set('redirect', JSON.stringify({
+      status: 302,
+      location: redirected.href
+    }));
+    const relativeAfterRedirectedNS = await import(relativeAfterRedirect.href);
+    assert.strict.equal(
+      relativeAfterRedirectedNS.relativeDepURL,
+      url.href + 'bar/baz.js'
+    );
+
     const crossProtocolRedirect = new URL(url.href);
     crossProtocolRedirect.searchParams.set('redirect', JSON.stringify({
       status: 302,
