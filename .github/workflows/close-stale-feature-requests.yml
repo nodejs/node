@@ -4,7 +4,7 @@ on:
     inputs:
       daysBeforeStale:
         description: Idle number of days before marking feature requests stale
-        required: true 
+        required: true
         default: 906
         type: number
 
