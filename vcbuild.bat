@@ -381,7 +381,7 @@ if defined msbuild_args set "extra_msbuild_args=%extra_msbuild_args% %msbuild_ar
 set UseMultiToolTask=True
 set EnforceProcessCountAcrossBuilds=True
 set MultiProcMaxCount=%NUMBER_OF_PROCESSORS%
-msbuild node.sln %msbcpu% /t:%target% /p:Configuration=%config% /p:Platform=%msbplatform% /clp:NoItemAndPropertyList;Verbosity=minimal /nologo %extra_msbuild_args% /ZI- /clr- /guard:cf
+msbuild node.sln %msbcpu% /t:%target% /p:Configuration=%config% /p:Platform=%msbplatform% /clp:NoItemAndPropertyList;Verbosity=minimal /nologo %extra_msbuild_args% /guard:cf
 msbuild -help
 if errorlevel 1 (
   if not defined project_generated echo Building Node with reused solution failed. To regenerate project files use "vcbuild projgen"
