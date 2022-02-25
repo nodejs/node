@@ -1,0 +1,8 @@
+{
+    "urlpattern-compare.any.js": {
+        "skip": "TODO: implement URLPatter.compareComponent"
+    },
+    "urlpattern-compare.https.any.js": {
+        "skip": "TODO: implement URLPatter.compareComponent"
+    }
+}
