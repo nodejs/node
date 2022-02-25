@@ -273,6 +273,10 @@ $ ./configure
 $ make -j4
 ```
 
+We can speed up the builds by using [Ninja](https://ninja-build.org/). For more
+information, see
+[Building Node.js with Ninja](doc/contributing/building-node-with-ninja.md).
+
 The `-j4` option will cause `make` to run 4 simultaneous compilation jobs which
 may reduce build time. For more information, see the
 [GNU Make Documentation](https://www.gnu.org/software/make/manual/html_node/Parallel.html).
