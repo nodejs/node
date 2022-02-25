@@ -1,11 +1,12 @@
 name: Close stale feature requests
 on:
   workflow_dispatch:
-    daysBeforeStale:
-    description: Idle number of days before marking feature requests stale
-    required: true 
-    default: 906
-    type: number
+    inputs:
+      daysBeforeStale:
+        description: Idle number of days before marking feature requests stale
+        required: true 
+        default: 906
+        type: number
 
 # yamllint disable rule:empty-lines
 env:
