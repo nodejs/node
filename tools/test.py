@@ -1667,7 +1667,7 @@ def Main():
       '-p', 'process.versions.openssl'], context)
   if has_crypto.stdout.rstrip() == 'undefined':
     context.node_has_crypto = False
-  
+
   Execute([vm, join(workspace, "tools", "common", "parseEslintConfigForKnownGlobals.js")], context)
 
   if options.cat:
