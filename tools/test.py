@@ -1640,7 +1640,6 @@ def Main():
           print("Can't determine the arch of: '%s'" % vm)
           print(archEngineContext.stderr.rstrip())
           continue
-        Execute([vm, 'test/common/parseEslintConfigForKnownGlobals.js'], context)
         env = {
           'mode': mode,
           'system': utils.GuessOS(),
@@ -1668,6 +1667,8 @@ def Main():
       '-p', 'process.versions.openssl'], context)
   if has_crypto.stdout.rstrip() == 'undefined':
     context.node_has_crypto = False
+  
+  Execute([vm, join(workspace, "tools", "common", "parseEslintConfigForKnownGlobals.js")], context)
 
   if options.cat:
     visited = set()
