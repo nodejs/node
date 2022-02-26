@@ -21,6 +21,7 @@ const {
   privateDecrypt,
   privateEncrypt,
   getCurves,
+  generateKeySync,
   generateKeyPairSync,
   webcrypto,
 } = require('crypto');
@@ -843,4 +844,52 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   ).then((cryptoKey) => {
     assert(!isKeyObject(cryptoKey));
   });
+}
+
+{
+  const first = Buffer.from('Hello');
+  const second = Buffer.from('World');
+  const keyObject = createSecretKey(first);
+  assert(createSecretKey(first).equals(createSecretKey(first)));
+  assert(!createSecretKey(first).equals(createSecretKey(second)));
+
+  assert.throws(() => keyObject.equals(0), {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "otherKeyObject" argument must be an instance of KeyObject. Received type number (0)'
+  });
+
+  assert(keyObject.equals(keyObject));
+  assert(!keyObject.equals(createPublicKey(publicPem)));
+  assert(!keyObject.equals(createPrivateKey(privatePem)));
+}
+
+{
+  const first = generateKeyPairSync('ed25519');
+  const second = generateKeyPairSync('ed25519');
+  const secret = generateKeySync('aes', { length: 128 });
+
+  assert(first.publicKey.equals(first.publicKey));
+  assert(first.publicKey.equals(createPublicKey(
+    first.publicKey.export({ format: 'pem', type: 'spki' }))));
+  assert(!first.publicKey.equals(second.publicKey));
+  assert(!first.publicKey.equals(second.privateKey));
+  assert(!first.publicKey.equals(secret));
+
+  assert(first.privateKey.equals(first.privateKey));
+  assert(first.privateKey.equals(createPrivateKey(
+    first.privateKey.export({ format: 'pem', type: 'pkcs8' }))));
+  assert(!first.privateKey.equals(second.privateKey));
+  assert(!first.privateKey.equals(second.publicKey));
+  assert(!first.privateKey.equals(secret));
+}
+
+{
+  const first = generateKeyPairSync('ed25519');
+  const second = generateKeyPairSync('ed448');
+
+  assert(!first.publicKey.equals(second.publicKey));
+  assert(!first.publicKey.equals(second.privateKey));
+  assert(!first.privateKey.equals(second.privateKey));
+  assert(!first.privateKey.equals(second.publicKey));
 }
