@@ -54,4 +54,4 @@ for (const options of [
   [4, 4, 4, 4],
 ]) {
   runTest(Buffer.allocUnsafe(expected.length), options);
-};
+}
