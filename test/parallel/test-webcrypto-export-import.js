@@ -6,11 +6,12 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle, getRandomValues } = require('crypto').webcrypto;
+const { webcrypto } = require('crypto');
+const { subtle } = webcrypto;
 
 {
   async function test() {
-    const keyData = getRandomValues(new Uint8Array(32));
+    const keyData = webcrypto.getRandomValues(new Uint8Array(32));
     await Promise.all([1, null, undefined, {}, []].map((format) =>
       assert.rejects(
         subtle.importKey(format, keyData, {}, false, ['wrapKey']), {
@@ -82,7 +83,7 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
 // Import/Export HMAC Secret Key
 {
   async function test() {
-    const keyData = getRandomValues(new Uint8Array(32));
+    const keyData = webcrypto.getRandomValues(new Uint8Array(32));
     const key = await subtle.importKey(
       'raw',
       keyData, {
@@ -112,7 +113,7 @@ const { subtle, getRandomValues } = require('crypto').webcrypto;
 // Import/Export AES Secret Key
 {
   async function test() {
-    const keyData = getRandomValues(new Uint8Array(32));
+    const keyData = webcrypto.getRandomValues(new Uint8Array(32));
     const key = await subtle.importKey(
       'raw',
       keyData, {
