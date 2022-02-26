@@ -610,7 +610,7 @@ test-doc: doc-only lint-md ## Builds, lints, and verifies the docs.
 	fi
 
 .PHONY: test-doc-ci
-test-doc-ci: doc-only
+test-doc-ci: doc-only test/common/knownGlobals.json
 	$(PYTHON) tools/test.py --shell $(NODE) $(TEST_CI_ARGS) $(PARALLEL_ARGS) doctool
 
 .PHONY: test-known-issues
