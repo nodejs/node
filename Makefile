@@ -1140,7 +1140,7 @@ pkg-upload: pkg
 	scp -p $(TARNAME).pkg $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg.done"
 
-$(TARBALL): release-only doc-only
+$(TARBALL): release-only doc-only test/common/knownGlobals.json
 	git checkout-index -a -f --prefix=$(TARNAME)/
 	mkdir -p $(TARNAME)/doc/api
 	cp doc/node.1 $(TARNAME)/doc/node.1
@@ -1159,6 +1159,7 @@ $(TARBALL): release-only doc-only
 	$(RM) -r $(TARNAME)/deps/v8/tools/run-tests.py
 	$(RM) -r $(TARNAME)/doc/images # too big
 	$(RM) -r $(TARNAME)/test*.tap
+	$(RM) -r $(TARNAME)/test/common/parseEslintConfigForKnownGlobals.js
 	$(RM) -r $(TARNAME)/tools/cpplint.py
 	$(RM) -r $(TARNAME)/tools/eslint-rules
 	$(RM) -r $(TARNAME)/tools/license-builder.sh
