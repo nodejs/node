@@ -36,7 +36,7 @@ for (const options of [
   { position: -1 },
   { position: 0n },
 
-  // Test sane default params
+  // Test default params
   {},
   null,
   undefined,
