@@ -6,7 +6,8 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle, getRandomValues } = require('crypto').webcrypto;
+const { webcrypto } = require('crypto');
+const { subtle } = webcrypto;
 
 const kTests = [
   {
@@ -226,7 +227,7 @@ async function prepareKeys() {
 
   {
     // Public is a secret key
-    const keyData = getRandomValues(new Uint8Array(32));
+    const keyData = webcrypto.getRandomValues(new Uint8Array(32));
     const key = await subtle.importKey(
       'raw',
       keyData,
