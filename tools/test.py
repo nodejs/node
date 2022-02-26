@@ -1640,6 +1640,7 @@ def Main():
           print("Can't determine the arch of: '%s'" % vm)
           print(archEngineContext.stderr.rstrip())
           continue
+        Execute([vm, 'test/common/parseEslintConfigForKnownGlobals.js'], context)
         env = {
           'mode': mode,
           'system': utils.GuessOS(),

@@ -13,7 +13,9 @@ const searchLines = [
 const restrictedGlobalLine = /^\s{4}- name:\s?([^#\s]+)/;
 const closingLine = /^\s{0,3}[^#\s]/;
 
-process.stdout.write('["process"');
+const jsonFile = fs.openSync(path.join(__dirname, 'knownGlobals.json'), 'w')
+
+fs.writeSync(jsonFile,'["process"');
 
 const eslintConfig = readline.createInterface({
   input: fs.createReadStream(
@@ -27,7 +29,7 @@ eslintConfig.on('line', (line) => {
   if (isReadingGlobals) {
     const match = restrictedGlobalLine.exec(line);
     if (match != null) {
-      process.stdout.write(',' + JSON.stringify(match[1]));
+      fs.writeSync(jsonFile, ',' + JSON.stringify(match[1]));
     } else if (closingLine.test(line)) {
       isReadingGlobals = false;
     }
@@ -38,5 +40,6 @@ eslintConfig.on('line', (line) => {
 });
 
 eslintConfig.once('close', () => {
-  process.stdout.write(']');
+  fs.writeSync(jsonFile, ']');
+  fs.closeSync(jsonFile)
 });
