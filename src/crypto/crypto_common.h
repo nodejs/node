@@ -44,14 +44,7 @@ v8::MaybeLocal<v8::Value> GetSSLOCSPResponse(
 
 bool SetTLSSession(
     const SSLPointer& ssl,
-    const unsigned char* buf,
-    size_t length);
-
-bool SetTLSSession(
-    const SSLPointer& ssl,
     const SSLSessionPointer& session);
-
-SSLSessionPointer GetTLSSession(v8::Local<v8::Value> val);
 
 SSLSessionPointer GetTLSSession(const unsigned char* buf, size_t length);
 
