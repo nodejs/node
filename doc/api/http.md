@@ -294,10 +294,14 @@ the agent when `keepAlive` is enabled. Do not modify.
 Sockets in the `freeSockets` list will be automatically destroyed and
 removed from the array on `'timeout'`.
 
-### `agent.getName(options)`
+### `agent.getName([options])`
 
 <!-- YAML
 added: v0.11.4
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41906
+    description: The `options` parameter is now optional.
 -->
 
 * `options` {Object} A set of options providing information for name generation
