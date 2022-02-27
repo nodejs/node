@@ -281,11 +281,8 @@ v8:
 	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
 		tools/make-v8.sh $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
-test/common/knownGlobals.json: test/common/parseEslintConfigForKnownGlobals.js lib/.eslintrc.yaml
-	$(NODE) $< > $@
-
 .PHONY: jstest
-jstest: build-addons build-js-native-api-tests build-node-api-tests test/common/knownGlobals.json ## Runs addon tests and JS tests
+jstest: build-addons build-js-native-api-tests build-node-api-tests ## Runs addon tests and JS tests
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
 		$(TEST_CI_ARGS) \
 		--skip-tests=$(CI_SKIP_TESTS) \
@@ -610,7 +607,7 @@ test-doc: doc-only lint-md ## Builds, lints, and verifies the docs.
 	fi
 
 .PHONY: test-doc-ci
-test-doc-ci: doc-only test/common/knownGlobals.json
+test-doc-ci: doc-only
 	$(PYTHON) tools/test.py --shell $(NODE) $(TEST_CI_ARGS) $(PARALLEL_ARGS) doctool
 
 .PHONY: test-known-issues
@@ -1140,6 +1137,9 @@ pkg-upload: pkg
 	scp -p $(TARNAME).pkg $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg.done"
 
+test/common/knownGlobals.json: lib/.eslintrc.yaml
+	$(PYTHON) tools/test.py --create-knownGlobals-json
+
 $(TARBALL): release-only doc-only test/common/knownGlobals.json
 	git checkout-index -a -f --prefix=$(TARNAME)/
 	mkdir -p $(TARNAME)/doc/api
@@ -1159,7 +1159,6 @@ $(TARBALL): release-only doc-only test/common/knownGlobals.json
 	$(RM) -r $(TARNAME)/deps/v8/tools/run-tests.py
 	$(RM) -r $(TARNAME)/doc/images # too big
 	$(RM) -r $(TARNAME)/test*.tap
-	$(RM) -r $(TARNAME)/test/common/parseEslintConfigForKnownGlobals.js
 	$(RM) -r $(TARNAME)/tools/cpplint.py
 	$(RM) -r $(TARNAME)/tools/eslint-rules
 	$(RM) -r $(TARNAME)/tools/license-builder.sh

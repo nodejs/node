@@ -43,6 +43,7 @@ import utils
 import multiprocessing
 import errno
 import copy
+import json
 
 
 if sys.version_info >= (3, 5):
@@ -88,6 +89,43 @@ VERBOSE = False
 
 os.umask(0o022)
 os.environ['NODE_OPTIONS'] = ''
+
+
+def createKnowGlobalsJSON():
+  __dirname__ = dirname(__file__)
+  eslintConfigFile = join(__dirname__, '..', 'lib', '.eslintrc.yaml')
+  outputFile = join(__dirname__, '..', 'test', 'common', 'knownGlobals.json')
+  searchLines = [
+    '  no-restricted-globals:\n',
+    '  node-core/prefer-primordials:\n',
+  ]
+  isReadingGlobals = False
+  try:
+      FileNotFoundError
+  except NameError:
+      # py2.X
+      FileNotFoundError = IOError
+  restrictedGlobalDeclaration = re.compile("^\s{4}- name:\s?([^#\s]+)")
+  closingSectionLine = re.compile("^\s{0,3}[^#\s]")
+  try:
+    with open(eslintConfigFile, 'r') as eslintConfig, open(outputFile, 'w') as output:
+      output.write(u'["process"')
+      for line in eslintConfig.readlines():
+        if isReadingGlobals:
+          match = restrictedGlobalDeclaration.match(line)
+          if match is not None:
+            output.write(u',{}'.format(json.dumps(match.group(1))))
+          elif closingSectionLine.match(line) is not None:
+            isReadingGlobals = False
+        elif searchLines and line == searchLines[0]:
+          searchLines = searchLines[1:]
+          isReadingGlobals = True
+      output.write(u']')
+  except FileNotFoundError:
+    # If the .eslintrc.yaml file doesn't exist, we cannot create the JSON file.
+    # Let's ignore this exception, if the JSON file already exists we'll use it,
+    # otherwise, JavaScript will raise an error.
+    pass
 
 # ---------------------------------------------
 # --- P r o g r e s s   I n d i c a t o r s ---
@@ -1395,6 +1433,9 @@ def BuildOptions():
   result.add_option("--type",
       help="Type of build (simple, fips, coverage)",
       default=None)
+  result.add_option('--create-knownGlobals-json',
+      help='Generates the knownGlobal.json file. No tests will be run when using this flag.',
+      default=False, action='store_true', dest='create_knownGlobal_json')
   return result
 
 
@@ -1565,6 +1606,10 @@ def Main():
   if not ProcessOptions(options):
     parser.print_help()
     return 1
+  
+  if options.create_knownGlobal_json:
+    createKnowGlobalsJSON()
+    return 0
 
   ch = logging.StreamHandler(sys.stdout)
   logger.addHandler(ch)
@@ -1668,7 +1713,7 @@ def Main():
   if has_crypto.stdout.rstrip() == 'undefined':
     context.node_has_crypto = False
 
-  Execute([vm, join(workspace, "tools", "common", "parseEslintConfigForKnownGlobals.js")], context)
+  createKnowGlobalsJSON()
 
   if options.cat:
     visited = set()
