@@ -111,7 +111,7 @@ struct nghttp2_outbound_item {
      to this structure to avoid frequent memory allocation. */
   nghttp2_ext_frame_payload ext_frame_payload;
   nghttp2_aux_data aux_data;
-  /* The priority used in priority comparion.  Smaller is served
+  /* The priority used in priority comparison.  Smaller is served
      earlier.  For PING, SETTINGS and non-DATA frames (excluding
      response HEADERS frame) have dedicated cycle value defined above.
      For DATA frame, cycle is computed by taking into account of

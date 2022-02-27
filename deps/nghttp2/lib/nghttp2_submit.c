@@ -492,8 +492,6 @@ int nghttp2_session_set_local_window_size(nghttp2_session *session,
     return nghttp2_session_update_recv_stream_window_size(session, stream, 0,
                                                           1);
   }
-
-  return 0;
 }
 
 int nghttp2_submit_altsvc(nghttp2_session *session, uint8_t flags,
