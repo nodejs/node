@@ -654,8 +654,6 @@ int nghttp2_frame_unpack_goaway_payload2(nghttp2_goaway *frame,
     var_gift_payloadlen = 0;
   }
 
-  payloadlen -= var_gift_payloadlen;
-
   if (!var_gift_payloadlen) {
     var_gift_payload = NULL;
   } else {

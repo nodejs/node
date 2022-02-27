@@ -33,7 +33,7 @@
 #include "nghttp2_frame.h"
 
 /* Maximum distance between any two stream's cycle in the same
-   prirority queue.  Imagine stream A's cycle is A, and stream B's
+   priority queue.  Imagine stream A's cycle is A, and stream B's
    cycle is B, and A < B.  The cycle is unsigned 32 bit integer, it
    may get overflow.  Because of how we calculate the next cycle
    value, if B - A is less than or equals to

@@ -114,7 +114,7 @@ typedef int (*nghttp2_pq_item_cb)(nghttp2_pq_entry *item, void *arg);
 void nghttp2_pq_update(nghttp2_pq *pq, nghttp2_pq_item_cb fun, void *arg);
 
 /*
- * Applys |fun| to each item in |pq|.  The |arg| is passed as arg
+ * Applies |fun| to each item in |pq|.  The |arg| is passed as arg
  * parameter to callback function.  This function must not change the
  * ordering key.  If the return value from callback is nonzero, this
  * function returns 1 immediately without iterating remaining items.

@@ -189,6 +189,7 @@ static int map_resize(nghttp2_map *map, uint32_t new_tablelen,
   nghttp2_map_bucket *new_table;
   nghttp2_map_bucket *bkt;
   int rv;
+  (void)rv;
 
   new_table =
       nghttp2_mem_calloc(map->mem, new_tablelen, sizeof(nghttp2_map_bucket));

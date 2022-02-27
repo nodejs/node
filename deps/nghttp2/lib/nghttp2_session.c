@@ -5341,7 +5341,7 @@ static ssize_t inbound_frame_compute_pad(nghttp2_inbound_frame *iframe) {
 
 /*
  * This function returns the effective payload length in the data of
- * length |readlen| when the remaning payload is |payloadleft|. The
+ * length |readlen| when the remaining payload is |payloadleft|. The
  * |payloadleft| does not include |readlen|. If padding was started
  * strictly before this data chunk, this function returns -1.
  */

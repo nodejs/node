@@ -408,7 +408,7 @@ int nghttp2_session_add_rst_stream(nghttp2_session *session, int32_t stream_id,
                                    uint32_t error_code);
 
 /*
- * Adds PING frame. This is a convenient functin built on top of
+ * Adds PING frame. This is a convenient function built on top of
  * nghttp2_session_add_frame() to add PING easily.
  *
  * If the |opaque_data| is not NULL, it must point to 8 bytes memory
