@@ -111,7 +111,8 @@ To generate integrity strings, a script such as
 `node -e 'process.stdout.write("sha256-");process.stdin.pipe(crypto.createHash("sha256").setEncoding("base64")).pipe(process.stdout)' < FILE`
 can be used.
 
-Integrity can be specified as the boolean value `true` to accept anybody for the resource which can be useful for local development. It is not
+Integrity can be specified as the boolean value `true` to accept anybody
+for the resource which can be useful for local development. It is not
 recommended in production since it would allow unexpected alteration of
 resources to be considered valid.
 
