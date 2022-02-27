@@ -134,6 +134,8 @@ function Minimatch (pattern, options) {
 
   if (!options) options = {}
 
+  pattern = pattern.trim()
+
   // windows support: need to use /, not \
   if (!options.allowWindowsEscape && path.sep !== '/') {
     pattern = pattern.split(path.sep).join('/')
