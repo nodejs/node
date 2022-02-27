@@ -215,8 +215,8 @@ class FileEnumerator {
         cwd = process.cwd(),
         configArrayFactory = new CascadingConfigArrayFactory({
             cwd,
-            eslintRecommendedPath: path.resolve(__dirname, "../../conf/eslint-recommended.js"),
-            eslintAllPath: path.resolve(__dirname, "../../conf/eslint-all.js")
+            getEslintRecommendedConfig: () => require("../../conf/eslint-recommended.js"),
+            getEslintAllConfig: () => require("../../conf/eslint-all.js")
         }),
         extensions = null,
         globInputPaths = true,

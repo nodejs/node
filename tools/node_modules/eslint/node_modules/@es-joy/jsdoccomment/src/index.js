@@ -11,3 +11,5 @@ export * from './parseComment.js';
 export * from './commentParserToESTree.js';
 
 export * from './jsdoccomment.js';
+
+export {default as estreeToString} from './estreeToString.js';

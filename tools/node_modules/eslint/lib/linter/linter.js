@@ -800,13 +800,20 @@ function parse(text, languageOptions, filePath) {
      * problem that ESLint identified just like any other.
      */
     try {
+        debug("Parsing:", filePath);
         const parseResult = (typeof parser.parseForESLint === "function")
             ? parser.parseForESLint(textToParse, parserOptions)
             : { ast: parser.parse(textToParse, parserOptions) };
+
+        debug("Parsing successful:", filePath);
         const ast = parseResult.ast;
         const parserServices = parseResult.services || {};
         const visitorKeys = parseResult.visitorKeys || evk.KEYS;
+
+        debug("Scope analysis:", filePath);
         const scopeManager = parseResult.scopeManager || analyzeScope(ast, languageOptions, visitorKeys);
+
+        debug("Scope analysis successful:", filePath);
 
         return {
             success: true,

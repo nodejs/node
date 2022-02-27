@@ -1054,7 +1054,7 @@ var QUERIES = [
   {
     regexp: /^(firefox|ff|fx)\s+esr$/i,
     select: function () {
-      return ['firefox 78', 'firefox 91']
+      return ['firefox 91']
     }
   },
   {

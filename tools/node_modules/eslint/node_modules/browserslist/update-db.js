@@ -170,64 +170,11 @@ function updateYarnLockfile(lock, latest) {
   return { content: content, versions: versions }
 }
 
-function updatePnpmLockfile(lock, latest) {
-  var versions = {}
-  var lines = lock.content.split('\n')
-  var i
-  var j
-  var lineParts
-
-  for (i = 0; i < lines.length; i++) {
-    if (lines[i].indexOf('caniuse-lite:') >= 0) {
-      lineParts = lines[i].split(/:\s?/, 2)
-      if (lineParts[1].indexOf('/') >= 0) {
-        /* c8 ignore start */
-        var sublineParts = lineParts[1].split(/([/:])/)
-        for (j = 0; j < sublineParts.length; j++) {
-          if (sublineParts[j].indexOf('caniuse-lite') >= 0) {
-            versions[sublineParts[j + 2]] = true
-            sublineParts[j + 2] = latest.version
-            break
-          }
-        }
-        lineParts[1] = sublineParts.join('')
-        /* c8 ignore stop */
-      } else {
-        versions[lineParts[1]] = true
-      }
-      lines[i] = lineParts[0] + ': ' + latest.version
-    } else if (lines[i].indexOf('/caniuse-lite') >= 0) {
-      lineParts = lines[i].split(/([/:])/)
-      for (j = 0; j < lineParts.length; j++) {
-        if (lineParts[j].indexOf('caniuse-lite') >= 0) {
-          versions[lineParts[j + 2]] = true
-          lineParts[j + 2] = latest.version
-          break
-        }
-      }
-      lines[i] = lineParts.join('')
-      for (i = i + 1; i < lines.length; i++) {
-        if (lines[i].indexOf('integrity: ') !== -1) {
-          lines[i] = lines[i].replace(
-            /integrity: .+/,
-            'integrity: ' + latest.dist.integrity
-          )
-        } else if (lines[i].indexOf(' /') !== -1) {
-          break
-        }
-      }
-    }
-  }
-  return { content: lines.join('\n'), versions: versions }
-}
-
 function updateLockfile(lock, latest) {
   if (!lock.content) lock.content = fs.readFileSync(lock.file).toString()
 
   if (lock.mode === 'yarn') {
     return updateYarnLockfile(lock, latest)
-  } else if (lock.mode === 'pnpm') {
-    return updatePnpmLockfile(lock, latest)
   } else {
     return updateNpmLockfile(lock, latest)
   }
@@ -328,6 +275,8 @@ module.exports = function updateDB(print) {
 
   if (lock.mode === 'yarn' && lock.version !== 1) {
     updateWith(print, 'yarn up -R caniuse-lite')
+  } else if (lock.mode === 'pnpm') {
+    updateWith(print, 'pnpm up caniuse-lite')
   } else {
     updatePackageManually(print, lock, latest)
   }
