@@ -172,9 +172,9 @@ function wrap(middleware, callback) {
       parameters.push(done);
     }
     try {
-      result = middleware(...parameters);
+      result = middleware.apply(this, parameters);
     } catch (error) {
-      const exception = error;
+      const exception =  (error);
       if (fnExpectsCallback && called) {
         throw exception
       }
