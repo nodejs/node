@@ -434,17 +434,11 @@ void AddFingerprintDigest(
   }
 }
 
-MaybeLocal<Value> GetCurveASN1Name(Environment* env, const int nid) {
-  const char* nist = OBJ_nid2sn(nid);
-  return nist != nullptr ?
-      MaybeLocal<Value>(OneByteString(env->isolate(), nist)) :
-      MaybeLocal<Value>(Undefined(env->isolate()));
-}
-
-MaybeLocal<Value> GetCurveNistName(Environment* env, const int nid) {
-  const char* nist = EC_curve_nid2nist(nid);
-  return nist != nullptr ?
-      MaybeLocal<Value>(OneByteString(env->isolate(), nist)) :
+template <const char* (*nid2string)(int nid)>
+MaybeLocal<Value> GetCurveName(Environment* env, const int nid) {
+  const char* name = nid2string(nid);
+  return name != nullptr ?
+      MaybeLocal<Value>(OneByteString(env->isolate(), name)) :
       MaybeLocal<Value>(Undefined(env->isolate()));
 }
 
@@ -1425,11 +1419,11 @@ MaybeLocal<Object> X509ToObject(
       if (!Set<Value>(context,
                       info,
                       env->asn1curve_string(),
-                      GetCurveASN1Name(env, nid)) ||
+                      GetCurveName<OBJ_nid2sn>(env, nid)) ||
           !Set<Value>(context,
                       info,
                       env->nistcurve_string(),
-                      GetCurveNistName(env, nid))) {
+                      GetCurveName<EC_curve_nid2nist>(env, nid))) {
         return MaybeLocal<Object>();
       }
     } else {
