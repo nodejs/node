@@ -114,23 +114,8 @@ MaybeLocal<Value> GetSSLOCSPResponse(
 
 bool SetTLSSession(
     const SSLPointer& ssl,
-    const unsigned char* buf,
-    size_t length) {
-  SSLSessionPointer s(d2i_SSL_SESSION(nullptr, &buf, length));
-  return s == nullptr ? false : SetTLSSession(ssl, s);
-}
-
-bool SetTLSSession(
-    const SSLPointer& ssl,
     const SSLSessionPointer& session) {
   return session != nullptr && SSL_set_session(ssl.get(), session.get()) == 1;
-}
-
-SSLSessionPointer GetTLSSession(Local<Value> val) {
-  if (!val->IsArrayBufferView())
-    return SSLSessionPointer();
-  ArrayBufferViewContents<unsigned char> sbuf(val.As<ArrayBufferView>());
-  return GetTLSSession(sbuf.data(), sbuf.length());
 }
 
 SSLSessionPointer GetTLSSession(const unsigned char* buf, size_t length) {
