@@ -100,33 +100,39 @@ def createKnowGlobalsJSON():
     '  node-core/prefer-primordials:\n',
   ]
   isReadingGlobals = False
+  restrictedGlobalDeclaration = re.compile("^\s{4}- name:\s?([^#\s]+)")
+  closingSectionLine = re.compile("^\s{0,3}[^#\s]")
+  with open(eslintConfigFile, 'r') as eslintConfig, open(outputFile, 'w') as output:
+    output.write(u'["process"')
+    for line in eslintConfig.readlines():
+      if isReadingGlobals:
+        match = restrictedGlobalDeclaration.match(line)
+        if match is not None:
+          output.write(u',{}'.format(json.dumps(match.group(1))))
+        elif closingSectionLine.match(line) is not None:
+          isReadingGlobals = False
+      elif searchLines and line == searchLines[0]:
+        searchLines = searchLines[1:]
+        isReadingGlobals = True
+    output.write(u']')
+
+def createKnowGlobalsJSONIfPossible():
   try:
       # Python 3
       FileNotFoundError # noqa: F823
   except NameError:
       # Python 2
       FileNotFoundError = IOError
-  restrictedGlobalDeclaration = re.compile("^\s{4}- name:\s?([^#\s]+)")
-  closingSectionLine = re.compile("^\s{0,3}[^#\s]")
   try:
-    with open(eslintConfigFile, 'r') as eslintConfig, open(outputFile, 'w') as output:
-      output.write(u'["process"')
-      for line in eslintConfig.readlines():
-        if isReadingGlobals:
-          match = restrictedGlobalDeclaration.match(line)
-          if match is not None:
-            output.write(u',{}'.format(json.dumps(match.group(1))))
-          elif closingSectionLine.match(line) is not None:
-            isReadingGlobals = False
-        elif searchLines and line == searchLines[0]:
-          searchLines = searchLines[1:]
-          isReadingGlobals = True
-      output.write(u']')
+    createKnowGlobalsJSON()
   except FileNotFoundError:
-    # If the .eslintrc.yaml file doesn't exist, we cannot create the JSON file.
-    # Let's ignore this exception, if the JSON file already exists we'll use it,
-    # otherwise, JavaScript will raise an error.
+    # In the tarball, the .eslintrc.yaml file doesn't exist, and we cannot
+    # create the JSON file. However, in the tarball the JSON file has already
+    # been generated, so we can ignore this error.
+    # If the JSON file is not present, JavaScript will raise an error, so we can
+    # also ignore.
     pass
+
 
 # ---------------------------------------------
 # --- P r o g r e s s   I n d i c a t o r s ---
@@ -1714,7 +1720,7 @@ def Main():
   if has_crypto.stdout.rstrip() == 'undefined':
     context.node_has_crypto = False
 
-  createKnowGlobalsJSON()
+  createKnowGlobalsJSONIfPossible()
 
   if options.cat:
     visited = set()
