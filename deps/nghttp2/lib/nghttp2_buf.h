@@ -99,7 +99,7 @@ void nghttp2_buf_free(nghttp2_buf *buf, nghttp2_mem *mem);
  * |new_cap|. If extensions took place, buffer pointers in |buf| will
  * change.
  *
- * This function returns 0 if it succeeds, or one of the followings
+ * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
  * NGHTTP2_ERR_NOMEM
