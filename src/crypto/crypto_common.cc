@@ -53,7 +53,7 @@ static constexpr int kX509NameFlagsRFC2253WithinUtf8JSON =
     ~ASN1_STRFLGS_ESC_MSB &
     ~ASN1_STRFLGS_ESC_CTRL;
 
-int SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer) {
+bool SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer) {
   X509_STORE* store = SSL_CTX_get_cert_store(ctx);
   DeleteFnPtr<X509_STORE_CTX, X509_STORE_CTX_free> store_ctx(
       X509_STORE_CTX_new());
@@ -163,7 +163,8 @@ long VerifyPeerCertificate(  // NOLINT(runtime/int)
   return err;
 }
 
-int UseSNIContext(const SSLPointer& ssl, BaseObjectPtr<SecureContext> context) {
+bool UseSNIContext(
+    const SSLPointer& ssl, BaseObjectPtr<SecureContext> context) {
   SSL_CTX* ctx = context->ctx_.get();
   X509* x509 = SSL_CTX_get0_certificate(ctx);
   EVP_PKEY* pkey = SSL_CTX_get0_privatekey(ctx);
@@ -173,7 +174,7 @@ int UseSNIContext(const SSLPointer& ssl, BaseObjectPtr<SecureContext> context) {
   if (err == 1) err = SSL_use_certificate(ssl.get(), x509);
   if (err == 1) err = SSL_use_PrivateKey(ssl.get(), pkey);
   if (err == 1 && chain != nullptr) err = SSL_set1_chain(ssl.get(), chain);
-  return err;
+  return err == 1;
 }
 
 const char* GetClientHelloALPN(const SSLPointer& ssl) {
