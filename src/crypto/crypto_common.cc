@@ -298,7 +298,7 @@ Local<Value> ToV8Value(Environment* env, const BIOPointer& bio) {
           mem->data,
           NewStringType::kNormal,
           mem->length);
-  USE(BIO_reset(bio.get()));
+  CHECK_EQ(BIO_reset(bio.get()), 1);
   return ret.FromMaybe(Local<Value>());
 }
 
@@ -951,7 +951,7 @@ v8::MaybeLocal<v8::Value> GetSubjectAltNameString(
   CHECK_NOT_NULL(ext);
 
   if (!SafeX509SubjectAltNamePrint(bio, ext)) {
-    USE(BIO_reset(bio.get()));
+    CHECK_EQ(BIO_reset(bio.get()), 1);
     return v8::Null(env->isolate());
   }
 
@@ -970,7 +970,7 @@ v8::MaybeLocal<v8::Value> GetInfoAccessString(
   CHECK_NOT_NULL(ext);
 
   if (!SafeX509InfoAccessPrint(bio, ext)) {
-    USE(BIO_reset(bio.get()));
+    CHECK_EQ(BIO_reset(bio.get()), 1);
     return v8::Null(env->isolate());
   }
 
@@ -987,7 +987,7 @@ MaybeLocal<Value> GetIssuerString(
           issuer_name,
           0,
           kX509NameFlagsMultiline) <= 0) {
-    USE(BIO_reset(bio.get()));
+    CHECK_EQ(BIO_reset(bio.get()), 1);
     return Undefined(env->isolate());
   }
 
@@ -1003,7 +1003,7 @@ MaybeLocal<Value> GetSubject(
           X509_get_subject_name(cert),
           0,
           kX509NameFlagsMultiline) <= 0) {
-    USE(BIO_reset(bio.get()));
+    CHECK_EQ(BIO_reset(bio.get()), 1);
     return Undefined(env->isolate());
   }
 
