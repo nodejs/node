@@ -61,6 +61,10 @@ for (const { protocol, createServer } of [
     const host = new URL(base);
     host.protocol = protocol;
     host.hostname = hostname;
+    // /not-found is a 404
+    // ?redirect causes a redirect, no body. JSON.parse({status:number,location:string})
+    // ?mime sets the content-type, string
+    // ?body sets the body, string
     const server = createServer(function(_req, res) {
       const url = new URL(_req.url, host);
       const redirect = url.searchParams.get('redirect');
@@ -128,6 +132,14 @@ for (const { protocol, createServer } of [
     assert.strict.equal(depsNS.data, 1);
     assert.strict.equal(depsNS.http, ns);
 
+    const relativeDeps = new URL(url.href);
+    relativeDeps.searchParams.set('body', `
+      import * as http from "./";
+      export {http};
+    `);
+    const relativeDepsNS = await import(relativeDeps.href);
+    assert.strict.deepStrictEqual(Object.keys(relativeDepsNS), ['http']);
+    assert.strict.equal(relativeDepsNS.http, ns);
     const fileDep = new URL(url.href);
     const { href } = pathToFileURL(path('/es-modules/message.mjs'));
     fileDep.searchParams.set('body', `
