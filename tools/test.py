@@ -101,9 +101,10 @@ def createKnowGlobalsJSON():
   ]
   isReadingGlobals = False
   try:
-      FileNotFoundError
+      # Python 3
+      FileNotFoundError # noqa: F823
   except NameError:
-      # py2.X
+      # Python 2
       FileNotFoundError = IOError
   restrictedGlobalDeclaration = re.compile("^\s{4}- name:\s?([^#\s]+)")
   closingSectionLine = re.compile("^\s{0,3}[^#\s]")
@@ -1606,7 +1607,7 @@ def Main():
   if not ProcessOptions(options):
     parser.print_help()
     return 1
-  
+
   if options.create_knownGlobal_json:
     createKnowGlobalsJSON()
     return 0
