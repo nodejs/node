@@ -605,7 +605,7 @@ changes:
 * `offset` {integer} The start position from within `buffer` where the data
   to write begins. **Default:** `0`
 * `length` {integer} The number of bytes from `buffer` to write. **Default:**
-  `buffer.byteLength`
+  `buffer.byteLength - offset`
 * `position` {integer} The offset from the beginning of the file where the
   data from `buffer` should be written. If `position` is not a `number`,
   the data will be written at the current position. See the POSIX pwrite(2)
@@ -637,7 +637,7 @@ added: REPLACEME
 * `buffer` {Buffer|TypedArray|DataView}
 * `options` {Object}
   * `offset` {integer} **Default:** `0`
-  * `length` {integer} **Default:** `buffer.byteLength`
+  * `length` {integer} **Default:** `buffer.byteLength - offset`
   * `position` {integer} **Default:** `null`
 * Returns: {Promise}
 
@@ -5829,7 +5829,7 @@ added: REPLACEME
 * `buffer` {Buffer|TypedArray|DataView}
 * `options` {Object}
   * `offset` {integer} **Default:** `0`
-  * `length` {integer} **Default:** `buffer.byteLength`
+  * `length` {integer} **Default:** `buffer.byteLength - offset`
   * `position` {integer} **Default:** `null`
 * Returns: {number} The number of bytes written.
 

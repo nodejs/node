@@ -68,7 +68,6 @@ async function testValid(dest, params) {
   // Various invalid params
   await testInvalid(dest, 'ERR_OUT_OF_RANGE', { buffer, length: 5 });
   await testInvalid(dest, 'ERR_OUT_OF_RANGE', { buffer, offset: 5 });
-  await testInvalid(dest, 'ERR_OUT_OF_RANGE', { buffer, offset: 1 });
   await testInvalid(dest, 'ERR_OUT_OF_RANGE', { buffer, length: 1, offset: 3 });
   await testInvalid(dest, 'ERR_OUT_OF_RANGE', { buffer, length: -1 });
   await testInvalid(dest, 'ERR_OUT_OF_RANGE', { buffer, offset: -1 });
@@ -81,6 +80,7 @@ async function testValid(dest, params) {
     { buffer, length: 1, position: 5 },
     { buffer, length: 1, position: -1, offset: 2 },
     { buffer, length: null },
+    { buffer, offset: 1 },
   ]) {
     await testValid(dest, params);
   }

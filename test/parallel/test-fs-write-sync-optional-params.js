@@ -63,7 +63,6 @@ function testValid(dest, buffer, params) {
   // Various invalid params
   testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, { length: 5 });
   testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, { offset: 5 });
-  testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, { offset: 1 });
   testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, { length: 1, offset: 3 });
   testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, { length: -1 });
   testInvalid(dest, 'ERR_OUT_OF_RANGE', buffer, { offset: -1 });
@@ -76,6 +75,7 @@ function testValid(dest, buffer, params) {
     { length: 1, position: 5 },
     { length: 1, position: -1, offset: 2 },
     { length: null },
+    { offset: 1 },
   ]) {
     testValid(dest, buffer, params);
   }
