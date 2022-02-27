@@ -514,13 +514,7 @@ MaybeLocal<Value> GetExponentString(
     const BIOPointer& bio,
     const BIGNUM* e) {
   uint64_t exponent_word = static_cast<uint64_t>(BN_get_word(e));
-  uint32_t lo = static_cast<uint32_t>(exponent_word);
-  uint32_t hi = static_cast<uint32_t>(exponent_word >> 32);
-  if (hi == 0)
-    BIO_printf(bio.get(), "0x%x", lo);
-  else
-    BIO_printf(bio.get(), "0x%x%08x", hi, lo);
-
+  BIO_printf(bio.get(), "0x%" PRIx64, exponent_word);
   return ToV8Value(env, bio);
 }
 
