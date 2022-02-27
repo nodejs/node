@@ -146,7 +146,7 @@ module.exports = {
 
         /**
          * Checks if a given binding identifier uses the original name as-is.
-         * - If it's in object destructuring, the original name is its property name.
+         * - If it's in object destructuring or object expression, the original name is its property name.
          * - If it's in import declaration, the original name is its exported name.
          * @param {ASTNode} node The `Identifier` node to check.
          * @returns {boolean} `true` if the identifier uses the original name as-is.
@@ -161,7 +161,7 @@ module.exports = {
             switch (parent.type) {
                 case "Property":
                     return (
-                        parent.parent.type === "ObjectPattern" &&
+                        (parent.parent.type === "ObjectPattern" || parent.parent.type === "ObjectExpression") &&
                         parent.value === valueNode &&
                         !parent.computed &&
                         parent.key.type === "Identifier" &&
