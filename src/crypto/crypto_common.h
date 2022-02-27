@@ -25,7 +25,7 @@ struct StackOfXASN1Deleter {
 };
 using StackOfASN1 = std::unique_ptr<STACK_OF(ASN1_OBJECT), StackOfXASN1Deleter>;
 
-int SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer);
+bool SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer);
 
 void LogSecret(
     const SSLPointer& ssl,
@@ -59,7 +59,7 @@ long VerifyPeerCertificate(  // NOLINT(runtime/int)
     const SSLPointer& ssl,
     long def = X509_V_ERR_UNSPECIFIED);  // NOLINT(runtime/int)
 
-int UseSNIContext(const SSLPointer& ssl, BaseObjectPtr<SecureContext> context);
+bool UseSNIContext(const SSLPointer& ssl, BaseObjectPtr<SecureContext> context);
 
 const char* GetClientHelloALPN(const SSLPointer& ssl);
 
