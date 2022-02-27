@@ -228,7 +228,7 @@ To use session tickets across server restarts or load balancers, servers must
 all have the same ticket keys. There are three 16-byte keys internally, but the
 tls API exposes them as a single 48-byte buffer for convenience.
 
-Its possible to get the ticket keys by calling [`server.getTicketKeys()`][] on
+It's possible to get the ticket keys by calling [`server.getTicketKeys()`][] on
 one server instance and then distribute them, but it is more reasonable to
 securely generate 48 bytes of secure random data and set them with the
 `ticketKeys` option of [`tls.createServer()`][]. The keys should be regularly
