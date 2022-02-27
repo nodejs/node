@@ -1140,11 +1140,12 @@ pkg-upload: pkg
 test/common/knownGlobals.json: lib/.eslintrc.yaml
 	$(PYTHON) tools/test.py --create-knownGlobals-json
 
-$(TARBALL): release-only doc-only test/common/knownGlobals.json
+$(TARBALL): test/common/knownGlobals.json release-only doc-only
 	git checkout-index -a -f --prefix=$(TARNAME)/
 	mkdir -p $(TARNAME)/doc/api
 	cp doc/node.1 $(TARNAME)/doc/node.1
 	cp -r out/doc/api/* $(TARNAME)/doc/api/
+	cp $< $(TARNAME)/$<
 	$(RM) -r $(TARNAME)/.editorconfig
 	$(RM) -r $(TARNAME)/.git*
 	$(RM) -r $(TARNAME)/.mailmap
