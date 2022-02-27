@@ -431,20 +431,20 @@ MaybeLocal<Object> GetLastIssuedCert(
 void AddFingerprintDigest(
     const unsigned char* md,
     unsigned int md_size,
-    char (*fingerprint)[3 * EVP_MAX_MD_SIZE + 1]) {
+    char fingerprint[3 * EVP_MAX_MD_SIZE + 1]) {
   unsigned int i;
   const char hex[] = "0123456789ABCDEF";
 
   for (i = 0; i < md_size; i++) {
-    (*fingerprint)[3*i] = hex[(md[i] & 0xf0) >> 4];
-    (*fingerprint)[(3*i)+1] = hex[(md[i] & 0x0f)];
-    (*fingerprint)[(3*i)+2] = ':';
+    fingerprint[3*i] = hex[(md[i] & 0xf0) >> 4];
+    fingerprint[(3*i)+1] = hex[(md[i] & 0x0f)];
+    fingerprint[(3*i)+2] = ':';
   }
 
   if (md_size > 0) {
-    (*fingerprint)[(3*(md_size-1))+2] = '\0';
+    fingerprint[(3*(md_size-1))+2] = '\0';
   } else {
-    (*fingerprint)[0] = '\0';
+    fingerprint[0] = '\0';
   }
 }
 
@@ -593,7 +593,7 @@ MaybeLocal<Value> GetFingerprintDigest(
   char fingerprint[EVP_MAX_MD_SIZE * 3 + 1];
 
   if (X509_digest(cert, method, md, &md_size)) {
-    AddFingerprintDigest(md, md_size, &fingerprint);
+    AddFingerprintDigest(md, md_size, fingerprint);
     return OneByteString(env->isolate(), fingerprint);
   }
   return Undefined(env->isolate());
