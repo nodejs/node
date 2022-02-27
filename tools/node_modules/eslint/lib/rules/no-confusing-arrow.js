@@ -41,7 +41,8 @@ module.exports = {
         schema: [{
             type: "object",
             properties: {
-                allowParens: { type: "boolean", default: true }
+                allowParens: { type: "boolean", default: true },
+                onlyOneSimpleParam: { type: "boolean", default: false }
             },
             additionalProperties: false
         }],
@@ -54,6 +55,7 @@ module.exports = {
     create(context) {
         const config = context.options[0] || {};
         const allowParens = config.allowParens || (config.allowParens === void 0);
+        const onlyOneSimpleParam = config.onlyOneSimpleParam;
         const sourceCode = context.getSourceCode();
 
 
@@ -65,7 +67,9 @@ module.exports = {
         function checkArrowFunc(node) {
             const body = node.body;
 
-            if (isConditional(body) && !(allowParens && astUtils.isParenthesised(sourceCode, body))) {
+            if (isConditional(body) &&
+                !(allowParens && astUtils.isParenthesised(sourceCode, body)) &&
+                !(onlyOneSimpleParam && !(node.params.length === 1 && node.params[0].type === "Identifier"))) {
                 context.report({
                     node,
                     messageId: "confusing",
