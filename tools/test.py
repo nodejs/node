@@ -96,8 +96,8 @@ def createKnowGlobalsJSON():
   eslintConfigFile = join(__dirname__, '..', 'lib', '.eslintrc.yaml')
   outputFile = join(__dirname__, '..', 'test', 'common', 'knownGlobals.json')
   searchLines = [
-    '  no-restricted-globals:\n',
-    '  node-core/prefer-primordials:\n',
+    '  no-restricted-globals:',
+    '  node-core/prefer-primordials:',
   ]
   isReadingGlobals = False
   restrictedGlobalDeclaration = re.compile("^\s{4}- name:\s?([^#\s]+)")
@@ -111,7 +111,7 @@ def createKnowGlobalsJSON():
           output.write(u',{}'.format(json.dumps(match.group(1))))
         elif closingSectionLine.match(line) is not None:
           isReadingGlobals = False
-      elif searchLines and line == searchLines[0]:
+      elif searchLines and line.rstrip() == searchLines[0]:
         searchLines = searchLines[1:]
         isReadingGlobals = True
     output.write(u']')
