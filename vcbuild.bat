@@ -596,6 +596,7 @@ if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
 setlocal
 set npm_config_nodedir=%~dp0
+python "%~dp0tools\test.py" --create-knownGlobals-json
 "%node_exe%" "%~dp0tools\build-addons.js" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\addons"
 if errorlevel 1 exit /b 1
 endlocal
@@ -614,6 +615,7 @@ for /d %%F in (test\js-native-api\??_*) do (
 :: building js-native-api
 setlocal
 set npm_config_nodedir=%~dp0
+python "%~dp0tools\test.py" --create-knownGlobals-json
 "%node_exe%" "%~dp0tools\build-addons.js" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\js-native-api"
 if errorlevel 1 exit /b 1
 endlocal
@@ -633,6 +635,7 @@ for /d %%F in (test\node-api\??_*) do (
 :: building node-api
 setlocal
 set npm_config_nodedir=%~dp0
+python "%~dp0tools\test.py" --create-knownGlobals-json
 "%node_exe%" "%~dp0tools\build-addons.js" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\node-api"
 if errorlevel 1 exit /b 1
 endlocal
