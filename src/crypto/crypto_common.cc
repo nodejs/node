@@ -427,11 +427,8 @@ void AddFingerprintDigest(
     fingerprint[(3*i)+2] = ':';
   }
 
-  if (md_size > 0) {
-    fingerprint[(3*(md_size-1))+2] = '\0';
-  } else {
-    fingerprint[0] = '\0';
-  }
+  DCHECK_GT(md_size, 0);
+  fingerprint[(3 * (md_size - 1)) + 2] = '\0';
 }
 
 template <const char* (*nid2string)(int nid)>
