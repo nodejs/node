@@ -2420,7 +2420,7 @@ This class serves as the parent class of [`http.ClientRequest`][]
 and [`http.ServerResponse`][]. It is an abstract of outgoing message from
 the perspective of the participants of HTTP transaction.
 
-### Event: `drain`
+### Event: `'drain'`
 
 <!-- YAML
 added: v0.3.6
@@ -2428,7 +2428,7 @@ added: v0.3.6
 
 Emitted when the buffer of the message is free again.
 
-### Event: `finish`
+### Event: `'finish'`
 
 <!-- YAML
 added: v0.1.17
@@ -2436,7 +2436,7 @@ added: v0.1.17
 
 Emitted when the transmission is finished successfully.
 
-### Event: `prefinish`
+### Event: `'prefinish'`
 
 <!-- YAML
 added: v0.11.6
