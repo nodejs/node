@@ -13,6 +13,7 @@ agenda to ensure they are active and have the support they need.
 | QUIC / HTTP3              | [James M Snell][jasnell]    | <https://github.com/nodejs/quic>                                                             |
 | Startup performance       | [Joyee Cheung][joyeecheung] | <https://github.com/nodejs/node/issues/35711>                                                |
 | V8 Currency               | [Michaël Zasso][targos]     |                                                                                              |
+| Next-10                   | [Michael Dawson][mhdawson]  | <https://github.com/nodejs/next-10>                                                          |
 
 <details>
 <summary>List of completed initiatives</summary>
@@ -38,5 +39,6 @@ agenda to ensure they are active and have the support they need.
 [aduh95]: https://github.com/aduh95
 [jasnell]: https://github.com/jasnell
 [joyeecheung]: https://github.com/joyeecheung
+[mhdawson]: https://github.com/mhdawson
 [mmarchini]: https://github.com/mmarchini
 [targos]: https://github.com/targos
