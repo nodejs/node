@@ -695,6 +695,10 @@ the end of the file.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41677
+    description: The `data` parameter no longer accepts objects with an
+                 own `toString` function property.
   - version:
       - v15.14.0
       - v14.18.0
@@ -710,17 +714,15 @@ changes:
                  strings anymore.
 -->
 
-* `data` {string|Buffer|TypedArray|DataView|Object|AsyncIterable|Iterable
-  |Stream}
+* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
 * `options` {Object|string}
   * `encoding` {string|null} The expected character encoding when `data` is a
     string. **Default:** `'utf8'`
 * Returns: {Promise}
 
 Asynchronously writes data to a file, replacing the file if it already exists.
-`data` can be a string, a buffer, an {AsyncIterable} or {Iterable} object, or an
-object with an own `toString` function
-property. The promise is resolved with no arguments upon success.
+`data` can be a string, a buffer, an {AsyncIterable} or {Iterable} object.
+The promise is resolved with no arguments upon success.
 
 If `options` is a string, then it specifies the `encoding`.
 
