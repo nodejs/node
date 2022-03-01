@@ -200,7 +200,7 @@ class TestSource {
 
 {
   const writableStream = new WritableStream({
-    write: common.mustCall(2),
+    write: common.mustCall(5),
     close: common.mustCall(),
   });
   const writable = newStreamWritableFromWritableStream(writableStream);
@@ -208,6 +208,9 @@ class TestSource {
   finished(writable, common.mustCall());
 
   writable.write('hello');
+  writable.write('hello');
+  writable.write('hello');
+  writable.write('world');
   writable.write('world');
   writable.end();
 }
