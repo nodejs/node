@@ -189,7 +189,6 @@ testclean:
 # Next one is legacy remove this at some point
 	$(RM) -r test/tmp*
 	$(RM) -r test/.tmp*
-	$(RM) -d test/common/knownGlobals.json
 
 .PHONY: distclean
 .NOTPARALLEL: distclean
@@ -262,7 +261,8 @@ coverage-report-js:
 
 .PHONY: cctest
 # Runs the C++ tests using the built `cctest` executable.
-cctest: all
+# knownGlobals.json is listed as order-only prerequisit to make it work from the tarball.
+cctest: all | test/common/knownGlobals.json
 	@out/$(BUILDTYPE)/$@ --gtest_filter=$(GTEST_FILTER)
 	@out/$(BUILDTYPE)/embedtest "require('./test/embedding/test-embedding.js')"
 
@@ -326,8 +326,8 @@ test-cov: all
 	$(MAKE) build-addons
 	$(MAKE) build-js-native-api-tests
 	$(MAKE) build-node-api-tests
-	$(MAKE) cctest
 	CI_SKIP_TESTS=$(COV_SKIP_TESTS) $(MAKE) jstest
+	$(MAKE) cctest
 
 .PHONY: test-parallel
 test-parallel: all
