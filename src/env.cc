@@ -559,7 +559,7 @@ void Environment::InitializeLibuv() {
   uv_prepare_init(event_loop(), &idle_prepare_handle_);
   uv_check_init(event_loop(), &idle_check_handle_);
 
-  uv_async_init(
+  CHECK_EQ(0, uv_async_init(
       event_loop(),
       &task_queues_async_,
       [](uv_async_t* async) {
@@ -568,7 +568,7 @@ void Environment::InitializeLibuv() {
         HandleScope handle_scope(env->isolate());
         Context::Scope context_scope(env->context());
         env->RunAndClearNativeImmediates();
-      });
+      }));
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
