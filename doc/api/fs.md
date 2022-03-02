@@ -7127,6 +7127,85 @@ The following constants are meant for use with the {fs.Stats} object's
   </tr>
 </table>
 
+##### Dirent constants
+
+The following constants are meant for use with the {fs.Dirent} object's
+TODO.
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Binary</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>UV_DIRENT_UNKNOWN</code></td>
+    <td><code>~~0</code></td>
+    <td>TODO.</td>
+  </tr>
+  <tr>
+    <td><code>UV_FS_SYMLINK_DIR</code></td>
+    <td><code>~~1</code></td>
+    <td>TODO.</td>
+  </tr>
+  <tr>
+    <td><code>UV_DIRENT_FILE</code></td>
+    <td><code>~~1</code></td>
+    <td>TODO.</td>
+  </tr>
+  <tr>
+    <td><code>UV_FS_COPYFILE_EXCL</code></td>
+    <td><code>~~1</code></td>
+    <td>TODO.</td>
+  </tr>
+  <tr>
+    <td><code>UV_FS_SYMLINK_JUNCTION</code></td>
+    <td><code>~10</code></td>
+    <td>TODO.</td>
+  </tr>
+  <tr>
+    <td><code>UV_DIRENT_DIR</code></td>
+    <td><code>~10</code></td>
+    <td>TODO.</td>
+  </tr>
+  <tr>
+    <td><code>UV_FS_COPYFILE_FICLONE</code></td>
+    <td><code>~10</code></td>
+    <td>TODO.</td>
+  </tr>
+  <tr>
+    <td><code>UV_DIRENT_LINK</code></td>
+    <td><code>~11</code></td>
+    <td>TODO.</td>
+  </tr>
+  <tr>
+    <td><code>UV_DIRENT_FIFO</code></td>
+    <td><code>100</code></td>
+    <td>TODO.</td>
+  </tr>
+  <tr>
+    <td><code>UV_FS_COPYFILE_FICLONE_FORCE</code></td>
+    <td><code>100</code></td>
+    <td>TODO.</td>
+  </tr>
+  <tr>
+    <td><code>UV_DIRENT_SOCKET</code></td>
+    <td><code>101</code></td>
+    <td>TODO.</td>
+  </tr>
+  <tr>
+    <td><code>UV_DIRENT_CHAR</code></td>
+    <td><code>110</code></td>
+    <td>TODO.</td>
+  </tr>
+  <tr>
+    <td><code>UV_DIRENT_BLOCK</code></td>
+    <td><code>111</code></td>
+    <td>TODO.</td>
+  </tr>
+</table>
+
+
 ## Notes
 
 ### Ordering of callback and promise-based operations
