@@ -114,6 +114,7 @@ class EnvironmentOptions : public Options {
   bool experimental_wasm_modules = false;
   bool experimental_import_meta_resolve = false;
   std::string module_type;
+  bool has_experimental_policy_string = false;
   std::string experimental_policy;
   std::string experimental_policy_integrity;
   bool has_policy_integrity_string = false;
