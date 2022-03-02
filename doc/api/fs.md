@@ -6836,9 +6836,11 @@ The following constants are meant for use as the `mode` parameter passed to
      about <code>rwx</code> permissions. Default if no mode is specified.</td>
   </tr>
   <tr>
-    <td><code>R_OK</code></td>
-    <td><code>100</code></td>
-    <td>Flag indicating that the file can be read by the calling process.</td>
+    <td><code>X_OK</code></td>
+    <td><code>~~1</code></td>
+    <td>Flag indicating that the file can be executed by the calling
+    process. This has no effect on Windows
+    (will behave like <code>fs.constants.F_OK</code>).</td>
   </tr>
   <tr>
     <td><code>W_OK</code></td>
@@ -6847,14 +6849,11 @@ The following constants are meant for use as the `mode` parameter passed to
     process.</td>
   </tr>
   <tr>
-    <td><code>X_OK</code></td>
-    <td><code>~~1</code></td>
-    <td>Flag indicating that the file can be executed by the calling
-    process. This has no effect on Windows
-    (will behave like <code>fs.constants.F_OK</code>).</td>
+    <td><code>R_OK</code></td>
+    <td><code>100</code></td>
+    <td>Flag indicating that the file can be read by the calling process.</td>
   </tr>
 </table>
-
 
 ##### File copy constants
 
@@ -6888,7 +6887,6 @@ The following constants are meant for use with [`fs.copyFile()`][].
   </tr>
 </table>
 
-
 ##### File open constants
 
 The following constants are meant for use with `fs.open()`.
@@ -6903,6 +6901,13 @@ The following constants are meant for use with `fs.open()`.
     <td><code>O_RDONLY</code></td>
     <td><code>~~~~~~~~~~~~~~~~~~~~0</code></td>
     <td>Flag indicating to open a file for read-only access.</td>
+  </tr>
+  <tr>
+    <td><code>UV_FS_O_FILEMAP</code></td>
+    <td><code>~~~~~~~~~~~~~~~~~~~~0</code></td>
+    <td>When set, a memory file mapping is used to access the file. This flag
+    is available on Windows operating systems only. On other operating systems,
+    this flag is ignored.</td>
   </tr>
   <tr>
     <td><code>O_WRONLY</code></td>
@@ -6945,29 +6950,9 @@ The following constants are meant for use with `fs.open()`.
     <td>Flag indicating that data will be appended to the end of the file.</td>
   </tr>
   <tr>
-    <td><code>O_DIRECTORY</code></td>
-    <td><code>~~~~10000000000000000</code></td>
-    <td>Flag indicating that the open should fail if the path is not a
-    directory.</td>
-  </tr>
-  <tr>
-  <td><code>O_NOATIME</code></td>
-    <td><code>~~1000000000000000000</code></td>
-    <td>Flag indicating reading accesses to the file system will no longer
-    result in an update to the <code>atime</code> information associated with
-    the file. This flag is available on Linux operating systems only.</td>
-  </tr>
-  <tr>
-    <td><code>O_NOFOLLOW</code></td>
-    <td><code>~~~100000000000000000</code></td>
-    <td>Flag indicating that the open should fail if the path is a symbolic
-    link.</td>
-  </tr>
-  <tr>
-    <td><code>O_SYNC</code></td>
-    <td><code>100000001000000000000</code></td>
-    <td>Flag indicating that the file is opened for synchronized I/O with write
-    operations waiting for file integrity.</td>
+    <td><code>O_NONBLOCK</code></td>
+    <td><code>~~~~~~~~~100000000000</code></td>
+    <td>Flag indicating to open the file in nonblocking mode when possible.</td>
   </tr>
   <tr>
     <td><code>O_DSYNC</code></td>
@@ -6976,28 +6961,41 @@ The following constants are meant for use with `fs.open()`.
     operations waiting for data integrity.</td>
   </tr>
   <tr>
-    <td><code>O_SYMLINK</code></td>
-    <td><code>1000000000000000000000</code></td>
-    <td>Flag indicating to open the symbolic link itself rather than the
-    resource it is pointing to.</td>
-  </tr>
-  <tr>
     <td><code>O_DIRECT</code></td>
     <td><code>~~~~~~100000000000000</code></td>
     <td>When set, an attempt will be made to minimize caching effects of file
     I/O.</td>
   </tr>
   <tr>
-    <td><code>O_NONBLOCK</code></td>
-    <td><code>~~~~~~~~~100000000000</code></td>
-    <td>Flag indicating to open the file in nonblocking mode when possible.</td>
+    <td><code>O_DIRECTORY</code></td>
+    <td><code>~~~~10000000000000000</code></td>
+    <td>Flag indicating that the open should fail if the path is not a
+    directory.</td>
   </tr>
   <tr>
-    <td><code>UV_FS_O_FILEMAP</code></td>
-    <td><code>~~~~~~~~~~~~~~~~~~~~0</code></td>
-    <td>When set, a memory file mapping is used to access the file. This flag
-    is available on Windows operating systems only. On other operating systems,
-    this flag is ignored.</td>
+  <tr>
+    <td><code>O_NOFOLLOW</code></td>
+    <td><code>~~~100000000000000000</code></td>
+    <td>Flag indicating that the open should fail if the path is a symbolic
+    link.</td>
+  </tr>
+  <td><code>O_NOATIME</code></td>
+    <td><code>~~1000000000000000000</code></td>
+    <td>Flag indicating reading accesses to the file system will no longer
+    result in an update to the <code>atime</code> information associated with
+    the file. This flag is available on Linux operating systems only.</td>
+  </tr>
+  <tr>
+    <td><code>O_SYMLINK</code></td>
+    <td><code>1000000000000000000000</code></td>
+    <td>Flag indicating to open the symbolic link itself rather than the
+    resource it is pointing to.</td>
+  </tr>
+  <tr>
+    <td><code>O_SYNC</code></td>
+    <td><code>100000001000000000000</code></td>
+    <td>Flag indicating that the file is opened for synchronized I/O with write
+    operations waiting for file integrity.</td>
   </tr>
 </table>
 
@@ -7013,19 +7011,9 @@ The following constants are meant for use with the {fs.Stats} object's
     <th>Description</th>
   </tr>
   <tr>
-    <td><code>S_IFMT</code></td>
-    <td><code>1111000000000000</code></td>
-    <td>Bit mask used to extract the file type code.</td>
-  </tr>
-  <tr>
-    <td><code>S_IFREG</code></td>
-    <td><code>1000000000000000</code></td>
-    <td>File type constant for a regular file.</td>
-  </tr>
-  <tr>
-    <td><code>S_IFDIR</code></td>
-    <td><code>~100000000000000</code></td>
-    <td>File type constant for a directory.</td>
+    <td><code>S_IFIFO</code></td>
+    <td><code>~~~1000000000000</code></td>
+    <td>File type constant for a FIFO/pipe.</td>
   </tr>
   <tr>
     <td><code>S_IFCHR</code></td>
@@ -7033,14 +7021,19 @@ The following constants are meant for use with the {fs.Stats} object's
     <td>File type constant for a character-oriented device file.</td>
   </tr>
   <tr>
+    <td><code>S_IFDIR</code></td>
+    <td><code>~100000000000000</code></td>
+    <td>File type constant for a directory.</td>
+  </tr>
+  <tr>
     <td><code>S_IFBLK</code></td>
     <td><code>~110000000000000</code></td>
     <td>File type constant for a block-oriented device file.</td>
   </tr>
   <tr>
-    <td><code>S_IFIFO</code></td>
-    <td><code>~~~1000000000000</code></td>
-    <td>File type constant for a FIFO/pipe.</td>
+    <td><code>S_IFREG</code></td>
+    <td><code>1000000000000000</code></td>
+    <td>File type constant for a regular file.</td>
   </tr>
   <tr>
     <td><code>S_IFLNK</code></td>
@@ -7051,6 +7044,11 @@ The following constants are meant for use with the {fs.Stats} object's
     <td><code>S_IFSOCK</code></td>
     <td><code>1100000000000000</code></td>
     <td>File type constant for a socket.</td>
+  </tr>
+  <tr>
+    <td><code>S_IFMT</code></td>
+    <td><code>1111000000000000</code></td>
+    <td>Bit mask used to extract the file type code.</td>
   </tr>
 </table>
 
@@ -7066,54 +7064,9 @@ The following constants are meant for use with the {fs.Stats} object's
     <th>Description</th>
   </tr>
   <tr>
-    <td><code>S_IRWXU</code></td>
-    <td><code>111000000</code></td>
-    <td>File mode indicating readable, writable, and executable by owner.</td>
-  </tr>
-  <tr>
-    <td><code>S_IRUSR</code></td>
-    <td><code>100000000</code></td>
-    <td>File mode indicating readable by owner.</td>
-  </tr>
-  <tr>
-    <td><code>S_IWUSR</code></td>
-    <td><code>~10000000</code></td>
-    <td>File mode indicating writable by owner.</td>
-  </tr>
-  <tr>
-    <td><code>S_IXUSR</code></td>
-    <td><code>~~1000000</code></td>
-    <td>File mode indicating executable by owner.</td>
-  </tr>
-  <tr>
-    <td><code>S_IRWXG</code></td>
-    <td><code>~~~111000</code></td>
-    <td>File mode indicating readable, writable, and executable by group.</td>
-  </tr>
-  <tr>
-    <td><code>S_IRGRP</code></td>
-    <td><code>~~~100000</code></td>
-    <td>File mode indicating readable by group.</td>
-  </tr>
-  <tr>
-    <td><code>S_IWGRP</code></td>
-    <td><code>~~~~10000</code></td>
-    <td>File mode indicating writable by group.</td>
-  </tr>
-  <tr>
-    <td><code>S_IXGRP</code></td>
-    <td><code>~~~~~1000</code></td>
-    <td>File mode indicating executable by group.</td>
-  </tr>
-  <tr>
-    <td><code>S_IRWXO</code></td>
-    <td><code>~~~~~~111</code></td>
-    <td>File mode indicating readable, writable, and executable by others.</td>
-  </tr>
-  <tr>
-    <td><code>S_IROTH</code></td>
-    <td><code>~~~~~~100</code></td>
-    <td>File mode indicating readable by others.</td>
+    <td><code>S_IXOTH</code></td>
+    <td><code>~~~~~~~~1</code></td>
+    <td>File mode indicating executable by others.</td>
   </tr>
   <tr>
     <td><code>S_IWOTH</code></td>
@@ -7121,9 +7074,54 @@ The following constants are meant for use with the {fs.Stats} object's
     <td>File mode indicating writable by others.</td>
   </tr>
   <tr>
-    <td><code>S_IXOTH</code></td>
-    <td><code>~~~~~~~~1</code></td>
-    <td>File mode indicating executable by others.</td>
+    <td><code>S_IROTH</code></td>
+    <td><code>~~~~~~100</code></td>
+    <td>File mode indicating readable by others.</td>
+  </tr>
+  <tr>
+    <td><code>S_IRWXO</code></td>
+    <td><code>~~~~~~111</code></td>
+    <td>File mode indicating readable, writable, and executable by others.</td>
+  </tr>
+  <tr>
+    <td><code>S_IXGRP</code></td>
+    <td><code>~~~~~1000</code></td>
+    <td>File mode indicating executable by group.</td>
+  </tr>
+  <tr>
+    <td><code>S_IWGRP</code></td>
+    <td><code>~~~~10000</code></td>
+    <td>File mode indicating writable by group.</td>
+  </tr>
+  <tr>
+    <td><code>S_IRGRP</code></td>
+    <td><code>~~~100000</code></td>
+    <td>File mode indicating readable by group.</td>
+  </tr>
+  <tr>
+    <td><code>S_IRWXG</code></td>
+    <td><code>~~~111000</code></td>
+    <td>File mode indicating readable, writable, and executable by group.</td>
+  </tr>
+  <tr>
+    <td><code>S_IXUSR</code></td>
+    <td><code>~~1000000</code></td>
+    <td>File mode indicating executable by owner.</td>
+  </tr>
+  <tr>
+    <td><code>S_IWUSR</code></td>
+    <td><code>~10000000</code></td>
+    <td>File mode indicating writable by owner.</td>
+  </tr>
+  <tr>
+    <td><code>S_IRUSR</code></td>
+    <td><code>100000000</code></td>
+    <td>File mode indicating readable by owner.</td>
+  </tr>
+  <tr>
+    <td><code>S_IRWXU</code></td>
+    <td><code>111000000</code></td>
+    <td>File mode indicating readable, writable, and executable by owner.</td>
   </tr>
 </table>
 
@@ -7204,7 +7202,6 @@ TODO.
     <td>TODO.</td>
   </tr>
 </table>
-
 
 ## Notes
 
