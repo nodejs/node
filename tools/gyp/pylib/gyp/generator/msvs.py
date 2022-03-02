@@ -426,9 +426,10 @@ def _BuildCommandLineForRuleRaw(
         #              for arguments like "--arg=path" or "/opt:path".
         # If the argument starts with a slash or dash, it's probably a command line
         # switch
+        # If the argument contains an equal sign, it's probably not only a path.
         # Return the path with forward slashes because the command using it might
         # not support backslashes.
-        arguments = [i if (i[:1] in "/-") else _FixPath(i, "/") for i in cmd[1:]]
+        arguments = [i if (i[:1] in "/-" or "=" in i) else _FixPath(i, "/") for i in cmd[1:]]
         arguments = [i.replace("$(InputDir)", "%INPUTDIR%") for i in arguments]
         arguments = [MSVSSettings.FixVCMacroSlashes(i) for i in arguments]
         if quote_cmd:
