@@ -64,6 +64,8 @@ static int ares__isprint(int ch)
  *  - underscores which are used in SRV records.
  *  - Forward slashes such as are used for classless in-addr.arpa 
  *    delegation (CNAMEs)
+ *  - Asterisks may be used for wildcard domains in CNAMEs as seen in the
+ *    real world.
  * While RFC 2181 section 11 does state not to do validation,
  * that applies to servers, not clients.  Vulnerabilities have been
  * reported when this validation is not performed.  Security is more
@@ -71,7 +73,7 @@ static int ares__isprint(int ch)
  * anyhow). */
 static int is_hostnamech(int ch)
 {
-  /* [A-Za-z0-9-._/]
+  /* [A-Za-z0-9-*._/]
    * Don't use isalnum() as it is locale-specific
    */
   if (ch >= 'A' && ch <= 'Z')
@@ -80,7 +82,7 @@ static int is_hostnamech(int ch)
     return 1;
   if (ch >= '0' && ch <= '9')
     return 1;
-  if (ch == '-' || ch == '.' || ch == '_' || ch == '/')
+  if (ch == '-' || ch == '.' || ch == '_' || ch == '/' || ch == '*')
     return 1;
 
   return 0;
