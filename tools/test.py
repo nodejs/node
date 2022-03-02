@@ -91,17 +91,16 @@ os.umask(0o022)
 os.environ['NODE_OPTIONS'] = ''
 
 
-def createKnowGlobalsJSON():
-  __dirname__ = dirname(__file__)
-  eslintConfigFile = join(__dirname__, '..', 'lib', '.eslintrc.yaml')
-  outputFile = join(__dirname__, '..', 'test', 'common', 'knownGlobals.json')
+def createKnowGlobalsJSON(workspace, test_root):
+  eslintConfigFile = join(workspace, 'lib', '.eslintrc.yaml')
+  outputFile = join(test_root, 'common', 'knownGlobals.json')
   searchLines = [
     '  no-restricted-globals:',
     '  node-core/prefer-primordials:',
   ]
   isReadingGlobals = False
-  restrictedGlobalDeclaration = re.compile("^\s{4}- name:\s?([^#\s]+)")
-  closingSectionLine = re.compile("^\s{0,3}[^#\s]")
+  restrictedGlobalDeclaration = re.compile(r"^\s{4}- name:\s?([^#\s]+)")
+  closingSectionLine = re.compile(r"^\s{0,3}[^#\s]")
   with open(eslintConfigFile, 'r') as eslintConfig, open(outputFile, 'w') as output:
     output.write(u'["process"')
     for line in eslintConfig.readlines():
@@ -116,7 +115,7 @@ def createKnowGlobalsJSON():
         isReadingGlobals = True
     output.write(u']')
 
-def createKnowGlobalsJSONIfPossible():
+def createKnowGlobalsJSONIfPossible(workspace, test_root):
   try:
       # Python 3
       FileNotFoundError # noqa: F823
@@ -124,7 +123,7 @@ def createKnowGlobalsJSONIfPossible():
       # Python 2
       FileNotFoundError = IOError
   try:
-    createKnowGlobalsJSON()
+    createKnowGlobalsJSON(workspace, test_root)
   except FileNotFoundError:
     # In the tarball, the .eslintrc.yaml file doesn't exist, and we cannot
     # create the JSON file. However, in the tarball the JSON file has already
@@ -1614,10 +1613,6 @@ def Main():
     parser.print_help()
     return 1
 
-  if options.create_knownGlobal_json:
-    createKnowGlobalsJSON()
-    return 0
-
   ch = logging.StreamHandler(sys.stdout)
   logger.addHandler(ch)
   logger.setLevel(logging.INFO)
@@ -1632,6 +1627,10 @@ def Main():
   suites = GetSuites(test_root)
   repositories = [TestRepository(join(test_root, name)) for name in suites]
   repositories += [TestRepository(a) for a in options.suite]
+
+  if options.create_knownGlobal_json:
+    createKnowGlobalsJSON(workspace, test_root)
+    return 0
 
   root = LiteralTestSuite(repositories, test_root)
   paths = ArgsToTestPaths(test_root, args, suites)
@@ -1720,7 +1719,7 @@ def Main():
   if has_crypto.stdout.rstrip() == 'undefined':
     context.node_has_crypto = False
 
-  createKnowGlobalsJSONIfPossible()
+  createKnowGlobalsJSONIfPossible(workspace, test_root)
 
   if options.cat:
     visited = set()
