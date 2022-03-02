@@ -1024,6 +1024,27 @@ void Http2Session::DecrefHeaders(const nghttp2_frame* frame) {
   }
 }
 
+uint32_t TranslateNghttp2ErrorCode(const int libErrorCode) {
+  switch (libErrorCode) {
+  case NGHTTP2_ERR_STREAM_CLOSED:
+    return NGHTTP2_STREAM_CLOSED;
+  case NGHTTP2_ERR_HEADER_COMP:
+    return NGHTTP2_COMPRESSION_ERROR;
+  case NGHTTP2_ERR_FRAME_SIZE_ERROR:
+    return NGHTTP2_FRAME_SIZE_ERROR;
+  case NGHTTP2_ERR_FLOW_CONTROL:
+    return NGHTTP2_FLOW_CONTROL_ERROR;
+  case NGHTTP2_ERR_REFUSED_STREAM:
+    return NGHTTP2_REFUSED_STREAM;
+  case NGHTTP2_ERR_PROTO:
+  case NGHTTP2_ERR_HTTP_HEADER:
+  case NGHTTP2_ERR_HTTP_MESSAGING:
+    return NGHTTP2_PROTOCOL_ERROR;
+  default:
+    return NGHTTP2_INTERNAL_ERROR;
+  }
+}
+
 // If nghttp2 is unable to send a queued up frame, it will call this callback
 // to let us know. If the failure occurred because we are in the process of
 // closing down the session or stream, we go ahead and ignore it. We don't
@@ -1060,7 +1081,7 @@ int Http2Session::OnFrameNotSent(nghttp2_session* handle,
   Local<Value> argv[3] = {
     Integer::New(isolate, frame->hd.stream_id),
     Integer::New(isolate, frame->hd.type),
-    Integer::New(isolate, error_code)
+    Integer::New(isolate, TranslateNghttp2ErrorCode(error_code))
   };
   session->MakeCallback(
       env->http2session_on_frame_error_function(),
