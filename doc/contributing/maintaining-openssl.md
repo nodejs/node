@@ -25,7 +25,7 @@ Details on the fork, as well as the latest sources, can be found at
 <https://github.com/quictls/openssl>.
 
 Branches are used per OpenSSL version (for instance,
-<https://github.com/quictls/openssl/tree/OpenSSL_1_1_1j+quic)>.
+<https://github.com/quictls/openssl/tree/OpenSSL_1_1_1j+quic>).
 
 ## Requirements
 

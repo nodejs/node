@@ -117,7 +117,7 @@ for (let i = 0; i < 30000; ++i) {
 
 In the preceding example, 30,000 deflate instances are created concurrently.
 Because of how some operating systems handle memory allocation and
-deallocation, this may lead to to significant memory fragmentation.
+deallocation, this may lead to significant memory fragmentation.
 
 It is strongly recommended that the results of compression
 operations be cached to avoid duplication of effort.
