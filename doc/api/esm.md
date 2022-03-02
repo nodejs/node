@@ -998,7 +998,7 @@ prints the current version of CoffeeScript per the module at the URL in
 
 Sources that are in formats Node.js doesn’t understand can be converted into
 JavaScript using the [`load` hook][load hook]. Before that hook gets called,
-however, a [`resolve` hook][resolve hook] hook needs to tell Node.js not to
+however, a [`resolve` hook][resolve hook] needs to tell Node.js not to
 throw an error on unknown file types.
 
 This is less performant than transpiling source files before running

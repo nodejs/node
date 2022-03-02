@@ -3526,7 +3526,7 @@ Synchronous writes avoid problems such as output written with `console.log()` or
 _**Warning**_: Synchronous writes block the event loop until the write has
 completed. This can be near instantaneous in the case of output to a file, but
 under high system load, pipes that are not being read at the receiving end, or
-with slow terminals or file systems, its possible for the event loop to be
+with slow terminals or file systems, it's possible for the event loop to be
 blocked often enough and long enough to have severe negative performance
 impacts. This may not be a problem when writing to an interactive terminal
 session, but consider this particularly careful when doing production logging to

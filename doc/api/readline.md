@@ -912,7 +912,7 @@ const { createInterface } = require('readline');
   </tr>
   <tr>
     <td><kbd>Ctrl</kbd>+<kbd>E</kbd></td>
-    <td>Go to to end of line</td>
+    <td>Go to end of line</td>
     <td></td>
   </tr>
   <tr>
