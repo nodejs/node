@@ -545,19 +545,19 @@ void Environment::InitializeLibuv() {
   CHECK_EQ(0, uv_timer_init(event_loop(), timer_handle()));
   uv_unref(reinterpret_cast<uv_handle_t*>(timer_handle()));
 
-  uv_check_init(event_loop(), immediate_check_handle());
+  CHECK_EQ(0, uv_check_init(event_loop(), immediate_check_handle()));
   uv_unref(reinterpret_cast<uv_handle_t*>(immediate_check_handle()));
 
-  uv_idle_init(event_loop(), immediate_idle_handle());
+  CHECK_EQ(0, uv_idle_init(event_loop(), immediate_idle_handle()));
 
-  uv_check_start(immediate_check_handle(), CheckImmediate);
+  CHECK_EQ(0, uv_check_start(immediate_check_handle(), CheckImmediate));
 
   // Inform V8's CPU profiler when we're idle.  The profiler is sampling-based
   // but not all samples are created equal; mark the wall clock time spent in
   // epoll_wait() and friends so profiling tools can filter it out.  The samples
   // still end up in v8.log but with state=IDLE rather than state=EXTERNAL.
-  uv_prepare_init(event_loop(), &idle_prepare_handle_);
-  uv_check_init(event_loop(), &idle_check_handle_);
+  CHECK_EQ(0, uv_prepare_init(event_loop(), &idle_prepare_handle_));
+  CHECK_EQ(0, uv_check_init(event_loop(), &idle_check_handle_));
 
   CHECK_EQ(0, uv_async_init(
       event_loop(),
