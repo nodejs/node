@@ -2839,6 +2839,9 @@ Found'`.
 added: v0.1.13
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42163
+    description: The `noDelay` option now defaults to `true`.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/41310
     description: The `noDelay`, `keepAlive` and `keepAliveInitialDelay`
                  options are supported now.
