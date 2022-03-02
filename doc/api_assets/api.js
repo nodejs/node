@@ -1,6 +1,6 @@
 'use strict';
-    
-// Check if we have Javascript support
+
+// Check if we have JavaScript support
 document.querySelector(':root').classList.add('has-js');
 
 // Restore user mode preferences
@@ -38,8 +38,8 @@ if (themeToggleButton) {
 
 // Handle pickers with click/taps rather than hovers
 const pickers = document.querySelectorAll('.picker-header');
-for(const picker of pickers) {
-  picker.addEventListener('click', e => {
+for (const picker of pickers) {
+  picker.addEventListener('click', (e) => {
     if (!e.target.closest('.picker')) {
       e.preventDefault();
     }
@@ -57,7 +57,7 @@ for(const picker of pickers) {
 }
 
 // Track when the header is in sticky position
-const header = document.querySelector(".header");
+const header = document.querySelector('.header');
 let ignoreNextIntersection = false;
 new IntersectionObserver(
   ([e]) => {
@@ -65,9 +65,9 @@ new IntersectionObserver(
     const newStatus = e.intersectionRatio < 1;
 
     // Same status, do nothing
-    if(currentStatus === newStatus) {
+    if (currentStatus === newStatus) {
       return;
-    } else if(ignoreNextIntersection) { 
+    } else if (ignoreNextIntersection) {
       ignoreNextIntersection = false;
       return;
     }
