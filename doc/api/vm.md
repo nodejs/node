@@ -1047,7 +1047,7 @@ current V8 isolate, or the main context.
 * `options` {Object} Optional.
   * `mode` {string} Either `'summary'` or `'detailed'`. In summary mode,
     only the memory measured for the main context will be returned. In
-    detailed mode, the measure measured for all contexts known to the
+    detailed mode, the memory measured for all contexts known to the
     current V8 isolate will be returned.
     **Default:** `'summary'`
   * `execution` {string} Either `'default'` or `'eager'`. With default
