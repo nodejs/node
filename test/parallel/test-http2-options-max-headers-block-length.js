@@ -32,12 +32,12 @@ server.listen(0, common.mustCall(() => {
   }));
 
   req.on('frameError', common.mustCall((type, code) => {
-    assert.strictEqual(code, h2.constants.NGHTTP2_ERR_FRAME_SIZE_ERROR);
+    assert.strictEqual(code, h2.constants.NGHTTP2_FRAME_SIZE_ERROR);
   }));
 
   req.on('error', common.expectsError({
     code: 'ERR_HTTP2_STREAM_ERROR',
     name: 'Error',
-    message: 'Stream closed with error code NGHTTP2_REFUSED_STREAM'
+    message: 'Stream closed with error code NGHTTP2_FRAME_SIZE_ERROR'
   }));
 }));
