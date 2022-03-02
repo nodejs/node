@@ -354,6 +354,8 @@ For information about the governance of the Node.js project, see
   **Fedor Indutny** <<fedor@indutny.com>>
 * [JacksonTian](https://github.com/JacksonTian) -
   **Jackson Tian** <<shyvo1987@gmail.com>>
+* [JakobJingleheimer](https://github.com/JakobJingleheimer) -
+  **Jacob Smith** <<jacob@frende.me>> (he/him)
 * [jasnell](https://github.com/jasnell) -
   **James M Snell** <<jasnell@gmail.com>> (he/him)
 * [jkrems](https://github.com/jkrems) -
