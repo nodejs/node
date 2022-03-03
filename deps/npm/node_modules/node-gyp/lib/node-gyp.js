@@ -149,6 +149,10 @@ proto.parseArgv = function parseOpts (argv) {
       // gyp@741b7f1 enters an infinite loop when it encounters
       // zero-length options so ensure those don't get through.
       if (name) {
+        // convert names like force_process_config to force-process-config
+        if (name.includes('_')) {
+          name = name.replace(/_/g, '-')
+        }
         this.opts[name] = val
       }
     }

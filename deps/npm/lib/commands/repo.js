@@ -10,6 +10,7 @@ class Repo extends BaseCommand {
   static name = 'repo'
   static params = ['browser', 'workspace', 'workspaces', 'include-workspace-root']
   static usage = ['[<pkgname> [<pkgname> ...]]']
+  static ignoreImplicitWorkspace = false
 
   async exec (args) {
     if (!args || !args.length) {

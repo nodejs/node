@@ -9,6 +9,7 @@ class SetScript extends BaseCommand {
   static params = ['workspace', 'workspaces', 'include-workspace-root']
   static name = 'set-script'
   static usage = ['[<script>] [<command>]']
+  static ignoreImplicitWorkspace = false
 
   async completion (opts) {
     const argv = opts.conf.argv.remain

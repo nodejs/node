@@ -6,6 +6,7 @@ const BaseCommand = require('../base-command.js')
 class Shrinkwrap extends BaseCommand {
   static description = 'Lock down dependency versions for publication'
   static name = 'shrinkwrap'
+  static ignoreImplicitWorkspace = false
 
   async exec () {
     // if has a npm-shrinkwrap.json, nothing to do

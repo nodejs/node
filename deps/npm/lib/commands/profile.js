@@ -54,6 +54,8 @@ class Profile extends BaseCommand {
     'otp',
   ]
 
+  static ignoreImplicitWorkspace = true
+
   async completion (opts) {
     var argv = opts.conf.argv.remain
 

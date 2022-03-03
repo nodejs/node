@@ -20,6 +20,8 @@ class Version extends BaseCommand {
     'include-workspace-root',
   ]
 
+  static ignoreImplicitWorkspace = false
+
   /* eslint-disable-next-line max-len */
   static usage = ['[<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease | from-git]']
 
