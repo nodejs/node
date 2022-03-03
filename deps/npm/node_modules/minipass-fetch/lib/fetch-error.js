@@ -5,8 +5,9 @@ class FetchError extends Error {
     this.code = 'FETCH_ERROR'
 
     // pick up code, expected, path, ...
-    if (systemError)
+    if (systemError) {
       Object.assign(this, systemError)
+    }
 
     this.errno = this.code
 

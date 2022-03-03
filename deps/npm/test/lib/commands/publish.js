@@ -290,6 +290,7 @@ t.test('can publish a tarball', async t => {
         name: 'my-cool-tarball',
         version: '1.2.3',
       }),
+      'README.md': 'This is my readme',
     },
   })
   const tar = require('tar')
@@ -311,6 +312,9 @@ t.test('can publish a tarball', async t => {
           {
             name: 'my-cool-tarball',
             version: '1.2.3',
+            readme: 'This is my readme',
+            description: 'This is my readme',
+            readmeFilename: 'README.md',
           },
           'sent manifest to lib pub'
         )

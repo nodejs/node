@@ -19,7 +19,8 @@ async function getBaseConfigGypi ({ gyp, nodeDir }) {
   // try reading $nodeDir/include/node/config.gypi first when:
   // 1. --dist-url or --nodedir is specified
   // 2. and --force-process-config is not specified
-  const shouldReadConfigGypi = (gyp.opts.nodedir || gyp.opts['dist-url']) && !gyp.opts['force-process-config']
+  const useCustomHeaders = gyp.opts.nodedir || gyp.opts.disturl || gyp.opts['dist-url']
+  const shouldReadConfigGypi = useCustomHeaders && !gyp.opts['force-process-config']
   if (shouldReadConfigGypi && nodeDir) {
     try {
       const baseConfigGypiPath = path.resolve(nodeDir, 'include/node/config.gypi')

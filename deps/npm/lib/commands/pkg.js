@@ -20,6 +20,8 @@ class Pkg extends BaseCommand {
     'workspaces',
   ]
 
+  static ignoreImplicitWorkspace = false
+
   async exec (args, { prefix } = {}) {
     if (!prefix) {
       this.prefix = this.npm.localPrefix

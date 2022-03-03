@@ -22,6 +22,8 @@ class Team extends BaseCommand {
     'json',
   ]
 
+  static ignoreImplicitWorkspace = false
+
   async completion (opts) {
     const { conf: { argv: { remain: argv } } } = opts
     const subcommands = ['create', 'destroy', 'add', 'rm', 'ls']

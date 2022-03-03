@@ -45,6 +45,8 @@ class Exec extends BaseCommand {
     '--package=foo -c \'<cmd> [args...]\'',
   ]
 
+  static ignoreImplicitWorkspace = false
+
   async exec (_args, { locationMsg, path, runPath } = {}) {
     if (!path) {
       path = this.npm.localPrefix

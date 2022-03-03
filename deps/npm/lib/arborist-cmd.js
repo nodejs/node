@@ -14,6 +14,8 @@ class ArboristCmd extends BaseCommand {
     'include-workspace-root',
   ]
 
+  static ignoreImplicitWorkspace = false
+
   async execWorkspaces (args, filters) {
     await this.setWorkspaces(filters)
     return this.exec(args)
