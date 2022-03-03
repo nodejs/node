@@ -2472,7 +2472,7 @@ added: v15.6.0
 <!-- YAML
 added: v15.6.0
 changes:
-  - version: REPLACEME
+  - version: v16.14.1
     pr-url: https://github.com/nodejs/node/pull/41599
     description: The `wildcards`, `partialWildcards`, `multiLabelWildcards`, and
                  `singleLabelSubdomains` options have been removed since they
@@ -2516,7 +2516,7 @@ from the given `name` in capitalization.
 <!-- YAML
 added: v15.6.0
 changes:
-  - version: REPLACEME
+  - version: v16.14.1
     pr-url: https://github.com/nodejs/node/pull/41571
     description: The `options` argument has been removed since it had no effect.
 -->
