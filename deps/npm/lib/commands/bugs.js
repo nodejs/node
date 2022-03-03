@@ -9,6 +9,7 @@ class Bugs extends BaseCommand {
   static name = 'bugs'
   static usage = ['[<pkgname>]']
   static params = ['browser', 'registry']
+  static ignoreImplicitWorkspace = true
 
   async exec (args) {
     if (!args || !args.length) {

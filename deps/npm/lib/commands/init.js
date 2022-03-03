@@ -22,6 +22,8 @@ class Init extends BaseCommand {
     '[<@scope>/]<name> (same as `npx [<@scope>/]create-<name>`)',
   ]
 
+  static ignoreImplicitWorkspace = false
+
   async exec (args) {
     // npm exec style
     if (args.length) {

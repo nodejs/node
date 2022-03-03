@@ -39,6 +39,7 @@ class Publish extends BaseCommand {
   ]
 
   static usage = ['[<folder>]']
+  static ignoreImplicitWorkspace = false
 
   async exec (args) {
     if (args.length === 0) {
@@ -195,7 +196,11 @@ class Publish extends BaseCommand {
     if (spec.type === 'directory') {
       return readJson(`${spec.fetchSpec}/package.json`)
     }
-    return pacote.manifest(spec, { ...opts, fullMetadata: true })
+    return pacote.manifest(spec, {
+      ...opts,
+      fullMetadata: true,
+      fullReadJson: true,
+    })
   }
 }
 module.exports = Publish

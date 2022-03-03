@@ -29,3 +29,14 @@ test('options in environment', (t) => {
 
   t.deepEqual(Object.keys(g.opts).sort(), keys.sort())
 })
+
+test('options with spaces in environment', (t) => {
+  t.plan(1)
+
+  process.env.npm_config_force_process_config = 'true'
+
+  const g = gyp()
+  g.parseArgv(['rebuild']) // Also sets opts.argv.
+
+  t.equal(g.opts['force-process-config'], 'true')
+})

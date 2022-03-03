@@ -11,6 +11,7 @@ class HelpSearch extends BaseCommand {
   static name = 'help-search'
   static usage = ['<text>']
   static params = ['long']
+  static ignoreImplicitWorkspace = true
 
   async exec (args) {
     if (!args.length) {
