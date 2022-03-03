@@ -54,8 +54,8 @@ try {
 
 When using the lexical ESM `import` keyword, the error can only be
 caught if a handler for `process.on('uncaughtException')` is registered
-_before_ any attempt to load the module is made -- using, for instance,
-a preload module.
+_before_ any attempt to load the module is made (using, for instance,
+a preload module).
 
 When using ESM, if there is a chance that the code may be run on a build
 of Node.js where crypto support is not enabled, consider using the
