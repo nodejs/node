@@ -5,6 +5,7 @@ class Bin extends BaseCommand {
   static description = 'Display npm bin folder'
   static name = 'bin'
   static params = ['global']
+  static ignoreImplicitWorkspace = true
 
   async exec (args) {
     const b = this.npm.bin

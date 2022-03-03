@@ -15,6 +15,7 @@ class Docs extends BaseCommand {
   ]
 
   static usage = ['[<pkgname> [<pkgname> ...]]']
+  static ignoreImplicitWorkspace = false
 
   async exec (args) {
     if (!args || !args.length) {

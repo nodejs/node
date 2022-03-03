@@ -22,7 +22,8 @@
     "posttest": "npm run lint",
     "postlint": "npm-template-check",
     "lintfix": "npm run lint -- --fix",
-    "snap": "tap"
+    "snap": "tap",
+    "template-copy": "npm-template-copy --force"
   },
   "files": [
     "bin",
@@ -39,7 +40,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/npm/libnpmorg.git"
+    "url": "https://github.com/npm/cli",
+    "directory": "workspaces/libnpmorg"
   },
   "bugs": "https://github.com/npm/libnpmorg/issues",
   "homepage": "https://npmjs.com/package/libnpmorg",
@@ -51,6 +53,6 @@
     "node": "^12.13.0 || ^14.15.0 || >=16"
   },
   "templateOSS": {
-    "version": "2.4.3"
+    "version": "2.9.2"
   }
 }

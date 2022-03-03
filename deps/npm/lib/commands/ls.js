@@ -95,10 +95,15 @@ class LS extends ArboristWorkspaceCmd {
         return true
       }
 
+      if (this.npm.flatOptions.includeWorkspaceRoot
+          && !edge.to.isWorkspace) {
+        return true
+      }
+
       if (edge.from.isProjectRoot) {
-        return edge.to &&
-          edge.to.isWorkspace &&
-          wsNodes.includes(edge.to.target)
+        return (edge.to
+          && edge.to.isWorkspace
+          && wsNodes.includes(edge.to.target))
       }
 
       return true

@@ -11,6 +11,8 @@ class Logout extends BaseCommand {
     'scope',
   ]
 
+  static ignoreImplicitWorkspace = true
+
   async exec (args) {
     const registry = this.npm.config.get('registry')
     const scope = this.npm.config.get('scope')
