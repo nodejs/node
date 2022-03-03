@@ -1,5 +1,6 @@
 #include "node_main_instance.h"
 #include <memory>
+#include "crypto/crypto_util.h"
 #include "debug_utils-inl.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
@@ -205,6 +206,7 @@ NodeMainInstance::CreateMainEnvironment(int* exit_code,
     env->InitializeInspector({});
 #endif
     env->DoneBootstrapping();
+    crypto::InitCryptoOnce(isolate_);
   } else {
     context = NewContext(isolate_);
     CHECK(!context.IsEmpty());
