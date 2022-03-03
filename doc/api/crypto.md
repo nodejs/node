@@ -2491,7 +2491,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/41600
     description: The subject option now defaults to `'default'`.
-  - version: v17.5.0
+  - version:
+      - v17.5.0
+      - v16.14.1
     pr-url: https://github.com/nodejs/node/pull/41599
     description: The `wildcards`, `partialWildcards`, `multiLabelWildcards`, and
                  `singleLabelSubdomains` options have been removed since they
@@ -2570,7 +2572,9 @@ considered, even if the certificate contains no subject alternative names.
 <!-- YAML
 added: v15.6.0
 changes:
-  - version: v17.5.0
+  - version:
+      - v17.5.0
+      - v16.14.1
     pr-url: https://github.com/nodejs/node/pull/41571
     description: The `options` argument has been removed since it had no effect.
 -->
