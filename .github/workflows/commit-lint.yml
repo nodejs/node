@@ -1,4 +1,4 @@
-name: First commit message adheres to guidelines at https://goo.gl/p2fr5Q
+name: First commit message adheres to guidelines
 
 on: [pull_request]
 
