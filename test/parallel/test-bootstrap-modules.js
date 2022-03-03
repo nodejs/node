@@ -206,6 +206,26 @@ if (process.env.NODE_V8_COVERAGE) {
   expectedModules.add('Internal Binding profiler');
 }
 
+if (common.hasCrypto) {
+  expectedModules.add('Internal Binding crypto');
+  expectedModules.add('NativeModule crypto');
+  expectedModules.add('NativeModule internal/crypto/certificate');
+  expectedModules.add('NativeModule internal/crypto/cipher');
+  expectedModules.add('NativeModule internal/crypto/diffiehellman');
+  expectedModules.add('NativeModule internal/crypto/hash');
+  expectedModules.add('NativeModule internal/crypto/hashnames');
+  expectedModules.add('NativeModule internal/crypto/hkdf');
+  expectedModules.add('NativeModule internal/crypto/keygen');
+  expectedModules.add('NativeModule internal/crypto/keys');
+  expectedModules.add('NativeModule internal/crypto/pbkdf2');
+  expectedModules.add('NativeModule internal/crypto/random');
+  expectedModules.add('NativeModule internal/crypto/scrypt');
+  expectedModules.add('NativeModule internal/crypto/sig');
+  expectedModules.add('NativeModule internal/crypto/util');
+  expectedModules.add('NativeModule internal/crypto/x509');
+  expectedModules.add('NativeModule internal/streams/lazy_transform');
+}
+
 const { internalBinding } = require('internal/test/binding');
 if (internalBinding('config').hasDtrace) {
   expectedModules.add('Internal Binding dtrace');
