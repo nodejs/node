@@ -28,6 +28,7 @@ t.test('load each command', async t => {
       )
       t.ok(impl.description, 'implementation has a description')
       t.ok(impl.name, 'implementation has a name')
+      t.ok(impl.ignoreImplicitWorkspace !== undefined, 'implementation has ignoreImplictWorkspace')
       t.match(impl.usage, cmd, 'usage contains the command')
       await npm.exec(cmd, [])
       t.match(outputs[0][0], impl.usage, 'usage is what is output')

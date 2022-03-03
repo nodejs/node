@@ -13,6 +13,7 @@ class Explore extends BaseCommand {
   static name = 'explore'
   static usage = ['<pkg> [ -- <command>]']
   static params = ['shell']
+  static ignoreImplicitWorkspace = false
 
   // TODO
   /* istanbul ignore next */

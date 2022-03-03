@@ -7,7 +7,11 @@
     "lib"
   ],
   "description": "Programmatic API for npm fund",
-  "repository": "https://github.com/npm/libnpmfund",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/cli",
+    "directory": "workspaces/libnpmfund"
+  },
   "keywords": [
     "npm",
     "npmcli",
@@ -36,7 +40,8 @@
     "preversion": "npm test",
     "postversion": "npm publish",
     "prepublishOnly": "git push origin --follow-tags",
-    "postlint": "npm-template-check"
+    "postlint": "npm-template-check",
+    "template-copy": "npm-template-copy --force"
   },
   "tap": {
     "check-coverage": true
@@ -52,6 +57,6 @@
     "node": "^12.13.0 || ^14.15.0 || >=16"
   },
   "templateOSS": {
-    "version": "2.4.3"
+    "version": "2.9.2"
   }
 }

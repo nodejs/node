@@ -2,7 +2,11 @@
   "name": "libnpmdiff",
   "version": "4.0.0",
   "description": "The registry diff",
-  "repository": "https://github.com/npm/libnpmdiff",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/cli",
+    "directory": "workspaces/libnpmdiff"
+  },
   "main": "lib/index.js",
   "files": [
     "bin",
@@ -37,7 +41,8 @@
     "preversion": "npm test",
     "postversion": "npm publish",
     "prepublishOnly": "git push origin --follow-tags",
-    "postlint": "npm-template-check"
+    "postlint": "npm-template-check",
+    "template-copy": "npm-template-copy --force"
   },
   "tap": {
     "check-coverage": true
@@ -58,6 +63,6 @@
     "tar": "^6.1.0"
   },
   "templateOSS": {
-    "version": "2.4.3"
+    "version": "2.9.2"
   }
 }

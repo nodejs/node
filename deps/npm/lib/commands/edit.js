@@ -13,6 +13,7 @@ class Edit extends BaseCommand {
   static name = 'edit'
   static usage = ['<pkg>[/<subpkg>...]']
   static params = ['editor']
+  static ignoreImplicitWorkspace = false
 
   // TODO
   /* istanbul ignore next */

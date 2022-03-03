@@ -41,6 +41,7 @@ class Doctor extends BaseCommand {
   static description = 'Check your npm environment'
   static name = 'doctor'
   static params = ['registry']
+  static ignoreImplicitWorkspace = false
 
   async exec (args) {
     log.info('Running checkup')

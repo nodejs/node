@@ -504,6 +504,15 @@ workspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspac
 
 `
 
+exports[`test/lib/commands/ls.js TAP ls loading a tree containing workspaces > should inlude root and specified workspace 1`] = `
+workspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces
++-- d@1.0.0 -> ./d
+| \`-- foo@1.1.1
+|   \`-- bar@1.0.0
+\`-- pacote@1.0.0
+
+`
+
 exports[`test/lib/commands/ls.js TAP ls loading a tree containing workspaces > should list --all workspaces properly 1`] = `
 workspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces
 +-- a@1.0.0 -> ./a
@@ -515,7 +524,8 @@ workspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspac
 | \`-- foo@1.1.1
 |   \`-- bar@1.0.0
 +-- e@1.0.0 -> ./group/e
-\`-- f@1.0.0 -> ./group/f
++-- f@1.0.0 -> ./group/f
+\`-- pacote@1.0.0
 
 `
 
@@ -529,7 +539,8 @@ workspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspac
 | \`-- foo@1.1.1
 |   \`-- bar@1.0.0
 +-- e@1.0.0 -> ./group/e
-\`-- f@1.0.0 -> ./group/f
++-- f@1.0.0 -> ./group/f
+\`-- pacote@1.0.0
 
 `
 
@@ -543,13 +554,14 @@ exports[`test/lib/commands/ls.js TAP ls loading a tree containing workspaces > s
 [0m+-- [32md@1.0.0[39m -> ./d[0m
 [0m| \`-- foo@1.1.1[0m
 [0m+-- [32me@1.0.0[39m -> ./group/e[0m
-[0m\`-- [32mf@1.0.0[39m -> ./group/f[0m
+[0m+-- [32mf@1.0.0[39m -> ./group/f[0m
+[0m\`-- pacote@1.0.0[0m
 [0m[0m
 `
 
 exports[`test/lib/commands/ls.js TAP ls loading a tree containing workspaces > should not list workspaces with --no-workspaces 1`] = `
 [0mworkspaces-tree@1.0.0 {CWD}/tap-testdir-ls-ls-loading-a-tree-containing-workspaces[0m
-[0m\`-- (empty)[0m
+[0m\`-- pacote@1.0.0[0m
 [0m[0m
 `
 

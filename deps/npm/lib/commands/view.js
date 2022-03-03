@@ -29,6 +29,8 @@ class View extends BaseCommand {
     'include-workspace-root',
   ]
 
+  static ignoreImplicitWorkspace = false
+
   static usage = ['[<@scope>/]<pkg>[@<version>] [<field>[.subfield]...]']
 
   async completion (opts) {

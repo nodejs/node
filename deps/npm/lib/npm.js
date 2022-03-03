@@ -113,12 +113,17 @@ class Npm extends EventEmitter {
     }
 
     const workspacesEnabled = this.config.get('workspaces')
+    const implicitWorkspace = this.config.get('workspace', 'default').length > 0
     const workspacesFilters = this.config.get('workspace')
     if (workspacesEnabled === false && workspacesFilters.length > 0) {
       throw new Error('Can not use --no-workspaces and --workspace at the same time')
     }
 
-    const filterByWorkspaces = workspacesEnabled || workspacesFilters.length > 0
+    // only call execWorkspaces when we have workspaces explicitly set
+    // or when it is implicit and not in our ignore list
+    const filterByWorkspaces =
+      (workspacesEnabled || workspacesFilters.length > 0)
+      && (!implicitWorkspace || !command.ignoreImplicitWorkspace)
     // normally this would go in the constructor, but our tests don't
     // actually use a real npm object so this.npm.config isn't always
     // populated.  this is the compromise until we can make that a reality

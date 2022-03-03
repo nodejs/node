@@ -18,12 +18,17 @@
     "postversion": "npm publish",
     "prepublishOnly": "git push origin --follow-tags",
     "snap": "tap",
-    "posttest": "npm run lint"
+    "posttest": "npm run lint",
+    "template-copy": "npm-template-copy --force"
   },
   "tap": {
     "check-coverage": true
   },
-  "repository": "https://github.com/npm/libnpmhook",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/cli",
+    "directory": "workspaces/libnpmhook"
+  },
   "keywords": [
     "npm",
     "hooks",
@@ -45,6 +50,6 @@
     "node": "^12.13.0 || ^14.15.0 || >=16"
   },
   "templateOSS": {
-    "version": "2.4.3"
+    "version": "2.9.2"
   }
 }

@@ -566,6 +566,7 @@ class Config {
     }
 
     const cliWorkspaces = this[_get]('workspaces', 'cli')
+    const isGlobal = this[_get]('global') || this[_get]('location') === 'global'
 
     for (const p of walkUp(this.cwd)) {
       const hasNodeModules = await stat(resolve(p, 'node_modules'))
@@ -579,8 +580,8 @@ class Config {
       if (!this.localPrefix && (hasNodeModules || hasPackageJson)) {
         this.localPrefix = p
 
-        // if workspaces are disabled, return now
-        if (cliWorkspaces === false) {
+        // if workspaces are disabled, or we're in global mode, return now
+        if (cliWorkspaces === false || isGlobal) {
           return
         }
 

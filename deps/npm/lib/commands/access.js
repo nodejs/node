@@ -27,6 +27,8 @@ class Access extends BaseCommand {
     'otp',
   ]
 
+  static ignoreImplicitWorkspace = true
+
   static usage = [
     'public [<package>]',
     'restricted [<package>]',

@@ -62,11 +62,13 @@
     "benchmark": "node scripts/benchmark.js",
     "benchclean": "rm -rf scripts/benchmark/*/",
     "npmclilint": "npmcli-lint",
-    "postlint": "npm-template-check"
+    "postlint": "npm-template-check",
+    "template-copy": "npm-template-copy --force"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/npm/arborist"
+    "url": "https://github.com/npm/cli",
+    "directory": "workspaces/arborist"
   },
   "author": "GitHub Inc.",
   "license": "ISC",
@@ -101,6 +103,6 @@
     "!test/fixtures/*.js"
   ],
   "templateOSS": {
-    "version": "2.4.3"
+    "version": "2.9.2"
   }
 }

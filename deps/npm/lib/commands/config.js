@@ -61,6 +61,8 @@ class Config extends BaseCommand {
     'long',
   ]
 
+  static ignoreImplicitWorkspace = false
+
   async completion (opts) {
     const argv = opts.conf.argv.remain
     if (argv[1] !== 'config') {

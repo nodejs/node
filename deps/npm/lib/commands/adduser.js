@@ -16,6 +16,8 @@ class AddUser extends BaseCommand {
     'scope',
   ]
 
+  static ignoreImplicitWorkspace = true
+
   async exec (args) {
     const { scope } = this.npm.flatOptions
     const registry = this.getRegistry(this.npm.flatOptions)

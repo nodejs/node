@@ -19,7 +19,9 @@ const processOk = function (process) {
 // some kind of non-node environment, just no-op
 /* istanbul ignore if */
 if (!processOk(process)) {
-  module.exports = function () {}
+  module.exports = function () {
+    return function () {}
+  }
 } else {
   var assert = require('assert')
   var signals = require('./signals.js')
@@ -52,7 +54,7 @@ if (!processOk(process)) {
   module.exports = function (cb, opts) {
     /* istanbul ignore if */
     if (!processOk(global.process)) {
-      return
+      return function () {}
     }
     assert.equal(typeof cb, 'function', 'a callback must be provided for exit handler')
 

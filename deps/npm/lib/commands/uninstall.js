@@ -11,6 +11,7 @@ class Uninstall extends ArboristWorkspaceCmd {
   static name = 'uninstall'
   static params = ['save', ...super.params]
   static usage = ['[<@scope>/]<pkg>...']
+  static ignoreImplicitWorkspace = false
 
   // TODO
   /* istanbul ignore next */

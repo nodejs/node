@@ -8,5 +8,7 @@ class Test extends LifecycleCmd {
     'ignore-scripts',
     'script-shell',
   ]
+
+  static ignoreImplicitWorkspace = false
 }
 module.exports = Test

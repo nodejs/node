@@ -9,7 +9,8 @@
   "description": "library to do the things that 'npm version' does",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/npm/libnpmversion"
+    "url": "https://github.com/npm/cli",
+    "directory": "workspaces/libnpmversion"
   },
   "author": "GitHub Inc.",
   "license": "ISC",
@@ -22,7 +23,8 @@
     "postversion": "npm publish",
     "prepublishOnly": "git push origin --follow-tags",
     "postlint": "npm-template-check",
-    "lintfix": "npm run lint -- --fix"
+    "lintfix": "npm run lint -- --fix",
+    "template-copy": "npm-template-copy --force"
   },
   "tap": {
     "coverage-map": "map.js",
@@ -45,6 +47,6 @@
     "node": "^12.13.0 || ^14.15.0 || >=16"
   },
   "templateOSS": {
-    "version": "2.4.3"
+    "version": "2.9.2"
   }
 }

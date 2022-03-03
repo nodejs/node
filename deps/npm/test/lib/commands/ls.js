@@ -1384,6 +1384,7 @@ t.test('ls', t => {
         name: 'workspaces-tree',
         version: '1.0.0',
         workspaces: ['./a', './b', './d', './group/*'],
+        dependencies: { pacote: '1.0.0' },
       }),
       node_modules: {
         a: t.fixture('symlink', '../a'),
@@ -1411,6 +1412,9 @@ t.test('ls', t => {
         },
         baz: {
           'package.json': JSON.stringify({ name: 'baz', version: '1.0.0' }),
+        },
+        pacote: {
+          'package.json': JSON.stringify({ name: 'pacote', version: '1.0.0' }),
         },
       },
       a: {
@@ -1469,6 +1473,7 @@ t.test('ls', t => {
     npm.flatOptions.workspacesEnabled = false
     await ls.exec([])
     t.matchSnapshot(redactCwd(result), 'should not list workspaces with --no-workspaces')
+
     config.all = true
     config.depth = Infinity
     npm.color = false
@@ -1494,6 +1499,12 @@ t.test('ls', t => {
     await ls.execWorkspaces([], ['a'])
 
     t.matchSnapshot(redactCwd(result), 'should filter using workspace config')
+
+    // filter out a single workspace and include root
+    npm.flatOptions.includeWorkspaceRoot = true
+    await ls.execWorkspaces([], ['d'])
+    t.matchSnapshot(redactCwd(result), 'should inlude root and specified workspace')
+    npm.flatOptions.includeWorkspaceRoot = false
 
     // filter out a workspace by parent path
     await ls.execWorkspaces([], ['./group'])

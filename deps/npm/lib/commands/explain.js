@@ -16,6 +16,8 @@ class Explain extends ArboristWorkspaceCmd {
     'workspace',
   ]
 
+  static ignoreImplicitWorkspace = false
+
   // TODO
   /* istanbul ignore next */
   async completion (opts) {

@@ -15,6 +15,8 @@ class Deprecate extends BaseCommand {
     'otp',
   ]
 
+  static ignoreImplicitWorkspace = false
+
   async completion (opts) {
     if (opts.conf.argv.remain.length > 1) {
       return []

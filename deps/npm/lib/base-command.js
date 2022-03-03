@@ -20,6 +20,10 @@ class BaseCommand {
     return this.constructor.description
   }
 
+  get ignoreImplicitWorkspace () {
+    return this.constructor.ignoreImplicitWorkspace
+  }
+
   get usage () {
     let usage = `npm ${this.constructor.name}\n\n`
     if (this.constructor.description) {

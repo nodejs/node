@@ -18,6 +18,7 @@ class Pack extends BaseCommand {
   ]
 
   static usage = ['[[<@scope>/]<pkg>...]']
+  static ignoreImplicitWorkspace = false
 
   async exec (args) {
     if (args.length === 0) {

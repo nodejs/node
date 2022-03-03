@@ -56,6 +56,7 @@ function pkgPathmame (opts) {
 
 // make sure glob pattern only matches folders
 function getGlobPattern (pattern) {
+  pattern = pattern.replace(/\\/g, '/')
   return pattern.endsWith('/')
     ? pattern
     : `${pattern}/`

@@ -4,6 +4,7 @@ class Get extends BaseCommand {
   static description = 'Get a value from the npm configuration'
   static name = 'get'
   static usage = ['[<key> ...] (See `npm config`)']
+  static ignoreImplicitWorkspace = false
 
   // TODO
   /* istanbul ignore next */

@@ -40,6 +40,7 @@ class RunScript extends BaseCommand {
 
   static name = 'run-script'
   static usage = ['<command> [-- <args>]']
+  static ignoreImplicitWorkspace = false
 
   async completion (opts) {
     const argv = opts.conf.argv.remain
