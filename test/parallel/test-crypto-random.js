@@ -338,7 +338,6 @@ assert.throws(
   const desc = Object.getOwnPropertyDescriptor(crypto, f);
   assert.ok(desc);
   assert.strictEqual(desc.configurable, true);
-  assert.strictEqual(desc.writable, true);
   assert.strictEqual(desc.enumerable, false);
 });
 

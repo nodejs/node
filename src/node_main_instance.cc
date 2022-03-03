@@ -1,5 +1,8 @@
 #include "node_main_instance.h"
 #include <memory>
+#if HAVE_OPENSSL
+#include "crypto/crypto_util.h"
+#endif  // HAVE_OPENSSL
 #include "debug_utils-inl.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
@@ -205,6 +208,10 @@ NodeMainInstance::CreateMainEnvironment(int* exit_code,
     env->InitializeInspector({});
 #endif
     env->DoneBootstrapping();
+
+#if HAVE_OPENSSL
+    crypto::InitCryptoOnce(isolate_);
+#endif  // HAVE_OPENSSL
   } else {
     context = NewContext(isolate_);
     CHECK(!context.IsEmpty());
