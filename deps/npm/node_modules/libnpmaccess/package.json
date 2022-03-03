@@ -15,7 +15,8 @@
     "lintfix": "npm run lint -- --fix",
     "prepublishOnly": "git push origin --follow-tags",
     "snap": "tap",
-    "posttest": "npm run lint"
+    "posttest": "npm run lint",
+    "template-copy": "npm-template-copy --force"
   },
   "devDependencies": {
     "@npmcli/template-oss": "^2.4.2",
@@ -24,7 +25,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/npm/libnpmaccess.git"
+    "url": "https://github.com/npm/cli",
+    "directory": "workspaces/libnpmaccess"
   },
   "bugs": "https://github.com/npm/libnpmaccess/issues",
   "homepage": "https://npmjs.com/package/libnpmaccess",
@@ -45,6 +47,6 @@
     "lib"
   ],
   "templateOSS": {
-    "version": "2.4.3"
+    "version": "2.9.2"
   }
 }

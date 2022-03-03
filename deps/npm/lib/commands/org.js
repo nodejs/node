@@ -13,6 +13,7 @@ class Org extends BaseCommand {
   ]
 
   static params = ['registry', 'otp', 'json', 'parseable']
+  static ignoreImplicitWorkspace = true
 
   async completion (opts) {
     const argv = opts.conf.argv.remain

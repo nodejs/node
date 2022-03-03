@@ -16,6 +16,8 @@ class DistTag extends BaseCommand {
     'ls [<pkg>]',
   ]
 
+  static ignoreImplicitWorkspace = false
+
   async completion (opts) {
     const argv = opts.conf.argv.remain
     if (argv.length === 2) {

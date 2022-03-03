@@ -32,6 +32,8 @@ class Diff extends BaseCommand {
     'include-workspace-root',
   ]
 
+  static ignoreImplicitWorkspace = false
+
   async exec (args) {
     const specs = this.npm.config.get('diff').filter(d => d)
     if (specs.length > 2) {

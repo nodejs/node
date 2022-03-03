@@ -13,6 +13,8 @@ class Star extends BaseCommand {
     'unicode',
   ]
 
+  static ignoreImplicitWorkspace = false
+
   async exec (args) {
     if (!args.length) {
       throw this.usageError()

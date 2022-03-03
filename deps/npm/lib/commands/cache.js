@@ -81,6 +81,8 @@ class Cache extends BaseCommand {
     'verify',
   ]
 
+  static ignoreImplicitWorkspace = true
+
   async completion (opts) {
     const argv = opts.conf.argv.remain
     if (argv.length === 2) {

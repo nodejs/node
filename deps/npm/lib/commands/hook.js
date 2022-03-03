@@ -19,6 +19,8 @@ class Hook extends BaseCommand {
     'update <id> <url> <secret>',
   ]
 
+  static ignoreImplicitWorkspace = true
+
   async exec (args) {
     return otplease({
       ...this.npm.flatOptions,

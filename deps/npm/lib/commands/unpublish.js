@@ -19,6 +19,7 @@ class Unpublish extends BaseCommand {
   static name = 'unpublish'
   static params = ['dry-run', 'force', 'workspace', 'workspaces']
   static usage = ['[<@scope>/]<pkg>[@<version>]']
+  static ignoreImplicitWorkspace = false
 
   async getKeysOfVersions (name, opts) {
     const json = await npmFetch.json(npa(name).escapedName, opts)

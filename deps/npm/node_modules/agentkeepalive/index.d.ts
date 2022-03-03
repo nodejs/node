@@ -39,11 +39,11 @@ declare namespace AgentKeepAlive {
   }
 
   interface CommonHttpOption {
-    keepAlive?: boolean;
-    freeSocketTimeout?: number;
-    freeSocketKeepAliveTimeout?: number;
-    timeout?: number;
-    socketActiveTTL?: number;
+    keepAlive?: boolean | undefined;
+    freeSocketTimeout?: number | undefined;
+    freeSocketKeepAliveTimeout?: number | undefined;
+    timeout?: number | undefined;
+    socketActiveTTL?: number | undefined;
   }
 
   export interface HttpOptions extends http.AgentOptions, CommonHttpOption { }
