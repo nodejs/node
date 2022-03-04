@@ -28,7 +28,7 @@ try {
   common.skip('insufficient privileges for symlinks');
 }
 await fs.mkdir(packageDir, { recursive: true });
-Promise.all([
+await Promise.all([
   fs.writeFile(entry, 'import "./symlink.mjs";'),
   fs.writeFile(real, 'export { a } from "package-a/index.mjs"'),
   fs.writeFile(packageEntry, 'export const a = 1;'),
