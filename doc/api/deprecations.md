@@ -2813,7 +2813,7 @@ Type: Runtime
 
 Accessors on `Object.prototype` are subject to object traversal attacks and
 cause concerns for security audits. A variety of these are deprecated
-by the [Legacy Object.prototype Accessor Methods][] by the JS standard. Modern
+by [Legacy Object.prototype Accessor Methods][]. Modern
 replacements are `Object.defineProperty`, `Object.getPrototypeOf`, and
 `Object.setPrototypeOf` and not subject to path traversal. This affects:
 
