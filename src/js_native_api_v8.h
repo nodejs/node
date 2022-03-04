@@ -38,9 +38,9 @@ class RefTracker {
     next_ = nullptr;
   }
 
-  static void FinalizeAll(RefList* list) {
+  static void FinalizeAll(RefList* list, bool isEnvTeardown = true) {
     while (list->next_ != nullptr) {
-      list->next_->Finalize(true);
+      list->next_->Finalize(isEnvTeardown);
     }
   }
 
@@ -64,6 +64,7 @@ struct napi_env__ {
     // they delete during their `napi_finalizer` callbacks. If we deleted such
     // references here first, they would be doubly deleted when the
     // `napi_finalizer` deleted them subsequently.
+    v8impl::RefTracker::FinalizeAll(&finalizing_queue);
     v8impl::RefTracker::FinalizeAll(&finalizing_reflist);
     v8impl::RefTracker::FinalizeAll(&reflist);
   }
@@ -116,6 +117,7 @@ struct napi_env__ {
   // have such a callback. See `~napi_env__()` above for details.
   v8impl::RefTracker::RefList reflist;
   v8impl::RefTracker::RefList finalizing_reflist;
+  v8impl::RefTracker::RefList finalizing_queue;
   napi_extended_error_info last_error;
   int open_handle_scopes = 0;
   int open_callback_scopes = 0;
@@ -361,6 +363,8 @@ class TryCatch : public v8::TryCatch {
   ~TryCatch() {
     if (HasCaught()) {
       _env->last_exception.Reset(_env->isolate, Exception());
+    } else {
+      v8impl::RefTracker::FinalizeAll(&_env->finalizing_queue, /*isEnvTeardown:*/false);
     }
   }
 
@@ -369,7 +373,7 @@ class TryCatch : public v8::TryCatch {
 };
 
 // Wrapper around v8impl::Persistent that implements reference counting.
-class RefBase : protected Finalizer, RefTracker {
+class RefBase : protected Finalizer, protected RefTracker {
  protected:
   RefBase(napi_env env,
           uint32_t initial_refcount,
