@@ -364,7 +364,8 @@ class TryCatch : public v8::TryCatch {
     if (HasCaught()) {
       _env->last_exception.Reset(_env->isolate, Exception());
     } else {
-      v8impl::RefTracker::FinalizeAll(&_env->finalizing_queue, /*isEnvTeardown:*/false);
+      v8impl::RefTracker::FinalizeAll(
+          &_env->finalizing_queue, /*isEnvTeardown:*/false);
     }
   }
 

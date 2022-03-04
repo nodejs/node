@@ -722,7 +722,8 @@ void Reference::SecondPassCallback(
     return;
   }
   reference->_secondPassParameter = nullptr;
-  v8impl::RefTracker::FinalizeAll(&reference->_env->finalizing_queue, /*isEnvTeardown:*/false);
+  v8impl::RefTracker::FinalizeAll(
+      &reference->_env->finalizing_queue, /*isEnvTeardown:*/false);
 }
 
 }  // end of namespace v8impl
