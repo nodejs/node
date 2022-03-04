@@ -8,7 +8,8 @@ const { Blob } = require('buffer');
 try {
   new Blob([new Uint8Array(0xffffffff), [1]]);
 } catch (e) {
-  if (e.message === 'Array buffer allocation failed') {
+  if (e.message === 'Array buffer allocation failed' ||
+      e.message === 'Invalid typed array length: 4294967295') {
     common.skip(
       'Insufficient memory on this platform for oversized buffer test.'
     );
