@@ -213,7 +213,7 @@ if (common.enoughTestMem) {
 assert.throws(
   () => new StringDecoder('utf8').__proto__.write(Buffer.from('abc')), // eslint-disable-line no-proto
   {
-    code: 'ERR_ILLEGAL_CONSTRUCTOR',
+    code: 'ERR_INVALID_THIS',
   }
 );
 
