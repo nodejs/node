@@ -2324,6 +2324,9 @@ changes:
     serialized, compressed block of headers. Attempts to send headers that
     exceed this limit will result in a `'frameError'` event being emitted
     and the stream being closed and destroyed.
+    While this sets the maximum allowed size to the entire block of headers,
+    `nghttp2` (the internal http2 library) has a limit of `65536`
+    for each decompressed key/value pair.
   * `paddingStrategy` {number} The strategy used for determining the amount of
     padding to use for `HEADERS` and `DATA` frames. **Default:**
     `http2.constants.PADDING_STRATEGY_NONE`. Value may be one of:
