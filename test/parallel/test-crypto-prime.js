@@ -41,7 +41,7 @@ const pCheckPrime = promisify(checkPrime);
   });
 });
 
-[-1, 0].forEach((i) => {
+[-1, 0, 2 ** 31, 2 ** 31 + 1, 2 ** 32 - 1, 2 ** 32].forEach((i) => {
   assert.throws(() => generatePrime(i, common.mustNotCall()), {
     code: 'ERR_OUT_OF_RANGE'
   });
