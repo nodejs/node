@@ -201,18 +201,17 @@ function wrap(middleware, callback) {
   }
 }
 
-var own$8 = {}.hasOwnProperty;
 function stringifyPosition(value) {
   if (!value || typeof value !== 'object') {
     return ''
   }
-  if (own$8.call(value, 'position') || own$8.call(value, 'type')) {
+  if ('position' in value || 'type' in value) {
     return position(value.position)
   }
-  if (own$8.call(value, 'start') || own$8.call(value, 'end')) {
+  if ('start' in value || 'end' in value) {
     return position(value)
   }
-  if (own$8.call(value, 'line') || own$8.call(value, 'column')) {
+  if ('line' in value || 'column' in value) {
     return point$1(value)
   }
   return ''
@@ -229,19 +228,18 @@ function index(value) {
 
 class VFileMessage extends Error {
   constructor(reason, place, origin) {
-    var parts = [null, null];
-    var position = {
+    const parts = [null, null];
+    let position = {
       start: {line: null, column: null},
       end: {line: null, column: null}
     };
-    var index;
     super();
     if (typeof place === 'string') {
       origin = place;
-      place = null;
+      place = undefined;
     }
     if (typeof origin === 'string') {
-      index = origin.indexOf(':');
+      const index = origin.indexOf(':');
       if (index === -1) {
         parts[1] = origin;
       } else {
@@ -21228,29 +21226,33 @@ function stringWidth(string, options = {}) {
 	if (typeof string !== 'string' || string.length === 0) {
 		return 0;
 	}
+	options = {
+		ambiguousIsNarrow: true,
+		...options
+	};
 	string = stripAnsi(string);
 	if (string.length === 0) {
 		return 0;
 	}
 	string = string.replace(emojiRegex(), '  ');
-	const ambiguousCharWidth = options.ambiguousIsNarrow ? 1 : 2;
+	const ambiguousCharacterWidth = options.ambiguousIsNarrow ? 1 : 2;
 	let width = 0;
-	for (let index = 0; index < string.length; index++) {
-		const codePoint = string.codePointAt(index);
+	for (const character of string) {
+		const codePoint = character.codePointAt(0);
 		if (codePoint <= 0x1F || (codePoint >= 0x7F && codePoint <= 0x9F)) {
 			continue;
 		}
 		if (codePoint >= 0x300 && codePoint <= 0x36F) {
 			continue;
 		}
-		const code = eastAsianWidth.eastAsianWidth(string.charAt(index));
+		const code = eastAsianWidth.eastAsianWidth(character);
 		switch (code) {
 			case 'F':
 			case 'W':
 				width += 2;
 				break;
 			case 'A':
-				width += ambiguousCharWidth;
+				width += ambiguousCharacterWidth;
 				break;
 			default:
 				width += 1;
