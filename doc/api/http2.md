@@ -935,6 +935,12 @@ For HTTP/2 Client `Http2Session` instances only, the `http2session.request()`
 creates and returns an `Http2Stream` instance that can be used to send an
 HTTP/2 request to the connected server.
 
+When a `ClientHttp2Session` is first created, the socket may not yet be
+connected. if `clienthttp2session.request()` is called during this time, the
+actual request will be deferred until the socket is ready to go.
+If the `session` is closed before the actual request be executed, an
+`ERR_HTTP2_GOAWAY_SESSION` is thrown.
+
 This method is only available if `http2session.type` is equal to
 `http2.constants.NGHTTP2_SESSION_CLIENT`.
 
