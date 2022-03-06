@@ -659,7 +659,8 @@ added: v16.7.0
 * `id` {string} A `'blob:nodedata:...` URL string returned by a prior call to
   `URL.createObjectURL()`.
 
-Removes the stored {Blob} identified by the given ID.
+Removes the stored {Blob} identified by the given ID. Attempting to revoke a
+ID that isn’t registered will silently fail.
 
 ### Class: `URLSearchParams`
 
