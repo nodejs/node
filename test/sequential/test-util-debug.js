@@ -103,20 +103,20 @@ function test(environ, shouldWrite, section, forceColors = false) {
     try {
       assert(!c);
       assert.strictEqual(err, expectErr);
-      // assert.strictEqual(out, expectOut);
+      assert.strictEqual(out, expectOut);
       // Run the test again, this time with colors enabled.
       if (!forceColors) {
         test(environ, shouldWrite, section, true);
       }
     } catch (e) {
-      console.error('FAILED PERMUTATION:', {environ, shouldWrite, section, forceColors});
+      console.error('FAILED PERMUTATION:', { environ, shouldWrite, section, forceColors });
       console.error('COMMAND:', Object.entries({
         NODE_DEBUG: environ,
         FORCE_COLOR: forceColors ? 'true' : 'false'
       }).reduce(
-        (acc, [k,v]) => {acc.push(`${k}=${JSON.stringify(v)}`); return acc},
+        (acc, [k, v]) => { acc.push(`${k}=${JSON.stringify(v)}`); return acc; },
         []
-      ).join(' '), 'node', [__filename, 'child', JSON.stringify(section)].join(' '), )
+      ).join(' '), 'node', [__filename, 'child', JSON.stringify(section)].join(' '));
       throw e;
     }
   }));
