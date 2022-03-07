@@ -85,7 +85,7 @@ subSystemLabels:
   /^deps\/nghttp2\//: http2
   /^deps\/ngtcp2\//: quic, dont-land-on-v14.x, dont-land-on-v12.x
   /^deps\/nghttp3\//: quic, dont-land-on-v14.x, dont-land-on-v12.x
-  /^deps\/([^/]+)/: $1
+  /^deps\/([^/]+)/: dependencies, $1
 
   ## JS subsystems
   # Oddities first
