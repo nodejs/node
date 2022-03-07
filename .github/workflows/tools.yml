@@ -1,4 +1,4 @@
-name: Tools update
+name: Tools and deps update
 on:
   schedule:
     # Run once a week at 00:05 AM UTC on Sunday.
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  tools-update:
+  tools-deps-update:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     strategy:
@@ -15,6 +15,8 @@ jobs:
       matrix:
         include:
           - id: eslint
+            subsystem: tools
+            label: tools
             run: |
               cd tools
               NEW_VERSION=$(npm view eslint dist-tags.latest)
@@ -24,10 +26,14 @@ jobs:
                 ./update-eslint.sh
               fi
           - id: corepack
+            subsystem: deps
+            label: dependencies
             run: |
               make corepack-update
               echo "NEW_VERSION=$(node deps/corepack/dist/corepack.js --version)" >> $GITHUB_ENV
           - id: lint-md-dependencies
+            subsystem: tools
+            label: tools
             run: |
               cd tools/lint-md
               npm ci
@@ -44,6 +50,8 @@ jobs:
                 make lint-md-rollup
               fi
           - id: doc
+            subsystem: tools
+            label: tools
             run: |
               cd tools/doc
               npm ci
@@ -57,6 +65,16 @@ jobs:
                 npm install --ignore-scripts $NEW_VERSION
                 npm install --ignore-scripts
               fi
+          - id: undici
+            subsystem: deps
+            label: dependencies
+            run: |
+              NEW_VERSION=$(npm view undici dist-tags.latest)
+              CURRENT_VERSION=$(node -p "require('./deps/undici/src/package.json').version")
+              if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
+                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+                ./tools/update-undici.sh
+              fi
     steps:
       - uses: actions/checkout@v2
         with:
@@ -69,6 +87,6 @@ jobs:
           author: Node.js GitHub Bot <github-bot@iojs.org>
           body: This is an automated update of ${{ matrix.id }} to ${{ env.NEW_VERSION }}.
           branch: actions/tools-update-${{ matrix.id }}  # Custom branch *just* for this Action.
-          commit-message: 'tools: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}'
-          labels: tools
-          title: 'tools: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}'
+          commit-message: '${{ matrix.subsystem }}: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}'
+          labels: ${{ matrix.label }}
+          title: '${{ matrix.subsystem }}: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}'
