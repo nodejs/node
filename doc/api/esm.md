@@ -1456,6 +1456,10 @@ _internal_, _conditions_)
 
 > Stability: 1 - Experimental
 
+> **Note: Do not rely on this flag. We plan to remove it once the
+> [Loaders API][] has advanced to the point that equivalent functionality can
+> be achieved via custom loaders.**
+
 The current specifier resolution does not support all default behavior of
 the CommonJS loader. One of the behavior differences is automatic resolution
 of file extensions and the ability to import directories that have an index
@@ -1488,6 +1492,7 @@ success!
 [Import Assertions]: #import-assertions
 [Import Assertions proposal]: https://github.com/tc39/proposal-import-assertions
 [JSON modules]: #json-modules
+[Loaders API]: #loaders
 [Node.js Module Resolution Algorithm]: #resolver-algorithm-specification
 [Terminology]: #terminology
 [URL]: https://url.spec.whatwg.org/
