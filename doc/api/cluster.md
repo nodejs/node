@@ -98,7 +98,7 @@ handles back and forth.
 The cluster module supports two methods of distributing incoming
 connections.
 
-The first one (and the default one on all platforms except Windows),
+The first one (and the default one on all platforms except Windows)
 is the round-robin approach, where the primary process listens on a
 port, accepts new connections and distributes them across the workers
 in a round-robin fashion, with some built-in smarts to avoid
