@@ -448,7 +448,8 @@ added:
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/42177
-    description: Changed the default when `thisArg` is not provided to use `this` from the caller.
+    description: Changed the default when `thisArg` is undefined to use `this`
+                 from the caller.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/36782
     description: Added optional thisArg.
@@ -473,7 +474,8 @@ added:
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/42177
-    description: Changed the default when `thisArg` is not provided to use `this` from the caller.
+    description: Changed the default when `thisArg` is undefined to use `this`
+                 from the caller.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/36782
     description: Added optional thisArg.
