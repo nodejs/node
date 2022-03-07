@@ -1424,6 +1424,7 @@ WebCryptoKeyExportStatus PKEY_SPKI_Export(
   ManagedEVPPKey m_pkey = key_data->GetAsymmetricKey();
   Mutex::ScopedLock lock(*m_pkey.mutex());
   BIOPointer bio(BIO_new(BIO_s_mem()));
+  CHECK(bio);
   if (!i2d_PUBKEY_bio(bio.get(), m_pkey.get()))
     return WebCryptoKeyExportStatus::FAILED;
 
@@ -1439,6 +1440,7 @@ WebCryptoKeyExportStatus PKEY_PKCS8_Export(
   Mutex::ScopedLock lock(*m_pkey.mutex());
 
   BIOPointer bio(BIO_new(BIO_s_mem()));
+  CHECK(bio);
   PKCS8Pointer p8inf(EVP_PKEY2PKCS8(m_pkey.get()));
   if (!i2d_PKCS8_PRIV_KEY_INFO_bio(bio.get(), p8inf.get()))
     return WebCryptoKeyExportStatus::FAILED;
