@@ -807,7 +807,7 @@ int ProcessGlobalArgs(std::vector<std::string>* args,
   // is removed in V8.
   if (std::find(v8_args.begin(), v8_args.end(),
                 "--no-harmony-import-assertions") == v8_args.end()) {
-    v8_args.push_back("--harmony-import-assertions");
+    v8_args.emplace_back("--harmony-import-assertions");
   }
 
   auto env_opts = per_process::cli_options->per_isolate->per_env;
