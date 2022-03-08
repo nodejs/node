@@ -210,6 +210,13 @@ if (common.enoughTestMem) {
   );
 }
 
+assert.throws(
+  () => new StringDecoder('utf8').__proto__.write(Buffer.from('abc')), // eslint-disable-line no-proto
+  {
+    code: 'ERR_INVALID_THIS',
+  }
+);
+
 // Test verifies that StringDecoder will correctly decode the given input
 // buffer with the given encoding to the expected output. It will attempt all
 // possible ways to write() the input buffer, see writeSequences(). The
