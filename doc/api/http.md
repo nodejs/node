@@ -1399,7 +1399,7 @@ Limits maximum incoming headers count. If set to 0, no limit will be applied.
 <!-- YAML
 added: v14.11.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41263
     description: The default request timeout changed
                  from no timeout to 300s (5 minutes).
@@ -2858,11 +2858,11 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41263
     description: The `requestTimeout`, `headersTimeout`, `keepAliveTimeout` and
                  `connectionsCheckingInterval` are supported now.
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42163
     description: The `noDelay` option now defaults to `true`.
   - version: v17.7.0

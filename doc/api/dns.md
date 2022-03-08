@@ -179,7 +179,7 @@ section if a custom port is used.
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -288,7 +288,7 @@ The following flags can be passed as hints to [`dns.lookup()`][].
 <!-- YAML
 added: v0.11.14
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -327,7 +327,7 @@ If this method is invoked as its [`util.promisify()`][]ed version, it returns a
 <!-- YAML
 added: v0.1.27
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -368,7 +368,7 @@ On error, `err` is an [`Error`][] object, where `err.code` is one of the
 <!-- YAML
 added: v0.1.16
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -399,7 +399,7 @@ will contain an array of IPv4 addresses (e.g.
 <!-- YAML
 added: v0.1.16
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -428,7 +428,7 @@ will contain an array of IPv6 addresses.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -488,7 +488,7 @@ queries. It may be better to call individual methods like [`dns.resolve4()`][],
 <!-- YAML
 added: v0.3.2
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -512,7 +512,7 @@ added:
   - v15.0.0
   - v14.17.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -535,7 +535,7 @@ available for the `hostname` (e.g. `[{critical: 0, iodef:
 <!-- YAML
 added: v0.1.27
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -557,7 +557,7 @@ property (e.g. `[{priority: 10, exchange: 'mx.example.com'}, ...]`).
 <!-- YAML
 added: v0.9.12
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -598,7 +598,7 @@ function will contain an array of objects with the following properties:
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -620,7 +620,7 @@ contain an array of name server records available for `hostname`
 <!-- YAML
 added: v6.0.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -641,7 +641,7 @@ be an array of strings containing the reply records.
 <!-- YAML
 added: v0.11.10
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -684,7 +684,7 @@ be an object with the following properties:
 <!-- YAML
 added: v0.1.27
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -721,7 +721,7 @@ be an array of objects with the following properties:
 <!-- YAML
 added: v0.1.27
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of

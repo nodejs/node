@@ -328,7 +328,7 @@ Use the specified file as a security policy.
 ### `--no-experimental-fetch`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 Disable experimental support for the [Fetch API][].
@@ -1055,7 +1055,7 @@ The value given must be a power of two.
 ### `--test-only`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 Configures the test runner to only execute top level tests that have the `only`

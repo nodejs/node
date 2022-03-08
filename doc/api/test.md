@@ -1,6 +1,6 @@
 # Test runner
 
-<!--introduced_in=REPLACEME-->
+<!--introduced_in=v18.0.0-->
 
 > Stability: 1 - Experimental
 
@@ -222,7 +222,7 @@ test('a test that creates asynchronous activity', (t) => {
 ## `test([name][, options][, fn])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 * `name` {string} The name of the test, which is displayed when reporting test
@@ -277,7 +277,7 @@ test('top level test', async (t) => {
 ## Class: `TestContext`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 An instance of `TestContext` is passed to each test function in order to
@@ -287,7 +287,7 @@ exposed as part of the API.
 ### `context.diagnostic(message)`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 * `message` {string} Message to be displayed as a TAP diagnostic.
@@ -299,7 +299,7 @@ not return a value.
 ### `context.runOnly(shouldRunOnlyTests)`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 * `shouldRunOnlyTests` {boolean} Whether or not to run `only` tests.
@@ -312,7 +312,7 @@ no-op.
 ### `context.skip([message])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 * `message` {string} Optional skip message to be displayed in TAP output.
@@ -325,7 +325,7 @@ value.
 ### `context.todo([message])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 * `message` {string} Optional `TODO` message to be displayed in TAP output.
@@ -337,7 +337,7 @@ execution of the test function. This function does not return a value.
 ### `context.test([name][, options][, fn])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 * `name` {string} The name of the subtest, which is displayed when reporting
