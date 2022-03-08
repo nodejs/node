@@ -497,7 +497,8 @@ Maybe<bool> ExportJWKAsymmetricKey(
       break;
     }
     case EVP_PKEY_RSA: return ExportJWKRsaKey(env, key, target);
-    case EVP_PKEY_EC: return ExportJWKEcKey(env, key, target);
+    case EVP_PKEY_EC: return ExportJWKEcKey(env, key, target).IsJust() ?
+                               Just(true) : Nothing<bool>();
     case EVP_PKEY_ED25519:
       // Fall through
     case EVP_PKEY_ED448:

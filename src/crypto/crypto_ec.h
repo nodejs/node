@@ -144,7 +144,7 @@ struct ECKeyExportTraits final {
 
 using ECKeyExportJob = KeyExportJob<ECKeyExportTraits>;
 
-v8::Maybe<bool> ExportJWKEcKey(
+v8::Maybe<void> ExportJWKEcKey(
     Environment* env,
     std::shared_ptr<KeyObjectData> key,
     v8::Local<v8::Object> target);

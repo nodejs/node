@@ -24,6 +24,7 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Int32;
 using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::Nothing;
@@ -711,7 +712,7 @@ WebCryptoKeyExportStatus ECKeyExportTraits::DoExport(
   }
 }
 
-Maybe<bool> ExportJWKEcKey(
+Maybe<void> ExportJWKEcKey(
     Environment* env,
     std::shared_ptr<KeyObjectData> key,
     Local<Object> target) {
@@ -738,7 +739,7 @@ Maybe<bool> ExportJWKEcKey(
           env->context(),
           env->jwk_kty_string(),
           env->jwk_ec_string()).IsNothing()) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   if (SetEncodedValue(
@@ -753,7 +754,7 @@ Maybe<bool> ExportJWKEcKey(
           env->jwk_y_string(),
           y.get(),
           degree_bytes).IsNothing()) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   Local<String> crv_name;
@@ -774,14 +775,14 @@ Maybe<bool> ExportJWKEcKey(
     default: {
       THROW_ERR_CRYPTO_JWK_UNSUPPORTED_CURVE(
           env, "Unsupported JWK EC curve: %s.", OBJ_nid2sn(nid));
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   }
   if (target->Set(
       env->context(),
       env->jwk_crv_string(),
       crv_name).IsNothing()) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
   if (key->GetKeyType() == kKeyTypePrivate) {
@@ -791,10 +792,10 @@ Maybe<bool> ExportJWKEcKey(
       target,
       env->jwk_d_string(),
       pvt,
-      degree_bytes);
+      degree_bytes).IsJust() ? JustVoid() : Nothing<void>();
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 Maybe<bool> ExportJWKEdKey(
