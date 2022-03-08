@@ -459,7 +459,7 @@ but instead implement [`writable._destroy()`][writable-_destroy].
 ##### `writable.closed`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 * {boolean}
@@ -599,7 +599,7 @@ the stream has not been destroyed, errored or ended.
 ##### `writable.writableAborted`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 > Stability: 1 - Experimental
@@ -637,7 +637,7 @@ called in order to fully uncork the stream.
 
 <!-- YAML
 added:
-  REPLACEME
+  v18.0.0
 -->
 
 * {Error}
@@ -1120,7 +1120,7 @@ Is `true` after `'close'` has been emitted.
 ##### `readable.destroyed`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 * {boolean}
@@ -1387,7 +1387,7 @@ Becomes `true` when [`'end'`][] event is emitted.
 
 <!-- YAML
 added:
-  REPLACEME
+  v18.0.0
 -->
 
 * {Error}
@@ -2417,7 +2417,7 @@ const cleanup = finished(rs, (err) => {
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
