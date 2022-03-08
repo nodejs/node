@@ -2085,7 +2085,7 @@ PKCS#1 and SEC1 encryption.
 ### `keyObject.equals(otherKeyObject)`
 
 <!-- YAML
-added: REPLACEME
+added: v17.7.0
 -->
 
 * `otherKeyObject`: {KeyObject} A `KeyObject` with which to
