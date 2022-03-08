@@ -3085,6 +3085,22 @@ releases.
 Use [`process.getActiveResourcesInfo()`][] to get a list of types of active
 resources and not the actual references.
 
+### DEP0162: `fs.write()`, `fs.writeFileSync()` coercion to string
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42149
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Implicit coercion of objects with own `toString` property, passed as second
+parameter in [`fs.write()`][], [`fs.writeFile()`][], [`fs.appendFile()`][],
+[`fs.writeFileSync()`][], and [`fs.appendFileSync()`][] is deprecated.
+Convert them to primitive strings.
+
 [Legacy URL API]: url.md#legacy-url-api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -3133,6 +3149,8 @@ resources and not the actual references.
 [`events.listenerCount(emitter, eventName)`]: events.md#eventslistenercountemitter-eventname
 [`fs.FileHandle`]: fs.md#class-filehandle
 [`fs.access()`]: fs.md#fsaccesspath-mode-callback
+[`fs.appendFile()`]: fs.md#fsappendfilepath-data-options-callback
+[`fs.appendFileSync()`]: fs.md#fsappendfilesyncpath-data-options
 [`fs.createReadStream()`]: fs.md#fscreatereadstreampath-options
 [`fs.createWriteStream()`]: fs.md#fscreatewritestreampath-options
 [`fs.exists(path, callback)`]: fs.md#fsexistspath-callback
@@ -3143,6 +3161,9 @@ resources and not the actual references.
 [`fs.read()`]: fs.md#fsreadfd-buffer-offset-length-position-callback
 [`fs.readSync()`]: fs.md#fsreadsyncfd-buffer-offset-length-position
 [`fs.stat()`]: fs.md#fsstatpath-options-callback
+[`fs.write()`]: fs.md#fswritefd-buffer-offset-length-position-callback
+[`fs.writeFile()`]: fs.md#fswritefilefile-data-options-callback
+[`fs.writeFileSync()`]: fs.md#fswritefilesyncfile-data-options
 [`http.ClientRequest`]: http.md#class-httpclientrequest
 [`http.IncomingMessage`]: http.md#class-httpincomingmessage
 [`http.ServerResponse`]: http.md#class-httpserverresponse
