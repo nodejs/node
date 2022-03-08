@@ -13,40 +13,31 @@ if (common.isWindows) {
 }
 binary = path.resolve(__dirname, '..', '..', binary);
 
-const env = {
-  ...process.env,
-  NODE_DISABLE_COLORS: true
-};
-const spawnOptions = {
-  env,
-  encoding: 'utf8'
-};
-
 assert.strictEqual(
-  child_process.spawnSync(binary, ['console.log(42)'], spawnOptions)
-    .stdout.trim(),
+  child_process.spawnSync(binary, ['console.log(42)'])
+    .stdout.toString().trim(),
   '42');
 
 assert.strictEqual(
-  child_process.spawnSync(binary, ['console.log(embedVars.nön_ascıı)'], spawnOptions)
-    .stdout.trim(),
+  child_process.spawnSync(binary, ['console.log(embedVars.nön_ascıı)'])
+    .stdout.toString().trim(),
   '🏳️‍🌈');
 
 assert.strictEqual(
-  child_process.spawnSync(binary, ['console.log(42)'], spawnOptions)
-    .stdout.trim(),
+  child_process.spawnSync(binary, ['console.log(42)'])
+    .stdout.toString().trim(),
   '42');
 
 assert.strictEqual(
-  child_process.spawnSync(binary, ['throw new Error()'], spawnOptions).status,
+  child_process.spawnSync(binary, ['throw new Error()']).status,
   1);
 
 assert.strictEqual(
-  child_process.spawnSync(binary, ['process.exitCode = 8'], spawnOptions).status,
+  child_process.spawnSync(binary, ['process.exitCode = 8']).status,
   8);
 
 
 const fixturePath = JSON.stringify(fixtures.path('exit.js'));
 assert.strictEqual(
-  child_process.spawnSync(binary, [`require(${fixturePath})`, 92], spawnOptions).status,
+  child_process.spawnSync(binary, [`require(${fixturePath})`, 92]).status,
   92);
