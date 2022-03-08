@@ -32,27 +32,27 @@ else
   parent();
 
 function parent() {
-  // test('foo,tud,bar', true, 'tud');
-  // test('foo,tud', true, 'tud');
-  // test('tud,bar', true, 'tud');
+  test('foo,tud,bar', true, 'tud');
+  test('foo,tud', true, 'tud');
+  test('tud,bar', true, 'tud');
   test('tud', true, 'tud');
-  // test('foo,bar', false, 'tud');
-  // test('', false, 'tud');
+  test('foo,bar', false, 'tud');
+  test('', false, 'tud');
 
-  // test('###', true, '###');
-  // test('hi:)', true, 'hi:)');
-  // test('f$oo', true, 'f$oo');
-  // test('f$oo', false, 'f.oo');
-  // test('no-bar-at-all', false, 'bar');
+  test('###', true, '###');
+  test('hi:)', true, 'hi:)');
+  test('f$oo', true, 'f$oo');
+  test('f$oo', false, 'f.oo');
+  test('no-bar-at-all', false, 'bar');
 
-  // test('test-abc', true, 'test-abc');
-  // test('test-a', false, 'test-abc');
-  // test('test-*', true, 'test-abc');
-  // test('test-*c', true, 'test-abc');
-  // test('test-*abc', true, 'test-abc');
-  // test('abc-test', true, 'abc-test');
-  // test('a*-test', true, 'abc-test');
-  // test('*-test', true, 'abc-test');
+  test('test-abc', true, 'test-abc');
+  test('test-a', false, 'test-abc');
+  test('test-*', true, 'test-abc');
+  test('test-*c', true, 'test-abc');
+  test('test-*abc', true, 'test-abc');
+  test('abc-test', true, 'abc-test');
+  test('a*-test', true, 'abc-test');
+  test('*-test', true, 'abc-test');
 }
 
 function test(environ, shouldWrite, section, forceColors = false) {
