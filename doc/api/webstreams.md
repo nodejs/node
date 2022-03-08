@@ -5,7 +5,7 @@
 <!-- YAML
 added: v16.5.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42225
     description: Use of this API no longer emit a runtime warning.
 -->
@@ -94,7 +94,7 @@ const stream = new ReadableStream({
 <!-- YAML
 added: v16.5.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42225
     description: This class is now exposed on the global object.
 -->
@@ -384,7 +384,7 @@ port2.postMessage(stream, [stream]);
 <!-- YAML
 added: v16.5.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42225
     description: This class is now exposed on the global object.
 -->
@@ -455,7 +455,7 @@ Releases this reader's lock on the underlying {ReadableStream}.
 <!-- YAML
 added: v16.5.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42225
     description: This class is now exposed on the global object.
 -->
@@ -706,7 +706,7 @@ Signals an error that causes the {ReadableStream} to error and close.
 <!-- YAML
 added: v16.5.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42225
     description: This class is now exposed on the global object.
 -->
@@ -756,7 +756,7 @@ added: v16.5.0
 <!-- YAML
 added: v16.5.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42225
     description: This class is now exposed on the global object.
 -->
@@ -876,7 +876,7 @@ port2.postMessage(stream, [stream]);
 <!-- YAML
 added: v16.5.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42225
     description: This class is now exposed on the global object.
 -->
@@ -967,7 +967,7 @@ Appends a new chunk of data to the {WritableStream}'s queue.
 <!-- YAML
 added: v16.5.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42225
     description: This class is now exposed on the global object.
 -->
@@ -1001,7 +1001,7 @@ with currently pending writes canceled.
 <!-- YAML
 added: v16.5.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42225
     description: This class is now exposed on the global object.
 -->
@@ -1107,7 +1107,7 @@ port2.postMessage(stream, [stream]);
 <!-- YAML
 added: v16.5.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42225
     description: This class is now exposed on the global object.
 -->
@@ -1161,7 +1161,7 @@ to be abruptly closed with an error.
 <!-- YAML
 added: v16.5.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42225
     description: This class is now exposed on the global object.
 -->
@@ -1198,7 +1198,7 @@ added: v16.5.0
 <!-- YAML
 added: v16.5.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42225
     description: This class is now exposed on the global object.
 -->
@@ -1235,7 +1235,7 @@ added: v16.5.0
 <!-- YAML
 added: v16.6.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42225
     description: This class is now exposed on the global object.
 -->
@@ -1279,7 +1279,7 @@ added: v16.6.0
 <!-- YAML
 added: v16.6.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42225
     description: This class is now exposed on the global object.
 -->
@@ -1354,7 +1354,7 @@ added: v16.6.0
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42225
     description: This class is now exposed on the global object.
 -->
@@ -1388,7 +1388,7 @@ added: v17.0.0
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42225
     description: This class is now exposed on the global object.
 -->

@@ -2493,7 +2493,7 @@ added: v15.6.0
 <!-- YAML
 added: v15.6.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41600
     description: The subject option now defaults to `'default'`.
   - version:
@@ -2533,7 +2533,7 @@ considered, even if the certificate contains no subject alternative names.
 <!-- YAML
 added: v15.6.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41600
     description: The subject option now defaults to `'default'`.
   - version: v17.5.0
@@ -2911,7 +2911,7 @@ This property is deprecated. Please use `crypto.setFips()` and
 <!-- YAML
 added: v15.8.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -3612,7 +3612,7 @@ Both keys must have the same `asymmetricKeyType`, which must be one of `'dh'`
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -3662,7 +3662,7 @@ generateKey('hmac', { length: 64 }, (err, key) => {
 <!-- YAML
 added: v10.12.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -3928,7 +3928,7 @@ console.log(key.export().toString('hex'));  // e89..........41e
 <!-- YAML
 added: v15.8.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -4202,7 +4202,7 @@ web-compatible code use [`crypto.webcrypto.getRandomValues()`][] instead.
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -4310,7 +4310,7 @@ console.log(Buffer.from(derivedKey).toString('hex'));  // '24156e2...5391653'
 <!-- YAML
 added: v0.5.5
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -4696,7 +4696,7 @@ be passed instead of a public key.
 <!-- YAML
 added: v0.5.8
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -4881,7 +4881,7 @@ added:
   - v7.10.0
   - v6.13.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -5023,7 +5023,7 @@ added:
   - v14.10.0
   - v12.19.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -5131,7 +5131,7 @@ cryptographic pseudorandom number generator.
 <!-- YAML
 added: v10.5.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -5359,7 +5359,7 @@ Throws an error if FIPS mode is not available.
 <!-- YAML
 added: v12.0.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -5460,7 +5460,7 @@ not introduce timing vulnerabilities.
 <!-- YAML
 added: v12.0.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of

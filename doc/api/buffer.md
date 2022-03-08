@@ -457,7 +457,7 @@ added:
   - v15.7.0
   - v14.18.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41270
     description: No longer experimental.
 -->

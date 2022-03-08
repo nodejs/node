@@ -210,7 +210,7 @@ If `abortSignal.aborted` is `true`, throws `abortSignal.reason`.
 ## Class: `Blob`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 <!-- type=global -->
@@ -232,7 +232,7 @@ Used to handle binary data. See the [buffer section][].
 ## Class: `ByteLengthQueuingStrategy`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 > Stability: 1 - Experimental.
@@ -260,7 +260,7 @@ Global alias for [`buffer.atob()`][].
 ## `BroadcastChannel`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 See {BroadcastChannel}.
@@ -308,7 +308,7 @@ added: v0.0.1
 ## Class: `CompressionStream`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 > Stability: 1 - Experimental.
@@ -330,7 +330,7 @@ Used to print to stdout and stderr. See the [`console`][] section.
 ## Class: `CountQueuingStrategy`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 > Stability: 1 - Experimental.
@@ -377,7 +377,7 @@ only if the Node.js binary was compiled with including support for the
 ## Class: `DecompressionStream`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 > Stability: 1 - Experimental.
@@ -559,7 +559,7 @@ DataHandler.prototype.load = async function load(key) {
 ## Class: `ReadableByteStreamController`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 > Stability: 1 - Experimental.
@@ -569,7 +569,7 @@ A browser-compatible implementation of [`ReadableByteStreamController`][].
 ## Class: `ReadableStream`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 > Stability: 1 - Experimental.
@@ -579,7 +579,7 @@ A browser-compatible implementation of [`ReadableStream`][].
 ## Class: `ReadableStreamBYOBReader`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 > Stability: 1 - Experimental.
@@ -589,7 +589,7 @@ A browser-compatible implementation of [`ReadableStreamBYOBReader`][].
 ## Class: `ReadableStreamBYOBRequest`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 > Stability: 1 - Experimental.
@@ -599,7 +599,7 @@ A browser-compatible implementation of [`ReadableStreamBYOBRequest`][].
 ## Class: `ReadableStreamDefaultController`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 > Stability: 1 - Experimental.
@@ -609,7 +609,7 @@ A browser-compatible implementation of [`ReadableStreamDefaultController`][].
 ## Class: `ReadableStreamDefaultReader`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 > Stability: 1 - Experimental.
@@ -718,7 +718,7 @@ The WHATWG `TextDecoder` class. See the [`TextDecoder`][] section.
 ## Class: `TextDecoderStream`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 > Stability: 1 - Experimental.
@@ -738,7 +738,7 @@ The WHATWG `TextEncoder` class. See the [`TextEncoder`][] section.
 ## Class: `TextEncoderStream`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 > Stability: 1 - Experimental.
@@ -748,7 +748,7 @@ A browser-compatible implementation of [`TextEncoderStream`][].
 ## Class: `TransformStream`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 > Stability: 1 - Experimental.
@@ -758,7 +758,7 @@ A browser-compatible implementation of [`TransformStream`][].
 ## Class: `TransformStreamDefaultController`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 > Stability: 1 - Experimental.
@@ -802,7 +802,7 @@ The object that acts as the namespace for all W3C
 ## Class: `WritableStream`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 > Stability: 1 - Experimental.
@@ -812,7 +812,7 @@ A browser-compatible implementation of [`WritableStream`][].
 ## Class: `WritableStreamDefaultController`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 > Stability: 1 - Experimental.
@@ -822,7 +822,7 @@ A browser-compatible implementation of [`WritableStreamDefaultController`][].
 ## Class: `WritableStreamDefaultWriter`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 > Stability: 1 - Experimental.
