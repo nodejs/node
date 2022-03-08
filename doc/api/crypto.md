@@ -2956,8 +2956,7 @@ option is not required but can be used to set the length of the authentication
 tag that will be returned by `getAuthTag()` and defaults to 16 bytes.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
-recent OpenSSL releases, `openssl list -cipher-algorithms`
-(`openssl list-cipher-algorithms` for older versions of OpenSSL) will
+recent OpenSSL releases, `openssl list -cipher-algorithms` will
 display the available cipher algorithms.
 
 The `password` is used to derive the cipher key and initialization vector (IV).
@@ -3027,8 +3026,7 @@ option is not required but can be used to set the length of the authentication
 tag that will be returned by `getAuthTag()` and defaults to 16 bytes.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
-recent OpenSSL releases, `openssl list -cipher-algorithms`
-(`openssl list-cipher-algorithms` for older versions of OpenSSL) will
+recent OpenSSL releases, `openssl list -cipher-algorithms` will
 display the available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
@@ -3128,8 +3126,7 @@ option is not required but can be used to restrict accepted authentication tags
 to those with the specified length.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
-recent OpenSSL releases, `openssl list -cipher-algorithms`
-(`openssl list-cipher-algorithms` for older versions of OpenSSL) will
+recent OpenSSL releases, `openssl list -cipher-algorithms` will
 display the available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
@@ -3245,8 +3242,7 @@ can be used to specify the desired output length in bytes.
 
 The `algorithm` is dependent on the available algorithms supported by the
 version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
-On recent releases of OpenSSL, `openssl list -digest-algorithms`
-(`openssl list-message-digest-algorithms` for older versions of OpenSSL) will
+On recent releases of OpenSSL, `openssl list -digest-algorithms` will
 display the available digest algorithms.
 
 Example: generating the sha256 sum of a file
@@ -3329,8 +3325,7 @@ Optional `options` argument controls stream behavior.
 
 The `algorithm` is dependent on the available algorithms supported by the
 version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
-On recent releases of OpenSSL, `openssl list -digest-algorithms`
-(`openssl list-message-digest-algorithms` for older versions of OpenSSL) will
+On recent releases of OpenSSL, `openssl list -digest-algorithms` will
 display the available digest algorithms.
 
 The `key` is the HMAC key used to generate the cryptographic HMAC hash. If it is
