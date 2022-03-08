@@ -7,6 +7,7 @@ import errno
 import os
 import shutil
 import sys
+import re
 
 # set at init time
 node_prefix = '/usr/local' # PREFIX variable from Makefile
@@ -120,6 +121,17 @@ def corepack_files(action):
 #   'pnpx': 'dist/pnpx.js',
   })
 
+  # On z/OS, we install node-gyp for convenience, as some vendors don't have
+  # external access and may want to build native addons.
+  if sys.platform == 'zos':
+    link_path = abspath(install_path, 'bin/node-gyp')
+    if action == uninstall:
+      action([link_path], 'bin/node-gyp')
+    elif action == install:
+      try_symlink('../lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js', link_path)
+    else:
+      assert 0 # unhandled action type
+
 def subdir_files(path, dest, action):
   ret = {}
   for dirpath, dirnames, filenames in os.walk(path):
@@ -141,6 +153,27 @@ def files(action):
     if is_windows:
       action([output_prefix + 'libnode.dll'], 'bin/libnode.dll')
       action([output_prefix + 'libnode.lib'], 'lib/libnode.lib')
+    elif sys.platform == 'zos':
+      # GYP will output to lib.target; see _InstallableTargetInstallPath
+      # function in tools/gyp/pylib/gyp/generator/make.py
+      output_prefix += 'lib.target/'
+
+      output_lib = 'libnode.' + variables.get('shlib_suffix')
+      action([output_prefix + output_lib], 'lib/' + output_lib)
+
+      # create libnode.x that references libnode.so (C++ addons compat)
+      os.system(os.path.dirname(os.path.realpath(__file__)) +
+                '/zos/modifysidedeck.sh ' +
+                abspath(install_path, 'lib/' + output_lib) + ' ' +
+                abspath(install_path, 'lib/libnode.x') + ' libnode.so')
+
+      # install libnode.version.so
+      so_name = 'libnode.' + re.sub(r'\.x$', '.so', variables.get('shlib_suffix'))
+      action([output_prefix + so_name], 'lib/' + so_name)
+
+      # create symlink of libnode.so -> libnode.version.so (C++ addons compat)
+      link_path = abspath(install_path, 'lib/libnode.so')
+      try_symlink(so_name, link_path)
     else:
       output_lib = 'libnode.' + variables.get('shlib_suffix')
       action([output_prefix + output_lib], 'lib/' + output_lib)
