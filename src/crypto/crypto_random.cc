@@ -122,11 +122,9 @@ Maybe<bool> RandomPrimeTraits::AdditionalConfig(
     }
   }
 
+  // The JS interface already ensures that the (positive) size fits into an int.
   int bits = static_cast<int>(size);
-  if (bits < 0) {
-    THROW_ERR_OUT_OF_RANGE(env, "invalid size");
-    return Nothing<bool>();
-  }
+  CHECK_GT(bits, 0);
 
   if (params->add) {
     if (BN_num_bits(params->add.get()) > bits) {
