@@ -241,6 +241,15 @@ const { hasOpenSSL3 } = common;
           assert.deepStrictEqual(peerCert.infoAccess,
                                  Object.assign(Object.create(null),
                                                expected.legacy));
+
+          // toLegacyObject() should also produce the same properties. However,
+          // the X509Certificate is not aware of the chain, so we need to add
+          // the circular issuerCertificate reference manually for the assertion
+          // to be true.
+          const obj = cert.toLegacyObject();
+          assert.strictEqual(obj.issuerCertificate, undefined);
+          obj.issuerCertificate = obj;
+          assert.deepStrictEqual(peerCert, obj);
         },
       }, common.mustCall());
     }));
@@ -350,6 +359,15 @@ const { hasOpenSSL3 } = common;
           // self-signed. Otherwise, OpenSSL would have already rejected the
           // certificate while connecting to the TLS server.
           assert.deepStrictEqual(peerCert.issuer, expectedObject);
+
+          // toLegacyObject() should also produce the same properties. However,
+          // the X509Certificate is not aware of the chain, so we need to add
+          // the circular issuerCertificate reference manually for the assertion
+          // to be true.
+          const obj = cert.toLegacyObject();
+          assert.strictEqual(obj.issuerCertificate, undefined);
+          obj.issuerCertificate = obj;
+          assert.deepStrictEqual(peerCert, obj);
         },
       }, common.mustCall());
     }));
