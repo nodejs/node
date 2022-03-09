@@ -198,27 +198,28 @@ const der = Buffer.from(
 
   // Verify that legacy encoding works
   const legacyObjectCheck = {
-    subject: 'C=US\n' +
-      'ST=CA\n' +
-      'L=SF\n' +
-      'O=Joyent\n' +
-      'OU=Node.js\n' +
-      'CN=agent1\n' +
-      'emailAddress=ry@tinyclouds.org',
-    issuer:
-      'C=US\n' +
-      'ST=CA\n' +
-      'L=SF\n' +
-      'O=Joyent\n' +
-      'OU=Node.js\n' +
-      'CN=ca1\n' +
-      'emailAddress=ry@tinyclouds.org',
-    infoAccess:
-      common.hasOpenSSL3 ?
-        'OCSP - URI:http://ocsp.nodejs.org/\n' +
-        'CA Issuers - URI:http://ca.nodejs.org/ca.cert' :
-        'OCSP - URI:http://ocsp.nodejs.org/\n' +
-        'CA Issuers - URI:http://ca.nodejs.org/ca.cert\n',
+    subject: Object.assign(Object.create(null), {
+      C: 'US',
+      ST: 'CA',
+      L: 'SF',
+      O: 'Joyent',
+      OU: 'Node.js',
+      CN: 'agent1',
+      emailAddress: 'ry@tinyclouds.org',
+    }),
+    issuer: Object.assign(Object.create(null), {
+      C: 'US',
+      ST: 'CA',
+      L: 'SF',
+      O: 'Joyent',
+      OU: 'Node.js',
+      CN: 'ca1',
+      emailAddress: 'ry@tinyclouds.org',
+    }),
+    infoAccess: Object.assign(Object.create(null), {
+      'OCSP - URI': ['http://ocsp.nodejs.org/'],
+      'CA Issuers - URI': ['http://ca.nodejs.org/ca.cert']
+    }),
     modulus: 'EF5440701637E28ABB038E5641F828D834C342A9D25EDBB86A2BF' +
              '6FBD809CB8E037A98B71708E001242E4DEB54C6164885F599DD87' +
              'A23215745955BE20417E33C4D0D1B80C9DA3DE419A2607195D2FB' +
@@ -243,9 +244,9 @@ const der = Buffer.from(
   const legacyObject = x509.toLegacyObject();
 
   assert.deepStrictEqual(legacyObject.raw, x509.raw);
-  assert.strictEqual(legacyObject.subject, legacyObjectCheck.subject);
-  assert.strictEqual(legacyObject.issuer, legacyObjectCheck.issuer);
-  assert.strictEqual(legacyObject.infoAccess, legacyObjectCheck.infoAccess);
+  assert.deepStrictEqual(legacyObject.subject, legacyObjectCheck.subject);
+  assert.deepStrictEqual(legacyObject.issuer, legacyObjectCheck.issuer);
+  assert.deepStrictEqual(legacyObject.infoAccess, legacyObjectCheck.infoAccess);
   assert.strictEqual(legacyObject.modulus, legacyObjectCheck.modulus);
   assert.strictEqual(legacyObject.bits, legacyObjectCheck.bits);
   assert.strictEqual(legacyObject.exponent, legacyObjectCheck.exponent);

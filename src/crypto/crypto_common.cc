@@ -1284,8 +1284,7 @@ MaybeLocal<Value> GetPeerCert(
 
 MaybeLocal<Object> X509ToObject(
     Environment* env,
-    X509* cert,
-    bool names_as_string) {
+    X509* cert) {
   EscapableHandleScope scope(env->isolate());
   Local<Context> context = env->context();
   Local<Object> info = Object::New(env->isolate());
@@ -1293,34 +1292,15 @@ MaybeLocal<Object> X509ToObject(
   BIOPointer bio(BIO_new(BIO_s_mem()));
   CHECK(bio);
 
-  if (names_as_string) {
-    // TODO(tniessen): this branch should not have to exist. It is only here
-    // because toLegacyObject() does not actually return a legacy object, and
-    // instead represents subject and issuer as strings.
-    if (!Set<Value>(context,
-                    info,
-                    env->subject_string(),
-                    GetSubject(env, bio, cert)) ||
-        !Set<Value>(context,
-                    info,
-                    env->issuer_string(),
-                    GetIssuerString(env, bio, cert))) {
-      return MaybeLocal<Object>();
-    }
-  } else {
-    if (!Set<Value>(context,
-                    info,
-                    env->subject_string(),
-                    GetX509NameObject<X509_get_subject_name>(env, cert)) ||
-        !Set<Value>(context,
-                    info,
-                    env->issuer_string(),
-                    GetX509NameObject<X509_get_issuer_name>(env, cert))) {
-      return MaybeLocal<Object>();
-    }
-  }
-
   if (!Set<Value>(context,
+                  info,
+                  env->subject_string(),
+                  GetX509NameObject<X509_get_subject_name>(env, cert)) ||
+      !Set<Value>(context,
+                  info,
+                  env->issuer_string(),
+                  GetX509NameObject<X509_get_issuer_name>(env, cert)) ||
+      !Set<Value>(context,
                   info,
                   env->subjectaltname_string(),
                   GetSubjectAltNameString(env, bio, cert)) ||
