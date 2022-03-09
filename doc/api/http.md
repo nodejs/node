@@ -2820,6 +2820,10 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41310
+    description: The `noDelay`, `keepAlive` and `keepAliveInitialDelay`
+                 options are supported now.
   - version:
      - v13.8.0
      - v12.15.0
