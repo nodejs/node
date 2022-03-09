@@ -4,7 +4,7 @@
 
 <!-- type=misc -->
 
-Node.js APIs might be deprecated or given the legacy status for any of the
+Node.js APIs might be deprecated or given legacy status for any of the
 following reasons:
 
 * Use of the API is unsafe.
