@@ -106,3 +106,5 @@ This event is emitted on instances of `SomeClass`, not on the module itself.
 * Methods have (list of arguments, returned value if defined, description).
 * Modules have (description, Properties, Functions, Classes, Examples).
 * Properties have (type, description).
+
+Every Function and Method should have an in-line example showing their use.
