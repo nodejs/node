@@ -2556,7 +2556,7 @@ const fs = require('fs');
 
 async function run() {
   await pipeline(
-    async function * ({ signal }) {
+    async function* ({ signal }) {
       await someLongRunningfn({ signal });
       yield 'asd';
     },
