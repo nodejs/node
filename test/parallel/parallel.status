@@ -22,10 +22,6 @@ test-tick-processor-arguments: SKIP
 # Skip tests failing in V8 bots when updating Node
 test-child-process-stdio-overlapped: SKIP
 
-# Temporarily skip for https://crrev.com/c/3487548
-test-trace-events-all: SKIP
-test-trace-events-v8: SKIP
-
 # Temporarily skip for https://crrev.com/c/2974772
 test-util-inspect: SKIP
 
