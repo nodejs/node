@@ -692,9 +692,8 @@ static inline void PrintUtf8AltName(const BIOPointer& out,
                true, safe_prefix);
 }
 
-// This function currently emulates the behavior of i2v_GENERAL_NAME in a safer
-// and less ambiguous way.
-// TODO(tniessen): gradually improve the format in the next major version(s)
+// This function emulates the behavior of i2v_GENERAL_NAME in a safer and less
+// ambiguous way. "othername:" entries use the GENERAL_NAME_print format.
 static bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
   if (gen->type == GEN_DNS) {
     ASN1_IA5STRING* name = gen->d.dNSName;
@@ -767,33 +766,32 @@ static bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
     OBJ_obj2txt(oline, sizeof(oline), gen->d.rid, true);
     BIO_printf(out.get(), "Registered ID:%s", oline);
   } else if (gen->type == GEN_OTHERNAME) {
-    // TODO(tniessen): the format that is used here is based on OpenSSL's
-    // implementation of i2v_GENERAL_NAME (as of OpenSSL 3.0.1), mostly for
-    // backward compatibility. It is somewhat awkward, especially when passed to
-    // translatePeerCertificate, and should be changed in the future, probably
-    // to the format used by GENERAL_NAME_print (in a major release).
+    // The format that is used here is based on OpenSSL's implementation of
+    // GENERAL_NAME_print (as of OpenSSL 3.0.1). Earlier versions of Node.js
+    // instead produced the same format as i2v_GENERAL_NAME, which was somewhat
+    // awkward, especially when passed to translatePeerCertificate.
     bool unicode = true;
     const char* prefix = nullptr;
-    // OpenSSL 1.1.1 does not support othername in i2v_GENERAL_NAME and may not
-    // define these NIDs.
+    // OpenSSL 1.1.1 does not support othername in GENERAL_NAME_print and may
+    // not define these NIDs.
 #if OPENSSL_VERSION_MAJOR >= 3
     int nid = OBJ_obj2nid(gen->d.otherName->type_id);
     switch (nid) {
       case NID_id_on_SmtpUTF8Mailbox:
-        prefix = " SmtpUTF8Mailbox:";
+        prefix = "SmtpUTF8Mailbox";
         break;
       case NID_XmppAddr:
-        prefix = " XmppAddr:";
+        prefix = "XmppAddr";
         break;
       case NID_SRVName:
-        prefix = " SRVName:";
+        prefix = "SRVName";
         unicode = false;
         break;
       case NID_ms_upn:
-        prefix = " UPN:";
+        prefix = "UPN";
         break;
       case NID_NAIRealm:
-        prefix = " NAIRealm:";
+        prefix = "NAIRealm";
         break;
     }
 #endif  // OPENSSL_VERSION_MAJOR >= 3

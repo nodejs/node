@@ -88,22 +88,22 @@ const { hasOpenSSL3 } = common;
     // OpenSSL should not know it.
     'Registered ID:1.3.9999.12.34',
     hasOpenSSL3 ?
-      'othername: XmppAddr::abc123' :
+      'othername:XmppAddr:abc123' :
       'othername:<unsupported>',
     hasOpenSSL3 ?
-      'othername:" XmppAddr::abc123\\u002c DNS:good.example.com"' :
+      'othername:"XmppAddr:abc123\\u002c DNS:good.example.com"' :
       'othername:<unsupported>',
     hasOpenSSL3 ?
-      'othername:" XmppAddr::good.example.com\\u0000abc123"' :
+      'othername:"XmppAddr:good.example.com\\u0000abc123"' :
       'othername:<unsupported>',
     // This is unsupported because the OID is not recognized.
     'othername:<unsupported>',
-    hasOpenSSL3 ? 'othername: SRVName::abc123' : 'othername:<unsupported>',
+    hasOpenSSL3 ? 'othername:SRVName:abc123' : 'othername:<unsupported>',
     // This is unsupported because it is an SRVName with a UTF8String value,
     // which is not allowed for SRVName.
     'othername:<unsupported>',
     hasOpenSSL3 ?
-      'othername:" SRVName::abc\\u0000def"' :
+      'othername:"SRVName:abc\\u0000def"' :
       'othername:<unsupported>',
   ];
 
@@ -173,14 +173,14 @@ const { hasOpenSSL3 } = common;
       },
     },
     hasOpenSSL3 ? {
-      text: 'OCSP - othername: XmppAddr::good.example.com\n' +
+      text: 'OCSP - othername:XmppAddr:good.example.com\n' +
             'OCSP - othername:<unsupported>\n' +
-            'OCSP - othername: SRVName::abc123',
+            'OCSP - othername:SRVName:abc123',
       legacy: {
         'OCSP - othername': [
-          ' XmppAddr::good.example.com',
+          'XmppAddr:good.example.com',
           '<unsupported>',
-          ' SRVName::abc123',
+          'SRVName:abc123',
         ],
       },
     } : {
@@ -196,10 +196,10 @@ const { hasOpenSSL3 } = common;
       },
     },
     hasOpenSSL3 ? {
-      text: 'OCSP - othername:" XmppAddr::good.example.com\\u0000abc123"',
+      text: 'OCSP - othername:"XmppAddr:good.example.com\\u0000abc123"',
       legacy: {
         'OCSP - othername': [
-          ' XmppAddr::good.example.com\0abc123',
+          'XmppAddr:good.example.com\0abc123',
         ],
       },
     } : {
