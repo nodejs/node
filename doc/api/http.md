@@ -2838,6 +2838,13 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42163
+    description: The `noDelay` option now defaults to `true`.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41310
+    description: The `noDelay`, `keepAlive` and `keepAliveInitialDelay`
+                 options are supported now.
   - version:
      - v13.8.0
      - v12.15.0
@@ -2871,7 +2878,7 @@ changes:
     **Default:** 16384 (16 KB).
   * `noDelay` {boolean} If set to `true`, it disables the use of Nagle's
     algorithm immediately after a new incoming connection is received.
-    **Default:** `false`.
+    **Default:** `true`.
   * `keepAlive` {boolean} If set to `true`, it enables keep-alive functionality
     on the socket immediately after a new incoming connection is received,
     similarly on what is done in \[`socket.setKeepAlive([enable][, initialDelay])`]\[`socket.setKeepAlive(enable, initialDelay)`].
