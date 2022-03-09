@@ -677,7 +677,7 @@ of Node.js applications.
 
 > Stability: 1 - Experimental
 
-**Note: This API is currently being redesigned and will still change.**
+> This API is currently being redesigned and will still change.
 
 <!-- type=misc -->
 
@@ -700,7 +700,7 @@ changes:
     description: Add support for import assertions.
 -->
 
-> Note: The loaders API is being redesigned. This hook may disappear or its
+> The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
 
 * `specifier` {string}
@@ -773,10 +773,10 @@ export async function resolve(specifier, context, defaultResolve) {
 
 #### `load(url, context, defaultLoad)`
 
-> Note: The loaders API is being redesigned. This hook may disappear or its
+> The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
 
-> Note: In a previous version of this API, this was split across 3 separate, now
+> In a previous version of this API, this was split across 3 separate, now
 > deprecated, hooks (`getFormat`, `getSource`, and `transformSource`).
 
 * `url` {string}
@@ -814,7 +814,7 @@ overcome in the future.
 > are incompatible. Attempting to use them together will result in an empty
 > object from the import. This may be addressed in the future.
 
-> Note: These types all correspond to classes defined in ECMAScript.
+> These types all correspond to classes defined in ECMAScript.
 
 * The specific [`ArrayBuffer`][] object is a [`SharedArrayBuffer`][].
 * The specific [`TypedArray`][] object is a [`Uint8Array`][].
@@ -864,10 +864,10 @@ source to a supported one (see [Examples](#examples) below).
 
 #### `globalPreload()`
 
-> Note: The loaders API is being redesigned. This hook may disappear or its
+> The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
 
-> Note: In a previous version of this API, this hook was named
+> In a previous version of this API, this hook was named
 > `getGlobalPreloadCode`.
 
 * Returns: {string}
@@ -1456,9 +1456,9 @@ _internal_, _conditions_)
 
 > Stability: 1 - Experimental
 
-> **Note: Do not rely on this flag. We plan to remove it once the
+> Do not rely on this flag. We plan to remove it once the
 > [Loaders API][] has advanced to the point that equivalent functionality can
-> be achieved via custom loaders.**
+> be achieved via custom loaders.
 
 The current specifier resolution does not support all default behavior of
 the CommonJS loader. One of the behavior differences is automatic resolution
