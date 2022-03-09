@@ -43,7 +43,7 @@ The stability indices are as follows:
 > Stability: 3 - Legacy. It is the same as a forever Documentation-only
 > deprecation. While it likely will not be removed, and is still
 > covered by semantic-versioning guarantees, use of the feature is no longer
-> recommended as it not officially supported by the project.
+> recommended as it is not officially supported by the project.
 
 Use caution when making use of Experimental features, particularly within
 modules. Users may not be aware that experimental features are being used.
