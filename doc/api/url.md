@@ -1558,11 +1558,12 @@ A `TypeError` is thrown if `urlString` is not a string.
 
 A `URIError` is thrown if the `auth` property is present but cannot be decoded.
 
-Use of the legacy `url.parse()` method is discouraged. Users should
-use the WHATWG `URL` API. Because the `url.parse()` method uses a
-lenient, non-standard algorithm for parsing URL strings, security
-issues can be introduced. Specifically, issues with [host name spoofing][] and
-incorrect handling of usernames and passwords have been identified.
+Use of the legacy `url.parse()` method is not encouraged as it is not officially
+supported by the project. Users are recommended to use the WHATWG `URL` API
+instead. Because the `url.parse()` method uses a lenient, non-standard algorithm
+for parsing URL strings, security issues can be introduced. Specifically, issues
+with [host name spoofing][] and incorrect handling of usernames and passwords
+have been identified.
 
 ### `url.resolve(from, to)`
 
