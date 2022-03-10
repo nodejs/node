@@ -522,6 +522,10 @@ function final (file, data, log, strict, cb) {
 function fillTypes (file, data, cb) {
   var index = data.main ? data.main : 'index.js'
 
+  if (typeof index !== 'string') {
+    return cb(new TypeError('The "main" attribute must be of type string.'))
+  }
+
   // TODO exports is much more complicated than this in verbose format
   // We need to support for instance
 

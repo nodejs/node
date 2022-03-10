@@ -49,7 +49,9 @@ const result = (fn, ...args) => typeof fn === 'function' ? fn(...args) : fn
 const LoadMockNpm = async (t, {
   init = true,
   load = init,
-  testdir = {},
+  prefixDir = {},
+  cacheDir = {},
+  globalPrefixDir = {},
   config = {},
   mocks = {},
   globals = null,
@@ -77,9 +79,10 @@ const LoadMockNpm = async (t, {
   // Set log level as early as possible since
   setLoglevel(t, config.loglevel)
 
-  const dir = t.testdir({ root: testdir, cache: {} })
-  const prefix = path.join(dir, 'root')
+  const dir = t.testdir({ prefix: prefixDir, cache: cacheDir, global: globalPrefixDir })
+  const prefix = path.join(dir, 'prefix')
   const cache = path.join(dir, 'cache')
+  const globalPrefix = path.join(dir, 'global')
 
   // Set cache to testdir via env var so it is available when load is run
   // XXX: remove this for a solution where cache argv is passed in
@@ -104,6 +107,7 @@ const LoadMockNpm = async (t, {
     setLoglevel(t, config.loglevel, false)
     npm.prefix = prefix
     npm.cache = cache
+    npm.globalPrefix = globalPrefix
   }
 
   return {
@@ -111,6 +115,7 @@ const LoadMockNpm = async (t, {
     Npm,
     npm,
     prefix,
+    testdir: dir,
     cache,
     debugFile: async () => {
       const readFiles = npm.logFiles.map(f => fs.readFile(f))
