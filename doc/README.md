@@ -35,6 +35,7 @@ this guide.
   (`[a link](http://example.com)`).
 * When documenting APIs, update the YAML comment associated with the API as
   appropriate. This is especially true when introducing or deprecating an API.
+* When documenting APIs, every function should have a usage example.
 * For code blocks:
   * Use [language][]-aware fences. (<code>\`\`\`js</code>)
 
