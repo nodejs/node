@@ -816,8 +816,8 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
           __ Branch(&load_char_start_regexp, ne, current_input_offset(),
                     Operand(s3));
           // Offset from the end is zero if we already reached the end.
-          __ BranchShort(&exit_label_, eq, current_input_offset(),
-                         Operand(zero_reg));
+          __ Branch(&exit_label_, eq, current_input_offset(),
+                    Operand(zero_reg));
           // Advance current position after a zero-length match.
           Label advance;
           __ bind(&advance);
