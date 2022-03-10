@@ -140,10 +140,6 @@ to remain active. If there is no other activity keeping the event loop running,
 the process may exit before the `Timeout` object's callback is invoked. Calling
 `timeout.unref()` multiple times will have no effect.
 
-Calling `timeout.unref()` creates an internal timer that will wake the Node.js
-event loop. Creating too many of these can adversely impact performance
-of the Node.js application.
-
 ### `timeout[Symbol.toPrimitive]()`
 
 <!-- YAML
