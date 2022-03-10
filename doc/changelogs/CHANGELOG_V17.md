@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#17.7.1">17.7.1</a><br/>
 <a href="#17.7.0">17.7.0</a><br/>
 <a href="#17.6.0">17.6.0</a><br/>
 <a href="#17.5.0">17.5.0</a><br/>
@@ -40,6 +41,22 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="17.7.1"></a>
+
+## 2022-03-10, Version 17.7.1 (Current), @BethGriggs prepared by @sxa
+
+### Notable Changes
+
+#### Fixed regression in url.resolve()
+
+This release fixes an issue introduced in Node.js v17.7.0 with some URLs
+that contain `@`. This issue affected yarn 1. This version reverts the
+change that introduced the regression.
+
+### Commits
+
+* \[[`96a9e00fb3`](https://github.com/nodejs/node/commit/96a9e00fb3)] - **url**: revert fix url.parse() for `@hostname` (Antoine du Hamel) [#42280](https://github.com/nodejs/node/pull/42280)
 
 <a id="17.7.0"></a>
 
