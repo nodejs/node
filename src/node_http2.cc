@@ -197,7 +197,8 @@ Http2Options::Http2Options(Http2State* http2_state, SessionType type) {
   // Important: The maxSessionMemory option in javascript is expressed in
   //            terms of MB increments (i.e. the value 1 == 1 MB)
   if (flags & (1 << IDX_OPTIONS_MAX_SESSION_MEMORY))
-    set_max_session_memory(buffer[IDX_OPTIONS_MAX_SESSION_MEMORY] * 1000000);
+    set_max_session_memory(buffer[IDX_OPTIONS_MAX_SESSION_MEMORY] *
+                           static_cast<uint64_t>(1000000));
 
   if (flags & (1 << IDX_OPTIONS_MAX_SETTINGS)) {
     nghttp2_option_set_max_settings(
