@@ -722,8 +722,7 @@ void Reference::SecondPassCallback(
     return;
   }
   reference->_secondPassParameter = nullptr;
-  v8impl::RefTracker::FinalizeAll(
-      &reference->_env->finalizing_queue, /*isEnvTeardown:*/false);
+  reference->_env->CallFinalizers();
 }
 
 }  // end of namespace v8impl
@@ -3223,6 +3222,33 @@ napi_status napi_add_finalizer(napi_env env,
                                          finalize_cb,
                                          finalize_hint,
                                          result);
+}
+
+napi_status node_api_call_finalizers(napi_env env,
+                                     size_t finalizer_count,
+                                     bool* has_more_finalizers) {
+  CHECK_ENV(env);
+  bool has_more = false;
+
+  if (!env->finalizer_call_guard) {
+    if (finalizer_count == 0) {
+      finalizer_count = SIZE_MAX;
+    }
+
+    v8impl::FinalizerCallGuard guard(env);
+    while (finalizer_count-- > 0) {
+      has_more = v8impl::RefTracker::FinalizeOne(&env->finalizing_queue);
+      if (!has_more || guard.HasException()) {
+        break;
+      }
+    }
+  }
+
+  if (has_more_finalizers) {
+    *has_more_finalizers = has_more;
+  }
+
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_adjust_external_memory(napi_env env,

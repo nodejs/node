@@ -497,6 +497,12 @@ NAPI_EXTERN napi_status napi_add_finalizer(napi_env env,
                                            void* finalize_hint,
                                            napi_ref* result);
 
+#ifdef NAPI_EXPERIMENTAL
+NAPI_EXTERN napi_status node_api_call_finalizers(napi_env env,
+                                                 size_t finalizer_count,
+                                                 bool* has_more_finalizers);
+#endif
+
 #endif  // NAPI_VERSION >= 5
 
 #if NAPI_VERSION >= 6

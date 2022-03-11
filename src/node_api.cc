@@ -33,17 +33,24 @@ v8::Maybe<bool> node_napi_env__::mark_arraybuffer_as_untransferable(
                         v8::True(isolate));
 }
 
-void node_napi_env__::CallFinalizer(napi_finalize cb, void* data, void* hint) {
+void node_napi_env__::CallFinalizers() {
+  if (is_call_finalizers_scheduled) {
+    return;
+  }
+  is_call_finalizers_scheduled = true;
   // we need to keep the env live until the finalizer has been run
   // EnvRefHolder provides an exception safe wrapper to Ref and then
   // Unref once the lambda is freed
-  EnvRefHolder liveEnv(static_cast<napi_env>(this));
   node_env()->SetImmediate(
-      [=, liveEnv = std::move(liveEnv)](node::Environment* node_env) {
-        napi_env env = liveEnv.env();
-        v8::HandleScope handle_scope(env->isolate);
-        v8::Context::Scope context_scope(env->context());
-        env->CallIntoModule([&](napi_env env) { cb(env, data, hint); });
+      [this, liveEnv = EnvRefHolder(this)](node::Environment* node_env) {
+        v8::HandleScope handle_scope(this->isolate);
+        v8::Context::Scope context_scope(this->context());
+        bool has_more_finalizers = false;
+        node_api_call_finalizers(this, SIZE_MAX, &has_more_finalizers);
+        is_call_finalizers_scheduled = false;
+        if (has_more_finalizers) {
+          CallFinalizers();
+        }
       });
 }
 
