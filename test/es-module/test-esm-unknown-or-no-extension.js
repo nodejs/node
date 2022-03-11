@@ -33,7 +33,7 @@ const assert = require('assert');
     assert.strictEqual(stdout, '');
     assert.ok(stderr.includes('ERR_UNKNOWN_FILE_EXTENSION'));
     if (fixturePath.includes('noext')) {
-      // check for explaination to users
+      // Check for explaination to users
       assert.ok(stderr.includes('Extension-less'));
     }
   }));
