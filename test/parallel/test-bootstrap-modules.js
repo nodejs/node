@@ -16,7 +16,6 @@ const expectedModules = new Set([
   'Internal Binding constants',
   'Internal Binding contextify',
   'Internal Binding credentials',
-  'Internal Binding crypto',
   'Internal Binding errors',
   'Internal Binding fs_dir',
   'Internal Binding fs_event_wrap',
@@ -45,22 +44,6 @@ const expectedModules = new Set([
   'Internal Binding v8',
   'Internal Binding worker',
   'NativeModule buffer',
-  'NativeModule crypto',
-  'NativeModule internal/crypto/certificate',
-  'NativeModule internal/crypto/cipher',
-  'NativeModule internal/crypto/diffiehellman',
-  'NativeModule internal/crypto/hash',
-  'NativeModule internal/crypto/hashnames',
-  'NativeModule internal/crypto/hkdf',
-  'NativeModule internal/crypto/keygen',
-  'NativeModule internal/crypto/keys',
-  'NativeModule internal/crypto/pbkdf2',
-  'NativeModule internal/crypto/random',
-  'NativeModule internal/crypto/scrypt',
-  'NativeModule internal/crypto/sig',
-  'NativeModule internal/crypto/util',
-  'NativeModule internal/crypto/x509',
-  'NativeModule internal/streams/lazy_transform',
   'NativeModule events',
   'NativeModule fs',
   'NativeModule internal/abort_controller',
@@ -221,6 +204,26 @@ if (process.features.inspector) {
 
 if (process.env.NODE_V8_COVERAGE) {
   expectedModules.add('Internal Binding profiler');
+}
+
+if (common.hasCrypto) {
+  expectedModules.add('Internal Binding crypto');
+  expectedModules.add('NativeModule crypto');
+  expectedModules.add('NativeModule internal/crypto/certificate');
+  expectedModules.add('NativeModule internal/crypto/cipher');
+  expectedModules.add('NativeModule internal/crypto/diffiehellman');
+  expectedModules.add('NativeModule internal/crypto/hash');
+  expectedModules.add('NativeModule internal/crypto/hashnames');
+  expectedModules.add('NativeModule internal/crypto/hkdf');
+  expectedModules.add('NativeModule internal/crypto/keygen');
+  expectedModules.add('NativeModule internal/crypto/keys');
+  expectedModules.add('NativeModule internal/crypto/pbkdf2');
+  expectedModules.add('NativeModule internal/crypto/random');
+  expectedModules.add('NativeModule internal/crypto/scrypt');
+  expectedModules.add('NativeModule internal/crypto/sig');
+  expectedModules.add('NativeModule internal/crypto/util');
+  expectedModules.add('NativeModule internal/crypto/x509');
+  expectedModules.add('NativeModule internal/streams/lazy_transform');
 }
 
 const { internalBinding } = require('internal/test/binding');
