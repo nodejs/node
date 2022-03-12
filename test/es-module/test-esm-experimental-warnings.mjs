@@ -16,12 +16,12 @@ for (
     arg,
     '--input-type=module',
     '--eval',
-    `const foo = 'a'`,
+    'const foo = "a"',
   ]);
 
   let stderr = '';
   child.stderr.setEncoding('utf8');
-  child.stderr.on('data', (data) => { stderr += data });
+  child.stderr.on('data', (data) => { stderr += data; });
   child.on('close', mustCall((code, signal) => {
     strictEqual(code, 0);
     strictEqual(signal, null);
