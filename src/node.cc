@@ -41,6 +41,7 @@
 #include "node_snapshot_builder.h"
 #include "node_v8_platform-inl.h"
 #include "node_version.h"
+#include "node_single_binary.h"
 
 #if HAVE_OPENSSL
 #include "node_crypto.h"
@@ -1182,7 +1183,15 @@ void TearDownOncePerProcess() {
 }
 
 int Start(int argc, char** argv) {
-  InitializationResult result = InitializeOncePerProcess(argc, argv);
+  node::single_binary::NewArgs* newArgs =
+     node::single_binary::checkForSingleBinary(argc, argv);
+
+  InitializationResult result;
+  if (!newArgs->singleBinary) {
+    result = InitializeOncePerProcess(argc, argv);
+  } else {
+    result = InitializeOncePerProcess(newArgs->argc, newArgs->argv);
+  }
   if (result.early_return) {
     return result.exit_code;
   }
