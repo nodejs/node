@@ -44,9 +44,8 @@ Otherwise, the file is loaded using the CommonJS module loader. See
 ### ECMAScript modules loader entry point caveat
 
 When loading [ECMAScript module loader][] loads the program entry point, the `node`
-command will only accept as input only files with `.js`, `.mjs`, or `.cjs`
-extensions; and with `.wasm` extensions when
-[`--experimental-wasm-modules`][] is enabled.
+command will only accept as input only files with `.js`, `.mjs`, `.cjs`, or
+`.wasm` extensions.
 
 ## Options
 
@@ -380,14 +379,6 @@ changes:
 -->
 
 Enable experimental WebAssembly System Interface (WASI) support.
-
-### `--experimental-wasm-modules`
-
-<!-- YAML
-added: v12.3.0
--->
-
-Enable experimental WebAssembly module support.
 
 ### `--force-context-aware`
 
@@ -1995,7 +1986,6 @@ $ node --max-old-space-size=1536 index.js
 [`"type"`]: packages.md#type
 [`--cpu-prof-dir`]: #--cpu-prof-dir
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
-[`--experimental-wasm-modules`]: #--experimental-wasm-modules
 [`--heap-prof-dir`]: #--heap-prof-dir
 [`--openssl-config`]: #--openssl-configfile
 [`--redirect-warnings`]: #--redirect-warningsfile

@@ -1,4 +1,3 @@
-// Flags: --experimental-wasm-modules
 import '../common/index.mjs';
 import { path } from '../common/fixtures.mjs';
 import { add, addImported } from '../fixtures/es-modules/simple.wasm';
@@ -18,7 +17,6 @@ strictEqual(addImported(1), 43);
 
 // Test warning message
 const child = spawn(process.execPath, [
-  '--experimental-wasm-modules',
   path('/es-modules/wasm-modules.mjs'),
 ]);
 

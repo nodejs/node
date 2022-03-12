@@ -537,9 +537,8 @@ imported from the same path.
 
 > Stability: 1 - Experimental
 
-Importing WebAssembly modules is supported under the
-`--experimental-wasm-modules` flag, allowing any `.wasm` files to be
-imported as normal modules while also supporting their module imports.
+WebAssembly modules can be imported as normal modules while also supporting
+their module imports.
 
 This integration is in line with the
 [ES Module Integration Proposal for WebAssembly][].
@@ -549,12 +548,6 @@ For example, an `index.mjs` containing:
 ```js
 import * as M from './module.wasm';
 console.log(M);
-```
-
-executed under:
-
-```bash
-node --experimental-wasm-modules index.mjs
 ```
 
 would provide the exports interface for the instantiation of `module.wasm`.
