@@ -43,19 +43,19 @@ process.env.TMPDIR = '/tmpdir';
 process.env.TMP = '/tmp';
 process.env.TEMP = '/temp';
 if (common.isWindows) {
-  assert.strictEqual(os.tmpdir(), '/temp');
-  process.env.TEMP = '';
   assert.strictEqual(os.tmpdir(), '/tmp');
   process.env.TMP = '';
+  assert.strictEqual(os.tmpdir(), '/temp');
+  process.env.TEMP = '';
   const expected = `${process.env.SystemRoot || process.env.windir}\\temp`;
   assert.strictEqual(os.tmpdir(), expected);
-  process.env.TEMP = '\\temp\\';
-  assert.strictEqual(os.tmpdir(), '\\temp');
-  process.env.TEMP = '\\tmpdir/';
+  process.env.TMP = '\\tmp\\';
+  assert.strictEqual(os.tmpdir(), '\\tmp');
+  process.env.TMP = '\\tmpdir/';
   assert.strictEqual(os.tmpdir(), '\\tmpdir/');
-  process.env.TEMP = '\\';
+  process.env.TMP = '\\';
   assert.strictEqual(os.tmpdir(), '\\');
-  process.env.TEMP = 'C:\\';
+  process.env.TMP = 'C:\\';
   assert.strictEqual(os.tmpdir(), 'C:\\');
 } else {
   assert.strictEqual(os.tmpdir(), '/tmpdir');
