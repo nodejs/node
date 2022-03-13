@@ -121,11 +121,29 @@ module.exports = {
         }
 
         /**
+         * Checks if an identifier is a reference to a global variable.
+         * @param {ASTNode} node An identifier node to check.
+         * @returns {boolean} `true` if the identifier is a reference to a global variable.
+         */
+        function isReferenceToGlobalVariable(node) {
+            const scope = context.getScope();
+            const reference = scope.references.find(ref => ref.identifier === node);
+
+            return Boolean(
+                reference &&
+                reference.resolved &&
+                reference.resolved.scope.type === "global" &&
+                reference.resolved.defs.length === 0
+            );
+        }
+
+        /**
          * Checks if a node has a constant truthiness value.
          * @param {ASTNode} node The AST node to check.
-         * @param {boolean} inBooleanPosition `false` if checking branch of a condition.
-         *  `true` in all other cases. When `false`, checks if -- for both string and
-         *  number -- if coerced to that type, the value will be constant.
+         * @param {boolean} inBooleanPosition `true` if checking the test of a
+         * condition. `false` in all other cases. When `false`, checks if -- for
+         * both string and number -- if coerced to that type, the value will
+         * be constant.
          * @returns {Bool} true when node's truthiness is constant
          * @private
          */
@@ -215,6 +233,15 @@ module.exports = {
                     return isConstant(node.expressions[node.expressions.length - 1], inBooleanPosition);
                 case "SpreadElement":
                     return isConstant(node.argument, inBooleanPosition);
+                case "CallExpression":
+                    if (node.callee.type === "Identifier" && node.callee.name === "Boolean") {
+                        if (node.arguments.length === 0 || isConstant(node.arguments[0], true)) {
+                            return isReferenceToGlobalVariable(node.callee);
+                        }
+                    }
+                    return false;
+                case "Identifier":
+                    return node.name === "undefined" && isReferenceToGlobalVariable(node);
 
                 // no default
             }
