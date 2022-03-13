@@ -1565,9 +1565,9 @@ and incorrect handling of usernames and passwords.
 `url.parse()` is an exception to most of the legacy APIs. Despite its security
 concerns, it is legacy and not deprecated because it is:
 
-* faster than the alternative WHATWG `URL` parser
-* easier to use with regards to relative URLs than the alternative WHATWG `URL` API
-* widely relied upon within the npm ecosystem
+* Faster than the alternative WHATWG `URL` parser.
+* Easier to use with regards to relative URLs than the alternative WHATWG `URL` API.
+* Widely relied upon within the npm ecosystem.
 
 Use with caution.
 
