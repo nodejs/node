@@ -1563,8 +1563,7 @@ strings. It is prone to security issues such as [host name spoofing][]
 and incorrect handling of usernames and passwords.
 
 `url.parse()` is an exception to most of the legacy APIs. Despite its security
-concerns, it is not deprecated and it still remains to be a legacy API because
-it is:
+concerns, it is legacy and not deprecated because it is:
 
 * faster than the alternative WHATWG `URL` parser
 * easier to use with regards to relative URLs than the alternative WHATWG `URL` API
