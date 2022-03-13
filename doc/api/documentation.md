@@ -44,9 +44,9 @@ The stability indices are as follows:
 > still covered by semantic-versioning guarantees, it is no longer actively
 > maintained, and other alternatives are available.
 
-Features are marked as Legacy rather than being Deprecated if their use does no
+Features are marked as legacy rather than being deprecated if their use does no
 harm, and they are widely relied upon within the npm ecosystem. Bugs found in
-Legacy features are unlikely to be fixed.
+legacy features are unlikely to be fixed.
 
 Use caution when making use of Experimental features, particularly within
 modules. Users may not be aware that experimental features are being used.
