@@ -1,4 +1,4 @@
-# Documentation style guide
+# Documentation style guide     
 
 This style guide helps us create organized and easy-to-read documentation. It
 provides guidelines for organization, spelling, formatting, and more.
