@@ -36,8 +36,11 @@ identical to the behavior of pipes in the shell. Use the `{ stdio: 'ignore' }`
 option if the output will not be consumed.
 
 The command lookup is performed using the `options.env.PATH` environment
-variable if it is in the `options` object. Otherwise, `process.env.PATH` is
-used.
+variable if `env` is in the `options` object. Otherwise, `process.env.PATH` is
+used. If `options.env` is set without `PATH`, lookup on Unix is performed
+on a default search path search of `/usr/bin:/bin` (see your operating system's
+manual for execvpe/execvp), on Windows the current processes environment
+variable `PATH` is used.
 
 On Windows, environment variables are case-insensitive. Node.js
 lexicographically sorts the `env` keys and uses the first one that
