@@ -230,7 +230,7 @@ unsigned hex2bin(const T ch) {
     return 10 + (ch - 'A');
   if (ch >= 'a' && ch <= 'f')
     return 10 + (ch - 'a');
-  return static_cast<unsigned>(-1);
+  UNREACHABLE();
 }
 
 std::string PercentDecode(const char* input, size_t len) {
