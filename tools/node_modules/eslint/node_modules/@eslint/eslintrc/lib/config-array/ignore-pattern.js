@@ -156,8 +156,8 @@ class IgnorePattern {
         const patterns = [].concat(
             ...ignorePatterns.map(p => p.getPatternsRelativeTo(basePath))
         );
-        const ig = ignore().add([...DotPatterns, ...patterns]);
-        const dotIg = ignore().add(patterns);
+        const ig = ignore({ allowRelativePaths: true }).add([...DotPatterns, ...patterns]);
+        const dotIg = ignore({ allowRelativePaths: true }).add(patterns);
 
         debug("  processed: %o", { basePath, patterns });
 
