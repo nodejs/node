@@ -220,9 +220,8 @@ inline MUST_USE_RESULT Maybe<bool> ParseArrayIndex(Environment* env,
     return Just(false);
 
   // Check that the result fits in a size_t.
-  const uint64_t kSizeMax = static_cast<uint64_t>(static_cast<size_t>(-1));
   // coverity[pointless_expression]
-  if (static_cast<uint64_t>(tmp_i) > kSizeMax)
+  if (static_cast<uint64_t>(tmp_i) > std::numeric_limits<size_t>::max())
     return Just(false);
 
   *ret = static_cast<size_t>(tmp_i);
