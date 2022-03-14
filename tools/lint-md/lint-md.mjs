@@ -482,7 +482,7 @@ function base() {
         continue
       }
       if (options[0] === true) {
-        options[1] = undefined;
+        options[0] = undefined;
       }
       const transformer = attacher.call(processor, ...options);
       if (typeof transformer === 'function') {
