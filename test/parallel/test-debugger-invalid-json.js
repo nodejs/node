@@ -9,39 +9,34 @@ const http = require('http');
 
 const host = '127.0.0.1';
 
-const testWhenBadRequest = () => {
+{
   const server = http.createServer((req, res) => {
     res.statusCode = 400;
     res.end('Bad Request');
   });
-  server.listen(0, async () => {
-    try {
-      const port = server.address().port;
-      const cli = startCLI([`${host}:${port}`]);
-      const code = await cli.quit();
+  server.listen(0, common.mustCall(() => {
+    const port = server.address().port;
+    const cli = startCLI([`${host}:${port}`]);
+    cli.quit().then(common.mustCall((code) => {
       assert.strictEqual(code, 1);
-    } finally {
+    })).finally(() => {
       server.close();
-    }
-  });
-};
+    });
+  }));
+}
 
-const testInvalidJson = () => {
+{
   const server = http.createServer((req, res) => {
     res.statusCode = 200;
-    res.end('ok');
+    res.end('some data that is invalid json');
   });
-  server.listen(0, host, async () => {
-    try {
-      const port = server.address().port;
-      const cli = startCLI([`${host}:${port}`]);
-      const code = await cli.quit();
+  server.listen(0, host, common.mustCall(() => {
+    const port = server.address().port;
+    const cli = startCLI([`${host}:${port}`]);
+    cli.quit().then(common.mustCall((code) => {
       assert.strictEqual(code, 1);
-    } finally {
+    })).finally(() => {
       server.close();
-    }
-  });
-};
-
-testWhenBadRequest();
-testInvalidJson();
+    });
+  }));
+}
