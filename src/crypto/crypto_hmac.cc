@@ -124,8 +124,11 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
   unsigned int md_len = 0;
 
   if (hmac->ctx_) {
-    HMAC_Final(hmac->ctx_.get(), md_value, &md_len);
+    bool ok = HMAC_Final(hmac->ctx_.get(), md_value, &md_len);
     hmac->ctx_.reset();
+    if (!ok) {
+      return ThrowCryptoError(env, ERR_get_error(), "Failed to finalize HMAC");
+    }
   }
 
   Local<Value> error;
