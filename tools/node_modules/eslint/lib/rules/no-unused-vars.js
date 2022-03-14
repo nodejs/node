@@ -67,6 +67,9 @@ module.exports = {
                             },
                             caughtErrorsIgnorePattern: {
                                 type: "string"
+                            },
+                            destructuredArrayIgnorePattern: {
+                                type: "string"
                             }
                         },
                         additionalProperties: false
@@ -114,6 +117,10 @@ module.exports = {
                 if (firstOption.caughtErrorsIgnorePattern) {
                     config.caughtErrorsIgnorePattern = new RegExp(firstOption.caughtErrorsIgnorePattern, "u");
                 }
+
+                if (firstOption.destructuredArrayIgnorePattern) {
+                    config.destructuredArrayIgnorePattern = new RegExp(firstOption.destructuredArrayIgnorePattern, "u");
+                }
             }
         }
 
@@ -155,7 +162,14 @@ module.exports = {
          * @returns {UnusedVarMessageData} The message data to be used with this unused variable.
          */
         function getAssignedMessageData(unusedVar) {
-            const additional = config.varsIgnorePattern ? `. Allowed unused vars must match ${config.varsIgnorePattern.toString()}` : "";
+            const def = unusedVar.defs[0];
+            let additional = "";
+
+            if (config.destructuredArrayIgnorePattern && def && def.name.parent.type === "ArrayPattern") {
+                additional = `. Allowed unused elements of array destructuring patterns must match ${config.destructuredArrayIgnorePattern.toString()}`;
+            } else if (config.varsIgnorePattern) {
+                additional = `. Allowed unused vars must match ${config.varsIgnorePattern.toString()}`;
+            }
 
             return {
                 varName: unusedVar.name,
@@ -584,6 +598,19 @@ module.exports = {
 
                     if (def) {
                         const type = def.type;
+                        const refUsedInArrayPatterns = variable.references.some(ref => ref.identifier.parent.type === "ArrayPattern");
+
+                        // skip elements of array destructuring patterns
+                        if (
+                            (
+                                def.name.parent.type === "ArrayPattern" ||
+                                refUsedInArrayPatterns
+                            ) &&
+                            config.destructuredArrayIgnorePattern &&
+                            config.destructuredArrayIgnorePattern.test(def.name.name)
+                        ) {
+                            continue;
+                        }
 
                         // skip catch variables
                         if (type === "CatchClause") {
