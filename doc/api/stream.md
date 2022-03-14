@@ -2469,7 +2469,7 @@ const fs = require('fs');
 async function run() {
   await pipeline(
     fs.createReadStream('lowercase.txt'),
-    async function* (source, signal) {
+    async function* (source, { signal }) {
       source.setEncoding('utf8');  // Work with strings rather than `Buffer`s.
       for await (const chunk of source) {
         yield await processChunk(chunk, { signal });
@@ -2493,7 +2493,7 @@ const fs = require('fs');
 
 async function run() {
   await pipeline(
-    async function * (signal) {
+    async function* ({ signal }) {
       await someLongRunningfn({ signal });
       yield 'asd';
     },
