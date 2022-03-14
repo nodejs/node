@@ -765,7 +765,7 @@
                         right = parsed;
                     }
                     else {
-                        throw new UnexpectedTypeError(parsed, 'Type \'JsdocTypeSpecialNamePath\' is only allowed witch specialType \'event\'');
+                        throw new UnexpectedTypeError(parsed, 'Type \'JsdocTypeSpecialNamePath\' is only allowed with specialType \'event\'');
                     }
                     break;
                 default:
@@ -935,7 +935,7 @@
                     result.parameters = getParameters(value);
                     for (const p of result.parameters) {
                         if (p.type === 'JsdocTypeKeyValue' && (!allowNamedParameters.includes(p.key) || p.meta.quote !== undefined)) {
-                            throw new Error(`only allowed named parameters are ${allowNamedParameters.join(',')} but got ${p.type}`);
+                            throw new Error(`only allowed named parameters are ${allowNamedParameters.join(', ')} but got ${p.type}`);
                         }
                     }
                 }
