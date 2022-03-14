@@ -17,6 +17,7 @@
 
 * Remove them from security-stewards team in the GitHub nodejs-private
   organization.
+* Remove them from public website team
 * Unless they have access for another reason, remove them from the
   standard team in H1 using this
   [page](https://hackerone.com/nodejs/team_members).
