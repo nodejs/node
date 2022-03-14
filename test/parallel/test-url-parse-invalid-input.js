@@ -37,6 +37,10 @@ assert.throws(() => { url.parse('http://%E0%A4%A@fail'); },
                 return e.code === undefined;
               });
 
+assert.throws(() => { url.parse('http://[127.0.0.1\x00c8763]:8000/'); },
+              { code: 'ERR_INVALID_URL', input: 'http://[127.0.0.1\x00c8763]:8000/' }
+);
+
 if (common.hasIntl) {
   // An array of Unicode code points whose Unicode NFKD contains a "bad
   // character".
