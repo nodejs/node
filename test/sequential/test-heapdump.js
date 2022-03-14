@@ -25,13 +25,15 @@ process.chdir(tmpdir.path);
 }
 
 {
-  const readonlyFile = 'ro';
-  fs.writeFileSync(readonlyFile, Buffer.alloc(0), { mode: 0o444 });
+  const directory = 'directory';
+  fs.mkdirSync(directory);
   assert.throws(() => {
-    writeHeapSnapshot(readonlyFile);
+    writeHeapSnapshot(directory);
   }, (e) => {
     assert.ok(e, 'writeHeapSnapshot should error');
-    assert.strictEqual(e.code, 'EACCES');
+    // TODO(RaisinTen): This should throw EISDIR on Windows too.
+    assert.strictEqual(e.code,
+                       process.platform === 'win32' ? 'EACCES' : 'EISDIR');
     assert.strictEqual(e.syscall, 'open');
     return true;
   });
