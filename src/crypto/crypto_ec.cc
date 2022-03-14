@@ -733,7 +733,11 @@ Maybe<void> ExportJWKEcKey(
   BignumPointer x(BN_new());
   BignumPointer y(BN_new());
 
-  EC_POINT_get_affine_coordinates(group, pub, x.get(), y.get(), nullptr);
+  if (!EC_POINT_get_affine_coordinates(group, pub, x.get(), y.get(), nullptr)) {
+    ThrowCryptoError(env, ERR_get_error(),
+                     "Failed to get elliptic-curve point coordinates");
+    return Nothing<void>();
+  }
 
   if (target->Set(
           env->context(),
