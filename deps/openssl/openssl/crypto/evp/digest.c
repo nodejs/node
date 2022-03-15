@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,6 +15,22 @@
 #include "crypto/evp.h"
 #include "evp_local.h"
 
+
+static void cleanup_old_md_data(EVP_MD_CTX *ctx, int force)
+{
+    if (ctx->digest != NULL) {
+        if (ctx->digest->cleanup != NULL
+                && !EVP_MD_CTX_test_flags(ctx, EVP_MD_CTX_FLAG_CLEANED))
+            ctx->digest->cleanup(ctx);
+        if (ctx->md_data != NULL && ctx->digest->ctx_size > 0
+                && (!EVP_MD_CTX_test_flags(ctx, EVP_MD_CTX_FLAG_REUSE)
+                    || force)) {
+            OPENSSL_clear_free(ctx->md_data, ctx->digest->ctx_size);
+            ctx->md_data = NULL;
+        }
+    }
+}
+
 /* This call frees resources associated with the context */
 int EVP_MD_CTX_reset(EVP_MD_CTX *ctx)
 {
@@ -25,13 +41,8 @@ int EVP_MD_CTX_reset(EVP_MD_CTX *ctx)
      * Don't assume ctx->md_data was cleaned in EVP_Digest_Final, because
      * sometimes only copies of the context are ever finalised.
      */
-    if (ctx->digest && ctx->digest->cleanup
-        && !EVP_MD_CTX_test_flags(ctx, EVP_MD_CTX_FLAG_CLEANED))
-        ctx->digest->cleanup(ctx);
-    if (ctx->digest && ctx->digest->ctx_size && ctx->md_data
-        && !EVP_MD_CTX_test_flags(ctx, EVP_MD_CTX_FLAG_REUSE)) {
-        OPENSSL_clear_free(ctx->md_data, ctx->digest->ctx_size);
-    }
+    cleanup_old_md_data(ctx, 0);
+
     /*
      * pctx should be freed by the user of EVP_MD_CTX
      * if EVP_MD_CTX_FLAG_KEEP_PKEY_CTX is set
@@ -76,6 +87,7 @@ int EVP_DigestInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type, ENGINE *impl)
     if (ctx->engine && ctx->digest &&
         (type == NULL || (type->type == ctx->digest->type)))
         goto skip_to_init;
+
     if (type) {
         /*
          * Ensure an ENGINE left lying around from last time is cleared (the
@@ -119,10 +131,8 @@ int EVP_DigestInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type, ENGINE *impl)
     }
 #endif
     if (ctx->digest != type) {
-        if (ctx->digest && ctx->digest->ctx_size) {
-            OPENSSL_clear_free(ctx->md_data, ctx->digest->ctx_size);
-            ctx->md_data = NULL;
-        }
+        cleanup_old_md_data(ctx, 1);
+
         ctx->digest = type;
         if (!(ctx->flags & EVP_MD_CTX_FLAG_NO_INIT) && type->ctx_size) {
             ctx->update = type->update;

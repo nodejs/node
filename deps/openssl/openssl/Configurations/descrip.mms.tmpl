@@ -438,7 +438,8 @@ test : tests
         DEFINE SRCTOP {- sourcedir() -}
         DEFINE BLDTOP {- builddir() -}
         DEFINE RESULT_D {- builddir(qw(test test-runs)) -}
-        DEFINE OPENSSL_ENGINES {- builddir("engines") -}
+        engines = F$PARSE("{- builddir("engines") -}","A.;",,,"syntax_only") - "A.;"
+        DEFINE OPENSSL_ENGINES 'engines'
         DEFINE OPENSSL_DEBUG_MEMORY "on"
         IF "$(VERBOSE)" .NES. "" THEN DEFINE VERBOSE "$(VERBOSE)"
         $(PERL) {- sourcefile("test", "run_tests.pl") -} $(TESTS)

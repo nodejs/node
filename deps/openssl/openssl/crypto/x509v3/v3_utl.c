@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -538,8 +538,11 @@ static int append_ia5(STACK_OF(OPENSSL_STRING) **sk, const ASN1_IA5STRING *email
         return 0;
 
     emtmp = OPENSSL_strndup((char *)email->data, email->length);
-    if (emtmp == NULL)
+    if (emtmp == NULL) {
+        X509_email_free(*sk);
+        *sk = NULL;
         return 0;
+    }
 
     /* Don't add duplicates */
     if (sk_OPENSSL_STRING_find(*sk, emtmp) != -1) {
@@ -828,8 +831,11 @@ static int do_check_string(const ASN1_STRING *a, int cmp_type, equal_fn equal,
             rv = equal(a->data, a->length, (unsigned char *)b, blen, flags);
         else if (a->length == (int)blen && !memcmp(a->data, b, blen))
             rv = 1;
-        if (rv > 0 && peername)
+        if (rv > 0 && peername != NULL) {
             *peername = OPENSSL_strndup((char *)a->data, a->length);
+            if (*peername == NULL)
+                return -1;
+        }
     } else {
         int astrlen;
         unsigned char *astr;
@@ -842,8 +848,13 @@ static int do_check_string(const ASN1_STRING *a, int cmp_type, equal_fn equal,
             return -1;
         }
         rv = equal(astr, astrlen, (unsigned char *)b, blen, flags);
-        if (rv > 0 && peername)
+        if (rv > 0 && peername != NULL) {
             *peername = OPENSSL_strndup((char *)astr, astrlen);
+            if (*peername == NULL) {
+                OPENSSL_free(astr);
+                return -1;
+            }
+        }
         OPENSSL_free(astr);
     }
     return rv;

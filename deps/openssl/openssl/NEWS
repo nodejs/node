@@ -5,6 +5,11 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.1.1m and OpenSSL 1.1.1n [15 Mar 2022]
+
+      o Fixed a bug in the BN_mod_sqrt() function that can cause it to loop
+        forever for non-prime moduli ([CVE-2022-0778])
+
   Major changes between OpenSSL 1.1.1l and OpenSSL 1.1.1m [14 Dec 2021]
 
       o None
