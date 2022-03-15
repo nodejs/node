@@ -3,13 +3,15 @@
 This document describes how to update `deps/openssl/`.
 
 If you need to provide updates across all active release lines you will
-currently need to generate three PRs as follows:
+currently need to generate four PRs as follows:
 
 * a PR for master which is generated following the instructions
-  below.
+  below for OpenSSL 3.x.x.
+* a PR for 16.x following the instructions in the v16.x-staging version
+  of this guide.
 * a PR for 14.x following the instructions in the v14.x-staging version
   of this guide.
-* a PR which uses the same commit from the second PR to apply the
+* a PR which uses the same commit from the third PR to apply the
   updates to the openssl source code, with a new commit generated
   by following steps 2 onwards on the 12.x line. This is
   necessary because the configuration files have embedded timestamps
@@ -90,7 +92,7 @@ This updates all sources in deps/openssl/openssl by:
     $ git commit openssl
 ```
 
-### OpenSSL 3.0.0
+### OpenSSL 3.x.x
 
 ```console
 % git clone https://github.com/quictls/openssl
@@ -104,14 +106,15 @@ This updates all sources in deps/openssl/openssl by:
 ```
 
 ```text
-deps: upgrade openssl sources to quictls/openssl-3.0.0-alpha-16
+deps: upgrade openssl sources to quictls/openssl-3.0.2
 
 This updates all sources in deps/openssl/openssl by:
     $ git clone git@github.com:quictls/openssl.git
     $ cd openssl
+    $ git checkout openssl-3.0.2+quic
     $ cd ../node/deps/openssl
     $ rm -rf openssl
-    $ cp -R ../openssl openssl
+    $ cp -R ../../../openssl openssl
     $ rm -rf openssl/.git* openssl/.travis*
     $ git add --all openssl
     $ git commit openssl
@@ -178,7 +181,7 @@ to the relevant value):
     $ git commit
 ```
 
-### OpenSSL 3.0.0
+### OpenSSL 3.0.x
 
 ```text
 deps: update archs files for quictls/openssl-3.0.0-alpha-16
