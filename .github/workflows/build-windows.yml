@@ -8,7 +8,7 @@ env:
 
 jobs:
   build-windows:
-    runs-on: windows-2016
+    runs-on: windows-2019
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ env.PYTHON_VERSION }}
