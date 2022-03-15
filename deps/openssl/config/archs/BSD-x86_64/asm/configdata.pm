@@ -156,7 +156,7 @@ our %config = (
     ],
     "dynamic_engines" => "0",
     "ex_libs" => [],
-    "full_version" => "3.0.1+quic",
+    "full_version" => "3.0.2+quic",
     "includes" => [],
     "lflags" => [],
     "lib_defines" => [
@@ -203,10 +203,10 @@ our %config = (
     "openssl_sys_defines" => [],
     "openssldir" => "",
     "options" => "enable-ssl-trace enable-fips no-afalgeng no-asan no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-ktls no-loadereng no-md2 no-msan no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
-    "patch" => "1",
+    "patch" => "2",
     "perl_archname" => "x86_64-linux-gnu-thread-multi",
     "perl_cmd" => "/usr/bin/perl",
-    "perl_version" => "5.30.0",
+    "perl_version" => "5.28.1",
     "perlargv" => [
         "no-comp",
         "no-shared",
@@ -255,11 +255,11 @@ our %config = (
     "prerelease" => "",
     "processor" => "",
     "rc4_int" => "unsigned int",
-    "release_date" => "14 Dec 2021",
+    "release_date" => "15 Mar 2022",
     "shlib_version" => "81.3",
     "sourcedir" => ".",
     "target" => "BSD-x86_64",
-    "version" => "3.0.1"
+    "version" => "3.0.2"
 );
 our %target = (
     "AR" => "ar",
@@ -3559,6 +3559,9 @@ our %unified_info = (
         "doc/html/man3/SSL_get_all_async_fds.html" => [
             "doc/man3/SSL_get_all_async_fds.pod"
         ],
+        "doc/html/man3/SSL_get_certificate.html" => [
+            "doc/man3/SSL_get_certificate.pod"
+        ],
         "doc/html/man3/SSL_get_ciphers.html" => [
             "doc/man3/SSL_get_ciphers.pod"
         ],
@@ -3657,6 +3660,9 @@ our %unified_info = (
         ],
         "doc/html/man3/SSL_set_fd.html" => [
             "doc/man3/SSL_set_fd.pod"
+        ],
+        "doc/html/man3/SSL_set_retry_verify.html" => [
+            "doc/man3/SSL_set_retry_verify.pod"
         ],
         "doc/html/man3/SSL_set_session.html" => [
             "doc/man3/SSL_set_session.pod"
@@ -5896,6 +5902,9 @@ our %unified_info = (
         "doc/man/man3/SSL_get_all_async_fds.3" => [
             "doc/man3/SSL_get_all_async_fds.pod"
         ],
+        "doc/man/man3/SSL_get_certificate.3" => [
+            "doc/man3/SSL_get_certificate.pod"
+        ],
         "doc/man/man3/SSL_get_ciphers.3" => [
             "doc/man3/SSL_get_ciphers.pod"
         ],
@@ -5994,6 +6003,9 @@ our %unified_info = (
         ],
         "doc/man/man3/SSL_set_fd.3" => [
             "doc/man3/SSL_set_fd.pod"
+        ],
+        "doc/man/man3/SSL_set_retry_verify.3" => [
+            "doc/man3/SSL_set_retry_verify.pod"
         ],
         "doc/man/man3/SSL_set_session.3" => [
             "doc/man3/SSL_set_session.pod"
@@ -12503,6 +12515,9 @@ our %unified_info = (
         "doc/html/man3/SSL_get_all_async_fds.html" => [
             "doc/man3/SSL_get_all_async_fds.pod"
         ],
+        "doc/html/man3/SSL_get_certificate.html" => [
+            "doc/man3/SSL_get_certificate.pod"
+        ],
         "doc/html/man3/SSL_get_ciphers.html" => [
             "doc/man3/SSL_get_ciphers.pod"
         ],
@@ -12601,6 +12616,9 @@ our %unified_info = (
         ],
         "doc/html/man3/SSL_set_fd.html" => [
             "doc/man3/SSL_set_fd.pod"
+        ],
+        "doc/html/man3/SSL_set_retry_verify.html" => [
+            "doc/man3/SSL_set_retry_verify.pod"
         ],
         "doc/html/man3/SSL_set_session.html" => [
             "doc/man3/SSL_set_session.pod"
@@ -14840,6 +14858,9 @@ our %unified_info = (
         "doc/man/man3/SSL_get_all_async_fds.3" => [
             "doc/man3/SSL_get_all_async_fds.pod"
         ],
+        "doc/man/man3/SSL_get_certificate.3" => [
+            "doc/man3/SSL_get_certificate.pod"
+        ],
         "doc/man/man3/SSL_get_ciphers.3" => [
             "doc/man3/SSL_get_ciphers.pod"
         ],
@@ -14938,6 +14959,9 @@ our %unified_info = (
         ],
         "doc/man/man3/SSL_set_fd.3" => [
             "doc/man3/SSL_set_fd.pod"
+        ],
+        "doc/man/man3/SSL_set_retry_verify.3" => [
+            "doc/man3/SSL_set_retry_verify.pod"
         ],
         "doc/man/man3/SSL_set_session.3" => [
             "doc/man3/SSL_set_session.pod"
@@ -16678,6 +16702,7 @@ our %unified_info = (
             "doc/html/man3/SSL_get0_peer_scts.html",
             "doc/html/man3/SSL_get_SSL_CTX.html",
             "doc/html/man3/SSL_get_all_async_fds.html",
+            "doc/html/man3/SSL_get_certificate.html",
             "doc/html/man3/SSL_get_ciphers.html",
             "doc/html/man3/SSL_get_client_random.html",
             "doc/html/man3/SSL_get_current_cipher.html",
@@ -16711,6 +16736,7 @@ our %unified_info = (
             "doc/html/man3/SSL_set_bio.html",
             "doc/html/man3/SSL_set_connect_state.html",
             "doc/html/man3/SSL_set_fd.html",
+            "doc/html/man3/SSL_set_retry_verify.html",
             "doc/html/man3/SSL_set_session.html",
             "doc/html/man3/SSL_set_shutdown.html",
             "doc/html/man3/SSL_set_verify_result.html",
@@ -19611,6 +19637,7 @@ our %unified_info = (
             "doc/man/man3/SSL_get0_peer_scts.3",
             "doc/man/man3/SSL_get_SSL_CTX.3",
             "doc/man/man3/SSL_get_all_async_fds.3",
+            "doc/man/man3/SSL_get_certificate.3",
             "doc/man/man3/SSL_get_ciphers.3",
             "doc/man/man3/SSL_get_client_random.3",
             "doc/man/man3/SSL_get_current_cipher.3",
@@ -19644,6 +19671,7 @@ our %unified_info = (
             "doc/man/man3/SSL_set_bio.3",
             "doc/man/man3/SSL_set_connect_state.3",
             "doc/man/man3/SSL_set_fd.3",
+            "doc/man/man3/SSL_set_retry_verify.3",
             "doc/man/man3/SSL_set_session.3",
             "doc/man/man3/SSL_set_shutdown.3",
             "doc/man/man3/SSL_set_verify_result.3",
@@ -27431,8 +27459,8 @@ unless (caller) {
     use File::Copy;
     use Pod::Usage;
 
-    use lib '/node/deps/openssl/openssl/util/perl';
-    use OpenSSL::fallback '/node/deps/openssl/openssl/external/perl/MODULES.txt';
+    use lib '/home/hassaan/node/deps/openssl/openssl/util/perl';
+    use OpenSSL::fallback '/home/hassaan/node/deps/openssl/openssl/external/perl/MODULES.txt';
 
     my $here = dirname($0);
 
@@ -27459,7 +27487,7 @@ unless (caller) {
             );
 
         use lib '.';
-        use lib '/node/deps/openssl/openssl/Configurations';
+        use lib '/home/hassaan/node/deps/openssl/openssl/Configurations';
         use gentemplate;
 
         print 'Creating ',$buildfile_template,"\n";
@@ -27476,8 +27504,8 @@ unless (caller) {
 
         my $prepend = <<'_____';
 use File::Spec::Functions;
-use lib '/node/deps/openssl/openssl/util/perl';
-use lib '/node/deps/openssl/openssl/Configurations';
+use lib '/home/hassaan/node/deps/openssl/openssl/util/perl';
+use lib '/home/hassaan/node/deps/openssl/openssl/Configurations';
 use lib '.';
 use platform;
 _____
