@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2005 Nokia. All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -122,7 +122,7 @@ static int count_unprocessed_records(SSL *s)
             return -1;
 
         /* Read until next record */
-        if (PACKET_get_length_prefixed_2(&pkt, &subpkt))
+        if (!PACKET_get_length_prefixed_2(&pkt, &subpkt))
             return -1;
 
         count += 1;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -574,7 +574,9 @@ static int cipher_test_init(EVP_TEST *t, const char *alg)
     }
     ERR_clear_last_mark();
 
-    cdat = OPENSSL_zalloc(sizeof(*cdat));
+    if (!TEST_ptr(cdat = OPENSSL_zalloc(sizeof(*cdat))))
+        return 0;
+
     cdat->cipher = cipher;
     cdat->fetched_cipher = fetched_cipher;
     cdat->enc = -1;
@@ -1175,11 +1177,22 @@ static int mac_test_init(EVP_TEST *t, const char *alg)
             return 0;
     }
 
-    mdat = OPENSSL_zalloc(sizeof(*mdat));
+    if (!TEST_ptr(mdat = OPENSSL_zalloc(sizeof(*mdat))))
+        return 0;
+
     mdat->type = type;
-    mdat->mac_name = OPENSSL_strdup(alg);
+    if (!TEST_ptr(mdat->mac_name = OPENSSL_strdup(alg))) {
+        OPENSSL_free(mdat);
+        return 0;
+    }
+
     mdat->mac = mac;
-    mdat->controls = sk_OPENSSL_STRING_new_null();
+    if (!TEST_ptr(mdat->controls = sk_OPENSSL_STRING_new_null())) {
+        OPENSSL_free(mdat->mac_name);
+        OPENSSL_free(mdat);
+        return 0;
+    }
+
     mdat->output_size = mdat->block_size = -1;
     t->data = mdat;
     return 1;
@@ -1843,6 +1856,51 @@ static int pderive_test_parse(EVP_TEST *t,
         return parse_bin(value, &kdata->output, &kdata->output_len);
     if (strcmp(keyword, "Ctrl") == 0)
         return pkey_test_ctrl(t, kdata->ctx, value);
+    if (strcmp(keyword, "KDFType") == 0) {
+        OSSL_PARAM params[2];
+
+        params[0] = OSSL_PARAM_construct_utf8_string(OSSL_EXCHANGE_PARAM_KDF_TYPE,
+                                                     (char *)value, 0);
+        params[1] = OSSL_PARAM_construct_end();
+        if (EVP_PKEY_CTX_set_params(kdata->ctx, params) == 0)
+            return -1;
+        return 1;
+    }
+    if (strcmp(keyword, "KDFDigest") == 0) {
+        OSSL_PARAM params[2];
+
+        params[0] = OSSL_PARAM_construct_utf8_string(OSSL_EXCHANGE_PARAM_KDF_DIGEST,
+                                                     (char *)value, 0);
+        params[1] = OSSL_PARAM_construct_end();
+        if (EVP_PKEY_CTX_set_params(kdata->ctx, params) == 0)
+            return -1;
+        return 1;
+    }
+    if (strcmp(keyword, "CEKAlg") == 0) {
+        OSSL_PARAM params[2];
+
+        params[0] = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_CEK_ALG,
+                                                     (char *)value, 0);
+        params[1] = OSSL_PARAM_construct_end();
+        if (EVP_PKEY_CTX_set_params(kdata->ctx, params) == 0)
+            return -1;
+        return 1;
+    }
+    if (strcmp(keyword, "KDFOutlen") == 0) {
+        OSSL_PARAM params[2];
+        char *endptr;
+        size_t outlen = (size_t)strtoul(value, &endptr, 0);
+
+        if (endptr[0] != '\0')
+            return -1;
+
+        params[0] = OSSL_PARAM_construct_size_t(OSSL_EXCHANGE_PARAM_KDF_OUTLEN,
+                                                &outlen);
+        params[1] = OSSL_PARAM_construct_end();
+        if (EVP_PKEY_CTX_set_params(kdata->ctx, params) == 0)
+            return -1;
+        return 1;
+    }
     return 0;
 }
 
@@ -1858,7 +1916,8 @@ static int pderive_test_run(EVP_TEST *t)
         goto err;
     }
 
-    if (EVP_PKEY_derive(dctx, NULL, &got_len) <= 0) {
+    if (EVP_PKEY_derive(dctx, NULL, &got_len) <= 0
+        || !TEST_size_t_ne(got_len, 0)) {
         t->err = "DERIVE_ERROR";
         goto err;
     }
@@ -2516,7 +2575,7 @@ static int rand_test_run(EVP_TEST *t)
                             item->pr_entropyB_len);
             params[1] = OSSL_PARAM_construct_end();
             if (!TEST_true(EVP_RAND_CTX_set_params(expected->parent, params)))
-                return 0;
+                goto err;
         }
         if (!TEST_true(EVP_RAND_generate
                            (expected->ctx, got, got_len,

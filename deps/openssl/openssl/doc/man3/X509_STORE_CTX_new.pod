@@ -11,7 +11,10 @@ X509_STORE_CTX_get_num_untrusted,
 X509_STORE_CTX_get0_chain, X509_STORE_CTX_set0_verified_chain,
 X509_STORE_CTX_set_default,
 X509_STORE_CTX_set_verify,
-X509_STORE_CTX_verify_fn
+X509_STORE_CTX_verify_fn,
+X509_STORE_CTX_set_purpose,
+X509_STORE_CTX_set_trust,
+X509_STORE_CTX_purpose_inherit
 - X509_STORE_CTX initialisation
 
 =head1 SYNOPSIS
@@ -44,6 +47,11 @@ X509_STORE_CTX_verify_fn
  int X509_STORE_CTX_set_default(X509_STORE_CTX *ctx, const char *name);
  typedef int (*X509_STORE_CTX_verify_fn)(X509_STORE_CTX *);
  void X509_STORE_CTX_set_verify(X509_STORE_CTX *ctx, X509_STORE_CTX_verify_fn verify);
+
+ int X509_STORE_CTX_set_purpose(X509_STORE_CTX *ctx, int purpose);
+ int X509_STORE_CTX_set_trust(X509_STORE_CTX *ctx, int trust);
+ int X509_STORE_CTX_purpose_inherit(X509_STORE_CTX *ctx, int def_purpose,
+                                    int purpose, int trust);
 
 =head1 DESCRIPTION
 
@@ -155,6 +163,65 @@ following signature:
 This function should receive the current X509_STORE_CTX as a parameter and
 return 1 on success or 0 on failure.
 
+X509 certificates may contain information about what purposes keys contained
+within them can be used for. For example "TLS WWW Server Authentication" or
+"Email Protection". This "key usage" information is held internally to the
+certificate itself. In addition the trust store containing trusted certificates
+can declare what purposes we trust different certificates for. This "trust"
+information is not held within the certificate itself but is "meta" information
+held alongside it. This "meta" information is associated with the certificate
+after it is issued and could be determined by a system administrator. For
+example a certificate might declare that it is suitable for use for both
+"TLS WWW Server Authentication" and "TLS Client Authentication", but a system
+administrator might only trust it for the former. An X.509 certificate extension
+exists that can record extended key usage information to supplement the purpose
+information described above. This extended mechanism is arbitrarily extensible
+and not well suited for a generic library API; applications that need to
+validate extended key usage information in certifiates will need to define a
+custom "purpose" (see below) or supply a nondefault verification callback
+(L<X509_STORE_set_verify_cb_func(3)>).
+
+X509_STORE_CTX_set_purpose() sets the purpose for the target certificate being
+verified in the I<ctx>. Built-in available values for the I<purpose> argument
+are B<X509_PURPOSE_SSL_CLIENT>, B<X509_PURPOSE_SSL_SERVER>,
+B<X509_PURPOSE_NS_SSL_SERVER>, B<X509_PURPOSE_SMIME_SIGN>,
+B<X509_PURPOSE_SMIME_ENCRYPT>, B<X509_PURPOSE_CRL_SIGN>, B<X509_PURPOSE_ANY>,
+B<X509_PURPOSE_OCSP_HELPER> and B<X509_PURPOSE_TIMESTAMP_SIGN>. It is also
+possible to create a custom purpose value. Setting a purpose will ensure that
+the key usage declared within certificates in the chain being verified is
+consistent with that purpose as well as, potentially, other checks. Every
+purpose also has an associated default trust value which will also be set at the
+same time. During verification this trust setting will be verified to check it
+is consistent with the trust set by the system administrator for certificates in
+the chain.
+
+X509_STORE_CTX_set_trust() sets the trust value for the target certificate
+being verified in the I<ctx>. Built-in available values for the I<trust>
+argument are B<X509_TRUST_COMPAT>, B<X509_TRUST_SSL_CLIENT>,
+B<X509_TRUST_SSL_SERVER>, B<X509_TRUST_EMAIL>, B<X509_TRUST_OBJECT_SIGN>,
+B<X509_TRUST_OCSP_SIGN>, B<X509_TRUST_OCSP_REQUEST> and B<X509_TRUST_TSA>. It is
+also possible to create a custom trust value. Since X509_STORE_CTX_set_purpose()
+also sets the trust value it is normally sufficient to only call that function.
+If both are called then X509_STORE_CTX_set_trust() should be called after
+X509_STORE_CTX_set_purpose() since the trust setting of the last call will be
+used.
+
+It should not normally be necessary for end user applications to call
+X509_STORE_CTX_purpose_inherit() directly. Typically applications should call
+X509_STORE_CTX_set_purpose() or X509_STORE_CTX_set_trust() instead. Using this
+function it is possible to set the purpose and trust values for the I<ctx> at
+the same time. The I<def_purpose> and I<purpose> arguments can have the same
+purpose values as described for X509_STORE_CTX_set_purpose() above. The I<trust>
+argument can have the same trust values as described in
+X509_STORE_CTX_set_trust() above. Any of the I<def_purpose>, I<purpose> or
+I<trust> values may also have the value 0 to indicate that the supplied
+parameter should be ignored. After calling this function the purpose to be used
+for verification is set from the I<purpose> argument, and the trust is set from
+the I<trust> argument. If I<trust> is 0 then the trust value will be set from
+the default trust value for I<purpose>. If the default trust value for the
+purpose is I<X509_TRUST_DEFAULT> and I<trust> is 0 then the default trust value
+associated with the I<def_purpose> value is used for the trust setting instead.
+
 =head1 NOTES
 
 The certificates and CRLs in a store are used internally and should B<not>
@@ -202,7 +269,7 @@ There is no need to call X509_STORE_CTX_cleanup() explicitly since OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2009-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

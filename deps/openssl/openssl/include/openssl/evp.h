@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -205,8 +205,8 @@ int (*EVP_MD_meth_get_ctrl(const EVP_MD *md))(EVP_MD_CTX *ctx, int cmd,
  * don't accidentally reuse the values for other purposes.
  */
 
-# define EVP_MD_CTX_FLAG_NON_FIPS_ALLOW  0x0008/* Allow use of non FIPS
-                                                * digest in FIPS mode */
+/* This flag has no effect from openssl-3.0 onwards */
+# define EVP_MD_CTX_FLAG_NON_FIPS_ALLOW  0x0008
 
 /*
  * The following PAD options are also currently ignored in 1.0.0, digest

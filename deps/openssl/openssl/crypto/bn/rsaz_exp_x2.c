@@ -318,6 +318,8 @@ static void RSAZ_exp52x20_x2_256(BN_ULONG *out,          /* [2][20] */
         int exp_chunk_no = exp_bit_no / 64;
         int exp_chunk_shift = exp_bit_no % 64;
 
+        BN_ULONG red_table_idx_0, red_table_idx_1;
+
         /*
          * If rem == 0, then
          *      exp_bit_no = modulus_bitsize - exp_win_size
@@ -329,8 +331,8 @@ static void RSAZ_exp52x20_x2_256(BN_ULONG *out,          /* [2][20] */
         OPENSSL_assert(rem != 0);
 
         /* Process 1-st exp window - just init result */
-        BN_ULONG red_table_idx_0 = expz[0][exp_chunk_no];
-        BN_ULONG red_table_idx_1 = expz[1][exp_chunk_no];
+        red_table_idx_0 = expz[0][exp_chunk_no];
+        red_table_idx_1 = expz[1][exp_chunk_no];
         /*
          * The function operates with fixed moduli sizes divisible by 64,
          * thus table index here is always in supported range [0, EXP_WIN_SIZE).

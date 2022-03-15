@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -128,6 +128,16 @@ static int compare_with_file(const char *alg, int type, BIO *membio)
     return ret;
 }
 
+static int pass_cb(char *buf, int size, int rwflag, void *u)
+{
+    return 0;
+}
+
+static int pass_cb_error(char *buf, int size, int rwflag, void *u)
+{
+    return -1;
+}
+
 static int test_print_key_using_pem(const char *alg, const EVP_PKEY *pk)
 {
     BIO *membio = BIO_new(BIO_s_mem());
@@ -140,6 +150,35 @@ static int test_print_key_using_pem(const char *alg, const EVP_PKEY *pk)
         !TEST_true(PEM_write_bio_PrivateKey(bio_out, pk, EVP_aes_256_cbc(),
                                             (unsigned char *)"pass", 4,
                                             NULL, NULL))
+        /* Output zero-length passphrase encrypted private key in PEM form */
+        || !TEST_true(PEM_write_bio_PKCS8PrivateKey(bio_out, pk,
+                                                    EVP_aes_256_cbc(),
+                                                    (const char *)~0, 0,
+                                                    NULL, NULL))
+        || !TEST_true(PEM_write_bio_PKCS8PrivateKey(bio_out, pk,
+                                                    EVP_aes_256_cbc(),
+                                                    NULL, 0, NULL, ""))
+        || !TEST_true(PEM_write_bio_PKCS8PrivateKey(bio_out, pk,
+                                                    EVP_aes_256_cbc(),
+                                                    NULL, 0, pass_cb, NULL))
+        || !TEST_false(PEM_write_bio_PKCS8PrivateKey(bio_out, pk,
+                                                     EVP_aes_256_cbc(),
+                                                     NULL, 0, pass_cb_error,
+                                                     NULL))
+#ifndef OPENSSL_NO_DES
+        || !TEST_true(PEM_write_bio_PKCS8PrivateKey_nid(
+            bio_out, pk, NID_pbe_WithSHA1And3_Key_TripleDES_CBC,
+            (const char *)~0, 0, NULL, NULL))
+        || !TEST_true(PEM_write_bio_PKCS8PrivateKey_nid(
+            bio_out, pk, NID_pbe_WithSHA1And3_Key_TripleDES_CBC, NULL, 0,
+            NULL, ""))
+        || !TEST_true(PEM_write_bio_PKCS8PrivateKey_nid(
+            bio_out, pk, NID_pbe_WithSHA1And3_Key_TripleDES_CBC, NULL, 0,
+            pass_cb, NULL))
+        || !TEST_false(PEM_write_bio_PKCS8PrivateKey_nid(
+            bio_out, pk, NID_pbe_WithSHA1And3_Key_TripleDES_CBC, NULL, 0,
+            pass_cb_error, NULL))
+#endif
         /* Private key in text form */
         || !TEST_int_gt(EVP_PKEY_print_private(membio, pk, 0, NULL), 0)
         || !TEST_true(compare_with_file(alg, PRIV_TEXT, membio))
@@ -1113,8 +1152,6 @@ err:
     return ret;
 }
 
-#define CURVE_NAME 2
-
 static int test_fromdata_ec(void)
 {
     int ret = 0;
@@ -1126,6 +1163,11 @@ static int test_fromdata_ec(void)
     OSSL_PARAM *fromdata_params = NULL;
     const char *alg = "EC";
     const char *curve = "prime256v1";
+    const char bad_curve[] = "nonexistent-curve";
+    OSSL_PARAM nokey_params[2] = {
+       OSSL_PARAM_END,
+       OSSL_PARAM_END
+    };
     /* UNCOMPRESSED FORMAT */
     static const unsigned char ec_pub_keydata[] = {
        POINT_CONVERSION_UNCOMPRESSED,
@@ -1177,6 +1219,16 @@ static int test_fromdata_ec(void)
         goto err;
     ctx = EVP_PKEY_CTX_new_from_name(NULL, alg, NULL);
     if (!TEST_ptr(ctx))
+        goto err;
+
+    /* try importing parameters with bad curve first */
+    nokey_params[0] =
+        OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME,
+                                         (char *)bad_curve, sizeof(bad_curve));
+    if (!TEST_int_eq(EVP_PKEY_fromdata_init(ctx), 1)
+        || !TEST_int_eq(EVP_PKEY_fromdata(ctx, &pk, EVP_PKEY_KEY_PARAMETERS,
+                                          nokey_params), 0)
+        || !TEST_ptr_null(pk))
         goto err;
 
     if (!TEST_int_eq(EVP_PKEY_fromdata_init(ctx), 1)

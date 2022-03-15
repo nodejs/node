@@ -582,7 +582,7 @@ clean: libclean
 	$(RM) $(MANDOCS3)
 	$(RM) $(MANDOCS5)
 	$(RM) $(MANDOCS7)
-	$(RM) $(PROGRAMS) $(TESTPROGS) $(MODULES) $(SCRIPTS)
+	$(RM) $(PROGRAMS) $(TESTPROGS) $(MODULES) $(FIPSMODULE) $(SCRIPTS)
 	$(RM) $(GENERATED_MANDATORY) $(GENERATED)
 	-find . -name '*{- platform->depext() -}' \! -name '.*' \! -type d -exec $(RM) {} \;
 	-find . -name '*{- platform->objext() -}' \! -name '.*' \! -type d -exec $(RM) {} \;
@@ -599,7 +599,7 @@ distclean: clean
 
 # We check if any depfile is newer than Makefile and decide to
 # concatenate only if that is true.
-depend:
+depend: Makefile
 	@: {- output_off() if $disabled{makedepend}; "" -}
 	@$(PERL) $(SRCDIR)/util/add-depends.pl "{- $makedep_scheme -}"
 	@: {- output_on() if $disabled{makedepend}; "" -}
@@ -1153,7 +1153,7 @@ generate_crypto_objects:
 				crypto/objects/obj_mac.num \
 				crypto/objects/obj_xref.txt \
 				> crypto/objects/obj_xref.h )
-	( cd $(SRCDIR);	cat crypto/objects/obj_compat.h >> include/openssl/obj_mac.h )
+	( cd $(SRCDIR);	sed -e '1,8d' crypto/objects/obj_compat.h >> include/openssl/obj_mac.h )
 
 generate_crypto_conf:
 	( cd $(SRCDIR); $(PERL) crypto/conf/keysets.pl \
@@ -1371,13 +1371,13 @@ tar:
 
 link-utils: $(BLDDIR)/util/opensslwrap.sh $(BLDDIR)/apps/openssl.cnf
 
-$(BLDDIR)/util/opensslwrap.sh: configdata.pm
+$(BLDDIR)/util/opensslwrap.sh: Makefile
 	@if [ "$(SRCDIR)" != "$(BLDDIR)" ]; then \
 	    mkdir -p "$(BLDDIR)/util"; \
 	    ln -sf "../$(SRCDIR)/util/`basename "$@"`" "$(BLDDIR)/util"; \
 	fi
 
-$(BLDDIR)/apps/openssl.cnf: configdata.pm
+$(BLDDIR)/apps/openssl.cnf: Makefile
 	@if [ "$(SRCDIR)" != "$(BLDDIR)" ]; then \
 	    mkdir -p "$(BLDDIR)/apps"; \
 	    ln -sf "../$(SRCDIR)/apps/`basename "$@"`" "$(BLDDIR)/apps"; \
@@ -1387,7 +1387,8 @@ FORCE:
 
 # Building targets ###################################################
 
-libcrypto.pc libssl.pc openssl.pc: configdata.pm $(LIBS) {- join(" ",map { platform->sharedlib_simple($_) // platform->sharedlib_import($_) // platform->sharedlib($_) // () } @{$unified_info{libraries}}) -}
+libcrypto.pc libssl.pc openssl.pc: Makefile $(LIBS) {- join(" ",map { platform->sharedlib_simple($_) // platform->sharedlib_import($_) // platform->sharedlib($_) // () } @{$unified_info{libraries}}) -}
+
 libcrypto.pc:
 	@ ( echo 'prefix=$(INSTALLTOP)'; \
 	    echo 'exec_prefix=$${prefix}'; \
@@ -1438,10 +1439,22 @@ openssl.pc:
 	    echo 'Version: '$(VERSION); \
 	    echo 'Requires: libssl libcrypto' ) > openssl.pc
 
+Makefile: configdata.pm \
+          {- join(" \\\n" . ' ' x 10,
+                  fill_lines(" ", $COLUMNS - 10,
+                             @{$config{build_file_templates}})) -}
+	@echo "Detected changed: $?"
+	$(PERL) configdata.pm
+	@echo "**************************************************"
+	@echo "***                                            ***"
+	@echo "***   Please run the same make command again   ***"
+	@echo "***                                            ***"
+	@echo "**************************************************"
+	@false
+
 configdata.pm: $(SRCDIR)/Configure $(SRCDIR)/config \
                {- join(" \\\n" . ' ' x 15,
                        fill_lines(" ", $COLUMNS - 15,
-                                  @{$config{build_file_templates}},
                                   @{$config{build_infos}},
                                   @{$config{conf_files}})) -}
 	@echo "Detected changed: $?"

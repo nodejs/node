@@ -1,5 +1,5 @@
 /*-
- * Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -89,7 +89,7 @@ static int get_key_values(EVP_PKEY *pkey)
     unsigned char out_pubkey[80];
     unsigned char out_privkey[80];
     BIGNUM *out_priv = NULL;
-    size_t i, out_pubkey_len, out_privkey_len = 0;
+    size_t out_pubkey_len, out_privkey_len = 0;
 
     if (!EVP_PKEY_get_utf8_string_param(pkey, OSSL_PKEY_PARAM_GROUP_NAME,
                                         out_curvename, sizeof(out_curvename),
