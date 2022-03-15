@@ -17,9 +17,10 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/34117
     description: Add package `"imports"` field.
   - version:
+    - v13.7.0
     - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/29866
-    description: Remove the `--experimental-modules` option.
+    description: Unflag conditional exports.
   - version:
     - v13.7.0
     - v12.16.0
@@ -1200,9 +1201,10 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/34718
     description: Add support for `"exports"` patterns.
   - version:
+    - v13.7.0
     - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/29866
-    description: Remove the `--experimental-modules` option.
+    description: Unflag conditional exports.
   - version:
     - v13.7.0
     - v12.16.0
