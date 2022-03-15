@@ -136,6 +136,7 @@ The tools are currently assigned to Tiers as follows:
 | Debugger  | Chrome Dev tools          | ?                             | No                      | 3           |
 | Debugger  | Chakracore - time-travel  | No                            | Data source only        | too early   |
 | Tracing   | trace\_events (API)       | No                            | Yes                     | 1           |
+| Tracing   | trace\_gc                 | No                            | Yes                     | 1           |
 | Tracing   | DTrace                    | No                            | Partial                 | 3           |
 | Tracing   | LTTng                     | No                            | Removed?                | N/A         |
 | Tracing   | ETW                       | No                            | Partial                 | 3           |
