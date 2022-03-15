@@ -938,6 +938,7 @@ int s_client_main(int argc, char **argv)
     struct timeval tv;
 #endif
     const char *servername = NULL;
+    char *sname_alloc = NULL;
     int noservername = 0;
     const char *alpn_in = NULL;
     tlsextctx tlsextcbp = { NULL, 0 };
@@ -1587,6 +1588,15 @@ int s_client_main(int argc, char **argv)
             BIO_printf(bio_err,
                        "%s: -proxy argument malformed or ambiguous\n", prog);
             goto end;
+        }
+        if (servername == NULL && !noservername) {
+            res = BIO_parse_hostserv(connectstr, &sname_alloc, NULL, BIO_PARSE_PRIO_HOST);
+            if (!res) {
+                BIO_printf(bio_err,
+                        "%s: -connect argument malformed or ambiguous\n", prog);
+                goto end;
+            }
+            servername = sname_alloc;
         }
     } else {
         int res = 1;
@@ -3149,6 +3159,7 @@ int s_client_main(int argc, char **argv)
 #ifndef OPENSSL_NO_SRP
     OPENSSL_free(srp_arg.srppassin);
 #endif
+    OPENSSL_free(sname_alloc);
     OPENSSL_free(connectstr);
     OPENSSL_free(bindstr);
     OPENSSL_free(bindhost);

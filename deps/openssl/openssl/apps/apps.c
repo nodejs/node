@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -300,9 +300,13 @@ int password_callback(char *buf, int bufsiz, int verify, PW_CB_DATA *cb_tmp)
         int ui_flags = 0;
         const char *prompt_info = NULL;
         char *prompt;
+        int pw_min_len = PW_MIN_LENGTH;
 
         if (cb_data != NULL && cb_data->prompt_info != NULL)
             prompt_info = cb_data->prompt_info;
+        if (cb_data != NULL && cb_data->password != NULL
+                && *(const char*)cb_data->password != '\0')
+            pw_min_len = 1;
         prompt = UI_construct_prompt(ui, "pass phrase", prompt_info);
         if (!prompt) {
             BIO_printf(bio_err, "Out of memory\n");
@@ -317,12 +321,12 @@ int password_callback(char *buf, int bufsiz, int verify, PW_CB_DATA *cb_tmp)
         (void)UI_add_user_data(ui, cb_data);
 
         ok = UI_add_input_string(ui, prompt, ui_flags, buf,
-                                 PW_MIN_LENGTH, bufsiz - 1);
+                                 pw_min_len, bufsiz - 1);
 
         if (ok >= 0 && verify) {
             buff = app_malloc(bufsiz, "password buffer");
             ok = UI_add_verify_string(ui, prompt, ui_flags, buff,
-                                      PW_MIN_LENGTH, bufsiz - 1, buf);
+                                      pw_min_len, bufsiz - 1, buf);
         }
         if (ok >= 0)
             do {

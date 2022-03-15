@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1762,6 +1762,83 @@ static int test_EVP_PKEY_set1_DH(void)
 }
 #endif /* OPENSSL_NO_DH */
 
+typedef struct {
+        int data;
+} custom_dgst_ctx;
+
+static int custom_md_init_called = 0;
+static int custom_md_cleanup_called = 0;
+
+static int custom_md_init(EVP_MD_CTX *ctx)
+{
+    custom_dgst_ctx *p = EVP_MD_CTX_md_data(ctx);
+
+    if (p == NULL)
+        return 0;
+
+    custom_md_init_called++;
+    return 1;
+}
+
+static int custom_md_cleanup(EVP_MD_CTX *ctx)
+{
+    custom_dgst_ctx *p = EVP_MD_CTX_md_data(ctx);
+
+    if (p == NULL)
+        /* Nothing to do */
+        return 1;
+
+    custom_md_cleanup_called++;
+    return 1;
+}
+
+static int test_custom_md_meth(void)
+{
+    EVP_MD_CTX *mdctx = NULL;
+    EVP_MD *tmp = NULL;
+    char mess[] = "Test Message\n";
+    unsigned char md_value[EVP_MAX_MD_SIZE];
+    unsigned int md_len;
+    int testresult = 0;
+    int nid;
+
+    custom_md_init_called = custom_md_cleanup_called = 0;
+
+    nid = OBJ_create("1.3.6.1.4.1.16604.998866.1", "custom-md", "custom-md");
+    if (!TEST_int_ne(nid, NID_undef))
+        goto err;
+    tmp = EVP_MD_meth_new(nid, NID_undef);
+    if (!TEST_ptr(tmp))
+        goto err;
+
+    if (!TEST_true(EVP_MD_meth_set_init(tmp, custom_md_init))
+            || !TEST_true(EVP_MD_meth_set_cleanup(tmp, custom_md_cleanup))
+            || !TEST_true(EVP_MD_meth_set_app_datasize(tmp,
+                                                       sizeof(custom_dgst_ctx))))
+        goto err;
+
+    mdctx = EVP_MD_CTX_new();
+    if (!TEST_ptr(mdctx)
+               /*
+                * Initing our custom md and then initing another md should
+                * result in the init and cleanup functions of the custom md
+                * from being called.
+                */
+            || !TEST_true(EVP_DigestInit_ex(mdctx, tmp, NULL))
+            || !TEST_true(EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL))
+            || !TEST_true(EVP_DigestUpdate(mdctx, mess, strlen(mess)))
+            || !TEST_true(EVP_DigestFinal_ex(mdctx, md_value, &md_len))
+            || !TEST_int_eq(custom_md_init_called, 1)
+            || !TEST_int_eq(custom_md_cleanup_called, 1))
+        goto err;
+
+    testresult = 1;
+ err:
+    EVP_MD_CTX_free(mdctx);
+    EVP_MD_meth_free(tmp);
+    return testresult;
+}
+
 #if !defined(OPENSSL_NO_ENGINE) && !defined(OPENSSL_NO_DYNAMIC_ENGINE)
 /* Test we can create a signature keys with an associated ENGINE */
 static int test_signatures_with_engine(int tst)
@@ -1965,6 +2042,7 @@ int setup_tests(void)
     ADD_ALL_TESTS(test_gcm_reinit, OSSL_NELEM(gcm_reinit_tests));
     ADD_ALL_TESTS(test_evp_updated_iv, OSSL_NELEM(evp_updated_iv_tests));
 
+    ADD_TEST(test_custom_md_meth);
 #if !defined(OPENSSL_NO_ENGINE) && !defined(OPENSSL_NO_DYNAMIC_ENGINE)
 # ifndef OPENSSL_NO_EC
     ADD_ALL_TESTS(test_signatures_with_engine, 3);
