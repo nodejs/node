@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -30,6 +30,8 @@
 #   include <sys/un.h>
 #   include <tcp.h>
 #   include <netdb.h>
+#   include <arpa/inet.h>
+#   include <netinet/tcp.h>
 #  elif defined(_WIN32_WCE) && _WIN32_WCE<410
 #   define getservbyname _masked_declaration_getservbyname
 #  endif

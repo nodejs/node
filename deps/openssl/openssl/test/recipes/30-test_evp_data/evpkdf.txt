@@ -1,5 +1,5 @@
 #
-# Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2001-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -294,12 +294,12 @@ Ctrl.r = r:8
 Ctrl.p = p:1
 Output = 7023bdcb3afd7348461c06cd81fd38ebfda8fbba904f8e3ea9b543f6545da1f2d5432955613f0fcf62d49705242a9af9e61e85dc0d651e40dfcf017b45575887
 
-# Out of memory
+# Out of memory - request > 2 GB of memory
 KDF = scrypt
 Ctrl.pass = pass:pleaseletmein
 Ctrl.salt = salt:SodiumChloride
-Ctrl.N = N:1048576
+Ctrl.N = N:2097152
 Ctrl.r = r:8
 Ctrl.p = p:1
-Result = KDF_MISMATCH
+Result = KDF_DERIVE_ERROR
 
