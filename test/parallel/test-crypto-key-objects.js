@@ -546,9 +546,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     format: 'pem',
     passphrase: Buffer.alloc(1024, 'a')
   }), {
-    message: common.hasOpenSSL3 ?
-      'error:07880109:common libcrypto routines::interrupted or cancelled' :
-      /bad decrypt/
+    message: /bad decrypt/
   });
 
   const publicKey = createPublicKey(publicDsa);
