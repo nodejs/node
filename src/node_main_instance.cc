@@ -39,8 +39,7 @@ NodeMainInstance::NodeMainInstance(Isolate* isolate,
       isolate_(isolate),
       platform_(platform),
       isolate_data_(nullptr),
-      owns_isolate_(false),
-      deserialize_mode_(false) {
+      snapshot_data_(nullptr) {
   isolate_data_ =
       std::make_unique<IsolateData>(isolate_, event_loop, platform, nullptr);
 
@@ -64,28 +63,28 @@ std::unique_ptr<NodeMainInstance> NodeMainInstance::Create(
       new NodeMainInstance(isolate, event_loop, platform, args, exec_args));
 }
 
-NodeMainInstance::NodeMainInstance(
-    Isolate::CreateParams* params,
-    uv_loop_t* event_loop,
-    MultiIsolatePlatform* platform,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args,
-    const std::vector<size_t>* per_isolate_data_indexes)
+NodeMainInstance::NodeMainInstance(const SnapshotData* snapshot_data,
+                                   uv_loop_t* event_loop,
+                                   MultiIsolatePlatform* platform,
+                                   const std::vector<std::string>& args,
+                                   const std::vector<std::string>& exec_args)
     : args_(args),
       exec_args_(exec_args),
       array_buffer_allocator_(ArrayBufferAllocator::Create()),
       isolate_(nullptr),
       platform_(platform),
-      isolate_data_(nullptr),
-      owns_isolate_(true) {
-  params->array_buffer_allocator = array_buffer_allocator_.get();
-  deserialize_mode_ = per_isolate_data_indexes != nullptr;
-  if (deserialize_mode_) {
+      isolate_data_(),
+      isolate_params_(std::make_unique<Isolate::CreateParams>()),
+      snapshot_data_(snapshot_data) {
+  isolate_params_->array_buffer_allocator = array_buffer_allocator_.get();
+  if (snapshot_data != nullptr) {
     // TODO(joyeecheung): collect external references and set it in
     // params.external_references.
     const std::vector<intptr_t>& external_references =
         CollectExternalReferences();
-    params->external_references = external_references.data();
+    isolate_params_->external_references = external_references.data();
+    isolate_params_->snapshot_blob =
+        const_cast<v8::StartupData*>(&(snapshot_data->blob));
   }
 
   isolate_ = Isolate::Allocate();
@@ -93,48 +92,52 @@ NodeMainInstance::NodeMainInstance(
   // Register the isolate on the platform before the isolate gets initialized,
   // so that the isolate can access the platform during initialization.
   platform->RegisterIsolate(isolate_, event_loop);
-  SetIsolateCreateParamsForNode(params);
-  Isolate::Initialize(isolate_, *params);
+  SetIsolateCreateParamsForNode(isolate_params_.get());
+  Isolate::Initialize(isolate_, *isolate_params_);
 
   // If the indexes are not nullptr, we are not deserializing
-  CHECK_IMPLIES(deserialize_mode_, params->external_references != nullptr);
-  isolate_data_ = std::make_unique<IsolateData>(isolate_,
-                                                event_loop,
-                                                platform,
-                                                array_buffer_allocator_.get(),
-                                                per_isolate_data_indexes);
+  isolate_data_ = std::make_unique<IsolateData>(
+      isolate_,
+      event_loop,
+      platform,
+      array_buffer_allocator_.get(),
+      snapshot_data == nullptr ? nullptr
+                               : &(snapshot_data->isolate_data_indices));
   IsolateSettings s;
   SetIsolateMiscHandlers(isolate_, s);
-  if (!deserialize_mode_) {
+  if (snapshot_data == nullptr) {
     // If in deserialize mode, delay until after the deserialization is
     // complete.
     SetIsolateErrorHandlers(isolate_, s);
   }
   isolate_data_->max_young_gen_size =
-      params->constraints.max_young_generation_size_in_bytes();
+      isolate_params_->constraints.max_young_generation_size_in_bytes();
 }
 
 void NodeMainInstance::Dispose() {
-  CHECK(!owns_isolate_);
+  // This should only be called on a main instance that does not own its
+  // isolate.
+  CHECK_NULL(isolate_params_);
   platform_->DrainTasks(isolate_);
 }
 
 NodeMainInstance::~NodeMainInstance() {
-  if (!owns_isolate_) {
+  if (isolate_params_ == nullptr) {
     return;
   }
+  // This should only be done on a main instance that owns its isolate.
   platform_->UnregisterIsolate(isolate_);
   isolate_->Dispose();
 }
 
-int NodeMainInstance::Run(const EnvSerializeInfo* env_info) {
+int NodeMainInstance::Run() {
   Locker locker(isolate_);
   Isolate::Scope isolate_scope(isolate_);
   HandleScope handle_scope(isolate_);
 
   int exit_code = 0;
   DeleteFnPtr<Environment, FreeEnvironment> env =
-      CreateMainEnvironment(&exit_code, env_info);
+      CreateMainEnvironment(&exit_code);
   CHECK_NOT_NULL(env);
 
   Context::Scope context_scope(env->context());
@@ -170,8 +173,7 @@ void NodeMainInstance::Run(int* exit_code, Environment* env) {
 }
 
 DeleteFnPtr<Environment, FreeEnvironment>
-NodeMainInstance::CreateMainEnvironment(int* exit_code,
-                                        const EnvSerializeInfo* env_info) {
+NodeMainInstance::CreateMainEnvironment(int* exit_code) {
   *exit_code = 0;  // Reset the exit code to 0
 
   HandleScope handle_scope(isolate_);
@@ -182,16 +184,15 @@ NodeMainInstance::CreateMainEnvironment(int* exit_code,
     isolate_->GetHeapProfiler()->StartTrackingHeapObjects(true);
   }
 
-  CHECK_IMPLIES(deserialize_mode_, env_info != nullptr);
   Local<Context> context;
   DeleteFnPtr<Environment, FreeEnvironment> env;
 
-  if (deserialize_mode_) {
+  if (snapshot_data_ != nullptr) {
     env.reset(new Environment(isolate_data_.get(),
                               isolate_,
                               args_,
                               exec_args_,
-                              env_info,
+                              &(snapshot_data_->env_info),
                               EnvironmentFlags::kDefaultFlags,
                               {}));
     context = Context::FromSnapshot(isolate_,
@@ -203,7 +204,7 @@ NodeMainInstance::CreateMainEnvironment(int* exit_code,
     Context::Scope context_scope(context);
     CHECK(InitializeContextRuntime(context).IsJust());
     SetIsolateErrorHandlers(isolate_, {});
-    env->InitializeMainContext(context, env_info);
+    env->InitializeMainContext(context, &(snapshot_data_->env_info));
 #if HAVE_INSPECTOR
     env->InitializeInspector({});
 #endif
