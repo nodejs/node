@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -443,8 +443,17 @@ static int dynamic_load(ENGINE *e, dynamic_data_ctx *ctx)
          * We fail if the version checker veto'd the load *or* if it is
          * deferring to us (by returning its version) and we think it is too
          * old.
+         * Unfortunately the version checker does not distinguish between
+         * engines built for openssl 1.1.x and openssl 3.x, but loading
+         * an engine that is built for openssl 3.x will cause a fatal
+         * error.  Detect such engines, since EVP_PKEY_get_base_id is exported
+         * as a function in openssl 3.x, while it is named EVP_PKEY_base_id
+         * in openssl 1.1.x.  Therefore we take the presence of that symbol
+         * as an indication that the engine will be incompatible.
          */
-        if (vcheck_res < OSSL_DYNAMIC_OLDEST) {
+        if (vcheck_res < OSSL_DYNAMIC_OLDEST
+                || DSO_bind_func(ctx->dynamic_dso,
+                                 "EVP_PKEY_get_base_id") != NULL) {
             /* Fail */
             ctx->bind_engine = NULL;
             ctx->v_check = NULL;

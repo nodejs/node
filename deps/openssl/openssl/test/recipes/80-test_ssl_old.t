@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -476,7 +476,7 @@ sub testssl {
     subtest 'RSA/(EC)DHE/PSK tests' => sub {
 	######################################################################
 
-	plan tests => 6;
+	plan tests => 10;
 
       SKIP: {
 	  skip "TLSv1.0 is not supported by this OpenSSL build", 6
@@ -522,6 +522,43 @@ sub testssl {
 	    ok(run(test(['ssltest_old', '-dhe2048', '-psk', '0102030405', '-cipher', '@SECLEVEL=2:DHE-PSK-AES128-CCM'])),
 	       'test auto DH meets security strength');
 	  }
+	}
+
+      SKIP: {
+            skip "TLSv1.1 is not supported by this OpenSSL build", 4
+                if $no_tls1_1;
+
+        SKIP: {
+            skip "skipping auto DHE PSK test at SECLEVEL 3", 1
+                if ($no_dh || $no_psk);
+
+            ok(run(test(['ssltest_old', '-tls1_1', '-dhe4096', '-psk', '0102030405', '-cipher', '@SECLEVEL=3:DHE-PSK-AES256-CBC-SHA384'])),
+               'test auto DHE PSK meets security strength');
+          }
+
+        SKIP: {
+            skip "skipping auto ECDHE PSK test at SECLEVEL 3", 1
+                if ($no_ec || $no_psk);
+
+            ok(run(test(['ssltest_old', '-tls1_1', '-no_dhe', '-psk', '0102030405', '-cipher', '@SECLEVEL=3:ECDHE-PSK-AES256-CBC-SHA384'])),
+               'test auto ECDHE PSK meets security strength');
+          }
+
+        SKIP: {
+            skip "skipping no RSA PSK at SECLEVEL 3 test", 1
+                if ($no_rsa || $no_psk);
+
+            ok(!run(test(['ssltest_old', '-tls1_1', '-no_dhe', '-psk', '0102030405', '-cipher', '@SECLEVEL=3:RSA-PSK-AES256-CBC-SHA384'])),
+               'test auto RSA PSK does not meet security level 3 requirements (PFS)');
+          }
+
+        SKIP: {
+            skip "skipping no PSK at SECLEVEL 3 test", 1
+                if ($no_psk);
+
+            ok(!run(test(['ssltest_old', '-tls1_1', '-no_dhe', '-psk', '0102030405', '-cipher', '@SECLEVEL=3:PSK-AES256-CBC-SHA384'])),
+               'test auto PSK does not meet security level 3 requirements (PFS)');
+          }
 	}
 
     };

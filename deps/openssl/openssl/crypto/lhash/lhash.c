@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -343,7 +343,8 @@ unsigned long OPENSSL_LH_strhash(const char *c)
         v = n | (*c);
         n += 0x100;
         r = (int)((v >> 2) ^ v) & 0x0f;
-        ret = (ret << r) | (ret >> (32 - r));
+        /* cast to uint64_t to avoid 32 bit shift of 32 bit value */
+        ret = (ret << r) | (unsigned long)((uint64_t)ret >> (32 - r));
         ret &= 0xFFFFFFFFL;
         ret ^= v * v;
         c++;
@@ -364,7 +365,8 @@ unsigned long openssl_lh_strcasehash(const char *c)
     for (n = 0x100; *c != '\0'; n += 0x100) {
         v = n | ossl_tolower(*c);
         r = (int)((v >> 2) ^ v) & 0x0f;
-        ret = (ret << r) | (ret >> (32 - r));
+        /* cast to uint64_t to avoid 32 bit shift of 32 bit value */
+        ret = (ret << r) | (unsigned long)((uint64_t)ret >> (32 - r));
         ret &= 0xFFFFFFFFL;
         ret ^= v * v;
         c++;

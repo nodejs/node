@@ -16,7 +16,7 @@ BIO_get_info_callback, BIO_set_info_callback, BIO_info_cb
 
  long BIO_ctrl(BIO *bp, int cmd, long larg, void *parg);
  long BIO_callback_ctrl(BIO *b, int cmd, BIO_info_cb *cb);
- char *BIO_ptr_ctrl(BIO *bp, int cmd, long larg);
+ void *BIO_ptr_ctrl(BIO *bp, int cmd, long larg);
  long BIO_int_ctrl(BIO *bp, int cmd, long larg, int iarg);
 
  int BIO_reset(BIO *b);
@@ -126,7 +126,7 @@ the case of BIO_seek() on a file BIO for a successful operation.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

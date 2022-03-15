@@ -434,7 +434,7 @@ B<SessionTicket>: session ticket support, enabled by default. Inverse of
 B<SSL_OP_NO_TICKET>: that is B<-SessionTicket> is the same as setting
 B<SSL_OP_NO_TICKET>.
 
-B<Compression>: SSL/TLS compression support, enabled by default. Inverse
+B<Compression>: SSL/TLS compression support, disabled by default. Inverse
 of B<SSL_OP_NO_COMPRESSION>.
 
 B<EmptyFragments>: use empty fragments as a countermeasure against a
@@ -694,7 +694,7 @@ B<AllowNoDHEKEX> and B<PrioritizeChaCha> were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2012-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2012-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

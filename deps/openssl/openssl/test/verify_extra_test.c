@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,14 +11,19 @@
 #include <openssl/crypto.h>
 #include <openssl/bio.h>
 #include <openssl/x509.h>
+#include <openssl/x509v3.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include "testutil.h"
 
-static const char *roots_f;
-static const char *untrusted_f;
-static const char *bad_f;
-static const char *good_f;
+static const char *certs_dir;
+static char *roots_f = NULL;
+static char *untrusted_f = NULL;
+static char *bad_f = NULL;
+static char *good_f = NULL;
+static char *sroot_cert = NULL;
+static char *ca_cert = NULL;
+static char *ee_cert = NULL;
 
 static X509 *load_cert_pem(const char *file)
 {
@@ -231,19 +236,110 @@ static int test_self_signed_bad(void)
     return test_self_signed(bad_f, 0);
 }
 
+static int do_test_purpose(int purpose, int expected)
+{
+    X509 *eecert = load_cert_pem(ee_cert); /* may result in NULL */
+    X509 *untrcert = load_cert_pem(ca_cert);
+    X509 *trcert = load_cert_pem(sroot_cert);
+    STACK_OF(X509) *trusted = sk_X509_new_null();
+    STACK_OF(X509) *untrusted = sk_X509_new_null();
+    X509_STORE_CTX *ctx = X509_STORE_CTX_new();
+    int testresult = 0;
+
+    if (!TEST_ptr(eecert)
+            || !TEST_ptr(untrcert)
+            || !TEST_ptr(trcert)
+            || !TEST_ptr(trusted)
+            || !TEST_ptr(untrusted)
+            || !TEST_ptr(ctx))
+        goto err;
+
+
+    if (!TEST_true(sk_X509_push(trusted, trcert)))
+        goto err;
+    trcert = NULL;
+    if (!TEST_true(sk_X509_push(untrusted, untrcert)))
+        goto err;
+    untrcert = NULL;
+
+    if (!TEST_true(X509_STORE_CTX_init(ctx, NULL, eecert, untrusted)))
+        goto err;
+
+    if (!TEST_true(X509_STORE_CTX_set_purpose(ctx, purpose)))
+        goto err;
+
+    /*
+     * X509_STORE_CTX_set0_trusted_stack() is bady named. Despite the set0 name
+     * we are still responsible for freeing trusted after we have finished with
+     * it.
+     */
+    X509_STORE_CTX_set0_trusted_stack(ctx, trusted);
+
+    if (!TEST_int_eq(X509_verify_cert(ctx), expected))
+        goto err;
+
+    testresult = 1;
+ err:
+    sk_X509_pop_free(trusted, X509_free);
+    sk_X509_pop_free(untrusted, X509_free);
+    X509_STORE_CTX_free(ctx);
+    X509_free(eecert);
+    X509_free(untrcert);
+    X509_free(trcert);
+    return testresult;
+}
+
+static int test_purpose_ssl_client(void)
+{
+    return do_test_purpose(X509_PURPOSE_SSL_CLIENT, 0);
+}
+
+static int test_purpose_ssl_server(void)
+{
+    return do_test_purpose(X509_PURPOSE_SSL_SERVER, 1);
+}
+
+static int test_purpose_any(void)
+{
+    return do_test_purpose(X509_PURPOSE_ANY, 1);
+}
+
 int setup_tests(void)
 {
-    if (!TEST_ptr(roots_f = test_get_argument(0))
-            || !TEST_ptr(untrusted_f = test_get_argument(1))
-            || !TEST_ptr(bad_f = test_get_argument(2))
-            || !TEST_ptr(good_f = test_get_argument(3))) {
-        TEST_error("usage: verify_extra_test roots.pem untrusted.pem bad.pem good.pem\n");
+    if (!TEST_ptr(certs_dir = test_get_argument(0))) {
+        TEST_error("usage: verify_extra_test certs-dir\n");
         return 0;
     }
+
+    if (!TEST_ptr(roots_f = test_mk_file_path(certs_dir, "roots.pem"))
+            || !TEST_ptr(untrusted_f = test_mk_file_path(certs_dir, "untrusted.pem"))
+            || !TEST_ptr(bad_f = test_mk_file_path(certs_dir, "bad.pem"))
+            || !TEST_ptr(good_f = test_mk_file_path(certs_dir, "rootCA.pem"))
+            || !TEST_ptr(sroot_cert = test_mk_file_path(certs_dir, "sroot-cert.pem"))
+            || !TEST_ptr(ca_cert = test_mk_file_path(certs_dir, "ca-cert.pem"))
+            || !TEST_ptr(ee_cert = test_mk_file_path(certs_dir, "ee-cert.pem")))
+        goto err;
 
     ADD_TEST(test_alt_chains_cert_forgery);
     ADD_TEST(test_store_ctx);
     ADD_TEST(test_self_signed_good);
     ADD_TEST(test_self_signed_bad);
+    ADD_TEST(test_purpose_ssl_client);
+    ADD_TEST(test_purpose_ssl_server);
+    ADD_TEST(test_purpose_any);
     return 1;
+ err:
+    cleanup_tests();
+    return 0;
+}
+
+void cleanup_tests(void)
+{
+    OPENSSL_free(roots_f);
+    OPENSSL_free(untrusted_f);
+    OPENSSL_free(bad_f);
+    OPENSSL_free(good_f);
+    OPENSSL_free(sroot_cert);
+    OPENSSL_free(ca_cert);
+    OPENSSL_free(ee_cert);
 }
