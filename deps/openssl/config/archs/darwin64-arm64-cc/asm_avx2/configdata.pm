@@ -50,7 +50,7 @@ our %config = (
   lib_defines => [ "OPENSSL_PIC", "OPENSSL_CPUID_OBJ", "OPENSSL_BN_ASM_MONT", "SHA1_ASM", "SHA256_ASM", "SHA512_ASM", "KECCAK1600_ASM", "VPAES_ASM", "ECP_NISTZ256_ASM", "POLY1305_ASM" ],
   libdir => "",
   major => "1",
-  makedepprog => "\$(CROSS_COMPILE)../config/fake_gcc.pl",
+  makedepprog => "",
   minor => "1.1",
   openssl_algorithm_defines => [ "OPENSSL_NO_COMP", "OPENSSL_NO_MD2", "OPENSSL_NO_RC5" ],
   openssl_api_defines => [  ],
@@ -58,10 +58,10 @@ our %config = (
   openssl_sys_defines => [ "OPENSSL_SYS_MACOSX" ],
   openssl_thread_defines => [ "OPENSSL_THREADS" ],
   openssldir => "",
-  options => "enable-ssl-trace no-afalgeng no-asan no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-heartbeats no-md2 no-msan no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-ubsan no-unit-test no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
+  options => "enable-ssl-trace no-afalgeng no-asan no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-heartbeats no-makedepend no-md2 no-msan no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-ubsan no-unit-test no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
   perl_archname => "x86_64-linux-gnu-thread-multi",
   perl_cmd => "/usr/bin/perl",
-  perl_version => "5.30.0",
+  perl_version => "5.28.1",
   perlargv => [ "no-comp", "no-shared", "no-afalgeng", "enable-ssl-trace", "darwin64-arm64-cc" ],
   perlenv => {
       "AR" => undef,
@@ -110,8 +110,8 @@ our %config = (
   sourcedir => ".",
   target => "darwin64-arm64-cc",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1m+quic",
-  version_num => "0x101010dfL",
+  version => "1.1.1n+quic",
+  version_num => "0x101010efL",
 );
 
 our %target = (
@@ -331,6 +331,7 @@ our %disabled = (
   "fuzz-afl" => "default",
   "fuzz-libfuzzer" => "default",
   "heartbeats" => "default",
+  "makedepend" => "unavailable",
   "md2" => "default",
   "msan" => "default",
   "rc5" => "default",
@@ -1273,7 +1274,6 @@ our %unified_info = (
                 ],
             "test/ec_internal_test" =>
                 [
-                    "apps/libapps.a",
                     "libcrypto.a",
                     "test/libtestutil.a",
                 ],
