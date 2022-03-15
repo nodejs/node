@@ -15,6 +15,7 @@ namespace node {
 
 class ExternalReferenceRegistry;
 struct EnvSerializeInfo;
+struct SnapshotData;
 
 // TODO(joyeecheung): align this with the Worker/WorkerThreadData class.
 // We may be able to create an abstract class to reuse some of the routines.
@@ -48,29 +49,25 @@ class NodeMainInstance {
   void Dispose();
 
   // Create a main instance that owns the isolate
-  NodeMainInstance(
-      v8::Isolate::CreateParams* params,
-      uv_loop_t* event_loop,
-      MultiIsolatePlatform* platform,
-      const std::vector<std::string>& args,
-      const std::vector<std::string>& exec_args,
-      const std::vector<size_t>* per_isolate_data_indexes = nullptr);
+  NodeMainInstance(const SnapshotData* snapshot_data,
+                   uv_loop_t* event_loop,
+                   MultiIsolatePlatform* platform,
+                   const std::vector<std::string>& args,
+                   const std::vector<std::string>& exec_args);
   ~NodeMainInstance();
 
   // Start running the Node.js instances, return the exit code when finished.
-  int Run(const EnvSerializeInfo* env_info);
+  int Run();
   void Run(int* exit_code, Environment* env);
 
   IsolateData* isolate_data() { return isolate_data_.get(); }
 
   DeleteFnPtr<Environment, FreeEnvironment> CreateMainEnvironment(
-      int* exit_code, const EnvSerializeInfo* env_info);
+      int* exit_code);
 
   // If nullptr is returned, the binary is not built with embedded
   // snapshot.
-  static const std::vector<size_t>* GetIsolateDataIndices();
-  static v8::StartupData* GetEmbeddedSnapshotBlob();
-  static const EnvSerializeInfo* GetEnvSerializeInfo();
+  static const SnapshotData* GetEmbeddedSnapshotData();
   static const std::vector<intptr_t>& CollectExternalReferences();
 
   static const size_t kNodeContextIndex = 0;
@@ -93,8 +90,8 @@ class NodeMainInstance {
   v8::Isolate* isolate_;
   MultiIsolatePlatform* platform_;
   std::unique_ptr<IsolateData> isolate_data_;
-  bool owns_isolate_ = false;
-  bool deserialize_mode_ = false;
+  std::unique_ptr<v8::Isolate::CreateParams> isolate_params_;
+  const SnapshotData* snapshot_data_ = nullptr;
 };
 
 }  // namespace node
