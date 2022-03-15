@@ -11,7 +11,7 @@ currently need to generate four PRs as follows:
   below for OpenSSL 1.1.1
 * a PR for 14.x following the instructions in the v14.x-staging version
   of this guide.
-* a PR which uses the same commit from the second PR to apply the
+* a PR which uses the same commit from the third PR to apply the
   updates to the openssl source code, with a new commit generated
   by following steps 2 onwards on the 12.x line. This is
   necessary because the configuration files have embedded timestamps
