@@ -6,15 +6,7 @@
 
 namespace node {
 
-v8::StartupData* NodeMainInstance::GetEmbeddedSnapshotBlob() {
-  return nullptr;
-}
-
-const std::vector<size_t>* NodeMainInstance::GetIsolateDataIndices() {
-  return nullptr;
-}
-
-const EnvSerializeInfo* NodeMainInstance::GetEnvSerializeInfo() {
+const SnapshotData* NodeMainInstance::GetEmbeddedSnapshotData() {
   return nullptr;
 }
 

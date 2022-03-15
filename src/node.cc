@@ -1154,28 +1154,19 @@ int Start(int argc, char** argv) {
   }
 
   {
-    Isolate::CreateParams params;
-    const std::vector<size_t>* indices = nullptr;
-    const EnvSerializeInfo* env_info = nullptr;
     bool use_node_snapshot =
         per_process::cli_options->per_isolate->node_snapshot;
-    if (use_node_snapshot) {
-      v8::StartupData* blob = NodeMainInstance::GetEmbeddedSnapshotBlob();
-      if (blob != nullptr) {
-        params.snapshot_blob = blob;
-        indices = NodeMainInstance::GetIsolateDataIndices();
-        env_info = NodeMainInstance::GetEnvSerializeInfo();
-      }
-    }
+    const SnapshotData* snapshot_data =
+        use_node_snapshot ? NodeMainInstance::GetEmbeddedSnapshotData()
+                          : nullptr;
     uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
 
-    NodeMainInstance main_instance(&params,
+    NodeMainInstance main_instance(snapshot_data,
                                    uv_default_loop(),
                                    per_process::v8_platform.Platform(),
                                    result.args,
-                                   result.exec_args,
-                                   indices);
-    result.exit_code = main_instance.Run(env_info);
+                                   result.exec_args);
+    result.exit_code = main_instance.Run();
   }
 
   TearDownOncePerProcess();

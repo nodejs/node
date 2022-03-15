@@ -53,31 +53,28 @@ static const char blob_data[] = {
 
 static const int blob_size = )"
      << data->blob.raw_size << R"(;
-static v8::StartupData blob = { blob_data, blob_size };
-)";
 
-  ss << R"(v8::StartupData* NodeMainInstance::GetEmbeddedSnapshotBlob() {
-  return &blob;
-}
-
-static const std::vector<size_t> isolate_data_indices {
+SnapshotData snapshot_data {
+  // -- blob begins --
+  { blob_data, blob_size },
+  // -- blob ends --
+  // -- isolate_data_indices begins --
+  {
 )";
   WriteVector(&ss,
               data->isolate_data_indices.data(),
               data->isolate_data_indices.size());
-  ss << R"(};
+  ss << R"(},
+  // -- isolate_data_indices ends --
+  // -- env_info begins --
+)" << data->env_info
+  << R"(
+  // -- env_info ends --
+};
 
-const std::vector<size_t>* NodeMainInstance::GetIsolateDataIndices() {
-  return &isolate_data_indices;
+const SnapshotData* NodeMainInstance::GetEmbeddedSnapshotData() {
+  return &snapshot_data;
 }
-
-static const EnvSerializeInfo env_info )"
-     << data->env_info << R"(;
-
-const EnvSerializeInfo* NodeMainInstance::GetEnvSerializeInfo() {
-  return &env_info;
-}
-
 }  // namespace node
 )";
 
