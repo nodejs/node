@@ -13,7 +13,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_PREREQ(2.57)
-AC_INIT([libuv], [1.43.0], [https://github.com/libuv/libuv/issues])
+AC_INIT([libuv], [1.44.2], [https://github.com/libuv/libuv/issues])
 AC_CONFIG_MACRO_DIR([m4])
 m4_include([m4/libuv-extra-automake-flags.m4])
 m4_include([m4/as_case.m4])
@@ -28,7 +28,9 @@ AM_PROG_CC_C_O
 CC_ATTRIBUTE_VISIBILITY([default], [
   CC_FLAG_VISIBILITY([CFLAGS="${CFLAGS} -fvisibility=hidden"])
 ])
-CC_CHECK_CFLAGS_APPEND([-fno-strict-aliasing])
+# Xlc has a flag "-f<filename>". Need to use CC_CHECK_FLAG_SUPPORTED_APPEND so
+# we exclude -fno-strict-aliasing for xlc
+CC_CHECK_FLAG_SUPPORTED_APPEND([-fno-strict-aliasing])
 CC_CHECK_CFLAGS_APPEND([-g])
 CC_CHECK_CFLAGS_APPEND([-std=gnu89])
 CC_CHECK_CFLAGS_APPEND([-Wall])
@@ -60,6 +62,7 @@ AM_CONDITIONAL([CYGWIN],   [AS_CASE([$host_os],[cygwin*],       [true], [false])
 AM_CONDITIONAL([DARWIN],   [AS_CASE([$host_os],[darwin*],       [true], [false])])
 AM_CONDITIONAL([DRAGONFLY],[AS_CASE([$host_os],[dragonfly*],    [true], [false])])
 AM_CONDITIONAL([FREEBSD],  [AS_CASE([$host_os],[*freebsd*],     [true], [false])])
+AM_CONDITIONAL([KFREEBSD], [AS_CASE([$host_os],[kfreebsd*],     [true], [false])])
 AM_CONDITIONAL([HAIKU],    [AS_CASE([$host_os],[haiku],         [true], [false])])
 AM_CONDITIONAL([HURD],     [AS_CASE([$host_os],[gnu*],          [true], [false])])
 AM_CONDITIONAL([LINUX],    [AS_CASE([$host_os],[linux*],        [true], [false])])
