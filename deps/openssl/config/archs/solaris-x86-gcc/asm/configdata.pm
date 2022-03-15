@@ -111,8 +111,8 @@ our %config = (
   sourcedir => ".",
   target => "solaris-x86-gcc",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1m",
-  version_num => "0x101010dfL",
+  version => "1.1.1n",
+  version_num => "0x101010efL",
 );
 
 our %target = (
@@ -1282,7 +1282,6 @@ our %unified_info = (
                 ],
             "test/ec_internal_test" =>
                 [
-                    "apps/libapps.a",
                     "libcrypto.a",
                     "test/libtestutil.a",
                 ],
