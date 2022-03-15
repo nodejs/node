@@ -3169,6 +3169,10 @@ If `options.withFileTypes` is set to `true`, the `files` array will contain
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41647
+    description: Add the `chunkSize` option that can Set `kReadFileBufferLength`
+                 manually.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37460
     description: The error returned may be an `AggregateError` if more than one
@@ -3202,7 +3206,7 @@ changes:
 
 * `path` {string|Buffer|URL|integer} filename or file descriptor
 * `options` {Object|string}
-  * `bPerRead` {integer} The number of bytes per read. Use `-1` for no limit.
+  * `chunkSize` {integer} The number of bytes per read. Use `-1` for no limit.
     **Default:** `512 * 1024`
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
@@ -3301,7 +3305,7 @@ operation will load on 64 KB of data. For regular files, each read will process
 
 Use up to 512kb per read otherwise to partition reading big files to prevent
 blocking other threads in case the available threads are all in use. If you use
-`options.bPerRead` make sure the value is equal to the nth power of 2 for best
+`options.chunkSize` make sure the value is equal to the nth power of 2 for best
 performance.
 
 For applications that require as-fast-as-possible reading of file contents, it
