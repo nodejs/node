@@ -36,6 +36,7 @@
 #include "node_binding.h"
 #include "node_external_reference.h"
 #include "node_main_instance.h"
+#include "node_native_module.h"
 #include "node_options.h"
 #include "node_perf_common.h"
 #include "node_snapshotable.h"
@@ -972,7 +973,6 @@ struct EnvSerializeInfo {
 };
 
 struct SnapshotData {
-  SnapshotData() { blob.data = nullptr; }
   v8::StartupData blob;
   std::vector<size_t> isolate_data_indices;
   EnvSerializeInfo env_info;
