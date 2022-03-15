@@ -223,8 +223,7 @@ server.listen(0, common.mustCall(function() {
   }, onSecureConnect());
 })).unref();
 
-const errMessagePassword = common.hasOpenSSL3 ?
-  /Error: error:1400006B:UI routines::processing error/ : /bad decrypt/;
+const errMessageDecrypt = /bad decrypt/;
 
 // Missing passphrase
 assert.throws(function() {
@@ -234,7 +233,7 @@ assert.throws(function() {
     cert: cert,
     rejectUnauthorized: false
   });
-}, errMessagePassword);
+}, errMessageDecrypt);
 
 assert.throws(function() {
   tls.connect({
@@ -243,7 +242,7 @@ assert.throws(function() {
     cert: cert,
     rejectUnauthorized: false
   });
-}, errMessagePassword);
+}, errMessageDecrypt);
 
 assert.throws(function() {
   tls.connect({
@@ -252,9 +251,7 @@ assert.throws(function() {
     cert: cert,
     rejectUnauthorized: false
   });
-}, errMessagePassword);
-
-const errMessageDecrypt = /bad decrypt/;
+}, errMessageDecrypt);
 
 // Invalid passphrase
 assert.throws(function() {
