@@ -1,3 +1,253 @@
+2022.07.12, Version 1.44.2 (Stable)
+
+Changes since version 1.44.1:
+
+* Add SHA to ChangeLog (Jameson Nash)
+
+* aix, ibmi: handle server hang when remote sends TCP RST (V-for-Vasili)
+
+* build: make CI a bit noisier (Jameson Nash)
+
+* process: reset the signal mask if the fork fails (Jameson Nash)
+
+* zos: implement cmpxchgi() using assembly (Shuowang (Wayne) Zhang)
+
+* build: AC_SUBST for AM_CFLAGS (Claes Nästén)
+
+* ibmi: Implement UDP disconnect (V-for-Vasili)
+
+* doc: update active maintainers list (Ben Noordhuis)
+
+* build: fix kFreeBSD build (James McCoy)
+
+* build: remove Windows 2016 workflows (Darshan Sen)
+
+* Revert "win,errors: remap ERROR_ACCESS_DENIED to UV_EACCES" (Darshan Sen)
+
+* unix: simplify getpwuid call (Jameson Nash)
+
+* build: filter CI by paths and branches (Jameson Nash)
+
+* build: add iOS to macos CI (Jameson Nash)
+
+* build: re-enable CI for windows changes (Jameson Nash)
+
+* process,iOS: fix build breakage in process.c (Denny C. Dai)
+
+* test: remove unused declarations in tcp_rst test (V-for-Vasili)
+
+* core: add thread-safe strtok implementation (Guilherme Íscaro)
+
+* win: fix incompatible-types warning (twosee)
+
+* test: fix flaky file watcher test (Ben Noordhuis)
+
+* build: fix AIX xlc autotools build (V-for-Vasili)
+
+* unix,win: fix UV_RUN_ONCE + uv_idle_stop loop hang (Ben Noordhuis)
+
+* win: fix unexpected ECONNRESET error on TCP socket (twosee)
+
+* doc: make sample cross-platform build (gengjiawen)
+
+* test: separate some static variables by test cases (Hannah Shi)
+
+* sunos: fs-event callback can be called after uv_close() (Andy Fiddaman)
+
+* uv: re-register interest in a file after change (Shuowang (Wayne) Zhang)
+
+* uv: register UV_RENAME event for _RFIM_UNLINK (Shuowang (Wayne) Zhang)
+
+* uv: register __rfim_event 156 as UV_RENAME (Shuowang (Wayne) Zhang)
+
+* doc: remove smartos from supported platforms (Ben Noordhuis)
+
+* macos: avoid posix_spawnp() cwd bug (Jameson Nash)
+
+* release: check versions of autogen scripts are newer (Jameson Nash)
+
+* test: rewrite embed test (Ben Noordhuis)
+
+* openbsd: use utimensat instead of lutimes (tuftedocelot)
+
+* doc: fix link to uvwget example main() function (blogdaren)
+
+* unix: use MSG_CMSG_CLOEXEC where supported (Ben Noordhuis)
+
+* test: remove disabled callback_order test (Ben Noordhuis)
+
+* win,pipe: fix bugs with pipe resource lifetime management (Jameson Nash)
+
+* loop: better align order-of-events behavior between platforms (Jameson Nash)
+
+* aix,test: uv_backend_fd is not supported by poll (V-for-Vasili)
+
+* kqueue: skip EVFILT_PROC when invalidating fds (chucksilvers)
+
+* darwin: fix atomic-ops.h ppc64 build (Sergey Fedorov)
+
+* zos: don't err when killing a zombie process (Shuowang (Wayne) Zhang)
+
+* zos: avoid fs event callbacks after uv_close() (Shuowang (Wayne) Zhang)
+
+* zos: correctly format interface addresses names (Shuowang (Wayne) Zhang)
+
+* zos: add uv_interface_addresses() netmask support (Shuowang (Wayne) Zhang)
+
+* zos: improve memory management of ip addresses (Shuowang (Wayne) Zhang)
+
+* tcp,pipe: fail `bind` or `listen` after `close` (theanarkh)
+
+* zos: implement uv_available_parallelism() (Shuowang (Wayne) Zhang)
+
+* udp,win: fix UDP compiler warning (Jameson Nash)
+
+* zos: fix early exit of epoll_wait() (Shuowang (Wayne) Zhang)
+
+* unix,tcp: fix errno handling in uv__tcp_bind() (Samuel Cabrero)
+
+* shutdown,unix: reduce code duplication (Jameson Nash)
+
+* unix: fix c99 comments (Ben Noordhuis)
+
+* unix: retry tcgetattr/tcsetattr() on EINTR (Ben Noordhuis)
+
+* docs: update introduction.rst (Ikko Ashimine)
+
+* unix,stream: optimize uv_shutdown() codepath (Jameson Nash)
+
+* zos: delay signal handling until after normal i/o (Shuowang (Wayne) Zhang)
+
+* stream: uv__drain() always needs to stop POLLOUT (Jameson Nash)
+
+* unix,tcp: allow EINVAL errno from setsockopt in uv_tcp_close_reset() (Stacey
+  Marshall)
+
+* win,shutdown: improve how shutdown is dispatched (Jameson Nash)
+
+
+2022.03.09, Version 1.44.1 (Stable), e8b7eb6908a847ffbe6ab2eec7428e43a0aa53a2
+
+Changes since version 1.44.0:
+
+* process: simplify uv__write_int calls (Jameson Nash)
+
+* macos: don't use thread-unsafe strtok() (Ben Noordhuis)
+
+* process: fix hang after NOTE_EXIT (Jameson Nash)
+
+
+2022.03.07, Version 1.44.0 (Stable), d2bff508457336d808ba7148b33088f6acbfe0a6
+
+Changes since version 1.43.0:
+
+* darwin: remove EPROTOTYPE error workaround (Ben Noordhuis)
+
+* doc: fix v1.43.0 changelog entries (cjihrig)
+
+* win: replace CRITICAL_SECTION+Semaphore with SRWLock (David Machaj)
+
+* darwin: translate EPROTOTYPE to ECONNRESET (Ben Noordhuis)
+
+* android: use libc getifaddrs() (Ben Noordhuis)
+
+* unix: fix STATIC_ASSERT to check what it means to check (Jessica Clarke)
+
+* unix: ensure struct msghdr is zeroed in recvmmsg (Ondřej Surý)
+
+* test: test with maximum recvmmsg buffer (Ondřej Surý)
+
+* unix: don't allow too small thread stack size (Ben Noordhuis)
+
+* bsd: ensure mutex is initialized (Ben Noordhuis)
+
+* doc: add gengjiawen as maintainer (gengjiawen)
+
+* process: monitor for exit with kqueue on BSDs (Jeremy Rose)
+
+* test: fix flaky uv_fs_lutime test (Momtchil Momtchev)
+
+* build: fix cmake install locations (Jameson Nash)
+
+* thread,win: fix C90 style nit (ssrlive)
+
+* build: rename CFLAGS to AM_CFLAGS (Jameson Nash)
+
+* doc/guide: update content and sample code (woclass)
+
+* process,bsd: handle kevent NOTE_EXIT failure (Jameson Nash)
+
+* test: remove flaky test ipc_closed_handle (Ben Noordhuis)
+
+* darwin: bump minimum supported version to 10.15 (Ben Noordhuis)
+
+* win: return fractional seconds in uv_uptime() (Luca Adrian L)
+
+* build: export uv_a for cmake (WenTao Ou)
+
+* loop: add pending work to loop-alive check (Jameson Nash)
+
+* win: use GetTickCount64 for uptime again (Jameson Nash)
+
+* win: restrict system DLL load paths (jonilaitinen)
+
+* win,errors: remap ERROR_ACCESS_DENIED to UV_EACCES (Darshan Sen)
+
+* bench: add `uv_queue_work` ping-pong measurement (Momtchil Momtchev)
+
+* build: fix error C4146 on MSVC (UMU)
+
+* test: fix benchmark-ping-udp (Ryan Liptak)
+
+* win,fs: consider broken pipe error a normal EOF (Momtchil Momtchev)
+
+* document the values of enum uv_stdio_flags (Paul Evans)
+
+* win,loop: add missing uv_update_time (twosee)
+
+* win,fs: avoid closing an invalid handle (Jameson Nash)
+
+* fix oopsie from
+
+* doc: clarify android api level (Ben Noordhuis)
+
+* win: fix style nits [NFC] (Jameson Nash)
+
+* test: fix flaky udp_mmsg test (Santiago Gimeno)
+
+* test: fix ipc_send_recv_pipe flakiness (Ben Noordhuis)
+
+* doc: checkout -> check out (wyckster)
+
+* core: change uv_get_password uid/gid to unsigned (Jameson Nash)
+
+* hurd: unbreak build on GNU/Hurd (Vittore F. Scolari)
+
+* freebsd: use copy_file_range() in uv_fs_sendfile() (David Carlier)
+
+* test: use closefd in runner-unix.c (Guilherme Íscaro)
+
+* Reland "macos: use posix_spawn instead of fork" (Jameson Nash)
+
+* android: fix build error when no ifaddrs.h (ssrlive)
+
+* unix,win: add uv_available_parallelism() (Ben Noordhuis)
+
+* process: remove OpenBSD from kevent list (Jameson Nash)
+
+* zos: fix build breakage (Ben Noordhuis)
+
+* process: only use F_DUPFD_CLOEXEC if it is defined (Jameson Nash)
+
+* win,poll: add the MSAFD GUID for AF_UNIX (roflcopter4)
+
+* unix: simplify uv__cloexec_fcntl() (Ben Noordhuis)
+
+* doc: add secondary GPG ID for vtjnash (Jameson Nash)
+
+* unix: remove uv__cloexec_ioctl() (Jameson Nash)
+
+
 2022.01.05, Version 1.43.0 (Stable), 988f2bfc4defb9a85a536a3e645834c161143ee0
 
 Changes since version 1.42.0:
@@ -18,73 +268,73 @@ Changes since version 1.42.0:
 
 * win,fsevent: fix uv_fs_event_stop() assert (Ben Noordhuis)
 
-* unix: remove redundant include in unix.h (
+* unix: remove redundant include in unix.h (Juan José Arboleda)
 
-* doc: mark SmartOS as Tier 3 support (
+* doc: mark SmartOS as Tier 3 support (Ben Noordhuis)
 
-* doc: fix broken links for netbsd's sysctl manpage (
+* doc: fix broken links for netbsd's sysctl manpage (YAKSH BARIYA)
 
-* misc: adjust stalebot deadline (
+* misc: adjust stalebot deadline (Ben Noordhuis)
 
-* test: remove `dns-server.c` as it is not used anywhere (
+* test: remove `dns-server.c` as it is not used anywhere (Darshan Sen)
 
-* build: fix non-cmake android builds (
+* build: fix non-cmake android builds (YAKSH BARIYA)
 
-* doc: replace pyuv with uvloop (
+* doc: replace pyuv with uvloop (Ofek Lev)
 
-* asan: fix some tests (
+* asan: fix some tests (Jameson Nash)
 
-* build: add experimental TSAN configuration (
+* build: add experimental TSAN configuration (Jameson Nash)
 
-* pipe: remove useless assertion (
+* pipe: remove useless assertion (~locpyl-tidnyd)
 
-* bsd: destroy mutex in uv__process_title_cleanup() (
+* bsd: destroy mutex in uv__process_title_cleanup() (Darshan Sen)
 
-* build: add windows build to CI (
+* build: add windows build to CI (Darshan Sen)
 
-* win,fs: fix error code in uv_fs_read() and uv_fs_write() ( Sen)
+* win,fs: fix error code in uv_fs_read() and uv_fs_write() (Darshan Sen)
 
-* build: add macos-latest to ci matrix (
+* build: add macos-latest to ci matrix (Ben Noordhuis)
 
-* udp: fix &/&& typo in macro condition (
+* udp: fix &/&& typo in macro condition (Evan Miller)
 
 * build: install cmake package module (Petr Menšík)
 
-* win: fix build for mingw32 (
+* win: fix build for mingw32 (Nicolas Noble)
 
 * build: fix build failures with MinGW new headers (erw7)
 
-* build: fix win build with cmake versions before v3.14 (
+* build: fix win build with cmake versions before v3.14 (AJ Heller)
 
-* unix: support aarch64 in uv_cpu_info() (
+* unix: support aarch64 in uv_cpu_info() (Juan José Arboleda)
 
-* linux: work around CIFS EPERM bug (
+* linux: work around CIFS EPERM bug (Ben Noordhuis)
 
-* sunos: Oracle Developer Studio support (
+* sunos: Oracle Developer Studio support (Stacey Marshall)
 
-* Revert "sunos: Oracle Developer Studio support (
+* Revert "sunos: Oracle Developer Studio support (cjihrig)
 
-* sunos: Oracle Developer Studio support (
+* sunos: Oracle Developer Studio support (Stacey Marshall)
 
-* stream: permit read after seeing EOF (
+* stream: permit read after seeing EOF (Jameson Nash)
 
-* thread: initialize uv_thread_self for all threads (
+* thread: initialize uv_thread_self for all threads (Jameson Nash)
 
-* kqueue: ignore write-end closed notifications (
+* kqueue: ignore write-end closed notifications (Jameson Nash)
 
-* macos: fix the cfdata length in uv__get_cpu_speed ( Bache)
+* macos: fix the cfdata length in uv__get_cpu_speed (Jesper Storm Bache)
 
-* unix,win: add uv_ip_name to get name from sockaddr (
+* unix,win: add uv_ip_name to get name from sockaddr (Campbell He)
 
 * win,test: fix a few typos (AJ Heller)
 
-* zos: use destructor for uv__threadpool_cleanup() ( Zhang)
+* zos: use destructor for uv__threadpool_cleanup() (Wayne Zhang)
 
-* linux: use MemAvailable instead of MemFree (
+* linux: use MemAvailable instead of MemFree (Andrey Hohutkin)
 
-* freebsd: call dlerror() only if necessary (
+* freebsd: call dlerror() only if necessary (Jameson Nash)
 
-* bsd,windows,zos: fix udp disconnect EINVAL (
+* bsd,windows,zos: fix udp disconnect EINVAL (deal)
 
 
 2021.07.21, Version 1.42.0 (Stable), 6ce14710da7079eb248868171f6343bc409ea3a4
