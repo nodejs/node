@@ -41,6 +41,7 @@ class Doctor extends BaseCommand {
   static description = 'Check your npm environment'
   static name = 'doctor'
   static params = ['registry']
+  static ignoreImplicitWorkspace = false
 
   async exec (args) {
     log.info('Running checkup')
@@ -125,8 +126,7 @@ class Doctor extends BaseCommand {
       stringLength: s => ansiTrim(s).length,
     }
 
-    const silent = log.levels[log.level] > log.levels.error
-    if (!silent) {
+    if (!this.npm.silent) {
       this.npm.output(table(outTable, tableOpts))
       if (!allOk) {
         console.error('')

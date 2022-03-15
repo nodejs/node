@@ -505,11 +505,12 @@ static bool NotLineTerminator(base::uc32 c) {
   return !unibrow::IsLineTerminator(c);
 }
 
-static void TestCharacterClassEscapes(base::uc32 c, bool(pred)(base::uc32 c)) {
+static void TestCharacterClassEscapes(StandardCharacterSet c,
+                                      bool(pred)(base::uc32 c)) {
   Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   ZoneList<CharacterRange>* ranges =
       zone.New<ZoneList<CharacterRange>>(2, &zone);
-  CharacterRange::AddClassEscape(c, ranges, &zone);
+  CharacterRange::AddClassEscape(c, ranges, false, &zone);
   for (base::uc32 i = 0; i < (1 << 16); i++) {
     bool in_class = false;
     for (int j = 0; !in_class && j < ranges->length(); j++) {
@@ -521,13 +522,16 @@ static void TestCharacterClassEscapes(base::uc32 c, bool(pred)(base::uc32 c)) {
 }
 
 TEST(CharacterClassEscapes) {
-  TestCharacterClassEscapes('.', NotLineTerminator);
-  TestCharacterClassEscapes('d', IsDigit);
-  TestCharacterClassEscapes('D', NotDigit);
-  TestCharacterClassEscapes('s', IsWhiteSpaceOrLineTerminator);
-  TestCharacterClassEscapes('S', NotWhiteSpaceNorLineTermiantor);
-  TestCharacterClassEscapes('w', IsRegExpWord);
-  TestCharacterClassEscapes('W', NotWord);
+  TestCharacterClassEscapes(StandardCharacterSet::kNotLineTerminator,
+                            NotLineTerminator);
+  TestCharacterClassEscapes(StandardCharacterSet::kDigit, IsDigit);
+  TestCharacterClassEscapes(StandardCharacterSet::kNotDigit, NotDigit);
+  TestCharacterClassEscapes(StandardCharacterSet::kWhitespace,
+                            IsWhiteSpaceOrLineTerminator);
+  TestCharacterClassEscapes(StandardCharacterSet::kNotWhitespace,
+                            NotWhiteSpaceNorLineTermiantor);
+  TestCharacterClassEscapes(StandardCharacterSet::kWord, IsRegExpWord);
+  TestCharacterClassEscapes(StandardCharacterSet::kNotWord, NotWord);
 }
 
 static RegExpNode* Compile(const char* input, bool multiline, bool unicode,
@@ -655,14 +659,13 @@ static ArchRegExpMacroAssembler::Result Execute(JSRegExp regexp, String input,
                                                 Address input_end,
                                                 int* captures) {
   return static_cast<NativeRegExpMacroAssembler::Result>(
-      NativeRegExpMacroAssembler::Execute(
+      NativeRegExpMacroAssembler::ExecuteForTesting(
           input, start_offset, reinterpret_cast<byte*>(input_start),
           reinterpret_cast<byte*>(input_end), captures, 0, CcTest::i_isolate(),
           regexp));
 }
 
 TEST(MacroAssemblerNativeSuccess) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -694,7 +697,6 @@ TEST(MacroAssemblerNativeSuccess) {
 }
 
 TEST(MacroAssemblerNativeSimple) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -752,7 +754,6 @@ TEST(MacroAssemblerNativeSimple) {
 }
 
 TEST(MacroAssemblerNativeSimpleUC16) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -820,7 +821,6 @@ TEST(MacroAssemblerNativeSimpleUC16) {
 }
 
 TEST(MacroAssemblerNativeBacktrack) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -856,7 +856,6 @@ TEST(MacroAssemblerNativeBacktrack) {
 }
 
 TEST(MacroAssemblerNativeBackReferenceLATIN1) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -901,7 +900,6 @@ TEST(MacroAssemblerNativeBackReferenceLATIN1) {
 }
 
 TEST(MacroAssemblerNativeBackReferenceUC16) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -950,7 +948,6 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
 }
 
 TEST(MacroAssemblernativeAtStart) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -1001,7 +998,6 @@ TEST(MacroAssemblernativeAtStart) {
 }
 
 TEST(MacroAssemblerNativeBackRefNoCase) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -1054,7 +1050,6 @@ TEST(MacroAssemblerNativeBackRefNoCase) {
 }
 
 TEST(MacroAssemblerNativeRegisters) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -1151,7 +1146,6 @@ TEST(MacroAssemblerNativeRegisters) {
 }
 
 TEST(MacroAssemblerStackOverflow) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -1185,7 +1179,6 @@ TEST(MacroAssemblerStackOverflow) {
 }
 
 TEST(MacroAssemblerNativeLotsOfRegisters) {
-  v8::V8::Initialize();
   ContextInitializer initializer;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();

@@ -5,6 +5,7 @@
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/objects/stack-frame-info-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
@@ -40,25 +41,24 @@ struct ExceptionInfo {
 };
 
 template <int N>
-void CheckExceptionInfos(v8::internal::Isolate* i_isolate, Handle<Object> exc,
+void CheckExceptionInfos(v8::internal::Isolate* isolate, Handle<Object> exc,
                          const ExceptionInfo (&excInfos)[N]) {
   // Check that it's indeed an Error object.
   CHECK(exc->IsJSError());
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(i_isolate);
 
   exc->Print();
   // Extract stack frame from the exception.
-  Local<v8::Value> localExc = Utils::ToLocal(exc);
-  v8::Local<v8::StackTrace> stack = v8::Exception::GetStackTrace(localExc);
-  CHECK(!stack.IsEmpty());
-  CHECK_EQ(N, stack->GetFrameCount());
+  auto stack = Handle<FixedArray>::cast(JSReceiver::GetDataProperty(
+      Handle<JSObject>::cast(exc), isolate->factory()->stack_trace_symbol()));
+  CHECK_EQ(N, stack->length());
 
-  for (int frameNr = 0; frameNr < N; ++frameNr) {
-    v8::Local<v8::StackFrame> frame = stack->GetFrame(v8_isolate, frameNr);
-    v8::String::Utf8Value funName(v8_isolate, frame->GetFunctionName());
-    CHECK_CSTREQ(excInfos[frameNr].func_name, *funName);
-    CHECK_EQ(excInfos[frameNr].line_nr, frame->GetLineNumber());
-    CHECK_EQ(excInfos[frameNr].column, frame->GetColumn());
+  for (int i = 0; i < N; ++i) {
+    Handle<StackFrameInfo> info(StackFrameInfo::cast(stack->get(i)), isolate);
+    auto func_name = Handle<String>::cast(StackFrameInfo::GetFunctionName(info))
+                         ->ToCString();
+    CHECK_CSTREQ(excInfos[i].func_name, func_name.get());
+    CHECK_EQ(excInfos[i].line_nr, StackFrameInfo::GetLineNumber(info));
+    CHECK_EQ(excInfos[i].column, StackFrameInfo::GetColumnNumber(info));
   }
 }
 

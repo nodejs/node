@@ -14,7 +14,6 @@
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 
@@ -79,6 +78,9 @@ class ZipReader {
     EntryInfo(const std::string& filename_in_zip,
               const unz_file_info& raw_file_info);
 
+    EntryInfo(const EntryInfo&) = delete;
+    EntryInfo& operator=(const EntryInfo&) = delete;
+
     // Returns the file path. The path is usually relative like
     // "foo/bar.txt", but if it's absolute, is_unsafe() returns true.
     const base::FilePath& file_path() const { return file_path_; }
@@ -117,10 +119,13 @@ class ZipReader {
     bool is_directory_;
     bool is_unsafe_;
     bool is_encrypted_;
-    DISALLOW_COPY_AND_ASSIGN(EntryInfo);
   };
 
   ZipReader();
+
+  ZipReader(const ZipReader&) = delete;
+  ZipReader& operator=(const ZipReader&) = delete;
+
   ~ZipReader();
 
   // Opens the zip file specified by |zip_file_path|. Returns true on
@@ -225,8 +230,6 @@ class ZipReader {
   std::unique_ptr<EntryInfo> current_entry_info_;
 
   base::WeakPtrFactory<ZipReader> weak_ptr_factory_{this};
-
-  DISALLOW_COPY_AND_ASSIGN(ZipReader);
 };
 
 // A writer delegate that writes to a given File.

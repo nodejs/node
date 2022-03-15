@@ -392,7 +392,7 @@ added:
   * `offset` {integer} The location in the buffer at which to start filling.
     **Default:** `0`
   * `length` {integer} The number of bytes to read. **Default:**
-    `buffer.byteLength`
+    `buffer.byteLength - offset`
   * `position` {integer} The location where to begin reading data from the
     file. If `null`, data will be read from the current file position, and
     the position will be updated. If `position` is an integer, the current
@@ -738,9 +738,11 @@ added: v10.0.0
 
 Tests a user's permissions for the file or directory specified by `path`.
 The `mode` argument is an optional integer that specifies the accessibility
-checks to be performed. Check [File access constants][] for possible values
-of `mode`. It is possible to create a mask consisting of the bitwise OR of
-two or more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
+checks to be performed. `mode` should be either the value `fs.constants.F_OK`
+or a mask consisting of the bitwise OR of any of `fs.constants.R_OK`,
+`fs.constants.W_OK`, and `fs.constants.X_OK` (e.g.
+`fs.constants.W_OK | fs.constants.R_OK`). Check [File access constants][] for
+possible values of `mode`.
 
 If the accessibility check is successful, the promise is resolved with no
 value. If any of the accessibility checks fail, the promise is rejected
@@ -874,6 +876,11 @@ try {
 
 <!-- YAML
 added: v16.7.0
+changes:
+  - version: v17.6.0
+    pr-url: https://github.com/nodejs/node/pull/41819
+    description: Accepts an additional `verbatimSymlinks` option to specify
+                 whether to perform path resolution for symlinks.
 -->
 
 > Stability: 1 - Experimental
@@ -894,6 +901,8 @@ added: v16.7.0
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
+  * `verbatimSymlinks` {boolean} When `true`, path resolution for symlinks will
+    be skipped. **Default:** `false`
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously copies the entire directory structure from `src` to `dest`,
@@ -1595,6 +1604,11 @@ concurrent modifications on the same file or data corruption may occur.
 <!-- YAML
 added: v0.11.15
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
@@ -1616,9 +1630,11 @@ changes:
 
 Tests a user's permissions for the file or directory specified by `path`.
 The `mode` argument is an optional integer that specifies the accessibility
-checks to be performed. Check [File access constants][] for possible values
-of `mode`. It is possible to create a mask consisting of the bitwise OR of
-two or more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
+checks to be performed. `mode` should be either the value `fs.constants.F_OK`
+or a mask consisting of the bitwise OR of any of `fs.constants.R_OK`,
+`fs.constants.W_OK`, and `fs.constants.X_OK` (e.g.
+`fs.constants.W_OK | fs.constants.R_OK`). Check [File access constants][] for
+possible values of `mode`.
 
 The final argument, `callback`, is a callback function that is invoked with
 a possible error argument. If any of the accessibility checks fail, the error
@@ -1645,14 +1661,9 @@ access(file, constants.W_OK, (err) => {
   console.log(`${file} ${err ? 'is not writable' : 'is writable'}`);
 });
 
-// Check if the file exists in the current directory, and if it is writable.
-access(file, constants.F_OK | constants.W_OK, (err) => {
-  if (err) {
-    console.error(
-      `${file} ${err.code === 'ENOENT' ? 'does not exist' : 'is read-only'}`);
-  } else {
-    console.log(`${file} exists, and it is writable`);
-  }
+// Check if the file is readable and writable.
+access(file, constants.R_OK | constants.W_OK, (err) => {
+  console.log(`${file} ${err ? 'is not' : 'is'} readable and writable`);
 });
 ```
 
@@ -1783,6 +1794,11 @@ the user from reading or writing to it.
 <!-- YAML
 added: v0.6.7
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -1864,6 +1880,11 @@ open('message.txt', 'a', (err, fd) => {
 <!-- YAML
 added: v0.1.30
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -1952,6 +1973,11 @@ implemented.
 <!-- YAML
 added: v0.1.97
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -1982,6 +2008,11 @@ See the POSIX chown(2) documentation for more detail.
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version:
       - v15.9.0
       - v14.17.0
@@ -2014,6 +2045,11 @@ See the POSIX close(2) documentation for more detail.
 <!-- YAML
 added: v8.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/27044
     description: Changed 'flags' argument to 'mode' and imposed
@@ -2064,6 +2100,16 @@ copyFile('source.txt', 'destination.txt', constants.COPYFILE_EXCL, callback);
 
 <!-- YAML
 added: v16.7.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
+  - version: v17.6.0
+    pr-url: https://github.com/nodejs/node/pull/41819
+    description: Accepts an additional `verbatimSymlinks` option to specify
+                 whether to perform path resolution for symlinks.
 -->
 
 > Stability: 1 - Experimental
@@ -2084,6 +2130,8 @@ added: v16.7.0
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
+  * `verbatimSymlinks` {boolean} When `true`, path resolution for symlinks will
+    be skipped. **Default:** `false`
 * `callback` {Function}
 
 Asynchronously copies the entire directory structure from `src` to `dest`,
@@ -2308,6 +2356,11 @@ If `options` is a string, then it specifies the encoding.
 added: v0.0.2
 deprecated: v1.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using
@@ -2453,6 +2506,11 @@ process.
 <!-- YAML
 added: v0.4.7
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -2478,6 +2536,11 @@ See the POSIX fchmod(2) documentation for more detail.
 <!-- YAML
 added: v0.4.7
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -2504,6 +2567,11 @@ See the POSIX fchown(2) documentation for more detail.
 <!-- YAML
 added: v0.1.96
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -2528,6 +2596,11 @@ exception are given to the completion callback.
 <!-- YAML
 added: v0.1.95
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
@@ -2559,6 +2632,11 @@ See the POSIX fstat(2) documentation for more detail.
 <!-- YAML
 added: v0.1.96
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -2583,6 +2661,11 @@ than a possible exception are given to the completion callback.
 <!-- YAML
 added: v0.8.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -2643,6 +2726,11 @@ If `len` is negative then `0` will be used.
 <!-- YAML
 added: v0.4.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -2671,6 +2759,11 @@ descriptor. See [`fs.utimes()`][].
 <!-- YAML
 deprecated: v0.4.7
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37460
     description: The error returned may be an `AggregateError` if more than one
@@ -2701,6 +2794,11 @@ See the POSIX lchmod(2) documentation for more detail.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.6.0
     pr-url: https://github.com/nodejs/node/pull/21498
     description: This API is no longer deprecated.
@@ -2733,6 +2831,12 @@ See the POSIX lchown(2) documentation for more detail.
 added:
   - v14.5.0
   - v12.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `path` {string|Buffer|URL}
@@ -2754,6 +2858,11 @@ callback.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -2783,6 +2892,11 @@ exception are given to the completion callback.
 <!-- YAML
 added: v0.1.30
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
@@ -2821,6 +2935,11 @@ See the POSIX lstat(2) documentation for more details.
 <!-- YAML
 added: v0.1.8
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version:
      - v13.11.0
      - v12.17.0
@@ -2892,6 +3011,11 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version:
       - v16.5.0
       - v14.18.0
@@ -2979,6 +3103,11 @@ mkdtemp(`${tmpDir}${sep}`, (err, directory) => {
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v11.1.0
     pr-url: https://github.com/nodejs/node/pull/23767
     description: The `flags` argument is now optional and defaults to `'r'`.
@@ -3020,6 +3149,11 @@ Functions based on `fs.open()` exhibit this behavior as well:
 <!-- YAML
 added: v12.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version:
      - v13.1.0
      - v12.16.0
@@ -3051,6 +3185,11 @@ directory and subsequent read operations.
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22150
     description: The `buffer` parameter can now be any `TypedArray`, or a
@@ -3106,7 +3245,7 @@ changes:
 * `options` {Object}
   * `buffer` {Buffer|TypedArray|DataView} **Default:** `Buffer.alloc(16384)`
   * `offset` {integer} **Default:** `0`
-  * `length` {integer} **Default:** `buffer.byteLength`
+  * `length` {integer} **Default:** `buffer.byteLength - offset`
   * `position` {integer|bigint} **Default:** `null`
 * `callback` {Function}
   * `err` {Error}
@@ -3122,6 +3261,11 @@ above values.
 <!-- YAML
 added: v0.1.8
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22020
     description: New option `withFileTypes` was added.
@@ -3173,6 +3317,11 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/41647
     description: Add the `chunkSize` option that can Set `kReadFileBufferLength`
                  manually.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37460
     description: The error returned may be an `AggregateError` if more than one
@@ -3321,6 +3470,11 @@ different Node.js versions.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -3356,8 +3510,14 @@ the link path returned will be passed as a {Buffer} object.
 
 <!-- YAML
 added:
- - v13.13.0
- - v12.17.0
+  - v13.13.0
+  - v12.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `fd` {integer}
@@ -3386,6 +3546,11 @@ a promise for an `Object` with `bytesRead` and `buffers` properties.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -3447,6 +3612,12 @@ dependent name for that object.
 
 <!-- YAML
 added: v9.2.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `path` {string|Buffer|URL}
@@ -3476,6 +3647,11 @@ this restriction.
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -3518,6 +3694,11 @@ rename('oldFile.txt', 'newFile.txt', (err) => {
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37216
     description: "Using `fs.rmdir(path, { recursive: true })` on a `path` that is
@@ -3592,7 +3773,9 @@ with options `{ recursive: true, force: true }`.
 <!-- YAML
 added: v14.14.0
 changes:
-  - version: v17.3.0
+  - version:
+      - v17.3.0
+      - v16.14.0
     pr-url: https://github.com/nodejs/node/pull/41132
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
                  protocol.
@@ -3624,6 +3807,11 @@ completion callback.
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
@@ -3738,6 +3926,11 @@ Stats {
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/23724
     description: If the `type` argument is left undefined, Node will autodetect
@@ -3790,6 +3983,11 @@ $ tree .
 <!-- YAML
 added: v0.8.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37460
     description: The error returned may be an `AggregateError` if more than one
@@ -3841,6 +4039,11 @@ See the POSIX truncate(2) documentation for more details.
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -3902,6 +4105,11 @@ and `fs.unwatchFile()` when possible.
 <!-- YAML
 added: v0.4.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/12562
     description: The `callback` parameter is no longer optional. Not passing
@@ -4144,6 +4352,11 @@ This happens when:
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v14.12.0
     pr-url: https://github.com/nodejs/node/pull/34993
     description: The `buffer` parameter will stringify an object with an
@@ -4275,6 +4488,11 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37460
     description: The error returned may be an `AggregateError` if more than one
@@ -4419,6 +4637,12 @@ to contain only `', World'`.
 
 <!-- YAML
 added: v12.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `fd` {integer}
@@ -4470,10 +4694,11 @@ changes:
 
 Synchronously tests a user's permissions for the file or directory specified
 by `path`. The `mode` argument is an optional integer that specifies the
-accessibility checks to be performed. Check [File access constants][] for
-possible values of `mode`. It is possible to create a mask consisting of
-the bitwise OR of two or more values
-(e.g. `fs.constants.W_OK | fs.constants.R_OK`).
+accessibility checks to be performed. `mode` should be either the value
+`fs.constants.F_OK` or a mask consisting of the bitwise OR of any of
+`fs.constants.R_OK`, `fs.constants.W_OK`, and `fs.constants.X_OK` (e.g.
+`fs.constants.W_OK | fs.constants.R_OK`). Check [File access constants][] for
+possible values of `mode`.
 
 If any of the accessibility checks fail, an `Error` will be thrown. Otherwise,
 the method will return `undefined`.
@@ -4657,6 +4882,11 @@ copyFileSync('source.txt', 'destination.txt', constants.COPYFILE_EXCL);
 
 <!-- YAML
 added: v16.7.0
+changes:
+  - version: v17.6.0
+    pr-url: https://github.com/nodejs/node/pull/41819
+    description: Accepts an additional `verbatimSymlinks` option to specify
+                 whether to perform path resolution for symlinks.
 -->
 
 > Stability: 1 - Experimental
@@ -4676,6 +4906,8 @@ added: v16.7.0
   * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
   * `recursive` {boolean} copy directories recursively **Default:** `false`
+  * `verbatimSymlinks` {boolean} When `true`, path resolution for symlinks will
+    be skipped. **Default:** `false`
 
 Synchronously copies the entire directory structure from `src` to `dest`,
 including subdirectories and files.
@@ -5175,7 +5407,7 @@ changes:
 * `buffer` {Buffer|TypedArray|DataView}
 * `options` {Object}
   * `offset` {integer} **Default:** `0`
-  * `length` {integer} **Default:** `buffer.byteLength`
+  * `length` {integer} **Default:** `buffer.byteLength - offset`
   * `position` {integer|bigint} **Default:** `null`
 * Returns: {number}
 
@@ -5345,7 +5577,9 @@ with options `{ recursive: true, force: true }`.
 <!-- YAML
 added: v14.14.0
 changes:
-  - version: v17.3.0
+  - version:
+      - v17.3.0
+      - v16.14.0
     pr-url: https://github.com/nodejs/node/pull/41132
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
                  protocol.
@@ -5658,6 +5892,12 @@ closed.
 
 <!-- YAML
 added: v12.12.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `callback` {Function}
@@ -6590,7 +6830,8 @@ open('/path/to/my/file', O_RDWR | O_CREAT | O_EXCL, (err, fd) => {
 
 ##### File access constants
 
-The following constants are meant for use with [`fs.access()`][].
+The following constants are meant for use as the `mode` parameter passed to
+[`fsPromises.access()`][], [`fs.access()`][], and [`fs.accessSync()`][].
 
 <table>
   <tr>
@@ -7269,6 +7510,7 @@ the file contents.
 [`event ports`]: https://illumos.org/man/port_create
 [`filehandle.writeFile()`]: #filehandlewritefiledata-options
 [`fs.access()`]: #fsaccesspath-mode-callback
+[`fs.accessSync()`]: #fsaccesssyncpath-mode
 [`fs.chmod()`]: #fschmodpath-mode-callback
 [`fs.chown()`]: #fschownpath-uid-gid-callback
 [`fs.copyFile()`]: #fscopyfilesrc-dest-mode-callback
@@ -7303,6 +7545,7 @@ the file contents.
 [`fs.write(fd, string...)`]: #fswritefd-string-position-encoding-callback
 [`fs.writeFile()`]: #fswritefilefile-data-options-callback
 [`fs.writev()`]: #fswritevfd-buffers-position-callback
+[`fsPromises.access()`]: #fspromisesaccesspath-mode
 [`fsPromises.open()`]: #fspromisesopenpath-flags-mode
 [`fsPromises.opendir()`]: #fspromisesopendirpath-options
 [`fsPromises.rm()`]: #fspromisesrmpath-options

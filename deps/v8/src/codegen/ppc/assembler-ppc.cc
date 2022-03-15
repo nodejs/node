@@ -1185,7 +1185,7 @@ bool Operand::must_output_reloc_info(const Assembler* assembler) const {
   if (rmode_ == RelocInfo::EXTERNAL_REFERENCE) {
     if (assembler != nullptr && assembler->predictable_code_size()) return true;
     return assembler->options().record_reloc_info_for_serialization;
-  } else if (RelocInfo::IsNone(rmode_)) {
+  } else if (RelocInfo::IsNoInfo(rmode_)) {
     return false;
   }
   return true;
@@ -1320,6 +1320,15 @@ void Assembler::bitwise_add32(Register dst, Register src, int32_t value) {
     addis(dst, src, Operand(SIGN_EXT_IMM16(hi_word)));
     addic(dst, dst, Operand(SIGN_EXT_IMM16(lo_word)));
   }
+}
+
+void Assembler::patch_wasm_cpi_return_address(Register dst, int pc_offset,
+                                              int return_address_offset) {
+  DCHECK(is_int16(return_address_offset));
+  Assembler patching_assembler(
+      AssemblerOptions{},
+      ExternalAssemblerBuffer(buffer_start_ + pc_offset, kInstrSize + kGap));
+  patching_assembler.addi(dst, dst, Operand(return_address_offset));
 }
 
 void Assembler::mov_label_offset(Register dst, Label* label) {
@@ -1930,18 +1939,6 @@ bool Assembler::IsNop(Instr instr, int type) {
   return instr == (ORI | reg * B21 | reg * B16);
 }
 
-void Assembler::FixOnHeapReferences(bool update_embedded_objects) {
-  // TODO(v8:11872) This function should never be called if Sparkplug on heap
-  // compilation is not supported.
-  UNREACHABLE();
-}
-
-void Assembler::FixOnHeapReferencesToHandles() {
-  // TODO(v8:11872) This function should never be called if Sparkplug on heap
-  // compilation is not supported.
-  UNREACHABLE();
-}
-
 void Assembler::GrowBuffer(int needed) {
   DCHECK_EQ(buffer_start_, buffer_->start());
 
@@ -1990,7 +1987,7 @@ void Assembler::db(uint8_t data) {
 
 void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   CheckBuffer();
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
            RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
@@ -2001,7 +1998,7 @@ void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
 
 void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
   CheckBuffer();
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
            RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
@@ -2012,7 +2009,7 @@ void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
 
 void Assembler::dp(uintptr_t data, RelocInfo::Mode rmode) {
   CheckBuffer();
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
            RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);

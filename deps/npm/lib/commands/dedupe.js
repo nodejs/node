@@ -1,7 +1,6 @@
 // dedupe duplicated packages, or find them in the tree
 const Arborist = require('@npmcli/arborist')
 const reifyFinish = require('../utils/reify-finish.js')
-const log = require('../utils/log-shim.js')
 
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 
@@ -13,6 +12,7 @@ class Dedupe extends ArboristWorkspaceCmd {
     'legacy-bundling',
     'strict-peer-deps',
     'package-lock',
+    'save',
     'omit',
     'ignore-scripts',
     'audit',
@@ -29,13 +29,19 @@ class Dedupe extends ArboristWorkspaceCmd {
       throw er
     }
 
+    // In the context of `npm dedupe` the save
+    // config value should default to `false`
+    const save = this.npm.config.isDefault('save')
+      ? false
+      : this.npm.config.get('save')
+
     const dryRun = this.npm.config.get('dry-run')
     const where = this.npm.prefix
     const opts = {
       ...this.npm.flatOptions,
-      log,
       path: where,
       dryRun,
+      save,
       workspaces: this.workspaceNames,
     }
     const arb = new Arborist(opts)

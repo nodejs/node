@@ -1,19 +1,17 @@
 const Arborist = require('../')
 
-const print = require('./lib/print-tree.js')
-const options = require('./lib/options.js')
-require('./lib/timers.js')
-require('./lib/logging.js')
+const printTree = require('./lib/print-tree.js')
+const log = require('./lib/logging.js')
 
 const Vuln = require('../lib/vuln.js')
 const printReport = report => {
   for (const vuln of report.values()) {
-    console.log(printVuln(vuln))
+    log.info(printVuln(vuln))
   }
   if (report.topVulns.size) {
-    console.log('\n# top-level vulnerabilities')
+    log.info('\n# top-level vulnerabilities')
     for (const vuln of report.topVulns.values()) {
-      console.log(printVuln(vuln))
+      log.info(printVuln(vuln))
     }
   }
 }
@@ -33,22 +31,21 @@ const printVuln = vuln => {
 
 const printAdvisory = a => `${a.title}${a.url ? ' ' + a.url : ''}`
 
-const start = process.hrtime()
-process.emit('time', 'audit script')
-const arb = new Arborist(options)
-arb.audit(options).then(tree => {
-  process.emit('timeEnd', 'audit script')
-  const end = process.hrtime(start)
-  if (options.fix) {
-    print(tree)
-  }
-  if (!options.quiet) {
-    printReport(arb.auditReport)
-  }
-  if (options.fix) {
-    console.error(`resolved ${tree.inventory.size} deps in ${end[0] + end[1] / 1e9}s`)
-  }
-  if (tree.meta && options.save) {
-    tree.meta.save()
-  }
-}).catch(er => console.error(er))
+module.exports = (options, time) => {
+  const arb = new Arborist(options)
+  return arb
+    .audit(options)
+    .then(time)
+    .then(async ({ timing, result: tree }) => {
+      if (options.fix) {
+        printTree(tree)
+      }
+      printReport(arb.auditReport)
+      if (tree.meta && options.save) {
+        await tree.meta.save()
+      }
+      return options.fix
+        ? `resolved ${tree.inventory.size} deps in ${timing.seconds}`
+        : `done in ${timing.seconds}`
+    })
+}

@@ -141,7 +141,7 @@ class RegisteredExtension {
   V(Primitive, Object)                         \
   V(PrimitiveArray, FixedArray)                \
   V(BigInt, BigInt)                            \
-  V(ScriptOrModule, Script)                    \
+  V(ScriptOrModule, ScriptOrModule)            \
   V(FixedArray, FixedArray)                    \
   V(ModuleRequest, ModuleRequest)              \
   IF_WASM(V, WasmMemoryObject, WasmMemoryObject)
@@ -254,8 +254,8 @@ class Utils {
       v8::internal::Handle<v8::internal::FixedArray> obj);
   static inline Local<PrimitiveArray> PrimitiveArrayToLocal(
       v8::internal::Handle<v8::internal::FixedArray> obj);
-  static inline Local<ScriptOrModule> ScriptOrModuleToLocal(
-      v8::internal::Handle<v8::internal::Script> obj);
+  static inline Local<ScriptOrModule> ToLocal(
+      v8::internal::Handle<v8::internal::ScriptOrModule> obj);
 
 #define DECLARE_OPEN_HANDLE(From, To)                              \
   static inline v8::internal::Handle<v8::internal::To> OpenHandle( \
@@ -468,6 +468,7 @@ bool HandleScopeImplementer::HasSavedContexts() {
 }
 
 void HandleScopeImplementer::EnterContext(Context context) {
+  DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
   DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
   entered_contexts_.push_back(context);
   is_microtask_context_.push_back(0);
@@ -475,6 +476,7 @@ void HandleScopeImplementer::EnterContext(Context context) {
 
 void HandleScopeImplementer::LeaveContext() {
   DCHECK(!entered_contexts_.empty());
+  DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
   DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
   entered_contexts_.pop_back();
   is_microtask_context_.pop_back();
@@ -485,6 +487,7 @@ bool HandleScopeImplementer::LastEnteredContextWas(Context context) {
 }
 
 void HandleScopeImplementer::EnterMicrotaskContext(Context context) {
+  DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
   DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
   entered_contexts_.push_back(context);
   is_microtask_context_.push_back(1);

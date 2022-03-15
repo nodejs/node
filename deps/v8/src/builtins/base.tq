@@ -231,8 +231,6 @@ extern class ObjectBoilerplateDescription extends FixedArray;
 extern class ClosureFeedbackCellArray extends FixedArray;
 extern class ScriptContextTable extends FixedArray;
 
-type LayoutDescriptor extends ByteArray
-    generates 'TNode<LayoutDescriptor>';
 extern class TransitionArray extends WeakFixedArray;
 
 extern operator '.length_intptr' macro LoadAndUntagWeakFixedArrayLength(
@@ -777,7 +775,9 @@ macro Equal(implicit context: Context)(left: JSAny, right: JSAny): Boolean {
 
 extern macro StrictEqual(JSAny, JSAny): Boolean;
 extern macro SmiLexicographicCompare(Smi, Smi): Smi;
-extern runtime ReThrow(Context, JSAny): never;
+
+extern runtime ReThrowWithMessage(
+    Context, JSAny, TheHole | JSMessageObject): never;
 extern runtime Throw(implicit context: Context)(JSAny): never;
 extern runtime ThrowInvalidStringLength(Context): never;
 
@@ -952,7 +952,6 @@ extern operator '+' macro ConstexprInt32Add(
 extern operator '*' macro ConstexprInt31Mul(
     constexpr int31, constexpr int31): constexpr int31;
 extern operator '-' macro Int32Sub(int16, int16): int32;
-extern operator '-' macro Int32Sub(uint16, uint16): int32;
 extern operator '-' macro Int32Sub(int32, int32): int32;
 extern operator '-' macro Uint32Sub(uint32, uint32): uint32;
 extern operator '*' macro Int32Mul(int32, int32): int32;
@@ -1168,7 +1167,7 @@ extern macro Int32Constant(constexpr int31): int31;
 extern macro Int32Constant(constexpr int32): int32;
 extern macro Int64Constant(constexpr int64): int64;
 extern macro Uint64Constant(constexpr uint64): uint64;
-extern macro Float64Constant(constexpr int31): float64;
+extern macro Float64Constant(constexpr int32): float64;
 extern macro Float64Constant(constexpr float64): float64;
 extern macro SmiConstant(constexpr int31): Smi;
 extern macro SmiConstant(constexpr Smi): Smi;
@@ -1799,7 +1798,6 @@ macro Float64IsSomeInfinity(value: float64): bool {
   return value == (Convert<float64>(0) - V8_INFINITY);
 }
 
-@export
 macro IsIntegerOrSomeInfinity(o: Object): bool {
   typeswitch (o) {
     case (Smi): {
@@ -1814,20 +1812,6 @@ macro IsIntegerOrSomeInfinity(o: Object): bool {
     case (Object): {
       return false;
     }
-  }
-}
-
-builtin CheckNumberInRange(implicit context: Context)(
-    value: Number, min: Number, max: Number, nodeId: Smi): Undefined {
-  if (IsIntegerOrSomeInfinity(value) && min <= value && value <= max) {
-    return Undefined;
-  } else {
-    Print('Range type assertion failed! (value/min/max/nodeId)');
-    Print(value);
-    Print(min);
-    Print(max);
-    Print(nodeId);
-    unreachable;
   }
 }
 
@@ -1885,6 +1869,8 @@ extern macro FeedbackIteratorEntrySize(): intptr;
 extern macro FeedbackIteratorHandlerOffset(): intptr;
 extern operator '[]' macro LoadWeakFixedArrayElement(
     WeakFixedArray, intptr): MaybeObject;
+
+extern operator '[]' macro LoadUint8Ptr(RawPtr<uint8>, intptr): uint8;
 
 const kNoHashSentinel:
     constexpr int32 generates 'PropertyArray::kNoHashSentinel';

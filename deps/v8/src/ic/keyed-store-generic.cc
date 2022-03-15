@@ -16,7 +16,22 @@
 namespace v8 {
 namespace internal {
 
-enum class StoreMode { kOrdinary, kInLiteral };
+enum class StoreMode {
+  kOrdinary,
+  kInLiteral,
+
+  // kStoreOwn performs an ordinary property store without traversing the
+  // prototype chain. In the case of private fields, it will throw if the
+  // field does not already exist.
+  // kDefineOwn is similar to kStoreOwn, but for private class fields, it
+  // will throw if the field does already exist.
+  kStoreOwn,
+  kDefineOwn
+};
+
+// With private symbols, 'define' semantics will throw if the field already
+// exists, while 'update' semantics will throw if the field does not exist.
+enum class PrivateNameSemantics { kUpdate, kDefine };
 
 class KeyedStoreGenericAssembler : public AccessorAssembler {
  public:
@@ -131,14 +146,21 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
 
   bool IsKeyedStore() const { return mode_ == StoreMode::kOrdinary; }
   bool IsStoreInLiteral() const { return mode_ == StoreMode::kInLiteral; }
+  bool IsKeyedStoreOwn() const { return mode_ == StoreMode::kStoreOwn; }
+  bool IsKeyedDefineOwn() const { return mode_ == StoreMode::kDefineOwn; }
 
   bool ShouldCheckPrototype() const { return IsKeyedStore(); }
   bool ShouldReconfigureExisting() const { return IsStoreInLiteral(); }
   bool ShouldCallSetter() const { return IsKeyedStore(); }
   bool ShouldCheckPrototypeValidity() const {
     // We don't do this for "in-literal" stores, because it is impossible for
-    // the target object to be a "prototype"
-    return !IsStoreInLiteral();
+    // the target object to be a "prototype".
+    // We don't need the prototype validity check for "own" stores, because
+    // we don't care about the prototype chain.
+    // Thus, we need the prototype check only for ordinary stores.
+    DCHECK_IMPLIES(!IsKeyedStore(), IsStoreInLiteral() || IsKeyedStoreOwn() ||
+                                        IsKeyedDefineOwn());
+    return IsKeyedStore();
   }
 };
 
@@ -147,8 +169,20 @@ void KeyedStoreGenericGenerator::Generate(compiler::CodeAssemblerState* state) {
   assembler.KeyedStoreGeneric();
 }
 
+void KeyedDefineOwnGenericGenerator::Generate(
+    compiler::CodeAssemblerState* state) {
+  KeyedStoreGenericAssembler assembler(state, StoreMode::kDefineOwn);
+  assembler.KeyedStoreGeneric();
+}
+
 void StoreICNoFeedbackGenerator::Generate(compiler::CodeAssemblerState* state) {
   KeyedStoreGenericAssembler assembler(state, StoreMode::kOrdinary);
+  assembler.StoreIC_NoFeedback();
+}
+
+void StoreOwnICNoFeedbackGenerator::Generate(
+    compiler::CodeAssemblerState* state) {
+  KeyedStoreGenericAssembler assembler(state, StoreMode::kStoreOwn);
   assembler.StoreIC_NoFeedback();
 }
 
@@ -740,7 +774,7 @@ TNode<Map> KeyedStoreGenericAssembler::FindCandidateStoreICTransitionMapHandler(
       // transition array is expected to be the first among the transitions
       // with the same name.
       // See TransitionArray::CompareDetails() for details.
-      STATIC_ASSERT(kData == 0);
+      STATIC_ASSERT(static_cast<int>(PropertyKind::kData) == 0);
       STATIC_ASSERT(NONE == 0);
       const int kKeyToTargetOffset = (TransitionArray::kEntryTargetIndex -
                                       TransitionArray::kEntryKeyIndex) *
@@ -783,6 +817,10 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     BIND(&descriptor_found);
     {
+      if (IsKeyedDefineOwn()) {
+        // Take slow path to throw if a private name already exists.
+        GotoIf(IsPrivateSymbol(name), slow);
+      }
       TNode<IntPtrT> name_index = var_name_index.value();
       TNode<Uint32T> details = LoadDetailsByKeyIndex(descriptors, name_index);
       Label data_property(this);
@@ -841,6 +879,10 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     BIND(&dictionary_found);
     {
       Label check_const(this), overwrite(this), done(this);
+      if (IsKeyedDefineOwn()) {
+        // Take slow path to throw if a private name already exists.
+        GotoIf(IsPrivateSymbol(name), slow);
+      }
       TNode<Uint32T> details =
           LoadDetailsByKeyIndex(properties, var_name_index.value());
       JumpIfDataProperty(details, &check_const,
@@ -966,20 +1008,28 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
   if (!ShouldReconfigureExisting()) {
     BIND(&readonly);
     {
-      LanguageMode language_mode;
-      if (maybe_language_mode.To(&language_mode)) {
-        if (language_mode == LanguageMode::kStrict) {
-          TNode<String> type = Typeof(p->receiver());
-          ThrowTypeError(p->context(), MessageTemplate::kStrictReadOnlyProperty,
-                         name, type, p->receiver());
+      // FIXME(joyee): IsKeyedStoreOwn is actually true from
+      // StaNamedOwnProperty, which implements [[DefineOwnProperty]]
+      // semantics. Rename them.
+      if (IsKeyedDefineOwn() || IsKeyedStoreOwn()) {
+        Goto(slow);
+      } else {
+        LanguageMode language_mode;
+        if (maybe_language_mode.To(&language_mode)) {
+          if (language_mode == LanguageMode::kStrict) {
+            TNode<String> type = Typeof(p->receiver());
+            ThrowTypeError(p->context(),
+                           MessageTemplate::kStrictReadOnlyProperty, name, type,
+                           p->receiver());
+          } else {
+            exit_point->Return(p->value());
+          }
         } else {
+          CallRuntime(Runtime::kThrowTypeErrorIfStrict, p->context(),
+                      SmiConstant(MessageTemplate::kStrictReadOnlyProperty),
+                      name, Typeof(p->receiver()), p->receiver());
           exit_point->Return(p->value());
         }
-      } else {
-        CallRuntime(Runtime::kThrowTypeErrorIfStrict, p->context(),
-                    SmiConstant(MessageTemplate::kStrictReadOnlyProperty), name,
-                    Typeof(p->receiver()), p->receiver());
-        exit_point->Return(p->value());
       }
     }
   }
@@ -1016,7 +1066,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
   {
     Comment("key is unique name");
     StoreICParameters p(context, receiver, var_unique.value(), value, {},
-                        UndefinedConstant());
+                        UndefinedConstant(), StoreICMode::kDefault);
     ExitPoint direct_exit(this);
     EmitGenericPropertyStore(CAST(receiver), receiver_map, &p, &direct_exit,
                              &slow, language_mode);
@@ -1034,9 +1084,13 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
 
   BIND(&slow);
   {
-    if (IsKeyedStore()) {
+    if (IsKeyedStore() || IsKeyedStoreOwn()) {
+      CSA_DCHECK(this, BoolConstant(!IsKeyedStoreOwn()));
       Comment("KeyedStoreGeneric_slow");
       TailCallRuntime(Runtime::kSetKeyedProperty, context, receiver, key,
+                      value);
+    } else if (IsKeyedDefineOwn()) {
+      TailCallRuntime(Runtime::kDefineObjectOwnProperty, context, receiver, key,
                       value);
     } else {
       DCHECK(IsStoreInLiteral());
@@ -1086,16 +1140,19 @@ void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
     // checks, strings and string wrappers, proxies) are handled in the runtime.
     GotoIf(IsSpecialReceiverInstanceType(instance_type), &miss);
     {
-      StoreICParameters p(context, receiver, name, value, slot,
-                          UndefinedConstant());
+      StoreICParameters p(
+          context, receiver, name, value, slot, UndefinedConstant(),
+          IsKeyedStoreOwn() ? StoreICMode::kStoreOwn : StoreICMode::kDefault);
       EmitGenericPropertyStore(CAST(receiver), receiver_map, &p, &miss);
     }
   }
 
   BIND(&miss);
   {
-    TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
-                    UndefinedConstant(), receiver_maybe_smi, name);
+    auto runtime =
+        IsKeyedStoreOwn() ? Runtime::kStoreOwnIC_Miss : Runtime::kStoreIC_Miss;
+    TailCallRuntime(runtime, context, value, slot, UndefinedConstant(),
+                    receiver_maybe_smi, name);
   }
 }
 
@@ -1106,7 +1163,7 @@ void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
                                              TNode<Object> value,
                                              LanguageMode language_mode) {
   StoreICParameters p(context, receiver, unique_name, value, {},
-                      UndefinedConstant());
+                      UndefinedConstant(), StoreICMode::kDefault);
 
   Label done(this), slow(this, Label::kDeferred);
   ExitPoint exit_point(this, [&](TNode<Object> result) { Goto(&done); });

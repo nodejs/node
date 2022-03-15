@@ -10,6 +10,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/turbofan-types.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
@@ -118,12 +119,12 @@ Type::bitset Type::BitsetLub() const {
   if (IsUnion()) {
     // Take the representation from the first element, which is always
     // a bitset.
-    int bitset = AsUnion()->Get(0).BitsetLub();
+    bitset lub = AsUnion()->Get(0).BitsetLub();
     for (int i = 0, n = AsUnion()->Length(); i < n; ++i) {
       // Other elements only contribute their semantic part.
-      bitset |= AsUnion()->Get(i).BitsetLub();
+      lub |= AsUnion()->Get(i).BitsetLub();
     }
-    return bitset;
+    return lub;
   }
   if (IsHeapConstant()) return AsHeapConstant()->Lub();
   if (IsOtherNumberConstant()) {
@@ -256,6 +257,16 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:
     case JS_PROMISE_TYPE:
+    case JS_TEMPORAL_CALENDAR_TYPE:
+    case JS_TEMPORAL_DURATION_TYPE:
+    case JS_TEMPORAL_INSTANT_TYPE:
+    case JS_TEMPORAL_PLAIN_DATE_TYPE:
+    case JS_TEMPORAL_PLAIN_DATE_TIME_TYPE:
+    case JS_TEMPORAL_PLAIN_MONTH_DAY_TYPE:
+    case JS_TEMPORAL_PLAIN_TIME_TYPE:
+    case JS_TEMPORAL_PLAIN_YEAR_MONTH_TYPE:
+    case JS_TEMPORAL_TIME_ZONE_TYPE:
+    case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_ARRAY_TYPE:
     case WASM_TAG_OBJECT_TYPE:
@@ -404,7 +415,7 @@ Type::bitset BitsetType::ExpandInternals(Type::bitset bits) {
 
 Type::bitset BitsetType::Lub(double min, double max) {
   DisallowGarbageCollection no_gc;
-  int lub = kNone;
+  bitset lub = kNone;
   const Boundary* mins = Boundaries();
 
   for (size_t i = 1; i < BoundariesSize(); ++i) {
@@ -420,7 +431,7 @@ Type::bitset BitsetType::NumberBits(bitset bits) { return bits & kPlainNumber; }
 
 Type::bitset BitsetType::Glb(double min, double max) {
   DisallowGarbageCollection no_gc;
-  int glb = kNone;
+  bitset glb = kNone;
   const Boundary* mins = Boundaries();
 
   // If the range does not touch 0, the bound is empty.
@@ -1131,6 +1142,50 @@ std::ostream& operator<<(std::ostream& os, Type type) {
   type.PrintTo(os);
   return os;
 }
+
+Handle<TurbofanType> Type::AllocateOnHeap(Factory* factory) {
+  DCHECK(CanBeAsserted());
+  if (IsBitset()) {
+    const bitset bits = AsBitset();
+    uint32_t low = bits & 0xffffffff;
+    uint32_t high = (bits >> 32) & 0xffffffff;
+    return factory->NewTurbofanBitsetType(low, high, AllocationType::kYoung);
+  } else if (IsUnion()) {
+    const UnionType* union_type = AsUnion();
+    Handle<TurbofanType> result = union_type->Get(0).AllocateOnHeap(factory);
+    for (int i = 1; i < union_type->Length(); ++i) {
+      result = factory->NewTurbofanUnionType(
+          result, union_type->Get(i).AllocateOnHeap(factory),
+          AllocationType::kYoung);
+    }
+    return result;
+  } else if (IsHeapConstant()) {
+    return factory->NewTurbofanHeapConstantType(AsHeapConstant()->Value(),
+                                                AllocationType::kYoung);
+  } else if (IsOtherNumberConstant()) {
+    return factory->NewTurbofanOtherNumberConstantType(
+        AsOtherNumberConstant()->Value(), AllocationType::kYoung);
+  } else if (IsRange()) {
+    return factory->NewTurbofanRangeType(AsRange()->Min(), AsRange()->Max(),
+                                         AllocationType::kYoung);
+  } else {
+    // Other types are not supported for type assertions.
+    UNREACHABLE();
+  }
+}
+
+#define VERIFY_TORQUE_LOW_BITSET_AGREEMENT(Name, _)           \
+  STATIC_ASSERT(static_cast<uint32_t>(BitsetType::k##Name) == \
+                static_cast<uint32_t>(TurbofanTypeLowBits::k##Name));
+#define VERIFY_TORQUE_HIGH_BITSET_AGREEMENT(Name, _)                     \
+  STATIC_ASSERT(static_cast<uint32_t>(                                   \
+                    static_cast<uint64_t>(BitsetType::k##Name) >> 32) == \
+                static_cast<uint32_t>(TurbofanTypeHighBits::k##Name));
+INTERNAL_BITSET_TYPE_LIST(VERIFY_TORQUE_LOW_BITSET_AGREEMENT)
+PROPER_ATOMIC_BITSET_TYPE_LOW_LIST(VERIFY_TORQUE_LOW_BITSET_AGREEMENT)
+PROPER_ATOMIC_BITSET_TYPE_HIGH_LIST(VERIFY_TORQUE_HIGH_BITSET_AGREEMENT)
+#undef VERIFY_TORQUE_HIGH_BITSET_AGREEMENT
+#undef VERIFY_TORQUE_LOW_BITSET_AGREEMENT
 
 }  // namespace compiler
 }  // namespace internal

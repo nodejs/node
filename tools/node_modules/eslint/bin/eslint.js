@@ -124,7 +124,13 @@ ${message}`);
 
     // Call the config initializer if `--init` is present.
     if (process.argv.includes("--init")) {
-        await require("../lib/init/config-initializer").initializeConfig();
+
+        // `eslint --init` has been moved to `@eslint/create-config`
+        console.warn("You can also run this command directly using 'npm init @eslint/config'.");
+
+        const spawn = require("cross-spawn");
+
+        spawn.sync("npm", ["init", "@eslint/config"], { encoding: "utf8", stdio: "inherit" });
         return;
     }
 

@@ -65,6 +65,8 @@ static_assert((kLiftoffAssemblerFpCacheRegs &
 
 // rbp-8 holds the stack marker, rbp-16 is the instance parameter.
 constexpr int kInstanceOffset = 16;
+constexpr int kFeedbackVectorOffset = 24;  // rbp-24 is the feedback vector.
+constexpr int kTierupBudgetOffset = 32;    // rbp-32 is the feedback vector.
 
 inline Operand GetStackSlot(int offset) { return Operand(rbp, -offset); }
 
@@ -303,14 +305,14 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
   switch (value.type().kind()) {
     case kI32:
-      if (value.to_i32() == 0 && RelocInfo::IsNone(rmode)) {
+      if (value.to_i32() == 0 && RelocInfo::IsNoInfo(rmode)) {
         xorl(reg.gp(), reg.gp());
       } else {
         movl(reg.gp(), Immediate(value.to_i32(), rmode));
       }
       break;
     case kI64:
-      if (RelocInfo::IsNone(rmode)) {
+      if (RelocInfo::IsNoInfo(rmode)) {
         TurboAssembler::Move(reg.gp(), value.to_i64());
       } else {
         movq(reg.gp(), Immediate64(value.to_i64(), rmode));
@@ -2158,6 +2160,13 @@ void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
   Condition cond = liftoff::ToCondition(liftoff_cond);
   cmpl(lhs, Immediate(imm));
   j(cond, label);
+}
+
+void LiftoffAssembler::emit_i32_subi_jump_negative(Register value,
+                                                   int subtrahend,
+                                                   Label* result_negative) {
+  subl(value, Immediate(subtrahend));
+  j(negative, result_negative);
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {

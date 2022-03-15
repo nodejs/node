@@ -88,6 +88,9 @@ FromConstexpr<uintptr, constexpr int31>(i: constexpr int31): uintptr {
 FromConstexpr<float64, constexpr int31>(i: constexpr int31): float64 {
   return Float64Constant(i);
 }
+FromConstexpr<float64, constexpr int32>(i: constexpr int32): float64 {
+  return Float64Constant(i);
+}
 FromConstexpr<float64, constexpr float64>(i: constexpr float64): float64 {
   return Float64Constant(i);
 }
@@ -191,6 +194,12 @@ Convert<int32, uint16>(i: uint16): int32 {
 }
 Convert<int32, char16|char8>(i: char16|char8): int32 {
   return Signed(Convert<uint32>(i));
+}
+Convert<intptr, char16>(i: char16): intptr {
+  return Convert<intptr, uint32>(i);
+}
+Convert<intptr, char8>(i: char8): intptr {
+  return Convert<intptr, uint32>(i);
 }
 Convert<int32, uint31>(i: uint31): int32 {
   return Signed(Convert<uint32>(i));

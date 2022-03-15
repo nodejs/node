@@ -46,7 +46,7 @@ class Interpreter {
   // Additionally, if |eager_inner_literals| is not null, adds any eagerly
   // compilable inner FunctionLiterals to this list.
   static std::unique_ptr<UnoptimizedCompilationJob> NewCompilationJob(
-      ParseInfo* parse_info, FunctionLiteral* literal,
+      ParseInfo* parse_info, FunctionLiteral* literal, Handle<Script> script,
       AccountingAllocator* allocator,
       std::vector<FunctionLiteral*>* eager_inner_literals,
       LocalIsolate* local_isolate);

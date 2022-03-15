@@ -1,71 +1,66 @@
 # -*- coding: utf-8 -*-
+"""A sandbox layer that ensures unsafe operations cannot be performed.
+Useful when the template itself comes from an untrusted source.
 """
-    jinja2.sandbox
-    ~~~~~~~~~~~~~~
-
-    Adds a sandbox layer to Jinja as it was the default behavior in the old
-    Jinja 1 releases.  This sandbox is slightly different from Jinja 1 as the
-    default behavior is easier to use.
-
-    The behavior can be changed by subclassing the environment.
-
-    :copyright: (c) 2017 by the Jinja Team.
-    :license: BSD.
-"""
-import types
 import operator
-from collections import Mapping
-from jinja2.environment import Environment
-from jinja2.exceptions import SecurityError
-from jinja2._compat import string_types, PY2
-from jinja2.utils import Markup
-
-from markupsafe import EscapeFormatter
+import types
+import warnings
+from collections import deque
 from string import Formatter
 
+from markupsafe import EscapeFormatter
+from markupsafe import Markup
+
+from ._compat import abc
+from ._compat import PY2
+from ._compat import range_type
+from ._compat import string_types
+from .environment import Environment
+from .exceptions import SecurityError
 
 #: maximum number of items a range may produce
 MAX_RANGE = 100000
 
 #: attributes of function objects that are considered unsafe.
 if PY2:
-    UNSAFE_FUNCTION_ATTRIBUTES = set(['func_closure', 'func_code', 'func_dict',
-                                      'func_defaults', 'func_globals'])
+    UNSAFE_FUNCTION_ATTRIBUTES = {
+        "func_closure",
+        "func_code",
+        "func_dict",
+        "func_defaults",
+        "func_globals",
+    }
 else:
     # On versions > python 2 the special attributes on functions are gone,
     # but they remain on methods and generators for whatever reason.
     UNSAFE_FUNCTION_ATTRIBUTES = set()
 
-
 #: unsafe method attributes.  function attributes are unsafe for methods too
-UNSAFE_METHOD_ATTRIBUTES = set(['im_class', 'im_func', 'im_self'])
+UNSAFE_METHOD_ATTRIBUTES = {"im_class", "im_func", "im_self"}
 
-#: unsafe generator attirbutes.
-UNSAFE_GENERATOR_ATTRIBUTES = set(['gi_frame', 'gi_code'])
+#: unsafe generator attributes.
+UNSAFE_GENERATOR_ATTRIBUTES = {"gi_frame", "gi_code"}
 
 #: unsafe attributes on coroutines
-UNSAFE_COROUTINE_ATTRIBUTES = set(['cr_frame', 'cr_code'])
+UNSAFE_COROUTINE_ATTRIBUTES = {"cr_frame", "cr_code"}
 
 #: unsafe attributes on async generators
-UNSAFE_ASYNC_GENERATOR_ATTRIBUTES = set(['ag_code', 'ag_frame'])
-
-import warnings
+UNSAFE_ASYNC_GENERATOR_ATTRIBUTES = {"ag_code", "ag_frame"}
 
 # make sure we don't warn in python 2.6 about stuff we don't care about
-warnings.filterwarnings('ignore', 'the sets module', DeprecationWarning,
-                        module='jinja2.sandbox')
-
-from collections import deque
+warnings.filterwarnings(
+    "ignore", "the sets module", DeprecationWarning, module=__name__
+)
 
 _mutable_set_types = (set,)
 _mutable_mapping_types = (dict,)
 _mutable_sequence_types = (list,)
 
-
 # on python 2.x we can register the user collection types
 try:
     from UserDict import UserDict, DictMixin
     from UserList import UserList
+
     _mutable_mapping_types += (UserDict, DictMixin)
     _mutable_set_types += (UserList,)
 except ImportError:
@@ -74,36 +69,60 @@ except ImportError:
 # if sets is still available, register the mutable set from there as well
 try:
     from sets import Set
+
     _mutable_set_types += (Set,)
 except ImportError:
     pass
 
 #: register Python 2.6 abstract base classes
-from collections import MutableSet, MutableMapping, MutableSequence
-_mutable_set_types += (MutableSet,)
-_mutable_mapping_types += (MutableMapping,)
-_mutable_sequence_types += (MutableSequence,)
-
+_mutable_set_types += (abc.MutableSet,)
+_mutable_mapping_types += (abc.MutableMapping,)
+_mutable_sequence_types += (abc.MutableSequence,)
 
 _mutable_spec = (
-    (_mutable_set_types, frozenset([
-        'add', 'clear', 'difference_update', 'discard', 'pop', 'remove',
-        'symmetric_difference_update', 'update'
-    ])),
-    (_mutable_mapping_types, frozenset([
-        'clear', 'pop', 'popitem', 'setdefault', 'update'
-    ])),
-    (_mutable_sequence_types, frozenset([
-        'append', 'reverse', 'insert', 'sort', 'extend', 'remove'
-    ])),
-    (deque, frozenset([
-        'append', 'appendleft', 'clear', 'extend', 'extendleft', 'pop',
-        'popleft', 'remove', 'rotate'
-    ]))
+    (
+        _mutable_set_types,
+        frozenset(
+            [
+                "add",
+                "clear",
+                "difference_update",
+                "discard",
+                "pop",
+                "remove",
+                "symmetric_difference_update",
+                "update",
+            ]
+        ),
+    ),
+    (
+        _mutable_mapping_types,
+        frozenset(["clear", "pop", "popitem", "setdefault", "update"]),
+    ),
+    (
+        _mutable_sequence_types,
+        frozenset(["append", "reverse", "insert", "sort", "extend", "remove"]),
+    ),
+    (
+        deque,
+        frozenset(
+            [
+                "append",
+                "appendleft",
+                "clear",
+                "extend",
+                "extendleft",
+                "pop",
+                "popleft",
+                "remove",
+                "rotate",
+            ]
+        ),
+    ),
 )
 
 
-class _MagicFormatMapping(Mapping):
+class _MagicFormatMapping(abc.Mapping):
     """This class implements a dummy wrapper to fix a bug in the Python
     standard library for string formatting.
 
@@ -117,7 +136,7 @@ class _MagicFormatMapping(Mapping):
         self._last_index = 0
 
     def __getitem__(self, key):
-        if key == '':
+        if key == "":
             idx = self._last_index
             self._last_index += 1
             try:
@@ -135,9 +154,9 @@ class _MagicFormatMapping(Mapping):
 
 
 def inspect_format_method(callable):
-    if not isinstance(callable, (types.MethodType,
-                                 types.BuiltinMethodType)) or \
-       callable.__name__ not in ('format', 'format_map'):
+    if not isinstance(
+        callable, (types.MethodType, types.BuiltinMethodType)
+    ) or callable.__name__ not in ("format", "format_map"):
         return None
     obj = callable.__self__
     if isinstance(obj, string_types):
@@ -148,10 +167,14 @@ def safe_range(*args):
     """A range that can't generate ranges with a length of more than
     MAX_RANGE items.
     """
-    rng = range(*args)
+    rng = range_type(*args)
+
     if len(rng) > MAX_RANGE:
-        raise OverflowError('range too big, maximum size for range is %d' %
-                            MAX_RANGE)
+        raise OverflowError(
+            "Range too big. The sandbox blocks ranges larger than"
+            " MAX_RANGE (%d)." % MAX_RANGE
+        )
+
     return rng
 
 
@@ -184,24 +207,25 @@ def is_internal_attribute(obj, attr):
         if attr in UNSAFE_FUNCTION_ATTRIBUTES:
             return True
     elif isinstance(obj, types.MethodType):
-        if attr in UNSAFE_FUNCTION_ATTRIBUTES or \
-           attr in UNSAFE_METHOD_ATTRIBUTES:
+        if attr in UNSAFE_FUNCTION_ATTRIBUTES or attr in UNSAFE_METHOD_ATTRIBUTES:
             return True
     elif isinstance(obj, type):
-        if attr == 'mro':
+        if attr == "mro":
             return True
     elif isinstance(obj, (types.CodeType, types.TracebackType, types.FrameType)):
         return True
     elif isinstance(obj, types.GeneratorType):
         if attr in UNSAFE_GENERATOR_ATTRIBUTES:
             return True
-    elif hasattr(types, 'CoroutineType') and isinstance(obj, types.CoroutineType):
+    elif hasattr(types, "CoroutineType") and isinstance(obj, types.CoroutineType):
         if attr in UNSAFE_COROUTINE_ATTRIBUTES:
             return True
-    elif hasattr(types, 'AsyncGeneratorType') and isinstance(obj, types.AsyncGeneratorType):
+    elif hasattr(types, "AsyncGeneratorType") and isinstance(
+        obj, types.AsyncGeneratorType
+    ):
         if attr in UNSAFE_ASYNC_GENERATOR_ATTRIBUTES:
             return True
-    return attr.startswith('__')
+    return attr.startswith("__")
 
 
 def modifies_known_mutable(obj, attr):
@@ -242,28 +266,26 @@ class SandboxedEnvironment(Environment):
     raised.  However also other exceptions may occur during the rendering so
     the caller has to ensure that all exceptions are caught.
     """
+
     sandboxed = True
 
     #: default callback table for the binary operators.  A copy of this is
     #: available on each instance of a sandboxed environment as
     #: :attr:`binop_table`
     default_binop_table = {
-        '+':        operator.add,
-        '-':        operator.sub,
-        '*':        operator.mul,
-        '/':        operator.truediv,
-        '//':       operator.floordiv,
-        '**':       operator.pow,
-        '%':        operator.mod
+        "+": operator.add,
+        "-": operator.sub,
+        "*": operator.mul,
+        "/": operator.truediv,
+        "//": operator.floordiv,
+        "**": operator.pow,
+        "%": operator.mod,
     }
 
     #: default callback table for the unary operators.  A copy of this is
     #: available on each instance of a sandboxed environment as
     #: :attr:`unop_table`
-    default_unop_table = {
-        '+':        operator.pos,
-        '-':        operator.neg
-    }
+    default_unop_table = {"+": operator.pos, "-": operator.neg}
 
     #: a set of binary operators that should be intercepted.  Each operator
     #: that is added to this set (empty by default) is delegated to the
@@ -299,7 +321,7 @@ class SandboxedEnvironment(Environment):
     def intercept_unop(self, operator):
         """Called during template compilation with the name of a unary
         operator to check if it should be intercepted at runtime.  If this
-        method returns `True`, :meth:`call_unop` is excuted for this unary
+        method returns `True`, :meth:`call_unop` is executed for this unary
         operator.  The default implementation of :meth:`call_unop` will use
         the :attr:`unop_table` dictionary to perform the operator with the
         same logic as the builtin one.
@@ -313,10 +335,9 @@ class SandboxedEnvironment(Environment):
         """
         return False
 
-
     def __init__(self, *args, **kwargs):
         Environment.__init__(self, *args, **kwargs)
-        self.globals['range'] = safe_range
+        self.globals["range"] = safe_range
         self.binop_table = self.default_binop_table.copy()
         self.unop_table = self.default_unop_table.copy()
 
@@ -327,7 +348,7 @@ class SandboxedEnvironment(Environment):
         special attributes of internal python objects as returned by the
         :func:`is_internal_attribute` function.
         """
-        return not (attr.startswith('_') or is_internal_attribute(obj, attr))
+        return not (attr.startswith("_") or is_internal_attribute(obj, attr))
 
     def is_safe_callable(self, obj):
         """Check if an object is safely callable.  Per default a function is
@@ -335,8 +356,9 @@ class SandboxedEnvironment(Environment):
         True.  Override this method to alter the behavior, but this won't
         affect the `unsafe` decorator from this module.
         """
-        return not (getattr(obj, 'unsafe_callable', False) or
-                    getattr(obj, 'alters_data', False))
+        return not (
+            getattr(obj, "unsafe_callable", False) or getattr(obj, "alters_data", False)
+        )
 
     def call_binop(self, context, operator, left, right):
         """For intercepted binary operator calls (:meth:`intercepted_binops`)
@@ -396,11 +418,13 @@ class SandboxedEnvironment(Environment):
 
     def unsafe_undefined(self, obj, attribute):
         """Return an undefined object for unsafe attributes."""
-        return self.undefined('access to attribute %r of %r '
-                              'object is unsafe.' % (
-            attribute,
-            obj.__class__.__name__
-        ), name=attribute, obj=obj, exc=SecurityError)
+        return self.undefined(
+            "access to attribute %r of %r "
+            "object is unsafe." % (attribute, obj.__class__.__name__),
+            name=attribute,
+            obj=obj,
+            exc=SecurityError,
+        )
 
     def format_string(self, s, args, kwargs, format_func=None):
         """If a format call is detected, then this is routed through this
@@ -411,10 +435,10 @@ class SandboxedEnvironment(Environment):
         else:
             formatter = SandboxedFormatter(self)
 
-        if format_func is not None and format_func.__name__ == 'format_map':
+        if format_func is not None and format_func.__name__ == "format_map":
             if len(args) != 1 or kwargs:
                 raise TypeError(
-                    'format_map() takes exactly one argument %d given'
+                    "format_map() takes exactly one argument %d given"
                     % (len(args) + (kwargs is not None))
                 )
 
@@ -425,7 +449,7 @@ class SandboxedEnvironment(Environment):
         rv = formatter.vformat(s, args, kwargs)
         return type(s)(rv)
 
-    def call(__self, __context, __obj, *args, **kwargs):
+    def call(__self, __context, __obj, *args, **kwargs):  # noqa: B902
         """Call an object from sandboxed code."""
         fmt = inspect_format_method(__obj)
         if fmt is not None:
@@ -434,7 +458,7 @@ class SandboxedEnvironment(Environment):
         # the double prefixes are to avoid double keyword argument
         # errors when proxying the call.
         if not __self.is_safe_callable(__obj):
-            raise SecurityError('%r is not safely callable' % (__obj,))
+            raise SecurityError("%r is not safely callable" % (__obj,))
         return __context.call(__obj, *args, **kwargs)
 
 
@@ -450,16 +474,16 @@ class ImmutableSandboxedEnvironment(SandboxedEnvironment):
         return not modifies_known_mutable(obj, attr)
 
 
-# This really is not a public API apparenlty.
+# This really is not a public API apparently.
 try:
     from _string import formatter_field_name_split
 except ImportError:
+
     def formatter_field_name_split(field_name):
         return field_name._formatter_field_name_split()
 
 
 class SandboxedFormatterMixin(object):
-
     def __init__(self, env):
         self._env = env
 
@@ -473,14 +497,14 @@ class SandboxedFormatterMixin(object):
                 obj = self._env.getitem(obj, i)
         return obj, first
 
-class SandboxedFormatter(SandboxedFormatterMixin, Formatter):
 
+class SandboxedFormatter(SandboxedFormatterMixin, Formatter):
     def __init__(self, env):
         SandboxedFormatterMixin.__init__(self, env)
         Formatter.__init__(self)
 
-class SandboxedEscapeFormatter(SandboxedFormatterMixin, EscapeFormatter):
 
+class SandboxedEscapeFormatter(SandboxedFormatterMixin, EscapeFormatter):
     def __init__(self, env, escape):
         SandboxedFormatterMixin.__init__(self, env)
         EscapeFormatter.__init__(self, escape)

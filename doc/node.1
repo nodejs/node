@@ -139,19 +139,25 @@ Requires Node.js to be built with
 .It Fl -enable-source-maps
 Enable Source Map V3 support for stack traces.
 .
+.It Fl -experimental-global-webcrypto
+Expose the Web Crypto API on the global scope.
+.
 .It Fl -experimental-import-meta-resolve
 Enable experimental ES modules support for import.meta.resolve().
-.
-.It Fl -experimental-json-modules
-Enable experimental JSON interop support for the ES Module loader.
 .
 .It Fl -experimental-loader Ns = Ns Ar module
 Specify the
 .Ar module
 to use as a custom module loader.
 .
+.It Fl -experimental-network-imports
+Enable experimental support for loading modules using `import` over `https:`.
+.
 .It Fl -experimental-policy
 Use the specified file as a security policy.
+.
+.It Fl -no-experimental-fetch
+Disable experimental support for the Fetch API.
 .
 .It Fl -no-experimental-repl-await
 Disable top-level await keyword support in REPL.

@@ -865,7 +865,7 @@ void TurboAssembler::Alsl_w(Register rd, Register rj, Register rk, uint8_t sa,
 
 void TurboAssembler::Alsl_d(Register rd, Register rj, Register rk, uint8_t sa,
                             Register scratch) {
-  DCHECK(sa >= 1 && sa <= 31);
+  DCHECK(sa >= 1 && sa <= 63);
   if (sa <= 4) {
     alsl_d(rd, rj, rk, sa);
   } else {
@@ -1258,18 +1258,6 @@ void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (!MustUseReg(j.rmode()) && mode == OPTIMIZE_SIZE) {
     li_optimized(rd, j, mode);
-  } else if (IsOnHeap() && RelocInfo::IsEmbeddedObjectMode(j.rmode())) {
-    BlockGrowBufferScope block_growbuffer(this);
-    int offset = pc_offset();
-    Address address = j.immediate();
-    saved_handles_for_raw_object_ptr_.push_back(
-        std::make_pair(offset, address));
-    Handle<HeapObject> object(reinterpret_cast<Address*>(address));
-    int64_t immediate = object->ptr();
-    RecordRelocInfo(j.rmode(), immediate);
-    lu12i_w(rd, immediate >> 12 & 0xfffff);
-    ori(rd, rd, immediate & kImm12Mask);
-    lu32i_d(rd, immediate >> 32 & 0xfffff);
   } else if (MustUseReg(j.rmode())) {
     int64_t immediate;
     if (j.IsHeapObjectRequest()) {
@@ -2665,7 +2653,7 @@ void TurboAssembler::Call(Register target, Condition cond, Register rj,
     jirl(ra, target, 0);
     bind(&skip);
   }
-  set_last_call_pc_(pc_);
+  set_pc_for_safepoint();
 }
 
 void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
@@ -2689,9 +2677,9 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
     BranchShort(&skip, NegateCondition(cond), rj, rk);
   }
   intptr_t offset_diff = target - pc_offset();
-  if (RelocInfo::IsNone(rmode) && is_int28(offset_diff)) {
+  if (RelocInfo::IsNoInfo(rmode) && is_int28(offset_diff)) {
     bl(offset_diff >> 2);
-  } else if (RelocInfo::IsNone(rmode) && is_int38(offset_diff)) {
+  } else if (RelocInfo::IsNoInfo(rmode) && is_int38(offset_diff)) {
     pcaddu18i(t7, static_cast<int32_t>(offset_diff) >> 18);
     jirl(ra, t7, (offset_diff & 0x3ffff) >> 2);
   } else {
@@ -2720,7 +2708,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
     RecordCommentForOffHeapTrampoline(builtin);
     RecordRelocInfo(RelocInfo::RELATIVE_CODE_TARGET);
     bl(code_target_index);
-    set_last_call_pc_(pc_);
+    set_pc_for_safepoint();
     bind(&skip);
     RecordComment("]");
     return;
@@ -2818,6 +2806,46 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   jirl(zero_reg, target, 0);
   // Make sure the stored 'ra' points to this position.
   DCHECK_EQ(kNumInstructionsToJump, InstructionsGeneratedSince(&find_ra));
+}
+
+void TurboAssembler::DropArguments(Register count, ArgumentsCountType type,
+                                   ArgumentsCountMode mode, Register scratch) {
+  switch (type) {
+    case kCountIsInteger: {
+      Alsl_d(sp, count, sp, kPointerSizeLog2);
+      break;
+    }
+    case kCountIsSmi: {
+      STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+      DCHECK_NE(scratch, no_reg);
+      SmiScale(scratch, count, kPointerSizeLog2);
+      Add_d(sp, sp, scratch);
+      break;
+    }
+    case kCountIsBytes: {
+      Add_d(sp, sp, count);
+      break;
+    }
+  }
+  if (mode == kCountExcludesReceiver) {
+    Add_d(sp, sp, kSystemPointerSize);
+  }
+}
+
+void TurboAssembler::DropArgumentsAndPushNewReceiver(Register argc,
+                                                     Register receiver,
+                                                     ArgumentsCountType type,
+                                                     ArgumentsCountMode mode,
+                                                     Register scratch) {
+  DCHECK(!AreAliased(argc, receiver));
+  if (mode == kCountExcludesReceiver) {
+    // Drop arguments without receiver and override old receiver.
+    DropArguments(argc, type, kCountIncludesReceiver, scratch);
+    St_d(receiver, MemOperand(sp, 0));
+  } else {
+    DropArguments(argc, type, mode, scratch);
+    Push(receiver);
+  }
 }
 
 void TurboAssembler::Ret(Condition cond, Register rj, const Operand& rk) {
@@ -2985,8 +3013,10 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
 
   // If the expected parameter count is equal to the adaptor sentinel, no need
   // to push undefined value as arguments.
-  Branch(&regular_invoke, eq, expected_parameter_count,
-         Operand(kDontAdaptArgumentsSentinel));
+  if (kDontAdaptArgumentsSentinel != 0) {
+    Branch(&regular_invoke, eq, expected_parameter_count,
+           Operand(kDontAdaptArgumentsSentinel));
+  }
 
   // If overapplication or if the actual argument count is equal to the
   // formal parameter count, no need to push extra undefined values.
@@ -3013,7 +3043,11 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     Sub_d(t0, t0, Operand(1));
     Add_d(src, src, Operand(kSystemPointerSize));
     Add_d(dest, dest, Operand(kSystemPointerSize));
-    Branch(&copy, ge, t0, Operand(zero_reg));
+    if (kJSArgcIncludesReceiver) {
+      Branch(&copy, gt, t0, Operand(zero_reg));
+    } else {
+      Branch(&copy, ge, t0, Operand(zero_reg));
+    }
   }
 
   // Fill remaining expected arguments with undefined values.
@@ -3314,7 +3348,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   Jump(code, RelocInfo::CODE_TARGET, al, zero_reg, Operand(zero_reg));
 }
 
-void MacroAssembler::JumpToInstructionStream(Address entry) {
+void MacroAssembler::JumpToOffHeapInstructionStream(Address entry) {
   li(kOffHeapTrampolineRegister, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   Jump(kOffHeapTrampolineRegister);
 }
@@ -3711,6 +3745,23 @@ void MacroAssembler::AssertFunction(Register object) {
   }
 }
 
+void MacroAssembler::AssertCallableFunction(Register object) {
+  if (FLAG_debug_code) {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    STATIC_ASSERT(kSmiTag == 0);
+    SmiTst(object, t8);
+    Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, t8,
+          Operand(zero_reg));
+    Push(object);
+    LoadMap(object, object);
+    GetInstanceTypeRange(object, object, FIRST_CALLABLE_JS_FUNCTION_TYPE, t8);
+    Check(ls, AbortReason::kOperandIsNotACallableFunction, t8,
+          Operand(LAST_CALLABLE_JS_FUNCTION_TYPE -
+                  FIRST_CALLABLE_JS_FUNCTION_TYPE));
+    Pop(object);
+  }
+}
+
 void MacroAssembler::AssertBoundFunction(Register object) {
   if (FLAG_debug_code) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
@@ -3976,15 +4027,17 @@ void TurboAssembler::CallCFunctionHelper(Register function,
       li(scratch, ExternalReference::fast_c_call_caller_fp_address(isolate()));
       St_d(zero_reg, MemOperand(scratch, 0));
     }
-  }
 
-  int stack_passed_arguments =
-      CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
+    int stack_passed_arguments =
+        CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
 
-  if (base::OS::ActivationFrameAlignment() > kPointerSize) {
-    Ld_d(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
-  } else {
-    Add_d(sp, sp, Operand(stack_passed_arguments * kPointerSize));
+    if (base::OS::ActivationFrameAlignment() > kPointerSize) {
+      Ld_d(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
+    } else {
+      Add_d(sp, sp, Operand(stack_passed_arguments * kPointerSize));
+    }
+
+    set_pc_for_safepoint();
   }
 }
 

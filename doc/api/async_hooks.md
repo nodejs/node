@@ -329,6 +329,8 @@ The `type` is a string identifying the type of resource that caused
 `init` to be called. Generally, it will correspond to the name of the
 resource's constructor.
 
+Valid values are:
+
 ```text
 FSEVENTWRAP, FSREQCALLBACK, GETADDRINFOREQWRAP, GETNAMEINFOREQWRAP, HTTPINCOMINGMESSAGE,
 HTTPCLIENTREQUEST, JSSTREAM, PIPECONNECTWRAP, PIPEWRAP, PROCESSWRAP, QUERYWRAP,
@@ -336,6 +338,9 @@ SHUTDOWNWRAP, SIGNALWRAP, STATWATCHER, TCPCONNECTWRAP, TCPSERVERWRAP, TCPWRAP,
 TTYWRAP, UDPSENDWRAP, UDPWRAP, WRITEWRAP, ZLIB, SSLCONNECTION, PBKDF2REQUEST,
 RANDOMBYTESREQUEST, TLSWRAP, Microtask, Timeout, Immediate, TickObject
 ```
+
+These values can change in any Node.js release. Furthermore users of [`AsyncResource`][]
+likely provide other values.
 
 There is also the `PROMISE` resource type, which is used to track `Promise`
 instances and asynchronous work scheduled by them.
@@ -428,6 +433,9 @@ callback to `listen()` will look like. The output formatting is slightly more
 elaborate to make calling context easier to see.
 
 ```js
+const async_hooks = require('async_hooks');
+const fs = require('fs');
+const net = require('net');
 const { fd } = process.stdout;
 
 let indent = 0;
@@ -761,7 +769,9 @@ the section on [promise execution tracking][].
 ### `async_hooks.asyncWrapProviders`
 
 <!-- YAML
-added: v17.2.0
+added:
+  - v17.2.0
+  - v16.14.0
 -->
 
 * Returns: A map of provider types to the corresponding numeric id.
@@ -816,7 +826,7 @@ Promise.resolve(1729).then(() => {
 ```
 
 ```cjs
-const { createHook, exectionAsyncId, triggerAsyncId } = require('async_hooks');
+const { createHook, executionAsyncId, triggerAsyncId } = require('async_hooks');
 
 createHook({ init() {} }).enable(); // forces PromiseHooks to be enabled.
 Promise.resolve(1729).then(() => {

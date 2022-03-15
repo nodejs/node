@@ -20,6 +20,8 @@ class Owner extends BaseCommand {
     'ls [<@scope>/]<pkg>',
   ]
 
+  static ignoreImplicitWorkspace = false
+
   async completion (opts) {
     const argv = opts.conf.argv.remain
     if (argv.length > 3) {
@@ -57,7 +59,9 @@ class Owner extends BaseCommand {
   }
 
   async exec ([action, ...args]) {
-    const opts = this.npm.flatOptions
+    const opts = {
+      ...this.npm.flatOptions,
+    }
     switch (action) {
       case 'ls':
       case 'list':

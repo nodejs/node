@@ -4,12 +4,14 @@
 
 #include "src/heap/cppgc/marker.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/platform.h"
 #include "src/base/platform/time.h"
+#include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-visitor.h"
@@ -77,15 +79,6 @@ void VisitRememberedSlots(HeapBase& heap,
     void* value = *reinterpret_cast<void**>(slot);
     mutator_marking_state.DynamicallyMarkAddress(static_cast<Address>(value));
   }
-#endif
-}
-
-// Assumes that all spaces have their LABs reset.
-void ResetRememberedSet(HeapBase& heap) {
-#if defined(CPPGC_YOUNG_GENERATION)
-  auto& local_data = heap.caged_heap().local_data();
-  local_data.age_table.Reset(&heap.caged_heap().allocator());
-  heap.remembered_slots().clear();
 #endif
 }
 
@@ -201,6 +194,27 @@ MarkerBase::~MarkerBase() {
   marking_worklists_.weak_containers_worklist()->Clear();
 }
 
+class MarkerBase::IncrementalMarkingAllocationObserver final
+    : public StatsCollector::AllocationObserver {
+ public:
+  static constexpr size_t kMinAllocatedBytesPerStep = 256 * kKB;
+
+  explicit IncrementalMarkingAllocationObserver(MarkerBase& marker)
+      : marker_(marker) {}
+
+  void AllocatedObjectSizeIncreased(size_t delta) final {
+    current_allocated_size_ += delta;
+    if (current_allocated_size_ > kMinAllocatedBytesPerStep) {
+      marker_.AdvanceMarkingOnAllocation();
+      current_allocated_size_ = 0;
+    }
+  }
+
+ private:
+  MarkerBase& marker_;
+  size_t current_allocated_size_ = 0;
+};
+
 void MarkerBase::StartMarking() {
   DCHECK(!is_marking_);
   StatsCollector::EnabledScope stats_scope(
@@ -226,7 +240,12 @@ void MarkerBase::StartMarking() {
         MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
       mutator_marking_state_.Publish();
       concurrent_marker_->Start();
+      concurrent_marking_active_ = true;
     }
+    incremental_marking_allocation_observer_ =
+        std::make_unique<IncrementalMarkingAllocationObserver>(*this);
+    heap().stats_collector()->RegisterObserver(
+        incremental_marking_allocation_observer_.get());
   }
 }
 
@@ -237,12 +256,17 @@ void MarkerBase::EnterAtomicPause(MarkingConfig::StackState stack_state) {
                                            StatsCollector::kMarkAtomicPrologue);
 
   if (ExitIncrementalMarkingIfNeeded(config_, heap())) {
-    // Cancel remaining concurrent/incremental tasks.
-    concurrent_marker_->Cancel();
+    // Cancel remaining incremental tasks. Concurrent marking jobs are left to
+    // run in parallel with the atomic pause until the mutator thread runs out
+    // of work.
     incremental_marking_handle_.Cancel();
+    heap().stats_collector()->UnregisterObserver(
+        incremental_marking_allocation_observer_.get());
+    incremental_marking_allocation_observer_.reset();
   }
   config_.stack_state = stack_state;
   config_.marking_type = MarkingConfig::MarkingType::kAtomic;
+  mutator_marking_state_.set_in_atomic_pause();
 
   {
     // VisitRoots also resets the LABs.
@@ -254,6 +278,17 @@ void MarkerBase::EnterAtomicPause(MarkingConfig::StackState stack_state) {
       MarkNotFullyConstructedObjects();
     }
   }
+  if (heap().marking_support() ==
+      MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
+    // Start parallel marking.
+    mutator_marking_state_.Publish();
+    if (concurrent_marking_active_) {
+      concurrent_marker_->NotifyIncrementalMutatorStepCompleted();
+    } else {
+      concurrent_marker_->Start();
+      concurrent_marking_active_ = true;
+    }
+  }
 }
 
 void MarkerBase::LeaveAtomicPause() {
@@ -263,7 +298,6 @@ void MarkerBase::LeaveAtomicPause() {
     StatsCollector::EnabledScope stats_scope(
         heap().stats_collector(), StatsCollector::kMarkAtomicEpilogue);
     DCHECK(!incremental_marking_handle_);
-    ResetRememberedSet(heap());
     heap().stats_collector()->NotifyMarkingCompleted(
         // GetOverallMarkedBytes also includes concurrently marked bytes.
         schedule_.GetOverallMarkedBytes());
@@ -393,6 +427,16 @@ void MarkerBase::AdvanceMarkingOnAllocation() {
   }
 }
 
+bool MarkerBase::CancelConcurrentMarkingIfNeeded() {
+  if (config_.marking_type != MarkingConfig::MarkingType::kAtomic ||
+      !concurrent_marking_active_)
+    return false;
+
+  concurrent_marker_->Cancel();
+  concurrent_marking_active_ = false;
+  return true;
+}
+
 bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
                                           size_t marked_bytes_limit) {
   bool is_done = false;
@@ -410,6 +454,9 @@ bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
     if (is_done && VisitCrossThreadPersistentsIfNeeded()) {
       // Both limits are absolute and hence can be passed along without further
       // adjustment.
+      is_done = ProcessWorklistsWithDeadline(marked_bytes_limit, deadline);
+    }
+    if (is_done && CancelConcurrentMarkingIfNeeded()) {
       is_done = ProcessWorklistsWithDeadline(marked_bytes_limit, deadline);
     }
     schedule_.UpdateMutatorThreadMarkedBytes(
@@ -569,13 +616,6 @@ void MarkerBase::SetMainThreadMarkingDisabledForTesting(bool value) {
 
 void MarkerBase::WaitForConcurrentMarkingForTesting() {
   concurrent_marker_->JoinForTesting();
-}
-
-void MarkerBase::NotifyCompactionCancelled() {
-  // Compaction cannot be cancelled while concurrent marking is active.
-  DCHECK_EQ(MarkingConfig::MarkingType::kAtomic, config_.marking_type);
-  DCHECK_IMPLIES(concurrent_marker_, !concurrent_marker_->IsActive());
-  mutator_marking_state_.NotifyCompactionCancelled();
 }
 
 Marker::Marker(Key key, HeapBase& heap, cppgc::Platform* platform,

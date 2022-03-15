@@ -117,7 +117,7 @@ for (let i = 0; i < 30000; ++i) {
 
 In the preceding example, 30,000 deflate instances are created concurrently.
 Because of how some operating systems handle memory allocation and
-deallocation, this may lead to to significant memory fragmentation.
+deallocation, this may lead to significant memory fragmentation.
 
 It is strongly recommended that the results of compression
 operations be cached to avoid duplication of effort.
@@ -128,7 +128,7 @@ The `zlib` module can be used to implement support for the `gzip`, `deflate`
 and `br` content-encoding mechanisms defined by
 [HTTP](https://tools.ietf.org/html/rfc7230#section-4.2).
 
-The HTTP [`Accept-Encoding`][] header is used within an http request to identify
+The HTTP [`Accept-Encoding`][] header is used within an HTTP request to identify
 the compression encodings accepted by the client. The [`Content-Encoding`][]
 header is used to identify the compression encodings actually applied to a
 message.

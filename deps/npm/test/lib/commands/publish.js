@@ -1,15 +1,6 @@
 const t = require('tap')
 const { fake: mockNpm } = require('../../fixtures/mock-npm')
 const fs = require('fs')
-const log = require('../../../lib/utils/log-shim')
-
-// The way we set loglevel is kind of convoluted, and there is no way to affect
-// it from these tests, which only interact with lib/publish.js, which assumes
-// that the code that is requiring and calling lib/publish.js has already
-// taken care of the loglevel
-const _level = log.level
-t.beforeEach(() => (log.level = 'silent'))
-t.teardown(() => (log.level = _level))
 
 t.cleanSnapshot = data => {
   return data.replace(/^ *"gitHead": .*$\n/gm, '')
@@ -140,7 +131,6 @@ t.test('if loglevel=info and json, should not output package contents', async t 
     ),
   })
 
-  log.level = 'info'
   const Publish = t.mock('../../../lib/commands/publish.js', {
     '../../../lib/utils/tar.js': {
       getContents: () => ({
@@ -157,11 +147,11 @@ t.test('if loglevel=info and json, should not output package contents', async t 
     },
   })
   const npm = mockNpm({
-    config: { json: true },
+    config: { json: true, loglevel: 'info' },
     output: () => {
       t.pass('output is called')
     },
-  })
+  }, t)
   npm.config.getCredentialsByURI = uri => {
     t.same(uri, npm.config.get('registry'), 'gets credentials for expected registry')
     return { token: 'some.registry.token' }
@@ -204,11 +194,11 @@ t.test(
       },
     })
     const npm = mockNpm({
-      config: { 'dry-run': true },
+      config: { 'dry-run': true, loglevel: 'silent' },
       output: () => {
         throw new Error('should not output in dry run mode')
       },
-    })
+    }, t)
     npm.config.getCredentialsByURI = () => {
       throw new Error('should not call getCredentialsByURI in dry run')
     }
@@ -236,7 +226,6 @@ t.test(
       ),
     })
 
-    log.level = 'info'
     const Publish = t.mock('../../../lib/commands/publish.js', {
       '../../../lib/utils/tar.js': {
         getContents: () => ({
@@ -253,11 +242,11 @@ t.test(
       },
     })
     const npm = mockNpm({
-      config: { 'dry-run': true },
+      config: { 'dry-run': true, loglevel: 'info' },
       output: () => {
         t.pass('output fn is called')
       },
-    })
+    }, t)
     npm.config.getCredentialsByURI = () => {
       throw new Error('should not call getCredentialsByURI in dry run')
     }
@@ -301,6 +290,7 @@ t.test('can publish a tarball', async t => {
         name: 'my-cool-tarball',
         version: '1.2.3',
       }),
+      'README.md': 'This is my readme',
     },
   })
   const tar = require('tar')
@@ -322,6 +312,9 @@ t.test('can publish a tarball', async t => {
           {
             name: 'my-cool-tarball',
             version: '1.2.3',
+            readme: 'This is my readme',
+            description: 'This is my readme',
+            readmeFilename: 'README.md',
           },
           'sent manifest to lib pub'
         )
@@ -520,6 +513,7 @@ t.test('able to publish after if encountered multiple configs', async t => {
       defaultTag: 'better-tag',
       registry: 'https://other.registry',
     },
+    output () {},
     config: {
       get: key => configList[0][key],
       list: configList,
@@ -598,14 +592,12 @@ t.test('workspaces', t => {
   const publish = new Publish(npm)
 
   t.test('all workspaces', async t => {
-    log.level = 'info'
     await publish.execWorkspaces([], [])
     t.matchSnapshot(publishes, 'should publish all workspaces')
     t.matchSnapshot(outputs, 'should output all publishes')
   })
 
   t.test('one workspace', async t => {
-    log.level = 'info'
     await publish.execWorkspaces([], ['workspace-a'])
     t.matchSnapshot(publishes, 'should publish given workspace')
     t.matchSnapshot(outputs, 'should output one publish')
@@ -617,7 +609,6 @@ t.test('workspaces', t => {
   })
 
   t.test('json', async t => {
-    log.level = 'info'
     npm.config.set('json', true)
     await publish.execWorkspaces([], [])
     t.matchSnapshot(publishes, 'should publish all workspaces')
@@ -674,10 +665,11 @@ t.test('private workspaces', async t => {
     },
   }
   const npm = mockNpm({
+    config: { loglevel: 'info' },
     output: o => {
       outputs.push(o)
     },
-  })
+  }, t)
   npm.localPrefix = testDir
   npm.config.getCredentialsByURI = uri => {
     return { token: 'some.registry.token' }
@@ -686,7 +678,6 @@ t.test('private workspaces', async t => {
   t.test('with color', async t => {
     t.plan(4)
 
-    log.level = 'info'
     const Publish = t.mock('../../../lib/commands/publish.js', {
       ...mocks,
       'proc-log': {
@@ -715,7 +706,6 @@ t.test('private workspaces', async t => {
   t.test('colorless', async t => {
     t.plan(4)
 
-    log.level = 'info'
     const Publish = t.mock('../../../lib/commands/publish.js', {
       ...mocks,
       'proc-log': {
@@ -748,7 +738,6 @@ t.test('private workspaces', async t => {
           if (manifest.private) {
             throw new Error('ERR')
           }
-
           publishes.push(manifest)
         },
       },
@@ -788,7 +777,6 @@ t.test('runs correct lifecycle scripts', async t => {
   })
 
   const scripts = []
-  log.level = 'info'
   const Publish = t.mock('../../../lib/commands/publish.js', {
     '@npmcli/run-script': args => {
       scripts.push(args)
@@ -808,10 +796,11 @@ t.test('runs correct lifecycle scripts', async t => {
     },
   })
   const npm = mockNpm({
+    config: { loglevel: 'info' },
     output: () => {
       t.pass('output is called')
     },
-  })
+  }, t)
   npm.config.getCredentialsByURI = uri => {
     t.same(uri, npm.config.get('registry'), 'gets credentials for expected registry')
     return { token: 'some.registry.token' }
@@ -839,7 +828,6 @@ t.test('does not run scripts on --ignore-scripts', async t => {
     ),
   })
 
-  log.level = 'info'
   const Publish = t.mock('../../../lib/commands/publish.js', {
     '@npmcli/run-script': () => {
       t.fail('should not call run-script')
@@ -859,11 +847,11 @@ t.test('does not run scripts on --ignore-scripts', async t => {
     },
   })
   const npm = mockNpm({
-    config: { 'ignore-scripts': true },
+    config: { 'ignore-scripts': true, loglevel: 'info' },
     output: () => {
       t.pass('output is called')
     },
-  })
+  }, t)
   npm.config.getCredentialsByURI = uri => {
     t.same(uri, npm.config.get('registry'), 'gets credentials for expected registry')
     return { token: 'some.registry.token' }

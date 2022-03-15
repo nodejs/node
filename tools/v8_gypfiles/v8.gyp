@@ -87,11 +87,11 @@
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/exported-macros-assembler.h",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/factory.cc",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/factory.inc",
-            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/field-offsets.h",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/instance-types.h",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/interface-descriptors.inc",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/objects-body-descriptors-inl.inc",
             "<(SHARED_INTERMEDIATE_DIR)/torque-generated/objects-printer.cc",
+            "<(SHARED_INTERMEDIATE_DIR)/torque-generated/visitor-lists.h",
             '<@(torque_outputs_csa_cc)',
             '<@(torque_outputs_csa_h)',
             '<@(torque_outputs_inl_inc)',
@@ -290,6 +290,11 @@
         ['v8_target_arch=="riscv64" or v8_target_arch=="riscv64"', {
           'sources': [
             '<(V8_ROOT)/src/builtins/riscv64/builtins-riscv64.cc',
+          ],
+        }],        
+        ['v8_target_arch=="loong64" or v8_target_arch=="loong64"', {
+          'sources': [
+            '<(V8_ROOT)/src/builtins/loong64/builtins-loong64.cc',
           ],
         }],        
         ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
@@ -647,6 +652,11 @@
               '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"riscv64\\".*?sources \\+= ")',
             ],
           }],
+          ['v8_target_arch=="loong64"', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"loong64\\".*?sources \\+= ")',
+            ],
+          }],
         ],
       },
     },  # v8_internal_headers
@@ -875,6 +885,11 @@
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"riscv64\\".*?sources \\+= ")',
           ],
         }],        
+        ['v8_target_arch=="loong64"', {
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"loong64\\".*?sources \\+= ")',
+          ],
+        }],        
         ['OS=="win"', {
           'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
           'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
@@ -940,7 +955,7 @@
         }],
         # Platforms that don't have Compare-And-Swap (CAS) support need to link atomic library
         # to implement atomic memory access
-        ['v8_current_cpu in ["mips", "mipsel", "mips64", "mips64el", "ppc", "arm", "riscv64"]', {
+        ['v8_current_cpu in ["mips", "mipsel", "mips64", "mips64el", "ppc", "arm", "riscv64", "loong64"]', {
           'link_settings': {
             'libraries': ['-latomic', ],
           },
@@ -1119,11 +1134,6 @@
             '<(V8_ROOT)/src/base/debug/stack_trace_win.cc',
             '<(V8_ROOT)/src/base/platform/platform-win32.cc',
             '<(V8_ROOT)/src/base/win32-headers.h',
-          ],
-          'conditions': [
-            ['target_arch == "arm64"', {
-              'defines': ['_WIN32_WINNT=0x0602'], # For GetCurrentThreadStackLimits on Windows on Arm
-            }],
           ],
           'defines': ['_CRT_RAND_S'], # for rand_s()
           'direct_dependent_settings': {
@@ -1611,6 +1621,11 @@
                   '<(V8_ROOT)/src/heap/base/asm/riscv64/push_registers_asm.cc',
                 ],
               }],
+              ['_toolset == "host" and host_arch == "loong64" or _toolset == "target" and target_arch=="loong64"', {
+                'sources': [
+                  '<(V8_ROOT)/src/heap/base/asm/loong64/push_registers_asm.cc',
+                ],
+              }],
             ]
           }],
           ['OS=="win"', {
@@ -1713,7 +1728,6 @@
               'is_ubsan_vptr=0',
               'target_cpu=<(target_arch)',
               'v8_current_cpu=<(v8_current_cpu)',
-              'v8_enable_atomic_marking_state=<(v8_enable_atomic_marking_state)',
               'v8_enable_atomic_object_field_writes=<(v8_enable_atomic_object_field_writes)',
               'v8_enable_concurrent_marking=<(v8_enable_concurrent_marking)',
               'v8_enable_i18n_support=<(v8_enable_i18n_support)',

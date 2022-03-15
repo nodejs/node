@@ -576,8 +576,12 @@ Type OperationTyper::NumberSilenceNaN(Type type) {
   return type;
 }
 
-Type OperationTyper::SpeculativeBigIntAsUintN(Type type) {
-  return Type::BigInt();
+Type OperationTyper::SpeculativeBigIntAsIntN(Type) {
+  return Type::SignedBigInt64();
+}
+
+Type OperationTyper::SpeculativeBigIntAsUintN(Type) {
+  return Type::UnsignedBigInt64();
 }
 
 Type OperationTyper::CheckBigInt(Type type) { return Type::BigInt(); }

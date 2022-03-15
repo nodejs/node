@@ -1,4 +1,4 @@
-name: linters
+name: Linters
 
 on:
   pull_request:
@@ -9,6 +9,10 @@ on:
       - main
       - v[0-9]+.x-staging
       - v[0-9]+.x
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 env:
   PYTHON_VERSION: '3.10'
@@ -121,7 +125,7 @@ jobs:
 
   lint-sh:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
@@ -138,7 +142,7 @@ jobs:
           persist-credentials: false
       - uses: mszostok/codeowners-validator@v0.6.0
         with:
-          checks: "files,duppatterns"
+          checks: files,duppatterns
   lint-pr-url:
     if: ${{ github.event.pull_request }}
     runs-on: ubuntu-latest

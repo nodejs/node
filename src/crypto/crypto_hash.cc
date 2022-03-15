@@ -35,8 +35,19 @@ void Hash::MemoryInfo(MemoryTracker* tracker) const {
 
 void Hash::GetHashes(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   CipherPushContext ctx(env);
-  EVP_MD_do_all_sorted(array_push_back<EVP_MD>, &ctx);
+  EVP_MD_do_all_sorted(
+#if OPENSSL_VERSION_MAJOR >= 3
+    array_push_back<EVP_MD,
+                    EVP_MD_fetch,
+                    EVP_MD_free,
+                    EVP_get_digestbyname,
+                    EVP_MD_get0_name>,
+#else
+    array_push_back<EVP_MD>,
+#endif
+    &ctx);
   args.GetReturnValue().Set(ctx.ToJSArray());
 }
 
@@ -122,8 +133,7 @@ bool Hash::HashInit(const EVP_MD* md, Maybe<unsigned int> xof_md_len) {
 bool Hash::HashUpdate(const char* data, size_t len) {
   if (!mdctx_)
     return false;
-  EVP_DigestUpdate(mdctx_.get(), data, len);
-  return true;
+  return EVP_DigestUpdate(mdctx_.get(), data, len) == 1;
 }
 
 void Hash::HashUpdate(const FunctionCallbackInfo<Value>& args) {

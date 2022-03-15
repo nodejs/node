@@ -103,10 +103,6 @@ class SnapshotByteSource final {
   int position() { return position_; }
   void set_position(int position) { position_ = position; }
 
-  uint32_t GetChecksum() const {
-    return Checksum(base::Vector<const byte>(data_, length_));
-  }
-
  private:
   const byte* data_;
   int length_;

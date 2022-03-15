@@ -1,3 +1,4 @@
+
 // Copyright 2015 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -78,6 +79,8 @@ std::ostream& operator<<(std::ostream& os, AccessMode access_mode) {
       return os << "StoreInLiteral";
     case AccessMode::kHas:
       return os << "Has";
+    case AccessMode::kDefine:
+      return os << "Define";
   }
   UNREACHABLE();
 }
@@ -321,7 +324,8 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
           break;
         }
         case AccessMode::kStore:
-        case AccessMode::kStoreInLiteral: {
+        case AccessMode::kStoreInLiteral:
+        case AccessMode::kDefine: {
           // For stores, the field map and field representation information
           // must match exactly, otherwise we cannot merge the stores. We
           // also need to make sure that in case of transitioning stores,
@@ -427,8 +431,9 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
 }
 
 PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
-    MapRef receiver_map, MapRef map, base::Optional<JSObjectRef> holder,
-    InternalIndex descriptor, AccessMode access_mode) const {
+    MapRef receiver_map, MapRef map, NameRef name,
+    base::Optional<JSObjectRef> holder, InternalIndex descriptor,
+    AccessMode access_mode) const {
   DCHECK(descriptor.is_found());
   // TODO(jgruber,v8:7790): Use DescriptorArrayRef instead.
   Handle<DescriptorArray> descriptors = map.instance_descriptors().object();
@@ -445,7 +450,10 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   }
   FieldIndex field_index = FieldIndex::ForPropertyIndex(*map.object(), index,
                                                         details_representation);
-  Type field_type = Type::NonInternal();
+  // Private brands are used when loading private methods, which are stored in a
+  // BlockContext, an internal object.
+  Type field_type = name.object()->IsPrivateBrand() ? Type::OtherInternal()
+                                                    : Type::NonInternal();
   base::Optional<MapRef> field_map;
 
   ZoneVector<CompilationDependency const*> unrecorded_dependencies(zone());
@@ -793,12 +801,12 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
         // Don't bother optimizing stores to read-only properties.
         if (details.IsReadOnly()) return Invalid();
 
-        if (details.kind() == kData && holder.has_value()) {
+        if (details.kind() == PropertyKind::kData && holder.has_value()) {
           // This is a store to a property not found on the receiver but on a
           // prototype. According to ES6 section 9.1.9 [[Set]], we need to
           // create a new data property on the receiver. We can still optimize
           // if such a transition already exists.
-          return LookupTransition(receiver_map, name, holder);
+          return LookupTransition(receiver_map, name, holder, NONE);
         }
       }
 
@@ -837,17 +845,17 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
         return Invalid();
       }
       if (details.location() == PropertyLocation::kField) {
-        if (details.kind() == kData) {
-          return ComputeDataFieldAccessInfo(receiver_map, map, holder, index,
-                                            access_mode);
+        if (details.kind() == PropertyKind::kData) {
+          return ComputeDataFieldAccessInfo(receiver_map, map, name, holder,
+                                            index, access_mode);
         } else {
-          DCHECK_EQ(kAccessor, details.kind());
+          DCHECK_EQ(PropertyKind::kAccessor, details.kind());
           // TODO(turbofan): Add support for general accessors?
           return Invalid();
         }
       } else {
         DCHECK_EQ(PropertyLocation::kDescriptor, details.location());
-        DCHECK_EQ(kAccessor, details.kind());
+        DCHECK_EQ(PropertyKind::kAccessor, details.kind());
         return ComputeAccessorDescriptorAccessInfo(receiver_map, name, map,
                                                    holder, index, access_mode);
       }
@@ -873,9 +881,17 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
       }
     }
 
-    // Don't search on the prototype when storing in literals.
-    if (access_mode == AccessMode::kStoreInLiteral) {
-      return LookupTransition(receiver_map, name, holder);
+    // Don't search on the prototype when storing in literals, or performing a
+    // Define operation
+    if (access_mode == AccessMode::kStoreInLiteral ||
+        access_mode == AccessMode::kDefine) {
+      PropertyAttributes attrs = NONE;
+      if (name.object()->IsPrivate()) {
+        // When PrivateNames are added to an object, they are by definition
+        // non-enumerable.
+        attrs = DONT_ENUM;
+      }
+      return LookupTransition(receiver_map, name, holder, attrs);
     }
 
     // Don't lookup private symbols on the prototype chain.
@@ -929,7 +945,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
       // to transition to a new data property.
       // Implemented according to ES6 section 9.1.9 [[Set]] (P, V, Receiver)
       if (access_mode == AccessMode::kStore) {
-        return LookupTransition(receiver_map, name, holder);
+        return LookupTransition(receiver_map, name, holder, NONE);
       }
 
       // The property was not found (access returns undefined or throws
@@ -1109,11 +1125,13 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
 }
 
 PropertyAccessInfo AccessInfoFactory::LookupTransition(
-    MapRef map, NameRef name, base::Optional<JSObjectRef> holder) const {
+    MapRef map, NameRef name, base::Optional<JSObjectRef> holder,
+    PropertyAttributes attrs) const {
   // Check if the {map} has a data transition with the given {name}.
-  Map transition = TransitionsAccessor(isolate(), map.object(),
-                                       broker()->is_concurrent_inlining())
-                       .SearchTransition(*name.object(), kData, NONE);
+  Map transition =
+      TransitionsAccessor(isolate(), map.object(),
+                          broker()->is_concurrent_inlining())
+          .SearchTransition(*name.object(), PropertyKind::kData, attrs);
   if (transition.is_null()) return Invalid();
 
   base::Optional<MapRef> maybe_transition_map =

@@ -112,7 +112,7 @@ transitioning macro RunContextPromiseHookInit(implicit context: Context)(
 
   try {
     Call(context, hook, Undefined, promise, parentObject);
-  } catch (e) {
+  } catch (e, _message) {
     runtime::ReportMessageFromMicrotask(e);
   }
 }
@@ -189,7 +189,7 @@ transitioning macro RunContextPromiseHook(implicit context: Context)(
 
   try {
     Call(context, hook, Undefined, promise);
-  } catch (e) {
+  } catch (e, _message) {
     runtime::ReportMessageFromMicrotask(e);
   }
 }

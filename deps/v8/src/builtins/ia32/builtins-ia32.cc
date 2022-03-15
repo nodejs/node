@@ -214,8 +214,10 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   __ mov(eax, FieldOperand(eax, SharedFunctionInfo::kFlagsOffset));
   __ DecodeField<SharedFunctionInfo::FunctionKindBits>(eax);
-  __ JumpIfIsInRange(eax, kDefaultDerivedConstructor, kDerivedConstructor, ecx,
-                     &not_create_implicit_receiver, Label::kNear);
+  __ JumpIfIsInRange(
+      eax, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
+      static_cast<uint32_t>(FunctionKind::kDerivedConstructor), ecx,
+      &not_create_implicit_receiver, Label::kNear);
 
   // If not derived class constructor: Allocate the new receiver object.
   __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1,
@@ -837,7 +839,7 @@ static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
                                           Runtime::FunctionId function_id) {
   ASM_CODE_COMMENT(masm);
   Label no_match;
-  __ cmp(actual_marker, expected_marker);
+  __ cmp(actual_marker, static_cast<int>(expected_marker));
   __ j(not_equal, &no_match, Label::kNear);
   GenerateTailCallToReturnedCode(masm, function_id);
   __ bind(&no_match);
@@ -2447,7 +2449,11 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   StackArgumentsAccessor args(eax);
   __ AssertFunction(edi, edx);
 
+  Label class_constructor;
   __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ test(FieldOperand(edx, SharedFunctionInfo::kFlagsOffset),
+          Immediate(SharedFunctionInfo::IsClassConstructorBit::kMask));
+  __ j(not_zero, &class_constructor);
 
   // Enter the context of the function; ToObject has to run in the function
   // context, and we also need to take the global proxy from the function
@@ -2528,6 +2534,14 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   __ movzx_w(
       ecx, FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
   __ InvokeFunctionCode(edi, no_reg, ecx, eax, InvokeType::kJump);
+
+  // The function is a "classConstructor", need to raise an exception.
+  __ bind(&class_constructor);
+  {
+    FrameScope frame(masm, StackFrame::INTERNAL);
+    __ push(edi);
+    __ CallRuntime(Runtime::kThrowConstructorNonCallableError);
+  }
 }
 
 namespace {
@@ -3004,6 +3018,11 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 
 void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // TODO(v8:10701): Implement for this platform.
+  __ Trap();
+}
+
+void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
+  // TODO(v8:12191): Implement for this platform.
   __ Trap();
 }
 

@@ -66,6 +66,26 @@
       "path": ["BigInt"],
       "tests": [
         {
+          "name": "Shift",
+          "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
+          "resources": ["shift.js", "bigint-util.js"],
+          "test_flags": ["shift"],
+          "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
+          "tests": [
+            { "name": "ShiftLeft-ShiftTooBig" },
+            { "name": "ShiftLeft-ResultTooBig" },
+            { "name": "ShiftLeft-Small" },
+            { "name": "ShiftLeft-Random" },
+            { "name": "ShiftLeft-Growing" },
+            { "name": "ShiftRight-Maximum" },
+            { "name": "ShiftRight-ToZero" },
+            { "name": "ShiftRight-Small" },
+            { "name": "ShiftRight-Random" },
+            { "name": "ShiftRight-Shrinking" }
+          ]
+        },
+        {
           "name": "ToBoolean",
           "main": "run.js",
           "resources": ["to-boolean.js"],
@@ -80,6 +100,7 @@
         {
           "name": "Add",
           "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
           "resources": ["add.js", "bigint-util.js"],
           "test_flags": ["add"],
           "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
@@ -110,6 +131,7 @@
         {
           "name": "Subtract",
           "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
           "resources": ["subtract.js", "bigint-util.js"],
           "test_flags": ["subtract"],
           "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
@@ -140,6 +162,7 @@
         {
           "name": "AsUintN",
           "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
           "resources": ["as-uint-n.js", "bigint-util.js"],
           "test_flags": ["as-uint-n"],
           "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
@@ -156,6 +179,28 @@
             { "name": "AsUint8-64" },
             { "name": "AsUint8-128" },
             { "name": "AsUint8-256" }
+          ]
+        },
+        {
+          "name": "AsIntN",
+          "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
+          "resources": ["as-int-n.js", "bigint-util.js"],
+          "test_flags": ["as-int-n"],
+          "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
+          "tests": [
+            { "name": "AsInt64-32" },
+            { "name": "AsInt64-64" },
+            { "name": "AsInt64-128" },
+            { "name": "AsInt64-256" },
+            { "name": "AsInt32-32" },
+            { "name": "AsInt32-64" },
+            { "name": "AsInt32-128" },
+            { "name": "AsInt32-256" },
+            { "name": "AsInt8-32" },
+            { "name": "AsInt8-64" },
+            { "name": "AsInt8-128" },
+            { "name": "AsInt8-256" }
           ]
         }
       ]

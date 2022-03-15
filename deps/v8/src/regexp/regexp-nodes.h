@@ -409,9 +409,13 @@ class TextNode : public SeqRegExpNode {
                                             ZoneList<CharacterRange>* ranges,
                                             bool read_backward,
                                             RegExpNode* on_success);
-  // Create TextNode for a surrogate pair with a range given for the
-  // lead and the trail surrogate each.
-  static TextNode* CreateForSurrogatePair(Zone* zone, CharacterRange lead,
+  // Create TextNode for a surrogate pair (i.e. match a sequence of two uc16
+  // code unit ranges).
+  static TextNode* CreateForSurrogatePair(
+      Zone* zone, CharacterRange lead, ZoneList<CharacterRange>* trail_ranges,
+      bool read_backward, RegExpNode* on_success);
+  static TextNode* CreateForSurrogatePair(Zone* zone,
+                                          ZoneList<CharacterRange>* lead_ranges,
                                           CharacterRange trail,
                                           bool read_backward,
                                           RegExpNode* on_success);

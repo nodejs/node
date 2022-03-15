@@ -36,6 +36,9 @@ class MarkingBarrier {
   void Write(Code host, RelocInfo*, HeapObject value);
   void Write(JSArrayBuffer host, ArrayBufferExtension*);
   void Write(DescriptorArray, int number_of_own_descriptors);
+  // Only usable when there's no valid JS host object for this write, e.g., when
+  // value is held alive from a global handle.
+  void WriteWithoutHost(HeapObject value);
 
   // Returns true if the slot needs to be recorded.
   inline bool MarkValue(HeapObject host, HeapObject value);
@@ -69,6 +72,7 @@ class MarkingBarrier {
   bool is_compacting_ = false;
   bool is_activated_ = false;
   bool is_main_thread_barrier_;
+  bool is_shared_heap_;
 };
 
 }  // namespace internal

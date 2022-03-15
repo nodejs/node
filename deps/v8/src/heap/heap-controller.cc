@@ -145,10 +145,6 @@ size_t MemoryController<Trait>::CalculateAllocationLimit(
     factor = 1.0 + FLAG_heap_growing_percent / 100.0;
   }
 
-  if (FLAG_heap_growing_percent > 0) {
-    factor = 1.0 + FLAG_heap_growing_percent / 100.0;
-  }
-
   CHECK_LT(1.0, factor);
   CHECK_LT(0, current_size);
   const uint64_t limit =

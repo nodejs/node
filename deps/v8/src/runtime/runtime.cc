@@ -104,8 +104,6 @@ bool Runtime::NeedsExactContext(FunctionId id) {
       // us to usually eliminate the catch context for the implicit
       // try-catch in async function.
       return false;
-    case Runtime::kAddPrivateField:
-    case Runtime::kAddPrivateBrand:
     case Runtime::kCreatePrivateAccessors:
     case Runtime::kCopyDataProperties:
     case Runtime::kCreateDataProperty:
@@ -114,6 +112,7 @@ bool Runtime::NeedsExactContext(FunctionId id) {
     case Runtime::kLoadPrivateGetter:
     case Runtime::kLoadPrivateSetter:
     case Runtime::kReThrow:
+    case Runtime::kReThrowWithMessage:
     case Runtime::kThrow:
     case Runtime::kThrowApplyNonFunction:
     case Runtime::kThrowCalledNonCallable:
@@ -156,6 +155,7 @@ bool Runtime::IsNonReturning(FunctionId id) {
     case Runtime::kThrowSuperAlreadyCalledError:
     case Runtime::kThrowSuperNotCalled:
     case Runtime::kReThrow:
+    case Runtime::kReThrowWithMessage:
     case Runtime::kThrow:
     case Runtime::kThrowApplyNonFunction:
     case Runtime::kThrowCalledNonCallable:
@@ -222,8 +222,10 @@ bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
     case Runtime::kGetOptimizationStatus:
     case Runtime::kHeapObjectVerify:
     case Runtime::kIsBeingInterpreted:
-    case Runtime::kVerifyType:
       return !FLAG_allow_natives_for_differential_fuzzing;
+    case Runtime::kVerifyType:
+      return !FLAG_allow_natives_for_differential_fuzzing &&
+             !FLAG_concurrent_recompilation;
     case Runtime::kBaselineOsr:
     case Runtime::kCompileBaseline:
       return ENABLE_SPARKPLUG;

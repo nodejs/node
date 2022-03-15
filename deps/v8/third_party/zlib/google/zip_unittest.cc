@@ -17,7 +17,6 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/logging.h"
-#include "base/macros.h"
 #include "base/path_service.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -646,7 +645,7 @@ TEST_F(ZipTest, ZipProgressPeriod) {
   EXPECT_TRUE(zip::Zip({.src_dir = src_dir,
                         .dest_file = zip_file,
                         .progress_callback = std::move(progress_callback),
-                        .progress_period = base::TimeDelta::FromHours(1)}));
+                        .progress_period = base::Hours(1)}));
 
   // We expect only 2 progress reports: the first one, and the last one.
   EXPECT_EQ(progress_count, 2);

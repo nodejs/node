@@ -174,6 +174,7 @@ function drainQueue() {
         console.log('exit code:', status, 'signal:', signal);
         console.log(`stdout: ${Buffer.concat(stdout)}`);
         console.log(`stderr: ${Buffer.concat(stderr)}`);
+        process.kill(process.pid, 'SIGKILL');
         throw e;
       }
       fs.rmSync(configDirPath, { maxRetries: 3, recursive: true, force: true });
@@ -196,7 +197,9 @@ function drainQueue() {
   const enoentFilepath = path.join(tmpdir.path, 'enoent');
   try {
     fs.unlinkSync(enoentFilepath);
-  } catch { }
+  } catch {
+    // Continue regardless of error.
+  }
   const { status } = spawnSync(
     process.execPath,
     ['--experimental-policy', enoentFilepath, '-e', ''],
@@ -282,8 +285,7 @@ for (const permutation of permutations({
   } else if (permutation.depIntegrity === 'missing') {
     resources[depPath].integrities = null;
     shouldSucceed = false;
-  } else if (permutation.depIntegrity === 'match') {
-  } else {
+  } else if (permutation.depIntegrity !== 'match') {
     throw new Error('unreachable');
   }
   if (parentFormat !== 'commonjs') {
@@ -301,8 +303,7 @@ for (const permutation of permutations({
     } else if (permutation.parentIntegrity === 'missing') {
       resources[parentPath].integrities = null;
       shouldSucceed = false;
-    } else if (permutation.parentIntegrity === 'match') {
-    } else {
+    } else if (permutation.parentIntegrity !== 'match') {
       throw new Error('unreachable');
     }
   }
@@ -324,8 +325,7 @@ for (const permutation of permutations({
     } else if (permutation.packageIntegrity === 'missing') {
       packageIntegrities = [];
       shouldSucceed = false;
-    } else if (permutation.packageIntegrity === 'match') {
-    } else {
+    } else if (permutation.packageIntegrity !== 'match') {
       throw new Error('unreachable');
     }
     resources['./package.json'] = {

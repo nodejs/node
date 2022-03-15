@@ -9,6 +9,7 @@
 
 #include "include/cppgc/trace-trait.h"
 #include "include/cppgc/visitor.h"
+#include "src/base/logging.h"
 #include "src/heap/cppgc/compaction-worklists.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
@@ -109,12 +110,6 @@ class MarkingStateBase {
     return movable_slots_worklist_.get();
   }
 
-  void NotifyCompactionCancelled() {
-    DCHECK(IsCompactionEnabled());
-    movable_slots_worklist_->Clear();
-    movable_slots_worklist_.reset();
-  }
-
   bool DidDiscoverNewEphemeronPairs() const {
     return discovered_new_ephemeron_pairs_;
   }
@@ -122,6 +117,8 @@ class MarkingStateBase {
   void ResetDidDiscoverNewEphemeronPairs() {
     discovered_new_ephemeron_pairs_ = false;
   }
+
+  void set_in_atomic_pause() { in_atomic_pause_ = true; }
 
  protected:
   inline void MarkAndPush(HeapObjectHeader&, TraceDescriptor);
@@ -160,6 +157,7 @@ class MarkingStateBase {
   size_t marked_bytes_ = 0;
   bool in_ephemeron_processing_ = false;
   bool discovered_new_ephemeron_pairs_ = false;
+  bool in_atomic_pause_ = false;
 };
 
 MarkingStateBase::MarkingStateBase(HeapBase& heap,
@@ -300,12 +298,19 @@ void MarkingStateBase::ProcessEphemeron(const void* key, const void* value,
   // would break the main marking loop.
   DCHECK(!in_ephemeron_processing_);
   in_ephemeron_processing_ = true;
-  // Filter out already marked keys. The write barrier for WeakMember
-  // ensures that any newly set value after this point is kept alive and does
-  // not require the callback.
-  if (!HeapObjectHeader::FromObject(key)
-           .IsInConstruction<AccessMode::kAtomic>() &&
-      HeapObjectHeader::FromObject(key).IsMarked<AccessMode::kAtomic>()) {
+  // Keys are considered live even in incremental/concurrent marking settings
+  // because the write barrier for WeakMember ensures that any newly set value
+  // after this point is kept alive and does not require the callback.
+  const bool key_in_construction =
+      HeapObjectHeader::FromObject(key).IsInConstruction<AccessMode::kAtomic>();
+  const bool key_considered_as_live =
+      key_in_construction
+          ? in_atomic_pause_
+          : HeapObjectHeader::FromObject(key).IsMarked<AccessMode::kAtomic>();
+  DCHECK_IMPLIES(
+      key_in_construction && in_atomic_pause_,
+      HeapObjectHeader::FromObject(key).IsMarked<AccessMode::kAtomic>());
+  if (key_considered_as_live) {
     if (value_desc.base_object_payload) {
       MarkAndPush(value_desc.base_object_payload, value_desc);
     } else {
@@ -404,15 +409,17 @@ void MutatorMarkingState::InvokeWeakRootsCallbackIfNeeded(
 #if DEBUG
   const HeapObjectHeader& header =
       HeapObjectHeader::FromObject(desc.base_object_payload);
-  DCHECK_IMPLIES(header.IsInConstruction(), header.IsMarked());
+  DCHECK_IMPLIES(header.IsInConstruction(),
+                 header.IsMarked<AccessMode::kAtomic>());
 #endif  // DEBUG
   weak_callback(LivenessBrokerFactory::Create(), parameter);
 }
 
 bool MutatorMarkingState::IsMarkedWeakContainer(HeapObjectHeader& header) {
-  const bool result = weak_containers_worklist_.Contains(&header) &&
-                      !recently_retraced_weak_containers_.Contains(&header);
-  DCHECK_IMPLIES(result, header.IsMarked());
+  const bool result =
+      weak_containers_worklist_.Contains<AccessMode::kAtomic>(&header) &&
+      !recently_retraced_weak_containers_.Contains(&header);
+  DCHECK_IMPLIES(result, header.IsMarked<AccessMode::kAtomic>());
   DCHECK_IMPLIES(result, !header.IsInConstruction());
   return result;
 }
@@ -482,7 +489,7 @@ template <AccessMode mode>
 void DynamicallyTraceMarkedObject(Visitor& visitor,
                                   const HeapObjectHeader& header) {
   DCHECK(!header.IsInConstruction<mode>());
-  DCHECK(header.IsMarked<mode>());
+  DCHECK(header.IsMarked<AccessMode::kAtomic>());
   header.Trace<mode>(&visitor);
 }
 

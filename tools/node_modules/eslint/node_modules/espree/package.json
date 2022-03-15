@@ -16,7 +16,7 @@
     ],
     "./package.json": "./package.json"
   },
-  "version": "9.3.0",
+  "version": "9.3.1",
   "files": [
     "lib",
     "dist/espree.cjs",
@@ -33,12 +33,13 @@
   "dependencies": {
     "acorn": "^8.7.0",
     "acorn-jsx": "^5.3.1",
-    "eslint-visitor-keys": "^3.1.0"
+    "eslint-visitor-keys": "^3.3.0"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^17.1.0",
     "@rollup/plugin-json": "^4.1.0",
     "@rollup/plugin-node-resolve": "^11.2.0",
+    "c8": "^7.11.0",
     "chai": "^4.3.4",
     "eslint": "^7.22.0",
     "eslint-config-eslint": "^7.0.0",
@@ -50,7 +51,6 @@
     "json-diff": "^0.5.4",
     "mocha": "^8.3.1",
     "npm-run-all": "^4.1.5",
-    "nyc": "^14.1.1",
     "regenerate": "^1.4.0",
     "rollup": "^2.41.2",
     "shelljs": "^0.3.0",
@@ -67,7 +67,7 @@
   ],
   "scripts": {
     "unit": "npm-run-all -s unit:*",
-    "unit:esm": "nyc mocha --color --reporter progress --timeout 30000 'tests/lib/**/*.js'",
+    "unit:esm": "c8 mocha --color --reporter progress --timeout 30000 'tests/lib/**/*.js'",
     "unit:cjs": "mocha --color --reporter progress --timeout 30000 tests/lib/commonjs.cjs",
     "test": "npm-run-all -p unit lint",
     "lint": "eslint \"*.?(c)js\" lib/ tests/lib/",

@@ -7,10 +7,6 @@
 #include "src/common/assert-scope.h"
 #include "src/snapshot/serializer.h"
 
-#ifdef V8_SNAPSHOT_COMPRESSION
-#include "src/snapshot/snapshot-compression.h"
-#endif
-
 namespace v8 {
 namespace internal {
 

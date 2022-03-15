@@ -444,7 +444,9 @@ void BlobBindingData::store_data_object(
 }
 
 void BlobBindingData::revoke_data_object(const std::string& uuid) {
-  CHECK_NE(data_objects_.find(uuid), data_objects_.end());
+  if (data_objects_.find(uuid) == data_objects_.end()) {
+    return;
+  }
   data_objects_.erase(uuid);
   CHECK_EQ(data_objects_.find(uuid), data_objects_.end());
 }
@@ -481,8 +483,6 @@ InternalFieldInfo* BlobBindingData::Serialize(int index) {
   InternalFieldInfo* info = InternalFieldInfo::New(type());
   return info;
 }
-
-constexpr FastStringKey BlobBindingData::type_name;
 
 void Blob::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Blob::New);

@@ -314,7 +314,7 @@ bool Operand::NeedsRelocation(const Assembler* assembler) const {
     return assembler->options().record_reloc_info_for_serialization;
   }
 
-  return !RelocInfo::IsNone(rmode);
+  return !RelocInfo::IsNoInfo(rmode);
 }
 
 // Assembler
@@ -2627,7 +2627,7 @@ void Assembler::fmov(const VRegister& vd, float imm) {
     DCHECK(vd.Is1S());
     Emit(FMOV_s_imm | Rd(vd) | ImmFP(imm));
   } else {
-    DCHECK(vd.Is2S() | vd.Is4S());
+    DCHECK(vd.Is2S() || vd.Is4S());
     Instr op = NEONModifiedImmediate_MOVI;
     Instr q = vd.Is4S() ? NEON_Q : 0;
     Emit(q | op | ImmNEONFP(imm) | NEONCmode(0xF) | Rd(vd));
@@ -4275,42 +4275,7 @@ bool Assembler::IsImmFP64(double imm) {
   return true;
 }
 
-void Assembler::FixOnHeapReferences(bool update_embedded_objects) {
-  Address base = reinterpret_cast<Address>(buffer_->start());
-  if (update_embedded_objects) {
-    for (auto p : saved_handles_for_raw_object_ptr_) {
-      Handle<HeapObject> object = GetEmbeddedObject(p.second);
-      WriteUnalignedValue(base + p.first, object->ptr());
-    }
-  }
-  for (auto p : saved_offsets_for_runtime_entries_) {
-    Instruction* instr = reinterpret_cast<Instruction*>(base + p.first);
-    Address target = p.second * kInstrSize + options().code_range_start;
-    DCHECK(is_int26(p.second));
-    DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
-    instr->SetBranchImmTarget(reinterpret_cast<Instruction*>(target));
-  }
-}
-
-void Assembler::FixOnHeapReferencesToHandles() {
-  Address base = reinterpret_cast<Address>(buffer_->start());
-  for (auto p : saved_handles_for_raw_object_ptr_) {
-    WriteUnalignedValue(base + p.first, p.second);
-  }
-  saved_handles_for_raw_object_ptr_.clear();
-  for (auto p : saved_offsets_for_runtime_entries_) {
-    Instruction* instr = reinterpret_cast<Instruction*>(base + p.first);
-    DCHECK(is_int26(p.second));
-    DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
-    instr->SetInstructionBits(instr->Mask(UnconditionalBranchMask) | p.second);
-  }
-  saved_offsets_for_runtime_entries_.clear();
-}
-
 void Assembler::GrowBuffer() {
-  bool previously_on_heap = buffer_->IsOnHeap();
-  int previous_on_heap_gc_count = OnHeapGCCount();
-
   // Compute new buffer size.
   int old_size = buffer_->size();
   int new_size = std::min(2 * old_size, old_size + 1 * MB);
@@ -4351,15 +4316,6 @@ void Assembler::GrowBuffer() {
     intptr_t internal_ref = ReadUnalignedValue<intptr_t>(address);
     internal_ref += pc_delta;
     WriteUnalignedValue<intptr_t>(address, internal_ref);
-  }
-
-  // Fix on-heap references.
-  if (previously_on_heap) {
-    if (buffer_->IsOnHeap()) {
-      FixOnHeapReferences(previous_on_heap_gc_count != OnHeapGCCount());
-    } else {
-      FixOnHeapReferencesToHandles();
-    }
   }
 
   // Pending relocation entries are also relative, no need to relocate.
@@ -4419,13 +4375,15 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
 
 void Assembler::near_jump(int offset, RelocInfo::Mode rmode) {
   BlockPoolsScope no_pool_before_b_instr(this);
-  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
+  if (!RelocInfo::IsNoInfo(rmode))
+    RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
   b(offset);
 }
 
 void Assembler::near_call(int offset, RelocInfo::Mode rmode) {
   BlockPoolsScope no_pool_before_bl_instr(this);
-  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
+  if (!RelocInfo::IsNoInfo(rmode))
+    RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
   bl(offset);
 }
 

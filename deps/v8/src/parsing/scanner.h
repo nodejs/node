@@ -54,7 +54,7 @@ class Utf16CharacterStream {
   inline base::uc32 Peek() {
     if (V8_LIKELY(buffer_cursor_ < buffer_end_)) {
       return static_cast<base::uc32>(*buffer_cursor_);
-    } else if (ReadBlockChecked()) {
+    } else if (ReadBlockChecked(pos())) {
       return static_cast<base::uc32>(*buffer_cursor_);
     } else {
       return kEndOfInput;
@@ -83,7 +83,7 @@ class Utf16CharacterStream {
 
       if (next_cursor_pos == buffer_end_) {
         buffer_cursor_ = buffer_end_;
-        if (!ReadBlockChecked()) {
+        if (!ReadBlockChecked(pos())) {
           buffer_cursor_++;
           return kEndOfInput;
         }
@@ -103,7 +103,7 @@ class Utf16CharacterStream {
     if (V8_LIKELY(buffer_cursor_ > buffer_start_)) {
       buffer_cursor_--;
     } else {
-      ReadBlockAt(pos() - 1);
+      ReadBlockChecked(pos() - 1);
     }
   }
 
@@ -116,7 +116,7 @@ class Utf16CharacterStream {
                   pos < (buffer_pos_ + (buffer_end_ - buffer_start_)))) {
       buffer_cursor_ = buffer_start_ + (pos - buffer_pos_);
     } else {
-      ReadBlockAt(pos);
+      ReadBlockChecked(pos);
     }
   }
 
@@ -151,10 +151,15 @@ class Utf16CharacterStream {
         buffer_pos_(buffer_pos) {}
   Utf16CharacterStream() : Utf16CharacterStream(nullptr, nullptr, nullptr, 0) {}
 
-  bool ReadBlockChecked() {
-    size_t position = pos();
-    USE(position);
-    bool success = !has_parser_error() && ReadBlock();
+  bool ReadBlockChecked(size_t position) {
+    // The callers of this method (Back/Back2/Seek) should handle the easy
+    // case (seeking within the current buffer), and we should only get here
+    // if we actually require new data.
+    // (This is really an efficiency check, not a correctness invariant.)
+    DCHECK(position < buffer_pos_ ||
+           position >= buffer_pos_ + (buffer_end_ - buffer_start_));
+
+    bool success = !has_parser_error() && ReadBlock(position);
 
     // Post-conditions: 1, We should always be at the right position.
     //                  2, Cursor should be inside the buffer.
@@ -166,26 +171,11 @@ class Utf16CharacterStream {
     return success;
   }
 
-  void ReadBlockAt(size_t new_pos) {
-    // The callers of this method (Back/Back2/Seek) should handle the easy
-    // case (seeking within the current buffer), and we should only get here
-    // if we actually require new data.
-    // (This is really an efficiency check, not a correctness invariant.)
-    DCHECK(new_pos < buffer_pos_ ||
-           new_pos >= buffer_pos_ + (buffer_end_ - buffer_start_));
-
-    // Change pos() to point to new_pos.
-    buffer_pos_ = new_pos;
-    buffer_cursor_ = buffer_start_;
-    DCHECK_EQ(pos(), new_pos);
-    ReadBlockChecked();
-  }
-
   // Read more data, and update buffer_*_ to point to it.
   // Returns true if more data was available.
   //
-  // ReadBlock() may modify any of the buffer_*_ members, but must sure that
-  // the result of pos() remains unaffected.
+  // ReadBlock(position) may modify any of the buffer_*_ members, but must make
+  // sure that the result of pos() becomes |position|.
   //
   // Examples:
   // - a stream could either fill a separate buffer. Then buffer_start_ and
@@ -195,8 +185,21 @@ class Utf16CharacterStream {
   //   buffer_end_ to cover the full chunk, and then buffer_cursor_ would
   //   point into the middle of the buffer, while buffer_pos_ would describe
   //   the start of the buffer.
-  virtual bool ReadBlock() = 0;
+  virtual bool ReadBlock(size_t position) = 0;
 
+  // Fields describing the location of the current buffer physically in memory,
+  // and semantically within the source string.
+  //
+  //                  0              buffer_pos_   pos()
+  //                  |                        |   |
+  //                  v________________________v___v_____________
+  //                  |                        |        |        |
+  //   Source string: |                        | Buffer |        |
+  //                  |________________________|________|________|
+  //                                           ^   ^    ^
+  //                                           |   |    |
+  //                   Pointers:   buffer_start_   |    buffer_end_
+  //                                         buffer_cursor_
   const uint16_t* buffer_start_;
   const uint16_t* buffer_cursor_;
   const uint16_t* buffer_end_;

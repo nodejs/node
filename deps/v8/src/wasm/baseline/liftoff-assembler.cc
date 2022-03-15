@@ -481,6 +481,14 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
   InitMergeRegion(this, source_begin + stack_base + discarded,
                   target_begin + stack_base, arity, keep_merge_stack_slots,
                   kConstantsNotAllowed, kNoReuseRegisters, used_regs);
+  // Shift spill offsets down to keep slots contiguous.
+  int offset = stack_base == 0 ? StaticStackFrameSize()
+                               : source.stack_state[stack_base - 1].offset();
+  auto merge_region = base::VectorOf(target_begin + stack_base, arity);
+  for (VarState& var : merge_region) {
+    offset = LiftoffAssembler::NextSpillOffset(var.kind(), offset);
+    var.set_offset(offset);
+  }
 
   // Initialize the locals region. Here, stack slots stay stack slots (because
   // they do not move). Try to keep register in registers, but avoid duplicates.
@@ -708,6 +716,22 @@ void LiftoffAssembler::MaterializeMergedConstants(uint32_t arity) {
   }
 }
 
+#ifdef DEBUG
+namespace {
+bool SlotInterference(const VarState& a, const VarState& b) {
+  return a.is_stack() && b.is_stack() &&
+         b.offset() > a.offset() - element_size_bytes(a.kind()) &&
+         b.offset() - element_size_bytes(b.kind()) < a.offset();
+}
+
+bool SlotInterference(const VarState& a, base::Vector<const VarState> v) {
+  return std::any_of(v.begin(), v.end(), [&a](const VarState& b) {
+    return SlotInterference(a, b);
+  });
+}
+}  // namespace
+#endif
+
 void LiftoffAssembler::MergeFullStackWith(CacheState& target,
                                           const CacheState& source) {
   DCHECK_EQ(source.stack_height(), target.stack_height());
@@ -716,6 +740,9 @@ void LiftoffAssembler::MergeFullStackWith(CacheState& target,
   StackTransferRecipe transfers(this);
   for (uint32_t i = 0, e = source.stack_height(); i < e; ++i) {
     transfers.TransferStackSlot(target.stack_state[i], source.stack_state[i]);
+    DCHECK(!SlotInterference(target.stack_state[i],
+                             base::VectorOf(source.stack_state.data() + i + 1,
+                                            source.stack_height() - i - 1)));
   }
 
   // Full stack merging is only done for forward jumps, so we can just clear the
@@ -745,10 +772,21 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
   for (uint32_t i = 0; i < target_stack_base; ++i) {
     transfers.TransferStackSlot(target.stack_state[i],
                                 cache_state_.stack_state[i]);
+    DCHECK(!SlotInterference(
+        target.stack_state[i],
+        base::VectorOf(cache_state_.stack_state.data() + i + 1,
+                       target_stack_base - i - 1)));
+    DCHECK(!SlotInterference(
+        target.stack_state[i],
+        base::VectorOf(cache_state_.stack_state.data() + stack_base, arity)));
   }
   for (uint32_t i = 0; i < arity; ++i) {
     transfers.TransferStackSlot(target.stack_state[target_stack_base + i],
                                 cache_state_.stack_state[stack_base + i]);
+    DCHECK(!SlotInterference(
+        target.stack_state[i],
+        base::VectorOf(cache_state_.stack_state.data() + stack_base + i + 1,
+                       arity - i - 1)));
   }
 
   // Check whether the cached instance and/or memory start need to be moved to
@@ -1301,7 +1339,7 @@ std::ostream& operator<<(std::ostream& os, VarState slot) {
   os << name(slot.kind()) << ":";
   switch (slot.loc()) {
     case VarState::kStack:
-      return os << "s";
+      return os << "s0x" << std::hex << slot.offset() << std::dec;
     case VarState::kRegister:
       return os << slot.reg();
     case VarState::kIntConst:

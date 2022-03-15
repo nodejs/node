@@ -50,6 +50,9 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   void Movhps(XMMRegister dst, XMMRegister src1, Operand src2);
   void Movlps(XMMRegister dst, XMMRegister src1, Operand src2);
 
+  void Pblendvb(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                XMMRegister mask);
+
   template <typename Op>
   void Pinsrb(XMMRegister dst, XMMRegister src1, Op src2, uint8_t imm8,
               uint32_t* load_pc_offset = nullptr) {
@@ -239,6 +242,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   AVX_OP(Cvtps2pd, cvtps2pd)
   AVX_OP(Cvtsd2ss, cvtsd2ss)
   AVX_OP(Cvtss2sd, cvtss2sd)
+  AVX_OP(Cvttpd2dq, cvttpd2dq)
   AVX_OP(Cvttps2dq, cvttps2dq)
   AVX_OP(Cvttsd2si, cvttsd2si)
   AVX_OP(Cvttss2si, cvttss2si)
@@ -471,6 +475,15 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   void S128Load16Splat(XMMRegister dst, Operand src, XMMRegister scratch);
   void S128Load32Splat(XMMRegister dst, Operand src);
   void S128Store64Lane(Operand dst, XMMRegister src, uint8_t laneidx);
+
+  void F64x2Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, XMMRegister tmp);
+  void F64x2Qfms(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, XMMRegister tmp);
+  void F32x4Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, XMMRegister tmp);
+  void F32x4Qfms(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 XMMRegister src3, XMMRegister tmp);
 
  protected:
   template <typename Op>
@@ -725,6 +738,68 @@ class V8_EXPORT_PRIVATE SharedTurboAssemblerBase : public SharedTurboAssembler {
     }
   }
 
+  void I32x4TruncF64x2UZero(XMMRegister dst, XMMRegister src, Register tmp,
+                            XMMRegister scratch) {
+    // TODO(zhin): call this from I32x4TruncSatF64x2UZero.
+    ASM_CODE_COMMENT(this);
+    if (dst != src && !CpuFeatures::IsSupported(AVX)) {
+      movaps(dst, src);
+      src = dst;
+    }
+    // Same as I32x4TruncSatF64x2UZero but without the saturation.
+    Roundpd(dst, src, kRoundToZero);
+    // Add to special double where significant bits == uint32.
+    Addpd(dst, dst,
+          ExternalReferenceAsOperand(
+              ExternalReference::address_of_wasm_double_2_power_52(), tmp));
+    // Extract low 32 bits of each double's significand, zero top lanes.
+    // dst = [dst[0], dst[2], 0, 0]
+    Shufps(dst, dst, scratch, 0x88);
+  }
+
+  void I32x4TruncF32x4U(XMMRegister dst, XMMRegister src, Register scratch,
+                        XMMRegister tmp) {
+    ASM_CODE_COMMENT(this);
+    Operand int32_overflow_op = ExternalReferenceAsOperand(
+        ExternalReference::address_of_wasm_int32_overflow_as_float(), scratch);
+    if (CpuFeatures::IsSupported(AVX)) {
+      CpuFeatureScope avx_scope(this, AVX);
+      vcmpltps(tmp, src, int32_overflow_op);
+    } else {
+      movaps(tmp, src);
+      cmpltps(tmp, int32_overflow_op);
+    }
+    // In tmp, lanes < INT32_MAX are left alone, other lanes are zeroed.
+    Pand(tmp, src);
+    // tmp = src with all the valid conversions
+    if (dst != src) {
+      Movaps(dst, src);
+    }
+    // In dst, lanes < INT32_MAX are zeroed, other lanes left alone.
+    Pxor(dst, tmp);
+    // tmp contains only lanes which can be converted correctly (<INT32_MAX)
+    Cvttps2dq(tmp, tmp);
+    // Bit-trick follows:
+    // All integers from INT32_MAX to UINT32_MAX that are representable as
+    // floats lie between [0x4f00'0000,0x4f80'0000).
+    // The bit representation of the integers is actually shifted right by 8.
+    // For example given 2147483904.0f (which fits in UINT32_MAX):
+    //
+    // 01001111 000000000 000000000 000000001 (float 0x4f00'0001)
+    //          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    //          these are exactly the top 24 bits of the int representation
+    //          but needs the top bit to be flipped
+    // 10000000 000000000 000000001 000000000 (int 0x8000'0100)
+    //
+    // So what needs to be done is to flip bit 23, which is the lowest bit of
+    // the exponent, which means multiply by 2 (or addps to itself).
+    Addps(dst, dst, dst);
+    // Then shift to get the bit representation of the int.
+    Pslld(dst, byte{8});
+    // Merge the converted lanes and bit shifted lanes.
+    Paddd(dst, tmp);
+  }
+
   void I32x4ExtAddPairwiseI16x8S(XMMRegister dst, XMMRegister src,
                                  Register scratch) {
     ASM_CODE_COMMENT(this);
@@ -834,7 +909,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssemblerBase : public SharedTurboAssembler {
       vpshufb(dst, tmp1, dst);
       vpshufb(tmp2, tmp1, tmp2);
       vpaddb(dst, dst, tmp2);
-    } else if (CpuFeatures::IsSupported(ATOM)) {
+    } else if (CpuFeatures::IsSupported(INTEL_ATOM)) {
       // Pre-Goldmont low-power Intel microarchitectures have very slow
       // PSHUFB instruction, thus use PSHUFB-free divide-and-conquer
       // algorithm on these processors. ATOM CPU feature captures exactly

@@ -30,7 +30,7 @@ class TranslatedState;
 void TranslationArrayPrintSingleFrame(std::ostream& os,
                                       TranslationArray translation_array,
                                       int translation_index,
-                                      FixedArray literal_array);
+                                      DeoptimizationLiteralArray literal_array);
 
 // The Translated{Value,Frame,State} class hierarchy are a set of utility
 // functions to work with the combination of translations (built from a
@@ -382,7 +382,7 @@ class TranslatedState {
 
   void Init(Isolate* isolate, Address input_frame_pointer,
             Address stack_frame_pointer, TranslationArrayIterator* iterator,
-            FixedArray literal_array, RegisterValues* registers,
+            DeoptimizationLiteralArray literal_array, RegisterValues* registers,
             FILE* trace_file, int parameter_count, int actual_argument_count);
 
   void VerifyMaterializedObjects();
@@ -397,13 +397,14 @@ class TranslatedState {
   // details, see the code around ReplaceElementsArrayWithCopy.
   enum Purpose { kDeoptimization, kFrameInspection };
 
-  TranslatedFrame CreateNextTranslatedFrame(TranslationArrayIterator* iterator,
-                                            FixedArray literal_array,
-                                            Address fp, FILE* trace_file);
+  TranslatedFrame CreateNextTranslatedFrame(
+      TranslationArrayIterator* iterator,
+      DeoptimizationLiteralArray literal_array, Address fp, FILE* trace_file);
   int CreateNextTranslatedValue(int frame_index,
                                 TranslationArrayIterator* iterator,
-                                FixedArray literal_array, Address fp,
-                                RegisterValues* registers, FILE* trace_file);
+                                DeoptimizationLiteralArray literal_array,
+                                Address fp, RegisterValues* registers,
+                                FILE* trace_file);
   Address DecompressIfNeeded(intptr_t value);
   void CreateArgumentsElementsTranslatedValues(int frame_index,
                                                Address input_frame_pointer,
@@ -439,7 +440,8 @@ class TranslatedState {
       Handle<Map> map, const DisallowGarbageCollection& no_gc);
 
   void ReadUpdateFeedback(TranslationArrayIterator* iterator,
-                          FixedArray literal_array, FILE* trace_file);
+                          DeoptimizationLiteralArray literal_array,
+                          FILE* trace_file);
 
   TranslatedValue* ResolveCapturedObject(TranslatedValue* slot);
   TranslatedValue* GetValueByObjectIndex(int object_index);

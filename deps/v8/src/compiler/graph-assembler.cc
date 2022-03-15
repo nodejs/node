@@ -378,8 +378,16 @@ Node* GraphAssembler::Int32Constant(int32_t value) {
   return AddClonedNode(mcgraph()->Int32Constant(value));
 }
 
+Node* GraphAssembler::Uint32Constant(uint32_t value) {
+  return AddClonedNode(mcgraph()->Uint32Constant(value));
+}
+
 Node* GraphAssembler::Int64Constant(int64_t value) {
   return AddClonedNode(mcgraph()->Int64Constant(value));
+}
+
+Node* GraphAssembler::Uint64Constant(uint64_t value) {
+  return AddClonedNode(mcgraph()->Uint64Constant(value));
 }
 
 Node* GraphAssembler::UniqueIntPtrConstant(intptr_t value) {
@@ -391,10 +399,6 @@ Node* GraphAssembler::UniqueIntPtrConstant(intptr_t value) {
 
 Node* JSGraphAssembler::SmiConstant(int32_t value) {
   return AddClonedNode(jsgraph()->SmiConstant(value));
-}
-
-Node* GraphAssembler::Uint32Constant(uint32_t value) {
-  return AddClonedNode(mcgraph()->Uint32Constant(value));
 }
 
 Node* GraphAssembler::Float64Constant(double value) {
@@ -572,15 +576,6 @@ TNode<Map> GraphAssembler::LoadMap(Node* object) {
 #else
   return TNode<Map>::UncheckedCast(map_word);
 #endif
-}
-
-void GraphAssembler::StoreMap(Node* object, TNode<Map> map) {
-#ifdef V8_MAP_PACKING
-  map = PackMapWord(map);
-#endif
-  StoreRepresentation rep(MachineType::TaggedRepresentation(),
-                          kMapWriteBarrier);
-  Store(rep, object, HeapObject::kMapOffset - kHeapObjectTag, map);
 }
 
 Node* JSGraphAssembler::StoreElement(ElementAccess const& access, Node* object,

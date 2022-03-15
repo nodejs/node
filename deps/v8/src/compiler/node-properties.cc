@@ -373,7 +373,7 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
     ZoneRefUnorderedSet<MapRef>* maps_out) {
   HeapObjectMatcher m(receiver);
   if (m.HasResolvedValue()) {
-    HeapObjectRef receiver = m.Ref(broker);
+    HeapObjectRef ref = m.Ref(broker);
     // We don't use ICs for the Array.prototype and the Object.prototype
     // because the runtime has to be able to intercept them properly, so
     // we better make sure that TurboFan doesn't outsmart the system here
@@ -381,12 +381,12 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
     //
     // TODO(bmeurer): This can be removed once the Array.prototype and
     // Object.prototype have NO_ELEMENTS elements kind.
-    if (!receiver.IsJSObject() ||
-        !broker->IsArrayOrObjectPrototype(receiver.AsJSObject())) {
-      if (receiver.map().is_stable()) {
+    if (!ref.IsJSObject() ||
+        !broker->IsArrayOrObjectPrototype(ref.AsJSObject())) {
+      if (ref.map().is_stable()) {
         // The {receiver_map} is only reliable when we install a stability
         // code dependency.
-        *maps_out = RefSetOf(broker, receiver.map());
+        *maps_out = RefSetOf(broker, ref.map());
         return kUnreliableMaps;
       }
     }
@@ -442,9 +442,9 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
             access.offset == HeapObject::kMapOffset) {
           if (IsSame(receiver, object)) {
             Node* const value = GetValueInput(effect, 1);
-            HeapObjectMatcher m(value);
-            if (m.HasResolvedValue()) {
-              *maps_out = RefSetOf(broker, m.Ref(broker).AsMap());
+            HeapObjectMatcher m2(value);
+            if (m2.HasResolvedValue()) {
+              *maps_out = RefSetOf(broker, m2.Ref(broker).AsMap());
               return result;
             }
           }
@@ -625,8 +625,7 @@ bool NodeProperties::IsFreshObject(Node* node) {
              callee == Builtin::kWasmAllocateArray_InitNull ||
              callee == Builtin::kWasmAllocateArray_InitZero ||
              callee == Builtin::kWasmAllocateStructWithRtt ||
-             callee == Builtin::kWasmAllocateObjectWrapper ||
-             callee == Builtin::kWasmAllocatePair;
+             callee == Builtin::kWasmAllocateObjectWrapper;
     }
   }
 #endif  // V8_ENABLE_WEBASSEMBLY

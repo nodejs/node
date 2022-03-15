@@ -49,9 +49,10 @@ MaybeHandle<Object> Runtime::GetObjectProperty(
 
   if (!it.IsFound() && key->IsSymbol() &&
       Symbol::cast(*key).is_private_name()) {
-    MessageTemplate message = Symbol::cast(*key).IsPrivateBrand()
-                                  ? MessageTemplate::kInvalidPrivateBrand
-                                  : MessageTemplate::kInvalidPrivateMemberRead;
+    MessageTemplate message =
+        Symbol::cast(*key).IsPrivateBrand()
+            ? MessageTemplate::kInvalidPrivateBrandInstance
+            : MessageTemplate::kInvalidPrivateMemberRead;
     THROW_NEW_ERROR(isolate, NewTypeError(message, key, lookup_start_object),
                     Object);
   }
@@ -124,11 +125,11 @@ void GeneralizeAllTransitionsToFieldAsMutable(Isolate* isolate, Handle<Map> map,
           DCHECK_EQ(*name, target.GetLastDescriptorName(isolate));
           PropertyDetails details = target.GetLastDescriptorDetails(isolate);
           // Currently, we track constness only for fields.
-          if (details.kind() == kData &&
+          if (details.kind() == PropertyKind::kData &&
               details.constness() == PropertyConstness::kConst) {
             target_maps[target_maps_count++] = handle(target, isolate);
           }
-          DCHECK_IMPLIES(details.kind() == kAccessor,
+          DCHECK_IMPLIES(details.kind() == PropertyKind::kAccessor,
                          details.constness() == PropertyConstness::kConst);
         },
         &no_gc);
@@ -360,10 +361,6 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
   Handle<Object> object = args.at(0);
 
   if (object->IsJSModuleNamespace()) {
-    if (key.is_element()) {
-      // Namespace objects can't have indexed properties.
-      return ReadOnlyRoots(isolate).false_value();
-    }
     LookupIterator it(isolate, object, key, LookupIterator::OWN);
     PropertyDescriptor desc;
     Maybe<bool> result = JSReceiver::GetOwnPropertyDescriptor(&it, &desc);
@@ -463,7 +460,8 @@ RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
   DCHECK(name->IsUniqueName());
 
   PropertyDetails property_details(
-      kData, NONE, PropertyDetails::kConstIfDictConstnessTracking);
+      PropertyKind::kData, NONE,
+      PropertyDetails::kConstIfDictConstnessTracking);
   if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     Handle<SwissNameDictionary> dictionary(
         receiver->property_dictionary_swiss(), isolate);
@@ -544,6 +542,40 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
                     NewTypeError(MessageTemplate::kInvalidPrivateMemberWrite,
                                  name_string, object),
                     Object);
+  }
+
+  MAYBE_RETURN_NULL(
+      Object::SetProperty(&it, value, store_origin, should_throw));
+
+  return value;
+}
+
+MaybeHandle<Object> Runtime::DefineObjectOwnProperty(
+    Isolate* isolate, Handle<Object> object, Handle<Object> key,
+    Handle<Object> value, StoreOrigin store_origin,
+    Maybe<ShouldThrow> should_throw) {
+  if (object->IsNullOrUndefined(isolate)) {
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(MessageTemplate::kNonObjectPropertyStore, key, object),
+        Object);
+  }
+
+  // Check if the given key is an array index.
+  bool success = false;
+  PropertyKey lookup_key(isolate, key, &success);
+  if (!success) return MaybeHandle<Object>();
+  LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
+
+  if (it.IsFound() && key->IsSymbol() && Symbol::cast(*key).is_private_name()) {
+    Handle<Symbol> private_symbol = Handle<Symbol>::cast(key);
+    Handle<Object> name_string(private_symbol->description(), isolate);
+    DCHECK(name_string->IsString());
+    MessageTemplate message =
+        private_symbol->is_private_brand()
+            ? MessageTemplate::kInvalidPrivateBrandReinitialization
+            : MessageTemplate::kInvalidPrivateFieldReinitialization;
+    THROW_NEW_ERROR(isolate, NewTypeError(message, name_string), Object);
   }
 
   MAYBE_RETURN_NULL(
@@ -747,7 +779,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
         InternalIndex entry = dictionary.FindEntry(isolate, key);
         if (entry.is_found()) {
           PropertyCell cell = dictionary.CellAt(entry);
-          if (cell.property_details().kind() == kData) {
+          if (cell.property_details().kind() == PropertyKind::kData) {
             Object value = cell.value();
             if (!value.IsTheHole(isolate)) return value;
             // If value is the hole (meaning, absent) do the general lookup.
@@ -760,7 +792,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
               lookup_start_object->property_dictionary_swiss();
           InternalIndex entry = dictionary.FindEntry(isolate, *key);
           if (entry.is_found() &&
-              (dictionary.DetailsAt(entry).kind() == kData)) {
+              (dictionary.DetailsAt(entry).kind() == PropertyKind::kData)) {
             return dictionary.ValueAt(entry);
           }
         } else {
@@ -768,7 +800,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
               lookup_start_object->property_dictionary();
           InternalIndex entry = dictionary.FindEntry(isolate, key);
           if ((entry.is_found()) &&
-              (dictionary.DetailsAt(entry).kind() == kData)) {
+              (dictionary.DetailsAt(entry).kind() == PropertyKind::kData)) {
             return dictionary.ValueAt(entry);
           }
         }
@@ -795,11 +827,11 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
   } else if (lookup_start_obj->IsString() && key_obj->IsSmi()) {
     // Fast case for string indexing using [] with a smi index.
     Handle<String> str = Handle<String>::cast(lookup_start_obj);
-    int index = Handle<Smi>::cast(key_obj)->value();
-    if (index >= 0 && index < str->length()) {
+    int smi_index = Handle<Smi>::cast(key_obj)->value();
+    if (smi_index >= 0 && smi_index < str->length()) {
       Factory* factory = isolate->factory();
       return *factory->LookupSingleCharacterStringFromCode(
-          String::Flatten(isolate, str)->Get(index));
+          String::Flatten(isolate, str)->Get(smi_index));
     }
   }
 
@@ -820,6 +852,19 @@ RUNTIME_FUNCTION(Runtime_SetKeyedProperty) {
   RETURN_RESULT_OR_FAILURE(
       isolate, Runtime::SetObjectProperty(isolate, object, key, value,
                                           StoreOrigin::kMaybeKeyed));
+}
+
+RUNTIME_FUNCTION(Runtime_DefineObjectOwnProperty) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Runtime::DefineObjectOwnProperty(isolate, object, key, value,
+                                                StoreOrigin::kMaybeKeyed));
 }
 
 RUNTIME_FUNCTION(Runtime_SetNamedProperty) {
@@ -990,7 +1035,7 @@ RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTrackingForMap) {
   DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(Map, initial_map, 0);
-  initial_map->CompleteInobjectSlackTracking(isolate);
+  MapUpdater::CompleteInobjectSlackTracking(isolate, *initial_map);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -1050,16 +1095,16 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
     DCHECK(maybe_vector->IsFeedbackVector());
     Handle<FeedbackVector> vector = Handle<FeedbackVector>::cast(maybe_vector);
     FeedbackNexus nexus(vector, FeedbackVector::ToSlot(index));
-    if (nexus.ic_state() == UNINITIALIZED) {
+    if (nexus.ic_state() == InlineCacheState::UNINITIALIZED) {
       if (name->IsUniqueName()) {
         nexus.ConfigureMonomorphic(name, handle(object->map(), isolate),
                                    MaybeObjectHandle());
       } else {
-        nexus.ConfigureMegamorphic(PROPERTY);
+        nexus.ConfigureMegamorphic(IcCheckType::kProperty);
       }
-    } else if (nexus.ic_state() == MONOMORPHIC) {
+    } else if (nexus.ic_state() == InlineCacheState::MONOMORPHIC) {
       if (nexus.GetFirstMap() != object->map() || nexus.GetName() != *name) {
-        nexus.ConfigureMegamorphic(PROPERTY);
+        nexus.ConfigureMegamorphic(IcCheckType::kProperty);
       }
     }
   }
@@ -1398,53 +1443,6 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateAccessors) {
   Handle<AccessorPair> pair = isolate->factory()->NewAccessorPair();
   pair->SetComponents(args[0], args[1]);
   return *pair;
-}
-
-RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(args.length(), 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Symbol, brand, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Context, context, 2);
-  DCHECK(brand->is_private_name());
-
-  LookupIterator it(isolate, receiver, brand, LookupIterator::OWN);
-
-  if (it.IsFound()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kInvalidPrivateBrandReinitialization,
-                     brand));
-  }
-
-  PropertyAttributes attributes =
-      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-  CHECK(Object::AddDataProperty(&it, context, attributes, Just(kDontThrow),
-                                StoreOrigin::kMaybeKeyed)
-            .FromJust());
-  return *receiver;
-}
-
-RUNTIME_FUNCTION(Runtime_AddPrivateField) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, o, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Symbol, key, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  DCHECK(key->is_private_name());
-
-  LookupIterator it(isolate, o, key, LookupIterator::OWN);
-
-  if (it.IsFound()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kInvalidPrivateFieldReitialization, key));
-  }
-
-  CHECK(Object::AddDataProperty(&it, value, NONE, Just(kDontThrow),
-                                StoreOrigin::kMaybeKeyed)
-            .FromJust());
-  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 // TODO(v8:11330) This is only here while the CSA/Torque implementaton of

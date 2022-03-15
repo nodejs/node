@@ -316,22 +316,19 @@ functions called by `foo`. Outside of `run`, calling `getStore` will return
 
 ### Troubleshooting: Context loss
 
-In most cases your application or library code should have no issues with
-`AsyncLocalStorage`. But in rare cases you may face situations when the
-current store is lost in one of the asynchronous operations. In those cases,
-consider the following options.
+In most cases, `AsyncLocalStorage` works without issues. In rare situations, the
+current store is lost in one of the asynchronous operations.
 
 If your code is callback-based, it is enough to promisify it with
-[`util.promisify()`][], so it starts working with native promises.
+[`util.promisify()`][] so it starts working with native promises.
 
-If you need to keep using callback-based API, or your code assumes
+If you need to use a callback-based API or your code assumes
 a custom thenable implementation, use the [`AsyncResource`][] class
-to associate the asynchronous operation with the correct execution context. To
-do so, you will need to identify the function call responsible for the
-context loss. You can do that by logging the content of
-`asyncLocalStorage.getStore()` after the calls you suspect are responsible for
-the loss. When the code logs `undefined`, the last callback called is probably
-responsible for the context loss.
+to associate the asynchronous operation with the correct execution context.
+Find the function call responsible for the context loss by logging the content
+of `asyncLocalStorage.getStore()` after the calls you suspect are responsible
+for the loss. When the code logs `undefined`, the last callback called is
+probably responsible for the context loss.
 
 ## Class: `AsyncResource`
 
@@ -449,6 +446,10 @@ added:
   - v14.8.0
   - v12.19.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42177
+    description: Changed the default when `thisArg` is undefined to use `this`
+                 from the caller.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/36782
     description: Added optional thisArg.
@@ -471,6 +472,10 @@ added:
   - v14.8.0
   - v12.19.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42177
+    description: Changed the default when `thisArg` is undefined to use `this`
+                 from the caller.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/36782
     description: Added optional thisArg.

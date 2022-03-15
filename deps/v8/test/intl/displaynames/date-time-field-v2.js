@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony_intl_displaynames_v2
-
 const dateTimeFields = [
     'era', 'year', 'quarter', 'month', 'weekOfYear', 'weekday', 'day',
     'dayPeriod', 'hour', 'minute', 'second', 'timeZoneName'

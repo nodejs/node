@@ -1,0 +1,174 @@
+# Copyright 2021 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+load("@bazel_skylib//lib:selects.bzl", "selects")
+load(
+    ":v8-target-cpu.bzl",
+    "v8_configure_target_cpu",
+    "v8_target_cpu",
+)
+
+package(
+    default_visibility = [
+        "//visibility:public",
+    ],
+)
+
+config_setting(
+    name = "platform_cpu_x64",
+    constraint_values = ["@platforms//cpu:x86_64"],
+)
+
+config_setting(
+    name = "platform_cpu_ia32",
+    constraint_values = ["@platforms//cpu:x86_32"],
+)
+
+config_setting(
+    name = "platform_cpu_arm64",
+    constraint_values = ["@platforms//cpu:arm"],
+)
+
+config_setting(
+    name = "platform_cpu_arm",
+    constraint_values = ["@platforms//cpu:arm"],
+)
+
+v8_target_cpu(
+    name = "v8_target_cpu",
+    build_setting_default = "none",
+)
+
+config_setting(
+    name = "v8_host_target_is_none",
+    flag_values = {
+        ":v8_target_cpu": "none",
+    },
+)
+
+v8_configure_target_cpu(
+    name = "x64",
+    matching_configs = [":platform_cpu_x64"],
+)
+
+v8_configure_target_cpu(
+    name = "ia32",
+    matching_configs = [":platform_cpu_ia32"],
+)
+
+v8_configure_target_cpu(
+    name = "arm",
+    matching_configs = [":platform_cpu_arm64"],
+)
+
+v8_configure_target_cpu(
+    name = "arm64",
+    matching_configs = [":platform_cpu_arm"],
+)
+
+selects.config_setting_group(
+    name = "v8_target_is_32_bits",
+    match_any = [
+        ":v8_target_ia32",
+        ":v8_target_arm",
+    ],
+)
+
+# Running arm64 simulator on x64 host.
+selects.config_setting_group(
+    name = "v8_arm64_simulator",
+    match_all = [
+        ":v8_target_arm64",
+        ":is_x64",
+    ],
+)
+
+config_setting(
+    name = "is_linux",
+    constraint_values = ["@platforms//os:linux"],
+)
+
+config_setting(
+    name = "is_android",
+    constraint_values = ["@platforms//os:android"],
+)
+
+config_setting(
+    name = "is_macos",
+    constraint_values = ["@platforms//os:macos"],
+)
+
+config_setting(
+    name = "is_windows",
+    constraint_values = ["@platforms//os:windows"],
+)
+
+selects.config_setting_group(
+    name = "is_64bit",
+    match_any = [
+        ":v8_target_arm64",
+        ":is_x64",
+        ":is_arm64",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_windows_64bit",
+    match_all = [
+        ":is_64bit",
+        ":is_windows",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_posix",
+    match_any = [
+        ":is_linux",
+        ":is_android",
+        ":is_macos",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_posix_x64",
+    match_all = [
+        ":is_posix",
+        ":is_x64",
+    ]
+)
+
+selects.config_setting_group(
+    name = "is_inline_asm_x64",
+    match_all = [":is_posix", ":is_x64"],
+)
+
+selects.config_setting_group(
+    name = "is_inline_asm_ia32",
+    match_all = [":is_posix", ":is_ia32"],
+)
+
+selects.config_setting_group(
+    name = "is_inline_asm_arm64",
+    match_all = [":is_posix", ":is_arm64"],
+)
+
+selects.config_setting_group(
+    name = "is_inline_asm_arm",
+    match_all = [":is_posix", ":is_arm"],
+)
+
+selects.config_setting_group(
+    name = "is_msvc_asm_x64",
+    match_all = [":is_windows", ":is_x64"],
+)
+
+selects.config_setting_group(
+    name = "is_msvc_asm_ia32",
+    match_all = [":is_windows", ":is_ia32"],
+)
+
+selects.config_setting_group(
+    name = "is_msvc_asm_arm64",
+    match_all = [":is_windows", ":is_arm64"],
+)

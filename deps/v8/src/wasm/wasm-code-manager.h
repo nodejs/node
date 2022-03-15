@@ -61,7 +61,6 @@ struct WasmModule;
   V(WasmFloat64ToNumber)                  \
   V(WasmTaggedToFloat64)                  \
   V(WasmAllocateJSArray)                  \
-  V(WasmAllocatePair)                     \
   V(WasmAtomicNotify)                     \
   V(WasmI32AtomicWait32)                  \
   V(WasmI32AtomicWait64)                  \
@@ -81,11 +80,13 @@ struct WasmModule;
   V(WasmAllocateFixedArray)               \
   V(WasmThrow)                            \
   V(WasmRethrow)                          \
+  V(WasmRethrowExplicitContext)           \
   V(WasmTraceEnter)                       \
   V(WasmTraceExit)                        \
   V(WasmTraceMemory)                      \
   V(BigIntToI32Pair)                      \
   V(BigIntToI64)                          \
+  V(CallRefIC)                            \
   V(DoubleToI)                            \
   V(I32PairToBigInt)                      \
   V(I64ToBigInt)                          \
@@ -117,6 +118,7 @@ struct WasmModule;
   V(WasmAllocateArray_Uninitialized)      \
   V(WasmAllocateArray_InitNull)           \
   V(WasmAllocateArray_InitZero)           \
+  V(WasmArrayCopy)                        \
   V(WasmArrayCopyWithChecks)              \
   V(WasmAllocateRtt)                      \
   V(WasmAllocateFreshRtt)                 \
@@ -502,6 +504,9 @@ class WasmCodeAllocator {
 #if V8_TARGET_ARCH_ARM64
   // ARM64 only supports direct calls within a 128 MB range.
   static constexpr size_t kMaxCodeSpaceSize = 128 * MB;
+#elif V8_TARGET_ARCH_PPC64
+  // branches only takes 26 bits
+  static constexpr size_t kMaxCodeSpaceSize = 32 * MB;
 #else
   // Use 1024 MB limit for code spaces on other platforms. This is smaller than
   // the total allowed code space (kMaxWasmCodeMemory) to avoid unnecessarily
@@ -558,6 +563,8 @@ class WasmCodeAllocator {
   // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
   size_t GetNumCodeSpaces() const;
 
+  Counters* counters() const { return async_counters_.get(); }
+
  private:
   // Sentinel value to be used for {AllocateForCodeInRegion} for specifying no
   // restriction on the region to allocate in.
@@ -601,7 +608,8 @@ class WasmCodeAllocator {
 
 class V8_EXPORT_PRIVATE NativeModule final {
  public:
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_ARM64 || \
+    V8_TARGET_ARCH_PPC64
   static constexpr bool kNeedsFarJumpsBetweenCodeSpaces = true;
 #else
   static constexpr bool kNeedsFarJumpsBetweenCodeSpaces = false;
@@ -833,9 +841,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Get or create the debug info for this NativeModule.
   DebugInfo* GetDebugInfo();
 
-  uint32_t* num_liftoff_function_calls_array() {
-    return num_liftoff_function_calls_.get();
-  }
+  uint32_t* tiering_budget_array() { return tiering_budgets_.get(); }
+
+  Counters* counters() const { return code_allocator_.counters(); }
 
  private:
   friend class WasmCode;
@@ -938,7 +946,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::unique_ptr<WasmImportWrapperCache> import_wrapper_cache_;
 
   // Array to handle number of function calls.
-  std::unique_ptr<uint32_t[]> num_liftoff_function_calls_;
+  std::unique_ptr<uint32_t[]> tiering_budgets_;
 
   // This mutex protects concurrent calls to {AddCode} and friends.
   // TODO(dlehmann): Revert this to a regular {Mutex} again.
@@ -1037,8 +1045,13 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // lock when calling this method.
   void SetThreadWritable(bool writable);
 
-  // Returns true if there is PKU support, false otherwise.
+  // Returns true if there is hardware support for PKU. Use
+  // {MemoryProtectionKeysEnabled} to also check if PKU usage is enabled via
+  // flags.
   bool HasMemoryProtectionKeySupport() const;
+
+  // Returns true if PKU should be used.
+  bool MemoryProtectionKeysEnabled() const;
 
   // Returns {true} if the memory protection key is write-enabled for the
   // current thread.
@@ -1048,6 +1061,10 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // This allocates a memory protection key (if none was allocated before),
   // independent of the --wasm-memory-protection-keys flag.
   void InitializeMemoryProtectionKeyForTesting();
+
+  // Initialize the current thread's permissions for the memory protection key,
+  // if we have support.
+  void InitializeMemoryProtectionKeyPermissionsIfSupported() const;
 
  private:
   friend class WasmCodeAllocator;

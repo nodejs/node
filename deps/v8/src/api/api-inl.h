@@ -111,7 +111,7 @@ MAKE_TO_LOCAL(CallableToLocal, JSReceiver, Function)
 MAKE_TO_LOCAL(ToLocalPrimitive, Object, Primitive)
 MAKE_TO_LOCAL(FixedArrayToLocal, FixedArray, FixedArray)
 MAKE_TO_LOCAL(PrimitiveArrayToLocal, FixedArray, PrimitiveArray)
-MAKE_TO_LOCAL(ScriptOrModuleToLocal, Script, ScriptOrModule)
+MAKE_TO_LOCAL(ToLocal, ScriptOrModule, ScriptOrModule)
 
 #undef MAKE_TO_LOCAL_TYPED_ARRAY
 #undef MAKE_TO_LOCAL
@@ -318,6 +318,7 @@ inline bool V8_EXPORT TryToCopyAndConvertArrayToCppBuffer(Local<Array> src,
 namespace internal {
 
 Handle<Context> HandleScopeImplementer::LastEnteredContext() {
+  DCHECK_EQ(entered_contexts_.capacity(), is_microtask_context_.capacity());
   DCHECK_EQ(entered_contexts_.size(), is_microtask_context_.size());
 
   for (size_t i = 0; i < entered_contexts_.size(); ++i) {

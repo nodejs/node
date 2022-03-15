@@ -15,8 +15,7 @@ namespace base {
 // Defines the page initialization mode of a BoundedPageAllocator.
 enum class PageInitializationMode {
   // The contents of allocated pages must be zero initialized. This causes any
-  // committed pages to be decommitted during FreePages and ReleasePages. This
-  // requires the embedder to provide the PageAllocator::DecommitPages API.
+  // committed pages to be decommitted during FreePages and ReleasePages.
   kAllocatedPagesMustBeZeroInitialized,
   // Allocated pages do not have to be be zero initialized and can contain old
   // data. This is slightly faster as comitted pages are not decommitted

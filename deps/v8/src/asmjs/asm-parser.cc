@@ -239,7 +239,7 @@ void AsmJsParser::DeclareGlobal(VarInfo* info, bool mutable_variable,
                                 WasmInitExpr init) {
   info->kind = VarKind::kGlobal;
   info->type = type;
-  info->index = module_builder_->AddGlobal(vtype, true, std::move(init));
+  info->index = module_builder_->AddGlobal(vtype, true, init);
   info->mutable_variable = mutable_variable;
 }
 
@@ -398,12 +398,18 @@ void AsmJsParser::ValidateModuleParameters() {
         FAIL("Expected foreign parameter");
       }
       foreign_name_ = Consume();
+      if (stdlib_name_ == foreign_name_) {
+        FAIL("Duplicate parameter name");
+      }
       if (!Peek(')')) {
         EXPECT_TOKEN(',');
         if (!scanner_.IsGlobal()) {
           FAIL("Expected heap parameter");
         }
         heap_name_ = Consume();
+        if (heap_name_ == stdlib_name_ || heap_name_ == foreign_name_) {
+          FAIL("Duplicate parameter name");
+        }
       }
     }
   }

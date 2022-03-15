@@ -281,6 +281,12 @@ class V8_EXPORT Isolate {
      */
     int embedder_wrapper_type_index = -1;
     int embedder_wrapper_object_index = -1;
+
+    /**
+     * The following parameter is experimental and may change significantly.
+     * This is currently for internal testing.
+     */
+    Isolate* experimental_attach_to_shared_isolate = nullptr;
   };
 
   /**
@@ -586,6 +592,11 @@ class V8_EXPORT Isolate {
   static Isolate* TryGetCurrent();
 
   /**
+   * Return true if this isolate is currently active.
+   **/
+  bool IsCurrent() const;
+
+  /**
    * Clears the set of objects held strongly by the heap. This set of
    * objects are originally built when a WeakRef is created or
    * successfully dereferenced.
@@ -617,8 +628,11 @@ class V8_EXPORT Isolate {
    * This specifies the callback called by the upcoming dynamic
    * import() language feature to load modules.
    */
+  V8_DEPRECATE_SOON("Use HostImportModuleDynamicallyCallback")
   void SetHostImportModuleDynamicallyCallback(
       HostImportModuleDynamicallyWithImportAssertionsCallback callback);
+  void SetHostImportModuleDynamicallyCallback(
+      HostImportModuleDynamicallyCallback callback);
 
   /**
    * This specifies the callback called by the upcoming import.meta
@@ -900,11 +914,13 @@ class V8_EXPORT Isolate {
 
   /**
    * Sets the embedder heap tracer for the isolate.
+   * SetEmbedderHeapTracer cannot be used simultaneously with AttachCppHeap.
    */
   void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
 
   /*
-   * Gets the currently active heap tracer for the isolate.
+   * Gets the currently active heap tracer for the isolate that was set with
+   * SetEmbedderHeapTracer.
    */
   EmbedderHeapTracer* GetEmbedderHeapTracer();
 
@@ -924,6 +940,7 @@ class V8_EXPORT Isolate {
    * Attaches a managed C++ heap as an extension to the JavaScript heap. The
    * embedder maintains ownership of the CppHeap. At most one C++ heap can be
    * attached to V8.
+   * AttachCppHeap cannot be used simultaneously with SetEmbedderHeapTracer.
    *
    * This is an experimental feature and may still change significantly.
    */
@@ -1119,6 +1136,21 @@ class V8_EXPORT Isolate {
    * schedule.
    */
   void RequestGarbageCollectionForTesting(GarbageCollectionType type);
+
+  /**
+   * Request garbage collection with a specific embedderstack state in this
+   * Isolate. It is only valid to call this function if --expose_gc was
+   * specified.
+   *
+   * This should only be used for testing purposes and not to enforce a garbage
+   * collection schedule. It has strong negative impact on the garbage
+   * collection performance. Use IdleNotificationDeadline() or
+   * LowMemoryNotification() instead to influence the garbage collection
+   * schedule.
+   */
+  void RequestGarbageCollectionForTesting(
+      GarbageCollectionType type,
+      EmbedderHeapTracer::EmbedderStackState stack_state);
 
   /**
    * Set the callback to invoke for logging event.

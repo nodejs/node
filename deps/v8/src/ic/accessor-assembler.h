@@ -42,6 +42,9 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void GenerateStoreIC();
   void GenerateStoreICTrampoline();
   void GenerateStoreICBaseline();
+  void GenerateStoreOwnIC();
+  void GenerateStoreOwnICTrampoline();
+  void GenerateStoreOwnICBaseline();
   void GenerateStoreGlobalIC();
   void GenerateStoreGlobalICTrampoline();
   void GenerateStoreGlobalICBaseline();
@@ -63,6 +66,10 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void GenerateKeyedStoreICTrampoline();
   void GenerateKeyedStoreICBaseline();
 
+  void GenerateKeyedDefineOwnIC();
+  void GenerateKeyedDefineOwnICTrampoline();
+  void GenerateKeyedDefineOwnICBaseline();
+
   void GenerateStoreInArrayLiteralIC();
   void GenerateStoreInArrayLiteralICBaseline();
 
@@ -76,8 +83,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     return StubCachePrimaryOffset(name, map);
   }
   TNode<IntPtrT> StubCacheSecondaryOffsetForTesting(TNode<Name> name,
-                                                    TNode<IntPtrT> seed) {
-    return StubCacheSecondaryOffset(name, seed);
+                                                    TNode<Map> map) {
+    return StubCacheSecondaryOffset(name, map);
   }
 
   struct LoadICParameters {
@@ -190,17 +197,24 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                                           int data_index);
 
  protected:
+  enum class StoreICMode {
+    kDefault,
+    kStoreOwn,
+    kDefineOwn,
+  };
   struct StoreICParameters {
     StoreICParameters(TNode<Context> context,
                       base::Optional<TNode<Object>> receiver,
                       TNode<Object> name, TNode<Object> value,
-                      TNode<TaggedIndex> slot, TNode<HeapObject> vector)
+                      TNode<TaggedIndex> slot, TNode<HeapObject> vector,
+                      StoreICMode mode)
         : context_(context),
           receiver_(receiver),
           name_(name),
           value_(value),
           slot_(slot),
-          vector_(vector) {}
+          vector_(vector),
+          mode_(mode) {}
 
     TNode<Context> context() const { return context_; }
     TNode<Object> receiver() const { return receiver_.value(); }
@@ -213,6 +227,10 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
     bool receiver_is_null() const { return !receiver_.has_value(); }
 
+    bool IsStoreOwn() const { return mode_ == StoreICMode::kStoreOwn; }
+    bool IsDefineOwn() const { return mode_ == StoreICMode::kDefineOwn; }
+    bool IsAnyStoreOwn() const { return IsStoreOwn() || IsDefineOwn(); }
+
    private:
     TNode<Context> context_;
     base::Optional<TNode<Object>> receiver_;
@@ -220,6 +238,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     TNode<Object> value_;
     TNode<TaggedIndex> slot_;
     TNode<HeapObject> vector_;
+    StoreICMode mode_;
   };
 
   enum class LoadAccessMode { kLoad, kHas };
@@ -229,6 +248,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
       const StoreICParameters* p, TNode<MaybeObject> handler, Label* miss,
       ICMode ic_mode, ElementSupport support_elements = kOnlyProperties);
   enum StoreTransitionMapFlags {
+    kDontCheckPrototypeValidity = 0,
     kCheckPrototypeValidity = 1 << 0,
     kValidateTransitionHandler = 1 << 1,
     kStoreTransitionMapFlagsMask =
@@ -289,12 +309,14 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void KeyedLoadICGeneric(const LoadICParameters* p);
   void KeyedLoadICPolymorphicName(const LoadICParameters* p,
                                   LoadAccessMode access_mode);
+
   void StoreIC(const StoreICParameters* p);
   void StoreGlobalIC(const StoreICParameters* p);
   void StoreGlobalIC_PropertyCellCase(TNode<PropertyCell> property_cell,
                                       TNode<Object> value,
                                       ExitPoint* exit_point, Label* miss);
   void KeyedStoreIC(const StoreICParameters* p);
+  void KeyedDefineOwnIC(const StoreICParameters* p);
   void StoreInArrayLiteralIC(const StoreICParameters* p);
 
   // IC dispatcher behavior.
@@ -446,7 +468,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   // Low-level helpers.
 
-  using OnCodeHandler = std::function<void(TNode<Code> code_handler)>;
+  using OnCodeHandler = std::function<void(TNode<CodeT> code_handler)>;
   using OnFoundOnLookupStartObject = std::function<void(
       TNode<PropertyDictionary> properties, TNode<IntPtrT> name_index)>;
 
@@ -492,8 +514,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   enum StubCacheTable : int;
 
   TNode<IntPtrT> StubCachePrimaryOffset(TNode<Name> name, TNode<Map> map);
-  TNode<IntPtrT> StubCacheSecondaryOffset(TNode<Name> name,
-                                          TNode<IntPtrT> seed);
+  TNode<IntPtrT> StubCacheSecondaryOffset(TNode<Name> name, TNode<Map> map);
 
   void TryProbeStubCacheTable(StubCache* stub_cache, StubCacheTable table_id,
                               TNode<IntPtrT> entry_offset, TNode<Object> name,

@@ -189,6 +189,11 @@ class MemoryChunk : public BasicMemoryChunk {
   // MemoryChunk::synchronized_heap() to simulate the barrier.
   void InitializationMemoryFence();
 
+  static PageAllocator::Permission GetCodeModificationPermission() {
+    return FLAG_write_code_using_rwx ? PageAllocator::kReadWriteExecute
+                                     : PageAllocator::kReadWrite;
+  }
+
   V8_EXPORT_PRIVATE void SetReadable();
   V8_EXPORT_PRIVATE void SetReadAndExecutable();
 

@@ -26,5 +26,6 @@
   "v8_control_flow_integrity": false,
   "v8_enable_single_generation": false,
   "v8_enable_third_party_heap": false,
-  "v8_enable_webassembly": true
+  "v8_enable_webassembly": true,
+  "v8_dict_property_const_tracking": false
 }

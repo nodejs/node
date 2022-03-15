@@ -1,7 +1,6 @@
 const libexec = require('libnpmexec')
 const BaseCommand = require('../base-command.js')
 const getLocationMsg = require('../exec/get-workspace-location-msg.js')
-const log = require('../utils/log-shim')
 
 // it's like this:
 //
@@ -46,6 +45,8 @@ class Exec extends BaseCommand {
     '--package=foo -c \'<cmd> [args...]\'',
   ]
 
+  static ignoreImplicitWorkspace = false
+
   async exec (_args, { locationMsg, path, runPath } = {}) {
     if (!path) {
       path = this.npm.localPrefix
@@ -77,7 +78,6 @@ class Exec extends BaseCommand {
       call,
       localBin,
       locationMsg,
-      log,
       globalBin,
       output,
       packages,

@@ -598,8 +598,13 @@ class V8_EXPORT Object : public Value {
   Local<Context> CreationContext();
   MaybeLocal<Context> GetCreationContext();
 
+  /**
+   * Shortcut for GetCreationContext().ToLocalChecked().
+   **/
+  Local<Context> GetCreationContextChecked();
+
   /** Same as above, but works for Persistents */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use MaybeLocal<Context> GetCreationContext(const "
       "PersistentBase<Object>& object)")
   static Local<Context> CreationContext(const PersistentBase<Object>& object);

@@ -73,9 +73,6 @@
   'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [FAIL],
   'language/expressions/assignment/destructuring/keyed-destructuring-property-reference-target-evaluation-order': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10379
-  'built-ins/RegExp/named-groups/non-unicode-property-names-valid': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4628
   'language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-func-decl-declare-arguments': [FAIL],
   'language/eval-code/direct/async-gen-func-decl-fn-body-cntns-arguments-func-decl-declare-arguments-and-assign': [FAIL],
@@ -283,50 +280,9 @@
   # http://crbug/v8/11533
   'language/statements/class/subclass/default-constructor-spread-override': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=11690
-  'language/module-code/export-expname-binding-index': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=11111
   'built-ins/ArrayBuffer/prototype/transfer/*': [FAIL],
   'built-ins/ArrayBuffer/prototype/transfer/this-is-sharedarraybuffer': [PASS],
-  'built-ins/DataView/prototype/byteLength/resizable-array-buffer-auto': [FAIL],
-  'built-ins/DataView/prototype/byteLength/resizable-array-buffer-fixed': [FAIL],
-  'built-ins/DataView/prototype/byteOffset/resizable-array-buffer-auto': [FAIL],
-  'built-ins/DataView/prototype/byteOffset/resizable-array-buffer-fixed': [FAIL],
-  'built-ins/DataView/prototype/getBigInt64/resizable-buffer': [FAIL],
-  'built-ins/DataView/prototype/getBigUint64/resizable-buffer': [FAIL],
-  'built-ins/DataView/prototype/getFloat32/resizable-buffer': [FAIL],
-  'built-ins/DataView/prototype/getFloat64/resizable-buffer': [FAIL],
-  'built-ins/DataView/prototype/getInt16/resizable-buffer': [FAIL],
-  'built-ins/DataView/prototype/getInt32/resizable-buffer': [FAIL],
-  'built-ins/DataView/prototype/getInt8/resizable-buffer': [FAIL],
-  'built-ins/DataView/prototype/getUint16/resizable-buffer': [FAIL],
-  'built-ins/DataView/prototype/getUint32/resizable-buffer': [FAIL],
-  'built-ins/DataView/prototype/getUint8/resizable-buffer': [FAIL],
-  'built-ins/DataView/prototype/setBigInt64/resizable-buffer': [FAIL],
-  'built-ins/DataView/prototype/setBigUint64/resizable-buffer': [FAIL],
-  'built-ins/DataView/prototype/setFloat32/resizable-buffer': [FAIL],
-  'built-ins/DataView/prototype/setFloat64/resizable-buffer': [FAIL],
-  'built-ins/DataView/prototype/setInt16/resizable-buffer': [FAIL],
-  'built-ins/DataView/prototype/setInt32/resizable-buffer': [FAIL],
-  'built-ins/DataView/prototype/setInt8/resizable-buffer': [FAIL],
-  'built-ins/DataView/prototype/setUint16/resizable-buffer': [FAIL],
-  'built-ins/DataView/prototype/setUint32/resizable-buffer': [FAIL],
-  'built-ins/DataView/prototype/setUint8/resizable-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/filter/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/filter/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/find/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/findIndex/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/findIndex/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/findLast/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/findLastIndex/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/findLastIndex/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/findLast/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/find/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/forEach/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/forEach/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/includes/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/includes/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArray/prototype/indexOf/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArray/prototype/indexOf/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArray/prototype/join/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
@@ -335,10 +291,6 @@
   'built-ins/TypedArray/prototype/lastIndexOf/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArray/prototype/map/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArray/prototype/map/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/reduce/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/reduce/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/reduceRight/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
-  'built-ins/TypedArray/prototype/reduceRight/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArray/prototype/reverse/BigInt/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArray/prototype/reverse/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArray/prototype/set/BigInt/typedarray-arg-target-out-of-bounds': [SKIP],
@@ -350,10 +302,69 @@
   'built-ins/TypedArray/prototype/toLocaleString/return-abrupt-from-this-out-of-bounds': [SKIP],
   'built-ins/TypedArrayConstructors/ctors/typedarray-arg/out-of-bounds-when-species-retrieved-different-type': [FAIL],
   'built-ins/TypedArrayConstructors/ctors/typedarray-arg/out-of-bounds-when-species-retrieved-same-type': [FAIL],
+  'built-ins/Array/prototype/every/callbackfn-resize-arraybuffer': [FAIL],
+  'built-ins/Array/prototype/filter/callbackfn-resize-arraybuffer': [FAIL],
+  'built-ins/Array/prototype/forEach/callbackfn-resize-arraybuffer': [FAIL],
+  'built-ins/Array/prototype/map/callbackfn-resize-arraybuffer': [FAIL],
+  'built-ins/Array/prototype/reduce/callbackfn-resize-arraybuffer': [FAIL],
+  'built-ins/Array/prototype/reduceRight/callbackfn-resize-arraybuffer': [FAIL],
+  'built-ins/Array/prototype/some/callbackfn-resize-arraybuffer': [FAIL],
+  'built-ins/TypedArray/prototype/map/callbackfn-resize': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=11544
   'built-ins/Temporal/*': [FAIL],
   'intl402/Temporal/*': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-resolved-time-zone': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-resolved-time-zone': [FAIL],
+  'intl402/DateTimeFormat/prototype/format/temporal-objects-resolved-time-zone': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-resolved-time-zone': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-timezone-getoffsetnanosecondsfor-not-callable': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-timezone-getoffsetnanosecondsfor-not-callable': [FAIL],
+  'intl402/DateTimeFormat/prototype/format/temporal-objects-timezone-getoffsetnanosecondsfor-not-callable': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-timezone-getoffsetnanosecondsfor-not-callable': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10776
+  'intl402/NumberFormat/constructor-options-roundingMode-invalid': [FAIL],
+  'intl402/NumberFormat/constructor-options-throwing-getters-rounding-mode': [FAIL],
+  'intl402/NumberFormat/constructor-signDisplay-negative': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-rounding-mode-ceil': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-rounding-mode-expand': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-rounding-mode-floor': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-rounding-mode-half-ceil': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-rounding-mode-half-even': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-rounding-mode-half-floor': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-rounding-mode-half-trunc': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-rounding-mode-trunc': [FAIL],
+  'intl402/NumberFormat/prototype/format/signDisplay-negative-currency-de-DE': [FAIL],
+  'intl402/NumberFormat/prototype/format/signDisplay-negative-currency-en-US': [FAIL],
+  'intl402/NumberFormat/prototype/format/signDisplay-negative-currency-ja-JP': [FAIL],
+  'intl402/NumberFormat/prototype/format/signDisplay-negative-currency-ko-KR': [FAIL],
+  'intl402/NumberFormat/prototype/format/signDisplay-negative-currency-zh-TW': [FAIL],
+  'intl402/NumberFormat/prototype/format/signDisplay-negative-de-DE': [FAIL],
+  'intl402/NumberFormat/prototype/format/signDisplay-negative-en-US': [FAIL],
+  'intl402/NumberFormat/prototype/format/signDisplay-negative-ja-JP': [FAIL],
+  'intl402/NumberFormat/prototype/format/signDisplay-negative-ko-KR': [FAIL],
+  'intl402/NumberFormat/prototype/format/signDisplay-negative-zh-TW': [FAIL],
+  'intl402/NumberFormat/prototype/formatToParts/signDisplay-negative-currency-de-DE': [FAIL],
+  'intl402/NumberFormat/prototype/formatToParts/signDisplay-negative-currency-en-US': [FAIL],
+  'intl402/NumberFormat/prototype/formatToParts/signDisplay-negative-currency-ja-JP': [FAIL],
+  'intl402/NumberFormat/prototype/formatToParts/signDisplay-negative-currency-ko-KR': [FAIL],
+  'intl402/NumberFormat/prototype/formatToParts/signDisplay-negative-currency-zh-TW': [FAIL],
+  'intl402/NumberFormat/prototype/formatToParts/signDisplay-negative-de-DE': [FAIL],
+  'intl402/NumberFormat/prototype/formatToParts/signDisplay-negative-en-US': [FAIL],
+  'intl402/NumberFormat/prototype/formatToParts/signDisplay-negative-ja-JP': [FAIL],
+  'intl402/NumberFormat/prototype/formatToParts/signDisplay-negative-ko-KR': [FAIL],
+  'intl402/NumberFormat/prototype/formatToParts/signDisplay-negative-zh-TW': [FAIL],
+  'intl402/NumberFormat/prototype/resolvedOptions/roundingMode': [FAIL],
+  'intl402/NumberFormat/prototype/format/useGrouping-extended-de-DE': [FAIL],
+  'intl402/NumberFormat/prototype/format/useGrouping-extended-en-IN': [FAIL],
+  'intl402/NumberFormat/prototype/format/useGrouping-extended-en-US': [FAIL],
+  'intl402/NumberFormat/test-option-useGrouping-extended': [FAIL],
+  'intl402/NumberFormat/prototype/format/value-decimal-string': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=11660
+  'intl402/DurationFormat/prototype/prototype_attributes': [FAIL],
+  'intl402/DurationFormat/prototype/toStringTag': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=11989
   'built-ins/ShadowRealm/constructor': [FAIL],
@@ -366,6 +377,9 @@
   'built-ins/ShadowRealm/proto': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/descriptor': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/errors-from-the-other-realm-is-wrapped-into-a-typeerror': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/globalthis-available-properties': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/globalthis-config-only-properties': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/globalthis-orginary-object': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/length': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/name': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/no-conditional-strict-mode': [FAIL],
@@ -374,6 +388,7 @@
   'built-ins/ShadowRealm/prototype/evaluate/returns-primitive-values': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/returns-proxy-callable-object': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/returns-symbol-values': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/throws-error-from-ctor-realm': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/throws-syntaxerror-on-bad-syntax': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/throws-typeerror-if-evaluation-resolves-to-non-primitive': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/throws-when-argument-is-not-a-string': [FAIL],
@@ -389,6 +404,11 @@
   'built-ins/ShadowRealm/prototype/evaluate/wrapped-functions-share-no-properties-extended': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-multiple-different-realms-nested': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-multiple-different-realms': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-proto-from-caller-realm': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-proxied-observes-boundary': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-throws-typeerror-from-caller-realm': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-throws-typeerror-on-non-primitive-arguments': [FAIL],
+  'built-ins/ShadowRealm/prototype/evaluate/wrapped-function-throws-typeerror-on-non-primitive-returns': [FAIL],
   'built-ins/ShadowRealm/prototype/evaluate/nested-realms': [FAIL],
   'built-ins/ShadowRealm/prototype/importValue/descriptor': [FAIL],
   'built-ins/ShadowRealm/prototype/importValue/exportName-tostring': [FAIL],
@@ -414,10 +434,10 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
   #
-  # Test262 needs to expose CanBlock
+  # Test262 needs to expose CanBlock.
   'built-ins/Atomics/wait/bigint/cannot-suspend-throws': [SKIP],
   'built-ins/Atomics/wait/cannot-suspend-throws': [SKIP],
-  # Flaky
+  # Flaky.
   'built-ins/Atomics/wait/undefined-index-defaults-to-zero': [SKIP],
 
   ##################### DELIBERATE INCOMPATIBILITIES #####################
@@ -444,7 +464,7 @@
   'built-ins/Date/prototype/setFullYear/new-value-time-clip': [PASS, FAIL],
   'built-ins/Date/prototype/setMonth/new-value-time-clip': [PASS, FAIL],
 
-  # Test against internals of harness; we plug in differently
+  # Test against internals of harness; we plug in differently.
   'harness/detachArrayBuffer': [SKIP],
   'harness/detachArrayBuffer-host-detachArrayBuffer': [SKIP],
 
@@ -486,7 +506,7 @@
   # Unicode regexp case mapping is not available with i18n turned off.
   'language/literals/regexp/u-case-mapping': [SKIP],
 
-  # Unicode in capture group
+  # Unicode in capture group.
   'built-ins/RegExp/prototype/Symbol.replace/named-groups': [FAIL],
 
   # BUG(v8:4437).
@@ -512,13 +532,14 @@
   'intl402/String/prototype/toLocaleUpperCase/special_casing_Lithuanian': [FAIL],
   'intl402/String/prototype/toLocaleUpperCase/special_casing_Turkish': [FAIL],
 
-  # Unicode features unavaible without i18n, ie property escapes.
+  # Unicode features unavaible without i18n, e.g. property escapes.
   'built-ins/RegExp/property-escapes/*': [SKIP],
   'built-ins/RegExp/named-groups/unicode-property-names': [SKIP],
   'built-ins/RegExp/named-groups/unicode-property-names-valid': [SKIP],
+  'built-ins/RegExp/named-groups/non-unicode-property-names-valid': [FAIL],
   'built-ins/RegExp/match-indices/indices-array-unicode-property-names': [SKIP],
 
-  # Unicode in identifiers
+  # Unicode in identifiers.
   'language/identifiers/part-unicode-*': [FAIL],
   'language/identifiers/start-unicode-1*': [FAIL],
   'language/identifiers/start-unicode-5*': [FAIL],
@@ -526,7 +547,6 @@
   'language/identifiers/start-unicode-7*': [FAIL],
   'language/identifiers/start-unicode-8*': [FAIL],
   'language/identifiers/start-unicode-9*': [FAIL],
-
 }],  # no_i18n == True
 
 ['arch == arm or arch == mipsel or arch == mips or arch == arm64 or arch == mips64 or arch == mips64el', {

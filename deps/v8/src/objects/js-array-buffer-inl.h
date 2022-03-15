@@ -5,11 +5,8 @@
 #ifndef V8_OBJECTS_JS_ARRAY_BUFFER_INL_H_
 #define V8_OBJECTS_JS_ARRAY_BUFFER_INL_H_
 
-#include "src/common/external-pointer.h"
-#include "src/objects/js-array-buffer.h"
-
-#include "src/common/external-pointer-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/js-array-buffer.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/objects-inl.h"
 
@@ -39,12 +36,30 @@ void JSArrayBuffer::set_byte_length(size_t value) {
 }
 
 DEF_GETTER(JSArrayBuffer, backing_store, void*) {
-  return reinterpret_cast<void*>(ReadField<Address>(kBackingStoreOffset));
+  Address value = ReadCagedPointerField(kBackingStoreOffset, cage_base);
+  return reinterpret_cast<void*>(value);
 }
 
-void JSArrayBuffer::set_backing_store(void* value) {
+void JSArrayBuffer::set_backing_store(Isolate* isolate, void* value) {
   DCHECK(IsValidBackingStorePointer(value));
-  WriteField<Address>(kBackingStoreOffset, reinterpret_cast<Address>(value));
+  Address addr = reinterpret_cast<Address>(value);
+  WriteCagedPointerField(kBackingStoreOffset, isolate, addr);
+}
+
+std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() const {
+  if (!extension()) return nullptr;
+  return extension()->backing_store();
+}
+
+size_t JSArrayBuffer::GetByteLength() const {
+  if V8_UNLIKELY (is_shared() && is_resizable()) {
+    // Invariant: byte_length for GSAB is 0 (it needs to be read from the
+    // BackingStore).
+    DCHECK_EQ(0, byte_length());
+
+    return GetBackingStore()->byte_length(std::memory_order_seq_cst);
+  }
+  return byte_length();
 }
 
 uint32_t JSArrayBuffer::GetBackingStoreRefForDeserialization() const {
@@ -117,20 +132,6 @@ uint32_t* JSArrayBuffer::extension_hi() const {
 }
 #endif
 
-size_t JSArrayBuffer::allocation_length() const {
-  if (backing_store() == nullptr) {
-    return 0;
-  }
-  return byte_length();
-}
-
-void* JSArrayBuffer::allocation_base() const {
-  if (backing_store() == nullptr) {
-    return nullptr;
-  }
-  return backing_store();
-}
-
 void JSArrayBuffer::clear_padding() {
   if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
     DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
@@ -161,6 +162,13 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_shared,
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_resizable,
                     JSArrayBuffer::IsResizableBit)
 
+bool JSArrayBuffer::IsEmpty() const {
+  auto backing_store = GetBackingStore();
+  bool is_empty = !backing_store || backing_store->IsEmpty();
+  DCHECK_IMPLIES(is_empty, byte_length() == 0);
+  return is_empty;
+}
+
 size_t JSArrayBufferView::byte_offset() const {
   return ReadField<size_t>(kByteOffsetOffset);
 }
@@ -181,12 +189,12 @@ bool JSArrayBufferView::WasDetached() const {
   return JSArrayBuffer::cast(buffer()).was_detached();
 }
 
-BIT_FIELD_ACCESSORS(JSTypedArray, bit_field, is_length_tracking,
-                    JSTypedArray::IsLengthTrackingBit)
-BIT_FIELD_ACCESSORS(JSTypedArray, bit_field, is_backed_by_rab,
-                    JSTypedArray::IsBackedByRabBit)
+BIT_FIELD_ACCESSORS(JSArrayBufferView, bit_field, is_length_tracking,
+                    JSArrayBufferView::IsLengthTrackingBit)
+BIT_FIELD_ACCESSORS(JSArrayBufferView, bit_field, is_backed_by_rab,
+                    JSArrayBufferView::IsBackedByRabBit)
 
-bool JSTypedArray::IsVariableLength() const {
+bool JSArrayBufferView::IsVariableLength() const {
   return is_length_tracking() || is_backed_by_rab();
 }
 
@@ -243,16 +251,12 @@ void JSTypedArray::set_length(size_t value) {
 }
 
 DEF_GETTER(JSTypedArray, external_pointer, Address) {
-  return ReadField<Address>(kExternalPointerOffset);
-}
-
-DEF_GETTER(JSTypedArray, external_pointer_raw, Address) {
-  return ReadField<Address>(kExternalPointerOffset);
+  return ReadCagedPointerField(kExternalPointerOffset, cage_base);
 }
 
 void JSTypedArray::set_external_pointer(Isolate* isolate, Address value) {
   DCHECK(IsValidBackingStorePointer(reinterpret_cast<void*>(value)));
-  WriteField<Address>(kExternalPointerOffset, value);
+  WriteCagedPointerField(kExternalPointerOffset, isolate, value);
 }
 
 Address JSTypedArray::ExternalPointerCompensationForOnHeapArray(
@@ -277,19 +281,17 @@ void JSTypedArray::SetExternalBackingStoreRefForSerialization(uint32_t ref) {
 void JSTypedArray::RemoveExternalPointerCompensationForSerialization(
     Isolate* isolate) {
   DCHECK(is_on_heap());
-  // TODO(v8:10391): once we have an external table, avoid the need for
-  // compensation by replacing external_pointer and base_pointer fields
-  // with one data_pointer field which can point to either external data
-  // backing store or into on-heap backing store.
   Address offset =
       external_pointer() - ExternalPointerCompensationForOnHeapArray(isolate);
-#ifdef V8_HEAP_SANDBOX
-  // Write decompensated offset directly to the external pointer field, thus
-  // allowing the offset to be propagated through serialization-deserialization.
-  WriteField<ExternalPointer_t>(kExternalPointerOffset, offset);
-#else
-  set_external_pointer(isolate, offset);
-#endif
+  WriteField<Address>(kExternalPointerOffset, offset);
+}
+
+void JSTypedArray::AddExternalPointerCompensationForDeserialization(
+    Isolate* isolate) {
+  DCHECK(is_on_heap());
+  Address pointer = ReadField<Address>(kExternalPointerOffset) +
+                    ExternalPointerCompensationForOnHeapArray(isolate);
+  set_external_pointer(isolate, pointer);
 }
 
 void* JSTypedArray::DataPtr() {
@@ -314,14 +316,6 @@ void JSTypedArray::SetOffHeapDataPtr(Isolate* isolate, void* base,
   // with a release store, after external_pointer has been set.
   set_base_pointer(Smi::zero(), kReleaseStore, SKIP_WRITE_BARRIER);
   DCHECK_EQ(address, reinterpret_cast<Address>(DataPtr()));
-}
-
-void JSTypedArray::SetOnHeapDataPtr(Isolate* isolate, HeapObject base,
-                                    Address offset) {
-  set_base_pointer(base);
-  set_external_pointer(
-      isolate, offset + ExternalPointerCompensationForOnHeapArray(isolate));
-  DCHECK_EQ(base.ptr() + offset, reinterpret_cast<Address>(DataPtr()));
 }
 
 bool JSTypedArray::is_on_heap() const {
@@ -372,12 +366,14 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
 }
 
 DEF_GETTER(JSDataView, data_pointer, void*) {
-  return reinterpret_cast<void*>(ReadField<Address>(kDataPointerOffset));
+  Address value = ReadCagedPointerField(kDataPointerOffset, cage_base);
+  return reinterpret_cast<void*>(value);
 }
 
-void JSDataView::set_data_pointer(Isolate* isolate, void* value) {
-  DCHECK(IsValidBackingStorePointer(value));
-  WriteField<Address>(kDataPointerOffset, reinterpret_cast<Address>(value));
+void JSDataView::set_data_pointer(Isolate* isolate, void* ptr) {
+  DCHECK(IsValidBackingStorePointer(ptr));
+  Address value = reinterpret_cast<Address>(ptr);
+  WriteCagedPointerField(kDataPointerOffset, isolate, value);
 }
 
 }  // namespace internal

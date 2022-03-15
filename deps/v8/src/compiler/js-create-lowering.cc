@@ -1540,7 +1540,7 @@ Node* JSCreateLowering::TryAllocateAliasedArguments(
   a.Store(AccessBuilder::ForSloppyArgumentsElementsContext(), context);
   a.Store(AccessBuilder::ForSloppyArgumentsElementsArguments(), arguments);
   for (int i = 0; i < mapped_count; ++i) {
-    int idx = shared.context_header_size() + parameter_count - 1 - i;
+    int idx = shared.context_parameters_start() + parameter_count - 1 - i;
     a.Store(AccessBuilder::ForSloppyArgumentsElementsMappedEntry(),
             jsgraph()->Constant(i), jsgraph()->Constant(idx));
   }
@@ -1597,7 +1597,7 @@ Node* JSCreateLowering::TryAllocateAliasedArguments(
   a.Store(AccessBuilder::ForSloppyArgumentsElementsContext(), context);
   a.Store(AccessBuilder::ForSloppyArgumentsElementsArguments(), arguments);
   for (int i = 0; i < mapped_count; ++i) {
-    int idx = shared.context_header_size() + parameter_count - 1 - i;
+    int idx = shared.context_parameters_start() + parameter_count - 1 - i;
     Node* value = graph()->NewNode(
         common()->Select(MachineRepresentation::kTagged),
         graph()->NewNode(simplified()->NumberLessThan(), jsgraph()->Constant(i),
@@ -1712,7 +1712,7 @@ base::Optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
     PropertyDetails const property_details =
         boilerplate_map.GetPropertyDetails(i);
     if (property_details.location() != PropertyLocation::kField) continue;
-    DCHECK_EQ(kData, property_details.kind());
+    DCHECK_EQ(PropertyKind::kData, property_details.kind());
     if ((*max_properties)-- == 0) return {};
 
     NameRef property_name = boilerplate_map.GetPropertyKey(i);

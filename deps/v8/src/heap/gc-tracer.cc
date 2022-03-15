@@ -93,7 +93,7 @@ GCTracer::Scope::~Scope() {
     tracer_->AddScopeSample(scope_, duration_ms);
     if (scope_ == ScopeId::MC_INCREMENTAL ||
         scope_ == ScopeId::MC_INCREMENTAL_START ||
-        scope_ == MC_INCREMENTAL_FINALIZE) {
+        scope_ == ScopeId::MC_INCREMENTAL_FINALIZE) {
       auto* long_task_stats =
           tracer_->heap_->isolate()->GetCurrentLongTaskStats();
       long_task_stats->gc_full_incremental_wall_clock_duration_us +=
@@ -411,10 +411,11 @@ void GCTracer::Stop(GarbageCollector collector) {
 
   heap_->UpdateTotalGCTime(duration);
 
-  if ((current_.type == Event::SCAVENGER ||
-       current_.type == Event::MINOR_MARK_COMPACTOR) &&
-      FLAG_trace_gc_ignore_scavenger)
-    return;
+  if (current_.type == Event::SCAVENGER ||
+      current_.type == Event::MINOR_MARK_COMPACTOR) {
+    ReportYoungCycleToRecorder();
+    if (FLAG_trace_gc_ignore_scavenger) return;
+  }
 
   if (FLAG_trace_gc_nvp) {
     PrintNVP();
@@ -562,11 +563,12 @@ void GCTracer::Print() const {
   Output(
       "[%d:%p] "
       "%8.0f ms: "
-      "%s%s %.1f (%.1f) -> %.1f (%.1f) MB, "
+      "%s%s%s %.1f (%.1f) -> %.1f (%.1f) MB, "
       "%.1f / %.1f ms %s (average mu = %.3f, current mu = %.3f) %s %s\n",
       base::OS::GetCurrentProcessId(),
       reinterpret_cast<void*>(heap_->isolate()),
-      heap_->isolate()->time_millis_since_init(), current_.TypeName(false),
+      heap_->isolate()->time_millis_since_init(),
+      heap_->IsShared() ? "Shared " : "", current_.TypeName(false),
       current_.reduce_memory ? " (reduce)" : "",
       static_cast<double>(current_.start_object_size) / MB,
       static_cast<double>(current_.start_memory_size) / MB,
@@ -1442,6 +1444,40 @@ void GCTracer::ReportIncrementalMarkingStepToRecorder() {
     FlushBatchedIncrementalEvents(incremental_mark_batched_events_,
                                   heap_->isolate());
   }
+}
+
+void GCTracer::ReportYoungCycleToRecorder() {
+  const std::shared_ptr<metrics::Recorder>& recorder =
+      heap_->isolate()->metrics_recorder();
+  DCHECK_NOT_NULL(recorder);
+  if (!recorder->HasEmbedderRecorder()) return;
+  v8::metrics::GarbageCollectionYoungCycle event;
+  // Total:
+  const double total_wall_clock_duration_in_us =
+      (current_.scopes[Scope::SCAVENGER] +
+       current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL]) *
+      base::Time::kMicrosecondsPerMillisecond;
+  event.total_wall_clock_duration_in_us =
+      static_cast<int64_t>(total_wall_clock_duration_in_us);
+  // MainThread:
+  const double main_thread_wall_clock_duration_in_us =
+      current_.scopes[Scope::SCAVENGER] *
+      base::Time::kMicrosecondsPerMillisecond;
+  event.main_thread_wall_clock_duration_in_us =
+      static_cast<int64_t>(main_thread_wall_clock_duration_in_us);
+  // Collection Rate:
+  event.collection_rate_in_percent =
+      static_cast<double>(current_.survived_young_object_size) /
+      current_.young_object_size;
+  // Efficiency:
+  auto freed_bytes =
+      current_.young_object_size - current_.survived_young_object_size;
+  event.efficiency_in_bytes_per_us =
+      freed_bytes / total_wall_clock_duration_in_us;
+  event.main_thread_efficiency_in_bytes_per_us =
+      freed_bytes / main_thread_wall_clock_duration_in_us;
+
+  recorder->AddMainThreadEvent(event, GetContextId(heap_->isolate()));
 }
 
 }  // namespace internal

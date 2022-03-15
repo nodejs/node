@@ -425,7 +425,7 @@ class IncrementalMarkingTest : public testing::TestWithHeap {
         MarkerFactory::CreateAndStartMarking<Marker>(heap, platform, config);
   }
 
-  MarkerBase* marker() const { return GetMarkerRef().get(); }
+  MarkerBase* marker() const { return Heap::From(GetHeap())->marker(); }
 
  private:
   bool SingleStep(MarkingConfig::StackState stack_state) {

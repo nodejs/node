@@ -30,6 +30,7 @@
 #include "src/heap/paged-spaces-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-spaces.h"
+#include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/third-party/heap-api.h"
 #include "src/objects/allocation-site-inl.h"
@@ -111,11 +112,7 @@ base::EnumSet<CodeFlushMode> Heap::GetCodeFlushMode(Isolate* isolate) {
   return code_flush_mode;
 }
 
-Isolate* Heap::isolate() {
-  return reinterpret_cast<Isolate*>(
-      reinterpret_cast<intptr_t>(this) -
-      reinterpret_cast<size_t>(reinterpret_cast<Isolate*>(16)->heap()) + 16);
-}
+Isolate* Heap::isolate() { return Isolate::FromHeap(this); }
 
 int64_t Heap::external_memory() { return external_memory_.total(); }
 
@@ -210,7 +207,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationType type,
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK_IMPLIES(type == AllocationType::kCode || type == AllocationType::kMap,
-                 alignment == AllocationAlignment::kWordAligned);
+                 alignment == AllocationAlignment::kTaggedAligned);
   DCHECK_EQ(gc_state(), NOT_IN_GC);
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   if (FLAG_random_gc_interval > 0 || FLAG_gc_interval >= 0) {
@@ -324,13 +321,13 @@ HeapObject Heap::AllocateRawWith(int size, AllocationType allocation,
   DCHECK_EQ(gc_state(), NOT_IN_GC);
   Heap* heap = isolate()->heap();
   if (allocation == AllocationType::kYoung &&
-      alignment == AllocationAlignment::kWordAligned &&
-      size <= MaxRegularHeapObjectSize(allocation) && !FLAG_single_generation) {
+      alignment == AllocationAlignment::kTaggedAligned &&
+      size <= MaxRegularHeapObjectSize(allocation) &&
+      V8_LIKELY(!FLAG_single_generation && FLAG_inline_new &&
+                FLAG_gc_interval == -1)) {
     Address* top = heap->NewSpaceAllocationTopAddress();
     Address* limit = heap->NewSpaceAllocationLimitAddress();
-    if ((*limit - *top >= static_cast<unsigned>(size)) &&
-        V8_LIKELY(!FLAG_single_generation && FLAG_inline_new &&
-                  FLAG_gc_interval == 0)) {
+    if (*limit - *top >= static_cast<unsigned>(size)) {
       DCHECK(IsAligned(size, kTaggedSize));
       HeapObject obj = HeapObject::FromAddress(*top);
       *top += size;
@@ -781,18 +778,29 @@ AlwaysAllocateScope::~AlwaysAllocateScope() {
   heap_->always_allocate_scope_count_--;
 }
 
+OptionalAlwaysAllocateScope::OptionalAlwaysAllocateScope(Heap* heap)
+    : heap_(heap) {
+  if (heap_) heap_->always_allocate_scope_count_++;
+}
+
+OptionalAlwaysAllocateScope::~OptionalAlwaysAllocateScope() {
+  if (heap_) heap_->always_allocate_scope_count_--;
+}
+
 AlwaysAllocateScopeForTesting::AlwaysAllocateScopeForTesting(Heap* heap)
     : scope_(heap) {}
 
 CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
     : heap_(heap) {
+  DCHECK_EQ(ThreadId::Current(), heap_->isolate()->thread_id());
+  heap_->safepoint()->AssertActive();
   if (heap_->write_protect_code_memory()) {
     heap_->increment_code_space_memory_modification_scope_depth();
     heap_->code_space()->SetCodeModificationPermissions();
     LargePage* page = heap_->code_lo_space()->first_page();
     while (page != nullptr) {
       DCHECK(page->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-      CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
+      DCHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
       page->SetCodeModificationPermissions();
       page = page->next_page();
     }
@@ -806,7 +814,7 @@ CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
     LargePage* page = heap_->code_lo_space()->first_page();
     while (page != nullptr) {
       DCHECK(page->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-      CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
+      DCHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
       page->SetDefaultCodePermissions();
       page = page->next_page();
     }
@@ -816,21 +824,17 @@ CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
 CodePageCollectionMemoryModificationScope::
     CodePageCollectionMemoryModificationScope(Heap* heap)
     : heap_(heap) {
-  if (heap_->write_protect_code_memory() &&
-      !heap_->code_space_memory_modification_scope_depth()) {
-    heap_->EnableUnprotectedMemoryChunksRegistry();
+  if (heap_->write_protect_code_memory()) {
     heap_->IncrementCodePageCollectionMemoryModificationScopeDepth();
   }
 }
 
 CodePageCollectionMemoryModificationScope::
     ~CodePageCollectionMemoryModificationScope() {
-  if (heap_->write_protect_code_memory() &&
-      !heap_->code_space_memory_modification_scope_depth()) {
+  if (heap_->write_protect_code_memory()) {
     heap_->DecrementCodePageCollectionMemoryModificationScopeDepth();
     if (heap_->code_page_collection_memory_modification_scope_depth() == 0) {
       heap_->ProtectUnprotectedMemoryChunks();
-      heap_->DisableUnprotectedMemoryChunksRegistry();
     }
   }
 }
@@ -859,6 +863,16 @@ CodePageMemoryModificationScope::~CodePageMemoryModificationScope() {
   if (scope_active_) {
     MemoryChunk::cast(chunk_)->SetDefaultCodePermissions();
   }
+}
+
+IgnoreLocalGCRequests::IgnoreLocalGCRequests(Heap* heap) : heap_(heap) {
+  DCHECK_EQ(ThreadId::Current(), heap_->isolate()->thread_id());
+  heap_->ignore_local_gc_requests_depth_++;
+}
+
+IgnoreLocalGCRequests::~IgnoreLocalGCRequests() {
+  DCHECK_GT(heap_->ignore_local_gc_requests_depth_, 0);
+  heap_->ignore_local_gc_requests_depth_--;
 }
 
 }  // namespace internal

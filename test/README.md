@@ -3,10 +3,10 @@
 This directory contains code and data used to test the Node.js implementation.
 
 For a detailed guide on how to write tests in this
-directory, see [the guide on writing tests](../doc/guides/writing-tests.md).
+directory, see [the guide on writing tests](../doc/contributing/writing-tests.md).
 
 On how to run tests in this directory, see
-[the contributing guide](../doc/guides/contributing/pull-requests.md#step-6-test).
+[the contributing guide](../doc/contributing/pull-requests.md#step-6-test).
 
 For the tests to run on Windows, be sure to clone Node.js source code with the
 `autocrlf` git config flag set to true.

@@ -56,34 +56,14 @@ bool CanCompileWithBaseline(Isolate* isolate, SharedFunctionInfo shared) {
   return true;
 }
 
-namespace {
-MaybeHandle<Code> GenerateOnHeapCode(Isolate* isolate,
-                                     Handle<SharedFunctionInfo> shared,
-                                     Handle<BytecodeArray> bytecode) {
-  CodePageCollectionMemoryModificationScope code_allocation(isolate->heap());
-  baseline::BaselineCompiler compiler(isolate, shared, bytecode,
-                                      baseline::BaselineCompiler::kOnHeap);
-  compiler.GenerateCode();
-  return compiler.Build(isolate);
-}
-
-MaybeHandle<Code> GenerateOffHeapCode(Isolate* isolate,
-                                      Handle<SharedFunctionInfo> shared,
-                                      Handle<BytecodeArray> bytecode) {
-  baseline::BaselineCompiler compiler(isolate, shared, bytecode);
-  compiler.GenerateCode();
-  return compiler.Build(isolate);
-}
-
-}  // namespace
-
 MaybeHandle<Code> GenerateBaselineCode(Isolate* isolate,
                                        Handle<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileBaseline);
   Handle<BytecodeArray> bytecode(shared->GetBytecodeArray(isolate), isolate);
-  MaybeHandle<Code> code = FLAG_sparkplug_on_heap
-                               ? GenerateOnHeapCode(isolate, shared, bytecode)
-                               : GenerateOffHeapCode(isolate, shared, bytecode);
+  LocalIsolate* local_isolate = isolate->main_thread_local_isolate();
+  baseline::BaselineCompiler compiler(local_isolate, shared, bytecode);
+  compiler.GenerateCode();
+  MaybeHandle<Code> code = compiler.Build(local_isolate);
   if (FLAG_print_code && !code.is_null()) {
     code.ToHandleChecked()->Print();
   }

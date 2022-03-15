@@ -1759,12 +1759,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Movddup(i.OutputSimd128Register(), i.InputDoubleRegister(0));
       break;
     }
-    case kF64x2ExtractLane: {
+    case kIA32F64x2ExtractLane: {
       __ F64x2ExtractLane(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                           i.InputUint8(1));
       break;
     }
-    case kF64x2ReplaceLane: {
+    case kIA32F64x2ReplaceLane: {
       __ F64x2ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
                           i.InputDoubleRegister(2), i.InputInt8(1));
       break;
@@ -1823,12 +1823,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputOperand(1));
       break;
     }
-    case kIA32F64x2Pmin: {
+    case kIA32F64x2Qfma: {
+      __ F64x2Qfma(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1), i.InputSimd128Register(2),
+                   kScratchDoubleReg);
+      break;
+    }
+    case kIA32F64x2Qfms: {
+      __ F64x2Qfms(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1), i.InputSimd128Register(2),
+                   kScratchDoubleReg);
+      break;
+    }
+    case kIA32Minpd: {
       __ Minpd(i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputSimd128Register(1));
       break;
     }
-    case kIA32F64x2Pmax: {
+    case kIA32Maxpd: {
       __ Maxpd(i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputSimd128Register(1));
       break;
@@ -2174,12 +2186,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputOperand(1));
       break;
     }
-    case kIA32F32x4Pmin: {
+    case kIA32F32x4Qfma: {
+      __ F32x4Qfma(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1), i.InputSimd128Register(2),
+                   kScratchDoubleReg);
+      break;
+    }
+    case kIA32F32x4Qfms: {
+      __ F32x4Qfms(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1), i.InputSimd128Register(2),
+                   kScratchDoubleReg);
+      break;
+    }
+    case kIA32Minps: {
       __ Minps(i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputSimd128Register(1));
       break;
     }
-    case kIA32F32x4Pmax: {
+    case kIA32Maxps: {
       __ Maxps(i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputSimd128Register(1));
       break;
@@ -3435,6 +3459,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_ALL_TRUE(pcmpeqb);
       break;
     }
+    case kIA32Pblendvb: {
+      __ Pblendvb(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), i.InputSimd128Register(2));
+      break;
+    }
+    case kIA32I32x4TruncF64x2UZero: {
+      __ I32x4TruncF64x2UZero(i.OutputSimd128Register(),
+                              i.InputSimd128Register(0), i.TempRegister(0),
+                              kScratchDoubleReg);
+      break;
+    }
+    case kIA32I32x4TruncF32x4U: {
+      __ I32x4TruncF32x4U(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                          i.TempRegister(0), kScratchDoubleReg);
+      break;
+    }
+    case kIA32Cvttps2dq: {
+      __ Cvttps2dq(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kIA32Cvttpd2dq: {
+      __ Cvttpd2dq(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
     case kIA32Word32AtomicPairLoad: {
       __ movq(kScratchDoubleReg, i.MemoryOperand());
       __ Pextrd(i.OutputRegister(0), kScratchDoubleReg, 0);
@@ -3977,25 +4025,14 @@ void CodeGenerator::AssembleConstructFrame() {
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
 #if V8_ENABLE_WEBASSEMBLY
-      if (call_descriptor->IsWasmFunctionCall()) {
+      if (call_descriptor->IsWasmFunctionCall() ||
+          call_descriptor->IsWasmImportWrapper() ||
+          call_descriptor->IsWasmCapiFunction()) {
         __ push(kWasmInstanceRegister);
-      } else if (call_descriptor->IsWasmImportWrapper() ||
-                 call_descriptor->IsWasmCapiFunction()) {
-        // Wasm import wrappers are passed a tuple in the place of the instance.
-        // Unpack the tuple into the instance and the target callable.
-        // This must be done here in the codegen because it cannot be expressed
-        // properly in the graph.
-        __ mov(kJSFunctionRegister,
-               Operand(kWasmInstanceRegister,
-                       Tuple2::kValue2Offset - kHeapObjectTag));
-        __ mov(kWasmInstanceRegister,
-               Operand(kWasmInstanceRegister,
-                       Tuple2::kValue1Offset - kHeapObjectTag));
-        __ push(kWasmInstanceRegister);
-        if (call_descriptor->IsWasmCapiFunction()) {
-          // Reserve space for saving the PC later.
-          __ AllocateStackSpace(kSystemPointerSize);
-        }
+      }
+      if (call_descriptor->IsWasmCapiFunction()) {
+        // Reserve space for saving the PC later.
+        __ AllocateStackSpace(kSystemPointerSize);
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
     }

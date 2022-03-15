@@ -16,7 +16,7 @@
 #define CHECK_TO_NUMBER(env, context, result, src) \
   CHECK_TO_TYPE((env), Number, (context), (result), (src), napi_number_expected)
 
-// n-api defines NAPI_AUTO_LENGHTH as the indicator that a string
+// n-api defines NAPI_AUTO_LENGTH as the indicator that a string
 // is null terminated. For V8 the equivalent is -1. The assert
 // validates that our cast of NAPI_AUTO_LENGTH results in -1 as
 // needed by V8.
@@ -1658,6 +1658,27 @@ napi_status napi_create_symbol(napi_env env,
     *result = v8impl::JsValueFromV8LocalValue(
       v8::Symbol::New(isolate, desc.As<v8::String>()));
   }
+
+  return napi_clear_last_error(env);
+}
+
+napi_status node_api_symbol_for(napi_env env,
+                                const char* utf8description,
+                                size_t length,
+                                napi_value* result) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, result);
+
+  napi_value js_description_string;
+  STATUS_CALL(napi_create_string_utf8(env,
+                                      utf8description,
+                                      length,
+                                      &js_description_string));
+  v8::Local<v8::String> description_string =
+    v8impl::V8LocalValueFromJsValue(js_description_string).As<v8::String>();
+
+  *result = v8impl::JsValueFromV8LocalValue(
+    v8::Symbol::For(env->isolate, description_string));
 
   return napi_clear_last_error(env);
 }

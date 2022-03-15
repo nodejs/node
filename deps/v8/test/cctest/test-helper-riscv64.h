@@ -328,6 +328,11 @@ GeneratedCode<Signature> AssembleCode(Func assemble) {
   return GeneratedCode<Signature>::FromCode(*AssembleCodeImpl(assemble));
 }
 
+template <typename T>
+T UseCanonicalNan(T x) {
+  return isnan(x) ? std::numeric_limits<T>::quiet_NaN() : x;
+}
+
 }  // namespace internal
 }  // namespace v8
 

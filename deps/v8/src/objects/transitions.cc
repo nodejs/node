@@ -265,11 +265,11 @@ MaybeHandle<Map> TransitionsAccessor::FindTransitionToDataProperty(
   DCHECK(name->IsUniqueName());
   DisallowGarbageCollection no_gc;
   PropertyAttributes attributes = name->IsPrivate() ? DONT_ENUM : NONE;
-  Map target = SearchTransition(*name, kData, attributes);
+  Map target = SearchTransition(*name, PropertyKind::kData, attributes);
   if (target.is_null()) return MaybeHandle<Map>();
   PropertyDetails details = target.GetLastDescriptorDetails(isolate_);
   DCHECK_EQ(attributes, details.attributes());
-  DCHECK_EQ(kData, details.kind());
+  DCHECK_EQ(PropertyKind::kData, details.kind());
   if (requested_location == kFieldOnly &&
       details.location() != PropertyLocation::kField) {
     return MaybeHandle<Map>();
@@ -689,7 +689,7 @@ void TransitionArray::Sort() {
   for (int i = 1; i < length; i++) {
     Name key = GetKey(i);
     MaybeObject target = GetRawTarget(i);
-    PropertyKind kind = kData;
+    PropertyKind kind = PropertyKind::kData;
     PropertyAttributes attributes = NONE;
     if (!TransitionsAccessor::IsSpecialTransition(roots, key)) {
       Map target_map = TransitionsAccessor::GetTargetFromRaw(target);
@@ -702,7 +702,7 @@ void TransitionArray::Sort() {
     for (j = i - 1; j >= 0; j--) {
       Name temp_key = GetKey(j);
       MaybeObject temp_target = GetRawTarget(j);
-      PropertyKind temp_kind = kData;
+      PropertyKind temp_kind = PropertyKind::kData;
       PropertyAttributes temp_attributes = NONE;
       if (!TransitionsAccessor::IsSpecialTransition(roots, temp_key)) {
         Map temp_target_map =

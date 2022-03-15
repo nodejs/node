@@ -16,31 +16,32 @@ namespace internal {
 
 class CodeDataContainer;
 
-#define ROOT_ID_LIST(V)                               \
-  V(kStringTable, "(Internalized strings)")           \
-  V(kExternalStringsTable, "(External strings)")      \
-  V(kReadOnlyRootList, "(Read-only roots)")           \
-  V(kStrongRootList, "(Strong roots)")                \
-  V(kSmiRootList, "(Smi roots)")                      \
-  V(kBootstrapper, "(Bootstrapper)")                  \
-  V(kStackRoots, "(Stack roots)")                     \
-  V(kRelocatable, "(Relocatable)")                    \
-  V(kDebug, "(Debugger)")                             \
-  V(kCompilationCache, "(Compilation cache)")         \
-  V(kHandleScope, "(Handle scope)")                   \
-  V(kBuiltins, "(Builtins)")                          \
-  V(kGlobalHandles, "(Global handles)")               \
-  V(kEternalHandles, "(Eternal handles)")             \
-  V(kThreadManager, "(Thread manager)")               \
-  V(kStrongRoots, "(Strong roots)")                   \
-  V(kExtensions, "(Extensions)")                      \
-  V(kCodeFlusher, "(Code flusher)")                   \
-  V(kStartupObjectCache, "(Startup object cache)")    \
-  V(kReadOnlyObjectCache, "(Read-only object cache)") \
-  V(kWeakCollections, "(Weak collections)")           \
-  V(kWrapperTracing, "(Wrapper tracing)")             \
-  V(kWriteBarrier, "(Write barrier)")                 \
-  V(kRetainMaps, "(Retain maps)")                     \
+#define ROOT_ID_LIST(V)                                 \
+  V(kStringTable, "(Internalized strings)")             \
+  V(kExternalStringsTable, "(External strings)")        \
+  V(kReadOnlyRootList, "(Read-only roots)")             \
+  V(kStrongRootList, "(Strong roots)")                  \
+  V(kSmiRootList, "(Smi roots)")                        \
+  V(kBootstrapper, "(Bootstrapper)")                    \
+  V(kStackRoots, "(Stack roots)")                       \
+  V(kRelocatable, "(Relocatable)")                      \
+  V(kDebug, "(Debugger)")                               \
+  V(kCompilationCache, "(Compilation cache)")           \
+  V(kHandleScope, "(Handle scope)")                     \
+  V(kBuiltins, "(Builtins)")                            \
+  V(kGlobalHandles, "(Global handles)")                 \
+  V(kEternalHandles, "(Eternal handles)")               \
+  V(kThreadManager, "(Thread manager)")                 \
+  V(kStrongRoots, "(Strong roots)")                     \
+  V(kExtensions, "(Extensions)")                        \
+  V(kCodeFlusher, "(Code flusher)")                     \
+  V(kStartupObjectCache, "(Startup object cache)")      \
+  V(kReadOnlyObjectCache, "(Read-only object cache)")   \
+  V(kSharedHeapObjectCache, "(Shareable object cache)") \
+  V(kWeakCollections, "(Weak collections)")             \
+  V(kWrapperTracing, "(Wrapper tracing)")               \
+  V(kWriteBarrier, "(Write barrier)")                   \
+  V(kRetainMaps, "(Retain maps)")                       \
   V(kUnknown, "(Unknown)")
 
 class VisitorSynchronization : public AllStatic {
@@ -86,6 +87,13 @@ class RootVisitor {
     //   1) Making this function pure virtual, and
     //   2) Implementing it for all visitors.
     UNREACHABLE();
+  }
+
+  // Visits a single pointer which is Code from the execution stack.
+  virtual void VisitRunningCode(FullObjectSlot p) {
+    // For most visitors, currently running Code is no different than any other
+    // on-stack pointer.
+    VisitRootPointer(Root::kStackRoots, nullptr, p);
   }
 
   // Intended for serialization/deserialization checking: insert, or
@@ -196,7 +204,7 @@ class ObjectVisitorWithCageBases : public ObjectVisitor {
   // The pointer compression cage base value used for decompression of
   // references to Code objects.
   PtrComprCageBase code_cage_base() const {
-#if V8_EXTERNAL_CODE_SPACE
+#ifdef V8_EXTERNAL_CODE_SPACE
     return code_cage_base_;
 #else
     return cage_base();

@@ -980,8 +980,9 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
     data->SetSharedFunctionInfo(Smi::zero());
   }
 
-  Handle<FixedArray> literals = isolate()->factory()->NewFixedArray(
-      static_cast<int>(deoptimization_literals_.size()), AllocationType::kOld);
+  Handle<DeoptimizationLiteralArray> literals =
+      isolate()->factory()->NewDeoptimizationLiteralArray(
+          static_cast<int>(deoptimization_literals_.size()));
   for (unsigned i = 0; i < deoptimization_literals_.size(); i++) {
     Handle<Object> object = deoptimization_literals_[i].Reify(isolate());
     CHECK(!object.is_null());
@@ -1213,10 +1214,10 @@ DeoptimizationExit* CodeGenerator::BuildTranslation(
   }
   if (immediate_args_count != 0) {
     auto immediate_args = zone()->New<ZoneVector<ImmediateOperand*>>(zone());
-    InstructionOperandIterator iter(
+    InstructionOperandIterator imm_iter(
         instr, frame_state_offset - immediate_args_count - 1);
     for (size_t i = 0; i < immediate_args_count; i++) {
-      immediate_args->emplace_back(ImmediateOperand::cast(iter.Advance()));
+      immediate_args->emplace_back(ImmediateOperand::cast(imm_iter.Advance()));
     }
     exit->set_immediate_args(immediate_args);
   }

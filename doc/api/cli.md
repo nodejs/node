@@ -1,4 +1,4 @@
-# Command-line options
+# Command-line API
 
 <!--introduced_in=v5.9.1-->
 
@@ -11,15 +11,42 @@ To view this documentation as a manual page in a terminal, run `man node`.
 
 ## Synopsis
 
-`node [options] [V8 options] [script.js | -e "script" | -] [--] [arguments]`
+`node [options] [V8 options] [<program-entry-point> | -e "script" | -] [--] [arguments]`
 
-`node inspect [script.js | -e "script" | <host>:<port>] …`
+`node inspect [<program-entry-point> | -e "script" | <host>:<port>] …`
 
 `node --v8-options`
 
 Execute without arguments to start the [REPL][].
 
 For more info about `node inspect`, see the [debugger][] documentation.
+
+## Program entry point
+
+The program entry point is a specifier-like string. If the string is not an
+absolute path, it's resolved as a relative path from the current working
+directory. That path is then resolved by [CommonJS][] module loader. If no
+corresponding file is found, an error is thrown.
+
+If a file is found, its path will be passed to the [ECMAScript module loader][]
+under any of the following conditions:
+
+* The program was started with a command-line flag that forces the entry
+  point to be loaded with ECMAScript module loader.
+* The file has an `.mjs` extension.
+* The file does not have a `.cjs` extension, and the nearest parent
+  `package.json` file contains a top-level [`"type"`][] field with a value of
+  `"module"`.
+
+Otherwise, the file is loaded using the CommonJS module loader. See
+[Modules loaders][] for more details.
+
+### ECMAScript modules loader entry point caveat
+
+When loading [ECMAScript module loader][] loads the program entry point, the `node`
+command will only accept as input only files with `.js`, `.mjs`, or `.cjs`
+extensions; and with `.wasm` extensions when
+[`--experimental-wasm-modules`][] is enabled.
 
 ## Options
 
@@ -253,6 +280,14 @@ effort to report stack traces relative to the original source file.
 Overriding `Error.prepareStackTrace` prevents `--enable-source-maps` from
 modifying the stack trace.
 
+### `--experimental-global-webcrypto`
+
+<!-- YAML
+added: v17.6.0
+-->
+
+Expose the [Web Crypto API][] on the global scope.
+
 ### `--experimental-import-meta-resolve`
 
 <!-- YAML
@@ -263,22 +298,24 @@ added:
 
 Enable experimental `import.meta.resolve()` support.
 
-### `--experimental-json-modules`
-
-<!-- YAML
-added: v12.9.0
--->
-
-Enable experimental JSON support for the ES Module loader.
-
 ### `--experimental-loader=module`
 
 <!-- YAML
 added: v9.0.0
 -->
 
-Specify the `module` of a custom experimental [ECMAScript Module loader][].
-`module` may be either a path to a file, or an ECMAScript Module name.
+Specify the `module` of a custom experimental [ECMAScript module loader][].
+`module` may be any string accepted as an [`import` specifier][].
+
+### `--experimental-network-imports`
+
+<!-- YAML
+added: v17.6.0
+-->
+
+> Stability: 1 - Experimental
+
+Enable experimental support for the `https:` protocol in `import` specifiers.
 
 ### `--experimental-policy`
 
@@ -287,6 +324,14 @@ added: v11.8.0
 -->
 
 Use the specified file as a security policy.
+
+### `--no-experimental-fetch`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Disable experimental support for the [Fetch API][].
 
 ### `--no-experimental-repl-await`
 
@@ -637,7 +682,9 @@ This option is a no-op. It is kept for compatibility.
 ### `--no-addons`
 
 <!-- YAML
-added: v16.10.0
+added:
+  - v16.10.0
+  - v14.19.0
 -->
 
 Disable the `node-addons` exports condition as well as disable loading
@@ -1540,10 +1587,12 @@ Node.js options that are allowed are:
 * `--enable-fips`
 * `--enable-source-maps`
 * `--experimental-abortcontroller`
+* `--experimental-global-webcrypto`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
 * `--experimental-modules`
+* `--experimental-network-imports`
 * `--experimental-policy`
 * `--experimental-specifier-resolution`
 * `--experimental-top-level-await`
@@ -1567,6 +1616,7 @@ Node.js options that are allowed are:
 * `--napi-modules`
 * `--no-addons`
 * `--no-deprecation`
+* `--no-experimental-fetch`
 * `--no-experimental-repl-await`
 * `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`
@@ -1931,15 +1981,21 @@ $ node --max-old-space-size=1536 index.js
 ```
 
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
-[ECMAScript Module loader]: esm.md#loaders
+[CommonJS]: modules.md
+[ECMAScript module loader]: esm.md#loaders
+[Fetch API]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
+[Modules loaders]: packages.md#modules-loaders
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
 [REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
 [Source Map]: https://sourcemaps.info/spec.html
 [Subresource Integrity]: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
+[Web Crypto API]: webcrypto.md
+[`"type"`]: packages.md#type
 [`--cpu-prof-dir`]: #--cpu-prof-dir
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
+[`--experimental-wasm-modules`]: #--experimental-wasm-modules
 [`--heap-prof-dir`]: #--heap-prof-dir
 [`--openssl-config`]: #--openssl-configfile
 [`--redirect-warnings`]: #--redirect-warningsfile
@@ -1952,6 +2008,7 @@ $ node --max-old-space-size=1536 index.js
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.setDefaultResultOrder()`]: dns.md#dnssetdefaultresultorderorder
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
+[`import` specifier]: esm.md#import-specifiers
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tlsdefault_min_version

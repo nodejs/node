@@ -216,6 +216,24 @@ void RegExpMacroAssemblerX64::CheckGreedyLoop(Label* on_equal) {
   __ bind(&fallthrough);
 }
 
+// Push (pop) caller-saved registers used by irregexp.
+void RegExpMacroAssemblerX64::PushCallerSavedRegisters() {
+#ifndef V8_TARGET_OS_WIN
+  // Callee-save in Microsoft 64-bit ABI, but not in AMD64 ABI.
+  __ pushq(rsi);
+  __ pushq(rdi);
+#endif
+  __ pushq(rcx);
+}
+
+void RegExpMacroAssemblerX64::PopCallerSavedRegisters() {
+  __ popq(rcx);
+#ifndef V8_TARGET_OS_WIN
+  __ popq(rdi);
+  __ popq(rsi);
+#endif
+}
+
 void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
   Label fallthrough;
@@ -307,13 +325,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     }
   } else {
     DCHECK(mode_ == UC16);
-    // Save important/volatile registers before calling C function.
-#ifndef V8_TARGET_OS_WIN
-    // Caller save on Linux and callee save in Windows.
-    __ pushq(rsi);
-    __ pushq(rdi);
-#endif
-    __ pushq(backtrack_stackpointer());
+    PushCallerSavedRegisters();
 
     static const int num_arguments = 4;
     __ PrepareCallCFunction(num_arguments);
@@ -355,20 +367,15 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     {
       AllowExternalCallThatCantCauseGC scope(&masm_);
       ExternalReference compare =
-          unicode ? ExternalReference::re_case_insensitive_compare_unicode(
-                        isolate())
-                  : ExternalReference::re_case_insensitive_compare_non_unicode(
-                        isolate());
+          unicode
+              ? ExternalReference::re_case_insensitive_compare_unicode()
+              : ExternalReference::re_case_insensitive_compare_non_unicode();
       __ CallCFunction(compare, num_arguments);
     }
 
     // Restore original values before reacting on result value.
     __ Move(code_object_pointer(), masm_.CodeObject());
-    __ popq(backtrack_stackpointer());
-#ifndef V8_TARGET_OS_WIN
-    __ popq(rdi);
-    __ popq(rsi);
-#endif
+    PopCallerSavedRegisters();
 
     // Check if function returned non-zero for success or zero for failure.
     __ testq(rax, rax);
@@ -518,6 +525,44 @@ void RegExpMacroAssemblerX64::CheckCharacterNotInRange(base::uc16 from,
   BranchOrBacktrack(above, on_not_in_range);
 }
 
+void RegExpMacroAssemblerX64::CallIsCharacterInRangeArray(
+    const ZoneList<CharacterRange>* ranges) {
+  PushCallerSavedRegisters();
+
+  static const int kNumArguments = 3;
+  __ PrepareCallCFunction(kNumArguments);
+
+  __ Move(arg_reg_1, current_character());
+  __ Move(arg_reg_2, GetOrAddRangeArray(ranges));
+  __ LoadAddress(arg_reg_3, ExternalReference::isolate_address(isolate()));
+
+  {
+    // We have a frame (set up in GetCode), but the assembler doesn't know.
+    FrameScope scope(&masm_, StackFrame::MANUAL);
+    __ CallCFunction(ExternalReference::re_is_character_in_range_array(),
+                     kNumArguments);
+  }
+
+  PopCallerSavedRegisters();
+  __ Move(code_object_pointer(), masm_.CodeObject());
+}
+
+bool RegExpMacroAssemblerX64::CheckCharacterInRangeArray(
+    const ZoneList<CharacterRange>* ranges, Label* on_in_range) {
+  CallIsCharacterInRangeArray(ranges);
+  __ testq(rax, rax);
+  BranchOrBacktrack(not_zero, on_in_range);
+  return true;
+}
+
+bool RegExpMacroAssemblerX64::CheckCharacterNotInRangeArray(
+    const ZoneList<CharacterRange>* ranges, Label* on_not_in_range) {
+  CallIsCharacterInRangeArray(ranges);
+  __ testq(rax, rax);
+  BranchOrBacktrack(zero, on_not_in_range);
+  return true;
+}
+
 void RegExpMacroAssemblerX64::CheckBitInTable(
     Handle<ByteArray> table,
     Label* on_bit_set) {
@@ -533,123 +578,123 @@ void RegExpMacroAssemblerX64::CheckBitInTable(
   BranchOrBacktrack(not_equal, on_bit_set);
 }
 
-bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(base::uc16 type,
-                                                         Label* on_no_match) {
+bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(
+    StandardCharacterSet type, Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check, using the sequence:
   //   leal(rax, Operand(current_character(), -min)) or sub(rax, Immediate(min))
   //   cmpl(rax, Immediate(max - min))
+  // TODO(jgruber): No custom implementation (yet): s(UC16), S(UC16).
   switch (type) {
-  case 's':
-    // Match space-characters
-    if (mode_ == LATIN1) {
-      // One byte space characters are '\t'..'\r', ' ' and \u00a0.
-      Label success;
-      __ cmpl(current_character(), Immediate(' '));
-      __ j(equal, &success, Label::kNear);
-      // Check range 0x09..0x0D
-      __ leal(rax, Operand(current_character(), -'\t'));
-      __ cmpl(rax, Immediate('\r' - '\t'));
-      __ j(below_equal, &success, Label::kNear);
-      // \u00a0 (NBSP).
-      __ cmpl(rax, Immediate(0x00A0 - '\t'));
-      BranchOrBacktrack(not_equal, on_no_match);
-      __ bind(&success);
+    case StandardCharacterSet::kWhitespace:
+      // Match space-characters.
+      if (mode_ == LATIN1) {
+        // One byte space characters are '\t'..'\r', ' ' and \u00a0.
+        Label success;
+        __ cmpl(current_character(), Immediate(' '));
+        __ j(equal, &success, Label::kNear);
+        // Check range 0x09..0x0D.
+        __ leal(rax, Operand(current_character(), -'\t'));
+        __ cmpl(rax, Immediate('\r' - '\t'));
+        __ j(below_equal, &success, Label::kNear);
+        // \u00a0 (NBSP).
+        __ cmpl(rax, Immediate(0x00A0 - '\t'));
+        BranchOrBacktrack(not_equal, on_no_match);
+        __ bind(&success);
+        return true;
+      }
+      return false;
+    case StandardCharacterSet::kNotWhitespace:
+      // The emitted code for generic character classes is good enough.
+      return false;
+    case StandardCharacterSet::kDigit:
+      // Match ASCII digits ('0'..'9').
+      __ leal(rax, Operand(current_character(), -'0'));
+      __ cmpl(rax, Immediate('9' - '0'));
+      BranchOrBacktrack(above, on_no_match);
+      return true;
+    case StandardCharacterSet::kNotDigit:
+      // Match non ASCII-digits.
+      __ leal(rax, Operand(current_character(), -'0'));
+      __ cmpl(rax, Immediate('9' - '0'));
+      BranchOrBacktrack(below_equal, on_no_match);
+      return true;
+    case StandardCharacterSet::kNotLineTerminator: {
+      // Match non-newlines (not 0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029).
+      __ movl(rax, current_character());
+      __ xorl(rax, Immediate(0x01));
+      // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C.
+      __ subl(rax, Immediate(0x0B));
+      __ cmpl(rax, Immediate(0x0C - 0x0B));
+      BranchOrBacktrack(below_equal, on_no_match);
+      if (mode_ == UC16) {
+        // Compare original value to 0x2028 and 0x2029, using the already
+        // computed (current_char ^ 0x01 - 0x0B). I.e., check for
+        // 0x201D (0x2028 - 0x0B) or 0x201E.
+        __ subl(rax, Immediate(0x2028 - 0x0B));
+        __ cmpl(rax, Immediate(0x2029 - 0x2028));
+        BranchOrBacktrack(below_equal, on_no_match);
+      }
       return true;
     }
-    return false;
-  case 'S':
-    // The emitted code for generic character classes is good enough.
-    return false;
-  case 'd':
-    // Match ASCII digits ('0'..'9')
-    __ leal(rax, Operand(current_character(), -'0'));
-    __ cmpl(rax, Immediate('9' - '0'));
-    BranchOrBacktrack(above, on_no_match);
-    return true;
-  case 'D':
-    // Match non ASCII-digits
-    __ leal(rax, Operand(current_character(), -'0'));
-    __ cmpl(rax, Immediate('9' - '0'));
-    BranchOrBacktrack(below_equal, on_no_match);
-    return true;
-  case '.': {
-    // Match non-newlines (not 0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029)
-    __ movl(rax, current_character());
-    __ xorl(rax, Immediate(0x01));
-    // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C
-    __ subl(rax, Immediate(0x0B));
-    __ cmpl(rax, Immediate(0x0C - 0x0B));
-    BranchOrBacktrack(below_equal, on_no_match);
-    if (mode_ == UC16) {
-      // Compare original value to 0x2028 and 0x2029, using the already
-      // computed (current_char ^ 0x01 - 0x0B). I.e., check for
-      // 0x201D (0x2028 - 0x0B) or 0x201E.
-      __ subl(rax, Immediate(0x2028 - 0x0B));
-      __ cmpl(rax, Immediate(0x2029 - 0x2028));
-      BranchOrBacktrack(below_equal, on_no_match);
+    case StandardCharacterSet::kLineTerminator: {
+      // Match newlines (0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029).
+      __ movl(rax, current_character());
+      __ xorl(rax, Immediate(0x01));
+      // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C.
+      __ subl(rax, Immediate(0x0B));
+      __ cmpl(rax, Immediate(0x0C - 0x0B));
+      if (mode_ == LATIN1) {
+        BranchOrBacktrack(above, on_no_match);
+      } else {
+        Label done;
+        BranchOrBacktrack(below_equal, &done);
+        // Compare original value to 0x2028 and 0x2029, using the already
+        // computed (current_char ^ 0x01 - 0x0B). I.e., check for
+        // 0x201D (0x2028 - 0x0B) or 0x201E.
+        __ subl(rax, Immediate(0x2028 - 0x0B));
+        __ cmpl(rax, Immediate(0x2029 - 0x2028));
+        BranchOrBacktrack(above, on_no_match);
+        __ bind(&done);
+      }
+      return true;
     }
-    return true;
-  }
-  case 'n': {
-    // Match newlines (0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029)
-    __ movl(rax, current_character());
-    __ xorl(rax, Immediate(0x01));
-    // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C
-    __ subl(rax, Immediate(0x0B));
-    __ cmpl(rax, Immediate(0x0C - 0x0B));
-    if (mode_ == LATIN1) {
-      BranchOrBacktrack(above, on_no_match);
-    } else {
+    case StandardCharacterSet::kWord: {
+      if (mode_ != LATIN1) {
+        // Table is 256 entries, so all Latin1 characters can be tested.
+        __ cmpl(current_character(), Immediate('z'));
+        BranchOrBacktrack(above, on_no_match);
+      }
+      __ Move(rbx, ExternalReference::re_word_character_map());
+      DCHECK_EQ(0,
+                word_character_map[0]);  // Character '\0' is not a word char.
+      __ testb(Operand(rbx, current_character(), times_1, 0),
+               current_character());
+      BranchOrBacktrack(zero, on_no_match);
+      return true;
+    }
+    case StandardCharacterSet::kNotWord: {
       Label done;
-      BranchOrBacktrack(below_equal, &done);
-      // Compare original value to 0x2028 and 0x2029, using the already
-      // computed (current_char ^ 0x01 - 0x0B). I.e., check for
-      // 0x201D (0x2028 - 0x0B) or 0x201E.
-      __ subl(rax, Immediate(0x2028 - 0x0B));
-      __ cmpl(rax, Immediate(0x2029 - 0x2028));
-      BranchOrBacktrack(above, on_no_match);
-      __ bind(&done);
+      if (mode_ != LATIN1) {
+        // Table is 256 entries, so all Latin1 characters can be tested.
+        __ cmpl(current_character(), Immediate('z'));
+        __ j(above, &done);
+      }
+      __ Move(rbx, ExternalReference::re_word_character_map());
+      DCHECK_EQ(0,
+                word_character_map[0]);  // Character '\0' is not a word char.
+      __ testb(Operand(rbx, current_character(), times_1, 0),
+               current_character());
+      BranchOrBacktrack(not_zero, on_no_match);
+      if (mode_ != LATIN1) {
+        __ bind(&done);
+      }
+      return true;
     }
-    return true;
-  }
-  case 'w': {
-    if (mode_ != LATIN1) {
-      // Table is 256 entries, so all Latin1 characters can be tested.
-      __ cmpl(current_character(), Immediate('z'));
-      BranchOrBacktrack(above, on_no_match);
-    }
-    __ Move(rbx, ExternalReference::re_word_character_map(isolate()));
-    DCHECK_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
-    __ testb(Operand(rbx, current_character(), times_1, 0),
-             current_character());
-    BranchOrBacktrack(zero, on_no_match);
-    return true;
-  }
-  case 'W': {
-    Label done;
-    if (mode_ != LATIN1) {
-      // Table is 256 entries, so all Latin1 characters can be tested.
-      __ cmpl(current_character(), Immediate('z'));
-      __ j(above, &done);
-    }
-    __ Move(rbx, ExternalReference::re_word_character_map(isolate()));
-    DCHECK_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
-    __ testb(Operand(rbx, current_character(), times_1, 0),
-             current_character());
-    BranchOrBacktrack(not_zero, on_no_match);
-    if (mode_ != LATIN1) {
-      __ bind(&done);
-    }
-    return true;
-  }
 
-  case '*':
-    // Match any character.
-    return true;
-  // No custom implementation (yet): s(UC16), S(UC16).
-  default:
-    return false;
+    case StandardCharacterSet::kEverything:
+      // Match any character.
+      return true;
   }
 }
 
@@ -1008,12 +1053,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     SafeCallTarget(&stack_overflow_label_);
     // Reached if the backtrack-stack limit has been hit.
 
-    // Save registers before calling C function
-#ifndef V8_TARGET_OS_WIN
-    // Callee-save in Microsoft 64-bit ABI, but not in AMD64 ABI.
-    __ pushq(rsi);
-    __ pushq(rdi);
-#endif
+    PushCallerSavedRegisters();
 
     // Call GrowStack(isolate).
 
@@ -1023,21 +1063,17 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     __ PrepareCallCFunction(kNumArguments);
     __ LoadAddress(arg_reg_1, ExternalReference::isolate_address(isolate()));
 
-    ExternalReference grow_stack =
-        ExternalReference::re_grow_stack(isolate());
+    ExternalReference grow_stack = ExternalReference::re_grow_stack();
     __ CallCFunction(grow_stack, kNumArguments);
     // If nullptr is returned, we have failed to grow the stack, and must exit
     // with a stack-overflow exception.
     __ testq(rax, rax);
     __ j(equal, &exit_with_exception);
+    PopCallerSavedRegisters();
     // Otherwise use return value as new stack pointer.
     __ movq(backtrack_stackpointer(), rax);
     // Restore saved registers and continue.
     __ Move(code_object_pointer(), masm_.CodeObject());
-#ifndef V8_TARGET_OS_WIN
-    __ popq(rdi);
-    __ popq(rsi);
-#endif
     SafeReturn();
   }
 
@@ -1229,7 +1265,7 @@ void RegExpMacroAssemblerX64::CallCheckStackGuardState() {
   __ leaq(rdi, Operand(rsp, -kSystemPointerSize));
 #endif
   ExternalReference stack_check =
-      ExternalReference::re_check_stack_guard_state(isolate());
+      ExternalReference::re_check_stack_guard_state();
   __ CallCFunction(stack_check, num_arguments);
 }
 

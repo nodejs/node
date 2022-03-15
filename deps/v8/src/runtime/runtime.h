@@ -75,6 +75,7 @@ namespace internal {
   F(BigIntEqualToBigInt, 2, 1)          \
   F(BigIntEqualToNumber, 2, 1)          \
   F(BigIntEqualToString, 2, 1)          \
+  F(BigIntMaxLengthBits, 0, 1)          \
   F(BigIntToBoolean, 1, 1)              \
   F(BigIntToNumber, 1, 1)               \
   F(BigIntUnaryOp, 2, 1)                \
@@ -233,6 +234,7 @@ namespace internal {
   F(PromoteScheduledException, 0, 1)                         \
   F(ReportMessageFromMicrotask, 1, 1)                        \
   F(ReThrow, 1, 1)                                           \
+  F(ReThrowWithMessage, 2, 1)                                \
   F(RunMicrotaskCallback, 2, 1)                              \
   F(PerformMicrotaskCheckpoint, 0, 1)                        \
   F(StackGuard, 0, 1)                                        \
@@ -287,8 +289,6 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_OBJECT(F, I)                         \
   F(AddDictionaryProperty, 3, 1)                                \
-  F(AddPrivateField, 3, 1)                                      \
-  F(AddPrivateBrand, 3, 1)                                      \
   F(AllocateHeapNumber, 0, 1)                                   \
   F(CollectTypeProfile, 3, 1)                                   \
   F(CompleteInobjectSlackTrackingForMap, 1, 1)                  \
@@ -333,6 +333,7 @@ namespace internal {
   F(OptimizeObjectForAddingMultipleProperties, 2, 1)            \
   F(SetDataProperties, 2, 1)                                    \
   F(SetKeyedProperty, 3, 1)                                     \
+  F(DefineObjectOwnProperty, 3, 1)                              \
   F(SetNamedProperty, 3, 1)                                     \
   F(SetOwnPropertyIgnoreAttributes, 4, 1)                       \
   F(StoreDataPropertyInLiteral, 3, 1)                           \
@@ -553,6 +554,7 @@ namespace internal {
   F(SimulateNewspaceFull, 0, 1)               \
   F(StringIteratorProtector, 0, 1)            \
   F(SystemBreak, 0, 1)                        \
+  F(TakeHeapSnapshot, -1, 1)                  \
   F(TierupFunctionOnNextCall, -1, 1)          \
   F(TraceEnter, 0, 1)                         \
   F(TraceExit, 1, 1)                          \
@@ -593,7 +595,9 @@ namespace internal {
   F(WasmTriggerTierUp, 1, 1)          \
   F(WasmDebugBreak, 0, 1)             \
   F(WasmAllocateRtt, 3, 1)            \
-  F(WasmArrayCopy, 5, 1)
+  F(WasmArrayCopy, 5, 1)              \
+  F(WasmAllocateContinuation, 0, 1)   \
+  F(WasmSyncStackLimit, 0, 1)
 
 #define FOR_EACH_INTRINSIC_WASM_TEST(F, I) \
   F(DeserializeWasmModule, 2, 1)           \
@@ -634,8 +638,11 @@ namespace internal {
   F(ElementsTransitionAndStoreIC_Miss, 6, 1) \
   F(KeyedLoadIC_Miss, 4, 1)                  \
   F(KeyedStoreIC_Miss, 5, 1)                 \
+  F(KeyedDefineOwnIC_Miss, 5, 1)             \
   F(StoreInArrayLiteralIC_Miss, 5, 1)        \
+  F(StoreOwnIC_Slow, 3, 1)                   \
   F(KeyedStoreIC_Slow, 3, 1)                 \
+  F(KeyedDefineOwnIC_Slow, 3, 1)             \
   F(LoadElementWithInterceptor, 2, 1)        \
   F(LoadGlobalIC_Miss, 4, 1)                 \
   F(LoadGlobalIC_Slow, 3, 1)                 \
@@ -649,6 +656,7 @@ namespace internal {
   F(StoreGlobalICNoFeedback_Miss, 2, 1)      \
   F(StoreGlobalIC_Slow, 5, 1)                \
   F(StoreIC_Miss, 5, 1)                      \
+  F(StoreOwnIC_Miss, 5, 1)                   \
   F(StoreInArrayLiteralIC_Slow, 5, 1)        \
   F(StorePropertyWithInterceptor, 5, 1)      \
   F(CloneObjectIC_Miss, 4, 1)                \
@@ -789,10 +797,22 @@ class Runtime : public AllStatic {
   DeleteObjectProperty(Isolate* isolate, Handle<JSReceiver> receiver,
                        Handle<Object> key, LanguageMode language_mode);
 
+  // Perform a property store on object. If the key is a private name (i.e. this
+  // is a private field assignment), this method throws if the private field
+  // does not exist on object.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
   SetObjectProperty(Isolate* isolate, Handle<Object> object, Handle<Object> key,
                     Handle<Object> value, StoreOrigin store_origin,
                     Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
+
+  // Defines a property on object. If the key is a private name (i.e. this is a
+  // private field definition), this method throws if the field already exists
+  // on object.
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
+  DefineObjectOwnProperty(
+      Isolate* isolate, Handle<Object> object, Handle<Object> key,
+      Handle<Object> value, StoreOrigin store_origin,
+      Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
 
   // When "receiver" is not passed, it defaults to "lookup_start_object".
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>

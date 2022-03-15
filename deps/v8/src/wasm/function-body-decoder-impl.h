@@ -1018,7 +1018,8 @@ struct ControlBase : public PcForErrors<validate> {
     const Value args[])                                                       \
   F(ReturnCallIndirect, const Value& index,                                   \
     const CallIndirectImmediate<validate>& imm, const Value args[])           \
-  F(BrOnNull, const Value& ref_object, uint32_t depth)                        \
+  F(BrOnNull, const Value& ref_object, uint32_t depth,                        \
+    bool pass_null_along_branch, Value* result_on_fallthrough)                \
   F(BrOnNonNull, const Value& ref_object, uint32_t depth)                     \
   F(SimdOp, WasmOpcode opcode, base::Vector<Value> args, Value* result)       \
   F(SimdLaneOp, WasmOpcode opcode, const SimdLaneImmediate<validate>& imm,    \
@@ -2729,8 +2730,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         // The result of br_on_null has the same value as the argument (but a
         // non-nullable type).
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
-          CALL_INTERFACE(BrOnNull, ref_object, imm.depth);
-          CALL_INTERFACE(Forward, ref_object, &result);
+          CALL_INTERFACE(BrOnNull, ref_object, imm.depth, false, &result);
           c->br_merge()->reached = true;
         }
         // In unreachable code, we still have to push a value of the correct
@@ -4017,9 +4017,21 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     }
   }
 
-  bool ObjectRelatedWithRtt(Value obj, Value rtt) {
-    return IsSubtypeOf(ValueType::Ref(rtt.type.ref_index(), kNonNullable),
-                       obj.type, this->module_) ||
+  // Checks if types are unrelated, thus type checking will always fail. Does
+  // not account for nullability.
+  bool TypeCheckAlwaysFails(Value obj, Value rtt) {
+    return !IsSubtypeOf(ValueType::Ref(rtt.type.ref_index(), kNonNullable),
+                        obj.type, this->module_) &&
+           !IsSubtypeOf(obj.type,
+                        ValueType::Ref(rtt.type.ref_index(), kNullable),
+                        this->module_);
+  }
+
+  // Checks it {obj} is a nominal type which is a subtype of {rtt}'s index, thus
+  // checking will always succeed. Does not account for nullability.
+  bool TypeCheckAlwaysSucceeds(Value obj, Value rtt) {
+    return obj.type.has_index() &&
+           this->module_->has_supertype(obj.type.ref_index()) &&
            IsSubtypeOf(obj.type,
                        ValueType::Ref(rtt.type.ref_index(), kNullable),
                        this->module_);
@@ -4503,13 +4515,24 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         if (current_code_reachable_and_ok_) {
           // This logic ensures that code generation can assume that functions
           // can only be cast to function types, and data objects to data types.
-          if (V8_LIKELY(ObjectRelatedWithRtt(obj, rtt))) {
-            CALL_INTERFACE(RefTest, obj, rtt, &value);
-          } else {
+          if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(obj, rtt))) {
+            // Drop rtt.
+            CALL_INTERFACE(Drop);
+            // Type checking can still fail for null.
+            if (obj.type.is_nullable()) {
+              // We abuse ref.as_non_null, which isn't otherwise used as a unary
+              // operator, as a sentinel for the negation of ref.is_null.
+              CALL_INTERFACE(UnOp, kExprRefAsNonNull, obj, &value);
+            } else {
+              CALL_INTERFACE(Drop);
+              CALL_INTERFACE(I32Const, &value, 1);
+            }
+          } else if (V8_UNLIKELY(TypeCheckAlwaysFails(obj, rtt))) {
             CALL_INTERFACE(Drop);
             CALL_INTERFACE(Drop);
-            // Unrelated types. Will always fail.
             CALL_INTERFACE(I32Const, &value, 0);
+          } else {
+            CALL_INTERFACE(RefTest, obj, rtt, &value);
           }
         }
         Drop(2);
@@ -4556,9 +4579,12 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         if (current_code_reachable_and_ok_) {
           // This logic ensures that code generation can assume that functions
           // can only be cast to function types, and data objects to data types.
-          if (V8_LIKELY(ObjectRelatedWithRtt(obj, rtt))) {
-            CALL_INTERFACE(RefCast, obj, rtt, &value);
-          } else {
+          if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(obj, rtt))) {
+            // Drop the rtt from the stack, then forward the object value to the
+            // result.
+            CALL_INTERFACE(Drop);
+            CALL_INTERFACE(Forward, obj, &value);
+          } else if (V8_UNLIKELY(TypeCheckAlwaysFails(obj, rtt))) {
             // Unrelated types. The only way this will not trap is if the object
             // is null.
             if (obj.type.is_nullable()) {
@@ -4569,6 +4595,8 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
               CALL_INTERFACE(Trap, TrapReason::kTrapIllegalCast);
               EndControl();
             }
+          } else {
+            CALL_INTERFACE(RefCast, obj, rtt, &value);
           }
         }
         Drop(2);
@@ -4628,20 +4656,30 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                 : ValueType::Ref(rtt.type.ref_index(), kNonNullable));
         Push(result_on_branch);
         if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
-        // This logic ensures that code generation can assume that functions
-        // can only be cast to function types, and data objects to data types.
-        if (V8_LIKELY(ObjectRelatedWithRtt(obj, rtt))) {
-          // The {value_on_branch} parameter we pass to the interface must
-          // be pointer-identical to the object on the stack, so we can't
-          // reuse {result_on_branch} which was passed-by-value to {Push}.
-          Value* value_on_branch = stack_value(1);
-          if (V8_LIKELY(current_code_reachable_and_ok_)) {
+        if (V8_LIKELY(current_code_reachable_and_ok_)) {
+          // This logic ensures that code generation can assume that functions
+          // can only be cast to function types, and data objects to data types.
+          if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(obj, rtt))) {
+            CALL_INTERFACE(Drop);  // rtt
+            // The branch will still not be taken on null.
+            if (obj.type.is_nullable()) {
+              CALL_INTERFACE(BrOnNonNull, obj, branch_depth.depth);
+            } else {
+              CALL_INTERFACE(BrOrRet, branch_depth.depth, 0);
+            }
+            c->br_merge()->reached = true;
+          } else if (V8_LIKELY(!TypeCheckAlwaysFails(obj, rtt))) {
+            // The {value_on_branch} parameter we pass to the interface must
+            // be pointer-identical to the object on the stack, so we can't
+            // reuse {result_on_branch} which was passed-by-value to {Push}.
+            Value* value_on_branch = stack_value(1);
             CALL_INTERFACE(BrOnCast, obj, rtt, value_on_branch,
                            branch_depth.depth);
             c->br_merge()->reached = true;
           }
+          // Otherwise the types are unrelated. Do not branch.
         }
-        // Otherwise the types are unrelated. Do not branch.
+
         Drop(result_on_branch);
         Push(obj);  // Restore stack state on fallthrough.
         return opcode_length + branch_depth.length;
@@ -4699,13 +4737,10 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
             rtt.type.is_bottom()
                 ? kWasmBottom
                 : ValueType::Ref(rtt.type.ref_index(), kNonNullable));
-        // This logic ensures that code generation can assume that functions
-        // can only be cast to function types, and data objects to data types.
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
-          if (V8_LIKELY(ObjectRelatedWithRtt(obj, rtt))) {
-            CALL_INTERFACE(BrOnCastFail, obj, rtt, &result_on_fallthrough,
-                           branch_depth.depth);
-          } else {
+          // This logic ensures that code generation can assume that functions
+          // can only be cast to function types, and data objects to data types.
+          if (V8_UNLIKELY(TypeCheckAlwaysFails(obj, rtt))) {
             // Drop {rtt} in the interface.
             CALL_INTERFACE(Drop);
             // Otherwise the types are unrelated. Always branch.
@@ -4713,8 +4748,25 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
             // We know that the following code is not reachable, but according
             // to the spec it technically is. Set it to spec-only reachable.
             SetSucceedingCodeDynamicallyUnreachable();
+            c->br_merge()->reached = true;
+          } else if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(obj, rtt))) {
+            // Drop {rtt} in the interface.
+            CALL_INTERFACE(Drop);
+            // The branch can still be taken on null.
+            if (obj.type.is_nullable()) {
+              CALL_INTERFACE(BrOnNull, obj, branch_depth.depth, true,
+                             &result_on_fallthrough);
+              c->br_merge()->reached = true;
+            } else {
+              // Drop {obj} in the interface.
+              CALL_INTERFACE(Drop);
+            }
+          } else {
+            CALL_INTERFACE(BrOnCastFail, obj, rtt, &result_on_fallthrough,
+                           branch_depth.depth);
+            c->br_merge()->reached = true;
           }
-          c->br_merge()->reached = true;
+          // Otherwise, the type check always succeeds. Do not branch.
         }
         // Make sure the correct value is on the stack state on fallthrough.
         Drop(obj);

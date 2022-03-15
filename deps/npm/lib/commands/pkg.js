@@ -9,6 +9,8 @@ class Pkg extends BaseCommand {
     'set <key>=<value> [<key>=<value> ...]',
     'get [<key> [<key> ...]]',
     'delete <key> [<key> ...]',
+    'set [<array>[<index>].<key>=<value> ...]',
+    'set [<array>[].<key>=<value> ...]',
   ]
 
   static params = [
@@ -17,6 +19,8 @@ class Pkg extends BaseCommand {
     'workspace',
     'workspaces',
   ]
+
+  static ignoreImplicitWorkspace = false
 
   async exec (args, { prefix } = {}) {
     if (!prefix) {

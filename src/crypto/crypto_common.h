@@ -25,7 +25,7 @@ struct StackOfXASN1Deleter {
 };
 using StackOfASN1 = std::unique_ptr<STACK_OF(ASN1_OBJECT), StackOfXASN1Deleter>;
 
-int SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer);
+bool SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer);
 
 void LogSecret(
     const SSLPointer& ssl,
@@ -44,14 +44,7 @@ v8::MaybeLocal<v8::Value> GetSSLOCSPResponse(
 
 bool SetTLSSession(
     const SSLPointer& ssl,
-    const unsigned char* buf,
-    size_t length);
-
-bool SetTLSSession(
-    const SSLPointer& ssl,
     const SSLSessionPointer& session);
-
-SSLSessionPointer GetTLSSession(v8::Local<v8::Value> val);
 
 SSLSessionPointer GetTLSSession(const unsigned char* buf, size_t length);
 
@@ -59,7 +52,7 @@ long VerifyPeerCertificate(  // NOLINT(runtime/int)
     const SSLPointer& ssl,
     long def = X509_V_ERR_UNSPECIFIED);  // NOLINT(runtime/int)
 
-int UseSNIContext(const SSLPointer& ssl, BaseObjectPtr<SecureContext> context);
+bool UseSNIContext(const SSLPointer& ssl, BaseObjectPtr<SecureContext> context);
 
 const char* GetClientHelloALPN(const SSLPointer& ssl);
 
@@ -116,8 +109,7 @@ v8::MaybeLocal<v8::Object> ECPointToBuffer(
 
 v8::MaybeLocal<v8::Object> X509ToObject(
     Environment* env,
-    X509* cert,
-    bool names_as_string = false);
+    X509* cert);
 
 v8::MaybeLocal<v8::Value> GetValidTo(
     Environment* env,

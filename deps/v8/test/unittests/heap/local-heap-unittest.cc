@@ -29,6 +29,7 @@ TEST_F(LocalHeapTest, Current) {
 
   {
     LocalHeap lh(heap, ThreadKind::kMain);
+    lh.SetUpMainThreadForTesting();
     CHECK_NULL(LocalHeap::Current());
   }
 
@@ -36,6 +37,7 @@ TEST_F(LocalHeapTest, Current) {
 
   {
     LocalHeap lh(heap, ThreadKind::kMain);
+    lh.SetUpMainThreadForTesting();
     CHECK_NULL(LocalHeap::Current());
   }
 
@@ -67,6 +69,7 @@ TEST_F(LocalHeapTest, CurrentBackground) {
   CHECK_NULL(LocalHeap::Current());
   {
     LocalHeap lh(heap, ThreadKind::kMain);
+    lh.SetUpMainThreadForTesting();
     auto thread = std::make_unique<BackgroundThread>(heap);
     CHECK(thread->Start());
     CHECK_NULL(LocalHeap::Current());
@@ -157,6 +160,7 @@ class BackgroundThreadForGCEpilogue final : public v8::base::Thread {
 TEST_F(LocalHeapTest, GCEpilogue) {
   Heap* heap = i_isolate()->heap();
   LocalHeap lh(heap, ThreadKind::kMain);
+  lh.SetUpMainThreadForTesting();
   std::array<GCEpilogue, 3> epilogue;
   {
     UnparkedScope unparked(&lh);

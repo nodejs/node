@@ -97,64 +97,64 @@ void CompileJumpTableThunk(Address thunk, Address jump_target) {
   Register scratch = kReturnRegister0;
   Address stop_bit_address = reinterpret_cast<Address>(&global_stop_bit);
 #if V8_TARGET_ARCH_X64
-  __ Move(scratch, stop_bit_address, RelocInfo::NONE);
+  __ Move(scratch, stop_bit_address, RelocInfo::NO_INFO);
   __ testl(MemOperand(scratch, 0), Immediate(1));
   __ j(not_zero, &exit);
-  __ Jump(jump_target, RelocInfo::NONE);
+  __ Jump(jump_target, RelocInfo::NO_INFO);
 #elif V8_TARGET_ARCH_IA32
-  __ Move(scratch, Immediate(stop_bit_address, RelocInfo::NONE));
+  __ Move(scratch, Immediate(stop_bit_address, RelocInfo::NO_INFO));
   __ test(MemOperand(scratch, 0), Immediate(1));
   __ j(not_zero, &exit);
-  __ jmp(jump_target, RelocInfo::NONE);
+  __ jmp(jump_target, RelocInfo::NO_INFO);
 #elif V8_TARGET_ARCH_ARM
-  __ mov(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ mov(scratch, Operand(stop_bit_address, RelocInfo::NO_INFO));
   __ ldr(scratch, MemOperand(scratch, 0));
   __ tst(scratch, Operand(1));
   __ b(ne, &exit);
-  __ Jump(jump_target, RelocInfo::NONE);
+  __ Jump(jump_target, RelocInfo::NO_INFO);
 #elif V8_TARGET_ARCH_ARM64
   UseScratchRegisterScope temps(&masm);
   temps.Exclude(x16);
   scratch = x16;
-  __ Mov(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ Mov(scratch, Operand(stop_bit_address, RelocInfo::NO_INFO));
   __ Ldr(scratch, MemOperand(scratch, 0));
   __ Tbnz(scratch, 0, &exit);
-  __ Mov(scratch, Immediate(jump_target, RelocInfo::NONE));
+  __ Mov(scratch, Immediate(jump_target, RelocInfo::NO_INFO));
   __ Br(scratch);
 #elif V8_TARGET_ARCH_PPC64
-  __ mov(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ mov(scratch, Operand(stop_bit_address, RelocInfo::NO_INFO));
   __ LoadU64(scratch, MemOperand(scratch));
   __ cmpi(scratch, Operand::Zero());
   __ bne(&exit);
-  __ mov(scratch, Operand(jump_target, RelocInfo::NONE));
+  __ mov(scratch, Operand(jump_target, RelocInfo::NO_INFO));
   __ Jump(scratch);
 #elif V8_TARGET_ARCH_S390X
-  __ mov(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ mov(scratch, Operand(stop_bit_address, RelocInfo::NO_INFO));
   __ LoadU64(scratch, MemOperand(scratch));
   __ CmpP(scratch, Operand(0));
   __ bne(&exit);
-  __ mov(scratch, Operand(jump_target, RelocInfo::NONE));
+  __ mov(scratch, Operand(jump_target, RelocInfo::NO_INFO));
   __ Jump(scratch);
 #elif V8_TARGET_ARCH_MIPS64
-  __ li(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ li(scratch, Operand(stop_bit_address, RelocInfo::NO_INFO));
   __ Lw(scratch, MemOperand(scratch, 0));
   __ Branch(&exit, ne, scratch, Operand(zero_reg));
-  __ Jump(jump_target, RelocInfo::NONE);
+  __ Jump(jump_target, RelocInfo::NO_INFO);
 #elif V8_TARGET_ARCH_LOONG64
-  __ li(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ li(scratch, Operand(stop_bit_address, RelocInfo::NO_INFO));
   __ Ld_w(scratch, MemOperand(scratch, 0));
   __ Branch(&exit, ne, scratch, Operand(zero_reg));
-  __ Jump(jump_target, RelocInfo::NONE);
+  __ Jump(jump_target, RelocInfo::NO_INFO);
 #elif V8_TARGET_ARCH_MIPS
-  __ li(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ li(scratch, Operand(stop_bit_address, RelocInfo::NO_INFO));
   __ lw(scratch, MemOperand(scratch, 0));
   __ Branch(&exit, ne, scratch, Operand(zero_reg));
-  __ Jump(jump_target, RelocInfo::NONE);
+  __ Jump(jump_target, RelocInfo::NO_INFO);
 #elif V8_TARGET_ARCH_RISCV64
-  __ li(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ li(scratch, Operand(stop_bit_address, RelocInfo::NO_INFO));
   __ Lw(scratch, MemOperand(scratch, 0));
   __ Branch(&exit, ne, scratch, Operand(zero_reg));
-  __ Jump(jump_target, RelocInfo::NONE);
+  __ Jump(jump_target, RelocInfo::NO_INFO);
 #else
 #error Unsupported architecture
 #endif

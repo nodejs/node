@@ -14,6 +14,7 @@ class Token extends BaseCommand {
   static name = 'token'
   static usage = ['list', 'revoke <id|token>', 'create [--read-only] [--cidr=list]']
   static params = ['read-only', 'cidr', 'registry', 'otp']
+  static ignoreImplicitWorkspace = true
 
   async completion (opts) {
     const argv = opts.conf.argv.remain

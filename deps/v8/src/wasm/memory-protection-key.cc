@@ -184,7 +184,7 @@ void SetPermissionsForMemoryProtectionKey(
 }
 
 DISABLE_CFI_ICALL
-bool MemoryProtectionKeyWritable(int key) {
+MemoryProtectionKeyPermission GetMemoryProtectionKeyPermission(int key) {
   DCHECK_NE(kNoMemoryProtectionKey, key);
 
 #if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
@@ -193,8 +193,10 @@ bool MemoryProtectionKeyWritable(int key) {
   // If a valid key was allocated, {pkey_get()} must also be available.
   DCHECK_NOT_NULL(pkey_get);
 
-  int permissions = pkey_get(key);
-  return permissions == kNoRestrictions;
+  int permission = pkey_get(key);
+  CHECK(permission == kNoRestrictions || permission == kDisableAccess ||
+        permission == kDisableWrite);
+  return static_cast<MemoryProtectionKeyPermission>(permission);
 #else
   // On platforms without PKU support, this method cannot be called because
   // no protection key can have been allocated.

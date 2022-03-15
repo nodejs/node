@@ -76,15 +76,15 @@ Reduction ValueNumberingReducer::Reduce(Node* node) {
       // in this case because we find node1 first, but what we should actually
       // do is return Replace(node2) instead.
       for (size_t j = (i + 1) & mask;; j = (j + 1) & mask) {
-        Node* entry = entries_[j];
-        if (!entry) {
+        Node* other_entry = entries_[j];
+        if (!other_entry) {
           // No collision, {node} is fine.
           return NoChange();
         }
-        if (entry->IsDead()) {
+        if (other_entry->IsDead()) {
           continue;
         }
-        if (entry == node) {
+        if (other_entry == node) {
           // Collision with ourselves, doesn't count as a real collision.
           // Opportunistically clean-up the duplicate entry if we're at the end
           // of a bucket.
@@ -96,11 +96,11 @@ Reduction ValueNumberingReducer::Reduce(Node* node) {
           // Otherwise, keep searching for another collision.
           continue;
         }
-        if (NodeProperties::Equals(entry, node)) {
-          Reduction reduction = ReplaceIfTypesMatch(node, entry);
+        if (NodeProperties::Equals(other_entry, node)) {
+          Reduction reduction = ReplaceIfTypesMatch(node, other_entry);
           if (reduction.Changed()) {
             // Overwrite the colliding entry with the actual entry.
-            entries_[i] = entry;
+            entries_[i] = other_entry;
             // Opportunistically clean-up the duplicate entry if we're at the
             // end of a bucket.
             if (!entries_[(j + 1) & mask]) {

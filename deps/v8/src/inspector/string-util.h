@@ -71,6 +71,10 @@ String16 toProtocolString(v8::Isolate*, v8::Local<v8::String>);
 String16 toProtocolStringWithTypeCheck(v8::Isolate*, v8::Local<v8::Value>);
 String16 toString16(const StringView&);
 StringView toStringView(const String16&);
+template <size_t N>
+StringView toStringView(const char* str[N]) {
+  return StringView(reinterpret_cast<const uint8_t*>(str), N);
+}
 bool stringViewStartsWith(const StringView&, const char*);
 
 // Creates a string buffer instance which owns |str|, a 16 bit string.

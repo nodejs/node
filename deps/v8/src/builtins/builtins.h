@@ -36,6 +36,13 @@ static constexpr T FirstFromVarArgs(T x, ...) noexcept {
 #define BUILTIN_CODE(isolate, name) \
   (isolate)->builtins()->code_handle(i::Builtin::k##name)
 
+#ifdef V8_EXTERNAL_CODE_SPACE
+#define BUILTIN_CODET(isolate, name) \
+  (isolate)->builtins()->codet_handle(i::Builtin::k##name)
+#else
+#define BUILTIN_CODET(isolate, name) BUILTIN_CODE(isolate, name)
+#endif  // V8_EXTERNAL_CODE_SPACE
+
 enum class Builtin : int32_t {
   kNoBuiltinId = -1,
 #define DEF_ENUM(Name, ...) k##Name,
@@ -158,9 +165,13 @@ class Builtins {
 
   // Used by CreateOffHeapTrampolines in isolate.cc.
   void set_code(Builtin builtin, Code code);
+  void set_codet(Builtin builtin, CodeT code);
 
   V8_EXPORT_PRIVATE Code code(Builtin builtin);
   V8_EXPORT_PRIVATE Handle<Code> code_handle(Builtin builtin);
+
+  V8_EXPORT_PRIVATE CodeT codet(Builtin builtin);
+  V8_EXPORT_PRIVATE Handle<CodeT> codet_handle(Builtin builtin);
 
   static CallInterfaceDescriptor CallInterfaceDescriptorFor(Builtin builtin);
   V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate,
@@ -191,6 +202,11 @@ class Builtins {
   // As above, but safe to access off the main thread since the check is done
   // by handle location. Similar to Heap::IsRootHandle.
   bool IsBuiltinHandle(Handle<HeapObject> maybe_code, Builtin* index) const;
+
+  // Similar to IsBuiltinHandle but for respective CodeDataContainer handle.
+  // Can be used only when external code space is enabled.
+  bool IsBuiltinCodeDataContainerHandle(Handle<HeapObject> maybe_code,
+                                        Builtin* index) const;
 
   // True, iff the given code object is a builtin with off-heap embedded code.
   static bool IsIsolateIndependentBuiltin(const Code code);
@@ -275,6 +291,13 @@ class Builtins {
     CHECK(js_entry_handler_offset_ == 0 || js_entry_handler_offset_ == offset);
     js_entry_handler_offset_ = offset;
   }
+
+  // Returns given builtin's slot in the main builtin table.
+  FullObjectSlot builtin_slot(Builtin builtin);
+  // Returns given builtin's slot in the tier0 builtin table.
+  FullObjectSlot builtin_tier0_slot(Builtin builtin);
+  // Returns given builtin's slot in the builtin code data container table.
+  FullObjectSlot builtin_code_data_container_slot(Builtin builtin);
 
  private:
   static void Generate_CallFunction(MacroAssembler* masm,

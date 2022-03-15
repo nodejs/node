@@ -8,7 +8,7 @@
 #include "src/base/macros.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap.h"
-#include "test/benchmarks/cpp/cppgc/utils.h"
+#include "test/benchmarks/cpp/cppgc/benchmark_utils.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
 namespace cppgc {

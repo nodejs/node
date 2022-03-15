@@ -39,31 +39,25 @@ kSmiTag = 0
 kSmiTagSize = 1
 kSmiTagMask = (1 << kSmiTagSize) - 1
 
-
 kHeapObjectTag = 1
 kHeapObjectTagSize = 2
 kHeapObjectTagMask = (1 << kHeapObjectTagSize) - 1
-
 
 kFailureTag = 3
 kFailureTagSize = 2
 kFailureTagMask = (1 << kFailureTagSize) - 1
 
-
 kSmiShiftSize32 = 0
 kSmiValueSize32 = 31
 kSmiShiftBits32 = kSmiTagSize + kSmiShiftSize32
-
 
 kSmiShiftSize64 = 31
 kSmiValueSize64 = 32
 kSmiShiftBits64 = kSmiTagSize + kSmiShiftSize64
 
-
 kAllBits = 0xFFFFFFFF
 kTopBit32 = 0x80000000
 kTopBit64 = 0x8000000000000000
-
 
 t_u32 = gdb.lookup_type('unsigned int')
 t_u64 = gdb.lookup_type('unsigned long long')
@@ -114,8 +108,10 @@ def decode_v8_value(v, bitness):
 
 class V8ValuePrinter(object):
   "Print a v8value."
+
   def __init__(self, val):
     self.val = val
+
   def to_string(self):
     if self.val.type.sizeof == 4:
       v_u32 = self.val.cast(t_u32)
@@ -125,6 +121,7 @@ class V8ValuePrinter(object):
       return decode_v8_value(int(v_u64), 64)
     else:
       return 'v8value?'
+
   def display_hint(self):
     return 'v8value'
 
@@ -136,6 +133,8 @@ def v8_pretty_printers(val):
   elif lookup_tag == 'v8value':
     return V8ValuePrinter(val)
   return None
+
+
 gdb.pretty_printers.append(v8_pretty_printers)
 
 
@@ -153,43 +152,48 @@ def v8_get_value(vstring):
   return v8_to_int(v)
 
 
-class V8PrintObject (gdb.Command):
+class V8PrintObject(gdb.Command):
   """Prints a v8 object."""
-  def __init__ (self):
-    super (V8PrintObject, self).__init__ ("v8print", gdb.COMMAND_DATA)
-  def invoke (self, arg, from_tty):
+  def __init__(self):
+    super(V8PrintObject, self).__init__("v8print", gdb.COMMAND_DATA)
+
+  def invoke(self, arg, from_tty):
     v = v8_get_value(arg)
     gdb.execute('call __gdb_print_v8_object(%d)' % v)
+
+
 V8PrintObject()
 
 
-class FindAnywhere (gdb.Command):
+class FindAnywhere(gdb.Command):
   """Search memory for the given pattern."""
   MAPPING_RE = re.compile(r"^\s*\[\d+\]\s+0x([0-9A-Fa-f]+)->0x([0-9A-Fa-f]+)")
   LIVE_MAPPING_RE = re.compile(r"^\s+0x([0-9A-Fa-f]+)\s+0x([0-9A-Fa-f]+)")
-  def __init__ (self):
-    super (FindAnywhere, self).__init__ ("find-anywhere", gdb.COMMAND_DATA)
-  def find (self, startAddr, endAddr, value):
+
+  def __init__(self):
+    super(FindAnywhere, self).__init__("find-anywhere", gdb.COMMAND_DATA)
+
+  def find(self, startAddr, endAddr, value):
     try:
-      result = gdb.execute(
-          "find 0x%s, 0x%s, %s" % (startAddr, endAddr, value),
-          to_string = True)
+      result = gdb.execute("find 0x%s, 0x%s, %s" % (startAddr, endAddr, value),
+                           to_string=True)
       if result.find("not found") == -1:
         print(result)
     except:
       pass
 
-  def invoke (self, value, from_tty):
-    for l in gdb.execute("maint info sections", to_string = True).split('\n'):
+  def invoke(self, value, from_tty):
+    for l in gdb.execute("maint info sections", to_string=True).split('\n'):
       m = FindAnywhere.MAPPING_RE.match(l)
       if m is None:
         continue
       self.find(m.group(1), m.group(2), value)
-    for l in gdb.execute("info proc mappings", to_string = True).split('\n'):
+    for l in gdb.execute("info proc mappings", to_string=True).split('\n'):
       m = FindAnywhere.LIVE_MAPPING_RE.match(l)
       if m is None:
         continue
       self.find(m.group(1), m.group(2), value)
+
 
 FindAnywhere()
 
@@ -209,15 +213,16 @@ GDB_EXTERNAL_EDITOR environment variable.
     super(Redirect, self).__init__("redirect", gdb.COMMAND_USER)
 
   def invoke(self, subcommand, from_tty):
-    old_stdout = gdb.execute(
-            "p (int)dup(1)", to_string=True).split("=")[-1].strip()
+    old_stdout = gdb.execute("p (int)dup(1)",
+                             to_string=True).split("=")[-1].strip()
     try:
       time_suffix = time.strftime("%Y%m%d-%H%M%S")
       fd, file = tempfile.mkstemp(suffix="-%s.gdbout" % time_suffix)
       try:
-        # Temporaily redirect stdout to the created tmp file for the
+        # Temporarily redirect stdout to the created tmp file for the
         # duration of the subcommand.
-        gdb.execute('p (int)dup2(open("%s", 1), 1)' % file, to_string=True)
+        gdb.execute('p (int)dup2((int)open("%s", 1), 1)' % file,
+                    to_string=True)
         # Execute subcommand non interactively.
         result = gdb.execute(subcommand, from_tty=False, to_string=True)
         # Write returned string results to the temporary file as well.
@@ -229,7 +234,7 @@ GDB_EXTERNAL_EDITOR environment variable.
           print("Opening '%s' with %s" % (file, open_cmd))
           subprocess.call([open_cmd, file])
         else:
-          print("Open output:\n  %s '%s'" % (os.environ['EDITOR'], file))
+          print("Output written to:\n '%s'" % file)
       finally:
         # Restore original stdout.
         gdb.execute("p (int)dup2(%s, 1)" % old_stdout, to_string=True)
@@ -238,5 +243,6 @@ GDB_EXTERNAL_EDITOR environment variable.
     finally:
       # Close the originally duplicated stdout descriptor.
       gdb.execute("p (int)close(%s)" % old_stdout, to_string=True)
+
 
 Redirect()

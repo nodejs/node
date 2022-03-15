@@ -20,8 +20,8 @@ class V8 : public AllStatic {
  public:
   // Global actions.
 
-  static bool Initialize();
-  static void TearDown();
+  static void Initialize();
+  static void Dispose();
 
   // Report process out of memory. Implementation found in api.cc.
   // This function will not return, but will terminate the execution.
@@ -34,7 +34,7 @@ class V8 : public AllStatic {
 #endif
 
   static void InitializePlatform(v8::Platform* platform);
-  static void ShutdownPlatform();
+  static void DisposePlatform();
   V8_EXPORT_PRIVATE static v8::Platform* GetCurrentPlatform();
   // Replaces the current platform with the given platform.
   // Should be used only for testing.

@@ -224,12 +224,6 @@
 // variable a unique name based on the line number to prevent name collisions.
 #define INTERNAL_TRACE_EVENT_UID(name_prefix) PERFETTO_UID(name_prefix)
 
-// Special trace event macro to trace task execution with the location where it
-// was posted from.
-// TODO(skyostil): Convert this into a regular typed trace event.
-#define TRACE_TASK_EXECUTION(run_function, task) \
-  INTERNAL_TRACE_TASK_EXECUTION(run_function, task)
-
 // Special trace event macro to trace log messages.
 // TODO(skyostil): Convert this into a regular typed trace event.
 #define TRACE_LOG_MESSAGE(file, message, line) \
@@ -984,11 +978,6 @@ struct BASE_EXPORT TraceTimestampTraits<::base::TimeTicks> {
   INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_NESTABLE_ASYNC_END, \
                                    category_group, name, id,             \
                                    TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val)
-
-// Special trace event macro to trace task execution with the location where it
-// was posted from.
-#define TRACE_TASK_EXECUTION(run_function, task) \
-  INTERNAL_TRACE_TASK_EXECUTION(run_function, task)
 
 // Special trace event macro to trace log messages.
 #define TRACE_LOG_MESSAGE(file, message, line) \

@@ -1493,20 +1493,27 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
   // Underapplication. Move the arguments already in the stack, including the
   // receiver and the return address.
   {
-    Label copy;
+    Label copy, skip;
     Register src = r9, dest = r8;
     addi(src, sp, Operand(-kSystemPointerSize));
     ShiftLeftU64(r0, expected_parameter_count, Operand(kSystemPointerSizeLog2));
     sub(sp, sp, r0);
     // Update stack pointer.
     addi(dest, sp, Operand(-kSystemPointerSize));
-    addi(r0, actual_parameter_count, Operand(1));
+    if (!kJSArgcIncludesReceiver) {
+      addi(r0, actual_parameter_count, Operand(1));
+    } else {
+      mr(r0, actual_parameter_count);
+      cmpi(r0, Operand::Zero());
+      ble(&skip);
+    }
     mtctr(r0);
 
     bind(&copy);
     LoadU64WithUpdate(r0, MemOperand(src, kSystemPointerSize));
     StoreU64WithUpdate(r0, MemOperand(dest, kSystemPointerSize));
     bdnz(&copy);
+    bind(&skip);
   }
 
   // Fill remaining expected arguments with undefined values.
@@ -2013,7 +2020,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   Jump(code, RelocInfo::CODE_TARGET);
 }
 
-void MacroAssembler::JumpToInstructionStream(Address entry) {
+void MacroAssembler::JumpToOffHeapInstructionStream(Address entry) {
   mov(kOffHeapTrampolineRegister, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   Jump(kOffHeapTrampolineRegister);
 }
@@ -2163,6 +2170,20 @@ void MacroAssembler::AssertFunction(Register object) {
     pop(object);
     Check(le, AbortReason::kOperandIsNotAFunction);
   }
+}
+
+void MacroAssembler::AssertCallableFunction(Register object) {
+  if (!FLAG_debug_code) return;
+  ASM_CODE_COMMENT(this);
+  STATIC_ASSERT(kSmiTag == 0);
+  TestIfSmi(object, r0);
+  Check(ne, AbortReason::kOperandIsASmiAndNotAFunction, cr0);
+  push(object);
+  LoadMap(object, object);
+  CompareInstanceTypeRange(object, object, FIRST_CALLABLE_JS_FUNCTION_TYPE,
+                           LAST_CALLABLE_JS_FUNCTION_TYPE);
+  pop(object);
+  Check(le, AbortReason::kOperandIsNotACallableFunction);
 }
 
 void MacroAssembler::AssertBoundFunction(Register object) {
@@ -3558,21 +3579,37 @@ void TurboAssembler::SwapSimd128(MemOperand src, MemOperand dst,
   addi(sp, sp, Operand(2 * kSimd128Size));
 }
 
-void TurboAssembler::ByteReverseU16(Register dst, Register val) {
-  subi(sp, sp, Operand(kSystemPointerSize));
-  sth(val, MemOperand(sp));
-  lhbrx(dst, MemOperand(r0, sp));
-  addi(sp, sp, Operand(kSystemPointerSize));
+void TurboAssembler::ByteReverseU16(Register dst, Register val,
+                                    Register scratch) {
+  if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+    brh(dst, val);
+    ZeroExtHalfWord(dst, dst);
+    return;
+  }
+  rlwinm(scratch, val, 8, 16, 23);
+  rlwinm(dst, val, 24, 24, 31);
+  orx(dst, scratch, dst);
+  ZeroExtHalfWord(dst, dst);
 }
 
-void TurboAssembler::ByteReverseU32(Register dst, Register val) {
-  subi(sp, sp, Operand(kSystemPointerSize));
-  stw(val, MemOperand(sp));
-  lwbrx(dst, MemOperand(r0, sp));
-  addi(sp, sp, Operand(kSystemPointerSize));
+void TurboAssembler::ByteReverseU32(Register dst, Register val,
+                                    Register scratch) {
+  if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+    brw(dst, val);
+    ZeroExtWord32(dst, dst);
+    return;
+  }
+  rotlwi(scratch, val, 8);
+  rlwimi(scratch, val, 24, 0, 7);
+  rlwimi(scratch, val, 24, 16, 23);
+  ZeroExtWord32(dst, scratch);
 }
 
 void TurboAssembler::ByteReverseU64(Register dst, Register val) {
+  if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+    brd(dst, val);
+    return;
+  }
   subi(sp, sp, Operand(kSystemPointerSize));
   std(val, MemOperand(sp));
   ldbrx(dst, MemOperand(r0, sp));
@@ -3805,7 +3842,7 @@ void TurboAssembler::ReverseBitsU64(Register dst, Register src,
 
 void TurboAssembler::ReverseBitsU32(Register dst, Register src,
                                     Register scratch1, Register scratch2) {
-  ByteReverseU32(dst, src);
+  ByteReverseU32(dst, src, scratch1);
   for (int i = 4; i < 8; i++) {
     ReverseBitsInSingleByteU64(dst, dst, scratch1, scratch2, i);
   }

@@ -23,8 +23,8 @@ extern class PrototypeInfo extends Struct {
   // is stored. Returns UNREGISTERED if this prototype has not been registered.
   registry_slot: Smi;
 
+  bit_field: SmiTagged<PrototypeInfoFlags>;
+
   // [object_create_map]: A field caching the map for Object.create(prototype).
   object_create_map: Weak<Map>|Undefined;
-
-  bit_field: SmiTagged<PrototypeInfoFlags>;
 }

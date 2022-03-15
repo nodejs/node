@@ -325,9 +325,8 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceUnaryOperation(
       if (!node) {
         if (jsgraph()->machine()->Is64()) {
           if (GetBinaryOperationHint(slot) == BinaryOperationHint::kBigInt) {
-            const Operator* op =
-                jsgraph()->simplified()->SpeculativeBigIntNegate(
-                    BigIntOperationHint::kBigInt);
+            op = jsgraph()->simplified()->SpeculativeBigIntNegate(
+                BigIntOperationHint::kBigInt);
             node = jsgraph()->graph()->NewNode(op, operand, effect, control);
           }
         }
@@ -553,7 +552,8 @@ JSTypeHintLowering::ReduceStoreKeyedOperation(const Operator* op, Node* obj,
                                               FeedbackSlot slot) const {
   DCHECK(op->opcode() == IrOpcode::kJSStoreProperty ||
          op->opcode() == IrOpcode::kJSStoreInArrayLiteral ||
-         op->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral);
+         op->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral ||
+         op->opcode() == IrOpcode::kJSDefineProperty);
   if (Node* node = TryBuildSoftDeopt(
           slot, effect, control,
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess)) {

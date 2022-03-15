@@ -74,7 +74,7 @@ function listener(event, exec_state, event_data, data) {
     fail(`Array.of(1, 2, 3)`);
     var function_param = [
       "flatMap", "forEach", "every", "some", "reduce", "reduceRight", "find",
-      "filter", "map", "findIndex"
+      "filter", "map", "findIndex", "findLast", "findLastIndex"
     ];
     var fails = ["pop", "push", "reverse", "shift", "unshift", "splice",
       "sort", "copyWithin", "fill"];
@@ -124,7 +124,7 @@ function listener(event, exec_state, event_data, data) {
     success({0: 1, 1: 2}, `Uint8Array.of(1, 2)`);
     function_param = [
       "forEach", "every", "some", "reduce", "reduceRight", "find", "filter",
-      "map", "findIndex"
+      "map", "findIndex", "findLast", "findLastIndex",
     ];
     fails = ["reverse", "sort", "copyWithin", "fill", "set"];
     var typed_proto_proto = Object.getPrototypeOf(Object.getPrototypeOf(new Uint8Array()));

@@ -59,6 +59,8 @@ class HeapNumber
   DECL_PRINTER(HeapNumber)
   V8_EXPORT_PRIVATE void HeapNumberShortPrint(std::ostream& os);
 
+  class BodyDescriptor;
+
   TQ_OBJECT_CONSTRUCTORS(HeapNumber)
 };
 

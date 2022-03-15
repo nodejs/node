@@ -78,7 +78,7 @@ namespace internal {
 // defines a limit of 256 parameters but in simulator builds we provide only
 // limited support.
 #ifdef USE_SIMULATOR
-static constexpr int kMaxCParameters = 10;
+static constexpr int kMaxCParameters = 20;
 #else
 static constexpr int kMaxCParameters = 256;
 #endif

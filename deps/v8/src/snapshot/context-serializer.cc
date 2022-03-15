@@ -142,6 +142,10 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
     return;
   }
 
+  if (startup_serializer_->SerializeUsingSharedHeapObjectCache(&sink_, obj)) {
+    return;
+  }
+
   if (ShouldBeInTheStartupObjectCache(*obj)) {
     startup_serializer_->SerializeUsingStartupObjectCache(&sink_, obj);
     return;
@@ -152,7 +156,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   // If this is not the case you may have to add something to the root array.
   DCHECK(!startup_serializer_->ReferenceMapContains(obj));
   // All the internalized strings that the context snapshot needs should be
-  // either in the root table or in the startup object cache.
+  // either in the root table or in the shared heap object cache.
   DCHECK(!obj->IsInternalizedString());
   // Function and object templates are not context specific.
   DCHECK(!obj->IsTemplateInfo());
@@ -204,6 +208,12 @@ bool ContextSerializer::ShouldBeInTheStartupObjectCache(HeapObject o) {
          o.map() == ReadOnlyRoots(isolate()).fixed_cow_array_map();
 }
 
+bool ContextSerializer::ShouldBeInTheSharedObjectCache(HeapObject o) {
+  // FLAG_shared_string_table may be true during deserialization, so put
+  // internalized strings into the shared object snapshot.
+  return o.IsInternalizedString();
+}
+
 namespace {
 bool DataIsEmpty(const StartupData& data) { return data.raw_size == 0; }
 }  // anonymous namespace
@@ -215,7 +225,7 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
   int embedder_fields_count = js_obj->GetEmbedderFieldCount();
   if (embedder_fields_count == 0) return false;
   CHECK_GT(embedder_fields_count, 0);
-  DCHECK(!js_obj->NeedsRehashing());
+  DCHECK(!js_obj->NeedsRehashing(cage_base()));
 
   DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate());
@@ -300,8 +310,8 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
 
 void ContextSerializer::CheckRehashability(HeapObject obj) {
   if (!can_be_rehashed_) return;
-  if (!obj.NeedsRehashing()) return;
-  if (obj.CanBeRehashed()) return;
+  if (!obj.NeedsRehashing(cage_base())) return;
+  if (obj.CanBeRehashed(cage_base())) return;
   can_be_rehashed_ = false;
 }
 

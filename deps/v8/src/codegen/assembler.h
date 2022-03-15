@@ -39,6 +39,7 @@
 #include <memory>
 #include <unordered_map>
 
+#include "src/base/macros.h"
 #include "src/base/memory.h"
 #include "src/codegen/code-comments.h"
 #include "src/codegen/cpu-features.h"
@@ -64,7 +65,7 @@ using base::WriteUnalignedValue;
 
 // Forward declarations.
 class EmbeddedData;
-class InstructionStream;
+class OffHeapInstructionStream;
 class Isolate;
 class SCTableReference;
 class SourcePosition;
@@ -202,11 +203,6 @@ class AssemblerBuffer {
   // destructed), but not written.
   virtual std::unique_ptr<AssemblerBuffer> Grow(int new_size)
       V8_WARN_UNUSED_RESULT = 0;
-  virtual bool IsOnHeap() const { return false; }
-  virtual MaybeHandle<Code> code() const { return MaybeHandle<Code>(); }
-  // Return the GC count when the buffer was allocated (only if the buffer is on
-  // the GC heap).
-  virtual int OnHeapGCCount() const { return 0; }
 };
 
 // Allocate an AssemblerBuffer which uses an existing buffer. This buffer cannot
@@ -218,10 +214,6 @@ std::unique_ptr<AssemblerBuffer> ExternalAssemblerBuffer(void* buffer,
 // Allocate a new growable AssemblerBuffer with a given initial size.
 V8_EXPORT_PRIVATE
 std::unique_ptr<AssemblerBuffer> NewAssemblerBuffer(int size);
-
-V8_EXPORT_PRIVATE
-std::unique_ptr<AssemblerBuffer> NewOnHeapAssemblerBuffer(Isolate* isolate,
-                                                          int size);
 
 class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
  public:
@@ -284,15 +276,6 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 #else
     return pc_offset();
 #endif
-  }
-
-  bool IsOnHeap() const { return buffer_->IsOnHeap(); }
-
-  int OnHeapGCCount() const { return buffer_->OnHeapGCCount(); }
-
-  MaybeHandle<Code> code() const {
-    DCHECK(IsOnHeap());
-    return buffer_->code();
   }
 
   byte* buffer_start() const { return buffer_->start(); }
@@ -405,7 +388,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   void RequestHeapObject(HeapObjectRequest request);
 
   bool ShouldRecordRelocInfo(RelocInfo::Mode rmode) const {
-    DCHECK(!RelocInfo::IsNone(rmode));
+    DCHECK(!RelocInfo::IsNoInfo(rmode));
     if (options().disable_reloc_info_for_patching) return false;
     if (RelocInfo::IsOnlyForSerializer(rmode) &&
         !options().record_reloc_info_for_serialization && !FLAG_debug_code) {
@@ -418,14 +401,6 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   }
 
   CodeCommentsWriter code_comments_writer_;
-
-  // Relocation information when code allocated directly on heap.
-  // These constants correspond to the 99% percentile of a selected number of JS
-  // frameworks and benchmarks, including jquery, lodash, d3 and speedometer3.
-  const int kSavedHandleForRawObjectsInitialSize = 60;
-  const int kSavedOffsetForRuntimeEntriesInitialSize = 100;
-  std::vector<std::pair<uint32_t, Address>> saved_handles_for_raw_object_ptr_;
-  std::vector<std::pair<uint32_t, uint32_t>> saved_offsets_for_runtime_entries_;
 
  private:
   // Before we copy code into the code space, we sometimes cannot encode
@@ -496,7 +471,7 @@ class V8_EXPORT_PRIVATE V8_NODISCARD CpuFeatureScope {
 #ifdef V8_CODE_COMMENTS
 #define ASM_CODE_COMMENT(asm) ASM_CODE_COMMENT_STRING(asm, __func__)
 #define ASM_CODE_COMMENT_STRING(asm, comment) \
-  AssemblerBase::CodeComment asm_code_comment(asm, comment)
+  AssemblerBase::CodeComment UNIQUE_IDENTIFIER(asm_code_comment)(asm, comment)
 #else
 #define ASM_CODE_COMMENT(asm)
 #define ASM_CODE_COMMENT_STRING(asm, ...)

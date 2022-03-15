@@ -19,10 +19,12 @@ testNumber(-1233);
 testNumber(986583);
 testNumber(-976675);
 
+/* eslint-disable no-loss-of-precision */
 testNumber(
   98765432213456789876546896323445679887645323232436587988766545658);
 testNumber(
   -4350987086545760976737453646576078997096876957864353245245769809);
+/* eslint-enable no-loss-of-precision */
 testNumber(Number.MIN_SAFE_INTEGER);
 testNumber(Number.MAX_SAFE_INTEGER);
 testNumber(Number.MAX_SAFE_INTEGER + 10);

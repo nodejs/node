@@ -151,9 +151,6 @@ void AsyncWrap::EmitAfter(Environment* env, double async_id) {
        env->async_hooks_after_function());
 }
 
-// TODO(addaleax): Remove once we're on C++17.
-constexpr double AsyncWrap::kInvalidAsyncId;
-
 static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 

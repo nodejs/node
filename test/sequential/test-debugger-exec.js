@@ -27,6 +27,14 @@ const assert = require('assert');
         'works w/o paren'
       );
     })
+    .then(() => cli.command('p [typeof heartbeat, typeof process.exit]'))
+    .then(() => {
+      assert.match(
+        cli.output,
+        /\[ 'function', 'function' \]/,
+        'works w/o paren, short'
+      );
+    })
     .then(() => cli.command('repl'))
     .then(() => {
       assert.match(
@@ -52,6 +60,14 @@ const assert = require('assert');
         cli.output,
         /\[ 'function', 'function' \]/,
         'works w/ paren'
+      );
+    })
+    .then(() => cli.command('p("[typeof heartbeat, typeof process.exit]")'))
+    .then(() => {
+      assert.match(
+        cli.output,
+        /\[ 'function', 'function' \]/,
+        'works w/ paren, short'
       );
     })
     .then(() => cli.command('cont'))

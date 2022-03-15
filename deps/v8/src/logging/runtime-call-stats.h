@@ -245,7 +245,7 @@ class RuntimeCallTimer final {
   V(RegExp_Exec)                                           \
   V(RegExp_New)                                            \
   V(ScriptCompiler_Compile)                                \
-  V(ScriptCompiler_CompileFunctionInContext)               \
+  V(ScriptCompiler_CompileFunction)                        \
   V(ScriptCompiler_CompileUnbound)                         \
   V(Script_Run)                                            \
   V(Set_Add)                                               \
@@ -388,8 +388,11 @@ class RuntimeCallTimer final {
   V(BoundFunctionLengthGetter)                 \
   V(BoundFunctionNameGetter)                   \
   V(CodeGenerationFromStringsCallbacks)        \
+  V(CompileBackgroundBaselinePreVisit)         \
+  V(CompileBackgroundBaselineVisit)            \
   V(CompileBackgroundCompileTask)              \
   V(CompileBaseline)                           \
+  V(CompileBaselineFinalization)               \
   V(CompileBaselinePreVisit)                   \
   V(CompileBaselineVisit)                      \
   V(CompileCollectSourcePositions)             \
@@ -466,6 +469,7 @@ class RuntimeCallTimer final {
   V(PrototypeMap_TransitionToDataProperty)     \
   V(PrototypeObject_DeleteProperty)            \
   V(ReconfigureToDataProperty)                 \
+  V(SnapshotDecompress)                        \
   V(StringLengthGetter)                        \
   V(TestCounter1)                              \
   V(TestCounter2)                              \
@@ -473,10 +477,10 @@ class RuntimeCallTimer final {
   V(UpdateProtector)                           \
   V(WebSnapshotDeserialize)                    \
   V(WebSnapshotDeserialize_Arrays)             \
+  V(WebSnapshotDeserialize_Classes)            \
   V(WebSnapshotDeserialize_Contexts)           \
   V(WebSnapshotDeserialize_Exports)            \
   V(WebSnapshotDeserialize_Functions)          \
-  V(WebSnapshotDeserialize_Classes)            \
   V(WebSnapshotDeserialize_Maps)               \
   V(WebSnapshotDeserialize_Objects)            \
   V(WebSnapshotDeserialize_Strings)
@@ -707,6 +711,8 @@ class V8_NODISCARD WorkerThreadRuntimeCallStatsScope final {
 class V8_NODISCARD RuntimeCallTimerScope {
  public:
   inline RuntimeCallTimerScope(Isolate* isolate,
+                               RuntimeCallCounterId counter_id);
+  inline RuntimeCallTimerScope(LocalIsolate* isolate,
                                RuntimeCallCounterId counter_id);
   inline RuntimeCallTimerScope(RuntimeCallStats* stats,
                                RuntimeCallCounterId counter_id,

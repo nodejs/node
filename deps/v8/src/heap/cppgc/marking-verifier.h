@@ -44,8 +44,8 @@ class V8_EXPORT_PRIVATE MarkingVerifierBase
   void Run(Heap::Config::StackState, uintptr_t, v8::base::Optional<size_t>);
 
  protected:
-  MarkingVerifierBase(HeapBase&, VerificationState&,
-                      std::unique_ptr<cppgc::Visitor>);
+  MarkingVerifierBase(HeapBase&, Heap::Config::CollectionType,
+                      VerificationState&, std::unique_ptr<cppgc::Visitor>);
 
  private:
   void VisitInConstructionConservatively(HeapObjectHeader&,
@@ -61,12 +61,14 @@ class V8_EXPORT_PRIVATE MarkingVerifierBase
   std::unordered_set<const HeapObjectHeader*> in_construction_objects_stack_;
   std::unordered_set<const HeapObjectHeader*>* in_construction_objects_ =
       &in_construction_objects_heap_;
-  size_t found_marked_bytes_ = 0;
+  size_t verifier_found_marked_bytes_ = 0;
+  bool verifier_found_marked_bytes_are_exact_ = true;
+  Heap::Config::CollectionType collection_type_;
 };
 
 class V8_EXPORT_PRIVATE MarkingVerifier final : public MarkingVerifierBase {
  public:
-  explicit MarkingVerifier(HeapBase&);
+  MarkingVerifier(HeapBase&, Heap::Config::CollectionType);
   ~MarkingVerifier() final = default;
 
  private:

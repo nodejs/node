@@ -46,6 +46,7 @@
 #include "src/objects/js-proxy-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator-inl.h"
+#include "src/objects/js-temporal-objects-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/lookup-cache-inl.h"
@@ -56,7 +57,6 @@
 #include "src/objects/microtask-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/name-inl.h"
-#include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
@@ -86,6 +86,7 @@
 #include "src/objects/templates-inl.h"
 #include "src/objects/torque-defined-classes-inl.h"
 #include "src/objects/transitions-inl.h"
+#include "src/objects/turbofan-types-inl.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator-inl.h"

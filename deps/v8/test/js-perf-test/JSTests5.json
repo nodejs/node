@@ -444,8 +444,7 @@
       "main": "run.js",
       "resources": ["basic-export.js", "basic-import.js", "basic-namespace.js", "value.js"],
       "flags": [
-        "--allow-natives-syntax",
-        "--harmony-dynamic-import"
+        "--allow-natives-syntax"
       ],
       "results_regexp": "^%s\\-Modules\\(Score\\): (.+)$",
       "tests": [
@@ -507,6 +506,17 @@
         {"name": "NewIntlRelativeTimeFormat"},
         {"name": "NewIntlLocale"},
         {"name": "NewIntlLocaleWithOptions"}
+      ]
+    },
+    {
+      "name": "ApiAccessors",
+      "path": ["ApiAccessors"],
+      "main": "run.js",
+      "resources": [ "accessor.js" ],
+      "flags": [],
+      "results_regexp": "^%s\\-ApiAccessors\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "nodeType"}
       ]
     },
     {

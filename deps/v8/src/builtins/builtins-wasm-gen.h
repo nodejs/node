@@ -22,7 +22,7 @@ class WasmBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<FixedArray> LoadTablesFromInstance(TNode<WasmInstanceObject> instance);
 
-  TNode<FixedArray> LoadExternalFunctionsFromInstance(
+  TNode<FixedArray> LoadInternalFunctionsFromInstance(
       TNode<WasmInstanceObject> instance);
 
   TNode<FixedArray> LoadManagedObjectMapsFromInstance(

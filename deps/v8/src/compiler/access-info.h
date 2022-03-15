@@ -286,10 +286,12 @@ class AccessInfoFactory final {
       ElementAccessFeedback const& feedback) const;
   PropertyAccessInfo LookupSpecialFieldAccessor(MapRef map, NameRef name) const;
   PropertyAccessInfo LookupTransition(MapRef map, NameRef name,
-                                      base::Optional<JSObjectRef> holder) const;
+                                      base::Optional<JSObjectRef> holder,
+                                      PropertyAttributes attrs) const;
   PropertyAccessInfo ComputeDataFieldAccessInfo(
-      MapRef receiver_map, MapRef map, base::Optional<JSObjectRef> holder,
-      InternalIndex descriptor, AccessMode access_mode) const;
+      MapRef receiver_map, MapRef map, NameRef name,
+      base::Optional<JSObjectRef> holder, InternalIndex descriptor,
+      AccessMode access_mode) const;
   PropertyAccessInfo ComputeAccessorDescriptorAccessInfo(
       MapRef receiver_map, NameRef name, MapRef map,
       base::Optional<JSObjectRef> holder, InternalIndex descriptor,

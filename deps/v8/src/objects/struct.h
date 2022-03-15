@@ -14,6 +14,8 @@
 namespace v8 {
 namespace internal {
 
+class StructBodyDescriptor;
+
 #include "torque-generated/src/objects/struct-tq.inc"
 
 // An abstract superclass, a marker class really, for simple structure classes.
@@ -30,6 +32,8 @@ class Struct : public TorqueGeneratedStruct<Struct, HeapObject> {
 class Tuple2 : public TorqueGeneratedTuple2<Tuple2, Struct> {
  public:
   void BriefPrintDetails(std::ostream& os);
+
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(Tuple2)
 };
@@ -69,6 +73,8 @@ class AccessorPair : public TorqueGeneratedAccessorPair<AccessorPair, Struct> {
 
   inline bool Equals(Object getter_value, Object setter_value);
 
+  using BodyDescriptor = StructBodyDescriptor;
+
   TQ_OBJECT_CONSTRUCTORS(AccessorPair)
 };
 
@@ -77,6 +83,8 @@ class ClassPositions
  public:
   // Dispatched behavior.
   void BriefPrintDetails(std::ostream& os);
+
+  using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(ClassPositions)
 };

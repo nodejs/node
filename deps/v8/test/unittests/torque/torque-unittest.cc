@@ -834,7 +834,7 @@ TEST(Torque, CatchFirstHandler) {
     macro Test(): void {
       try {
       } label Foo {
-      } catch (e) {}
+      } catch (_e, _m) {}
     }
   )",
       HasSubstr(

@@ -49,8 +49,6 @@ class Deserializer : public SerializerDeserializer {
   Deserializer(const Deserializer&) = delete;
   Deserializer& operator=(const Deserializer&) = delete;
 
-  uint32_t GetChecksum() const { return source_.GetChecksum(); }
-
  protected:
   // Create a deserializer from a snapshot byte source.
   Deserializer(IsolateT* isolate, base::Vector<const byte> payload,
@@ -198,7 +196,7 @@ class Deserializer : public SerializerDeserializer {
   void PostProcessNewObject(Handle<Map> map, Handle<HeapObject> obj,
                             SnapshotSpace space);
 
-  HeapObject Allocate(SnapshotSpace space, int size,
+  HeapObject Allocate(AllocationType allocation, int size,
                       AllocationAlignment alignment);
 
   // Cached current isolate.
@@ -264,23 +262,41 @@ extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
     Deserializer<LocalIsolate>;
 
+enum class DeserializingUserCodeOption {
+  kNotDeserializingUserCode,
+  kIsDeserializingUserCode
+};
+
 // Used to insert a deserialized internalized string into the string table.
 class StringTableInsertionKey final : public StringTableKey {
  public:
-  explicit StringTableInsertionKey(Isolate* isolate, Handle<String> string);
-  explicit StringTableInsertionKey(LocalIsolate* isolate,
-                                   Handle<String> string);
+  explicit StringTableInsertionKey(
+      Isolate* isolate, Handle<String> string,
+      DeserializingUserCodeOption deserializing_user_code);
+  explicit StringTableInsertionKey(
+      LocalIsolate* isolate, Handle<String> string,
+      DeserializingUserCodeOption deserializing_user_code);
 
   template <typename IsolateT>
   bool IsMatch(IsolateT* isolate, String string);
 
-  template <typename IsolateT>
-  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(IsolateT* isolate) {
+  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate) {
+    // When sharing the string table, all string table lookups during snapshot
+    // deserialization are hits.
+    DCHECK(isolate->OwnsStringTable() ||
+           deserializing_user_code_ ==
+               DeserializingUserCodeOption::kIsDeserializingUserCode);
+    return string_;
+  }
+  V8_WARN_UNUSED_RESULT Handle<String> AsHandle(LocalIsolate* isolate) {
     return string_;
   }
 
  private:
   Handle<String> string_;
+#ifdef DEBUG
+  DeserializingUserCodeOption deserializing_user_code_;
+#endif
   DISALLOW_GARBAGE_COLLECTION(no_gc)
 };
 

@@ -250,7 +250,7 @@ module.exports = {
                     }
 
                     // never check properties or always ignore destructuring
-                    if (!checkProperties || (ignoreDestructuring && isInsideObjectPattern(node))) {
+                    if ((!checkProperties && !parent.computed) || (ignoreDestructuring && isInsideObjectPattern(node))) {
                         return;
                     }
 

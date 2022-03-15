@@ -55,6 +55,17 @@ added: v8.5.0
 If `name` is not provided, removes all `PerformanceMark` objects from the
 Performance Timeline. If `name` is provided, removes only the named mark.
 
+### `performance.clearMeasures([name])`
+
+<!-- YAML
+added: v16.7.0
+-->
+
+* `name` {string}
+
+If `name` is not provided, removes all `PerformanceMeasure` objects from the
+Performance Timeline. If `name` is provided, removes only the named mark.
+
 ### `performance.eventLoopUtilization([utilization1[, utilization2]])`
 
 <!-- YAML
@@ -118,6 +129,47 @@ Passing in a user-defined object instead of the result of a previous call to
 `eventLoopUtilization()` will lead to undefined behavior. The return values
 are not guaranteed to reflect any correct state of the event loop.
 
+### `performance.getEntries()`
+
+<!-- YAML
+added: v16.7.0
+-->
+
+* Returns: {PerformanceEntry\[]}
+
+Returns a list of `PerformanceEntry` objects in chronological order with
+respect to `performanceEntry.startTime`. If you are only interested in
+performance entries of certain types or that have certain names, see
+`performance.getEntriesByType()` and `performance.getEntriesByName()`.
+
+### `performance.getEntriesByName(name[, type])`
+
+<!-- YAML
+added: v16.7.0
+-->
+
+* `name` {string}
+* `type` {string}
+* Returns: {PerformanceEntry\[]}
+
+Returns a list of `PerformanceEntry` objects in chronological order
+with respect to `performanceEntry.startTime` whose `performanceEntry.name` is
+equal to `name`, and optionally, whose `performanceEntry.entryType` is equal to
+`type`.
+
+### `performance.getEntriesByType(type)`
+
+<!-- YAML
+added: v16.7.0
+-->
+
+* `type` {string}
+* Returns: {PerformanceEntry\[]}
+
+Returns a list of `PerformanceEntry` objects in chronological order
+with respect to `performanceEntry.startTime` whose `performanceEntry.entryType`
+is equal to `type`.
+
 ### `performance.mark([name[, options]])`
 
 <!-- YAML
@@ -139,6 +191,12 @@ Creates a new `PerformanceMark` entry in the Performance Timeline. A
 `performanceEntry.entryType` is always `'mark'`, and whose
 `performanceEntry.duration` is always `0`. Performance marks are used
 to mark specific significant moments in the Performance Timeline.
+
+The created `PerformanceMark` entry is put in the global Performance Timeline
+and can be queried with `performance.getEntries`,
+`performance.getEntriesByName`, and `performance.getEntriesByType`. When the
+observation is performed, the entries should be cleared from the global
+Performance Timeline manually with `performance.clearMarks`.
 
 ### `performance.measure(name[, startMarkOrOptions[, endMark]])`
 
@@ -182,6 +240,12 @@ in the Performance Timeline or any of the timestamp properties provided by the
 `PerformanceNodeTiming` class. `endMark` will be `performance.now()`
 if no parameter is passed, otherwise if the named `endMark` does not exist, an
 error will be thrown.
+
+The created `PerformanceMeasure` entry is put in the global Performance Timeline
+and can be queried with `performance.getEntries`,
+`performance.getEntriesByName`, and `performance.getEntriesByType`. When the
+observation is performed, the entries should be cleared from the global
+Performance Timeline manually with `performance.clearMeasures`.
 
 ### `performance.nodeTiming`
 
@@ -258,6 +322,9 @@ const wrapped = performance.timerify(someFunction);
 
 const obs = new PerformanceObserver((list) => {
   console.log(list.getEntries()[0].duration);
+
+  performance.clearMarks();
+  performance.clearMeasures();
   obs.disconnect();
 });
 obs.observe({ entryTypes: ['function'] });
@@ -568,6 +635,12 @@ initialized.
 
 <!-- YAML
 added: v8.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `callback` {Function}
@@ -585,6 +658,9 @@ const {
 
 const obs = new PerformanceObserver((list, observer) => {
   console.log(list.getEntries());
+
+  performance.clearMarks();
+  performance.clearMeasures();
   observer.disconnect();
 });
 obs.observe({ entryTypes: ['mark'], buffered: true });
@@ -700,6 +776,9 @@ const obs = new PerformanceObserver((perfObserverList, observer) => {
    *   }
    * ]
    */
+
+  performance.clearMarks();
+  performance.clearMeasures();
   observer.disconnect();
 });
 obs.observe({ type: 'mark' });
@@ -755,6 +834,9 @@ const obs = new PerformanceObserver((perfObserverList, observer) => {
    * ]
    */
   console.log(perfObserverList.getEntriesByName('test', 'measure')); // []
+
+  performance.clearMarks();
+  performance.clearMeasures();
   observer.disconnect();
 });
 obs.observe({ entryTypes: ['mark', 'measure'] });
@@ -800,6 +882,8 @@ const obs = new PerformanceObserver((perfObserverList, observer) => {
    *   }
    * ]
    */
+  performance.clearMarks();
+  performance.clearMeasures();
   observer.disconnect();
 });
 obs.observe({ type: 'mark' });
@@ -874,7 +958,9 @@ added: v11.10.0
 ### `histogram.count`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 * {number}
@@ -884,7 +970,9 @@ The number of samples recorded by the histogram.
 ### `histogram.countBigInt`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 * {bigint}
@@ -905,7 +993,9 @@ loop delay threshold.
 ### `histogram.exceedsBigInt`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 * {bigint}
@@ -926,7 +1016,9 @@ The maximum recorded event loop delay.
 ### `histogram.maxBigInt`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 * {bigint}
@@ -956,7 +1048,9 @@ The minimum recorded event loop delay.
 ### `histogram.minBigInt`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 * {bigint}
@@ -977,10 +1071,12 @@ Returns the value at the given percentile.
 ### `histogram.percentileBigInt(percentile)`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
-* `percentile` {number} A percentile value in the range (0, 100).
+* `percentile` {number} A percentile value in the range (0, 100].
 * Returns: {bigint}
 
 Returns the value at the given percentile.
@@ -998,7 +1094,9 @@ Returns a `Map` object detailing the accumulated percentile distribution.
 ### `histogram.percentilesBigInt`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 * {Map}
@@ -1066,7 +1164,9 @@ added:
 ### `histogram.add(other)`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 * `other` {RecordableHistogram}
@@ -1133,6 +1233,7 @@ hook.enable();
 const obs = new PerformanceObserver((list, observer) => {
   console.log(list.getEntries()[0]);
   performance.clearMarks();
+  performance.clearMeasures();
   observer.disconnect();
 });
 obs.observe({ entryTypes: ['measure'], buffered: true });
@@ -1166,6 +1267,8 @@ const obs = new PerformanceObserver((list) => {
   entries.forEach((entry) => {
     console.log(`require('${entry[0]}')`, entry.duration);
   });
+  performance.clearMarks();
+  performance.clearMeasures();
   obs.disconnect();
 });
 obs.observe({ entryTypes: ['function'], buffered: true });

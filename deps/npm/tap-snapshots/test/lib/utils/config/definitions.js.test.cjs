@@ -1271,6 +1271,8 @@ will also prevent _writing_ \`package-lock.json\` if \`save\` is true.
 When package package-locks are disabled, automatic pruning of extraneous
 modules will also be disabled. To remove extraneous modules with
 package-locks disabled use \`npm prune\`.
+
+This configuration does not affect \`npm ci\`.
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for package-lock-only 1`] = `
@@ -1406,13 +1408,16 @@ The base URL of the npm registry.
 exports[`test/lib/utils/config/definitions.js TAP > config description for save 1`] = `
 #### \`save\`
 
-* Default: true
+* Default: \`true\` unless when using \`npm update\` or \`npm dedupe\` where it
+  defaults to \`false\`
 * Type: Boolean
 
-Save installed packages to a package.json file as dependencies.
+Save installed packages to a \`package.json\` file as dependencies.
 
 When used with the \`npm rm\` command, removes the dependency from
-package.json.
+\`package.json\`.
+
+Will also prevent writing to \`package-lock.json\` if set to \`false\`.
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for save-bundle 1`] = `
@@ -1425,7 +1430,7 @@ If a package would be saved at install time by the use of \`--save\`,
 \`--save-dev\`, or \`--save-optional\`, then also put it in the
 \`bundleDependencies\` list.
 
-Ignore if \`--save-peer\` is set, since peerDependencies cannot be bundled.
+Ignored if \`--save-peer\` is set, since peerDependencies cannot be bundled.
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for save-dev 1`] = `

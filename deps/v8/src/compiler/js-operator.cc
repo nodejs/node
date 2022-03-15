@@ -314,7 +314,8 @@ bool operator!=(PropertyAccess const& lhs, PropertyAccess const& rhs) {
 PropertyAccess const& PropertyAccessOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSHasProperty ||
          op->opcode() == IrOpcode::kJSLoadProperty ||
-         op->opcode() == IrOpcode::kJSStoreProperty);
+         op->opcode() == IrOpcode::kJSStoreProperty ||
+         op->opcode() == IrOpcode::kJSDefineProperty);
   return OpParameter<PropertyAccess>(op);
 }
 
@@ -1121,6 +1122,16 @@ const Operator* JSOperatorBuilder::StoreProperty(
       "JSStoreProperty",                                    // name
       4, 1, 1, 0, 1, 2,                                     // counts
       access);                                              // parameter
+}
+
+const Operator* JSOperatorBuilder::DefineProperty(
+    LanguageMode language_mode, FeedbackSource const& feedback) {
+  PropertyAccess access(language_mode, feedback);
+  return zone()->New<Operator1<PropertyAccess>>(             // --
+      IrOpcode::kJSDefineProperty, Operator::kNoProperties,  // opcode
+      "JSDefineProperty",                                    // name
+      4, 1, 1, 0, 1, 2,                                      // counts
+      access);                                               // parameter
 }
 
 const Operator* JSOperatorBuilder::StoreNamedOwn(

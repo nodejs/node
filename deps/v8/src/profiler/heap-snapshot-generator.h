@@ -354,11 +354,11 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
 
   HeapEntry* AllocateEntry(HeapThing ptr) override;
   HeapEntry* AllocateEntry(Smi smi) override;
-  int EstimateObjectsCount();
+  uint32_t EstimateObjectsCount();
   bool IterateAndExtractReferences(HeapSnapshotGenerator* generator);
   void CollectGlobalObjectsTags();
   void MakeGlobalObjectTagMap(const SafepointScope& safepoint_scope);
-  void TagBuiltinCodeObject(Code code, const char* name);
+  void TagBuiltinCodeObject(Object code, const char* name);
   HeapEntry* AddEntry(Address address,
                       HeapEntry::Type type,
                       const char* name,
@@ -398,6 +398,8 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractAccessorPairReferences(HeapEntry* entry, AccessorPair accessors);
   void ExtractCodeReferences(HeapEntry* entry, Code code);
   void ExtractCellReferences(HeapEntry* entry, Cell cell);
+  void ExtractJSWeakRefReferences(HeapEntry* entry, JSWeakRef js_weak_ref);
+  void ExtractWeakCellReferences(HeapEntry* entry, WeakCell weak_cell);
   void ExtractFeedbackCellReferences(HeapEntry* entry,
                                      FeedbackCell feedback_cell);
   void ExtractPropertyCellReferences(HeapEntry* entry, PropertyCell cell);
@@ -570,8 +572,8 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   HeapEntriesMap entries_map_;
   SmiEntriesMap smis_map_;
   // Used during snapshot generation.
-  int progress_counter_;
-  int progress_total_;
+  uint32_t progress_counter_;
+  uint32_t progress_total_;
   Heap* heap_;
 };
 

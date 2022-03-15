@@ -177,15 +177,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Pinsrq(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t imm8,
               uint32_t* load_pc_offset = nullptr);
 
-  void F64x2Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 XMMRegister src3, XMMRegister tmp);
-  void F64x2Qfms(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 XMMRegister src3, XMMRegister tmp);
-  void F32x4Qfma(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 XMMRegister src3, XMMRegister tmp);
-  void F32x4Qfms(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                 XMMRegister src3, XMMRegister tmp);
-
   void Lzcntq(Register dst, Register src);
   void Lzcntq(Register dst, Operand src);
   void Lzcntl(Register dst, Register src);
@@ -335,7 +326,7 @@ class V8_EXPORT_PRIVATE TurboAssembler
   void Move(Register dst, Address ptr, RelocInfo::Mode rmode) {
     // This method must not be used with heap object references. The stored
     // address is not GC safe. Use the handle version instead.
-    DCHECK(rmode == RelocInfo::NONE || rmode > RelocInfo::LAST_GCED_ENUM);
+    DCHECK(rmode == RelocInfo::NO_INFO || rmode > RelocInfo::LAST_GCED_ENUM);
     movq(dst, Immediate64(ptr, rmode));
   }
 
@@ -604,6 +595,17 @@ class V8_EXPORT_PRIVATE TurboAssembler
   // ---------------------------------------------------------------------------
   // V8 Heap sandbox support
 
+  // Transform a CagedPointer from/to its encoded form, which is used when the
+  // pointer is stored on the heap and ensures that the pointer will always
+  // point into the virtual memory cage.
+  void EncodeCagedPointer(Register value);
+  void DecodeCagedPointer(Register value);
+
+  // Load and decode a CagedPointer from the heap.
+  void LoadCagedPointerField(Register destination, Operand field_operand);
+  // Encode and store a CagedPointer to the heap.
+  void StoreCagedPointerField(Operand dst_field_operand, Register value);
+
   enum class IsolateRootLocation { kInScratchRegister, kInRootRegister };
   // Loads a field containing off-heap pointer and does necessary decoding
   // if V8 heap sandbox is enabled.
@@ -773,7 +775,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void PopQuad(Operand dst);
 
   // Generates a trampoline to jump to the off-heap instruction stream.
-  void JumpToInstructionStream(Address entry);
+  void JumpToOffHeapInstructionStream(Address entry);
 
   // Compare object type for heap object.
   // Always use unsigned comparisons: above and below, not less and greater.
@@ -808,6 +810,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
+
+  // Abort execution if argument is not a callable JSFunction, enabled via
+  // --debug-code.
+  void AssertCallableFunction(Register object);
 
   // Abort execution if argument is not a JSBoundFunction,
   // enabled via --debug-code.

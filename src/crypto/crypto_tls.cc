@@ -1667,10 +1667,10 @@ void TLSWrap::SetSession(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_MISSING_ARGS(env, "Session argument is mandatory");
 
   THROW_AND_RETURN_IF_NOT_BUFFER(env, args[0], "Session");
-
-  SSLSessionPointer sess = GetTLSSession(args[0]);
+  ArrayBufferViewContents<unsigned char> sbuf(args[0]);
+  SSLSessionPointer sess = GetTLSSession(sbuf.data(), sbuf.length());
   if (sess == nullptr)
-    return;
+    return;  // TODO(tniessen): figure out error handling
 
   if (!SetTLSSession(w->ssl_, sess))
     return env->ThrowError("SSL_set_session error");

@@ -1132,7 +1132,7 @@ bool MustOutputRelocInfo(RelocInfo::Mode rmode, const Assembler* assembler) {
   if (RelocInfo::IsOnlyForSerializer(rmode)) {
     if (assembler->predictable_code_size()) return true;
     return assembler->options().record_reloc_info_for_serialization;
-  } else if (RelocInfo::IsNone(rmode)) {
+  } else if (RelocInfo::IsNoInfo(rmode)) {
     return false;
   }
   return true;
@@ -1464,7 +1464,7 @@ int Assembler::branch_offset(Label* L) {
 
 // Branch instructions.
 void Assembler::b(int branch_offset, Condition cond, RelocInfo::Mode rmode) {
-  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode);
+  if (!RelocInfo::IsNoInfo(rmode)) RecordRelocInfo(rmode);
   DCHECK_EQ(branch_offset & 3, 0);
   int imm24 = branch_offset >> 2;
   const bool b_imm_check = is_int24(imm24);
@@ -1478,7 +1478,7 @@ void Assembler::b(int branch_offset, Condition cond, RelocInfo::Mode rmode) {
 }
 
 void Assembler::bl(int branch_offset, Condition cond, RelocInfo::Mode rmode) {
-  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode);
+  if (!RelocInfo::IsNoInfo(rmode)) RecordRelocInfo(rmode);
   DCHECK_EQ(branch_offset & 3, 0);
   int imm24 = branch_offset >> 2;
   const bool bl_imm_check = is_int24(imm24);
@@ -5172,28 +5172,8 @@ void Assembler::RecordConstPool(int size) {
   RecordRelocInfo(RelocInfo::CONST_POOL, static_cast<intptr_t>(size));
 }
 
-void Assembler::FixOnHeapReferences(bool update_embedded_objects) {
-  if (!update_embedded_objects) return;
-  Address base = reinterpret_cast<Address>(buffer_->start());
-  for (auto p : saved_handles_for_raw_object_ptr_) {
-    Handle<HeapObject> object(reinterpret_cast<Address*>(p.second));
-    WriteUnalignedValue(base + p.first, *object);
-  }
-}
-
-void Assembler::FixOnHeapReferencesToHandles() {
-  Address base = reinterpret_cast<Address>(buffer_->start());
-  for (auto p : saved_handles_for_raw_object_ptr_) {
-    WriteUnalignedValue(base + p.first, p.second);
-  }
-  saved_handles_for_raw_object_ptr_.clear();
-}
-
 void Assembler::GrowBuffer() {
   DCHECK_EQ(buffer_start_, buffer_->start());
-
-  bool previously_on_heap = buffer_->IsOnHeap();
-  int previous_on_heap_gc_count = OnHeapGCCount();
 
   // Compute new buffer size.
   int old_size = buffer_->size();
@@ -5227,15 +5207,6 @@ void Assembler::GrowBuffer() {
       reinterpret_cast<Address>(reloc_info_writer.last_pc()) + pc_delta);
   reloc_info_writer.Reposition(new_reloc_start, new_last_pc);
 
-  // Fix on-heap references.
-  if (previously_on_heap) {
-    if (buffer_->IsOnHeap()) {
-      FixOnHeapReferences(previous_on_heap_gc_count != OnHeapGCCount());
-    } else {
-      FixOnHeapReferencesToHandles();
-    }
-  }
-
   // None of our relocation types are pc relative pointing outside the code
   // buffer nor pc absolute pointing inside the code buffer, so there is no need
   // to relocate any emitted relocation entries.
@@ -5255,7 +5226,7 @@ void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   // blocked before using dd.
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
   CheckBuffer();
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
            RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
@@ -5269,7 +5240,7 @@ void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
   // blocked before using dq.
   DCHECK(is_const_pool_blocked() || pending_32_bit_constants_.empty());
   CheckBuffer();
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
            RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
@@ -5470,15 +5441,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
       instr_at_put(entry.position(),
                    SetLdrRegisterImmediateOffset(instr, delta));
       if (!entry.is_merged()) {
-        if (IsOnHeap() && RelocInfo::IsEmbeddedObjectMode(entry.rmode())) {
-          int offset = pc_offset();
-          saved_handles_for_raw_object_ptr_.emplace_back(offset, entry.value());
-          Handle<HeapObject> object(reinterpret_cast<Address*>(entry.value()));
-          emit(object->ptr());
-          DCHECK(EmbeddedObjectMatches(offset, object));
-        } else {
-          emit(entry.value());
-        }
+        emit(entry.value());
       }
     }
 

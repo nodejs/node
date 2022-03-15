@@ -13,6 +13,7 @@
 #include "src/execution/v8threads.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/logging/counters.h"
+#include "src/logging/metrics.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/managed-inl.h"
@@ -461,15 +462,22 @@ WasmEngine::~WasmEngine() {
 }
 
 bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
-                              const ModuleWireBytes& bytes) {
+                              const ModuleWireBytes& bytes,
+                              std::string* error_message) {
   TRACE_EVENT0("v8.wasm", "wasm.SyncValidate");
   // TODO(titzer): remove dependency on the isolate.
-  if (bytes.start() == nullptr || bytes.length() == 0) return false;
-  ModuleResult result = DecodeWasmModule(
+  if (bytes.start() == nullptr || bytes.length() == 0) {
+    if (error_message) *error_message = "empty module wire bytes";
+    return false;
+  }
+  auto result = DecodeWasmModule(
       enabled, bytes.start(), bytes.end(), true, kWasmOrigin,
       isolate->counters(), isolate->metrics_recorder(),
       isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
       DecodingMethod::kSync, allocator());
+  if (result.failed() && error_message) {
+    *error_message = result.error().message();
+  }
   return result.ok();
 }
 
@@ -483,10 +491,13 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   ModuleOrigin origin = language_mode == LanguageMode::kSloppy
                             ? kAsmJsSloppyOrigin
                             : kAsmJsStrictOrigin;
+  // TODO(leszeks): If we want asm.js in UKM, we should figure out a way to pass
+  // the context id in here.
+  v8::metrics::Recorder::ContextId context_id =
+      v8::metrics::Recorder::ContextId::Empty();
   ModuleResult result = DecodeWasmModule(
       WasmFeatures::ForAsmjs(), bytes.start(), bytes.end(), false, origin,
-      isolate->counters(), isolate->metrics_recorder(),
-      isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
+      isolate->counters(), isolate->metrics_recorder(), context_id,
       DecodingMethod::kSync, allocator());
   if (result.failed()) {
     // This happens once in a while when we have missed some limit check
@@ -503,7 +514,7 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   Handle<FixedArray> export_wrappers;
   std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
       isolate, WasmFeatures::ForAsmjs(), thrower, std::move(result).value(),
-      bytes, &export_wrappers, compilation_id);
+      bytes, &export_wrappers, compilation_id, context_id);
   if (!native_module) return {};
 
   return AsmWasmData::New(isolate, std::move(native_module), export_wrappers,
@@ -527,11 +538,12 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
     const ModuleWireBytes& bytes) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
-  ModuleResult result = DecodeWasmModule(
-      enabled, bytes.start(), bytes.end(), false, kWasmOrigin,
-      isolate->counters(), isolate->metrics_recorder(),
-      isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
-      DecodingMethod::kSync, allocator());
+  v8::metrics::Recorder::ContextId context_id =
+      isolate->GetOrRegisterRecorderContextId(isolate->native_context());
+  ModuleResult result =
+      DecodeWasmModule(enabled, bytes.start(), bytes.end(), false, kWasmOrigin,
+                       isolate->counters(), isolate->metrics_recorder(),
+                       context_id, DecodingMethod::kSync, allocator());
   if (result.failed()) {
     thrower->CompileFailed(result.error());
     return {};
@@ -542,7 +554,7 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   Handle<FixedArray> export_wrappers;
   std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
       isolate, enabled, thrower, std::move(result).value(), bytes,
-      &export_wrappers, compilation_id);
+      &export_wrappers, compilation_id, context_id);
   if (!native_module) return {};
 
 #ifdef DEBUG
@@ -886,6 +898,14 @@ void WasmEngine::DumpAndResetTurboStatistics() {
   compilation_stats_.reset();
 }
 
+void WasmEngine::DumpTurboStatistics() {
+  base::MutexGuard guard(&mutex_);
+  if (compilation_stats_ != nullptr) {
+    StdoutStream os;
+    os << AsPrintableStatistics{*compilation_stats_.get(), false} << std::endl;
+  }
+}
+
 CodeTracer* WasmEngine::GetCodeTracer() {
   base::MutexGuard guard(&mutex_);
   if (code_tracer_ == nullptr) code_tracer_.reset(new CodeTracer(-1));
@@ -996,6 +1016,12 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
   base::MutexGuard guard(&mutex_);
   DCHECK_EQ(0, isolates_.count(isolate));
   isolates_.emplace(isolate, std::make_unique<IsolateInfo>(isolate));
+
+  // The isolate might access existing (cached) code without ever compiling any.
+  // In that case, the current thread might still have the default permissions
+  // for the memory protection key (== no access). Thus initialize the
+  // permissions now.
+  GetWasmCodeManager()->InitializeMemoryProtectionKeyPermissionsIfSupported();
 
   // Install sampling GC callback.
   // TODO(v8:7424): For now we sample module sizes in a GC callback. This will
@@ -1152,12 +1178,11 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
   }
 
   // Record memory protection key support.
-  if (FLAG_wasm_memory_protection_keys && !isolate_info->pku_support_sampled) {
+  if (!isolate_info->pku_support_sampled) {
     isolate_info->pku_support_sampled = true;
     auto* histogram =
         isolate->counters()->wasm_memory_protection_keys_support();
-    bool has_mpk =
-        GetWasmCodeManager()->memory_protection_key_ != kNoMemoryProtectionKey;
+    bool has_mpk = GetWasmCodeManager()->HasMemoryProtectionKeySupport();
     histogram->AddSample(has_mpk ? 1 : 0);
   }
 
@@ -1171,10 +1196,13 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
 std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
     ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes,
     Isolate* isolate) {
+  TRACE_EVENT1("v8.wasm", "wasm.GetNativeModuleFromCache", "wire_bytes",
+               wire_bytes.size());
   std::shared_ptr<NativeModule> native_module =
       native_module_cache_.MaybeGetNativeModule(origin, wire_bytes);
   bool recompile_module = false;
   if (native_module) {
+    TRACE_EVENT0("v8.wasm", "CacheHit");
     base::MutexGuard guard(&mutex_);
     auto& native_module_info = native_modules_[native_module.get()];
     if (!native_module_info) {
@@ -1221,7 +1249,15 @@ bool WasmEngine::UpdateNativeModuleCache(
 }
 
 bool WasmEngine::GetStreamingCompilationOwnership(size_t prefix_hash) {
-  return native_module_cache_.GetStreamingCompilationOwnership(prefix_hash);
+  TRACE_EVENT0("v8.wasm", "wasm.GetStreamingCompilationOwnership");
+  if (native_module_cache_.GetStreamingCompilationOwnership(prefix_hash)) {
+    return true;
+  }
+  // This is only a marker, not for tracing execution time. There should be a
+  // later "wasm.GetNativeModuleFromCache" event for trying to get the module
+  // from the cache.
+  TRACE_EVENT0("v8.wasm", "CacheHit");
+  return false;
 }
 
 void WasmEngine::StreamingCompilationFailed(size_t prefix_hash) {

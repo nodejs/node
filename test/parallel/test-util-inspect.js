@@ -434,7 +434,7 @@ assert.strictEqual(
 
 // Array with extra properties.
 {
-  const arr = [1, 2, 3, , ];
+  const arr = [1, 2, 3, , ]; // eslint-disable-line no-sparse-arrays
   arr.foo = 'bar';
   assert.strictEqual(util.inspect(arr),
                      "[ 1, 2, 3, <1 empty item>, foo: 'bar' ]");
@@ -2142,6 +2142,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   [function() {}, '[Function (anonymous)]'],
   [() => {}, '[Function (anonymous)]'],
   [[1, 2], '[ 1, 2 ]'],
+  // eslint-disable-next-line no-sparse-arrays
   [[, , 5, , , , ], '[ <2 empty items>, 5, <3 empty items> ]'],
   [{ a: 5 }, '{ a: 5 }'],
   [new Set([1, 2]), 'Set(2) { 1, 2 }'],
@@ -2689,7 +2690,6 @@ assert.strictEqual(
 
   expected = [
     '[',
-    /* eslint-disable max-len */
     '   \u001b[33m0\u001b[39m,  \u001b[33m1\u001b[39m,  \u001b[33m2\u001b[39m,  \u001b[33m3\u001b[39m,',
     '   \u001b[33m4\u001b[39m,  \u001b[33m5\u001b[39m,  \u001b[33m6\u001b[39m,  \u001b[33m7\u001b[39m,',
     '   \u001b[33m8\u001b[39m,  \u001b[33m9\u001b[39m, \u001b[33m10\u001b[39m, \u001b[33m11\u001b[39m,',
@@ -2705,7 +2705,6 @@ assert.strictEqual(
     '  \u001b[33m48\u001b[39m, \u001b[33m49\u001b[39m, \u001b[33m50\u001b[39m, \u001b[33m51\u001b[39m,',
     '  \u001b[33m52\u001b[39m, \u001b[33m53\u001b[39m, \u001b[33m54\u001b[39m, \u001b[33m55\u001b[39m,',
     '  \u001b[33m56\u001b[39m, \u001b[33m57\u001b[39m, \u001b[33m58\u001b[39m, \u001b[33m59\u001b[39m',
-    /* eslint-enable max-len */
     ']',
   ].join('\n');
 
@@ -3187,6 +3186,7 @@ assert.strictEqual(
   util.inspect.defaultOptions.numericSeparator = true;
 
   assert.strictEqual(
+    // eslint-disable-next-line no-loss-of-precision
     util.inspect(1234567891234567891234),
     '1.234567891234568e+21'
   );
@@ -3228,5 +3228,10 @@ assert.strictEqual(
   assert.strictEqual(
     util.inspect(123456789.12345678, { numericSeparator: true }),
     '123_456_789.123_456_78'
+  );
+
+  assert.strictEqual(
+    util.inspect(-123456789.12345678, { numericSeparator: true }),
+    '-123_456_789.123_456_78'
   );
 }

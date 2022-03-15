@@ -41,7 +41,7 @@ void DcheckIntegerPartRange(Digits X, digit_t min, digit_t max) {
 // See comments at {Invert} and {InvertNewton} below for details.
 void ProcessorImpl::InvertBasecase(RWDigits Z, Digits V, RWDigits scratch) {
   DCHECK(Z.len() > V.len());
-  DCHECK(V.len() > 0);  // NOLINT(readability/check)
+  DCHECK(V.len() > 0);
   DCHECK(scratch.len() >= 2 * V.len());
   int n = V.len();
   RWDigits X(scratch, 0, 2 * n);
@@ -49,7 +49,7 @@ void ProcessorImpl::InvertBasecase(RWDigits Z, Digits V, RWDigits scratch) {
   int i = 0;
   for (; i < n; i++) X[i] = 0;
   for (; i < 2 * n; i++) X[i] = digit_sub2(0, V[i - n], borrow, &borrow);
-  DCHECK(borrow == 1);     // NOLINT(readability/check)
+  DCHECK(borrow == 1);
   RWDigits R(nullptr, 0);  // We don't need the remainder.
   if (n < kBurnikelThreshold) {
     DivideSchoolbook(Z, R, X, V);
@@ -76,7 +76,7 @@ void ProcessorImpl::InvertNewton(RWDigits Z, Digits V, RWDigits scratch) {
   const int kUOffset = vn + kInvertNewtonExtraSpace;
 
   // The base case won't work otherwise.
-  DCHECK(V.len() >= 3);  // NOLINT(readability/check)
+  DCHECK(V.len() >= 3);
 
   constexpr int kBasecasePrecision = kNewtonInversionThreshold - 1;
   // V must have more digits than the basecase.
@@ -147,17 +147,17 @@ void ProcessorImpl::InvertNewton(RWDigits Z, Digits V, RWDigits scratch) {
     if (U.len() <= vn) {
       // Normal subtraction.
       // This is not the last iteration.
-      DCHECK(iteration > 0);  // NOLINT(readability/check)
+      DCHECK(iteration > 0);
       Z.set_len(U.len());
       digit_t borrow = SubtractAndReturnBorrow(Z, W, U);
-      DCHECK(borrow == 0);  // NOLINT(readability/check)
+      DCHECK(borrow == 0);
       USE(borrow);
       DcheckIntegerPartRange(Z, 1, 2);
     } else {
       // Truncate some least significant digits so that we get vn
       // fraction digits, and compute the integer digit separately.
       // This is the last iteration.
-      DCHECK(iteration == 0);  // NOLINT(readability/check)
+      DCHECK(iteration == 0);
       Z.set_len(vn);
       Digits W_part(W, W.len() - vn - 1, vn);
       Digits U_part(U, U.len() - vn - 1, vn);
@@ -186,7 +186,7 @@ void ProcessorImpl::InvertNewton(RWDigits Z, Digits V, RWDigits scratch) {
 // Needs InvertScratchSpace(V.len) digits of scratch space.
 void ProcessorImpl::Invert(RWDigits Z, Digits V, RWDigits scratch) {
   DCHECK(Z.len() > V.len());
-  DCHECK(V.len() >= 1);  // NOLINT(readability/check)
+  DCHECK(V.len() >= 1);
   DCHECK(IsBitNormalized(V));
   DCHECK(scratch.len() >= InvertScratchSpace(V.len()));
 
@@ -218,7 +218,7 @@ void ProcessorImpl::DivideBarrett(RWDigits Q, RWDigits R, Digits A, Digits B,
   DCHECK(R.len() >= B.len());
   DCHECK(A.len() > B.len());  // Careful: This is *not* '>=' !
   DCHECK(A.len() <= 2 * B.len());
-  DCHECK(B.len() > 0);  // NOLINT(readability/check)
+  DCHECK(B.len() > 0);
   DCHECK(IsBitNormalized(B));
   DCHECK(I.len() == A.len() - B.len());
   DCHECK(scratch.len() >= DivideBarrettScratchSpace(A.len()));
@@ -257,7 +257,7 @@ void ProcessorImpl::DivideBarrett(RWDigits Q, RWDigits R, Digits A, Digits B,
     do {
       r_high += AddAndReturnCarry(R, R, B);
       q_sub++;
-      DCHECK(q_sub <= 5);  // NOLINT(readability/check)
+      DCHECK(q_sub <= 5);
     } while (r_high != 0);
     Subtract(Q, q_sub);
   } else {
@@ -266,7 +266,7 @@ void ProcessorImpl::DivideBarrett(RWDigits Q, RWDigits R, Digits A, Digits B,
       // (5c): R >= B, so R -= B
       r_high -= SubtractAndReturnBorrow(R, R, B);
       q_add++;
-      DCHECK(q_add <= 5);  // NOLINT(readability/check)
+      DCHECK(q_add <= 5);
     }
     Add(Q, q_add);
   }
@@ -281,7 +281,7 @@ void ProcessorImpl::DivideBarrett(RWDigits Q, RWDigits R, Digits A, Digits B) {
   DCHECK(Q.len() > A.len() - B.len());
   DCHECK(R.len() >= B.len());
   DCHECK(A.len() > B.len());  // Careful: This is *not* '>=' !
-  DCHECK(B.len() > 0);        // NOLINT(readability/check)
+  DCHECK(B.len() > 0);
 
   // Normalize B, and shift A by the same amount.
   ShiftedDigits b_normalized(B);
@@ -312,7 +312,7 @@ void ProcessorImpl::DivideBarrett(RWDigits Q, RWDigits R, Digits A, Digits B) {
     int n = B.len();  // Chunk length.
     // (5): {t} is the number of B-sized chunks of A.
     int t = DIV_CEIL(A.len(), n);
-    DCHECK(t >= 3);  // NOLINT(readability/check)
+    DCHECK(t >= 3);
     // (6)/(7): Z is used for the current 2-chunk block to be divided by B,
     // initialized to the two topmost chunks of A.
     int z_len = n * 2;
@@ -334,7 +334,7 @@ void ProcessorImpl::DivideBarrett(RWDigits Q, RWDigits R, Digits A, Digits B) {
       for (int j = to_copy; j < target.len(); j++) target[j] = 0;
 #if DEBUG
       for (int j = to_copy; j < Qi.len(); j++) {
-        DCHECK(Qi[j] == 0);  // NOLINT(readability/check)
+        DCHECK(Qi[j] == 0);
       }
 #endif
     }
@@ -346,7 +346,7 @@ void ProcessorImpl::DivideBarrett(RWDigits Q, RWDigits R, Digits A, Digits B) {
       PutAt(Z, A + n * i, n);
       // (8a): Compute Qi, Ri such that Zi = B*Qi + Ri.
       DivideBarrett(Qi, Ri, Z, B, I, scratch);
-      DCHECK(Qi[qi_len - 1] == 0);  // NOLINT(readability/check)
+      DCHECK(Qi[qi_len - 1] == 0);
       if (should_terminate()) return;
       // (9): Return Q = [Q_(t-2), ..., Q_0]...
       PutAt(Q + n * i, Qi, n);

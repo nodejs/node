@@ -1081,7 +1081,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       PropertyDetails details = Subclass::GetDetailsImpl(*object, entry);
 
       Handle<Object> value;
-      if (details.kind() == kData) {
+      if (details.kind() == PropertyKind::kData) {
         value = Subclass::GetInternalImpl(object, entry);
       } else {
         // This might modify the elements and/or change the elements kind.
@@ -1364,11 +1364,13 @@ class ElementsAccessorBase : public InternalElementsAccessor {
 
   static PropertyDetails GetDetailsImpl(FixedArrayBase backing_store,
                                         InternalIndex entry) {
-    return PropertyDetails(kData, NONE, PropertyCellType::kNoCell);
+    return PropertyDetails(PropertyKind::kData, NONE,
+                           PropertyCellType::kNoCell);
   }
 
   static PropertyDetails GetDetailsImpl(JSObject holder, InternalIndex entry) {
-    return PropertyDetails(kData, NONE, PropertyCellType::kNoCell);
+    return PropertyDetails(PropertyKind::kData, NONE,
+                           PropertyCellType::kNoCell);
   }
 
   PropertyDetails GetDetails(JSObject holder, InternalIndex entry) final {
@@ -1488,7 +1490,7 @@ class DictionaryElementsAccessor
       Object key = dict.KeyAt(cage_base, i);
       if (!dict.IsKey(roots, key)) continue;
       PropertyDetails details = dict.DetailsAt(i);
-      if (details.kind() == kAccessor) return true;
+      if (details.kind() == PropertyKind::kAccessor) return true;
     }
     return false;
   }
@@ -1521,8 +1523,9 @@ class DictionaryElementsAccessor
     if (attributes != NONE) object->RequireSlowElements(dictionary);
     dictionary.ValueAtPut(entry, *value);
     PropertyDetails details = dictionary.DetailsAt(entry);
-    details = PropertyDetails(kData, attributes, PropertyCellType::kNoCell,
-                              details.dictionary_index());
+    details =
+        PropertyDetails(PropertyKind::kData, attributes,
+                        PropertyCellType::kNoCell, details.dictionary_index());
 
     dictionary.DetailsAtPut(entry, details);
   }
@@ -1531,7 +1534,8 @@ class DictionaryElementsAccessor
                              Handle<Object> value,
                              PropertyAttributes attributes,
                              uint32_t new_capacity) {
-    PropertyDetails details(kData, attributes, PropertyCellType::kNoCell);
+    PropertyDetails details(PropertyKind::kData, attributes,
+                            PropertyCellType::kNoCell);
     Handle<NumberDictionary> dictionary =
         object->HasFastElements() || object->HasFastStringWrapperElements()
             ? JSObject::NormalizeElements(object)
@@ -1695,7 +1699,7 @@ class DictionaryElementsAccessor
         continue;
       }
 
-      if (dictionary.DetailsAt(i).kind() == kAccessor) {
+      if (dictionary.DetailsAt(i).kind() == PropertyKind::kAccessor) {
         // Restart from beginning in slow path, otherwise we may observably
         // access getters out of order
         return false;
@@ -1740,12 +1744,12 @@ class DictionaryElementsAccessor
 
       PropertyDetails details = GetDetailsImpl(*dictionary, entry);
       switch (details.kind()) {
-        case kData: {
+        case PropertyKind::kData: {
           Object element_k = dictionary->ValueAt(entry);
           if (value->SameValueZero(element_k)) return Just(true);
           break;
         }
-        case kAccessor: {
+        case PropertyKind::kAccessor: {
           LookupIterator it(isolate, receiver, k,
                             LookupIterator::OWN_SKIP_INTERCEPTOR);
           DCHECK(it.IsFound());
@@ -1812,14 +1816,14 @@ class DictionaryElementsAccessor
       PropertyDetails details =
           GetDetailsImpl(*dictionary, InternalIndex(entry));
       switch (details.kind()) {
-        case kData: {
+        case PropertyKind::kData: {
           Object element_k = dictionary->ValueAt(entry);
           if (value->StrictEquals(element_k)) {
             return Just<int64_t>(k);
           }
           break;
         }
-        case kAccessor: {
+        case PropertyKind::kAccessor: {
           LookupIterator it(isolate, receiver, k,
                             LookupIterator::OWN_SKIP_INTERCEPTOR);
           DCHECK(it.IsFound());
@@ -2186,7 +2190,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       dst_elms = BackingStore::cast(
           isolate->heap()->LeftTrimFixedArray(dst_elms, src_index));
       // Update all the copies of this backing_store handle.
-      *backing_store.location() = dst_elms.ptr();
+      backing_store.PatchValue(dst_elms);
       receiver->set_elements(dst_elms);
       // Adjust the hole offset as the array has been shrunk.
       hole_end -= src_index;
@@ -2306,7 +2310,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       }
     } else {
       if (!value.IsNaN()) {
-        double search_value = value.Number();
+        double search_number = value.Number();
         if (IsDoubleElementsKind(Subclass::kind())) {
           // Search for non-NaN Number in PACKED_DOUBLE_ELEMENTS or
           // HOLEY_DOUBLE_ELEMENTS --- Skip TheHole, and trust UCOMISD or
@@ -2316,7 +2320,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
           for (size_t k = start_from; k < length; ++k) {
             if (elements.is_the_hole(static_cast<int>(k))) continue;
-            if (elements.get_scalar(static_cast<int>(k)) == search_value) {
+            if (elements.get_scalar(static_cast<int>(k)) == search_number) {
               return Just(true);
             }
           }
@@ -2329,7 +2333,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
           for (size_t k = start_from; k < length; ++k) {
             Object element_k = elements.get(static_cast<int>(k));
-            if (element_k.IsNumber() && element_k.Number() == search_value) {
+            if (element_k.IsNumber() && element_k.Number() == search_number) {
               return Just(true);
             }
           }
@@ -3204,12 +3208,14 @@ class TypedElementsAccessor
   }
 
   static PropertyDetails GetDetailsImpl(JSObject holder, InternalIndex entry) {
-    return PropertyDetails(kData, NONE, PropertyCellType::kNoCell);
+    return PropertyDetails(PropertyKind::kData, NONE,
+                           PropertyCellType::kNoCell);
   }
 
   static PropertyDetails GetDetailsImpl(FixedArrayBase backing_store,
                                         InternalIndex entry) {
-    return PropertyDetails(kData, NONE, PropertyCellType::kNoCell);
+    return PropertyDetails(PropertyKind::kData, NONE,
+                           PropertyCellType::kNoCell);
   }
 
   static bool HasElementImpl(Isolate* isolate, JSObject holder, size_t index,
@@ -3331,21 +3337,29 @@ class TypedElementsAccessor
       return Just(value->IsUndefined(isolate) && length > start_from);
     }
 
-    if (value->IsUndefined(isolate) && length > typed_array.length()) {
+    bool out_of_bounds = false;
+    size_t new_length = typed_array.GetLengthOrOutOfBounds(out_of_bounds);
+    if (V8_UNLIKELY(out_of_bounds)) {
+      return Just(value->IsUndefined(isolate) && length > start_from);
+    }
+
+    if (value->IsUndefined(isolate) && length > new_length) {
       return Just(true);
     }
 
     // Prototype has no elements, and not searching for the hole --- limit
     // search to backing store length.
-    if (typed_array.length() < length) {
-      length = typed_array.length();
+    if (new_length < length) {
+      length = new_length;
     }
 
     ElementType typed_search_value;
     ElementType* data_ptr =
         reinterpret_cast<ElementType*>(typed_array.DataPtr());
     auto is_shared = typed_array.buffer().is_shared() ? kShared : kUnshared;
-    if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) {
+    if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS ||
+        Kind == RAB_GSAB_BIGINT64_ELEMENTS ||
+        Kind == RAB_GSAB_BIGUINT64_ELEMENTS) {
       if (!value->IsBigInt()) return Just(false);
       bool lossless;
       typed_search_value = FromHandle(value, &lossless);
@@ -3355,7 +3369,9 @@ class TypedElementsAccessor
       double search_value = value->Number();
       if (!std::isfinite(search_value)) {
         // Integral types cannot represent +Inf or NaN.
-        if (Kind < FLOAT32_ELEMENTS || Kind > FLOAT64_ELEMENTS) {
+        if (!(Kind == FLOAT32_ELEMENTS || Kind == FLOAT64_ELEMENTS ||
+              Kind == RAB_GSAB_FLOAT32_ELEMENTS ||
+              Kind == RAB_GSAB_FLOAT64_ELEMENTS)) {
           return Just(false);
         }
         if (std::isnan(search_value)) {
@@ -4463,7 +4479,8 @@ class SloppyArgumentsElementsAccessor
         SloppyArgumentsElements::cast(holder.elements());
     uint32_t length = elements.length();
     if (entry.as_uint32() < length) {
-      return PropertyDetails(kData, NONE, PropertyCellType::kNoCell);
+      return PropertyDetails(PropertyKind::kData, NONE,
+                             PropertyCellType::kNoCell);
     }
     FixedArray arguments = elements.arguments();
     return ArgumentsAccessor::GetDetailsImpl(arguments,
@@ -4677,7 +4694,8 @@ class SlowSloppyArgumentsElementsAccessor
         old_arguments->IsNumberDictionary()
             ? Handle<NumberDictionary>::cast(old_arguments)
             : JSObject::NormalizeElements(object);
-    PropertyDetails details(kData, attributes, PropertyCellType::kNoCell);
+    PropertyDetails details(PropertyKind::kData, attributes,
+                            PropertyCellType::kNoCell);
     Handle<NumberDictionary> new_dictionary =
         NumberDictionary::Add(isolate, dictionary, index, value, details);
     if (attributes != NONE) object->RequireSlowElements(*new_dictionary);
@@ -4711,7 +4729,8 @@ class SlowSloppyArgumentsElementsAccessor
         value = isolate->factory()->NewAliasedArgumentsEntry(context_entry);
       }
 
-      PropertyDetails details(kData, attributes, PropertyCellType::kNoCell);
+      PropertyDetails details(PropertyKind::kData, attributes,
+                              PropertyCellType::kNoCell);
       Handle<NumberDictionary> arguments(
           NumberDictionary::cast(elements->arguments()), isolate);
       arguments = NumberDictionary::Add(isolate, arguments, entry.as_uint32(),
@@ -4889,7 +4908,8 @@ class StringWrapperElementsAccessor
     if (entry.as_uint32() < length) {
       PropertyAttributes attributes =
           static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
-      return PropertyDetails(kData, attributes, PropertyCellType::kNoCell);
+      return PropertyDetails(PropertyKind::kData, attributes,
+                             PropertyCellType::kNoCell);
     }
     return BackingStoreAccessor::GetDetailsImpl(holder,
                                                 entry.adjust_down(length));

@@ -627,6 +627,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Return(TNode<Float32T> value);
   void Return(TNode<Float64T> value);
   void Return(TNode<WordT> value1, TNode<WordT> value2);
+  void Return(TNode<WordT> value1, TNode<Object> value2);
   void PopAndReturn(Node* pop, Node* value);
 
   void ReturnIf(TNode<BoolT> condition, TNode<Object> value);

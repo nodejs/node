@@ -635,34 +635,34 @@ class MachineRepresentationChecker {
             switch (inferrer_->GetRepresentation(node)) {
               case MachineRepresentation::kTagged:
               case MachineRepresentation::kTaggedPointer:
-                for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
-                  CheckValueInputIsTagged(node, i);
+                for (int j = 0; j < node->op()->ValueInputCount(); ++j) {
+                  CheckValueInputIsTagged(node, j);
                 }
                 break;
               case MachineRepresentation::kTaggedSigned:
-                for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
+                for (int j = 0; j < node->op()->ValueInputCount(); ++j) {
                   if (COMPRESS_POINTERS_BOOL) {
-                    CheckValueInputIsCompressedOrTagged(node, i);
+                    CheckValueInputIsCompressedOrTagged(node, j);
                   } else {
-                    CheckValueInputIsTagged(node, i);
+                    CheckValueInputIsTagged(node, j);
                   }
                 }
                 break;
               case MachineRepresentation::kCompressed:
               case MachineRepresentation::kCompressedPointer:
-                for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
-                    CheckValueInputIsCompressedOrTagged(node, i);
+                for (int j = 0; j < node->op()->ValueInputCount(); ++j) {
+                  CheckValueInputIsCompressedOrTagged(node, j);
                 }
                 break;
               case MachineRepresentation::kWord32:
-                for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
-                  CheckValueInputForInt32Op(node, i);
+                for (int j = 0; j < node->op()->ValueInputCount(); ++j) {
+                  CheckValueInputForInt32Op(node, j);
                 }
                 break;
               default:
-                for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
+                for (int j = 0; j < node->op()->ValueInputCount(); ++j) {
                   CheckValueInputRepresentationIs(
-                      node, i, inferrer_->GetRepresentation(node));
+                      node, j, inferrer_->GetRepresentation(node));
                 }
                 break;
             }
@@ -678,9 +678,9 @@ class MachineRepresentationChecker {
             // CheckValueInputRepresentationIs(
             //     node, 0, MachineType::PointerRepresentation());  // Pop count
             size_t return_count = inferrer_->call_descriptor()->ReturnCount();
-            for (size_t i = 0; i < return_count; i++) {
-              MachineType type = inferrer_->call_descriptor()->GetReturnType(i);
-              int input_index = static_cast<int>(i + 1);
+            for (size_t j = 0; j < return_count; j++) {
+              MachineType type = inferrer_->call_descriptor()->GetReturnType(j);
+              int input_index = static_cast<int>(j + 1);
               switch (type.representation()) {
                 case MachineRepresentation::kTagged:
                 case MachineRepresentation::kTaggedPointer:
@@ -996,6 +996,7 @@ class MachineRepresentationChecker {
         // happens in dead code.
         return IsAnyTagged(actual);
       case MachineRepresentation::kCompressedPointer:
+      case MachineRepresentation::kCagedPointer:
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kFloat64:
       case MachineRepresentation::kSimd128:

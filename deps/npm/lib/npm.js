@@ -52,7 +52,6 @@ class Npm extends EventEmitter {
       definitions,
       flatten,
       shorthands,
-      log,
     })
     this[_title] = process.title
     this.updateNotification = null
@@ -114,12 +113,17 @@ class Npm extends EventEmitter {
     }
 
     const workspacesEnabled = this.config.get('workspaces')
+    const implicitWorkspace = this.config.get('workspace', 'default').length > 0
     const workspacesFilters = this.config.get('workspace')
     if (workspacesEnabled === false && workspacesFilters.length > 0) {
       throw new Error('Can not use --no-workspaces and --workspace at the same time')
     }
 
-    const filterByWorkspaces = workspacesEnabled || workspacesFilters.length > 0
+    // only call execWorkspaces when we have workspaces explicitly set
+    // or when it is implicit and not in our ignore list
+    const filterByWorkspaces =
+      (workspacesEnabled || workspacesFilters.length > 0)
+      && (!implicitWorkspace || !command.ignoreImplicitWorkspace)
     // normally this would go in the constructor, but our tests don't
     // actually use a real npm object so this.npm.config isn't always
     // populated.  this is the compromise until we can make that a reality
@@ -251,6 +255,7 @@ class Npm extends EventEmitter {
       // Use logColor since that is based on stderr
       color: this.logColor,
       progress: this.flatOptions.progress,
+      silent: this.silent,
       timing: this.config.get('timing'),
       loglevel: this.config.get('loglevel'),
       unicode: this.config.get('unicode'),
@@ -298,6 +303,10 @@ class Npm extends EventEmitter {
 
   get logColor () {
     return this.flatOptions.logColor
+  }
+
+  get silent () {
+    return this.flatOptions.silent
   }
 
   get lockfileVersion () {

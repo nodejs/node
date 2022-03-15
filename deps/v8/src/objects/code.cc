@@ -139,15 +139,6 @@ void Code::RelocateFromDesc(ByteArray reloc_info, Heap* heap,
   }
 }
 
-#ifdef VERIFY_HEAP
-void Code::VerifyRelocInfo(Isolate* isolate, ByteArray reloc_info) {
-  const int mode_mask = RelocInfo::PostCodegenRelocationMask();
-  for (RelocIterator it(*this, reloc_info, mode_mask); !it.done(); it.next()) {
-    it.rinfo()->Verify(isolate);
-  }
-}
-#endif
-
 SafepointEntry Code::GetSafepointEntry(Isolate* isolate, Address pc) {
   SafepointTable table(isolate, pc, *this);
   return table.FindEntry(pc);
@@ -341,7 +332,8 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
     // thus process-independent. See also: FinalizeEmbeddedCodeTargets.
     if (RelocInfo::IsCodeTargetMode(it.rinfo()->rmode())) {
       Address target_address = it.rinfo()->target_address();
-      if (InstructionStream::PcIsOffHeap(isolate, target_address)) continue;
+      if (OffHeapInstructionStream::PcIsOffHeap(isolate, target_address))
+        continue;
 
       Code target = Code::GetCodeFromTargetAddress(target_address);
       CHECK(target.IsCode());
@@ -363,7 +355,7 @@ bool Code::Inlines(SharedFunctionInfo sfi) {
       DeoptimizationData::cast(deoptimization_data());
   if (data.length() == 0) return false;
   if (data.SharedFunctionInfo() == sfi) return true;
-  FixedArray const literals = data.LiteralArray();
+  DeoptimizationLiteralArray const literals = data.LiteralArray();
   int const inlined_count = data.InlinedFunctionCount().value();
   for (int i = 0; i < inlined_count; ++i) {
     if (SharedFunctionInfo::cast(literals.get(i)) == sfi) return true;
@@ -594,33 +586,16 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
 
   if (has_safepoint_info()) {
     SafepointTable table(isolate, current_pc, *this);
-    os << "Safepoints (size = " << table.size() << ")\n";
-    for (unsigned i = 0; i < table.length(); i++) {
-      unsigned pc_offset = table.GetPcOffset(i);
-      os << reinterpret_cast<const void*>(InstructionStart() + pc_offset)
-         << "  ";
-      os << std::setw(6) << std::hex << pc_offset << "  " << std::setw(4);
-      int trampoline_pc = table.GetTrampolinePcOffset(i);
-      print_pc(os, trampoline_pc);
-      os << std::dec << "  ";
-      table.PrintEntry(i, os);
-      os << " (sp -> fp)  ";
-      SafepointEntry entry = table.GetEntry(i);
-      if (entry.has_deoptimization_index()) {
-        os << std::setw(6) << entry.deoptimization_index();
-      } else {
-        os << "<none>";
-      }
-      os << "\n";
-    }
+    table.Print(os);
     os << "\n";
   }
 
   if (has_handler_table()) {
     HandlerTable table(*this);
     os << "Handler Table (size = " << table.NumberOfReturnEntries() << ")\n";
-    if (CodeKindIsOptimizedJSFunction(kind()))
+    if (CodeKindIsOptimizedJSFunction(kind())) {
       table.HandlerTableReturnPrint(os);
+    }
     os << "\n";
   }
 
@@ -772,150 +747,148 @@ void DependentCode::SetDependentCode(Handle<HeapObject> object,
   }
 }
 
+namespace {
+
+void PrintDependencyGroups(DependentCode::DependencyGroups groups) {
+  while (groups != 0) {
+    auto group = static_cast<DependentCode::DependencyGroup>(
+        1 << base::bits::CountTrailingZeros(static_cast<uint32_t>(groups)));
+    StdoutStream{} << DependentCode::DependencyGroupName(group);
+    groups &= ~group;
+    if (groups != 0) StdoutStream{} << ",";
+  }
+}
+
+}  // namespace
+
 void DependentCode::InstallDependency(Isolate* isolate, Handle<Code> code,
                                       Handle<HeapObject> object,
-                                      DependencyGroup group) {
+                                      DependencyGroups groups) {
   if (V8_UNLIKELY(FLAG_trace_compilation_dependencies)) {
     StdoutStream{} << "Installing dependency of [" << code->GetHeapObject()
-                   << "] on [" << object << "] in group ["
-                   << DependencyGroupName(group) << "]\n";
+                   << "] on [" << object << "] in groups [";
+    PrintDependencyGroups(groups);
+    StdoutStream{} << "]\n";
   }
   Handle<DependentCode> old_deps(DependentCode::GetDependentCode(object),
                                  isolate);
   Handle<DependentCode> new_deps =
-      InsertWeakCode(isolate, old_deps, group, code);
+      InsertWeakCode(isolate, old_deps, groups, code);
+
   // Update the list head if necessary.
-  if (!new_deps.is_identical_to(old_deps))
+  if (!new_deps.is_identical_to(old_deps)) {
     DependentCode::SetDependentCode(object, new_deps);
+  }
 }
 
 Handle<DependentCode> DependentCode::InsertWeakCode(
-    Isolate* isolate, Handle<DependentCode> entries, DependencyGroup group,
+    Isolate* isolate, Handle<DependentCode> entries, DependencyGroups groups,
     Handle<Code> code) {
-  if (entries->length() == 0 || entries->group() > group) {
-    // There is no such group.
-    return DependentCode::New(isolate, group, code, entries);
-  }
-  if (entries->group() < group) {
-    // The group comes later in the list.
-    Handle<DependentCode> old_next(entries->next_link(), isolate);
-    Handle<DependentCode> new_next =
-        InsertWeakCode(isolate, old_next, group, code);
-    if (!old_next.is_identical_to(new_next)) {
-      entries->set_next_link(*new_next);
-    }
-    return entries;
+  if (entries->length() == entries->capacity()) {
+    // We'd have to grow - try to compact first.
+    entries->IterateAndCompact([](CodeT, DependencyGroups) { return false; });
   }
 
-  DCHECK_EQ(group, entries->group());
-  int count = entries->count();
-  // Check for existing entry to avoid duplicates.
-  {
-    DisallowHeapAllocation no_gc;
-    HeapObjectReference weak_code_entry =
-        HeapObjectReference::Weak(ToCodeT(*code));
-    for (int i = 0; i < count; i++) {
-      if (entries->object_at(i) == weak_code_entry) return entries;
-    }
-  }
-  if (entries->length() < kCodesStartIndex + count + 1) {
-    entries = EnsureSpace(isolate, entries);
-    // Count could have changed, reload it.
-    count = entries->count();
-  }
-  DisallowHeapAllocation no_gc;
-  HeapObjectReference weak_code_entry =
-      HeapObjectReference::Weak(ToCodeT(*code));
-  entries->set_object_at(count, weak_code_entry);
-  entries->set_count(count + 1);
+  MaybeObjectHandle code_slot(HeapObjectReference::Weak(ToCodeT(*code)),
+                              isolate);
+  MaybeObjectHandle group_slot(MaybeObject::FromSmi(Smi::FromInt(groups)),
+                               isolate);
+  entries = Handle<DependentCode>::cast(
+      WeakArrayList::AddToEnd(isolate, entries, code_slot, group_slot));
   return entries;
 }
 
 Handle<DependentCode> DependentCode::New(Isolate* isolate,
-                                         DependencyGroup group,
-                                         Handle<Code> code,
-                                         Handle<DependentCode> next) {
-  Handle<DependentCode> result =
-      Handle<DependentCode>::cast(isolate->factory()->NewWeakFixedArray(
-          kCodesStartIndex + 1, AllocationType::kOld));
-  result->set_next_link(*next);
-  result->set_flags(GroupField::encode(group) | CountField::encode(1));
-
-  HeapObjectReference weak_code_entry =
-      HeapObjectReference::Weak(ToCodeT(*code));
-  result->set_object_at(0, weak_code_entry);
+                                         DependencyGroups groups,
+                                         Handle<Code> code) {
+  Handle<DependentCode> result = Handle<DependentCode>::cast(
+      isolate->factory()->NewWeakArrayList(LengthFor(1), AllocationType::kOld));
+  result->Set(0, HeapObjectReference::Weak(ToCodeT(*code)));
+  result->Set(1, Smi::FromInt(groups));
   return result;
 }
 
-Handle<DependentCode> DependentCode::EnsureSpace(
-    Isolate* isolate, Handle<DependentCode> entries) {
-  if (entries->Compact()) return entries;
-  int capacity = kCodesStartIndex + DependentCode::Grow(entries->count());
-  int grow_by = capacity - entries->length();
-  return Handle<DependentCode>::cast(
-      isolate->factory()->CopyWeakFixedArrayAndGrow(entries, grow_by));
-}
+void DependentCode::IterateAndCompact(const IterateAndCompactFn& fn) {
+  DisallowGarbageCollection no_gc;
 
-bool DependentCode::Compact() {
-  int old_count = count();
-  int new_count = 0;
-  for (int i = 0; i < old_count; i++) {
-    MaybeObject obj = object_at(i);
-    if (!obj->IsCleared()) {
-      if (i != new_count) {
-        copy(i, new_count);
-      }
-      new_count++;
+  int len = length();
+  if (len == 0) return;
+
+  // We compact during traversal, thus use a somewhat custom loop construct:
+  //
+  // - Loop back-to-front s.t. trailing cleared entries can simply drop off
+  //   the back of the list.
+  // - Any cleared slots are filled from the back of the list.
+  int i = len - kSlotsPerEntry;
+  while (i >= 0) {
+    MaybeObject obj = Get(i + kCodeSlotOffset);
+    if (obj->IsCleared()) {
+      len = FillEntryFromBack(i, len);
+      i -= kSlotsPerEntry;
+      continue;
     }
+
+    if (fn(CodeT::cast(obj->GetHeapObjectAssumeWeak()),
+           static_cast<DependencyGroups>(
+               Get(i + kGroupsSlotOffset).ToSmi().value()))) {
+      len = FillEntryFromBack(i, len);
+    }
+
+    i -= kSlotsPerEntry;
   }
-  set_count(new_count);
-  for (int i = new_count; i < old_count; i++) {
-    clear_at(i);
-  }
-  return new_count < old_count;
+
+  set_length(len);
 }
 
 bool DependentCode::MarkCodeForDeoptimization(
-    DependentCode::DependencyGroup group) {
-  if (this->length() == 0 || this->group() > group) {
-    // There is no such group.
-    return false;
-  }
-  if (this->group() < group) {
-    // The group comes later in the list.
-    return next_link().MarkCodeForDeoptimization(group);
-  }
-  DCHECK_EQ(group, this->group());
-  DisallowGarbageCollection no_gc_scope;
-  // Mark all the code that needs to be deoptimized.
-  bool marked = false;
-  int count = this->count();
-  for (int i = 0; i < count; i++) {
-    MaybeObject obj = object_at(i);
-    if (obj->IsCleared()) continue;
+    DependentCode::DependencyGroups deopt_groups) {
+  DisallowGarbageCollection no_gc;
+
+  bool marked_something = false;
+  IterateAndCompact([&](CodeT codet, DependencyGroups groups) {
+    if ((groups & deopt_groups) == 0) return false;
+
     // TODO(v8:11880): avoid roundtrips between cdc and code.
-    Code code = FromCodeT(CodeT::cast(obj->GetHeapObjectAssumeWeak()));
+    Code code = FromCodeT(codet);
     if (!code.marked_for_deoptimization()) {
-      code.SetMarkedForDeoptimization(DependencyGroupName(group));
-      marked = true;
+      code.SetMarkedForDeoptimization("code dependencies");
+      marked_something = true;
     }
+
+    return true;
+  });
+
+  return marked_something;
+}
+
+int DependentCode::FillEntryFromBack(int index, int length) {
+  DCHECK_EQ(index % 2, 0);
+  DCHECK_EQ(length % 2, 0);
+  for (int i = length - kSlotsPerEntry; i > index; i -= kSlotsPerEntry) {
+    MaybeObject obj = Get(i + kCodeSlotOffset);
+    if (obj->IsCleared()) continue;
+
+    Set(index + kCodeSlotOffset, obj);
+    Set(index + kGroupsSlotOffset, Get(i + kGroupsSlotOffset),
+        SKIP_WRITE_BARRIER);
+    return i;
   }
-  for (int i = 0; i < count; i++) {
-    clear_at(i);
-  }
-  set_count(0);
-  return marked;
+  return index;  // No non-cleared entry found.
 }
 
 void DependentCode::DeoptimizeDependentCodeGroup(
-    DependentCode::DependencyGroup group) {
+    Isolate* isolate, DependentCode::DependencyGroups groups) {
   DisallowGarbageCollection no_gc_scope;
-  bool marked = MarkCodeForDeoptimization(group);
-  if (marked) {
+  bool marked_something = MarkCodeForDeoptimization(groups);
+  if (marked_something) {
     DCHECK(AllowCodeDependencyChange::IsAllowed());
-    // TODO(11527): pass Isolate as an argument.
-    Deoptimizer::DeoptimizeMarkedCode(GetIsolateFromWritableObject(*this));
+    Deoptimizer::DeoptimizeMarkedCode(isolate);
   }
+}
+
+// static
+DependentCode DependentCode::empty_dependent_code(const ReadOnlyRoots& roots) {
+  return DependentCode::cast(roots.empty_weak_array_list());
 }
 
 void Code::SetMarkedForDeoptimization(const char* reason) {

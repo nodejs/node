@@ -6,7 +6,6 @@ const common = require('../common');
 
 const { strictEqual, throws } = require('assert');
 const { setUnrefTimeout } = require('internal/timers');
-const { inspect } = require('util');
 
 // Schedule the unrefed cases first so that the later case keeps the event loop
 // active.
@@ -37,8 +36,7 @@ const { inspect } = require('util');
     throws(
       () => setUnrefTimeout(cb),
       {
-        code: 'ERR_INVALID_CALLBACK',
-        message: `Callback must be a function. Received ${inspect(cb)}`
+        code: 'ERR_INVALID_ARG_TYPE',
       }
     );
   });

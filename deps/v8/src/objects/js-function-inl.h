@@ -10,11 +10,11 @@
 // Include other inline headers *after* including js-function.h, such that e.g.
 // the definition of JSFunction is available (and this comment prevents
 // clang-format from merging that include into the following ones).
-#include "src/codegen/compiler.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
 #include "src/objects/feedback-cell-inl.h"
+#include "src/objects/map-updater.h"
 #include "src/objects/shared-function-info-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -124,7 +124,7 @@ bool JSFunction::IsInOptimizationQueue() {
 void JSFunction::CompleteInobjectSlackTrackingIfActive() {
   if (!has_prototype_slot()) return;
   if (has_initial_map() && initial_map().IsInobjectSlackTrackingInProgress()) {
-    initial_map().CompleteInobjectSlackTracking(GetIsolate());
+    MapUpdater::CompleteInobjectSlackTracking(GetIsolate(), initial_map());
   }
 }
 
@@ -155,6 +155,15 @@ DEF_ACQUIRE_GETTER(JSFunction, code, Code) {
 void JSFunction::set_code(Code code, ReleaseStoreTag, WriteBarrierMode mode) {
   set_raw_code(ToCodeT(code), kReleaseStore, mode);
 }
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+void JSFunction::set_code(CodeT code, WriteBarrierMode mode) {
+  set_raw_code(code, mode);
+}
+void JSFunction::set_code(CodeT code, ReleaseStoreTag, WriteBarrierMode mode) {
+  set_raw_code(code, kReleaseStore, mode);
+}
+#endif
 
 Address JSFunction::code_entry_point() const {
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
@@ -331,10 +340,13 @@ void JSFunction::ResetIfCodeFlushed(
     base::Optional<std::function<void(HeapObject object, ObjectSlot slot,
                                       HeapObject target)>>
         gc_notify_updated_slot) {
-  if (!FLAG_flush_bytecode && !FLAG_flush_baseline_code) return;
+  const bool kBytecodeCanFlush = FLAG_flush_bytecode || FLAG_stress_snapshot;
+  const bool kBaselineCodeCanFlush =
+      FLAG_flush_baseline_code || FLAG_stress_snapshot;
+  if (!kBytecodeCanFlush && !kBaselineCodeCanFlush) return;
 
-  DCHECK_IMPLIES(NeedsResetDueToFlushedBytecode(), FLAG_flush_bytecode);
-  if (FLAG_flush_bytecode && NeedsResetDueToFlushedBytecode()) {
+  DCHECK_IMPLIES(NeedsResetDueToFlushedBytecode(), kBytecodeCanFlush);
+  if (kBytecodeCanFlush && NeedsResetDueToFlushedBytecode()) {
     // Bytecode was flushed and function is now uncompiled, reset JSFunction
     // by setting code to CompileLazy and clearing the feedback vector.
     set_code(*BUILTIN_CODE(GetIsolate(), CompileLazy));
@@ -342,10 +354,8 @@ void JSFunction::ResetIfCodeFlushed(
     return;
   }
 
-  DCHECK_IMPLIES(NeedsResetDueToFlushedBaselineCode(),
-                 FLAG_flush_baseline_code);
-  if (FLAG_flush_baseline_code && NeedsResetDueToFlushedBaselineCode()) {
-    DCHECK(FLAG_flush_baseline_code);
+  DCHECK_IMPLIES(NeedsResetDueToFlushedBaselineCode(), kBaselineCodeCanFlush);
+  if (kBaselineCodeCanFlush && NeedsResetDueToFlushedBaselineCode()) {
     // Flush baseline code from the closure if required
     set_code(*BUILTIN_CODE(GetIsolate(), InterpreterEntryTrampoline));
   }

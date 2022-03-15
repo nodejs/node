@@ -72,9 +72,13 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
   if (mode == debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect) {
     isolate->debug()->StartSideEffectCheckMode();
   }
-  MaybeHandle<Object> result = Execution::Call(
-      isolate, function, Handle<JSObject>(context->global_proxy(), isolate), 0,
-      nullptr);
+  // TODO(cbruni, 1244145): Use host-defined options from script context.
+  Handle<FixedArray> host_defined_options(
+      Script::cast(function->shared().script()).host_defined_options(),
+      isolate);
+  MaybeHandle<Object> result = Execution::CallScript(
+      isolate, function, Handle<JSObject>(context->global_proxy(), isolate),
+      host_defined_options);
   if (mode == debug::EvaluateGlobalMode::kDisableBreaksAndThrowOnSideEffect) {
     isolate->debug()->StopSideEffectCheckMode();
   }
@@ -138,7 +142,7 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
       Context::cast(it.frame()->context()).native_context(), isolate);
 
   // Materialize arguments as property on an extension object.
-  Handle<JSObject> materialized = factory->NewJSObjectWithNullProto();
+  Handle<JSObject> materialized = factory->NewSlowJSObjectWithNullProto();
   Handle<String> arguments_str = factory->arguments_string();
   JSObject::SetOwnPropertyIgnoreAttributes(
       materialized, arguments_str,
@@ -179,10 +183,10 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
   Handle<JSFunction> eval_fun;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, eval_fun,
-      Compiler::GetFunctionFromEval(source, outer_info, context,
-                                    LanguageMode::kSloppy, NO_PARSE_RESTRICTION,
-                                    kNoSourcePosition, kNoSourcePosition,
-                                    kNoSourcePosition),
+      Compiler::GetFunctionFromEval(
+          source, outer_info, context, LanguageMode::kSloppy,
+          NO_PARSE_RESTRICTION, kNoSourcePosition, kNoSourcePosition,
+          kNoSourcePosition, ParsingWhileDebugging::kYes),
       Object);
 
   Handle<Object> result;
@@ -563,6 +567,8 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kArrayPrototypeFill:
     case Builtin::kArrayPrototypeFind:
     case Builtin::kArrayPrototypeFindIndex:
+    case Builtin::kArrayPrototypeFindLast:
+    case Builtin::kArrayPrototypeFindLastIndex:
     case Builtin::kArrayPrototypeFlat:
     case Builtin::kArrayPrototypeFlatMap:
     case Builtin::kArrayPrototypeJoin:
@@ -595,6 +601,8 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kTypedArrayPrototypeValues:
     case Builtin::kTypedArrayPrototypeFind:
     case Builtin::kTypedArrayPrototypeFindIndex:
+    case Builtin::kTypedArrayPrototypeFindLast:
+    case Builtin::kTypedArrayPrototypeFindLastIndex:
     case Builtin::kTypedArrayPrototypeIncludes:
     case Builtin::kTypedArrayPrototypeJoin:
     case Builtin::kTypedArrayPrototypeIndexOf:
@@ -1049,6 +1057,8 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kArrayFilterLoopContinuation:
     case Builtin::kArrayFindIndexLoopContinuation:
     case Builtin::kArrayFindLoopContinuation:
+    case Builtin::kArrayFindLastIndexLoopContinuation:
+    case Builtin::kArrayFindLastLoopContinuation:
     case Builtin::kArrayForEachLoopContinuation:
     case Builtin::kArrayIncludesHoleyDoubles:
     case Builtin::kArrayIncludesPackedDoubles:

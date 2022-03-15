@@ -56,6 +56,8 @@ class WebSnapshotSerializerDeserializer {
     REGEXP
   };
 
+  static constexpr uint8_t kMagicNumber[4] = {'+', '+', '+', ';'};
+
   enum ContextType : uint8_t { FUNCTION, BLOCK };
 
   enum PropertyAttributesType : uint8_t { DEFAULT, CUSTOM };
@@ -153,6 +155,15 @@ class V8_EXPORT WebSnapshotSerializer
   // Returns true if the object was already in the map, false if it was added.
   bool InsertIntoIndexMap(ObjectCacheIndexMap& map, Handle<HeapObject> object,
                           uint32_t& id);
+
+  void Discovery(Handle<Object> object);
+  void DiscoverFunction(Handle<JSFunction> function);
+  void DiscoverClass(Handle<JSFunction> function);
+  void DiscoverContextAndPrototype(Handle<JSFunction> function);
+  void DiscoverContext(Handle<Context> context);
+  void DiscoverArray(Handle<JSArray> array);
+  void DiscoverObject(Handle<JSObject> object);
+
   void SerializeSource(ValueSerializer* serializer,
                        Handle<JSFunction> function);
   void SerializeFunctionInfo(ValueSerializer* serializer,
@@ -160,15 +171,21 @@ class V8_EXPORT WebSnapshotSerializer
 
   void SerializeString(Handle<String> string, uint32_t& id);
   void SerializeMap(Handle<Map> map, uint32_t& id);
-  void SerializeFunction(Handle<JSFunction> function, uint32_t& id);
-  void SerializeClass(Handle<JSFunction> function, uint32_t& id);
-  void SerializeContext(Handle<Context> context, uint32_t& id);
-  void SerializeArray(Handle<JSArray> array, uint32_t& id);
-  void SerializePendingArray(Handle<JSArray> array);
-  void SerializeObject(Handle<JSObject> object, uint32_t& id);
-  void SerializePendingObject(Handle<JSObject> object);
+
+  void SerializeFunction(Handle<JSFunction> function);
+  void SerializeClass(Handle<JSFunction> function);
+  void SerializeContext(Handle<Context> context);
+  void SerializeArray(Handle<JSArray> array);
+  void SerializeObject(Handle<JSObject> object);
+
   void SerializeExport(Handle<JSObject> object, Handle<String> export_name);
   void WriteValue(Handle<Object> object, ValueSerializer& serializer);
+
+  uint32_t GetFunctionId(JSFunction function);
+  uint32_t GetClassId(JSFunction function);
+  uint32_t GetContextId(Context context);
+  uint32_t GetArrayId(JSArray array);
+  uint32_t GetObjectId(JSObject object);
 
   ValueSerializer string_serializer_;
   ValueSerializer map_serializer_;
@@ -179,6 +196,14 @@ class V8_EXPORT WebSnapshotSerializer
   ValueSerializer object_serializer_;
   ValueSerializer export_serializer_;
 
+  // These are needed for being able to serialize items in order.
+  Handle<ArrayList> contexts_;
+  Handle<ArrayList> functions_;
+  Handle<ArrayList> classes_;
+  Handle<ArrayList> arrays_;
+  Handle<ArrayList> objects_;
+
+  // ObjectCacheIndexMap implements fast lookup item -> id.
   ObjectCacheIndexMap string_ids_;
   ObjectCacheIndexMap map_ids_;
   ObjectCacheIndexMap context_ids_;
@@ -188,8 +213,7 @@ class V8_EXPORT WebSnapshotSerializer
   ObjectCacheIndexMap object_ids_;
   uint32_t export_count_ = 0;
 
-  std::queue<Handle<JSObject>> pending_objects_;
-  std::queue<Handle<JSArray>> pending_arrays_;
+  std::queue<Handle<Object>> discovery_queue_;
 };
 
 class V8_EXPORT WebSnapshotDeserializer
@@ -198,6 +222,7 @@ class V8_EXPORT WebSnapshotDeserializer
   explicit WebSnapshotDeserializer(v8::Isolate* v8_isolate);
   ~WebSnapshotDeserializer();
   bool UseWebSnapshot(const uint8_t* data, size_t buffer_size);
+  bool UseWebSnapshot(Handle<Script> snapshot_as_script);
 
   // For inspecting the state after deserializing a snapshot.
   uint32_t string_count() const { return string_count_; }
@@ -209,6 +234,10 @@ class V8_EXPORT WebSnapshotDeserializer
   uint32_t object_count() const { return object_count_; }
 
  private:
+  bool Deserialize();
+  bool DeserializeSnapshot();
+  bool DeserializeScript();
+
   WebSnapshotDeserializer(const WebSnapshotDeserializer&) = delete;
   WebSnapshotDeserializer& operator=(const WebSnapshotDeserializer&) = delete;
 
@@ -219,8 +248,8 @@ class V8_EXPORT WebSnapshotDeserializer
   Handle<ScopeInfo> CreateScopeInfo(uint32_t variable_count, bool has_parent,
                                     ContextType context_type);
   Handle<JSFunction> CreateJSFunction(int index, uint32_t start,
-                                      uint32_t length, uint32_t flags,
-                                      uint32_t context_id);
+                                      uint32_t length, uint32_t parameter_count,
+                                      uint32_t flags, uint32_t context_id);
   void DeserializeFunctionData(uint32_t count, uint32_t current_count);
   void DeserializeFunctions();
   void DeserializeClasses();
@@ -231,6 +260,8 @@ class V8_EXPORT WebSnapshotDeserializer
       Handle<Object>& value, Representation& representation,
       Handle<Object> object_for_deferred_reference = Handle<Object>(),
       uint32_t index_for_deferred_reference = 0);
+  void ReadFunctionPrototype(Handle<JSFunction> function);
+  bool SetFunctionPrototype(JSFunction function, JSReceiver prototype);
 
   void AddDeferredReference(Handle<Object> container, uint32_t index,
                             ValueType target_type,

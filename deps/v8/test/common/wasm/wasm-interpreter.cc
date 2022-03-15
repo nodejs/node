@@ -417,7 +417,13 @@ float ExecuteF32Floor(float a, TrapReason* trap) { return floorf(a); }
 
 float ExecuteF32Trunc(float a, TrapReason* trap) { return truncf(a); }
 
-float ExecuteF32NearestInt(float a, TrapReason* trap) { return nearbyintf(a); }
+float ExecuteF32NearestInt(float a, TrapReason* trap) {
+  float value = nearbyintf(a);
+#if V8_OS_AIX
+  value = FpOpWorkaround<float>(a, value);
+#endif
+  return value;
+}
 
 float ExecuteF32Sqrt(float a, TrapReason* trap) {
   float result = sqrtf(a);
@@ -438,7 +444,13 @@ double ExecuteF64Floor(double a, TrapReason* trap) { return floor(a); }
 
 double ExecuteF64Trunc(double a, TrapReason* trap) { return trunc(a); }
 
-double ExecuteF64NearestInt(double a, TrapReason* trap) { return nearbyint(a); }
+double ExecuteF64NearestInt(double a, TrapReason* trap) {
+  double value = nearbyint(a);
+#if V8_OS_AIX
+  value = FpOpWorkaround<double>(a, value);
+#endif
+  return value;
+}
 
 double ExecuteF64Sqrt(double a, TrapReason* trap) { return sqrt(a); }
 
@@ -2338,6 +2350,10 @@ class WasmInterpreterInternals {
       BINOP_CASE(F64x2Max, f64x2, float2, 2, JSMax(a, b))
       BINOP_CASE(F64x2Pmin, f64x2, float2, 2, std::min(a, b))
       BINOP_CASE(F64x2Pmax, f64x2, float2, 2, std::max(a, b))
+      BINOP_CASE(F32x4RelaxedMin, f32x4, float4, 4, std::min(a, b))
+      BINOP_CASE(F32x4RelaxedMax, f32x4, float4, 4, std::max(a, b))
+      BINOP_CASE(F64x2RelaxedMin, f64x2, float2, 2, std::min(a, b))
+      BINOP_CASE(F64x2RelaxedMax, f64x2, float2, 2, std::max(a, b))
       BINOP_CASE(F32x4Add, f32x4, float4, 4, a + b)
       BINOP_CASE(F32x4Sub, f32x4, float4, 4, a - b)
       BINOP_CASE(F32x4Mul, f32x4, float4, 4, a * b)
@@ -2660,16 +2676,14 @@ class WasmInterpreterInternals {
                      static_cast<float>(a))
         CONVERT_CASE(F32x4UConvertI32x4, int4, i32x4, float4, 4, 0, uint32_t,
                      static_cast<float>(a))
-        CONVERT_CASE(I32x4SConvertF32x4, float4, f32x4, int4, 4, 0, double,
-                     std::isnan(a) ? 0
-                                   : a<kMinInt ? kMinInt : a> kMaxInt
-                                         ? kMaxInt
-                                         : static_cast<int32_t>(a))
-        CONVERT_CASE(I32x4UConvertF32x4, float4, f32x4, int4, 4, 0, double,
-                     std::isnan(a)
-                         ? 0
-                         : a<0 ? 0 : a> kMaxUInt32 ? kMaxUInt32
-                                                   : static_cast<uint32_t>(a))
+        CONVERT_CASE(I32x4SConvertF32x4, float4, f32x4, int4, 4, 0, float,
+                     base::saturated_cast<int32_t>(a))
+        CONVERT_CASE(I32x4UConvertF32x4, float4, f32x4, int4, 4, 0, float,
+                     base::saturated_cast<uint32_t>(a))
+        CONVERT_CASE(I32x4RelaxedTruncF32x4S, float4, f32x4, int4, 4, 0, float,
+                     base::saturated_cast<int32_t>(a))
+        CONVERT_CASE(I32x4RelaxedTruncF32x4U, float4, f32x4, int4, 4, 0, float,
+                     base::saturated_cast<uint32_t>(a))
         CONVERT_CASE(I64x2SConvertI32x4Low, int4, i32x4, int2, 2, 0, int32_t, a)
         CONVERT_CASE(I64x2SConvertI32x4High, int4, i32x4, int2, 2, 2, int32_t,
                      a)
@@ -2699,6 +2713,10 @@ class WasmInterpreterInternals {
                      base::saturated_cast<int32_t>(a))
         CONVERT_CASE(I32x4TruncSatF64x2UZero, float2, f64x2, int4, 2, 0, double,
                      base::saturated_cast<uint32_t>(a))
+        CONVERT_CASE(I32x4RelaxedTruncF64x2SZero, float2, f64x2, int4, 2, 0,
+                     double, base::saturated_cast<int32_t>(a))
+        CONVERT_CASE(I32x4RelaxedTruncF64x2UZero, float2, f64x2, int4, 2, 0,
+                     double, base::saturated_cast<uint32_t>(a))
         CONVERT_CASE(F32x4DemoteF64x2Zero, float2, f64x2, float4, 2, 0, float,
                      DoubleToFloat32(a))
         CONVERT_CASE(F64x2PromoteLowF32x4, float4, f32x4, float2, 2, 0, float,
@@ -2724,6 +2742,10 @@ class WasmInterpreterInternals {
         PACK_CASE(I8x16SConvertI16x8, int8, i16x8, int16, 16, int8_t)
         PACK_CASE(I8x16UConvertI16x8, int8, i16x8, int16, 16, uint8_t)
 #undef PACK_CASE
+      case kExprI8x16RelaxedLaneSelect:
+      case kExprI16x8RelaxedLaneSelect:
+      case kExprI32x4RelaxedLaneSelect:
+      case kExprI64x2RelaxedLaneSelect:
       case kExprS128Select: {
         int4 bool_val = Pop().to_s128().to_i32x4();
         int4 v2 = Pop().to_s128().to_i32x4();
@@ -2761,6 +2783,7 @@ class WasmInterpreterInternals {
         *len += 16;
         return true;
       }
+      case kExprI8x16RelaxedSwizzle:
       case kExprI8x16Swizzle: {
         int16 v2 = Pop().to_s128().to_i8x16();
         int16 v1 = Pop().to_s128().to_i8x16();
@@ -3497,8 +3520,8 @@ class WasmInterpreterInternals {
                                                      "function index");
           HandleScope handle_scope(isolate_);  // Avoid leaking handles.
 
-          Handle<WasmExternalFunction> function =
-              WasmInstanceObject::GetOrCreateWasmExternalFunction(
+          Handle<WasmInternalFunction> function =
+              WasmInstanceObject::GetOrCreateWasmInternalFunction(
                   isolate_, instance_object_, imm.index);
           Push(WasmValue(function, kWasmFuncRef));
           len = 1 + imm.length;
@@ -4083,21 +4106,20 @@ class WasmInterpreterInternals {
     uint32_t expected_sig_id = module()->canonicalized_type_ids[sig_index];
     DCHECK_EQ(expected_sig_id,
               module()->signature_map.Find(*module()->signature(sig_index)));
-    // Bounds check against table size.
-    if (entry_index >=
-        static_cast<uint32_t>(WasmInstanceObject::IndirectFunctionTableSize(
-            isolate_, instance_object_, table_index))) {
-      return {CallResult::INVALID_FUNC};
-    }
 
-    IndirectFunctionTableEntry entry(instance_object_, table_index,
-                                     entry_index);
+    Handle<WasmIndirectFunctionTable> table =
+        instance_object_->GetIndirectFunctionTable(isolate_, table_index);
+
+    // Bounds check against table size.
+    if (entry_index >= table->size()) return {CallResult::INVALID_FUNC};
+
     // Signature check.
-    if (entry.sig_id() != static_cast<int32_t>(expected_sig_id)) {
+    if (table->sig_ids()[entry_index] != expected_sig_id) {
       return {CallResult::SIGNATURE_MISMATCH};
     }
 
-    Handle<Object> object_ref = handle(entry.object_ref(), isolate_);
+    Handle<Object> object_ref =
+        handle(table->refs().get(entry_index), isolate_);
     // Check that this is an internal call (within the same instance).
     CHECK(object_ref->IsWasmInstanceObject() &&
           instance_object_.is_identical_to(object_ref));
@@ -4107,13 +4129,14 @@ class WasmInterpreterInternals {
 #ifdef DEBUG
     {
       WasmCodeRefScope code_ref_scope;
-      WasmCode* wasm_code = native_module->Lookup(entry.target());
+      WasmCode* wasm_code =
+          native_module->Lookup(table->targets()[entry_index]);
       DCHECK_EQ(native_module, wasm_code->native_module());
       DCHECK_EQ(WasmCode::kJumpTable, wasm_code->kind());
     }
 #endif
-    uint32_t func_index =
-        native_module->GetFunctionIndexFromJumpTableSlot(entry.target());
+    uint32_t func_index = native_module->GetFunctionIndexFromJumpTableSlot(
+        table->targets()[entry_index]);
 
     return {CallResult::INTERNAL, codemap_.GetCode(func_index)};
   }
@@ -4219,6 +4242,7 @@ ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(
                         0,       // func_index
                         0,       // sig_index
                         {0, 0},  // code
+                        0,       // feedback slots
                         false,   // imported
                         false,   // exported
                         false};  // declared

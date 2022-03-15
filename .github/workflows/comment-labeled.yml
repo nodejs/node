@@ -1,4 +1,4 @@
-name: Comment on issues and PRs when labelled
+name: Comment on issues and PRs when labeled
 on:
   issues:
     types: [labeled]
@@ -12,7 +12,7 @@ env:
   FAST_TRACK_MESSAGE: Fast-track has been requested by @${{ github.actor }}. Please 👍 to approve.
 
 jobs:
-  staleComment:
+  stale-comment:
     if: github.repository == 'nodejs/node' && github.event.label.name == 'stalled'
     runs-on: ubuntu-latest
     steps:
@@ -22,7 +22,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh issue comment "$NUMBER" --repo ${{ github.repository }} --body "$STALE_MESSAGE"
 
-  fastTrack:
+  fast-track:
     if: github.repository == 'nodejs/node' && github.event_name == 'pull_request_target' && github.event.label.name == 'fast-track'
     runs-on: ubuntu-latest
     steps:

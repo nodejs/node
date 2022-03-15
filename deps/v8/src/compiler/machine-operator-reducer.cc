@@ -1023,7 +1023,7 @@ Reduction MachineOperatorReducer::ReduceInt64Add(Node* node) {
     return ReplaceInt64(base::AddWithWraparound(m.left().ResolvedValue(),
                                                 m.right().ResolvedValue()));
   }
-  // (x + Int64Constant(a)) + Int64Constant(b)) => x + Int64Constant(a + b)
+  // (x + Int64Constant(a)) + Int64Constant(b) => x + Int64Constant(a + b)
   if (m.right().HasResolvedValue() && m.left().IsInt64Add()) {
     Int64BinopMatcher n(m.left().node());
     if (n.right().HasResolvedValue() && m.OwnsInput(m.left().node())) {

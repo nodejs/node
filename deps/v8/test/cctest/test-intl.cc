@@ -4,8 +4,9 @@
 
 #ifdef V8_INTL_SUPPORT
 
+#include "src/objects/intl-objects.h"
 #include "src/objects/js-break-iterator.h"
-#include "src/objects/js-collator.h"
+#include "src/objects/js-collator-inl.h"
 #include "src/objects/js-date-time-format.h"
 #include "src/objects/js-list-format.h"
 #include "src/objects/js-number-format.h"
@@ -16,6 +17,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"
 #include "test/cctest/cctest.h"
+#include "unicode/coll.h"
 
 namespace v8 {
 namespace internal {
@@ -246,6 +248,65 @@ TEST(GetAvailableLocales) {
   locales = JSSegmenter::GetAvailableLocales();
   CHECK(locales.count("en-US"));
   CHECK(!locales.count("abcdefg"));
+}
+
+// Tests that the LocaleCompare fast path and generic path return the same
+// comparison results for all ASCII strings.
+TEST(StringLocaleCompareFastPath) {
+  LocalContext env;
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handle_scope(isolate);
+
+  // We compare all single-char strings of printable ASCII characters.
+  std::vector<Handle<String>> ascii_strings;
+  for (int c = 0; c <= 0x7F; c++) {
+    if (!std::isprint(c)) continue;
+    ascii_strings.push_back(
+        isolate->factory()->LookupSingleCharacterStringFromCode(c));
+  }
+
+  Handle<JSFunction> collator_constructor = Handle<JSFunction>(
+      JSFunction::cast(
+          isolate->context().native_context().intl_collator_function()),
+      isolate);
+  Handle<Map> constructor_map =
+      JSFunction::GetDerivedMap(isolate, collator_constructor,
+                                collator_constructor)
+          .ToHandleChecked();
+  Handle<Object> options(ReadOnlyRoots(isolate).undefined_value(), isolate);
+  static const char* const kMethodName = "StringLocaleCompareFastPath";
+
+  // For all fast locales, exhaustively compare within the printable ASCII
+  // range.
+  const std::set<std::string>& locales = JSCollator::GetAvailableLocales();
+  for (const std::string& locale : locales) {
+    Handle<String> locale_string =
+        isolate->factory()->NewStringFromAsciiChecked(locale.c_str());
+
+    if (Intl::CompareStringsOptionsFor(isolate->AsLocalIsolate(), locale_string,
+                                       options) !=
+        Intl::CompareStringsOptions::kTryFastPath) {
+      continue;
+    }
+
+    Handle<JSCollator> collator =
+        JSCollator::New(isolate, constructor_map, locale_string, options,
+                        kMethodName)
+            .ToHandleChecked();
+
+    for (size_t i = 0; i < ascii_strings.size(); i++) {
+      Handle<String> lhs = ascii_strings[i];
+      for (size_t j = i + 1; j < ascii_strings.size(); j++) {
+        Handle<String> rhs = ascii_strings[j];
+        CHECK_EQ(
+            Intl::CompareStrings(isolate, *collator->icu_collator().raw(), lhs,
+                                 rhs, Intl::CompareStringsOptions::kNone),
+            Intl::CompareStrings(isolate, *collator->icu_collator().raw(), lhs,
+                                 rhs,
+                                 Intl::CompareStringsOptions::kTryFastPath));
+      }
+    }
+  }
 }
 
 }  // namespace internal

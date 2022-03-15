@@ -201,6 +201,8 @@ namespace compiler {
   V(Arm64LdarDecompressAnyTagged)                    \
   V(Arm64StrCompressTagged)                          \
   V(Arm64StlrCompressTagged)                         \
+  V(Arm64LdrDecodeCagedPointer)                      \
+  V(Arm64StrEncodeCagedPointer)                      \
   V(Arm64DmbIsh)                                     \
   V(Arm64DsbIsb)                                     \
   V(Arm64Sxtl)                                       \
@@ -256,6 +258,8 @@ namespace compiler {
   V(Arm64INe)                                        \
   V(Arm64IGtS)                                       \
   V(Arm64IGeS)                                       \
+  V(Arm64ILtS)                                       \
+  V(Arm64ILeS)                                       \
   V(Arm64I64x2ShrU)                                  \
   V(Arm64I64x2BitMask)                               \
   V(Arm64I32x4SConvertF32x4)                         \

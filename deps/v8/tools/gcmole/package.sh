@@ -33,9 +33,17 @@ mkdir -p "${PACKAGE_DIR}/lib"
 cp -r "${BUILD_DIR}/lib/clang" "${PACKAGE_DIR}/lib"
 cp "${THIS_DIR}/libgcmole.so" "${PACKAGE_DIR}"
 
-# Generate the archive
+# Generate the archive. Set some flags on tar to make the output more
+# deterministic (e.g. not dependent on timestamps by using the timestamp of
+# gcmole.cc for all files)
 cd "$(dirname "${PACKAGE_DIR}")"
-tar -c -z -f "${PACKAGE_FILE}" "$(basename "${PACKAGE_DIR}")"
+tar \
+  --sort=name \
+  --owner=root:0 \
+  --group=root:0 \
+  --mtime="${THIS_DIR}/gcmole.cc" \
+  --create \
+  "$(basename "${PACKAGE_DIR}")" | gzip --no-name >"${PACKAGE_FILE}"
 
 # Generate checksum
 sha1sum "${PACKAGE_FILE}" | awk '{print $1}' > "${PACKAGE_SUM}"

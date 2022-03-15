@@ -196,6 +196,7 @@ void X509Certificate::Subject(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
   BIOPointer bio(BIO_new(BIO_s_mem()));
+  CHECK(bio);
   Local<Value> ret;
   if (GetSubject(env, bio, cert->get()).ToLocal(&ret))
     args.GetReturnValue().Set(ret);
@@ -206,6 +207,7 @@ void X509Certificate::Issuer(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
   BIOPointer bio(BIO_new(BIO_s_mem()));
+  CHECK(bio);
   Local<Value> ret;
   if (GetIssuerString(env, bio, cert->get()).ToLocal(&ret))
     args.GetReturnValue().Set(ret);
@@ -216,6 +218,7 @@ void X509Certificate::SubjectAltName(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
   BIOPointer bio(BIO_new(BIO_s_mem()));
+  CHECK(bio);
   Local<Value> ret;
   if (GetSubjectAltNameString(env, bio, cert->get()).ToLocal(&ret))
     args.GetReturnValue().Set(ret);
@@ -226,6 +229,7 @@ void X509Certificate::InfoAccess(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
   BIOPointer bio(BIO_new(BIO_s_mem()));
+  CHECK(bio);
   Local<Value> ret;
   if (GetInfoAccessString(env, bio, cert->get()).ToLocal(&ret))
     args.GetReturnValue().Set(ret);
@@ -236,6 +240,7 @@ void X509Certificate::ValidFrom(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
   BIOPointer bio(BIO_new(BIO_s_mem()));
+  CHECK(bio);
   Local<Value> ret;
   if (GetValidFrom(env, cert->get(), bio).ToLocal(&ret))
     args.GetReturnValue().Set(ret);
@@ -246,6 +251,7 @@ void X509Certificate::ValidTo(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
   BIOPointer bio(BIO_new(BIO_s_mem()));
+  CHECK(bio);
   Local<Value> ret;
   if (GetValidTo(env, cert->get(), bio).ToLocal(&ret))
     args.GetReturnValue().Set(ret);
@@ -325,6 +331,7 @@ void X509Certificate::Pem(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
   BIOPointer bio(BIO_new(BIO_s_mem()));
+  CHECK(bio);
   if (PEM_write_bio_X509(bio.get(), cert->get()))
     args.GetReturnValue().Set(ToV8Value(env, bio));
 }
@@ -470,7 +477,7 @@ void X509Certificate::ToLegacy(const FunctionCallbackInfo<Value>& args) {
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.Holder());
   Local<Value> ret;
-  if (X509ToObject(env, cert->get(), true).ToLocal(&ret))
+  if (X509ToObject(env, cert->get()).ToLocal(&ret))
     args.GetReturnValue().Set(ret);
 }
 

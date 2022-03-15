@@ -35,6 +35,11 @@ struct RawPtrT : WordT {
   static constexpr MachineType kMachineType = MachineType::Pointer();
 };
 
+// A RawPtrT that is guaranteed to point into the virtual memory cage.
+struct CagedPtrT : WordT {
+  static constexpr MachineType kMachineType = MachineType::CagedPointer();
+};
+
 template <class To>
 struct RawPtr : RawPtrT {};
 

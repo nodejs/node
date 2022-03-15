@@ -26,6 +26,10 @@ DOM.defineCustomElement(
 
       set propertyDict(propertyDict) {
         if (this._propertyDict === propertyDict) return;
+        if (typeof propertyDict !== 'object') {
+          throw new Error(
+              `Invalid property dict, expected object: ${propertyDict}`);
+        }
         this._propertyDict = propertyDict;
         this.requestUpdate();
       }

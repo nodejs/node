@@ -1,6 +1,5 @@
 // run an npm command
 const spawn = require('@npmcli/promise-spawn')
-const {dirname} = require('path')
 
 module.exports = (npmBin, npmCommand, cwd, env, extra) => {
   const isJS = npmBin.endsWith('.js')

@@ -12,6 +12,7 @@
 #include "src/wasm/graph-builder-interface.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-subtyping.h"
 
 namespace v8 {
 namespace internal {
@@ -27,56 +28,173 @@ Reduction WasmInliner::Reduce(Node* node) {
   }
 }
 
+#define TRACE(...) \
+  if (FLAG_trace_wasm_inlining) PrintF(__VA_ARGS__);
+
 // TODO(12166): Save inlined frames for trap/--trace-wasm purposes. Consider
 //              tail calls.
-// TODO(12166): Inline indirect calls/call_ref.
 Reduction WasmInliner::ReduceCall(Node* call) {
   DCHECK(call->opcode() == IrOpcode::kCall ||
          call->opcode() == IrOpcode::kTailCall);
+
+  if (seen_.find(call) != seen_.end()) {
+    TRACE("function %d: have already seen node %d, skipping\n", function_index_,
+          call->id());
+    return NoChange();
+  }
+  seen_.insert(call);
+
   Node* callee = NodeProperties::GetValueInput(call, 0);
   IrOpcode::Value reloc_opcode = mcgraph_->machine()->Is32()
                                      ? IrOpcode::kRelocatableInt32Constant
                                      : IrOpcode::kRelocatableInt64Constant;
-  if (callee->opcode() != reloc_opcode) return NoChange();
+  if (callee->opcode() != reloc_opcode) {
+    TRACE("[function %d: considering node %d... not a relocatable constant]\n",
+          function_index_, call->id());
+    return NoChange();
+  }
   auto info = OpParameter<RelocatablePtrConstantInfo>(callee->op());
   uint32_t inlinee_index = static_cast<uint32_t>(info.value());
-  if (!heuristics_->DoInline(source_positions_->GetSourcePosition(call),
-                             inlinee_index)) {
+  TRACE("[function %d: considering node %d, call to %d... ", function_index_,
+        call->id(), inlinee_index)
+  if (info.rmode() != RelocInfo::WASM_CALL) {
+    TRACE("not a wasm call]\n")
     return NoChange();
+  }
+  if (inlinee_index < module()->num_imported_functions) {
+    TRACE("imported function]\n")
+    return NoChange();
+  }
+  if (inlinee_index == function_index_) {
+    TRACE("recursive call]\n")
+    return NoChange();
+  }
+
+  TRACE("adding to inlining candidates!]\n")
+
+  bool is_speculative_call_ref = false;
+  int call_count = 0;
+  if (FLAG_wasm_speculative_inlining) {
+    base::MutexGuard guard(&module()->type_feedback.mutex);
+    auto maybe_feedback =
+        module()->type_feedback.feedback_for_function.find(function_index_);
+    if (maybe_feedback != module()->type_feedback.feedback_for_function.end()) {
+      wasm::FunctionTypeFeedback feedback = maybe_feedback->second;
+      wasm::WasmCodePosition position =
+          source_positions_->GetSourcePosition(call).ScriptOffset();
+      DCHECK_NE(position, wasm::kNoCodePosition);
+      auto index_in_feedback_vector = feedback.positions.find(position);
+      if (index_in_feedback_vector != feedback.positions.end()) {
+        is_speculative_call_ref = true;
+        call_count = feedback.feedback_vector[index_in_feedback_vector->second]
+                         .absolute_call_frequency;
+      }
+    }
   }
 
   CHECK_LT(inlinee_index, module()->functions.size());
   const wasm::WasmFunction* inlinee = &module()->functions[inlinee_index];
-
   base::Vector<const byte> function_bytes = wire_bytes_->GetCode(inlinee->code);
 
-  const wasm::FunctionBody inlinee_body(inlinee->sig, inlinee->code.offset(),
-                                        function_bytes.begin(),
-                                        function_bytes.end());
-  wasm::WasmFeatures detected;
-  WasmGraphBuilder builder(env_, zone(), mcgraph_, inlinee_body.sig,
-                           source_positions_);
-  std::vector<WasmLoopInfo> infos;
+  CandidateInfo candidate{call, inlinee_index, is_speculative_call_ref,
+                          call_count, function_bytes.length()};
 
-  size_t subgraph_min_node_id = graph()->NodeCount();
-  wasm::DecodeResult result;
-  Node* inlinee_start;
-  Node* inlinee_end;
-  {
-    Graph::SubgraphScope scope(graph());
-    result = wasm::BuildTFGraph(zone()->allocator(), env_->enabled_features,
-                                module(), &builder, &detected, inlinee_body,
-                                &infos, node_origins_, inlinee_index,
-                                wasm::kInlinedFunction);
-    inlinee_start = graph()->start();
-    inlinee_end = graph()->end();
+  inlining_candidates_.push(candidate);
+  return NoChange();
+}
+
+void WasmInliner::Finalize() {
+  TRACE("function %d: going though inlining candidates...\n", function_index_);
+  while (!inlining_candidates_.empty()) {
+    CandidateInfo candidate = inlining_candidates_.top();
+    inlining_candidates_.pop();
+    Node* call = candidate.node;
+    TRACE(
+        "  [function %d: considering candidate {@%d, index=%d, type=%s, "
+        "count=%d, size=%d}... ",
+        function_index_, call->id(), candidate.inlinee_index,
+        candidate.is_speculative_call_ref ? "ref" : "direct",
+        candidate.call_count, candidate.wire_byte_size);
+    if (call->IsDead()) {
+      TRACE("dead node]\n");
+      continue;
+    }
+    const wasm::WasmFunction* inlinee =
+        &module()->functions[candidate.inlinee_index];
+    base::Vector<const byte> function_bytes =
+        wire_bytes_->GetCode(inlinee->code);
+    // We use the signature based on the real argument types stored in the call
+    // node. This is more specific than the callee's formal signature and might
+    // enable some optimizations.
+    const wasm::FunctionSig* real_sig =
+        CallDescriptorOf(call->op())->wasm_sig();
+
+#if DEBUG
+    // Check that the real signature is a subtype of the formal one.
+    const wasm::FunctionSig* formal_sig =
+        WasmGraphBuilder::Int64LoweredSig(zone(), inlinee->sig);
+    CHECK_EQ(real_sig->parameter_count(), formal_sig->parameter_count());
+    CHECK_EQ(real_sig->return_count(), formal_sig->return_count());
+    for (size_t i = 0; i < real_sig->parameter_count(); i++) {
+      CHECK(wasm::IsSubtypeOf(real_sig->GetParam(i), formal_sig->GetParam(i),
+                              module()));
+    }
+    for (size_t i = 0; i < real_sig->return_count(); i++) {
+      CHECK(wasm::IsSubtypeOf(formal_sig->GetReturn(i), real_sig->GetReturn(i),
+                              module()));
+    }
+#endif
+
+    const wasm::FunctionBody inlinee_body(real_sig, inlinee->code.offset(),
+                                          function_bytes.begin(),
+                                          function_bytes.end());
+    wasm::WasmFeatures detected;
+    WasmGraphBuilder builder(env_, zone(), mcgraph_, inlinee_body.sig,
+                             source_positions_);
+    std::vector<WasmLoopInfo> infos;
+
+    size_t subgraph_min_node_id = graph()->NodeCount();
+    Node* inlinee_start;
+    Node* inlinee_end;
+    {
+      Graph::SubgraphScope scope(graph());
+      wasm::DecodeResult result = wasm::BuildTFGraph(
+          zone()->allocator(), env_->enabled_features, module(), &builder,
+          &detected, inlinee_body, &infos, node_origins_,
+          candidate.inlinee_index, wasm::kInlinedFunction);
+      if (result.failed()) {
+        // This can happen if the inlinee has never been compiled before and is
+        // invalid. Return, as there is no point to keep optimizing.
+        TRACE("failed to compile]\n")
+        return;
+      }
+
+      builder.LowerInt64(WasmGraphBuilder::kCalledFromWasm);
+      inlinee_start = graph()->start();
+      inlinee_end = graph()->end();
+    }
+
+    size_t additional_nodes = graph()->NodeCount() - subgraph_min_node_id;
+    if (current_graph_size_ + additional_nodes >
+        size_limit(initial_graph_size_)) {
+      // This is not based on the accurate graph size, as it may have been
+      // shrunk by other optimizations. We could recompute the accurate size
+      // with a traversal, but it is most probably not worth the time.
+      TRACE("not enough inlining budget]\n");
+      continue;
+    }
+    TRACE("inlining!]\n");
+    current_graph_size_ += additional_nodes;
+
+    if (call->opcode() == IrOpcode::kCall) {
+      InlineCall(call, inlinee_start, inlinee_end, inlinee->sig,
+                 subgraph_min_node_id);
+    } else {
+      InlineTailCall(call, inlinee_start, inlinee_end);
+    }
+    call->Kill();
+    // Returning after only one inlining has been tried and found worse.
   }
-
-  if (result.failed()) return NoChange();
-  return call->opcode() == IrOpcode::kCall
-             ? InlineCall(call, inlinee_start, inlinee_end, inlinee->sig,
-                          subgraph_min_node_id)
-             : InlineTailCall(call, inlinee_start, inlinee_end);
 }
 
 /* Rewire callee formal parameters to the call-site real parameters. Rewire
@@ -104,13 +222,14 @@ void WasmInliner::RewireFunctionEntry(Node* call, Node* callee_start) {
         } else {
           UNREACHABLE();
         }
+        Revisit(edge.from());
         break;
     }
   }
 }
 
-Reduction WasmInliner::InlineTailCall(Node* call, Node* callee_start,
-                                      Node* callee_end) {
+void WasmInliner::InlineTailCall(Node* call, Node* callee_start,
+                                 Node* callee_end) {
   DCHECK(call->opcode() == IrOpcode::kTailCall);
   // 1) Rewire function entry.
   RewireFunctionEntry(call, callee_start);
@@ -119,16 +238,19 @@ Reduction WasmInliner::InlineTailCall(Node* call, Node* callee_start,
   for (Node* const input : callee_end->inputs()) {
     DCHECK(IrOpcode::IsGraphTerminator(input->opcode()));
     NodeProperties::MergeControlToEnd(graph(), common(), input);
-    Revisit(graph()->end());
+  }
+  for (Edge edge_to_end : call->use_edges()) {
+    DCHECK_EQ(edge_to_end.from(), graph()->end());
+    edge_to_end.UpdateTo(mcgraph()->Dead());
   }
   callee_end->Kill();
-  return Replace(mcgraph()->Dead());
+  call->Kill();
+  Revisit(graph()->end());
 }
 
-Reduction WasmInliner::InlineCall(Node* call, Node* callee_start,
-                                  Node* callee_end,
-                                  const wasm::FunctionSig* inlinee_sig,
-                                  size_t subgraph_min_node_id) {
+void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
+                             const wasm::FunctionSig* inlinee_sig,
+                             size_t subgraph_min_node_id) {
   DCHECK(call->opcode() == IrOpcode::kCall);
 
   // 0) Before doing anything, if {call} has an exception handler, collect all
@@ -295,16 +417,16 @@ Reduction WasmInliner::InlineCall(Node* call, Node* callee_start,
       // Dead() as a dummy for value replacement.
       ReplaceWithValue(call, mcgraph()->Dead(), effect_output, control_output);
     }
-    return Replace(mcgraph()->Dead());
   } else {
     // The callee can never return. The call node and all its uses are dead.
     ReplaceWithValue(call, mcgraph()->Dead(), mcgraph()->Dead(),
                      mcgraph()->Dead());
-    return Changed(call);
   }
 }
 
 const wasm::WasmModule* WasmInliner::module() const { return env_->module; }
+
+#undef TRACE
 
 }  // namespace compiler
 }  // namespace internal

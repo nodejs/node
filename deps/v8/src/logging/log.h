@@ -233,6 +233,7 @@ class Logger : public CodeEventListener {
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override;
+  void FeedbackVectorEvent(FeedbackVector vector, AbstractCode code);
   void WeakCodeClearEvent() override {}
 
   void ProcessDeoptEvent(Handle<Code> code, SourcePosition position,

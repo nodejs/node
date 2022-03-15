@@ -15,18 +15,18 @@ namespace v8 {
 namespace internal {
 
 void LazyBuiltinsAssembler::GenerateTailCallToJSCode(
-    TNode<Code> code, TNode<JSFunction> function) {
+    TNode<CodeT> code, TNode<JSFunction> function) {
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto new_target = Parameter<Object>(Descriptor::kNewTarget);
-
-  TailCallJSCode(code, context, function, new_target, argc);
+  // TODO(v8:11880): call CodeT directly.
+  TailCallJSCode(FromCodeT(code), context, function, new_target, argc);
 }
 
 void LazyBuiltinsAssembler::GenerateTailCallToReturnedCode(
     Runtime::FunctionId function_id, TNode<JSFunction> function) {
   auto context = Parameter<Context>(Descriptor::kContext);
-  TNode<Code> code = CAST(CallRuntime(function_id, context, function));
+  TNode<CodeT> code = CAST(CallRuntime(function_id, context, function));
   GenerateTailCallToJSCode(code, function);
 }
 
@@ -34,7 +34,9 @@ void LazyBuiltinsAssembler::TailCallRuntimeIfMarkerEquals(
     TNode<Uint32T> marker, OptimizationMarker expected_marker,
     Runtime::FunctionId function_id, TNode<JSFunction> function) {
   Label no_match(this);
-  GotoIfNot(Word32Equal(marker, Uint32Constant(expected_marker)), &no_match);
+  GotoIfNot(Word32Equal(marker,
+                        Uint32Constant(static_cast<uint32_t>(expected_marker))),
+            &no_match);
   GenerateTailCallToReturnedCode(function_id, function);
   BIND(&no_match);
 }
@@ -78,14 +80,13 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
         feedback_vector, FeedbackVector::kMaybeOptimizedCodeOffset);
 
     // Optimized code slot is a weak reference to CodeT object.
-    TNode<CodeT> code_t = CAST(GetHeapObjectAssumeWeak(
+    TNode<CodeT> optimized_code = CAST(GetHeapObjectAssumeWeak(
         maybe_optimized_code_entry, &heal_optimized_code_slot));
-    TNode<Code> optimized_code = FromCodeT(code_t);
 
     // Check if the optimized code is marked for deopt. If it is, call the
     // runtime to clear it.
     TNode<CodeDataContainer> code_data_container =
-        CodeDataContainerFromCodeT(code_t);
+        CodeDataContainerFromCodeT(optimized_code);
     TNode<Int32T> code_kind_specific_flags = LoadObjectField<Int32T>(
         code_data_container, CodeDataContainer::kKindSpecificFlagsOffset);
     GotoIf(IsSetWord32<Code::MarkedForDeoptimizationField>(
@@ -94,10 +95,8 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
 
     // Optimized code is good, get it into the closure and link the closure into
     // the optimized functions list, then tail call the optimized code.
-    StoreObjectField(function, JSFunction::kCodeOffset,
-                     ToCodeT(optimized_code, code_data_container));
+    StoreObjectField(function, JSFunction::kCodeOffset, optimized_code);
     Comment("MaybeTailCallOptimizedCodeSlot:: GenerateTailCallToJSCode");
-    // TODO(v8:11880): call CodeT directly.
     GenerateTailCallToJSCode(optimized_code, function);
 
     // Optimized code slot contains deoptimized code or code is cleared and
@@ -122,7 +121,7 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   TNode<SharedFunctionInfo> shared =
       CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
   TVARIABLE(Uint16T, sfi_data_type);
-  TNode<Code> sfi_code =
+  TNode<CodeT> sfi_code =
       GetSharedFunctionInfoCode(shared, &sfi_data_type, &compile_function);
 
   TNode<HeapObject> feedback_cell_value = LoadFeedbackCellValue(function);
@@ -146,14 +145,14 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   // optimized Code object (we'd have tail-called it above). A usual case would
   // be the InterpreterEntryTrampoline to start executing existing bytecode.
   BIND(&maybe_use_sfi_code);
-  CSA_DCHECK(this, TaggedNotEqual(sfi_code, HeapConstant(BUILTIN_CODE(
+  CSA_DCHECK(this, TaggedNotEqual(sfi_code, HeapConstant(BUILTIN_CODET(
                                                 isolate(), CompileLazy))));
-  StoreObjectField(function, JSFunction::kCodeOffset, ToCodeT(sfi_code));
+  StoreObjectField(function, JSFunction::kCodeOffset, sfi_code);
 
   Label tailcall_code(this);
   Label baseline(this);
 
-  TVARIABLE(Code, code);
+  TVARIABLE(CodeT, code);
 
   // Check if we have baseline code.
   GotoIf(InstanceTypeEqual(sfi_data_type.value(), CODET_TYPE), &baseline);
@@ -163,7 +162,7 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
 
   BIND(&baseline);
   // Ensure we have a feedback vector.
-  code = Select<Code>(
+  code = Select<CodeT>(
       IsFeedbackVector(feedback_cell_value), [=]() { return sfi_code; },
       [=]() {
         return CAST(CallRuntime(Runtime::kInstallBaselineCode,
@@ -188,12 +187,9 @@ TF_BUILTIN(CompileLazy, LazyBuiltinsAssembler) {
 TF_BUILTIN(CompileLazyDeoptimizedCode, LazyBuiltinsAssembler) {
   auto function = Parameter<JSFunction>(Descriptor::kTarget);
 
-  Handle<Code> compile_lazy = BUILTIN_CODE(isolate(), CompileLazy);
-  TNode<Code> code = HeapConstant(compile_lazy);
+  TNode<CodeT> code = HeapConstant(BUILTIN_CODET(isolate(), CompileLazy));
   // Set the code slot inside the JSFunction to CompileLazy.
-  // TODO(v8:11880): support embedding of CodeDataContainer constants.
-  StoreObjectField(function, JSFunction::kCodeOffset, ToCodeT(code));
-  // TODO(v8:11880): call CodeT directly.
+  StoreObjectField(function, JSFunction::kCodeOffset, code);
   GenerateTailCallToJSCode(code, function);
 }
 

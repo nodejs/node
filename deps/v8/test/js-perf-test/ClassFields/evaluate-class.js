@@ -5,79 +5,103 @@
 
 d8.file.execute('classes.js');
 
-const BENCHMARK_NAME = arguments[0];
-const TEST_TYPE = arguments[1];
-const optimize_param = arguments[2];
-let optimize;
-if (optimize_param == "opt") {
-  optimize = true;
-} else if (optimize_param == "noopt"){
-  optimize = false;
-} else {
-  throw new Error("Unknown optimization configuration " + arguments.join(' '));
+function CreateBenchmark(name, optimize) {
+  let factory;
+  let array;
+
+  switch (name) {
+    case "EvaluateSinglePublicFieldClass":
+      factory = EvaluateSinglePublicFieldClass;
+      break;
+    case "EvaluateMultiPublicFieldClass":
+      factory = EvaluateMultiPublicFieldClass;
+      break;
+    case "EvaluateSinglePrivateFieldClass":
+      factory = EvaluateSinglePrivateFieldClass;
+      break;
+    case "EvaluateMultiPrivateFieldClass":
+      factory = EvaluateMultiPrivateFieldClass;
+      break;
+    case "EvaluateSinglePrivateMethodClass":
+      factory = EvaluateSinglePrivateMethodClass;
+      break;
+    case "EvaluateMultiPrivateMethodClass":
+      factory = EvaluateMultiPrivateMethodClass;
+      break;
+    case "EvaluateSingleComputedFieldClass":
+      factory = EvaluateSingleComputedFieldClass;
+      break;
+    case "EvaluateMultiComputedFieldClass":
+      factory = EvaluateMultiComputedFieldClass;
+      break;
+    default:
+      throw new Error("Unknown optimization configuration " + arguments.join(' '));
+  }
+
+  if (optimize) {
+    %PrepareFunctionForOptimization(factory);
+  } else {
+    %NeverOptimizeFunction(factory);
+  }
+
+  function setUp() {
+    array = [factory(), factory()];
+    // Populate the array first to reduce the impact of
+    // array allocations.
+    for (let i = 0; i < LOCAL_ITERATIONS - 2; ++i) {
+      array.push(array[0]);
+    }
+    if (optimize) {
+      %OptimizeFunctionOnNextCall(factory);
+    }
+  }
+
+  function runBenchmark() {
+    for (let i = 0; i < LOCAL_ITERATIONS; ++i) {
+      array[i] = factory();
+    }
+  }
+
+  function tearDown() {
+    if (array.length < 3) {
+      throw new Error(`Check failed, array length ${array.length}`);
+    }
+
+    for (const klass of array) {
+      const instance = new klass();
+      if (!instance.check())
+        throw new Error(`instance.check() failed`);
+    }
+  }
+
+  const DETERMINISTIC_RUNS = 1;
+  const LOCAL_ITERATIONS = 100;
+
+  const benchName = `${name}${optimize ? "Opt" : "NoOpt"}`
+  new BenchmarkSuite(benchName, [1000], [
+    new Benchmark(
+      benchName,
+      false, false, DETERMINISTIC_RUNS, runBenchmark, setUp, tearDown)
+  ]);
 }
 
-let factory;
-let array;
-
-switch (TEST_TYPE) {
-  case "public-field-single":
-    factory = EvaluateSinglePublicFieldClass;
+let optimize;
+switch (arguments[1]) {
+  case 'opt':
+    optimize = true;
     break;
-  case "public-field-multiple":
-    factory = EvaluateMultiPublicFieldClass;
+  case 'noopt':
+    optimize = false;
     break;
-  case "private-field-single":
-    factory = EvaluateSinglePrivateFieldClass;
-    break;
-  case "private-field-multiple":
-    factory = EvaluateMultiPrivateFieldClass;
-    break;
-
   default:
     throw new Error("Unknown optimization configuration " + arguments.join(' '));
 }
 
-if (optimize) {
-  %PrepareFunctionForOptimization(factory);
-} else {
-  %NeverOptimizeFunction(factory);
-}
-
-function setUp() {
-  array = [factory(), factory()];
-  // Populate the array first to reduce the impact of
-  // array allocations.
-  for (let i = 0; i < LOCAL_ITERATIONS - 2; ++i) {
-    array.push(array[0]);
-  }
-  if (optimize) {
-    %OptimizeFunctionOnNextCall(factory);
-  }
-}
-
-function runBenchmark() {
-  for (let i = 0; i < LOCAL_ITERATIONS; ++i) {
-    array[i] = factory();
-  }
-}
-
-function tearDown() {
-  if (array.length < 3) {
-    throw new Error(`Check failed, array length ${array.length}`);
-  }
-
-  for (const klass of array) {
-    const instance = new klass();
-    if (!instance.check())
-      throw new Error(`instance.check() failed`);
-  }
-}
-
-const DETERMINISTIC_RUNS = 1;
-const LOCAL_ITERATIONS = 10000;
-new BenchmarkSuite(`${BENCHMARK_NAME}`, [1000], [
-  new Benchmark(
-    `${BENCHMARK_NAME}-${TEST_TYPE}-${optimize_param}`,
-    false, false, DETERMINISTIC_RUNS, runBenchmark, setUp, tearDown)
-]);
+CreateBenchmark("EvaluateSinglePublicFieldClass", optimize);
+CreateBenchmark("EvaluateMultiPublicFieldClass", optimize);
+CreateBenchmark("EvaluateSinglePrivateFieldClass", optimize);
+CreateBenchmark("EvaluateMultiPrivateFieldClass", optimize);
+CreateBenchmark("EvaluateSinglePrivateMethodClass", optimize);
+CreateBenchmark("EvaluateMultiPrivateMethodClass", optimize);
+CreateBenchmark("EvaluateSingleComputedFieldClass", optimize);
+CreateBenchmark("EvaluateMultiComputedFieldClass", optimize);

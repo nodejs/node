@@ -414,6 +414,7 @@ CPU::CPU()
       part_(0),
       icache_line_size_(kUnknownCacheLineSize),
       dcache_line_size_(kUnknownCacheLineSize),
+      num_virtual_address_bits_(kUnknownNumVirtualAddressBits),
       has_fpu_(false),
       has_cmov_(false),
       has_sahf_(false),
@@ -545,6 +546,12 @@ CPU::CPU()
   if (num_ext_ids >= parameter_containing_non_stop_time_stamp_counter) {
     __cpuid(cpu_info, parameter_containing_non_stop_time_stamp_counter);
     has_non_stop_time_stamp_counter_ = (cpu_info[3] & (1 << 8)) != 0;
+  }
+
+  const unsigned virtual_physical_address_bits = 0x80000008;
+  if (num_ext_ids >= virtual_physical_address_bits) {
+    __cpuid(cpu_info, virtual_physical_address_bits);
+    num_virtual_address_bits_ = (cpu_info[0] >> 8) & 0xff;
   }
 
   // This logic is replicated from cpu.cc present in chromium.src

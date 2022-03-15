@@ -57,6 +57,8 @@ const char* MachineReprToString(MachineRepresentation rep) {
       return "kRepCompressed";
     case MachineRepresentation::kMapWord:
       return "kRepMapWord";
+    case MachineRepresentation::kCagedPointer:
+      return "kRepCagedPointer";
   }
   UNREACHABLE();
 }

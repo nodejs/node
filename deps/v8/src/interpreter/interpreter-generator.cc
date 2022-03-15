@@ -632,7 +632,7 @@ IGNITION_HANDLER(StaNamedProperty, InterpreterStoreNamedPropertyAssembler) {
 // the name in constant pool entry <name_index> with the value in the
 // accumulator.
 IGNITION_HANDLER(StaNamedOwnProperty, InterpreterStoreNamedPropertyAssembler) {
-  Callable ic = CodeFactory::StoreOwnICInOptimizedCode(isolate());
+  Callable ic = Builtins::CallableFor(isolate(), Builtin::kStoreOwnIC);
   StaNamedProperty(ic, NamedPropertyType::kOwn);
 }
 
@@ -656,6 +656,33 @@ IGNITION_HANDLER(StaKeyedProperty, InterpreterAssembler) {
   // restore to the correct value on the outside. Storing the result means we
   // don't need to keep unnecessary state alive across the callstub.
   SetAccumulator(result);
+  Dispatch();
+}
+
+// StaKeyedPropertyAsDefine <object> <key> <slot>
+//
+// Calls the KeyedDefineOwnIC at FeedbackVector slot <slot> for <object> and
+// the key <key> with the value in the accumulator.
+//
+// This is similar to StaKeyedProperty, but avoids checking the prototype chain,
+// and in the case of private names, throws if the private name already exists.
+IGNITION_HANDLER(StaKeyedPropertyAsDefine, InterpreterAssembler) {
+  TNode<Object> object = LoadRegisterAtOperandIndex(0);
+  TNode<Object> name = LoadRegisterAtOperandIndex(1);
+  TNode<Object> value = GetAccumulator();
+  TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(2);
+  TNode<HeapObject> maybe_vector = LoadFeedbackVector();
+  TNode<Context> context = GetContext();
+
+  TVARIABLE(Object, var_result);
+  var_result = CallBuiltin(Builtin::kKeyedDefineOwnIC, context, object, name,
+                           value, slot, maybe_vector);
+  // To avoid special logic in the deoptimizer to re-materialize the value in
+  // the accumulator, we overwrite the accumulator after the IC call. It
+  // doesn't really matter what we write to the accumulator here, since we
+  // restore to the correct value on the outside. Storing the result means we
+  // don't need to keep unnecessary state alive across the callstub.
+  SetAccumulator(var_result.value());
   Dispatch();
 }
 
@@ -972,7 +999,7 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
 
     BinaryOpAssembler binop_asm(state());
     TNode<Object> result = binop_asm.Generate_BitwiseBinaryOpWithFeedback(
-        bitwise_op, left, right, [=] { return context; }, &feedback);
+        bitwise_op, left, right, [=] { return context; }, &feedback, false);
 
     MaybeUpdateFeedback(feedback.value(), maybe_feedback_vector, slot_index);
     SetAccumulator(result);
@@ -986,29 +1013,15 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
     TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
     TNode<Context> context = GetContext();
 
-    TVARIABLE(Smi, var_left_feedback);
-    TVARIABLE(Word32T, var_left_word32);
-    TVARIABLE(BigInt, var_left_bigint);
-    Label do_smi_op(this), if_bigint_mix(this);
+    TVARIABLE(Smi, feedback);
 
-    TaggedToWord32OrBigIntWithFeedback(context, left, &do_smi_op,
-                                       &var_left_word32, &if_bigint_mix,
-                                       &var_left_bigint, &var_left_feedback);
-    BIND(&do_smi_op);
-    TNode<Number> result =
-        BitwiseOp(var_left_word32.value(), SmiToInt32(right), bitwise_op);
-    TNode<Smi> result_type = SelectSmiConstant(
-        TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
-        BinaryOperationFeedback::kNumber);
-    MaybeUpdateFeedback(SmiOr(result_type, var_left_feedback.value()),
-                        maybe_feedback_vector, slot_index);
+    BinaryOpAssembler binop_asm(state());
+    TNode<Object> result = binop_asm.Generate_BitwiseBinaryOpWithFeedback(
+        bitwise_op, left, right, [=] { return context; }, &feedback, true);
+
+    MaybeUpdateFeedback(feedback.value(), maybe_feedback_vector, slot_index);
     SetAccumulator(result);
     Dispatch();
-
-    BIND(&if_bigint_mix);
-    MaybeUpdateFeedback(var_left_feedback.value(), maybe_feedback_vector,
-                        slot_index);
-    ThrowTypeError(context, MessageTemplate::kBigIntMixedTypes);
   }
 };
 
@@ -1892,9 +1905,8 @@ IGNITION_HANDLER(JumpConstant, InterpreterAssembler) {
 // will misbehave if passed arbitrary input values.
 IGNITION_HANDLER(JumpIfTrue, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
   CSA_DCHECK(this, IsBoolean(CAST(accumulator)));
-  JumpIfTaggedEqual(accumulator, TrueConstant(), relative_jump);
+  JumpIfTaggedEqual(accumulator, TrueConstant(), 0);
 }
 
 // JumpIfTrueConstant <idx>
@@ -1904,9 +1916,8 @@ IGNITION_HANDLER(JumpIfTrue, InterpreterAssembler) {
 // and will misbehave if passed arbitrary input values.
 IGNITION_HANDLER(JumpIfTrueConstant, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
   CSA_DCHECK(this, IsBoolean(CAST(accumulator)));
-  JumpIfTaggedEqual(accumulator, TrueConstant(), relative_jump);
+  JumpIfTaggedEqualConstant(accumulator, TrueConstant(), 0);
 }
 
 // JumpIfFalse <imm>
@@ -1916,9 +1927,8 @@ IGNITION_HANDLER(JumpIfTrueConstant, InterpreterAssembler) {
 // will misbehave if passed arbitrary input values.
 IGNITION_HANDLER(JumpIfFalse, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
   CSA_DCHECK(this, IsBoolean(CAST(accumulator)));
-  JumpIfTaggedEqual(accumulator, FalseConstant(), relative_jump);
+  JumpIfTaggedEqual(accumulator, FalseConstant(), 0);
 }
 
 // JumpIfFalseConstant <idx>
@@ -1928,9 +1938,8 @@ IGNITION_HANDLER(JumpIfFalse, InterpreterAssembler) {
 // and will misbehave if passed arbitrary input values.
 IGNITION_HANDLER(JumpIfFalseConstant, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
   CSA_DCHECK(this, IsBoolean(CAST(accumulator)));
-  JumpIfTaggedEqual(accumulator, FalseConstant(), relative_jump);
+  JumpIfTaggedEqualConstant(accumulator, FalseConstant(), 0);
 }
 
 // JumpIfToBooleanTrue <imm>
@@ -1939,10 +1948,10 @@ IGNITION_HANDLER(JumpIfFalseConstant, InterpreterAssembler) {
 // referenced by the accumulator is true when the object is cast to boolean.
 IGNITION_HANDLER(JumpIfToBooleanTrue, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
-  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
   Label if_true(this), if_false(this);
   BranchIfToBooleanIsTrue(value, &if_true, &if_false);
   BIND(&if_true);
+  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
   Jump(relative_jump);
   BIND(&if_false);
   Dispatch();
@@ -1955,10 +1964,10 @@ IGNITION_HANDLER(JumpIfToBooleanTrue, InterpreterAssembler) {
 // cast to boolean.
 IGNITION_HANDLER(JumpIfToBooleanTrueConstant, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
-  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
   Label if_true(this), if_false(this);
   BranchIfToBooleanIsTrue(value, &if_true, &if_false);
   BIND(&if_true);
+  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
   Jump(relative_jump);
   BIND(&if_false);
   Dispatch();
@@ -1970,12 +1979,12 @@ IGNITION_HANDLER(JumpIfToBooleanTrueConstant, InterpreterAssembler) {
 // referenced by the accumulator is false when the object is cast to boolean.
 IGNITION_HANDLER(JumpIfToBooleanFalse, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
-  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
   Label if_true(this), if_false(this);
   BranchIfToBooleanIsTrue(value, &if_true, &if_false);
   BIND(&if_true);
   Dispatch();
   BIND(&if_false);
+  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
   Jump(relative_jump);
 }
 
@@ -1986,12 +1995,12 @@ IGNITION_HANDLER(JumpIfToBooleanFalse, InterpreterAssembler) {
 // cast to boolean.
 IGNITION_HANDLER(JumpIfToBooleanFalseConstant, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
-  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
   Label if_true(this), if_false(this);
   BranchIfToBooleanIsTrue(value, &if_true, &if_false);
   BIND(&if_true);
   Dispatch();
   BIND(&if_false);
+  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
   Jump(relative_jump);
 }
 
@@ -2001,8 +2010,7 @@ IGNITION_HANDLER(JumpIfToBooleanFalseConstant, InterpreterAssembler) {
 // referenced by the accumulator is the null constant.
 IGNITION_HANDLER(JumpIfNull, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
-  JumpIfTaggedEqual(accumulator, NullConstant(), relative_jump);
+  JumpIfTaggedEqual(accumulator, NullConstant(), 0);
 }
 
 // JumpIfNullConstant <idx>
@@ -2011,8 +2019,7 @@ IGNITION_HANDLER(JumpIfNull, InterpreterAssembler) {
 // pool if the object referenced by the accumulator is the null constant.
 IGNITION_HANDLER(JumpIfNullConstant, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
-  JumpIfTaggedEqual(accumulator, NullConstant(), relative_jump);
+  JumpIfTaggedEqualConstant(accumulator, NullConstant(), 0);
 }
 
 // JumpIfNotNull <imm>
@@ -2021,8 +2028,7 @@ IGNITION_HANDLER(JumpIfNullConstant, InterpreterAssembler) {
 // referenced by the accumulator is not the null constant.
 IGNITION_HANDLER(JumpIfNotNull, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
-  JumpIfTaggedNotEqual(accumulator, NullConstant(), relative_jump);
+  JumpIfTaggedNotEqual(accumulator, NullConstant(), 0);
 }
 
 // JumpIfNotNullConstant <idx>
@@ -2031,8 +2037,7 @@ IGNITION_HANDLER(JumpIfNotNull, InterpreterAssembler) {
 // pool if the object referenced by the accumulator is not the null constant.
 IGNITION_HANDLER(JumpIfNotNullConstant, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
-  JumpIfTaggedNotEqual(accumulator, NullConstant(), relative_jump);
+  JumpIfTaggedNotEqualConstant(accumulator, NullConstant(), 0);
 }
 
 // JumpIfUndefined <imm>
@@ -2041,8 +2046,7 @@ IGNITION_HANDLER(JumpIfNotNullConstant, InterpreterAssembler) {
 // referenced by the accumulator is the undefined constant.
 IGNITION_HANDLER(JumpIfUndefined, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
-  JumpIfTaggedEqual(accumulator, UndefinedConstant(), relative_jump);
+  JumpIfTaggedEqual(accumulator, UndefinedConstant(), 0);
 }
 
 // JumpIfUndefinedConstant <idx>
@@ -2051,8 +2055,7 @@ IGNITION_HANDLER(JumpIfUndefined, InterpreterAssembler) {
 // pool if the object referenced by the accumulator is the undefined constant.
 IGNITION_HANDLER(JumpIfUndefinedConstant, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
-  JumpIfTaggedEqual(accumulator, UndefinedConstant(), relative_jump);
+  JumpIfTaggedEqualConstant(accumulator, UndefinedConstant(), 0);
 }
 
 // JumpIfNotUndefined <imm>
@@ -2061,8 +2064,7 @@ IGNITION_HANDLER(JumpIfUndefinedConstant, InterpreterAssembler) {
 // referenced by the accumulator is not the undefined constant.
 IGNITION_HANDLER(JumpIfNotUndefined, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
-  JumpIfTaggedNotEqual(accumulator, UndefinedConstant(), relative_jump);
+  JumpIfTaggedNotEqual(accumulator, UndefinedConstant(), 0);
 }
 
 // JumpIfNotUndefinedConstant <idx>
@@ -2072,8 +2074,7 @@ IGNITION_HANDLER(JumpIfNotUndefined, InterpreterAssembler) {
 // constant.
 IGNITION_HANDLER(JumpIfNotUndefinedConstant, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
-  JumpIfTaggedNotEqual(accumulator, UndefinedConstant(), relative_jump);
+  JumpIfTaggedNotEqualConstant(accumulator, UndefinedConstant(), 0);
 }
 
 // JumpIfUndefinedOrNull <imm>
@@ -2117,7 +2118,6 @@ IGNITION_HANDLER(JumpIfUndefinedOrNullConstant, InterpreterAssembler) {
 // referenced by the accumulator is a JSReceiver.
 IGNITION_HANDLER(JumpIfJSReceiver, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
 
   Label if_object(this), if_notobject(this, Label::kDeferred), if_notsmi(this);
   Branch(TaggedIsSmi(accumulator), &if_notobject, &if_notsmi);
@@ -2125,6 +2125,7 @@ IGNITION_HANDLER(JumpIfJSReceiver, InterpreterAssembler) {
   BIND(&if_notsmi);
   Branch(IsJSReceiver(CAST(accumulator)), &if_object, &if_notobject);
   BIND(&if_object);
+  TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
   Jump(relative_jump);
 
   BIND(&if_notobject);
@@ -2137,7 +2138,6 @@ IGNITION_HANDLER(JumpIfJSReceiver, InterpreterAssembler) {
 // pool if the object referenced by the accumulator is a JSReceiver.
 IGNITION_HANDLER(JumpIfJSReceiverConstant, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
 
   Label if_object(this), if_notobject(this), if_notsmi(this);
   Branch(TaggedIsSmi(accumulator), &if_notobject, &if_notsmi);
@@ -2146,6 +2146,7 @@ IGNITION_HANDLER(JumpIfJSReceiverConstant, InterpreterAssembler) {
   Branch(IsJSReceiver(CAST(accumulator)), &if_object, &if_notobject);
 
   BIND(&if_object);
+  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntryAtOperandIndex(0);
   Jump(relative_jump);
 
   BIND(&if_notobject);
@@ -2612,12 +2613,8 @@ IGNITION_HANDLER(CreateRestParameter, InterpreterAssembler) {
 // Sets the pending message to the value in the accumulator, and returns the
 // previous pending message in the accumulator.
 IGNITION_HANDLER(SetPendingMessage, InterpreterAssembler) {
-  TNode<ExternalReference> pending_message = ExternalConstant(
-      ExternalReference::address_of_pending_message(isolate()));
-  TNode<HeapObject> previous_message =
-      UncheckedCast<HeapObject>(LoadFullTagged(pending_message));
-  TNode<Object> new_message = GetAccumulator();
-  StoreFullTaggedNoWriteBarrier(pending_message, new_message);
+  TNode<HeapObject> previous_message = GetPendingMessage();
+  SetPendingMessage(CAST(GetAccumulator()));
   SetAccumulator(previous_message);
   Dispatch();
 }

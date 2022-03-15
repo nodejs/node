@@ -105,6 +105,14 @@ class V8_BASE_EXPORT CPU final {
     return has_non_stop_time_stamp_counter_;
   }
   bool is_running_in_vm() const { return is_running_in_vm_; }
+  bool exposes_num_virtual_address_bits() const {
+    return num_virtual_address_bits_ != kUnknownNumVirtualAddressBits;
+  }
+  int num_virtual_address_bits() const {
+    DCHECK(exposes_num_virtual_address_bits());
+    return num_virtual_address_bits_;
+  }
+  static const int kUnknownNumVirtualAddressBits = 0;
 
   // arm features
   bool has_idiva() const { return has_idiva_; }
@@ -136,6 +144,7 @@ class V8_BASE_EXPORT CPU final {
   int part_;
   int icache_line_size_;
   int dcache_line_size_;
+  int num_virtual_address_bits_;
   bool has_fpu_;
   bool has_cmov_;
   bool has_sahf_;

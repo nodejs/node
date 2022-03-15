@@ -70,8 +70,8 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
   int32_t empty_no_deconstruct_frame_return_size;
 
   // Iterate over the blocks forward, pushing the blocks onto the stack.
-  for (auto const block : code->instruction_blocks()) {
-    RpoNumber current = block->rpo_number();
+  for (auto const instruction_block : code->instruction_blocks()) {
+    RpoNumber current = instruction_block->rpo_number();
     state.PushIfUnvisited(current);
 
     // Process the stack, which implements DFS through empty blocks.

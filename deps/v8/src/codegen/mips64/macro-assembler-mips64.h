@@ -280,6 +280,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Drop(int count, Condition cond = cc_always, Register reg = no_reg,
             const Operand& op = Operand(no_reg));
 
+  enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
+  enum ArgumentsCountType { kCountIsInteger, kCountIsSmi, kCountIsBytes };
+  void DropArguments(Register count, ArgumentsCountType type,
+                     ArgumentsCountMode mode, Register scratch = no_reg);
+  void DropArgumentsAndPushNewReceiver(Register argc, Register receiver,
+                                       ArgumentsCountType type,
+                                       ArgumentsCountMode mode,
+                                       Register scratch = no_reg);
+
   // Trivial case of DropAndRet that utilizes the delay slot.
   void DropAndRet(int drop);
 
@@ -484,6 +493,18 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
 
   void SmiUntag(Register reg) { SmiUntag(reg, reg); }
+
+  // Left-shifted from int32 equivalent of Smi.
+  void SmiScale(Register dst, Register src, int scale) {
+    if (SmiValuesAre32Bits()) {
+      // The int portion is upper 32-bits of 64-bit word.
+      dsra(dst, src, kSmiShift - scale);
+    } else {
+      DCHECK(SmiValuesAre31Bits());
+      DCHECK_GE(scale, kSmiTagSize);
+      sll(dst, src, scale - kSmiTagSize);
+    }
+  }
 
   // On MIPS64, we should sign-extend 32-bit values.
   void SmiToInt32(Register smi) {
@@ -1128,7 +1149,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                                bool builtin_exit_frame = false);
 
   // Generates a trampoline to jump to the off-heap instruction stream.
-  void JumpToInstructionStream(Address entry);
+  void JumpToOffHeapInstructionStream(Address entry);
 
   // ---------------------------------------------------------------------------
   // In-place weak references.
@@ -1175,18 +1196,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   void SmiTag(Register reg) { SmiTag(reg, reg); }
 
-  // Left-shifted from int32 equivalent of Smi.
-  void SmiScale(Register dst, Register src, int scale) {
-    if (SmiValuesAre32Bits()) {
-      // The int portion is upper 32-bits of 64-bit word.
-      dsra(dst, src, kSmiShift - scale);
-    } else {
-      DCHECK(SmiValuesAre31Bits());
-      DCHECK_GE(scale, kSmiTagSize);
-      sll(dst, src, scale - kSmiTagSize);
-    }
-  }
-
   // Test if the register contains a smi.
   inline void SmiTst(Register value, Register scratch) {
     And(scratch, value, Operand(kSmiTagMask));
@@ -1201,6 +1210,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
+
+  // Abort execution if argument is not a callable JSFunction, enabled via
+  // --debug-code.
+  void AssertCallableFunction(Register object);
 
   // Abort execution if argument is not a JSBoundFunction,
   // enabled via --debug-code.

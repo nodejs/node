@@ -133,7 +133,7 @@ TEST(ArrayBuffer_ScavengeAndMC) {
 }
 
 TEST(ArrayBuffer_Compaction) {
-  if (FLAG_never_compact) return;
+  if (!FLAG_compact) return;
   ManualGCScope manual_gc_scope;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_concurrent_array_buffer_sweeping = false;
@@ -188,7 +188,7 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
     Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
 
     {
-      v8::HandleScope handle_scope(isolate);
+      v8::HandleScope new_handle_scope(isolate);
       // Allocate another buffer on the same page to force processing a
       // non-empty set of buffers in the last GC.
       Local<v8::ArrayBuffer> ab2 = v8::ArrayBuffer::New(isolate, 100);
@@ -226,7 +226,7 @@ TEST(ArrayBuffer_NonLivePromotion) {
     Handle<FixedArray> root =
         heap->isolate()->factory()->NewFixedArray(1, AllocationType::kOld);
     {
-      v8::HandleScope handle_scope(isolate);
+      v8::HandleScope new_handle_scope(isolate);
       Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
       Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
       root->set(0, *buf);  // Buffer that should not be promoted as live.
@@ -264,7 +264,7 @@ TEST(ArrayBuffer_LivePromotion) {
     Handle<FixedArray> root =
         heap->isolate()->factory()->NewFixedArray(1, AllocationType::kOld);
     {
-      v8::HandleScope handle_scope(isolate);
+      v8::HandleScope new_handle_scope(isolate);
       Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
       Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
       root->set(0, *buf);  // Buffer that should be promoted as live.
@@ -305,7 +305,7 @@ TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
     Handle<FixedArray> root =
         heap->isolate()->factory()->NewFixedArray(1, AllocationType::kOld);
     {
-      v8::HandleScope handle_scope(isolate);
+      v8::HandleScope new_handle_scope(isolate);
       Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
       Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
       root->set(0, *buf);  // Buffer that should be promoted as live.
@@ -343,7 +343,7 @@ TEST(ArrayBuffer_PagePromotion) {
         heap->isolate()->factory()->NewFixedArray(1, AllocationType::kOld);
     ArrayBufferExtension* extension;
     {
-      v8::HandleScope handle_scope(isolate);
+      v8::HandleScope new_handle_scope(isolate);
       Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
       Handle<JSArrayBuffer> buf = v8::Utils::OpenHandle(*ab);
       extension = buf->extension();
@@ -437,7 +437,7 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeDecreases) {
 }
 
 TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
-  if (FLAG_never_compact) return;
+  if (!FLAG_compact) return;
   ManualGCScope manual_gc_scope;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_concurrent_array_buffer_sweeping = false;

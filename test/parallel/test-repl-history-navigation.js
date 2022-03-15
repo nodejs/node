@@ -393,7 +393,7 @@ const tests = [
       // 10. Word right. Cleanup
       '\x1B[0K', '\x1B[3G', '\x1B[7C', ' // n', '\x1B[10G',
       // 11. ESCAPE
-      '\x1B[0K', ' // n', '\x1B[10G', '\x1B[0K',
+      '\x1B[0K',
       // 12. ENTER
       '\r\n',
       'Uncaught ReferenceError: functio is not defined\n',

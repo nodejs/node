@@ -1133,7 +1133,7 @@ int Assembler::BranchOffset(Instr instr) {
 // space.  There is no guarantee that the relocated location can be similarly
 // encoded.
 bool Assembler::MustUseReg(RelocInfo::Mode rmode) {
-  return !RelocInfo::IsNone(rmode);
+  return !RelocInfo::IsNoInfo(rmode);
 }
 
 void Assembler::GenInstrRegister(Opcode opcode, Register rs, Register rt,
@@ -3536,27 +3536,7 @@ void Assembler::RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
   }
 }
 
-void Assembler::FixOnHeapReferences(bool update_embedded_objects) {
-  if (!update_embedded_objects) return;
-  for (auto p : saved_handles_for_raw_object_ptr_) {
-    Address address = reinterpret_cast<Address>(buffer_->start() + p.first);
-    Handle<HeapObject> object(reinterpret_cast<Address*>(p.second));
-    set_target_value_at(address, object->ptr());
-  }
-}
-
-void Assembler::FixOnHeapReferencesToHandles() {
-  for (auto p : saved_handles_for_raw_object_ptr_) {
-    Address address = reinterpret_cast<Address>(buffer_->start() + p.first);
-    set_target_value_at(address, p.second);
-  }
-  saved_handles_for_raw_object_ptr_.clear();
-}
-
 void Assembler::GrowBuffer() {
-  bool previously_on_heap = buffer_->IsOnHeap();
-  int previous_on_heap_gc_count = OnHeapGCCount();
-
   // Compute new buffer size.
   int old_size = buffer_->size();
   int new_size = std::min(2 * old_size, old_size + 1 * MB);
@@ -3584,7 +3564,7 @@ void Assembler::GrowBuffer() {
   buffer_ = std::move(new_buffer);
   buffer_start_ = new_start;
   pc_ += pc_delta;
-  last_call_pc_ += pc_delta;
+  pc_for_safepoint_ += pc_delta;
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 
@@ -3600,15 +3580,6 @@ void Assembler::GrowBuffer() {
     }
   }
 
-  // Fix on-heap references.
-  if (previously_on_heap) {
-    if (buffer_->IsOnHeap()) {
-      FixOnHeapReferences(previous_on_heap_gc_count != OnHeapGCCount());
-    } else {
-      FixOnHeapReferencesToHandles();
-    }
-  }
-
   DCHECK(!overflow());
 }
 
@@ -3620,7 +3591,7 @@ void Assembler::db(uint8_t data) {
 
 void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   CheckForEmitInForbiddenSlot();
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
            RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
@@ -3631,7 +3602,7 @@ void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
 
 void Assembler::dq(uint64_t data, RelocInfo::Mode rmode) {
   CheckForEmitInForbiddenSlot();
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
            RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
@@ -3706,7 +3677,7 @@ void Assembler::CheckTrampolinePool() {
             bc(&after_pool);
             nop();
           } else {
-            GenPCRelativeJump(t8, t9, 0, RelocInfo::NONE,
+            GenPCRelativeJump(t8, t9, 0, RelocInfo::NO_INFO,
                               BranchDelaySlot::PROTECT);
           }
         }
@@ -3828,7 +3799,7 @@ void Assembler::GenPCRelativeJump(Register tf, Register ts, int32_t imm32,
   // or when changing imm32 that lui/ori pair loads.
   or_(tf, ra, zero_reg);
   nal();  // Relative place of nal instruction determines kLongBranchPCOffset.
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     RecordRelocInfo(rmode);
   }
   lui(ts, (imm32 & kHiMask) >> kLuiShift);
@@ -3846,7 +3817,7 @@ void Assembler::GenPCRelativeJump(Register tf, Register ts, int32_t imm32,
 void Assembler::GenPCRelativeJumpAndLink(Register t, int32_t imm32,
                                          RelocInfo::Mode rmode,
                                          BranchDelaySlot bdslot) {
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     RecordRelocInfo(rmode);
   }
   // Order of these instructions is relied upon when patching them
@@ -3857,7 +3828,7 @@ void Assembler::GenPCRelativeJumpAndLink(Register t, int32_t imm32,
   addu(t, ra, t);
   jalr(t);
   if (bdslot == PROTECT) nop();
-  set_last_call_pc_(pc_);
+  set_pc_for_safepoint();
 }
 
 UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)

@@ -280,8 +280,15 @@ V8_EXPORT_PRIVATE BasicMemoryChunk* MemoryAllocator::AllocateBasicChunk(
   VirtualMemory reservation;
   Address area_start = kNullAddress;
   Address area_end = kNullAddress;
+#ifdef V8_COMPRESS_POINTERS
+  // When pointer compression is enabled, spaces are expected to be at a
+  // predictable address (see mkgrokdump) so we don't supply a hint and rely on
+  // the deterministic behaviour of the BoundedPageAllocator.
+  void* address_hint = nullptr;
+#else
   void* address_hint =
       AlignedAddress(heap->GetRandomMmapAddr(), MemoryChunk::kAlignment);
+#endif
 
   //
   // MemoryChunk layout:
@@ -402,7 +409,9 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
   MemoryChunk* chunk =
       MemoryChunk::Initialize(basic_chunk, isolate_->heap(), executable);
 
+#ifdef DEBUG
   if (chunk->executable()) RegisterExecutableMemoryChunk(chunk);
+#endif  // DEBUG
   return chunk;
 }
 
@@ -451,7 +460,11 @@ void MemoryAllocator::UnregisterMemory(BasicMemoryChunk* chunk,
   if (executable == EXECUTABLE) {
     DCHECK_GE(size_executable_, size);
     size_executable_ -= size;
+#ifdef DEBUG
     UnregisterExecutableMemoryChunk(static_cast<MemoryChunk*>(chunk));
+#endif  // DEBUG
+    chunk->heap()->UnregisterUnprotectedMemoryChunk(
+        static_cast<MemoryChunk*>(chunk));
   }
   chunk->SetFlag(MemoryChunk::UNREGISTERED);
 }
@@ -571,10 +584,8 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
 
 ReadOnlyPage* MemoryAllocator::AllocateReadOnlyPage(size_t size,
                                                     ReadOnlySpace* owner) {
-  BasicMemoryChunk* chunk = nullptr;
-  if (chunk == nullptr) {
-    chunk = AllocateBasicChunk(size, size, NOT_EXECUTABLE, owner);
-  }
+  BasicMemoryChunk* chunk =
+      AllocateBasicChunk(size, size, NOT_EXECUTABLE, owner);
   if (chunk == nullptr) return nullptr;
   return owner->InitializePage(chunk);
 }
@@ -672,7 +683,7 @@ bool MemoryAllocator::CommitExecutableMemory(VirtualMemory* vm, Address start,
                            PageAllocator::kNoAccess)) {
       // Commit the executable code body.
       if (vm->SetPermissions(code_area, commit_size - pre_guard_offset,
-                             PageAllocator::kReadWrite)) {
+                             MemoryChunk::GetCodeModificationPermission())) {
         // Create the post-code guard page.
         if (vm->SetPermissions(post_guard_page, page_size,
                                PageAllocator::kNoAccess)) {

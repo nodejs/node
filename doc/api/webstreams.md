@@ -149,7 +149,7 @@ added: v16.5.0
   {ReadableStream}.
 
 The `readableStream.locked` property is `false` by default, and is
-switch to `true` while there is an active reader consuming the
+switched to `true` while there is an active reader consuming the
 stream's data.
 
 #### `readableStream.cancel([reason])`
@@ -425,7 +425,8 @@ added: v16.5.0
 -->
 
 * Type: {Promise} Fulfilled with `undefined` when the associated
-  {ReadableStream} is closed or this reader's lock is released.
+  {ReadableStream} is closed or rejected if the stream errors or the reader's
+  lock is released before the stream finishes closing.
 
 #### `readableStreamDefaultReader.read()`
 
@@ -552,7 +553,8 @@ added: v16.5.0
 -->
 
 * Type: {Promise} Fulfilled with `undefined` when the associated
-  {ReadableStream} is closed or this reader's lock is released.
+  {ReadableStream} is closed or rejected if the stream errors or the reader's
+  lock is released before the stream finishes closing.
 
 #### `readableStreamBYOBReader.read(view)`
 
@@ -902,9 +904,9 @@ Closes the `WritableStream` when no additional writes are expected.
 added: v16.5.0
 -->
 
-* Type: A promise that is fulfilled with `undefined` when the
-  associated {WritableStream} is closed or this writer's lock is
-  released.
+* Type: {Promise} Fulfilled with `undefined` when the associated
+  {WritableStream} is closed or rejected if the stream errors or the writer's
+  lock is released before the stream finishes closing.
 
 #### `writableStreamDefaultWriter.desiredSize`
 
@@ -1378,6 +1380,7 @@ They are accessed using:
 import {
   arrayBuffer,
   blob,
+  buffer,
   json,
   text,
 } from 'node:stream/consumers';
@@ -1387,6 +1390,7 @@ import {
 const {
   arrayBuffer,
   blob,
+  buffer,
   json,
   text,
 } = require('stream/consumers');

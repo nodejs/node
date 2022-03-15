@@ -146,6 +146,7 @@ class ValueHelper {
       797056.0f,
       1.77219e+09f,
       2147483648.0f,  // INT32_MAX + 1
+      2147483904.0f,  // INT32_MAX + 1 and significand = 1.
       4294967296.0f,  // UINT32_MAX + 1
       1.51116e+11f,
       4.18193e+13f,

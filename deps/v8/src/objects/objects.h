@@ -65,6 +65,16 @@
 //         - JSRegExp
 //         - JSSetIterator
 //         - JSStringIterator
+//         - JSTemporalCalendar
+//         - JSTemporalDuration
+//         - JSTemporalInstant
+//         - JSTemporalPlainDate
+//         - JSTemporalPlainDateTime
+//         - JSTemporalPlainMonthDay
+//         - JSTemporalPlainTime
+//         - JSTemporalPlainYearMonth
+//         - JSTemporalTimeZone
+//         - JSTemporalZonedDateTime
 //         - JSWeakCollection
 //           - JSWeakMap
 //           - JSWeakSet
@@ -86,6 +96,7 @@
 //         - WasmMemoryObject
 //         - WasmModuleObject
 //         - WasmTableObject
+//         - WasmSuspenderObject
 //       - JSProxy
 //     - FixedArrayBase
 //       - ByteArray
@@ -275,6 +286,12 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   explicit constexpr Object(Address ptr) : TaggedImpl(ptr) {}
 
   V8_INLINE bool IsTaggedIndex() const;
+
+  // Whether the object is in the RO heap and the RO heap is shared, or in the
+  // writable shared heap.
+  V8_INLINE bool InSharedHeap() const;
+
+  V8_INLINE bool InSharedWritableHeap() const;
 
 #define IS_TYPE_FUNCTION_DECL(Type) \
   V8_INLINE bool Is##Type() const;  \
@@ -664,6 +681,15 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
     }
   }
 
+  // Atomically reads a field using relaxed memory ordering. Can only be used
+  // with integral types whose size is <= kTaggedSize (to guarantee alignment).
+  template <class T,
+            typename std::enable_if<(std::is_arithmetic<T>::value ||
+                                     std::is_enum<T>::value) &&
+                                        !std::is_floating_point<T>::value,
+                                    int>::type = 0>
+  inline T Relaxed_ReadField(size_t offset) const;
+
   template <class T, typename std::enable_if<std::is_arithmetic<T>::value ||
                                                  std::is_enum<T>::value,
                                              int>::type = 0>
@@ -683,6 +709,16 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   }
 
   //
+  // CagedPointer_t field accessors.
+  //
+  inline Address ReadCagedPointerField(size_t offset,
+                                       PtrComprCageBase cage_base) const;
+  inline void WriteCagedPointerField(size_t offset, PtrComprCageBase cage_base,
+                                     Address value);
+  inline void WriteCagedPointerField(size_t offset, Isolate* isolate,
+                                     Address value);
+
+  //
   // ExternalPointer_t field accessors.
   //
   inline void InitExternalPointerField(size_t offset, Isolate* isolate);
@@ -692,6 +728,13 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
                                           ExternalPointerTag tag) const;
   inline void WriteExternalPointerField(size_t offset, Isolate* isolate,
                                         Address value, ExternalPointerTag tag);
+
+  // If the receiver is the JSGlobalObject, the store was contextual. In case
+  // the property did not exist yet on the global object itself, we have to
+  // throw a reference error in strict mode.  In sloppy mode, we continue.
+  // Returns false if the exception was thrown, otherwise true.
+  static bool CheckContextualStoreToJSGlobalObject(
+      LookupIterator* it, Maybe<ShouldThrow> should_throw);
 
  protected:
   inline Address field_address(size_t offset) const {

@@ -16,93 +16,59 @@
 namespace v8 {
 namespace internal {
 
-void Scavenger::PromotionList::View::PushRegularObject(HeapObject object,
-                                                       int size) {
-  promotion_list_->PushRegularObject(task_id_, object, size);
+void Scavenger::PromotionList::Local::PushRegularObject(HeapObject object,
+                                                        int size) {
+  regular_object_promotion_list_local_.Push({object, size});
 }
 
-void Scavenger::PromotionList::View::PushLargeObject(HeapObject object, Map map,
-                                                     int size) {
-  promotion_list_->PushLargeObject(task_id_, object, map, size);
+void Scavenger::PromotionList::Local::PushLargeObject(HeapObject object,
+                                                      Map map, int size) {
+  large_object_promotion_list_local_.Push({object, map, size});
 }
 
-bool Scavenger::PromotionList::View::IsEmpty() {
-  return promotion_list_->IsEmpty();
+size_t Scavenger::PromotionList::Local::LocalPushSegmentSize() const {
+  return regular_object_promotion_list_local_.PushSegmentSize() +
+         large_object_promotion_list_local_.PushSegmentSize();
 }
 
-size_t Scavenger::PromotionList::View::LocalPushSegmentSize() {
-  return promotion_list_->LocalPushSegmentSize(task_id_);
-}
-
-bool Scavenger::PromotionList::View::Pop(struct PromotionListEntry* entry) {
-  return promotion_list_->Pop(task_id_, entry);
-}
-
-void Scavenger::PromotionList::View::FlushToGlobal() {
-  promotion_list_->FlushToGlobal(task_id_);
-}
-
-bool Scavenger::PromotionList::View::IsGlobalPoolEmpty() {
-  return promotion_list_->IsGlobalPoolEmpty();
-}
-
-bool Scavenger::PromotionList::View::ShouldEagerlyProcessPromotionList() {
-  return promotion_list_->ShouldEagerlyProcessPromotionList(task_id_);
-}
-
-void Scavenger::PromotionList::PushRegularObject(int task_id, HeapObject object,
-                                                 int size) {
-  regular_object_promotion_list_.Push(task_id, ObjectAndSize(object, size));
-}
-
-void Scavenger::PromotionList::PushLargeObject(int task_id, HeapObject object,
-                                               Map map, int size) {
-  large_object_promotion_list_.Push(task_id, {object, map, size});
-}
-
-bool Scavenger::PromotionList::IsEmpty() {
-  return regular_object_promotion_list_.IsEmpty() &&
-         large_object_promotion_list_.IsEmpty();
-}
-
-size_t Scavenger::PromotionList::LocalPushSegmentSize(int task_id) {
-  return regular_object_promotion_list_.LocalPushSegmentSize(task_id) +
-         large_object_promotion_list_.LocalPushSegmentSize(task_id);
-}
-
-bool Scavenger::PromotionList::Pop(int task_id,
-                                   struct PromotionListEntry* entry) {
+bool Scavenger::PromotionList::Local::Pop(struct PromotionListEntry* entry) {
   ObjectAndSize regular_object;
-  if (regular_object_promotion_list_.Pop(task_id, &regular_object)) {
+  if (regular_object_promotion_list_local_.Pop(&regular_object)) {
     entry->heap_object = regular_object.first;
     entry->size = regular_object.second;
     entry->map = entry->heap_object.map();
     return true;
   }
-  return large_object_promotion_list_.Pop(task_id, entry);
+  return large_object_promotion_list_local_.Pop(entry);
 }
 
-void Scavenger::PromotionList::FlushToGlobal(int task_id) {
-  regular_object_promotion_list_.FlushToGlobal(task_id);
-  large_object_promotion_list_.FlushToGlobal(task_id);
+void Scavenger::PromotionList::Local::Publish() {
+  regular_object_promotion_list_local_.Publish();
+  large_object_promotion_list_local_.Publish();
 }
 
-size_t Scavenger::PromotionList::GlobalPoolSize() const {
-  return regular_object_promotion_list_.GlobalPoolSize() +
-         large_object_promotion_list_.GlobalPoolSize();
+bool Scavenger::PromotionList::Local::IsGlobalPoolEmpty() const {
+  return regular_object_promotion_list_local_.IsGlobalEmpty() &&
+         large_object_promotion_list_local_.IsGlobalEmpty();
 }
 
-bool Scavenger::PromotionList::IsGlobalPoolEmpty() {
-  return regular_object_promotion_list_.IsGlobalPoolEmpty() &&
-         large_object_promotion_list_.IsGlobalPoolEmpty();
-}
-
-bool Scavenger::PromotionList::ShouldEagerlyProcessPromotionList(int task_id) {
+bool Scavenger::PromotionList::Local::ShouldEagerlyProcessPromotionList()
+    const {
   // Threshold when to prioritize processing of the promotion list. Right
   // now we only look into the regular object list.
   const int kProcessPromotionListThreshold =
       kRegularObjectPromotionListSegmentSize / 2;
-  return LocalPushSegmentSize(task_id) < kProcessPromotionListThreshold;
+  return LocalPushSegmentSize() < kProcessPromotionListThreshold;
+}
+
+bool Scavenger::PromotionList::IsEmpty() const {
+  return regular_object_promotion_list_.IsEmpty() &&
+         large_object_promotion_list_.IsEmpty();
+}
+
+size_t Scavenger::PromotionList::Size() const {
+  return regular_object_promotion_list_.Size() +
+         large_object_promotion_list_.Size();
 }
 
 void Scavenger::PageMemoryFence(MaybeObject object) {
@@ -169,7 +135,7 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
     }
     HeapObjectReference::Update(slot, target);
     if (object_fields == ObjectFields::kMaybePointers) {
-      copied_list_.Push(ObjectAndSize(target, object_size));
+      copied_list_local_.Push(ObjectAndSize(target, object_size));
     }
     copied_size_ += object_size;
     return CopyAndForwardResult::SUCCESS_YOUNG_GENERATION;
@@ -177,7 +143,8 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
   return CopyAndForwardResult::FAILURE;
 }
 
-template <typename THeapObjectSlot>
+template <typename THeapObjectSlot,
+          Scavenger::PromotionHeapChoice promotion_heap_choice>
 CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
                                               HeapObject object,
                                               int object_size,
@@ -187,8 +154,18 @@ CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   DCHECK_GE(object_size, Heap::kMinObjectSizeInTaggedWords * kTaggedSize);
   AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
-  AllocationResult allocation = allocator_.Allocate(
-      OLD_SPACE, object_size, AllocationOrigin::kGC, alignment);
+  AllocationResult allocation;
+  switch (promotion_heap_choice) {
+    case kPromoteIntoLocalHeap:
+      allocation = allocator_.Allocate(OLD_SPACE, object_size,
+                                       AllocationOrigin::kGC, alignment);
+      break;
+    case kPromoteIntoSharedHeap:
+      DCHECK_NOT_NULL(shared_old_allocator_);
+      allocation = shared_old_allocator_->AllocateRaw(object_size, alignment,
+                                                      AllocationOrigin::kGC);
+      break;
+  }
 
   HeapObject target;
   if (allocation.To(&target)) {
@@ -206,7 +183,7 @@ CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
     }
     HeapObjectReference::Update(slot, target);
     if (object_fields == ObjectFields::kMaybePointers) {
-      promotion_list_.PushRegularObject(target, object_size);
+      promotion_list_local_.PushRegularObject(target, object_size);
     }
     promoted_size_ += object_size;
     return CopyAndForwardResult::SUCCESS_OLD_GENERATION;
@@ -235,7 +212,7 @@ bool Scavenger::HandleLargeObject(Map map, HeapObject object, int object_size,
       surviving_new_large_objects_.insert({object, map});
       promoted_size_ += object_size;
       if (object_fields == ObjectFields::kMaybePointers) {
-        promotion_list_.PushLargeObject(object, map, object_size);
+        promotion_list_local_.PushLargeObject(object, map, object_size);
       }
     }
     return true;
@@ -243,7 +220,8 @@ bool Scavenger::HandleLargeObject(Map map, HeapObject object, int object_size,
   return false;
 }
 
-template <typename THeapObjectSlot>
+template <typename THeapObjectSlot,
+          Scavenger::PromotionHeapChoice promotion_heap_choice>
 SlotCallbackResult Scavenger::EvacuateObjectDefault(
     Map map, THeapObjectSlot slot, HeapObject object, int object_size,
     ObjectFields object_fields) {
@@ -270,9 +248,10 @@ SlotCallbackResult Scavenger::EvacuateObjectDefault(
   }
 
   // We may want to promote this object if the object was already semi-space
-  // copied in a previes young generation GC or if the semi-space copy above
+  // copied in a previous young generation GC or if the semi-space copy above
   // failed.
-  result = PromoteObject(map, slot, object, object_size, object_fields);
+  result = PromoteObject<THeapObjectSlot, promotion_heap_choice>(
+      map, slot, object, object_size, object_fields);
   if (result != CopyAndForwardResult::FAILURE) {
     return RememberedSetEntryNeeded(result);
   }
@@ -356,6 +335,19 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map map,
 }
 
 template <typename THeapObjectSlot>
+SlotCallbackResult Scavenger::EvacuateInPlaceInternalizableString(
+    Map map, THeapObjectSlot slot, String object, int object_size,
+    ObjectFields object_fields) {
+  DCHECK(String::IsInPlaceInternalizable(map.instance_type()));
+  DCHECK_EQ(object_fields, Map::ObjectFieldsFrom(map.visitor_id()));
+  if (shared_string_table_) {
+    return EvacuateObjectDefault<THeapObjectSlot, kPromoteIntoSharedHeap>(
+        map, slot, object, object_size, object_fields);
+  }
+  return EvacuateObjectDefault(map, slot, object, object_size, object_fields);
+}
+
+template <typename THeapObjectSlot>
 SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot, Map map,
                                              HeapObject source) {
   static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
@@ -378,6 +370,19 @@ SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot, Map map,
       // At the moment we don't allow weak pointers to cons strings.
       return EvacuateShortcutCandidate(
           map, slot, ConsString::unchecked_cast(source), size);
+    case kVisitSeqOneByteString:
+    case kVisitSeqTwoByteString:
+      DCHECK(String::IsInPlaceInternalizable(map.instance_type()));
+      return EvacuateInPlaceInternalizableString(
+          map, slot, String::unchecked_cast(source), size,
+          ObjectFields::kMaybePointers);
+    case kVisitDataObject:  // External strings have kVisitDataObject.
+      if (String::IsInPlaceInternalizable(map.instance_type())) {
+        return EvacuateInPlaceInternalizableString(
+            map, slot, String::unchecked_cast(source), size,
+            ObjectFields::kDataOnly);
+      }
+      V8_FALLTHROUGH;
     default:
       return EvacuateObjectDefault(map, slot, source, size,
                                    Map::ObjectFieldsFrom(visitor_id));
@@ -473,7 +478,7 @@ void ScavengeVisitor::VisitCodeTarget(Code host, RelocInfo* rinfo) {
 }
 
 void ScavengeVisitor::VisitEmbeddedPointer(Code host, RelocInfo* rinfo) {
-  HeapObject heap_object = rinfo->target_object();
+  HeapObject heap_object = rinfo->target_object(cage_base());
 #ifdef DEBUG
   HeapObject old_heap_object = heap_object;
 #endif

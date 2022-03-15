@@ -1,81 +1,110 @@
 #!/usr/bin/env node
-const [cmd] = process.argv.splice(2, 1)
 
-const usage = () => `Arborist - the npm tree doctor
+const fs = require('fs')
+const path = require('path')
 
-Version: ${require('../package.json').version}
+const { bin, arb: options } = require('./lib/options')
+const version = require('../package.json').version
 
+const usage = (message = '') => `Arborist - the npm tree doctor
+
+Version: ${version}
+${message && '\n' + message + '\n'}
 # USAGE
   arborist <cmd> [path] [options...]
 
 # COMMANDS
 
-* reify: reify ideal tree to node_modules (install, update, rm, ...)
-* prune: prune the ideal tree and reify (like npm prune)
-* ideal: generate and print the ideal tree
-* actual: read and print the actual tree in node_modules
-* virtual: read and print the virtual tree in the local shrinkwrap file
-* shrinkwrap: load a local shrinkwrap and print its data
-* audit: perform a security audit on project dependencies
-* funding: query funding information in the local package tree.  A second
-  positional argument after the path name can limit to a package name.
-* license: query license information in the local package tree.  A second
-  positional argument after the path name can limit to a license type.
-* help: print this text
+  * reify: reify ideal tree to node_modules (install, update, rm, ...)
+  * prune: prune the ideal tree and reify (like npm prune)
+  * ideal: generate and print the ideal tree
+  * actual: read and print the actual tree in node_modules
+  * virtual: read and print the virtual tree in the local shrinkwrap file
+  * shrinkwrap: load a local shrinkwrap and print its data
+  * audit: perform a security audit on project dependencies
+  * funding: query funding information in the local package tree.  A second
+    positional argument after the path name can limit to a package name.
+  * license: query license information in the local package tree.  A second
+    positional argument after the path name can limit to a license type.
+  * help: print this text
+  * version: print the version
 
 # OPTIONS
 
-Most npm options are supported, but in camelCase rather than css-case.  For
-example, instead of '--dry-run', use '--dryRun'.
+  Most npm options are supported, but in camelCase rather than css-case.  For
+  example, instead of '--dry-run', use '--dryRun'.
 
-Additionally:
+  Additionally:
 
-* --quiet will supppress the printing of package trees
-* Instead of 'npm install <pkg>', use 'arborist reify --add=<pkg>'.
-  The '--add=<pkg>' option can be specified multiple times.
-* Instead of 'npm rm <pkg>', use 'arborist reify --rm=<pkg>'.
-  The '--rm=<pkg>' option can be specified multiple times.
-* Instead of 'npm update', use 'arborist reify --update-all'.
-* 'npm audit fix' is 'arborist audit --fix'
+  * --loglevel=warn|--quiet will supppress the printing of package trees
+  * --logfile <file|bool> will output logs to a file
+  * --timing will show timing information
+  * Instead of 'npm install <pkg>', use 'arborist reify --add=<pkg>'.
+    The '--add=<pkg>' option can be specified multiple times.
+  * Instead of 'npm rm <pkg>', use 'arborist reify --rm=<pkg>'.
+    The '--rm=<pkg>' option can be specified multiple times.
+  * Instead of 'npm update', use 'arborist reify --update-all'.
+  * 'npm audit fix' is 'arborist audit --fix'
 `
 
-const help = () => console.log(usage())
-
-switch (cmd) {
-  case 'actual':
-    require('./actual.js')
-    break
-  case 'virtual':
-    require('./virtual.js')
-    break
-  case 'ideal':
-    require('./ideal.js')
-    break
-  case 'prune':
-    require('./prune.js')
-    break
-  case 'reify':
-    require('./reify.js')
-    break
-  case 'audit':
-    require('./audit.js')
-    break
-  case 'funding':
-    require('./funding.js')
-    break
-  case 'license':
-    require('./license.js')
-    break
-  case 'shrinkwrap':
-    require('./shrinkwrap.js')
-    break
-  case 'help':
-  case '-h':
-  case '--help':
-    help()
-    break
-  default:
+const commands = {
+  version: () => console.log(version),
+  help: () => console.log(usage()),
+  exit: () => {
     process.exitCode = 1
-    console.error(usage())
-    break
+    console.error(
+      usage(`Error: command '${bin.command}' does not exist.`)
+    )
+  },
+}
+
+const commandFiles = fs.readdirSync(__dirname).filter((f) => path.extname(f) === '.js' && f !== __filename)
+
+for (const file of commandFiles) {
+  const command = require(`./${file}`)
+  const name = path.basename(file, '.js')
+  const totalTime = `bin:${name}:init`
+  const scriptTime = `bin:${name}:script`
+
+  commands[name] = () => {
+    const timers = require('./lib/timers')
+    const log = require('./lib/logging')
+
+    log.info(name, options)
+
+    process.emit('time', totalTime)
+    process.emit('time', scriptTime)
+
+    return command(options, (result) => {
+      process.emit('timeEnd', scriptTime)
+      return {
+        result,
+        timing: {
+          seconds: `${timers.get(scriptTime) / 1e9}s`,
+          ms: `${timers.get(scriptTime) / 1e6}ms`,
+        },
+      }
+    })
+      .then((result) => {
+        log.info(result)
+        return result
+      })
+      .catch((err) => {
+        process.exitCode = 1
+        log.error(err)
+        return err
+      })
+      .then((r) => {
+        process.emit('timeEnd', totalTime)
+        if (bin.loglevel !== 'silent') {
+          console[process.exitCode ? 'error' : 'log'](r)
+        }
+      })
+  }
+}
+
+if (commands[bin.command]) {
+  commands[bin.command]()
+} else {
+  commands.exit()
 }

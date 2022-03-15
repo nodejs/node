@@ -153,8 +153,8 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
       for (double i = 0; i < length; i++) {
         HandleScope inner_scope(isolate_);
         Handle<Object> index = isolate_->factory()->NewNumber(i);
-        Handle<String> name = isolate_->factory()->NumberToString(index);
-        if (!RecurseAndApply(object, name)) return MaybeHandle<Object>();
+        Handle<String> index_name = isolate_->factory()->NumberToString(index);
+        if (!RecurseAndApply(object, index_name)) return MaybeHandle<Object>();
       }
     } else {
       Handle<FixedArray> contents;
@@ -166,8 +166,8 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
           Object);
       for (int i = 0; i < contents->length(); i++) {
         HandleScope inner_scope(isolate_);
-        Handle<String> name(String::cast(contents->get(i)), isolate_);
-        if (!RecurseAndApply(object, name)) return MaybeHandle<Object>();
+        Handle<String> key_name(String::cast(contents->get(i)), isolate_);
+        if (!RecurseAndApply(object, key_name)) return MaybeHandle<Object>();
       }
     }
   }
@@ -924,7 +924,7 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
         ReportUnexpectedCharacter(CurrentCharacter());
         return handle(Smi::FromInt(0), isolate_);
       }
-      base::uc32 c = CurrentCharacter();
+      c = CurrentCharacter();
       STATIC_ASSERT(Smi::IsValid(-999999999));
       STATIC_ASSERT(Smi::IsValid(999999999));
       const int kMaxSmiLength = 9;
@@ -944,7 +944,7 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
     }
 
     if (CurrentCharacter() == '.') {
-      base::uc32 c = NextCharacter();
+      c = NextCharacter();
       if (!IsDecimalDigit(c)) {
         AllowGarbageCollection allow_before_exception;
         ReportUnexpectedCharacter(c);
@@ -954,7 +954,7 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
     }
 
     if (AsciiAlphaToLower(CurrentCharacter()) == 'e') {
-      base::uc32 c = NextCharacter();
+      c = NextCharacter();
       if (c == '-' || c == '+') c = NextCharacter();
       if (!IsDecimalDigit(c)) {
         AllowGarbageCollection allow_before_exception;
@@ -965,9 +965,10 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
     }
 
     base::Vector<const Char> chars(start, cursor_ - start);
-    number = StringToDouble(chars,
-                            NO_FLAGS,  // Hex, octal or trailing junk.
-                            std::numeric_limits<double>::quiet_NaN());
+    number =
+        StringToDouble(chars,
+                       NO_CONVERSION_FLAGS,  // Hex, octal or trailing junk.
+                       std::numeric_limits<double>::quiet_NaN());
 
     DCHECK(!std::isnan(number));
   }

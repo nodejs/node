@@ -734,6 +734,14 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ asm_instr(value, operand);                        \
   } while (0)
 
+static inline bool is_wasm_on_be(bool IsWasm) {
+#if V8_TARGET_BIG_ENDIAN
+  return IsWasm;
+#else
+  return false;
+#endif
+}
+
 #define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_BYTE(load_and_ext)                   \
   do {                                                                        \
     Register old_value = i.InputRegister(0);                                  \
@@ -750,111 +758,183 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ load_and_ext(output, output);                                          \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(load_and_ext)                \
-  do {                                                                         \
-    Register old_value = i.InputRegister(0);                                   \
-    Register new_value = i.InputRegister(1);                                   \
-    Register output = i.OutputRegister();                                      \
-    Register addr = kScratchReg;                                               \
-    Register temp0 = r0;                                                       \
-    Register temp1 = r1;                                                       \
-    size_t index = 2;                                                          \
-    AddressingMode mode = kMode_None;                                          \
-    MemOperand op = i.MemoryOperand(&mode, &index);                            \
-    __ lay(addr, op);                                                          \
-    __ AtomicCmpExchangeU16(addr, output, old_value, new_value, temp0, temp1); \
-    __ load_and_ext(output, output);                                           \
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_HALFWORD(load_and_ext)           \
+  do {                                                                    \
+    Register old_value = i.InputRegister(0);                              \
+    Register new_value = i.InputRegister(1);                              \
+    Register output = i.OutputRegister();                                 \
+    Register addr = kScratchReg;                                          \
+    Register temp0 = r0;                                                  \
+    Register temp1 = r1;                                                  \
+    size_t index = 2;                                                     \
+    AddressingMode mode = kMode_None;                                     \
+    MemOperand op = i.MemoryOperand(&mode, &index);                       \
+    __ lay(addr, op);                                                     \
+    if (is_wasm_on_be(info()->IsWasm())) {                                \
+      Register temp2 =                                                    \
+          GetRegisterThatIsNotOneOf(output, old_value, new_value);        \
+      Register temp3 =                                                    \
+          GetRegisterThatIsNotOneOf(output, old_value, new_value, temp2); \
+      __ Push(temp2, temp3);                                              \
+      __ lrvr(temp2, old_value);                                          \
+      __ lrvr(temp3, new_value);                                          \
+      __ ShiftRightU32(temp2, temp2, Operand(16));                        \
+      __ ShiftRightU32(temp3, temp3, Operand(16));                        \
+      __ AtomicCmpExchangeU16(addr, output, temp2, temp3, temp0, temp1);  \
+      __ lrvr(output, output);                                            \
+      __ ShiftRightU32(output, output, Operand(16));                      \
+      __ Pop(temp2, temp3);                                               \
+    } else {                                                              \
+      __ AtomicCmpExchangeU16(addr, output, old_value, new_value, temp0,  \
+                              temp1);                                     \
+    }                                                                     \
+    __ load_and_ext(output, output);                                      \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_WORD()       \
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_WORD()         \
+  do {                                                  \
+    Register new_val = i.InputRegister(1);              \
+    Register output = i.OutputRegister();               \
+    Register addr = kScratchReg;                        \
+    size_t index = 2;                                   \
+    AddressingMode mode = kMode_None;                   \
+    MemOperand op = i.MemoryOperand(&mode, &index);     \
+    __ lay(addr, op);                                   \
+    if (is_wasm_on_be(info()->IsWasm())) {              \
+      __ lrvr(r0, output);                              \
+      __ lrvr(r1, new_val);                             \
+      __ CmpAndSwap(r0, r1, MemOperand(addr));          \
+      __ lrvr(output, r0);                              \
+    } else {                                            \
+      __ CmpAndSwap(output, new_val, MemOperand(addr)); \
+    }                                                   \
+    __ LoadU32(output, output);                         \
+  } while (false)
+
+#define ASSEMBLE_ATOMIC_BINOP_WORD(load_and_op, op)    \
+  do {                                                 \
+    Register value = i.InputRegister(2);               \
+    Register result = i.OutputRegister(0);             \
+    Register addr = r1;                                \
+    AddressingMode mode = kMode_None;                  \
+    MemOperand op = i.MemoryOperand(&mode);            \
+    __ lay(addr, op);                                  \
+    if (is_wasm_on_be(info()->IsWasm())) {             \
+      Label do_cs;                                     \
+      __ bind(&do_cs);                                 \
+      __ LoadU32(r0, MemOperand(addr));                \
+      __ lrvr(ip, r0);                                 \
+      __ op(ip, ip, value);                            \
+      __ lrvr(ip, ip);                                 \
+      __ CmpAndSwap(r0, ip, MemOperand(addr));         \
+      __ bne(&do_cs, Label::kNear);                    \
+      __ lrvr(result, r0);                             \
+    } else {                                           \
+      __ load_and_op(result, value, MemOperand(addr)); \
+    }                                                  \
+    __ LoadU32(result, result);                        \
+  } while (false)
+
+#define ASSEMBLE_ATOMIC_BINOP_WORD64(load_and_op, op) \
   do {                                                \
-    Register new_val = i.InputRegister(1);            \
-    Register output = i.OutputRegister();             \
-    Register addr = kScratchReg;                      \
-    size_t index = 2;                                 \
+    Register value = i.InputRegister(2);              \
+    Register result = i.OutputRegister(0);            \
+    Register addr = r1;                               \
     AddressingMode mode = kMode_None;                 \
-    MemOperand op = i.MemoryOperand(&mode, &index);   \
+    MemOperand op = i.MemoryOperand(&mode);           \
     __ lay(addr, op);                                 \
-    __ CmpAndSwap(output, new_val, MemOperand(addr)); \
-    __ LoadU32(output, output);                        \
+    if (is_wasm_on_be(info()->IsWasm())) {            \
+      Label do_cs;                                    \
+      __ bind(&do_cs);                                \
+      __ LoadU64(r0, MemOperand(addr));               \
+      __ lrvgr(ip, r0);                               \
+      __ op(ip, ip, value);                           \
+      __ lrvgr(ip, ip);                               \
+      __ CmpAndSwap64(r0, ip, MemOperand(addr));      \
+      __ bne(&do_cs, Label::kNear);                   \
+      __ lrvgr(result, r0);                           \
+      break;                                          \
+    }                                                 \
+    __ load_and_op(result, value, MemOperand(addr));  \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_BINOP_WORD(load_and_op)      \
-  do {                                               \
-    Register value = i.InputRegister(2);             \
-    Register result = i.OutputRegister(0);           \
-    Register addr = r1;                              \
-    AddressingMode mode = kMode_None;                \
-    MemOperand op = i.MemoryOperand(&mode);          \
-    __ lay(addr, op);                                \
-    __ load_and_op(result, value, MemOperand(addr)); \
-    __ LoadU32(result, result);                       \
-  } while (false)
-
-#define ASSEMBLE_ATOMIC_BINOP_WORD64(load_and_op)    \
-  do {                                               \
-    Register value = i.InputRegister(2);             \
-    Register result = i.OutputRegister(0);           \
-    Register addr = r1;                              \
-    AddressingMode mode = kMode_None;                \
-    MemOperand op = i.MemoryOperand(&mode);          \
-    __ lay(addr, op);                                \
-    __ load_and_op(result, value, MemOperand(addr)); \
-  } while (false)
-
-#define ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end)           \
-  do {                                                                      \
-    Label do_cs;                                                            \
-    __ LoadU32(prev, MemOperand(addr, offset));                              \
-    __ bind(&do_cs);                                                        \
-    __ RotateInsertSelectBits(temp, value, Operand(start), Operand(end),    \
-                              Operand(static_cast<intptr_t>(shift_amount)), \
-                              true);                                        \
-    __ bin_inst(new_val, prev, temp);                                       \
-    __ lr(temp, prev);                                                      \
-    __ RotateInsertSelectBits(temp, new_val, Operand(start), Operand(end),  \
-                              Operand::Zero(), false);                      \
-    __ CmpAndSwap(prev, temp, MemOperand(addr, offset));                    \
-    __ bne(&do_cs, Label::kNear);                                           \
+#define ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end,             \
+                      maybe_reverse_bytes)                                    \
+  do {                                                                        \
+    /* At the moment this is only true when dealing with 2-byte values.*/     \
+    bool reverse_bytes =                                                      \
+        maybe_reverse_bytes && is_wasm_on_be(info()->IsWasm());               \
+    USE(reverse_bytes);                                                       \
+    Label do_cs;                                                              \
+    __ LoadU32(prev, MemOperand(addr, offset));                               \
+    __ bind(&do_cs);                                                          \
+    if (reverse_bytes) {                                                      \
+      Register temp2 = GetRegisterThatIsNotOneOf(value, result, prev);        \
+      __ Push(temp2);                                                         \
+      __ lrvr(temp2, prev);                                                   \
+      __ RotateInsertSelectBits(temp2, temp2, Operand(start), Operand(end),   \
+                                Operand(static_cast<intptr_t>(shift_amount)), \
+                                true);                                        \
+      __ RotateInsertSelectBits(temp, value, Operand(start), Operand(end),    \
+                                Operand(static_cast<intptr_t>(shift_amount)), \
+                                true);                                        \
+      __ bin_inst(new_val, temp2, temp);                                      \
+      __ lrvr(temp2, new_val);                                                \
+      __ lr(temp, prev);                                                      \
+      __ RotateInsertSelectBits(temp, temp2, Operand(start), Operand(end),    \
+                                Operand(static_cast<intptr_t>(shift_amount)), \
+                                false);                                       \
+      __ Pop(temp2);                                                          \
+    } else {                                                                  \
+      __ RotateInsertSelectBits(temp, value, Operand(start), Operand(end),    \
+                                Operand(static_cast<intptr_t>(shift_amount)), \
+                                true);                                        \
+      __ bin_inst(new_val, prev, temp);                                       \
+      __ lr(temp, prev);                                                      \
+      __ RotateInsertSelectBits(temp, new_val, Operand(start), Operand(end),  \
+                                Operand::Zero(), false);                      \
+    }                                                                         \
+    __ CmpAndSwap(prev, temp, MemOperand(addr, offset));                      \
+    __ bne(&do_cs, Label::kNear);                                             \
   } while (false)
 
 #ifdef V8_TARGET_BIG_ENDIAN
-#define ATOMIC_BIN_OP_HALFWORD(bin_inst, index, extract_result) \
-  {                                                             \
-    constexpr int offset = -(2 * index);                        \
-    constexpr int shift_amount = 16 - (index * 16);             \
-    constexpr int start = 48 - shift_amount;                    \
-    constexpr int end = start + 15;                             \
-    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end);  \
-    extract_result();                                           \
+#define ATOMIC_BIN_OP_HALFWORD(bin_inst, index, extract_result)      \
+  {                                                                  \
+    constexpr int offset = -(2 * index);                             \
+    constexpr int shift_amount = 16 - (index * 16);                  \
+    constexpr int start = 48 - shift_amount;                         \
+    constexpr int end = start + 15;                                  \
+    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end, true); \
+    extract_result();                                                \
   }
-#define ATOMIC_BIN_OP_BYTE(bin_inst, index, extract_result)    \
-  {                                                            \
-    constexpr int offset = -(index);                           \
-    constexpr int shift_amount = 24 - (index * 8);             \
-    constexpr int start = 56 - shift_amount;                   \
-    constexpr int end = start + 7;                             \
-    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end); \
-    extract_result();                                          \
+#define ATOMIC_BIN_OP_BYTE(bin_inst, index, extract_result)           \
+  {                                                                   \
+    constexpr int offset = -(index);                                  \
+    constexpr int shift_amount = 24 - (index * 8);                    \
+    constexpr int start = 56 - shift_amount;                          \
+    constexpr int end = start + 7;                                    \
+    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end, false); \
+    extract_result();                                                 \
   }
 #else
-#define ATOMIC_BIN_OP_HALFWORD(bin_inst, index, extract_result) \
-  {                                                             \
-    constexpr int offset = -(2 * index);                        \
-    constexpr int shift_amount = index * 16;                    \
-    constexpr int start = 48 - shift_amount;                    \
-    constexpr int end = start + 15;                             \
-    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end);  \
-    extract_result();                                           \
+#define ATOMIC_BIN_OP_HALFWORD(bin_inst, index, extract_result)       \
+  {                                                                   \
+    constexpr int offset = -(2 * index);                              \
+    constexpr int shift_amount = index * 16;                          \
+    constexpr int start = 48 - shift_amount;                          \
+    constexpr int end = start + 15;                                   \
+    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end, false); \
+    extract_result();                                                 \
   }
-#define ATOMIC_BIN_OP_BYTE(bin_inst, index, extract_result)    \
-  {                                                            \
-    constexpr int offset = -(index);                           \
-    constexpr int shift_amount = index * 8;                    \
-    constexpr int start = 56 - shift_amount;                   \
-    constexpr int end = start + 7;                             \
-    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end); \
-    extract_result();                                          \
+#define ATOMIC_BIN_OP_BYTE(bin_inst, index, extract_result)           \
+  {                                                                   \
+    constexpr int offset = -(index);                                  \
+    constexpr int shift_amount = index * 8;                           \
+    constexpr int start = 56 - shift_amount;                          \
+    constexpr int end = start + 7;                                    \
+    ATOMIC_BIN_OP(bin_inst, offset, shift_amount, start, end, false); \
+    extract_result();                                                 \
   }
 #endif  // V8_TARGET_BIG_ENDIAN
 
@@ -914,16 +994,23 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ bind(&done);                                          \
   } while (false)
 
-#define ASSEMBLE_ATOMIC64_COMP_EXCHANGE_WORD64()        \
-  do {                                                  \
-    Register new_val = i.InputRegister(1);              \
-    Register output = i.OutputRegister();               \
-    Register addr = kScratchReg;                        \
-    size_t index = 2;                                   \
-    AddressingMode mode = kMode_None;                   \
-    MemOperand op = i.MemoryOperand(&mode, &index);     \
-    __ lay(addr, op);                                   \
-    __ CmpAndSwap64(output, new_val, MemOperand(addr)); \
+#define ASSEMBLE_ATOMIC64_COMP_EXCHANGE_WORD64()          \
+  do {                                                    \
+    Register new_val = i.InputRegister(1);                \
+    Register output = i.OutputRegister();                 \
+    Register addr = kScratchReg;                          \
+    size_t index = 2;                                     \
+    AddressingMode mode = kMode_None;                     \
+    MemOperand op = i.MemoryOperand(&mode, &index);       \
+    __ lay(addr, op);                                     \
+    if (is_wasm_on_be(info()->IsWasm())) {                \
+      __ lrvgr(r0, output);                               \
+      __ lrvgr(r1, new_val);                              \
+      __ CmpAndSwap64(r0, r1, MemOperand(addr));          \
+      __ lrvgr(output, r0);                               \
+    } else {                                              \
+      __ CmpAndSwap64(output, new_val, MemOperand(addr)); \
+    }                                                     \
   } while (false)
 
 void CodeGenerator::AssembleDeconstructFrame() {
@@ -2308,12 +2395,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
       Register output = i.OutputRegister();
+      bool reverse_bytes = is_wasm_on_be(info()->IsWasm());
       __ la(r1, MemOperand(base, index));
-      __ AtomicExchangeU16(r1, value, output, r0);
+      Register value_ = value;
+      if (reverse_bytes) {
+        value_ = ip;
+        __ lrvr(value_, value);
+        __ ShiftRightU32(value_, value_, Operand(16));
+      }
+      __ AtomicExchangeU16(r1, value_, output, r0);
       if (opcode == kAtomicExchangeInt16) {
         __ lghr(output, output);
       } else {
         __ llghr(output, output);
+      }
+      if (reverse_bytes) {
+        __ lrvr(output, output);
+        __ ShiftRightU32(output, output, Operand(16));
       }
       break;
     }
@@ -2323,11 +2421,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(2);
       Register output = i.OutputRegister();
       Label do_cs;
+      bool reverse_bytes = is_wasm_on_be(info()->IsWasm());
       __ lay(r1, MemOperand(base, index));
+      Register value_ = value;
+      if (reverse_bytes) {
+        value_ = ip;
+        __ lrvr(value_, value);
+      }
       __ LoadU32(output, MemOperand(r1));
       __ bind(&do_cs);
-      __ cs(output, value, MemOperand(r1));
+      __ cs(output, value_, MemOperand(r1));
       __ bne(&do_cs, Label::kNear);
+      if (reverse_bytes) {
+        __ lrvr(output, output);
+        __ LoadU32(output, output);
+      }
       break;
     }
     case kAtomicCompareExchangeInt8:
@@ -2366,6 +2474,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       intptr_t shift_right = static_cast<intptr_t>(shift_amount);            \
       __ srlk(result, prev, Operand(shift_right));                           \
       __ LoadS16(result, result);                                            \
+      if (is_wasm_on_be(info()->IsWasm())) {                                 \
+        __ lrvr(result, result);                                             \
+        __ ShiftRightS32(result, result, Operand(16));                       \
+      }                                                                      \
     });                                                                      \
     break;                                                                   \
   case kAtomic##op##Uint16:                                                  \
@@ -2374,6 +2486,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ RotateInsertSelectBits(result, prev, Operand(48), Operand(63),      \
                                 Operand(static_cast<intptr_t>(rotate_left)), \
                                 true);                                       \
+      if (is_wasm_on_be(info()->IsWasm())) {                                 \
+        __ lrvr(result, result);                                             \
+        __ ShiftRightU32(result, result, Operand(16));                       \
+      }                                                                      \
     });                                                                      \
     break;
       ATOMIC_BINOP_CASE(Add, AddS32)
@@ -2383,46 +2499,55 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Xor, Xor)
 #undef ATOMIC_BINOP_CASE
     case kAtomicAddWord32:
-      ASSEMBLE_ATOMIC_BINOP_WORD(laa);
+      ASSEMBLE_ATOMIC_BINOP_WORD(laa, AddS32);
       break;
     case kAtomicSubWord32:
-      ASSEMBLE_ATOMIC_BINOP_WORD(LoadAndSub32);
+      ASSEMBLE_ATOMIC_BINOP_WORD(LoadAndSub32, SubS32);
       break;
     case kAtomicAndWord32:
-      ASSEMBLE_ATOMIC_BINOP_WORD(lan);
+      ASSEMBLE_ATOMIC_BINOP_WORD(lan, AndP);
       break;
     case kAtomicOrWord32:
-      ASSEMBLE_ATOMIC_BINOP_WORD(lao);
+      ASSEMBLE_ATOMIC_BINOP_WORD(lao, OrP);
       break;
     case kAtomicXorWord32:
-      ASSEMBLE_ATOMIC_BINOP_WORD(lax);
+      ASSEMBLE_ATOMIC_BINOP_WORD(lax, XorP);
       break;
     case kS390_Word64AtomicAddUint64:
-      ASSEMBLE_ATOMIC_BINOP_WORD64(laag);
+      ASSEMBLE_ATOMIC_BINOP_WORD64(laag, AddS64);
       break;
     case kS390_Word64AtomicSubUint64:
-      ASSEMBLE_ATOMIC_BINOP_WORD64(LoadAndSub64);
+      ASSEMBLE_ATOMIC_BINOP_WORD64(LoadAndSub64, SubS64);
       break;
     case kS390_Word64AtomicAndUint64:
-      ASSEMBLE_ATOMIC_BINOP_WORD64(lang);
+      ASSEMBLE_ATOMIC_BINOP_WORD64(lang, AndP);
       break;
     case kS390_Word64AtomicOrUint64:
-      ASSEMBLE_ATOMIC_BINOP_WORD64(laog);
+      ASSEMBLE_ATOMIC_BINOP_WORD64(laog, OrP);
       break;
     case kS390_Word64AtomicXorUint64:
-      ASSEMBLE_ATOMIC_BINOP_WORD64(laxg);
+      ASSEMBLE_ATOMIC_BINOP_WORD64(laxg, XorP);
       break;
     case kS390_Word64AtomicExchangeUint64: {
       Register base = i.InputRegister(0);
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
       Register output = i.OutputRegister();
+      bool reverse_bytes = is_wasm_on_be(info()->IsWasm());
       Label do_cs;
+      Register value_ = value;
       __ la(r1, MemOperand(base, index));
+      if (reverse_bytes) {
+        value_ = ip;
+        __ lrvgr(value_, value);
+      }
       __ lg(output, MemOperand(r1));
       __ bind(&do_cs);
-      __ csg(output, value, MemOperand(r1));
+      __ csg(output, value_, MemOperand(r1));
       __ bne(&do_cs, Label::kNear);
+      if (reverse_bytes) {
+        __ lrvgr(output, output);
+      }
       break;
     }
     case kS390_Word64AtomicCompareExchangeUint64:
@@ -3744,25 +3869,14 @@ void CodeGenerator::AssembleConstructFrame() {
       // efficient intialization of the constant pool pointer register).
       __ StubPrologue(type);
 #if V8_ENABLE_WEBASSEMBLY
-      if (call_descriptor->IsWasmFunctionCall()) {
+      if (call_descriptor->IsWasmFunctionCall() ||
+          call_descriptor->IsWasmImportWrapper() ||
+          call_descriptor->IsWasmCapiFunction()) {
         __ Push(kWasmInstanceRegister);
-      } else if (call_descriptor->IsWasmImportWrapper() ||
-                 call_descriptor->IsWasmCapiFunction()) {
-        // Wasm import wrappers are passed a tuple in the place of the instance.
-        // Unpack the tuple into the instance and the target callable.
-        // This must be done here in the codegen because it cannot be expressed
-        // properly in the graph.
-        __ LoadTaggedPointerField(
-            kJSFunctionRegister,
-            FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset), r0);
-        __ LoadTaggedPointerField(
-            kWasmInstanceRegister,
-            FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset), r0);
-        __ Push(kWasmInstanceRegister);
-        if (call_descriptor->IsWasmCapiFunction()) {
-          // Reserve space for saving the PC later.
-          __ lay(sp, MemOperand(sp, -kSystemPointerSize));
-        }
+      }
+      if (call_descriptor->IsWasmCapiFunction()) {
+        // Reserve space for saving the PC later.
+        __ lay(sp, MemOperand(sp, -kSystemPointerSize));
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
     }
@@ -3925,15 +4039,25 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     // max(argc_reg, parameter_slots-1), and the receiver is added in
     // DropArguments().
     if (parameter_slots > 1) {
-      const int parameter_slots_without_receiver = parameter_slots - 1;
-      Label skip;
-      __ CmpS64(argc_reg, Operand(parameter_slots_without_receiver));
-      __ bgt(&skip);
-      __ mov(argc_reg, Operand(parameter_slots_without_receiver));
-      __ bind(&skip);
+      if (kJSArgcIncludesReceiver) {
+        Label skip;
+        __ CmpS64(argc_reg, Operand(parameter_slots));
+        __ bgt(&skip);
+        __ mov(argc_reg, Operand(parameter_slots));
+        __ bind(&skip);
+      } else {
+        const int parameter_slots_without_receiver = parameter_slots - 1;
+        Label skip;
+        __ CmpS64(argc_reg, Operand(parameter_slots_without_receiver));
+        __ bgt(&skip);
+        __ mov(argc_reg, Operand(parameter_slots_without_receiver));
+        __ bind(&skip);
+      }
     }
     __ DropArguments(argc_reg, TurboAssembler::kCountIsInteger,
-                     TurboAssembler::kCountExcludesReceiver);
+                     kJSArgcIncludesReceiver
+                         ? TurboAssembler::kCountIncludesReceiver
+                         : TurboAssembler::kCountExcludesReceiver);
   } else if (additional_pop_count->IsImmediate()) {
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
     __ Drop(parameter_slots + additional_count);

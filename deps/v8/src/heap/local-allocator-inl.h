@@ -85,7 +85,7 @@ AllocationResult EvacuationAllocator::AllocateInLAB(
 bool EvacuationAllocator::NewLocalAllocationBuffer() {
   if (lab_allocation_will_fail_) return false;
   AllocationResult result =
-      new_space_->AllocateRawSynchronized(kLabSize, kWordAligned);
+      new_space_->AllocateRawSynchronized(kLabSize, kTaggedAligned);
   if (result.IsRetry()) {
     lab_allocation_will_fail_ = true;
     return false;

@@ -78,13 +78,13 @@ void ValidateCodeObjects() {
     if (data == nullptr) continue;
 
     // Do some sanity checks on the protected instruction data
-    for (unsigned i = 0; i < data->num_protected_instructions; ++i) {
-      TH_DCHECK(data->instructions[i].instr_offset >= 0);
-      TH_DCHECK(data->instructions[i].instr_offset < data->size);
-      TH_DCHECK(data->instructions[i].landing_offset >= 0);
-      TH_DCHECK(data->instructions[i].landing_offset < data->size);
-      TH_DCHECK(data->instructions[i].landing_offset >
-                data->instructions[i].instr_offset);
+    for (unsigned j = 0; j < data->num_protected_instructions; ++j) {
+      TH_DCHECK(data->instructions[j].instr_offset >= 0);
+      TH_DCHECK(data->instructions[j].instr_offset < data->size);
+      TH_DCHECK(data->instructions[j].landing_offset >= 0);
+      TH_DCHECK(data->instructions[j].landing_offset < data->size);
+      TH_DCHECK(data->instructions[j].landing_offset >
+                data->instructions[j].instr_offset);
     }
   }
 

@@ -22,7 +22,7 @@ HTTP message headers are represented by an object like this:
 { 'content-length': '123',
   'content-type': 'text/plain',
   'connection': 'keep-alive',
-  'host': 'mysite.com',
+  'host': 'example.com',
   'accept': '*/*' }
 ```
 
@@ -47,7 +47,7 @@ list like the following:
   'content-LENGTH', '123',
   'content-type', 'text/plain',
   'CONNECTION', 'keep-alive',
-  'Host', 'mysite.com',
+  'Host', 'example.com',
   'accepT', '*/*' ]
 ```
 
@@ -296,10 +296,14 @@ the agent when `keepAlive` is enabled. Do not modify.
 Sockets in the `freeSockets` list will be automatically destroyed and
 removed from the array on `'timeout'`.
 
-### `agent.getName(options)`
+### `agent.getName([options])`
 
 <!-- YAML
 added: v0.11.4
+changes:
+  - version: v17.7.0
+    pr-url: https://github.com/nodejs/node/pull/41906
+    description: The `options` parameter is now optional.
 -->
 
 * `options` {Object} A set of options providing information for name generation
@@ -2197,7 +2201,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/35281
     description: >-
       `message.headers` is now lazily computed using an accessor property
-      on the prototype.
+      on the prototype and is no longer enumerable.
 -->
 
 * {Object}
@@ -2416,7 +2420,7 @@ This class serves as the parent class of [`http.ClientRequest`][]
 and [`http.ServerResponse`][]. It is an abstract of outgoing message from
 the perspective of the participants of HTTP transaction.
 
-### Event: `drain`
+### Event: `'drain'`
 
 <!-- YAML
 added: v0.3.6
@@ -2424,7 +2428,7 @@ added: v0.3.6
 
 Emitted when the buffer of the message is free again.
 
-### Event: `finish`
+### Event: `'finish'`
 
 <!-- YAML
 added: v0.1.17
@@ -2432,7 +2436,7 @@ added: v0.1.17
 
 Emitted when the transmission is finished successfully.
 
-### Event: `prefinish`
+### Event: `'prefinish'`
 
 <!-- YAML
 added: v0.11.6
@@ -2834,6 +2838,13 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42163
+    description: The `noDelay` option now defaults to `true`.
+  - version: v17.7.0
+    pr-url: https://github.com/nodejs/node/pull/41310
+    description: The `noDelay`, `keepAlive` and `keepAliveInitialDelay`
+                 options are supported now.
   - version:
      - v13.8.0
      - v12.15.0
@@ -2865,6 +2876,16 @@ changes:
     [`--max-http-header-size`][] for requests received by this server, i.e.
     the maximum length of request headers in bytes.
     **Default:** 16384 (16 KB).
+  * `noDelay` {boolean} If set to `true`, it disables the use of Nagle's
+    algorithm immediately after a new incoming connection is received.
+    **Default:** `true`.
+  * `keepAlive` {boolean} If set to `true`, it enables keep-alive functionality
+    on the socket immediately after a new incoming connection is received,
+    similarly on what is done in \[`socket.setKeepAlive([enable][, initialDelay])`]\[`socket.setKeepAlive(enable, initialDelay)`].
+    **Default:** `false`.
+  * `keepAliveInitialDelay` {number} If set to a positive number, it sets the
+    initial delay before the first keepalive probe is sent on an idle socket.
+    **Default:** `0`.
 
 * `requestListener` {Function}
 
@@ -3107,6 +3128,8 @@ changes:
     request.
 * `callback` {Function}
 * Returns: {http.ClientRequest}
+
+`options` in [`socket.connect()`][] are also supported.
 
 Node.js maintains several connections per server to make HTTP requests.
 This function allows one to transparently issue requests.

@@ -10,6 +10,7 @@
 #include "src/baseline/baseline-batch-compiler.h"
 #include "src/baseline/baseline.h"
 #include "src/builtins/builtins.h"
+#include "src/codegen/compiler.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
@@ -75,6 +76,12 @@ RUNTIME_FUNCTION(Runtime_ReThrow) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   return isolate->ReThrow(args[0]);
+}
+
+RUNTIME_FUNCTION(Runtime_ReThrowWithMessage) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  return isolate->ReThrow(args[0], args[1]);
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowStackOverflow) {
@@ -457,7 +464,8 @@ RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
   DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CONVERT_SMI_ARG_CHECKED(flags, 1);
-  bool double_align = AllocateDoubleAlignFlag::decode(flags);
+  AllocationAlignment alignment =
+      AllocateDoubleAlignFlag::decode(flags) ? kDoubleAligned : kTaggedAligned;
   bool allow_large_object_allocation =
       AllowLargeObjectAllocationFlag::decode(flags);
   CHECK(IsAligned(size, kTaggedSize));
@@ -478,9 +486,9 @@ RUNTIME_FUNCTION(Runtime_AllocateInYoungGeneration) {
 
   // TODO(v8:9472): Until double-aligned allocation is fixed for new-space
   // allocations, don't request it.
-  double_align = false;
+  alignment = kTaggedAligned;
 
-  return *isolate->factory()->NewFillerObject(size, double_align,
+  return *isolate->factory()->NewFillerObject(size, alignment,
                                               AllocationType::kYoung,
                                               AllocationOrigin::kGeneratedCode);
 }
@@ -490,7 +498,8 @@ RUNTIME_FUNCTION(Runtime_AllocateInOldGeneration) {
   DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CONVERT_SMI_ARG_CHECKED(flags, 1);
-  bool double_align = AllocateDoubleAlignFlag::decode(flags);
+  AllocationAlignment alignment =
+      AllocateDoubleAlignFlag::decode(flags) ? kDoubleAligned : kTaggedAligned;
   bool allow_large_object_allocation =
       AllowLargeObjectAllocationFlag::decode(flags);
   CHECK(IsAligned(size, kTaggedSize));
@@ -498,9 +507,8 @@ RUNTIME_FUNCTION(Runtime_AllocateInOldGeneration) {
   if (!allow_large_object_allocation) {
     CHECK(size <= kMaxRegularHeapObjectSize);
   }
-  return *isolate->factory()->NewFillerObject(size, double_align,
-                                              AllocationType::kOld,
-                                              AllocationOrigin::kGeneratedCode);
+  return *isolate->factory()->NewFillerObject(
+      size, alignment, AllocationType::kOld, AllocationOrigin::kGeneratedCode);
 }
 
 RUNTIME_FUNCTION(Runtime_AllocateByteArray) {

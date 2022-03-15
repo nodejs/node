@@ -85,6 +85,7 @@ assert.strictEqual(
 
   assert.strictEqual(
     util.format(
+      // eslint-disable-next-line no-loss-of-precision
       '%d %s %i', 118059162071741130342, 118059162071741130342, 123_123_123),
     '118_059_162_071_741_140_000 118_059_162_071_741_140_000 123_123_123'
   );
@@ -140,6 +141,13 @@ assert.strictEqual(
 assert.strictEqual(
   util.format('%i %d', 1180591620717411303424n, 12345678901234567890123n),
   '1180591620717411303424n 12345678901234567890123n'
+);
+
+assert.strictEqual(
+  util.formatWithOptions(
+    { numericSeparator: true },
+    '%i %d', 1180591620717411303424n, 12345678901234567890123n),
+  '1_180_591_620_717_411_303_424n 12_345_678_901_234_567_890_123n'
 );
 
 // Float format specifier

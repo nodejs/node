@@ -185,8 +185,8 @@ function removeAsync(dir) {
   makeNonEmptyDirectory(4, 10, 2, dir, true);
 
   // Removal should fail without the recursive option set to true.
-  assert.rejects(fs.promises.rm(dir), { syscall: 'rm' });
-  assert.rejects(fs.promises.rm(dir, { recursive: false }), {
+  await assert.rejects(fs.promises.rm(dir), { syscall: 'rm' });
+  await assert.rejects(fs.promises.rm(dir, { recursive: false }), {
     syscall: 'rm'
   });
 
@@ -194,10 +194,10 @@ function removeAsync(dir) {
   await fs.promises.rm(dir, { recursive: true });
 
   // Attempted removal should fail now because the directory is gone.
-  assert.rejects(fs.promises.rm(dir), { syscall: 'stat' });
+  await assert.rejects(fs.promises.rm(dir), { syscall: 'stat' });
 
   // Should fail if target does not exist
-  assert.rejects(fs.promises.rm(
+  await assert.rejects(fs.promises.rm(
     path.join(tmpdir.path, 'noexist.txt'),
     { recursive: true }
   ), {
@@ -207,7 +207,7 @@ function removeAsync(dir) {
   });
 
   // Should not fail if target does not exist and force option is true
-  fs.promises.rm(path.join(tmpdir.path, 'noexist.txt'), { force: true });
+  await fs.promises.rm(path.join(tmpdir.path, 'noexist.txt'), { force: true });
 
   // Should delete file
   const filePath = path.join(tmpdir.path, 'rm-promises-file.txt');

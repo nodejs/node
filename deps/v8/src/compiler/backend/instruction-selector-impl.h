@@ -204,6 +204,10 @@ class OperandGenerator {
     return sequence()->AddImmediate(Constant(immediate));
   }
 
+  InstructionOperand UseImmediate64(int64_t immediate) {
+    return sequence()->AddImmediate(Constant(immediate));
+  }
+
   InstructionOperand UseImmediate(Node* node) {
     return sequence()->AddImmediate(ToConstant(node));
   }

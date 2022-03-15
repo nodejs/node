@@ -414,26 +414,17 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
                                Label** labels, int num_labels) {
   ASM_CODE_COMMENT(masm_);
   Label fallthrough;
-  if (case_value_base > 0) {
+  if (case_value_base != 0) {
     __ Sub_d(reg, reg, Operand(case_value_base));
   }
 
-  ScratchRegisterScope scope(this);
-  Register scratch = scope.AcquireScratch();
   __ Branch(&fallthrough, AsMasmCondition(Condition::kUnsignedGreaterThanEqual),
             reg, Operand(num_labels));
-  int entry_size_log2 = 2;
-  __ pcaddi(scratch, 3);
-  __ Alsl_d(scratch, reg, scratch, entry_size_log2);
-  __ Jump(scratch);
-  {
-    TurboAssembler::BlockTrampolinePoolScope(masm());
-    __ BlockTrampolinePoolFor(num_labels * kInstrSize);
-    for (int i = 0; i < num_labels; ++i) {
-      __ Branch(labels[i]);
-    }
-    __ bind(&fallthrough);
-  }
+
+  __ GenerateSwitchTable(reg, num_labels,
+                         [labels](size_t i) { return labels[i]; });
+
+  __ bind(&fallthrough);
 }
 
 #undef __
@@ -483,8 +474,11 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   __ masm()->LeaveFrame(StackFrame::BASELINE);
 
   // Drop receiver + arguments.
-  __ masm()->Add_d(params_size, params_size, 1);  // Include the receiver.
-  __ masm()->Alsl_d(sp, params_size, sp, kPointerSizeLog2);
+  __ masm()->DropArguments(params_size, TurboAssembler::kCountIsInteger,
+                           kJSArgcIncludesReceiver
+                               ? TurboAssembler::kCountIncludesReceiver
+                               : TurboAssembler::kCountExcludesReceiver);
+
   __ masm()->Ret();
 }
 

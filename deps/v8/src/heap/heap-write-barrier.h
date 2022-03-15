@@ -8,6 +8,7 @@
 #include "include/v8-internal.h"
 #include "src/base/optional.h"
 #include "src/common/globals.h"
+#include "src/objects/heap-object.h"
 
 namespace v8 {
 namespace internal {
@@ -55,6 +56,9 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   static inline void Marking(DescriptorArray, int number_of_own_descriptors);
   // It is invoked from generated code and has to take raw addresses.
   static int MarkingFromCode(Address raw_host, Address raw_slot);
+  // Invoked from global handles where no host object is available.
+  static inline void MarkingFromGlobalHandle(Object value);
+  static inline void MarkingFromInternalFields(JSObject host);
 
   static void SetForThread(MarkingBarrier*);
   static void ClearForThread(MarkingBarrier*);
@@ -62,6 +66,8 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   static MarkingBarrier* CurrentMarkingBarrier(Heap* heap);
 
  private:
+  static inline base::Optional<Heap*> GetHeapIfMarking(HeapObject object);
+
   static void MarkingSlow(Heap* heap, HeapObject host, HeapObjectSlot,
                           HeapObject value);
   static void MarkingSlow(Heap* heap, Code host, RelocInfo*, HeapObject value);
@@ -69,7 +75,8 @@ class V8_EXPORT_PRIVATE WriteBarrier {
                           ArrayBufferExtension*);
   static void MarkingSlow(Heap* heap, DescriptorArray,
                           int number_of_own_descriptors);
-  static inline base::Optional<Heap*> GetHeapIfMarking(HeapObject object);
+  static void MarkingSlowFromGlobalHandle(Heap* heap, HeapObject value);
+  static void MarkingSlowFromInternalFields(Heap* heap, JSObject host);
 };
 
 }  // namespace internal

@@ -24,6 +24,8 @@
 // This has to come after windows.h.
 #include <mmsystem.h>  // For timeGetTime().
 
+#include <atomic>
+
 #include "src/base/lazy-instance.h"
 #include "src/base/win32-headers.h"
 #endif
@@ -619,15 +621,10 @@ using TimeTicksNowFunction = decltype(&TimeTicks::Now);
 TimeTicksNowFunction g_time_ticks_now_function = &InitialTimeTicksNowFunction;
 int64_t g_qpc_ticks_per_second = 0;
 
-// As of January 2015, use of <atomic> is forbidden in Chromium code. This is
-// what std::atomic_thread_fence does on Windows on all Intel architectures when
-// the memory_order argument is anything but std::memory_order_seq_cst:
-#define ATOMIC_THREAD_FENCE(memory_order) _ReadWriteBarrier();
-
 TimeDelta QPCValueToTimeDelta(LONGLONG qpc_value) {
   // Ensure that the assignment to |g_qpc_ticks_per_second|, made in
   // InitializeNowFunctionPointer(), has happened by this point.
-  ATOMIC_THREAD_FENCE(memory_order_acquire);
+  std::atomic_thread_fence(std::memory_order_acquire);
 
   DCHECK_GT(g_qpc_ticks_per_second, 0);
 
@@ -682,7 +679,7 @@ void InitializeTimeTicksNowFunctionPointer() {
   // assignment to |g_qpc_ticks_per_second| happens before the function pointers
   // are changed.
   g_qpc_ticks_per_second = ticks_per_sec.QuadPart;
-  ATOMIC_THREAD_FENCE(memory_order_release);
+  std::atomic_thread_fence(std::memory_order_release);
   g_time_ticks_now_function = now_function;
 }
 
@@ -690,8 +687,6 @@ TimeTicks InitialTimeTicksNowFunction() {
   InitializeTimeTicksNowFunctionPointer();
   return g_time_ticks_now_function();
 }
-
-#undef ATOMIC_THREAD_FENCE
 
 }  // namespace
 

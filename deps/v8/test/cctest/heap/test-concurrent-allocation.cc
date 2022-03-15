@@ -50,11 +50,11 @@ void AllocateSomeObjects(LocalHeap* local_heap) {
   for (int i = 0; i < kNumIterations; i++) {
     Address address = local_heap->AllocateRawOrFail(
         kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
-        AllocationAlignment::kWordAligned);
+        AllocationAlignment::kTaggedAligned);
     CreateFixedArray(local_heap->heap(), address, kSmallObjectSize);
     address = local_heap->AllocateRawOrFail(
         kMediumObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
-        AllocationAlignment::kWordAligned);
+        AllocationAlignment::kTaggedAligned);
     CreateFixedArray(local_heap->heap(), address, kMediumObjectSize);
     if (i % 10 == 0) {
       local_heap->Safepoint();
@@ -247,7 +247,7 @@ class LargeObjectConcurrentAllocationThread final : public v8::base::Thread {
     for (int i = 0; i < kNumIterations; i++) {
       AllocationResult result = local_heap.AllocateRaw(
           kLargeObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
-          AllocationAlignment::kWordAligned);
+          AllocationAlignment::kTaggedAligned);
       if (result.IsRetry()) {
         local_heap.TryPerformCollection();
       } else {
@@ -322,12 +322,12 @@ class ConcurrentBlackAllocationThread final : public v8::base::Thread {
       }
       Address address = local_heap.AllocateRawOrFail(
           kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
-          AllocationAlignment::kWordAligned);
+          AllocationAlignment::kTaggedAligned);
       objects_->push_back(address);
       CreateFixedArray(heap_, address, kSmallObjectSize);
       address = local_heap.AllocateRawOrFail(
           kMediumObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
-          AllocationAlignment::kWordAligned);
+          AllocationAlignment::kTaggedAligned);
       objects_->push_back(address);
       CreateFixedArray(heap_, address, kMediumObjectSize);
     }
@@ -478,50 +478,50 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   Heap* heap = i_isolate->heap();
-
-  Code code;
-  HeapObject value;
   {
-    HandleScope handle_scope(i_isolate);
-    i::byte buffer[i::Assembler::kDefaultBufferSize];
-    MacroAssembler masm(i_isolate, v8::internal::CodeObjectRequired::kYes,
-                        ExternalAssemblerBuffer(buffer, sizeof(buffer)));
+    Code code;
+    HeapObject value;
+    CodePageCollectionMemoryModificationScope modification_scope(heap);
+    {
+      HandleScope handle_scope(i_isolate);
+      i::byte buffer[i::Assembler::kDefaultBufferSize];
+      MacroAssembler masm(i_isolate, v8::internal::CodeObjectRequired::kYes,
+                          ExternalAssemblerBuffer(buffer, sizeof(buffer)));
 #if V8_TARGET_ARCH_ARM64
-    // Arm64 requires stack alignment.
-    UseScratchRegisterScope temps(&masm);
-    Register tmp = temps.AcquireX();
-    masm.Mov(tmp, Operand(ReadOnlyRoots(heap).undefined_value_handle()));
-    masm.Push(tmp, padreg);
+      // Arm64 requires stack alignment.
+      UseScratchRegisterScope temps(&masm);
+      Register tmp = temps.AcquireX();
+      masm.Mov(tmp, Operand(ReadOnlyRoots(heap).undefined_value_handle()));
+      masm.Push(tmp, padreg);
 #else
-    masm.Push(ReadOnlyRoots(heap).undefined_value_handle());
+      masm.Push(ReadOnlyRoots(heap).undefined_value_handle());
 #endif
-    CodeDesc desc;
-    masm.GetCode(i_isolate, &desc);
-    Handle<Code> code_handle =
-        Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING).Build();
-    heap::AbandonCurrentlyFreeMemory(heap->old_space());
-    Handle<HeapNumber> value_handle(
-        i_isolate->factory()->NewHeapNumber<AllocationType::kOld>(1.1));
-    heap::ForceEvacuationCandidate(Page::FromHeapObject(*value_handle));
-    code = *code_handle;
-    value = *value_handle;
+      CodeDesc desc;
+      masm.GetCode(i_isolate, &desc);
+      Handle<Code> code_handle =
+          Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING).Build();
+      heap::AbandonCurrentlyFreeMemory(heap->old_space());
+      Handle<HeapNumber> value_handle(
+          i_isolate->factory()->NewHeapNumber<AllocationType::kOld>(1.1));
+      heap::ForceEvacuationCandidate(Page::FromHeapObject(*value_handle));
+      code = *code_handle;
+      value = *value_handle;
+    }
+    heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
+                                  i::GarbageCollectionReason::kTesting);
+    CHECK(heap->incremental_marking()->marking_state()->IsWhite(value));
+
+    {
+      auto thread =
+          std::make_unique<ConcurrentRecordRelocSlotThread>(heap, code, value);
+      CHECK(thread->Start());
+
+      thread->Join();
+    }
+
+    CHECK(heap->incremental_marking()->marking_state()->IsBlackOrGrey(value));
+    heap::InvokeMarkSweep(i_isolate);
   }
-  heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
-                                i::GarbageCollectionReason::kTesting);
-  CHECK(heap->incremental_marking()->marking_state()->IsWhite(value));
-
-  {
-    CodeSpaceMemoryModificationScope modification_scope(heap);
-    auto thread =
-        std::make_unique<ConcurrentRecordRelocSlotThread>(heap, code, value);
-    CHECK(thread->Start());
-
-    thread->Join();
-  }
-
-  CHECK(heap->incremental_marking()->marking_state()->IsBlackOrGrey(value));
-  heap::InvokeMarkSweep(i_isolate);
-
   isolate->Dispose();
 }
 

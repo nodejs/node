@@ -205,7 +205,7 @@ needs to be pointed out separately during the onboarding.
 * Example:
   <https://github.com/nodejs/node/commit/b58fe52692659c0bc25ddbe6afa7f4ae2c7f14a8>
   * For raw commit message:
-    `git show --format=%Bb58fe52692659c0bc25ddbe6afa7f4ae2c7f14a8`
+    `git show --format=%B b58fe52692659c0bc25ddbe6afa7f4ae2c7f14a8`
 * Collaborators are in alphabetical order by GitHub username.
 * Optionally, include your personal pronouns.
 * Add the `Fixes: <collaborator-nomination-issue-url>` to the commit message
@@ -253,15 +253,15 @@ needs to be pointed out separately during the onboarding.
   access to the projects coverity project as outlined in [static-analysis][].
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
-[Labels]: doc/guides/collaborator-guide.md#labels
-[Landing pull requests]: doc/guides/collaborator-guide.md#landing-pull-requests
+[Labels]: doc/contributing/collaborator-guide.md#labels
+[Landing pull requests]: doc/contributing/collaborator-guide.md#landing-pull-requests
 [Publicizing or hiding organization membership]: https://help.github.com/articles/publicizing-or-hiding-organization-membership/
-[`author-ready`]: doc/guides/collaborator-guide.md#author-ready-pull-requests
+[`author-ready`]: doc/contributing/collaborator-guide.md#author-ready-pull-requests
 [`core-validate-commit`]: https://github.com/nodejs/core-validate-commit
 [`git-node`]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [set up the credentials]: https://github.com/nodejs/node-core-utils#setting-up-github-credentials
-[static-analysis]: doc/guides/static-analysis.md
+[static-analysis]: doc/contributing/static-analysis.md
 [two-factor authentication]: https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/
 [using a TOTP mobile app]: https://help.github.com/articles/configuring-two-factor-authentication-via-a-totp-mobile-app/
-[who-to-cc]: doc/guides/collaborator-guide.md#who-to-cc-in-the-issue-tracker
+[who-to-cc]: doc/contributing/collaborator-guide.md#who-to-cc-in-the-issue-tracker

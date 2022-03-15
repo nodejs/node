@@ -140,10 +140,6 @@ to remain active. If there is no other activity keeping the event loop running,
 the process may exit before the `Timeout` object's callback is invoked. Calling
 `timeout.unref()` multiple times will have no effect.
 
-Calling `timeout.unref()` creates an internal timer that will wake the Node.js
-event loop. Creating too many of these can adversely impact performance
-of the Node.js application.
-
 ### `timeout[Symbol.toPrimitive]()`
 
 <!-- YAML
@@ -172,6 +168,12 @@ event loop is doing.
 
 <!-- YAML
 added: v0.9.1
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `callback` {Function} The function to call at the end of this turn of
@@ -197,6 +199,12 @@ This method has a custom variant for promises that is available using
 
 <!-- YAML
 added: v0.0.1
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `callback` {Function} The function to call when the timer elapses.
@@ -219,6 +227,12 @@ This method has a custom variant for promises that is available using
 
 <!-- YAML
 added: v0.0.1
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `callback` {Function} The function to call when the timer elapses.
@@ -475,7 +489,9 @@ const interval = 100;
 ### `timersPromises.scheduler.wait(delay[, options])`
 
 <!-- YAML
-added: v17.3.0
+added:
+  - v17.3.0
+  - v16.14.0
 -->
 
 > Stability: 1 - Experimental
@@ -503,7 +519,9 @@ await scheduler.wait(1000); // Wait one second before continuing
 ### `timersPromises.scheduler.yield()`
 
 <!-- YAML
-added: v17.3.0
+added:
+  - v17.3.0
+  - v16.14.0
 -->
 
 > Stability: 1 - Experimental

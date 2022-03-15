@@ -482,9 +482,9 @@ TEST(SampleIds) {
   sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
   auto symbolized = symbolizer.SymbolizeTickSample(sample1);
-  profiles.AddPathToCurrentProfiles(sample1.timestamp, symbolized.stack_trace,
-                                    symbolized.src_line, true,
-                                    base::TimeDelta());
+  profiles.AddPathToCurrentProfiles(
+      sample1.timestamp, symbolized.stack_trace, symbolized.src_line, true,
+      base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
 
   TickSample sample2;
   sample2.timestamp = v8::base::TimeTicks::HighResolutionNow();
@@ -494,9 +494,9 @@ TEST(SampleIds) {
   sample2.stack[2] = ToPointer(0x1620);
   sample2.frames_count = 3;
   symbolized = symbolizer.SymbolizeTickSample(sample2);
-  profiles.AddPathToCurrentProfiles(sample2.timestamp, symbolized.stack_trace,
-                                    symbolized.src_line, true,
-                                    base::TimeDelta());
+  profiles.AddPathToCurrentProfiles(
+      sample2.timestamp, symbolized.stack_trace, symbolized.src_line, true,
+      base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
 
   TickSample sample3;
   sample3.timestamp = v8::base::TimeTicks::HighResolutionNow();
@@ -505,9 +505,9 @@ TEST(SampleIds) {
   sample3.stack[1] = ToPointer(0x1610);
   sample3.frames_count = 2;
   symbolized = symbolizer.SymbolizeTickSample(sample3);
-  profiles.AddPathToCurrentProfiles(sample3.timestamp, symbolized.stack_trace,
-                                    symbolized.src_line, true,
-                                    base::TimeDelta());
+  profiles.AddPathToCurrentProfiles(
+      sample3.timestamp, symbolized.stack_trace, symbolized.src_line, true,
+      base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
 
   CpuProfile* profile = profiles.StopProfiling("");
   unsigned nodeId = 1;
@@ -603,9 +603,9 @@ TEST(MaxSamplesCallback) {
   sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
   auto symbolized = symbolizer.SymbolizeTickSample(sample1);
-  profiles.AddPathToCurrentProfiles(sample1.timestamp, symbolized.stack_trace,
-                                    symbolized.src_line, true,
-                                    base::TimeDelta());
+  profiles.AddPathToCurrentProfiles(
+      sample1.timestamp, symbolized.stack_trace, symbolized.src_line, true,
+      base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
   CHECK_EQ(0, mock_platform->posted_count());
   TickSample sample2;
   sample2.timestamp = v8::base::TimeTicks::HighResolutionNow();
@@ -613,18 +613,18 @@ TEST(MaxSamplesCallback) {
   sample2.stack[0] = ToPointer(0x1780);
   sample2.frames_count = 2;
   symbolized = symbolizer.SymbolizeTickSample(sample2);
-  profiles.AddPathToCurrentProfiles(sample2.timestamp, symbolized.stack_trace,
-                                    symbolized.src_line, true,
-                                    base::TimeDelta());
+  profiles.AddPathToCurrentProfiles(
+      sample2.timestamp, symbolized.stack_trace, symbolized.src_line, true,
+      base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
   CHECK_EQ(1, mock_platform->posted_count());
   TickSample sample3;
   sample3.timestamp = v8::base::TimeTicks::HighResolutionNow();
   sample3.pc = ToPointer(0x1510);
   sample3.frames_count = 3;
   symbolized = symbolizer.SymbolizeTickSample(sample3);
-  profiles.AddPathToCurrentProfiles(sample3.timestamp, symbolized.stack_trace,
-                                    symbolized.src_line, true,
-                                    base::TimeDelta());
+  profiles.AddPathToCurrentProfiles(
+      sample3.timestamp, symbolized.stack_trace, symbolized.src_line, true,
+      base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
   CHECK_EQ(1, mock_platform->posted_count());
 
   // Teardown
@@ -654,7 +654,8 @@ TEST(NoSamples) {
   auto symbolized = symbolizer.SymbolizeTickSample(sample1);
   profiles.AddPathToCurrentProfiles(v8::base::TimeTicks::HighResolutionNow(),
                                     symbolized.stack_trace, symbolized.src_line,
-                                    true, base::TimeDelta());
+                                    true, base::TimeDelta(), StateTag::JS,
+                                    EmbedderStateTag::EMPTY);
 
   CpuProfile* profile = profiles.StopProfiling("");
   unsigned nodeId = 1;

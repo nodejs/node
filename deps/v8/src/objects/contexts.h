@@ -188,6 +188,25 @@ enum ContextLookupFlags {
   V(JS_WEAK_REF_FUNCTION_INDEX, JSFunction, js_weak_ref_fun)                   \
   V(JS_FINALIZATION_REGISTRY_FUNCTION_INDEX, JSFunction,                       \
     js_finalization_registry_fun)                                              \
+  V(JS_TEMPORAL_CALENDAR_FUNCTION_INDEX, JSFunction,                           \
+    temporal_calendar_function)                                                \
+  V(JS_TEMPORAL_DURATION_FUNCTION_INDEX, JSFunction,                           \
+    temporal_duration_function)                                                \
+  V(JS_TEMPORAL_INSTANT_FUNCTION_INDEX, JSFunction, temporal_instant_function) \
+  V(JS_TEMPORAL_PLAIN_DATE_FUNCTION_INDEX, JSFunction,                         \
+    temporal_plain_date_function)                                              \
+  V(JS_TEMPORAL_PLAIN_DATE_TIME_FUNCTION_INDEX, JSFunction,                    \
+    temporal_plain_date_time_function)                                         \
+  V(JS_TEMPORAL_PLAIN_MONTH_DAY_FUNCTION_INDEX, JSFunction,                    \
+    temporal_plain_month_day_function)                                         \
+  V(JS_TEMPORAL_PLAIN_TIME_FUNCTION_INDEX, JSFunction,                         \
+    temporal_plain_time_function)                                              \
+  V(JS_TEMPORAL_PLAIN_YEAR_MONTH_FUNCTION_INDEX, JSFunction,                   \
+    temporal_plain_year_month_function)                                        \
+  V(JS_TEMPORAL_TIME_ZONE_FUNCTION_INDEX, JSFunction,                          \
+    temporal_time_zone_function)                                               \
+  V(JS_TEMPORAL_ZONED_DATE_TIME_FUNCTION_INDEX, JSFunction,                    \
+    temporal_zoned_date_time_function)                                         \
   /* Context maps */                                                           \
   V(NATIVE_CONTEXT_MAP_INDEX, Map, native_context_map)                         \
   V(FUNCTION_CONTEXT_MAP_INDEX, Map, function_context_map)                     \
@@ -293,6 +312,7 @@ enum ContextLookupFlags {
   V(WASM_MEMORY_CONSTRUCTOR_INDEX, JSFunction, wasm_memory_constructor)        \
   V(WASM_MODULE_CONSTRUCTOR_INDEX, JSFunction, wasm_module_constructor)        \
   V(WASM_TABLE_CONSTRUCTOR_INDEX, JSFunction, wasm_table_constructor)          \
+  V(WASM_SUSPENDER_CONSTRUCTOR_INDEX, JSFunction, wasm_suspender_constructor)  \
   V(TEMPLATE_WEAKMAP_INDEX, HeapObject, template_weakmap)                      \
   V(TYPED_ARRAY_FUN_INDEX, JSFunction, typed_array_function)                   \
   V(TYPED_ARRAY_PROTOTYPE_INDEX, JSObject, typed_array_prototype)              \
@@ -338,7 +358,7 @@ enum ContextLookupFlags {
   V(WEAKMAP_GET_INDEX, JSFunction, weakmap_get)                                \
   V(WEAKMAP_DELETE_INDEX, JSFunction, weakmap_delete)                          \
   V(WEAKSET_ADD_INDEX, JSFunction, weakset_add)                                \
-  V(RETAINED_MAPS, WeakArrayList, retained_maps)                               \
+  V(RETAINED_MAPS, Object, retained_maps)                                      \
   V(OSR_CODE_CACHE_INDEX, WeakFixedArray, osr_code_cache)
 
 #include "torque-generated/src/objects/contexts-tq.inc"
@@ -542,39 +562,39 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   inline void set_scope_info(ScopeInfo scope_info,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Object unchecked_previous();
-  inline Context previous();
+  inline Object unchecked_previous() const;
+  inline Context previous() const;
 
-  inline Object next_context_link();
+  inline Object next_context_link() const;
 
-  inline bool has_extension();
-  inline HeapObject extension();
-  inline void set_extension(HeapObject object,
-                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  JSObject extension_object();
-  JSReceiver extension_receiver();
-  V8_EXPORT_PRIVATE ScopeInfo scope_info();
+  inline bool has_extension() const;
+  inline HeapObject extension() const;
+  V8_EXPORT_PRIVATE void set_extension(
+      HeapObject object, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  JSObject extension_object() const;
+  JSReceiver extension_receiver() const;
+  V8_EXPORT_PRIVATE inline ScopeInfo scope_info() const;
 
   // Find the module context (assuming there is one) and return the associated
   // module object.
-  SourceTextModule module();
+  SourceTextModule module() const;
 
   // Get the context where var declarations will be hoisted to, which
   // may be the context itself.
-  Context declaration_context();
-  bool is_declaration_context();
+  Context declaration_context() const;
+  bool is_declaration_context() const;
 
   // Get the next closure's context on the context chain.
-  Context closure_context();
+  Context closure_context() const;
 
   // Returns a JSGlobalProxy object or null.
-  V8_EXPORT_PRIVATE JSGlobalProxy global_proxy();
+  V8_EXPORT_PRIVATE JSGlobalProxy global_proxy() const;
 
   // Get the JSGlobalObject object.
-  V8_EXPORT_PRIVATE JSGlobalObject global_object();
+  V8_EXPORT_PRIVATE JSGlobalObject global_object() const;
 
   // Get the script context by traversing the context chain.
-  Context script_context();
+  Context script_context() const;
 
   // Compute the native context.
   inline NativeContext native_context() const;
@@ -651,6 +671,10 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   DECL_VERIFIER(Context)
 
   class BodyDescriptor;
+
+#ifdef VERIFY_HEAP
+  V8_EXPORT_PRIVATE void VerifyExtensionSlot(HeapObject extension);
+#endif
 
  private:
 #ifdef DEBUG

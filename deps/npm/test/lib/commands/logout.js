@@ -62,7 +62,7 @@ t.test('token logout', async t => {
 
   await logout.exec([])
 
-  t.same(
+  t.match(
     result,
     {
       url: '/-/user/token/%40foo%2F',
@@ -132,7 +132,7 @@ t.test('token scoped logout', async t => {
 
   await logout.exec([])
 
-  t.same(
+  t.match(
     result,
     {
       url: '/-/user/token/%40bar%2F',
@@ -234,7 +234,7 @@ t.test('ignore invalid scoped registry config', async t => {
 
   await logout.exec([])
 
-  t.same(
+  t.match(
     result,
     {
       url: '/-/user/token/%40foo%2F',

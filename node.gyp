@@ -51,6 +51,7 @@
       'deps/acorn/acorn-walk/dist/walk.js',
       'deps/cjs-module-lexer/lexer.js',
       'deps/cjs-module-lexer/dist/lexer.js',
+      'deps/undici/undici.js',
     ],
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
     'mkcodecache_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mkcodecache<(EXECUTABLE_SUFFIX)',
@@ -1474,31 +1475,5 @@
         },
       ]
     }], # end aix section
-    # TODO(RaisinTen): Enable this to build on other platforms as well.
-    ['(OS=="mac" or (OS=="linux" and target_arch=="x64")) and \
-      node_use_openssl=="true"', {
-      'targets': [
-        {
-          'target_name': 'test_crypto_engine',
-          'type': 'shared_library',
-          'include_dirs': ['deps/openssl/openssl/include'],
-          'sources': ['test/fixtures/test_crypto_engine.c'],
-          'conditions': [
-            ['OS=="mac"', {
-              'dependencies': ['deps/openssl/openssl.gyp:openssl'],
-              'xcode_settings': {
-                'OTHER_CFLAGS': ['-Wno-deprecated-declarations'],
-              },
-            }],
-            ['OS=="linux" and target_arch=="x64"', {
-              'cflags': [
-                '-Wno-deprecated-declarations',
-                '-fPIC',
-              ],
-            }],
-          ],
-        }, # test_crypto_engine
-      ], # end targets
-    }], # end node_use_openssl section
   ], # end conditions block
 }

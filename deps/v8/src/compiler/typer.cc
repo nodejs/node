@@ -1274,7 +1274,7 @@ Type Typer::Visitor::TypeJSCreateStringIterator(Node* node) {
 }
 
 Type Typer::Visitor::TypeJSCreateKeyValueArray(Node* node) {
-  return Type::OtherObject();
+  return Type::Array();
 }
 
 Type Typer::Visitor::TypeJSCreateObject(Node* node) {
@@ -1321,11 +1321,20 @@ Type Typer::Visitor::TypeJSGetTemplateObject(Node* node) {
   return Type::Array();
 }
 
-Type Typer::Visitor::TypeJSLoadProperty(Node* node) {
+Type Typer::Visitor::TypeJSLoadProperty(Node* node) { return Type::Any(); }
+
+Type Typer::Visitor::TypeJSLoadNamed(Node* node) {
+#ifdef DEBUG
+  // Loading of private methods is compiled to a named load of a BlockContext
+  // via a private brand, which is an internal object. However, native context
+  // specialization should always apply for those cases, so assert that the name
+  // is not a private brand here. Otherwise Type::NonInternal() is wrong.
+  JSLoadNamedNode n(node);
+  NamedAccess const& p = n.Parameters();
+  DCHECK(!p.name(typer_->broker()).object()->IsPrivateBrand());
+#endif
   return Type::NonInternal();
 }
-
-Type Typer::Visitor::TypeJSLoadNamed(Node* node) { return Type::NonInternal(); }
 
 Type Typer::Visitor::TypeJSLoadNamedFromSuper(Node* node) {
   return Type::NonInternal();
@@ -1419,6 +1428,8 @@ Type Typer::Visitor::Weaken(Node* node, Type current_type, Type previous_type) {
 }
 
 Type Typer::Visitor::TypeJSStoreProperty(Node* node) { UNREACHABLE(); }
+
+Type Typer::Visitor::TypeJSDefineProperty(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeJSStoreNamed(Node* node) { UNREACHABLE(); }
 

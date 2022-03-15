@@ -553,6 +553,7 @@ class LocationOperand : public InstructionOperand {
       case MachineRepresentation::kTagged:
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressed:
+      case MachineRepresentation::kCagedPointer:
         return true;
       case MachineRepresentation::kBit:
       case MachineRepresentation::kWord8:
@@ -1174,7 +1175,7 @@ class V8_EXPORT_PRIVATE Constant final {
 
  private:
   Type type_;
-  RelocInfo::Mode rmode_ = RelocInfo::NONE;
+  RelocInfo::Mode rmode_ = RelocInfo::NO_INFO;
   int64_t value_;
 };
 
@@ -1741,7 +1742,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   RpoImmediates& rpo_immediates() { return rpo_immediates_; }
 
   ImmediateOperand AddImmediate(const Constant& constant) {
-    if (RelocInfo::IsNone(constant.rmode())) {
+    if (RelocInfo::IsNoInfo(constant.rmode())) {
       if (constant.type() == Constant::kRpoNumber) {
         // Ideally we would inline RPO numbers into the operand, however jump-
         // threading modifies RPO values and so we indirect through a vector

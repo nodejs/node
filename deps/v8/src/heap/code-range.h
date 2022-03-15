@@ -20,9 +20,14 @@ namespace internal {
 // leaks (see crbug.com/870054).
 class CodeRangeAddressHint {
  public:
-  // Returns the most recently freed code range start address for the given
-  // size. If there is no such entry, then a random address is returned.
-  V8_EXPORT_PRIVATE Address GetAddressHint(size_t code_range_size);
+  // When near code range is enabled, an address within
+  // kMaxPCRelativeCodeRangeInMB to the embedded blob is returned if
+  // there is enough space. Otherwise a random address is returned.
+  // When near code range is disabled, returns the most recently freed code
+  // range start address for the given size. If there is no such entry, then a
+  // random address is returned.
+  V8_EXPORT_PRIVATE Address GetAddressHint(size_t code_range_size,
+                                           size_t alignment);
 
   V8_EXPORT_PRIVATE void NotifyFreedCodeRange(Address code_range_start,
                                               size_t code_range_size);
@@ -63,7 +68,11 @@ class CodeRangeAddressHint {
 // 4) |base()| is CommitPageSize()-aligned
 class CodeRange final : public VirtualMemoryCage {
  public:
-  V8_EXPORT_PRIVATE ~CodeRange();
+  V8_EXPORT_PRIVATE ~CodeRange() override;
+
+  // Returns the size of the initial area of a code-range, which is marked
+  // writable and reserved to contain unwind information.
+  static size_t GetWritableReservedAreaSize();
 
   uint8_t* embedded_blob_code_copy() const {
     // remap_embedded_builtins_mutex_ is designed to protect write contention to

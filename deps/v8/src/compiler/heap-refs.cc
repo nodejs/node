@@ -365,20 +365,22 @@ base::Optional<ObjectRef> GetOwnFastDataPropertyFromHeap(
   base::Optional<Object> constant;
   {
     DisallowGarbageCollection no_gc;
+    PtrComprCageBase cage_base = broker->cage_base();
 
     // This check to ensure the live map is the same as the cached map to
     // to protect us against reads outside the bounds of the heap. This could
     // happen if the Ref was created in a prior GC epoch, and the object
     // shrunk in size. It might end up at the edge of a heap boundary. If
     // we see that the map is the same in this GC epoch, we are safe.
-    Map map = holder.object()->map(kAcquireLoad);
+    Map map = holder.object()->map(cage_base, kAcquireLoad);
     if (*holder.map().object() != map) {
       TRACE_BROKER_MISSING(broker, "Map changed for " << holder);
       return {};
     }
 
     if (field_index.is_inobject()) {
-      constant = holder.object()->RawInobjectPropertyAt(map, field_index);
+      constant =
+          holder.object()->RawInobjectPropertyAt(cage_base, map, field_index);
       if (!constant.has_value()) {
         TRACE_BROKER_MISSING(
             broker, "Constant field in " << holder << " is unsafe to read");
@@ -386,12 +388,12 @@ base::Optional<ObjectRef> GetOwnFastDataPropertyFromHeap(
       }
     } else {
       Object raw_properties_or_hash =
-          holder.object()->raw_properties_or_hash(kRelaxedLoad);
+          holder.object()->raw_properties_or_hash(cage_base, kRelaxedLoad);
       // Ensure that the object is safe to inspect.
       if (broker->ObjectMayBeUninitialized(raw_properties_or_hash)) {
         return {};
       }
-      if (!raw_properties_or_hash.IsPropertyArray()) {
+      if (!raw_properties_or_hash.IsPropertyArray(cage_base)) {
         TRACE_BROKER_MISSING(
             broker,
             "Expected PropertyArray for backing store in " << holder << ".");
@@ -931,8 +933,8 @@ bool JSFunctionRef::IsConsistentWithHeapState() const {
 HeapObjectData::HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
                                Handle<HeapObject> object, ObjectDataKind kind)
     : ObjectData(broker, storage, object, kind),
-      map_(broker->GetOrCreateData(object->map(kAcquireLoad),
-                                   kAssumeMemoryFence)) {
+      map_(broker->GetOrCreateData(
+          object->map(broker->cage_base(), kAcquireLoad), kAssumeMemoryFence)) {
   CHECK_IMPLIES(broker->mode() == JSHeapBroker::kSerialized,
                 kind == kBackgroundSerializedHeapObject);
 }
@@ -1273,7 +1275,7 @@ bool JSObjectData::SerializeAsBoilerplateRecursive(JSHeapBroker* broker,
   for (InternalIndex i : boilerplate->map().IterateOwnDescriptors()) {
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.location() != PropertyLocation::kField) continue;
-    DCHECK_EQ(kData, details.kind());
+    DCHECK_EQ(PropertyKind::kData, details.kind());
 
     FieldIndex field_index = FieldIndex::ForDescriptor(boilerplate->map(), i);
     // Make sure {field_index} agrees with {inobject_properties} on the index of
@@ -1469,7 +1471,7 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(Handle<Object> object,
 
 #define CREATE_DATA(Name)                                             \
   if (object->Is##Name()) {                                           \
-    RefsMap::Entry* entry = refs_->LookupOrInsert(object.address());  \
+    entry = refs_->LookupOrInsert(object.address());                  \
     object_data = zone()->New<ref_traits<Name>::data_type>(           \
         this, &entry->value, Handle<Name>::cast(object),              \
         ObjectDataKindFor(ref_traits<Name>::ref_serialization_kind)); \
@@ -1678,7 +1680,8 @@ base::Optional<ObjectRef> JSObjectRef::RawInobjectPropertyAt(
     Handle<Object> value;
     {
       DisallowGarbageCollection no_gc;
-      Map current_map = object()->map(kAcquireLoad);
+      PtrComprCageBase cage_base = broker()->cage_base();
+      Map current_map = object()->map(cage_base, kAcquireLoad);
 
       // If the map changed in some prior GC epoch, our {index} could be
       // outside the valid bounds of the cached map.
@@ -1688,7 +1691,7 @@ base::Optional<ObjectRef> JSObjectRef::RawInobjectPropertyAt(
       }
 
       base::Optional<Object> maybe_value =
-          object()->RawInobjectPropertyAt(current_map, index);
+          object()->RawInobjectPropertyAt(cage_base, current_map, index);
       if (!maybe_value.has_value()) {
         TRACE_BROKER_MISSING(broker(),
                              "Unable to safely read property in " << *this);
@@ -1801,6 +1804,17 @@ base::Optional<ObjectRef> StringRef::GetCharAsStringOrUndefined(
 bool StringRef::SupportedStringKind() const {
   if (!broker()->is_concurrent_inlining()) return true;
   return IsInternalizedString() || object()->IsThinString();
+}
+
+base::Optional<Handle<String>> StringRef::ObjectIfContentAccessible() {
+  if (data_->kind() == kNeverSerializedHeapObject && !SupportedStringKind()) {
+    TRACE_BROKER_MISSING(
+        broker(),
+        "content for kNeverSerialized unsupported string kind " << *this);
+    return base::nullopt;
+  } else {
+    return object();
+  }
 }
 
 base::Optional<int> StringRef::length() const {
@@ -2516,7 +2530,9 @@ base::Optional<ObjectRef> SourceTextModuleRef::import_meta() const {
 }
 
 base::Optional<MapRef> HeapObjectRef::map_direct_read() const {
-  return TryMakeRef(broker(), object()->map(kAcquireLoad), kAssumeMemoryFence);
+  PtrComprCageBase cage_base = broker()->cage_base();
+  return TryMakeRef(broker(), object()->map(cage_base, kAcquireLoad),
+                    kAssumeMemoryFence);
 }
 
 namespace {
@@ -2551,7 +2567,7 @@ OddballType GetOddballType(Isolate* isolate, Map map) {
 
 HeapObjectType HeapObjectRef::GetHeapObjectType() const {
   if (data_->should_access_heap()) {
-    Map map = Handle<HeapObject>::cast(object())->map();
+    Map map = Handle<HeapObject>::cast(object())->map(broker()->cage_base());
     HeapObjectType::Flags flags(0);
     if (map.is_undetectable()) flags |= HeapObjectType::kUndetectable;
     if (map.is_callable()) flags |= HeapObjectType::kCallable;
@@ -2776,6 +2792,10 @@ SharedFunctionInfoRef::function_template_info() const {
 
 int SharedFunctionInfoRef::context_header_size() const {
   return object()->scope_info().ContextHeaderLength();
+}
+
+int SharedFunctionInfoRef::context_parameters_start() const {
+  return object()->scope_info().ParametersStartIndex();
 }
 
 ScopeInfoRef SharedFunctionInfoRef::scope_info() const {

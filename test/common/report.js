@@ -46,7 +46,9 @@ function validateContent(report, fields = []) {
   } catch (err) {
     try {
       err.stack += util.format('\n------\nFailing Report:\n%O', report);
-    } catch {}
+    } catch {
+      // Continue regardless of error.
+    }
     throw err;
   }
 }
@@ -69,7 +71,7 @@ function _validateContent(report, fields = []) {
 
   checkForUnknownFields(report, sections);
   sections.forEach((section) => {
-    assert(report.hasOwnProperty(section));
+    assert(Object.hasOwn(report, section));
     assert(typeof report[section] === 'object' && report[section] !== null);
   });
 

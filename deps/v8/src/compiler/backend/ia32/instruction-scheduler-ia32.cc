@@ -89,9 +89,14 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kFloat32Neg:
     case kIA32BitcastFI:
     case kIA32BitcastIF:
+    case kIA32Pblendvb:
+    case kIA32Cvttps2dq:
+    case kIA32Cvttpd2dq:
+    case kIA32I32x4TruncF32x4U:
+    case kIA32I32x4TruncF64x2UZero:
     case kIA32F64x2Splat:
-    case kF64x2ExtractLane:
-    case kF64x2ReplaceLane:
+    case kIA32F64x2ExtractLane:
+    case kIA32F64x2ReplaceLane:
     case kIA32F64x2Sqrt:
     case kIA32F64x2Add:
     case kIA32F64x2Sub:
@@ -103,8 +108,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32F64x2Ne:
     case kIA32F64x2Lt:
     case kIA32F64x2Le:
-    case kIA32F64x2Pmin:
-    case kIA32F64x2Pmax:
+    case kIA32F64x2Qfma:
+    case kIA32F64x2Qfms:
+    case kIA32Minpd:
+    case kIA32Maxpd:
     case kIA32F64x2Round:
     case kIA32F64x2ConvertLowI32x4S:
     case kIA32F64x2ConvertLowI32x4U:
@@ -150,8 +157,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32F32x4Ne:
     case kIA32F32x4Lt:
     case kIA32F32x4Le:
-    case kIA32F32x4Pmin:
-    case kIA32F32x4Pmax:
+    case kIA32F32x4Qfma:
+    case kIA32F32x4Qfms:
+    case kIA32Minps:
+    case kIA32Maxps:
     case kIA32F32x4Round:
     case kIA32F32x4DemoteF64x2Zero:
     case kIA32I32x4Splat:

@@ -1670,16 +1670,6 @@ void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
         Li(rd, j.immediate());
       }
     }
-  } else if (IsOnHeap() && RelocInfo::IsEmbeddedObjectMode(j.rmode())) {
-    BlockGrowBufferScope block_growbuffer(this);
-    int offset = pc_offset();
-    Address address = j.immediate();
-    saved_handles_for_raw_object_ptr_.emplace_back(offset, address);
-    Handle<HeapObject> object(reinterpret_cast<Address*>(address));
-    int64_t immediate = object->ptr();
-    RecordRelocInfo(j.rmode(), immediate);
-    li_ptr(rd, immediate);
-    DCHECK(EmbeddedObjectMatches(offset, object));
   } else if (MustUseReg(j.rmode())) {
     int64_t immediate;
     if (j.IsHeapObjectRequest()) {
@@ -2169,11 +2159,25 @@ void TurboAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
   // they also satisfy (scratch2 - kFloatExponentBias >= kFloatMantissaBits),
   // and JS round semantics specify that rounding of NaN (Infinity) returns NaN
   // (Infinity), so NaN and Infinity are considered rounded value too.
-  li(scratch, 64 - kFloat32MantissaBits - kFloat32ExponentBits);
+  const int kFloatMantissaBits =
+      sizeof(F) == 4 ? kFloat32MantissaBits : kFloat64MantissaBits;
+  const int kFloatExponentBits =
+      sizeof(F) == 4 ? kFloat32ExponentBits : kFloat64ExponentBits;
+  const int kFloatExponentBias =
+      sizeof(F) == 4 ? kFloat32ExponentBias : kFloat64ExponentBias;
+
+  // slli(rt, rs, 64 - (pos + size));
+  // if (sign_extend) {
+  //   srai(rt, rt, 64 - size);
+  // } else {
+  //   srli(rt, rt, 64 - size);
+  // }
+
+  li(scratch, 64 - kFloatMantissaBits - kFloatExponentBits);
   vsll_vx(v_scratch, src, scratch);
-  li(scratch, 64 - kFloat32ExponentBits);
+  li(scratch, 64 - kFloatExponentBits);
   vsrl_vx(v_scratch, v_scratch, scratch);
-  li(scratch, kFloat32ExponentBias + kFloat32MantissaBits);
+  li(scratch, kFloatExponentBias + kFloatMantissaBits);
   vmslt_vx(v0, v_scratch, scratch);
 
   VU.set(frm);
@@ -2213,6 +2217,26 @@ void TurboAssembler::Floor_f(VRegister vdst, VRegister vsrc, Register scratch,
 void TurboAssembler::Floor_d(VRegister vdst, VRegister vsrc, Register scratch,
                              VRegister v_scratch) {
   RoundHelper<double>(vdst, vsrc, scratch, v_scratch, RDN);
+}
+
+void TurboAssembler::Trunc_d(VRegister vdst, VRegister vsrc, Register scratch,
+                             VRegister v_scratch) {
+  RoundHelper<double>(vdst, vsrc, scratch, v_scratch, RTZ);
+}
+
+void TurboAssembler::Trunc_f(VRegister vdst, VRegister vsrc, Register scratch,
+                             VRegister v_scratch) {
+  RoundHelper<float>(vdst, vsrc, scratch, v_scratch, RTZ);
+}
+
+void TurboAssembler::Round_f(VRegister vdst, VRegister vsrc, Register scratch,
+                             VRegister v_scratch) {
+  RoundHelper<float>(vdst, vsrc, scratch, v_scratch, RNE);
+}
+
+void TurboAssembler::Round_d(VRegister vdst, VRegister vsrc, Register scratch,
+                             VRegister v_scratch) {
+  RoundHelper<double>(vdst, vsrc, scratch, v_scratch, RNE);
 }
 
 void TurboAssembler::Floor_d_d(FPURegister dst, FPURegister src,
@@ -3553,6 +3577,7 @@ void TurboAssembler::LoadAddress(Register dst, Label* target,
     CHECK(is_int32(offset + 0x800));
     int32_t Hi20 = (((int32_t)offset + 0x800) >> 12);
     int32_t Lo12 = (int32_t)offset << 20 >> 20;
+    BlockTrampolinePoolScope block_trampoline_pool(this);
     auipc(dst, Hi20);
     addi(dst, dst, Lo12);
   } else {
@@ -3761,7 +3786,11 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     Sub64(t0, t0, Operand(1));
     Add64(src, src, Operand(kSystemPointerSize));
     Add64(dest, dest, Operand(kSystemPointerSize));
-    Branch(&copy, ge, t0, Operand(zero_reg));
+    if (kJSArgcIncludesReceiver) {
+      Branch(&copy, gt, t0, Operand(zero_reg));
+    } else {
+      Branch(&copy, ge, t0, Operand(zero_reg));
+    }
   }
 
   // Fill remaining expected arguments with undefined values.
@@ -3999,6 +4028,64 @@ void TurboAssembler::WasmRvvS128const(VRegister dst, const uint8_t imms[16]) {
   vsll_vi(v0, v0, 1);
   vmerge_vx(dst, kScratchReg, dst);
 }
+
+void TurboAssembler::LoadLane(int ts, VRegister dst, uint8_t laneidx,
+                              MemOperand src) {
+  if (ts == 8) {
+    Lbu(kScratchReg2, src);
+    VU.set(kScratchReg, E64, m1);
+    li(kScratchReg, 0x1 << laneidx);
+    vmv_sx(v0, kScratchReg);
+    VU.set(kScratchReg, E8, m1);
+    vmerge_vx(dst, kScratchReg2, dst);
+  } else if (ts == 16) {
+    Lhu(kScratchReg2, src);
+    VU.set(kScratchReg, E16, m1);
+    li(kScratchReg, 0x1 << laneidx);
+    vmv_sx(v0, kScratchReg);
+    vmerge_vx(dst, kScratchReg2, dst);
+  } else if (ts == 32) {
+    Lwu(kScratchReg2, src);
+    VU.set(kScratchReg, E32, m1);
+    li(kScratchReg, 0x1 << laneidx);
+    vmv_sx(v0, kScratchReg);
+    vmerge_vx(dst, kScratchReg2, dst);
+  } else if (ts == 64) {
+    Ld(kScratchReg2, src);
+    VU.set(kScratchReg, E64, m1);
+    li(kScratchReg, 0x1 << laneidx);
+    vmv_sx(v0, kScratchReg);
+    vmerge_vx(dst, kScratchReg2, dst);
+  } else {
+    UNREACHABLE();
+  }
+}
+
+void TurboAssembler::StoreLane(int sz, VRegister src, uint8_t laneidx,
+                               MemOperand dst) {
+  if (sz == 8) {
+    VU.set(kScratchReg, E8, m1);
+    vslidedown_vi(kSimd128ScratchReg, src, laneidx);
+    vmv_xs(kScratchReg, kSimd128ScratchReg);
+    Sb(kScratchReg, dst);
+  } else if (sz == 16) {
+    VU.set(kScratchReg, E16, m1);
+    vslidedown_vi(kSimd128ScratchReg, src, laneidx);
+    vmv_xs(kScratchReg, kSimd128ScratchReg);
+    Sh(kScratchReg, dst);
+  } else if (sz == 32) {
+    VU.set(kScratchReg, E32, m1);
+    vslidedown_vi(kSimd128ScratchReg, src, laneidx);
+    vmv_xs(kScratchReg, kSimd128ScratchReg);
+    Sw(kScratchReg, dst);
+  } else {
+    DCHECK_EQ(sz, 64);
+    VU.set(kScratchReg, E64, m1);
+    vslidedown_vi(kSimd128ScratchReg, src, laneidx);
+    vmv_xs(kScratchReg, kSimd128ScratchReg);
+    Sd(kScratchReg, dst);
+  }
+}
 // -----------------------------------------------------------------------------
 // Runtime calls.
 
@@ -4126,7 +4213,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   Jump(code, RelocInfo::CODE_TARGET, al, zero_reg, Operand(zero_reg));
 }
 
-void MacroAssembler::JumpToInstructionStream(Address entry) {
+void MacroAssembler::JumpToOffHeapInstructionStream(Address entry) {
   // Ld a Address from a constant pool.
   // Record a value into constant pool.
   if (!FLAG_riscv_constant_pool) {
@@ -4502,21 +4589,21 @@ void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
   Branch(not_smi_label, ne, scratch, Operand(zero_reg));
 }
 
-void TurboAssembler::AssertNotSmi(Register object) {
+void TurboAssembler::AssertNotSmi(Register object, AbortReason reason) {
   if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     DCHECK(object != kScratchReg);
     andi(kScratchReg, object, kSmiTagMask);
-    Check(ne, AbortReason::kOperandIsASmi, kScratchReg, Operand(zero_reg));
+    Check(ne, reason, kScratchReg, Operand(zero_reg));
   }
 }
 
-void TurboAssembler::AssertSmi(Register object) {
+void TurboAssembler::AssertSmi(Register object, AbortReason reason) {
   if (FLAG_debug_code) {
     STATIC_ASSERT(kSmiTag == 0);
     DCHECK(object != kScratchReg);
     andi(kScratchReg, object, kSmiTagMask);
-    Check(eq, AbortReason::kOperandIsASmi, kScratchReg, Operand(zero_reg));
+    Check(eq, reason, kScratchReg, Operand(zero_reg));
   }
 }
 
@@ -4554,6 +4641,22 @@ void MacroAssembler::AssertFunction(Register object) {
           Operand(LAST_JS_FUNCTION_TYPE - FIRST_JS_FUNCTION_TYPE));
     pop(object);
   }
+}
+
+void MacroAssembler::AssertCallableFunction(Register object) {
+  if (!FLAG_debug_code) return;
+  ASM_CODE_COMMENT(this);
+  STATIC_ASSERT(kSmiTag == 0);
+  AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAFunction);
+  push(object);
+  LoadMap(object, object);
+  UseScratchRegisterScope temps(this);
+  Register range = temps.Acquire();
+  GetInstanceTypeRange(object, object, FIRST_CALLABLE_JS_FUNCTION_TYPE, range);
+  Check(Uless_equal, AbortReason::kOperandIsNotACallableFunction, range,
+        Operand(LAST_CALLABLE_JS_FUNCTION_TYPE -
+                FIRST_CALLABLE_JS_FUNCTION_TYPE));
+  pop(object);
 }
 
 void MacroAssembler::AssertBoundFunction(Register object) {
@@ -5039,6 +5142,46 @@ void TurboAssembler::DecompressAnyTagged(const Register& destination,
   Lwu(destination, field_operand);
   Add64(destination, kPtrComprCageBaseRegister, destination);
   RecordComment("]");
+}
+
+void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
+                                   ArgumentsCountMode mode, Register scratch) {
+  switch (type) {
+    case kCountIsInteger: {
+      CalcScaledAddress(sp, sp, count, kPointerSizeLog2);
+      break;
+    }
+    case kCountIsSmi: {
+      STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+      DCHECK_NE(scratch, no_reg);
+      SmiScale(scratch, count, kPointerSizeLog2);
+      Add64(sp, sp, scratch);
+      break;
+    }
+    case kCountIsBytes: {
+      Add64(sp, sp, count);
+      break;
+    }
+  }
+  if (mode == kCountExcludesReceiver) {
+    Add64(sp, sp, kSystemPointerSize);
+  }
+}
+
+void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
+                                                     Register receiver,
+                                                     ArgumentsCountType type,
+                                                     ArgumentsCountMode mode,
+                                                     Register scratch) {
+  DCHECK(!AreAliased(argc, receiver));
+  if (mode == kCountExcludesReceiver) {
+    // Drop arguments without receiver and override old receiver.
+    DropArguments(argc, type, kCountIncludesReceiver, scratch);
+    Sd(receiver, MemOperand(sp));
+  } else {
+    DropArguments(argc, type, mode, scratch);
+    push(receiver);
+  }
 }
 
 }  // namespace internal

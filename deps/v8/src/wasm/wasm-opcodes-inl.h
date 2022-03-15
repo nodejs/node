@@ -259,8 +259,6 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIMDF_OP(Gt, "gt")
     CASE_SIMDF_OP(Ge, "ge")
     CASE_SIMDF_OP(Abs, "abs")
-    CASE_F32x4_OP(RecipApprox, "recip_approx")
-    CASE_F32x4_OP(RecipSqrtApprox, "recip_sqrt_approx")
     CASE_SIMDF_OP(Min, "min")
     CASE_SIMDF_OP(Max, "max")
     CASE_CONVERT_OP(Convert, F32x4, I32x4, "i32x4", "convert")
@@ -306,8 +304,6 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I8x16_OP(Shuffle, "shuffle")
     CASE_V128_OP(AnyTrue, "any_true")
     CASE_SIMDI_OP(AllTrue, "all_true")
-    CASE_SIMDF_OP(Qfma, "qfma")
-    CASE_SIMDF_OP(Qfms, "qfms")
 
     CASE_S128_OP(Load32Zero, "load32_zero")
     CASE_S128_OP(Load64Zero, "load64_zero")
@@ -365,6 +361,23 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I32x4_OP(TruncSatF64x2UZero, "trunc_sat_f64x2_u_zero")
     CASE_F32x4_OP(DemoteF64x2Zero, "demote_f64x2_zero")
     CASE_F64x2_OP(PromoteLowF32x4, "promote_low_f32x4")
+
+    // Relaxed SIMD opcodes.
+    CASE_F32x4_OP(RecipApprox, "recip_approx")
+    CASE_F32x4_OP(RecipSqrtApprox, "recip_sqrt_approx")
+    CASE_SIMDF_OP(Qfma, "qfma")
+    CASE_SIMDF_OP(Qfms, "qfms")
+    CASE_I8x16_OP(RelaxedSwizzle, "relaxed_swizzle");
+    CASE_I8x16_OP(RelaxedLaneSelect, "relaxed_laneselect");
+    CASE_I16x8_OP(RelaxedLaneSelect, "relaxed_laneselect");
+    CASE_I32x4_OP(RelaxedLaneSelect, "relaxed_laneselect");
+    CASE_I64x2_OP(RelaxedLaneSelect, "relaxed_laneselect");
+    CASE_SIMDF_OP(RelaxedMin, "relaxed_min");
+    CASE_SIMDF_OP(RelaxedMax, "relaxed_max");
+    CASE_I32x4_OP(RelaxedTruncF32x4S, "relaxed_trunc_f32x4_s");
+    CASE_I32x4_OP(RelaxedTruncF32x4U, "relaxed_trunc_f32x4_u");
+    CASE_I32x4_OP(RelaxedTruncF64x2SZero, "relaxed_trunc_f64x2_s_zero");
+    CASE_I32x4_OP(RelaxedTruncF64x2UZero, "relaxed_trunc_f64x2_u_zero");
 
     // Atomic operations.
     CASE_OP(AtomicNotify, "atomic.notify")

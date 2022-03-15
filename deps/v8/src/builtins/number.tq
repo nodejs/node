@@ -75,6 +75,9 @@ macro NumberToStringSmi(x: int32, radix: int32): String labels Slow {
   if (!isNegative) {
     // Fast case where the result is a one character string.
     if (x < radix) {
+      if (x == 0) {
+        return ZeroStringConstant();
+      }
       return StringFromSingleCharCode(ToCharCode(n));
     }
   } else {

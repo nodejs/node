@@ -317,8 +317,10 @@ struct FunctionsProxy : NamedDebugProxy<FunctionsProxy, kFunctionsProxy> {
   static Handle<Object> Get(Isolate* isolate,
                             Handle<WasmInstanceObject> instance,
                             uint32_t index) {
-    return WasmInstanceObject::GetOrCreateWasmExternalFunction(isolate,
-                                                               instance, index);
+    return handle(WasmInstanceObject::GetOrCreateWasmInternalFunction(
+                      isolate, instance, index)
+                      ->external(),
+                  isolate);
   }
 
   static Handle<String> GetName(Isolate* isolate,
@@ -628,7 +630,7 @@ class ContextProxy {
  public:
   static Handle<JSObject> Create(WasmFrame* frame) {
     Isolate* isolate = frame->isolate();
-    auto object = isolate->factory()->NewJSObjectWithNullProto();
+    auto object = isolate->factory()->NewSlowJSObjectWithNullProto();
     Handle<WasmInstanceObject> instance(frame->wasm_instance(), isolate);
     JSObject::AddProperty(isolate, object, "instance", instance, FROZEN);
     Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
@@ -692,7 +694,7 @@ class DebugWasmScopeIterator final : public debug::ScopeIterator {
       case debug::ScopeIterator::ScopeTypeModule: {
         Handle<WasmInstanceObject> instance(frame_->wasm_instance(), isolate);
         Handle<JSObject> object =
-            isolate->factory()->NewJSObjectWithNullProto();
+            isolate->factory()->NewSlowJSObjectWithNullProto();
         JSObject::AddProperty(isolate, object, "instance", instance, FROZEN);
         Handle<JSObject> module_object(instance->module_object(), isolate);
         JSObject::AddProperty(isolate, object, "module", module_object, FROZEN);
@@ -725,7 +727,7 @@ class DebugWasmScopeIterator final : public debug::ScopeIterator {
         return Utils::ToLocal(LocalsProxy::Create(frame_));
       }
       case debug::ScopeIterator::ScopeTypeWasmExpressionStack: {
-        auto object = isolate->factory()->NewJSObjectWithNullProto();
+        auto object = isolate->factory()->NewSlowJSObjectWithNullProto();
         auto stack = StackProxy::Create(frame_);
         JSObject::AddProperty(isolate, object, "stack", stack, FROZEN);
         return Utils::ToLocal(object);
@@ -1027,6 +1029,9 @@ Handle<WasmValueObject> WasmValueObject::New(
         v = ArrayProxy::Create(isolate, value, module_object);
       } else if (ref->IsJSFunction() || ref->IsSmi() || ref->IsNull()) {
         v = ref;
+      } else if (ref->IsWasmInternalFunction()) {
+        v = handle(Handle<WasmInternalFunction>::cast(ref)->external(),
+                   isolate);
       } else {
         // Fail gracefully.
         base::EmbeddedVector<char, 64> error;
@@ -1135,7 +1140,11 @@ Handle<ArrayList> AddWasmTableObjectInternalProperties(
   int length = table->current_length();
   Handle<FixedArray> entries = isolate->factory()->NewFixedArray(length);
   for (int i = 0; i < length; ++i) {
-    auto entry = WasmTableObject::Get(isolate, table, i);
+    Handle<Object> entry = WasmTableObject::Get(isolate, table, i);
+    if (entry->IsWasmInternalFunction()) {
+      entry = handle(Handle<WasmInternalFunction>::cast(entry)->external(),
+                     isolate);
+    }
     entries->set(i, *entry);
   }
   Handle<JSArray> final_entries = isolate->factory()->NewJSArrayWithElements(

@@ -55,11 +55,13 @@ inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
 //  -----+--------------------+  <-- frame ptr (fp)
 //  -1   | 0xa: WASM          |
 //  -2   |     instance       |
+//  -3   |    feedback vector |
+//  -4   |    tiering budget  |
 //  -----+--------------------+---------------------------
-//  -3   |    slot 0 (high)   |   ^
-//  -4   |    slot 0 (low)    |   |
-//  -5   |    slot 1 (high)   | Frame slots
-//  -6   |    slot 1 (low)    |   |
+//  -5   |    slot 0 (high)   |   ^
+//  -6   |    slot 0 (low)    |   |
+//  -7   |    slot 1 (high)   | Frame slots
+//  -8   |    slot 1 (low)    |   |
 //       |                    |   v
 //  -----+--------------------+  <-- stack ptr (sp)
 //
@@ -71,8 +73,9 @@ constexpr int32_t kLowWordOffset = 0;
 constexpr int32_t kHighWordOffset = 4;
 #endif
 
-// fp-4 holds the stack marker, fp-8 is the instance parameter.
-constexpr int kInstanceOffset = 8;
+constexpr int kInstanceOffset = 2 * kSystemPointerSize;
+constexpr int kFeedbackVectorOffset = 3 * kSystemPointerSize;
+constexpr int kTierupBudgetOffset = 4 * kSystemPointerSize;
 
 inline MemOperand GetStackSlot(int offset) { return MemOperand(fp, -offset); }
 
@@ -421,7 +424,7 @@ void LiftoffAssembler::AbortCompilation() {}
 
 // static
 constexpr int LiftoffAssembler::StaticStackFrameSize() {
-  return liftoff::kInstanceOffset;
+  return liftoff::kTierupBudgetOffset;
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
@@ -444,7 +447,7 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
       TurboAssembler::li(reg.gp(), Operand(value.to_i32(), rmode));
       break;
     case kI64: {
-      DCHECK(RelocInfo::IsNone(rmode));
+      DCHECK(RelocInfo::IsNoInfo(rmode));
       int32_t low_word = value.to_i64();
       int32_t high_word = value.to_i64() >> 32;
       TurboAssembler::li(reg.low_gp(), Operand(low_word));
@@ -616,8 +619,14 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
           (offset_reg != no_reg)
               ? MemOperand(src, offset_imm + liftoff::kHighWordOffset)
               : MemOperand(src_addr, offset_imm + liftoff::kHighWordOffset);
-      TurboAssembler::Ulw(dst.low_gp(), src_op);
-      TurboAssembler::Ulw(dst.high_gp(), src_op_upper);
+      {
+        UseScratchRegisterScope temps(this);
+        Register temp = dst.low_gp();
+        if (dst.low_gp() == src_op_upper.rm()) temp = temps.Acquire();
+        TurboAssembler::Ulw(temp, src_op);
+        TurboAssembler::Ulw(dst.high_gp(), src_op_upper);
+        if (dst.low_gp() == src_op_upper.rm()) mov(dst.low_gp(), temp);
+      }
       break;
     }
     case LoadType::kF32Load:
@@ -1597,6 +1606,13 @@ void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
                                            int32_t imm) {
   Condition cond = liftoff::ToCondition(liftoff_cond);
   TurboAssembler::Branch(label, cond, lhs, Operand(imm));
+}
+
+void LiftoffAssembler::emit_i32_subi_jump_negative(Register value,
+                                                   int subtrahend,
+                                                   Label* result_negative) {
+  TurboAssembler::Subu(value, value, Operand(subtrahend));
+  TurboAssembler::Branch(result_negative, less, value, Operand(zero_reg));
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {

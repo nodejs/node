@@ -13,8 +13,7 @@ from . import base
 EXTRA_FLAGS = [
   (0.1, '--always-opt'),
   (0.1, '--assert-types'),
-  # TODO(mythria): https://crbug.com/v8/10243
-  # (0.1, '--budget-for-feedback-vector-allocation=0'),
+  (0.1, '--budget-for-feedback-vector-allocation=0'),
   (0.1, '--cache=code'),
   (0.1, '--force-slow-path'),
   (0.2, '--future'),
@@ -49,6 +48,7 @@ EXTRA_FLAGS = [
   (0.1, '--stress-wasm-code-gc'),
   (0.1, '--turbo-instruction-scheduling'),
   (0.1, '--turbo-stress-instruction-scheduling'),
+  (0.1, '--turbo-force-mid-tier-regalloc'),
 ]
 
 def random_extra_flags(rng):
@@ -266,10 +266,27 @@ class CompactionFuzzer(Fuzzer):
     while True:
       yield ['--stress-compaction-random']
 
+
+class InterruptBudgetFuzzer(Fuzzer):
+  def create_flags_generator(self, rng, test, analysis_value):
+    while True:
+      # Half with half without lazy feedback allocation. The first flag
+      # overwrites potential flag negations from the extra flags list.
+      flag1 = rng.choice(
+          '--lazy-feedback-allocation', '--no-lazy-feedback-allocation')
+      # For most code paths, only one of the flags below has a meaning
+      # based on the flag above.
+      flag2 = '--interrupt-budget=%d' % rng.randint(0, 135168)
+      flag3 = '--budget-for-feedback-vector-allocation=%d' % rng.randint(0, 940)
+
+      yield [flag1, flag2, flag3]
+
+
 class StackSizeFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
     while True:
       yield ['--stack-size=%d' % rng.randint(54, 983)]
+
 
 class TaskDelayFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
@@ -325,6 +342,7 @@ FUZZERS = {
   'delay': (None, TaskDelayFuzzer),
   'deopt': (DeoptAnalyzer, DeoptFuzzer),
   'gc_interval': (GcIntervalAnalyzer, GcIntervalFuzzer),
+  'interrupt': InterruptBudgetFuzzer,
   'marking': (MarkingAnalyzer, MarkingFuzzer),
   'scavenge': (ScavengeAnalyzer, ScavengeFuzzer),
   'stack': (None, StackSizeFuzzer),

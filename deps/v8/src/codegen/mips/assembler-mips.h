@@ -63,7 +63,7 @@ class Operand {
  public:
   // Immediate.
   V8_INLINE explicit Operand(int32_t immediate,
-                             RelocInfo::Mode rmode = RelocInfo::NONE)
+                             RelocInfo::Mode rmode = RelocInfo::NO_INFO)
       : rm_(no_reg), rmode_(rmode) {
     value_.immediate = immediate;
   }
@@ -73,7 +73,8 @@ class Operand {
   }
   V8_INLINE explicit Operand(const char* s);
   explicit Operand(Handle<HeapObject> handle);
-  V8_INLINE explicit Operand(Smi value) : rm_(no_reg), rmode_(RelocInfo::NONE) {
+  V8_INLINE explicit Operand(Smi value)
+      : rm_(no_reg), rmode_(RelocInfo::NO_INFO) {
     value_.immediate = static_cast<intptr_t>(value.ptr());
   }
 
@@ -167,15 +168,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
   }
 
-  // This function is called when on-heap-compilation invariants are
-  // invalidated. For instance, when the assembler buffer grows or a GC happens
-  // between Code object allocation and Code object finalization.
-  void FixOnHeapReferences(bool update_embedded_objects = true);
-
-  // This function is called when we fallback from on-heap to off-heap
-  // compilation and patch on-heap references to handles.
-  void FixOnHeapReferencesToHandles();
-
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
 
@@ -185,27 +177,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // BlockTrampolinePool, it must check if it needs to generate trampoline
   // immediately, if it does not do this, the branch range will go beyond the
   // max branch offset, that means the pc_offset after call CheckTrampolinePool
-  // may be not the Call instruction's location. So we use last_call_pc here for
-  // safepoint record.
+  // may have changed. So we use pc_for_safepoint_ here for safepoint record.
   int pc_offset_for_safepoint() {
-#ifdef DEBUG
-    Instr instr1 =
-        instr_at(static_cast<int>(last_call_pc_ - buffer_start_ - kInstrSize));
-    Instr instr2 = instr_at(
-        static_cast<int>(last_call_pc_ - buffer_start_ - kInstrSize * 2));
-    if (GetOpcodeField(instr1) != SPECIAL) {  // instr1 == jialc.
-      DCHECK(IsMipsArchVariant(kMips32r6) && GetOpcodeField(instr1) == POP76 &&
-             GetRs(instr1) == 0);
-    } else {
-      if (GetFunctionField(instr1) == SLL) {  // instr1 == nop, instr2 == jalr.
-        DCHECK(GetOpcodeField(instr2) == SPECIAL &&
-               GetFunctionField(instr2) == JALR);
-      } else {  // instr1 == jalr.
-        DCHECK(GetFunctionField(instr1) == JALR);
-      }
-    }
-#endif
-    return static_cast<int>(last_call_pc_ - buffer_start_);
+    return static_cast<int>(pc_for_safepoint_ - buffer_start_);
   }
 
   // Label operations & relative jumps (PPUM Appendix D).
@@ -1426,9 +1400,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
   void db(uint8_t data);
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE) {
+  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
     dd(data, rmode);
   }
   void dd(Label* label);
@@ -1542,6 +1516,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
 
+  bool is_trampoline_emitted() const { return trampoline_emitted_; }
+
  protected:
   // Load Scaled Address instruction.
   void lsa(Register rd, Register rt, Register rs, uint8_t sa);
@@ -1597,8 +1573,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   bool has_exception() const { return internal_trampoline_exception_; }
 
-  bool is_trampoline_emitted() const { return trampoline_emitted_; }
-
   // Temporarily block automatic assembly buffer growth.
   void StartBlockGrowBuffer() {
     DCHECK(!block_buffer_growth_);
@@ -1634,15 +1608,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void GenPCRelativeJumpAndLink(Register t, int32_t imm32,
                                 RelocInfo::Mode rmode, BranchDelaySlot bdslot);
 
-  void set_last_call_pc_(byte* pc) { last_call_pc_ = pc; }
-
-#ifdef DEBUG
-  bool EmbeddedObjectMatches(int pc_offset, Handle<Object> object) {
-    return target_address_at(
-               reinterpret_cast<Address>(buffer_->start() + pc_offset)) ==
-           (IsOnHeap() ? object->ptr() : object.address());
-  }
-#endif
+  void set_pc_for_safepoint() { pc_for_safepoint_ = pc_; }
 
  private:
   // Avoid overflows for displacements etc.
@@ -1910,7 +1876,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Keep track of the last Call's position to ensure that safepoint can get the
   // correct information even if there is a trampoline immediately after the
   // Call.
-  byte* last_call_pc_;
+  byte* pc_for_safepoint_;
 
  private:
   void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);

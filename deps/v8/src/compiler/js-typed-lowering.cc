@@ -1197,7 +1197,7 @@ Reduction JSTypedLowering::ReduceJSHasInPrototypeChain(Node* node) {
   // If {value} cannot be a receiver, then it cannot have {prototype} in
   // it's prototype chain (all Primitive values have a null prototype).
   if (value_type.Is(Type::Primitive())) {
-    Node* value = jsgraph()->FalseConstant();
+    value = jsgraph()->FalseConstant();
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   }
@@ -1662,6 +1662,10 @@ Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
     // Compute flags for the call.
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     // Patch {node} to an indirect call via CallFunctionForwardVarargs.
+    // It is safe to call CallFunction instead of Call, as we already checked
+    // that the target is a function that is not a class constructor in
+    // JSCallReduer.
+    // TODO(pthier): We shouldn't blindly rely on checks made in another pass.
     Callable callable = CodeFactory::CallFunctionForwardVarargs(isolate());
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
@@ -1722,6 +1726,8 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
 
     // Class constructors are callable, but [[Call]] will raise an exception.
     // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
+    // We need to check here in addition to JSCallReducer for Realms.
+    // TODO(pthier): Consolidate all the class constructor checks.
     if (IsClassConstructor(shared->kind())) return NoChange();
 
     // Check if we need to convert the {receiver}, but bailout if it would
@@ -1783,7 +1789,6 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       // Patch {node} to a direct code object call.
       Callable callable =
           Builtins::CallableFor(isolate(), shared->builtin_id());
-      CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
 
       const CallInterfaceDescriptor& descriptor = callable.descriptor();
       auto call_descriptor = Linkage::GetStubCallDescriptor(
@@ -1816,6 +1821,8 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     // Compute flags for the call.
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     // Patch {node} to an indirect call via the CallFunction builtin.
+    // It is safe to call CallFunction instead of Call, as we already checked
+    // that the target is a function that is not a class constructor.
     Callable callable = CodeFactory::CallFunction(isolate(), convert_mode);
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
@@ -2224,11 +2231,11 @@ Reduction JSTypedLowering::ReduceObjectIsArray(Node* node) {
 
   // Constant-fold based on {value} type.
   if (value_type.Is(Type::Array())) {
-    Node* value = jsgraph()->TrueConstant();
+    value = jsgraph()->TrueConstant();
     ReplaceWithValue(node, value);
     return Replace(value);
   } else if (!value_type.Maybe(Type::ArrayOrProxy())) {
-    Node* value = jsgraph()->FalseConstant();
+    value = jsgraph()->FalseConstant();
     ReplaceWithValue(node, value);
     return Replace(value);
   }

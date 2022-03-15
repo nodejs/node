@@ -16,6 +16,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
 #include "src/execution/isolate.h"
+#include "src/execution/local-isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/objects/js-collator-inl.h"
@@ -195,7 +196,7 @@ MaybeHandle<T> New(Isolate* isolate, Handle<JSFunction> constructor,
 const uint8_t* Intl::ToLatin1LowerTable() { return &kToLower[0]; }
 
 icu::UnicodeString Intl::ToICUUnicodeString(Isolate* isolate,
-                                            Handle<String> string) {
+                                            Handle<String> string, int offset) {
   DCHECK(string->IsFlat());
   DisallowGarbageCollection no_gc;
   std::unique_ptr<base::uc16[]> sap;
@@ -206,17 +207,20 @@ icu::UnicodeString Intl::ToICUUnicodeString(Isolate* isolate,
   const UChar* uchar_buffer = nullptr;
   const String::FlatContent& flat = string->GetFlatContent(no_gc);
   int32_t length = string->length();
+  DCHECK_LE(offset, length);
   if (flat.IsOneByte() && length <= kShortStringSize) {
     CopyChars(short_string_buffer, flat.ToOneByteVector().begin(), length);
     uchar_buffer = short_string_buffer;
   } else {
     uchar_buffer = GetUCharBufferFromFlat(flat, &sap, length);
   }
-  return icu::UnicodeString(uchar_buffer, length);
+  return icu::UnicodeString(uchar_buffer + offset, length - offset);
 }
 
 namespace {
-icu::StringPiece ToICUStringPiece(Isolate* isolate, Handle<String> string) {
+
+icu::StringPiece ToICUStringPiece(Isolate* isolate, Handle<String> string,
+                                  int offset = 0) {
   DCHECK(string->IsFlat());
   DisallowGarbageCollection no_gc;
 
@@ -224,13 +228,14 @@ icu::StringPiece ToICUStringPiece(Isolate* isolate, Handle<String> string) {
   if (!flat.IsOneByte()) return icu::StringPiece(nullptr, 0);
 
   int32_t length = string->length();
+  DCHECK_LT(offset, length);
   const char* char_buffer =
       reinterpret_cast<const char*>(flat.ToOneByteVector().begin());
   if (!String::IsAscii(char_buffer, length)) {
     return icu::StringPiece(nullptr, 0);
   }
 
-  return icu::StringPiece(char_buffer, length);
+  return icu::StringPiece(char_buffer + offset, length - offset);
 }
 
 MaybeHandle<String> LocaleConvertCase(Isolate* isolate, Handle<String> s,
@@ -608,27 +613,6 @@ Maybe<std::string> Intl::ToLanguageTag(const icu::Locale& locale) {
   return Just(res);
 }
 
-namespace {
-std::string DefaultLocale(Isolate* isolate) {
-  if (isolate->default_locale().empty()) {
-    icu::Locale default_locale;
-    // Translate ICU's fallback locale to a well-known locale.
-    if (strcmp(default_locale.getName(), "en_US_POSIX") == 0 ||
-        strcmp(default_locale.getName(), "c") == 0) {
-      isolate->set_default_locale("en-US");
-    } else {
-      // Set the locale
-      isolate->set_default_locale(
-          default_locale.isBogus()
-              ? "und"
-              : Intl::ToLanguageTag(default_locale).FromJust());
-    }
-    DCHECK(!isolate->default_locale().empty());
-  }
-  return isolate->default_locale();
-}
-}  // namespace
-
 // See ecma402/#legacy-constructor.
 MaybeHandle<Object> Intl::LegacyUnwrapReceiver(Isolate* isolate,
                                                Handle<JSReceiver> receiver,
@@ -890,7 +874,7 @@ MaybeHandle<String> Intl::StringLocaleConvertCase(Isolate* isolate,
     return MaybeHandle<String>();
   }
   std::string requested_locale = requested_locales.size() == 0
-                                     ? DefaultLocale(isolate)
+                                     ? isolate->DefaultLocale()
                                      : requested_locales[0];
   size_t dash = requested_locale.find('-');
   if (dash != std::string::npos) {
@@ -927,14 +911,70 @@ MaybeHandle<String> Intl::StringLocaleConvertCase(Isolate* isolate,
   }
 }
 
+// static
+template <class IsolateT>
+Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
+    IsolateT* isolate, Handle<Object> locales, Handle<Object> options) {
+  if (!options->IsUndefined(isolate)) {
+    return CompareStringsOptions::kNone;
+  }
+
+  // Lists all of the available locales that are statically known to fulfill
+  // fast path conditions. See the StringLocaleCompareFastPath test as a
+  // starting point to update this list.
+  //
+  // Locale entries are roughly sorted s.t. common locales come first.
+  //
+  // The actual conditions are verified in debug builds in
+  // CollatorAllowsFastComparison.
+  static const char* const kFastLocales[] = {
+      "en-US", "en", "fr", "es",    "de",    "pt",    "it", "ca",
+      "de-AT", "fi", "id", "id-ID", "ms",    "nl",    "pl", "ro",
+      "sl",    "sv", "sw", "vi",    "en-DE", "en-GB",
+  };
+
+  if (locales->IsUndefined(isolate)) {
+    const std::string& default_locale = isolate->DefaultLocale();
+    for (const char* fast_locale : kFastLocales) {
+      if (strcmp(fast_locale, default_locale.c_str()) == 0) {
+        return CompareStringsOptions::kTryFastPath;
+      }
+    }
+
+    return CompareStringsOptions::kNone;
+  }
+
+  if (!locales->IsString()) return CompareStringsOptions::kNone;
+
+  Handle<String> locales_string = Handle<String>::cast(locales);
+  for (const char* fast_locale : kFastLocales) {
+    if (locales_string->IsEqualTo(base::CStrVector(fast_locale), isolate)) {
+      return CompareStringsOptions::kTryFastPath;
+    }
+  }
+
+  return CompareStringsOptions::kNone;
+}
+
+// Instantiations.
+template Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
+    Isolate*, Handle<Object>, Handle<Object>);
+template Intl::CompareStringsOptions Intl::CompareStringsOptionsFor(
+    LocalIsolate*, Handle<Object>, Handle<Object>);
+
 base::Optional<int> Intl::StringLocaleCompare(
     Isolate* isolate, Handle<String> string1, Handle<String> string2,
     Handle<Object> locales, Handle<Object> options, const char* method_name) {
   // We only cache the instance when locales is a string/undefined and
   // options is undefined, as that is the only case when the specified
   // side-effects of examining those arguments are unobservable.
-  bool can_cache = (locales->IsString() || locales->IsUndefined(isolate)) &&
-                   options->IsUndefined(isolate);
+  const bool can_cache =
+      (locales->IsString() || locales->IsUndefined(isolate)) &&
+      options->IsUndefined(isolate);
+  // We may be able to take the fast path, depending on the `locales` and
+  // `options` arguments.
+  const CompareStringsOptions compare_strings_options =
+      CompareStringsOptionsFor(isolate, locales, options);
   if (can_cache) {
     // Both locales and options are undefined, check the cache.
     icu::Collator* cached_icu_collator =
@@ -943,7 +983,7 @@ base::Optional<int> Intl::StringLocaleCompare(
     // We may use the cached icu::Collator for a fast path.
     if (cached_icu_collator != nullptr) {
       return Intl::CompareStrings(isolate, *cached_icu_collator, string1,
-                                  string2);
+                                  string2, compare_strings_options);
     }
   }
 
@@ -962,32 +1002,442 @@ base::Optional<int> Intl::StringLocaleCompare(
         std::static_pointer_cast<icu::UMemory>(collator->icu_collator().get()));
   }
   icu::Collator* icu_collator = collator->icu_collator().raw();
-  return Intl::CompareStrings(isolate, *icu_collator, string1, string2);
+  return Intl::CompareStrings(isolate, *icu_collator, string1, string2,
+                              compare_strings_options);
 }
+
+namespace {
+
+// Weights for the Unicode Collation Algorithm for charcodes [0x00,0x7F].
+// https://unicode.org/reports/tr10/.
+//
+// Generated from:
+//
+// $ wget http://www.unicode.org/Public/UCA/latest/allkeys.txt
+// $ cat ~/allkeys.txt | grep '^00[0-7].  ;' | sort | sed 's/[*.]/ /g' |\
+//   sed 's/.*\[ \(.*\)\].*/\1/' | python ~/gen_weights.py
+//
+// Where gen_weights.py does an ordinal rank s.t. weights fit in a uint8_t:
+//
+//   import sys
+//
+//   def to_ordinal(ws):
+//       weight_map = {}
+//       weights_uniq_sorted = sorted(set(ws))
+//       for i in range(0, len(weights_uniq_sorted)):
+//           weight_map[weights_uniq_sorted[i]] = i
+//       return [weight_map[x] for x in ws]
+//
+//   def print_weight_list(array_name, ws):
+//       print("constexpr uint8_t %s[256] = {" % array_name, end = "")
+//       i = 0
+//       for w in ws:
+//           if (i % 16) == 0:
+//               print("\n  ", end = "")
+//           print("%3d," % w, end = "")
+//           i += 1
+//       print("\n};\n")
+//
+//   if __name__ == "__main__":
+//       l1s = []
+//       l3s = []
+//       for line in sys.stdin:
+//           weights = line.split()
+//           l1s.append(int(weights[0], 16))
+//           l3s.append(int(weights[2], 16))
+//       print_weight_list("kCollationWeightsL1", to_ordinal(l1s))
+//       print_weight_list("kCollationWeightsL3", to_ordinal(l3s))
+
+// clang-format off
+constexpr uint8_t kCollationWeightsL1[256] = {
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  2,  3,  4,  5,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    6, 12, 16, 28, 38, 29, 27, 15, 17, 18, 24, 32,  9,  8, 14, 25,
+   39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 11, 10, 33, 34, 35, 13,
+   23, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+   64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 19, 26, 20, 31,  7,
+   30, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+   64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 21, 36, 22, 37,  0,
+};
+constexpr uint8_t kCollationWeightsL3[256] = {
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+    1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+    1,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,
+    2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  1,  1,  1,  1,  1,
+    1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+    1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  0,
+};
+constexpr int kCollationWeightsLength = arraysize(kCollationWeightsL1);
+STATIC_ASSERT(kCollationWeightsLength == arraysize(kCollationWeightsL3));
+// clang-format on
+
+// Normalize a comparison delta (usually `lhs - rhs`) to UCollationResult
+// values.
+constexpr UCollationResult ToUCollationResult(int delta) {
+  return delta < 0 ? UCollationResult::UCOL_LESS
+                   : (delta > 0 ? UCollationResult::UCOL_GREATER
+                                : UCollationResult::UCOL_EQUAL);
+}
+
+struct FastCompareStringsData {
+  UCollationResult l1_result = UCollationResult::UCOL_EQUAL;
+  UCollationResult l3_result = UCollationResult::UCOL_EQUAL;
+  int processed_until = 0;
+  int first_diff_at = 0;  // The first relevant diff (L1 if exists, else L3).
+  bool has_diff = false;
+
+  base::Optional<UCollationResult> FastCompareFailed(
+      int* processed_until_out) const {
+    if (has_diff) {
+      // Found some difference, continue there to ensure the generic algorithm
+      // picks it up.
+      *processed_until_out = first_diff_at;
+    } else {
+      // No difference found, reprocess the last processed character since it
+      // may be followed by a unicode combining character (which alters it's
+      // meaning).
+      *processed_until_out = std::max(processed_until - 1, 0);
+    }
+    return {};
+  }
+};
+
+template <class CharT>
+constexpr bool CanFastCompare(CharT c) {
+  return c < kCollationWeightsLength && kCollationWeightsL1[c] != 0;
+}
+
+template <class Char1T, class Char2T>
+bool FastCompareFlatString(const Char1T* lhs, const Char2T* rhs, int length,
+                           FastCompareStringsData* d) {
+  for (int i = 0; i < length; i++) {
+    const Char1T l = lhs[i];
+    const Char2T r = rhs[i];
+    if (!CanFastCompare(l) || !CanFastCompare(r)) {
+      d->processed_until = i;
+      return false;
+    }
+    UCollationResult l1_result =
+        ToUCollationResult(kCollationWeightsL1[l] - kCollationWeightsL1[r]);
+    if (l1_result != UCollationResult::UCOL_EQUAL) {
+      d->has_diff = true;
+      d->first_diff_at = i;
+      d->processed_until = i;
+      d->l1_result = l1_result;
+      return true;
+    }
+    if (l != r && d->l3_result == UCollationResult::UCOL_EQUAL) {
+      // Collapse the two-pass algorithm into one: if we find a difference in
+      // L1 weights, that is our result. If not, use the first L3 weight
+      // difference.
+      UCollationResult l3_result =
+          ToUCollationResult(kCollationWeightsL3[l] - kCollationWeightsL3[r]);
+      d->l3_result = l3_result;
+      if (!d->has_diff) {
+        d->has_diff = true;
+        d->first_diff_at = i;
+      }
+    }
+  }
+  d->processed_until = length;
+  return true;
+}
+
+bool FastCompareStringFlatContent(const String::FlatContent& lhs,
+                                  const String::FlatContent& rhs, int length,
+                                  FastCompareStringsData* d) {
+  if (lhs.IsOneByte()) {
+    base::Vector<const uint8_t> l = lhs.ToOneByteVector();
+    if (rhs.IsOneByte()) {
+      base::Vector<const uint8_t> r = rhs.ToOneByteVector();
+      return FastCompareFlatString(l.data(), r.data(), length, d);
+    } else {
+      base::Vector<const uint16_t> r = rhs.ToUC16Vector();
+      return FastCompareFlatString(l.data(), r.data(), length, d);
+    }
+  } else {
+    base::Vector<const uint16_t> l = lhs.ToUC16Vector();
+    if (rhs.IsOneByte()) {
+      base::Vector<const uint8_t> r = rhs.ToOneByteVector();
+      return FastCompareFlatString(l.data(), r.data(), length, d);
+    } else {
+      base::Vector<const uint16_t> r = rhs.ToUC16Vector();
+      return FastCompareFlatString(l.data(), r.data(), length, d);
+    }
+  }
+  UNREACHABLE();
+}
+
+bool CharIsAsciiOrOutOfBounds(const String::FlatContent& string,
+                              int string_length, int index) {
+  DCHECK_EQ(string.length(), string_length);
+  return index >= string_length || isascii(string.Get(index));
+}
+
+bool CharCanFastCompareOrOutOfBounds(const String::FlatContent& string,
+                                     int string_length, int index) {
+  DCHECK_EQ(string.length(), string_length);
+  return index >= string_length || CanFastCompare(string.Get(index));
+}
+
+#ifdef DEBUG
+bool USetContainsAllAsciiItem(USet* set) {
+  static constexpr int kBufferSize = 64;
+  UChar buffer[kBufferSize];
+
+  const int length = uset_getItemCount(set);
+  for (int i = 0; i < length; i++) {
+    UChar32 start, end;
+    UErrorCode status = U_ZERO_ERROR;
+    const int item_length =
+        uset_getItem(set, i, &start, &end, buffer, kBufferSize, &status);
+    CHECK(U_SUCCESS(status));
+    DCHECK_GE(item_length, 0);
+
+    if (item_length == 0) {
+      // Empty string or a range.
+      if (isascii(start)) return true;
+    } else {
+      // A non-empty string.
+      bool all_ascii = true;
+      for (int j = 0; j < item_length; j++) {
+        if (!isascii(buffer[j])) {
+          all_ascii = false;
+          break;
+        }
+      }
+
+      if (all_ascii) return true;
+    }
+  }
+
+  return false;
+}
+
+bool CollatorAllowsFastComparison(const icu::Collator& icu_collator) {
+  UErrorCode status = U_ZERO_ERROR;
+
+  icu::Locale icu_locale(icu_collator.getLocale(ULOC_VALID_LOCALE, status));
+  DCHECK(U_SUCCESS(status));
+
+  static constexpr int kBufferSize = 64;
+  char buffer[kBufferSize];
+  const int collation_keyword_length =
+      icu_locale.getKeywordValue("collation", buffer, kBufferSize, status);
+  DCHECK(U_SUCCESS(status));
+  if (collation_keyword_length != 0) return false;
+
+  // These attributes must be set to the expected value for fast comparisons.
+  static constexpr struct {
+    UColAttribute attribute;
+    UColAttributeValue legal_value;
+  } kAttributeChecks[] = {
+      {UCOL_ALTERNATE_HANDLING, UCOL_NON_IGNORABLE},
+      {UCOL_CASE_FIRST, UCOL_OFF},
+      {UCOL_CASE_LEVEL, UCOL_OFF},
+      {UCOL_FRENCH_COLLATION, UCOL_OFF},
+      {UCOL_NUMERIC_COLLATION, UCOL_OFF},
+      {UCOL_STRENGTH, UCOL_TERTIARY},
+  };
+
+  for (const auto& check : kAttributeChecks) {
+    if (icu_collator.getAttribute(check.attribute, status) !=
+        check.legal_value) {
+      return false;
+    }
+    DCHECK(U_SUCCESS(status));
+  }
+
+  // No reordering codes are allowed.
+  int num_reorder_codes =
+      ucol_getReorderCodes(icu_collator.toUCollator(), nullptr, 0, &status);
+  if (num_reorder_codes != 0) return false;
+  DCHECK(U_SUCCESS(status));  // Must check *after* num_reorder_codes != 0.
+
+  // No tailored rules are allowed.
+  int32_t rules_length = 0;
+  ucol_getRules(icu_collator.toUCollator(), &rules_length);
+  if (rules_length != 0) return false;
+
+  USet* tailored_set = ucol_getTailoredSet(icu_collator.toUCollator(), &status);
+  DCHECK(U_SUCCESS(status));
+  if (USetContainsAllAsciiItem(tailored_set)) return false;
+  uset_close(tailored_set);
+
+  // No ASCII contractions or expansions are allowed.
+  USet* contractions = uset_openEmpty();
+  USet* expansions = uset_openEmpty();
+  ucol_getContractionsAndExpansions(icu_collator.toUCollator(), contractions,
+                                    expansions, true, &status);
+  if (USetContainsAllAsciiItem(contractions)) return false;
+  if (USetContainsAllAsciiItem(expansions)) return false;
+  DCHECK(U_SUCCESS(status));
+  uset_close(contractions);
+  uset_close(expansions);
+
+  return true;
+}
+#endif  // DEBUG
+
+// Fast comparison is implemented for charcodes for which the L1 collation
+// weight (see kCollactionWeightsL1 above) is not 0.
+//
+// Note it's possible to partially process strings as long as their leading
+// characters all satisfy the above criteria. In that case, and if the L3
+// result is EQUAL, we set `processed_until_out` to the first non-processed
+// index - future processing can begin at that offset.
+//
+// This fast path looks somewhat complex; mostly because it combines multiple
+// passes into one. The pseudo-code for simplified multi-pass algorithm is:
+//
+// {
+//   // We can only fast-compare a certain subset of the ASCII range.
+//   // Additionally, unicode characters can change the meaning of preceding
+//   // characters, for example: "o\u0308" is treated like "ö".
+//   //
+//   // Note, in the actual single-pass algorithm below, we tolerate non-ASCII
+//   // contents outside the relevant range.
+//   for (int i = 0; i < string1.length; i++) {
+//     if (!CanFastCompare(string1[i])) return {};
+//   }
+//   for (int i = 0; i < string2.length; i++) {
+//     if (!CanFastCompare(string2[i])) return {};
+//   }
+//
+//   // Apply L1 weights.
+//   for (int i = 0; i < common_length; i++) {
+//     Char1T c1 = string1[i];
+//     Char2T c2 = string2[i];
+//     if (L1Weight[c1] != L1Weight[c2]) {
+//       return L1Weight[c1] - L1Weight[c2];
+//     }
+//   }
+//
+//   // Strings are L1-equal up to the common length; if lengths differ, the
+//   // longer string is treated as 'greater'.
+//   if (string1.length != string2.length) string1.length - string2.length;
+//
+//   // Apply L3 weights.
+//   for (int i = 0; i < common_length; i++) {
+//     Char1T c1 = string1[i];
+//     Char2T c2 = string2[i];
+//     if (L3Weight[c1] != L3Weight[c2]) {
+//       return L3Weight[c1] - L3Weight[c2];
+//     }
+//   }
+//
+//   return UCOL_EQUAL;
+// }
+base::Optional<UCollationResult> TryFastCompareStrings(
+    Isolate* isolate, const icu::Collator& icu_collator, Handle<String> string1,
+    Handle<String> string2, int* processed_until_out) {
+  // TODO(jgruber): We could avoid the flattening (done by the caller) as well
+  // by implementing comparison through string iteration. This has visible
+  // performance benefits (e.g. 7% on CDJS) but complicates the code. Consider
+  // doing this in the future.
+  DCHECK(string1->IsFlat());
+  DCHECK(string2->IsFlat());
+
+  *processed_until_out = 0;
+
+#ifdef DEBUG
+  // Checked by the caller, see CompareStringsOptionsFor.
+  SLOW_DCHECK(CollatorAllowsFastComparison(icu_collator));
+  USE(CollatorAllowsFastComparison);
+#endif  // DEBUG
+
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*string1));
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*string2));
+
+  const int length1 = string1->length();
+  const int length2 = string2->length();
+  int common_length = std::min(length1, length2);
+
+  FastCompareStringsData d;
+  DisallowGarbageCollection no_gc;
+  const String::FlatContent& flat1 = string1->GetFlatContent(no_gc);
+  const String::FlatContent& flat2 = string2->GetFlatContent(no_gc);
+  if (!FastCompareStringFlatContent(flat1, flat2, common_length, &d)) {
+    DCHECK_EQ(d.l1_result, UCollationResult::UCOL_EQUAL);
+    return d.FastCompareFailed(processed_until_out);
+  }
+
+  // The result is only valid if the last processed character is not followed
+  // by a unicode combining character (we are overly strict and restrict to
+  // ASCII).
+  if (!CharIsAsciiOrOutOfBounds(flat1, length1, d.processed_until + 1) ||
+      !CharIsAsciiOrOutOfBounds(flat2, length2, d.processed_until + 1)) {
+    return d.FastCompareFailed(processed_until_out);
+  }
+
+  if (d.l1_result != UCollationResult::UCOL_EQUAL) {
+    return d.l1_result;
+  }
+
+  // Strings are L1-equal up to their common length, length differences win.
+  UCollationResult length_result = ToUCollationResult(length1 - length2);
+  if (length_result != UCollationResult::UCOL_EQUAL) {
+    // Strings of different lengths may still compare as equal if the longer
+    // string has a fully ignored suffix, e.g. "a" vs. "a\u{1}".
+    if (!CharCanFastCompareOrOutOfBounds(flat1, length1, common_length) ||
+        !CharCanFastCompareOrOutOfBounds(flat2, length2, common_length)) {
+      return d.FastCompareFailed(processed_until_out);
+    }
+    return length_result;
+  }
+
+  // L1-equal and same length, the L3 result wins.
+  return d.l3_result;
+}
+
+}  // namespace
+
+// static
+const uint8_t* Intl::AsciiCollationWeightsL1() {
+  return &kCollationWeightsL1[0];
+}
+
+// static
+const uint8_t* Intl::AsciiCollationWeightsL3() {
+  return &kCollationWeightsL3[0];
+}
+
+// static
+const int Intl::kAsciiCollationWeightsLength = kCollationWeightsLength;
 
 // ecma402/#sec-collator-comparestrings
 int Intl::CompareStrings(Isolate* isolate, const icu::Collator& icu_collator,
-                         Handle<String> string1, Handle<String> string2) {
+                         Handle<String> string1, Handle<String> string2,
+                         CompareStringsOptions compare_strings_options) {
   // Early return for identical strings.
   if (string1.is_identical_to(string2)) {
     return UCollationResult::UCOL_EQUAL;
   }
 
   // Early return for empty strings.
-  if (string1->length() == 0) {
-    return string2->length() == 0 ? UCollationResult::UCOL_EQUAL
-                                  : UCollationResult::UCOL_LESS;
+  if (string1->length() == 0 || string2->length() == 0) {
+    return ToUCollationResult(string1->length() - string2->length());
   }
-  if (string2->length() == 0) return UCollationResult::UCOL_GREATER;
 
   string1 = String::Flatten(isolate, string1);
   string2 = String::Flatten(isolate, string2);
 
+  int processed_until = 0;
+  if (compare_strings_options == CompareStringsOptions::kTryFastPath) {
+    base::Optional<int> maybe_result = TryFastCompareStrings(
+        isolate, icu_collator, string1, string2, &processed_until);
+    if (maybe_result.has_value()) return maybe_result.value();
+  }
+
   UCollationResult result;
   UErrorCode status = U_ZERO_ERROR;
-  icu::StringPiece string_piece1 = ToICUStringPiece(isolate, string1);
+  icu::StringPiece string_piece1 =
+      ToICUStringPiece(isolate, string1, processed_until);
   if (!string_piece1.empty()) {
-    icu::StringPiece string_piece2 = ToICUStringPiece(isolate, string2);
+    icu::StringPiece string_piece2 =
+        ToICUStringPiece(isolate, string2, processed_until);
     if (!string_piece2.empty()) {
       result = icu_collator.compareUTF8(string_piece1, string_piece2, status);
       DCHECK(U_SUCCESS(status));
@@ -995,8 +1445,10 @@ int Intl::CompareStrings(Isolate* isolate, const icu::Collator& icu_collator,
     }
   }
 
-  icu::UnicodeString string_val1 = Intl::ToICUUnicodeString(isolate, string1);
-  icu::UnicodeString string_val2 = Intl::ToICUUnicodeString(isolate, string2);
+  icu::UnicodeString string_val1 =
+      Intl::ToICUUnicodeString(isolate, string1, processed_until);
+  icu::UnicodeString string_val2 =
+      Intl::ToICUUnicodeString(isolate, string2, processed_until);
   result = icu_collator.compare(string_val1, string_val2, status);
   DCHECK(U_SUCCESS(status));
   return result;
@@ -1135,9 +1587,6 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
 
     // 15. Else If mnfd is not undefined or mxfd is not undefined, then
     if (!mnfd_obj->IsUndefined(isolate) || !mxfd_obj->IsUndefined(isolate)) {
-      Handle<String> mxfd_str = factory->maximumFractionDigits_string();
-      Handle<String> mnfd_str = factory->minimumFractionDigits_string();
-
       int specified_mnfd;
       int specified_mxfd;
 
@@ -1355,7 +1804,7 @@ icu::LocaleMatcher BuildLocaleMatcher(
     Isolate* isolate, const std::set<std::string>& available_locales,
     UErrorCode* status) {
   icu::Locale default_locale =
-      icu::Locale::forLanguageTag(DefaultLocale(isolate), *status);
+      icu::Locale::forLanguageTag(isolate->DefaultLocale(), *status);
   icu::LocaleMatcher::Builder builder;
   if (U_FAILURE(*status)) {
     return builder.build(*status);
@@ -1564,29 +2013,61 @@ MaybeHandle<JSArray> VectorToJSArray(Isolate* isolate,
   return factory->NewJSArrayWithElements(fixed_array);
 }
 
-MaybeHandle<JSArray> AvailableCurrencies(Isolate* isolate) {
-  UErrorCode status = U_ZERO_ERROR;
-  UEnumeration* ids =
-      ucurr_openISOCurrencies(UCURR_COMMON | UCURR_NON_DEPRECATED, &status);
-  const char* next = nullptr;
-  std::vector<std::string> array;
-  while (U_SUCCESS(status) &&
-         (next = uenum_next(ids, nullptr, &status)) != nullptr) {
-    // Work around the issue that we do not support VEF currency code
-    // in DisplayNames by not reporting it.
-    if (strcmp(next, "VEF") == 0) continue;
-    array.push_back(next);
+namespace {
+
+class ResourceAvailableCurrencies {
+ public:
+  ResourceAvailableCurrencies() {
+    UErrorCode status = U_ZERO_ERROR;
+    UEnumeration* uenum =
+        ucurr_openISOCurrencies(UCURR_COMMON | UCURR_NON_DEPRECATED, &status);
+    DCHECK(U_SUCCESS(status));
+    const char* next = nullptr;
+    while (U_SUCCESS(status) &&
+           (next = uenum_next(uenum, nullptr, &status)) != nullptr) {
+      // Work around the issue that we do not support VEF currency code
+      // in DisplayNames by not reporting it.
+      if (strcmp(next, "VEF") == 0) continue;
+      AddIfAvailable(next);
+    }
+    // Work around the issue that we do support the following currency codes
+    // in DisplayNames but the ICU API is not reporting it.
+    AddIfAvailable("SVC");
+    AddIfAvailable("XDR");
+    AddIfAvailable("XSU");
+    AddIfAvailable("ZWL");
+    std::sort(list_.begin(), list_.end());
+    uenum_close(uenum);
   }
-  // Work around the issue that we do support the following currency codes
-  // in DisplayNames but the ICU API does not reporting it.
-  array.push_back("SVC");
-  array.push_back("VES");
-  array.push_back("XDR");
-  array.push_back("XSU");
-  array.push_back("ZWL");
-  std::sort(array.begin(), array.end());
-  uenum_close(ids);
-  return VectorToJSArray(isolate, array);
+
+  const std::vector<std::string>& Get() const { return list_; }
+
+  void AddIfAvailable(const char* currency) {
+    icu::UnicodeString code(currency, -1, US_INV);
+    UErrorCode status = U_ZERO_ERROR;
+    int32_t len = 0;
+    const UChar* result =
+        ucurr_getName(code.getTerminatedBuffer(), "en", UCURR_LONG_NAME,
+                      nullptr, &len, &status);
+    if (U_SUCCESS(status) &&
+        u_strcmp(result, code.getTerminatedBuffer()) != 0) {
+      list_.push_back(currency);
+    }
+  }
+
+ private:
+  std::vector<std::string> list_;
+};
+
+const std::vector<std::string>& GetAvailableCurrencies() {
+  static base::LazyInstance<ResourceAvailableCurrencies>::type
+      available_currencies = LAZY_INSTANCE_INITIALIZER;
+  return available_currencies.Pointer()->Get();
+}
+}  // namespace
+
+MaybeHandle<JSArray> AvailableCurrencies(Isolate* isolate) {
+  return VectorToJSArray(isolate, GetAvailableCurrencies());
 }
 
 MaybeHandle<JSArray> AvailableNumberingSystems(Isolate* isolate) {
@@ -1893,7 +2374,7 @@ std::string LookupMatcher(Isolate* isolate,
   // 3. Let defLocale be DefaultLocale();
   // 4. Set result.[[locale]] to defLocale.
   // 5. Return result.
-  return DefaultLocale(isolate);
+  return isolate->DefaultLocale();
 }
 
 }  // namespace

@@ -15,6 +15,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/read-only-serializer.h"
+#include "src/snapshot/shared-heap-serializer.h"
 
 namespace v8 {
 namespace internal {
@@ -62,11 +63,13 @@ class V8_NODISCARD SanitizeIsolateScope final {
 
 }  // namespace
 
-StartupSerializer::StartupSerializer(Isolate* isolate,
-                                     Snapshot::SerializerFlags flags,
-                                     ReadOnlySerializer* read_only_serializer)
+StartupSerializer::StartupSerializer(
+    Isolate* isolate, Snapshot::SerializerFlags flags,
+    ReadOnlySerializer* read_only_serializer,
+    SharedHeapSerializer* shared_heap_serializer)
     : RootsSerializer(isolate, flags, RootIndex::kFirstStrongRoot),
       read_only_serializer_(read_only_serializer),
+      shared_heap_serializer_(shared_heap_serializer),
       accessor_infos_(isolate->heap()),
       call_handler_infos_(isolate->heap()) {
   InitializeCodeAddressMap();
@@ -131,8 +134,9 @@ bool IsUnexpectedCodeObject(Isolate* isolate, HeapObject obj) {
 #endif  // DEBUG
 
 void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
+  PtrComprCageBase cage_base(isolate());
 #ifdef DEBUG
-  if (obj->IsJSFunction()) {
+  if (obj->IsJSFunction(cage_base)) {
     v8::base::OS::PrintError("Reference stack:\n");
     PrintStack(std::cerr);
     obj->Print(std::cerr);
@@ -146,6 +150,7 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   if (SerializeHotObject(obj)) return;
   if (IsRootAndHasBeenSerialized(*obj) && SerializeRoot(obj)) return;
   if (SerializeUsingReadOnlyObjectCache(&sink_, obj)) return;
+  if (SerializeUsingSharedHeapObjectCache(&sink_, obj)) return;
   if (SerializeBackReference(obj)) return;
 
   bool use_simulator = false;
@@ -153,7 +158,7 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   use_simulator = true;
 #endif
 
-  if (use_simulator && obj->IsAccessorInfo()) {
+  if (use_simulator && obj->IsAccessorInfo(cage_base)) {
     // Wipe external reference redirects in the accessor info.
     Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(obj);
     Address original_address =
@@ -161,17 +166,18 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
     Foreign::cast(info->js_getter())
         .set_foreign_address(isolate(), original_address);
     accessor_infos_.Push(*info);
-  } else if (use_simulator && obj->IsCallHandlerInfo()) {
+  } else if (use_simulator && obj->IsCallHandlerInfo(cage_base)) {
     Handle<CallHandlerInfo> info = Handle<CallHandlerInfo>::cast(obj);
     Address original_address =
         Foreign::cast(info->callback()).foreign_address(isolate());
     Foreign::cast(info->js_callback())
         .set_foreign_address(isolate(), original_address);
     call_handler_infos_.Push(*info);
-  } else if (obj->IsScript() && Handle<Script>::cast(obj)->IsUserJavaScript()) {
+  } else if (obj->IsScript(cage_base) &&
+             Handle<Script>::cast(obj)->IsUserJavaScript()) {
     Handle<Script>::cast(obj)->set_context_data(
         ReadOnlyRoots(isolate()).uninitialized_symbol());
-  } else if (obj->IsSharedFunctionInfo()) {
+  } else if (obj->IsSharedFunctionInfo(cage_base)) {
     // Clear inferred name for native functions.
     Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>::cast(obj);
     if (!shared->IsSubjectToDebugging() && shared->HasUncompiledData()) {
@@ -196,62 +202,10 @@ void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   VisitRootPointer(Root::kStartupObjectCache, nullptr,
                    FullObjectSlot(&undefined));
 
-  SerializeStringTable(isolate()->string_table());
-
   isolate()->heap()->IterateWeakRoots(
       this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable});
   SerializeDeferredObjects();
   Pad();
-}
-
-void StartupSerializer::SerializeStringTable(StringTable* string_table) {
-  // A StringTable is serialized as:
-  //
-  //   N : int
-  //   string 1
-  //   string 2
-  //   ...
-  //   string N
-  //
-  // Notably, the hashmap structure, including empty and deleted elements, is
-  // not serialized.
-
-  sink_.PutInt(isolate()->string_table()->NumberOfElements(),
-               "String table number of elements");
-
-  // Custom RootVisitor which walks the string table, but only serializes the
-  // string entries. This is an inline class to be able to access the non-public
-  // SerializeObject method.
-  class StartupSerializerStringTableVisitor : public RootVisitor {
-   public:
-    explicit StartupSerializerStringTableVisitor(StartupSerializer* serializer)
-        : serializer_(serializer) {}
-
-    void VisitRootPointers(Root root, const char* description,
-                           FullObjectSlot start, FullObjectSlot end) override {
-      UNREACHABLE();
-    }
-
-    void VisitRootPointers(Root root, const char* description,
-                           OffHeapObjectSlot start,
-                           OffHeapObjectSlot end) override {
-      DCHECK_EQ(root, Root::kStringTable);
-      Isolate* isolate = serializer_->isolate();
-      for (OffHeapObjectSlot current = start; current < end; ++current) {
-        Object obj = current.load(isolate);
-        if (obj.IsHeapObject()) {
-          DCHECK(obj.IsInternalizedString());
-          serializer_->SerializeObject(handle(HeapObject::cast(obj), isolate));
-        }
-      }
-    }
-
-   private:
-    StartupSerializer* serializer_;
-  };
-
-  StartupSerializerStringTableVisitor string_table_visitor(this);
-  isolate()->string_table()->IterateElements(&string_table_visitor);
 }
 
 void StartupSerializer::SerializeStrongReferences(
@@ -283,6 +237,12 @@ SerializedHandleChecker::SerializedHandleChecker(Isolate* isolate,
 bool StartupSerializer::SerializeUsingReadOnlyObjectCache(
     SnapshotByteSink* sink, Handle<HeapObject> obj) {
   return read_only_serializer_->SerializeUsingReadOnlyObjectCache(sink, obj);
+}
+
+bool StartupSerializer::SerializeUsingSharedHeapObjectCache(
+    SnapshotByteSink* sink, Handle<HeapObject> obj) {
+  return shared_heap_serializer_->SerializeUsingSharedHeapObjectCache(sink,
+                                                                      obj);
 }
 
 void StartupSerializer::SerializeUsingStartupObjectCache(

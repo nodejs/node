@@ -60,6 +60,7 @@ if (!common.isWindows && process.getuid() === 0) {
     process.setuid('nobody');
     hasWriteAccessForReadonlyFile = false;
   } catch {
+    // Continue regardless of error.
   }
 }
 
@@ -82,10 +83,10 @@ fs.access(__filename, fs.R_OK, common.mustCall(function(...args) {
 fs.promises.access(__filename, fs.R_OK)
   .then(common.mustCall())
   .catch(throwNextTick);
-fs.access(readOnlyFile, fs.F_OK | fs.R_OK, common.mustCall(function(...args) {
+fs.access(readOnlyFile, fs.R_OK, common.mustCall(function(...args) {
   assert.deepStrictEqual(args, [null]);
 }));
-fs.promises.access(readOnlyFile, fs.F_OK | fs.R_OK)
+fs.promises.access(readOnlyFile, fs.R_OK)
   .then(common.mustCall())
   .catch(throwNextTick);
 
@@ -138,7 +139,7 @@ assert.throws(
     fs.access(__filename, fs.F_OK);
   },
   {
-    code: 'ERR_INVALID_CALLBACK',
+    code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError'
   });
 
@@ -147,13 +148,13 @@ assert.throws(
     fs.access(__filename, fs.F_OK, {});
   },
   {
-    code: 'ERR_INVALID_CALLBACK',
+    code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError'
   });
 
 // Regular access should not throw.
 fs.accessSync(__filename);
-const mode = fs.F_OK | fs.R_OK | fs.W_OK;
+const mode = fs.R_OK | fs.W_OK;
 fs.accessSync(readWriteFile, mode);
 
 // Invalid modes should throw.

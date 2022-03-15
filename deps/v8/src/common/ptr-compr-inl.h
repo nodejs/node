@@ -96,9 +96,13 @@ V8_INLINE Address DecompressTaggedAny(TOnHeapAddress on_heap_addr,
   UNREACHABLE();
 }
 
+V8_INLINE Address GetPtrComprCageBaseAddress(Address on_heap_addr) {
+  UNREACHABLE();
+}
+
 #endif  // V8_COMPRESS_POINTERS
 
-inline PtrComprCageBase GetPtrComprCageBase(HeapObject object) {
+V8_INLINE PtrComprCageBase GetPtrComprCageBase(HeapObject object) {
   return GetPtrComprCageBaseFromOnHeapAddress(object.ptr());
 }
 

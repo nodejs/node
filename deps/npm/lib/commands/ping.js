@@ -6,11 +6,12 @@ class Ping extends BaseCommand {
   static description = 'Ping npm registry'
   static params = ['registry']
   static name = 'ping'
+  static ignoreImplicitWorkspace = true
 
   async exec (args) {
     log.notice('PING', this.npm.config.get('registry'))
     const start = Date.now()
-    const details = await pingUtil(this.npm.flatOptions)
+    const details = await pingUtil({ ...this.npm.flatOptions })
     const time = Date.now() - start
     log.notice('PONG', `${time}ms`)
     if (this.npm.config.get('json')) {

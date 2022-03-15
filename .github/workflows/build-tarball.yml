@@ -4,10 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
-      - '.mailmap'
+      - .mailmap
       - '**.md'
-      - 'AUTHORS'
-      - 'doc/**'
+      - AUTHORS
+      - doc/**
       - .github/**
       - '!.github/workflows/build-tarball.yml'
   push:
@@ -17,21 +17,24 @@ on:
       - v[0-9]+.x-staging
       - v[0-9]+.x
     paths-ignore:
-      - '.mailmap'
+      - .mailmap
       - '**.md'
-      - 'AUTHORS'
-      - 'doc/**'
+      - AUTHORS
+      - doc/**
       - .github/**
       - '!.github/workflows/build-tarball.yml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 env:
+  PYTHON_VERSION: '3.10'
   FLAKY_TESTS: dontcare
 
 jobs:
   build-tarball:
     if: github.event.pull_request.draft == false
-    env:
-      PYTHON_VERSION: '3.10'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -57,8 +60,6 @@ jobs:
           name: tarballs
           path: tarballs
   test-tarball-linux:
-    env:
-      PYTHON_VERSION: '3.10'
     needs: build-tarball
     runs-on: ubuntu-latest
     steps:

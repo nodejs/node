@@ -11,7 +11,9 @@ on:
   # be read-only, and the Action won't have access to any other repository
   # secrets, which it needs to access Jenkins API.
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: '*/5 * * * *'
+
+concurrency: ${{ github.workflow }}
 
 env:
   NODE_VERSION: lts/*

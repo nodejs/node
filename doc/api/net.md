@@ -464,6 +464,10 @@ server.listen({
 });
 ```
 
+When `exclusive` is `true` and the underlying handle is shared, it is
+possible that several workers query a handle with different backlogs.
+In this case, the first `backlog` passed to the master process will be used.
+
 Starting an IPC server as root may cause the server path to be inaccessible for
 unprivileged users. Using `readableAll` and `writableAll` will make the server
 accessible for all users.
@@ -818,6 +822,10 @@ behavior.
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: v17.7.0
+    pr-url: https://github.com/nodejs/node/pull/41310
+    description: The `noDelay`, `keepAlive` and `keepAliveInitialDelay`
+                 options are supported now.
   - version: v12.10.0
     pr-url: https://github.com/nodejs/node/pull/25436
     description: Added `onread` option.
@@ -850,6 +858,14 @@ For TCP connections, available `options` are:
   `0` indicates that both IPv4 and IPv6 addresses are allowed. **Default:** `0`.
 * `hints` {number} Optional [`dns.lookup()` hints][].
 * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
+* `noDelay` {boolean} If set to `true`, it disables the use of Nagle's algorithm immediately
+  after the socket is established. **Default:** `false`.
+* `keepAlive` {boolean} If set to `true`, it enables keep-alive functionality on the socket
+  immediately after the connection is established, similarly on what is done in
+  [`socket.setKeepAlive([enable][, initialDelay])`][`socket.setKeepAlive(enable, initialDelay)`].
+  **Default:** `false`.
+* `keepAliveInitialDelay` {number} If set to a positive number, it sets the initial delay before
+  the first keepalive probe is sent on an idle socket.**Default:** `0`.
 
 For [IPC][] connections, available `options` are:
 
@@ -1136,6 +1152,12 @@ algorithm.
 
 <!-- YAML
 added: v0.1.90
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `timeout` {number}
@@ -1405,8 +1427,18 @@ added: v0.5.0
     **Default:** `false`.
   * `pauseOnConnect` {boolean} Indicates whether the socket should be
     paused on incoming connections. **Default:** `false`.
+  * `noDelay` {boolean} If set to `true`, it disables the use of Nagle's algorithm immediately
+    after a new incoming connection is received. **Default:** `false`.
+  * `keepAlive` {boolean} If set to `true`, it enables keep-alive functionality on the socket
+    immediately after a new incoming connection is received, similarly on what is done in
+    [`socket.setKeepAlive([enable][, initialDelay])`][`socket.setKeepAlive(enable, initialDelay)`].
+    **Default:** `false`.
+  * `keepAliveInitialDelay` {number} If set to a positive number, it sets the initial delay before
+    the first keepalive probe is sent on an idle socket.**Default:** `0`.
+
 * `connectionListener` {Function} Automatically set as a listener for the
   [`'connection'`][] event.
+
 * Returns: {net.Server}
 
 Creates a new TCP or [IPC][] server.
@@ -1428,7 +1460,7 @@ read by the original process. To begin reading data from a paused socket, call
 The server can be a TCP server or an [IPC][] server, depending on what it
 [`listen()`][`server.listen()`] to.
 
-Here is an example of an TCP echo server which listens for connections
+Here is an example of a TCP echo server which listens for connections
 on port 8124:
 
 ```js
@@ -1572,6 +1604,7 @@ net.isIPv6('fhqwhgads'); // returns false
 [`socket.pause()`]: #socketpause
 [`socket.resume()`]: #socketresume
 [`socket.setEncoding()`]: #socketsetencodingencoding
+[`socket.setKeepAlive(enable, initialDelay)`]: #socketsetkeepaliveenable-initialdelay
 [`socket.setTimeout()`]: #socketsettimeouttimeout-callback
 [`socket.setTimeout(timeout)`]: #socketsettimeouttimeout-callback
 [`writable.destroy()`]: stream.md#writabledestroyerror

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/common/utils.js"></script>
+<script src="/common/dispatcher/dispatcher.js"></script>
+<!-- Pull in executor_path needed by newPopup / newIframe -->
+<script src="/html/cross-origin-embedder-policy/credentialless/resources/common.js"></script>
+<!-- Pull in newPopup / newIframe -->
+<script src="/html/cross-origin-embedder-policy/anonymous-iframe/resources/common.js"></script>
+<body>
+<script>
+
+const emit_script = (channel_name, message, done_queue_name) => `
+  const bc = new BroadcastChannel("${channel_name}");
+  bc.postMessage("${message}");
+  send("${done_queue_name}", "done");
+`;
+
+promise_test(async t => {
+  const origin = get_host_info().HTTPS_ORIGIN;
+  const not_same_site_origin = get_host_info().HTTPS_NOTSAMESITE_ORIGIN;
+  const response_queue_uuid = token();
+
+  const popup_init_script = `
+    const importScript = ${importScript};
+    await importScript("/html/cross-origin-embedder-policy/credentialless" +
+                       "/resources/common.js");
+    await importScript("/html/cross-origin-embedder-policy/anonymous-iframe" +
+                       "/resources/common.js");
+    await importScript("/common/utils.js");
+    send("${response_queue_uuid}", newIframe("${origin}"));
+  `;
+
+  // Create a same-origin iframe in a cross-site popup.
+  const not_same_site_popup_uuid = newPopup(t, not_same_site_origin);
+  send(not_same_site_popup_uuid, popup_init_script);
+  const iframe_1_uuid = await receive(response_queue_uuid);
+
+  // Create a same-origin iframe in a same-site popup.
+  const same_origin_popup_uuid = newPopup(t, origin);
+  send(same_origin_popup_uuid, popup_init_script);
+  const iframe_2_uuid = await receive(response_queue_uuid);
+
+  const channel_name = token();
+  const bc = new BroadcastChannel(channel_name);
+  bc.onmessage = t.step_func(e => {
+    assert_equals(e.data, "msg from iframe2");
+    t.done();
+  });
+
+  // Instruct the not-same-top-level-site iframe to send a message on the BC
+  // channel we are listening on. This message should not be received since
+  // the iframe should be in a different partition.
+  send(iframe_1_uuid,
+       emit_script(channel_name, "msg from iframe1", response_queue_uuid));
+  assert_equals(await receive(response_queue_uuid), "done");
+
+  // Now instruct the same-top-level-site iframe to send a BC message. By
+  // the time we send the script to execute, have it send the BC message,
+  // and then receive the BC message in our BC instance, it should be
+  // reasonable to assume that the message from the first iframe would have
+  // been delivered if it was going to be.
+  send(iframe_2_uuid,
+       emit_script(channel_name, "msg from iframe2", response_queue_uuid));
+  assert_equals(await receive(response_queue_uuid), "done");
+
+}, "BroadcastChannel messages aren't received from a cross-partition iframe");
+
+</script>
+</body>

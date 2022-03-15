@@ -9,11 +9,6 @@ const { strictEqual, deepStrictEqual } = require('assert');
 const { translatePeerCertificate } = require('_tls_common');
 
 const certString = '__proto__=42\nA=1\nB=2\nC=3';
-const certObject = Object.create(null);
-certObject.__proto__ = '42';
-certObject.A = '1';
-certObject.B = '2';
-certObject.C = '3';
 
 strictEqual(translatePeerCertificate(null), null);
 strictEqual(translatePeerCertificate(undefined), null);
@@ -23,19 +18,25 @@ strictEqual(translatePeerCertificate(1), 1);
 
 deepStrictEqual(translatePeerCertificate({}), {});
 
+// Earlier versions of Node.js parsed the issuer property but did so
+// incorrectly. This behavior has now reached end-of-life and user-supplied
+// strings will not be parsed at all.
 deepStrictEqual(translatePeerCertificate({ issuer: '' }),
-                { issuer: Object.create(null) });
+                { issuer: '' });
 deepStrictEqual(translatePeerCertificate({ issuer: null }),
                 { issuer: null });
 deepStrictEqual(translatePeerCertificate({ issuer: certString }),
-                { issuer: certObject });
+                { issuer: certString });
 
+// Earlier versions of Node.js parsed the issuer property but did so
+// incorrectly. This behavior has now reached end-of-life and user-supplied
+// strings will not be parsed at all.
 deepStrictEqual(translatePeerCertificate({ subject: '' }),
-                { subject: Object.create(null) });
+                { subject: '' });
 deepStrictEqual(translatePeerCertificate({ subject: null }),
                 { subject: null });
 deepStrictEqual(translatePeerCertificate({ subject: certString }),
-                { subject: certObject });
+                { subject: certString });
 
 deepStrictEqual(translatePeerCertificate({ issuerCertificate: '' }),
                 { issuerCertificate: null });
@@ -43,7 +44,7 @@ deepStrictEqual(translatePeerCertificate({ issuerCertificate: null }),
                 { issuerCertificate: null });
 deepStrictEqual(
   translatePeerCertificate({ issuerCertificate: { subject: certString } }),
-  { issuerCertificate: { subject: certObject } });
+  { issuerCertificate: { subject: certString } });
 
 {
   const cert = {};

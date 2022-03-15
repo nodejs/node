@@ -21,43 +21,42 @@ snippet: "
   var test = A;
   new test;
 "
-frame size: 7
+frame size: 5
 parameter count: 1
-bytecode array length: 87
+bytecode array length: 82
 bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(3),
-                B(Star1),
-                B(Mov), R(this), R(0),
-                B(Mov), R(context), R(2),
-  /*   67 E> */ B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
+                B(Star0),
+                B(Ldar), R(context),
+  /*   67 E> */ B(StaKeyedPropertyAsDefine), R(this), R(0), U8(0),
   /*   76 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
-                B(Star4),
+                B(Star2),
                 B(LdaImmutableCurrentContextSlot), U8(3),
-  /*   81 E> */ B(LdaKeyedProperty), R(this), U8(0),
-                B(CallRuntime), U16(Runtime::kLoadPrivateGetter), R(4), U8(1),
-                B(Star5),
-                B(CallProperty0), R(5), R(this), U8(2),
-                B(Inc), U8(4),
-                B(Star5),
-  /*   83 E> */ B(CallRuntime), U16(Runtime::kLoadPrivateSetter), R(4), U8(1),
-                B(Star6),
-                B(CallProperty1), R(6), R(this), R(5), U8(5),
-  /*   91 S> */ B(LdaSmi), I8(1),
+  /*   81 E> */ B(LdaKeyedProperty), R(this), U8(2),
+                B(CallRuntime), U16(Runtime::kLoadPrivateGetter), R(2), U8(1),
                 B(Star3),
-                B(LdaImmutableCurrentContextSlot), U8(2),
-                B(Star5),
-                B(LdaImmutableCurrentContextSlot), U8(3),
-  /*   96 E> */ B(LdaKeyedProperty), R(this), U8(7),
-                B(CallRuntime), U16(Runtime::kLoadPrivateSetter), R(5), U8(1),
-                B(Star6),
-                B(CallProperty1), R(6), R(this), R(3), U8(9),
-  /*  108 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+                B(CallProperty0), R(3), R(this), U8(4),
+                B(Inc), U8(6),
+                B(Star3),
+  /*   83 E> */ B(CallRuntime), U16(Runtime::kLoadPrivateSetter), R(2), U8(1),
                 B(Star4),
+                B(CallProperty1), R(4), R(this), R(3), U8(7),
+  /*   91 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+                B(Star2),
+                B(LdaSmi), I8(1),
+                B(Star3),
                 B(LdaImmutableCurrentContextSlot), U8(3),
-  /*  120 E> */ B(LdaKeyedProperty), R(this), U8(11),
-                B(CallRuntime), U16(Runtime::kLoadPrivateGetter), R(4), U8(1),
-                B(Star5),
-                B(CallProperty0), R(5), R(this), U8(13),
+  /*   96 E> */ B(LdaKeyedProperty), R(this), U8(9),
+                B(CallRuntime), U16(Runtime::kLoadPrivateSetter), R(2), U8(1),
+                B(Star4),
+                B(CallProperty1), R(4), R(this), R(3), U8(11),
+  /*  108 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+                B(Star2),
+                B(LdaImmutableCurrentContextSlot), U8(3),
+  /*  120 E> */ B(LdaKeyedProperty), R(this), U8(13),
+                B(CallRuntime), U16(Runtime::kLoadPrivateGetter), R(2), U8(1),
+                B(Star3),
+                B(CallProperty0), R(3), R(this), U8(15),
   /*  123 S> */ B(Return),
 ]
 constant pool: [
@@ -74,20 +73,21 @@ snippet: "
   var test = B;
   new test;
 "
-frame size: 5
+frame size: 4
 parameter count: 1
 bytecode array length: 28
 bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(3),
-                B(Star1),
-                B(Mov), R(this), R(0),
-                B(Mov), R(context), R(2),
-  /*   48 E> */ B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
-  /*   53 S> */ B(Wide), B(LdaSmi), I16(284),
-                B(Star3),
+                B(Star0),
+                B(Ldar), R(context),
+  /*   48 E> */ B(StaKeyedPropertyAsDefine), R(this), R(0), U8(0),
+  /*   53 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
+  /*   58 E> */ B(LdaKeyedProperty), R(this), U8(2),
+                B(Wide), B(LdaSmi), I16(286),
+                B(Star2),
                 B(LdaConstant), U8(0),
-                B(Star4),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(3), U8(2),
+                B(Star3),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(2), U8(2),
                 B(Throw),
 ]
 constant pool: [
@@ -105,20 +105,21 @@ snippet: "
   var test = C;
   new test;
 "
-frame size: 5
+frame size: 4
 parameter count: 1
 bytecode array length: 28
 bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(3),
-                B(Star1),
-                B(Mov), R(this), R(0),
-                B(Mov), R(context), R(2),
-  /*   41 E> */ B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
-  /*   46 S> */ B(Wide), B(LdaSmi), I16(283),
-                B(Star3),
+                B(Star0),
+                B(Ldar), R(context),
+  /*   41 E> */ B(StaKeyedPropertyAsDefine), R(this), R(0), U8(0),
+  /*   46 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
+  /*   51 E> */ B(LdaKeyedProperty), R(this), U8(2),
+                B(Wide), B(LdaSmi), I16(285),
+                B(Star2),
                 B(LdaConstant), U8(0),
-                B(Star4),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(3), U8(2),
+                B(Star3),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(2), U8(2),
                 B(Throw),
 ]
 constant pool: [
@@ -136,20 +137,21 @@ snippet: "
   var test = D;
   new test;
 "
-frame size: 5
+frame size: 4
 parameter count: 1
 bytecode array length: 28
 bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(3),
-                B(Star1),
-                B(Mov), R(this), R(0),
-                B(Mov), R(context), R(2),
-  /*   48 E> */ B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
-  /*   53 S> */ B(Wide), B(LdaSmi), I16(284),
-                B(Star3),
+                B(Star0),
+                B(Ldar), R(context),
+  /*   48 E> */ B(StaKeyedPropertyAsDefine), R(this), R(0), U8(0),
+  /*   53 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
+  /*   58 E> */ B(LdaKeyedProperty), R(this), U8(2),
+                B(Wide), B(LdaSmi), I16(286),
+                B(Star2),
                 B(LdaConstant), U8(0),
-                B(Star4),
-  /*   61 E> */ B(CallRuntime), U16(Runtime::kNewTypeError), R(3), U8(2),
+                B(Star3),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(2), U8(2),
                 B(Throw),
 ]
 constant pool: [
@@ -167,20 +169,21 @@ snippet: "
   var test = E;
   new test;
 "
-frame size: 6
+frame size: 4
 parameter count: 1
 bytecode array length: 28
 bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(3),
-                B(Star1),
-                B(Mov), R(this), R(0),
-                B(Mov), R(context), R(2),
-  /*   41 E> */ B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
-  /*   46 S> */ B(Wide), B(LdaSmi), I16(283),
-                B(Star4),
+                B(Star0),
+                B(Ldar), R(context),
+  /*   41 E> */ B(StaKeyedPropertyAsDefine), R(this), R(0), U8(0),
+  /*   46 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
+  /*   51 E> */ B(LdaKeyedProperty), R(this), U8(2),
+                B(Wide), B(LdaSmi), I16(285),
+                B(Star2),
                 B(LdaConstant), U8(0),
-                B(Star5),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(4), U8(2),
+                B(Star3),
+                B(CallRuntime), U16(Runtime::kNewTypeError), R(2), U8(2),
                 B(Throw),
 ]
 constant pool: [

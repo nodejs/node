@@ -6236,15 +6236,15 @@ TEST(Call_with_trampoline) {
     __ Call(FUNCTION_ADDR(DummyFunction), RelocInfo::RUNTIME_ENTRY);
   }
   int pc_offset_after = __ pc_offset();
-  int last_call_pc = __ pc_offset_for_safepoint();
+  int safepoint_pc_offset = __ pc_offset_for_safepoint();
 
   // Without trampoline, the Call emits no more than 8 instructions, otherwise
   // more than 8 instructions will be generated.
   int num_instrs = 8;
   // pc_offset_after records the offset after trampoline.
   CHECK_GT(pc_offset_after - pc_offset_before, num_instrs * kInstrSize);
-  // last_call_pc records the offset before trampoline.
-  CHECK_LE(last_call_pc - pc_offset_before, num_instrs * kInstrSize);
+  // safepoint_pc_offset records the offset before trampoline.
+  CHECK_LE(safepoint_pc_offset - pc_offset_before, num_instrs * kInstrSize);
 
   __ bind(&done);
 }

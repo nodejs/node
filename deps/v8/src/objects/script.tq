@@ -59,4 +59,9 @@ extern class Script extends Struct {
 
   // [host_defined_options]: Options defined by the embedder.
   host_defined_options: FixedArray;
+
+  // TODO(cbruni, v8:12302): remove once module callback API is updated.
+  // Used to make sure we are backwards compatible with node to gaurantee
+  // the same lifetime for ScriptOrModule as the Script they originated.
+  @if(V8_SCRIPTORMODULE_LEGACY_LIFETIME) script_or_modules: ArrayList;
 }

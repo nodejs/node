@@ -41,6 +41,8 @@ calling `require('crypto')` will result in an error being thrown.
 
 When using CommonJS, the error thrown can be caught using try/catch:
 
+<!-- eslint-skip -->
+
 ```cjs
 let crypto;
 try {
@@ -52,8 +54,8 @@ try {
 
 When using the lexical ESM `import` keyword, the error can only be
 caught if a handler for `process.on('uncaughtException')` is registered
-_before_ any attempt to load the module is made -- using, for instance,
-a preload module.
+_before_ any attempt to load the module is made (using, for instance,
+a preload module).
 
 When using ESM, if there is a chance that the code may be run on a build
 of Node.js where crypto support is not enabled, consider using the
@@ -543,7 +545,7 @@ once will result in an error being thrown.
 added: v1.0.0
 -->
 
-* Returns: {Buffer} When using an authenticated encryption mode (`GCM`, `CCM`
+* Returns: {Buffer} When using an authenticated encryption mode (`GCM`, `CCM`,
   and `OCB` are currently supported), the `cipher.getAuthTag()` method returns a
   [`Buffer`][] containing the _authentication tag_ that has been computed from
   the given data.
@@ -566,7 +568,7 @@ added: v1.0.0
   * `encoding` {string} The string encoding to use when `buffer` is a string.
 * Returns: {Cipher} for method chaining.
 
-When using an authenticated encryption mode (`GCM`, `CCM` and `OCB` are
+When using an authenticated encryption mode (`GCM`, `CCM`, and `OCB` are
 currently supported), the `cipher.setAAD()` method sets the value used for the
 _additional authenticated data_ (AAD) input parameter.
 
@@ -863,7 +865,7 @@ changes:
   * `encoding` {string} String encoding to use when `buffer` is a string.
 * Returns: {Decipher} for method chaining.
 
-When using an authenticated encryption mode (`GCM`, `CCM` and `OCB` are
+When using an authenticated encryption mode (`GCM`, `CCM`, and `OCB` are
 currently supported), the `decipher.setAAD()` method sets the value used for the
 _additional authenticated data_ (AAD) input parameter.
 
@@ -897,7 +899,7 @@ changes:
 * `encoding` {string} String encoding to use when `buffer` is a string.
 * Returns: {Decipher} for method chaining.
 
-When using an authenticated encryption mode (`GCM`, `CCM` and `OCB` are
+When using an authenticated encryption mode (`GCM`, `CCM`, and `OCB` are
 currently supported), the `decipher.setAuthTag()` method is used to pass in the
 received _authentication tag_. If no tag is provided, or if the cipher text
 has been tampered with, [`decipher.final()`][] will throw, indicating that the
@@ -2080,6 +2082,20 @@ encryption mechanism, PEM-level encryption is not supported when encrypting
 a PKCS#8 key. See [RFC 5208][] for PKCS#8 encryption and [RFC 1421][] for
 PKCS#1 and SEC1 encryption.
 
+### `keyObject.equals(otherKeyObject)`
+
+<!-- YAML
+added: v17.7.0
+-->
+
+* `otherKeyObject`: {KeyObject} A `KeyObject` with which to
+  compare `keyObject`.
+* Returns: {boolean}
+
+Returns `true` or `false` depending on whether the keys have exactly the same
+type, value, and parameters. This method is not
+[constant time](https://en.wikipedia.org/wiki/Timing_attack).
+
 ### `keyObject.symmetricKeySize`
 
 <!-- YAML
@@ -2464,62 +2480,110 @@ added: v15.6.0
 added: v15.6.0
 -->
 
-* Type: {boolean} Will be `true` if this is a Certificate Authority (ca)
+* Type: {boolean} Will be `true` if this is a Certificate Authority (CA)
   certificate.
 
 ### `x509.checkEmail(email[, options])`
 
 <!-- YAML
 added: v15.6.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41600
+    description: The subject option now defaults to `'default'`.
+  - version: v17.5.0
+    pr-url: https://github.com/nodejs/node/pull/41599
+    description: The `wildcards`, `partialWildcards`, `multiLabelWildcards`, and
+                 `singleLabelSubdomains` options have been removed since they
+                 had no effect.
+  - version: v17.5.0
+    pr-url: https://github.com/nodejs/node/pull/41569
+    description: The subject option can now be set to `'default'`.
 -->
 
 * `email` {string}
 * `options` {Object}
-  * `subject` {string} `'always'` or `'never'`. **Default:** `'always'`.
-  * `wildcards` {boolean} **Default:** `true`.
-  * `partialWildcards` {boolean} **Default:** `true`.
-  * `multiLabelWildcards` {boolean} **Default:** `false`.
-  * `singleLabelSubdomains` {boolean} **Default:** `false`.
+  * `subject` {string} `'default'`, `'always'`, or `'never'`.
+    **Default:** `'default'`.
 * Returns: {string|undefined} Returns `email` if the certificate matches,
   `undefined` if it does not.
 
 Checks whether the certificate matches the given email address.
 
+If the `'subject'` option is undefined or set to `'default'`, the certificate
+subject is only considered if the subject alternative name extension either does
+not exist or does not contain any email addresses.
+
+If the `'subject'` option is set to `'always'` and if the subject alternative
+name extension either does not exist or does not contain a matching email
+address, the certificate subject is considered.
+
+If the `'subject'` option is set to `'never'`, the certificate subject is never
+considered, even if the certificate contains no subject alternative names.
+
 ### `x509.checkHost(name[, options])`
 
 <!-- YAML
 added: v15.6.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41600
+    description: The subject option now defaults to `'default'`.
+  - version: v17.5.0
+    pr-url: https://github.com/nodejs/node/pull/41569
+    description: The subject option can now be set to `'default'`.
 -->
 
 * `name` {string}
 * `options` {Object}
-  * `subject` {string} `'always'` or `'never'`. **Default:** `'always'`.
+  * `subject` {string} `'default'`, `'always'`, or `'never'`.
+    **Default:** `'default'`.
   * `wildcards` {boolean} **Default:** `true`.
   * `partialWildcards` {boolean} **Default:** `true`.
   * `multiLabelWildcards` {boolean} **Default:** `false`.
   * `singleLabelSubdomains` {boolean} **Default:** `false`.
-* Returns: {string|undefined} Returns `name` if the certificate matches,
-  `undefined` if it does not.
+* Returns: {string|undefined} Returns a subject name that matches `name`,
+  or `undefined` if no subject name matches `name`.
 
 Checks whether the certificate matches the given host name.
 
-### `x509.checkIP(ip[, options])`
+If the certificate matches the given host name, the matching subject name is
+returned. The returned name might be an exact match (e.g., `foo.example.com`)
+or it might contain wildcards (e.g., `*.example.com`). Because host name
+comparisons are case-insensitive, the returned subject name might also differ
+from the given `name` in capitalization.
+
+If the `'subject'` option is undefined or set to `'default'`, the certificate
+subject is only considered if the subject alternative name extension either does
+not exist or does not contain any DNS names. This behavior is consistent with
+[RFC 2818][] ("HTTP Over TLS").
+
+If the `'subject'` option is set to `'always'` and if the subject alternative
+name extension either does not exist or does not contain a matching DNS name,
+the certificate subject is considered.
+
+If the `'subject'` option is set to `'never'`, the certificate subject is never
+considered, even if the certificate contains no subject alternative names.
+
+### `x509.checkIP(ip)`
 
 <!-- YAML
 added: v15.6.0
+changes:
+  - version: v17.5.0
+    pr-url: https://github.com/nodejs/node/pull/41571
+    description: The `options` argument has been removed since it had no effect.
 -->
 
 * `ip` {string}
-* `options` {Object}
-  * `subject` {string} `'always'` or `'never'`. **Default:** `'always'`.
-  * `wildcards` {boolean} **Default:** `true`.
-  * `partialWildcards` {boolean} **Default:** `true`.
-  * `multiLabelWildcards` {boolean} **Default:** `false`.
-  * `singleLabelSubdomains` {boolean} **Default:** `false`.
 * Returns: {string|undefined} Returns `ip` if the certificate matches,
   `undefined` if it does not.
 
 Checks whether the certificate matches the given IP address (IPv4 or IPv6).
+
+Only [RFC 5280][] `iPAddress` subject alternative names are considered, and they
+must match the given `ip` address exactly. Other subject alternative names as
+well as the subject field of the certificate are ignored.
 
 ### `x509.checkIssued(otherCert)`
 
@@ -2567,7 +2631,9 @@ The SHA-256 fingerprint of this certificate.
 ### `x509.fingerprint512`
 
 <!-- YAML
-added: v17.2.0
+added:
+  - v17.2.0
+  - v16.14.0
 -->
 
 * Type: {string}
@@ -2821,6 +2887,12 @@ This property is deprecated. Please use `crypto.setFips()` and
 
 <!-- YAML
 added: v15.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `candidate` {ArrayBuffer|SharedArrayBuffer|TypedArray|Buffer|DataView|bigint}
@@ -2898,8 +2970,7 @@ option is not required but can be used to set the length of the authentication
 tag that will be returned by `getAuthTag()` and defaults to 16 bytes.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
-recent OpenSSL releases, `openssl list -cipher-algorithms`
-(`openssl list-cipher-algorithms` for older versions of OpenSSL) will
+recent OpenSSL releases, `openssl list -cipher-algorithms` will
 display the available cipher algorithms.
 
 The `password` is used to derive the cipher key and initialization vector (IV).
@@ -2969,8 +3040,7 @@ option is not required but can be used to set the length of the authentication
 tag that will be returned by `getAuthTag()` and defaults to 16 bytes.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
-recent OpenSSL releases, `openssl list -cipher-algorithms`
-(`openssl list-cipher-algorithms` for older versions of OpenSSL) will
+recent OpenSSL releases, `openssl list -cipher-algorithms` will
 display the available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
@@ -3070,8 +3140,7 @@ option is not required but can be used to restrict accepted authentication tags
 to those with the specified length.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
-recent OpenSSL releases, `openssl list -cipher-algorithms`
-(`openssl list-cipher-algorithms` for older versions of OpenSSL) will
+recent OpenSSL releases, `openssl list -cipher-algorithms` will
 display the available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
@@ -3187,8 +3256,7 @@ can be used to specify the desired output length in bytes.
 
 The `algorithm` is dependent on the available algorithms supported by the
 version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
-On recent releases of OpenSSL, `openssl list -digest-algorithms`
-(`openssl list-message-digest-algorithms` for older versions of OpenSSL) will
+On recent releases of OpenSSL, `openssl list -digest-algorithms` will
 display the available digest algorithms.
 
 Example: generating the sha256 sum of a file
@@ -3271,8 +3339,7 @@ Optional `options` argument controls stream behavior.
 
 The `algorithm` is dependent on the available algorithms supported by the
 version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
-On recent releases of OpenSSL, `openssl list -digest-algorithms`
-(`openssl list-message-digest-algorithms` for older versions of OpenSSL) will
+On recent releases of OpenSSL, `openssl list -digest-algorithms` will
 display the available digest algorithms.
 
 The `key` is the HMAC key used to generate the cryptographic HMAC hash. If it is
@@ -3499,6 +3566,12 @@ Both keys must have the same `asymmetricKeyType`, which must be one of `'dh'`
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `type`: {string} The intended use of the generated secret key. Currently
@@ -3544,6 +3617,11 @@ generateKey('hmac', { length: 64 }, (err, key) => {
 <!-- YAML
 added: v10.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v16.10.0
     pr-url: https://github.com/nodejs/node/pull/39927
     description: Add ability to define `RSASSA-PSS-params` sequence parameters
@@ -3804,6 +3882,12 @@ console.log(key.export().toString('hex'));  // e89..........41e
 
 <!-- YAML
 added: v15.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `size` {number} The size (in bits) of the prime to generate.
@@ -4058,18 +4142,26 @@ console.log(getHashes()); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
 ### `crypto.getRandomValues(typedArray)`
 
 <!-- YAML
-added: REPLACEME
+added: v17.4.0
 -->
 
 * `typedArray` {Buffer|TypedArray|DataView|ArrayBuffer}
 * Returns: {Buffer|TypedArray|DataView|ArrayBuffer} Returns `typedArray`.
 
-A convenient alias for [`crypto.webcrypto.getRandomValues()`][].
+A convenient alias for [`crypto.webcrypto.getRandomValues()`][]. This
+implementation is not compliant with the Web Crypto spec, to write
+web-compatible code use [`crypto.webcrypto.getRandomValues()`][] instead.
 
 ### `crypto.hkdf(digest, ikm, salt, info, keylen, callback)`
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `digest` {string} The digest algorithm to use.
@@ -4173,6 +4265,11 @@ console.log(Buffer.from(derivedKey).toString('hex'));  // '24156e2...5391653'
 <!-- YAML
 added: v0.5.5
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The password and salt arguments can also be ArrayBuffer
@@ -4554,6 +4651,11 @@ be passed instead of a public key.
 <!-- YAML
 added: v0.5.8
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/16454
     description: Passing `null` as the `callback` argument now throws
@@ -4734,6 +4836,11 @@ added:
   - v7.10.0
   - v6.13.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15231
     description: The `buffer` argument may be any `TypedArray` or `DataView`.
@@ -4870,6 +4977,12 @@ request.
 added:
   - v14.10.0
   - v12.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
 -->
 
 * `min` {integer} Start of random range (inclusive). **Default:** `0`.
@@ -4973,6 +5086,11 @@ cryptographic pseudorandom number generator.
 <!-- YAML
 added: v10.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The password and salt arguments can also be ArrayBuffer
@@ -5196,6 +5314,11 @@ Throws an error if FIPS mode is not available.
 <!-- YAML
 added: v12.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v15.12.0
     pr-url: https://github.com/nodejs/node/pull/37500
     description: Optional callback argument added.
@@ -5248,7 +5371,7 @@ If the `callback` function is provided this function uses libuv's threadpool.
 ### `crypto.subtle`
 
 <!-- YAML
-added: REPLACEME
+added: v17.4.0
 -->
 
 * Type: {SubtleCrypto}
@@ -5276,7 +5399,8 @@ comparing HMAC digests or secret values like authentication cookies or
 [capability urls](https://www.w3.org/TR/capability-urls/).
 
 `a` and `b` must both be `Buffer`s, `TypedArray`s, or `DataView`s, and they
-must have the same byte length.
+must have the same byte length. An error is thrown if `a` and `b` have
+different byte lengths.
 
 If at least one of `a` and `b` is a `TypedArray` with more than one byte per
 entry, such as `Uint16Array`, the result will be computed using the platform
@@ -5291,6 +5415,11 @@ not introduce timing vulnerabilities.
 <!-- YAML
 added: v12.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v15.12.0
     pr-url: https://github.com/nodejs/node/pull/37500
     description: Optional callback argument added.
@@ -5414,21 +5543,6 @@ API (e.g. `update()`, `final()`, or `digest()`). Also, many methods accepted
 and returned `'latin1'` encoded strings by default rather than `Buffer`s. This
 default was changed after Node.js v0.8 to use [`Buffer`][] objects by default
 instead.
-
-### Recent ECDH changes
-
-Usage of `ECDH` with non-dynamically generated key pairs has been simplified.
-Now, [`ecdh.setPrivateKey()`][] can be called with a preselected private key
-and the associated public point (key) will be computed and stored in the object.
-This allows code to only store and provide the private part of the EC key pair.
-[`ecdh.setPrivateKey()`][] now also validates that the private key is valid for
-the selected curve.
-
-The [`ecdh.setPublicKey()`][] method is now deprecated as its inclusion in the
-API is not useful. Either a previously stored private key should be set, which
-automatically generates the associated public key, or [`ecdh.generateKeys()`][]
-should be called. The main drawback of using [`ecdh.setPublicKey()`][] is that
-it can be used to put the ECDH key pair into an inconsistent state.
 
 ### Support for weak or compromised algorithms
 
@@ -5727,8 +5841,8 @@ See the [list of SSL OP Flags][] for details.
   </tr>
   <tr>
     <td><code>SSL_OP_PRIORITIZE_CHACHA</code></td>
-    <td>Instructs OpenSSL server to prioritize ChaCha20Poly1305
-    when client does.
+    <td>Instructs OpenSSL server to prioritize ChaCha20-Poly1305
+    when the client does.
     This option has no effect if
     <code>SSL_OP_CIPHER_SERVER_PREFERENCE</code>
     is not enabled.</td>
@@ -5931,11 +6045,13 @@ See the [list of SSL OP Flags][] for details.
 [OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.1.0/apps/openssl-spkac.html
 [RFC 1421]: https://www.rfc-editor.org/rfc/rfc1421.txt
 [RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
+[RFC 2818]: https://www.rfc-editor.org/rfc/rfc2818.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
 [RFC 3610]: https://www.rfc-editor.org/rfc/rfc3610.txt
 [RFC 4055]: https://www.rfc-editor.org/rfc/rfc4055.txt
 [RFC 4122]: https://www.rfc-editor.org/rfc/rfc4122.txt
 [RFC 5208]: https://www.rfc-editor.org/rfc/rfc5208.txt
+[RFC 5280]: https://www.rfc-editor.org/rfc/rfc5280.txt
 [Web Crypto API documentation]: webcrypto.md
 [`BN_is_prime_ex`]: https://www.openssl.org/docs/man1.1.1/man3/BN_is_prime_ex.html
 [`Buffer`]: buffer.md
@@ -5977,7 +6093,6 @@ See the [list of SSL OP Flags][] for details.
 [`diffieHellman.setPublicKey()`]: #diffiehellmansetpublickeypublickey-encoding
 [`ecdh.generateKeys()`]: #ecdhgeneratekeysencoding-format
 [`ecdh.setPrivateKey()`]: #ecdhsetprivatekeyprivatekey-encoding
-[`ecdh.setPublicKey()`]: #ecdhsetpublickeypublickey-encoding
 [`hash.digest()`]: #hashdigestencoding
 [`hash.update()`]: #hashupdatedata-inputencoding
 [`hmac.digest()`]: #hmacdigestencoding

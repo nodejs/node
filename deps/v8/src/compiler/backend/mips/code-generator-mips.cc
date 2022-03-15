@@ -3972,23 +3972,14 @@ void CodeGenerator::AssembleConstructFrame() {
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
 #if V8_ENABLE_WEBASSEMBLY
-      if (call_descriptor->IsWasmFunctionCall()) {
+      if (call_descriptor->IsWasmFunctionCall() ||
+          call_descriptor->IsWasmImportWrapper() ||
+          call_descriptor->IsWasmCapiFunction()) {
         __ Push(kWasmInstanceRegister);
-      } else if (call_descriptor->IsWasmImportWrapper() ||
-                 call_descriptor->IsWasmCapiFunction()) {
-        // Wasm import wrappers are passed a tuple in the place of the instance.
-        // Unpack the tuple into the instance and the target callable.
-        // This must be done here in the codegen because it cannot be expressed
-        // properly in the graph.
-        __ lw(kJSFunctionRegister,
-              FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
-        __ lw(kWasmInstanceRegister,
-              FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
-        __ Push(kWasmInstanceRegister);
-        if (call_descriptor->IsWasmCapiFunction()) {
-          // Reserve space for saving the PC later.
-          __ Subu(sp, sp, Operand(kSystemPointerSize));
-        }
+      }
+      if (call_descriptor->IsWasmCapiFunction()) {
+        // Reserve space for saving the PC later.
+        __ Subu(sp, sp, Operand(kSystemPointerSize));
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
     }
@@ -4142,14 +4133,15 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   if (drop_jsargs) {
     // We must pop all arguments from the stack (including the receiver). This
     // number of arguments is given by max(1 + argc_reg, parameter_slots).
-    __ Addu(t0, t0, Operand(1));  // Also pop the receiver.
+    if (!kJSArgcIncludesReceiver) {
+      __ Addu(t0, t0, Operand(1));  // Also pop the receiver.
+    }
     if (parameter_slots > 1) {
       __ li(kScratchReg, parameter_slots);
       __ slt(kScratchReg2, t0, kScratchReg);
       __ movn(t0, kScratchReg, kScratchReg2);
     }
-    __ sll(t0, t0, kSystemPointerSizeLog2);
-    __ Addu(sp, sp, t0);
+    __ Lsa(sp, sp, t0, kSystemPointerSizeLog2, t0);
   } else if (additional_pop_count->IsImmediate()) {
     DCHECK_EQ(Constant::kInt32, g.ToConstant(additional_pop_count).type());
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
@@ -4157,8 +4149,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   } else {
     Register pop_reg = g.ToRegister(additional_pop_count);
     __ Drop(parameter_slots);
-    __ sll(pop_reg, pop_reg, kSystemPointerSizeLog2);
-    __ Addu(sp, sp, pop_reg);
+    __ Lsa(sp, sp, pop_reg, kSystemPointerSizeLog2, pop_reg);
   }
   __ Ret();
 }

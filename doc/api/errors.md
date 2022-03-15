@@ -1120,7 +1120,9 @@ The [debugger][] timed out waiting for the required host/port to be free.
 ### `ERR_DLOPEN_DISABLED`
 
 <!-- YAML
-added: v16.10.0
+added:
+  - v16.10.0
+  - v14.19.0
 -->
 
 Loading native addons has been disabled using [`--no-addons`][].
@@ -1697,7 +1699,9 @@ An attempt was made to construct an object using a non-public constructor.
 ### `ERR_IMPORT_ASSERTION_TYPE_FAILED`
 
 <!-- YAML
-added: v17.1.0
+added:
+  - v17.1.0
+  - v16.14.0
 -->
 
 An import assertion has failed, preventing the specified module to be imported.
@@ -1707,7 +1711,9 @@ An import assertion has failed, preventing the specified module to be imported.
 ### `ERR_IMPORT_ASSERTION_TYPE_MISSING`
 
 <!-- YAML
-added: v17.1.0
+added:
+  - v17.1.0
+  - v16.14.0
 -->
 
 An import assertion is missing, preventing the specified module to be imported.
@@ -1717,7 +1723,9 @@ An import assertion is missing, preventing the specified module to be imported.
 ### `ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED`
 
 <!-- YAML
-added: v17.1.0
+added:
+  - v17.1.0
+  - v16.14.0
 -->
 
 An import assertion is not supported by this version of Node.js.
@@ -1830,12 +1838,6 @@ less than -1 should never happen.
 
 A swap was performed on a `Buffer` but its size was not compatible with the
 operation.
-
-<a id="ERR_INVALID_CALLBACK"></a>
-
-### `ERR_INVALID_CALLBACK`
-
-A callback function was required but was not been provided to a Node.js API.
 
 <a id="ERR_INVALID_CHAR"></a>
 
@@ -2225,9 +2227,8 @@ transferable object types has been expanded to cover more types than
 
 ### `ERR_MODULE_NOT_FOUND`
 
-> Stability: 1 - Experimental
-
-An [ES Module][] could not be resolved.
+A module file could not be resolved by the ECMAScript modules loader while
+attempting an `import` operation or when loading the program entry point.
 
 <a id="ERR_MULTIPLE_CALLBACK"></a>
 
@@ -2958,8 +2959,8 @@ changes:
     description: Added `requireStack` property.
 -->
 
-A module file could not be resolved while attempting a [`require()`][] or
-`import` operation.
+A module file could not be resolved by the CommonJS modules loader while
+attempting a [`require()`][] operation or when loading the program entry point.
 
 ## Legacy Node.js error codes
 
@@ -3117,6 +3118,23 @@ removed: v10.0.0
 -->
 
 Used by the `Node-API` when `Constructor.prototype` is not an object.
+
+<a id="ERR_NETWORK_IMPORT_BAD_RESPONSE"></a>
+
+### `ERR_NETWORK_IMPORT_BAD_RESPONSE`
+
+> Stability: 1 - Experimental
+
+Response was received but was invalid when importing a module over the network.
+
+<a id="ERR_NETWORK_IMPORT_DISALLOWED"></a>
+
+### `ERR_NETWORK_IMPORT_DISALLOWED`
+
+> Stability: 1 - Experimental
+
+A network module attempted to load another module that it is not allowed to
+load. Likely this restriction is for security reasons.
 
 <a id="ERR_NO_LONGER_SUPPORTED"></a>
 

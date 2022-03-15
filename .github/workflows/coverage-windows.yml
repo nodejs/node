@@ -1,28 +1,30 @@
-name: coverage-windows
+name: Coverage Windows
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
       - '**.md'
-      - 'benchmark/**'
-      - 'deps/**'
-      - 'doc/**'
-      - 'tools/**'
+      - benchmark/**
+      - deps/**
+      - doc/**
+      - tools/**
       - .github/**
       - '!.github/workflows/coverage-windows.yml'
   push:
-    branches:
-      - master
-      - main
+    branches: [master, main]
     paths-ignore:
       - '**.md'
-      - 'benchmark/**'
-      - 'deps/**'
-      - 'doc/**'
-      - 'tools/**'
+      - benchmark/**
+      - deps/**
+      - doc/**
+      - tools/**
       - .github/**
       - '!.github/workflows/coverage-windows.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 env:
   PYTHON_VERSION: '3.10'

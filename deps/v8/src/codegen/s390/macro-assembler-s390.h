@@ -45,6 +45,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   using TurboAssemblerBase::TurboAssemblerBase;
 
   void CallBuiltin(Builtin builtin);
+  void TailCallBuiltin(Builtin builtin);
   void AtomicCmpExchangeHelper(Register addr, Register output,
                                Register old_value, Register new_value,
                                int start, int end, int shift_amount, int offset,
@@ -1045,6 +1046,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     lay(sp, MemOperand(sp, -bytes));
   }
 
+  void AllocateStackSpace(Register bytes) { SubS64(sp, sp, bytes); }
+
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met);
 
@@ -1265,6 +1268,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
  public:
   using TurboAssembler::TurboAssembler;
 
+  void LoadStackLimit(Register destination, StackLimitKind kind);
   // It assumes that the arguments are located below the stack pointer.
   // argc is the number of arguments not including the receiver.
   // TODO(victorgomes): Remove this function once we stick with the reversed
@@ -1349,7 +1353,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                                bool builtin_exit_frame = false);
 
   // Generates a trampoline to jump to the off-heap instruction stream.
-  void JumpToInstructionStream(Address entry);
+  void JumpToOffHeapInstructionStream(Address entry);
 
   // Compare the object in a register to a value and jump if they are equal.
   void JumpIfRoot(Register with, RootIndex index, Label* if_equal) {
@@ -1491,6 +1495,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
+
+  // Abort execution if argument is not a callable JSFunction, enabled via
+  // --debug-code.
+  void AssertCallableFunction(Register object);
 
   // Abort execution if argument is not a JSBoundFunction,
   // enabled via --debug-code.

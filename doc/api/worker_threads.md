@@ -67,9 +67,11 @@ specifically `argv` and `execArgv` options.
 added:
   - v15.12.0
   - v14.18.0
+changes:
+  - version: v17.5.0
+    pr-url: https://github.com/nodejs/node/pull/41272
+    description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 * `key` {any} Any arbitrary, cloneable JavaScript value that can be used as a
   {Map} key.
@@ -295,9 +297,11 @@ new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
 added:
   - v15.12.0
   - v14.18.0
+changes:
+  - version: v17.5.0
+    pr-url: https://github.com/nodejs/node/pull/41272
+    description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 * `key` {any} Any arbitrary, cloneable JavaScript value that can be used as a
   {Map} key.
@@ -1267,7 +1271,9 @@ import {
 
 if (isMainThread) {
   new Worker(new URL(import.meta.url));
-  for (let n = 0; n < 1e10; n++) {}
+  for (let n = 0; n < 1e10; n++) {
+    // Looping to simulate work.
+  }
 } else {
   // This output will be blocked by the for loop in the main thread.
   console.log('foo');
@@ -1284,7 +1290,9 @@ const {
 
 if (isMainThread) {
   new Worker(__filename);
-  for (let n = 0; n < 1e10; n++) {}
+  for (let n = 0; n < 1e10; n++) {
+    // Looping to simulate work.
+  }
 } else {
   // This output will be blocked by the for loop in the main thread.
   console.log('foo');

@@ -20,9 +20,11 @@
  */
 namespace v8 {
 
+enum class EmbedderStateTag : uint8_t;
 class HeapGraphNode;
 struct HeapStatsUpdate;
 class Object;
+enum StateTag : int;
 
 using NativeObject = void*;
 using SnapshotObjectId = uint32_t;
@@ -209,6 +211,16 @@ class V8_EXPORT CpuProfile {
    * since some unspecified starting point.
    */
   int64_t GetStartTime() const;
+
+  /**
+   * Returns state of the vm when sample was captured.
+   */
+  StateTag GetSampleState(int index) const;
+
+  /**
+   * Returns state of the embedder when sample was captured.
+   */
+  EmbedderStateTag GetSampleEmbedderState(int index) const;
 
   /**
    * Returns time when the profile recording was stopped (in microseconds)
@@ -603,7 +615,7 @@ class V8_EXPORT ActivityControl {
    * Notify about current progress. The activity can be stopped by
    * returning kAbort as the callback result.
    */
-  virtual ControlOption ReportProgressValue(int done, int total) = 0;
+  virtual ControlOption ReportProgressValue(uint32_t done, uint32_t total) = 0;
 };
 
 /**

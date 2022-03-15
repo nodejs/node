@@ -234,5 +234,31 @@ class Source {
 }
 
 {
+  const stream = new ReadableStream({
+    type: 'bytes',
+    pull(c) {
+      const v = new Uint8Array(c.byobRequest.view.buffer, 0, 3);
+      v.set([20, 21, 22]);
+      c.byobRequest.respondWithNewView(v);
+    },
+  });
+  const buffer = new ArrayBuffer(10);
+  const view = new Uint8Array(buffer, 0, 3);
+  view.set([10, 11, 12]);
+  const reader = stream.getReader({ mode: 'byob' });
+  reader.read(view);
+}
 
+{
+  const stream = new ReadableStream({
+    type: 'bytes',
+    autoAllocateChunkSize: 10,
+    pull(c) {
+      const v = new Uint8Array(c.byobRequest.view.buffer, 0, 3);
+      v.set([20, 21, 22]);
+      c.byobRequest.respondWithNewView(v);
+    },
+  });
+  const reader = stream.getReader();
+  reader.read();
 }

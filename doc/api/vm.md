@@ -9,8 +9,10 @@
 <!-- source_link=lib/vm.js -->
 
 The `vm` module enables compiling and running code within V8 Virtual
-Machine contexts. **The `vm` module is not a security mechanism. Do
-not use it to run untrusted code.**
+Machine contexts.
+
+<strong class="critical">The `vm` module is not a security
+mechanism. Do not use it to run untrusted code.</strong>
 
 JavaScript code can be compiled and run immediately or
 compiled, saved, and run later.
@@ -1051,7 +1053,7 @@ current V8 isolate, or the main context.
 * `options` {Object} Optional.
   * `mode` {string} Either `'summary'` or `'detailed'`. In summary mode,
     only the memory measured for the main context will be returned. In
-    detailed mode, the measure measured for all contexts known to the
+    detailed mode, the memory measured for all contexts known to the
     current V8 isolate will be returned.
     **Default:** `'summary'`
   * `execution` {string} Either `'default'` or `'eager'`. With default

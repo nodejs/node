@@ -333,8 +333,11 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromIterable(
   }
   BIND(&if_exception);
   {
+    TNode<HeapObject> message = GetPendingMessage();
+    SetPendingMessage(TheHoleConstant());
     IteratorCloseOnException(context, iterator);
-    CallRuntime(Runtime::kReThrow, context, var_exception.value());
+    CallRuntime(Runtime::kReThrowWithMessage, context, var_exception.value(),
+                message);
     Unreachable();
   }
   BIND(&exit);

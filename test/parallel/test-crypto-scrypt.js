@@ -211,7 +211,7 @@ for (const { args, expected } of badargs) {
 }
 
 {
-  const expected = { code: 'ERR_INVALID_CALLBACK' };
+  const expected = { code: 'ERR_INVALID_ARG_TYPE' };
   assert.throws(() => crypto.scrypt('', '', 42, null), expected);
   assert.throws(() => crypto.scrypt('', '', 42, {}, null), expected);
   assert.throws(() => crypto.scrypt('', '', 42, {}), expected);

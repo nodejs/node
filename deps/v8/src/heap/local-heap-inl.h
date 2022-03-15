@@ -25,23 +25,46 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK_IMPLIES(type == AllocationType::kCode || type == AllocationType::kMap,
-                 alignment == AllocationAlignment::kWordAligned);
+                 alignment == AllocationAlignment::kTaggedAligned);
   Heap::HeapState state = heap()->gc_state();
   DCHECK(state == Heap::TEAR_DOWN || state == Heap::NOT_IN_GC);
-  ThreadState current = state_.load(std::memory_order_relaxed);
-  DCHECK(current == kRunning || current == kSafepointRequested);
+  DCHECK(IsRunning());
 #endif
 
   // Each allocation is supposed to be a safepoint.
   Safepoint();
 
   bool large_object = size_in_bytes > heap_->MaxRegularHeapObjectSize(type);
-  CHECK_EQ(type, AllocationType::kOld);
 
-  if (large_object)
-    return heap()->lo_space()->AllocateRawBackground(this, size_in_bytes);
-  else
-    return old_space_allocator()->AllocateRaw(size_in_bytes, alignment, origin);
+  if (type == AllocationType::kCode) {
+    AllocationResult alloc;
+    if (large_object) {
+      alloc =
+          heap()->code_lo_space()->AllocateRawBackground(this, size_in_bytes);
+    } else {
+      alloc =
+          code_space_allocator()->AllocateRaw(size_in_bytes, alignment, origin);
+    }
+    HeapObject object;
+    if (alloc.To(&object) && !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+      heap()->UnprotectAndRegisterMemoryChunk(
+          object, UnprotectMemoryOrigin::kMaybeOffMainThread);
+      heap()->ZapCodeObject(object.address(), size_in_bytes);
+    }
+    return alloc;
+  }
+
+  if (type == AllocationType::kOld) {
+    if (large_object)
+      return heap()->lo_space()->AllocateRawBackground(this, size_in_bytes);
+    else
+      return old_space_allocator()->AllocateRaw(size_in_bytes, alignment,
+                                                origin);
+  }
+
+  DCHECK_EQ(type, AllocationType::kSharedOld);
+  return shared_old_space_allocator()->AllocateRaw(size_in_bytes, alignment,
+                                                   origin);
 }
 
 Address LocalHeap::AllocateRawOrFail(int object_size, AllocationType type,

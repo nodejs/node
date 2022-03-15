@@ -44,12 +44,14 @@ int StubCache::PrimaryOffset(Name name, Map map) {
 }
 
 // Hash algorithm for the secondary table.  This algorithm is replicated in
-// assembler for every architecture.  Returns an index into the table that
-// is scaled by 1 << kCacheIndexShift.
-int StubCache::SecondaryOffset(Name name, int seed) {
-  // Use the seed from the primary cache in the secondary cache.
+// assembler. This hash should be sufficiently different from the primary one
+// in order to avoid collisions for minified code with short names.
+// Returns an index into the table that is scaled by 1 << kCacheIndexShift.
+int StubCache::SecondaryOffset(Name name, Map old_map) {
   uint32_t name_low32bits = static_cast<uint32_t>(name.ptr());
-  uint32_t key = (seed - name_low32bits) + kSecondaryMagic;
+  uint32_t map_low32bits = static_cast<uint32_t>(old_map.ptr());
+  uint32_t key = (map_low32bits + name_low32bits);
+  key = key + (key >> kSecondaryKeyShift);
   return key & ((kSecondaryTableSize - 1) << kCacheIndexShift);
 }
 
@@ -57,8 +59,8 @@ int StubCache::PrimaryOffsetForTesting(Name name, Map map) {
   return PrimaryOffset(name, map);
 }
 
-int StubCache::SecondaryOffsetForTesting(Name name, int seed) {
-  return SecondaryOffset(name, seed);
+int StubCache::SecondaryOffsetForTesting(Name name, Map map) {
+  return SecondaryOffset(name, map);
 }
 
 #ifdef DEBUG
@@ -93,11 +95,9 @@ void StubCache::Set(Name name, Map map, MaybeObject handler) {
       !primary->map.IsSmi()) {
     Map old_map =
         Map::cast(StrongTaggedValue::ToObject(isolate(), primary->map));
-    int seed = PrimaryOffset(
-        Name::cast(StrongTaggedValue::ToObject(isolate(), primary->key)),
-        old_map);
-    int secondary_offset = SecondaryOffset(
-        Name::cast(StrongTaggedValue::ToObject(isolate(), primary->key)), seed);
+    Name old_name =
+        Name::cast(StrongTaggedValue::ToObject(isolate(), primary->key));
+    int secondary_offset = SecondaryOffset(old_name, old_map);
     Entry* secondary = entry(secondary_, secondary_offset);
     *secondary = *primary;
   }
@@ -116,7 +116,7 @@ MaybeObject StubCache::Get(Name name, Map map) {
   if (primary->key == name && primary->map == map) {
     return TaggedValue::ToMaybeObject(isolate(), primary->value);
   }
-  int secondary_offset = SecondaryOffset(name, primary_offset);
+  int secondary_offset = SecondaryOffset(name, map);
   Entry* secondary = entry(secondary_, secondary_offset);
   if (secondary->key == name && secondary->map == map) {
     return TaggedValue::ToMaybeObject(isolate(), secondary->value);

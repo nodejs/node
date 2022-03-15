@@ -702,7 +702,8 @@ WASM_EXEC_TEST(I64AtomicLoadUseOnlyLowWord) {
   WasmRunner<uint32_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
-  memory[1] = 0x1234567890abcdeful;
+  uint64_t initial = 0x1234567890abcdef;
+  r.builder().WriteMemory(&memory[1], initial);
   r.builder().SetHasSharedMemory();
   // Test that we can use just the low word of an I64AtomicLoad.
   BUILD(r,
@@ -716,7 +717,8 @@ WASM_EXEC_TEST(I64AtomicLoadUseOnlyHighWord) {
   WasmRunner<uint32_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
-  memory[1] = 0x1234567890abcdeful;
+  uint64_t initial = 0x1234567890abcdef;
+  r.builder().WriteMemory(&memory[1], initial);
   r.builder().SetHasSharedMemory();
   // Test that we can use just the high word of an I64AtomicLoad.
   BUILD(r, WASM_I32_CONVERT_I64(WASM_I64_ROR(
@@ -731,7 +733,8 @@ WASM_EXEC_TEST(I64AtomicAddUseOnlyLowWord) {
   WasmRunner<uint32_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
-  memory[1] = 0x1234567890abcdeful;
+  uint64_t initial = 0x1234567890abcdef;
+  r.builder().WriteMemory(&memory[1], initial);
   r.builder().SetHasSharedMemory();
   // Test that we can use just the low word of an I64AtomicLoad.
   BUILD(r, WASM_I32_CONVERT_I64(
@@ -745,7 +748,8 @@ WASM_EXEC_TEST(I64AtomicAddUseOnlyHighWord) {
   WasmRunner<uint32_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
-  memory[1] = 0x1234567890abcdeful;
+  uint64_t initial = 0x1234567890abcdef;
+  r.builder().WriteMemory(&memory[1], initial);
   r.builder().SetHasSharedMemory();
   // Test that we can use just the high word of an I64AtomicLoad.
   BUILD(r, WASM_I32_CONVERT_I64(WASM_I64_ROR(
@@ -760,7 +764,8 @@ WASM_EXEC_TEST(I64AtomicCompareExchangeUseOnlyLowWord) {
   WasmRunner<uint32_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
-  memory[1] = 0x1234567890abcdeful;
+  uint64_t initial = 0x1234567890abcdef;
+  r.builder().WriteMemory(&memory[1], initial);
   r.builder().SetHasSharedMemory();
   // Test that we can use just the low word of an I64AtomicLoad.
   BUILD(r, WASM_I32_CONVERT_I64(WASM_ATOMICS_TERNARY_OP(
@@ -774,7 +779,8 @@ WASM_EXEC_TEST(I64AtomicCompareExchangeUseOnlyHighWord) {
   WasmRunner<uint32_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
-  memory[1] = 0x1234567890abcdeful;
+  uint64_t initial = 0x1234567890abcdef;
+  r.builder().WriteMemory(&memory[1], initial);
   r.builder().SetHasSharedMemory();
   // Test that we can use just the high word of an I64AtomicLoad.
   BUILD(r, WASM_I32_CONVERT_I64(WASM_I64_ROR(
@@ -790,7 +796,8 @@ WASM_EXEC_TEST(I64AtomicExchangeUseOnlyLowWord) {
   WasmRunner<uint32_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
-  memory[1] = 0x1234567890abcdeful;
+  uint64_t initial = 0x1234567890abcdef;
+  r.builder().WriteMemory(&memory[1], initial);
   r.builder().SetHasSharedMemory();
   // Test that we can use just the low word of an I64AtomicLoad.
   BUILD(r, WASM_I32_CONVERT_I64(WASM_ATOMICS_BINOP(
@@ -804,7 +811,8 @@ WASM_EXEC_TEST(I64AtomicExchangeUseOnlyHighWord) {
   WasmRunner<uint32_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
-  memory[1] = 0x1234567890abcdeful;
+  uint64_t initial = 0x1234567890abcdef;
+  r.builder().WriteMemory(&memory[1], initial);
   r.builder().SetHasSharedMemory();
   // Test that we can use just the high word of an I64AtomicLoad.
   BUILD(r, WASM_I32_CONVERT_I64(WASM_I64_ROR(

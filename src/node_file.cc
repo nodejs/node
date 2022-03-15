@@ -277,13 +277,13 @@ inline void FileHandle::Close() {
                        detail.fd);
     if (env->filehandle_close_warning()) {
       env->set_filehandle_close_warning(false);
-      ProcessEmitDeprecationWarning(
+      USE(ProcessEmitDeprecationWarning(
           env,
           "Closing a FileHandle object on garbage collection is deprecated. "
           "Please close FileHandle objects explicitly using "
           "FileHandle.prototype.close(). In the future, an error will be "
           "thrown if a file descriptor is closed during garbage collection.",
-          "DEP0137").IsNothing();
+          "DEP0137"));
     }
   }, CallbackFlags::kUnrefed);
 }
@@ -2448,9 +2448,6 @@ InternalFieldInfo* BindingData::Serialize(int index) {
   InternalFieldInfo* info = InternalFieldInfo::New(type());
   return info;
 }
-
-// TODO(addaleax): Remove once we're on C++17.
-constexpr FastStringKey BindingData::type_name;
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,

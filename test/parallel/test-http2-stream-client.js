@@ -12,9 +12,9 @@ server.on('stream', common.mustCall((stream) => {
   assert.strictEqual(stream.aborted, false);
   const insp = util.inspect(stream);
   assert.match(insp, /Http2Stream {/);
-  assert.match(insp, /  state:/);
-  assert.match(insp, /  readableState:/);
-  assert.match(insp, /  writableState:/);
+  assert.match(insp, / {2}state:/);
+  assert.match(insp, / {2}readableState:/);
+  assert.match(insp, / {2}writableState:/);
   stream.end('ok');
 }));
 server.listen(0, common.mustCall(() => {

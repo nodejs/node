@@ -1,4 +1,5 @@
 const t = require('tap')
+const { fake: mockNpm } = require('../../fixtures/mock-npm')
 
 let result = ''
 const libnpmteam = {
@@ -9,12 +10,15 @@ const libnpmteam = {
   async lsUsers () {},
   async rm () {},
 }
-const npm = {
+const npm = mockNpm({
   flatOptions: {},
+  config: {
+    loglevel: 'info',
+  },
   output: (...msg) => {
     result += msg.join('\n')
   },
-}
+})
 const mocks = {
   libnpmteam,
   'cli-columns': a => a.join(' '),
@@ -25,6 +29,7 @@ const mocks = {
 t.afterEach(() => {
   result = ''
   npm.flatOptions = {}
+  npm.config.set('loglevel', 'info')
 })
 
 const Team = t.mock('../../../lib/commands/team.js', mocks)
@@ -73,7 +78,7 @@ t.test('team add <scope:team> <user>', async t => {
   })
 
   t.test('--silent', async t => {
-    npm.flatOptions.silent = true
+    npm.config.set('loglevel', 'silent')
 
     await team.exec(['add', '@npmcli:developers', 'foo'])
 
@@ -115,7 +120,7 @@ t.test('team create <scope:team>', async t => {
   })
 
   t.test('--silent', async t => {
-    npm.flatOptions.silent = true
+    npm.config.set('loglevel', 'silent')
 
     await team.exec(['create', '@npmcli:newteam'])
 
@@ -149,7 +154,7 @@ t.test('team destroy <scope:team>', async t => {
   })
 
   t.test('--silent', async t => {
-    npm.flatOptions.silent = true
+    npm.config.set('loglevel', 'silent')
     await team.exec(['destroy', '@npmcli:newteam'])
     t.same(result, '', 'should not output destroy if silent')
   })
@@ -198,7 +203,7 @@ t.test('team ls <scope>', async t => {
   })
 
   t.test('--silent', async t => {
-    npm.flatOptions.silent = true
+    npm.config.set('loglevel', 'silent')
     await team.exec(['ls', '@npmcli'])
     t.same(result, '', 'should not list teams if silent')
   })
@@ -278,7 +283,7 @@ t.test('team ls <scope:team>', async t => {
   })
 
   t.test('--silent', async t => {
-    npm.flatOptions.silent = true
+    npm.config.set('loglevel', 'silent')
     await team.exec(['ls', '@npmcli:developers'])
     t.same(result, '', 'should not output users if silent')
   })
@@ -345,7 +350,7 @@ t.test('team rm <scope:team> <user>', async t => {
   })
 
   t.test('--silent', async t => {
-    npm.flatOptions.silent = true
+    npm.config.set('loglevel', 'silent')
     await team.exec(['rm', '@npmcli:newteam', 'foo'])
     t.same(result, '', 'should not output rm result if silent')
   })

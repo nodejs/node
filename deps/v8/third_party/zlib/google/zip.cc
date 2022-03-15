@@ -115,7 +115,8 @@ class DirectFileAccessor : public FileAccessor {
 
 std::ostream& operator<<(std::ostream& out, const Progress& progress) {
   return out << progress.bytes << " bytes, " << progress.files << " files, "
-             << progress.directories << " dirs";
+             << progress.directories << " dirs, " << progress.errors
+             << " errors";
 }
 
 bool Zip(const ZipParams& params) {
@@ -143,6 +144,7 @@ bool Zip(const ZipParams& params) {
   zip_writer->SetProgressCallback(params.progress_callback,
                                   params.progress_period);
   zip_writer->SetRecursive(params.recursive);
+  zip_writer->ContinueOnError(params.continue_on_error);
 
   if (!params.include_hidden_files || params.filter_callback)
     zip_writer->SetFilterCallback(base::BindRepeating(

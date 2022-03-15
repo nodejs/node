@@ -1100,6 +1100,7 @@ will also prevent <em>writing</em> <code>package-lock.json</code> if <code>save<
 <p>When package package-locks are disabled, automatic pruning of extraneous
 modules will also be disabled. To remove extraneous modules with
 package-locks disabled use <code>npm prune</code>.</p>
+<p>This configuration does not affect <code>npm ci</code>.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="package-lock-only"><code>package-lock-only</code></h4>
@@ -1210,12 +1211,14 @@ access tokens with the <code>npm token create</code> command.</p>
 <!-- raw HTML omitted -->
 <h4 id="save"><code>save</code></h4>
 <ul>
-<li>Default: true</li>
+<li>Default: <code>true</code> unless when using <code>npm update</code> or <code>npm dedupe</code> where it
+defaults to <code>false</code></li>
 <li>Type: Boolean</li>
 </ul>
-<p>Save installed packages to a package.json file as dependencies.</p>
+<p>Save installed packages to a <code>package.json</code> file as dependencies.</p>
 <p>When used with the <code>npm rm</code> command, removes the dependency from
-package.json.</p>
+<code>package.json</code>.</p>
+<p>Will also prevent writing to <code>package-lock.json</code> if set to <code>false</code>.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="save-bundle"><code>save-bundle</code></h4>
@@ -1226,7 +1229,7 @@ package.json.</p>
 <p>If a package would be saved at install time by the use of <code>--save</code>,
 <code>--save-dev</code>, or <code>--save-optional</code>, then also put it in the
 <code>bundleDependencies</code> list.</p>
-<p>Ignore if <code>--save-peer</code> is set, since peerDependencies cannot be bundled.</p>
+<p>Ignored if <code>--save-peer</code> is set, since peerDependencies cannot be bundled.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="save-dev"><code>save-dev</code></h4>

@@ -408,7 +408,7 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
 
     // Deoptimize all code that embeds the previous initial map.
     initial_map->dependent_code().DeoptimizeDependentCodeGroup(
-        DependentCode::kInitialMapChangedGroup);
+        isolate, DependentCode::kInitialMapChangedGroup);
   } else {
     // Put the value in the initial map field until an initial map is
     // needed.  At that point, a new initial map is created and the
@@ -594,6 +594,16 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_TYPED_ARRAY_TYPE:
     case JS_PRIMITIVE_WRAPPER_TYPE:
+    case JS_TEMPORAL_CALENDAR_TYPE:
+    case JS_TEMPORAL_DURATION_TYPE:
+    case JS_TEMPORAL_INSTANT_TYPE:
+    case JS_TEMPORAL_PLAIN_DATE_TYPE:
+    case JS_TEMPORAL_PLAIN_DATE_TIME_TYPE:
+    case JS_TEMPORAL_PLAIN_MONTH_DAY_TYPE:
+    case JS_TEMPORAL_PLAIN_TIME_TYPE:
+    case JS_TEMPORAL_PLAIN_YEAR_MONTH_TYPE:
+    case JS_TEMPORAL_TIME_ZONE_TYPE:
+    case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:
@@ -927,9 +937,9 @@ Handle<String> NativeCodeFunctionSourceString(
     Handle<SharedFunctionInfo> shared_info) {
   Isolate* const isolate = shared_info->GetIsolate();
   IncrementalStringBuilder builder(isolate);
-  builder.AppendCString("function ");
+  builder.AppendCStringLiteral("function ");
   builder.AppendString(handle(shared_info->Name(), isolate));
-  builder.AppendCString("() { [native code] }");
+  builder.AppendCStringLiteral("() { [native code] }");
   return builder.Finish().ToHandleChecked();
 }
 

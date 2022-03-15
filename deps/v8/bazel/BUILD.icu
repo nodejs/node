@@ -26,15 +26,29 @@ cc_library(
         "U_ENABLE_RESOURCE_TRACING=0",
         "UNISTR_FROM_STRING_EXPLICIT=",
         "UNISTR_FROM_CHAR_EXPLICIT=",
-        "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_FILE",
-    ],
-    copts = [
-        "-Wno-unused-function",
-        "-Wno-parentheses",
-        "-Wno-unused-function",
-        "-Wno-unused-variable",
-        "-Wno-deprecated-declarations",
-    ],
+    ] + select({
+        "@platforms//os:windows": [
+            "U_STATIC_IMPLEMENTATION",
+            "UNICODE",
+            "_UNICODE",
+        ],
+        "//conditions:default": [],
+    }),
+    copts = select({
+        "@platforms//os:windows": [
+            "/wd4005",  # Macro redefinition.
+            "/wd4068",  # Unknown pragmas.
+            "/wd4267",  # Conversion from size_t on 64-bits.
+            "/utf-8",  # ICU source files are in UTF-8.
+        ],
+        "//conditions:default": [
+            "-Wno-unused-function",
+            "-Wno-parentheses",
+            "-Wno-unused-function",
+            "-Wno-unused-variable",
+            "-Wno-deprecated-declarations",
+        ],
+    }),
     includes = [
         "source/common",
         "source/i18n",
@@ -50,9 +64,25 @@ cc_library(
         "source/i18n/**/*.h",
         "source/i18n/**/*.cpp"
     ]),
+    copts = select({
+        "@platforms//os:windows": [
+            "/wd4005",  # Macro redefinition.
+            "/wd4068",  # Unknown pragmas.
+            "/wd4267",  # Conversion from size_t on 64-bits.
+            "/utf-8",  # ICU source files are in UTF-8.
+        ],
+        "//conditions:default": [],
+    }),
     defines = [
         "U_I18N_IMPLEMENTATION",
-    ],
+    ] + select({
+        "@platforms//os:windows": [
+            "U_STATIC_IMPLEMENTATION",
+            "UNICODE",
+            "_UNICODE",
+        ],
+        "//conditions:default": [],
+    }),
     deps = [ ":icuuc" ],
     alwayslink = 1,
 )
@@ -66,6 +96,25 @@ cc_library(
     srcs = [
         "source/stubdata/stubdata.cpp",
     ],
+    copts = select({
+        "@platforms//os:windows": [
+            "/wd4005",  # Macro redefinition.
+            "/wd4068",  # Unknown pragmas.
+            "/wd4267",  # Conversion from size_t on 64-bits.
+            "/utf-8",  # ICU source files are in UTF-8.
+        ],
+        "//conditions:default": [],
+    }),
+    defines = [
+        "U_I18N_IMPLEMENTATION",
+    ] + select({
+        "@platforms//os:windows": [
+            "U_STATIC_IMPLEMENTATION",
+            "UNICODE",
+            "_UNICODE",
+        ],
+        "//conditions:default": [],
+    }),
     include_prefix = "third_party/icu",
     deps = [
         ":icuuc",

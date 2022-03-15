@@ -131,9 +131,9 @@ return `true`.
 
 * `input` {string} The absolute or relative input URL to parse. If `input`
   is relative, then `base` is required. If `input` is absolute, the `base`
-  is ignored.
-* `base` {string|URL} The base URL to resolve against if the `input` is not
-  absolute.
+  is ignored. If `input` is not a string, it is [converted to a string][] first.
+* `base` {string} The base URL to resolve against if the `input` is not
+  absolute. If `base` is not a string, it is [converted to a string][] first.
 
 Creates a new `URL` object by parsing the `input` relative to the `base`. If
 `base` is passed as a string, it will be parsed equivalent to `new URL(base)`.
@@ -659,7 +659,8 @@ added: v16.7.0
 * `id` {string} A `'blob:nodedata:...` URL string returned by a prior call to
   `URL.createObjectURL()`.
 
-Removes the stored {Blob} identified by the given ID.
+Removes the stored {Blob} identified by the given ID. Attempting to revoke a
+ID that isn’t registered will silently fail.
 
 ### Class: `URLSearchParams`
 
@@ -850,6 +851,15 @@ is the `name`, the second item of the `Array` is the `value`.
 Alias for [`urlSearchParams[@@iterator]()`][`urlSearchParams@@iterator()`].
 
 #### `urlSearchParams.forEach(fn[, thisArg])`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `fn` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
+-->
 
 * `fn` {Function} Invoked for each name-value pair in the query
 * `thisArg` {Object} To be used as `this` value for when `fn` is called
@@ -1549,11 +1559,18 @@ A `TypeError` is thrown if `urlString` is not a string.
 
 A `URIError` is thrown if the `auth` property is present but cannot be decoded.
 
-Use of the legacy `url.parse()` method is discouraged. Users should
-use the WHATWG `URL` API. Because the `url.parse()` method uses a
-lenient, non-standard algorithm for parsing URL strings, security
-issues can be introduced. Specifically, issues with [host name spoofing][] and
-incorrect handling of usernames and passwords have been identified.
+`url.parse()` uses a lenient, non-standard algorithm for parsing URL
+strings. It is prone to security issues such as [host name spoofing][]
+and incorrect handling of usernames and passwords.
+
+`url.parse()` is an exception to most of the legacy APIs. Despite its security
+concerns, it is legacy and not deprecated because it is:
+
+* Faster than the alternative WHATWG `URL` parser.
+* Easier to use with regards to relative URLs than the alternative WHATWG `URL` API.
+* Widely relied upon within the npm ecosystem.
+
+Use with caution.
 
 ### `url.resolve(from, to)`
 
@@ -1585,11 +1602,11 @@ changes:
 
 > Stability: 3 - Legacy: Use the WHATWG URL API instead.
 
-* `from` {string} The Base URL being resolved against.
-* `to` {string} The HREF URL being resolved.
+* `from` {string} The base URL to use if `to` is a relative URL.
+* `to` {string} The target URL to resolve.
 
 The `url.resolve()` method resolves a target URL relative to a base URL in a
-manner similar to that of a Web browser resolving an anchor tag HREF.
+manner similar to that of a web browser resolving an anchor tag.
 
 ```js
 const url = require('url');
@@ -1598,7 +1615,7 @@ url.resolve('http://example.com/', '/one');    // 'http://example.com/one'
 url.resolve('http://example.com/one', '/two'); // 'http://example.com/two'
 ```
 
-You can achieve the same result using the WHATWG URL API:
+To achieve the same result using the WHATWG URL API:
 
 ```js
 function resolve(from, to) {
@@ -1701,6 +1718,7 @@ console.log(myURL.origin);
 [`url.toString()`]: #urltostring
 [`urlSearchParams.entries()`]: #urlsearchparamsentries
 [`urlSearchParams@@iterator()`]: #urlsearchparamssymboliterator
+[converted to a string]: https://tc39.es/ecma262/#sec-tostring
 [examples of parsed URLs]: https://url.spec.whatwg.org/#example-url-parsing
 [host name spoofing]: https://hackerone.com/reports/678487
 [legacy `urlObject`]: #legacy-urlobject

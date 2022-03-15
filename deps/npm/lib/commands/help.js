@@ -17,6 +17,7 @@ class Help extends BaseCommand {
   static name = 'help'
   static usage = ['<term> [<terms..>]']
   static params = ['viewer']
+  static ignoreImplicitWorkspace = true
 
   async completion (opts) {
     if (opts.conf.argv.remain.length > 2) {

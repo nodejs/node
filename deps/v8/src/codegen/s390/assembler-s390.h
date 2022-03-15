@@ -93,7 +93,7 @@ class V8_EXPORT_PRIVATE Operand {
  public:
   // immediate
   V8_INLINE explicit Operand(intptr_t immediate,
-                             RelocInfo::Mode rmode = RelocInfo::NONE)
+                             RelocInfo::Mode rmode = RelocInfo::NO_INFO)
       : rmode_(rmode) {
     value_.immediate = immediate;
   }
@@ -103,7 +103,7 @@ class V8_EXPORT_PRIVATE Operand {
     value_.immediate = static_cast<intptr_t>(f.address());
   }
   explicit Operand(Handle<HeapObject> handle);
-  V8_INLINE explicit Operand(Smi value) : rmode_(RelocInfo::NONE) {
+  V8_INLINE explicit Operand(Smi value) : rmode_(RelocInfo::NO_INFO) {
     value_.immediate = static_cast<intptr_t>(value.ptr());
   }
 
@@ -240,15 +240,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void GetCode(Isolate* isolate, CodeDesc* desc) {
     GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
   }
-
-  // This function is called when on-heap-compilation invariants are
-  // invalidated. For instance, when the assembler buffer grows or a GC happens
-  // between Code object allocation and Code object finalization.
-  void FixOnHeapReferences(bool update_embedded_objects = true);
-
-  // This function is called when we fallback from on-heap to off-heap
-  // compilation and patch on-heap references to handles.
-  void FixOnHeapReferencesToHandles();
 
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
@@ -1281,6 +1272,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Load Address Instructions
   void larl(Register r, Label* l);
+  void lgrl(Register r, Label* l);
 
   // Exception-generating instructions and debugging support
   void stop(Condition cond = al, int32_t code = kDefaultStopCode,
@@ -1320,9 +1312,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Writes a single byte or word of data in the code stream.  Used
   // for inline tables, e.g., jump-tables.
   void db(uint8_t data);
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NONE);
+  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
 
   // Read/patch instructions
   SixByteInstr instr_at(int pos) {

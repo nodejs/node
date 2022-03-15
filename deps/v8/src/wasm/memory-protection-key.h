@@ -82,9 +82,8 @@ bool SetPermissionsAndMemoryProtectionKey(
 void SetPermissionsForMemoryProtectionKey(
     int key, MemoryProtectionKeyPermission permissions);
 
-// Returns {true} if the protection key {key} is write-enabled for the current
-// thread.
-bool MemoryProtectionKeyWritable(int key);
+// Get the permissions of the protection key {key} for the current thread.
+MemoryProtectionKeyPermission GetMemoryProtectionKeyPermission(int key);
 
 }  // namespace wasm
 }  // namespace internal

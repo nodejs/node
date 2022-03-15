@@ -96,10 +96,18 @@ class Intl {
       Isolate* isolate, Handle<String> s1, Handle<String> s2,
       Handle<Object> locales, Handle<Object> options, const char* method_name);
 
-  V8_WARN_UNUSED_RESULT static int CompareStrings(Isolate* isolate,
-                                                  const icu::Collator& collator,
-                                                  Handle<String> s1,
-                                                  Handle<String> s2);
+  enum class CompareStringsOptions {
+    kNone,
+    kTryFastPath,
+  };
+  template <class IsolateT>
+  V8_EXPORT_PRIVATE static CompareStringsOptions CompareStringsOptionsFor(
+      IsolateT* isolate, Handle<Object> locales, Handle<Object> options);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static int CompareStrings(
+      Isolate* isolate, const icu::Collator& collator, Handle<String> s1,
+      Handle<String> s2,
+      CompareStringsOptions compare_strings_options =
+          CompareStringsOptions::kNone);
 
   // ecma402/#sup-properties-of-the-number-prototype-object
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> NumberToLocaleString(
@@ -119,7 +127,7 @@ class Intl {
                               int mnfd_default, int mxfd_default,
                               bool notation_is_compact);
 
-  // Helper funciton to convert a UnicodeString to a Handle<String>
+  // Helper function to convert a UnicodeString to a Handle<String>
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToString(
       Isolate* isolate, const icu::UnicodeString& string);
 
@@ -261,9 +269,14 @@ class Intl {
 
   // Convert a Handle<String> to icu::UnicodeString
   static icu::UnicodeString ToICUUnicodeString(Isolate* isolate,
-                                               Handle<String> string);
+                                               Handle<String> string,
+                                               int offset = 0);
 
   static const uint8_t* ToLatin1LowerTable();
+
+  static const uint8_t* AsciiCollationWeightsL1();
+  static const uint8_t* AsciiCollationWeightsL3();
+  static const int kAsciiCollationWeightsLength;
 
   static String ConvertOneByteToLower(String src, String dst);
 

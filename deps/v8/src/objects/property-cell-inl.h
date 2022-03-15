@@ -47,8 +47,10 @@ void PropertyCell::UpdatePropertyDetailsExceptCellType(
   // unless the property is also configurable, in which case it will stay
   // read-only forever.
   if (!old_details.IsReadOnly() && details.IsReadOnly()) {
+    // TODO(11527): pass Isolate as an argument.
+    Isolate* isolate = GetIsolateFromWritableObject(*this);
     dependent_code().DeoptimizeDependentCodeGroup(
-        DependentCode::kPropertyCellChangedGroup);
+        isolate, DependentCode::kPropertyCellChangedGroup);
   }
 }
 

@@ -60,8 +60,8 @@ void RootsSerializer::VisitRootPointers(Root root, const char* description,
 
 void RootsSerializer::CheckRehashability(HeapObject obj) {
   if (!can_be_rehashed_) return;
-  if (!obj.NeedsRehashing()) return;
-  if (obj.CanBeRehashed()) return;
+  if (!obj.NeedsRehashing(cage_base())) return;
+  if (obj.CanBeRehashed(cage_base())) return;
   can_be_rehashed_ = false;
 }
 

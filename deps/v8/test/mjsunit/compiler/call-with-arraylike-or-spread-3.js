@@ -9,6 +9,10 @@
 // and assertions would fail. We prevent re-runs.
 // Flags: --nostress-opt --no-always-opt
 
+// These tests do not work well if we flush the feedback vector, which causes
+// deoptimization.
+// Flags: --no-stress-flush-code --no-flush-bytecode
+
 // The test relies on optimizing/deoptimizing at predictable moments, so
 // it's not suitable for deoptimization fuzzing.
 // Flags: --deopt-every-n-times=0

@@ -168,14 +168,14 @@ LoadElimination::AbstractElements::Kill(Node* object, Node* index,
     if (element.object == nullptr) continue;
     if (MayAlias(object, element.object)) {
       AbstractElements* that = zone->New<AbstractElements>(zone);
-      for (Element const element : this->elements_) {
-        if (element.object == nullptr) continue;
-        DCHECK_NOT_NULL(element.index);
-        DCHECK_NOT_NULL(element.value);
-        if (!MayAlias(object, element.object) ||
+      for (Element const element2 : this->elements_) {
+        if (element2.object == nullptr) continue;
+        DCHECK_NOT_NULL(element2.index);
+        DCHECK_NOT_NULL(element2.value);
+        if (!MayAlias(object, element2.object) ||
             !NodeProperties::GetType(index).Maybe(
-                NodeProperties::GetType(element.index))) {
-          that->elements_[that->next_index_++] = element;
+                NodeProperties::GetType(element2.index))) {
+          that->elements_[that->next_index_++] = element2;
         }
       }
       that->next_index_ %= arraysize(elements_);
@@ -285,18 +285,18 @@ class LoadElimination::AliasStateInfo {
 
 LoadElimination::AbstractField const* LoadElimination::AbstractField::KillConst(
     Node* object, Zone* zone) const {
-  for (auto pair : this->info_for_node_) {
-    if (pair.first->IsDead()) continue;
+  for (auto info1 : this->info_for_node_) {
+    if (info1.first->IsDead()) continue;
     // If we previously recorded information about a const store on the given
     // 'object', we might not have done it on the same node; e.g. we might now
     // identify the object by a FinishRegion node, whereas the initial const
     // store was performed on the Allocate node. We therefore remove information
     // on all nodes that must alias with 'object'.
-    if (MustAlias(object, pair.first)) {
+    if (MustAlias(object, info1.first)) {
       AbstractField* that = zone->New<AbstractField>(zone);
-      for (auto pair : this->info_for_node_) {
-        if (!MustAlias(object, pair.first)) {
-          that->info_for_node_.insert(pair);
+      for (auto info2 : this->info_for_node_) {
+        if (!MustAlias(object, info2.first)) {
+          that->info_for_node_.insert(info2);
         }
       }
       return that;
@@ -308,14 +308,14 @@ LoadElimination::AbstractField const* LoadElimination::AbstractField::KillConst(
 LoadElimination::AbstractField const* LoadElimination::AbstractField::Kill(
     const AliasStateInfo& alias_info, MaybeHandle<Name> name,
     Zone* zone) const {
-  for (auto pair : this->info_for_node_) {
-    if (pair.first->IsDead()) continue;
-    if (alias_info.MayAlias(pair.first)) {
+  for (auto info1 : this->info_for_node_) {
+    if (info1.first->IsDead()) continue;
+    if (alias_info.MayAlias(info1.first)) {
       AbstractField* that = zone->New<AbstractField>(zone);
-      for (auto pair : this->info_for_node_) {
-        if (!alias_info.MayAlias(pair.first) ||
-            !MayAlias(name, pair.second.name)) {
-          that->info_for_node_.insert(pair);
+      for (auto info2 : this->info_for_node_) {
+        if (!alias_info.MayAlias(info2.first) ||
+            !MayAlias(name, info2.second.name)) {
+          that->info_for_node_.insert(info2);
         }
       }
       return that;
@@ -353,11 +353,12 @@ bool LoadElimination::AbstractMaps::Lookup(
 
 LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Kill(
     const AliasStateInfo& alias_info, Zone* zone) const {
-  for (auto pair : this->info_for_node_) {
-    if (alias_info.MayAlias(pair.first)) {
+  for (auto info1 : this->info_for_node_) {
+    if (alias_info.MayAlias(info1.first)) {
       AbstractMaps* that = zone->New<AbstractMaps>(zone);
-      for (auto pair : this->info_for_node_) {
-        if (!alias_info.MayAlias(pair.first)) that->info_for_node_.insert(pair);
+      for (auto info2 : this->info_for_node_) {
+        if (!alias_info.MayAlias(info2.first))
+          that->info_for_node_.insert(info2);
       }
       return that;
     }
@@ -1069,6 +1070,7 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
     case MachineRepresentation::kFloat32:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
+    case MachineRepresentation::kCagedPointer:
       // TODO(turbofan): Add support for doing the truncations.
       break;
     case MachineRepresentation::kFloat64:
@@ -1125,6 +1127,7 @@ Reduction LoadElimination::ReduceStoreElement(Node* node) {
     case MachineRepresentation::kFloat32:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
+    case MachineRepresentation::kCagedPointer:
       // TODO(turbofan): Add support for doing the truncations.
       break;
     case MachineRepresentation::kFloat64:
@@ -1429,6 +1432,7 @@ LoadElimination::IndexRange LoadElimination::FieldIndexOf(
     case MachineRepresentation::kMapWord:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
+    case MachineRepresentation::kCagedPointer:
       break;
   }
   int representation_size = ElementSizeInBytes(rep);

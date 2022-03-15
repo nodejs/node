@@ -14741,7 +14741,7 @@ TEST(near_call_no_relocation) {
   {
     Assembler::BlockConstPoolScope scope(&masm);
     int offset = (function.pos() - __ pc_offset()) / kInstrSize;
-    __ near_call(offset, RelocInfo::NONE);
+    __ near_call(offset, RelocInfo::NO_INFO);
   }
   END();
 

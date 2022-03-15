@@ -11,7 +11,7 @@ namespace bigint {
 
 // Z := X * y, where y is a single digit.
 void ProcessorImpl::MultiplySingle(RWDigits Z, Digits X, digit_t y) {
-  DCHECK(y != 0);  // NOLINT(readability/check)
+  DCHECK(y != 0);
   digit_t carry = 0;
   digit_t high = 0;
   for (int i = 0; i < X.len(); i++) {
@@ -87,7 +87,7 @@ void ProcessorImpl::MultiplySchoolbook(RWDigits Z, Digits X, Digits Y) {
   }
   // Write the last digit, and zero out any extra space in Z.
   Z[i++] = digit_add2(next, carry, &carry);
-  DCHECK(carry == 0);  // NOLINT(readability/check)
+  DCHECK(carry == 0);
   for (; i < Z.len(); i++) Z[i] = 0;
 }
 

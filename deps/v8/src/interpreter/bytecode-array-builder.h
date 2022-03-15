@@ -187,6 +187,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& StoreKeyedProperty(Register object, Register key,
                                            int feedback_slot,
                                            LanguageMode language_mode);
+  BytecodeArrayBuilder& DefineKeyedProperty(Register object, Register key,
+                                            int feedback_slot);
+
   // Store an own element in an array literal. The value to be stored should be
   // in the accumulator.
   BytecodeArrayBuilder& StoreInArrayLiteral(Register array, Register index,
@@ -496,6 +499,17 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   void SetStatementPosition(Statement* stmt) {
     SetStatementPosition(stmt->position());
+  }
+
+  BytecodeSourceInfo PopSourcePosition() {
+    BytecodeSourceInfo source_info = latest_source_info_;
+    latest_source_info_.set_invalid();
+    return source_info;
+  }
+
+  void PushSourcePosition(BytecodeSourceInfo source_info) {
+    DCHECK(!latest_source_info_.is_valid());
+    latest_source_info_ = source_info;
   }
 
   void SetStatementPosition(int position) {

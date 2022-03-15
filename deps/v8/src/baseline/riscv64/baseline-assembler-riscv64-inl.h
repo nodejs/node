@@ -437,6 +437,7 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
   CHECK(is_int32(imm64 + 0x800));
   int32_t Hi20 = (((int32_t)imm64 + 0x800) >> 12);
   int32_t Lo12 = (int32_t)imm64 << 20 >> 20;
+  __ BlockTrampolinePoolFor(2);
   __ auipc(t6, Hi20);  // Read PC + Hi20 into t6
   __ addi(t6, t6, Lo12);  // jump PC + Hi20 + Lo12
 
@@ -503,9 +504,10 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   __ masm()->LeaveFrame(StackFrame::BASELINE);
 
   // Drop receiver + arguments.
-  __ masm()->Add64(params_size, params_size, 1);  // Include the receiver.
-  __ masm()->slli(params_size, params_size, kSystemPointerSizeLog2);
-  __ masm()->Add64(sp, sp, params_size);
+  __ masm()->DropArguments(params_size, MacroAssembler::kCountIsInteger,
+                           kJSArgcIncludesReceiver
+                               ? MacroAssembler::kCountIncludesReceiver
+                               : MacroAssembler::kCountExcludesReceiver);
   __ masm()->Ret();
 }
 

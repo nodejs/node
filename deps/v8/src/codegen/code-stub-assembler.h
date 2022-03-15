@@ -9,7 +9,7 @@
 
 #include "src/base/macros.h"
 #include "src/codegen/bailout-reason.h"
-#include "src/common/external-pointer.h"
+#include "src/codegen/tnode.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/compiler/code-assembler.h"
@@ -27,6 +27,7 @@
 #include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/tagged-index.h"
 #include "src/roots/roots.h"
+#include "src/security/external-pointer.h"
 #include "torque-generated/exported-macros-assembler.h"
 
 namespace v8 {
@@ -804,7 +805,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<Code> FromCodeT(TNode<CodeT> code) {
 #ifdef V8_EXTERNAL_CODE_SPACE
-    return LoadObjectField<Code>(code, CodeDataContainer::kCodeOffset);
+#if V8_TARGET_BIG_ENDIAN
+#error "This code requires updating for big-endian architectures"
+#endif
+    // Given the fields layout we can read the Code reference as a full word.
+    STATIC_ASSERT(CodeDataContainer::kCodeCageBaseUpper32BitsOffset ==
+                  CodeDataContainer::kCodeOffset + kTaggedSize);
+    TNode<Object> o = BitcastWordToTagged(Load<RawPtrT>(
+        code, IntPtrConstant(CodeDataContainer::kCodeOffset - kHeapObjectTag)));
+    return CAST(o);
 #else
     return code;
 #endif
@@ -836,6 +845,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return code;
 #endif
   }
+
+  TNode<RawPtrT> GetCodeEntry(TNode<CodeT> code);
 
   // The following Call wrappers call an object according to the semantics that
   // one finds in the EcmaScript spec, operating on an Callable (e.g. a
@@ -1033,6 +1044,30 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void GotoIfForceSlowPath(Label* if_true);
 
   //
+  // Caged pointer related functionality.
+  //
+
+  // Load a caged pointer value from an object.
+  TNode<RawPtrT> LoadCagedPointerFromObject(TNode<HeapObject> object,
+                                            int offset) {
+    return LoadCagedPointerFromObject(object, IntPtrConstant(offset));
+  }
+
+  TNode<RawPtrT> LoadCagedPointerFromObject(TNode<HeapObject> object,
+                                            TNode<IntPtrT> offset);
+
+  // Stored a caged pointer value to an object.
+  void StoreCagedPointerToObject(TNode<HeapObject> object, int offset,
+                                 TNode<RawPtrT> pointer) {
+    StoreCagedPointerToObject(object, IntPtrConstant(offset), pointer);
+  }
+
+  void StoreCagedPointerToObject(TNode<HeapObject> object,
+                                 TNode<IntPtrT> offset, TNode<RawPtrT> pointer);
+
+  TNode<RawPtrT> EmptyBackingStoreBufferConstant();
+
+  //
   // ExternalPointerT-related functionality.
   //
 
@@ -1110,14 +1145,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<RawPtrT> LoadJSTypedArrayExternalPointerPtr(
       TNode<JSTypedArray> holder) {
-    return LoadObjectField<RawPtrT>(holder,
-                                    JSTypedArray::kExternalPointerOffset);
+    return LoadCagedPointerFromObject(holder,
+                                      JSTypedArray::kExternalPointerOffset);
   }
 
   void StoreJSTypedArrayExternalPointerPtr(TNode<JSTypedArray> holder,
                                            TNode<RawPtrT> value) {
-    StoreObjectFieldNoWriteBarrier<RawPtrT>(
-        holder, JSTypedArray::kExternalPointerOffset, value);
+    StoreCagedPointerToObject(holder, JSTypedArray::kExternalPointerOffset,
+                              value);
   }
 
   // Load value from current parent frame by given offset in bytes.
@@ -1141,6 +1176,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<IntPtrT> LoadBufferIntptr(TNode<RawPtrT> buffer, int offset) {
     return LoadBufferData<IntPtrT>(buffer, offset);
   }
+  TNode<Uint8T> LoadUint8Ptr(TNode<RawPtrT> ptr, TNode<IntPtrT> offset);
+
   // Load a field from an object on the heap.
   template <class T, typename std::enable_if<
                          std::is_convertible<TNode<T>, TNode<Object>>::value &&
@@ -2424,6 +2461,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                       base::Optional<TNode<Object>> arg1 = base::nullopt,
                       base::Optional<TNode<Object>> arg2 = base::nullopt);
 
+  TNode<HeapObject> GetPendingMessage();
+  void SetPendingMessage(TNode<HeapObject> message);
+
   // Type checks.
   // Check whether the map is for an object with special properties, such as a
   // JSProxy or an object with interceptors.
@@ -2899,6 +2939,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<ExternalOneByteString> string);
   TNode<RawPtr<Uint16T>> ExternalTwoByteStringGetChars(
       TNode<ExternalTwoByteString> string);
+
+  TNode<RawPtr<Uint8T>> IntlAsciiCollationWeightsL1();
+  TNode<RawPtr<Uint8T>> IntlAsciiCollationWeightsL3();
 
   // Performs a hash computation and string table lookup for the given string,
   // and jumps to:
@@ -3566,15 +3609,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Helper for length tracking JSTypedArrays and JSTypedArrays backed by
   // ResizableArrayBuffer.
   TNode<UintPtrT> LoadVariableLengthJSTypedArrayLength(
-      TNode<JSTypedArray> array, TNode<JSArrayBuffer> buffer, Label* miss);
+      TNode<JSTypedArray> array, TNode<JSArrayBuffer> buffer,
+      Label* detached_or_out_of_bounds);
   // Helper for length tracking JSTypedArrays and JSTypedArrays backed by
   // ResizableArrayBuffer.
   TNode<UintPtrT> LoadVariableLengthJSTypedArrayByteLength(
       TNode<Context> context, TNode<JSTypedArray> array,
       TNode<JSArrayBuffer> buffer);
-  void IsJSTypedArrayDetachedOrOutOfBounds(TNode<JSTypedArray> array,
-                                           Label* detached_or_oob,
-                                           Label* not_detached_nor_oob);
+  TNode<UintPtrT> LoadVariableLengthJSArrayBufferViewByteLength(
+      TNode<JSArrayBufferView> array, TNode<JSArrayBuffer> buffer,
+      Label* detached_or_out_of_bounds);
+
+  void IsJSArrayBufferViewDetachedOrOutOfBounds(TNode<JSArrayBufferView> array,
+                                                Label* detached_or_oob,
+                                                Label* not_detached_nor_oob);
 
   TNode<IntPtrT> RabGsabElementsKindToElementByteSize(
       TNode<Int32T> elementsKind);
@@ -3592,7 +3640,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                 ElementsKind kind = HOLEY_ELEMENTS);
 
   // Load a builtin's code from the builtin array in the isolate.
-  TNode<Code> LoadBuiltin(TNode<Smi> builtin_id);
+  TNode<CodeT> LoadBuiltin(TNode<Smi> builtin_id);
 
   // Figure out the SFI's code object using its data field.
   // If |data_type_out| is provided, the instance type of the function data will
@@ -3600,7 +3648,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // data_type_out will be set to 0.
   // If |if_compile_lazy| is provided then the execution will go to the given
   // label in case of an CompileLazy code object.
-  TNode<Code> GetSharedFunctionInfoCode(
+  TNode<CodeT> GetSharedFunctionInfoCode(
       TNode<SharedFunctionInfo> shared_info,
       TVariable<Uint16T>* data_type_out = nullptr,
       Label* if_compile_lazy = nullptr);

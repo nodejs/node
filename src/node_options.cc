@@ -3,6 +3,7 @@
 
 #include "env-inl.h"
 #include "node_binding.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
 #if HAVE_OPENSSL
 #include "openssl/opensslv.h"
@@ -315,18 +316,25 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvironment);
   AddOption("--experimental-abortcontroller", "",
             NoOp{}, kAllowedInEnvironment);
-  AddOption("--experimental-json-modules",
-            "experimental JSON interop support for the ES Module loader",
-            &EnvironmentOptions::experimental_json_modules,
+  AddOption("--experimental-fetch",
+            "experimental Fetch API",
+            &EnvironmentOptions::experimental_fetch,
+            kAllowedInEnvironment,
+            true);
+  AddOption("--experimental-global-webcrypto",
+            "expose experimental Web Crypto API on the global scope",
+            &EnvironmentOptions::experimental_global_web_crypto,
             kAllowedInEnvironment);
+  AddOption("--experimental-json-modules", "", NoOp{}, kAllowedInEnvironment);
   AddOption("--experimental-loader",
             "use the specified module as a custom loader",
             &EnvironmentOptions::userland_loader,
             kAllowedInEnvironment);
   AddAlias("--loader", "--experimental-loader");
-  AddOption("--experimental-modules",
-            "",
-            &EnvironmentOptions::experimental_modules,
+  AddOption("--experimental-modules", "", NoOp{}, kAllowedInEnvironment);
+  AddOption("--experimental-network-imports",
+            "experimental https: support for the ES Module loader",
+            &EnvironmentOptions::experimental_https_modules,
             kAllowedInEnvironment);
   AddOption("--experimental-wasm-modules",
             "experimental ES Module support for webassembly modules",
@@ -1126,6 +1134,10 @@ void Initialize(Local<Object> target,
       .Check();
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(GetCLIOptions);
+  registry->Register(GetEmbedderOptions);
+}
 }  // namespace options_parser
 
 void HandleEnvOptions(std::shared_ptr<EnvironmentOptions> env_options) {
@@ -1192,3 +1204,5 @@ std::vector<std::string> ParseNodeOptionsEnvVar(
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(options, node::options_parser::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(options,
+                               node::options_parser::RegisterExternalReferences)

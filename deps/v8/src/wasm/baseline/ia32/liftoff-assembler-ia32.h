@@ -51,6 +51,8 @@ inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
 
 // ebp-4 holds the stack marker, ebp-8 is the instance parameter.
 constexpr int kInstanceOffset = 8;
+constexpr int kFeedbackVectorOffset = 12;  // ebp-12 is the feedback vector.
+constexpr int kTierupBudgetOffset = 16;    // ebp-16 is the tiering budget.
 
 inline Operand GetStackSlot(int offset) { return Operand(ebp, -offset); }
 
@@ -307,7 +309,7 @@ void LiftoffAssembler::AbortCompilation() {}
 
 // static
 constexpr int LiftoffAssembler::StaticStackFrameSize() {
-  return liftoff::kInstanceOffset;
+  return liftoff::kTierupBudgetOffset;
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
@@ -325,7 +327,7 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
       TurboAssembler::Move(reg.gp(), Immediate(value.to_i32(), rmode));
       break;
     case kI64: {
-      DCHECK(RelocInfo::IsNone(rmode));
+      DCHECK(RelocInfo::IsNoInfo(rmode));
       int32_t low_word = value.to_i64();
       int32_t high_word = value.to_i64() >> 32;
       TurboAssembler::Move(reg.low_gp(), Immediate(low_word));
@@ -2485,6 +2487,13 @@ void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
   Condition cond = liftoff::ToCondition(liftoff_cond);
   cmp(lhs, Immediate(imm));
   j(cond, label);
+}
+
+void LiftoffAssembler::emit_i32_subi_jump_negative(Register value,
+                                                   int subtrahend,
+                                                   Label* result_negative) {
+  sub(value, Immediate(subtrahend));
+  j(negative, result_negative);
 }
 
 namespace liftoff {

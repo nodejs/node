@@ -86,6 +86,14 @@ class JSFunction
   // are fully initialized.
   DECL_ACCESSORS(code, Code)
   DECL_RELEASE_ACQUIRE_ACCESSORS(code, Code)
+#ifdef V8_EXTERNAL_CODE_SPACE
+  // Convenient overloads to avoid unnecessary Code <-> CodeT conversions.
+  // TODO(v8:11880): remove once |code| accessors are migrated to CodeT.
+  inline void set_code(CodeT code,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set_code(CodeT code, ReleaseStoreTag,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+#endif
 
   // Returns the address of the function code's instruction start.
   inline Address code_entry_point() const;
@@ -241,7 +249,7 @@ class JSFunction
   // Creates a map that matches the constructor's initial map, but with
   // [[prototype]] being new.target.prototype. Because new.target can be a
   // JSProxy, this can call back into JavaScript.
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Map> GetDerivedMap(
+  V8_EXPORT_PRIVATE static V8_WARN_UNUSED_RESULT MaybeHandle<Map> GetDerivedMap(
       Isolate* isolate, Handle<JSFunction> constructor,
       Handle<JSReceiver> new_target);
 

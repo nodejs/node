@@ -40,7 +40,9 @@ class HeapObject : public Object {
   // The no-write-barrier version.  This is OK if the object is white and in
   // new space, or if the value is an immortal immutable object, like the maps
   // of primitive (non-JS) objects like strings, heap numbers etc.
-  inline void set_map_no_write_barrier(Map value);
+  inline void set_map_no_write_barrier(Map value,
+                                       RelaxedStoreTag = kRelaxedStore);
+  inline void set_map_no_write_barrier(Map value, ReleaseStoreTag);
 
   // Access the map using acquire load and release store.
   DECL_ACQUIRE_GETTER(map, Map)
@@ -72,6 +74,12 @@ class HeapObject : public Object {
   // This version is intended to be used for the isolate values produced by
   // i::GetPtrComprCageBase(HeapObject) function which may return nullptr.
   inline ReadOnlyRoots GetReadOnlyRoots(PtrComprCageBase cage_base) const;
+
+  // Whether the object is in the RO heap and the RO heap is shared, or in the
+  // writable shared heap.
+  V8_INLINE bool InSharedHeap() const;
+
+  V8_INLINE bool InSharedWritableHeap() const;
 
 #define IS_TYPE_FUNCTION_DECL(Type) \
   V8_INLINE bool Is##Type() const;  \
@@ -113,10 +121,10 @@ class HeapObject : public Object {
   // Iterates over pointers contained in the object (including the Map).
   // If it's not performance critical iteration use the non-templatized
   // version.
-  void Iterate(ObjectVisitor* v);
+  void Iterate(PtrComprCageBase cage_base, ObjectVisitor* v);
 
   template <typename ObjectVisitor>
-  inline void IterateFast(ObjectVisitor* v);
+  inline void IterateFast(PtrComprCageBase cage_base, ObjectVisitor* v);
 
   // Iterates over all pointers contained in the object except the
   // first map pointer.  The object type is given in the first
@@ -124,11 +132,11 @@ class HeapObject : public Object {
   // object, and so is safe to call while the map pointer is modified.
   // If it's not performance critical iteration use the non-templatized
   // version.
-  void IterateBody(ObjectVisitor* v);
+  void IterateBody(PtrComprCageBase cage_base, ObjectVisitor* v);
   void IterateBody(Map map, int object_size, ObjectVisitor* v);
 
   template <typename ObjectVisitor>
-  inline void IterateBodyFast(ObjectVisitor* v);
+  inline void IterateBodyFast(PtrComprCageBase cage_base, ObjectVisitor* v);
 
   template <typename ObjectVisitor>
   inline void IterateBodyFast(Map map, int object_size, ObjectVisitor* v);
@@ -139,7 +147,7 @@ class HeapObject : public Object {
   V8_EXPORT_PRIVATE bool IsValidSlot(Map map, int offset);
 
   // Returns the heap object's size in bytes
-  inline int Size() const;
+  DECL_GETTER(Size, int)
 
   // Given a heap object's map pointer, returns the heap size in bytes
   // Useful when the map pointer field is used for other purposes.
@@ -188,12 +196,12 @@ class HeapObject : public Object {
   // content depends on FLAG_hash_seed. When the object is deserialized into
   // a heap with a different hash seed, these objects need to adapt.
   bool NeedsRehashing(InstanceType instance_type) const;
-  bool NeedsRehashing() const;
+  bool NeedsRehashing(PtrComprCageBase cage_base) const;
 
   // Rehashing support is not implemented for all objects that need rehashing.
   // With objects that need rehashing but cannot be rehashed, rehashing has to
   // be disabled.
-  bool CanBeRehashed() const;
+  bool CanBeRehashed(PtrComprCageBase cage_base) const;
 
   // Rehash the object based on the layout inferred from its map.
   template <typename IsolateT>

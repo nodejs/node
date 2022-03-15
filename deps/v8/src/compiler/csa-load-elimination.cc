@@ -348,6 +348,9 @@ Reduction CsaLoadElimination::ReduceLoadFromObject(Node* node,
       Node* replacement =
           TruncateAndExtend(lookup_result.value, from, access.machine_type);
       ReplaceWithValue(node, replacement, effect);
+      // This might have opened an opportunity for escape analysis to eliminate
+      // the object altogether.
+      Revisit(object);
       return Replace(replacement);
     }
   }

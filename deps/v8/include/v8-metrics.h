@@ -46,12 +46,12 @@ struct GarbageCollectionFullCycle {
   GarbageCollectionSizes objects_cpp;
   GarbageCollectionSizes memory;
   GarbageCollectionSizes memory_cpp;
-  double collection_rate_in_percent;
-  double collection_rate_cpp_in_percent;
-  double efficiency_in_bytes_per_us;
-  double efficiency_cpp_in_bytes_per_us;
-  double main_thread_efficiency_in_bytes_per_us;
-  double main_thread_efficiency_cpp_in_bytes_per_us;
+  double collection_rate_in_percent = -1.0;
+  double collection_rate_cpp_in_percent = -1.0;
+  double efficiency_in_bytes_per_us = -1.0;
+  double efficiency_cpp_in_bytes_per_us = -1.0;
+  double main_thread_efficiency_in_bytes_per_us = -1.0;
+  double main_thread_efficiency_cpp_in_bytes_per_us = -1.0;
 };
 
 struct GarbageCollectionFullMainThreadIncrementalMark {

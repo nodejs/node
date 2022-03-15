@@ -16,69 +16,72 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
  public:
   RegExpMacroAssemblerMIPS(Isolate* isolate, Zone* zone, Mode mode,
                            int registers_to_save);
-  virtual ~RegExpMacroAssemblerMIPS();
-  virtual int stack_limit_slack();
-  virtual void AdvanceCurrentPosition(int by);
-  virtual void AdvanceRegister(int reg, int by);
-  virtual void Backtrack();
-  virtual void Bind(Label* label);
-  virtual void CheckAtStart(int cp_offset, Label* on_at_start);
-  virtual void CheckCharacter(uint32_t c, Label* on_equal);
-  virtual void CheckCharacterAfterAnd(uint32_t c,
-                                      uint32_t mask,
-                                      Label* on_equal);
-  virtual void CheckCharacterGT(base::uc16 limit, Label* on_greater);
-  virtual void CheckCharacterLT(base::uc16 limit, Label* on_less);
+  ~RegExpMacroAssemblerMIPS() override;
+  int stack_limit_slack() override;
+  void AdvanceCurrentPosition(int by) override;
+  void AdvanceRegister(int reg, int by) override;
+  void Backtrack() override;
+  void Bind(Label* label) override;
+  void CheckAtStart(int cp_offset, Label* on_at_start) override;
+  void CheckCharacter(uint32_t c, Label* on_equal) override;
+  void CheckCharacterAfterAnd(uint32_t c, uint32_t mask,
+                              Label* on_equal) override;
+  void CheckCharacterGT(base::uc16 limit, Label* on_greater) override;
+  void CheckCharacterLT(base::uc16 limit, Label* on_less) override;
   // A "greedy loop" is a loop that is both greedy and with a simple
   // body. It has a particularly simple implementation.
-  virtual void CheckGreedyLoop(Label* on_tos_equals_current_position);
-  virtual void CheckNotAtStart(int cp_offset, Label* on_not_at_start);
-  virtual void CheckNotBackReference(int start_reg, bool read_backward,
-                                     Label* on_no_match);
-  virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
-                                               bool read_backward, bool unicode,
-                                               Label* on_no_match);
-  virtual void CheckNotCharacter(uint32_t c, Label* on_not_equal);
-  virtual void CheckNotCharacterAfterAnd(uint32_t c,
-                                         uint32_t mask,
-                                         Label* on_not_equal);
-  virtual void CheckNotCharacterAfterMinusAnd(base::uc16 c, base::uc16 minus,
-                                              base::uc16 mask,
-                                              Label* on_not_equal);
-  virtual void CheckCharacterInRange(base::uc16 from, base::uc16 to,
-                                     Label* on_in_range);
-  virtual void CheckCharacterNotInRange(base::uc16 from, base::uc16 to,
-                                        Label* on_not_in_range);
-  virtual void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set);
+  void CheckGreedyLoop(Label* on_tos_equals_current_position) override;
+  void CheckNotAtStart(int cp_offset, Label* on_not_at_start) override;
+  void CheckNotBackReference(int start_reg, bool read_backward,
+                             Label* on_no_match) override;
+  void CheckNotBackReferenceIgnoreCase(int start_reg, bool read_backward,
+                                       bool unicode,
+                                       Label* on_no_match) override;
+  void CheckNotCharacter(uint32_t c, Label* on_not_equal) override;
+  void CheckNotCharacterAfterAnd(uint32_t c, uint32_t mask,
+                                 Label* on_not_equal) override;
+  void CheckNotCharacterAfterMinusAnd(base::uc16 c, base::uc16 minus,
+                                      base::uc16 mask,
+                                      Label* on_not_equal) override;
+  void CheckCharacterInRange(base::uc16 from, base::uc16 to,
+                             Label* on_in_range) override;
+  void CheckCharacterNotInRange(base::uc16 from, base::uc16 to,
+                                Label* on_not_in_range) override;
+  bool CheckCharacterInRangeArray(const ZoneList<CharacterRange>* ranges,
+                                  Label* on_in_range) override;
+  bool CheckCharacterNotInRangeArray(const ZoneList<CharacterRange>* ranges,
+                                     Label* on_not_in_range) override;
+  void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
 
   // Checks whether the given offset from the current position is before
   // the end of the string.
-  virtual void CheckPosition(int cp_offset, Label* on_outside_input);
-  virtual bool CheckSpecialCharacterClass(base::uc16 type, Label* on_no_match);
-  virtual void Fail();
-  virtual Handle<HeapObject> GetCode(Handle<String> source);
-  virtual void GoTo(Label* label);
-  virtual void IfRegisterGE(int reg, int comparand, Label* if_ge);
-  virtual void IfRegisterLT(int reg, int comparand, Label* if_lt);
-  virtual void IfRegisterEqPos(int reg, Label* if_eq);
-  virtual IrregexpImplementation Implementation();
-  virtual void LoadCurrentCharacterUnchecked(int cp_offset,
-                                             int character_count);
-  virtual void PopCurrentPosition();
-  virtual void PopRegister(int register_index);
-  virtual void PushBacktrack(Label* label);
-  virtual void PushCurrentPosition();
-  virtual void PushRegister(int register_index,
-                            StackCheckFlag check_stack_limit);
-  virtual void ReadCurrentPositionFromRegister(int reg);
-  virtual void ReadStackPointerFromRegister(int reg);
-  virtual void SetCurrentPositionFromEnd(int by);
-  virtual void SetRegister(int register_index, int to);
-  virtual bool Succeed();
-  virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
-  virtual void ClearRegisters(int reg_from, int reg_to);
-  virtual void WriteStackPointerToRegister(int reg);
-  virtual bool CanReadUnaligned();
+  void CheckPosition(int cp_offset, Label* on_outside_input) override;
+  bool CheckSpecialCharacterClass(StandardCharacterSet type,
+                                  Label* on_no_match) override;
+  void Fail() override;
+  Handle<HeapObject> GetCode(Handle<String> source) override;
+  void GoTo(Label* label) override;
+  void IfRegisterGE(int reg, int comparand, Label* if_ge) override;
+  void IfRegisterLT(int reg, int comparand, Label* if_lt) override;
+  void IfRegisterEqPos(int reg, Label* if_eq) override;
+  IrregexpImplementation Implementation() override;
+  void LoadCurrentCharacterUnchecked(int cp_offset,
+                                     int character_count) override;
+  void PopCurrentPosition() override;
+  void PopRegister(int register_index) override;
+  void PushBacktrack(Label* label) override;
+  void PushCurrentPosition() override;
+  void PushRegister(int register_index,
+                    StackCheckFlag check_stack_limit) override;
+  void ReadCurrentPositionFromRegister(int reg) override;
+  void ReadStackPointerFromRegister(int reg) override;
+  void SetCurrentPositionFromEnd(int by) override;
+  void SetRegister(int register_index, int to) override;
+  bool Succeed() override;
+  void WriteCurrentPositionToRegister(int reg, int cp_offset) override;
+  void ClearRegisters(int reg_from, int reg_to) override;
+  void WriteStackPointerToRegister(int reg) override;
+  bool CanReadUnaligned() const override;
 
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before
@@ -126,6 +129,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
   // Initial size of code buffer.
   static const int kRegExpCodeSize = 1024;
 
+  void PushCallerSavedRegisters();
+  void PopCallerSavedRegisters();
+
   // Check whether preemption has been requested.
   void CheckPreemption();
 
@@ -134,19 +140,20 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
 
   // Generate a call to CheckStackGuardState.
   void CallCheckStackGuardState(Register scratch);
+  void CallIsCharacterInRangeArray(const ZoneList<CharacterRange>* ranges);
 
   // The ebp-relative location of a regexp register.
   MemOperand register_location(int register_index);
 
   // Register holding the current input position as negative offset from
   // the end of the string.
-  static constexpr Register current_input_offset() { return t2; }
+  static constexpr Register current_input_offset() { return s2; }
 
   // The register containing the current character after LoadCurrentCharacter.
-  static constexpr Register current_character() { return t3; }
+  static constexpr Register current_character() { return s5; }
 
   // Register holding address of the end of the input string.
-  static constexpr Register end_of_input_address() { return t6; }
+  static constexpr Register end_of_input_address() { return s6; }
 
   // Register holding the frame address. Local variables, parameters and
   // regexp registers are addressed relative to this.
@@ -154,10 +161,10 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
 
   // The register containing the backtrack stack top. Provides a meaningful
   // name to the register.
-  static constexpr Register backtrack_stackpointer() { return t4; }
+  static constexpr Register backtrack_stackpointer() { return s7; }
 
   // Register holding pointer to the current code object.
-  static constexpr Register code_pointer() { return t1; }
+  static constexpr Register code_pointer() { return s1; }
 
   // Byte size of chars in the string to match (decided by the Mode argument).
   inline int char_size() const { return static_cast<int>(mode_); }
@@ -188,8 +195,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
 
   void LoadRegExpStackPointerFromMemory(Register dst);
   void StoreRegExpStackPointerToMemory(Register src, Register scratch);
-  void PushRegExpBasePointer(Register scratch1, Register scratch2);
-  void PopRegExpBasePointer(Register scratch1, Register scratch2);
+  void PushRegExpBasePointer(Register stack_pointer, Register scratch);
+  void PopRegExpBasePointer(Register stack_pointer_out, Register scratch);
 
   Isolate* isolate() const { return masm_->isolate(); }
 

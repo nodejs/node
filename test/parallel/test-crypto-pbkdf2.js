@@ -58,7 +58,7 @@ testPBKDF2('password', 'salt', 32, 32,
 assert.throws(
   () => crypto.pbkdf2('password', 'salt', 1, 20, 'sha1'),
   {
-    code: 'ERR_INVALID_CALLBACK',
+    code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError'
   }
 );

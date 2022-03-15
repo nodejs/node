@@ -98,8 +98,10 @@ export function toHTML({ input, content, filename, nodeVersion, versions }) {
                      .replace(/__FILENAME__/g, filename)
                      .replace('__SECTION__', content.section)
                      .replace(/__VERSION__/g, nodeVersion)
-                     .replace('__TOC__', content.toc)
-                     .replace('__GTOC__', gtocHTML.replace(
+                     .replace(/__TOC__/g, content.toc)
+                     .replace(/__TOC_PICKER__/g, tocPicker(id, content))
+                     .replace(/__GTOC_PICKER__/g, gtocPicker(id))
+                     .replace(/__GTOC__/g, gtocHTML.replace(
                        `class="nav-${id}"`, `class="nav-${id} active"`))
                      .replace('__EDIT_ON_GITHUB__', editOnGitHub(filename))
                      .replace('__CONTENT__', processContent(content));
@@ -442,17 +444,18 @@ export function buildToc({ filename, apilinks }) {
     });
 
     if (toc !== '') {
-      file.toc = '<details id="toc" open><summary>Table of contents</summary>' +
-        unified()
-          .use(markdown)
-          .use(gfm)
-          .use(remark2rehype, { allowDangerousHtml: true })
-          .use(raw)
-          .use(htmlStringify)
-          .processSync(toc).toString() +
-        '</details>';
+      const inner = unified()
+        .use(markdown)
+        .use(gfm)
+        .use(remark2rehype, { allowDangerousHtml: true })
+        .use(raw)
+        .use(htmlStringify)
+        .processSync(toc).toString();
+
+      file.toc = `<details id="toc" open><summary>Table of contents</summary>${inner}</details>`;
+      file.tocPicker = `<div class="toc">${inner}</div>`;
     } else {
-      file.toc = '<!-- TOC -->';
+      file.toc = file.tocPicker = '<!-- TOC -->';
     }
   };
 }
@@ -508,13 +511,60 @@ function altDocs(filename, docCreated, versions) {
   const list = versions.filter(isDocInVersion).map(wrapInListItem).join('\n');
 
   return list ? `
-    <li class="version-picker">
-      <a href="#">View another version <span>&#x25bc;</span></a>
-      <ol class="version-picker">${list}</ol>
+    <li class="picker-header">
+      <a href="#">
+        <span class="collapsed-arrow">&#x25ba;</span><span class="expanded-arrow">&#x25bc;</span>
+        Other versions
+      </a>
+      <div class="picker"><ol id="alt-docs">${list}</ol></div>
     </li>
   ` : '';
 }
 
 function editOnGitHub(filename) {
   return `<li class="edit_on_github"><a href="https://github.com/nodejs/node/edit/master/doc/api/${filename}.md">Edit on GitHub</a></li>`;
+}
+
+function gtocPicker(id) {
+  if (id === 'index') {
+    return '';
+  }
+
+  // Highlight the current module and add a link to the index
+  const gtoc = gtocHTML.replace(
+    `class="nav-${id}"`, `class="nav-${id} active"`
+  ).replace('</ul>', `
+      <li>
+        <a href="index.html">Index</a>
+      </li>
+    </ul>
+  `);
+
+  return `
+    <li class="picker-header">
+      <a href="#">
+        <span class="collapsed-arrow">&#x25ba;</span><span class="expanded-arrow">&#x25bc;</span>
+        Index
+      </a>
+
+      <div class="picker">${gtoc}</div>
+    </li>
+  `;
+}
+
+function tocPicker(id, content) {
+  if (id === 'index') {
+    return '';
+  }
+
+  return `
+    <li class="picker-header">
+      <a href="#">
+        <span class="collapsed-arrow">&#x25ba;</span><span class="expanded-arrow">&#x25bc;</span>
+        Table of contents
+      </a>
+
+      <div class="picker">${content.tocPicker}</div>
+    </li>
+  `;
 }

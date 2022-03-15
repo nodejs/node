@@ -1505,7 +1505,7 @@ class LinearScanAllocator final : public RegisterAllocator {
 
   void PrintRangeRow(std::ostream& os, const TopLevelLiveRange* toplevel);
 
-  void PrintRangeOverview(std::ostream& os);
+  void PrintRangeOverview();
 
   UnhandledLiveRangeQueue unhandled_live_ranges_;
   ZoneVector<LiveRange*> active_live_ranges_;

@@ -580,6 +580,48 @@ TEST(RVV) {
   COMPARE(vadc_vv(v7, v9, v6),     "406483d7       vadc.vvm  v7, v6, v9");
   COMPARE(vadc_vx(v7, t6, v9),     "409fc3d7       vadc.vxm  v7, v9, t6");
   COMPARE(vadc_vi(v7, 5, v9),      "4092b3d7       vadc.vim  v7, v9, 5");
+
+  COMPARE(vfadd_vv(v17, v14, v28), "02ee18d7       vfadd.vv  v17, v14, v28");
+  COMPARE(vfsub_vv(v17, v14, v28), "0aee18d7       vfsub.vv  v17, v14, v28");
+  COMPARE(vfmul_vv(v17, v14, v28), "92ee18d7       vfmul.vv  v17, v14, v28");
+  COMPARE(vfdiv_vv(v17, v14, v28), "82ee18d7       vfdiv.vv  v17, v14, v28");
+  COMPARE(vfmv_vf(v17, fa5), "5e07d8d7       vfmv.v.f  v17, fa5");
+  COMPARE(vfmv_fs(fa5, v17), "431017d7       vfmv.f.s  fa5, v17");
+
+  // Vector Single-Width Floating-Point Fused Multiply-Add Instructions
+  COMPARE(vfmadd_vv(v17, v14, v28), "a3c718d7       vfmadd.vv v17, v14, v28");
+  COMPARE(vfnmadd_vv(v17, v14, v28), "a7c718d7       vfnmadd.vv v17, v14, v28");
+  COMPARE(vfmsub_vv(v17, v14, v28), "abc718d7       vfmsub.vv v17, v14, v28");
+  COMPARE(vfnmsub_vv(v17, v14, v28), "afc718d7       vfnmsub.vv v17, v14, v28");
+  COMPARE(vfmacc_vv(v17, v14, v28), "b3c718d7       vfmacc.vv v17, v14, v28");
+  COMPARE(vfnmacc_vv(v17, v14, v28), "b7c718d7       vfnmacc.vv v17, v14, v28");
+  COMPARE(vfmsac_vv(v17, v14, v28), "bbc718d7       vfmsac.vv v17, v14, v28");
+  COMPARE(vfnmsac_vv(v17, v14, v28), "bfc718d7       vfnmsac.vv v17, v14, v28");
+  COMPARE(vfmadd_vf(v17, fa5, v28), "a3c7d8d7       vfmadd.vf v17, fa5, v28");
+  COMPARE(vfnmadd_vf(v17, fa5, v28), "a7c7d8d7       vfnmadd.vf v17, fa5, v28");
+  COMPARE(vfmsub_vf(v17, fa5, v28), "abc7d8d7       vfmsub.vf v17, fa5, v28");
+  COMPARE(vfnmsub_vf(v17, fa5, v28), "afc7d8d7       vfnmsub.vf v17, fa5, v28");
+  COMPARE(vfmacc_vf(v17, fa5, v28), "b3c7d8d7       vfmacc.vf v17, fa5, v28");
+  COMPARE(vfnmacc_vf(v17, fa5, v28), "b7c7d8d7       vfnmacc.vf v17, fa5, v28");
+  COMPARE(vfmsac_vf(v17, fa5, v28), "bbc7d8d7       vfmsac.vf v17, fa5, v28");
+  COMPARE(vfnmsac_vf(v17, fa5, v28), "bfc7d8d7       vfnmsac.vf v17, fa5, v28");
+
+  // Vector Narrowing Fixed-Point Clip Instructions
+  COMPARE(vnclip_vi(v17, v14, 5), "bee2b8d7       vnclip.wi v17, v14, 5");
+  COMPARE(vnclip_vx(v17, v14, a5), "bee7c8d7       vnclip.wx v17, v14, a5");
+  COMPARE(vnclip_vv(v17, v14, v28), "beee08d7       vnclip.wv v17, v14, v28");
+  COMPARE(vnclipu_vi(v17, v14, 5), "bae2b8d7       vnclipu.wi v17, v14, 5");
+  COMPARE(vnclipu_vx(v17, v14, a5), "bae7c8d7       vnclipu.wx v17, v14, a5");
+  COMPARE(vnclipu_vv(v17, v14, v28), "baee08d7       vnclipu.wv v17, v14, v28");
+
+  // Vector Integer Extension
+  COMPARE(vzext_vf8(v17, v14), "4ae128d7       vzext.vf8 v17, v14");
+  COMPARE(vsext_vf8(v17, v14), "4ae1a8d7       vsext.vf8 v17, v14");
+  COMPARE(vzext_vf4(v17, v14), "4ae228d7       vzext.vf4 v17, v14");
+  COMPARE(vsext_vf4(v17, v14), "4ae2a8d7       vsext.vf4 v17, v14");
+  COMPARE(vzext_vf2(v17, v14), "4ae328d7       vzext.vf2 v17, v14");
+  COMPARE(vsext_vf2(v17, v14), "4ae3a8d7       vsext.vf2 v17, v14");
+
   VERIFY_RUN();
 }
 #endif

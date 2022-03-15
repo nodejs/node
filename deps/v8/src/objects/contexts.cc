@@ -65,7 +65,7 @@ bool ScriptContextTable::Lookup(Isolate* isolate, ScriptContextTable table,
   return false;
 }
 
-bool Context::is_declaration_context() {
+bool Context::is_declaration_context() const {
   if (IsFunctionContext() || IsNativeContext() || IsScriptContext() ||
       IsModuleContext()) {
     return true;
@@ -77,7 +77,7 @@ bool Context::is_declaration_context() {
   return scope_info().is_declaration_scope();
 }
 
-Context Context::declaration_context() {
+Context Context::declaration_context() const {
   Context current = *this;
   while (!current.is_declaration_context()) {
     current = current.previous();
@@ -85,7 +85,7 @@ Context Context::declaration_context() {
   return current;
 }
 
-Context Context::closure_context() {
+Context Context::closure_context() const {
   Context current = *this;
   while (!current.IsFunctionContext() && !current.IsScriptContext() &&
          !current.IsModuleContext() && !current.IsNativeContext() &&
@@ -95,7 +95,7 @@ Context Context::closure_context() {
   return current;
 }
 
-JSObject Context::extension_object() {
+JSObject Context::extension_object() const {
   DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext() ||
          IsEvalContext() || IsCatchContext());
   HeapObject object = extension();
@@ -105,17 +105,13 @@ JSObject Context::extension_object() {
   return JSObject::cast(object);
 }
 
-JSReceiver Context::extension_receiver() {
+JSReceiver Context::extension_receiver() const {
   DCHECK(IsNativeContext() || IsWithContext() || IsEvalContext() ||
          IsFunctionContext() || IsBlockContext());
   return IsWithContext() ? JSReceiver::cast(extension()) : extension_object();
 }
 
-ScopeInfo Context::scope_info() {
-  return ScopeInfo::cast(get(SCOPE_INFO_INDEX));
-}
-
-SourceTextModule Context::module() {
+SourceTextModule Context::module() const {
   Context current = *this;
   while (!current.IsModuleContext()) {
     current = current.previous();
@@ -123,11 +119,11 @@ SourceTextModule Context::module() {
   return SourceTextModule::cast(current.extension());
 }
 
-JSGlobalObject Context::global_object() {
+JSGlobalObject Context::global_object() const {
   return JSGlobalObject::cast(native_context().extension());
 }
 
-Context Context::script_context() {
+Context Context::script_context() const {
   Context current = *this;
   while (!current.IsScriptContext()) {
     current = current.previous();
@@ -135,7 +131,7 @@ Context Context::script_context() {
   return current;
 }
 
-JSGlobalProxy Context::global_proxy() {
+JSGlobalProxy Context::global_proxy() const {
   return native_context().global_proxy_object();
 }
 
@@ -222,16 +218,17 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
             context->global_object().native_context().script_context_table();
         VariableLookupResult r;
         if (ScriptContextTable::Lookup(isolate, script_contexts, *name, &r)) {
-          Context context = script_contexts.get_context(r.context_index);
+          Context script_context = script_contexts.get_context(r.context_index);
           if (FLAG_trace_contexts) {
             PrintF("=> found property in script context %d: %p\n",
-                   r.context_index, reinterpret_cast<void*>(context.ptr()));
+                   r.context_index,
+                   reinterpret_cast<void*>(script_context.ptr()));
           }
           *index = r.slot_index;
           *variable_mode = r.mode;
           *init_flag = r.init_flag;
           *attributes = GetAttributesForMode(r.mode);
-          return handle(context, isolate);
+          return handle(script_context, isolate);
         }
       }
 
@@ -384,9 +381,9 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       // Check the original context, but do not follow its context chain.
       Object obj = context->get(WRAPPED_CONTEXT_INDEX);
       if (obj.IsContext()) {
-        Handle<Context> context(Context::cast(obj), isolate);
+        Handle<Context> wrapped_context(Context::cast(obj), isolate);
         Handle<Object> result =
-            Context::Lookup(context, name, DONT_FOLLOW_CHAINS, index,
+            Context::Lookup(wrapped_context, name, DONT_FOLLOW_CHAINS, index,
                             attributes, init_flag, variable_mode);
         if (!result.is_null()) return result;
       }
@@ -445,6 +442,47 @@ int Context::IntrinsicIndexForName(const unsigned char* unsigned_string,
 }
 
 #undef COMPARE_NAME
+
+#ifdef VERIFY_HEAP
+namespace {
+// TODO(v8:12298): Fix js-context-specialization cctests to set up full
+// native contexts instead of using dummy internalized strings as
+// extensions.
+bool IsContexExtensionTestObject(HeapObject extension) {
+  return extension.IsInternalizedString() &&
+         String::cast(extension).length() == 1;
+}
+}  // namespace
+
+void Context::VerifyExtensionSlot(HeapObject extension) {
+  CHECK(scope_info().HasContextExtensionSlot());
+  // Early exit for potentially uninitialized contexfts.
+  if (extension.IsUndefined()) return;
+  if (extension.IsJSContextExtensionObject()) {
+    CHECK((IsBlockContext() && scope_info().is_declaration_scope()) ||
+          IsFunctionContext());
+  } else if (IsModuleContext()) {
+    CHECK(extension.IsSourceTextModule());
+  } else if (IsDebugEvaluateContext() || IsWithContext()) {
+    CHECK(extension.IsJSReceiver() ||
+          (IsWithContext() && IsContexExtensionTestObject(extension)));
+  } else if (IsNativeContext()) {
+    CHECK(extension.IsJSGlobalObject() ||
+          IsContexExtensionTestObject(extension));
+  } else if (IsScriptContext()) {
+    // Host-defined options can be stored on the context for classic scripts.
+    CHECK(extension.IsFixedArray());
+  }
+}
+#endif  // VERIFY_HEAP
+
+void Context::set_extension(HeapObject object, WriteBarrierMode mode) {
+  DCHECK(scope_info().HasContextExtensionSlot());
+#ifdef VERIFY_HEAP
+  VerifyExtensionSlot(object);
+#endif
+  set(EXTENSION_INDEX, object, mode);
+}
 
 #ifdef DEBUG
 

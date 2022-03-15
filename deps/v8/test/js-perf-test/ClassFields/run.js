@@ -8,7 +8,7 @@ load(arguments[0] + '.js');
 var success = true;
 
 function PrintResult(name, result, mean) {
-  print(`${name}-ClassFields(Score): ${result} (mean: ${mean})`);
+  print(`${name}-ClassFields(Score): ${result}`);
 }
 
 

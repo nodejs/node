@@ -12,6 +12,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/heap/factory.h"
+#include "src/objects/contexts.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property.h"
 #include "test/cctest/cctest.h"
@@ -281,8 +282,8 @@ TEST(ReduceJSLoadContext2) {
   Handle<Context> context_object0 = t.factory()->NewNativeContext();
   Handle<Context> context_object1 =
       NewContextForTesting(t.isolate(), context_object0);
-  context_object0->set(Context::EXTENSION_INDEX, *slot_value0);
-  context_object1->set(Context::EXTENSION_INDEX, *slot_value1);
+  context_object0->set_extension(*slot_value0);
+  context_object1->set_extension(*slot_value1);
 
   Node* context0 = t.jsgraph()->Constant(MakeRef(t.broker(), context_object1));
   Node* context1 =
@@ -358,8 +359,8 @@ TEST(ReduceJSLoadContext3) {
   Handle<Context> context_object0 = factory->NewNativeContext();
   Handle<Context> context_object1 =
       NewContextForTesting(isolate, context_object0);
-  context_object0->set(Context::EXTENSION_INDEX, *slot_value0);
-  context_object1->set(Context::EXTENSION_INDEX, *slot_value1);
+  context_object0->set_extension(*slot_value0);
+  context_object1->set_extension(*slot_value1);
 
   ContextSpecializationTester t(Just(OuterContext(context_object1, 0)));
 
@@ -549,8 +550,8 @@ TEST(ReduceJSStoreContext2) {
   Handle<Context> context_object0 = t.factory()->NewNativeContext();
   Handle<Context> context_object1 =
       NewContextForTesting(t.isolate(), context_object0);
-  context_object0->set(Context::EXTENSION_INDEX, *slot_value0);
-  context_object1->set(Context::EXTENSION_INDEX, *slot_value1);
+  context_object0->set_extension(*slot_value0);
+  context_object1->set_extension(*slot_value1);
 
   Node* context0 = t.jsgraph()->Constant(MakeRef(t.broker(), context_object1));
   Node* context1 =
@@ -598,8 +599,8 @@ TEST(ReduceJSStoreContext3) {
   Handle<Context> context_object0 = factory->NewNativeContext();
   Handle<Context> context_object1 =
       NewContextForTesting(isolate, context_object0);
-  context_object0->set(Context::EXTENSION_INDEX, *slot_value0);
-  context_object1->set(Context::EXTENSION_INDEX, *slot_value1);
+  context_object0->set_extension(*slot_value0);
+  context_object1->set_extension(*slot_value1);
 
   ContextSpecializationTester t(Just(OuterContext(context_object1, 0)));
 

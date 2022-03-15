@@ -272,9 +272,12 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
            scope_info->scope_type() == FUNCTION_SCOPE);
   }
 
-  UnoptimizedCompileState compile_state(isolate_);
+  UnoptimizedCompileState compile_state;
 
-  info_ = std::make_unique<ParseInfo>(isolate_, flags, &compile_state);
+  reusable_compile_state_ =
+      std::make_unique<ReusableUnoptimizedCompileState>(isolate_);
+  info_ = std::make_unique<ParseInfo>(isolate_, flags, &compile_state,
+                                      reusable_compile_state_.get());
 
   const bool parse_result =
       flags.is_toplevel()
@@ -556,7 +559,7 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
     return WithContextExtension();
   }
 
-  Handle<JSObject> scope = isolate_->factory()->NewJSObjectWithNullProto();
+  Handle<JSObject> scope = isolate_->factory()->NewSlowJSObjectWithNullProto();
   auto visitor = [=](Handle<String> name, Handle<Object> value,
                      ScopeType scope_type) {
     if (value->IsTheHole(isolate_)) {
@@ -569,7 +572,11 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
       }
       value = isolate_->factory()->undefined_value();
     }
-    JSObject::AddProperty(isolate_, scope, name, value, NONE);
+    // Overwrite properties. Sometimes names in the same scope can collide, e.g.
+    // with extension objects introduced via local eval.
+    JSObject::SetPropertyOrElement(isolate_, scope, name, value,
+                                   Just(ShouldThrow::kDontThrow))
+        .Check();
     return false;
   };
 
@@ -817,7 +824,6 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
   }
 
   for (Variable* var : *current_scope_->locals()) {
-    DCHECK(!var->is_this());
     if (ScopeInfo::VariableIsSynthetic(*var->name())) continue;
 
     int index = var->index();
@@ -898,7 +904,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
 Handle<JSObject> ScopeIterator::WithContextExtension() {
   DCHECK(context_->IsWithContext());
   if (context_->extension_receiver().IsJSProxy()) {
-    return isolate_->factory()->NewJSObjectWithNullProto();
+    return isolate_->factory()->NewSlowJSObjectWithNullProto();
   }
   return handle(JSObject::cast(context_->extension_receiver()), isolate_);
 }

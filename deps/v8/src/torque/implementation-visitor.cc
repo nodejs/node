@@ -1935,7 +1935,8 @@ void FailCallableLookup(
       GenericCallable* generic = failure.first;
       const std::string& fail_reason = failure.second;
       stream << "\n  " << generic->name() << " defined at "
-             << generic->Position() << ":\n    " << fail_reason << "\n";
+             << PositionAsString(generic->Position()) << ":\n    "
+             << fail_reason << "\n";
     }
   }
   ReportError(stream.str());
@@ -3420,12 +3421,21 @@ void ImplementationVisitor::GenerateCatchBlock(
   if (catch_block) {
     base::Optional<Binding<LocalLabel>*> catch_handler =
         TryLookupLabel(kCatchLabelName);
+    // Reset the local scopes to prevent the macro calls below from using the
+    // current catch handler.
+    BindingsManagersScope bindings_managers_scope;
     if (assembler().CurrentBlockIsComplete()) {
       assembler().Bind(*catch_block);
-      assembler().Goto((*catch_handler)->block, 1);
+      GenerateCall(QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING},
+                                 "GetAndResetPendingMessage"),
+                   Arguments{{}, {}}, {}, false);
+      assembler().Goto((*catch_handler)->block, 2);
     } else {
       CfgAssemblerScopedTemporaryBlock temp(&assembler(), *catch_block);
-      assembler().Goto((*catch_handler)->block, 1);
+      GenerateCall(QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING},
+                                 "GetAndResetPendingMessage"),
+                   Arguments{{}, {}}, {}, false);
+      assembler().Goto((*catch_handler)->block, 2);
     }
   }
 }
@@ -3727,7 +3737,18 @@ class FieldOffsetsGenerator {
     if (auto field_as_struct = field_type->StructSupertype()) {
       struct_contents = (*field_as_struct)->ClassifyContents();
     }
-    if (struct_contents == StructType::ClassificationFlag::kMixed) {
+    if ((struct_contents & StructType::ClassificationFlag::kStrongTagged) &&
+        (struct_contents & StructType::ClassificationFlag::kWeakTagged)) {
+      // It's okay for a struct to contain both strong and weak data. We'll just
+      // treat the whole thing as weak. This is required for DescriptorEntry.
+      struct_contents &= ~StructType::Classification(
+          StructType::ClassificationFlag::kStrongTagged);
+    }
+    bool struct_contains_tagged_fields =
+        (struct_contents & StructType::ClassificationFlag::kStrongTagged) ||
+        (struct_contents & StructType::ClassificationFlag::kWeakTagged);
+    if (struct_contains_tagged_fields &&
+        (struct_contents & StructType::ClassificationFlag::kUntagged)) {
       // We can't declare what section a struct goes in if it has multiple
       // categories of data within.
       Error(
@@ -3735,15 +3756,13 @@ class FieldOffsetsGenerator {
           "tagged and untagged data.")
           .Position(f.pos);
     }
-    // Currently struct-valued fields are only allowed to have tagged data; see
-    // TypeVisitor::VisitClassFieldsAndMethods.
-    if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType()) ||
-        struct_contents == StructType::ClassificationFlag::kTagged) {
-      if (f.is_weak) {
-        return FieldSectionType::kWeakSection;
-      } else {
-        return FieldSectionType::kStrongSection;
-      }
+    if ((field_type->IsSubtypeOf(TypeOracle::GetStrongTaggedType()) ||
+         struct_contents == StructType::ClassificationFlag::kStrongTagged) &&
+        !f.custom_weak_marking) {
+      return FieldSectionType::kStrongSection;
+    } else if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType()) ||
+               struct_contains_tagged_fields) {
+      return FieldSectionType::kWeakSection;
     } else {
       return FieldSectionType::kScalarSection;
     }
@@ -3863,11 +3882,11 @@ void ImplementationVisitor::GenerateBitFields(
 
       // If every field is one bit, we can also generate a convenient enum.
       if (all_single_bits) {
-        header << "  enum Flag { \\\n";
+        header << "  enum Flag: " << type_name << " { \\\n";
         header << "    kNone = 0, \\\n";
         for (const auto& field : type->fields()) {
-          header << "    k" << CamelifyString(field.name_and_type.name)
-                 << " = 1 << " << field.offset << ", \\\n";
+          header << "    k" << CamelifyString(field.name_and_type.name) << " = "
+                 << type_name << "{1} << " << field.offset << ", \\\n";
         }
         header << "  }; \\\n";
         header << "  using Flags = base::Flags<Flag>; \\\n";
@@ -3897,7 +3916,7 @@ class ClassFieldOffsetGenerator : public FieldOffsetsGenerator {
         gen_name_(gen_name) {}
 
   void WriteField(const Field& f, const std::string& size_string) override {
-    hdr_ << "  // " << PositionAsString(f.pos) << "\n";
+    hdr_ << "  // " << f.pos << "\n";
     std::string field = "k" + CamelifyString(f.name_and_type.name) + "Offset";
     std::string field_end = field + "End";
     hdr_ << "  static constexpr int " << field << " = " << previous_field_end_
@@ -4034,7 +4053,7 @@ void CppClassGenerator::GenerateClass() {
       stream << "  return o.Is" << name_ << "();\n";
     });
   }
-  hdr_ << "// Definition " << PositionAsString(Position()) << "\n";
+  hdr_ << "// Definition " << Position() << "\n";
   hdr_ << template_decl() << "\n";
   hdr_ << "class " << gen_name_ << " : public P {\n";
   hdr_ << "  static_assert(\n"
@@ -4204,13 +4223,16 @@ void CppClassGenerator::GenerateClass() {
 }
 
 void CppClassGenerator::GenerateClassCasts() {
-  cpp::Function f("cast");
+  cpp::Class owner({cpp::TemplateParameter("D"), cpp::TemplateParameter("P")},
+                   gen_name_);
+  cpp::Function f(&owner, "cast");
   f.SetFlags(cpp::Function::kV8Inline | cpp::Function::kStatic);
   f.SetReturnType("D");
   f.AddParameter("Object", "object");
 
   // V8_INLINE static D cast(Object)
-  f.PrintInlineDefinition(hdr_, [](std::ostream& stream) {
+  f.PrintDeclaration(hdr_);
+  f.PrintDefinition(inl_, [](std::ostream& stream) {
     stream << "    return D(object.ptr());\n";
   });
   // V8_INLINE static D unchecked_cast(Object)
@@ -4684,8 +4706,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
           structs_used_in_classes.insert(*field_as_struct);
         }
       }
-      if (type->ShouldExport() && !type->IsAbstract() &&
-          !type->HasCustomMap()) {
+      if (type->ShouldGenerateFactoryFunction()) {
         std::string return_type = type->HandlifiedCppTypeName();
         std::string function_name = "New" + type->name();
         std::stringstream parameters;
@@ -4730,9 +4751,10 @@ void ImplementationVisitor::GenerateClassDefinitions(
         factory_impl << "  HeapObject result =\n";
         factory_impl << "    factory()->AllocateRawWithImmortalMap(size, "
                         "allocation_type, map);\n";
-        factory_impl << "    WriteBarrierMode write_barrier_mode =\n"
-                     << "       allocation_type == AllocationType::kYoung\n"
-                     << "       ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;\n";
+        factory_impl << "  WriteBarrierMode write_barrier_mode =\n"
+                     << "     allocation_type == AllocationType::kYoung\n"
+                     << "     ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;\n"
+                     << "  USE(write_barrier_mode);\n";
         factory_impl << "  " << type->HandlifiedCppTypeName()
                      << " result_handle(" << type->name()
                      << "::cast(result), factory()->isolate());\n";
@@ -5220,7 +5242,7 @@ void ImplementationVisitor::GenerateClassVerifiers(
       }
 
       // Second, verify that this object is what it claims to be.
-      cc_contents << "  CHECK(o.Is" << name << "());\n";
+      cc_contents << "  CHECK(o.Is" << name << "(isolate));\n";
 
       // Third, verify its properties.
       for (auto f : type->fields()) {
@@ -5279,31 +5301,9 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
     h_contents << "#include \"src/compiler/code-assembler.h\"\n";
     h_contents << "#include \"src/execution/frames.h\"\n";
     h_contents << "#include \"torque-generated/csa-types.h\"\n";
-    cc_contents << "#include \"src/objects/fixed-array-inl.h\"\n";
-    cc_contents << "#include \"src/objects/free-space.h\"\n";
-    cc_contents << "#include \"src/objects/js-regexp-string-iterator.h\"\n";
-    cc_contents << "#include \"src/objects/js-weak-refs.h\"\n";
-    cc_contents << "#include \"src/objects/ordered-hash-table.h\"\n";
-    cc_contents << "#include \"src/objects/property-descriptor-object.h\"\n";
-    cc_contents << "#include \"src/objects/stack-frame-info.h\"\n";
-    cc_contents << "#include \"src/objects/swiss-name-dictionary.h\"\n";
-    cc_contents << "#include \"src/objects/synthetic-module.h\"\n";
-    cc_contents << "#include \"src/objects/template-objects.h\"\n";
-    cc_contents << "#include \"src/objects/torque-defined-classes.h\"\n";
-    {
-      IfDefScope intl_scope(cc_contents, "V8_INTL_SUPPORT");
-      cc_contents << "#include \"src/objects/js-break-iterator.h\"\n";
-      cc_contents << "#include \"src/objects/js-collator.h\"\n";
-      cc_contents << "#include \"src/objects/js-date-time-format.h\"\n";
-      cc_contents << "#include \"src/objects/js-display-names.h\"\n";
-      cc_contents << "#include \"src/objects/js-list-format.h\"\n";
-      cc_contents << "#include \"src/objects/js-locale.h\"\n";
-      cc_contents << "#include \"src/objects/js-number-format.h\"\n";
-      cc_contents << "#include \"src/objects/js-plural-rules.h\"\n";
-      cc_contents << "#include \"src/objects/js-relative-time-format.h\"\n";
-      cc_contents << "#include \"src/objects/js-segment-iterator.h\"\n";
-      cc_contents << "#include \"src/objects/js-segmenter.h\"\n";
-      cc_contents << "#include \"src/objects/js-segments.h\"\n";
+
+    for (const std::string& include_path : GlobalContext::CppIncludes()) {
+      cc_contents << "#include " << StringLiteralQuote(include_path) << "\n";
     }
     cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
 

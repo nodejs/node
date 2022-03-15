@@ -503,6 +503,7 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kMips64MsaLd;
       break;
     case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCagedPointer:       // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
     case MachineRepresentation::kNone:
@@ -576,6 +577,7 @@ void InstructionSelector::VisitStore(Node* node) {
         break;
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:         // Fall through.
+      case MachineRepresentation::kCagedPointer:       // Fall through.
       case MachineRepresentation::kMapWord:            // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
@@ -1123,17 +1125,15 @@ void InstructionSelector::VisitUint32MulHigh(Node* node) {
 void InstructionSelector::VisitInt64Mul(Node* node) {
   Mips64OperandGenerator g(this);
   Int64BinopMatcher m(node);
-  // TODO(dusmil): Add optimization for shifts larger than 32.
   if (m.right().HasResolvedValue() && m.right().ResolvedValue() > 0) {
-    uint32_t value = static_cast<uint32_t>(m.right().ResolvedValue());
+    uint64_t value = static_cast<uint64_t>(m.right().ResolvedValue());
     if (base::bits::IsPowerOfTwo(value)) {
       Emit(kMips64Dshl | AddressingModeField::encode(kMode_None),
            g.DefineAsRegister(node), g.UseRegister(m.left().node()),
            g.TempImmediate(base::bits::WhichPowerOfTwo(value)));
       return;
     }
-    if (base::bits::IsPowerOfTwo(value - 1) && kArchVariant == kMips64r6 &&
-        value - 1 > 0 && value - 1 <= 31) {
+    if (base::bits::IsPowerOfTwo(value - 1) && value - 1 > 0) {
       // Dlsa macro will handle the shifting value out of bound cases.
       Emit(kMips64Dlsa, g.DefineAsRegister(node),
            g.UseRegister(m.left().node()), g.UseRegister(m.left().node()),
@@ -1861,6 +1861,7 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
     case MachineRepresentation::kBit:                // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kCagedPointer:       // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
@@ -1915,6 +1916,7 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
     case MachineRepresentation::kBit:                // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kCagedPointer:       // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();

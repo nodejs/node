@@ -80,3 +80,21 @@ import fixtures from '../common/fixtures.js';
   assert.deepStrictEqual([status, stdout], [1, '']);
   assert.match(stderr, /Error: Xyz/);
 }
+
+{
+  // Calling process.exit() in .mjs should return status 0
+  const { status, stdout, stderr } = child_process.spawnSync(
+    process.execPath,
+    [fixtures.path('es-modules/tla/process-exit.mjs')],
+    { encoding: 'utf8' });
+  assert.deepStrictEqual([status, stdout, stderr], [0, '', '']);
+}
+
+{
+  // Calling process.exit() in worker thread shouldn't influence main thread
+  const { status, stdout, stderr } = child_process.spawnSync(
+    process.execPath,
+    [fixtures.path('es-modules/tla/unresolved-with-worker-process-exit.mjs')],
+    { encoding: 'utf8' });
+  assert.deepStrictEqual([status, stdout, stderr], [13, '', '']);
+}

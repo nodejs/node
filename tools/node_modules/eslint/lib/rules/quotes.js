@@ -223,8 +223,19 @@ module.exports = {
                 // ModuleSpecifier.
                 case "ImportDeclaration":
                 case "ExportNamedDeclaration":
-                case "ExportAllDeclaration":
                     return parent.source === node;
+
+                // ModuleExportName or ModuleSpecifier.
+                case "ExportAllDeclaration":
+                    return parent.exported === node || parent.source === node;
+
+                // ModuleExportName.
+                case "ImportSpecifier":
+                    return parent.imported === node;
+
+                // ModuleExportName.
+                case "ExportSpecifier":
+                    return parent.local === node || parent.exported === node;
 
                 // Others don't allow.
                 default:

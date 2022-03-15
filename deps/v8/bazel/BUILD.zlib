@@ -45,8 +45,12 @@ cc_library(
     include_prefix = "third_party/zlib",
     defines = [
         "CHROMIUM_ZLIB_NO_CHROMECONF",
-        "HAVE_HIDDEN",
         "CPU_NO_SIMD",
-    ],
+    ] + select({
+        "@platforms//os:windows": [],
+        "//conditions:default": [
+            "HAVE_HIDDEN",
+        ],
+    }),
     visibility = ["//visibility:public"],
 )

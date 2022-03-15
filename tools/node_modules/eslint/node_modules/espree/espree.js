@@ -58,7 +58,6 @@
 
 import * as acorn from "acorn";
 import jsx from "acorn-jsx";
-import astNodeTypes from "./lib/ast-node-types.js";
 import espree from "./lib/espree.js";
 import espreeVersion from "./lib/version.js";
 import * as visitorKeys from "eslint-visitor-keys";
@@ -141,8 +140,12 @@ export function parse(code, options) {
 
 export const version = espreeVersion;
 
+/* istanbul ignore next */
+export const VisitorKeys = (function() {
+    return visitorKeys.KEYS;
+}());
 
-// Deep copy.
+// Derive node types from VisitorKeys
 /* istanbul ignore next */
 export const Syntax = (function() {
     let name,
@@ -152,9 +155,9 @@ export const Syntax = (function() {
         types = Object.create(null);
     }
 
-    for (name in astNodeTypes) {
-        if (Object.hasOwnProperty.call(astNodeTypes, name)) {
-            types[name] = astNodeTypes[name];
+    for (name in VisitorKeys) {
+        if (Object.hasOwnProperty.call(VisitorKeys, name)) {
+            types[name] = name;
         }
     }
 
@@ -163,11 +166,6 @@ export const Syntax = (function() {
     }
 
     return types;
-}());
-
-/* istanbul ignore next */
-export const VisitorKeys = (function() {
-    return visitorKeys.KEYS;
 }());
 
 export const latestEcmaVersion = getLatestEcmaVersion();

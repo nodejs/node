@@ -96,11 +96,13 @@ class ZoneForwardList;
   V(CompilationCacheTable)                     \
   V(ConsString)                                \
   V(Constructor)                               \
+  V(Context)                                   \
   V(CoverageInfo)                              \
   V(ClosureFeedbackCellArray)                  \
   V(DataHandler)                               \
   V(DeoptimizationData)                        \
   V(DependentCode)                             \
+  V(DescriptorArray)                           \
   V(EmbedderDataArray)                         \
   V(EphemeronHashTable)                        \
   V(ExternalOneByteString)                     \
@@ -158,6 +160,16 @@ class ZoneForwardList;
   V(JSSetIterator)                             \
   V(JSSpecialObject)                           \
   V(JSStringIterator)                          \
+  V(JSTemporalCalendar)                        \
+  V(JSTemporalDuration)                        \
+  V(JSTemporalInstant)                         \
+  V(JSTemporalPlainDate)                       \
+  V(JSTemporalPlainTime)                       \
+  V(JSTemporalPlainDateTime)                   \
+  V(JSTemporalPlainMonthDay)                   \
+  V(JSTemporalPlainYearMonth)                  \
+  V(JSTemporalTimeZone)                        \
+  V(JSTemporalZonedDateTime)                   \
   V(JSTypedArray)                              \
   V(JSWeakCollection)                          \
   V(JSWeakRef)                                 \
@@ -177,6 +189,7 @@ class ZoneForwardList;
   V(NumberWrapper)                             \
   V(ObjectHashSet)                             \
   V(ObjectHashTable)                           \
+  V(Oddball)                                   \
   V(OrderedHashMap)                            \
   V(OrderedHashSet)                            \
   V(OrderedNameDictionary)                     \
@@ -193,6 +206,7 @@ class ZoneForwardList;
   V(SeqOneByteString)                          \
   V(SeqString)                                 \
   V(SeqTwoByteString)                          \
+  V(SharedFunctionInfo)                        \
   V(SimpleNumberDictionary)                    \
   V(SlicedString)                              \
   V(SmallOrderedHashMap)                       \
@@ -213,8 +227,14 @@ class ZoneForwardList;
   V(TemplateList)                              \
   V(ThinString)                                \
   V(TransitionArray)                           \
+  V(UncompiledData)                            \
+  V(UncompiledDataWithPreparseData)            \
+  V(UncompiledDataWithoutPreparseData)         \
+  V(UncompiledDataWithPreparseDataAndJob)      \
+  V(UncompiledDataWithoutPreparseDataWithJob)  \
   V(Undetectable)                              \
   V(UniqueName)                                \
+  IF_WASM(V, WasmApiFunctionRef)               \
   IF_WASM(V, WasmArray)                        \
   IF_WASM(V, WasmCapiFunctionData)             \
   IF_WASM(V, WasmTagObject)                    \
@@ -222,6 +242,7 @@ class ZoneForwardList;
   IF_WASM(V, WasmExportedFunctionData)         \
   IF_WASM(V, WasmFunctionData)                 \
   IF_WASM(V, WasmGlobalObject)                 \
+  IF_WASM(V, WasmInternalFunction)             \
   IF_WASM(V, WasmInstanceObject)               \
   IF_WASM(V, WasmJSFunctionData)               \
   IF_WASM(V, WasmMemoryObject)                 \
@@ -231,6 +252,7 @@ class ZoneForwardList;
   IF_WASM(V, WasmTypeInfo)                     \
   IF_WASM(V, WasmTableObject)                  \
   IF_WASM(V, WasmValueObject)                  \
+  IF_WASM(V, WasmSuspenderObject)              \
   V(WeakFixedArray)                            \
   V(WeakArrayList)                             \
   V(WeakCell)                                  \

@@ -103,6 +103,12 @@ class V8_EXPORT WasmModuleObject : public Object {
    */
   CompiledWasmModule GetCompiledModule();
 
+  /**
+   * Compile a Wasm module from the provided uncompiled bytes.
+   */
+  static MaybeLocal<WasmModuleObject> Compile(
+      Isolate* isolate, MemorySpan<const uint8_t> wire_bytes);
+
   V8_INLINE static WasmModuleObject* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
     CheckCast(value);
@@ -151,8 +157,12 @@ class V8_EXPORT WasmStreaming final {
    * {Finish} should be called after all received bytes where passed to
    * {OnBytesReceived} to tell V8 that there will be no more bytes. {Finish}
    * does not have to be called after {Abort} has been called already.
+   * If {can_use_compiled_module} is true and {SetCompiledModuleBytes} was
+   * previously called, the compiled module bytes can be used.
+   * If {can_use_compiled_module} is false, the compiled module bytes previously
+   * set by {SetCompiledModuleBytes} should not be used.
    */
-  void Finish();
+  void Finish(bool can_use_compiled_module = true);
 
   /**
    * Abort streaming compilation. If {exception} has a value, then the promise
@@ -167,6 +177,8 @@ class V8_EXPORT WasmStreaming final {
    * can be used, false otherwise. The buffer passed via {bytes} and {size}
    * is owned by the caller. If {SetCompiledModuleBytes} returns true, the
    * buffer must remain valid until either {Finish} or {Abort} completes.
+   * The compiled module bytes should not be used until {Finish(true)} is
+   * called, because they can be invalidated later by {Finish(false)}.
    */
   bool SetCompiledModuleBytes(const uint8_t* bytes, size_t size);
 

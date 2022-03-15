@@ -48,6 +48,7 @@ namespace internal {
   V(kOperandIsNotAConstructor, "Operand is not a constructor")                 \
   V(kOperandIsNotAFixedArray, "Operand is not a fixed array")                  \
   V(kOperandIsNotAFunction, "Operand is not a function")                       \
+  V(kOperandIsNotACallableFunction, "Operand is not a callable function")      \
   V(kOperandIsNotAGeneratorObject, "Operand is not a generator object")        \
   V(kOperandIsNotACodeT, "Operand is not a CodeT")                             \
   V(kOperandIsNotASmi, "Operand is not a smi")                                 \

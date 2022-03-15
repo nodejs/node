@@ -67,12 +67,25 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   base::SharedMutex* internalized_string_access() {
     return isolate_->internalized_string_access();
   }
+  const AstStringConstants* ast_string_constants() {
+    return isolate_->ast_string_constants();
+  }
+  LazyCompileDispatcher* lazy_compile_dispatcher() {
+    return isolate_->lazy_compile_dispatcher();
+  }
+  Logger* main_thread_logger() {
+    // TODO(leszeks): This is needed for logging in ParseInfo. Figure out a way
+    // to use the LocalLogger for this instead.
+    return isolate_->logger();
+  }
 
   v8::internal::LocalFactory* factory() {
     // Upcast to the privately inherited base-class using c-style casts to avoid
     // undefined behavior (as static_cast cannot cast across private bases).
     return (v8::internal::LocalFactory*)this;
   }
+
+  AccountingAllocator* allocator() { return isolate_->allocator(); }
 
   bool has_pending_exception() const { return false; }
 
@@ -113,12 +126,22 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   }
   LocalIsolate* AsLocalIsolate() { return this; }
 
+  // TODO(victorgomes): Remove this when/if MacroAssembler supports LocalIsolate
+  // only constructor.
+  Isolate* GetMainThreadIsolateUnsafe() const { return isolate_; }
+
   Object* pending_message_address() {
     return isolate_->pending_message_address();
   }
 
+#ifdef V8_INTL_SUPPORT
+  // WARNING: This might be out-of-sync with the main-thread.
+  const std::string& DefaultLocale();
+#endif
+
  private:
   friend class v8::internal::LocalFactory;
+  friend class LocalIsolateFactory;
 
   void InitializeBigIntProcessor();
 
@@ -134,6 +157,9 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
 
   RuntimeCallStats* runtime_call_stats_;
   bigint::Processor* bigint_processor_{nullptr};
+#ifdef V8_INTL_SUPPORT
+  std::string default_locale_;
+#endif
 };
 
 template <base::MutexSharedType kIsShared>

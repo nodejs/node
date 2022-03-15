@@ -14,10 +14,12 @@
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
 #include "src/base/sanitizer/lsan-page-allocator.h"
+#include "src/base/sanitizer/lsan-virtual-address-space.h"
 #include "src/base/vector.h"
+#include "src/base/virtual-address-space.h"
 #include "src/flags/flags.h"
 #include "src/init/v8.h"
-#include "src/init/vm-cage.h"
+#include "src/security/vm-cage.h"
 #include "src/utils/memcopy.h"
 
 #if V8_LIBC_BIONIC
@@ -54,7 +56,6 @@ class PageAllocatorInitializer {
       page_allocator_ = default_page_allocator.get();
     }
 #if defined(LEAK_SANITIZER)
-    static_assert(!V8_VIRTUAL_MEMORY_CAGE_BOOL, "Not currently supported");
     static base::LeakyObject<base::LsanPageAllocator> lsan_allocator(
         page_allocator_);
     page_allocator_ = lsan_allocator.get();
@@ -83,6 +84,16 @@ const int kAllocationTries = 2;
 v8::PageAllocator* GetPlatformPageAllocator() {
   DCHECK_NOT_NULL(GetPageAllocatorInitializer()->page_allocator());
   return GetPageAllocatorInitializer()->page_allocator();
+}
+
+v8::VirtualAddressSpace* GetPlatformVirtualAddressSpace() {
+#if defined(LEAK_SANITIZER)
+  static base::LeakyObject<base::LsanVirtualAddressSpace> vas(
+      std::make_unique<base::VirtualAddressSpace>());
+#else
+  static base::LeakyObject<base::VirtualAddressSpace> vas;
+#endif
+  return vas.get();
 }
 
 #ifdef V8_VIRTUAL_MEMORY_CAGE
@@ -190,7 +201,7 @@ void* AllocatePages(v8::PageAllocator* page_allocator, void* hint, size_t size,
   DCHECK_EQ(hint, AlignedAddress(hint, alignment));
   DCHECK(IsAligned(size, page_allocator->AllocatePageSize()));
   if (FLAG_randomize_all_allocations) {
-    hint = page_allocator->GetRandomMmapAddr();
+    hint = AlignedAddress(page_allocator->GetRandomMmapAddr(), alignment);
   }
   void* result = nullptr;
   for (int i = 0; i < kAllocationTries; ++i) {
@@ -349,10 +360,6 @@ bool VirtualMemoryCage::InitReservation(
          IsAligned(params.base_bias_size, allocate_page_size)));
   CHECK_LE(params.base_bias_size, params.reservation_size);
 
-  Address hint = RoundDown(params.requested_start_hint,
-                           RoundUp(params.base_alignment, allocate_page_size)) -
-                 RoundUp(params.base_bias_size, allocate_page_size);
-
   if (!existing_reservation.is_empty()) {
     CHECK_EQ(existing_reservation.size(), params.reservation_size);
     CHECK(params.base_alignment == ReservationParams::kAnyBaseAlignment ||
@@ -364,6 +371,9 @@ bool VirtualMemoryCage::InitReservation(
   } else if (params.base_alignment == ReservationParams::kAnyBaseAlignment) {
     // When the base doesn't need to be aligned, the virtual memory reservation
     // fails only due to OOM.
+    Address hint =
+        RoundDown(params.requested_start_hint,
+                  RoundUp(params.base_alignment, allocate_page_size));
     VirtualMemory reservation(params.page_allocator, params.reservation_size,
                               reinterpret_cast<void*>(hint));
     if (!reservation.IsReserved()) return false;
@@ -375,6 +385,10 @@ bool VirtualMemoryCage::InitReservation(
     // Otherwise, we need to try harder by first overreserving
     // in hopes of finding a correctly aligned address within the larger
     // reservation.
+    Address hint =
+        RoundDown(params.requested_start_hint,
+                  RoundUp(params.base_alignment, allocate_page_size)) -
+        RoundUp(params.base_bias_size, allocate_page_size);
     const int kMaxAttempts = 4;
     for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
       // Reserve a region of twice the size so that there is an aligned address
@@ -422,10 +436,11 @@ bool VirtualMemoryCage::InitReservation(
 
         // The reservation could still be somewhere else but we can accept it
         // if it has the required alignment.
-        Address address = VirtualMemoryCageStart(reservation.address(), params);
-        if (reservation.address() == address) {
+        Address start_address =
+            VirtualMemoryCageStart(reservation.address(), params);
+        if (reservation.address() == start_address) {
           reservation_ = std::move(reservation);
-          base_ = address + params.base_bias_size;
+          base_ = start_address + params.base_bias_size;
           CHECK_EQ(reservation_.size(), params.reservation_size);
           break;
         }

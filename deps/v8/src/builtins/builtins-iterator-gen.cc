@@ -268,8 +268,11 @@ TNode<JSArray> IteratorBuiltinsAssembler::StringListFromIterable(
 
       // 2. Return ? IteratorClose(iteratorRecord, error).
       BIND(&if_exception);
+      TNode<HeapObject> message = GetPendingMessage();
+      SetPendingMessage(TheHoleConstant());
       IteratorCloseOnException(context, iterator_record);
-      CallRuntime(Runtime::kReThrow, context, var_exception.value());
+      CallRuntime(Runtime::kReThrowWithMessage, context, var_exception.value(),
+                  message);
       Unreachable();
     }
   }
@@ -315,6 +318,10 @@ void IteratorBuiltinsAssembler::FastIterableToList(
     TNode<Context> context, TNode<Object> iterable,
     TVariable<JSArray>* var_result, Label* slow) {
   Label done(this), check_string(this), check_map(this), check_set(this);
+
+  // Always call the `next()` builtins when the debugger is
+  // active, to ensure we capture side-effects correctly.
+  GotoIf(IsDebugActive(), slow);
 
   GotoIfNot(
       Word32Or(IsFastJSArrayWithNoCustomIteration(context, iterable),

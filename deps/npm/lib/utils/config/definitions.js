@@ -1222,6 +1222,9 @@ define('loglevel', {
 
     See also the \`foreground-scripts\` config.
   `,
+  flatten (key, obj, flatOptions) {
+    flatOptions.silent = obj[key] === 'silent'
+  },
 })
 
 define('logs-max', {
@@ -1417,6 +1420,8 @@ define('package-lock', {
     When package package-locks are disabled, automatic pruning of extraneous
     modules will also be disabled.  To remove extraneous modules with
     package-locks disabled use \`npm prune\`.
+
+    This configuration does not affect \`npm ci\`.
   `,
   flatten: (key, obj, flatOptions) => {
     flatten(key, obj, flatOptions)
@@ -1453,6 +1458,7 @@ define('pack-destination', {
   description: `
     Directory in which \`npm pack\` will save tarballs.
   `,
+  flatten,
 })
 
 define('parseable', {
@@ -1583,14 +1589,18 @@ define('registry', {
 
 define('save', {
   default: true,
-  usage: '-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer',
+  defaultDescription: `\`true\` unless when using \`npm update\` or
+  \`npm dedupe\` where it defaults to \`false\``,
+  usage: '-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle',
   type: Boolean,
   short: 'S',
   description: `
-    Save installed packages to a package.json file as dependencies.
+    Save installed packages to a \`package.json\` file as dependencies.
 
     When used with the \`npm rm\` command, removes the dependency from
-    package.json.
+    \`package.json\`.
+
+    Will also prevent writing to \`package-lock.json\` if set to \`false\`.
   `,
   flatten,
 })
@@ -1604,7 +1614,7 @@ define('save-bundle', {
     \`--save-dev\`, or \`--save-optional\`, then also put it in the
     \`bundleDependencies\` list.
 
-    Ignore if \`--save-peer\` is set, since peerDependencies cannot be bundled.
+    Ignored if \`--save-peer\` is set, since peerDependencies cannot be bundled.
   `,
   flatten (key, obj, flatOptions) {
     // XXX update arborist to just ignore it if resulting saveType is peer

@@ -8,22 +8,31 @@
 #include <algorithm>
 
 #include "src/codegen/reloc-info.h"
+#include "src/ic/handler-configuration.h"
 #include "src/objects/arguments-inl.h"
+#include "src/objects/bigint.h"
 #include "src/objects/cell.h"
 #include "src/objects/data-handler.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/foreign-inl.h"
+#include "src/objects/free-space-inl.h"
 #include "src/objects/hash-table.h"
+#include "src/objects/heap-number.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-weak-refs.h"
+#include "src/objects/literal-objects.h"
 #include "src/objects/megadom-handler-inl.h"
 #include "src/objects/objects-body-descriptors.h"
-#include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table-inl.h"
+#include "src/objects/property-descriptor-object.h"
 #include "src/objects/source-text-module.h"
+#include "src/objects/stack-frame-info.h"
 #include "src/objects/swiss-name-dictionary-inl.h"
 #include "src/objects/synthetic-module.h"
+#include "src/objects/template-objects.h"
 #include "src/objects/torque-defined-classes-inl.h"
 #include "src/objects/transitions.h"
+#include "src/objects/turbofan-types-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects-inl.h"
@@ -154,6 +163,34 @@ void BodyDescriptorBase::IterateCustomWeakPointer(HeapObject obj, int offset,
                                                   ObjectVisitor* v) {
   v->VisitCustomWeakPointer(obj, obj.RawField(offset));
 }
+
+class HeapNumber::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) { return false; }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {}
+
+  static inline int SizeOf(Map map, HeapObject object) {
+    return HeapNumber::kSize;
+  }
+};
+
+// This is a descriptor for one/two pointer fillers.
+class FreeSpaceFillerBodyDescriptor final : public DataOnlyBodyDescriptor {
+ public:
+  static inline int SizeOf(Map map, HeapObject raw_object) {
+    return map.instance_size();
+  }
+};
+
+class FreeSpace::BodyDescriptor final : public DataOnlyBodyDescriptor {
+ public:
+  static inline int SizeOf(Map map, HeapObject raw_object) {
+    return FreeSpace::unchecked_cast(raw_object).Size();
+  }
+};
 
 class JSObject::BodyDescriptor final : public BodyDescriptorBase {
  public:
@@ -561,7 +598,7 @@ class PrototypeInfo::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {
     IteratePointers(obj, HeapObject::kHeaderSize, kObjectCreateMapOffset, v);
     IterateMaybeWeakPointer(obj, kObjectCreateMapOffset, v);
-    IteratePointers(obj, kObjectCreateMapOffset + kTaggedSize, object_size, v);
+    STATIC_ASSERT(kObjectCreateMapOffset + kTaggedSize == kHeaderSize);
   }
 
   static inline int SizeOf(Map map, HeapObject obj) {
@@ -623,7 +660,7 @@ class WasmTypeInfo::BodyDescriptor final : public BodyDescriptorBase {
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
 };
 
-class WasmJSFunctionData::BodyDescriptor final : public BodyDescriptorBase {
+class WasmApiFunctionRef::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     UNREACHABLE();
@@ -632,17 +669,14 @@ class WasmJSFunctionData::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    Foreign::BodyDescriptor::IterateBody<ObjectVisitor>(map, obj, object_size,
-                                                        v);
-    IteratePointers(obj, WasmFunctionData::kStartOfStrongFieldsOffset,
-                    kEndOfStrongFieldsOffset, v);
+    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
+                    v);
   }
 
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
 };
 
-class WasmExportedFunctionData::BodyDescriptor final
-    : public BodyDescriptorBase {
+class WasmInternalFunction::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     UNREACHABLE();
@@ -653,26 +687,8 @@ class WasmExportedFunctionData::BodyDescriptor final
                                  ObjectVisitor* v) {
     Foreign::BodyDescriptor::IterateBody<ObjectVisitor>(map, obj, object_size,
                                                         v);
-    IteratePointers(obj, WasmFunctionData::kStartOfStrongFieldsOffset,
-                    kEndOfStrongFieldsOffset, v);
-  }
-
-  static inline int SizeOf(Map map, HeapObject object) { return kSize; }
-};
-
-class WasmCapiFunctionData::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    UNREACHABLE();
-  }
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {
-    Foreign::BodyDescriptor::IterateBody<ObjectVisitor>(map, obj, object_size,
-                                                        v);
-    IteratePointers(obj, WasmFunctionData::kStartOfStrongFieldsOffset,
-                    kEndOfStrongFieldsOffset, v);
+    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
+                    v);
   }
 
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
@@ -828,15 +844,8 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
     // GC does not visit data/code in the header and in the body directly.
     IteratePointers(obj, kRelocationInfoOffset, kDataStart, v);
 
-    Code code = Code::cast(obj);
-    HeapObject relocation_info =
-        code.synchronized_unchecked_relocation_info_or_undefined();
-
-    if (!relocation_info.IsUndefined()) {
-      RelocIterator it(code, ByteArray::unchecked_cast(relocation_info),
-                       kRelocModeMask);
-      v->VisitRelocInfo(&it);
-    }
+    RelocIterator it(Code::cast(obj), kRelocModeMask);
+    v->VisitRelocInfo(&it);
   }
 
   template <typename ObjectVisitor>
@@ -982,38 +991,41 @@ class EmbedderDataArray::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-template <typename Op, typename ReturnType, typename T1, typename T2,
-          typename T3, typename T4>
-ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
+template <typename Op, typename... Args>
+auto BodyDescriptorApply(InstanceType type, Args&&... args) {
+#define CALL_APPLY(ClassName) \
+  Op::template apply<ClassName::BodyDescriptor>(std::forward<Args>(args)...)
+
   if (type < FIRST_NONSTRING_TYPE) {
     switch (type & kStringRepresentationMask) {
       case kSeqStringTag:
-        return ReturnType();
+        if ((type & kStringEncodingMask) == kOneByteStringTag) {
+          return CALL_APPLY(SeqOneByteString);
+        } else {
+          return CALL_APPLY(SeqTwoByteString);
+        }
       case kConsStringTag:
-        return Op::template apply<ConsString::BodyDescriptor>(p1, p2, p3, p4);
+        return CALL_APPLY(ConsString);
       case kThinStringTag:
-        return Op::template apply<ThinString::BodyDescriptor>(p1, p2, p3, p4);
+        return CALL_APPLY(ThinString);
       case kSlicedStringTag:
-        return Op::template apply<SlicedString::BodyDescriptor>(p1, p2, p3, p4);
+        return CALL_APPLY(SlicedString);
       case kExternalStringTag:
         if ((type & kStringEncodingMask) == kOneByteStringTag) {
-          return Op::template apply<ExternalOneByteString::BodyDescriptor>(
-              p1, p2, p3, p4);
+          return CALL_APPLY(ExternalOneByteString);
         } else {
-          return Op::template apply<ExternalTwoByteString::BodyDescriptor>(
-              p1, p2, p3, p4);
+          return CALL_APPLY(ExternalTwoByteString);
         }
     }
     UNREACHABLE();
   }
   if (InstanceTypeChecker::IsJSApiObject(type)) {
-    return Op::template apply<JSObject::BodyDescriptor>(p1, p2, p3, p4);
+    return CALL_APPLY(JSObject);
   }
 
   switch (type) {
     case EMBEDDER_DATA_ARRAY_TYPE:
-      return Op::template apply<EmbedderDataArray::BodyDescriptor>(p1, p2, p3,
-                                                                   p4);
+      return CALL_APPLY(EmbedderDataArray);
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
     case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
     case HASH_TABLE_TYPE:
@@ -1025,10 +1037,9 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
-      return Op::template apply<FixedArray::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(FixedArray);
     case EPHEMERON_HASH_TABLE_TYPE:
-      return Op::template apply<EphemeronHashTable::BodyDescriptor>(p1, p2, p3,
-                                                                    p4);
+      return CALL_APPLY(EphemeronHashTable);
     case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
@@ -1038,39 +1049,38 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case MODULE_CONTEXT_TYPE:
     case SCRIPT_CONTEXT_TYPE:
     case WITH_CONTEXT_TYPE:
-      return Op::template apply<Context::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(Context);
     case NATIVE_CONTEXT_TYPE:
-      return Op::template apply<NativeContext::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(NativeContext);
     case FIXED_DOUBLE_ARRAY_TYPE:
-      return ReturnType();
+      return CALL_APPLY(FixedDoubleArray);
     case FEEDBACK_METADATA_TYPE:
-      return Op::template apply<FeedbackMetadata::BodyDescriptor>(p1, p2, p3,
-                                                                  p4);
+      return CALL_APPLY(FeedbackMetadata);
     case PROPERTY_ARRAY_TYPE:
-      return Op::template apply<PropertyArray::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(PropertyArray);
     case TRANSITION_ARRAY_TYPE:
-      return Op::template apply<TransitionArray::BodyDescriptor>(p1, p2, p3,
-                                                                 p4);
+      return CALL_APPLY(TransitionArray);
     case FEEDBACK_CELL_TYPE:
-      return Op::template apply<FeedbackCell::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(FeedbackCell);
     case COVERAGE_INFO_TYPE:
-      return Op::template apply<CoverageInfo::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(CoverageInfo);
 #if V8_ENABLE_WEBASSEMBLY
+    case WASM_API_FUNCTION_REF_TYPE:
+      return CALL_APPLY(WasmApiFunctionRef);
     case WASM_ARRAY_TYPE:
-      return Op::template apply<WasmArray::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(WasmArray);
     case WASM_CAPI_FUNCTION_DATA_TYPE:
-      return Op::template apply<WasmCapiFunctionData::BodyDescriptor>(p1, p2,
-                                                                      p3, p4);
+      return CALL_APPLY(WasmCapiFunctionData);
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:
-      return Op::template apply<WasmExportedFunctionData::BodyDescriptor>(
-          p1, p2, p3, p4);
+      return CALL_APPLY(WasmExportedFunctionData);
+    case WASM_INTERNAL_FUNCTION_TYPE:
+      return CALL_APPLY(WasmInternalFunction);
     case WASM_JS_FUNCTION_DATA_TYPE:
-      return Op::template apply<WasmJSFunctionData::BodyDescriptor>(p1, p2, p3,
-                                                                    p4);
+      return CALL_APPLY(WasmJSFunctionData);
     case WASM_STRUCT_TYPE:
-      return Op::template apply<WasmStruct::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(WasmStruct);
     case WASM_TYPE_INFO_TYPE:
-      return Op::template apply<WasmTypeInfo::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(WasmTypeInfo);
 #endif  // V8_ENABLE_WEBASSEMBLY
     case JS_API_OBJECT_TYPE:
     case JS_ARGUMENTS_OBJECT_TYPE:
@@ -1112,6 +1122,16 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
     case JS_STRING_ITERATOR_TYPE:
+    case JS_TEMPORAL_CALENDAR_TYPE:
+    case JS_TEMPORAL_DURATION_TYPE:
+    case JS_TEMPORAL_INSTANT_TYPE:
+    case JS_TEMPORAL_PLAIN_DATE_TYPE:
+    case JS_TEMPORAL_PLAIN_DATE_TIME_TYPE:
+    case JS_TEMPORAL_PLAIN_MONTH_DAY_TYPE:
+    case JS_TEMPORAL_PLAIN_TIME_TYPE:
+    case JS_TEMPORAL_PLAIN_YEAR_MONTH_TYPE:
+    case JS_TEMPORAL_TIME_ZONE_TYPE:
+    case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
     case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
     case JS_FUNCTION_TYPE:
     case JS_CLASS_CONSTRUCTOR_TYPE:
@@ -1137,129 +1157,116 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case JS_SEGMENTS_TYPE:
 #endif  // V8_INTL_SUPPORT
 #if V8_ENABLE_WEBASSEMBLY
-    case WASM_TAG_OBJECT_TYPE:
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
+    case WASM_SUSPENDER_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
+    case WASM_TAG_OBJECT_TYPE:
     case WASM_VALUE_OBJECT_TYPE:
 #endif  // V8_ENABLE_WEBASSEMBLY
-      return Op::template apply<JSObject::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(JSObject);
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_INSTANCE_OBJECT_TYPE:
-      return Op::template apply<WasmInstanceObject::BodyDescriptor>(p1, p2, p3,
-                                                                    p4);
+      return CALL_APPLY(WasmInstanceObject);
 #endif  // V8_ENABLE_WEBASSEMBLY
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
-      return Op::template apply<JSWeakCollection::BodyDescriptor>(p1, p2, p3,
-                                                                  p4);
+      return CALL_APPLY(JSWeakCollection);
     case JS_ARRAY_BUFFER_TYPE:
-      return Op::template apply<JSArrayBuffer::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(JSArrayBuffer);
     case JS_DATA_VIEW_TYPE:
-      return Op::template apply<JSDataView::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(JSDataView);
     case JS_TYPED_ARRAY_TYPE:
-      return Op::template apply<JSTypedArray::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(JSTypedArray);
     case WEAK_CELL_TYPE:
-      return Op::template apply<WeakCell::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(WeakCell);
     case JS_WEAK_REF_TYPE:
-      return Op::template apply<JSWeakRef::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(JSWeakRef);
     case JS_PROXY_TYPE:
-      return Op::template apply<JSProxy::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(JSProxy);
     case FOREIGN_TYPE:
-      return Op::template apply<Foreign::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(Foreign);
     case MAP_TYPE:
-      return Op::template apply<Map::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(Map);
     case CODE_TYPE:
-      return Op::template apply<Code::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(Code);
     case CELL_TYPE:
-      return Op::template apply<Cell::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(Cell);
     case PROPERTY_CELL_TYPE:
-      return Op::template apply<PropertyCell::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(PropertyCell);
     case SYMBOL_TYPE:
-      return Op::template apply<Symbol::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(Symbol);
     case BYTECODE_ARRAY_TYPE:
-      return Op::template apply<BytecodeArray::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(BytecodeArray);
     case SMALL_ORDERED_HASH_SET_TYPE:
-      return Op::template apply<
-          SmallOrderedHashTable<SmallOrderedHashSet>::BodyDescriptor>(p1, p2,
-                                                                      p3, p4);
+      return CALL_APPLY(SmallOrderedHashTable<SmallOrderedHashSet>);
     case SMALL_ORDERED_HASH_MAP_TYPE:
-      return Op::template apply<
-          SmallOrderedHashTable<SmallOrderedHashMap>::BodyDescriptor>(p1, p2,
-                                                                      p3, p4);
+      return CALL_APPLY(SmallOrderedHashTable<SmallOrderedHashMap>);
     case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
-      return Op::template apply<
-          SmallOrderedHashTable<SmallOrderedNameDictionary>::BodyDescriptor>(
-          p1, p2, p3, p4);
-
+      return CALL_APPLY(SmallOrderedHashTable<SmallOrderedNameDictionary>);
     case SWISS_NAME_DICTIONARY_TYPE:
-      return Op::template apply<SwissNameDictionary::BodyDescriptor>(p1, p2, p3,
-                                                                     p4);
-
+      return CALL_APPLY(SwissNameDictionary);
     case CODE_DATA_CONTAINER_TYPE:
-      return Op::template apply<CodeDataContainer::BodyDescriptor>(p1, p2, p3,
-                                                                   p4);
+      return CALL_APPLY(CodeDataContainer);
     case PREPARSE_DATA_TYPE:
-      return Op::template apply<PreparseData::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(PreparseData);
     case HEAP_NUMBER_TYPE:
-    case FILLER_TYPE:
+      return CALL_APPLY(HeapNumber);
     case BYTE_ARRAY_TYPE:
-    case FREE_SPACE_TYPE:
+      return CALL_APPLY(BigInt);
     case BIGINT_TYPE:
-      return ReturnType();
+      return CALL_APPLY(BigInt);
     case ALLOCATION_SITE_TYPE:
-      return Op::template apply<AllocationSite::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(AllocationSite);
 
-#define MAKE_STRUCT_CASE(TYPE, Name, name) case TYPE:
+#define MAKE_STRUCT_CASE(TYPE, Name, name) \
+  case TYPE:                               \
+    return CALL_APPLY(Name);
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
-      if (type == PROTOTYPE_INFO_TYPE) {
-        return Op::template apply<PrototypeInfo::BodyDescriptor>(p1, p2, p3,
-                                                                 p4);
-      }
-#if V8_ENABLE_WEBASSEMBLY
-      if (type == WASM_INDIRECT_FUNCTION_TABLE_TYPE) {
-        return Op::template apply<WasmIndirectFunctionTable::BodyDescriptor>(
-            p1, p2, p3, p4);
-      }
-#endif  // V8_ENABLE_WEBASSEMBLY
-      return Op::template apply<StructBodyDescriptor>(p1, p2, p3, p4);
     case CALL_HANDLER_INFO_TYPE:
-      return Op::template apply<StructBodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(CallHandlerInfo);
     case LOAD_HANDLER_TYPE:
+      return CALL_APPLY(LoadHandler);
     case STORE_HANDLER_TYPE:
-      return Op::template apply<DataHandler::BodyDescriptor>(p1, p2, p3, p4);
+      return CALL_APPLY(StoreHandler);
     case SOURCE_TEXT_MODULE_TYPE:
-      return Op::template apply<SourceTextModule::BodyDescriptor>(p1, p2, p3,
-                                                                  p4);
+      return CALL_APPLY(SourceTextModule);
     case SYNTHETIC_MODULE_TYPE:
-      return Op::template apply<SyntheticModule::BodyDescriptor>(p1, p2, p3,
-                                                                 p4);
+      return CALL_APPLY(SyntheticModule);
 // TODO(turbofan): Avoid duplicated cases when the body descriptors are
 // identical.
 #define MAKE_TORQUE_BODY_DESCRIPTOR_APPLY(TYPE, TypeName) \
   case TYPE:                                              \
-    return Op::template apply<TypeName::BodyDescriptor>(p1, p2, p3, p4);
+    return CALL_APPLY(TypeName);
       TORQUE_INSTANCE_TYPE_TO_BODY_DESCRIPTOR_LIST(
           MAKE_TORQUE_BODY_DESCRIPTOR_APPLY)
 #undef MAKE_TORQUE_BODY_DESCRIPTOR_APPLY
+
+    case FILLER_TYPE:
+      return Op::template apply<FreeSpaceFillerBodyDescriptor>(
+          std::forward<Args>(args)...);
+
+    case FREE_SPACE_TYPE:
+      return CALL_APPLY(FreeSpace);
 
     default:
       PrintF("Unknown type: %d\n", type);
       UNREACHABLE();
   }
+#undef CALL_APPLY
 }
 
 template <typename ObjectVisitor>
-void HeapObject::IterateFast(ObjectVisitor* v) {
+void HeapObject::IterateFast(PtrComprCageBase cage_base, ObjectVisitor* v) {
   v->VisitMapPointer(*this);
-  IterateBodyFast(v);
+  IterateBodyFast(cage_base, v);
 }
 
 template <typename ObjectVisitor>
-void HeapObject::IterateBodyFast(ObjectVisitor* v) {
-  Map m = map();
+void HeapObject::IterateBodyFast(PtrComprCageBase cage_base, ObjectVisitor* v) {
+  Map m = map(cage_base);
   IterateBodyFast(m, SizeFromMap(m), v);
 }
 
@@ -1273,8 +1280,8 @@ struct CallIterateBody {
 
 template <typename ObjectVisitor>
 void HeapObject::IterateBodyFast(Map map, int object_size, ObjectVisitor* v) {
-  BodyDescriptorApply<CallIterateBody, void>(map.instance_type(), map, *this,
-                                             object_size, v);
+  BodyDescriptorApply<CallIterateBody>(map.instance_type(), map, *this,
+                                       object_size, v);
 }
 
 class EphemeronHashTable::BodyDescriptor final : public BodyDescriptorBase {

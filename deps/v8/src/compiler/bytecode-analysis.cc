@@ -548,9 +548,8 @@ void BytecodeAnalysis::Analyze() {
       next_bytecode_in_liveness = switch_liveness.in;
       for (--iterator; iterator.IsValid(); --iterator) {
         Bytecode bytecode = iterator.current_bytecode();
-        int current_offset = iterator.current_offset();
         BytecodeLiveness const& liveness =
-            liveness_map().GetLiveness(current_offset);
+            liveness_map().GetLiveness(iterator.current_offset());
 
         // There shouldn't be any more loops.
         DCHECK_NE(bytecode, Bytecode::kJumpLoop);

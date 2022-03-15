@@ -483,7 +483,7 @@ int Assembler::target_at(int pos) {
     if (imm16 == 0) return kEndOfChain;
     return pos + imm16;
   } else if (LLILF == opcode || BRCL == opcode || LARL == opcode ||
-             BRASL == opcode) {
+             BRASL == opcode || LGRL == opcode) {
     int32_t imm32 =
         static_cast<int32_t>(instr & (static_cast<uint64_t>(0xFFFFFFFF)));
     if (LLILF != opcode)
@@ -521,7 +521,8 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
     DCHECK(is_int16(imm16));
     instr_at_put<FourByteInstr>(pos, instr | (imm16 >> 1));
     return;
-  } else if (BRCL == opcode || LARL == opcode || BRASL == opcode) {
+  } else if (BRCL == opcode || LARL == opcode || BRASL == opcode ||
+             LGRL == opcode) {
     // Immediate is in # of halfwords
     int32_t imm32 = target_pos - pos;
     instr &= (~static_cast<uint64_t>(0xFFFFFFFF));
@@ -557,7 +558,7 @@ int Assembler::max_reach_from(int pos) {
       BRXHG == opcode) {
     return 16;
   } else if (LLILF == opcode || BRCL == opcode || LARL == opcode ||
-             BRASL == opcode) {
+             BRASL == opcode || LGRL == opcode) {
     return 31;  // Using 31 as workaround instead of 32 as
                 // is_intn(x,32) doesn't work on 32-bit platforms.
                 // llilf: Emitted label constant, not part of
@@ -699,6 +700,10 @@ void Assembler::larl(Register r1, Label* l) {
   larl(r1, Operand(branch_offset(l)));
 }
 
+void Assembler::lgrl(Register r1, Label* l) {
+  lgrl(r1, Operand(branch_offset(l)));
+}
+
 void Assembler::EnsureSpaceFor(int space_needed) {
   if (buffer_space() <= (kGap + space_needed)) {
     GrowBuffer(space_needed);
@@ -749,18 +754,6 @@ void Assembler::dumy(int r1, int x2, int b2, int d2) {
 #endif
 }
 
-void Assembler::FixOnHeapReferences(bool update_embedded_objects) {
-  // TODO(v8:11872) This function should never be called if Sparkplug on heap
-  // compilation is not supported.
-  UNREACHABLE();
-}
-
-void Assembler::FixOnHeapReferencesToHandles() {
-  // TODO(v8:11872) This function should never be called if Sparkplug on heap
-  // compilation is not supported.
-  UNREACHABLE();
-}
-
 void Assembler::GrowBuffer(int needed) {
   DCHECK_EQ(buffer_start_, buffer_->start());
 
@@ -809,7 +802,7 @@ void Assembler::db(uint8_t data) {
 
 void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
   CheckBuffer();
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
            RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
@@ -820,7 +813,7 @@ void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
 
 void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
   CheckBuffer();
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
            RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);
@@ -831,7 +824,7 @@ void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
 
 void Assembler::dp(uintptr_t data, RelocInfo::Mode rmode) {
   CheckBuffer();
-  if (!RelocInfo::IsNone(rmode)) {
+  if (!RelocInfo::IsNoInfo(rmode)) {
     DCHECK(RelocInfo::IsDataEmbeddedObject(rmode) ||
            RelocInfo::IsLiteralConstant(rmode));
     RecordRelocInfo(rmode);

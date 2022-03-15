@@ -36,7 +36,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.12',
+    'v8_embedder_string': '-node.16',
 
     ##### V8 defaults for Node.js #####
 
@@ -65,6 +65,9 @@
     # node-gyp to build addons.
     'v8_enable_pointer_compression%': 0,
     'v8_enable_31bit_smis_on_64bit_arch%': 0,
+
+    # Disable v8 hugepage by default.
+    'v8_enable_hugepage%': 0,
 
     # This is more of a V8 dev setting
     # https://github.com/nodejs/node/pull/22920/files#r222779926
@@ -100,7 +103,7 @@
         'v8_base': '<(PRODUCT_DIR)/libv8_snapshot.a',
       }],
       # V8 pointer compression only supports 64bit architectures.
-      ['target_arch in "arm ia32 mips mipsel ppc x32"', {
+      ['target_arch in "arm ia32 mips mipsel ppc"', {
         'v8_enable_pointer_compression': 0,
         'v8_enable_31bit_smis_on_64bit_arch': 0,
       }],
@@ -411,10 +414,6 @@
             'cflags': [ '-m32' ],
             'ldflags': [ '-m32' ],
           }],
-          [ 'target_arch=="x32"', {
-            'cflags': [ '-mx32' ],
-            'ldflags': [ '-mx32' ],
-          }],
           [ 'target_arch=="x64"', {
             'cflags': [ '-m64' ],
             'ldflags': [ '-m64' ],
@@ -615,6 +614,8 @@
         'ldflags': [
           '-q64',
         ],
+        # for addons due to v8config.h include of "zos-base.h":
+        'include_dirs':  ['<(zoslib_include_dir)'],
       }],
     ],
   }

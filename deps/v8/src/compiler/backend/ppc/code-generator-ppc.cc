@@ -904,44 +904,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int const fp_param_field = FPParamField::decode(instr->opcode());
       int num_fp_parameters = fp_param_field;
       bool has_function_descriptor = false;
-      int offset = 20 * kInstrSize;
-
-      if (instr->InputAt(0)->IsImmediate() &&
-          !FLAG_enable_embedded_constant_pool) {
-        // If loading an immediate without constant pool then 4 instructions get
-        // emitted instead of a single load (which makes it 3 extra).
-        offset = 23 * kInstrSize;
-      }
-      if (!instr->InputAt(0)->IsImmediate() && !ABI_CALL_VIA_IP) {
-        // On Linux and Sim, there will be an extra
-        // instruction to pass the input using the `ip` register. This
-        // instruction gets emitted under `CallCFunction` or
-        // `CallCFunctionHelper` depending on the type of the input (immediate
-        // or register). This extra move is only emitted on AIX if the input is
-        // an immediate and not a register.
-        offset -= kInstrSize;
-      }
 #if ABI_USES_FUNCTION_DESCRIPTORS
       // AIX/PPC64BE Linux uses a function descriptor
       int kNumFPParametersMask = kHasFunctionDescriptorBitMask - 1;
       num_fp_parameters = kNumFPParametersMask & fp_param_field;
       has_function_descriptor =
           (fp_param_field & kHasFunctionDescriptorBitMask) != 0;
-      // AIX may emit 2 extra Load instructions under CallCFunctionHelper
-      // due to having function descriptor.
-      if (has_function_descriptor) {
-        offset += 2 * kInstrSize;
-      }
 #endif
 #if V8_ENABLE_WEBASSEMBLY
       Label start_call;
+      int start_pc_offset = 0;
       bool isWasmCapiFunction =
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
       if (isWasmCapiFunction) {
         __ mflr(r0);
-        __ bind(&start_call);
         __ LoadPC(kScratchReg);
-        __ addi(kScratchReg, kScratchReg, Operand(offset));
+        __ bind(&start_call);
+        start_pc_offset = __ pc_offset();
+        // We are going to patch this instruction after emitting
+        // CallCFunction, using a zero offset here as placeholder for now.
+        // patch_wasm_cpi_return_address assumes `addi` is used here to
+        // add the offset to pc.
+        __ addi(kScratchReg, kScratchReg, Operand::Zero());
         __ StoreU64(kScratchReg,
                     MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
         __ mtlr(r0);
@@ -956,14 +940,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ CallCFunction(func, num_gp_parameters, num_fp_parameters,
                          has_function_descriptor);
       }
-      // TODO(miladfar): In the above block, kScratchReg must be populated with
-      // the strictly-correct PC, which is the return address at this spot. The
-      // offset is counted from where we are binding to the label and ends at
-      // this spot. If failed, replace it with the correct offset suggested.
-      // More info on f5ab7d3.
 #if V8_ENABLE_WEBASSEMBLY
       if (isWasmCapiFunction) {
-        CHECK_EQ(offset, __ SizeOfCodeGeneratedSince(&start_call));
+        int offset_since_start_call = __ SizeOfCodeGeneratedSince(&start_call);
+        // Here we are going to patch the `addi` instruction above to use the
+        // correct offset.
+        // LoadPC emits two instructions and pc is the address of its
+        // second emitted instruction therefore there is one more instruction to
+        // count.
+        offset_since_start_call += kInstrSize;
+        __ patch_wasm_cpi_return_address(kScratchReg, start_pc_offset,
+                                         offset_since_start_call);
         RecordSafepoint(instr->reference_map());
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2088,6 +2075,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register temp1 = r0;
       if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
         __ brw(output, input);
+        __ extsw(output, output);
         break;
       }
       __ rotlwi(temp1, input, 8);
@@ -3983,25 +3971,14 @@ void CodeGenerator::AssembleConstructFrame() {
       // efficient intialization of the constant pool pointer register).
       __ StubPrologue(type);
 #if V8_ENABLE_WEBASSEMBLY
-      if (call_descriptor->IsWasmFunctionCall()) {
+      if (call_descriptor->IsWasmFunctionCall() ||
+          call_descriptor->IsWasmImportWrapper() ||
+          call_descriptor->IsWasmCapiFunction()) {
         __ Push(kWasmInstanceRegister);
-      } else if (call_descriptor->IsWasmImportWrapper() ||
-                 call_descriptor->IsWasmCapiFunction()) {
-        // Wasm import wrappers are passed a tuple in the place of the instance.
-        // Unpack the tuple into the instance and the target callable.
-        // This must be done here in the codegen because it cannot be expressed
-        // properly in the graph.
-        __ LoadTaggedPointerField(
-            kJSFunctionRegister,
-            FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset), r0);
-        __ LoadTaggedPointerField(
-            kWasmInstanceRegister,
-            FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset), r0);
-        __ Push(kWasmInstanceRegister);
-        if (call_descriptor->IsWasmCapiFunction()) {
-          // Reserve space for saving the PC later.
-          __ addi(sp, sp, Operand(-kSystemPointerSize));
-        }
+      }
+      if (call_descriptor->IsWasmCapiFunction()) {
+        // Reserve space for saving the PC later.
+        __ addi(sp, sp, Operand(-kSystemPointerSize));
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
     }
@@ -4172,15 +4149,25 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     // max(argc_reg, parameter_slots-1), and the receiver is added in
     // DropArguments().
     if (parameter_slots > 1) {
-      const int parameter_slots_without_receiver = parameter_slots - 1;
-      Label skip;
-      __ CmpS64(argc_reg, Operand(parameter_slots_without_receiver), r0);
-      __ bgt(&skip);
-      __ mov(argc_reg, Operand(parameter_slots_without_receiver));
-      __ bind(&skip);
+      if (kJSArgcIncludesReceiver) {
+        Label skip;
+        __ CmpS64(argc_reg, Operand(parameter_slots), r0);
+        __ bgt(&skip);
+        __ mov(argc_reg, Operand(parameter_slots));
+        __ bind(&skip);
+      } else {
+        const int parameter_slots_without_receiver = parameter_slots - 1;
+        Label skip;
+        __ CmpS64(argc_reg, Operand(parameter_slots_without_receiver), r0);
+        __ bgt(&skip);
+        __ mov(argc_reg, Operand(parameter_slots_without_receiver));
+        __ bind(&skip);
+      }
     }
     __ DropArguments(argc_reg, TurboAssembler::kCountIsInteger,
-                     TurboAssembler::kCountExcludesReceiver);
+                     kJSArgcIncludesReceiver
+                         ? TurboAssembler::kCountIncludesReceiver
+                         : TurboAssembler::kCountExcludesReceiver);
   } else if (additional_pop_count->IsImmediate()) {
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
     __ Drop(parameter_slots + additional_count);

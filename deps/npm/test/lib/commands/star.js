@@ -44,15 +44,17 @@ t.test('no args', async t => {
 t.test('star a package', async t => {
   t.plan(4)
   const pkgName = '@npmcli/arborist'
-  npmFetch.json = async (uri, opts) => ({
-    _id: pkgName,
-    _rev: 'hash',
-    users: (
-      opts.method === 'PUT'
-        ? { foo: true }
-        : {}
-    ),
-  })
+  npmFetch.json = async (uri, opts) => {
+    return {
+      _id: pkgName,
+      _rev: 'hash',
+      users: (
+        opts.method === 'PUT'
+          ? { foo: true }
+          : {}
+      ),
+    }
+  }
   log.info = (title, msg, id) => {
     t.equal(title, 'star', 'should use expected title')
     t.equal(msg, 'starring', 'should use expected msg')
@@ -70,14 +72,16 @@ t.test('unstar a package', async t => {
   t.plan(4)
   const pkgName = '@npmcli/arborist'
   config['star.unstar'] = true
-  npmFetch.json = async (uri, opts) => ({
-    _id: pkgName,
-    _rev: 'hash',
-    ...(opts.method === 'PUT'
-      ? {}
-      : { foo: true }
-    ),
-  })
+  npmFetch.json = async (uri, opts) => {
+    return {
+      _id: pkgName,
+      _rev: 'hash',
+      ...(opts.method === 'PUT'
+        ? {}
+        : { foo: true }
+      ),
+    }
+  }
   log.info = (title, msg, id) => {
     t.equal(title, 'unstar', 'should use expected title')
     t.equal(msg, 'unstarring', 'should use expected msg')
