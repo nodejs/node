@@ -66,6 +66,7 @@ static void uv__read(uv_stream_t* stream);
 static void uv__stream_io(uv_loop_t* loop, uv__io_t* w, unsigned int events);
 static void uv__write_callbacks(uv_stream_t* stream);
 static size_t uv__write_req_size(uv_write_t* req);
+static void uv__drain(uv_stream_t* stream);
 
 
 void uv__stream_init(uv_loop_t* loop,
@@ -453,17 +454,7 @@ void uv__stream_destroy(uv_stream_t* stream) {
 
   uv__stream_flush_write_queue(stream, UV_ECANCELED);
   uv__write_callbacks(stream);
-
-  if (stream->shutdown_req) {
-    /* The ECANCELED error code is a lie, the shutdown(2) syscall is a
-     * fait accompli at this point. Maybe we should revisit this in v0.11.
-     * A possible reason for leaving it unchanged is that it informs the
-     * callee that the handle has been destroyed.
-     */
-    uv__req_unregister(stream->loop, stream->shutdown_req);
-    stream->shutdown_req->cb(stream->shutdown_req, UV_ECANCELED);
-    stream->shutdown_req = NULL;
-  }
+  uv__drain(stream);
 
   assert(stream->write_queue_size == 0);
 }
@@ -641,14 +632,16 @@ done:
 
 int uv_listen(uv_stream_t* stream, int backlog, uv_connection_cb cb) {
   int err;
-
+  if (uv__is_closing(stream)) {
+    return UV_EINVAL;
+  }
   switch (stream->type) {
   case UV_TCP:
-    err = uv_tcp_listen((uv_tcp_t*)stream, backlog, cb);
+    err = uv__tcp_listen((uv_tcp_t*)stream, backlog, cb);
     break;
 
   case UV_NAMED_PIPE:
-    err = uv_pipe_listen((uv_pipe_t*)stream, backlog, cb);
+    err = uv__pipe_listen((uv_pipe_t*)stream, backlog, cb);
     break;
 
   default:
@@ -667,25 +660,30 @@ static void uv__drain(uv_stream_t* stream) {
   int err;
 
   assert(QUEUE_EMPTY(&stream->write_queue));
-  uv__io_stop(stream->loop, &stream->io_watcher, POLLOUT);
-  uv__stream_osx_interrupt_select(stream);
+  if (!(stream->flags & UV_HANDLE_CLOSING)) {
+    uv__io_stop(stream->loop, &stream->io_watcher, POLLOUT);
+    uv__stream_osx_interrupt_select(stream);
+  }
 
-  /* Shutdown? */
-  if ((stream->flags & UV_HANDLE_SHUTTING) &&
-      !(stream->flags & UV_HANDLE_CLOSING) &&
+  if (!(stream->flags & UV_HANDLE_SHUTTING))
+    return;
+
+  req = stream->shutdown_req;
+  assert(req);
+
+  if ((stream->flags & UV_HANDLE_CLOSING) ||
       !(stream->flags & UV_HANDLE_SHUT)) {
-    assert(stream->shutdown_req);
-
-    req = stream->shutdown_req;
     stream->shutdown_req = NULL;
     stream->flags &= ~UV_HANDLE_SHUTTING;
     uv__req_unregister(stream->loop, req);
 
     err = 0;
-    if (shutdown(uv__stream_fd(stream), SHUT_WR))
+    if (stream->flags & UV_HANDLE_CLOSING)
+      /* The user destroyed the stream before we got to do the shutdown. */
+      err = UV_ECANCELED;
+    else if (shutdown(uv__stream_fd(stream), SHUT_WR))
       err = UV__ERR(errno);
-
-    if (err == 0)
+    else /* Success. */
       stream->flags |= UV_HANDLE_SHUT;
 
     if (req->cb != NULL)
@@ -926,7 +924,6 @@ static void uv__write(uv_stream_t* stream) {
   }
 
   req->error = n;
-  // XXX(jwn): this must call uv__stream_flush_write_queue(stream, n) here, since we won't generate any more events
   uv__write_req_finish(req);
   uv__io_stop(stream->loop, &stream->io_watcher, POLLOUT);
   uv__stream_osx_interrupt_select(stream);
@@ -961,49 +958,6 @@ static void uv__write_callbacks(uv_stream_t* stream) {
     if (req->cb)
       req->cb(req, req->error);
   }
-}
-
-
-uv_handle_type uv__handle_type(int fd) {
-  struct sockaddr_storage ss;
-  socklen_t sslen;
-  socklen_t len;
-  int type;
-
-  memset(&ss, 0, sizeof(ss));
-  sslen = sizeof(ss);
-
-  if (getsockname(fd, (struct sockaddr*)&ss, &sslen))
-    return UV_UNKNOWN_HANDLE;
-
-  len = sizeof type;
-
-  if (getsockopt(fd, SOL_SOCKET, SO_TYPE, &type, &len))
-    return UV_UNKNOWN_HANDLE;
-
-  if (type == SOCK_STREAM) {
-#if defined(_AIX) || defined(__DragonFly__)
-    /* on AIX/DragonFly the getsockname call returns an empty sa structure
-     * for sockets of type AF_UNIX.  For all other types it will
-     * return a properly filled in structure.
-     */
-    if (sslen == 0)
-      return UV_NAMED_PIPE;
-#endif
-    switch (ss.ss_family) {
-      case AF_UNIX:
-        return UV_NAMED_PIPE;
-      case AF_INET:
-      case AF_INET6:
-        return UV_TCP;
-      }
-  }
-
-  if (type == SOCK_DGRAM &&
-      (ss.ss_family == AF_INET || ss.ss_family == AF_INET6))
-    return UV_UDP;
-
-  return UV_UNKNOWN_HANDLE;
 }
 
 
@@ -1278,7 +1232,8 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* stream, uv_shutdown_cb cb) {
 
   assert(uv__stream_fd(stream) >= 0);
 
-  /* Initialize request */
+  /* Initialize request. The `shutdown(2)` call will always be deferred until
+   * `uv__drain`, just before the callback is run. */
   uv__req_init(stream->loop, req, UV_SHUTDOWN);
   req->handle = stream;
   req->cb = cb;
@@ -1286,8 +1241,8 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* stream, uv_shutdown_cb cb) {
   stream->flags |= UV_HANDLE_SHUTTING;
   stream->flags &= ~UV_HANDLE_WRITABLE;
 
-  uv__io_start(stream->loop, &stream->io_watcher, POLLOUT);
-  uv__stream_osx_interrupt_select(stream);
+  if (QUEUE_EMPTY(&stream->write_queue))
+    uv__io_feed(stream->loop, &stream->io_watcher);
 
   return 0;
 }

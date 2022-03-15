@@ -162,11 +162,45 @@ void uv_barrier_destroy(uv_barrier_t* barrier) {
 #endif
 
 
+/* Musl's PTHREAD_STACK_MIN is 2 KB on all architectures, which is
+ * too small to safely receive signals on.
+ *
+ * Musl's PTHREAD_STACK_MIN + MINSIGSTKSZ == 8192 on arm64 (which has
+ * the largest MINSIGSTKSZ of the architectures that musl supports) so
+ * let's use that as a lower bound.
+ *
+ * We use a hardcoded value because PTHREAD_STACK_MIN + MINSIGSTKSZ
+ * is between 28 and 133 KB when compiling against glibc, depending
+ * on the architecture.
+ */
+static size_t uv__min_stack_size(void) {
+  static const size_t min = 8192;
+
+#ifdef PTHREAD_STACK_MIN  /* Not defined on NetBSD. */
+  if (min < (size_t) PTHREAD_STACK_MIN)
+    return PTHREAD_STACK_MIN;
+#endif  /* PTHREAD_STACK_MIN */
+
+  return min;
+}
+
+
+/* On Linux, threads created by musl have a much smaller stack than threads
+ * created by glibc (80 vs. 2048 or 4096 kB.)  Follow glibc for consistency.
+ */
+static size_t uv__default_stack_size(void) {
+#if !defined(__linux__)
+  return 0;
+#elif defined(__PPC__) || defined(__ppc__) || defined(__powerpc__)
+  return 4 << 20;  /* glibc default. */
+#else
+  return 2 << 20;  /* glibc default. */
+#endif
+}
+
+
 /* On MacOS, threads other than the main thread are created with a reduced
  * stack size by default.  Adjust to RLIMIT_STACK aligned to the page size.
- *
- * On Linux, threads created by musl have a much smaller stack than threads
- * created by glibc (80 vs. 2048 or 4096 kB.)  Follow glibc for consistency.
  */
 size_t uv__thread_stack_size(void) {
 #if defined(__APPLE__) || defined(__linux__)
@@ -176,34 +210,20 @@ size_t uv__thread_stack_size(void) {
    * the system call wrapper invokes the wrong system call. Don't treat
    * that as fatal, just use the default stack size instead.
    */
-  if (0 == getrlimit(RLIMIT_STACK, &lim) && lim.rlim_cur != RLIM_INFINITY) {
-    /* pthread_attr_setstacksize() expects page-aligned values. */
-    lim.rlim_cur -= lim.rlim_cur % (rlim_t) getpagesize();
+  if (getrlimit(RLIMIT_STACK, &lim))
+    return uv__default_stack_size();
 
-    /* Musl's PTHREAD_STACK_MIN is 2 KB on all architectures, which is
-     * too small to safely receive signals on.
-     *
-     * Musl's PTHREAD_STACK_MIN + MINSIGSTKSZ == 8192 on arm64 (which has
-     * the largest MINSIGSTKSZ of the architectures that musl supports) so
-     * let's use that as a lower bound.
-     *
-     * We use a hardcoded value because PTHREAD_STACK_MIN + MINSIGSTKSZ
-     * is between 28 and 133 KB when compiling against glibc, depending
-     * on the architecture.
-     */
-    if (lim.rlim_cur >= 8192)
-      if (lim.rlim_cur >= PTHREAD_STACK_MIN)
-        return lim.rlim_cur;
-  }
+  if (lim.rlim_cur == RLIM_INFINITY)
+    return uv__default_stack_size();
+
+  /* pthread_attr_setstacksize() expects page-aligned values. */
+  lim.rlim_cur -= lim.rlim_cur % (rlim_t) getpagesize();
+
+  if (lim.rlim_cur >= (rlim_t) uv__min_stack_size())
+    return lim.rlim_cur;
 #endif
 
-#if !defined(__linux__)
-  return 0;
-#elif defined(__PPC__) || defined(__ppc__) || defined(__powerpc__)
-  return 4 << 20;  /* glibc default. */
-#else
-  return 2 << 20;  /* glibc default. */
-#endif
+  return uv__default_stack_size();
 }
 
 
@@ -222,6 +242,7 @@ int uv_thread_create_ex(uv_thread_t* tid,
   pthread_attr_t attr_storage;
   size_t pagesize;
   size_t stack_size;
+  size_t min_stack_size;
 
   /* Used to squelch a -Wcast-function-type warning. */
   union {
@@ -239,10 +260,9 @@ int uv_thread_create_ex(uv_thread_t* tid,
     pagesize = (size_t)getpagesize();
     /* Round up to the nearest page boundary. */
     stack_size = (stack_size + pagesize - 1) &~ (pagesize - 1);
-#ifdef PTHREAD_STACK_MIN
-    if (stack_size < PTHREAD_STACK_MIN)
-      stack_size = PTHREAD_STACK_MIN;
-#endif
+    min_stack_size = uv__min_stack_size();
+    if (stack_size < min_stack_size)
+      stack_size = min_stack_size;
   }
 
   if (stack_size > 0) {

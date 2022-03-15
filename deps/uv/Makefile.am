@@ -27,8 +27,8 @@ uvinclude_HEADERS = include/uv/errno.h \
 CLEANFILES =
 
 lib_LTLIBRARIES = libuv.la
-libuv_la_CFLAGS = @CFLAGS@
-libuv_la_LDFLAGS = -no-undefined -version-info 1:0:0
+libuv_la_CFLAGS = $(AM_CFLAGS)
+libuv_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined -version-info 1:0:0
 libuv_la_SOURCES = src/fs-poll.c \
                    src/heap-inl.h \
                    src/idna.c \
@@ -43,7 +43,9 @@ libuv_la_SOURCES = src/fs-poll.c \
                    src/uv-data-getter-setters.c \
                    src/uv-common.c \
                    src/uv-common.h \
-                   src/version.c
+                   src/version.c \
+                   src/strtok.c \
+                   src/strtok.h
 
 if SUNOS
 # Can't be turned into a CC_CHECK_CFLAGS in configure.ac, it makes compilers
@@ -131,7 +133,7 @@ EXTRA_DIST = test/fixtures/empty_file \
 
 TESTS = test/run-tests
 check_PROGRAMS = test/run-tests
-test_run_tests_CFLAGS =
+test_run_tests_CFLAGS = $(AM_CFLAGS)
 
 if SUNOS
 # Can't be turned into a CC_CHECK_CFLAGS in configure.ac, it makes compilers
@@ -139,7 +141,7 @@ if SUNOS
 test_run_tests_CFLAGS += -pthreads
 endif
 
-test_run_tests_LDFLAGS =
+test_run_tests_LDFLAGS = $(AM_LDFLAGS)
 test_run_tests_SOURCES = test/blackhole-server.c \
                          test/echo-server.c \
                          test/run-tests.c \
@@ -150,7 +152,6 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-async.c \
                          test/test-async-null-cb.c \
                          test/test-barrier.c \
-                         test/test-callback-order.c \
                          test/test-callback-stack.c \
                          test/test-close-fd.c \
                          test/test-close-order.c \
@@ -250,11 +251,13 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-spawn.c \
                          test/test-stdio-over-pipes.c \
                          test/test-strscpy.c \
+                         test/test-strtok.c \
                          test/test-tcp-alloc-cb-fail.c \
                          test/test-tcp-bind-error.c \
                          test/test-tcp-bind6-error.c \
                          test/test-tcp-close-accept.c \
                          test/test-tcp-close-while-connecting.c \
+                         test/test-tcp-close-after-read-timeout.c \
                          test/test-tcp-close.c \
                          test/test-tcp-close-reset.c \
                          test/test-tcp-create-socket-early.c \
@@ -266,6 +269,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-tcp-open.c \
                          test/test-tcp-read-stop.c \
                          test/test-tcp-read-stop-start.c \
+                         test/test-tcp-rst.c \
                          test/test-tcp-shutdown-after-write.c \
                          test/test-tcp-unexpected-read.c \
                          test/test-tcp-oob.c \
@@ -388,10 +392,8 @@ libuv_la_SOURCES += src/unix/aix-common.c \
 endif
 
 if ANDROID
-uvinclude_HEADERS += include/uv/android-ifaddrs.h
 libuv_la_CFLAGS += -D_GNU_SOURCE
-libuv_la_SOURCES += src/unix/android-ifaddrs.c \
-                    src/unix/pthread-fixes.c
+libuv_la_SOURCES += src/unix/pthread-fixes.c
 endif
 
 if CYGWIN
@@ -457,9 +459,16 @@ endif
 
 if HURD
 uvinclude_HEADERS += include/uv/posix.h
-libuv_la_SOURCES += src/unix/no-fsevents.c \
+libuv_la_SOURCES += src/unix/bsd-ifaddrs.c \
+                    src/unix/no-fsevents.c \
+                    src/unix/no-proctitle.c \
                     src/unix/posix-hrtime.c \
-                    src/unix/posix-poll.c
+                    src/unix/posix-poll.c \
+                    src/unix/hurd.c
+endif
+
+if KFREEBSD
+libuv_la_CFLAGS += -D_GNU_SOURCE
 endif
 
 if LINUX

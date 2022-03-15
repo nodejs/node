@@ -851,7 +851,12 @@ static void check_utime(const char* path,
 #endif
     st_atim = s->st_atim.tv_sec + s->st_atim.tv_nsec / 1e9;
     st_mtim = s->st_mtim.tv_sec + s->st_mtim.tv_nsec / 1e9;
-    ASSERT_DOUBLE_EQ(st_atim, atime);
+    /*
+     * Linux does not allow reading reliably the atime of a symlink
+     * since readlink() can update it
+     */
+    if (!test_lutime)
+      ASSERT_DOUBLE_EQ(st_atim, atime);
     ASSERT_DOUBLE_EQ(st_mtim, mtime);
   }
 
