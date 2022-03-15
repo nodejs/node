@@ -508,7 +508,7 @@ changes:
     - v13.7.0
     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/31001
-    description: Unflag conditional exports.
+    description: Unflag conditional exports. `--experimental-modules` is required in v12.16.0.
 -->
 
 Conditional exports provide a way to map to different paths depending on
@@ -593,6 +593,9 @@ these JS environments from having to pretend to be existing environments in
 order to support packages with conditional exports. For this reason, using
 `"node"` and `"default"` condition branches is usually preferable to using
 `"node"` and `"browser"` condition branches.
+
+Conditional exports take effect with ES module, `--experimental-modules` is
+required for use in v12.16.0.
 
 ### Nested conditions
 
