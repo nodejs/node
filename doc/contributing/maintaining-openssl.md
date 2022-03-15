@@ -6,7 +6,7 @@ If you need to provide updates across all active release lines you will
 currently need to generate four PRs as follows:
 
 * a PR for master which is generated following the instructions
-  below for OpenSSL 3.0.x
+  below for OpenSSL 3.0.x.
 * a PR for 16.x which is generated following the instructions
   below for OpenSSL 1.1.1
 * a PR for 14.x following the instructions in the v14.x-staging version
