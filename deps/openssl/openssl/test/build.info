@@ -519,7 +519,7 @@ INCLUDE_MAIN___test_libtestutil_OLB = /INCLUDE=MAIN
                              {- rebase_files("../apps",
                                   split(/\s+/, $target{apps_init_src})) -}
     INCLUDE[ec_internal_test]=../include ../crypto/ec
-    DEPEND[ec_internal_test]=../apps/libapps.a ../libcrypto.a libtestutil.a
+    DEPEND[ec_internal_test]=../libcrypto.a libtestutil.a
 
     SOURCE[curve448_internal_test]=curve448_internal_test.c
     INCLUDE[curve448_internal_test]=.. ../include ../crypto/ec/curve448

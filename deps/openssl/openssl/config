@@ -704,6 +704,7 @@ case "$GUESSOS" in
 			__CNF_CPPFLAGS="$__CNF_CPPFLAGS -DL_ENDIAN" ;;
   powerpc64-*-*bsd*)	OUT="BSD-generic64";
 			__CNF_CPPFLAGS="$__CNF_CPPFLAGS -DB_ENDIAN" ;;
+  riscv64-*-*bsd*)	OUT="BSD-riscv64" ;;
   sparc64-*-*bsd*)	OUT="BSD-sparc64" ;;
   ia64-*-*bsd*)		OUT="BSD-ia64" ;;
   x86_64-*-dragonfly*)  OUT="BSD-x86_64" ;;

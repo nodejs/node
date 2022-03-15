@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -96,6 +96,7 @@ static DH *get_dh512(void);
 static DH *get_dh1024(void);
 static DH *get_dh1024dsa(void);
 static DH *get_dh2048(void);
+static DH *get_dh4096(void);
 #endif
 
 static char *psk_key = NULL;    /* by default PSK is not used */
@@ -643,7 +644,9 @@ static void sv_usage(void)
     fprintf(stderr,
             " -dhe1024dsa   - use 1024 bit key (with 160-bit subprime) for DHE\n");
     fprintf(stderr,
-            " -dhe2048      - use 2048 bit key (rfc3526 pime) for DHE\n");
+            " -dhe2048      - use 2048 bit key (rfc3526 prime) for DHE\n");
+    fprintf(stderr,
+            " -dhe4096      - use 4096 bit key (rfc3526 prime) for DHE\n");
     fprintf(stderr, " -no_dhe       - disable DHE\n");
 #endif
 #ifndef OPENSSL_NO_EC
@@ -657,6 +660,12 @@ static void sv_usage(void)
 #endif
 #ifndef OPENSSL_NO_TLS1
     fprintf(stderr, " -tls1         - use TLSv1\n");
+#endif
+#ifndef OPENSSL_NO_TLS1_1
+    fprintf(stderr, " -tls1_1       - use TLSv1.1\n");
+#endif
+#ifndef OPENSSL_NO_TLS1_2
+    fprintf(stderr, " -tls1_2       - use TLSv1.2\n");
 #endif
 #ifndef OPENSSL_NO_DTLS
     fprintf(stderr, " -dtls         - use DTLS\n");
@@ -883,7 +892,7 @@ int main(int argc, char *argv[])
     int badop = 0;
     enum { BIO_MEM, BIO_PAIR, BIO_IPV4, BIO_IPV6 } bio_type = BIO_MEM;
     int force = 0;
-    int dtls1 = 0, dtls12 = 0, dtls = 0, tls1 = 0, tls1_2 = 0, ssl3 = 0;
+    int dtls1 = 0, dtls12 = 0, dtls = 0, tls1 = 0, tls1_1 = 0, tls1_2 = 0, ssl3 = 0;
     int ret = EXIT_FAILURE;
     int client_auth = 0;
     int server_auth = 0, i;
@@ -900,7 +909,7 @@ int main(int argc, char *argv[])
 #ifndef OPENSSL_NO_DH
     DH *dh;
     int dhe512 = 0, dhe1024dsa = 0;
-    int dhe2048 = 0;
+    int dhe2048 = 0, dhe4096 = 0;
 #endif
     int no_dhe = 0;
     int no_psk = 0;
@@ -996,6 +1005,13 @@ int main(int argc, char *argv[])
             fprintf(stderr,
                     "ignoring -dhe512, since I'm compiled without DH\n");
 #endif
+        } else if (strcmp(*argv, "-dhe4096") == 0) {
+#ifndef OPENSSL_NO_DH
+            dhe4096 = 1;
+#else
+            fprintf(stderr,
+                    "ignoring -dhe4096, since I'm compiled without DH\n");
+#endif
         } else if (strcmp(*argv, "-dhe2048") == 0) {
 #ifndef OPENSSL_NO_DH
             dhe2048 = 1;
@@ -1029,6 +1045,8 @@ int main(int argc, char *argv[])
         }
         else if (strcmp(*argv, "-tls1_2") == 0) {
             tls1_2 = 1;
+        } else if (strcmp(*argv, "-tls1_1") == 0) {
+            tls1_1 = 1;
         } else if (strcmp(*argv, "-tls1") == 0) {
             tls1 = 1;
         } else if (strcmp(*argv, "-ssl3") == 0) {
@@ -1239,8 +1257,8 @@ int main(int argc, char *argv[])
         goto end;
     }
 
-    if (ssl3 + tls1 + tls1_2 + dtls + dtls1 + dtls12 > 1) {
-        fprintf(stderr, "At most one of -ssl3, -tls1, -tls1_2, -dtls, -dtls1 or -dtls12 should "
+    if (ssl3 + tls1 + tls1_1 + tls1_2 + dtls + dtls1 + dtls12 > 1) {
+        fprintf(stderr, "At most one of -ssl3, -tls1, -tls1_1, -tls1_2, -dtls, -dtls1 or -dtls12 should "
                 "be requested.\n");
         EXIT(1);
     }
@@ -1252,6 +1270,11 @@ int main(int argc, char *argv[])
 #endif
 #ifdef OPENSSL_NO_TLS1
     if (tls1)
+        no_protocol = 1;
+    else
+#endif
+#ifdef OPENSSL_NO_TLS1_1
+    if (tls1_1)
         no_protocol = 1;
     else
 #endif
@@ -1284,11 +1307,11 @@ int main(int argc, char *argv[])
         goto end;
     }
 
-    if (!ssl3 && !tls1 && !tls1_2 && !dtls && !dtls1 && !dtls12 && number > 1
+    if (!ssl3 && !tls1 && !tls1_1 && !tls1_2 && !dtls && !dtls1 && !dtls12 && number > 1
             && !reuse && !force) {
         fprintf(stderr, "This case cannot work.  Use -f to perform "
                 "the test anyway (and\n-d to see what happens), "
-                "or add one of -ssl3, -tls1, -tls1_2, -dtls, -dtls1, -dtls12, -reuse\n"
+                "or add one of -ssl3, -tls1, -tls1_1, -tls1_2, -dtls, -dtls1, -dtls12, -reuse\n"
                 "to avoid protocol mismatch.\n");
         EXIT(1);
     }
@@ -1340,6 +1363,9 @@ int main(int argc, char *argv[])
     } else if (tls1) {
         min_version = TLS1_VERSION;
         max_version = TLS1_VERSION;
+    } else if (tls1_1) {
+        min_version = TLS1_1_VERSION;
+        max_version = TLS1_1_VERSION;
     } else if (tls1_2) {
         min_version = TLS1_2_VERSION;
         max_version = TLS1_2_VERSION;
@@ -1497,6 +1523,8 @@ int main(int argc, char *argv[])
             dh = get_dh512();
         else if (dhe2048)
             dh = get_dh2048();
+        else if (dhe4096)
+            dh = get_dh4096();
         else
             dh = get_dh1024();
         SSL_CTX_set_tmp_dh(s_ctx, dh);
@@ -3048,6 +3076,34 @@ static DH *get_dh2048(void)
         goto err;
 
     p = BN_get_rfc3526_prime_2048(NULL);
+    if (p == NULL)
+        goto err;
+
+    if (!DH_set0_pqg(dh, p, NULL, g))
+        goto err;
+
+    return dh;
+
+ err:
+    DH_free(dh);
+    BN_free(p);
+    BN_free(g);
+    return NULL;
+}
+
+static DH *get_dh4096(void)
+{
+    BIGNUM *p = NULL, *g = NULL;
+    DH *dh = NULL;
+
+    if ((dh = DH_new()) == NULL)
+        return NULL;
+
+    g = BN_new();
+    if (g == NULL || !BN_set_word(g, 2))
+        goto err;
+
+    p = BN_get_rfc3526_prime_4096(NULL);
     if (p == NULL)
         goto err;
 
