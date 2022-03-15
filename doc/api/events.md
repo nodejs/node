@@ -53,7 +53,7 @@ listener is attached.
 ```js
 const myEmitter = new MyEmitter();
 myEmitter.on('event', function(a, b) {
-  console.log(a, b, this, this === myEmitter);
+  console.log(a, b, this, this);
   // Prints:
   //   a b MyEmitter {
   //     domain: null,
