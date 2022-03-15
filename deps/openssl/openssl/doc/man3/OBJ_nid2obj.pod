@@ -68,13 +68,15 @@ If I<no_name> is 0 then long names and short names will be interpreted
 as well as numerical forms. If I<no_name> is 1 only the numerical form
 is acceptable.
 
-OBJ_obj2txt() converts the B<ASN1_OBJECT> B<a> into a textual representation.
-The representation is written as a null terminated string to B<buf>
-at most B<buf_len> bytes are written, truncating the result if necessary.
-The total amount of space required is returned. If B<no_name> is 0 then
-if the object has a long or short name then that will be used, otherwise
-the numerical form will be used. If B<no_name> is 1 then the numerical
-form will always be used.
+OBJ_obj2txt() converts the B<ASN1_OBJECT> I<a> into a textual representation.
+Unless I<buf> is NULL,
+the representation is written as a NUL-terminated string to I<buf>, where
+at most I<buf_len> bytes are written, truncating the result if necessary.
+In any case it returns the total string length, excluding the NUL character,
+required for non-truncated representation, or -1 on error.
+If I<no_name> is 0 then if the object has a long or short name
+then that will be used, otherwise the numerical form will be used.
+If I<no_name> is 1 then the numerical form will always be used.
 
 i2t_ASN1_OBJECT() is the same as OBJ_obj2txt() with the I<no_name> set to zero.
 
@@ -141,6 +143,13 @@ on error.
 OBJ_obj2nid(), OBJ_ln2nid(), OBJ_sn2nid() and OBJ_txt2nid() return
 a NID or B<NID_undef> on error.
 
+OBJ_add_sigid() returns 1 on success or 0 on error.
+
+i2t_ASN1_OBJECT() an OBJ_obj2txt() return -1 on error.
+On success, they return the length of the string written to I<buf> if I<buf> is
+not NULL and I<buf_len> is big enough, otherwise the total string length.
+Note that this does not count the trailing NUL character.
+
 =head1 EXAMPLES
 
 Create an object for B<commonName>:
@@ -161,15 +170,6 @@ Create a new object directly:
 
  obj = OBJ_txt2obj("1.2.3.4", 1);
 
-=head1 BUGS
-
-OBJ_obj2txt() is awkward and messy to use: it doesn't follow the
-convention of other OpenSSL functions where the buffer can be set
-to B<NULL> to determine the amount of data that should be written.
-Instead B<buf> must point to a valid buffer and B<buf_len> should
-be set to a positive value. A buffer length of 80 should be more
-than enough to handle any OID encountered in practice.
-
 =head1 SEE ALSO
 
 L<ERR_get_error(3)>
@@ -181,7 +181,7 @@ and should not be used.
 
 =head1 COPYRIGHT
 
-Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

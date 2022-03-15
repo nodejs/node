@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -228,9 +228,10 @@ ASN1_OBJECT *OBJ_nid2obj(int n)
             return NULL;
         }
         return (ASN1_OBJECT *)&(nid_objs[n]);
-    } else if (added == NULL)
+    } else if (added == NULL) {
+        OBJerr(OBJ_F_OBJ_NID2OBJ, OBJ_R_UNKNOWN_NID);
         return NULL;
-    else {
+    } else {
         ad.type = ADDED_NID;
         ad.obj = &ob;
         ob.nid = n;
