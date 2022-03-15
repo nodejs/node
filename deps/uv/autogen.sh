@@ -14,9 +14,16 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+set -eu
 cd `dirname "$0"`
 
-if [ "$LIBTOOLIZE" = "" ] && [ "`uname`" = "Darwin" ]; then
+if [ "${1:-dev}" == "release" ]; then
+    export LIBUV_RELEASE=true
+else
+    export LIBUV_RELEASE=false
+fi
+
+if [ "${LIBTOOLIZE:-}" = "" ] && [ "`uname`" = "Darwin" ]; then
   LIBTOOLIZE=glibtoolize
 fi
 
@@ -25,9 +32,17 @@ AUTOCONF=${AUTOCONF:-autoconf}
 AUTOMAKE=${AUTOMAKE:-automake}
 LIBTOOLIZE=${LIBTOOLIZE:-libtoolize}
 
+aclocal_version=`"$ACLOCAL" --version | head -n 1 | sed 's/[^.0-9]//g'`
+autoconf_version=`"$AUTOCONF" --version | head -n 1 | sed 's/[^.0-9]//g'`
 automake_version=`"$AUTOMAKE" --version | head -n 1 | sed 's/[^.0-9]//g'`
 automake_version_major=`echo "$automake_version" | cut -d. -f1`
 automake_version_minor=`echo "$automake_version" | cut -d. -f2`
+libtoolize_version=`"$LIBTOOLIZE" --version | head -n 1 | sed 's/[^.0-9]//g'`
+
+if [ $aclocal_version != $automake_version ]; then
+    echo "FATAL: aclocal version appears not to be from the same as automake"
+    exit 1
+fi
 
 UV_EXTRA_AUTOMAKE_FLAGS=
 if test "$automake_version_major" -gt 1 || \
@@ -39,8 +54,22 @@ fi
 echo "m4_define([UV_EXTRA_AUTOMAKE_FLAGS], [$UV_EXTRA_AUTOMAKE_FLAGS])" \
     > m4/libuv-extra-automake-flags.m4
 
-set -ex
-"$LIBTOOLIZE" --copy
+(set -x
+"$LIBTOOLIZE" --copy --force
 "$ACLOCAL" -I m4
+)
+if $LIBUV_RELEASE; then
+  "$AUTOCONF" -o /dev/null m4/libuv-check-versions.m4
+  echo "
+AC_PREREQ($autoconf_version)
+AC_INIT([libuv-release-check], [0.0])
+AM_INIT_AUTOMAKE([$automake_version])
+LT_PREREQ($libtoolize_version)
+AC_OUTPUT
+" > m4/libuv-check-versions.m4
+fi
+(
+set -x
 "$AUTOCONF"
 "$AUTOMAKE" --add-missing --copy
+)

@@ -1,4 +1,4 @@
-/* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+/* Copyright libuv project contributors. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -25,115 +25,55 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#ifndef HAVE_KQUEUE
-# if defined(__APPLE__) ||                                                    \
-     defined(__DragonFly__) ||                                                \
-     defined(__FreeBSD__) ||                                                  \
-     defined(__FreeBSD_kernel__) ||                                           \
-     defined(__OpenBSD__) ||                                                  \
-     defined(__NetBSD__)
-#  define HAVE_KQUEUE 1
-# endif
+#if !defined(_WIN32) && !defined(_AIX)
+#include <poll.h>
 #endif
 
-#ifndef HAVE_EPOLL
-# if defined(__linux__)
-#  define HAVE_EPOLL 1
-# endif
-#endif
-
-#if defined(HAVE_KQUEUE) || defined(HAVE_EPOLL)
-
-#if defined(HAVE_KQUEUE)
-# include <sys/types.h>
-# include <sys/event.h>
-# include <sys/time.h>
-#endif
-
-#if defined(HAVE_EPOLL)
-# include <sys/epoll.h>
-#endif
-
-static uv_thread_t embed_thread;
-static uv_sem_t embed_sem;
-static uv_timer_t embed_timer;
-static uv_async_t embed_async;
-static volatile int embed_closed;
-
-static int embed_timer_called;
+static uv_async_t async;
+static uv_barrier_t barrier;
 
 
-static void embed_thread_runner(void* arg) {
-  int r;
-  int fd;
-  int timeout;
-
-  while (!embed_closed) {
-    fd = uv_backend_fd(uv_default_loop());
-    timeout = uv_backend_timeout(uv_default_loop());
-
-    do {
-#if defined(HAVE_KQUEUE)
-      struct timespec ts;
-      ts.tv_sec = timeout / 1000;
-      ts.tv_nsec = (timeout % 1000) * 1000000;
-      r = kevent(fd, NULL, 0, NULL, 0, &ts);
-#elif defined(HAVE_EPOLL)
-      {
-        struct epoll_event ev;
-        r = epoll_wait(fd, &ev, 1, timeout);
-      }
-#endif
-    } while (r == -1 && errno == EINTR);
-    uv_async_send(&embed_async);
-    uv_sem_wait(&embed_sem);
-  }
+static void thread_main(void* arg) {
+  ASSERT_LE(0, uv_barrier_wait(&barrier));
+  uv_sleep(250);
+  ASSERT_EQ(0, uv_async_send(&async));
 }
 
 
-static void embed_cb(uv_async_t* async) {
-  uv_run(uv_default_loop(), UV_RUN_ONCE);
-
-  uv_sem_post(&embed_sem);
+static void async_cb(uv_async_t* handle) {
+  uv_close((uv_handle_t*) handle, NULL);
 }
-
-
-static void embed_timer_cb(uv_timer_t* timer) {
-  embed_timer_called++;
-  embed_closed = 1;
-
-  uv_close((uv_handle_t*) &embed_async, NULL);
-}
-#endif
 
 
 TEST_IMPL(embed) {
-#if defined(HAVE_KQUEUE) || defined(HAVE_EPOLL)
-  uv_loop_t external;
+  uv_thread_t thread;
+  uv_loop_t* loop;
 
-  ASSERT(0 == uv_loop_init(&external));
+  loop = uv_default_loop();
+  ASSERT_EQ(0, uv_async_init(loop, &async, async_cb));
+  ASSERT_EQ(0, uv_barrier_init(&barrier, 2));
+  ASSERT_EQ(0, uv_thread_create(&thread, thread_main, NULL));
+  ASSERT_LE(0, uv_barrier_wait(&barrier));
 
-  embed_timer_called = 0;
-  embed_closed = 0;
-
-  uv_async_init(&external, &embed_async, embed_cb);
-
-  /* Start timer in default loop */
-  uv_timer_init(uv_default_loop(), &embed_timer);
-  uv_timer_start(&embed_timer, embed_timer_cb, 250, 0);
-
-  /* Start worker that will interrupt external loop */
-  uv_sem_init(&embed_sem, 0);
-  uv_thread_create(&embed_thread, embed_thread_runner, NULL);
-
-  /* But run external loop */
-  uv_run(&external, UV_RUN_DEFAULT);
-
-  uv_thread_join(&embed_thread);
-  uv_loop_close(&external);
-
-  ASSERT(embed_timer_called == 1);
+  while (uv_loop_alive(loop)) {
+#if defined(_WIN32) || defined(_AIX)
+    ASSERT_LE(0, uv_run(loop, UV_RUN_ONCE));
+#else
+    int rc;
+    do {
+      struct pollfd p;
+      p.fd = uv_backend_fd(loop);
+      p.events = POLLIN;
+      p.revents = 0;
+      rc = poll(&p, 1, uv_backend_timeout(loop));
+    } while (rc == -1 && errno == EINTR);
+    ASSERT_LE(0, uv_run(loop, UV_RUN_NOWAIT));
 #endif
+  }
 
+  ASSERT_EQ(0, uv_thread_join(&thread));
+  uv_barrier_destroy(&barrier);
+
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

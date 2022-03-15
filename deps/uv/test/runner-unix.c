@@ -333,8 +333,8 @@ int process_wait(process_info_t* vec, int n, int timeout) {
     abort();
 
 terminate:
-  close(args.pipe[0]);
-  close(args.pipe[1]);
+  closefd(args.pipe[0]);
+  closefd(args.pipe[1]);
   return retval;
 }
 

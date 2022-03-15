@@ -312,7 +312,7 @@ API
 
 .. c:function:: int uv_uptime(double* uptime)
 
-    Gets the current system uptime.
+    Gets the current system uptime. Depending on the system full or fractional seconds are returned.
 
 .. c:function:: int uv_getrusage(uv_rusage_t* rusage)
 
@@ -334,10 +334,29 @@ API
 
     .. versionadded:: 1.16.0
 
+.. c:function:: unsigned int uv_available_parallelism(void)
+
+    Returns an estimate of the default amount of parallelism a program should
+    use. Always returns a non-zero value.
+
+    On Linux, inspects the calling thread's CPU affinity mask to determine if
+    it has been pinned to specific CPUs.
+
+    On Windows, the available parallelism may be underreported on systems with
+    more than 64 logical CPUs.
+
+    On other platforms, reports the number of CPUs that the operating system
+    considers to be online.
+
+    .. versionadded:: 1.44.0
+
 .. c:function:: int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count)
 
     Gets information about the CPUs on the system. The `cpu_infos` array will
     have `count` elements and needs to be freed with :c:func:`uv_free_cpu_info`.
+
+    Use :c:func:`uv_available_parallelism` if you need to know how many CPUs
+    are available for threads or child processes.
 
 .. c:function:: void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count)
 

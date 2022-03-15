@@ -105,7 +105,7 @@ static void uv__init_global_job_handle(void) {
 }
 
 
-static int uv_utf8_to_utf16_alloc(const char* s, WCHAR** ws_ptr) {
+static int uv__utf8_to_utf16_alloc(const char* s, WCHAR** ws_ptr) {
   int ws_len, r;
   WCHAR* ws;
 
@@ -137,7 +137,7 @@ static int uv_utf8_to_utf16_alloc(const char* s, WCHAR** ws_ptr) {
 }
 
 
-static void uv_process_init(uv_loop_t* loop, uv_process_t* handle) {
+static void uv__process_init(uv_loop_t* loop, uv_process_t* handle) {
   uv__handle_init(loop, (uv_handle_t*) handle, UV_PROCESS);
   handle->exit_cb = NULL;
   handle->pid = 0;
@@ -864,7 +864,7 @@ static void CALLBACK exit_wait_callback(void* data, BOOLEAN didTimeout) {
 
 
 /* Called on main thread after a child process has exited. */
-void uv_process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
+void uv__process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
   int64_t exit_code;
   DWORD status;
 
@@ -874,7 +874,7 @@ void uv_process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
   /* If we're closing, don't call the exit callback. Just schedule a close
    * callback now. */
   if (handle->flags & UV_HANDLE_CLOSING) {
-    uv_want_endgame(loop, (uv_handle_t*) handle);
+    uv__want_endgame(loop, (uv_handle_t*) handle);
     return;
   }
 
@@ -902,7 +902,7 @@ void uv_process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
 }
 
 
-void uv_process_close(uv_loop_t* loop, uv_process_t* handle) {
+void uv__process_close(uv_loop_t* loop, uv_process_t* handle) {
   uv__handle_closing(handle);
 
   if (handle->wait_handle != INVALID_HANDLE_VALUE) {
@@ -918,12 +918,12 @@ void uv_process_close(uv_loop_t* loop, uv_process_t* handle) {
   }
 
   if (!handle->exit_cb_pending) {
-    uv_want_endgame(loop, (uv_handle_t*)handle);
+    uv__want_endgame(loop, (uv_handle_t*)handle);
   }
 }
 
 
-void uv_process_endgame(uv_loop_t* loop, uv_process_t* handle) {
+void uv__process_endgame(uv_loop_t* loop, uv_process_t* handle) {
   assert(!handle->exit_cb_pending);
   assert(handle->flags & UV_HANDLE_CLOSING);
   assert(!(handle->flags & UV_HANDLE_CLOSED));
@@ -948,7 +948,7 @@ int uv_spawn(uv_loop_t* loop,
   PROCESS_INFORMATION info;
   DWORD process_flags;
 
-  uv_process_init(loop, process);
+  uv__process_init(loop, process);
   process->exit_cb = options->exit_cb;
 
   if (options->flags & (UV_PROCESS_SETGID | UV_PROCESS_SETUID)) {
@@ -969,7 +969,7 @@ int uv_spawn(uv_loop_t* loop,
                               UV_PROCESS_WINDOWS_HIDE_GUI |
                               UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS)));
 
-  err = uv_utf8_to_utf16_alloc(options->file, &application);
+  err = uv__utf8_to_utf16_alloc(options->file, &application);
   if (err)
     goto done;
 
@@ -988,7 +988,7 @@ int uv_spawn(uv_loop_t* loop,
 
   if (options->cwd) {
     /* Explicit cwd */
-    err = uv_utf8_to_utf16_alloc(options->cwd, &cwd);
+    err = uv__utf8_to_utf16_alloc(options->cwd, &cwd);
     if (err)
       goto done;
 

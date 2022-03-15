@@ -25,7 +25,7 @@
 #ifdef _WIN32
 #include "win/internal.h"
 #include "win/handle-inl.h"
-#define uv__make_close_pending(h) uv_want_endgame((h)->loop, (h))
+#define uv__make_close_pending(h) uv__want_endgame((h)->loop, (h))
 #else
 #include "unix/internal.h"
 #endif

@@ -154,7 +154,6 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   sigset_t set;
   uint64_t base;
   uint64_t diff;
-  uint64_t idle_poll;
   unsigned int nfds;
   unsigned int i;
   int saved_errno;
@@ -424,7 +423,7 @@ void uv_loadavg(double avg[3]) {
 #if defined(PORT_SOURCE_FILE)
 
 static int uv__fs_event_rearm(uv_fs_event_t *handle) {
-  if (handle->fd == -1)
+  if (handle->fd == PORT_DELETED)
     return UV_EBADF;
 
   if (port_associate(handle->loop->fs_fd,
@@ -474,6 +473,12 @@ static void uv__fs_event_read(uv_loop_t* loop,
 
     handle = (uv_fs_event_t*) pe.portev_user;
     assert((r == 0) && "unexpected port_get() error");
+
+    if (uv__is_closing(handle)) {
+      uv__handle_stop(handle);
+      uv__make_close_pending((uv_handle_t*) handle);
+      break;
+    }
 
     events = 0;
     if (pe.portev_events & (FILE_ATTRIB | FILE_MODIFIED))
@@ -542,12 +547,14 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 }
 
 
-int uv_fs_event_stop(uv_fs_event_t* handle) {
+static int uv__fs_event_stop(uv_fs_event_t* handle) {
+  int ret = 0;
+
   if (!uv__is_active(handle))
     return 0;
 
-  if (handle->fd == PORT_FIRED || handle->fd == PORT_LOADED) {
-    port_dissociate(handle->loop->fs_fd,
+  if (handle->fd == PORT_LOADED) {
+    ret = port_dissociate(handle->loop->fs_fd,
                     PORT_SOURCE_FILE,
                     (uintptr_t) &handle->fo);
   }
@@ -556,13 +563,28 @@ int uv_fs_event_stop(uv_fs_event_t* handle) {
   uv__free(handle->path);
   handle->path = NULL;
   handle->fo.fo_name = NULL;
-  uv__handle_stop(handle);
+  if (ret == 0)
+    uv__handle_stop(handle);
 
+  return ret;
+}
+
+int uv_fs_event_stop(uv_fs_event_t* handle) {
+  (void) uv__fs_event_stop(handle);
   return 0;
 }
 
 void uv__fs_event_close(uv_fs_event_t* handle) {
-  uv_fs_event_stop(handle);
+  /*
+   * If we were unable to dissociate the port here, then it is most likely
+   * that there is a pending queued event. When this happens, we don't want
+   * to complete the close as it will free the underlying memory for the
+   * handle, causing a use-after-free problem when the event is processed.
+   * We defer the final cleanup until after the event is consumed in
+   * uv__fs_event_read().
+   */
+  if (uv__fs_event_stop(handle) == 0)
+    uv__make_close_pending((uv_handle_t*) handle);
 }
 
 #else /* !defined(PORT_SOURCE_FILE) */

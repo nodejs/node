@@ -30,8 +30,9 @@ static const int server_port = TEST_PORT;
 /* Will be updated right after making the uv_connect_call */
 static int connect_port = -1;
 
-static int getsocknamecount = 0;
+static int getsocknamecount_tcp = 0;
 static int getpeernamecount = 0;
+static int getsocknamecount_udp = 0;
 
 static uv_loop_t* loop;
 static uv_tcp_t tcp;
@@ -131,7 +132,7 @@ static void on_connection(uv_stream_t* server, int status) {
   r = uv_tcp_getsockname(handle, &sockname, &namelen);
   ASSERT(r == 0);
   check_sockname(&sockname, "127.0.0.1", server_port, "accepted socket");
-  getsocknamecount++;
+  getsocknamecount_tcp++;
 
   namelen = sizeof peername;
   r = uv_tcp_getpeername(handle, &peername, &namelen);
@@ -154,7 +155,7 @@ static void on_connect(uv_connect_t* req, int status) {
   r = uv_tcp_getsockname((uv_tcp_t*) req->handle, &sockname, &namelen);
   ASSERT(r == 0);
   check_sockname(&sockname, "127.0.0.1", 0, "connected socket");
-  getsocknamecount++;
+  getsocknamecount_tcp++;
 
   namelen = sizeof peername;
   r = uv_tcp_getpeername((uv_tcp_t*) req->handle, &peername, &namelen);
@@ -197,7 +198,7 @@ static int tcp_listener(void) {
   r = uv_tcp_getsockname(&tcpServer, &sockname, &namelen);
   ASSERT(r == 0);
   check_sockname(&sockname, "0.0.0.0", server_port, "server socket");
-  getsocknamecount++;
+  getsocknamecount_tcp++;
 
   namelen = sizeof sockname;
   r = uv_tcp_getpeername(&tcpServer, &peername, &namelen);
@@ -256,7 +257,7 @@ static void udp_recv(uv_udp_t* handle,
   r = uv_udp_getsockname(&udp, &sockname, &namelen);
   ASSERT(r == 0);
   check_sockname(&sockname, "0.0.0.0", 0, "udp receiving socket");
-  getsocknamecount++;
+  getsocknamecount_udp++;
 
   uv_close((uv_handle_t*) &udp, NULL);
   uv_close((uv_handle_t*) handle, NULL);
@@ -293,7 +294,7 @@ static int udp_listener(void) {
   r = uv_udp_getsockname(&udpServer, &sockname, &namelen);
   ASSERT(r == 0);
   check_sockname(&sockname, "0.0.0.0", server_port, "udp listener socket");
-  getsocknamecount++;
+  getsocknamecount_udp++;
 
   r = uv_udp_recv_start(&udpServer, alloc, udp_recv);
   ASSERT(r == 0);
@@ -333,7 +334,7 @@ TEST_IMPL(getsockname_tcp) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  ASSERT(getsocknamecount == 3);
+  ASSERT(getsocknamecount_tcp == 3);
   ASSERT(getpeernamecount == 3);
 
   MAKE_VALGRIND_HAPPY();
@@ -351,7 +352,7 @@ TEST_IMPL(getsockname_udp) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  ASSERT(getsocknamecount == 2);
+  ASSERT(getsocknamecount_udp == 2);
 
   ASSERT(udp.send_queue_size == 0);
   ASSERT(udpServer.send_queue_size == 0);

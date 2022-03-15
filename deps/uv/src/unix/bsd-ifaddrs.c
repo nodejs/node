@@ -27,7 +27,7 @@
 
 #include <ifaddrs.h>
 #include <net/if.h>
-#if !defined(__CYGWIN__) && !defined(__MSYS__)
+#if !defined(__CYGWIN__) && !defined(__MSYS__) && !defined(__GNU__)
 #include <net/if_dl.h>
 #endif
 
@@ -40,7 +40,7 @@ static int uv__ifaddr_exclude(struct ifaddrs *ent, int exclude_type) {
     return 1;
   if (ent->ifa_addr == NULL)
     return 1;
-#if !defined(__CYGWIN__) && !defined(__MSYS__)
+#if !defined(__CYGWIN__) && !defined(__MSYS__) && !defined(__GNU__)
   /*
    * If `exclude_type` is `UV__EXCLUDE_IFPHYS`, return whether `sa_family`
    * equals `AF_LINK`. Otherwise, the result depends on the operating
@@ -69,7 +69,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   struct ifaddrs* addrs;
   struct ifaddrs* ent;
   uv_interface_address_t* address;
-#if !(defined(__CYGWIN__) || defined(__MSYS__))
+#if !(defined(__CYGWIN__) || defined(__MSYS__)) && !defined(__GNU__)
   int i;
 #endif
 
@@ -126,7 +126,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     address++;
   }
 
-#if !(defined(__CYGWIN__) || defined(__MSYS__))
+#if !(defined(__CYGWIN__) || defined(__MSYS__)) && !defined(__GNU__)
   /* Fill in physical addresses for each interface */
   for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
     if (uv__ifaddr_exclude(ent, UV__EXCLUDE_IFPHYS))

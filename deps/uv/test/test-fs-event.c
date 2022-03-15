@@ -334,19 +334,8 @@ static void fs_event_cb_file(uv_fs_event_t* handle, const char* filename,
   uv_close((uv_handle_t*)handle, close_cb);
 }
 
-static void timer_cb_close_handle(uv_timer_t* timer) {
-  uv_handle_t* handle;
-
-  ASSERT_NOT_NULL(timer);
-  handle = timer->data;
-
-  uv_close((uv_handle_t*)timer, NULL);
-  uv_close((uv_handle_t*)handle, close_cb);
-}
-
 static void fs_event_cb_file_current_dir(uv_fs_event_t* handle,
   const char* filename, int events, int status) {
-  ASSERT(fs_event_cb_called == 0);
   ++fs_event_cb_called;
 
   ASSERT(handle == &fs_event);
@@ -358,13 +347,7 @@ static void fs_event_cb_file_current_dir(uv_fs_event_t* handle,
   ASSERT(filename == NULL || strcmp(filename, "watch_file") == 0);
   #endif
 
-  /* Regression test for SunOS: touch should generate just one event. */
-  {
-    static uv_timer_t timer;
-    uv_timer_init(handle->loop, &timer);
-    timer.data = handle;
-    uv_timer_start(&timer, timer_cb_close_handle, 250, 0);
-  }
+  uv_close((uv_handle_t*)handle, close_cb);
 }
 
 static void timer_cb_file(uv_timer_t* handle) {
@@ -738,7 +721,8 @@ TEST_IMPL(fs_event_watch_file_current_dir) {
   uv_run(loop, UV_RUN_DEFAULT);
 
   ASSERT(timer_cb_touch_called == 1);
-  ASSERT(fs_event_cb_called == 1);
+  /* FSEvents on macOS sometimes sends one change event, sometimes two. */
+  ASSERT_NE(0, fs_event_cb_called);
   ASSERT(close_cb_called == 1);
 
   /* Cleanup */
@@ -917,6 +901,44 @@ TEST_IMPL(fs_event_close_with_pending_event) {
 
   /* Clean up */
   remove("watch_dir/file");
+  remove("watch_dir/");
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+TEST_IMPL(fs_event_close_with_pending_delete_event) {
+#if defined(NO_FS_EVENTS)
+  RETURN_SKIP(NO_FS_EVENTS);
+#endif
+  uv_loop_t* loop;
+  int r;
+
+  loop = uv_default_loop();
+
+  create_dir("watch_dir");
+  create_file("watch_dir/file");
+
+  r = uv_fs_event_init(loop, &fs_event);
+  ASSERT(r == 0);
+  r = uv_fs_event_start(&fs_event, fs_event_fail, "watch_dir/file", 0);
+  ASSERT(r == 0);
+
+  /* Generate an fs event. */
+  remove("watch_dir/file");
+
+  /* Allow time for the remove event to propagate to the pending list. */
+  /* XXX - perhaps just for __sun? */
+  uv_sleep(1100);
+  uv_update_time(loop);
+
+  uv_close((uv_handle_t*)&fs_event, close_cb);
+
+  uv_run(loop, UV_RUN_DEFAULT);
+
+  ASSERT(close_cb_called == 1);
+
+  /* Clean up */
   remove("watch_dir/");
 
   MAKE_VALGRIND_HAPPY();

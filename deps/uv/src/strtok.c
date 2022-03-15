@@ -1,4 +1,4 @@
-/* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+/* Copyright libuv project contributors. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -19,36 +19,34 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef UV_WIN_STREAM_INL_H_
-#define UV_WIN_STREAM_INL_H_
+#include <stdlib.h>
+#include "strtok.h"
 
-#include <assert.h>
+char* uv__strtok(char* str, const char* sep, char** itr) {
+  const char* sep_itr;
+  char* tmp;
+  char* start;
 
-#include "uv.h"
-#include "internal.h"
-#include "handle-inl.h"
-#include "req-inl.h"
+  if (str == NULL)
+    start = tmp = *itr;
+  else
+    start = tmp = str;
 
+  if (tmp == NULL)
+    return NULL;
 
-INLINE static void uv__stream_init(uv_loop_t* loop,
-                                   uv_stream_t* handle,
-                                   uv_handle_type type) {
-  uv__handle_init(loop, (uv_handle_t*) handle, type);
-  handle->write_queue_size = 0;
-  handle->activecnt = 0;
-  handle->stream.conn.shutdown_req = NULL;
-  handle->stream.conn.write_reqs_pending = 0;
-
-  UV_REQ_INIT(&handle->read_req, UV_READ);
-  handle->read_req.event_handle = NULL;
-  handle->read_req.wait_handle = INVALID_HANDLE_VALUE;
-  handle->read_req.data = handle;
+  while (*tmp != '\0') {
+    sep_itr = sep;
+    while (*sep_itr != '\0') {
+      if (*tmp == *sep_itr) {
+        *itr = tmp + 1;
+        *tmp = '\0';
+        return start;
+      }
+      sep_itr++;
+    }
+    tmp++;
+  }
+  *itr = NULL;
+  return start;
 }
-
-
-INLINE static void uv__connection_init(uv_stream_t* handle) {
-  handle->flags |= UV_HANDLE_CONNECTION;
-}
-
-
-#endif /* UV_WIN_STREAM_INL_H_ */
