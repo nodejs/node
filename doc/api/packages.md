@@ -17,10 +17,14 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/34117
     description: Add package `"imports"` field.
   - version:
+    - v12.17.0
+    pr-url: https://github.com/nodejs/node/pull/29866
+    description: Remove the `--experimental-modules` option.
+  - version:
     - v13.7.0
     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/31001
-    description: Unflag conditional exports.
+    description: Remove the `--experimental-conditional-exports` option. In 12.16.0, conditional exports are still behind `--experimental-modules`.
   - version:
     - v13.6.0
     - v12.16.0
@@ -1196,6 +1200,10 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/34718
     description: Add support for `"exports"` patterns.
   - version:
+    - v12.17.0
+    pr-url: https://github.com/nodejs/node/pull/29866
+    description: Remove the `--experimental-modules` option.
+  - version:
     - v13.7.0
     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/31008
@@ -1204,7 +1212,7 @@ changes:
     - v13.7.0
     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/31001
-    description: Remove the `--experimental-conditional-exports` option.
+    description: Remove the `--experimental-conditional-exports` option. In 12.16.0, conditional exports are still behind `--experimental-modules`.
   - version:
     - v13.2.0
     - v12.16.0
