@@ -5,6 +5,8 @@
 
 #if defined(OPENSSL_LINUX) && defined(__i386__)
 # include "./archs/linux-elf/asm/include/crypto/dso_conf.h"
+#elif defined(OPENSSL_LINUX) && defined(__ILP32__)
+# include "./archs/linux-x32/asm/include/crypto/dso_conf.h"
 #elif defined(OPENSSL_LINUX) && defined(__x86_64__)
 # include "./archs/linux-x86_64/asm/include/crypto/dso_conf.h"
 #elif defined(OPENSSL_LINUX) && defined(__arm__)
