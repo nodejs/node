@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -204,19 +204,24 @@ static int der2key_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
     if (!ok)
         goto next;
 
-    ok = 0;                      /* Assume that we fail */
+    ok = 0; /* Assume that we fail */
 
+    ERR_set_mark();
     if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0) {
         derp = der;
         if (ctx->desc->d2i_PKCS8 != NULL) {
             key = ctx->desc->d2i_PKCS8(NULL, &derp, der_len, ctx);
-            if (ctx->flag_fatal)
+            if (ctx->flag_fatal) {
+                ERR_clear_last_mark();
                 goto end;
+            }
         } else if (ctx->desc->d2i_private_key != NULL) {
             key = ctx->desc->d2i_private_key(NULL, &derp, der_len);
         }
-        if (key == NULL && ctx->selection != 0)
+        if (key == NULL && ctx->selection != 0) {
+            ERR_clear_last_mark();
             goto next;
+        }
     }
     if (key == NULL && (selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0) {
         derp = der;
@@ -224,16 +229,24 @@ static int der2key_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
             key = ctx->desc->d2i_PUBKEY(NULL, &derp, der_len);
         else
             key = ctx->desc->d2i_public_key(NULL, &derp, der_len);
-        if (key == NULL && ctx->selection != 0)
+        if (key == NULL && ctx->selection != 0) {
+            ERR_clear_last_mark();
             goto next;
+        }
     }
     if (key == NULL && (selection & OSSL_KEYMGMT_SELECT_ALL_PARAMETERS) != 0) {
         derp = der;
         if (ctx->desc->d2i_key_params != NULL)
             key = ctx->desc->d2i_key_params(NULL, &derp, der_len);
-        if (key == NULL && ctx->selection != 0)
+        if (key == NULL && ctx->selection != 0) {
+            ERR_clear_last_mark();
             goto next;
+        }
     }
+    if (key == NULL)
+        ERR_clear_last_mark();
+    else
+        ERR_pop_to_mark();
 
     /*
      * Last minute check to see if this was the correct type of key.  This

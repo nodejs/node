@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -30,7 +30,11 @@ static int write_blob(void *provctx, OSSL_CORE_BIO *cout,
                       void *data, int len)
 {
     BIO *out = ossl_bio_new_from_core_bio(provctx, cout);
-    int ret = BIO_write(out, data, len);
+    int ret;
+
+    if (out == NULL)
+        return 0;
+    ret = BIO_write(out, data, len);
 
     BIO_free(out);
     return ret;

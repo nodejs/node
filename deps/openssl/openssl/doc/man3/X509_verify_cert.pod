@@ -52,9 +52,7 @@ A negative return value from X509_verify_cert() can occur if it is invoked
 incorrectly, such as with no certificate set in I<ctx>, or when it is called
 twice in succession without reinitialising I<ctx> for the second call.
 A negative return value can also happen due to internal resource problems
-or because an internal inconsistency has been detected
-or if a retry operation is requested during internal lookups
-(which never happens with standard lookup methods).
+or because an internal inconsistency has been detected.
 Applications must interpret any return value <= 0 as an error.
 
 The X509_STORE_CTX_verify() behaves like X509_verify_cert() except that its
@@ -91,7 +89,7 @@ X509_build_chain() and X509_STORE_CTX_verify() were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2009-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -375,20 +375,17 @@ int ossl_dh_buf2key(DH *dh, const unsigned char *buf, size_t len)
     int err_reason = DH_R_BN_ERROR;
     BIGNUM *pubkey = NULL;
     const BIGNUM *p;
-    size_t p_size;
+    int ret;
 
     if ((pubkey = BN_bin2bn(buf, len, NULL)) == NULL)
         goto err;
     DH_get0_pqg(dh, &p, NULL, NULL);
-    if (p == NULL || (p_size = BN_num_bytes(p)) == 0) {
+    if (p == NULL || BN_num_bytes(p) == 0) {
         err_reason = DH_R_NO_PARAMETERS_SET;
         goto err;
     }
-    /*
-     * As per Section 4.2.8.1 of RFC 8446 fail if DHE's
-     * public key is of size not equal to size of p
-     */
-    if (BN_is_zero(pubkey) || p_size != len) {
+    /* Prevent small subgroup attacks per RFC 8446 Section 4.2.8.1 */
+    if (!ossl_dh_check_pub_key_partial(dh, pubkey, &ret)) {
         err_reason = DH_R_INVALID_PUBKEY;
         goto err;
     }

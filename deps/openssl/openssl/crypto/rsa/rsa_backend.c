@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -60,9 +60,9 @@ static int collect_numbers(STACK_OF(BIGNUM) *numbers,
     return 1;
 }
 
-int ossl_rsa_fromdata(RSA *rsa, const OSSL_PARAM params[])
+int ossl_rsa_fromdata(RSA *rsa, const OSSL_PARAM params[], int include_private)
 {
-    const OSSL_PARAM *param_n, *param_e,  *param_d;
+    const OSSL_PARAM *param_n, *param_e,  *param_d = NULL;
     BIGNUM *n = NULL, *e = NULL, *d = NULL;
     STACK_OF(BIGNUM) *factors = NULL, *exps = NULL, *coeffs = NULL;
     int is_private = 0;
@@ -72,7 +72,8 @@ int ossl_rsa_fromdata(RSA *rsa, const OSSL_PARAM params[])
 
     param_n = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_N);
     param_e = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_E);
-    param_d = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_D);
+    if (include_private)
+        param_d = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_D);
 
     if ((param_n != NULL && !OSSL_PARAM_get_BN(param_n, &n))
         || (param_e != NULL && !OSSL_PARAM_get_BN(param_e, &e))
@@ -118,7 +119,8 @@ int ossl_rsa_fromdata(RSA *rsa, const OSSL_PARAM params[])
 
 DEFINE_SPECIAL_STACK_OF_CONST(BIGNUM_const, BIGNUM)
 
-int ossl_rsa_todata(RSA *rsa, OSSL_PARAM_BLD *bld, OSSL_PARAM params[])
+int ossl_rsa_todata(RSA *rsa, OSSL_PARAM_BLD *bld, OSSL_PARAM params[],
+                    int include_private)
 {
     int ret = 0;
     const BIGNUM *rsa_d = NULL, *rsa_n = NULL, *rsa_e = NULL;
@@ -137,7 +139,7 @@ int ossl_rsa_todata(RSA *rsa, OSSL_PARAM_BLD *bld, OSSL_PARAM params[])
         goto err;
 
     /* Check private key data integrity */
-    if (rsa_d != NULL) {
+    if (include_private && rsa_d != NULL) {
         int numprimes = sk_BIGNUM_const_num(factors);
         int numexps = sk_BIGNUM_const_num(exps);
         int numcoeffs = sk_BIGNUM_const_num(coeffs);

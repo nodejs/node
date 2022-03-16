@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2013-2014 Timo Teräs <timo.teras@gmail.com>
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -168,6 +168,12 @@ static int add_entry(enum Type type, unsigned int hash, const char *filename,
         *ep = nilhentry;
         ep->old_id = ~0;
         ep->filename = OPENSSL_strdup(filename);
+        if (ep->filename == NULL) {
+            OPENSSL_free(ep);
+            ep = NULL;
+            BIO_printf(bio_err, "out of memory\n");
+            return 1;
+        }
         if (bp->last_entry)
             bp->last_entry->next = ep;
         if (bp->first_entry == NULL)

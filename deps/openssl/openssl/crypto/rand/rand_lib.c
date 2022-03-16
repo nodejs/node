@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -529,6 +529,8 @@ static EVP_RAND_CTX *rand_new_seed(OSSL_LIB_CTX *libctx)
     EVP_RAND_CTX *ctx;
     char *name;
 
+    if (dgbl == NULL)
+        return NULL;
     name = dgbl->seed_name != NULL ? dgbl->seed_name : "SEED-SRC";
     rand = EVP_RAND_fetch(libctx, name, dgbl->seed_propq);
     if (rand == NULL) {
@@ -560,6 +562,8 @@ static EVP_RAND_CTX *rand_new_drbg(OSSL_LIB_CTX *libctx, EVP_RAND_CTX *parent,
     OSSL_PARAM params[7], *p = params;
     char *name, *cipher;
 
+    if (dgbl == NULL)
+        return NULL;
     name = dgbl->rng_name != NULL ? dgbl->rng_name : "CTR-DRBG";
     rand = EVP_RAND_fetch(libctx, name, dgbl->rng_propq);
     if (rand == NULL) {
@@ -758,6 +762,9 @@ static int random_conf_init(CONF_IMODULE *md, const CONF *cnf)
         ERR_raise(ERR_LIB_CRYPTO, CRYPTO_R_RANDOM_SECTION_ERROR);
         return 0;
     }
+
+    if (dgbl == NULL)
+        return 0;
 
     for (i = 0; i < sk_CONF_VALUE_num(elist); i++) {
         cval = sk_CONF_VALUE_value(elist, i);

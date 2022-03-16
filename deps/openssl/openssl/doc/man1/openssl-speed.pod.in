@@ -101,6 +101,8 @@ Run benchmarks for I<num> seconds.
 =item B<-bytes> I<num>
 
 Run benchmarks on I<num>-byte buffers. Affects ciphers, digests and the CSPRNG.
+The limit on the size of the buffer is INT_MAX - 64 bytes, which for a 32-bit 
+int would be 2147483583 bytes.
 
 =item B<-mr>
 
@@ -134,7 +136,7 @@ The B<-engine> option was deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -80,6 +80,9 @@ static int print_labeled_bignum(BIO *out, const char *label, const BIGNUM *bn)
     }
 
     hex_str = BN_bn2hex(bn);
+    if (hex_str == NULL)
+        return 0;
+
     p = hex_str;
     if (*p == '-') {
         ++p;

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 1998-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1998-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -485,6 +485,14 @@ EOF
       [ 'x86_64-apple-darwin.*',
         sub {
             my $KERNEL_BITS = $ENV{KERNEL_BITS} // '';
+            # macOS >= 10.15 is 64-bit only
+            my $SW_VERS = `sw_vers -productVersion 2>/dev/null`;
+            if ($SW_VERS =~ /^(\d+)\.(\d+)\.(\d+)$/) {
+                if ($1 > 10 || ($1 == 10 && $2 >= 15)) {
+                    die "32-bit applications not supported on macOS 10.15 or later\n" if $KERNEL_BITS eq '32';
+                    return { target => "darwin64-x86_64" };
+                }
+            }
             return { target => "darwin-i386" } if $KERNEL_BITS eq '32';
 
             print <<EOF;
@@ -741,6 +749,7 @@ EOF
                                     defines => [ 'L_ENDIAN' ] } ],
       [ 'powerpc64-.*-.*bsd.*',   { target => "BSD-generic64",
                                     defines => [ 'B_ENDIAN' ] } ],
+      [ 'riscv64-.*-.*bsd.*',     { target => "BSD-riscv64" } ],
       [ 'sparc64-.*-.*bsd.*',     { target => "BSD-sparc64" } ],
       [ 'ia64-.*-.*bsd.*',        { target => "BSD-ia64" } ],
       [ 'x86_64-.*-dragonfly.*',  { target => "BSD-x86_64" } ],

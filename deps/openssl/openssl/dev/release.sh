@@ -1,5 +1,5 @@
 #! /bin/bash -e
-# Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -8,6 +8,10 @@
 
 # This is the most shell agnostic way to specify that POSIX rules.
 POSIXLY_CORRECT=1
+
+# Force C locale because some commands (like date +%b) relies
+# on the current locale.
+export LC_ALL=C
 
 usage () {
     cat <<EOF
@@ -808,7 +812,7 @@ release date in the tar file of any release.
 
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

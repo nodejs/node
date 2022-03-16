@@ -249,8 +249,8 @@ certificate. An error occurs if a suitable CRL cannot be found.
 B<X509_V_FLAG_CRL_CHECK_ALL> enables CRL checking for the entire certificate
 chain.
 
-B<X509_V_FLAG_IGNORE_CRITICAL> disabled critical extension checking. By default
-any unhandled critical extensions in certificates or (if checked) CRLs results
+B<X509_V_FLAG_IGNORE_CRITICAL> disables critical extension checking. By default
+any unhandled critical extensions in certificates or (if checked) CRLs result
 in a fatal error. If this flag is set unhandled critical extensions are
 ignored. B<WARNING> setting this option for anything other than debugging
 purposes can be a security risk. Finer control over which extensions are
@@ -401,7 +401,7 @@ and X509_VERIFY_PARAM_get1_ip_asc() functions were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2009-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
