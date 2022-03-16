@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#14.19.1">14.19.1</a><br/>
 <a href="#14.19.0">14.19.0</a><br/>
 <a href="#14.18.3">14.18.3</a><br/>
 <a href="#14.18.2">14.18.2</a><br/>
@@ -70,6 +71,25 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.19.1"></a>
+
+## 2022-03-17, Version 14.19.1 'Fermium' (LTS), @richardlau
+
+This is a security release.
+
+### Notable Changes
+
+Update to OpenSSL 1.1.1n, which addresses the following vulnerability:
+
+* Infinite loop in `BN_mod_sqrt()` reachable when parsing certificates (High)(CVE-2022-0778)
+  More details are available at <https://www.openssl.org/news/secadv/20220315.txt>
+
+### Commits
+
+* \[[`b5c52e337e`](https://github.com/nodejs/node/commit/b5c52e337e)] - **build**: pin Windows GitHub runner to windows-2019 (Richard Lau) [#42350](https://github.com/nodejs/node/pull/42350)
+* \[[`3b1a0b24f0`](https://github.com/nodejs/node/commit/3b1a0b24f0)] - **deps**: update archs files for OpenSSL-1.1.1n (Richard Lau) [#42347](https://github.com/nodejs/node/pull/42347)
+* \[[`c83dd99e0b`](https://github.com/nodejs/node/commit/c83dd99e0b)] - **deps**: upgrade openssl sources to 1.1.1n (Richard Lau) [#42347](https://github.com/nodejs/node/pull/42347)
 
 <a id="14.19.0"></a>
 
