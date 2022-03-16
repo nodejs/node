@@ -266,6 +266,7 @@ on error.
 
 B<sk_I<TYPE>_insert>(), B<sk_I<TYPE>_push>() and B<sk_I<TYPE>_unshift>() return
 the total number of elements in the stack and 0 if an error occurred.
+B<sk_I<TYPE>_push>() further returns -1 if I<sk> is NULL.
 
 B<sk_I<TYPE>_set>() returns a pointer to the replacement element or NULL on
 error.

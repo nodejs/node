@@ -36,16 +36,18 @@ In server mode, a return value of 0 leads to handshake failure.
 In client mode, the behaviour is as follows.
 All values, including 0, are ignored
 if the verification mode is B<SSL_VERIFY_NONE>.
-Otherwise, when the return value is 0, the handshake will fail.
+Otherwise, when the return value is less than or equal to 0, the handshake will
+fail.
 
-In client mode I<callback> may also return -1,
-typically on failure verifying the server certificate.
-This makes the handshake suspend and return control to the calling application
-with B<SSL_ERROR_WANT_RETRY_VERIFY>.
-The app can for instance fetch further certificates or cert status information
-needed for the verification.
-Calling L<SSL_connect(3)> again resumes the connection attempt
-by retrying the server certificate verification step.
+In client mode I<callback> may also call the L<SSL_set_retry_verify(3)>
+function on the B<SSL> object set in the I<x509_store_ctx> ex data (see
+L<SSL_get_ex_data_X509_STORE_CTX_idx(3)>) and return 1. This would be
+typically done in case the certificate verification was not yet able
+to succeed. This makes the handshake suspend and return control to the
+calling application with B<SSL_ERROR_WANT_RETRY_VERIFY>. The app can for
+instance fetch further certificates or cert status information needed for
+the verification. Calling L<SSL_connect(3)> again resumes the connection
+attempt by retrying the server certificate verification step.
 This process may even be repeated if need be.
 
 In any case a viable verification result value must be reflected
@@ -89,11 +91,12 @@ SSL_CTX_set_cert_verify_callback() does not provide diagnostic information.
 L<ssl(7)>, L<SSL_CTX_set_verify(3)>,
 L<X509_STORE_CTX_set_error(3)>,
 L<SSL_get_verify_result(3)>,
+L<SSL_set_retry_verify(3)>,
 L<SSL_CTX_load_verify_locations(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

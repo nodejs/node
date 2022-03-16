@@ -28,11 +28,67 @@ breaking changes, and mappings for the large list of deprecated functions.
 
 [Migration guide]: https://github.com/openssl/openssl/tree/master/doc/man7/migration_guide.pod
 
-### Changes between 3.0.0 and 3.0.0+quic [7 Sun 2021]
+### Changes between 3.0.2 and 3.0.2+quic [15 Mar 2022]
 
  * Add QUIC API support from BoringSSL.
 
    *Todd Short*
+
+### Changes between 3.0.1 and 3.0.2 [15 Mar 2022]
+
+ * Fixed a bug in the BN_mod_sqrt() function that can cause it to loop forever
+   for non-prime moduli.
+
+   Internally this function is used when parsing certificates that contain
+   elliptic curve public keys in compressed form or explicit elliptic curve
+   parameters with a base point encoded in compressed form.
+
+   It is possible to trigger the infinite loop by crafting a certificate that
+   has invalid explicit curve parameters.
+
+   Since certificate parsing happens prior to verification of the certificate
+   signature, any process that parses an externally supplied certificate may thus
+   be subject to a denial of service attack. The infinite loop can also be
+   reached when parsing crafted private keys as they can contain explicit
+   elliptic curve parameters.
+
+   Thus vulnerable situations include:
+
+    - TLS clients consuming server certificates
+    - TLS servers consuming client certificates
+    - Hosting providers taking certificates or private keys from customers
+    - Certificate authorities parsing certification requests from subscribers
+    - Anything else which parses ASN.1 elliptic curve parameters
+
+   Also any other applications that use the BN_mod_sqrt() where the attacker
+   can control the parameter values are vulnerable to this DoS issue.
+   ([CVE-2022-0778])
+
+   *Tomáš Mráz*
+
+ * Add ciphersuites based on DHE_PSK (RFC 4279) and ECDHE_PSK (RFC 5489)
+   to the list of ciphersuites providing Perfect Forward Secrecy as
+   required by SECLEVEL >= 3.
+
+   *Dmitry Belyavskiy, Nicola Tuveri*
+
+ * Made the AES constant time code for no-asm configurations
+   optional due to the resulting 95% performance degradation.
+   The AES constant time code can be enabled, for no assembly
+   builds, with: ./config no-asm -DOPENSSL_AES_CONST_TIME
+
+   *Paul Dale*
+
+ * Fixed PEM_write_bio_PKCS8PrivateKey() to make it possible to use empty
+   passphrase strings.
+
+   *Darshan Sen*
+
+ * The negative return value handling of the certificate verification callback
+   was reverted. The replacement is to set the verification retry state with
+   the SSL_set_retry_verify() function.
+
+   *Tomáš Mráz*
 
 ### Changes between 3.0.0 and 3.0.1 [14 Dec 2021]
 

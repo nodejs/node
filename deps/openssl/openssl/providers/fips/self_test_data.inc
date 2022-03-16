@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -18,7 +18,7 @@
     { name, OSSL_PARAM_OCTET_STRING, ITM(data) }
 #define ST_KAT_PARAM_UTF8STRING(name, data)                                    \
     { name, OSSL_PARAM_UTF8_STRING, ITM_STR(data) }
-#define ST_KAT_PARAM_UTF8CHAR(name, data)                                    \
+#define ST_KAT_PARAM_UTF8CHAR(name, data)                                      \
     { name, OSSL_PARAM_UTF8_STRING, ITM(data) }
 #define ST_KAT_PARAM_INT(name, i)                                              \
     { name, OSSL_PARAM_INTEGER, ITM(i) }
@@ -1291,9 +1291,15 @@ static const ST_KAT_PARAM rsa_priv_key[] = {
     ST_KAT_PARAM_END()
 };
 
+/*-
+ * Using OSSL_PKEY_RSA_PAD_MODE_NONE directly in the expansion of the
+ * ST_KAT_PARAM_UTF8STRING macro below causes a failure on ancient
+ * HP/UX PA-RISC compilers.
+ */
+static const char pad_mode_none[] = OSSL_PKEY_RSA_PAD_MODE_NONE;
+
 static const ST_KAT_PARAM rsa_enc_params[] = {
-    ST_KAT_PARAM_UTF8STRING(OSSL_ASYM_CIPHER_PARAM_PAD_MODE,
-                            OSSL_PKEY_RSA_PAD_MODE_NONE),
+    ST_KAT_PARAM_UTF8STRING(OSSL_ASYM_CIPHER_PARAM_PAD_MODE, pad_mode_none),
     ST_KAT_PARAM_END()
 };
 

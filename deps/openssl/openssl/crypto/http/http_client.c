@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Siemens AG 2018-2020
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -947,6 +947,7 @@ OSSL_HTTP_REQ_CTX *OSSL_HTTP_open(const char *server, const char *port,
     }
     /* now overall_timeout is guaranteed to be >= 0 */
 
+    /* adapt in order to fix callback design flaw, see #17088 */
     /* callback can be used to wrap or prepend TLS session */
     if (bio_update_fn != NULL) {
         BIO *orig_bio = cbio;
@@ -1197,11 +1198,17 @@ BIO *OSSL_HTTP_transfer(OSSL_HTTP_REQ_CTX **prctx,
 
 int OSSL_HTTP_close(OSSL_HTTP_REQ_CTX *rctx, int ok)
 {
+    BIO *wbio;
     int ret = 1;
 
-    /* callback can be used to clean up TLS session on disconnect */
-    if (rctx != NULL && rctx->upd_fn != NULL)
-        ret = (*rctx->upd_fn)(rctx->wbio, rctx->upd_arg, 0, ok) != NULL;
+    /* callback can be used to finish TLS session and free its BIO */
+    if (rctx != NULL && rctx->upd_fn != NULL) {
+        wbio = (*rctx->upd_fn)(rctx->wbio, rctx->upd_arg,
+                               0 /* disconnect */, ok);
+        ret = wbio != NULL;
+        if (ret)
+            rctx->wbio = wbio;
+    }
     OSSL_HTTP_REQ_CTX_free(rctx);
     return ret;
 }

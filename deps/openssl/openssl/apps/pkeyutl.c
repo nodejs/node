@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -464,23 +464,23 @@ int pkeyutl_main(int argc, char **argv)
         }
         goto end;
     }
-    if (kdflen != 0) {
-        buf_outlen = kdflen;
-        rv = 1;
+    if (rawin) {
+        /* rawin allocates the buffer in do_raw_keyop() */
+        rv = do_raw_keyop(pkey_op, mctx, pkey, in, filesize, NULL, 0,
+                          &buf_out, (size_t *)&buf_outlen);
     } else {
-        if (rawin) {
-            /* rawin allocates the buffer in do_raw_keyop() */
-            rv = do_raw_keyop(pkey_op, mctx, pkey, in, filesize, NULL, 0,
-                              &buf_out, (size_t *)&buf_outlen);
+        if (kdflen != 0) {
+            buf_outlen = kdflen;
+            rv = 1;
         } else {
             rv = do_keyop(ctx, pkey_op, NULL, (size_t *)&buf_outlen,
                           buf_in, (size_t)buf_inlen);
-            if (rv > 0 && buf_outlen != 0) {
-                buf_out = app_malloc(buf_outlen, "buffer output");
-                rv = do_keyop(ctx, pkey_op,
-                              buf_out, (size_t *)&buf_outlen,
-                              buf_in, (size_t)buf_inlen);
-            }
+        }
+        if (rv > 0 && buf_outlen != 0) {
+            buf_out = app_malloc(buf_outlen, "buffer output");
+            rv = do_keyop(ctx, pkey_op,
+                          buf_out, (size_t *)&buf_outlen,
+                          buf_in, (size_t)buf_inlen);
         }
     }
     if (rv <= 0) {

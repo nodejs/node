@@ -142,7 +142,7 @@ int BN_hex2bn(BIGNUM **bn, const char *a)
         continue;
 
     if (i == 0 || i > INT_MAX / 4)
-        goto err;
+        return 0;
 
     num = i + neg;
     if (bn == NULL)
@@ -154,6 +154,10 @@ int BN_hex2bn(BIGNUM **bn, const char *a)
             return 0;
     } else {
         ret = *bn;
+        if (BN_get_flags(ret, BN_FLG_STATIC_DATA)) {
+            ERR_raise(ERR_LIB_BN, ERR_R_PASSED_INVALID_ARGUMENT);
+            return 0;
+        }
         BN_zero(ret);
     }
 

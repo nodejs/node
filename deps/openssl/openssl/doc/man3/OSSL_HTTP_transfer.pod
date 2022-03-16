@@ -113,17 +113,25 @@ or NULL to indicate failure, in which case it should not modify the BIO.
 
 Here is a simple example that supports TLS connections (but not via a proxy):
 
- BIO *http_tls_cb(BIO *hbio, void *arg, int connect, int detail)
+ BIO *http_tls_cb(BIO *bio, void *arg, int connect, int detail)
  {
      if (connect && detail) { /* connecting with TLS */
          SSL_CTX *ctx = (SSL_CTX *)arg;
          BIO *sbio = BIO_new_ssl(ctx, 1);
 
-         hbio = sbio != NULL ? BIO_push(sbio, hbio) : NULL;
-     } else if (!connect && !detail) { /* disconnecting after error */
-         /* optionally add diagnostics here */
+         bio = sbio != NULL ? BIO_push(sbio, bio) : NULL;
+     } else if (!connect) { /* disconnecting */
+         BIO *hbio;
+
+         if (!detail) { /* an error has occurred */
+             /* optionally add diagnostics here */
+         }
+         BIO_ssl_shutdown(bio);
+         hbio = BIO_pop(bio);
+         BIO_free(bio); /* SSL BIO */
+         bio = hbio;
      }
-     return hbio;
+     return bio;
  }
 
 After disconnect the modified BIO will be deallocated using BIO_free_all().

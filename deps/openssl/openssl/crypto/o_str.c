@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2003-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -215,7 +215,7 @@ unsigned char *OPENSSL_hexstr2buf(const char *str, long *buflen)
     return ossl_hexstr2buf_sep(str, buflen, DEFAULT_SEPARATOR);
 }
 
-static int buf2hexstr_sep(char *str, size_t str_n, size_t *strlen,
+static int buf2hexstr_sep(char *str, size_t str_n, size_t *strlength,
                           const unsigned char *buf, size_t buflen,
                           const char sep)
 {
@@ -226,8 +226,8 @@ static int buf2hexstr_sep(char *str, size_t str_n, size_t *strlen,
     int has_sep = (sep != CH_ZERO);
     size_t len = has_sep ? buflen * 3 : 1 + buflen * 2;
 
-    if (strlen != NULL)
-        *strlen = len;
+    if (strlength != NULL)
+        *strlength = len;
     if (str == NULL)
         return 1;
 
@@ -253,11 +253,11 @@ static int buf2hexstr_sep(char *str, size_t str_n, size_t *strlen,
     return 1;
 }
 
-int OPENSSL_buf2hexstr_ex(char *str, size_t str_n, size_t *strlen,
+int OPENSSL_buf2hexstr_ex(char *str, size_t str_n, size_t *strlength,
                           const unsigned char *buf, size_t buflen,
                           const char sep)
 {
-    return buf2hexstr_sep(str, str_n, strlen, buf, buflen, sep);
+    return buf2hexstr_sep(str, str_n, strlength, buf, buflen, sep);
 }
 
 char *ossl_buf2hexstr_sep(const unsigned char *buf, long buflen, char sep)

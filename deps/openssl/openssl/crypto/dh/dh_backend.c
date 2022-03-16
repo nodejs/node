@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -63,7 +63,7 @@ int ossl_dh_params_fromdata(DH *dh, const OSSL_PARAM params[])
     return 1;
 }
 
-int ossl_dh_key_fromdata(DH *dh, const OSSL_PARAM params[])
+int ossl_dh_key_fromdata(DH *dh, const OSSL_PARAM params[], int include_private)
 {
     const OSSL_PARAM *param_priv_key, *param_pub_key;
     BIGNUM *priv_key = NULL, *pub_key = NULL;
@@ -74,10 +74,13 @@ int ossl_dh_key_fromdata(DH *dh, const OSSL_PARAM params[])
     param_priv_key = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PRIV_KEY);
     param_pub_key = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PUB_KEY);
 
-    if ((param_priv_key != NULL
-         && !OSSL_PARAM_get_BN(param_priv_key, &priv_key))
-        || (param_pub_key != NULL
-            && !OSSL_PARAM_get_BN(param_pub_key, &pub_key)))
+    if (include_private
+        && param_priv_key != NULL
+        && !OSSL_PARAM_get_BN(param_priv_key, &priv_key))
+        goto err;
+
+    if (param_pub_key != NULL
+        && !OSSL_PARAM_get_BN(param_pub_key, &pub_key))
         goto err;
 
     if (!DH_set0_key(dh, pub_key, priv_key))
@@ -103,7 +106,8 @@ int ossl_dh_params_todata(DH *dh, OSSL_PARAM_BLD *bld, OSSL_PARAM params[])
     return 1;
 }
 
-int ossl_dh_key_todata(DH *dh, OSSL_PARAM_BLD *bld, OSSL_PARAM params[])
+int ossl_dh_key_todata(DH *dh, OSSL_PARAM_BLD *bld, OSSL_PARAM params[],
+                       int include_private)
 {
     const BIGNUM *priv = NULL, *pub = NULL;
 
@@ -112,6 +116,7 @@ int ossl_dh_key_todata(DH *dh, OSSL_PARAM_BLD *bld, OSSL_PARAM params[])
 
     DH_get0_key(dh, &pub, &priv);
     if (priv != NULL
+        && include_private
         && !ossl_param_build_set_bn(bld, params, OSSL_PKEY_PARAM_PRIV_KEY, priv))
         return 0;
     if (pub != NULL
