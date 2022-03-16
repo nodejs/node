@@ -155,24 +155,12 @@ please ask @shigeki for details.
 Update all architecture dependent files. Do not forget to git add or remove
 files if they are changed before committing:
 
-### OpenSSL 1.1.1
-
 ```console
 % git add deps/openssl/config/archs
 % git add deps/openssl/openssl/include/crypto/bn_conf.h
 % git add deps/openssl/openssl/include/crypto/dso_conf.h
 % git add deps/openssl/openssl/include/openssl/opensslconf.h
 % git commit
-```
-
-### OpenSSL 3.0.x
-
-```console
-    $ make -C deps/openssl/config
-    $ git add deps/openssl/config/archs
-    $ git add deps/openssl/openssl
-    $ git add deps/openssl/config
-    $ git commit
 ```
 
 The commit message can be written as (with the openssl version set
