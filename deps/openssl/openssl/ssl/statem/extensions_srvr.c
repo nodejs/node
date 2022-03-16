@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -663,9 +663,9 @@ int tls_parse_ctos_key_share(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
         /* Cache the selected group ID in the SSL_SESSION */
         s->session->kex_group = group_id;
 
-        if (EVP_PKEY_set1_encoded_public_key(s->s3.peer_tmp,
-                PACKET_data(&encoded_pt),
-                PACKET_remaining(&encoded_pt)) <= 0) {
+        if (tls13_set_encoded_pub_key(s->s3.peer_tmp,
+                                      PACKET_data(&encoded_pt),
+                                      PACKET_remaining(&encoded_pt)) <= 0) {
             SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER, SSL_R_BAD_ECPOINT);
             return 0;
         }

@@ -33,38 +33,23 @@ per-key basis.
 
 =item "kdf-type" (B<OSSL_EXCHANGE_PARAM_KDF_TYPE>) <UTF8 string>
 
-Sets or gets the Key Derivation Function type to apply within the associated key
-exchange ctx.
+See L<provider-keyexch(7)/Common Key Exchange parameters>.
 
 =item "kdf-digest" (B<OSSL_EXCHANGE_PARAM_KDF_DIGEST>) <UTF8 string>
 
-Sets or gets the Digest algorithm to be used as part of the Key Derivation Function
-associated with the given key exchange ctx.
+See L<provider-keyexch(7)/Common Key Exchange parameters>.
 
 =item "kdf-digest-props" (B<OSSL_EXCHANGE_PARAM_KDF_DIGEST_PROPS>) <UTF8 string>
 
-Sets properties to be used upon look up of the implementation for the selected
-Digest algorithm for the Key Derivation Function associated with the given key
-exchange ctx.
+See L<provider-keyexch(7)/Common Key Exchange parameters>.
 
 =item "kdf-outlen" (B<OSSL_EXCHANGE_PARAM_KDF_OUTLEN>) <unsigned integer>
 
-Sets or gets the desired size for the output of the chosen Key Derivation Function
-associated with the given key exchange ctx.
-The length of the "kdf-outlen" parameter should not exceed that of a B<size_t>.
+See L<provider-keyexch(7)/Common Key Exchange parameters>.
 
 =item "kdf-ukm" (B<OSSL_EXCHANGE_PARAM_KDF_UKM>) <octet string>
 
-Sets the User Key Material to be used as part of the selected Key Derivation
-Function associated with the given key exchange ctx.
-
-=item "kdf-ukm" (B<OSSL_EXCHANGE_PARAM_KDF_UKM>) <octet string ptr>
-
-Gets a pointer to the User Key Material to be used as part of the selected
-Key Derivation Function associated with the given key exchange ctx. Providers
-usually do not need to support this gettable parameter as its sole purpose
-is to support functionality of the deprecated EVP_PKEY_CTX_get0_ecdh_kdf_ukm()
-function.
+See L<provider-keyexch(7)/Common Key Exchange parameters>.
 
 =back
 
@@ -88,7 +73,7 @@ key but also using X963KDF with a user key material:
         size_t secret_len = out_len;
         unsigned int pad = 1;
         OSSL_PARAM params[6];
-        EVP_PKET_CTX *dctx = EVP_PKEY_CTX_new_from_pkey(NULL, host_key, NULL);
+        EVP_PKEY_CTX *dctx = EVP_PKEY_CTX_new_from_pkey(NULL, host_key, NULL);
 
         EVP_PKEY_derive_init(dctx);
 
@@ -122,7 +107,7 @@ L<OSSL_PROVIDER-FIPS(7)>,
 
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

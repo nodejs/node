@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -116,7 +116,7 @@ ret:
     /* Otherwise use default. */
     if (rc == -1)
         rc = ossl_ec_wNAF_mul(group, r, scalar, num, points, scalars, ctx);
-    OPENSSL_cleanse(param + S390X_OFF_SCALAR(len), len);
+    OPENSSL_cleanse(param, sizeof(param));
     BN_CTX_end(ctx);
     BN_CTX_free(new_ctx);
     return rc;
@@ -212,7 +212,7 @@ static ECDSA_SIG *ecdsa_s390x_nistp_sign_sig(const unsigned char *dgst,
 
     ok = 1;
 ret:
-    OPENSSL_cleanse(param + S390X_OFF_K(len), 2 * len);
+    OPENSSL_cleanse(param, sizeof(param));
     if (ok != 1) {
         ECDSA_SIG_free(sig);
         sig = NULL;

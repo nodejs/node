@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -191,7 +191,7 @@ int ssl3_get_record(SSL *s)
 
     rr = RECORD_LAYER_get_rrec(&s->rlayer);
     rbuf = RECORD_LAYER_get_rbuf(&s->rlayer);
-    is_ktls_left = (rbuf->left > 0);
+    is_ktls_left = (SSL3_BUFFER_get_left(rbuf) > 0);
     max_recs = s->max_pipelines;
     if (max_recs == 0)
         max_recs = 1;
@@ -408,7 +408,11 @@ int ssl3_get_record(SSL *s)
                 len -= SSL3_RT_MAX_COMPRESSED_OVERHEAD;
 #endif
 
-            if (thisrr->length > len && !BIO_get_ktls_recv(s->rbio)) {
+            /* KTLS may use all of the buffer */
+            if (BIO_get_ktls_recv(s->rbio) && !is_ktls_left)
+                len = SSL3_BUFFER_get_left(rbuf);
+
+            if (thisrr->length > len) {
                 SSLfatal(s, SSL_AD_RECORD_OVERFLOW,
                          SSL_R_ENCRYPTED_LENGTH_TOO_LONG);
                 return -1;
@@ -711,16 +715,27 @@ int ssl3_get_record(SSL *s)
             goto end;
         }
 
+        /*
+         * Usually thisrr->length is the length of a single record, but when
+         * KTLS handles the decryption, thisrr->length may be larger than
+         * SSL3_RT_MAX_PLAIN_LENGTH because the kernel may have coalesced
+         * multiple records.
+         * Therefore we have to rely on KTLS to check the plaintext length
+         * limit in the kernel.
+         */
         if (thisrr->length > SSL3_RT_MAX_PLAIN_LENGTH
-            && !BIO_get_ktls_recv(s->rbio)) {
+                && (!BIO_get_ktls_recv(s->rbio) || is_ktls_left)) {
             SSLfatal(s, SSL_AD_RECORD_OVERFLOW, SSL_R_DATA_LENGTH_TOO_LONG);
             goto end;
         }
 
-        /* If received packet overflows current Max Fragment Length setting */
+        /*
+         * Check if the received packet overflows the current
+         * Max Fragment Length setting.
+         * Note: USE_MAX_FRAGMENT_LENGTH_EXT and KTLS are mutually exclusive.
+         */
         if (s->session != NULL && USE_MAX_FRAGMENT_LENGTH_EXT(s->session)
-                && thisrr->length > GET_MAX_FRAGMENT_LENGTH(s->session)
-                && !BIO_get_ktls_recv(s->rbio)) {
+                && thisrr->length > GET_MAX_FRAGMENT_LENGTH(s->session)) {
             SSLfatal(s, SSL_AD_RECORD_OVERFLOW, SSL_R_DATA_LENGTH_TOO_LONG);
             goto end;
         }
@@ -1392,6 +1407,7 @@ int tls1_mac(SSL *ssl, SSL3_RECORD *rec, unsigned char *md, int sending)
     int tlstree_mac = sending ? (ssl->mac_flags & SSL_MAC_FLAG_WRITE_MAC_TLSTREE)
                               : (ssl->mac_flags & SSL_MAC_FLAG_READ_MAC_TLSTREE);
     int t;
+    int ret = 0;
 
     if (sending) {
         seq = RECORD_LAYER_get_write_sequence(&ssl->rlayer);
@@ -1412,15 +1428,13 @@ int tls1_mac(SSL *ssl, SSL3_RECORD *rec, unsigned char *md, int sending)
     } else {
         hmac = EVP_MD_CTX_new();
         if (hmac == NULL || !EVP_MD_CTX_copy(hmac, hash)) {
-            EVP_MD_CTX_free(hmac);
-            return 0;
+            goto end;
         }
         mac_ctx = hmac;
     }
 
     if (!SSL_IS_DTLS(ssl) && tlstree_mac && EVP_MD_CTX_ctrl(mac_ctx, EVP_MD_CTRL_TLSTREE, 0, seq) <= 0) {
-        EVP_MD_CTX_free(hmac);
-        return 0;
+        goto end;
     }
 
     if (SSL_IS_DTLS(ssl)) {
@@ -1450,18 +1464,16 @@ int tls1_mac(SSL *ssl, SSL3_RECORD *rec, unsigned char *md, int sending)
         *p++ = OSSL_PARAM_construct_end();
 
         if (!EVP_PKEY_CTX_set_params(EVP_MD_CTX_get_pkey_ctx(mac_ctx),
-                                     tls_hmac_params))
-            return 0;
+                                     tls_hmac_params)) {
+            goto end;
+        }
     }
 
     if (EVP_DigestSignUpdate(mac_ctx, header, sizeof(header)) <= 0
         || EVP_DigestSignUpdate(mac_ctx, rec->input, rec->length) <= 0
         || EVP_DigestSignFinal(mac_ctx, md, &md_size) <= 0) {
-        EVP_MD_CTX_free(hmac);
-        return 0;
+        goto end;
     }
-
-    EVP_MD_CTX_free(hmac);
 
     OSSL_TRACE_BEGIN(TLS) {
         BIO_printf(trc_out, "seq:\n");
@@ -1481,7 +1493,10 @@ int tls1_mac(SSL *ssl, SSL3_RECORD *rec, unsigned char *md, int sending)
         BIO_printf(trc_out, "md:\n");
         BIO_dump_indent(trc_out, md, md_size, 4);
     } OSSL_TRACE_END(TLS);
-    return 1;
+    ret = 1;
+ end:
+    EVP_MD_CTX_free(hmac);
+    return ret;
 }
 
 int dtls1_process_record(SSL *s, DTLS1_BITMAP *bitmap)

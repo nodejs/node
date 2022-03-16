@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -48,7 +48,7 @@ static int bio_core_read_ex(BIO *bio, char *data, size_t data_len,
 {
     BIO_CORE_GLOBALS *bcgbl = get_globals(bio->libctx);
 
-    if (bcgbl->c_bio_read_ex == NULL)
+    if (bcgbl == NULL || bcgbl->c_bio_read_ex == NULL)
         return 0;
     return bcgbl->c_bio_read_ex(BIO_get_data(bio), data, data_len, bytes_read);
 }
@@ -58,7 +58,7 @@ static int bio_core_write_ex(BIO *bio, const char *data, size_t data_len,
 {
     BIO_CORE_GLOBALS *bcgbl = get_globals(bio->libctx);
 
-    if (bcgbl->c_bio_write_ex == NULL)
+    if (bcgbl == NULL || bcgbl->c_bio_write_ex == NULL)
         return 0;
     return bcgbl->c_bio_write_ex(BIO_get_data(bio), data, data_len, written);
 }
@@ -67,7 +67,7 @@ static long bio_core_ctrl(BIO *bio, int cmd, long num, void *ptr)
 {
     BIO_CORE_GLOBALS *bcgbl = get_globals(bio->libctx);
 
-    if (bcgbl->c_bio_ctrl == NULL)
+    if (bcgbl == NULL || bcgbl->c_bio_ctrl == NULL)
         return -1;
     return bcgbl->c_bio_ctrl(BIO_get_data(bio), cmd, num, ptr);
 }
@@ -76,7 +76,7 @@ static int bio_core_gets(BIO *bio, char *buf, int size)
 {
     BIO_CORE_GLOBALS *bcgbl = get_globals(bio->libctx);
 
-    if (bcgbl->c_bio_gets == NULL)
+    if (bcgbl == NULL || bcgbl->c_bio_gets == NULL)
         return -1;
     return bcgbl->c_bio_gets(BIO_get_data(bio), buf, size);
 }
@@ -85,7 +85,7 @@ static int bio_core_puts(BIO *bio, const char *str)
 {
     BIO_CORE_GLOBALS *bcgbl = get_globals(bio->libctx);
 
-    if (bcgbl->c_bio_puts == NULL)
+    if (bcgbl == NULL || bcgbl->c_bio_puts == NULL)
         return -1;
     return bcgbl->c_bio_puts(BIO_get_data(bio), str);
 }
@@ -100,6 +100,9 @@ static int bio_core_new(BIO *bio)
 static int bio_core_free(BIO *bio)
 {
     BIO_CORE_GLOBALS *bcgbl = get_globals(bio->libctx);
+
+    if (bcgbl == NULL)
+        return 0;
 
     BIO_set_init(bio, 0);
     bcgbl->c_bio_free(BIO_get_data(bio));
@@ -133,7 +136,7 @@ BIO *BIO_new_from_core_bio(OSSL_LIB_CTX *libctx, OSSL_CORE_BIO *corebio)
     BIO_CORE_GLOBALS *bcgbl = get_globals(libctx);
 
     /* Check the library context has been initialised with the callbacks */
-    if (bcgbl->c_bio_write_ex == NULL && bcgbl->c_bio_read_ex == NULL)
+    if (bcgbl == NULL || (bcgbl->c_bio_write_ex == NULL && bcgbl->c_bio_read_ex == NULL))
         return NULL;
 
     if ((outbio = BIO_new_ex(libctx, BIO_s_core())) == NULL)
@@ -150,6 +153,9 @@ BIO *BIO_new_from_core_bio(OSSL_LIB_CTX *libctx, OSSL_CORE_BIO *corebio)
 int ossl_bio_init_core(OSSL_LIB_CTX *libctx, const OSSL_DISPATCH *fns)
 {
     BIO_CORE_GLOBALS *bcgbl = get_globals(libctx);
+
+    if (bcgbl == NULL)
+	    return 0;
 
     for (; fns->function_id != 0; fns++) {
         switch (fns->function_id) {
