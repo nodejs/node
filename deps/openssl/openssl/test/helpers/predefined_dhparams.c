@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -159,6 +159,27 @@ EVP_PKEY *get_dh2048(OSSL_LIB_CTX *libctx)
         goto err;
 
     p = BN_get_rfc3526_prime_2048(NULL);
+    if (p == NULL)
+        goto err;
+
+    dhpkey = get_dh_from_pg_bn(libctx, "DH", p, g, NULL);
+
+ err:
+    BN_free(p);
+    BN_free(g);
+    return dhpkey;
+}
+
+EVP_PKEY *get_dh4096(OSSL_LIB_CTX *libctx)
+{
+    BIGNUM *p = NULL, *g = NULL;
+    EVP_PKEY *dhpkey = NULL;
+
+    g = BN_new();
+    if (g == NULL || !BN_set_word(g, 2))
+        goto err;
+
+    p = BN_get_rfc3526_prime_4096(NULL);
     if (p == NULL)
         goto err;
 

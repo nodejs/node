@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -261,26 +261,9 @@ int CRYPTO_atomic_load(uint64_t *val, uint64_t *ret, CRYPTO_RWLOCK *lock)
     return 1;
 }
 # ifndef FIPS_MODULE
-#  ifdef OPENSSL_SYS_UNIX
-
-static pthread_once_t fork_once_control = PTHREAD_ONCE_INIT;
-
-static void fork_once_func(void)
-{
-#   ifndef OPENSSL_NO_DEPRECATED_3_0
-    pthread_atfork(OPENSSL_fork_prepare,
-                   OPENSSL_fork_parent, OPENSSL_fork_child);
-#   endif
-}
-#  endif
-
 int openssl_init_fork_handlers(void)
 {
-#  ifdef OPENSSL_SYS_UNIX
-    if (pthread_once(&fork_once_control, fork_once_func) == 0)
-        return 1;
-#  endif
-    return 0;
+    return 1;
 }
 # endif /* FIPS_MODULE */
 

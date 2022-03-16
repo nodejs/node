@@ -101,7 +101,8 @@ given NID with two other NIDs - one representing the underlying signature
 algorithm and the other representing a digest algorithm to be used in
 conjunction with it. I<signid> represents the NID for the composite "Signature
 Algorithm", I<dig_id> is the NID for the digest algorithm and I<pkey_id> is the
-NID for the underlying signature algorithm.
+NID for the underlying signature algorithm. As there are signature algorithms
+that do not require a digest, NID_undef is a valid I<dig_id>.
 
 OBJ_cleanup() releases any resources allocated by creating new objects.
 

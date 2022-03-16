@@ -20,7 +20,7 @@ if (/^### Major changes between OpenSSL (\S+) and OpenSSL (\S+) \[under developm
         $_ = <<_____
 ### Major changes between OpenSSL $v2 and OpenSSL $RELEASE_TEXT [under development]
 
- * 
+  * none
 
 ### Major changes between OpenSSL $v1 and OpenSSL $v2 [$PREV_RELEASE_DATE]
 _____

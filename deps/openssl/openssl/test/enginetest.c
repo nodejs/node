@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -24,6 +24,7 @@
 # include <openssl/rsa.h>
 # include <openssl/err.h>
 # include <openssl/x509.h>
+# include <openssl/pem.h>
 
 static void display_engine_list(void)
 {

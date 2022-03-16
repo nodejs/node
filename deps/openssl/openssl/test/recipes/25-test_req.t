@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -15,7 +15,7 @@ use OpenSSL::Test qw/:DEFAULT srctop_file/;
 
 setup("test_req");
 
-plan tests => 43;
+plan tests => 44;
 
 require_ok(srctop_file('test', 'recipes', 'tconversion.pl'));
 
@@ -48,6 +48,11 @@ ok(!run(app([@addext_args, "-addext", $val, "-addext", $val])));
 ok(!run(app([@addext_args, "-addext", $val, "-addext", $val2])));
 ok(!run(app([@addext_args, "-addext", $val, "-addext", $val3])));
 ok(!run(app([@addext_args, "-addext", $val2, "-addext", $val3])));
+
+# If a CSR is provided with neither of -key or -CA/-CAkey, this should fail.
+ok(!run(app(["openssl", "req", "-x509",
+                "-in", srctop_file(@certs, "x509-check.csr"),
+                "-out", "testreq.pem"])));
 
 subtest "generating alt certificate requests with RSA" => sub {
     plan tests => 3;
@@ -383,7 +388,8 @@ sub generate_cert {
     my $ca_key = srctop_file(@certs, "ca-key.pem");
     my $key = $is_ca ? $ca_key : srctop_file(@certs, "ee-key.pem");
     my @cmd = ("openssl", "req", "-config", "", "-x509",
-               "-key", $key, "-subj", "/CN=$cn", @_, "-out", $cert);
+               "-subj", "/CN=$cn", @_, "-out", $cert);
+    push(@cmd, ("-key", $key)) if $ss;
     push(@cmd, ("-CA", $ca_cert, "-CAkey", $ca_key)) unless $ss;
     ok(run(app([@cmd])), "generate $cert");
 }
@@ -442,12 +448,14 @@ generate_cert($cert, "-addext", "keyUsage = keyCertSign");
 #TODO strict_verify($cert, 1); # should be accepted because RFC 5280 does not apply
 
 $cert = "v3_EE_default_KIDs.pem";
-generate_cert($cert, "-addext", "keyUsage = dataEncipherment");
+generate_cert($cert, "-addext", "keyUsage = dataEncipherment",
+              "-key", srctop_file(@certs, "ee-key.pem"));
 cert_ext_has_n_different_lines($cert, 4, $SKID_AKID); # SKID != AKID
 strict_verify($cert, 1, $ca_cert);
 
 $cert = "v3_EE_no_AKID.pem";
-generate_cert($cert, "-addext", "authorityKeyIdentifier = none");
+generate_cert($cert, "-addext", "authorityKeyIdentifier = none",
+              "-key", srctop_file(@certs, "ee-key.pem"));
 has_SKID($cert, 1);
 has_AKID($cert, 0);
 strict_verify($cert, 0, $ca_cert);

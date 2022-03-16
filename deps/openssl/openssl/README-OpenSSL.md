@@ -113,8 +113,8 @@ document.
  * [Notes on Perl](NOTES-PERL.md)
  * [Notes on Valgrind](NOTES-VALGRIND.md)
 
-Specific notes on upgrading to OpenSSL 3.0 from previous versions, as well as
-known issues are available on the [OpenSSL 3.0 Wiki] page.
+Specific notes on upgrading to OpenSSL 3.0 from previous versions can be found
+in the [migration_guide(7ossl)] manual page.
 
 Documentation
 =============
@@ -126,6 +126,7 @@ The manual pages for the master branch and all current stable releases are
 available online.
 
 - [OpenSSL master](https://www.openssl.org/docs/manmaster)
+- [OpenSSL 3.0](https://www.openssl.org/docs/man3.0)
 - [OpenSSL 1.1.1](https://www.openssl.org/docs/man1.1.1)
 
 Wiki
@@ -165,7 +166,7 @@ attempting to develop or distribute cryptographic code.
 Copyright
 =========
 
-Copyright (c) 1998-2021 The OpenSSL Project
+Copyright (c) 1998-2022 The OpenSSL Project
 
 Copyright (c) 1995-1998 Eric A. Young, Tim J. Hudson
 
@@ -193,9 +194,9 @@ All rights reserved.
     <https://wiki.openssl.org>
     "OpenSSL Wiki"
 
-[OpenSSL 3.0 Wiki]:
-    <https://wiki.openssl.org/index.php/OpenSSL_3.0>
-    "OpenSSL 3.0 Wiki"
+[migration_guide(7ossl)]:
+    <https://www.openssl.org/docs/man3.0/man7/migration_guide.html>
+    "OpenSSL Migration Guide"
 
 [RFC 8446]:
      <https://tools.ietf.org/html/rfc8446>

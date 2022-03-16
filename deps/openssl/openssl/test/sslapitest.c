@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -557,10 +557,19 @@ end:
 static int verify_retry_cb(X509_STORE_CTX *ctx, void *arg)
 {
     int res = X509_verify_cert(ctx);
+    int idx = SSL_get_ex_data_X509_STORE_CTX_idx();
+    SSL *ssl;
+
+    /* this should not happen but check anyway */
+    if (idx < 0
+        || (ssl = X509_STORE_CTX_get_ex_data(ctx, idx)) == NULL)
+        return 0;
 
     if (res == 0 && X509_STORE_CTX_get_error(ctx) ==
         X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY)
-        return -1; /* indicate SSL_ERROR_WANT_RETRY_VERIFY */
+        /* indicate SSL_ERROR_WANT_RETRY_VERIFY */
+        return SSL_set_retry_verify(ssl);
+
     return res;
 }
 
@@ -672,15 +681,27 @@ end:
     return ret;
 }
 
+static int get_password_cb(char *buf, int size, int rw_flag, void *userdata)
+{
+    static const char pass[] = "testpass";
+
+    if (!TEST_int_eq(size, PEM_BUFSIZE))
+        return -1;
+
+    memcpy(buf, pass, sizeof(pass) - 1);
+    return sizeof(pass) - 1;
+}
+
 static int test_ssl_ctx_build_cert_chain(void)
 {
     int ret = 0;
     SSL_CTX *ctx = NULL;
-    char *skey = test_mk_file_path(certsdir, "leaf.key");
+    char *skey = test_mk_file_path(certsdir, "leaf-encrypted.key");
     char *leaf_chain = test_mk_file_path(certsdir, "leaf-chain.pem");
 
     if (!TEST_ptr(ctx = SSL_CTX_new_ex(libctx, NULL, TLS_server_method())))
         goto end;
+    SSL_CTX_set_default_passwd_cb(ctx, get_password_cb);
     /* leaf_chain contains leaf + subinterCA + interCA + rootCA */
     if (!TEST_int_eq(SSL_CTX_use_certificate_chain_file(ctx, leaf_chain), 1)
         || !TEST_int_eq(SSL_CTX_use_PrivateKey_file(ctx, skey,
@@ -8062,8 +8083,12 @@ static int test_cert_cb_int(int prot, int tst)
     else
         cert_cb_cnt = 0;
 
-    if (tst == 2)
-        snictx = SSL_CTX_new(TLS_server_method());
+    if (tst == 2) {
+        snictx = SSL_CTX_new_ex(libctx, NULL, TLS_server_method());
+        if (!TEST_ptr(snictx))
+            goto end;
+    }
+
     SSL_CTX_set_cert_cb(sctx, cert_cb, snictx);
 
     if (!TEST_true(create_ssl_objects(sctx, cctx, &serverssl, &clientssl,

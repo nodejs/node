@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -744,6 +744,33 @@ static int dh_rfc5114_fix_nid_test(void)
     /* Tested function is called here */
     if (!TEST_int_eq(EVP_PKEY_CTX_set_dhx_rfc5114(paramgen_ctx, 3), 1))
         goto err;
+    /* Negative test */
+    if (!TEST_int_eq(EVP_PKEY_CTX_set_dhx_rfc5114(paramgen_ctx, 99), 0))
+        goto err;
+    /* If we're still running then the test passed. */
+    ok = 1;
+err:
+    EVP_PKEY_CTX_free(paramgen_ctx);
+    return ok;
+}
+
+static int dh_set_dh_nid_test(void)
+{
+    int ok = 0;
+    EVP_PKEY_CTX *paramgen_ctx;
+
+    /* Run the test. Success is any time the test does not cause a SIGSEGV interrupt */
+    paramgen_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_DH, 0);
+    if (!TEST_ptr(paramgen_ctx))
+        goto err;
+    if (!TEST_int_eq(EVP_PKEY_paramgen_init(paramgen_ctx), 1))
+        goto err;
+    /* Tested function is called here */
+    if (!TEST_int_eq(EVP_PKEY_CTX_set_dh_nid(paramgen_ctx, NID_ffdhe2048), 1))
+        goto err;
+    /* Negative test */
+    if (!TEST_int_eq(EVP_PKEY_CTX_set_dh_nid(paramgen_ctx, NID_secp521r1), 0))
+        goto err;
     /* If we're still running then the test passed. */
     ok = 1;
 err:
@@ -898,6 +925,7 @@ int setup_tests(void)
     ADD_TEST(dh_get_nid);
     ADD_TEST(dh_load_pkcs3_namedgroup_privlen_test);
     ADD_TEST(dh_rfc5114_fix_nid_test);
+    ADD_TEST(dh_set_dh_nid_test);
 #endif
     return 1;
 }

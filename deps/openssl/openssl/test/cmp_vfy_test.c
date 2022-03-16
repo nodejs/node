@@ -51,11 +51,13 @@ static time_t test_time_valid = 0, test_time_after_expiration = 0;
 
 static CMP_VFY_TEST_FIXTURE *set_up(const char *const test_case_name)
 {
-    X509_STORE *ts = X509_STORE_new();
+    X509_STORE *ts;
     CMP_VFY_TEST_FIXTURE *fixture;
 
     if (!TEST_ptr(fixture = OPENSSL_zalloc(sizeof(*fixture))))
         return NULL;
+
+    ts = X509_STORE_new();
     fixture->test_case_name = test_case_name;
     if (ts == NULL
             || !TEST_ptr(fixture->cmp_ctx = OSSL_CMP_CTX_new(libctx, NULL))

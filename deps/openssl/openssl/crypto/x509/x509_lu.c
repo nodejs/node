@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -321,7 +321,9 @@ int X509_STORE_CTX_get_by_subject(const X509_STORE_CTX *vs,
     stmp.type = X509_LU_NONE;
     stmp.data.ptr = NULL;
 
-    X509_STORE_lock(store);
+    if (!X509_STORE_lock(store))
+        return 0;
+
     tmp = X509_OBJECT_retrieve_by_subject(store->objs, type, name);
     X509_STORE_unlock(store);
 
@@ -371,7 +373,12 @@ static int x509_store_add(X509_STORE *store, void *x, int crl) {
         return 0;
     }
 
-    X509_STORE_lock(store);
+    if (!X509_STORE_lock(store)) {
+        obj->type = X509_LU_NONE;
+        X509_OBJECT_free(obj);
+        return 0;
+    }
+
     if (X509_OBJECT_retrieve_match(store->objs, obj)) {
         ret = 1;
     } else {
@@ -553,7 +560,9 @@ STACK_OF(X509) *X509_STORE_get1_all_certs(X509_STORE *store)
     }
     if ((sk = sk_X509_new_null()) == NULL)
         return NULL;
-    X509_STORE_lock(store);
+    if (!X509_STORE_lock(store))
+        goto out_free;
+
     objs = X509_STORE_get0_objects(store);
     for (i = 0; i < sk_X509_OBJECT_num(objs); i++) {
         X509 *cert = X509_OBJECT_get0_X509(sk_X509_OBJECT_value(objs, i));
@@ -567,6 +576,7 @@ STACK_OF(X509) *X509_STORE_get1_all_certs(X509_STORE *store)
 
  err:
     X509_STORE_unlock(store);
+ out_free:
     sk_X509_pop_free(sk, X509_free);
     return NULL;
 }
@@ -583,7 +593,9 @@ STACK_OF(X509) *X509_STORE_CTX_get1_certs(X509_STORE_CTX *ctx,
     if (store == NULL)
         return NULL;
 
-    X509_STORE_lock(store);
+    if (!X509_STORE_lock(store))
+        return NULL;
+
     idx = x509_object_idx_cnt(store->objs, X509_LU_X509, nm, &cnt);
     if (idx < 0) {
         /*
@@ -601,7 +613,8 @@ STACK_OF(X509) *X509_STORE_CTX_get1_certs(X509_STORE_CTX *ctx,
             return NULL;
         }
         X509_OBJECT_free(xobj);
-        X509_STORE_lock(store);
+        if (!X509_STORE_lock(store))
+            return NULL;
         idx = x509_object_idx_cnt(store->objs, X509_LU_X509, nm, &cnt);
         if (idx < 0) {
             X509_STORE_unlock(store);
@@ -642,7 +655,10 @@ STACK_OF(X509_CRL) *X509_STORE_CTX_get1_crls(const X509_STORE_CTX *ctx,
         return NULL;
     }
     X509_OBJECT_free(xobj);
-    X509_STORE_lock(store);
+    if (!X509_STORE_lock(store)) {
+        sk_X509_CRL_free(sk);
+        return NULL;
+    }
     idx = x509_object_idx_cnt(store->objs, X509_LU_CRL, nm, &cnt);
     if (idx < 0) {
         X509_STORE_unlock(store);
@@ -744,7 +760,9 @@ int X509_STORE_CTX_get1_issuer(X509 **issuer, X509_STORE_CTX *ctx, X509 *x)
 
     /* Find index of first currently valid cert accepted by 'check_issued' */
     ret = 0;
-    X509_STORE_lock(store);
+    if (!X509_STORE_lock(store))
+        return 0;
+
     idx = x509_object_idx_cnt(store->objs, X509_LU_X509, xn, &nmatch);
     if (idx != -1) { /* should be true as we've had at least one match */
         /* Look through all matching certs for suitable issuer */

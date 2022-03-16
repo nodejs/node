@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -291,7 +291,7 @@ static char *app_get_pass(const char *arg, int keepbio)
             i = atoi(arg + 3);
             if (i >= 0)
                 pwdbio = BIO_new_fd(i, BIO_NOCLOSE);
-            if ((i < 0) || !pwdbio) {
+            if ((i < 0) || pwdbio == NULL) {
                 BIO_printf(bio_err, "Can't access file descriptor %s\n", arg + 3);
                 return NULL;
             }
@@ -299,6 +299,12 @@ static char *app_get_pass(const char *arg, int keepbio)
              * Can't do BIO_gets on an fd BIO so add a buffering BIO
              */
             btmp = BIO_new(BIO_f_buffer());
+            if (btmp == NULL) {
+                BIO_free_all(pwdbio);
+                pwdbio = NULL;
+                BIO_printf(bio_err, "Out of memory\n");
+                return NULL;
+            }
             pwdbio = BIO_push(btmp, pwdbio);
 #endif
         } else if (strcmp(arg, "stdin") == 0) {
@@ -696,10 +702,13 @@ int load_cert_certs(const char *uri,
     if (ret) {
         if (pcert != NULL)
             warn_cert(uri, *pcert, 0, vpm);
-        warn_certs(uri, *pcerts, 1, vpm);
+        if (pcerts != NULL)
+            warn_certs(uri, *pcerts, 1, vpm);
     } else {
-        sk_X509_pop_free(*pcerts, X509_free);
-        *pcerts = NULL;
+        if (pcerts != NULL) {
+            sk_X509_pop_free(*pcerts, X509_free);
+            *pcerts = NULL;
+        }
     }
     return ret;
 }
@@ -2442,16 +2451,18 @@ static const char *tls_error_hint(void)
 }
 
 /* HTTP callback function that supports TLS connection also via HTTPS proxy */
-BIO *app_http_tls_cb(BIO *hbio, void *arg, int connect, int detail)
+BIO *app_http_tls_cb(BIO *bio, void *arg, int connect, int detail)
 {
+    APP_HTTP_TLS_INFO *info = (APP_HTTP_TLS_INFO *)arg;
+    SSL_CTX *ssl_ctx = info->ssl_ctx;
+
     if (connect && detail) { /* connecting with TLS */
-        APP_HTTP_TLS_INFO *info = (APP_HTTP_TLS_INFO *)arg;
-        SSL_CTX *ssl_ctx = info->ssl_ctx;
         SSL *ssl;
         BIO *sbio = NULL;
 
+        /* adapt after fixing callback design flaw, see #17088 */
         if ((info->use_proxy
-             && !OSSL_HTTP_proxy_connect(hbio, info->server, info->port,
+             && !OSSL_HTTP_proxy_connect(bio, info->server, info->port,
                                          NULL, NULL, /* no proxy credentials */
                                          info->timeout, bio_err, opt_getprog()))
                 || (sbio = BIO_new(BIO_f_ssl())) == NULL) {
@@ -2462,23 +2473,33 @@ BIO *app_http_tls_cb(BIO *hbio, void *arg, int connect, int detail)
             return NULL;
         }
 
-        SSL_set_tlsext_host_name(ssl, info->server);
+        /* adapt after fixing callback design flaw, see #17088 */
+        SSL_set_tlsext_host_name(ssl, info->server); /* not critical to do */
 
         SSL_set_connect_state(ssl);
         BIO_set_ssl(sbio, ssl, BIO_CLOSE);
 
-        hbio = BIO_push(sbio, hbio);
-    } else if (!connect && !detail) { /* disconnecting after error */
-        const char *hint = tls_error_hint();
-
-        if (hint != NULL)
-            ERR_add_error_data(2, " : ", hint);
-        /*
-         * If we pop sbio and BIO_free() it this may lead to libssl double free.
-         * Rely on BIO_free_all() done by OSSL_HTTP_transfer() in http_client.c
-         */
+        bio = BIO_push(sbio, bio);
     }
-    return hbio;
+    if (!connect) {
+        const char *hint;
+        BIO *cbio;
+
+        if (!detail) { /* disconnecting after error */
+            hint = tls_error_hint();
+            if (hint != NULL)
+                ERR_add_error_data(2, " : ", hint);
+        }
+        if (ssl_ctx != NULL) {
+            (void)ERR_set_mark();
+            BIO_ssl_shutdown(bio);
+            cbio = BIO_pop(bio); /* connect+HTTP BIO */
+            BIO_free(bio); /* SSL BIO */
+            (void)ERR_pop_to_mark(); /* hide SSL_R_READ_BIO_NOT_SET etc. */
+            bio = cbio;
+        }
+    }
+    return bio;
 }
 
 void APP_HTTP_TLS_INFO_free(APP_HTTP_TLS_INFO *info)
@@ -2518,7 +2539,8 @@ ASN1_VALUE *app_http_get_asn1(const char *url, const char *proxy,
 
     info.server = server;
     info.port = port;
-    info.use_proxy = proxy != NULL;
+    info.use_proxy = /* workaround for callback design flaw, see #17088 */
+        OSSL_HTTP_adapt_proxy(proxy, no_proxy, server, use_ssl) != NULL;
     info.timeout = timeout;
     info.ssl_ctx = ssl_ctx;
     mem = OSSL_HTTP_get(url, proxy, no_proxy, NULL /* bio */, NULL /* rbio */,
@@ -2544,18 +2566,21 @@ ASN1_VALUE *app_http_post_asn1(const char *host, const char *port,
                                const char *expected_content_type,
                                long timeout, const ASN1_ITEM *rsp_it)
 {
+    int use_ssl = ssl_ctx != NULL;
     APP_HTTP_TLS_INFO info;
     BIO *rsp, *req_mem = ASN1_item_i2d_mem_bio(req_it, req);
     ASN1_VALUE *res;
 
     if (req_mem == NULL)
         return NULL;
+
     info.server = host;
     info.port = port;
-    info.use_proxy = proxy != NULL;
+    info.use_proxy = /* workaround for callback design flaw, see #17088 */
+        OSSL_HTTP_adapt_proxy(proxy, no_proxy, host, use_ssl) != NULL;
     info.timeout = timeout;
     info.ssl_ctx = ssl_ctx;
-    rsp = OSSL_HTTP_transfer(NULL, host, port, path, ssl_ctx != NULL,
+    rsp = OSSL_HTTP_transfer(NULL, host, port, path, use_ssl,
                              proxy, no_proxy, NULL /* bio */, NULL /* rbio */,
                              app_http_tls_cb, &info,
                              0 /* buf_size */, headers, content_type, req_mem,

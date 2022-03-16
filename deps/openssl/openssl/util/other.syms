@@ -364,7 +364,7 @@ OPENSSL_MSTR                            define
 OPENSSL_MSTR_HELPER                     define
 OPENSSL_VERSION_MAJOR                   define
 OPENSSL_VERSION_MINOR                   define
-OPENSSL_VERSION_NUMBER                  define deprecated 3.0.0
+OPENSSL_VERSION_NUMBER                  define
 OPENSSL_VERSION_PATCH                   define
 OPENSSL_VERSION_PRE_RELEASE             define
 OPENSSL_VERSION_PREREQ                  define
@@ -670,3 +670,4 @@ EVP_PKEY_security_bits                  define
 EVP_PKEY_size                           define
 EVP_PKEY_id                             define
 EVP_PKEY_base_id                        define
+SSL_set_retry_verify                    define

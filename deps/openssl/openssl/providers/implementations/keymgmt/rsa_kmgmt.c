@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -190,8 +190,12 @@ static int rsa_import(void *keydata, int selection, const OSSL_PARAM params[])
                                        &pss_defaults_set,
                                        params, rsa_type,
                                        ossl_rsa_get0_libctx(rsa));
-    if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0)
-        ok = ok && ossl_rsa_fromdata(rsa, params);
+    if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0) {
+        int include_private =
+            selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY ? 1 : 0;
+
+        ok = ok && ossl_rsa_fromdata(rsa, params, include_private);
+    }
 
     return ok;
 }
@@ -218,8 +222,12 @@ static int rsa_export(void *keydata, int selection,
     if ((selection & OSSL_KEYMGMT_SELECT_OTHER_PARAMETERS) != 0)
         ok = ok && (ossl_rsa_pss_params_30_is_unrestricted(pss_params)
                     || ossl_rsa_pss_params_30_todata(pss_params, tmpl, NULL));
-    if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0)
-        ok = ok && ossl_rsa_todata(rsa, tmpl, NULL);
+    if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0) {
+        int include_private =
+            selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY ? 1 : 0;
+
+        ok = ok && ossl_rsa_todata(rsa, tmpl, NULL, include_private);
+    }
 
     if (!ok
         || (params = OSSL_PARAM_BLD_to_param(tmpl)) == NULL)
@@ -363,7 +371,7 @@ static int rsa_get_params(void *key, OSSL_PARAM params[])
     }
     return (rsa_type != RSA_FLAG_TYPE_RSASSAPSS
             || ossl_rsa_pss_params_30_todata(pss_params, NULL, params))
-        && ossl_rsa_todata(rsa, NULL, params);
+        && ossl_rsa_todata(rsa, NULL, params, 1);
 }
 
 static const OSSL_PARAM rsa_params[] = {
@@ -454,19 +462,24 @@ static void *gen_init(void *provctx, int selection, int rsa_type,
         gctx->libctx = libctx;
         if ((gctx->pub_exp = BN_new()) == NULL
             || !BN_set_word(gctx->pub_exp, RSA_F4)) {
-            BN_free(gctx->pub_exp);
-            OPENSSL_free(gctx);
-            return NULL;
+            goto err;
         }
         gctx->nbits = 2048;
         gctx->primes = RSA_DEFAULT_PRIME_NUM;
         gctx->rsa_type = rsa_type;
+    } else {
+        goto err;
     }
-    if (!rsa_gen_set_params(gctx, params)) {
-        OPENSSL_free(gctx);
-        return NULL;
-    }
+
+    if (!rsa_gen_set_params(gctx, params))
+        goto err;
     return gctx;
+
+err:
+    if (gctx != NULL)
+        BN_free(gctx->pub_exp);
+    OPENSSL_free(gctx);
+    return NULL;
 }
 
 static void *rsa_gen_init(void *provctx, int selection,

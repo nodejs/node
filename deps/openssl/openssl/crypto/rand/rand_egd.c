@@ -80,7 +80,7 @@ int hpns_socket(int family,
 #  define AF_UNIX_PORTABILITY    "$ZAFN2"
 #  define AF_UNIX_COMPATIBILITY  "$ZPLS"
 
-    if (!_arg_present(transport) || transport != NULL || transport[0] == '\0')
+    if (!_arg_present(transport) || transport == NULL || transport[0] == '\0')
         return socket(family, type, protocol);
 
     socket_transport_name_get(AF_UNIX, current_transport, 20);

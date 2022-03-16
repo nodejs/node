@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -21,7 +21,7 @@ die "Unrecognised option, must be -C or -H\n"
 my %commands     = ();
 my $cmdre        = qr/^\s*int\s+([a-z_][a-z0-9_]*)_main\(\s*int\s+argc\s*,/;
 my $apps_openssl = shift @ARGV;
-my $YEAR         = [localtime()]->[5] + 1900;
+my $YEAR         = [gmtime($ENV{SOURCE_DATE_EPOCH} || time())]->[5] + 1900;
 
 # because the program apps/openssl has object files as sources, and
 # they then have the corresponding C files as source, we need to chain

@@ -62,7 +62,8 @@ X509_check_ip() checks if the certificate matches a specified IPv4 or
 IPv6 address.  The B<address> array is in binary format, in network
 byte order.  The length is either 4 (IPv4) or 16 (IPv6).  Only
 explicitly marked addresses in the certificates are considered; IP
-addresses stored in DNS names and Common Names are ignored.
+addresses stored in DNS names and Common Names are ignored. There are
+currently no B<flags> that would affect the behavior of this call.
 
 X509_check_ip_asc() is similar, except that the NUL-terminated
 string B<address> is first converted to the internal representation.
@@ -153,7 +154,7 @@ These functions were added in OpenSSL 1.0.2.
 
 =head1 COPYRIGHT
 
-Copyright 2012-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2012-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

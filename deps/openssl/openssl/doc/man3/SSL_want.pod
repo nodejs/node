@@ -70,8 +70,8 @@ A call to L<SSL_get_error(3)> should return B<SSL_ERROR_WANT_X509_LOOKUP>.
 
 =item SSL_RETRY_VERIFY
 
-The operation did not complete because an application callback set by
-SSL_CTX_set_cert_verify_callback() has asked to be called again.
+The operation did not complete because a certificate verification callback
+has asked to be called again via L<SSL_set_retry_verify(3)>.
 A call to L<SSL_get_error(3)> should return B<SSL_ERROR_WANT_RETRY_VERIFY>.
 
 =item SSL_ASYNC_PAUSED
@@ -110,7 +110,7 @@ were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

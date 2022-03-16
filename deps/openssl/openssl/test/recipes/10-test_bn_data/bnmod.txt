@@ -1,4 +1,4 @@
-# Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -2798,4 +2798,16 @@ P = 9df9d6cc20b8540411af4e5357ef2b0353cb1f2ab5ffc3e246b41c32f71e951f
 
 ModSqrt = a1d52989f12f204d3d2167d9b1e6c8a6174c0c786a979a5952383b7b8bd186
 A = 2eee37cf06228a387788188e650bc6d8a2ff402931443f69156a29155eca07dcb45f3aac238d92943c0c25c896098716baa433f25bd696a142f5a69d5d937e81
+P = 9df9d6cc20b8540411af4e5357ef2b0353cb1f2ab5ffc3e246b41c32f71e951f
+
+# Negative testcases for BN_mod_sqrt()
+
+# This one triggers an infinite loop with unfixed implementation
+# It should just fail.
+ModSqrt = -1
+A = 20a7ee
+P = 460201
+
+ModSqrt = -1
+A = 65bebdb00a96fc814ec44b81f98b59fba3c30203928fa5214c51e0a97091645280c947b005847f239758482b9bfc45b066fde340d1fe32fc9c1bf02e1b2d0ed
 P = 9df9d6cc20b8540411af4e5357ef2b0353cb1f2ab5ffc3e246b41c32f71e951f

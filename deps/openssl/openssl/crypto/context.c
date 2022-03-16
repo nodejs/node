@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -93,10 +93,8 @@ static int context_init(OSSL_LIB_CTX *ctx)
     exdata_done = 1;
 
     if (!ossl_crypto_new_ex_data_ex(ctx, CRYPTO_EX_INDEX_OSSL_LIB_CTX, NULL,
-                                    &ctx->data)) {
-        ossl_crypto_cleanup_all_ex_data_int(ctx);
+                                    &ctx->data))
         goto err;
-    }
 
     /* Everything depends on properties, so we also pre-initialise that */
     if (!ossl_property_parse_init(ctx))
@@ -106,9 +104,11 @@ static int context_init(OSSL_LIB_CTX *ctx)
  err:
     if (exdata_done)
         ossl_crypto_cleanup_all_ex_data_int(ctx);
+    for (i = 0; i < OSSL_LIB_CTX_MAX_INDEXES; i++)
+        CRYPTO_THREAD_lock_free(ctx->index_locks[i]);
     CRYPTO_THREAD_lock_free(ctx->oncelock);
     CRYPTO_THREAD_lock_free(ctx->lock);
-    ctx->lock = NULL;
+    memset(ctx, '\0', sizeof(*ctx));
     return 0;
 }
 
@@ -156,6 +156,7 @@ DEFINE_RUN_ONCE_STATIC(default_context_do_init)
 void ossl_lib_ctx_default_deinit(void)
 {
     context_deinit(&default_context_int);
+    CRYPTO_THREAD_cleanup_local(&default_context_thread_local);
 }
 
 static OSSL_LIB_CTX *get_thread_default_context(void)
@@ -189,7 +190,7 @@ OSSL_LIB_CTX *OSSL_LIB_CTX_new(void)
     OSSL_LIB_CTX *ctx = OPENSSL_zalloc(sizeof(*ctx));
 
     if (ctx != NULL && !context_init(ctx)) {
-        OSSL_LIB_CTX_free(ctx);
+        OPENSSL_free(ctx);
         ctx = NULL;
     }
     return ctx;

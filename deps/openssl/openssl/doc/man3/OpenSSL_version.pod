@@ -38,8 +38,6 @@ OpenSSL_version_num, OPENSSL_info
 
  const char *OPENSSL_info(int t);
 
-Deprecated:
-
  /* from openssl/opensslv.h */
  #define OPENSSL_VERSION_NUMBER 0xnnnnnnnnL
 
@@ -80,6 +78,25 @@ version for the headers in use is at least at the given pre-requisite major
 (B<maj>) and minor (B<min>) number or not. It will evaluate to true if the
 header version number (B<OPENSSL_VERSION_MAJOR>.B<OPENSSL_VERSION_MINOR>) is
 greater than or equal to B<maj>.B<min>.
+
+B<OPENSSL_VERSION_NUMBER> is a combination of the major, minor and
+patch version into a single integer 0xMNN00PP0L, where:
+
+=over 4
+
+=item M
+
+is the number from B<OPENSSL_VERSION_MAJOR>, in hexadecimal notation
+
+=item NN
+
+is the number from B<OPENSSL_VERSION_MINOR>, in hexadecimal notation
+
+=item PP
+
+is the number from B<OPENSSL_VERSION_PATCH>, in hexadecimal notation
+
+=back
 
 =head2 Functions
 
@@ -206,35 +223,6 @@ QUIC enabled.
 
 For an unknown I<t>, NULL is returned.
 
-=head1 BACKWARD COMPATIBILITY
-
-For compatibility, some older macros and functions are retained or
-synthesised.
-They are all considered deprecated.
-
-=head2 Macros
-
-B<OPENSSL_VERSION_NUMBER> is a combination of the major, minor and
-patch version into a single integer 0xMNN00PP0L, where:
-
-=over 4
-
-=item M
-
-is the number from B<OPENSSL_VERSION_MAJOR>, in hexadecimal notation
-
-=item NN
-
-is the number from B<OPENSSL_VERSION_MINOR>, in hexadecimal notation
-
-=item PP
-
-is the number from B<OPENSSL_VERSION_PATCH>, in hexadecimal notation
-
-=back
-
-=head2 Functions
-
 OpenSSL_version_num() returns the value of B<OPENSSL_VERSION_NUMBER>.
 
 =head1 RETURN VALUES
@@ -256,11 +244,11 @@ L<crypto(7)>
 =head1 HISTORY
 
 The macros and functions described here were added in OpenSSL 3.0,
-with the exception of the L</BACKWARD COMPATIBILITY> ones.
+except for OPENSSL_VERSION_NUMBER and OpenSSL_version_num().
 
 =head1 COPYRIGHT
 
-Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2018-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

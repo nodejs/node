@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -136,6 +136,7 @@ static const struct trace_category_st trace_categories[] = {
     TRACE_CATEGORY_(PKCS12_DECRYPT),
     TRACE_CATEGORY_(X509V3_POLICY),
     TRACE_CATEGORY_(BN_CTX),
+    TRACE_CATEGORY_(CMP),
     TRACE_CATEGORY_(STORE),
     TRACE_CATEGORY_(DECODER),
     TRACE_CATEGORY_(ENCODER),
@@ -496,6 +497,8 @@ void OSSL_trace_end(int category, BIO * channel)
     char *suffix = NULL;
 
     category = ossl_trace_get_category(category);
+    if (category < 0)
+        return;
     suffix = trace_channels[category].suffix;
     if (channel != NULL
         && ossl_assert(channel == current_channel)) {

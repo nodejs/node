@@ -553,7 +553,6 @@ distclean : clean
         - DELETE descrip.mms;*
 
 depend : descrip.mms
-descrip.mms : FORCE
 	@ ! {- output_off() if $disabled{makedepend}; "" -}
 	@ $(PERL) {- sourcefile("util", "add-depends.pl") -} "{- $config{makedep_scheme} -}"
 	@ ! {- output_on() if $disabled{makedepend}; "" -}
@@ -755,7 +754,16 @@ debug_logicals :
 
 # Building targets ###################################################
 
-configdata.pm : $(SRCDIR)Configure $(SRCDIR)config.com {- join(" ", @{$config{build_file_templates}}, @{$config{build_infos}}, @{$config{conf_files}}) -}
+descrip.mms : configdata.pm {- join(" ", @{$config{build_file_templates}}) -}
+	perl configdata.pm
+        @ WRITE SYS$OUTPUT "*************************************************"
+        @ WRITE SYS$OUTPUT "***                                           ***"
+        @ WRITE SYS$OUTPUT "***   Please run the same mms command again   ***"
+        @ WRITE SYS$OUTPUT "***                                           ***"
+        @ WRITE SYS$OUTPUT "*************************************************"
+        @ PIPE ( EXIT %X10000000 )
+
+configdata.pm : $(SRCDIR)Configure $(SRCDIR)config.com {- join(" ", @{$config{build_infos}}, @{$config{conf_files}}) -}
         perl configdata.pm -r
         @ WRITE SYS$OUTPUT "*************************************************"
         @ WRITE SYS$OUTPUT "***                                           ***"
@@ -871,6 +879,59 @@ EOF
       return ($filename, $scripture);
   }
 
+  # On VMS, (some) header file directories include the files
+  # __DECC_INCLUDE_EPILOGUE.H and __DECC_INCLUDE_PROLOGUE.H.
+  # When header files are generated, and the build directory
+  # isn't the same as the source directory, these files must
+  # be copied alongside the generated header file, or their
+  # effect will be lost.
+  # We use the same include file cache as make_includefile
+  # to check if the scripture to copy these files has already
+  # been generated.
+  sub make_decc_include_files {
+      my $outd = shift;
+      my $ind = shift;
+
+      # If the build directory and the source directory are the
+      # same, there's no need to copy the prologue and epilogue
+      # files.
+      return ('') if $outd eq $ind;
+
+      my $outprologue = catfile($outd, '__DECC_INCLUDE_PROLOGUE.H');
+      my $outepilogue = catfile($outd, '__DECC_INCLUDE_EPILOGUE.H');
+      my $inprologue = catfile($ind, '__DECC_INCLUDE_PROLOGUE.H');
+      my $inepilogue = catfile($ind, '__DECC_INCLUDE_EPILOGUE.H');
+      my @filenames = ();
+      my $scripture = '';
+
+      if ($includefile_cache{$outprologue}) {
+          push @filenames, $outprologue;
+      } elsif (-f $inprologue) {
+          my $local_scripture .= <<"EOF";
+$outprologue : $inprologue
+	COPY $inprologue $outprologue
+EOF
+          $includefile_cache{$outprologue} = $local_scripture;
+
+          push @filenames, $outprologue;
+          $scripture .= $local_scripture;
+      }
+      if ($includefile_cache{$outepilogue}) {
+          push @filenames, $outepilogue;
+      } elsif (-f $inepilogue) {
+          my $local_scripture .= <<"EOF";
+$outepilogue : $inepilogue
+	COPY $inepilogue $outepilogue
+EOF
+          $includefile_cache{$outepilogue} = $local_scripture;
+
+          push @filenames, $outepilogue;
+          $scripture .= $local_scripture;
+      }
+
+      return (@filenames, $scripture);
+  }
+
   sub generatetarget {
       my %args = @_;
       my $deps = join(" ", compute_platform_depends(@{$args{deps}}));
@@ -984,12 +1045,18 @@ EOF
           my @perlmodules = ( 'configdata.pm',
                               grep { $_ =~ m|\.pm$| } @{$args{deps}} );
           my %perlmoduleincs = map { '"-I'.dirname($_).'"' => 1 } @perlmodules;
-          $deps = join(' ', $deps, compute_platform_depends(@perlmodules));
+          my @decc_include_data
+              = make_decc_include_files(dirname($args{src}), dirname($gen0));
+          my $decc_include_scripture = pop @decc_include_data;
+          $deps = join(' ', $deps, @decc_include_data,
+                            compute_platform_depends(@perlmodules));
           @perlmodules = map { '"-M'.basename($_, '.pm').'"' } @perlmodules;
           my $perlmodules = join(' ', '', sort keys %perlmoduleincs, @perlmodules);
+
           return <<"EOF";
 $args{src} : $gen0 $deps
 	\$(PERL)$perlmodules $dofile "-o$target{build_file}" $gen0$gen_args > \$\@
+$decc_include_scripture
 EOF
       } elsif (grep { $_ eq $gen0 } @{$unified_info{programs}}) {
           #

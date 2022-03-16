@@ -2,11 +2,12 @@
 
 =head1 NAME
 
-X509_get0_extensions, X509_CRL_get0_extensions, X509_REVOKED_get0_extensions,
 X509V3_get_d2i, X509V3_add1_i2d, X509V3_EXT_d2i, X509V3_EXT_i2d,
-X509_get_ext_d2i, X509_add1_ext_i2d, X509_CRL_get_ext_d2i,
-X509_CRL_add1_ext_i2d, X509_REVOKED_get_ext_d2i,
-X509_REVOKED_add1_ext_i2d - X509 extension decode and encode functions
+X509_get_ext_d2i, X509_add1_ext_i2d,
+X509_CRL_get_ext_d2i, X509_CRL_add1_ext_i2d,
+X509_REVOKED_get_ext_d2i, X509_REVOKED_add1_ext_i2d,
+X509_get0_extensions, X509_CRL_get0_extensions,
+X509_REVOKED_get0_extensions - X509 extension decode and encode functions
 
 =head1 SYNOPSIS
 
@@ -38,37 +39,37 @@ X509_REVOKED_add1_ext_i2d - X509 extension decode and encode functions
 
 =head1 DESCRIPTION
 
-X509V3_get_ext_d2i() looks for an extension with OID B<nid> in the extensions
-B<x> and, if found, decodes it. If B<idx> is B<NULL> then only one
+X509V3_get_d2i() looks for an extension with OID I<nid> in the extensions
+I<x> and, if found, decodes it. If I<idx> is NULL then only one
 occurrence of an extension is permissible otherwise the first extension after
-index B<*idx> is returned and B<*idx> updated to the location of the extension.
-If B<crit> is not B<NULL> then B<*crit> is set to a status value: -2 if the
-extension occurs multiple times (this is only returned if B<idx> is B<NULL>),
+index I<*idx> is returned and I<*idx> updated to the location of the extension.
+If I<crit> is not NULL then I<*crit> is set to a status value: -2 if the
+extension occurs multiple times (this is only returned if I<idx> is NULL),
 -1 if the extension could not be found, 0 if the extension is found and is
 not critical and 1 if critical. A pointer to an extension specific structure
-or B<NULL> is returned.
+or NULL is returned.
 
-X509V3_add1_i2d() adds extension B<value> to STACK B<*x> (allocating a new
-STACK if necessary) using OID B<nid> and criticality B<crit> according
-to B<flags>.
+X509V3_add1_i2d() adds extension I<value> to STACK I<*x> (allocating a new
+STACK if necessary) using OID I<nid> and criticality I<crit> according
+to I<flags>.
 
 X509V3_EXT_d2i() attempts to decode the ASN.1 data contained in extension
-B<ext> and returns a pointer to an extension specific structure or B<NULL>
+I<ext> and returns a pointer to an extension specific structure or NULL
 if the extension could not be decoded (invalid syntax or not supported).
 
-X509V3_EXT_i2d() encodes the extension specific structure B<ext>
-with OID B<ext_nid> and criticality B<crit>.
+X509V3_EXT_i2d() encodes the extension specific structure I<ext>
+with OID I<ext_nid> and criticality I<crit>.
 
 X509_get_ext_d2i() and X509_add1_ext_i2d() operate on the extensions of
-certificate B<x>, they are otherwise identical to X509V3_get_d2i() and
+certificate I<x>, they are otherwise identical to X509V3_get_d2i() and
 X509V3_add_i2d().
 
 X509_CRL_get_ext_d2i() and X509_CRL_add1_ext_i2d() operate on the extensions
-of CRL B<crl>, they are otherwise identical to X509V3_get_d2i() and
+of CRL I<crl>, they are otherwise identical to X509V3_get_d2i() and
 X509V3_add_i2d().
 
 X509_REVOKED_get_ext_d2i() and X509_REVOKED_add1_ext_i2d() operate on the
-extensions of B<X509_REVOKED> structure B<r> (i.e for CRL entry extensions),
+extensions of B<X509_REVOKED> structure I<r> (i.e for CRL entry extensions),
 they are otherwise identical to X509V3_get_d2i() and X509V3_add_i2d().
 
 X509_get0_extensions(), X509_CRL_get0_extensions() and
@@ -78,9 +79,9 @@ of a certificate a CRL or a CRL entry respectively.
 =head1 NOTES
 
 In almost all cases an extension can occur at most once and multiple
-occurrences is an error. Therefore, the B<idx> parameter is usually B<NULL>.
+occurrences is an error. Therefore, the I<idx> parameter is usually NULL.
 
-The B<flags> parameter may be one of the following values.
+The I<flags> parameter may be one of the following values.
 
 B<X509V3_ADD_DEFAULT> appends a new extension only if the extension does
 not already exist. An error is returned if the extension does already
@@ -99,14 +100,15 @@ B<X509V3_ADD_KEEP_EXISTING> appends a new extension only if the extension does
 not already exist. An error B<is not> returned if the extension does already
 exist.
 
-B<X509V3_ADD_DELETE> extension B<nid> is deleted: no new extension is added.
+B<X509V3_ADD_DELETE> extension I<nid> is deleted: no new extension is added.
 
-If B<X509V3_ADD_SILENT> is ored with B<flags>: any error returned will not
+If B<X509V3_ADD_SILENT> is ored with I<flags>: any error returned will not
 be added to the error queue.
 
-The function X509V3_get_d2i() will return B<NULL> if the extension is not
+The function X509V3_get_d2i() and its variants
+will return NULL if the extension is not
 found, occurs multiple times or cannot be decoded. It is possible to
-determine the precise reason by checking the value of B<*crit>.
+determine the precise reason by checking the value of I<*crit>.
 
 =head1 SUPPORTED EXTENSIONS
 
@@ -195,16 +197,16 @@ The following extensions are used by certificate transparency, RFC6962
 
 =head1 RETURN VALUES
 
-X509V3_EXT_d2i() and *X509V3_get_d2i() return a pointer to an extension
-specific structure or B<NULL> if an error occurs.
+X509V3_get_d2i(), its variants, and X509V3_EXT_d2i() return
+a pointer to an extension specific structure or NULL if an error occurs.
 
-X509V3_EXT_i2d() returns a pointer to an B<X509_EXTENSION> structure
-or B<NULL> if an error occurs.
-
-X509V3_add1_i2d() returns 1 if the operation is successful and 0 if it
-fails due to a non-fatal error (extension not found, already exists,
+X509V3_add1_i2d() and its variants return 1 if the operation is successful
+and 0 if it fails due to a non-fatal error (extension not found, already exists,
 cannot be encoded) or -1 due to a fatal error such as a memory allocation
 failure.
+
+X509V3_EXT_i2d() returns a pointer to an B<X509_EXTENSION> structure
+or NULL if an error occurs.
 
 X509_get0_extensions(), X509_CRL_get0_extensions() and
 X509_REVOKED_get0_extensions() return a stack of extensions. They return
@@ -231,7 +233,7 @@ L<X509_verify_cert(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

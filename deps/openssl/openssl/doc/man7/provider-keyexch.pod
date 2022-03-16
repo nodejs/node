@@ -170,16 +170,40 @@ as follows.
 
 =over 4
 
-=item "pad" (B<OSSL_EXCHANGE_PARAM_PAD>) <unsigned integer>
+=item "kdf-type" (B<OSSL_EXCHANGE_PARAM_KDF_TYPE>) <UTF8 string>
 
-Sets the padding mode for the associated key exchange ctx.
-Setting a value of 1 will turn padding on.
-Setting a value of 0 will turn padding off.
-If padding is off then the derived shared secret may be smaller than the largest
-possible secret size.
-If padding is on then the derived shared secret will have its first bytes filled
-with 0s where necessary to make the shared secret the same size as the largest
-possible secret size.
+Sets or gets the Key Derivation Function type to apply within the associated key
+exchange ctx.
+
+=item "kdf-digest" (B<OSSL_EXCHANGE_PARAM_KDF_DIGEST>) <UTF8 string>
+
+Sets or gets the Digest algorithm to be used as part of the Key Derivation Function
+associated with the given key exchange ctx.
+
+=item "kdf-digest-props" (B<OSSL_EXCHANGE_PARAM_KDF_DIGEST_PROPS>) <UTF8 string>
+
+Sets properties to be used upon look up of the implementation for the selected
+Digest algorithm for the Key Derivation Function associated with the given key
+exchange ctx.
+
+=item "kdf-outlen" (B<OSSL_EXCHANGE_PARAM_KDF_OUTLEN>) <unsigned integer>
+
+Sets or gets the desired size for the output of the chosen Key Derivation Function
+associated with the given key exchange ctx.
+The length of the "kdf-outlen" parameter should not exceed that of a B<size_t>.
+
+=item "kdf-ukm" (B<OSSL_EXCHANGE_PARAM_KDF_UKM>) <octet string>
+
+Sets the User Key Material to be used as part of the selected Key Derivation
+Function associated with the given key exchange ctx.
+
+=item "kdf-ukm" (B<OSSL_EXCHANGE_PARAM_KDF_UKM>) <octet string ptr>
+
+Gets a pointer to the User Key Material to be used as part of the selected
+Key Derivation Function associated with the given key exchange ctx. Providers
+usually do not need to support this gettable parameter as its sole purpose
+is to support functionality of the deprecated EVP_PKEY_CTX_get0_ecdh_kdf_ukm()
+and EVP_PKEY_CTX_get0_dh_kdf_ukm() functions.
 
 =back
 
@@ -205,7 +229,7 @@ The provider KEYEXCH interface was introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

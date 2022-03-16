@@ -277,8 +277,9 @@ function L<OBJ_add_sigid(3)>, except that the objects are identified by name
 rather than a numeric NID. Any name (OID, short name or long name) can be used
 to identify the object. It will treat as success the case where the composite
 signature algorithm already exists (even if registered against a different
-underlying signature or digest algorithm). It returns 1 on success or 0 on
-failure.
+underlying signature or digest algorithm). For I<digest_name>, NULL or an
+empty string is permissible for signature algorithms that do not need a digest
+to operate correctly. The function returns 1 on success or 0 on failure.
 This function is not thread safe.
 
 CRYPTO_malloc(), CRYPTO_zalloc(), CRYPTO_free(), CRYPTO_clear_free(),

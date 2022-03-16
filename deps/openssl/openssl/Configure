@@ -3172,25 +3172,25 @@ sub resolve_config {
         }
     }
 
-    foreach (sort keys %all_keys) {
-        my $previous = $combined_inheritance{$_};
+    foreach my $key (sort keys %all_keys) {
+        my $previous = $combined_inheritance{$key};
 
         # Current target doesn't have a value for the current key?
         # Assign it the default combiner, the rest of this loop body
         # will handle it just like any other coderef.
-        if (!exists $table{$target}->{$_}) {
-            $table{$target}->{$_} = $default_combiner;
+        if (!exists $table{$target}->{$key}) {
+            $table{$target}->{$key} = $default_combiner;
         }
 
-        $table{$target}->{$_} = process_values($table{$target}->{$_},
-                                               $combined_inheritance{$_},
-                                               $target, $_);
-        unless(defined($table{$target}->{$_})) {
-            delete $table{$target}->{$_};
+        $table{$target}->{$key} = process_values($table{$target}->{$key},
+                                               $combined_inheritance{$key},
+                                               $target, $key);
+        unless(defined($table{$target}->{$key})) {
+            delete $table{$target}->{$key};
         }
 #        if ($extra_checks &&
-#            $previous && !($add_called ||  $previous ~~ $table{$target}->{$_})) {
-#            warn "$_ got replaced in $target\n";
+#            $previous && !($add_called ||  $previous ~~ $table{$target}->{$key})) {
+#            warn "$key got replaced in $target\n";
 #        }
     }
 

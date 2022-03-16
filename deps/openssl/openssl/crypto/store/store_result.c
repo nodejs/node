@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -525,7 +525,7 @@ static int try_pkcs12(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
 
         if (p12 != NULL) {
             char *pass = NULL;
-            char tpass[PEM_BUFSIZE];
+            char tpass[PEM_BUFSIZE + 1];
             size_t tpass_len;
             EVP_PKEY *pkey = NULL;
             X509 *cert = NULL;
@@ -547,17 +547,23 @@ static int try_pkcs12(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
                     OSSL_PARAM_END
                 };
 
-                if (!ossl_pw_get_passphrase(tpass, sizeof(tpass), &tpass_len,
+                if (!ossl_pw_get_passphrase(tpass, sizeof(tpass) - 1,
+                                            &tpass_len,
                                             pw_params, 0, &ctx->pwdata)) {
                     ERR_raise(ERR_LIB_OSSL_STORE,
                               OSSL_STORE_R_PASSPHRASE_CALLBACK_ERROR);
                     goto p12_end;
                 }
                 pass = tpass;
-                if (!PKCS12_verify_mac(p12, pass, strlen(pass))) {
+                /*
+                 * ossl_pw_get_passphrase() does not NUL terminate but
+                 * we must do it for PKCS12_parse()
+                 */
+                pass[tpass_len] = '\0';
+                if (!PKCS12_verify_mac(p12, pass, tpass_len)) {
                     ERR_raise_data(ERR_LIB_OSSL_STORE,
                                    OSSL_STORE_R_ERROR_VERIFYING_PKCS12_MAC,
-                                   strlen(pass) == 0 ? "empty password" :
+                                   tpass_len == 0 ? "empty password" :
                                    "maybe wrong password");
                     goto p12_end;
                 }
@@ -613,9 +619,10 @@ static int try_pkcs12(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
                 }
                 ctx->cached_info = infos;
             }
+         p12_end:
+            OPENSSL_cleanse(tpass, sizeof(tpass));
+            PKCS12_free(p12);
         }
-     p12_end:
-        PKCS12_free(p12);
         *v = sk_OSSL_STORE_INFO_shift(ctx->cached_info);
     }
 

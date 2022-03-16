@@ -481,7 +481,7 @@ distclean: clean
 	-del /Q /F configdata.pm
 	-del /Q /F makefile
 
-depend:
+depend: makefile
 	@ {- output_off() if $disabled{makedepend}; "\@rem" -}
 	@ "$(PERL)" "$(SRCDIR)\util\add-depends.pl" "{- $target{makedep_scheme} -}"
 	@ {- output_on() if $disabled{makedepend}; "\@rem" -}
@@ -643,13 +643,23 @@ uninstall_image_docs:
 
 copy-utils: $(BLDDIR)\apps\openssl.cnf
 
-$(BLDDIR)\apps\openssl.cnf: configdata.pm
+$(BLDDIR)\apps\openssl.cnf: makefile
 	@if NOT EXIST "$(BLDDIR)\apps" mkdir "$(BLDDIR)\apps"
 	@if NOT "$(SRCDIR)"=="$(BLDDIR)" copy "$(SRCDIR)\apps\$(@F)" "$(BLDDIR)\apps"
 
 # Building targets ###################################################
 
-configdata.pm: "$(SRCDIR)\Configure" {- join(" ", map { '"'.$_.'"' } @{$config{build_file_templates}}, @{$config{build_infos}}, @{$config{conf_files}}) -}
+makefile: configdata.pm {- join(" ", map { '"'.$_.'"' } @{$config{build_file_templates}}) -}
+	@$(ECHO) "Detected changed: $?"
+	"$(PERL)" configdata.pm
+	@$(ECHO) "**************************************************"
+	@$(ECHO) "***                                            ***"
+	@$(ECHO) "***   Please run the same make command again   ***"
+	@$(ECHO) "***                                            ***"
+	@$(ECHO) "**************************************************"
+	@exit 1
+
+configdata.pm: "$(SRCDIR)\Configure" {- join(" ", map { '"'.$_.'"' } @{$config{build_infos}}, @{$config{conf_files}}) -}
 	@$(ECHO) "Detected changed: $?"
 	"$(PERL)" configdata.pm -r
 	@$(ECHO) "**************************************************"

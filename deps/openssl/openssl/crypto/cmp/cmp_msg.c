@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -260,7 +260,7 @@ static const X509_NAME *determine_subj(OSSL_CMP_CTX *ctx,
     if (ctx->subjectName != NULL)
         return IS_NULL_DN(ctx->subjectName) ? NULL : ctx->subjectName;
 
-    if (ref_subj != NULL && (for_KUR || !HAS_SAN(ctx)))
+    if (ref_subj != NULL && (ctx->p10CSR != NULL || for_KUR || !HAS_SAN(ctx)))
         /*
          * For KUR, copy subject from the reference.
          * For IR or CR, do the same only if there is no subjectAltName.
@@ -289,6 +289,8 @@ OSSL_CRMF_MSG *OSSL_CMP_CTX_setup_CRM(OSSL_CMP_CTX *ctx, int for_KUR, int rid)
 
     if (rkey == NULL && ctx->p10CSR != NULL)
         rkey = X509_REQ_get0_pubkey(ctx->p10CSR);
+    if (rkey == NULL && refcert != NULL)
+        rkey = X509_get0_pubkey(refcert);
     if (rkey == NULL)
         rkey = ctx->pkey; /* default is independent of ctx->oldCert */
     if (rkey == NULL) {
@@ -327,11 +329,14 @@ OSSL_CRMF_MSG *OSSL_CMP_CTX_setup_CRM(OSSL_CMP_CTX *ctx, int for_KUR, int rid)
     }
 
     /* extensions */
-    if (refcert != NULL && !ctx->SubjectAltName_nodefault)
-        default_sans = X509V3_get_d2i(X509_get0_extensions(refcert),
-                                      NID_subject_alt_name, NULL, NULL);
     if (ctx->p10CSR != NULL
             && (exts = X509_REQ_get_extensions(ctx->p10CSR)) == NULL)
+        goto err;
+    if (!ctx->SubjectAltName_nodefault && !HAS_SAN(ctx) && refcert != NULL
+            && (default_sans = X509V3_get_d2i(X509_get0_extensions(refcert),
+                                              NID_subject_alt_name, NULL, NULL))
+            != NULL
+            && !add1_extension(&exts, NID_subject_alt_name, crit, default_sans))
         goto err;
     if (ctx->reqExtensions != NULL /* augment/override existing ones */
             && !add_extensions(&exts, ctx->reqExtensions))
@@ -339,9 +344,6 @@ OSSL_CRMF_MSG *OSSL_CMP_CTX_setup_CRM(OSSL_CMP_CTX *ctx, int for_KUR, int rid)
     if (sk_GENERAL_NAME_num(ctx->subjectAltNames) > 0
             && !add1_extension(&exts, NID_subject_alt_name,
                                crit, ctx->subjectAltNames))
-        goto err;
-    if (!HAS_SAN(ctx) && default_sans != NULL
-            && !add1_extension(&exts, NID_subject_alt_name, crit, default_sans))
         goto err;
     if (ctx->policies != NULL
             && !add1_extension(&exts, NID_certificate_policies,
@@ -566,6 +568,7 @@ OSSL_CMP_MSG *ossl_cmp_rr_new(OSSL_CMP_CTX *ctx)
     if (!sk_OSSL_CMP_REVDETAILS_push(msg->body->value.rr, rd))
         goto err;
     rd = NULL;
+    /* Revocation Passphrase according to section 5.3.19.9 could be set here */
 
     if (!ossl_cmp_msg_protect(ctx, msg))
         goto err;

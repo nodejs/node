@@ -251,8 +251,8 @@ e.g., C<1.2.3.4:int:56789>.
 The source of the private or public key for the certificate requested
 in Initialization Request (IR), Certification Request(CR), or
 Key Update Request (KUR).
-Default is the public key in the PKCS#10 CSR given with the B<-csr> option,
-if any, or else the current client key, if given.
+Defaults to the public key in the PKCS#10 CSR given with the B<-csr> option,
+the public key of the reference certificate, or the current client key.
 
 =item B<-newkeypass> I<arg>
 
@@ -440,8 +440,10 @@ Reason numbers defined in RFC 5280 are:
 
 =item B<-server> I<[http[s]://][userinfo@]host[:port][/path][?query][#fragment]>
 
-The IP address or DNS hostname and optionally port
-of the CMP server to connect to using HTTP(S) transport.
+The DNS hostname or IP address and optionally port
+of the CMP server to connect to using HTTP(S).
+This excludes I<-port> and I<-use_mock_srv> and is ignored with I<-rspin>.
+
 The scheme C<https> may be given only if the B<-tls_used> option is used.
 In this case the default port is 443, else 80.
 The optional userinfo and fragment components are ignored.
@@ -458,6 +460,7 @@ selected by B<-tls_used>), as well as any path, userinfo, and query, and fragmen
 components.
 Defaults to the environment variable C<http_proxy> if set, else C<HTTP_PROXY>
 in case no TLS is used, otherwise C<https_proxy> if set, else C<HTTPS_PROXY>.
+This option is ignored if I<-server> is not given.
 
 =item B<-no_proxy> I<addresses>
 
@@ -465,6 +468,7 @@ List of IP addresses and/or DNS names of servers
 not to use an HTTP(S) proxy for, separated by commas and/or whitespace
 (where in the latter case the whole argument must be enclosed in "...").
 Default is from the environment variable C<no_proxy> if set, else C<NO_PROXY>.
+This option is ignored if I<-server> is not given.
 
 =item B<-recipient> I<name>
 
@@ -795,7 +799,10 @@ B<-tls_key>.
 =item B<-tls_used>
 
 Enable using TLS (even when other TLS_related options are not set)
-when connecting to CMP server.
+when connecting to CMP server via HTTP.
+This option is not supported with the I<-port> option
+and is ignored with the I<-use_mock_srv> and I<-rspin> options
+or if the I<-server> option is not given.
 
 =item B<-tls_cert> I<filename>|I<uri>
 
@@ -880,6 +887,7 @@ As many files are written as needed to store the complete transaction.
 =item B<-rspin> I<filenames>
 
 Process sequence of CMP responses provided in file(s), skipping server.
+This excludes I<-server>, I<-port>, and I<-use_mock_srv>.
 
 Multiple filenames may be given, separated by commas and/or whitespace.
 As many files are read as needed for the complete transaction.
@@ -893,8 +901,9 @@ As many files are written as needed to store the complete transaction.
 
 =item B<-use_mock_srv>
 
-Use the internal mock server for testing the client.
-This works at API level, bypassing HTTP transport.
+Test the client using the internal CMP server mock-up at API level,
+bypassing socket-based transfer via HTTP.
+This excludes I<-server>, I<-port>, and I<-rspin>.
 
 =back
 
@@ -904,7 +913,8 @@ This works at API level, bypassing HTTP transport.
 
 =item B<-port> I<number>
 
-Act as CMP HTTP server mock-up listening on the given port.
+Act as HTTP-based CMP server mock-up listening on the given port.
+This excludes I<-server>, I<-rspin>, and I<-use_mock_srv>.
 
 =item B<-max_msgs> I<number>
 
@@ -1221,9 +1231,9 @@ The B<-engine option> was deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007-2022 The OpenSSL Project Authors. All Rights Reserved.
 
-Licensed under the OpenSSL license (the "License").  You may not use
+Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file LICENSE in the source distribution or at
 L<https://www.openssl.org/source/license.html>.

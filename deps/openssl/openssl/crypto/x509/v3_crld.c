@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -83,6 +83,7 @@ static int set_dist_point_name(DIST_POINT_NAME **pdp, X509V3_CTX *ctx,
             return -1;
         dnsect = X509V3_get_section(ctx, cnf->value);
         if (!dnsect) {
+            X509_NAME_free(nm);
             ERR_raise(ERR_LIB_X509V3, X509V3_R_SECTION_NOT_FOUND);
             return -1;
         }

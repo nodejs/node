@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -280,6 +280,7 @@ inner_loader_fetch(struct loader_data_st *methdata, int id,
 {
     OSSL_METHOD_STORE *store = get_loader_store(methdata->libctx);
     OSSL_NAMEMAP *namemap = ossl_namemap_stored(methdata->libctx);
+    const char *const propq = properties != NULL ? properties : "";
     void *method = NULL;
     int unsupported = 0;
 
@@ -309,7 +310,7 @@ inner_loader_fetch(struct loader_data_st *methdata, int id,
         unsupported = 1;
 
     if (id == 0
-        || !ossl_method_store_cache_get(store, NULL, id, properties, &method)) {
+        || !ossl_method_store_cache_get(store, NULL, id, propq, &method)) {
         OSSL_METHOD_CONSTRUCT_METHOD mcm = {
             get_tmp_loader_store,
             get_loader_from_store,
@@ -317,13 +318,14 @@ inner_loader_fetch(struct loader_data_st *methdata, int id,
             construct_loader,
             destruct_loader
         };
+        OSSL_PROVIDER *prov = NULL;
 
         methdata->scheme_id = id;
         methdata->scheme = scheme;
-        methdata->propquery = properties;
+        methdata->propquery = propq;
         methdata->flag_construct_error_occurred = 0;
         if ((method = ossl_method_construct(methdata->libctx, OSSL_OP_STORE,
-                                            NULL, 0 /* !force_cache */,
+                                            &prov, 0 /* !force_cache */,
                                             &mcm, methdata)) != NULL) {
             /*
              * If construction did create a method for us, we know that there
@@ -332,7 +334,7 @@ inner_loader_fetch(struct loader_data_st *methdata, int id,
              */
             if (id == 0)
                 id = ossl_namemap_name2num(namemap, scheme);
-            ossl_method_store_cache_set(store, NULL, id, properties, method,
+            ossl_method_store_cache_set(store, prov, id, propq, method,
                                         up_ref_loader, free_loader);
         }
 

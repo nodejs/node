@@ -20,7 +20,7 @@ distribute their own providers which can be added to OpenSSL dynamically.
 Documentation about writing providers is available on the [provider(7)]
 manual page.
 
- [provider(7)]: https://www.openssl.org/docs/manmaster/man7/provider.html
+ [provider(7)]: https://www.openssl.org/docs/man3.0/man7/provider.html
 
 The Default Provider
 --------------------
@@ -88,7 +88,7 @@ Providers to be loaded can be specified in the OpenSSL config file.
 See the [config(5)] manual page for information about how to configure
 providers via the config file, and how to automatically activate them.
 
- [config(5)]: https://www.openssl.org/docs/manmaster/man5/config.html
+ [config(5)]: https://www.openssl.org/docs/man3.0/man5/config.html
 
 The following is a minimal config file example to load and activate both
 the legacy and the default provider in the default library context.

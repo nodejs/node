@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1004,8 +1004,11 @@ static int fix_dh_nid(enum state state,
         return 0;
 
     if (state == PRE_CTRL_TO_PARAMS) {
-        ctx->p2 = (char *)ossl_ffc_named_group_get_name
-            (ossl_ffc_uid_to_dh_named_group(ctx->p1));
+        if ((ctx->p2 = (char *)ossl_ffc_named_group_get_name
+             (ossl_ffc_uid_to_dh_named_group(ctx->p1))) == NULL) {
+            ERR_raise(ERR_LIB_EVP, EVP_R_INVALID_VALUE);
+            return 0;
+        }
         ctx->p1 = 0;
     }
 
@@ -1028,16 +1031,24 @@ static int fix_dh_nid5114(enum state state,
 
     switch (state) {
     case PRE_CTRL_TO_PARAMS:
-        ctx->p2 = (char *)ossl_ffc_named_group_get_name
-            (ossl_ffc_uid_to_dh_named_group(ctx->p1));
+        if ((ctx->p2 = (char *)ossl_ffc_named_group_get_name
+             (ossl_ffc_uid_to_dh_named_group(ctx->p1))) == NULL) {
+            ERR_raise(ERR_LIB_EVP, EVP_R_INVALID_VALUE);
+            return 0;
+        }
+
         ctx->p1 = 0;
         break;
 
     case PRE_CTRL_STR_TO_PARAMS:
         if (ctx->p2 == NULL)
             return 0;
-        ctx->p2 = (char *)ossl_ffc_named_group_get_name
-            (ossl_ffc_uid_to_dh_named_group(atoi(ctx->p2)));
+        if ((ctx->p2 = (char *)ossl_ffc_named_group_get_name
+             (ossl_ffc_uid_to_dh_named_group(atoi(ctx->p2)))) == NULL) {
+            ERR_raise(ERR_LIB_EVP, EVP_R_INVALID_VALUE);
+            return 0;
+        }
+
         ctx->p1 = 0;
         break;
 
