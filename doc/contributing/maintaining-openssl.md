@@ -191,7 +191,6 @@ regenerated and committed by:
     $ make -C deps/openssl/config
     $ git add deps/openssl/config/archs
     $ git add deps/openssl/openssl
-    $ git add deps/openssl/config
     $ git commit
 ```
 
