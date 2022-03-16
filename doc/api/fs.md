@@ -3313,7 +3313,7 @@ If `options.withFileTypes` is set to `true`, the `files` array will contain
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: v18.0.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/41647
     description: Add the `chunkSize` option that can Set `kReadFileBufferLength`
                  manually.
