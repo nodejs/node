@@ -980,7 +980,7 @@ void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
   // Even if the backing MessagePort object has already been deleted, we still
   // want to serialize the message to ensure spec-compliant behavior w.r.t.
   // transfers.
-  if (port == nullptr) {
+  if (port == nullptr || port->IsHandleClosing()) {
     Message msg;
     USE(msg.Serialize(env, context, args[0], transfer_list, obj));
     return;
