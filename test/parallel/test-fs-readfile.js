@@ -15,15 +15,15 @@ tmpdir.refresh();
 
 const fileInfo = [
   { name: path.join(tmpdir.path, `${prefix}-1K.txt`),
-    len: 1024 },
+    len: 1024, chunkSize: 64 },
   { name: path.join(tmpdir.path, `${prefix}-64K.txt`),
-    len: 64 * 1024 },
+    len: 64 * 1024, chunkSize: -64 },
   { name: path.join(tmpdir.path, `${prefix}-64KLessOne.txt`),
-    len: (64 * 1024) - 1 },
+    len: (64 * 1024) - 1, chunkSize: 'string' },
   { name: path.join(tmpdir.path, `${prefix}-1M.txt`),
-    len: 1 * 1024 * 1024 },
+    len: 1 * 1024 * 1024, chunkSize: 0 },
   { name: path.join(tmpdir.path, `${prefix}-1MPlusOne.txt`),
-    len: (1 * 1024 * 1024) + 1 },
+    len: (1 * 1024 * 1024) + 1, chunkSize: -1 },
 ];
 
 // Populate each fileInfo (and file) with unique fill.
@@ -92,4 +92,13 @@ for (const e of fileInfo) {
     const callback = common.mustNotCall(() => {});
     fs.readFile(fileInfo[0].name, { signal: 'hello' }, callback);
   }, { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' });
+}
+{
+  // Test chunkSize option
+  for (const e of fileInfo) {
+    fs.readFile(e.name, { chunkSize: e.chunkSize },
+                common.mustCall((err, buf) => {
+                  assert.deepStrictEqual(buf, e.contents);
+                }));
+  }
 }
