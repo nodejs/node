@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#12.22.11">12.22.11</a><br/>
 <a href="#12.22.10">12.22.10</a><br/>
 <a href="#12.22.9">12.22.9</a><br/>
 <a href="#12.22.8">12.22.8</a><br/>
@@ -82,6 +83,29 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.22.11"></a>
+
+## 2022-03-17, Version 12.22.11 'Erbium' (LTS), @richardlau
+
+This is a security release.
+
+### Notable changes
+
+Update to OpenSSL 1.1.1n, which addresses the following vulnerability:
+
+* Infinite loop in `BN_mod_sqrt()` reachable when parsing certificates (High)(CVE-2022-0778)
+  More details are available at <https://www.openssl.org/news/secadv/20220315.txt>
+
+Fix for building Node.js 12.x with Visual Studio 2019 to allow us to continue to
+run CI tests.
+
+### Commits
+
+* \[[`e3e5bf11ba`](https://github.com/nodejs/node/commit/e3e5bf11ba)] - **build**: pin Windows GitHub runner to windows-2019 (Richard Lau) [#42349](https://github.com/nodejs/node/pull/42349)
+* \[[`f41e7771bf`](https://github.com/nodejs/node/commit/f41e7771bf)] - **build**: fix detection of Visual Studio 2019 (Richard Lau) [#42349](https://github.com/nodejs/node/pull/42349)
+* \[[`c372ec207d`](https://github.com/nodejs/node/commit/c372ec207d)] - **deps**: update archs files for OpenSSL-1.1.n (Richard Lau) [#42348](https://github.com/nodejs/node/pull/42348)
+* \[[`d574a1dccb`](https://github.com/nodejs/node/commit/d574a1dccb)] - **deps**: upgrade openssl sources to 1.1.1n (Richard Lau) [#42348](https://github.com/nodejs/node/pull/42348)
 
 <a id="12.22.10"></a>
 
