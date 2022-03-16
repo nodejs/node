@@ -92,7 +92,7 @@ This updates all sources in deps/openssl/openssl by:
     $ git commit openssl
 ```
 
-### OpenSSL 3.0.x
+### OpenSSL 3.x.x
 
 ```console
 % git clone https://github.com/quictls/openssl
