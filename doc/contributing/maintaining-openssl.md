@@ -92,7 +92,7 @@ This updates all sources in deps/openssl/openssl by:
     $ git commit openssl
 ```
 
-### OpenSSL 3.0.0
+### OpenSSL 3.0.x
 
 ```console
 % git clone https://github.com/quictls/openssl
@@ -106,14 +106,15 @@ This updates all sources in deps/openssl/openssl by:
 ```
 
 ```text
-deps: upgrade openssl sources to quictls/openssl-3.0.0-alpha-16
+deps: upgrade openssl sources to quictls/openssl-3.0.2
 
 This updates all sources in deps/openssl/openssl by:
     $ git clone git@github.com:quictls/openssl.git
     $ cd openssl
+    $ git checkout openssl-3.0.2+quic
     $ cd ../node/deps/openssl
     $ rm -rf openssl
-    $ cp -R ../openssl openssl
+    $ cp -R ../../../openssl openssl
     $ rm -rf openssl/.git* openssl/.travis*
     $ git add --all openssl
     $ git commit openssl
@@ -154,12 +155,24 @@ please ask @shigeki for details.
 Update all architecture dependent files. Do not forget to git add or remove
 files if they are changed before committing:
 
+### OpenSSL 1.1.1
+
 ```console
 % git add deps/openssl/config/archs
 % git add deps/openssl/openssl/include/crypto/bn_conf.h
 % git add deps/openssl/openssl/include/crypto/dso_conf.h
 % git add deps/openssl/openssl/include/openssl/opensslconf.h
 % git commit
+```
+
+### OpenSSL 3.0.x
+
+```console
+    $ make -C deps/openssl/config
+    $ git add deps/openssl/config/archs
+    $ git add deps/openssl/openssl
+    $ git add deps/openssl/config
+    $ git commit
 ```
 
 The commit message can be written as (with the openssl version set
@@ -180,7 +193,7 @@ to the relevant value):
     $ git commit
 ```
 
-### OpenSSL 3.0.0
+### OpenSSL 3.0.x
 
 ```text
 deps: update archs files for quictls/openssl-3.0.0-alpha-16
@@ -190,6 +203,7 @@ regenerated and committed by:
     $ make -C deps/openssl/config
     $ git add deps/openssl/config/archs
     $ git add deps/openssl/openssl
+    $ git add deps/openssl/config
     $ git commit
 ```
 
