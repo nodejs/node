@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -511,7 +511,7 @@ static int dh_pkey_import_from_type(const OSSL_PARAM params[], void *vpctx,
     DH_set_flags(dh, type == EVP_PKEY_DH ? DH_FLAG_TYPE_DH : DH_FLAG_TYPE_DHX);
 
     if (!ossl_dh_params_fromdata(dh, params)
-        || !ossl_dh_key_fromdata(dh, params)
+        || !ossl_dh_key_fromdata(dh, params, 1)
         || !EVP_PKEY_assign(pkey, type, dh)) {
         DH_free(dh);
         return 0;

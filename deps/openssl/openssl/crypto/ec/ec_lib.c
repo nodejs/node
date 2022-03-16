@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -1710,8 +1710,8 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
         ptmp = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_EC_ENCODING);
         if (ptmp != NULL
             && !ossl_ec_encoding_param2id(ptmp, &encoding_flag)) {
-            ECerr(0, EC_R_INVALID_ENCODING);
-            return 0;
+            ERR_raise(ERR_LIB_EC, EC_R_INVALID_ENCODING);
+            goto err;
         }
         if (encoding_flag == OPENSSL_EC_NAMED_CURVE) {
             ERR_raise(ERR_LIB_EC, EC_R_INVALID_ENCODING);

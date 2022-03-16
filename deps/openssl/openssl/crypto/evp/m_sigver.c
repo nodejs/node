@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -231,7 +231,7 @@ static int do_sigver_init(EVP_MD_CTX *ctx, EVP_PKEY_CTX **pctx,
              * We're about to get a new digest so clear anything associated with
              * an old digest.
              */
-            evp_md_ctx_clear_digest(ctx, 1);
+            evp_md_ctx_clear_digest(ctx, 1, 0);
 
             /* legacy code support for engines */
             ERR_set_mark();
@@ -480,14 +480,14 @@ int EVP_DigestSignFinal(EVP_MD_CTX *ctx, unsigned char *sigret,
     if (sigret == NULL || (ctx->flags & EVP_MD_CTX_FLAG_FINALISE) != 0)
         return pctx->op.sig.signature->digest_sign_final(pctx->op.sig.algctx,
                                                          sigret, siglen,
-                                                         (siglen == NULL) ? 0 : *siglen);
+                                                         sigret == NULL ? 0 : *siglen);
     dctx = EVP_PKEY_CTX_dup(pctx);
     if (dctx == NULL)
         return 0;
 
     r = dctx->op.sig.signature->digest_sign_final(dctx->op.sig.algctx,
                                                   sigret, siglen,
-                                                  (siglen == NULL) ? 0 : *siglen);
+                                                  *siglen);
     EVP_PKEY_CTX_free(dctx);
     return r;
 

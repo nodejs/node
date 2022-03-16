@@ -68,7 +68,7 @@ EC_POINT *EC_POINT_hex2point(const EC_GROUP *group,
     len = strlen(hex) / 2;
     oct_buf = OPENSSL_malloc(len);
     if (oct_buf == NULL)
-        return NULL;
+        goto err;
 
     if (!OPENSSL_hexstr2buf_ex(oct_buf, len, &oct_buf_len, hex, '\0')
         || !EC_POINT_oct2point(group, pt, oct_buf, oct_buf_len, ctx))

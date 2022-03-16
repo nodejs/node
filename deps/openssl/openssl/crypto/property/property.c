@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -596,7 +596,7 @@ int ossl_method_store_cache_get(OSSL_METHOD_STORE *store, OSSL_PROVIDER *prov,
     QUERY elem, *r;
     int res = 0;
 
-    if (nid <= 0 || store == NULL)
+    if (nid <= 0 || store == NULL || prop_query == NULL)
         return 0;
 
     if (!ossl_property_read_lock(store))
@@ -605,7 +605,7 @@ int ossl_method_store_cache_get(OSSL_METHOD_STORE *store, OSSL_PROVIDER *prov,
     if (alg == NULL)
         goto err;
 
-    elem.query = prop_query != NULL ? prop_query : "";
+    elem.query = prop_query;
     elem.provider = prov;
     r = lh_QUERY_retrieve(alg->cache, &elem);
     if (r == NULL)
@@ -629,10 +629,8 @@ int ossl_method_store_cache_set(OSSL_METHOD_STORE *store, OSSL_PROVIDER *prov,
     size_t len;
     int res = 1;
 
-    if (nid <= 0 || store == NULL)
+    if (nid <= 0 || store == NULL || prop_query == NULL)
         return 0;
-    if (prop_query == NULL)
-        return 1;
 
     if (!ossl_assert(prov != NULL))
         return 0;

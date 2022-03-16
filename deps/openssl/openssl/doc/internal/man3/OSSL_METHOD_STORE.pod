@@ -102,6 +102,12 @@ The I<method_up_ref> function is called to increment the
 reference count of the method and the I<method_destruct> function is called
 to decrement it.
 
+=head1 NOTES
+
+The I<prop_query> argument to ossl_method_store_cache_get() and
+ossl_method_store_cache_set() is not allowed to be NULL.  Use "" for an
+empty property definition or query.
+
 =head1 RETURN VALUES
 
 ossl_method_store_new() returns a new method store object or NULL on failure.
@@ -119,7 +125,7 @@ This functionality was added to OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
 Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use this
