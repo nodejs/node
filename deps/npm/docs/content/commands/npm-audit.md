@@ -246,6 +246,7 @@ mistakes, unnecessary performance degradation, and malicious input.
 * Allow conflicting peerDependencies to be installed in the root project.
 * Implicitly set `--yes` during `npm init`.
 * Allow clobbering existing values in `npm pkg`
+* Allow unpublishing of entire packages (not just a single version).
 
 If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!
@@ -302,6 +303,36 @@ it will be included.
 
 If the resulting omit list includes `'dev'`, then the `NODE_ENV` environment
 variable will be set to `'production'` for all lifecycle scripts.
+
+<!-- automatically generated, do not edit manually -->
+<!-- see lib/utils/config/definitions.js -->
+
+#### `foreground-scripts`
+
+* Default: false
+* Type: Boolean
+
+Run all build scripts (ie, `preinstall`, `install`, and `postinstall`)
+scripts for installed packages in the foreground process, sharing standard
+input, output, and error with the main npm process.
+
+Note that this will generally make installs run slower, and be much noisier,
+but can be useful for debugging.
+
+<!-- automatically generated, do not edit manually -->
+<!-- see lib/utils/config/definitions.js -->
+
+#### `ignore-scripts`
+
+* Default: false
+* Type: Boolean
+
+If true, npm does not run scripts specified in package.json files.
+
+Note that commands explicitly intended to run a particular script, such as
+`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run-script`
+will still run their intended script if `ignore-scripts` is set, but they
+will *not* run any pre- or post-scripts.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
