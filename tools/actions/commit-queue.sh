@@ -40,8 +40,8 @@ for pr in "$@"; do
   fi
 
   # Skip PR if CI is still running
-  if gh pr checks "$pr" | grep -E "pending|fail"; then
-    echo "pr ${pr} skipped, CI still running or failed"
+  if gh pr checks "$pr" | grep -q "\spending\s"; then
+    echo "pr ${pr} skipped, CI still running"
     continue
   fi
 
