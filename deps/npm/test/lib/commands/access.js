@@ -61,7 +61,7 @@ t.test('edit', async t => {
 
 t.test('access public on unscoped package', async t => {
   const { npm } = await loadMockNpm(t, {
-    testdir: {
+    prefixDir: {
       'package.json': JSON.stringify({
         name: 'npm-access-public-pkg',
       }),
@@ -91,7 +91,7 @@ t.test('access public on scoped package', async t => {
         },
       },
     },
-    testdir: {
+    prefixDir: {
       'package.json': JSON.stringify({ name }),
     },
   })
@@ -109,7 +109,7 @@ t.test('access public on missing package.json', async t => {
 
 t.test('access public on invalid package.json', async t => {
   const { npm } = await loadMockNpm(t, {
-    testdir: {
+    prefixDir: {
       'package.json': '{\n',
       node_modules: {},
     },
@@ -123,7 +123,7 @@ t.test('access public on invalid package.json', async t => {
 
 t.test('access restricted on unscoped package', async t => {
   const { npm } = await loadMockNpm(t, {
-    testdir: {
+    prefixDir: {
       'package.json': JSON.stringify({
         name: 'npm-access-restricted-pkg',
       }),
@@ -153,7 +153,7 @@ t.test('access restricted on scoped package', async t => {
         },
       },
     },
-    testdir: {
+    prefixDir: {
       'package.json': JSON.stringify({ name }),
     },
   })
@@ -171,7 +171,7 @@ t.test('access restricted on missing package.json', async t => {
 
 t.test('access restricted on invalid package.json', async t => {
   const { npm } = await loadMockNpm(t, {
-    testdir: {
+    prefixDir: {
       'package.json': '{\n',
       node_modules: {},
     },
@@ -240,7 +240,7 @@ t.test('access grant current cwd', async t => {
         },
       },
     },
-    testdir: {
+    prefixDir: {
       'package.json': JSON.stringify({
         name: 'yargs',
       }),
@@ -406,7 +406,7 @@ t.test('access ls-collaborators on current', async t => {
         },
       },
     },
-    testdir: {
+    prefixDir: {
       'package.json': JSON.stringify({
         name: 'yargs',
       }),

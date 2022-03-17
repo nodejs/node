@@ -142,7 +142,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#save"><code>save</code></a></li><li><a href="#save-exact"><code>save-exact</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li></ul><li><a href="#algorithm">Algorithm</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#save"><code>save</code></a></li><li><a href="#save-exact"><code>save-exact</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li></ul><li><a href="#algorithm">Algorithm</a></li><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -160,7 +160,7 @@ npm install &lt;tarball url&gt;
 npm install &lt;git:// url&gt;
 npm install &lt;github username&gt;/&lt;github project&gt;
 
-aliases: i, in, ins, inst, insta, instal, isnt, isnta, isntal, add
+aliases: i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall, add
 </code></pre>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
@@ -559,6 +559,22 @@ eliminates all automatic deduping. If used with <code>global-style</code> this o
 will be preferred.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
+<h4 id="omit"><code>omit</code></h4>
+<ul>
+<li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
+'production', otherwise empty.</li>
+<li>Type: "dev", "optional", or "peer" (can be set multiple times)</li>
+</ul>
+<p>Dependency types to omit from the installation tree on disk.</p>
+<p>Note that these dependencies <em>are</em> still resolved and added to the
+<code>package-lock.json</code> or <code>npm-shrinkwrap.json</code> file. They are just not
+physically installed on disk.</p>
+<p>If a package type appears in both the <code>--include</code> and <code>--omit</code> lists, then
+it will be included.</p>
+<p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code> environment
+variable will be set to <code>'production'</code> for all lifecycle scripts.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
 <h4 id="strict-peer-deps"><code>strict-peer-deps</code></h4>
 <ul>
 <li>Default: false</li>
@@ -590,20 +606,16 @@ package-locks disabled use <code>npm prune</code>.</p>
 <p>This configuration does not affect <code>npm ci</code>.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
-<h4 id="omit"><code>omit</code></h4>
+<h4 id="foreground-scripts"><code>foreground-scripts</code></h4>
 <ul>
-<li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
-'production', otherwise empty.</li>
-<li>Type: "dev", "optional", or "peer" (can be set multiple times)</li>
+<li>Default: false</li>
+<li>Type: Boolean</li>
 </ul>
-<p>Dependency types to omit from the installation tree on disk.</p>
-<p>Note that these dependencies <em>are</em> still resolved and added to the
-<code>package-lock.json</code> or <code>npm-shrinkwrap.json</code> file. They are just not
-physically installed on disk.</p>
-<p>If a package type appears in both the <code>--include</code> and <code>--omit</code> lists, then
-it will be included.</p>
-<p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code> environment
-variable will be set to <code>'production'</code> for all lifecycle scripts.</p>
+<p>Run all build scripts (ie, <code>preinstall</code>, <code>install</code>, and <code>postinstall</code>)
+scripts for installed packages in the foreground process, sharing standard
+input, output, and error with the main npm process.</p>
+<p>Note that this will generally make installs run slower, and be much noisier,
+but can be useful for debugging.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="ignore-scripts"><code>ignore-scripts</code></h4>

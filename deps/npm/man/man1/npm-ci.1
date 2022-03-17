@@ -94,6 +94,21 @@ When "true" submit audit reports alongside the current npm command to the
 default registry and all registries configured for scopes\. See the
 documentation for npm help \fBaudit\fP for details on what is
 submitted\.
+.SS \fBforeground\-scripts\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Run all build scripts (ie, \fBpreinstall\fP, \fBinstall\fP, and \fBpostinstall\fP)
+scripts for installed packages in the foreground process, sharing standard
+input, output, and error with the main npm process\.
+.P
+Note that this will generally make installs run slower, and be much noisier,
+but can be useful for debugging\.
 .SS \fBignore\-scripts\fP
 .RS 0
 .IP \(bu 2

@@ -14,6 +14,8 @@ class Audit extends ArboristWorkspaceCmd {
     'json',
     'package-lock-only',
     'omit',
+    'foreground-scripts',
+    'ignore-scripts',
     ...super.params,
   ]
 

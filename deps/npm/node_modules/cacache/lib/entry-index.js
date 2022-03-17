@@ -49,8 +49,9 @@ async function compact (cache, key, matchFn, opts = {}) {
     // if the integrity is null and no validateEntry is provided, we break
     // as we consider the null integrity to be a deletion of everything
     // that came before it.
-    if (entry.integrity === null && !opts.validateEntry)
+    if (entry.integrity === null && !opts.validateEntry) {
       break
+    }
 
     // if this entry is valid, and it is either the first entry or
     // the newEntries array doesn't already include an entry that
@@ -58,8 +59,9 @@ async function compact (cache, key, matchFn, opts = {}) {
     // it to the beginning of our list
     if ((!opts.validateEntry || opts.validateEntry(entry) === true) &&
       (newEntries.length === 0 ||
-        !newEntries.find((oldEntry) => matchFn(oldEntry, entry))))
+        !newEntries.find((oldEntry) => matchFn(oldEntry, entry)))) {
       newEntries.unshift(entry)
+    }
   }
 
   const newIndex = '\n' + newEntries.map((entry) => {
@@ -78,8 +80,9 @@ async function compact (cache, key, matchFn, opts = {}) {
   }
 
   const teardown = async (tmp) => {
-    if (!tmp.moved)
+    if (!tmp.moved) {
       return rimraf(tmp.target)
+    }
   }
 
   const write = async (tmp) => {
@@ -92,8 +95,9 @@ async function compact (cache, key, matchFn, opts = {}) {
     try {
       await fixOwner.chownr(cache, bucket)
     } catch (err) {
-      if (err.code !== 'ENOENT')
+      if (err.code !== 'ENOENT') {
         throw err
+      }
     }
   }
 
@@ -136,8 +140,9 @@ function insert (cache, key, integrity, opts = {}) {
     })
     .then(() => fixOwner.chownr(cache, bucket))
     .catch((err) => {
-      if (err.code === 'ENOENT')
+      if (err.code === 'ENOENT') {
         return undefined
+      }
 
       throw err
       // There's a class of race conditions that happen when things get deleted
@@ -169,8 +174,9 @@ function insertSync (cache, key, integrity, opts = {}) {
   try {
     fixOwner.chownr.sync(cache, bucket)
   } catch (err) {
-    if (err.code !== 'ENOENT')
+    if (err.code !== 'ENOENT') {
       throw err
+    }
   }
   return formatEntry(cache, entry)
 }
@@ -182,17 +188,19 @@ function find (cache, key) {
   return bucketEntries(bucket)
     .then((entries) => {
       return entries.reduce((latest, next) => {
-        if (next && next.key === key)
+        if (next && next.key === key) {
           return formatEntry(cache, next)
-        else
+        } else {
           return latest
+        }
       }, null)
     })
     .catch((err) => {
-      if (err.code === 'ENOENT')
+      if (err.code === 'ENOENT') {
         return null
-      else
+      } else {
         throw err
+      }
     })
 }
 
@@ -202,24 +210,27 @@ function findSync (cache, key) {
   const bucket = bucketPath(cache, key)
   try {
     return bucketEntriesSync(bucket).reduce((latest, next) => {
-      if (next && next.key === key)
+      if (next && next.key === key) {
         return formatEntry(cache, next)
-      else
+      } else {
         return latest
+      }
     }, null)
   } catch (err) {
-    if (err.code === 'ENOENT')
+    if (err.code === 'ENOENT') {
       return null
-    else
+    } else {
       throw err
+    }
   }
 }
 
 module.exports.delete = del
 
 function del (cache, key, opts = {}) {
-  if (!opts.removeFully)
+  if (!opts.removeFully) {
     return insert(cache, key, null, opts)
+  }
 
   const bucket = bucketPath(cache, key)
   return rimraf(bucket)
@@ -228,8 +239,9 @@ function del (cache, key, opts = {}) {
 module.exports.delete.sync = delSync
 
 function delSync (cache, key, opts = {}) {
-  if (!opts.removeFully)
+  if (!opts.removeFully) {
     return insertSync(cache, key, null, opts)
+  }
 
   const bucket = bucketPath(cache, key)
   return rimraf.sync(bucket)
@@ -263,12 +275,14 @@ function lsStream (cache) {
                 // reduced is a map of key => entry
                 for (const entry of reduced.values()) {
                   const formatted = formatEntry(cache, entry)
-                  if (formatted)
+                  if (formatted) {
                     stream.write(formatted)
+                  }
                 }
               }).catch(err => {
-                if (err.code === 'ENOENT')
+                if (err.code === 'ENOENT') {
                   return undefined
+                }
                 throw err
               })
             })
@@ -312,8 +326,9 @@ function bucketEntriesSync (bucket, filter) {
 function _bucketEntries (data, filter) {
   const entries = []
   data.split('\n').forEach((entry) => {
-    if (!entry)
+    if (!entry) {
       return
+    }
 
     const pieces = entry.split('\t')
     if (!pieces[1] || hashEntry(pieces[1]) !== pieces[0]) {
@@ -328,8 +343,9 @@ function _bucketEntries (data, filter) {
       // Entry is corrupted!
       return
     }
-    if (obj)
+    if (obj) {
       entries.push(obj)
+    }
   })
   return entries
 }
@@ -371,8 +387,9 @@ function hash (str, digest) {
 
 function formatEntry (cache, entry, keepAll) {
   // Treat null digests as deletions. They'll shadow any previous entries.
-  if (!entry.integrity && !keepAll)
+  if (!entry.integrity && !keepAll) {
     return null
+  }
 
   return {
     key: entry.key,
@@ -386,8 +403,9 @@ function formatEntry (cache, entry, keepAll) {
 
 function readdirOrEmpty (dir) {
   return readdir(dir).catch((err) => {
-    if (err.code === 'ENOENT' || err.code === 'ENOTDIR')
+    if (err.code === 'ENOENT' || err.code === 'ENOTDIR') {
       return []
+    }
 
     throw err
   })
