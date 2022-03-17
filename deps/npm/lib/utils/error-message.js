@@ -199,12 +199,7 @@ module.exports = (er, npm) => {
 
         const valResult = nameValidator(pkg)
 
-        if (valResult.validForNewPackages) {
-          detail.push([
-            '404',
-            'You should bug the author to publish it (or use the name yourself!)',
-          ])
-        } else {
+        if (!valResult.validForNewPackages) {
           detail.push(['404', 'This package name is not valid, because', ''])
 
           const errorsArray = [...(valResult.errors || []), ...(valResult.warnings || [])]

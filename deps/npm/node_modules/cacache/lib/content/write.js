@@ -22,15 +22,18 @@ module.exports = write
 
 function write (cache, data, opts = {}) {
   const { algorithms, size, integrity } = opts
-  if (algorithms && algorithms.length > 1)
+  if (algorithms && algorithms.length > 1) {
     throw new Error('opts.algorithms only supports a single algorithm for now')
+  }
 
-  if (typeof size === 'number' && data.length !== size)
+  if (typeof size === 'number' && data.length !== size) {
     return Promise.reject(sizeError(size, data.length))
+  }
 
   const sri = ssri.fromData(data, algorithms ? { algorithms } : {})
-  if (integrity && !ssri.checkData(data, integrity, opts))
+  if (integrity && !ssri.checkData(data, integrity, opts)) {
     return Promise.reject(checksumError(integrity, sri))
+  }
 
   return disposer(makeTmp(cache, opts), makeTmpDisposer,
     (tmp) => {
@@ -149,8 +152,9 @@ function makeTmp (cache, opts) {
 }
 
 function makeTmpDisposer (tmp) {
-  if (tmp.moved)
+  if (tmp.moved) {
     return Promise.resolve()
+  }
 
   return rimraf(tmp.target)
 }
@@ -171,6 +175,7 @@ function moveToDestination (tmp, cache, sri, opts) {
 }
 
 function sizeError (expected, found) {
+  /* eslint-disable-next-line max-len */
   const err = new Error(`Bad data size: expected inserted data to be ${expected} bytes, but got ${found} instead`)
   err.expected = expected
   err.found = found

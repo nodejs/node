@@ -70,6 +70,21 @@ systems.
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
 
+#### `foreground-scripts`
+
+* Default: false
+* Type: Boolean
+
+Run all build scripts (ie, `preinstall`, `install`, and `postinstall`)
+scripts for installed packages in the foreground process, sharing standard
+input, output, and error with the main npm process.
+
+Note that this will generally make installs run slower, and be much noisier,
+but can be useful for debugging.
+
+<!-- automatically generated, do not edit manually -->
+<!-- see lib/utils/config/definitions.js -->
+
 #### `ignore-scripts`
 
 * Default: false

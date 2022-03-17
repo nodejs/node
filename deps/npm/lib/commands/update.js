@@ -10,14 +10,16 @@ const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 class Update extends ArboristWorkspaceCmd {
   static description = 'Update packages'
   static name = 'update'
+
   static params = [
+    'save',
     'global',
     'global-style',
     'legacy-bundling',
+    'omit',
     'strict-peer-deps',
     'package-lock',
-    'save',
-    'omit',
+    'foreground-scripts',
     'ignore-scripts',
     'audit',
     'bin-links',
