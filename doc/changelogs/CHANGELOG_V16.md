@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#16.14.2">16.14.2</a><br/>
 <a href="#16.14.1">16.14.1</a><br/>
 <a href="#16.14.0">16.14.0</a><br/>
 <a href="#16.13.2">16.13.2</a><br/>
@@ -57,6 +58,25 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="16.14.2"></a>
+
+## 2022-03-17, Version 16.14.2 'Gallium' (LTS), @richardlau
+
+This is a security release.
+
+### Notable Changes
+
+Update to OpenSSL 1.1.1n, which addresses the following vulnerability:
+
+* Infinite loop in `BN_mod_sqrt()` reachable when parsing certificates (High)(CVE-2022-0778)
+  More details are available at <https://www.openssl.org/news/secadv/20220315.txt>
+
+### Commits
+
+* \[[`3924618c74`](https://github.com/nodejs/node/commit/3924618c74)] - **deps**: update archs files for OpenSSL-1.1.1 (Hassaan Pasha) [#42352](https://github.com/nodejs/node/pull/42352)
+* \[[`7a6a870d58`](https://github.com/nodejs/node/commit/7a6a870d58)] - **deps**: upgrade openssl sources to OpenSSL\_1\_1\_1n (Hassaan Pasha) [#42352](https://github.com/nodejs/node/pull/42352)
+* \[[`c533b430f4`](https://github.com/nodejs/node/commit/c533b430f4)] - **test**: fix tests affected by OpenSSL update (Michael Dawson) [#42352](https://github.com/nodejs/node/pull/42352)
 
 <a id="16.14.1"></a>
 
