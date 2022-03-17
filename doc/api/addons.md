@@ -1367,7 +1367,7 @@ console.log(result);
 ```
 
 [Electron]: https://electronjs.org/
-[Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
+[Embedder's Guide]: https://v8.dev/docs/embed
 [Linking to libraries included with Node.js]: #linking-to-libraries-included-with-nodejs
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [V8]: https://v8.dev/
