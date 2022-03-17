@@ -391,7 +391,7 @@ be returned.</p>
 <p>This should be a module relative to the root of your package folder.</p>
 <p>For most modules, it makes the most sense to have a main script and often
 not much else.</p>
-<p>If <code>main</code> is not set it defaults to <code>index.js</code> in the packages root folder.</p>
+<p>If <code>main</code> is not set it defaults to <code>index.js</code> in the package's root folder.</p>
 <h3 id="browser">browser</h3>
 <p>If your module is meant to be used client-side the browser field should be
 used instead of the main field. This is helpful to hint users that it might
@@ -663,6 +663,9 @@ contains a package. Local paths can be saved using <code>npm install -S</code> o
 <p>This feature is helpful for local offline development and creating tests
 that require npm installing where you don't want to hit an external server,
 but should not be used when publishing packages to the public registry.</p>
+<p><em>note</em>: Packages linked by local path will not have their own
+dependencies installed when <code>npm install</code> is ran in this case.  You must
+run <code>npm install</code> from inside the local path itself.</p>
 <h3 id="devdependencies">devDependencies</h3>
 <p>If someone is planning on downloading and using your module in their
 program, then they probably don't want or need to download and build the

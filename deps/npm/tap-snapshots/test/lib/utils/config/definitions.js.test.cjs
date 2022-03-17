@@ -659,6 +659,7 @@ mistakes, unnecessary performance degradation, and malicious input.
 * Allow conflicting peerDependencies to be installed in the root project.
 * Implicitly set \`--yes\` during \`npm init\`.
 * Allow clobbering existing values in \`npm pkg\`
+* Allow unpublishing of entire packages (not just a single version).
 
 If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!
@@ -715,7 +716,8 @@ exports[`test/lib/utils/config/definitions.js TAP > config description for git-t
 * Default: true
 * Type: Boolean
 
-Tag the commit when using the \`npm version\` command.
+Tag the commit when using the \`npm version\` command. Setting this to false
+results in no commit being made at all.
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for global 1`] = `

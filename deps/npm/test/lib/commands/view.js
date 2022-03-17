@@ -32,12 +32,15 @@ const packument = (nv, opts) => {
 
   const mocks = {
     red: {
+      _id: 'red@1.0.1',
       name: 'red',
       'dist-tags': {
         '1.0.1': {},
       },
       time: {
-        unpublished: new Date(),
+        unpublished: {
+          time: '2012-12-20T00:00:00.000Z',
+        },
       },
     },
     blue: {
@@ -262,6 +265,9 @@ const packument = (nv, opts) => {
   if (nv.type === 'git') {
     return mocks[nv.hosted.project]
   }
+  if (nv.raw === './blue') {
+    return mocks.blue
+  }
   return mocks[nv.name]
 }
 
@@ -385,6 +391,11 @@ t.test('should log info of package in current working dir', async t => {
 
   t.test('non-specific version', async t => {
     await view.exec(['.'])
+    t.matchSnapshot(logs)
+  })
+
+  t.test('directory', async t => {
+    await view.exec(['./blue'])
     t.matchSnapshot(logs)
   })
 })
@@ -533,7 +544,7 @@ t.test('throws when unpublished', async t => {
   const view = new View(npm)
   await t.rejects(
     view.exec(['red']),
-    { code: 'E404' }
+    { code: 'E404', pkgid: 'red@1.0.1', message: 'Unpublished on 2012-12-20T00:00:00.000Z' }
   )
 })
 
