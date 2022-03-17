@@ -370,7 +370,7 @@ This should be a module relative to the root of your package folder\.
 For most modules, it makes the most sense to have a main script and often
 not much else\.
 .P
-If \fBmain\fP is not set it defaults to \fBindex\.js\fP in the packages root folder\.
+If \fBmain\fP is not set it defaults to \fBindex\.js\fP in the package's root folder\.
 .SS browser
 .P
 If your module is meant to be used client\-side the browser field should be
@@ -772,6 +772,10 @@ in which case they will be normalized to a relative path and added to your
 This feature is helpful for local offline development and creating tests
 that require npm installing where you don't want to hit an external server,
 but should not be used when publishing packages to the public registry\.
+.P
+\fInote\fR: Packages linked by local path will not have their own
+dependencies installed when \fBnpm install\fP is ran in this case\.  You must
+run \fBnpm install\fP from inside the local path itself\.
 .SS devDependencies
 .P
 If someone is planning on downloading and using your module in their

@@ -204,6 +204,14 @@ const fetch = async (url, opts) => {
             timeout: request.timeout,
           }
 
+          // if the redirect is to a new hostname, strip the authorization and cookie headers
+          const parsedOriginal = new URL(request.url)
+          const parsedRedirect = new URL(locationURL)
+          if (parsedOriginal.hostname !== parsedRedirect.hostname) {
+            requestOpts.headers.delete('authorization')
+            requestOpts.headers.delete('cookie')
+          }
+
           // HTTP-redirect fetch step 11
           if (res.statusCode === 303 || (
             (res.statusCode === 301 || res.statusCode === 302) &&

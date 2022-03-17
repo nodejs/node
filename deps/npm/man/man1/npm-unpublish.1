@@ -3,23 +3,15 @@
 \fBnpm-unpublish\fR \- Remove a package from the registry
 .SS Synopsis
 .P
+.RS 2
+.nf
+npm unpublish [<@scope>/]<pkg>[@<version>]
+.fi
+.RE
+.P
 To learn more about how the npm registry treats unpublish, see our <a
 href="https://docs\.npmjs\.com/policies/unpublish" target="_blank"
 rel="noopener noreferrer"> unpublish policies</a>
-.SS Unpublishing a single version of a package
-.P
-.RS 2
-.nf
-npm unpublish [<@scope>/]<pkg>@<version>
-.fi
-.RE
-.SS Unpublishing an entire package
-.P
-.RS 2
-.nf
-npm unpublish [<@scope>/]<pkg> \-\-force
-.fi
-.RE
 .SS Warning
 .P
 Consider using the npm help \fBdeprecate\fP command instead,
@@ -93,6 +85,8 @@ Allow conflicting peerDependencies to be installed in the root project\.
 Implicitly set \fB\-\-yes\fP during \fBnpm init\fP\|\.
 .IP \(bu 2
 Allow clobbering existing values in \fBnpm pkg\fP
+.IP \(bu 2
+Allow unpublishing of entire packages (not just a single version)\.
 
 .RE
 .P
