@@ -157,10 +157,6 @@ Object {
     ],
     Array [
       "404",
-      "You should bug the author to publish it (or use the name yourself!)",
-    ],
-    Array [
-      "404",
       String(
         
         Note that you can also install from a

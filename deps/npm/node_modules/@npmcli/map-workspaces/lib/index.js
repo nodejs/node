@@ -117,28 +117,52 @@ async function mapWorkspaces (opts = {}) {
 
       const name = getPackageName(pkg, packagePathname)
 
+      let seenPackagePathnames = seen.get(name)
+      if (!seenPackagePathnames) {
+        seenPackagePathnames = new Set()
+        seen.set(name, seenPackagePathnames)
+      }
       if (item.negate) {
-        results.delete(packagePathname, name)
+        seenPackagePathnames.delete(packagePathname)
       } else {
-        if (seen.has(name) && seen.get(name) !== packagePathname) {
-          throw getError({
-            Type: Error,
-            message: [
-              'must not have multiple workspaces with the same name',
-              `package '${name}' has conflicts in the following paths:`,
-              '    ' + seen.get(name),
-              '    ' + packagePathname,
-            ].join('\n'),
-            code: 'EDUPLICATEWORKSPACE',
-          })
-        }
-
-        seen.set(name, packagePathname)
-        results.set(packagePathname, name)
+        seenPackagePathnames.add(packagePathname)
       }
     }
   }
-  return reverseResultMap(results)
+
+  const errorMessageArray = ['must not have multiple workspaces with the same name']
+  for (const [packageName, seenPackagePathnames] of seen) {
+    if (seenPackagePathnames.size === 0) {
+      continue
+    }
+    if (seenPackagePathnames.size > 1) {
+      addDuplicateErrorMessages(errorMessageArray, packageName, seenPackagePathnames)
+    } else {
+      results.set(packageName, seenPackagePathnames.values().next().value)
+    }
+  }
+
+  if (errorMessageArray.length > 1) {
+    throw getError({
+      Type: Error,
+      message: errorMessageArray.join('\n'),
+      code: 'EDUPLICATEWORKSPACE',
+    })
+  }
+
+  return results
+}
+
+function addDuplicateErrorMessages (messageArray, packageName, packagePathnames) {
+  messageArray.push(
+    `package '${packageName}' has conflicts in the following paths:`
+  )
+
+  for (const packagePathname of packagePathnames) {
+    messageArray.push(
+      '    ' + packagePathname
+    )
+  }
 }
 
 mapWorkspaces.virtual = function (opts = {}) {

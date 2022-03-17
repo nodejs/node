@@ -159,6 +159,22 @@ need to run \fBnpm install \-g [<pkg>\.\.\.]\fP
 NOTE: If a package has been upgraded to a version newer than \fBlatest\fP, it will
 be \fIdowngraded\fR\|\.
 .SS Configuration
+.SS \fBsave\fP
+.RS 0
+.IP \(bu 2
+Default: \fBtrue\fP unless when using \fBnpm update\fP or \fBnpm dedupe\fP where it
+defaults to \fBfalse\fP
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Save installed packages to a \fBpackage\.json\fP file as dependencies\.
+.P
+When used with the \fBnpm rm\fP command, removes the dependency from
+\fBpackage\.json\fP\|\.
+.P
+Will also prevent writing to \fBpackage\-lock\.json\fP if set to \fBfalse\fP\|\.
 .SS \fBglobal\fP
 .RS 0
 .IP \(bu 2
@@ -209,6 +225,27 @@ Causes npm to install the package such that versions of npm prior to 1\.4,
 such as the one included with node 0\.8, can install the package\. This
 eliminates all automatic deduping\. If used with \fBglobal\-style\fP this option
 will be preferred\.
+.SS \fBomit\fP
+.RS 0
+.IP \(bu 2
+Default: 'dev' if the \fBNODE_ENV\fP environment variable is set to
+\|'production', otherwise empty\.
+.IP \(bu 2
+Type: "dev", "optional", or "peer" (can be set multiple times)
+
+.RE
+.P
+Dependency types to omit from the installation tree on disk\.
+.P
+Note that these dependencies \fIare\fR still resolved and added to the
+\fBpackage\-lock\.json\fP or \fBnpm\-shrinkwrap\.json\fP file\. They are just not
+physically installed on disk\.
+.P
+If a package type appears in both the \fB\-\-include\fP and \fB\-\-omit\fP lists, then
+it will be included\.
+.P
+If the resulting omit list includes \fB\|'dev'\fP, then the \fBNODE_ENV\fP environment
+variable will be set to \fB\|'production'\fP for all lifecycle scripts\.
 .SS \fBstrict\-peer\-deps\fP
 .RS 0
 .IP \(bu 2
@@ -248,43 +285,21 @@ modules will also be disabled\. To remove extraneous modules with
 package\-locks disabled use \fBnpm prune\fP\|\.
 .P
 This configuration does not affect \fBnpm ci\fP\|\.
-.SS \fBsave\fP
+.SS \fBforeground\-scripts\fP
 .RS 0
 .IP \(bu 2
-Default: \fBtrue\fP unless when using \fBnpm update\fP or \fBnpm dedupe\fP where it
-defaults to \fBfalse\fP
+Default: false
 .IP \(bu 2
 Type: Boolean
 
 .RE
 .P
-Save installed packages to a \fBpackage\.json\fP file as dependencies\.
+Run all build scripts (ie, \fBpreinstall\fP, \fBinstall\fP, and \fBpostinstall\fP)
+scripts for installed packages in the foreground process, sharing standard
+input, output, and error with the main npm process\.
 .P
-When used with the \fBnpm rm\fP command, removes the dependency from
-\fBpackage\.json\fP\|\.
-.P
-Will also prevent writing to \fBpackage\-lock\.json\fP if set to \fBfalse\fP\|\.
-.SS \fBomit\fP
-.RS 0
-.IP \(bu 2
-Default: 'dev' if the \fBNODE_ENV\fP environment variable is set to
-\|'production', otherwise empty\.
-.IP \(bu 2
-Type: "dev", "optional", or "peer" (can be set multiple times)
-
-.RE
-.P
-Dependency types to omit from the installation tree on disk\.
-.P
-Note that these dependencies \fIare\fR still resolved and added to the
-\fBpackage\-lock\.json\fP or \fBnpm\-shrinkwrap\.json\fP file\. They are just not
-physically installed on disk\.
-.P
-If a package type appears in both the \fB\-\-include\fP and \fB\-\-omit\fP lists, then
-it will be included\.
-.P
-If the resulting omit list includes \fB\|'dev'\fP, then the \fBNODE_ENV\fP environment
-variable will be set to \fB\|'production'\fP for all lifecycle scripts\.
+Note that this will generally make installs run slower, and be much noisier,
+but can be useful for debugging\.
 .SS \fBignore\-scripts\fP
 .RS 0
 .IP \(bu 2

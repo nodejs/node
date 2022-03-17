@@ -435,7 +435,7 @@ module.exports = cls => class ActualLoader extends cls {
           if (d.dummy) {
             // it's a placeholder, so likely would not have loaded this dep,
             // unless another dep in the tree also needs it.
-            const depPath = `${p}/node_modules/${name}`
+            const depPath = normalize(`${p}/node_modules/${name}`)
             const cached = this[_cache].get(depPath)
             if (!cached || cached.dummy) {
               depPromises.push(this[_loadFSNode]({

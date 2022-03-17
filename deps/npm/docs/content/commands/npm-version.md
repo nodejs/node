@@ -52,7 +52,8 @@ Run git commit hooks when using the `npm version` command.
 * Default: true
 * Type: Boolean
 
-Tag the commit when using the `npm version` command.
+Tag the commit when using the `npm version` command. Setting this to false
+results in no commit being made at all.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->

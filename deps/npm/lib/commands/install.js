@@ -14,15 +14,18 @@ const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 class Install extends ArboristWorkspaceCmd {
   static description = 'Install a package'
   static name = 'install'
+
+  // These are in the order they will show up in when running "-h"
   static params = [
     'save',
     'save-exact',
     'global',
     'global-style',
     'legacy-bundling',
+    'omit',
     'strict-peer-deps',
     'package-lock',
-    'omit',
+    'foreground-scripts',
     'ignore-scripts',
     'audit',
     'bin-links',

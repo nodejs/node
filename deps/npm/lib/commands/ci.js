@@ -24,6 +24,7 @@ class CI extends ArboristWorkspaceCmd {
   static name = 'ci'
   static params = [
     'audit',
+    'foreground-scripts',
     'ignore-scripts',
     'script-shell',
   ]

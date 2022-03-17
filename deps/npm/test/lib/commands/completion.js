@@ -42,7 +42,7 @@ const loadMockCompletionComp = async (t, word, line) =>
 t.test('completion', async t => {
   t.test('completion completion', async t => {
     const { outputs, completion, prefix } = await loadMockCompletion(t, {
-      testdir: {
+      prefixDir: {
         '.bashrc': 'aaa',
         '.zshrc': 'aaa',
       },

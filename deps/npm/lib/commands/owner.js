@@ -59,60 +59,39 @@ class Owner extends BaseCommand {
   }
 
   async exec ([action, ...args]) {
-    const opts = {
-      ...this.npm.flatOptions,
-    }
     switch (action) {
       case 'ls':
       case 'list':
-        return this.ls(args[0], opts)
+        return this.ls(args[0])
       case 'add':
-        return this.add(args[0], args[1], opts)
+        return this.changeOwners(args[0], args[1], 'add')
       case 'rm':
       case 'remove':
-        return this.rm(args[0], args[1], opts)
+        return this.changeOwners(args[0], args[1], 'rm')
       default:
         throw this.usageError()
     }
   }
 
-  async ls (pkg, opts) {
-    if (!pkg) {
-      if (this.npm.config.get('global')) {
-        throw this.usageError()
-      }
-
-      const pkgName = await readLocalPkgName(this.npm.prefix)
-      if (!pkgName) {
-        throw this.usageError()
-      }
-
-      pkg = pkgName
-    }
-
+  async ls (pkg) {
+    pkg = await this.getPkg(pkg)
     const spec = npa(pkg)
 
     try {
-      const packumentOpts = { ...opts, fullMetadata: true }
+      const packumentOpts = { ...this.npm.flatOptions, fullMetadata: true, preferOnline: true }
       const { maintainers } = await pacote.packument(spec, packumentOpts)
       if (!maintainers || !maintainers.length) {
         this.npm.output('no admin found')
       } else {
-        this.npm.output(maintainers.map(o => `${o.name} <${o.email}>`).join('\n'))
+        this.npm.output(maintainers.map(m => `${m.name} <${m.email}>`).join('\n'))
       }
-
-      return maintainers
     } catch (err) {
       log.error('owner ls', "Couldn't get owner data", pkg)
       throw err
     }
   }
 
-  async add (user, pkg, opts) {
-    if (!user) {
-      throw this.usageError()
-    }
-
+  async getPkg (pkg) {
     if (!pkg) {
       if (this.npm.config.get('global')) {
         throw this.usageError()
@@ -122,44 +101,25 @@ class Owner extends BaseCommand {
         throw this.usageError()
       }
 
-      pkg = pkgName
+      return pkgName
     }
-    log.verbose('owner add', '%s to %s', user, pkg)
-
-    const spec = npa(pkg)
-    return this.putOwners(spec, user, opts,
-      (newOwner, owners) => this.validateAddOwner(newOwner, owners))
+    return pkg
   }
 
-  async rm (user, pkg, opts) {
+  async changeOwners (user, pkg, addOrRm) {
     if (!user) {
       throw this.usageError()
     }
 
-    if (!pkg) {
-      if (this.npm.config.get('global')) {
-        throw this.usageError()
-      }
-      const pkgName = await readLocalPkgName(this.npm.prefix)
-      if (!pkgName) {
-        throw this.usageError()
-      }
-
-      pkg = pkgName
-    }
-    log.verbose('owner rm', '%s from %s', user, pkg)
+    pkg = await this.getPkg(pkg)
+    log.verbose(`owner ${addOrRm}`, '%s to %s', user, pkg)
 
     const spec = npa(pkg)
-    return this.putOwners(spec, user, opts,
-      (rmOwner, owners) => this.validateRmOwner(rmOwner, owners))
-  }
-
-  async putOwners (spec, user, opts, validation) {
     const uri = `/-/user/org.couchdb.user:${encodeURIComponent(user)}`
-    let u = ''
+    let u
 
     try {
-      u = await npmFetch.json(uri, opts)
+      u = await npmFetch.json(uri, this.npm.flatOptions)
     } catch (err) {
       log.error('owner mutate', `Error getting user data for ${user}`)
       throw err
@@ -177,36 +137,64 @@ class Owner extends BaseCommand {
     // normalize user data
     u = { name: u.name, email: u.email }
 
-    const data = await pacote.packument(spec, { ...opts, fullMetadata: true })
+    const data = await pacote.packument(spec, {
+      ...this.npm.flatOptions,
+      fullMetadata: true,
+      preferOnline: true,
+    })
 
-    // save the number of maintainers before validation for comparison
-    const before = data.maintainers ? data.maintainers.length : 0
+    const owners = data.maintainers || []
+    let maintainers
+    if (addOrRm === 'add') {
+      const existing = owners.find(o => o.name === u.name)
+      if (existing) {
+        log.info(
+          'owner add',
+          `Already a package owner: ${existing.name} <${existing.email}>`
+        )
+        return
+      }
+      maintainers = [
+        ...owners,
+        u,
+      ]
+    } else {
+      maintainers = owners.filter(o => o.name !== u.name)
 
-    const m = validation(u, data.maintainers)
-    if (!m) {
-      return
-    } // invalid owners
+      if (maintainers.length === owners.length) {
+        log.info('owner rm', 'Not a package owner: ' + u.name)
+        return false
+      }
 
-    const body = {
-      _id: data._id,
-      _rev: data._rev,
-      maintainers: m,
+      if (!maintainers.length) {
+        throw Object.assign(
+          new Error(
+            'Cannot remove all owners of a package. Add someone else first.'
+          ),
+          { code: 'EOWNERRM' }
+        )
+      }
     }
+
     const dataPath = `/${spec.escapedName}/-rev/${encodeURIComponent(data._rev)}`
-    const res = await otplease(opts, opts => {
+    const res = await otplease(this.npm.flatOptions, opts => {
       return npmFetch.json(dataPath, {
         ...opts,
         method: 'PUT',
-        body,
+        body: {
+          _id: data._id,
+          _rev: data._rev,
+          maintainers,
+        },
         spec,
       })
     })
 
     if (!res.error) {
-      if (m.length < before) {
-        this.npm.output(`- ${user} (${spec.name})`)
-      } else {
+      if (addOrRm === 'add') {
         this.npm.output(`+ ${user} (${spec.name})`)
+      } else {
+        this.npm.output(`- ${user} (${spec.name})`)
       }
     } else {
       throw Object.assign(
@@ -216,47 +204,6 @@ class Owner extends BaseCommand {
     }
     return res
   }
-
-  validateAddOwner (newOwner, owners) {
-    owners = owners || []
-    for (const o of owners) {
-      if (o.name === newOwner.name) {
-        log.info(
-          'owner add',
-          'Already a package owner: ' + o.name + ' <' + o.email + '>'
-        )
-        return false
-      }
-    }
-    return [
-      ...owners,
-      newOwner,
-    ]
-  }
-
-  validateRmOwner (rmOwner, owners) {
-    let found = false
-    const m = owners.filter(function (o) {
-      var match = (o.name === rmOwner.name)
-      found = found || match
-      return !match
-    })
-
-    if (!found) {
-      log.info('owner rm', 'Not a package owner: ' + rmOwner.name)
-      return false
-    }
-
-    if (!m.length) {
-      throw Object.assign(
-        new Error(
-          'Cannot remove all owners of a package. Add someone else first.'
-        ),
-        { code: 'EOWNERRM' }
-      )
-    }
-
-    return m
-  }
 }
+
 module.exports = Owner

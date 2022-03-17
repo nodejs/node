@@ -77,7 +77,7 @@ t.test('npm.load', async t => {
 
   t.test('basic loading', async t => {
     const { npm, logs, prefix: dir, cache } = await loadMockNpm(t, {
-      testdir: { node_modules: {} },
+      prefixDir: { node_modules: {} },
     })
 
     t.equal(npm.loaded, true)
@@ -165,7 +165,7 @@ t.test('npm.load', async t => {
       ],
     })
     const { npm, logs, outputs, prefix } = await loadMockNpm(t, {
-      testdir: {
+      prefixDir: {
         bin: t.fixture('symlink', dirname(process.execPath)),
       },
       globals: ({ prefix }) => ({
@@ -237,7 +237,7 @@ t.test('npm.load', async t => {
     })
     const { npm } = await loadMockNpm(t, {
       load: false,
-      testdir: {
+      prefixDir: {
         packages: {
           a: {
             'package.json': JSON.stringify({
@@ -270,7 +270,7 @@ t.test('npm.load', async t => {
       ],
     })
     const { npm, outputs } = await loadMockNpm(t, {
-      testdir: {
+      prefixDir: {
         packages: {
           a: {
             'package.json': JSON.stringify({
@@ -329,7 +329,7 @@ t.test('npm.load', async t => {
       ],
     })
     const { npm } = await loadMockNpm(t, {
-      testdir: {
+      prefixDir: {
         packages: {
           a: {
             'package.json': JSON.stringify({
@@ -531,7 +531,7 @@ t.test('explicit workspace rejection', async t => {
     ],
   })
   const mock = await loadMockNpm(t, {
-    testdir: {
+    prefixDir: {
       packages: {
         a: {
           'package.json': JSON.stringify({
@@ -556,7 +556,7 @@ t.test('explicit workspace rejection', async t => {
 
 t.test('implicit workspace rejection', async t => {
   const mock = await loadMockNpm(t, {
-    testdir: {
+    prefixDir: {
       packages: {
         a: {
           'package.json': JSON.stringify({
@@ -590,7 +590,7 @@ t.test('implicit workspace rejection', async t => {
 
 t.test('implicit workspace accept', async t => {
   const mock = await loadMockNpm(t, {
-    testdir: {
+    prefixDir: {
       packages: {
         a: {
           'package.json': JSON.stringify({

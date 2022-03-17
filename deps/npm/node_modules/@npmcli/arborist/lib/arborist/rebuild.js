@@ -136,25 +136,24 @@ module.exports = cls => class Builder extends cls {
     process.emit('time', `build:${type}`)
 
     await this[_buildQueues](nodes)
-    if (!this[_ignoreScripts]) {
-      await this[_runScripts]('preinstall')
-    }
-    if (this[_binLinks] && type !== 'links') {
-      await this[_linkAllBins]()
-    }
-
-    // links should also run prepare scripts and only link bins after that
-    if (type === 'links') {
+    // links should run prepare scripts and only link bins after that
+    if (type !== 'links') {
+      if (!this[_ignoreScripts]) {
+        await this[_runScripts]('preinstall')
+      }
+      if (this[_binLinks]) {
+        await this[_linkAllBins]()
+      }
+      if (!this[_ignoreScripts]) {
+        await this[_runScripts]('install')
+        await this[_runScripts]('postinstall')
+      }
+    } else {
       await this[_runScripts]('prepare')
 
       if (this[_binLinks]) {
         await this[_linkAllBins]()
       }
-    }
-
-    if (!this[_ignoreScripts]) {
-      await this[_runScripts]('install')
-      await this[_runScripts]('postinstall')
     }
 
     process.emit('timeEnd', `build:${type}`)

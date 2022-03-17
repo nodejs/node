@@ -54,8 +54,9 @@ function verify (cache, opts) {
               stats[k] = s[k]
             })
           const end = new Date()
-          if (!stats.runTime)
+          if (!stats.runTime) {
             stats.runTime = {}
+          }
 
           stats.runTime[label] = end - start
           return Promise.resolve(stats)
@@ -108,8 +109,9 @@ function garbageCollect (cache, opts) {
   const indexStream = index.lsStream(cache)
   const liveContent = new Set()
   indexStream.on('data', (entry) => {
-    if (opts.filter && !opts.filter(entry))
+    if (opts.filter && !opts.filter(entry)) {
       return
+    }
 
     liveContent.add(entry.integrity.toString())
   })
@@ -176,8 +178,9 @@ function verifyContent (filepath, sri) {
       return ssri
         .checkStream(new fsm.ReadStream(filepath), sri)
         .catch((err) => {
-          if (err.code !== 'EINTEGRITY')
+          if (err.code !== 'EINTEGRITY') {
             throw err
+          }
 
           return rimraf(filepath).then(() => {
             contentInfo.valid = false
@@ -186,8 +189,9 @@ function verifyContent (filepath, sri) {
         .then(() => contentInfo)
     })
     .catch((err) => {
-      if (err.code === 'ENOENT')
+      if (err.code === 'ENOENT') {
         return { size: 0, valid: false }
+      }
 
       throw err
     })
@@ -209,9 +213,9 @@ function rebuildIndex (cache, opts) {
         const entry = entries[k]
         const excluded = opts.filter && !opts.filter(entry)
         excluded && stats.rejectedEntries++
-        if (buckets[hashed] && !excluded)
+        if (buckets[hashed] && !excluded) {
           buckets[hashed].push(entry)
-        else if (buckets[hashed] && excluded) {
+        } else if (buckets[hashed] && excluded) {
           // skip
         } else if (excluded) {
           buckets[hashed] = []

@@ -142,7 +142,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#audit"><code>audit</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#script-shell"><code>script-shell</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#audit"><code>audit</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#script-shell"><code>script-shell</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -171,6 +171,18 @@ alias: cit
 default registry and all registries configured for scopes. See the
 documentation for <a href="../commands/npm-audit.html"><code>npm audit</code></a> for details on what is
 submitted.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="foreground-scripts"><code>foreground-scripts</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Run all build scripts (ie, <code>preinstall</code>, <code>install</code>, and <code>postinstall</code>)
+scripts for installed packages in the foreground process, sharing standard
+input, output, and error with the main npm process.</p>
+<p>Note that this will generally make installs run slower, and be much noisier,
+but can be useful for debugging.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="ignore-scripts"><code>ignore-scripts</code></h4>

@@ -143,6 +143,7 @@ Array [
       isnt
       isnta
       isntal
+      isntall
       install-clean
       isntall-clean
       hlep

@@ -16,10 +16,10 @@ mockGlobals(t, {
   },
 })
 
-const loadMockNpm = async (t, { load, command, testdir, config } = {}) => {
+const loadMockNpm = async (t, { load, command, prefixDir, config } = {}) => {
   const { npm, ...rest } = await _loadMockNpm(t, {
     load,
-    testdir,
+    prefixDir,
     config,
     mocks: {
       '../../package.json': {
@@ -210,7 +210,7 @@ t.test('json parse', t => {
   mockGlobals(t, { 'process.argv': ['arg', 'v'] })
 
   t.test('merge conflict in package.json', async t => {
-    const testdir = {
+    const prefixDir = {
       'package.json': `
 {
   "array": [
@@ -250,7 +250,7 @@ t.test('json parse', t => {
 }
 `,
     }
-    const npm = await loadMockNpm(t, { testdir })
+    const npm = await loadMockNpm(t, { prefixDir })
     t.matchSnapshot(errorMessage(Object.assign(new Error('conflicted'), {
       code: 'EJSONPARSE',
       path: path.resolve(npm.prefix, 'package.json'),
@@ -259,10 +259,10 @@ t.test('json parse', t => {
   })
 
   t.test('just regular bad json in package.json', async t => {
-    const testdir = {
+    const prefixDir = {
       'package.json': 'not even slightly json',
     }
-    const npm = await loadMockNpm(t, { testdir })
+    const npm = await loadMockNpm(t, { prefixDir })
     t.matchSnapshot(errorMessage(Object.assign(new Error('not json'), {
       code: 'EJSONPARSE',
       path: path.resolve(npm.prefix, 'package.json'),
@@ -271,10 +271,10 @@ t.test('json parse', t => {
   })
 
   t.test('json somewhere else', async t => {
-    const testdir = {
+    const prefixDir = {
       'blerg.json': 'not even slightly json',
     }
-    const npm = await loadMockNpm(t, { testdir })
+    const npm = await loadMockNpm(t, { prefixDir })
     t.matchSnapshot(errorMessage(Object.assign(new Error('not json'), {
       code: 'EJSONPARSE',
       path: path.resolve(npm.prefix, 'blerg.json'),

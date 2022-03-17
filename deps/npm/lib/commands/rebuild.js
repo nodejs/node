@@ -11,6 +11,7 @@ class Rebuild extends ArboristWorkspaceCmd {
   static params = [
     'global',
     'bin-links',
+    'foreground-scripts',
     'ignore-scripts',
     ...super.params,
   ]

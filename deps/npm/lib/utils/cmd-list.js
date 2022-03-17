@@ -37,6 +37,7 @@ const affordances = {
   isnt: 'install',
   isnta: 'install',
   isntal: 'install',
+  isntall: 'install',
   'install-clean': 'ci',
   'isntall-clean': 'ci',
   hlep: 'help',

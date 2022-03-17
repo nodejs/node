@@ -198,6 +198,7 @@ function getProxy (proxyUrl, opts, isHttps) {
     throw Object.assign(
       new Error(`unsupported proxy protocol: '${proxyUrl.protocol}'`),
       {
+        code: 'EUNSUPPORTEDPROXY',
         url: proxyUrl.href,
       }
     )

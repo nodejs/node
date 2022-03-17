@@ -20,15 +20,18 @@ function read (cache, integrity, opts = {}) {
     // get size
     return lstat(cpath).then(stat => ({ stat, cpath, sri }))
   }).then(({ stat, cpath, sri }) => {
-    if (typeof size === 'number' && stat.size !== size)
+    if (typeof size === 'number' && stat.size !== size) {
       throw sizeError(size, stat.size)
+    }
 
-    if (stat.size > MAX_SINGLE_READ_SIZE)
+    if (stat.size > MAX_SINGLE_READ_SIZE) {
       return readPipeline(cpath, stat.size, sri, new Pipeline()).concat()
+    }
 
     return readFile(cpath, null).then((data) => {
-      if (!ssri.checkData(data, sri))
+      if (!ssri.checkData(data, sri)) {
         throw integrityError(sri, cpath)
+      }
 
       return data
     })
@@ -55,11 +58,13 @@ function readSync (cache, integrity, opts = {}) {
   const { size } = opts
   return withContentSriSync(cache, integrity, (cpath, sri) => {
     const data = fs.readFileSync(cpath)
-    if (typeof size === 'number' && size !== data.length)
+    if (typeof size === 'number' && size !== data.length) {
       throw sizeError(size, data.length)
+    }
 
-    if (ssri.checkData(data, sri))
+    if (ssri.checkData(data, sri)) {
       return data
+    }
 
     throw integrityError(sri, cpath)
   })
@@ -75,8 +80,9 @@ function readStream (cache, integrity, opts = {}) {
     // just lstat to ensure it exists
     return lstat(cpath).then((stat) => ({ stat, cpath, sri }))
   }).then(({ stat, cpath, sri }) => {
-    if (typeof size === 'number' && size !== stat.size)
+    if (typeof size === 'number' && size !== stat.size) {
       return stream.emit('error', sizeError(size, stat.size))
+    }
 
     readPipeline(cpath, stat.size, sri, stream)
   }, er => stream.emit('error', er))
@@ -106,21 +112,24 @@ function copySync (cache, integrity, dest) {
 module.exports.hasContent = hasContent
 
 function hasContent (cache, integrity) {
-  if (!integrity)
+  if (!integrity) {
     return Promise.resolve(false)
+  }
 
   return withContentSri(cache, integrity, (cpath, sri) => {
     return lstat(cpath).then((stat) => ({ size: stat.size, sri, stat }))
   }).catch((err) => {
-    if (err.code === 'ENOENT')
+    if (err.code === 'ENOENT') {
       return false
+    }
 
     if (err.code === 'EPERM') {
       /* istanbul ignore else */
-      if (process.platform !== 'win32')
+      if (process.platform !== 'win32') {
         throw err
-      else
+      } else {
         return false
+      }
     }
   })
 }
@@ -128,23 +137,26 @@ function hasContent (cache, integrity) {
 module.exports.hasContent.sync = hasContentSync
 
 function hasContentSync (cache, integrity) {
-  if (!integrity)
+  if (!integrity) {
     return false
+  }
 
   return withContentSriSync(cache, integrity, (cpath, sri) => {
     try {
       const stat = fs.lstatSync(cpath)
       return { size: stat.size, sri, stat }
     } catch (err) {
-      if (err.code === 'ENOENT')
+      if (err.code === 'ENOENT') {
         return false
+      }
 
       if (err.code === 'EPERM') {
         /* istanbul ignore else */
-        if (process.platform !== 'win32')
+        if (process.platform !== 'win32') {
           throw err
-        else
+        } else {
           return false
+        }
       }
     }
   })
@@ -180,13 +192,15 @@ function withContentSri (cache, integrity, fn) {
         .then((results) => {
           // Return the first non error if it is found
           const result = results.find((r) => !(r instanceof Error))
-          if (result)
+          if (result) {
             return result
+          }
 
           // Throw the No matching content found error
           const enoentError = results.find((r) => r.code === 'ENOENT')
-          if (enoentError)
+          if (enoentError) {
             throw enoentError
+          }
 
           // Throw generic error
           throw results.find((r) => r instanceof Error)
@@ -228,6 +242,7 @@ function withContentSriSync (cache, integrity, fn) {
 }
 
 function sizeError (expected, found) {
+  /* eslint-disable-next-line max-len */
   const err = new Error(`Bad data size: expected inserted data to be ${expected} bytes, but got ${found} instead`)
   err.expected = expected
   err.found = found

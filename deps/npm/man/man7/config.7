@@ -668,6 +668,8 @@ Allow conflicting peerDependencies to be installed in the root project\.
 Implicitly set \fB\-\-yes\fP during \fBnpm init\fP\|\.
 .IP \(bu 2
 Allow clobbering existing values in \fBnpm pkg\fP
+.IP \(bu 2
+Allow unpublishing of entire packages (not just a single version)\.
 
 .RE
 .P
@@ -731,7 +733,8 @@ Type: Boolean
 
 .RE
 .P
-Tag the commit when using the \fBnpm version\fP command\.
+Tag the commit when using the \fBnpm version\fP command\. Setting this to false
+results in no commit being made at all\.
 .SS \fBglobal\fP
 .RS 0
 .IP \(bu 2

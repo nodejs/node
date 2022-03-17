@@ -6,7 +6,15 @@ const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 class Prune extends ArboristWorkspaceCmd {
   static description = 'Remove extraneous packages'
   static name = 'prune'
-  static params = ['omit', 'dry-run', 'json', ...super.params]
+  static params = [
+    'omit',
+    'dry-run',
+    'json',
+    'foreground-scripts',
+    'ignore-scripts',
+    ...super.params,
+  ]
+
   static usage = ['[[<@scope>/]<pkg>...]']
 
   async exec () {

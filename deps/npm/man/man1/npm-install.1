@@ -16,7 +16,7 @@ npm install <tarball url>
 npm install <git:// url>
 npm install <github username>/<github project>
 
-aliases: i, in, ins, inst, insta, instal, isnt, isnta, isntal, add
+aliases: i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall, add
 .fi
 .RE
 .SS Description
@@ -512,6 +512,27 @@ Causes npm to install the package such that versions of npm prior to 1\.4,
 such as the one included with node 0\.8, can install the package\. This
 eliminates all automatic deduping\. If used with \fBglobal\-style\fP this option
 will be preferred\.
+.SS \fBomit\fP
+.RS 0
+.IP \(bu 2
+Default: 'dev' if the \fBNODE_ENV\fP environment variable is set to
+\|'production', otherwise empty\.
+.IP \(bu 2
+Type: "dev", "optional", or "peer" (can be set multiple times)
+
+.RE
+.P
+Dependency types to omit from the installation tree on disk\.
+.P
+Note that these dependencies \fIare\fR still resolved and added to the
+\fBpackage\-lock\.json\fP or \fBnpm\-shrinkwrap\.json\fP file\. They are just not
+physically installed on disk\.
+.P
+If a package type appears in both the \fB\-\-include\fP and \fB\-\-omit\fP lists, then
+it will be included\.
+.P
+If the resulting omit list includes \fB\|'dev'\fP, then the \fBNODE_ENV\fP environment
+variable will be set to \fB\|'production'\fP for all lifecycle scripts\.
 .SS \fBstrict\-peer\-deps\fP
 .RS 0
 .IP \(bu 2
@@ -551,27 +572,21 @@ modules will also be disabled\. To remove extraneous modules with
 package\-locks disabled use \fBnpm prune\fP\|\.
 .P
 This configuration does not affect \fBnpm ci\fP\|\.
-.SS \fBomit\fP
+.SS \fBforeground\-scripts\fP
 .RS 0
 .IP \(bu 2
-Default: 'dev' if the \fBNODE_ENV\fP environment variable is set to
-\|'production', otherwise empty\.
+Default: false
 .IP \(bu 2
-Type: "dev", "optional", or "peer" (can be set multiple times)
+Type: Boolean
 
 .RE
 .P
-Dependency types to omit from the installation tree on disk\.
+Run all build scripts (ie, \fBpreinstall\fP, \fBinstall\fP, and \fBpostinstall\fP)
+scripts for installed packages in the foreground process, sharing standard
+input, output, and error with the main npm process\.
 .P
-Note that these dependencies \fIare\fR still resolved and added to the
-\fBpackage\-lock\.json\fP or \fBnpm\-shrinkwrap\.json\fP file\. They are just not
-physically installed on disk\.
-.P
-If a package type appears in both the \fB\-\-include\fP and \fB\-\-omit\fP lists, then
-it will be included\.
-.P
-If the resulting omit list includes \fB\|'dev'\fP, then the \fBNODE_ENV\fP environment
-variable will be set to \fB\|'production'\fP for all lifecycle scripts\.
+Note that this will generally make installs run slower, and be much noisier,
+but can be useful for debugging\.
 .SS \fBignore\-scripts\fP
 .RS 0
 .IP \(bu 2

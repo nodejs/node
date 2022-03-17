@@ -38,10 +38,12 @@ function moveFile (src, dest) {
         } else if (err.code === 'EEXIST' || err.code === 'EBUSY') {
           // file already exists, so whatever
           return resolve()
-        } else
+        } else {
           return reject(err)
-      } else
+        }
+      } else {
         return resolve()
+      }
     })
   })
     .then(() => {

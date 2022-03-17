@@ -1225,14 +1225,23 @@ module.exports = cls => class Reifier extends cls {
             newSpec = h.shortcut(opt)
           }
         } else if (isLocalDep) {
-          // save the relative path in package.json
-          // Normally saveSpec is updated with the proper relative
-          // path already, but it's possible to specify a full absolute
-          // path initially, in which case we can end up with the wrong
-          // thing, so just get the ultimate fetchSpec and relativize it.
-          const p = req.fetchSpec.replace(/^file:/, '')
-          const rel = relpath(addTree.realpath, p)
-          newSpec = `file:${rel}`
+          // when finding workspace nodes, make sure that
+          // we save them using their version instead of
+          // using their relative path
+          if (edge.type === 'workspace') {
+            const { version } = edge.to.target
+            const prefixRange = version ? this[_savePrefix] + version : '*'
+            newSpec = prefixRange
+          } else {
+            // save the relative path in package.json
+            // Normally saveSpec is updated with the proper relative
+            // path already, but it's possible to specify a full absolute
+            // path initially, in which case we can end up with the wrong
+            // thing, so just get the ultimate fetchSpec and relativize it.
+            const p = req.fetchSpec.replace(/^file:/, '')
+            const rel = relpath(addTree.realpath, p)
+            newSpec = `file:${rel}`
+          }
         } else {
           newSpec = req.saveSpec
         }

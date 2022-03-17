@@ -740,6 +740,7 @@ define('force', {
     * Allow conflicting peerDependencies to be installed in the root project.
     * Implicitly set \`--yes\` during \`npm init\`.
     * Allow clobbering existing values in \`npm pkg\`
+    * Allow unpublishing of entire packages (not just a single version).
 
     If you don't have a clear idea of what you want to do, it is strongly
     recommended that you do not use this option!
@@ -798,7 +799,8 @@ define('git-tag-version', {
   default: true,
   type: Boolean,
   description: `
-    Tag the commit when using the \`npm version\` command.
+    Tag the commit when using the \`npm version\` command.  Setting this to
+    false results in no commit being made at all.
   `,
   flatten,
 })

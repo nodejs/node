@@ -10,7 +10,6 @@ const semver = require('semver')
 const { promisify } = require('util')
 const log = require('../utils/log-shim.js')
 const ansiTrim = require('../utils/ansi-trim.js')
-const isWindows = require('../utils/is-windows.js')
 const ping = require('../utils/ping.js')
 const {
   registry: { default: defaultRegistry },
@@ -55,32 +54,36 @@ class Doctor extends BaseCommand {
       ['node -v', 'getLatestNodejsVersion', []],
       ['npm config get registry', 'checkNpmRegistry', []],
       ['which git', 'getGitPath', []],
-      ...(isWindows
+      ...(process.platform === 'win32'
         ? []
         : [
-          ['Perms check on cached files', 'checkFilesPermission', [this.npm.cache, true, R_OK]],
           [
+            'Perms check on cached files',
+            'checkFilesPermission',
+            [this.npm.cache, true, R_OK],
+          ], [
             'Perms check on local node_modules',
             'checkFilesPermission',
-            [this.npm.localDir, true],
-          ],
-          [
+            [this.npm.localDir, true, R_OK | W_OK, true],
+          ], [
             'Perms check on global node_modules',
             'checkFilesPermission',
-            [this.npm.globalDir, false],
-          ],
-          [
+            [this.npm.globalDir, false, R_OK],
+          ], [
             'Perms check on local bin folder',
             'checkFilesPermission',
-            [this.npm.localBin, false, R_OK | W_OK | X_OK],
-          ],
-          [
+            [this.npm.localBin, false, R_OK | W_OK | X_OK, true],
+          ], [
             'Perms check on global bin folder',
             'checkFilesPermission',
             [this.npm.globalBin, false, X_OK],
           ],
         ]),
-      ['Verify cache contents', 'verifyCachedFiles', [this.npm.flatOptions.cache]],
+      [
+        'Verify cache contents',
+        'verifyCachedFiles',
+        [this.npm.flatOptions.cache],
+      ],
       // TODO:
       // - ensure arborist.loadActual() runs without errors and no invalid edges
       // - ensure package-lock.json matches loadActual()
@@ -129,6 +132,7 @@ class Doctor extends BaseCommand {
     if (!this.npm.silent) {
       this.npm.output(table(outTable, tableOpts))
       if (!allOk) {
+        // TODO is this really needed?
         console.error('')
       }
     }
@@ -141,7 +145,7 @@ class Doctor extends BaseCommand {
     const tracker = log.newItem('checkPing', 1)
     tracker.info('checkPing', 'Pinging registry')
     try {
-      await ping(this.npm.flatOptions)
+      await ping({ ...this.npm.flatOptions, retry: false })
       return ''
     } catch (er) {
       if (/^E\d{3}$/.test(er.code || '')) {
@@ -201,11 +205,7 @@ class Doctor extends BaseCommand {
     }
   }
 
-  async checkFilesPermission (root, shouldOwn, mask = null) {
-    if (mask === null) {
-      mask = shouldOwn ? R_OK | W_OK : R_OK
-    }
-
+  async checkFilesPermission (root, shouldOwn, mask, missingOk) {
     let ok = true
 
     const tracker = log.newItem(root, 1)
@@ -217,8 +217,11 @@ class Doctor extends BaseCommand {
       for (const f of files) {
         tracker.silly('checkFilesPermission', f.substr(root.length + 1))
         const st = await lstat(f).catch(er => {
-          ok = false
-          tracker.warn('checkFilesPermission', 'error getting info for ' + f)
+          // if it can't be missing, or if it can and the error wasn't that it was missing
+          if (!missingOk || er.code !== 'ENOENT') {
+            ok = false
+            tracker.warn('checkFilesPermission', 'error getting info for ' + f)
+          }
         })
 
         tracker.completeWork(1)

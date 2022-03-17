@@ -14,7 +14,7 @@ const makeSpawnArgs = require('@npmcli/run-script/lib/make-spawn-args.js')
 
 t.test('should run test script from package.json', async t => {
   const { npm } = await loadMockNpm(t, {
-    testdir: {
+    prefixDir: {
       'package.json': JSON.stringify({
         name: 'x',
         version: '1.2.3',

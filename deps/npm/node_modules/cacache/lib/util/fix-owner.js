@@ -49,8 +49,9 @@ function fixOwner (cache, filepath) {
     const { uid, gid } = owner
 
     // No need to override if it's already what we used.
-    if (self.uid === uid && self.gid === gid)
+    if (self.uid === uid && self.gid === gid) {
       return
+    }
 
     return inflight('fixOwner: fixing ownership on ' + filepath, () =>
       chownr(
@@ -58,8 +59,9 @@ function fixOwner (cache, filepath) {
         typeof uid === 'number' ? uid : self.uid,
         typeof gid === 'number' ? gid : self.gid
       ).catch((err) => {
-        if (err.code === 'ENOENT')
+        if (err.code === 'ENOENT') {
           return null
+        }
 
         throw err
       })
@@ -93,8 +95,9 @@ function fixOwnerSync (cache, filepath) {
     )
   } catch (err) {
     // only catch ENOENT, any other error is a problem.
-    if (err.code === 'ENOENT')
+    if (err.code === 'ENOENT') {
       return null
+    }
 
     throw err
   }
@@ -110,12 +113,14 @@ function mkdirfix (cache, p, cb) {
   return Promise.resolve(inferOwner(cache)).then(() => {
     return mkdirp(p)
       .then((made) => {
-        if (made)
+        if (made) {
           return fixOwner(cache, made).then(() => made)
+        }
       })
       .catch((err) => {
-        if (err.code === 'EEXIST')
+        if (err.code === 'EEXIST') {
           return fixOwner(cache, p).then(() => null)
+        }
 
         throw err
       })
@@ -136,7 +141,8 @@ function mkdirfixSync (cache, p) {
     if (err.code === 'EEXIST') {
       fixOwnerSync(cache, p)
       return null
-    } else
+    } else {
       throw err
+    }
   }
 }

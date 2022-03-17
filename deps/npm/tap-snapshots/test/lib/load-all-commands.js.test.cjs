@@ -55,6 +55,7 @@ Options:
 [--audit-level <info|low|moderate|high|critical|none>] [--dry-run] [-f|--force]
 [--json] [--package-lock-only]
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+[--foreground-scripts] [--ignore-scripts]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root]
 
@@ -121,7 +122,8 @@ Usage:
 npm ci
 
 Options:
-[--no-audit] [--ignore-scripts] [--script-shell <script-shell>]
+[--no-audit] [--foreground-scripts] [--ignore-scripts]
+[--script-shell <script-shell>]
 
 aliases: clean-install, ic, install-clean, isntall-clean
 
@@ -449,13 +451,13 @@ npm install <github username>/<github project>
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
 [-E|--save-exact] [-g|--global] [--global-style] [--legacy-bundling]
-[--strict-peer-deps] [--no-package-lock]
-[--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
-[--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
+[--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+[--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
+[--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root]
 
-aliases: i, in, ins, inst, insta, instal, isnt, isnta, isntal, add
+aliases: i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall, add
 
 Run "npm help install" for more info
 `
@@ -469,7 +471,8 @@ Usage:
 npm install-ci-test
 
 Options:
-[--no-audit] [--ignore-scripts] [--script-shell <script-shell>]
+[--no-audit] [--foreground-scripts] [--ignore-scripts]
+[--script-shell <script-shell>]
 
 alias: cit
 
@@ -496,9 +499,9 @@ npm install-test <github username>/<github project>
 Options:
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
 [-E|--save-exact] [-g|--global] [--global-style] [--legacy-bundling]
-[--strict-peer-deps] [--no-package-lock]
-[--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
-[--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
+[--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+[--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
+[--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root]
 
@@ -742,7 +745,8 @@ npm prune [[<@scope>/]<pkg>...]
 
 Options:
 [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--dry-run]
-[--json] [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
+[--json] [--foreground-scripts] [--ignore-scripts]
+[-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root]
 
 Run "npm help prune" for more info
@@ -773,7 +777,7 @@ Usage:
 npm rebuild [[<@scope>/]<name>[@<version>] ...]
 
 Options:
-[-g|--global] [--no-bin-links] [--ignore-scripts]
+[-g|--global] [--no-bin-links] [--foreground-scripts] [--ignore-scripts]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root]
 
@@ -1063,11 +1067,11 @@ Usage:
 npm update [<pkg>...]
 
 Options:
-[-g|--global] [--global-style] [--legacy-bundling] [--strict-peer-deps]
-[--no-package-lock]
 [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
-[--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
-[--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
+[-g|--global] [--global-style] [--legacy-bundling]
+[--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+[--strict-peer-deps] [--no-package-lock] [--foreground-scripts]
+[--ignore-scripts] [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root]
 

@@ -103,6 +103,7 @@ class View extends BaseCommand {
       // put the version back if it existed
       pkg = `${manifest.name}${pkg.slice(1)}`
     }
+
     let wholePackument = false
     if (!args.length) {
       args = ['']
@@ -196,7 +197,7 @@ class View extends BaseCommand {
     // get the data about this package
     let version = this.npm.config.get('tag')
     // rawSpec is the git url if this is from git
-    if (spec.type !== 'git' && spec.rawSpec) {
+    if (spec.type !== 'git' && spec.type !== 'directory' && spec.rawSpec) {
       version = spec.rawSpec
     }
 
@@ -205,10 +206,9 @@ class View extends BaseCommand {
     if (pckmnt['dist-tags'] && pckmnt['dist-tags'][version]) {
       version = pckmnt['dist-tags'][version]
     }
-
     if (pckmnt.time && pckmnt.time.unpublished) {
       const u = pckmnt.time.unpublished
-      const er = new Error('Unpublished by ' + u.name + ' on ' + u.time)
+      const er = new Error(`Unpublished on ${u.time}`)
       er.statusCode = 404
       er.code = 'E404'
       er.pkgid = pckmnt._id

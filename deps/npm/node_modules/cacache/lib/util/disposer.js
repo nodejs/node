@@ -8,8 +8,9 @@ function disposer (creatorFn, disposerFn, fn) {
       .then(
         // disposer resolved, do something with original fn's promise
         () => {
-          if (shouldThrow)
+          if (shouldThrow) {
             throw result
+          }
 
           return result
         },

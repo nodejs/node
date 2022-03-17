@@ -8,6 +8,8 @@
 npm pkg set <key>=<value> [<key>=<value> \.\.\.]
 npm pkg get [<key> [<key> \.\.\.]]
 npm pkg delete <key> [<key> \.\.\.]
+npm pkg set [<array>[<index>]\.<key>=<value> \.\.\.]
+npm pkg set [<array>[]\.<key>=<value> \.\.\.]
 .fi
 .RE
 .SS Description
@@ -209,6 +211,8 @@ Allow conflicting peerDependencies to be installed in the root project\.
 Implicitly set \fB\-\-yes\fP during \fBnpm init\fP\|\.
 .IP \(bu 2
 Allow clobbering existing values in \fBnpm pkg\fP
+.IP \(bu 2
+Allow unpublishing of entire packages (not just a single version)\.
 
 .RE
 .P
