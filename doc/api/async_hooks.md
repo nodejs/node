@@ -20,7 +20,7 @@ const async_hooks = require('async_hooks');
 ## Terminology
 
 An asynchronous resource represents an object with an associated callback.
-This callback may be called multiple times, for example, the `'connection'`
+This callback may be called multiple times, such as the `'connection'`
 event in `net.createServer()`, or just a single time like in `fs.open()`.
 A resource can also be closed before the callback is called. `AsyncHook` does
 not explicitly distinguish between these different cases but will represent them
@@ -209,14 +209,14 @@ future. This is subject to change in the future if a comprehensive analysis is
 performed to ensure an exception can follow the normal control flow without
 unintentional side effects.
 
-### Printing in AsyncHooks callbacks
+### Printing in `AsyncHook` callbacks
 
 Because printing to the console is an asynchronous operation, `console.log()`
-will cause the AsyncHooks callbacks to be called. Using `console.log()` or
-similar asynchronous operations inside an AsyncHooks callback function will thus
+will cause `AsyncHook` callbacks to be called. Using `console.log()` or
+similar asynchronous operations inside an `AsyncHook` callback function will
 cause an infinite recursion. An easy solution to this when debugging is to use a
 synchronous logging operation such as `fs.writeFileSync(file, msg, flag)`.
-This will print to the file and will not invoke AsyncHooks recursively because
+This will print to the file and will not invoke `AsyncHook` recursively because
 it is synchronous.
 
 ```mjs
@@ -224,7 +224,7 @@ import { writeFileSync } from 'fs';
 import { format } from 'util';
 
 function debug(...args) {
-  // Use a function like this one when debugging inside an AsyncHooks callback
+  // Use a function like this one when debugging inside an AsyncHook callback
   writeFileSync('log.out', `${format(...args)}\n`, { flag: 'a' });
 }
 ```
@@ -234,16 +234,16 @@ const fs = require('fs');
 const util = require('util');
 
 function debug(...args) {
-  // Use a function like this one when debugging inside an AsyncHooks callback
+  // Use a function like this one when debugging inside an AsyncHook callback
   fs.writeFileSync('log.out', `${util.format(...args)}\n`, { flag: 'a' });
 }
 ```
 
 If an asynchronous operation is needed for logging, it is possible to keep
 track of what caused the asynchronous operation using the information
-provided by AsyncHooks itself. The logging should then be skipped when
-it was the logging itself that caused AsyncHooks callback to call. By
-doing this the otherwise infinite recursion is broken.
+provided by `AsyncHook` itself. The logging should then be skipped when
+it was the logging itself that caused the `AsyncHook` callback to be called. By
+doing this, the otherwise infinite recursion is broken.
 
 ## Class: `AsyncHook`
 
