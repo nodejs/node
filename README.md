@@ -1,5 +1,3 @@
-<!--lint disable no-literal-urls-->
-
 <p align="center">
   <a href="https://nodejs.org/">
     <img
