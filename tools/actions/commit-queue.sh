@@ -40,8 +40,8 @@ for pr in "$@"; do
   fi
 
   # Skip PR if CI is still running
-  if ncu-ci url "https://github.com/${OWNER}/${REPOSITORY}/pull/${pr}" 2>&1 | grep "^Result *PENDING"; then
-    echo "pr ${pr} skipped, CI still running"
+  if gh pr checks "$pr" | grep -E "pending|fail"; then
+    echo "pr ${pr} skipped, CI still running or failed"
     continue
   fi
 
