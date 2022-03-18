@@ -118,7 +118,7 @@ function setupStickyHeaders() {
   ).observe(header);
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+function bootstrap() {
   // Check if we have JavaScript support
   document.querySelector(':root').classList.add('has-js');
 
@@ -130,4 +130,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Track when the header is in sticky position
   setupStickyHeaders();
-}, { once: true });
+}
+
+if (document.readyState === 'complete') {
+  bootstrap();
+} else {
+  document.addEventListener('DOMContentLoaded', bootstrap, { once: true });
+}
