@@ -118,14 +118,16 @@ function setupStickyHeaders() {
   ).observe(header);
 }
 
-// Check if we have JavaScript support
-document.querySelector(':root').classList.add('has-js');
+document.addEventListener('DOMContentLoaded', function() {
+  // Check if we have JavaScript support
+  document.querySelector(':root').classList.add('has-js');
 
-// Restore user mode preferences
-setupTheme();
+  // Restore user mode preferences
+  setupTheme();
 
-// Handle pickers with click/taps rather than hovers
-setupPickers();
+  // Handle pickers with click/taps rather than hovers
+  setupPickers();
 
-// Track when the header is in sticky position
-setupStickyHeaders();
+  // Track when the header is in sticky position
+  setupStickyHeaders();
+}, { once: true });
