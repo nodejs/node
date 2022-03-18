@@ -222,8 +222,7 @@ void AppendOrEscape(std::string* str,
     *str += ch;
 }
 
-template <typename T>
-unsigned hex2bin(const T ch) {
+unsigned hex2bin(const char ch) {
   if (ch >= '0' && ch <= '9')
     return ch - '0';
   if (ch >= 'A' && ch <= 'F')
