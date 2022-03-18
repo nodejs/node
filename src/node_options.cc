@@ -344,7 +344,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental ES Module import.meta.resolve() support",
             &EnvironmentOptions::experimental_import_meta_resolve,
             kAllowedInEnvironment);
-  AddOption("[has_experimental_policy_string]", "", &EnvironmentOptions::has_experimental_policy_string);
+  AddOption("[has_experimental_policy_string]",
+            "",
+            &EnvironmentOptions::has_experimental_policy_string);
   AddOption("--experimental-policy",
             "use the specified file as a "
             "security policy",
