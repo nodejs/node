@@ -1,4 +1,5 @@
 #include "node.h"
+#include "async_local_storage.h"
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "v8.h"
@@ -52,7 +53,8 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
     async_context_(asyncContext),
     object_(object),
     skip_hooks_(flags & kSkipAsyncHooks),
-    skip_task_queues_(flags & kSkipTaskQueues) {
+    skip_task_queues_(flags & kSkipTaskQueues),
+    context_storage_scope_(AsyncLocalStorage::GetState(object)) {
   CHECK_NOT_NULL(env);
   env->PushAsyncCallbackScope();
 

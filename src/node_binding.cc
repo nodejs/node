@@ -39,6 +39,7 @@
 // node is built as static library. No need to depend on the
 // __attribute__((constructor)) like mechanism in GCC.
 #define NODE_BUILTIN_STANDARD_MODULES(V)                                       \
+  V(async_local_storage)                                                       \
   V(async_wrap)                                                                \
   V(blob)                                                                      \
   V(block_list)                                                                \

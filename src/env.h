@@ -167,6 +167,7 @@ class NoArrayBufferZeroFillScope {
 #define PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)                              \
   V(alpn_buffer_private_symbol, "node:alpnBuffer")                            \
   V(arrow_message_private_symbol, "node:arrowMessage")                        \
+  V(context_storage_state_symbol, "node:contextStorage")                      \
   V(contextify_context_private_symbol, "node:contextify:context")             \
   V(contextify_global_private_symbol, "node:contextify:global")               \
   V(decorated_private_symbol, "node:decorated")                               \
@@ -470,6 +471,8 @@ class NoArrayBufferZeroFillScope {
   V(zero_return_string, "ZERO_RETURN")
 
 #define ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)                             \
+  V(async_local_storage_ctor_template, v8::FunctionTemplate)                   \
+  V(async_local_storage_state_ctor_template, v8::FunctionTemplate)             \
   V(async_wrap_ctor_template, v8::FunctionTemplate)                            \
   V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
   V(base_object_ctor_template, v8::FunctionTemplate)                           \

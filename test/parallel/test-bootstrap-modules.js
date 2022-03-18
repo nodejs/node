@@ -9,6 +9,7 @@ const common = require('../common');
 const assert = require('assert');
 
 const expectedModules = new Set([
+  'Internal Binding async_local_storage',
   'Internal Binding async_wrap',
   'Internal Binding block_list',
   'Internal Binding buffer',

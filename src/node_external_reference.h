@@ -52,6 +52,8 @@ class ExternalReferenceRegistry {
 };
 
 #define EXTERNAL_REFERENCE_BINDING_LIST_BASE(V)                                \
+  V(async_local_storage)                                                       \
+  V(async_local_storage_state)                                                 \
   V(async_wrap)                                                                \
   V(binding)                                                                   \
   V(blob)                                                                      \

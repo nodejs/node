@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "async_wrap.h"  // NOLINT(build/include_inline)
+#include "async_local_storage.h"
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "node_errors.h"
@@ -631,6 +632,8 @@ void AsyncWrap::EmitAsyncInit(Environment* env,
   CHECK(!object.IsEmpty());
   CHECK(!type.IsEmpty());
   AsyncHooks* async_hooks = env->async_hooks();
+
+  AsyncLocalStorage::StoreState(object);
 
   // Nothing to execute, so can continue normally.
   if (async_hooks->fields()[AsyncHooks::kInit] == 0) {

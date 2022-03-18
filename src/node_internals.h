@@ -24,6 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "context_storage.h"
 #include "env.h"
 #include "node.h"
 #include "node_binding.h"
@@ -234,6 +235,7 @@ class InternalCallbackScope {
   bool failed_ = false;
   bool pushed_ids_ = false;
   bool closed_ = false;
+  ContextStorageRestoreScope context_storage_scope_;
 };
 
 class DebugSealHandleScope {
