@@ -618,26 +618,7 @@ void OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
 // Need to disable CFI_ICALL due to the indirect call to memfd_create.
 DISABLE_CFI_ICALL
 PlatformSharedMemoryHandle OS::CreateSharedMemoryHandleForTesting(size_t size) {
-#if V8_OS_LINUX && !V8_OS_ANDROID
-  // Use memfd_create if available, otherwise mkstemp.
-  using memfd_create_t = int (*)(const char*, unsigned int);
-  memfd_create_t memfd_create =
-      reinterpret_cast<memfd_create_t>(dlsym(RTLD_DEFAULT, "memfd_create"));
-  int fd = -1;
-  if (memfd_create) {
-    fd = memfd_create("V8MemFDForTesting", 0);
-  }
-  if (fd == -1) {
-    char filename[] = "/tmp/v8_tmp_file_for_testing_XXXXXX";
-    fd = mkstemp(filename);
-    if (fd != -1) CHECK_EQ(0, unlink(filename));
-  }
-  if (fd == -1) return kInvalidSharedMemoryHandle;
-  CHECK_EQ(0, ftruncate(fd, size));
-  return SharedMemoryHandleFromFileDescriptor(fd);
-#else
   return kInvalidSharedMemoryHandle;
-#endif
 }
 
 // static
