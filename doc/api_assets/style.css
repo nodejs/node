@@ -811,8 +811,15 @@ kbd {
   background-color: var(--color-fill-app);
 }
 
-@media not screen, (max-width: 600px), (max-height: 1000px) {
+@media not screen, (max-width: 600px) {
   .header {
+    position: relative;
+    top: 0;
+  }
+}
+
+@media not screen, (max-height: 1000px) {
+  :root:not(.has-js) .header {
     position: relative;
     top: 0;
   }
