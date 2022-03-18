@@ -32,7 +32,7 @@ function runGCTests() {
   test.setFinalizerErrorHandler((err) => {
     ++handledExceptions;
     assert.strictEqual(err.message, 'Error during Finalize');
-    if (handledExceptions == 2) {
+    if (handledExceptions === 2) {
       // One time we report the error to be unhandled
       return false;
     }

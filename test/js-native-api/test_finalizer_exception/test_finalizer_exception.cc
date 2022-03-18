@@ -35,7 +35,8 @@ napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
       DECLARE_NODE_API_GETTER("finalizeCount", TestObject::GetFinalizeCount),
       DECLARE_NODE_API_PROPERTY("createObject", CreateObject),
-      DECLARE_NODE_API_PROPERTY("setFinalizerErrorHandler", SetFinalizerErrorHandler),
+      DECLARE_NODE_API_PROPERTY("setFinalizerErrorHandler",
+                                SetFinalizerErrorHandler),
   };
 
   NODE_API_CALL(

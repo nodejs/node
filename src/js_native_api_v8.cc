@@ -57,8 +57,9 @@
   } while (0)
 
 void napi_env__::HandleFinalizerException(napi_env env,
-                                      v8::Local<v8::Value> exception) {
-  // We must reset the lats exception here to enable Node-API calls in the handler.
+                                          v8::Local<v8::Value> exception) {
+  // We must reset the last exception here to enable Node-API calls in the
+  // handler.
   env->last_exception.Reset();
   if (!env->finalizer_error_handler.IsEmpty()) {
     bool isHandled = true;
@@ -69,7 +70,8 @@ void napi_env__::HandleFinalizerException(napi_env env,
       napi_value err_value = v8impl::JsValueFromV8LocalValue(exception);
       napi_value recv, result;
       STATUS_CALL(napi_get_undefined(env, &recv));
-      STATUS_CALL(napi_call_function(env, recv, handler, 1, &err_value, &result));
+      STATUS_CALL(
+          napi_call_function(env, recv, handler, 1, &err_value, &result));
       napi_valuetype result_type;
       STATUS_CALL(napi_typeof(env, result, &result_type));
       if (result_type == napi_boolean) {

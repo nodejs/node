@@ -20,23 +20,25 @@ function gcUntilSync(value) {
 }
 
 function runGCTests() {
-  let exceptionCount = 0;
+  let unhandledExceptions = 0;
   process.on('uncaughtException', (err) => {
-    ++exceptionCount;
+    ++unhandledExceptions;
     assert.strictEqual(err.message, 'Error during Finalize');
   });
 
   (() => {
-    test.createObject(/* throw on destruct */ true);
+    test.createObject(true /* throw on destruct */);
   })();
   gcUntilSync(1);
   assert.strictEqual(test.finalizeCount, 1);
+  assert.strictEqual(unhandledExceptions, 1);
 
   (() => {
-    test.createObject(/* throw on destruct */ true);
-    test.createObject(/* throw on destruct */ true);
+    test.createObject(true /* throw on destruct */);
+    test.createObject(true /* throw on destruct */);
   })();
   gcUntilSync(3);
   assert.strictEqual(test.finalizeCount, 3);
+  assert.strictEqual(unhandledExceptions, 3);
 }
 runGCTests();
