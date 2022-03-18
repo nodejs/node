@@ -15,11 +15,11 @@ tmpdir.refresh();
 
 const fileInfo = [
   { name: path.join(tmpdir.path, `${prefix}-1K.txt`),
-    len: 1024, chunkSize: 64 },
+    len: 1024, chunkSize: 2048 },
   { name: path.join(tmpdir.path, `${prefix}-64K.txt`),
-    len: 64 * 1024, chunkSize: -64 },
+    len: 64 * 1024, chunkSize: 128 },
   { name: path.join(tmpdir.path, `${prefix}-64KLessOne.txt`),
-    len: (64 * 1024) - 1, chunkSize: 'string' },
+    len: (64 * 1024) - 1, chunkSize: 256 },
   { name: path.join(tmpdir.path, `${prefix}-1M.txt`),
     len: 1 * 1024 * 1024, chunkSize: 0 },
   { name: path.join(tmpdir.path, `${prefix}-1MPlusOne.txt`),
@@ -46,7 +46,7 @@ for (const e of fileInfo) {
 
 // Test readFile on each size.
 for (const e of fileInfo) {
-  fs.readFile(e.name, common.mustCall((err, buf) => {
+  fs.readFile(e.name, { chunkSize: e.chunkSize }, common.mustCall((err, buf) => {
     console.log(`Validating readFile on file ${e.name} of length ${e.len}`);
     assert.ifError(err);
     assert.deepStrictEqual(buf, e.contents);
@@ -95,10 +95,20 @@ for (const e of fileInfo) {
 }
 {
   // Test chunkSize option
-  for (const e of fileInfo) {
-    fs.readFile(e.name, { chunkSize: e.chunkSize },
-                common.mustCall((err, buf) => {
-                  assert.deepStrictEqual(buf, e.contents);
-                }));
-  }
+  [Symbol(), 1n].forEach((chunkSize) => {
+    assert.throws(
+      () => fs.readFile(fileInfo[0].name, { chunkSize }, common.mustNotCall()),
+      { name: 'TypeError' });
+  });
+  ['', () => {}, true, false, [], {}].forEach((chunkSize) => {
+    assert.throws(
+      () => fs.readFile(fileInfo[0].name, { chunkSize }, common.mustNotCall()),
+      { code: 'ERR_INVALID_ARG_TYPE' });
+  });
+  [-2, 2.5, -Infinity, Infinity, NaN].forEach((chunkSize) => {
+    assert.throws(
+      () => fs.readFile(fileInfo[0].name, { chunkSize }, common.mustNotCall()),
+      { code: 'ERR_OUT_OF_RANGE' }
+    );
+  });
 }
