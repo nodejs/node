@@ -1757,6 +1757,7 @@
               'v8_enable_verify_csa=<(v8_enable_verify_csa)',
               'v8_enable_lite_mode=<(v8_enable_lite_mode)',
               'v8_enable_pointer_compression=<(v8_enable_pointer_compression)',
+              'v8_enable_shared_ro_heap=<(v8_enable_shared_ro_heap)',
               'v8_enable_webassembly=<(v8_enable_webassembly)',
               # Not available in gyp.
               'v8_control_flow_integrity=0',
