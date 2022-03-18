@@ -113,7 +113,7 @@ platforms. This is true regardless of entries in the table below.
 | Windows          | x86 (native)     | >= Windows 10/Server 2016       | Tier 1 (running) / Experimental (compiling)[^6] |                                           |
 | Windows          | x64, x86         | Windows 8.1/Server 2012         | Experimental                                    |                                           |
 | Windows          | arm64            | >= Windows 10                   | Tier 2 (compiling) / Experimental (running)     |                                           |
-| macOS            | x64              | >= 10.13                        | Tier 1                                          | For notes about compilation see [^7]      |
+| macOS            | x64              | >= 10.15                        | Tier 1                                          | For notes about compilation see [^7]      |
 | macOS            | arm64            | >= 11                           | Tier 1                                          |                                           |
 | SmartOS          | x64              | >= 18                           | Tier 2                                          |                                           |
 | AIX              | ppc64be >=power7 | >= 7.2 TL04                     | Tier 2                                          |                                           |
@@ -151,8 +151,7 @@ platforms. This is true regardless of entries in the table below.
     Furthermore, compiling on x86 Windows is Experimental and
     may not be possible.
 
-[^7]: Our macOS x64 Binaries are compiled with 10.13 as a target.
-    However there is no guarantee compiling on 10.13 will work as Xcode11 is
+[^7]: Our macOS x64 Binaries are compiled with 10.15 as a target. Xcode11 is
     required to compile.
 
 ### Supported toolchains
@@ -172,8 +171,8 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | Binary package          | Platform and Toolchain                                                                                        |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------- |
 | aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 8                                                                            |
-| darwin-x64              | macOS 10.15, Xcode Command Line Tools 11 with -mmacosx-version-min=10.13                                      |
-| darwin-arm64 (and .pkg) | macOS 11 (arm64), Xcode Command Line Tools 12 with -mmacosx-version-min=10.13                                 |
+| darwin-x64              | macOS 10.15, Xcode Command Line Tools 11 with -mmacosx-version-min=10.15                                      |
+| darwin-arm64 (and .pkg) | macOS 11 (arm64), Xcode Command Line Tools 12 with -mmacosx-version-min=10.15                                 |
 | linux-arm64             | CentOS 7 with devtoolset-8 / GCC 8[^8]                                                                        |
 | linux-armv7l            | Cross-compiled on Ubuntu 18.04 x64 with [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools) |
 | linux-ppc64le           | CentOS 7 with devtoolset-8 / GCC 8[^8]                                                                        |
