@@ -2,12 +2,12 @@
 #define SRC_NODE_API_H_
 
 #ifdef BUILDING_NODE_EXTENSION
-  #ifdef _WIN32
-    // Building native module against node
-    #define NAPI_EXTERN __declspec(dllimport)
-  #elif defined(__wasm32__)
-    #define NAPI_EXTERN __attribute__((__import_module__("napi")))
-  #endif
+#ifdef _WIN32
+// Building native module against node
+#define NAPI_EXTERN __declspec(dllimport)
+#elif defined(__wasm32__)
+#define NAPI_EXTERN __attribute__((__import_module__("napi")))
+#endif
 #endif
 #include "js_native_api.h"
 #include "node_api_types.h"
@@ -15,17 +15,17 @@
 struct uv_loop_s;  // Forward declaration.
 
 #ifdef _WIN32
-# define NAPI_MODULE_EXPORT __declspec(dllexport)
+#define NAPI_MODULE_EXPORT __declspec(dllexport)
 #else
-# define NAPI_MODULE_EXPORT __attribute__((visibility("default")))
+#define NAPI_MODULE_EXPORT __attribute__((visibility("default")))
 #endif
 
 #if defined(__GNUC__)
-# define NAPI_NO_RETURN __attribute__((noreturn))
+#define NAPI_NO_RETURN __attribute__((noreturn))
 #elif defined(_WIN32)
-# define NAPI_NO_RETURN __declspec(noreturn)
+#define NAPI_NO_RETURN __declspec(noreturn)
 #else
-# define NAPI_NO_RETURN
+#define NAPI_NO_RETURN
 #endif
 
 typedef napi_value (*napi_addon_register_func)(napi_env env,
@@ -41,7 +41,7 @@ typedef struct napi_module {
   void* reserved[4];
 } napi_module;
 
-#define NAPI_MODULE_VERSION  1
+#define NAPI_MODULE_VERSION 1
 
 #if defined(_MSC_VER)
 #if defined(__cplusplus)
@@ -61,33 +61,30 @@ typedef struct napi_module {
 // simulates C++ behavior. Exporting the function pointer prevents it from being
 // optimized. See for details:
 // https://docs.microsoft.com/en-us/cpp/c-runtime-library/crt-initialization?view=msvc-170
-#define NAPI_C_CTOR(fn)                                                     \
-  static void __cdecl fn(void);                                             \
-  __declspec(dllexport, allocate(".CRT$XCU")) void(__cdecl * fn##_)(void) = \
-      fn;                                                                   \
+#define NAPI_C_CTOR(fn)                                                        \
+  static void __cdecl fn(void);                                                \
+  __declspec(dllexport, allocate(".CRT$XCU")) void(__cdecl * fn##_)(void) =    \
+      fn;                                                                      \
   static void __cdecl fn(void)
 #endif  // defined(__cplusplus)
 #else
-#define NAPI_C_CTOR(fn)                              \
-  static void fn(void) __attribute__((constructor)); \
+#define NAPI_C_CTOR(fn)                                                        \
+  static void fn(void) __attribute__((constructor));                           \
   static void fn(void)
 #endif
 
-#define NAPI_MODULE_X(modname, regfunc, priv, flags)                  \
-  EXTERN_C_START                                                      \
-    static napi_module _module =                                      \
-    {                                                                 \
-      NAPI_MODULE_VERSION,                                            \
-      flags,                                                          \
-      __FILE__,                                                       \
-      regfunc,                                                        \
-      #modname,                                                       \
-      priv,                                                           \
-      {0},                                                            \
-    };                                                                \
-    NAPI_C_CTOR(_register_ ## modname) {                              \
-      napi_module_register(&_module);                                 \
-    }                                                                 \
+#define NAPI_MODULE_X(modname, regfunc, priv, flags)                           \
+  EXTERN_C_START                                                               \
+  static napi_module _module = {                                               \
+      NAPI_MODULE_VERSION,                                                     \
+      flags,                                                                   \
+      __FILE__,                                                                \
+      regfunc,                                                                 \
+      #modname,                                                                \
+      priv,                                                                    \
+      {0},                                                                     \
+  };                                                                           \
+  NAPI_C_CTOR(_register_##modname) { napi_module_register(&_module); }         \
   EXTERN_C_END
 
 #define NAPI_MODULE_INITIALIZER_X(base, version)                               \
@@ -105,24 +102,22 @@ typedef struct napi_module {
   }                                                                            \
   EXTERN_C_END
 #else
-#define NAPI_MODULE(modname, regfunc)                                 \
+#define NAPI_MODULE(modname, regfunc)                                          \
   NAPI_MODULE_X(modname, regfunc, NULL, 0)  // NOLINT (readability/null_usage)
 #endif
 
 #define NAPI_MODULE_INITIALIZER_BASE napi_register_module_v
 
-#define NAPI_MODULE_INITIALIZER                                       \
-  NAPI_MODULE_INITIALIZER_X(NAPI_MODULE_INITIALIZER_BASE,             \
-      NAPI_MODULE_VERSION)
+#define NAPI_MODULE_INITIALIZER                                                \
+  NAPI_MODULE_INITIALIZER_X(NAPI_MODULE_INITIALIZER_BASE, NAPI_MODULE_VERSION)
 
-#define NAPI_MODULE_INIT()                                            \
-  EXTERN_C_START                                                      \
-  NAPI_MODULE_EXPORT napi_value                                       \
-  NAPI_MODULE_INITIALIZER(napi_env env, napi_value exports);          \
-  EXTERN_C_END                                                        \
-  NAPI_MODULE(NODE_GYP_MODULE_NAME, NAPI_MODULE_INITIALIZER)          \
-  napi_value NAPI_MODULE_INITIALIZER(napi_env env,                    \
-                                     napi_value exports)
+#define NAPI_MODULE_INIT()                                                     \
+  EXTERN_C_START                                                               \
+  NAPI_MODULE_EXPORT napi_value NAPI_MODULE_INITIALIZER(napi_env env,          \
+                                                        napi_value exports);   \
+  EXTERN_C_END                                                                 \
+  NAPI_MODULE(NODE_GYP_MODULE_NAME, NAPI_MODULE_INITIALIZER)                   \
+  napi_value NAPI_MODULE_INITIALIZER(napi_env env, napi_value exports)
 
 EXTERN_C_START
 
@@ -242,9 +237,8 @@ napi_create_threadsafe_function(napi_env env,
                                 napi_threadsafe_function_call_js call_js_cb,
                                 napi_threadsafe_function* result);
 
-NAPI_EXTERN napi_status
-napi_get_threadsafe_function_context(napi_threadsafe_function func,
-                                     void** result);
+NAPI_EXTERN napi_status napi_get_threadsafe_function_context(
+    napi_threadsafe_function func, void** result);
 
 NAPI_EXTERN napi_status
 napi_call_threadsafe_function(napi_threadsafe_function func,
@@ -254,9 +248,8 @@ napi_call_threadsafe_function(napi_threadsafe_function func,
 NAPI_EXTERN napi_status
 napi_acquire_threadsafe_function(napi_threadsafe_function func);
 
-NAPI_EXTERN napi_status
-napi_release_threadsafe_function(napi_threadsafe_function func,
-                                 napi_threadsafe_function_release_mode mode);
+NAPI_EXTERN napi_status napi_release_threadsafe_function(
+    napi_threadsafe_function func, napi_threadsafe_function_release_mode mode);
 
 NAPI_EXTERN napi_status
 napi_unref_threadsafe_function(napi_env env, napi_threadsafe_function func);
@@ -269,21 +262,21 @@ napi_ref_threadsafe_function(napi_env env, napi_threadsafe_function func);
 
 #if NAPI_VERSION >= 8
 
-NAPI_EXTERN napi_status napi_add_async_cleanup_hook(
-    napi_env env,
-    napi_async_cleanup_hook hook,
-    void* arg,
-    napi_async_cleanup_hook_handle* remove_handle);
+NAPI_EXTERN napi_status
+napi_add_async_cleanup_hook(napi_env env,
+                            napi_async_cleanup_hook hook,
+                            void* arg,
+                            napi_async_cleanup_hook_handle* remove_handle);
 
-NAPI_EXTERN napi_status napi_remove_async_cleanup_hook(
-    napi_async_cleanup_hook_handle remove_handle);
+NAPI_EXTERN napi_status
+napi_remove_async_cleanup_hook(napi_async_cleanup_hook_handle remove_handle);
 
 #endif  // NAPI_VERSION >= 8
 
 #ifdef NAPI_EXPERIMENTAL
 
-NAPI_EXTERN napi_status
-node_api_get_module_file_name(napi_env env, const char** result);
+NAPI_EXTERN napi_status node_api_get_module_file_name(napi_env env,
+                                                      const char** result);
 
 #endif  // NAPI_EXPERIMENTAL
 
