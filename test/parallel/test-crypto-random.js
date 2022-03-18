@@ -339,6 +339,11 @@ assert.throws(
   assert.ok(desc);
   assert.strictEqual(desc.configurable, true);
   assert.strictEqual(desc.enumerable, false);
+
+  crypto[f] = { key: 'value' };
+  assert.deepStrictEqual(Object.getOwnPropertyDescriptor(crypto, f).value, {
+    key: 'value',
+  });
 });
 
 
