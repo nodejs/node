@@ -1,11 +1,11 @@
 {
   "targets": [
     {
-      "target_name": "test_finalizing_queue",
+      "target_name": "test_finalizer_exception",
       "sources": [
         "../entry_point.c",
         "testobject.cc",
-        "test_finalizing_queue.cc"
+        "test_finalizer_exception.cc"
       ]
     }
   ]

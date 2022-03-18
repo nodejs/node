@@ -5283,6 +5283,48 @@ invocation. If it is deleted before then, then the finalize callback may never
 be invoked. Therefore, when obtaining a reference a finalize callback is also
 required in order to enable correct disposal of the reference.
 
+### `node_api_set_finalizer_error_handler`
+
+<!-- YAML
+added: v18.0.0
+napiVersion: Experimental
+-->
+
+```c
+node_api_set_finalizer_error_handler(napi_env env,
+                                     napi_value error_handler);
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] error_handler`: A JavaScript function that can handle JavaScript
+  exceptions thrown from a native finalizer.
+
+Returns `napi_ok` if the API succeeded.
+
+Sets or removes finalizer error handler which will be called when a native
+finalizer throws a JavaScript exception.
+
+By default any JavaScript exception from a native finalizer causes an unhandled
+exception that can be handled by a process-wide
+`process.on('uncaughtException', ...)` event handler.
+Otherwise, the unhandled exception causes the process termination.
+The `node_api_set_finalizer_error_handler` allows to set the error handler per
+`napi_env` instance which is created per native module instance, and to handle
+module-specific finalizer errors.
+
+The `error_handler` is a function with the following requirements:
+
+* the function receives a single paramter - the JavaScript error object;
+* the function can return `false` to indicate that the error was not handled and
+  to cause the unhandled exception;
+* if function returns any other value, then the exception is considered to
+  be handled;
+* if function throws a JavaScript exception, then it causes the the unhandled
+  exception.
+
+If the passed `error_handler` parameter is not a function, then the finalizer
+error handler is removed.
+
 ## Simple asynchronous operations
 
 Addon modules often need to leverage async helpers from libuv as part of their

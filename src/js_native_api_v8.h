@@ -38,42 +38,15 @@ class RefTracker {
     next_ = nullptr;
   }
 
-  static void FinalizeAll(RefList* list, bool isEnvTeardown = true) {
+  static void FinalizeAll(RefList* list) {
     while (list->next_ != nullptr) {
-      list->next_->Finalize(isEnvTeardown);
+      list->next_->Finalize(true);
     }
-  }
-
-  static bool FinalizeOne(RefList* list) {
-    if (list->next_ != nullptr) {
-      list->next_->Finalize(/*isEnvTeardown:*/ false);
-    }
-    return list->next_ != nullptr;
   }
 
  private:
   RefList* next_ = nullptr;
   RefList* prev_ = nullptr;
-};
-
-// It is used to determine if Finalizer call causes a JS exception,
-// and to make sure that there is only one function in the call stack
-// that calls finalizers from the finalizing queue.
-struct FinalizerCallGuard {
-  explicit FinalizerCallGuard(napi_env env) noexcept;
-  ~FinalizerCallGuard() noexcept;
-
-  bool HasException() const noexcept {
-    return hasException_;
-  }
-
-  void HasException(bool value) noexcept {
-    hasException_ = value;
-  }
-
- private:
-  napi_env env_;
-  bool hasException_;
 };
 
 }  // end of namespace v8impl
@@ -91,7 +64,6 @@ struct napi_env__ {
     // they delete during their `napi_finalizer` callbacks. If we deleted such
     // references here first, they would be doubly deleted when the
     // `napi_finalizer` deleted them subsequently.
-    v8impl::RefTracker::FinalizeAll(&finalizing_queue);
     v8impl::RefTracker::FinalizeAll(&finalizing_reflist);
     v8impl::RefTracker::FinalizeAll(&reflist);
   }
@@ -130,20 +102,13 @@ struct napi_env__ {
     }
   }
 
-  void CallFinalizer(napi_finalize cb, void* data, void* hint) {
-    v8::HandleScope handle_scope(isolate);
-    CallIntoModule([&](napi_env env) {
-      cb(env, data, hint);
-    }, [](napi_env env, v8::Local<v8::Value> value) {
-      if (env->finalizer_call_guard) {
-        env->finalizer_call_guard->HasException(true);
-      }
-      HandleThrow(env, value);
-    });
-  }
+  static void HandleFinalizerException(napi_env env,
+                                       v8::Local<v8::Value> exception);
 
-  virtual void CallFinalizers() {
-    node_api_call_finalizers(this, SIZE_MAX, nullptr);
+  virtual void CallFinalizer(napi_finalize cb, void* data, void* hint) {
+    v8::HandleScope handle_scope(isolate);
+    CallIntoModule([&](napi_env env) { cb(env, data, hint); },
+                   HandleFinalizerException);
   }
 
   v8impl::Persistent<v8::Value> last_exception;
@@ -153,13 +118,12 @@ struct napi_env__ {
   // have such a callback. See `~napi_env__()` above for details.
   v8impl::RefTracker::RefList reflist;
   v8impl::RefTracker::RefList finalizing_reflist;
-  v8impl::RefTracker::RefList finalizing_queue;
   napi_extended_error_info last_error;
   int open_handle_scopes = 0;
   int open_callback_scopes = 0;
   int refs = 1;
   void* instance_data = nullptr;
-  v8impl::FinalizerCallGuard* finalizer_call_guard = nullptr;
+  v8impl::Persistent<v8::Value> finalizer_error_handler;
 };
 
 // This class is used to keep a napi_env live in a way that
@@ -338,17 +302,6 @@ inline v8::Local<v8::Value> V8LocalValueFromJsValue(napi_value v) {
   return local;
 }
 
-//=== FinalizerCallGuard implementation ========================
-
-inline FinalizerCallGuard::FinalizerCallGuard(napi_env env) noexcept
-    : env_(env) {
-  env_->finalizer_call_guard = this;
-}
-
-inline FinalizerCallGuard::~FinalizerCallGuard() noexcept {
-  env_->finalizer_call_guard = nullptr;
-}
-
 // Adapter for napi_finalize callbacks.
 class Finalizer {
  public:
@@ -409,9 +362,6 @@ class TryCatch : public v8::TryCatch {
       : v8::TryCatch(env->isolate), _env(env) {}
 
   ~TryCatch() {
-    if (!HasCaught()) {
-      node_api_call_finalizers(_env, SIZE_MAX, nullptr);
-    }
     if (HasCaught()) {
       _env->last_exception.Reset(_env->isolate, Exception());
     }
@@ -422,7 +372,7 @@ class TryCatch : public v8::TryCatch {
 };
 
 // Wrapper around v8impl::Persistent that implements reference counting.
-class RefBase : protected Finalizer, protected RefTracker {
+class RefBase : protected Finalizer, RefTracker {
  protected:
   RefBase(napi_env env,
           uint32_t initial_refcount,
