@@ -22,8 +22,7 @@ typedef enum {
 } napi_threadsafe_function_call_mode;
 #endif  // NAPI_VERSION >= 4
 
-typedef void (*napi_async_execute_callback)(napi_env env,
-                                            void* data);
+typedef void (*napi_async_execute_callback)(napi_env env, void* data);
 typedef void (*napi_async_complete_callback)(napi_env env,
                                              napi_status status,
                                              void* data);
