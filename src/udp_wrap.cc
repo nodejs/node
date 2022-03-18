@@ -732,12 +732,17 @@ void UDPWrap::OnRecv(ssize_t nread,
 
   Local<Object> address;
   {
-    TryCatchScope try_catch(env);
-    try_catch.SetVerbose(true);
-    DCHECK(try_catch.IsVerbose());
-    if (!AddressToJS(env, addr).ToLocal(&address)) {
-      DCHECK(try_catch.HasCaught() && !try_catch.HasTerminated());
-      argv[2] = try_catch.Exception();
+    bool has_caught = false;
+    {
+      TryCatchScope try_catch(env);
+      if (!AddressToJS(env, addr).ToLocal(&address)) {
+        DCHECK(try_catch.HasCaught() && !try_catch.HasTerminated());
+        argv[2] = try_catch.Exception();
+        DCHECK(!argv[2].IsEmpty());
+        has_caught = true;
+      }
+    }
+    if (has_caught) {
       DCHECK(!argv[2].IsEmpty());
       MakeCallback(env->onerror_string(), arraysize(argv), argv);
       return;
@@ -746,17 +751,23 @@ void UDPWrap::OnRecv(ssize_t nread,
 
   Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
   {
-    TryCatchScope try_catch(env);
-    try_catch.SetVerbose(true);
-    DCHECK(try_catch.IsVerbose());
-    if (!Buffer::New(env, ab, 0, ab->ByteLength()).ToLocal(&argv[2])) {
-      DCHECK(try_catch.HasCaught() && !try_catch.HasTerminated());
-      argv[2] = try_catch.Exception();
+    bool has_caught = false;
+    {
+      TryCatchScope try_catch(env);
+      if (!Buffer::New(env, ab, 0, ab->ByteLength()).ToLocal(&argv[2])) {
+        DCHECK(try_catch.HasCaught() && !try_catch.HasTerminated());
+        argv[2] = try_catch.Exception();
+        DCHECK(!argv[2].IsEmpty());
+        has_caught = true;
+      }
+    }
+    if (has_caught) {
       DCHECK(!argv[2].IsEmpty());
       MakeCallback(env->onerror_string(), arraysize(argv), argv);
       return;
     }
   }
+
   argv[3] = address;
   MakeCallback(env->onmessage_string(), arraysize(argv), argv);
 }
