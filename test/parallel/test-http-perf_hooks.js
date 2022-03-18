@@ -5,13 +5,9 @@ const assert = require('assert');
 const http = require('http');
 
 const { PerformanceObserver } = require('perf_hooks');
-
+const entries = [];
 const obs = new PerformanceObserver(common.mustCallAtLeast((items) => {
-  items.getEntries().forEach((entry) => {
-    assert.strictEqual(entry.entryType, 'http');
-    assert.strictEqual(typeof entry.startTime, 'number');
-    assert.strictEqual(typeof entry.duration, 'number');
-  });
+  entries.push(...items.getEntries());
 }));
 
 obs.observe({ type: 'http' });
@@ -57,3 +53,20 @@ server.listen(0, common.mustCall(async () => {
   ]);
   server.close();
 }));
+
+process.on('exit', () => {
+  let numberOfHttpClients = 0;
+  let numberOfHttpRequests = 0;
+  entries.forEach((entry) => {
+    assert.strictEqual(entry.entryType, 'http');
+    assert.strictEqual(typeof entry.startTime, 'number');
+    assert.strictEqual(typeof entry.duration, 'number');
+    if (entry.name === 'HttpClient') {
+      numberOfHttpClients++;
+    } else if (entry.name === 'HttpRequest') {
+      numberOfHttpRequests++;
+    }
+  });
+  assert.strictEqual(numberOfHttpClients, 2);
+  assert.strictEqual(numberOfHttpRequests, 2);
+});
