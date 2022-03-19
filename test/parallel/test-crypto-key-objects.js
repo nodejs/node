@@ -518,11 +518,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
 
 {
   // Reading an encrypted key without a passphrase should fail.
-  assert.throws(() => createPrivateKey(privateDsa), common.hasOpenSSL3 ? {
-    name: 'Error',
-    message: 'error:07880109:common libcrypto routines::interrupted or ' +
-             'cancelled',
-  } : {
+  assert.throws(() => createPrivateKey(privateDsa), {
     name: 'TypeError',
     code: 'ERR_MISSING_PASSPHRASE',
     message: 'Passphrase required for encrypted key'

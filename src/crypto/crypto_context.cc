@@ -143,7 +143,7 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
                                   X509Pointer* cert,
                                   X509Pointer* issuer) {
   // Just to ensure that `ERR_peek_last_error` below will return only errors
-  // that we are interested in
+  // that we are interested in.
   ERR_clear_error();
 
   X509Pointer x(

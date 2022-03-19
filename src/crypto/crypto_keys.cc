@@ -214,6 +214,10 @@ ParseKeyResult ParsePrivateKey(EVPKeyPointer* pkey,
                                const PrivateKeyEncodingConfig& config,
                                const char* key,
                                size_t key_len) {
+  // Just to ensure that `ERR_peek_last_error` below will return only errors
+  // that we are interested in.
+  ERR_clear_error();
+
   const ByteSource* passphrase = config.passphrase_.get();
 
   if (config.format_ == kKeyFormatPEM) {
@@ -255,7 +259,7 @@ ParseKeyResult ParsePrivateKey(EVPKeyPointer* pkey,
   }
 
   // OpenSSL can fail to parse the key but still return a non-null pointer.
-  unsigned long err = ERR_peek_error();  // NOLINT(runtime/int)
+  unsigned long err = ERR_peek_last_error();  // NOLINT(runtime/int)
   if (err != 0)
     pkey->reset();
 
