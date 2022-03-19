@@ -1,12 +1,4 @@
-<p align="center">
-  <a href="https://nodejs.org/">
-    <img
-      alt="Node.js"
-      src="https://nodejs.org/static/images/logo-light.svg"
-      width="400"
-    />
-  </a>
-</p>
+# Node.js
 
 Node.js is an open-source, cross-platform, JavaScript runtime environment.
 
@@ -17,7 +9,7 @@ The Node.js project uses an [open governance model](./GOVERNANCE.md). The
 
 **This project has a [Code of Conduct][].**
 
-# Table of contents
+## Table of contents
 
 * [Support](#support)
 * [Release types](#release-types)
