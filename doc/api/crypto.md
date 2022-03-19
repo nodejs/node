@@ -2995,7 +2995,8 @@ changes:
      - v11.2.0
      - v10.17.0
     pr-url: https://github.com/nodejs/node/pull/24081
-    description: The cipher `chacha20-poly1305` is now supported.
+    description: The cipher `chacha20-poly1305` (the IETF variant of
+                 ChaCha20-Poly1305) is now supported.
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/21447
     description: Ciphers in OCB mode are now supported.
@@ -3095,7 +3096,8 @@ changes:
      - v11.2.0
      - v10.17.0
     pr-url: https://github.com/nodejs/node/pull/24081
-    description: The cipher `chacha20-poly1305` is now supported.
+    description: The cipher `chacha20-poly1305` (the IETF variant of
+                 ChaCha20-Poly1305) is now supported.
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/21447
     description: Ciphers in OCB mode are now supported.
