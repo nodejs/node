@@ -53,14 +53,18 @@ testMe.complete("import\t( 'n", common.mustCall((error, data) => {
   assert.strictEqual(data[1], 'n');
   const completions = data[0];
   // import(...) completions include `node:` URL modules:
-  publicModules.forEach((lib, index) =>
-    assert.strictEqual(completions[index], `node:${lib}`));
-  assert.strictEqual(completions[publicModules.length], '');
+  let lastIndex = -1;
+
+  publicModules.forEach((lib, index) => {
+    lastIndex = completions.indexOf(`node:${lib}`);
+    assert.notStrictEqual(lastIndex, -1);
+  });
+  assert.strictEqual(completions[lastIndex + 1], '');
   // There is only one Node.js module that starts with n:
-  assert.strictEqual(completions[publicModules.length + 1], 'net');
-  assert.strictEqual(completions[publicModules.length + 2], '');
+  assert.strictEqual(completions[lastIndex + 2], 'net');
+  assert.strictEqual(completions[lastIndex + 3], '');
   // It's possible to pick up non-core modules too
-  completions.slice(publicModules.length + 3).forEach((completion) => {
+  completions.slice(lastIndex + 4).forEach((completion) => {
     assert.match(completion, /^n/);
   });
 }));
