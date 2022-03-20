@@ -44,7 +44,7 @@ const errMessages = {
   state: / state/,
   FIPS: /not supported in FIPS mode/,
   length: /Invalid initialization vector/,
-  authTagLength: /Invalid authentication tag/
+  authTagLength: /Invalid authentication tag length/
 };
 
 const ciphers = crypto.getCiphers();
@@ -684,6 +684,20 @@ for (const test of TEST_CASES) {
       code: 'ERR_OSSL_TAG_NOT_SET'
     } : {
       message: /Unsupported state/
+    });
+  }
+}
+
+{
+  const key = Buffer.alloc(32);
+  const iv = Buffer.alloc(12);
+
+  for (const authTagLength of [0, 17]) {
+    assert.throws(() => {
+      crypto.createCipheriv('chacha20-poly1305', key, iv, { authTagLength });
+    }, {
+      code: 'ERR_CRYPTO_INVALID_AUTH_TAG',
+      message: errMessages.authTagLength
     });
   }
 }

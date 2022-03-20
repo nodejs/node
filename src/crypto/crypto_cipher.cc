@@ -593,7 +593,8 @@ bool CipherBase::InitAuthenticated(
     // Tell OpenSSL about the desired length.
     if (!EVP_CIPHER_CTX_ctrl(ctx_.get(), EVP_CTRL_AEAD_SET_TAG, auth_tag_len,
                              nullptr)) {
-      THROW_ERR_CRYPTO_INVALID_AUTH_TAG(env());
+      THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
+          env(), "Invalid authentication tag length: %u", auth_tag_len);
       return false;
     }
 
