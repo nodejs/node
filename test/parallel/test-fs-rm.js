@@ -130,6 +130,17 @@ function removeAsync(dir) {
   }));
 }
 
+// Removing a .git directory should not throw an EPERM.
+// Refs: https://github.com/isaacs/rimraf/issues/21.
+{
+  const gitDirectory = nextDirPath();
+  fs.mkdirSync(gitDirectory);
+  execSync(`git -C ${gitDirectory} init`);
+  fs.rm(gitDirectory, { recursive: true }, common.mustSucceed(() => {
+    assert.strictEqual(fs.existsSync(gitDirectory), false);
+  }));
+}
+
 // Test the synchronous version.
 {
   const dir = nextDirPath();
@@ -177,6 +188,16 @@ function removeAsync(dir) {
 
   // Attempted removal should fail now because the directory is gone.
   assert.throws(() => fs.rmSync(dir), { syscall: 'stat' });
+}
+
+// Removing a .git directory should not throw an EPERM.
+// Refs: https://github.com/isaacs/rimraf/issues/21.
+{
+  const gitDirectory = nextDirPath();
+  fs.mkdirSync(gitDirectory);
+  execSync(`git -C ${gitDirectory} init`);
+  fs.rmSync(gitDirectory, { recursive: true });
+  assert.strictEqual(fs.existsSync(gitDirectory), false);
 }
 
 // Test the Promises based version.
@@ -228,6 +249,16 @@ function removeAsync(dir) {
   } finally {
     fs.rmSync(fileURL, { force: true });
   }
+})().then(common.mustCall());
+
+// Removing a .git directory should not throw an EPERM.
+// Refs: https://github.com/isaacs/rimraf/issues/21.
+(async () => {
+  const gitDirectory = nextDirPath();
+  fs.mkdirSync(gitDirectory);
+  execSync(`git -C ${gitDirectory} init`);
+  await fs.promises.rm(gitDirectory, { recursive: true });
+  assert.strictEqual(fs.existsSync(gitDirectory), false);
 })().then(common.mustCall());
 
 // Test input validation.
