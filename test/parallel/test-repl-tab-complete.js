@@ -261,14 +261,18 @@ testMe.complete("require\t( 'n", common.mustCall(function(error, data) {
   assert.strictEqual(data.length, 2);
   assert.strictEqual(data[1], 'n');
   // require(...) completions include `node:`-prefixed modules:
-  publicModules.forEach((lib, index) =>
-    assert.strictEqual(data[0][index], `node:${lib}`));
-  assert.strictEqual(data[0][publicModules.length], '');
+  let lastIndex = -1;
+
+  publicModules.forEach((lib, index) => {
+    lastIndex = data[0].indexOf(`node:${lib}`);
+    assert.notStrictEqual(lastIndex, -1);
+  });
+  assert.strictEqual(data[0][lastIndex + 1], '');
   // There is only one Node.js module that starts with n:
-  assert.strictEqual(data[0][publicModules.length + 1], 'net');
-  assert.strictEqual(data[0][publicModules.length + 2], '');
+  assert.strictEqual(data[0][lastIndex + 2], 'net');
+  assert.strictEqual(data[0][lastIndex + 3], '');
   // It's possible to pick up non-core modules too
-  data[0].slice(publicModules.length + 3).forEach((completion) => {
+  data[0].slice(lastIndex + 4).forEach((completion) => {
     assert.match(completion, /^n/);
   });
 }));
