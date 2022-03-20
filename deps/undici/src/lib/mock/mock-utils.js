@@ -1,7 +1,6 @@
 'use strict'
 
 const { MockNotMatchedError } = require('./mock-errors')
-const { kHeadersList } = require('../core/symbols')
 const {
   kDispatches,
   kMockAgent,
@@ -24,7 +23,18 @@ function matchValue (match, value) {
   return false
 }
 
+function lowerCaseEntries (headers) {
+  return Object.fromEntries(
+    Object.entries(headers).map(([headerName, headerValue]) => {
+      return [headerName.toLocaleLowerCase(), headerValue]
+    })
+  )
+}
+
 function matchHeaders (mockDispatch, headers) {
+  if (typeof mockDispatch.headers === 'function') {
+    return mockDispatch.headers(headers ? lowerCaseEntries(headers) : {})
+  }
   if (typeof mockDispatch.headers === 'undefined') {
     return true
   }
@@ -90,7 +100,7 @@ function getMockDispatch (mockDispatches, key) {
 
 function addMockDispatch (mockDispatches, key, data) {
   const baseData = { times: null, persist: false, consumed: false }
-  const replyData = typeof data === 'function' ? { callback: data } : { ...data };
+  const replyData = typeof data === 'function' ? { callback: data } : { ...data }
   const newMockDispatch = { ...baseData, ...key, data: { error: null, ...replyData } }
   mockDispatches.push(newMockDispatch)
   return newMockDispatch
@@ -136,7 +146,7 @@ async function getResponse (body) {
 function mockDispatch (opts, handler) {
   // Get mock dispatch from built key
   const key = buildKey(opts)
-  let mockDispatch = getMockDispatch(this[kDispatches], key)
+  const mockDispatch = getMockDispatch(this[kDispatches], key)
 
   // Here's where we resolve a callback if a callback is present for the dispatch data.
   if (mockDispatch.data.callback) {
@@ -175,7 +185,7 @@ function mockDispatch (opts, handler) {
   }
 
   function handleReply (mockDispatches) {
-    const responseData = getResponseData(typeof data === 'function' ? data(opts) : data);
+    const responseData = getResponseData(typeof data === 'function' ? data(opts) : data)
     const responseHeaders = generateKeyValues(headers)
     const responseTrailers = generateKeyValues(trailers)
 
