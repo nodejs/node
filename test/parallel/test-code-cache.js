@@ -16,7 +16,7 @@ const {
 } = internalBinding('native_module');
 
 for (const key of canBeRequired) {
-  require(key);
+  require(`node:${key}`);
 }
 
 // The computation has to be delayed until we have done loading modules
