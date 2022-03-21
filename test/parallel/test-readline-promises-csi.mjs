@@ -161,3 +161,85 @@ class TestWritable extends Writable {
 
   await assert.rejects(readline.cursorTo(1).commit(), error);
 }
+
+{
+  const writable = new TestWritable();
+  const readline = new Readline(writable, { autoCommit: true });
+
+  await readline.clearScreenDown();
+  process.nextTick(() => assert.deepStrictEqual(writable.data, CSI.kClearScreenDown));
+}
+
+{
+  const writable = new TestWritable();
+  const readline = new Readline(writable, { autoCommit: true });
+  for (const set of
+    [
+      [-1, CSI.kClearToLineBeginning],
+      [1, CSI.kClearToLineEnd],
+      [0, CSI.kClearLine],
+    ]) {
+    const test = async (dir, data) => {
+      writable.data = '';
+      await readline.clearLine(dir);
+      return new Promise((resolve) => {
+        process.nextTick(() => {
+          assert.deepStrictEqual(writable.data, data);
+          resolve();
+        });
+      });
+    };
+    await test(set[0], set[1]);
+  }
+}
+
+{
+  const writable = new TestWritable();
+  const readline = new Readline(writable, { autoCommit: true });
+  for (const set of
+    [
+      [0, 0, ''],
+      [1, 0, '\x1b[1C'],
+      [-1, 0, '\x1b[1D'],
+      [0, 1, '\x1b[1B'],
+      [0, -1, '\x1b[1A'],
+      [1, 1, '\x1b[1C\x1b[1B'],
+      [-1, 1, '\x1b[1D\x1b[1B'],
+      [-1, -1, '\x1b[1D\x1b[1A'],
+      [1, -1, '\x1b[1C\x1b[1A'],
+    ]) {
+    const test = async (x, y, data) => {
+      writable.data = '';
+      await readline.moveCursor(x, y);
+      return new Promise((resolve) => {
+        process.nextTick(() => {
+          assert.strictEqual(writable.data, data);
+          resolve();
+        });
+      });
+    };
+    await test(set[0], set[1], set[2]);
+  }
+}
+
+{
+  const writable = new TestWritable();
+  const readline = new Readline(writable, { autoCommit: true });
+  for (const set of
+    [
+      [1, undefined, '\x1b[2G'],
+      [1, 2, '\x1b[3;2H'],
+    ]) {
+    const test = async (x, y, data) => {
+      writable.data = '';
+      await readline.cursorTo(x, y);
+      return new Promise((resolve) => {
+        process.nextTick(() => {
+          assert.strictEqual(writable.data, data);
+          resolve();
+        });
+      });
+    };
+    await test(set[0], set[1], set[2]);
+  }
+}
