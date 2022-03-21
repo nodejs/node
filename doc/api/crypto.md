@@ -546,7 +546,8 @@ added: v1.0.0
 -->
 
 * Returns: {Buffer} When using an authenticated encryption mode (`GCM`, `CCM`,
-  and `OCB` are currently supported), the `cipher.getAuthTag()` method returns a
+  `OCB`, and `chacha20-poly1305` are currently supported), the
+  `cipher.getAuthTag()` method returns a
   [`Buffer`][] containing the _authentication tag_ that has been computed from
   the given data.
 
@@ -568,7 +569,8 @@ added: v1.0.0
   * `encoding` {string} The string encoding to use when `buffer` is a string.
 * Returns: {Cipher} for method chaining.
 
-When using an authenticated encryption mode (`GCM`, `CCM`, and `OCB` are
+When using an authenticated encryption mode (`GCM`, `CCM`, `OCB`, and
+`chacha20-poly1305` are
 currently supported), the `cipher.setAAD()` method sets the value used for the
 _additional authenticated data_ (AAD) input parameter.
 
@@ -865,7 +867,8 @@ changes:
   * `encoding` {string} String encoding to use when `buffer` is a string.
 * Returns: {Decipher} for method chaining.
 
-When using an authenticated encryption mode (`GCM`, `CCM`, and `OCB` are
+When using an authenticated encryption mode (`GCM`, `CCM`, `OCB`, and
+`chacha20-poly1305` are
 currently supported), the `decipher.setAAD()` method sets the value used for the
 _additional authenticated data_ (AAD) input parameter.
 
@@ -899,7 +902,8 @@ changes:
 * `encoding` {string} String encoding to use when `buffer` is a string.
 * Returns: {Decipher} for method chaining.
 
-When using an authenticated encryption mode (`GCM`, `CCM`, and `OCB` are
+When using an authenticated encryption mode (`GCM`, `CCM`, `OCB`, and
+`chacha20-poly1305` are
 currently supported), the `decipher.setAuthTag()` method is used to pass in the
 received _authentication tag_. If no tag is provided, or if the cipher text
 has been tampered with, [`decipher.final()`][] will throw, indicating that the
@@ -908,7 +912,8 @@ is invalid according to [NIST SP 800-38D][] or does not match the value of the
 `authTagLength` option, `decipher.setAuthTag()` will throw an error.
 
 The `decipher.setAuthTag()` method must be called before [`decipher.update()`][]
-for `CCM` mode or before [`decipher.final()`][] for `GCM` and `OCB` modes.
+for `CCM` mode or before [`decipher.final()`][] for `GCM` and `OCB` modes and
+`chacha20-poly1305`.
 `decipher.setAuthTag()` can only be called once.
 
 When passing a string as the authentication tag, please consider
@@ -2967,7 +2972,8 @@ Creates and returns a `Cipher` object that uses the given `algorithm` and
 `password`.
 
 The `options` argument controls stream behavior and is optional except when a
-cipher in CCM or OCB mode is used (e.g. `'aes-128-ccm'`). In that case, the
+cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) or `chacha20-poly1305` is used.
+In that case, the
 `authTagLength` option is required and specifies the length of the
 authentication tag in bytes, see [CCM mode][]. In GCM mode, the `authTagLength`
 option is not required but can be used to set the length of the authentication
@@ -3038,7 +3044,8 @@ Creates and returns a `Cipher` object, with the given `algorithm`, `key` and
 initialization vector (`iv`).
 
 The `options` argument controls stream behavior and is optional except when a
-cipher in CCM or OCB mode is used (e.g. `'aes-128-ccm'`). In that case, the
+cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) or `chacha20-poly1305` is used.
+In that case, the
 `authTagLength` option is required and specifies the length of the
 authentication tag in bytes, see [CCM mode][]. In GCM mode, the `authTagLength`
 option is not required but can be used to set the length of the authentication
@@ -3086,7 +3093,8 @@ Creates and returns a `Decipher` object that uses the given `algorithm` and
 `password` (key).
 
 The `options` argument controls stream behavior and is optional except when a
-cipher in CCM or OCB mode is used (e.g. `'aes-128-ccm'`). In that case, the
+cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) or `chacha20-poly1305` is used.
+In that case, the
 `authTagLength` option is required and specifies the length of the
 authentication tag in bytes, see [CCM mode][].
 
@@ -3139,7 +3147,8 @@ Creates and returns a `Decipher` object that uses the given `algorithm`, `key`
 and initialization vector (`iv`).
 
 The `options` argument controls stream behavior and is optional except when a
-cipher in CCM or OCB mode is used (e.g. `'aes-128-ccm'`). In that case, the
+cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) or `chacha20-poly1305` is used.
+In that case, the
 `authTagLength` option is required and specifies the length of the
 authentication tag in bytes, see [CCM mode][]. In GCM mode, the `authTagLength`
 option is not required but can be used to restrict accepted authentication tags

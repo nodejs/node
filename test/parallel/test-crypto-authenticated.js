@@ -701,3 +701,47 @@ for (const test of TEST_CASES) {
     });
   }
 }
+
+// ChaCha20-Poly1305 should respect the authTagLength option and should not
+// require the authentication tag before calls to update() during decryption.
+{
+  const key = Buffer.alloc(32);
+  const iv = Buffer.alloc(12);
+
+  for (let authTagLength = 1; authTagLength <= 16; authTagLength++) {
+    const cipher =
+        crypto.createCipheriv('chacha20-poly1305', key, iv, { authTagLength });
+    const ciphertext = Buffer.concat([cipher.update('foo'), cipher.final()]);
+    const authTag = cipher.getAuthTag();
+    assert.strictEqual(authTag.length, authTagLength);
+
+    // The decipher operation should reject all authentication tags other than
+    // that of the expected length.
+    for (let other = 1; other <= 16; other++) {
+      const decipher = crypto.createDecipheriv('chacha20-poly1305', key, iv, {
+        authTagLength: other
+      });
+      // ChaCha20 is a stream cipher so we do not need to call final() to obtain
+      // the full plaintext.
+      const plaintext = decipher.update(ciphertext);
+      assert.strictEqual(plaintext.toString(), 'foo');
+      if (other === authTagLength) {
+        // The authentication tag length is as expected and the tag itself is
+        // correct, so this should work.
+        decipher.setAuthTag(authTag);
+        decipher.final();
+      } else {
+        // The authentication tag that we are going to pass to setAuthTag is
+        // either too short or too long. If other < authTagLength, the
+        // authentication tag is still correct, but it should still be rejected
+        // because its security assurance is lower than expected.
+        assert.throws(() => {
+          decipher.setAuthTag(authTag);
+        }, {
+          code: 'ERR_CRYPTO_INVALID_AUTH_TAG',
+          message: `Invalid authentication tag length: ${authTagLength}`
+        });
+      }
+    }
+  }
+}
