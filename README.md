@@ -51,7 +51,7 @@ Looking for help? Check out the
 * **Nightly**: Code from the Current branch built every 24-hours when there are
   changes. Use with caution.
 
-Current and LTS releases follow [Semantic Versioning](https://semver.org). A
+Current and LTS releases follow [semantic versioning](https://semver.org). A
 member of the Release Team [signs](#release-keys) each Current and LTS release.
 For more information, see the
 [Release README](https://github.com/nodejs/Release#readme).
