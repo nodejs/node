@@ -1666,7 +1666,7 @@ void Parse(Environment* env,
       null,  // fragment defaults to null
     };
     SetArgs(env, argv, url);
-    cb->Call(context, recv, arraysize(argv), argv).FromMaybe(Local<Value>());
+    USE(cb->Call(context, recv, arraysize(argv), argv));
   } else if (error_cb->IsFunction()) {
     Local<Value> flags = Integer::NewFromUnsigned(isolate, url.flags);
     USE(error_cb.As<Function>()->Call(context, recv, 1, &flags));
