@@ -24,21 +24,20 @@ using v8::Uint32;
 using v8::Value;
 
 namespace crypto {
-#ifdef OPENSSL_NO_OCB
-# define IS_OCB_MODE(mode) false
-#else
-# define IS_OCB_MODE(mode) ((mode) == EVP_CIPH_OCB_MODE)
-#endif
-
 namespace {
 bool IsSupportedAuthenticatedMode(const EVP_CIPHER* cipher) {
-  const int mode = EVP_CIPHER_mode(cipher);
-  // Check `chacha20-poly1305` separately, it is also an AEAD cipher,
-  // but its mode is 0 which doesn't indicate
-  return EVP_CIPHER_nid(cipher) == NID_chacha20_poly1305 ||
-         mode == EVP_CIPH_CCM_MODE ||
-         mode == EVP_CIPH_GCM_MODE ||
-         IS_OCB_MODE(mode);
+  switch (EVP_CIPHER_mode(cipher)) {
+  case EVP_CIPH_CCM_MODE:
+  case EVP_CIPH_GCM_MODE:
+#ifndef OPENSSL_NO_OCB
+  case EVP_CIPH_OCB_MODE:
+#endif
+    return true;
+  case EVP_CIPH_STREAM_CIPHER:
+    return EVP_CIPHER_nid(cipher) == NID_chacha20_poly1305;
+  default:
+    return false;
+  }
 }
 
 bool IsSupportedAuthenticatedMode(const EVP_CIPHER_CTX* ctx) {
