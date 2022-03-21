@@ -215,10 +215,10 @@ void InspectorConsoleCall(const FunctionCallbackInfo<Value>& info) {
 
   Local<Value> node_method = info[1];
   CHECK(node_method->IsFunction());
-  node_method.As<Function>()->Call(context,
+  USE(node_method.As<Function>()->Call(context,
                                    info.Holder(),
                                    call_args.length(),
-                                   call_args.out()).FromMaybe(Local<Value>());
+                                   call_args.out()));
 }
 
 static void* GetAsyncTask(int64_t asyncId) {
