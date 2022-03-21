@@ -446,7 +446,7 @@ added:
   - v14.8.0
   - v12.19.0
 changes:
-  - version: REPLACEME
+  - version: v17.8.0
     pr-url: https://github.com/nodejs/node/pull/42177
     description: Changed the default when `thisArg` is undefined to use `this`
                  from the caller.
@@ -472,7 +472,7 @@ added:
   - v14.8.0
   - v12.19.0
 changes:
-  - version: REPLACEME
+  - version: v17.8.0
     pr-url: https://github.com/nodejs/node/pull/42177
     description: Changed the default when `thisArg` is undefined to use `this`
                  from the caller.
