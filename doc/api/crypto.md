@@ -5571,12 +5571,12 @@ console.log(receivedPlaintext);
 ```
 
 ```cjs
+const { Buffer } = require('buffer');
 const {
   createCipheriv,
   createDecipheriv,
   randomBytes,
 } = require('crypto');
-const { Buffer } = require('buffer');
 
 const key = 'keykeykeykeykeykeykeykey';
 const nonce = randomBytes(12);
