@@ -181,7 +181,7 @@ class TestWritable extends Writable {
     ]) {
     const test = async (dir, data) => {
       writable.data = '';
-      await readline.clearLine(dir);
+      readline.clearLine(dir);
       return new Promise((resolve) => {
         process.nextTick(() => {
           assert.deepStrictEqual(writable.data, data);
@@ -210,7 +210,7 @@ class TestWritable extends Writable {
     ]) {
     const test = async (x, y, data) => {
       writable.data = '';
-      await readline.moveCursor(x, y);
+      readline.moveCursor(x, y);
       return new Promise((resolve) => {
         process.nextTick(() => {
           assert.strictEqual(writable.data, data);
@@ -232,7 +232,7 @@ class TestWritable extends Writable {
     ]) {
     const test = async (x, y, data) => {
       writable.data = '';
-      await readline.cursorTo(x, y);
+      readline.cursorTo(x, y);
       return new Promise((resolve) => {
         process.nextTick(() => {
           assert.strictEqual(writable.data, data);
