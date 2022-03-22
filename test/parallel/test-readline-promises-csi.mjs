@@ -173,7 +173,7 @@ class TestWritable extends Writable {
 {
   const writable = new TestWritable();
   const readline = new Readline(writable, { autoCommit: true });
-  for (const set of
+  for (const [dir, data] of
     [
       [-1, CSI.kClearToLineBeginning],
       [1, CSI.kClearToLineEnd],
@@ -189,14 +189,14 @@ class TestWritable extends Writable {
         });
       });
     };
-    await test(set[0], set[1]);
+    await test(dir, data);
   }
 }
 
 {
   const writable = new TestWritable();
   const readline = new Readline(writable, { autoCommit: true });
-  for (const set of
+  for (const [x, y, data] of
     [
       [0, 0, ''],
       [1, 0, '\x1b[1C'],
@@ -218,14 +218,14 @@ class TestWritable extends Writable {
         });
       });
     };
-    await test(set[0], set[1], set[2]);
+    await test(x, y, data);
   }
 }
 
 {
   const writable = new TestWritable();
   const readline = new Readline(writable, { autoCommit: true });
-  for (const set of
+  for (const [x, y, data] of
     [
       [1, undefined, '\x1b[2G'],
       [1, 2, '\x1b[3;2H'],
@@ -240,6 +240,6 @@ class TestWritable extends Writable {
         });
       });
     };
-    await test(set[0], set[1], set[2]);
+    await test(x, y, data);
   }
 }
