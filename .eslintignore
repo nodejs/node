@@ -7,4 +7,5 @@ tools/icu
 tools/lint-md/lint-md.mjs
 benchmark/tmp
 doc/**/*.js
+!doc/api_assets/*.js
 !.eslintrc.js
