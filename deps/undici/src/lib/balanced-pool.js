@@ -20,7 +20,7 @@ const kFactory = Symbol('factory')
 const kOptions = Symbol('options')
 
 function defaultFactory (origin, opts) {
-  return new Pool(origin, opts);
+  return new Pool(origin, opts)
 }
 
 class BalancedPool extends PoolBase {
