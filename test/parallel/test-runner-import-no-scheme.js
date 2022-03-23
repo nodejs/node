@@ -40,11 +40,12 @@ function test(argv) {
 }
 
 test(['-e', 'console.log(require("test"))'])
-test(['-e', 'import("test").then(console.log)'])
-test(['--input-type=module', '-e', 'import test from test;console.log(test)']);
-test(['--input-type=module', '-e', 'console.log(await import("test"))']);
+test(['-e', 'import("test").then(m=>console.log(m.default))'])
+test(['--input-type=module', '-e', 'import test from "test";console.log(test)']);
+test(['--input-type=module', '-e', 'console.log((await import("test")).default)']);
 
 {
-  const require = createRequire(tmpdir.path);
+  const dummyFile = path.join(tmpdir.path, 'file.js');
+  const require = createRequire(dummyFile);
   assert.strictEqual(require.resolve('test'), indexFile);
 }
