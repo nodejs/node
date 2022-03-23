@@ -8,6 +8,7 @@ const util = require('../core/util')
 const {
   isValidHTTPToken,
   EnvironmentSettingsObject,
+  sameOrigin,
   toUSVString
 } = require('./util')
 const {

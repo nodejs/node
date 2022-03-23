@@ -329,7 +329,7 @@ function fetching ({
   processResponse,
   processResponseEndOfBody,
   processResponseConsumeBody,
-  useParallelQueue = false,
+  useParallelQueue = false
 }) {
   // 1. Let taskDestination be null.
   let taskDestination = null
@@ -762,8 +762,8 @@ async function schemeFetch (fetchParams) {
   switch (scheme) {
     case 'about:': {
       // If request’s current URL’s path is the string "blank", then return a new response
-      // whose status message is `OK`, header list is « (`Content-Type`, `text/html;charset=utf-8`) », 
-      // and body is the empty byte sequence. 
+      // whose status message is `OK`, header list is « (`Content-Type`, `text/html;charset=utf-8`) »,
+      // and body is the empty byte sequence.
       if (path === 'blank') {
         const resp = makeResponse({
           statusText: 'OK',
@@ -771,7 +771,7 @@ async function schemeFetch (fetchParams) {
             'content-type', 'text/html;charset=utf-8'
           ]
         })
-        
+
         resp.urlList = [new URL('about:blank')]
         return resp
       }
@@ -784,12 +784,12 @@ async function schemeFetch (fetchParams) {
 
       context.on('terminated', onRequestAborted)
 
-      // 1. Run these steps, but abort when the ongoing fetch is terminated: 
+      // 1. Run these steps, but abort when the ongoing fetch is terminated:
       //  1a. Let blob be request’s current URL’s blob URL entry’s object.
       //      https://w3c.github.io/FileAPI/#blob-url-entry
       //      P.S. Thank God this method is available in node.
       const currentURL = requestCurrentURL(request)
-      
+
       // https://github.com/web-platform-tests/wpt/blob/7b0ebaccc62b566a1965396e5be7bb2bc06f841f/FileAPI/url/resources/fetch-tests.js#L52-L56
       // Buffer.resolveObjectURL does not ignore URL queries.
       if (currentURL.search.length !== 0) {
@@ -803,7 +803,7 @@ async function schemeFetch (fetchParams) {
         return makeNetworkError('invalid method')
       }
 
-      //  3a. Let response be a new response whose status message is `OK`. 
+      //  3a. Let response be a new response whose status message is `OK`.
       const response = makeResponse({ statusText: 'OK', urlList: [currentURL] })
 
       //  4a. Append (`Content-Length`, blob’s size attribute value) to response’s header list.

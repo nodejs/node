@@ -227,22 +227,20 @@ function percentDecode (input) {
     // 1. If byte is not 0x25 (%), then append byte to output.
     if (byte !== 0x25) {
       output.push(byte)
-    }
 
     // 2. Otherwise, if byte is 0x25 (%) and the next two bytes
     // after byte in input are not in the ranges
     // 0x30 (0) to 0x39 (9), 0x41 (A) to 0x46 (F),
     // and 0x61 (a) to 0x66 (f), all inclusive, append byte
     // to output.
-    else if (
+    } else if (
       byte === 0x25 &&
       !/^[0-9A-Fa-f]{2}$/i.test(String.fromCharCode(input[i + 1], input[i + 2]))
     ) {
       output.push(0x25)
-    }
 
     // 3. Otherwise:
-    else {
+    } else {
       // 1. Let bytePoint be the two bytes after byte in input,
       // decoded, and then interpreted as hexadecimal number.
       const nextTwoBytes = String.fromCharCode(input[i + 1], input[i + 2])
@@ -334,7 +332,7 @@ function parseMIMEType (input) {
     // whitespace from input given position.
     collectASequenceOfCodePoints(
       // https://fetch.spec.whatwg.org/#http-whitespace
-      (char) => /(\u000A|\u000D|\u0009|\u0020)/.test(char),
+      (char) => /(\u000A|\u000D|\u0009|\u0020)/.test(char), // eslint-disable-line
       input,
       position
     )
@@ -389,10 +387,9 @@ function parseMIMEType (input) {
         input,
         position
       )
-    }
 
     // 9. Otherwise:
-    else {
+    } else {
       // 1. Set parameterValue to the result of collecting
       // a sequence of code points that are not U+003B (;)
       // from input, given position.
@@ -421,7 +418,7 @@ function parseMIMEType (input) {
       parameterName.length !== 0 &&
       /^[!#$%&'*+-.^_|~A-z0-9]+$/.test(parameterName) &&
       // https://mimesniff.spec.whatwg.org/#http-quoted-string-token-code-point
-      !/^(\u0009|\x{0020}-\x{007E}|\x{0080}-\x{00FF})+$/.test(parameterValue) &&
+      !/^(\u0009|\x{0020}-\x{007E}|\x{0080}-\x{00FF})+$/.test(parameterValue) &&  // eslint-disable-line
       !mimeType.parameters.has(parameterName)
     ) {
       mimeType.parameters.set(parameterName, parameterValue)
@@ -436,7 +433,7 @@ function parseMIMEType (input) {
 /** @param {string} data */
 function forgivingBase64 (data) {
   // 1. Remove all ASCII whitespace from data.
-  data = data.replace(/[\u0009\u000A\u000C\u000D\u0020]/g, '')
+  data = data.replace(/[\u0009\u000A\u000C\u000D\u0020]/g, '')  // eslint-disable-line
 
   // 2. If data’s code point length divides by 4 leaving
   // no remainder, then:
@@ -529,10 +526,9 @@ function collectAnHTTPQuotedString (input, position, extractValue) {
 
       // 3. Advance position by 1.
       position.position++
-    }
 
     // 6. Otherwise:
-    else {
+    } else {
       // 1. Assert: quoteOrBackslash is U+0022 (").
       assert(quoteOrBackslash === '"')
 

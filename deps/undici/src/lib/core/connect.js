@@ -25,7 +25,7 @@ function buildConnector ({ maxCachedSessions, socketPath, timeout, ...opts }) {
     let socket
     if (protocol === 'https:') {
       if (!tls) {
-        tls = require('tls') 
+        tls = require('tls')
       }
       servername = servername || options.servername || util.getServerName(host) || null
 

@@ -4373,7 +4373,6 @@ var require_mock_utils = __commonJS({
   "lib/mock/mock-utils.js"(exports2, module2) {
     "use strict";
     var { MockNotMatchedError } = require_mock_errors();
-    var { kHeadersList } = require_symbols();
     var {
       kDispatches,
       kMockAgent,
@@ -4394,7 +4393,15 @@ var require_mock_utils = __commonJS({
       }
       return false;
     }
+    function lowerCaseEntries(headers) {
+      return Object.fromEntries(Object.entries(headers).map(([headerName, headerValue]) => {
+        return [headerName.toLocaleLowerCase(), headerValue];
+      }));
+    }
     function matchHeaders(mockDispatch2, headers) {
+      if (typeof mockDispatch2.headers === "function") {
+        return mockDispatch2.headers(headers ? lowerCaseEntries(headers) : {});
+      }
       if (typeof mockDispatch2.headers === "undefined") {
         return true;
       }
@@ -4483,7 +4490,7 @@ var require_mock_utils = __commonJS({
     }
     function mockDispatch(opts, handler) {
       const key = buildKey(opts);
-      let mockDispatch2 = getMockDispatch(this[kDispatches], key);
+      const mockDispatch2 = getMockDispatch(this[kDispatches], key);
       if (mockDispatch2.data.callback) {
         mockDispatch2.data = { ...mockDispatch2.data, ...mockDispatch2.data.callback(opts) };
       }
@@ -4593,7 +4600,7 @@ var require_mock_interceptor = __commonJS({
       kContentLength,
       kMockDispatch
     } = require_mock_symbols();
-    var { InvalidArgumentError: InvalidArgumentError2, InvalidReturnValueError } = require_errors();
+    var { InvalidArgumentError: InvalidArgumentError2 } = require_errors();
     var MockScope = class {
       constructor(mockDispatch) {
         this[kMockDispatch] = mockDispatch;
@@ -4627,6 +4634,10 @@ var require_mock_interceptor = __commonJS({
         }
         if (typeof opts.method === "undefined") {
           throw new InvalidArgumentError2("opts.method must be defined");
+        }
+        if (typeof opts.path === "string") {
+          const parsedURL = new URL(opts.path, "data://");
+          opts.path = parsedURL.pathname + parsedURL.search;
         }
         this[kDispatchKey] = buildKey(opts);
         this[kDispatches] = mockDispatches;
@@ -4827,7 +4838,14 @@ var require_mock_agent = __commonJS({
     var { matchValue, buildMockOptions } = require_mock_utils();
     var { InvalidArgumentError: InvalidArgumentError2 } = require_errors();
     var Dispatcher2 = require_dispatcher();
-    var { WeakRef } = require_dispatcher_weakref()();
+    var FakeWeakRef = class {
+      constructor(value) {
+        this.value = value;
+      }
+      deref() {
+        return this.value;
+      }
+    };
     var MockAgent2 = class extends Dispatcher2 {
       constructor(opts) {
         super(opts);
@@ -4880,7 +4898,7 @@ var require_mock_agent = __commonJS({
         this[kNetConnect] = false;
       }
       [kMockAgentSet](origin, dispatcher) {
-        this[kClients].set(origin, new WeakRef(dispatcher));
+        this[kClients].set(origin, new FakeWeakRef(dispatcher));
       }
       [kFactory](origin) {
         const mockOptions = Object.assign({ agent: this }, this[kOptions]);
@@ -4919,7 +4937,7 @@ var require_proxy_agent = __commonJS({
   "lib/proxy-agent.js"(exports2, module2) {
     "use strict";
     var { kProxy } = require_symbols();
-    var url = require("url");
+    var { URL: URL2 } = require("url");
     var Agent2 = require_agent();
     var Dispatcher2 = require_dispatcher();
     var { InvalidArgumentError: InvalidArgumentError2 } = require_errors();
@@ -4931,7 +4949,7 @@ var require_proxy_agent = __commonJS({
         this[kAgent] = new Agent2(opts);
       }
       dispatch(opts, handler) {
-        const { host } = url.parse(opts.origin);
+        const { host } = new URL2(opts.origin);
         return this[kAgent].dispatch({
           ...opts,
           origin: this[kProxy].uri,
@@ -5628,7 +5646,7 @@ var require_util2 = __commonJS({
             }
             break;
           case "same-origin":
-            if (!sameOrigin2(request, requestCurrentURL(request))) {
+            if (!sameOrigin(request, requestCurrentURL(request))) {
               serializedOrigin = null;
             }
             break;
@@ -5671,7 +5689,7 @@ var require_util2 = __commonJS({
     }
     function tryUpgradeRequestToAPotentiallyTrustworthyURL(request) {
     }
-    function sameOrigin2(A, B) {
+    function sameOrigin(A, B) {
       if (A.protocol === B.protocol && A.hostname === B.hostname && A.port === B.port) {
         return true;
       }
@@ -5723,7 +5741,7 @@ var require_util2 = __commonJS({
       isBlobLike,
       isFileLike,
       isValidReasonPhrase,
-      sameOrigin: sameOrigin2,
+      sameOrigin,
       CORBCheck
     };
   }
@@ -6391,6 +6409,7 @@ var require_request2 = __commonJS({
     var {
       isValidHTTPToken,
       EnvironmentSettingsObject,
+      sameOrigin,
       toUSVString
     } = require_util2();
     var {
@@ -7076,7 +7095,7 @@ var require_fetch = __commonJS({
       createDeferredPromise,
       isBlobLike,
       CORBCheck,
-      sameOrigin: sameOrigin2
+      sameOrigin
     } = require_util2();
     var { kState, kHeaders, kGuard, kRealm } = require_symbols2();
     var { AbortError } = require_errors();
@@ -7302,7 +7321,7 @@ var require_fetch = __commonJS({
       if (response === null) {
         response = await (async () => {
           const currentURL = requestCurrentURL(request);
-          if (sameOrigin2(currentURL, request.url) && request.responseTainting === "basic" || currentURL.protocol === "data:" || (request.mode === "navigate" || request.mode === "websocket")) {
+          if (sameOrigin(currentURL, request.url) && request.responseTainting === "basic" || currentURL.protocol === "data:" || (request.mode === "navigate" || request.mode === "websocket")) {
             request.responseTainting = "basic";
             return await schemeFetch.call(this, fetchParams);
           }
@@ -7546,7 +7565,7 @@ var require_fetch = __commonJS({
         return makeNetworkError("redirect count exceeded");
       }
       request.redirectCount += 1;
-      if (request.mode === "cors" && (locationURL.username || locationURL.password) && !sameOrigin2(request, locationURL)) {
+      if (request.mode === "cors" && (locationURL.username || locationURL.password) && !sameOrigin(request, locationURL)) {
         return makeNetworkError('cross origin not allowed for request mode "cors"');
       }
       if (request.responseTainting === "cors" && (locationURL.username || locationURL.password)) {

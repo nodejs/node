@@ -49,7 +49,7 @@ declare namespace MockInterceptor {
     /** Body to intercept on. */
     body?: string | RegExp | ((body: string) => boolean);
     /** Headers to intercept on. */
-    headers?: Record<string, string | RegExp | ((body: string) => boolean)>;
+    headers?: Record<string, string | RegExp | ((body: string) => boolean)> | ((headers: Record<string, string>) => boolean);
   }
   export interface MockDispatch<TData extends object = object, TError extends Error = Error> extends Options {
     times: number | null;

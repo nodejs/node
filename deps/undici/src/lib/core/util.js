@@ -201,7 +201,7 @@ function parseHeaders (headers, obj = {}) {
 }
 
 function parseRawHeaders (headers) {
-  return headers.map(header => header.toString());
+  return headers.map(header => header.toString())
 }
 
 function isBuffer (buffer) {
@@ -263,7 +263,7 @@ function isErrored (body) {
     stream.isErrored
       ? stream.isErrored(body)
       : /state: 'errored'/.test(nodeUtil.inspect(body)
-  )))
+      )))
 }
 
 function isReadable (body) {
@@ -271,7 +271,7 @@ function isReadable (body) {
     stream.isReadable
       ? stream.isReadable(body)
       : /state: 'readable'/.test(nodeUtil.inspect(body)
-  )))
+      )))
 }
 
 function getSocketInfo (socket) {

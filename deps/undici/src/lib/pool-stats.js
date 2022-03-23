@@ -2,31 +2,31 @@ const { kFree, kConnected, kPending, kQueued, kRunning, kSize } = require('./cor
 const kPool = Symbol('pool')
 
 class PoolStats {
-  constructor(pool) {
+  constructor (pool) {
     this[kPool] = pool
   }
 
-  get connected() {
+  get connected () {
     return this[kPool][kConnected]
   }
 
-  get free() {
+  get free () {
     return this[kPool][kFree]
   }
 
-  get pending() {
+  get pending () {
     return this[kPool][kPending]
   }
 
-  get queued() {
+  get queued () {
     return this[kPool][kQueued]
   }
 
-  get running() {
+  get running () {
     return this[kPool][kRunning]
   }
 
-  get size() {
+  get size () {
     return this[kPool][kSize]
   }
 }

@@ -214,10 +214,9 @@ function appendRequestOriginHeader (request) {
     if (serializedOrigin) {
       request.headersList.append('Origin', serializedOrigin)
     }
-  }
 
   // 3. Otherwise, if request’s method is neither `GET` nor `HEAD`, then:
-  else if (request.method !== 'GET' && request.method !== 'HEAD') {
+  } else if (request.method !== 'GET' && request.method !== 'HEAD') {
     // 1. Switch on request’s referrer policy:
     switch (request.referrerPolicy) {
       case 'no-referrer':
@@ -307,7 +306,7 @@ function sameOrigin (A, B) {
   // 1. If A and B are the same opaque origin, then return true.
   // "opaque origin" is an internal value we cannot access, ignore.
 
-  // 2. If A and B are both tuple origins and their schemes, 
+  // 2. If A and B are both tuple origins and their schemes,
   //    hosts, and port are identical, then return true.
   if (A.protocol === B.protocol && A.hostname === B.hostname && A.port === B.port) {
     return true

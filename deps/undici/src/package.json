@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "4.15.1",
+  "version": "4.16.0",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -52,7 +52,7 @@
     "test:tap": "tap test/*.js test/diagnostics-channel/*.js",
     "test:tdd": "tap test/*.js test/diagnostics-channel/*.js -w",
     "test:typescript": "tsd",
-    "coverage": "nyc npm run test",
+    "coverage": "nyc --reporter=text --reporter=html npm run test",
     "coverage:ci": "nyc --reporter=lcov npm run test",
     "bench": "concurrently -k -s first npm:bench:server npm:bench:run",
     "bench:server": "node benchmarks/server.js",
@@ -115,6 +115,8 @@
     }
   },
   "jest": {
-    "testMatch": ["<rootDir>/test/jest/**"]
+    "testMatch": [
+      "<rootDir>/test/jest/**"
+    ]
   }
 }
