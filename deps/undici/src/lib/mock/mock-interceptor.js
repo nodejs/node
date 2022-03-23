@@ -9,7 +9,7 @@ const {
   kContentLength,
   kMockDispatch
 } = require('./mock-symbols')
-const { InvalidArgumentError, InvalidReturnValueError } = require('../core/errors')
+const { InvalidArgumentError } = require('../core/errors')
 
 /**
  * Defines the scope API for a interceptor reply
@@ -66,6 +66,14 @@ class MockInterceptor {
     if (typeof opts.method === 'undefined') {
       throw new InvalidArgumentError('opts.method must be defined')
     }
+    // See https://github.com/nodejs/undici/issues/1245
+    // As per RFC 3986, clients are not supposed to send URI
+    // fragments to servers when they retrieve a document,
+    if (typeof opts.path === 'string') {
+      // Matches https://github.com/nodejs/undici/blob/main/lib/fetch/index.js#L1811
+      const parsedURL = new URL(opts.path, 'data://')
+      opts.path = parsedURL.pathname + parsedURL.search
+    }
 
     this[kDispatchKey] = buildKey(opts)
     this[kDispatches] = mockDispatches
@@ -74,16 +82,16 @@ class MockInterceptor {
     this[kContentLength] = false
   }
 
-  createMockScopeDispatchData(statusCode, data, responseOptions = {}) {
+  createMockScopeDispatchData (statusCode, data, responseOptions = {}) {
     const responseData = getResponseData(data)
     const contentLength = this[kContentLength] ? { 'content-length': responseData.length } : {}
     const headers = { ...this[kDefaultHeaders], ...contentLength, ...responseOptions.headers }
     const trailers = { ...this[kDefaultTrailers], ...responseOptions.trailers }
 
-    return { statusCode, data, headers, trailers };
+    return { statusCode, data, headers, trailers }
   }
 
-  validateReplyParameters(statusCode, data, responseOptions) {
+  validateReplyParameters (statusCode, data, responseOptions) {
     if (typeof statusCode === 'undefined') {
       throw new InvalidArgumentError('statusCode must be defined')
     }
@@ -107,39 +115,38 @@ class MockInterceptor {
       // when invoked.
       const wrappedDefaultsCallback = (opts) => {
         // Our reply options callback contains the parameter for statusCode, data and options.
-        const resolvedData = replyData(opts);
+        const resolvedData = replyData(opts)
 
         // Check if it is in the right format
         if (typeof resolvedData !== 'object') {
           throw new InvalidArgumentError('reply options callback must return an object')
         }
 
-        const { statusCode, data, responseOptions = {}} = resolvedData;
-        this.validateReplyParameters(statusCode, data, responseOptions);
+        const { statusCode, data, responseOptions = {} } = resolvedData
+        this.validateReplyParameters(statusCode, data, responseOptions)
         // Since the values can be obtained immediately we return them
         // from this higher order function that will be resolved later.
-        return { 
+        return {
           ...this.createMockScopeDispatchData(statusCode, data, responseOptions)
         }
       }
 
       // Add usual dispatch data, but this time set the data parameter to function that will eventually provide data.
       const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], wrappedDefaultsCallback)
-      return new MockScope(newMockDispatch);
+      return new MockScope(newMockDispatch)
     }
 
     // We can have either one or three parameters, if we get here,
     // we should have 2-3 parameters. So we spread the arguments of
     // this function to obtain the parameters, since replyData will always
-    // just be the statusCode. 
-    const [statusCode, data, responseOptions = {}] = [...arguments];   
-    this.validateReplyParameters(statusCode, data, responseOptions);
+    // just be the statusCode.
+    const [statusCode, data, responseOptions = {}] = [...arguments]
+    this.validateReplyParameters(statusCode, data, responseOptions)
 
     // Send in-already provided data like usual
-    const dispatchData = this.createMockScopeDispatchData(statusCode, data, responseOptions);
+    const dispatchData = this.createMockScopeDispatchData(statusCode, data, responseOptions)
     const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], dispatchData)
     return new MockScope(newMockDispatch)
-    
   }
 
   /**
