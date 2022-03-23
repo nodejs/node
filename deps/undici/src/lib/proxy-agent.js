@@ -1,7 +1,7 @@
 'use strict'
 
 const { kProxy } = require('./core/symbols')
-const url = require('url')
+const { URL } = require('url')
 const Agent = require('./agent')
 const Dispatcher = require('./dispatcher')
 const { InvalidArgumentError } = require('./core/errors')
@@ -16,7 +16,7 @@ class ProxyAgent extends Dispatcher {
   }
 
   dispatch (opts, handler) {
-    const { host } = url.parse(opts.origin)
+    const { host } = new URL(opts.origin)
     return this[kAgent].dispatch(
       {
         ...opts,

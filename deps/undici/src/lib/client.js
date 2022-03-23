@@ -794,7 +794,7 @@ class Parser {
       return -1
     }
 
-    /* istanbul ignore if: this can only happen if server is misbehaving */
+    /* this can only happen if server is misbehaving */
     if (upgrade && !request.upgrade) {
       util.destroy(socket, new SocketError('bad upgrade', util.getSocketInfo(socket)))
       return -1

@@ -18,7 +18,16 @@ const MockPool = require('./mock-pool')
 const { matchValue, buildMockOptions } = require('./mock-utils')
 const { InvalidArgumentError } = require('../core/errors')
 const Dispatcher = require('../dispatcher')
-const { WeakRef } = require('../compat/dispatcher-weakref')()
+
+class FakeWeakRef {
+  constructor (value) {
+    this.value = value
+  }
+
+  deref () {
+    return this.value
+  }
+}
 
 class MockAgent extends Dispatcher {
   constructor (opts) {
@@ -86,7 +95,7 @@ class MockAgent extends Dispatcher {
   }
 
   [kMockAgentSet] (origin, dispatcher) {
-    this[kClients].set(origin, new WeakRef(dispatcher))
+    this[kClients].set(origin, new FakeWeakRef(dispatcher))
   }
 
   [kFactory] (origin) {
