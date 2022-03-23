@@ -28,54 +28,23 @@ tmpdir.refresh();
 
 const packageRoot = path.join(tmpdir.path, 'node_modules', 'test');
 const indexFile = path.join(packageRoot, 'index.js');
-const cjsFile = path.join(tmpdir.path, 'cjs.js');
-const esmFile = path.join(tmpdir.path, 'esm.mjs');
+const { createRequire } = require('module');
 
 fs.mkdirSync(packageRoot, { recursive: true });
 fs.writeFileSync(indexFile, 'module.exports = { marker: 1 };');
-fs.writeFileSync(cjsFile, `
-'use strict';
-const common = require('../common');
-const assert = require('assert');
-const test = require('test');
 
-assert.deepStrictEqual(test, { marker: 1 });
-assert.strictEqual(require.resolve('test'), '${indexFile}');
+function test(argv) {
+  const child = spawnSync(process.execPath, argv, { cwd: tmpdir.path });
+  assert.strictEqual(child.status, 0);
+  assert.strictEqual(child.stdout.toString().trim(), '{ marker: 1 }');
+}
 
-(async function() {
-  const dynamicImportTest = await import('test');
+test(['-e', 'console.log(require("test"))'])
+test(['-e', 'import("test").then(console.log)'])
+test(['--input-type=module', '-e', 'import test from test;console.log(test)']);
+test(['--input-type=module', '-e', 'console.log(await import("test"))']);
 
-  assert.deepStrictEqual(dynamicImportTest.default, { marker: 1 });
-})().then(common.mustCall());
-`);
-fs.writeFileSync(esmFile, `
-import { mustCall } from '../common/index.mjs';
-import assert from 'assert';
-import { createRequire } from 'module';
-import test from 'test';
-
-assert.deepStrictEqual(test, { marker: 1 });
-
-const dynamicImportTest = await import('test');
-assert.deepStrictEqual(dynamicImportTest.default, { marker: 1 });
-
-const require = createRequire(import.meta.url);
-const requireTest = require('test');
-
-assert.deepStrictEqual(requireTest, { marker: 1 });
-assert.strictEqual(require.resolve('test'), '${indexFile}');
-`);
-
-let child = spawnSync(process.execPath, [cjsFile], { cwd: tmpdir.path });
-
-assert.strictEqual(child.stdout.toString().trim(), '');
-assert.strictEqual(child.stderr.toString().trim(), '');
-assert.strictEqual(child.status, 0);
-assert.strictEqual(child.signal, null);
-
-child = spawnSync(process.execPath, [esmFile], { cwd: tmpdir.path });
-
-assert.strictEqual(child.stdout.toString().trim(), '');
-assert.strictEqual(child.stderr.toString().trim(), '');
-assert.strictEqual(child.status, 0);
-assert.strictEqual(child.signal, null);
+{
+  const require = createRequire(tmpdir.path);
+  assert.strictEqual(require.resolve('test'), indexFile);
+}
