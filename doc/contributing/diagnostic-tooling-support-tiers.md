@@ -9,7 +9,7 @@ The Node.js project has assessed the tools and the APIs which support those
 tools. Each of the tools and APIs has been put into one of
 the following tiers.
 
-* Tier 1 - Must always be working(CI tests passing) for all
+* Tier 1 - Must always be working (CI tests passing) for all
   Current and LTS Node.js releases. A release will not be shipped if the test
   suite for the tool/API is not green. To be considered for inclusion
   in this tier it must have a good test suite and that test suite and a job
@@ -29,7 +29,7 @@ the following tiers.
     its dependencies; and
   * The tool must be open source.
 
-* Tier 2 - Must be working(CI tests passing) for all
+* Tier 2 - Must be working (CI tests passing) for all
   LTS releases. An LTS release will not be shipped if the test
   suite for the tool/API is not green. To be considered for inclusion
   in this tier it must have a good test suite and that test suite and a job
@@ -136,6 +136,7 @@ The tools are currently assigned to Tiers as follows:
 | Debugger  | Chrome Dev tools          | ?                             | No                      | 3           |
 | Debugger  | Chakracore - time-travel  | No                            | Data source only        | too early   |
 | Tracing   | trace\_events (API)       | No                            | Yes                     | 1           |
+| Tracing   | trace\_gc                 | No                            | Yes                     | 1           |
 | Tracing   | DTrace                    | No                            | Partial                 | 3           |
 | Tracing   | LTTng                     | No                            | Removed?                | N/A         |
 | Tracing   | ETW                       | No                            | Partial                 | 3           |
