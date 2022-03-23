@@ -5,6 +5,7 @@ const assert = require('assert');
 const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { createRequire } = require('module');
 
 assert.throws(
   () => require('test'),
