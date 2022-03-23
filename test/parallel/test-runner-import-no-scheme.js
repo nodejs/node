@@ -28,7 +28,6 @@ tmpdir.refresh();
 
 const packageRoot = path.join(tmpdir.path, 'node_modules', 'test');
 const indexFile = path.join(packageRoot, 'index.js');
-const { createRequire } = require('module');
 
 fs.mkdirSync(packageRoot, { recursive: true });
 fs.writeFileSync(indexFile, 'module.exports = { marker: 1 };');
