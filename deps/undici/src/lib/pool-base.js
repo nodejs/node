@@ -118,8 +118,8 @@ class PoolBase extends Dispatcher {
     return ret
   }
 
-  get stats() {
-    return this[kStats];
+  get stats () {
+    return this[kStats]
   }
 
   get destroyed () {
