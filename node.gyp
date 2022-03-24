@@ -7,6 +7,7 @@
     'node_use_dtrace%': 'false',
     'node_use_etw%': 'false',
     'node_no_browser_globals%': 'false',
+    'node_snapshot_main%': '',
     'node_use_node_snapshot%': 'false',
     'node_use_v8_platform%': 'true',
     'node_use_bundled_v8%': 'true',
@@ -315,23 +316,47 @@
           'dependencies': [
             'node_mksnapshot',
           ],
-          'actions': [
-            {
-              'action_name': 'node_mksnapshot',
-              'process_outputs_as_sources': 1,
-              'inputs': [
-                '<(node_mksnapshot_exec)',
+          'conditions': [
+            ['node_snapshot_main!=""', {
+              'actions': [
+                {
+                  'action_name': 'node_mksnapshot',
+                  'process_outputs_as_sources': 1,
+                  'inputs': [
+                    '<(node_mksnapshot_exec)',
+                    '<(node_snapshot_main)',
+                  ],
+                  'outputs': [
+                    '<(SHARED_INTERMEDIATE_DIR)/node_snapshot.cc',
+                  ],
+                  'action': [
+                    '<(node_mksnapshot_exec)',
+                    '--build-snapshot',
+                    '<(node_snapshot_main)',
+                    '<@(_outputs)',
+                  ],
+                },
               ],
-              'outputs': [
-                '<(SHARED_INTERMEDIATE_DIR)/node_snapshot.cc',
+            }, {
+              'actions': [
+                {
+                  'action_name': 'node_mksnapshot',
+                  'process_outputs_as_sources': 1,
+                  'inputs': [
+                    '<(node_mksnapshot_exec)',
+                  ],
+                  'outputs': [
+                    '<(SHARED_INTERMEDIATE_DIR)/node_snapshot.cc',
+                  ],
+                  'action': [
+                    '<@(_inputs)',
+                    '<@(_outputs)',
+                  ],
+                },
               ],
-              'action': [
-                '<@(_inputs)',
-                '<@(_outputs)',
-              ],
-            },
+            }],
           ],
-        }, {
+          }, {
           'sources': [
             'src/node_snapshot_stub.cc'
           ],
