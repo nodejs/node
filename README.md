@@ -113,7 +113,7 @@ import the keys:
 $ gpg --keyserver hkps://keys.openpgp.org --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D
 ```
 
-See the bottom of this README for a full script to import active release keys.
+See [Release keys](#release-keys) for a script to import active release keys.
 
 Next, download the `SHASUMS256.txt.sig` for the release:
 
@@ -702,8 +702,8 @@ gpg --keyserver hkps://keys.openpgp.org --recv-keys 108F52B48DB57BB0CC439B2997B0
 gpg --keyserver hkps://keys.openpgp.org --recv-keys B9E2F5981AA6E0CD28160D9FF13993A75599653C
 ```
 
-See the section above on [Verifying binaries](#verifying-binaries) for how to
-use these keys to verify a downloaded file.
+See [Verifying binaries](#verifying-binaries) for how to use these keys to
+verify a downloaded file.
 
 <details>
 
