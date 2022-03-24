@@ -437,7 +437,7 @@ heap limit. `count` should be a non-negative integer (in which case
 Node.js will write no more than `max_count` snapshots to disk).
 
 When generating snapshots, garbage collection may be triggered and bring
-the heap usage down, therefore multiple snapshots may be written to disk
+the heap usage down. Therefore multiple snapshots may be written to disk
 before the Node.js instance finally runs out of memory. These heap snapshots
 can be compared to determine what objects are being allocated during the
 time consecutive snapshots are taken. It's not guaranteed that Node.js will
