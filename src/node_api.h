@@ -44,12 +44,34 @@ typedef struct napi_module {
 #define NAPI_MODULE_VERSION 1
 
 #if defined(_MSC_VER)
+#if defined(__cplusplus)
+// The NAPI_C_CTOR macro defines a function fn that is called during dynamic
+// initialization of static variables.
+// The order of the dynamic initialization is not defined and code in fn
+// function must avoid using other static variables with dynamic initialization.
+#define NAPI_C_CTOR(fn)                                                        \
+  static void __cdecl fn(void);                                                \
+  namespace {                                                                  \
+  struct fn##_ {                                                               \
+    static int Call##fn() { return (fn(), 0); }                                \
+    static inline const int x = Call##fn();                                    \
+  };                                                                           \
+  }                                                                            \
+  static void __cdecl fn(void)
+#else
 #pragma section(".CRT$XCU", read)
+// The NAPI_C_CTOR macro defines a function fn that is called during CRT
+// initialization.
+// C does not support dynamic initialization of static variables and this code
+// simulates C++ behavior. Exporting the function pointer prevents it from being
+// optimized. See for details:
+// https://docs.microsoft.com/en-us/cpp/c-runtime-library/crt-initialization?view=msvc-170
 #define NAPI_C_CTOR(fn)                                                        \
   static void __cdecl fn(void);                                                \
   __declspec(dllexport, allocate(".CRT$XCU")) void(__cdecl * fn##_)(void) =    \
       fn;                                                                      \
   static void __cdecl fn(void)
+#endif  // defined(__cplusplus)
 #else
 #define NAPI_C_CTOR(fn)                                                        \
   static void fn(void) __attribute__((constructor));                           \
