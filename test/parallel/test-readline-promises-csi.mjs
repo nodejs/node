@@ -168,7 +168,8 @@ class TestWritable extends Writable {
   const readline = new Readline(writable, { autoCommit: true });
 
   await readline.clearScreenDown();
-  process.nextTick(() => assert.deepStrictEqual(writable.data, CSI.kClearScreenDown));
+  await setImmediate(); // wait for next tick as auto commit is asynchronous.
+  assert.deepStrictEqual(writable.data, CSI.kClearScreenDown);
 }
 
 {
@@ -182,7 +183,8 @@ class TestWritable extends Writable {
     ]) {
     writable.data = '';
     readline.clearLine(dir);
-    assert.deepStrictEqual((await setImmediate(writable)).data, data);
+    await setImmediate(); // wait for next tick as auto commit is asynchronous.
+    assert.deepStrictEqual(writable.data, data);
   }
 }
 
@@ -203,7 +205,8 @@ class TestWritable extends Writable {
     ]) {
     writable.data = '';
     readline.moveCursor(x, y);
-    assert.deepStrictEqual((await setImmediate(writable)).data, data);
+    await setImmediate(); // wait for next tick as auto commit is asynchronous.
+    assert.deepStrictEqual(writable.data, data);
   }
 }
 
@@ -217,6 +220,7 @@ class TestWritable extends Writable {
     ]) {
     writable.data = '';
     readline.cursorTo(x, y);
-    assert.deepStrictEqual((await setImmediate(writable)).data, data);
+    await setImmediate(); // wait for next tick as auto commit is asynchronous.
+    assert.deepStrictEqual(writable.data, data);
   }
 }
