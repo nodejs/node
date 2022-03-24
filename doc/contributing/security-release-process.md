@@ -74,6 +74,17 @@ The current security stewards are documented in the main Node.js
   (Re-PR the pre-approved branch from nodejs-private/nodejs.org-private to
   nodejs/nodejs.org)
 
+  If the security release will only contain an OpenSSL update consider
+  adding the following to the pre-release announcement:
+
+  ```text
+  Since this security release will only include updates for OpenSSL, if you're using
+  a Node.js version which is part of a distribution which uses a system
+  installed OpenSSL, this Node.js security update might not concern you. You may
+  instead need to update your system OpenSSL libraries, please check the
+  security announcements for the distribution.
+  ```
+
 * [ ] Pre-release announcement [email][]: _**LINK TO EMAIL**_
   * Subject: `Node.js security updates for all active release lines, Month Year`
   * Body:
