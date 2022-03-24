@@ -788,6 +788,13 @@ parser.add_argument('--node-builtin-modules-path',
     default=False,
     help='node will load builtin modules from disk instead of from binary')
 
+parser.add_argument('--node-snapshot-main',
+    action='store',
+    dest='node_snapshot_main',
+    default=None,
+    help='Run a file when building the embedded snapshot. Currently ' +
+         'experimental.')
+
 # Create compile_commands.json in out/Debug and out/Release.
 parser.add_argument('-C',
     action='store_true',
@@ -1215,6 +1222,18 @@ def configure_node(o):
     warn('building --without-snapshot is no longer possible')
 
   o['variables']['want_separate_host_toolset'] = int(cross_compiling)
+
+  if options.node_snapshot_main is not None:
+    if options.shared:
+      # This should be possible to fix, but we will need to refactor the
+      # libnode target to avoid building it twice.
+      error('--node-snapshot-main is incompatible with --shared')
+    if options.without_node_snapshot:
+      error('--node-snapshot-main is incompatible with ' +
+            '--without-node-snapshot')
+    if cross_compiling:
+      error('--node-snapshot-main is incompatible with cross compilation')
+    o['variables']['node_snapshot_main'] = options.node_snapshot_main
 
   if options.without_node_snapshot or options.node_builtin_modules_path:
     o['variables']['node_use_node_snapshot'] = 'false'
