@@ -21,6 +21,8 @@ test-code-cache: SKIP
 test-tick-processor-arguments: SKIP
 # Skip tests failing in V8 bots when updating Node
 test-child-process-stdio-overlapped: SKIP
+# https://github.com/nodejs/node/issues/42458
+test-repl-mode: SKIP
 
 # Temporarily skip for https://crrev.com/c/2974772
 test-util-inspect: SKIP
