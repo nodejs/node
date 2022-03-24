@@ -79,7 +79,7 @@ The current security stewards are documented in the main Node.js
 
   ```text
   Since this security release will only include updates for OpenSSL, if you're using
-  a Node.js version which is part of a Linux distribution which uses a system
+  a Node.js version which is part of a distribution which uses a system
   installed OpenSSL, this Node.js security update might not concern you. You may
   instead need to update your system OpenSSL libraries, please check the
   security announcements for the distribution.
