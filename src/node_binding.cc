@@ -59,6 +59,7 @@
   V(js_udp_wrap)                                                               \
   V(messaging)                                                                 \
   V(module_wrap)                                                               \
+  V(mksnapshot)                                                                \
   V(native_module)                                                             \
   V(options)                                                                   \
   V(os)                                                                        \

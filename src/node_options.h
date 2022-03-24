@@ -229,6 +229,7 @@ class PerProcessOptions : public Options {
   bool zero_fill_all_buffers = false;
   bool debug_arraybuffer_allocations = false;
   std::string disable_proto;
+  bool build_snapshot;
 
   std::vector<std::string> security_reverts;
   bool print_bash_completion = false;
