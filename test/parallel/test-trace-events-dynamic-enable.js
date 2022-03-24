@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -6,15 +5,12 @@ const common = require('../common');
 common.skipIfInspectorDisabled();
 common.skipIfWorker(); // https://github.com/nodejs/node/issues/22767
 
-const { internalBinding } = require('internal/test/binding');
-
 const {
-  trace: {
+  trace,
+  events: {
     TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN: kBeforeEvent
-  }
-} = internalBinding('constants');
-
-const { trace } = internalBinding('trace_events');
+  },
+} = require('trace_events');
 
 const assert = require('assert');
 const { Session } = require('inspector');
@@ -37,11 +33,11 @@ async function test() {
 
   const events = [];
   let tracingComplete = false;
-  session.on('NodeTracing.dataCollected', (n) => {
+  session.on('NodeTracing.dataCollected', common.mustCallAtLeast((n) => {
     assert.ok(n && n.params && n.params.value);
     events.push(...n.params.value);  // append the events.
-  });
-  session.on('NodeTracing.tracingComplete', () => tracingComplete = true);
+  }));
+  session.on('NodeTracing.tracingComplete', common.mustCall(() => tracingComplete = true));
 
   trace(kBeforeEvent, 'foo', 'test1', 0, 'test');
 

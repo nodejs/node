@@ -226,6 +226,61 @@ t2.enable();
 console.log(trace_events.getEnabledCategories());
 ```
 
+### `trace_events.trace(phase, category, name, id, data)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+use `trace_events.trace` to product trace events data, then this data can be
+collected by the `inspector` module or the `trace_events.createTracing` method.
+
+The following example is used to product custom trace event, and collect
+the data by using the inspector.
+
+```js
+'use strict';
+
+const {
+  trace,
+  events: {
+    TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN: kBeforeEvent
+  },
+} = require('trace_events');
+
+const { Session } = require('inspector');
+
+const session = new Session();
+
+function post(message, data) {
+  return new Promise((resolve, reject) => {
+    session.post(message, data, (err, result) => {
+      if (err)
+        reject(new Error(JSON.stringify(err)));
+      else
+        resolve(result);
+    });
+  });
+}
+
+async function test() {
+  session.connect();
+  const events = [];
+  session.on('NodeTracing.dataCollected', (n) => {
+    events.push(...n.params.value.filter((v) => v.cat !== '__metadata'));
+  });
+  session.on('NodeTracing.tracingComplete', () => console.log(events));
+
+  const traceConfig = { includedCategories: ['custom'] };
+  await post('NodeTracing.start', { traceConfig });
+  trace(kBeforeEvent, 'custom', 'hello', 0, 'world');
+  await post('NodeTracing.stop', { traceConfig });
+  session.disconnect();
+}
+
+test();
+```
+
 [Performance API]: perf_hooks.md
 [V8]: v8.md
 [`Worker`]: worker_threads.md#class-worker
