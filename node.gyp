@@ -1516,29 +1516,29 @@
       ]
     }], # end aix section
     ['OS=="win" and node_shared=="true"', {
-      'targets': [
-        {
-          'target_name': 'copy_libnode_implib',
-          'type': 'none',
-          'dependencies': ['<(node_lib_target_name)'],
-          'actions': [
-            {
-              'action_name': 'copy_libnode_implib_action',
-              'inputs': [
-                '<(PRODUCT_DIR)/<(node_lib_target_name).lib'
-              ],
-              'outputs': [
-                '<(PRODUCT_DIR)/<(node_core_target_name).lib',
-              ],
-              'action': [
-                'python', 'tools/copyfile.py',
-                '<@(_inputs)',
-                '<@(_outputs)',
-              ],
-            },
-          ],
-        },
-      ],
-    }], # end win and node_shared section
+     'targets': [
+       {
+         'target_name': 'copy_libnode_implib',
+         'type': 'none',
+         'dependencies': ['<(node_lib_target_name)'],
+         'actions': [
+           {
+             'action_name': 'copy_libnode_implib_action',
+             'inputs': [
+               '<(PRODUCT_DIR)/<(node_lib_target_name).lib'
+             ],
+             'outputs': [
+               '<(PRODUCT_DIR)/<(node_core_target_name).lib',
+             ],
+             'action': [
+               'python', 'tools/copyfile.py',
+               '<@(_inputs)',
+               '<@(_outputs)',
+             ],
+           },
+         ],
+       },
+     ],
+   }], # end win section
   ], # end conditions block
 }
