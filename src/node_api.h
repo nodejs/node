@@ -44,12 +44,29 @@ typedef struct napi_module {
 #define NAPI_MODULE_VERSION 1
 
 #if defined(_MSC_VER)
+#if defined(__cplusplus)
+#define NAPI_C_CTOR(fn)                                                        \
+  static void __cdecl fn(void);                                                \
+  namespace {                                                                  \
+  struct fn##_ {                                                               \
+    fn##_() { fn(); }                                                          \
+  } fn##_v_;                                                                   \
+  }                                                                            \
+  static void __cdecl fn(void)
+#else  // !defined(__cplusplus)
 #pragma section(".CRT$XCU", read)
+// The NAPI_C_CTOR macro defines a function fn that is called during CRT
+// initialization.
+// C does not support dynamic initialization of static variables and this code
+// simulates C++ behavior. Exporting the function pointer prevents it from being
+// optimized. See for details:
+// https://docs.microsoft.com/en-us/cpp/c-runtime-library/crt-initialization?view=msvc-170
 #define NAPI_C_CTOR(fn)                                                        \
   static void __cdecl fn(void);                                                \
   __declspec(dllexport, allocate(".CRT$XCU")) void(__cdecl * fn##_)(void) =    \
       fn;                                                                      \
   static void __cdecl fn(void)
+#endif  // defined(__cplusplus)
 #else
 #define NAPI_C_CTOR(fn)                                                        \
   static void fn(void) __attribute__((constructor));                           \
