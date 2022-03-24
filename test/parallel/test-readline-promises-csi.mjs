@@ -4,6 +4,7 @@
 import '../common/index.mjs';
 import assert from 'assert';
 import { Readline } from 'readline/promises';
+import { setImmediate } from 'timers/promises';
 import { Writable } from 'stream';
 
 import utils from 'internal/readline/utils';
@@ -179,17 +180,9 @@ class TestWritable extends Writable {
       [1, CSI.kClearToLineEnd],
       [0, CSI.kClearLine],
     ]) {
-    const test = async (dir, data) => {
-      writable.data = '';
-      readline.clearLine(dir);
-      return new Promise((resolve) => {
-        process.nextTick(() => {
-          assert.deepStrictEqual(writable.data, data);
-          resolve();
-        });
-      });
-    };
-    await test(dir, data);
+    writable.data = '';
+    readline.clearLine(dir);
+    assert.deepStrictEqual((await setImmediate(writable)).data, data);
   }
 }
 
@@ -208,17 +201,9 @@ class TestWritable extends Writable {
       [-1, -1, '\x1b[1D\x1b[1A'],
       [1, -1, '\x1b[1C\x1b[1A'],
     ]) {
-    const test = async (x, y, data) => {
-      writable.data = '';
-      readline.moveCursor(x, y);
-      return new Promise((resolve) => {
-        process.nextTick(() => {
-          assert.strictEqual(writable.data, data);
-          resolve();
-        });
-      });
-    };
-    await test(x, y, data);
+    writable.data = '';
+    readline.moveCursor(x, y);
+    assert.deepStrictEqual((await setImmediate(writable)).data, data);
   }
 }
 
@@ -230,16 +215,8 @@ class TestWritable extends Writable {
       [1, undefined, '\x1b[2G'],
       [1, 2, '\x1b[3;2H'],
     ]) {
-    const test = async (x, y, data) => {
-      writable.data = '';
-      readline.cursorTo(x, y);
-      return new Promise((resolve) => {
-        process.nextTick(() => {
-          assert.strictEqual(writable.data, data);
-          resolve();
-        });
-      });
-    };
-    await test(x, y, data);
+    writable.data = '';
+    readline.cursorTo(x, y);
+    assert.deepStrictEqual((await setImmediate(writable)).data, data);
   }
 }
