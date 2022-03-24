@@ -66,6 +66,7 @@ class ExternalReferenceRegistry {
   V(handle_wrap)                                                               \
   V(heap_utils)                                                                \
   V(messaging)                                                                 \
+  V(mksnapshot)                                                                \
   V(native_module)                                                             \
   V(options)                                                                   \
   V(os)                                                                        \
