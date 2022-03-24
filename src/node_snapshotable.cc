@@ -18,12 +18,18 @@
 namespace node {
 
 using v8::Context;
+using v8::Function;
+using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
+using v8::ScriptCompiler;
+using v8::ScriptOrigin;
 using v8::SnapshotCreator;
 using v8::StartupData;
+using v8::String;
 using v8::TryCatch;
 using v8::Value;
 
@@ -82,6 +88,7 @@ const SnapshotData* NodeMainInstance::GetEmbeddedSnapshotData() {
 }
 
 void SnapshotBuilder::Generate(SnapshotData* out,
+                               const std::string& entry_file,
                                const std::vector<std::string> args,
                                const std::vector<std::string> exec_args) {
   Isolate* isolate = Isolate::Allocate();
@@ -130,14 +137,30 @@ void SnapshotBuilder::Generate(SnapshotData* out,
                             nullptr,
                             node::EnvironmentFlags::kDefaultFlags,
                             {});
+      // TODO(joyeecheung): run env->InitializeInspector({}) here.
       // Run scripts in lib/internal/bootstrap/
       {
         TryCatch bootstrapCatch(isolate);
-        v8::MaybeLocal<Value> result = env->RunBootstrapping();
+        MaybeLocal<Value> result = env->RunBootstrapping();
         if (bootstrapCatch.HasCaught()) {
           PrintCaughtException(isolate, context, bootstrapCatch);
         }
         result.ToLocalChecked();
+      }
+
+      // Run the entry point file
+      if (!entry_file.empty()) {
+        TryCatch bootstrapCatch(isolate);
+        // TODO(joyee): we could use the result for something special, like
+        // setting up initializers that should be invoked at snapshot
+        // dehydration.
+        MaybeLocal<Value> result =
+            LoadEnvironment(env, StartExecutionCallback{});
+        if (bootstrapCatch.HasCaught()) {
+          PrintCaughtException(isolate, context, bootstrapCatch);
+        }
+        result.ToLocalChecked();
+        // TODO(joyeecheung): run SpinEventLoop here.
       }
 
       if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
@@ -182,10 +205,11 @@ void SnapshotBuilder::Generate(SnapshotData* out,
 }
 
 std::string SnapshotBuilder::Generate(
+    const std::string& entry_file,
     const std::vector<std::string> args,
     const std::vector<std::string> exec_args) {
   SnapshotData data;
-  Generate(&data, args, exec_args);
+  Generate(&data, entry_file, args, exec_args);
   std::string result = FormatBlob(&data);
   delete[] data.blob.data;
   return result;
@@ -309,4 +333,57 @@ void SerializeBindingData(Environment* env,
   });
 }
 
+namespace mksnapshot {
+
+static void CompileSnapshotMain(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsString());
+  Local<String> filename = args[0].As<String>();
+  Local<String> source = args[1].As<String>();
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  ScriptOrigin origin(isolate, filename, 0, 0, true);
+  // TODO(joyee): do we need all of these? Maybe we would want a less
+  // internal version of them.
+  std::vector<Local<String>> parameters = {
+      FIXED_ONE_BYTE_STRING(isolate, "require"),
+      FIXED_ONE_BYTE_STRING(isolate, "__filename"),
+      FIXED_ONE_BYTE_STRING(isolate, "__dirname"),
+  };
+  ScriptCompiler::Source script_source(source, origin);
+  Local<Function> fn;
+  if (ScriptCompiler::CompileFunctionInContext(context,
+                                               &script_source,
+                                               parameters.size(),
+                                               parameters.data(),
+                                               0,
+                                               nullptr,
+                                               ScriptCompiler::kEagerCompile)
+          .ToLocal(&fn)) {
+    args.GetReturnValue().Set(fn);
+  }
+}
+
+static void Initialize(Local<Object> target,
+                       Local<Value> unused,
+                       Local<Context> context,
+                       void* priv) {
+  Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = context->GetIsolate();
+  env->SetMethod(target, "compileSnapshotMain", CompileSnapshotMain);
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "cleanups"),
+            v8::Array::New(isolate))
+      .Check();
+}
+
+static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(CompileSnapshotMain);
+  registry->Register(MarkBootstrapComplete);
+}
+}  // namespace mksnapshot
 }  // namespace node
+
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(mksnapshot, node::mksnapshot::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(mksnapshot,
+                               node::mksnapshot::RegisterExternalReferences)
