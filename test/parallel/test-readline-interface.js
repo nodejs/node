@@ -1092,6 +1092,18 @@ for (let i = 0; i < 12; i++) {
     rli.close();
   }
 
+  // Call question after close
+  {
+    const [rli, fi] = getInterface({ terminal });
+    rli.question('What\'s your name?', common.mustCall((name) => {
+      assert.strictEqual(name, 'Node.js');
+      rli.close();
+      rli.question('How are you?', common.mustNotCall());
+      assert.notStrictEqual(rli.getPrompt(), 'How are you?');
+    }));
+    fi.emit('data', 'Node.js\n');
+  }
+
   // Can create a new readline Interface with a null output argument
   {
     const [rli, fi] = getInterface({ output: null, terminal });
