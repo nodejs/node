@@ -46,7 +46,7 @@ const invalidArgValueError = {
 
   // validateInt32() and validateUint32()
   [
-    Symbol(), 1n, {}, [], false, true, undefined, null,
+    Symbol(), 1n, {}, [], false, true, undefined, null, () => {}, '', '1',
   ].forEach((val) => assert.throws(() => validateInt32(val, 'name'), {
     code: 'ERR_INVALID_ARG_TYPE'
   }));
@@ -56,7 +56,10 @@ const invalidArgValueError = {
     code: 'ERR_OUT_OF_RANGE'
   }));
   [
-    Symbol(), 1n, {}, [], false, true, undefined, null,
+    0, 1, -1,
+  ].forEach((val) => validateInt32(val, 'name'));
+  [
+    Symbol(), 1n, {}, [], false, true, undefined, null, () => {}, '', '1',
   ].forEach((val) => assert.throws(() => validateUint32(val, 'name'), {
     code: 'ERR_INVALID_ARG_TYPE'
   }));
@@ -65,6 +68,9 @@ const invalidArgValueError = {
   ].forEach((val) => assert.throws(() => validateUint32(val, 'name'), {
     code: 'ERR_OUT_OF_RANGE'
   }));
+  [
+    0, 1,
+  ].forEach((val) => validateUint32(val, 'name'));
 }
 
 {
