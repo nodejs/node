@@ -618,14 +618,14 @@ Using an `AbortController` to cancel a question.
 const ac = new AbortController();
 const signal = ac.signal;
 
-const answer = await rl.question('What is your favorite food? ', { signal });
-console.log(`Oh, so your favorite food is ${answer}`);
-
 signal.addEventListener('abort', () => {
   console.log('The food question timed out');
 }, { once: true });
 
 setTimeout(() => ac.abort(), 10000);
+
+const answer = await rl.question('What is your favorite food? ', { signal });
+console.log(`Oh, so your favorite food is ${answer}`);
 ```
 
 ### Class: `readlinePromises.Readline`
