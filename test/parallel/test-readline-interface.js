@@ -1104,6 +1104,19 @@ for (let i = 0; i < 12; i++) {
     fi.emit('data', 'Node.js\n');
   }
 
+  // Call promisified question after close
+  {
+    const [rli, fi] = getInterface({ terminal });
+    const question = util.promisify(rli.question).bind(rli);
+    question('What\'s your name?').then(common.mustCall((name) => {
+      assert.strictEqual(name, 'Node.js');
+      rli.close();
+      question('How are you?').then(common.mustNotCall());
+      assert.notStrictEqual(rli.getPrompt(), 'How are you?');
+    }));
+    fi.emit('data', 'Node.js\n');
+  }
+
   // Can create a new readline Interface with a null output argument
   {
     const [rli, fi] = getInterface({ output: null, terminal });
