@@ -117,7 +117,7 @@ const { hasOpenSSL3 } = common;
     assert.strictEqual(cert.subjectAltName, expectedSANs[i]);
 
     // Test that the certificate obtained by checkServerIdentity has the correct
-    // subjectaltname property.
+    // subjectAltName property.
     const server = tls.createServer({
       key: serverKey,
       cert: pem,
@@ -131,7 +131,7 @@ const { hasOpenSSL3 } = common;
         servername: 'example.com',
         checkServerIdentity: (hostname, peerCert) => {
           assert.strictEqual(hostname, 'example.com');
-          assert.strictEqual(peerCert.subjectaltname, expectedSANs[i]);
+          assert.strictEqual(peerCert.subjectAltName, expectedSANs[i]);
         },
       }, common.mustCall());
     }));
@@ -224,7 +224,7 @@ const { hasOpenSSL3 } = common;
                        `${expected.text}${hasOpenSSL3 ? '' : '\n'}`);
 
     // Test that the certificate obtained by checkServerIdentity has the correct
-    // subjectaltname property.
+    // subjectAltName property.
     const server = tls.createServer({
       key: serverKey,
       cert: pem,
@@ -400,7 +400,7 @@ const { hasOpenSSL3 } = common;
     // alternative name strings (that do not follow escaping rules).
     assert.throws(() => {
       tls.checkServerIdentity('example.com', {
-        subjectaltname: `DNS:${invalidStringLiteral}`,
+        subjectAltName: `DNS:${invalidStringLiteral}`,
       });
     }, {
       code: 'ERR_TLS_CERT_ALTNAME_FORMAT',
@@ -422,7 +422,7 @@ const { hasOpenSSL3 } = common;
   assert.strictEqual(san.split(', ')[1], `DNS:${hostname}`);
 
   // The new implementation should parse the string correctly.
-  const err = tls.checkServerIdentity(hostname, { subjectaltname: san });
+  const err = tls.checkServerIdentity(hostname, { subjectAltName: san });
   assert(err);
   assert.strictEqual(err.code, 'ERR_TLS_CERT_ALTNAME_INVALID');
   assert.strictEqual(err.message, 'Hostname/IP does not match certificate\'s ' +

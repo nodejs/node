@@ -77,7 +77,7 @@ const tests = [
   // IP address is valid but it seems so suspect that we currently reject it.
   {
     host: '8.8.8.8',
-    cert: { subject: { CN: '8.8.8.8' }, subjectaltname: 'DNS:8.8.8.8' },
+    cert: { subject: { CN: '8.8.8.8' }, subjectAltName: 'DNS:8.8.8.8' },
     error: 'IP: 8.8.8.8 is not in the cert\'s list: '
   },
 
@@ -85,14 +85,14 @@ const tests = [
   // See also https://github.com/nodejs/node/issues/8108.
   {
     host: '8.8.8.8',
-    cert: { subject: { CN: '8.8.8.8' }, subjectaltname: 'URI:http://8.8.8.8/' },
+    cert: { subject: { CN: '8.8.8.8' }, subjectAltName: 'URI:http://8.8.8.8/' },
     error: 'IP: 8.8.8.8 is not in the cert\'s list: '
   },
 
   // An "IP Address:" Subject Alternative Name however is acceptable.
   {
     host: '8.8.8.8',
-    cert: { subject: { CN: '8.8.8.8' }, subjectaltname: 'IP Address:8.8.8.8' }
+    cert: { subject: { CN: '8.8.8.8' }, subjectAltName: 'IP Address:8.8.8.8' }
   },
 
   // But not when it's a CIDR.
@@ -100,7 +100,7 @@ const tests = [
     host: '8.8.8.8',
     cert: {
       subject: { CN: '8.8.8.8' },
-      subjectaltname: 'IP Address:8.8.8.0/24'
+      subjectAltName: 'IP Address:8.8.8.0/24'
     },
     error: 'IP: 8.8.8.8 is not in the cert\'s list: '
   },
@@ -119,7 +119,7 @@ const tests = [
   },
   { host: 'b.a.com',
     cert: {
-      subjectaltname: 'DNS:omg.com',
+      subjectAltName: 'DNS:omg.com',
       subject: { CN: '*.a.com' },
     },
     error: 'Host: b.a.com. is not in the cert\'s altnames: ' +
@@ -140,14 +140,14 @@ const tests = [
   // Empty Subject w/DNS name
   {
     host: 'a.com', cert: {
-      subjectaltname: 'DNS:a.com',
+      subjectAltName: 'DNS:a.com',
     }
   },
 
   // Empty Subject w/URI name
   {
     host: 'a.b.a.com', cert: {
-      subjectaltname: 'URI:http://a.b.a.com/',
+      subjectAltName: 'URI:http://a.b.a.com/',
     },
     error: 'Cert does not contain a DNS name'
   },
@@ -162,7 +162,7 @@ const tests = [
   // DNS names and CN
   {
     host: 'a.com', cert: {
-      subjectaltname: 'DNS:*',
+      subjectAltName: 'DNS:*',
       subject: { CN: 'b.com' }
     },
     error: 'Host: a.com. is not in the cert\'s altnames: ' +
@@ -170,7 +170,7 @@ const tests = [
   },
   {
     host: 'a.com', cert: {
-      subjectaltname: 'DNS:*.com',
+      subjectAltName: 'DNS:*.com',
       subject: { CN: 'b.com' }
     },
     error: 'Host: a.com. is not in the cert\'s altnames: ' +
@@ -178,13 +178,13 @@ const tests = [
   },
   {
     host: 'a.co.uk', cert: {
-      subjectaltname: 'DNS:*.co.uk',
+      subjectAltName: 'DNS:*.co.uk',
       subject: { CN: 'b.com' }
     }
   },
   {
     host: 'a.com', cert: {
-      subjectaltname: 'DNS:*.a.com',
+      subjectAltName: 'DNS:*.a.com',
       subject: { CN: 'a.com' }
     },
     error: 'Host: a.com. is not in the cert\'s altnames: ' +
@@ -192,7 +192,7 @@ const tests = [
   },
   {
     host: 'a.com', cert: {
-      subjectaltname: 'DNS:*.a.com',
+      subjectAltName: 'DNS:*.a.com',
       subject: { CN: 'b.com' }
     },
     error: 'Host: a.com. is not in the cert\'s altnames: ' +
@@ -200,13 +200,13 @@ const tests = [
   },
   {
     host: 'a.com', cert: {
-      subjectaltname: 'DNS:a.com',
+      subjectAltName: 'DNS:a.com',
       subject: { CN: 'b.com' }
     }
   },
   {
     host: 'a.com', cert: {
-      subjectaltname: 'DNS:A.COM',
+      subjectAltName: 'DNS:A.COM',
       subject: { CN: 'b.com' }
     }
   },
@@ -214,7 +214,7 @@ const tests = [
   // DNS names
   {
     host: 'a.com', cert: {
-      subjectaltname: 'DNS:*.a.com',
+      subjectAltName: 'DNS:*.a.com',
       subject: {}
     },
     error: 'Host: a.com. is not in the cert\'s altnames: ' +
@@ -222,13 +222,13 @@ const tests = [
   },
   {
     host: 'b.a.com', cert: {
-      subjectaltname: 'DNS:*.a.com',
+      subjectAltName: 'DNS:*.a.com',
       subject: {}
     }
   },
   {
     host: 'c.b.a.com', cert: {
-      subjectaltname: 'DNS:*.a.com',
+      subjectAltName: 'DNS:*.a.com',
       subject: {}
     },
     error: 'Host: c.b.a.com. is not in the cert\'s altnames: ' +
@@ -236,19 +236,19 @@ const tests = [
   },
   {
     host: 'b.a.com', cert: {
-      subjectaltname: 'DNS:*b.a.com',
+      subjectAltName: 'DNS:*b.a.com',
       subject: {}
     }
   },
   {
     host: 'a-cb.a.com', cert: {
-      subjectaltname: 'DNS:*b.a.com',
+      subjectAltName: 'DNS:*b.a.com',
       subject: {}
     }
   },
   {
     host: 'a.b.a.com', cert: {
-      subjectaltname: 'DNS:*b.a.com',
+      subjectAltName: 'DNS:*b.a.com',
       subject: {}
     },
     error: 'Host: a.b.a.com. is not in the cert\'s altnames: ' +
@@ -257,21 +257,21 @@ const tests = [
   // Multiple DNS names
   {
     host: 'a.b.a.com', cert: {
-      subjectaltname: 'DNS:*b.a.com, DNS:a.b.a.com',
+      subjectAltName: 'DNS:*b.a.com, DNS:a.b.a.com',
       subject: {}
     }
   },
   // URI names
   {
     host: 'a.b.a.com', cert: {
-      subjectaltname: 'URI:http://a.b.a.com/',
+      subjectAltName: 'URI:http://a.b.a.com/',
       subject: {}
     },
     error: 'Cert does not contain a DNS name'
   },
   {
     host: 'a.b.a.com', cert: {
-      subjectaltname: 'URI:http://*.b.a.com/',
+      subjectAltName: 'URI:http://*.b.a.com/',
       subject: {}
     },
     error: 'Cert does not contain a DNS name'
@@ -279,20 +279,20 @@ const tests = [
   // IP addresses
   {
     host: 'a.b.a.com', cert: {
-      subjectaltname: 'IP Address:127.0.0.1',
+      subjectAltName: 'IP Address:127.0.0.1',
       subject: {}
     },
     error: 'Cert does not contain a DNS name'
   },
   {
     host: '127.0.0.1', cert: {
-      subjectaltname: 'IP Address:127.0.0.1',
+      subjectAltName: 'IP Address:127.0.0.1',
       subject: {}
     }
   },
   {
     host: '127.0.0.2', cert: {
-      subjectaltname: 'IP Address:127.0.0.1',
+      subjectAltName: 'IP Address:127.0.0.1',
       subject: {}
     },
     error: 'IP: 127.0.0.2 is not in the cert\'s list: ' +
@@ -300,14 +300,14 @@ const tests = [
   },
   {
     host: '127.0.0.1', cert: {
-      subjectaltname: 'DNS:a.com',
+      subjectAltName: 'DNS:a.com',
       subject: {}
     },
     error: 'IP: 127.0.0.1 is not in the cert\'s list: '
   },
   {
     host: 'localhost', cert: {
-      subjectaltname: 'DNS:a.com',
+      subjectAltName: 'DNS:a.com',
       subject: { CN: 'localhost' }
     },
     error: 'Host: localhost. is not in the cert\'s altnames: ' +

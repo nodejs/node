@@ -419,7 +419,7 @@ constexpr size_t kFsStatsBufferLength =
   V(stream_average_duration_string, "streamAverageDuration")                   \
   V(stream_count_string, "streamCount")                                        \
   V(subject_string, "subject")                                                 \
-  V(subjectaltname_string, "subjectaltname")                                   \
+  V(subjectaltname_string, "subjectAltName")                                   \
   V(syscall_string, "syscall")                                                 \
   V(target_string, "target")                                                   \
   V(thread_id_string, "threadId")                                              \
