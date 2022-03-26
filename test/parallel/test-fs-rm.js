@@ -21,11 +21,8 @@ const isGitPresent = (() => {
 })();
 
 function gitInit(gitDirectory) {
-  const cwd = process.cwd();
   fs.mkdirSync(gitDirectory);
-  process.chdir(gitDirectory);
-  execSync('git init');
-  process.chdir(cwd);
+  execSync('git init', { cwd: gitDirectory });
 }
 
 function makeNonEmptyDirectory(depth, files, folders, dirname, createSymLinks) {
