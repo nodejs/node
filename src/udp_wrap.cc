@@ -22,6 +22,7 @@
 #include "udp_wrap.h"
 #include "env-inl.h"
 #include "node_buffer.h"
+#include "node_errors.h"
 #include "node_sockaddr-inl.h"
 #include "handle_wrap.h"
 #include "req_wrap-inl.h"
@@ -29,6 +30,7 @@
 
 namespace node {
 
+using errors::TryCatchScope;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
@@ -728,9 +730,45 @@ void UDPWrap::OnRecv(ssize_t nread,
     bs = BackingStore::Reallocate(isolate, std::move(bs), nread);
   }
 
+  Local<Object> address;
+  {
+    bool has_caught = false;
+    {
+      TryCatchScope try_catch(env);
+      if (!AddressToJS(env, addr).ToLocal(&address)) {
+        DCHECK(try_catch.HasCaught() && !try_catch.HasTerminated());
+        argv[2] = try_catch.Exception();
+        DCHECK(!argv[2].IsEmpty());
+        has_caught = true;
+      }
+    }
+    if (has_caught) {
+      DCHECK(!argv[2].IsEmpty());
+      MakeCallback(env->onerror_string(), arraysize(argv), argv);
+      return;
+    }
+  }
+
   Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
-  argv[2] = Buffer::New(env, ab, 0, ab->ByteLength()).ToLocalChecked();
-  argv[3] = AddressToJS(env, addr);
+  {
+    bool has_caught = false;
+    {
+      TryCatchScope try_catch(env);
+      if (!Buffer::New(env, ab, 0, ab->ByteLength()).ToLocal(&argv[2])) {
+        DCHECK(try_catch.HasCaught() && !try_catch.HasTerminated());
+        argv[2] = try_catch.Exception();
+        DCHECK(!argv[2].IsEmpty());
+        has_caught = true;
+      }
+    }
+    if (has_caught) {
+      DCHECK(!argv[2].IsEmpty());
+      MakeCallback(env->onerror_string(), arraysize(argv), argv);
+      return;
+    }
+  }
+
+  argv[3] = address;
   MakeCallback(env->onmessage_string(), arraysize(argv), argv);
 }
 
