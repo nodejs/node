@@ -342,9 +342,9 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args,
 
 
 // also used by udp_wrap.cc
-Local<Object> AddressToJS(Environment* env,
-                          const sockaddr* addr,
-                          Local<Object> info) {
+MaybeLocal<Object> AddressToJS(Environment* env,
+                               const sockaddr* addr,
+                               Local<Object> info) {
   EscapableHandleScope scope(env->isolate());
   char ip[INET6_ADDRSTRLEN + UV_IF_NAMESIZE];
   const sockaddr_in* a4;
@@ -371,8 +371,7 @@ Local<Object> AddressToJS(Environment* env,
                                      &scopeidlen);
       if (r) {
         env->ThrowUVException(r, "uv_if_indextoiid");
-        // TODO(addaleax): Do proper MaybeLocal handling here
-        return scope.Escape(info);
+        return {};
       }
     }
     port = ntohs(a6->sin6_port);
