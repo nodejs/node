@@ -145,7 +145,7 @@ exec('"my script.cmd" a b', (err, stdout, stderr) => {
 });
 ```
 
-### `child_process.exec(command[, options][, callback])`
+### `child_process.exec(command, options, callback)`
 
 <!-- YAML
 added: v0.1.90
@@ -277,7 +277,7 @@ const child = exec('grep ssh', { signal }, (error) => {
 controller.abort();
 ```
 
-### `child_process.execFile(file[, args][, options][, callback])`
+### `child_process.execFile(file, [args], options, callback])`
 
 <!-- YAML
 added: v0.1.91
@@ -389,7 +389,7 @@ const child = execFile('node', ['--version'], { signal }, (error) => {
 controller.abort();
 ```
 
-### `child_process.fork(modulePath[, args][, options])`
+### `child_process.fork(modulePath, [args], options])`
 
 <!-- YAML
 added: v0.5.0
@@ -517,7 +517,7 @@ if (process.argv[2] === 'child') {
 }
 ```
 
-### `child_process.spawn(command[, args][, options])`
+### `child_process.spawn(command, [args], options])`
 
 <!-- YAML
 added: v0.1.90
@@ -892,7 +892,7 @@ Blocking calls like these are mostly useful for simplifying general-purpose
 scripting tasks and for simplifying the loading/processing of application
 configuration at startup.
 
-### `child_process.execFileSync(file[, args][, options])`
+### `child_process.execFileSync(file, [args], options])`
 
 <!-- YAML
 added: v0.11.12
@@ -968,7 +968,7 @@ If the process times out or has a non-zero exit code, this method will throw an
 function. Any input containing shell metacharacters may be used to trigger
 arbitrary command execution.**
 
-### `child_process.execSync(command[, options])`
+### `child_process.execSync(command, options)`
 
 <!-- YAML
 added: v0.11.12
@@ -1035,7 +1035,7 @@ The [`Error`][] object will contain the entire result from
 **Never pass unsanitized user input to this function. Any input containing shell
 metacharacters may be used to trigger arbitrary command execution.**
 
-### `child_process.spawnSync(command[, args][, options])`
+### `child_process.spawnSync(command, [args], options])`
 
 <!-- YAML
 added: v0.11.12
@@ -1456,7 +1456,7 @@ subprocess.unref();
 subprocess.ref();
 ```
 
-### `subprocess.send(message[, sendHandle[, options]][, callback])`
+### `subprocess.send(message, sendHandle, o[ptions], callback])`
 
 <!-- YAML
 added: v0.5.9
