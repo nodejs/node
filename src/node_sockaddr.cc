@@ -847,7 +847,9 @@ void SocketAddressBase::LegacyDetail(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   SocketAddressBase* base;
   ASSIGN_OR_RETURN_UNWRAP(&base, args.Holder());
-  args.GetReturnValue().Set(base->address_->ToJS(env));
+  Local<Object> address;
+  if (!base->address_->ToJS(env).ToLocal(&address)) return;
+  args.GetReturnValue().Set(address);
 }
 
 SocketAddressBase::SocketAddressBase(
