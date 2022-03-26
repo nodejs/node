@@ -20,6 +20,14 @@ const isGitPresent = (() => {
   try { execSync('git --version'); return true; } catch { return false; }
 })();
 
+function gitInit(gitDirectory) {
+  const cwd = process.cwd();
+  fs.mkdirSync(gitDirectory);
+  process.chdir(gitDirectory);
+  execSync('git init');
+  process.chdir(cwd);
+}
+
 function makeNonEmptyDirectory(depth, files, folders, dirname, createSymLinks) {
   fs.mkdirSync(dirname, { recursive: true });
   fs.writeFileSync(path.join(dirname, 'text.txt'), 'hello', 'utf8');
@@ -138,8 +146,7 @@ function removeAsync(dir) {
 // Refs: https://github.com/isaacs/rimraf/issues/21.
 if (isGitPresent) {
   const gitDirectory = nextDirPath();
-  fs.mkdirSync(gitDirectory);
-  execSync(`git -C ${gitDirectory} init`);
+  gitInit(gitDirectory);
   fs.rm(gitDirectory, { recursive: true }, common.mustSucceed(() => {
     assert.strictEqual(fs.existsSync(gitDirectory), false);
   }));
@@ -198,8 +205,7 @@ if (isGitPresent) {
 // Refs: https://github.com/isaacs/rimraf/issues/21.
 if (isGitPresent) {
   const gitDirectory = nextDirPath();
-  fs.mkdirSync(gitDirectory);
-  execSync(`git -C ${gitDirectory} init`);
+  gitInit(gitDirectory);
   fs.rmSync(gitDirectory, { recursive: true });
   assert.strictEqual(fs.existsSync(gitDirectory), false);
 }
@@ -260,8 +266,7 @@ if (isGitPresent) {
 if (isGitPresent) {
   (async () => {
     const gitDirectory = nextDirPath();
-    fs.mkdirSync(gitDirectory);
-    execSync(`git -C ${gitDirectory} init`);
+    gitInit(gitDirectory);
     await fs.promises.rm(gitDirectory, { recursive: true });
     assert.strictEqual(fs.existsSync(gitDirectory), false);
   })().then(common.mustCall());
