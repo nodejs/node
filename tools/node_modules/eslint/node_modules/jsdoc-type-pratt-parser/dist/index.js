@@ -1174,6 +1174,10 @@
                         else {
                             break;
                         }
+                        const type = parser.getLexer().token().type;
+                        if (type === '}') {
+                            break;
+                        }
                     }
                     result.meta.separator = separator !== null && separator !== void 0 ? separator : 'comma'; // TODO: use undefined here
                     if (!parser.consume('}')) {

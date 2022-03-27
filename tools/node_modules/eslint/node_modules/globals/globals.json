@@ -646,6 +646,7 @@
 		"MediaKeyStatusMap": false,
 		"MediaKeySystemAccess": false,
 		"MediaList": false,
+		"MediaMetadata": false,
 		"MediaQueryList": false,
 		"MediaQueryListEvent": false,
 		"MediaRecorder": false,
