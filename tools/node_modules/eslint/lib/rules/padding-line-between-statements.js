@@ -450,8 +450,7 @@ module.exports = {
                             type: "array",
                             items: { enum: Object.keys(StatementTypes) },
                             minItems: 1,
-                            uniqueItems: true,
-                            additionalItems: false
+                            uniqueItems: true
                         }
                     ]
                 }
@@ -466,8 +465,7 @@ module.exports = {
                 },
                 additionalProperties: false,
                 required: ["blankLine", "prev", "next"]
-            },
-            additionalItems: false
+            }
         },
 
         messages: {
