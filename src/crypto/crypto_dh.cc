@@ -32,7 +32,6 @@ using v8::ReadOnly;
 using v8::SideEffectType;
 using v8::Signature;
 using v8::String;
-using v8::Uint8Array;
 using v8::Value;
 
 namespace crypto {
@@ -637,8 +636,10 @@ void DiffieHellman::Stateless(const FunctionCallbackInfo<Value>& args) {
   ManagedEVPPKey our_key = our_key_object->Data()->GetAsymmetricKey();
   ManagedEVPPKey their_key = their_key_object->Data()->GetAsymmetricKey();
 
-  Local<Value> out = StatelessDiffieHellmanThreadsafe(our_key, their_key)
-      .ToBuffer(env).FromMaybe(Local<Uint8Array>());
+  Local<Value> out;
+  if (!StatelessDiffieHellmanThreadsafe(our_key, their_key)
+          .ToBuffer(env)
+              .ToLocal(&out)) return;
 
   if (Buffer::Length(out) == 0)
     return ThrowCryptoError(env, ERR_get_error(), "diffieHellman failed");
