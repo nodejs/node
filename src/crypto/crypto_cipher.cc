@@ -571,9 +571,17 @@ bool CipherBase::InitAuthenticated(
     }
   } else {
     if (auth_tag_len == kNoAuthTagLength) {
-      THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
-        env(), "authTagLength required for %s", cipher_type);
-      return false;
+      // We treat ChaCha20-Poly1305 specially. Like GCM, the authentication tag
+      // length defaults to 16 bytes when encrypting. Unlike GCM, the
+      // authentication tag length also defaults to 16 bytes when decrypting,
+      // whereas GCM would accept any valid authentication tag length.
+      if (EVP_CIPHER_CTX_nid(ctx_.get()) == NID_chacha20_poly1305) {
+        auth_tag_len = 16;
+      } else {
+        THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
+          env(), "authTagLength required for %s", cipher_type);
+        return false;
+      }
     }
 
     // TODO(tniessen) Support CCM decryption in FIPS mode
