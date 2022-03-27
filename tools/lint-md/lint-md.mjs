@@ -21446,11 +21446,11 @@ const supportsColor = {
 
 const color = supportsColor.stderr.hasBasic;
 
+const platform = process$1.platform;
+
 const own = {}.hasOwnProperty;
 const chars =
-  process.platform === 'win32'
-    ? {error: '×', warning: '‼'}
-    : {error: '✖', warning: '⚠'};
+  platform === 'win32' ? {error: '×', warning: '‼'} : {error: '✖', warning: '⚠'};
 const labels = {
   true: 'error',
   false: 'warning',
