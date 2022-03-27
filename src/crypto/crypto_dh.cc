@@ -37,9 +37,9 @@ using v8::Value;
 
 namespace crypto {
 namespace {
-static void ZeroPadDiffieHellmanSecret(size_t remainder_size,
-                                       char* data,
-                                       size_t length) {
+void ZeroPadDiffieHellmanSecret(size_t remainder_size,
+                                char* data,
+                                size_t length) {
   // DH_size returns number of bytes in a prime number.
   // DH_compute_key returns number of bytes in a remainder of exponent, which
   // may have less bytes than a prime number. Therefore add 0-padding to the
