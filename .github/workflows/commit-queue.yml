@@ -42,7 +42,7 @@ jobs:
     if: needs.get_mergeable_prs.outputs.numbers != ''
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           # Needs the whole git history for ncu to work
           # See https://github.com/nodejs/node-core-utils/pull/486
@@ -55,7 +55,7 @@ jobs:
 
       # Install dependencies
       - name: Install Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Install node-core-utils
