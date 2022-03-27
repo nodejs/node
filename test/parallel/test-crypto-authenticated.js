@@ -96,10 +96,9 @@ for (const test of TEST_CASES) {
 
   const isCCM = /^aes-(128|192|256)-ccm$/.test(test.algo);
   const isOCB = /^aes-(128|192|256)-ocb$/.test(test.algo);
-  const isChacha20Poly1305 = test.algo === 'chacha20-poly1305';
 
   let options;
-  if (isCCM || isOCB || isChacha20Poly1305)
+  if (isCCM || isOCB)
     options = { authTagLength: test.tag.length / 2 };
 
   const inputEncoding = test.plainIsHex ? 'hex' : 'ascii';
@@ -659,8 +658,7 @@ for (const test of TEST_CASES) {
     assert.throws(() => crypto.createCipheriv(
       valid.algo,
       Buffer.from(valid.key, 'hex'),
-      Buffer.from(H(prefix) + valid.iv, 'hex'),
-      { authTagLength: valid.tag.length / 2 }
+      Buffer.from(H(prefix) + valid.iv, 'hex')
     ), errMessages.length, `iv length ${ivLength} was not rejected`);
 
     function H(length) { return '00'.repeat(length); }
@@ -743,5 +741,48 @@ for (const test of TEST_CASES) {
         });
       }
     }
+  }
+}
+
+// ChaCha20-Poly1305 should default to an authTagLength of 16. When encrypting,
+// this matches the behavior of GCM ciphers. When decrypting, however, it is
+// stricter than GCM in that it only allows authentication tags that are exactly
+// 16 bytes long, whereas, when no authTagLength was specified, GCM would accept
+// shorter tags as long as their length was valid according to NIST SP 800-38D.
+// For ChaCha20-Poly1305, we intentionally deviate from that because there are
+// no recommended or approved authentication tag lengths below 16 bytes.
+{
+  const rfcTestCases = TEST_CASES.filter(({ algo, tampered }) => {
+    return algo === 'chacha20-poly1305' && tampered === false;
+  });
+  assert.strictEqual(rfcTestCases.length, 1);
+
+  const [testCase] = rfcTestCases;
+  const key = Buffer.from(testCase.key, 'hex');
+  const iv = Buffer.from(testCase.iv, 'hex');
+  const aad = Buffer.from(testCase.aad, 'hex');
+
+  for (const opt of [
+    undefined,
+    { authTagLength: undefined },
+    { authTagLength: 16 },
+  ]) {
+    const cipher = crypto.createCipheriv('chacha20-poly1305', key, iv, opt);
+    const ciphertext = Buffer.concat([
+      cipher.setAAD(aad).update(testCase.plain, 'hex'),
+      cipher.final(),
+    ]);
+    const authTag = cipher.getAuthTag();
+
+    assert.strictEqual(ciphertext.toString('hex'), testCase.ct);
+    assert.strictEqual(authTag.toString('hex'), testCase.tag);
+
+    const decipher = crypto.createDecipheriv('chacha20-poly1305', key, iv, opt);
+    const plaintext = Buffer.concat([
+      decipher.setAAD(aad).update(ciphertext),
+      decipher.setAuthTag(authTag).final(),
+    ]);
+
+    assert.strictEqual(plaintext.toString('hex'), testCase.plain);
   }
 }
