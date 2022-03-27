@@ -6,7 +6,11 @@
 
 <!--name=module-->
 
-In the Node.js module system, each file is treated as a separate module. For
+CommonJS modules are the classic format to package JavaScript code for reuse. If
+you are interested in writing browser-compatible code, check out the
+[ECMAScript modules][] documentation.
+
+In the CommonJS module system, each file is treated as a separate module. For
 example, consider a file named `foo.js`:
 
 ```js
