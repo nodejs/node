@@ -1,6 +1,6 @@
 {
   "name": "json5",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "JSON for humans.",
   "main": "lib/index.js",
   "module": "dist/index.mjs",
@@ -48,9 +48,6 @@
     "url": "https://github.com/json5/json5/issues"
   },
   "homepage": "http://json5.org/",
-  "dependencies": {
-    "minimist": "^1.2.5"
-  },
   "devDependencies": {
     "core-js": "^2.6.5",
     "eslint": "^5.15.3",
