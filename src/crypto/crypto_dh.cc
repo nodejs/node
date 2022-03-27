@@ -13,6 +13,8 @@
 
 namespace node {
 
+using v8::ArrayBuffer;
+using v8::BackingStore;
 using v8::ConstructorBehavior;
 using v8::DontDelete;
 using v8::FunctionCallback;
@@ -49,10 +51,6 @@ static void ZeroPadDiffieHellmanSecret(size_t remainder_size,
     memmove(data + padding, data, remainder_size);
     memset(data, 0, padding);
   }
-}
-static void ZeroPadDiffieHellmanSecret(size_t remainder_size,
-                                       AllocatedBuffer* ret) {
-  ZeroPadDiffieHellmanSecret(remainder_size, ret->data(), ret->size());
 }
 }  // namespace
 
@@ -275,13 +273,24 @@ void DiffieHellman::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
 
   const BIGNUM* pub_key;
   DH_get0_key(diffieHellman->dh_.get(), &pub_key, nullptr);
-  const int size = BN_num_bytes(pub_key);
-  CHECK_GE(size, 0);
-  AllocatedBuffer data = AllocatedBuffer::AllocateManaged(env, size);
-  CHECK_EQ(size,
-           BN_bn2binpad(
-               pub_key, reinterpret_cast<unsigned char*>(data.data()), size));
-  args.GetReturnValue().Set(data.ToBuffer().FromMaybe(Local<Value>()));
+
+  std::unique_ptr<BackingStore> bs;
+  {
+    const int size = BN_num_bytes(pub_key);
+    CHECK_GE(size, 0);
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    bs = ArrayBuffer::NewBackingStore(env->isolate(), size);
+  }
+
+  CHECK_EQ(static_cast<int>(bs->ByteLength()),
+           BN_bn2binpad(pub_key,
+                        static_cast<unsigned char*>(bs->Data()),
+                        bs->ByteLength()));
+
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
+  Local<Value> buffer;
+  if (!Buffer::New(env, ab, 0, ab->ByteLength()).ToLocal(&buffer)) return;
+  args.GetReturnValue().Set(buffer);
 }
 
 
@@ -297,13 +306,23 @@ void DiffieHellman::GetField(const FunctionCallbackInfo<Value>& args,
   if (num == nullptr)
     return THROW_ERR_CRYPTO_INVALID_STATE(env, err_if_null);
 
-  const int size = BN_num_bytes(num);
-  CHECK_GE(size, 0);
-  AllocatedBuffer data = AllocatedBuffer::AllocateManaged(env, size);
-  CHECK_EQ(
-      size,
-      BN_bn2binpad(num, reinterpret_cast<unsigned char*>(data.data()), size));
-  args.GetReturnValue().Set(data.ToBuffer().FromMaybe(Local<Value>()));
+  std::unique_ptr<BackingStore> bs;
+  {
+    const int size = BN_num_bytes(num);
+    CHECK_GE(size, 0);
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    bs = ArrayBuffer::NewBackingStore(env->isolate(), size);
+  }
+
+  CHECK_EQ(static_cast<int>(bs->ByteLength()),
+           BN_bn2binpad(num,
+                        static_cast<unsigned char*>(bs->Data()),
+                        bs->ByteLength()));
+
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
+  Local<Value> buffer;
+  if (!Buffer::New(env, ab, 0, ab->ByteLength()).ToLocal(&buffer)) return;
+  args.GetReturnValue().Set(buffer);
 }
 
 void DiffieHellman::GetPrime(const FunctionCallbackInfo<Value>& args) {
@@ -352,10 +371,14 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_OUT_OF_RANGE(env, "secret is too big");
   BignumPointer key(BN_bin2bn(key_buf.data(), key_buf.size(), nullptr));
 
-  AllocatedBuffer ret =
-      AllocatedBuffer::AllocateManaged(env, DH_size(diffieHellman->dh_.get()));
+  std::unique_ptr<BackingStore> bs;
+  {
+    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
+    bs = ArrayBuffer::NewBackingStore(env->isolate(),
+                                      DH_size(diffieHellman->dh_.get()));
+  }
 
-  int size = DH_compute_key(reinterpret_cast<unsigned char*>(ret.data()),
+  int size = DH_compute_key(static_cast<unsigned char*>(bs->Data()),
                             key.get(),
                             diffieHellman->dh_.get());
 
@@ -383,9 +406,14 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   }
 
   CHECK_GE(size, 0);
-  ZeroPadDiffieHellmanSecret(static_cast<size_t>(size), &ret);
+  ZeroPadDiffieHellmanSecret(size,
+                             static_cast<char*>(bs->Data()),
+                             bs->ByteLength());
 
-  args.GetReturnValue().Set(ret.ToBuffer().FromMaybe(Local<Value>()));
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
+  Local<Value> buffer;
+  if (!Buffer::New(env, ab, 0, ab->ByteLength()).ToLocal(&buffer)) return;
+  args.GetReturnValue().Set(buffer);
 }
 
 void DiffieHellman::SetKey(const FunctionCallbackInfo<Value>& args,
