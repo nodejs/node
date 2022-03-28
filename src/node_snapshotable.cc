@@ -92,7 +92,6 @@ const SnapshotData* NodeMainInstance::GetEmbeddedSnapshotData() {
 }
 
 void SnapshotBuilder::Generate(SnapshotData* out,
-                               const std::string& entry_file,
                                const std::vector<std::string> args,
                                const std::vector<std::string> exec_args) {
   Isolate* isolate = Isolate::Allocate();
@@ -152,15 +151,19 @@ void SnapshotBuilder::Generate(SnapshotData* out,
         result.ToLocalChecked();
       }
 
-      // Run the entry point file
-      if (!entry_file.empty()) {
+      // If --build-snapshot is true, lib/internal/main/mksnapshot.js would be
+      // loaded via LoadEnvironment() to execute process.argv[1] as the entry
+      // point (we currently only support this kind of entry point, but we
+      // could also explore snapshotting other kinds of execution modes
+      // in the future).
+      if (per_process::cli_options->build_snapshot) {
 #if HAVE_INSPECTOR
         env->InitializeInspector({});
 #endif
 
         TryCatch bootstrapCatch(isolate);
-        // TODO(joyee): we could use the result for something special, like
-        // setting up initializers that should be invoked at snapshot
+        // TODO(joyeecheung): we could use the result for something special,
+        // like setting up initializers that should be invoked at snapshot
         // dehydration.
         MaybeLocal<Value> result =
             LoadEnvironment(env, StartExecutionCallback{});
@@ -221,11 +224,10 @@ void SnapshotBuilder::Generate(SnapshotData* out,
 }
 
 std::string SnapshotBuilder::Generate(
-    const std::string& entry_file,
     const std::vector<std::string> args,
     const std::vector<std::string> exec_args) {
   SnapshotData data;
-  Generate(&data, entry_file, args, exec_args);
+  Generate(&data, args, exec_args);
   std::string result = FormatBlob(&data);
   delete[] data.blob.data;
   return result;
@@ -358,7 +360,7 @@ static void CompileSnapshotMain(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
   ScriptOrigin origin(isolate, filename, 0, 0, true);
-  // TODO(joyee): do we need all of these? Maybe we would want a less
+  // TODO(joyeecheung): do we need all of these? Maybe we would want a less
   // internal version of them.
   std::vector<Local<String>> parameters = {
       FIXED_ONE_BYTE_STRING(isolate, "require"),

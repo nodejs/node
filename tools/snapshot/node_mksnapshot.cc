@@ -23,14 +23,8 @@ int wmain(int argc, wchar_t* wargv[]) {
   char** argv = new char*[argc + 1];
   for (int i = 0; i < argc; i++) {
     // Compute the size of the required buffer
-    DWORD size = WideCharToMultiByte(CP_UTF8,
-                                     0,
-                                     wargv[i],
-                                     -1,
-                                     nullptr,
-                                     0,
-                                     nullptr,
-                                     nullptr);
+    DWORD size = WideCharToMultiByte(
+        CP_UTF8, 0, wargv[i], -1, nullptr, 0, nullptr, nullptr);
     if (size == 0) {
       // This should never happen.
       fprintf(stderr, "Could not convert arguments to utf8.");
@@ -38,14 +32,8 @@ int wmain(int argc, wchar_t* wargv[]) {
     }
     // Do the actual conversion
     argv[i] = new char[size];
-    DWORD result = WideCharToMultiByte(CP_UTF8,
-                                       0,
-                                       wargv[i],
-                                       -1,
-                                       argv[i],
-                                       size,
-                                       nullptr,
-                                       nullptr);
+    DWORD result = WideCharToMultiByte(
+        CP_UTF8, 0, wargv[i], -1, argv[i], size, nullptr, nullptr);
     if (result == 0) {
       // This should never happen.
       fprintf(stderr, "Could not convert arguments to utf8.");
@@ -82,10 +70,8 @@ int BuildSnapshot(int argc, char* argv[]) {
   CHECK(!result.early_return);
   CHECK_EQ(result.exit_code, 0);
 
-  std::string snapshot_main;
   std::string out_path;
   if (node::per_process::cli_options->build_snapshot) {
-    snapshot_main = result.args[1];
     out_path = result.args[2];
   } else {
     out_path = result.args[1];
@@ -98,17 +84,14 @@ int BuildSnapshot(int argc, char* argv[]) {
   }
 
   {
-    std::string snapshot = node::SnapshotBuilder::Generate(
-        snapshot_main, result.args, result.exec_args);
+    std::string snapshot =
+        node::SnapshotBuilder::Generate(result.args, result.exec_args);
     out << snapshot;
 
     if (!out) {
       std::cerr << "Failed to write " << out_path << "\n";
-      out.close();
       return 1;
     }
-
-    out.close();
   }
 
   node::TearDownOncePerProcess();
