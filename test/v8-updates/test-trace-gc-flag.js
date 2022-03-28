@@ -27,8 +27,8 @@ const fixtures = require('../common/fixtures');
     /\bMark-sweep\b/,
   ];
   lines.forEach((line, index) => {
-    const isMatched = line.match(expectedOutput[index]);
-    assert.ok(isMatched);
+    const expectedRegex = new RegExp(expectedOutput[index]);
+    assert.match(line, expectedRegex);
   });
 }
 
