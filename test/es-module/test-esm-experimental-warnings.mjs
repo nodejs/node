@@ -13,7 +13,6 @@ for (
   ]
 ) {
   const input = `import ${JSON.stringify(fileURL('es-module-loaders','module-named-exports.mjs'))}`;
-console.log({ input })
   const child = spawn(execPath, [
     arg,
     '--input-type=module',
@@ -29,7 +28,6 @@ console.log({ input })
   child.stdout.setEncoding('utf8');
   child.stdout.on('data', (data) => { stdout += data; });
   child.on('close', mustCall((code, signal) => {
-console.log({ experiment, code, signal, stderr, stdout })
     strictEqual(code, 0);
     strictEqual(signal, null);
     match(stderr, /ExperimentalWarning/);
