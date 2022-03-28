@@ -591,7 +591,7 @@ added: v17.0.0
   prompt.
 * `options` {Object}
   * `signal` {AbortSignal} Optionally allows the `question()` to be canceled
-    using an `AbortController`.
+    using an `AbortSignal`.
 * Returns: {Promise} A promise that is fulfilled with the user's
   input in response to the `query`.
 
@@ -612,20 +612,17 @@ const answer = await rl.question('What is your favorite food? ');
 console.log(`Oh, so your favorite food is ${answer}`);
 ```
 
-Using an `AbortController` to cancel a question.
+Using an `AbortSignal` to cancel a question.
 
 ```mjs
-const ac = new AbortController();
-const signal = ac.signal;
-
-const answer = await rl.question('What is your favorite food? ', { signal });
-console.log(`Oh, so your favorite food is ${answer}`);
+const signal = AbortSignal.timeout(10_000);
 
 signal.addEventListener('abort', () => {
   console.log('The food question timed out');
 }, { once: true });
 
-setTimeout(() => ac.abort(), 10000);
+const answer = await rl.question('What is your favorite food? ', { signal });
+console.log(`Oh, so your favorite food is ${answer}`);
 ```
 
 ### Class: `readlinePromises.Readline`
