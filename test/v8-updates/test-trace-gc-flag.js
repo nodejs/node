@@ -1,7 +1,7 @@
 'use strict';
 
 // This test verifies that `--trace-gc` flag is well integrated.
-// We'll check here, that the console outputs gc events properly
+// We'll check here, that the console outputs gc events properly.
 require('../common');
 
 const assert = require('assert');
