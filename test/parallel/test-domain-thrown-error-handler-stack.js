@@ -3,7 +3,7 @@
 const common = require('../common');
 const domain = require('domain');
 
-// Make sure that when an erorr is thrown from a nested domain, its error
+// Make sure that when an error is thrown from a nested domain, its error
 // handler runs outside of that domain, but within the context of any parent
 // domain.
 
