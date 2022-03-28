@@ -12,7 +12,7 @@ for (
     [/specifier resolution/, '--experimental-specifier-resolution=node'],
   ]
 ) {
-  const input = `import ${JSON.stringify(fileURL('es-module-loaders','module-named-exports.mjs'))}`;
+  const input = `import ${JSON.stringify(fileURL('es-module-loaders', 'module-named-exports.mjs'))}`;
   const child = spawn(execPath, [
     arg,
     '--input-type=module',
@@ -23,10 +23,6 @@ for (
   let stderr = '';
   child.stderr.setEncoding('utf8');
   child.stderr.on('data', (data) => { stderr += data; });
-
-  let stdout = '';
-  child.stdout.setEncoding('utf8');
-  child.stdout.on('data', (data) => { stdout += data; });
   child.on('close', mustCall((code, signal) => {
     strictEqual(code, 0);
     strictEqual(signal, null);
