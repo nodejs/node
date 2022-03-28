@@ -171,9 +171,9 @@ void SnapshotBuilder::Generate(SnapshotData* out,
           PrintCaughtException(isolate, context, bootstrapCatch);
         }
         result.ToLocalChecked();
-        // FIXME(joyee): right now running the loop in the snapshot builder
-        // seems to intrudoces inconsistencies in JS land that need to be
-        // synchronized again after snapshot restoration.
+        // FIXME(joyeecheung): right now running the loop in the snapshot
+        // builder seems to introduces inconsistencies in JS land that need to
+        // be synchronized again after snapshot restoration.
         int exit_code = SpinEventLoop(env).FromMaybe(1);
         CHECK_EQ(exit_code, 0);
         if (bootstrapCatch.HasCaught()) {
