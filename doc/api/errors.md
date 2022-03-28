@@ -2365,6 +2365,14 @@ Accessing `Object.prototype.__proto__` has been forbidden using
 [`Object.setPrototypeOf`][] should be used to get and set the prototype of an
 object.
 
+<a id="ERR_READLINE_CLOSED"></a>
+
+### `ERR_READLINE_CLOSED`
+
+> Stability: 1 - Experimental
+
+An attempt was made to use a readline that was already closed.
+
 <a id="ERR_REQUIRE_ESM"></a>
 
 ### `ERR_REQUIRE_ESM`

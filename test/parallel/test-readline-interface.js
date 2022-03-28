@@ -1098,7 +1098,12 @@ for (let i = 0; i < 12; i++) {
     rli.question('What\'s your name?', common.mustCall((name) => {
       assert.strictEqual(name, 'Node.js');
       rli.close();
-      rli.question('How are you?', common.mustNotCall());
+      assert.throws(() => {
+        rli.question('How are you?', common.mustNotCall());
+      }, {
+        name: 'Error',
+        code: 'ERR_READLINE_CLOSED'
+      });
       assert.notStrictEqual(rli.getPrompt(), 'How are you?');
     }));
     fi.emit('data', 'Node.js\n');
@@ -1111,7 +1116,12 @@ for (let i = 0; i < 12; i++) {
     question('What\'s your name?').then(common.mustCall((name) => {
       assert.strictEqual(name, 'Node.js');
       rli.close();
-      question('How are you?').then(common.mustNotCall());
+      question('How are you?')
+        .then(common.mustNotCall())
+        .catch(common.expectsError({
+          code: 'ERR_READLINE_CLOSED',
+          name: 'Error'
+        }));
       assert.notStrictEqual(rli.getPrompt(), 'How are you?');
     }));
     fi.emit('data', 'Node.js\n');
