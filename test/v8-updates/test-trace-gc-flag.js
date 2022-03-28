@@ -15,7 +15,7 @@ const fixtures = require('../common/fixtures');
     '--expose-gc',
     fixtures.path('gc.js'),
   ]);
-  const output = childProcess.stdout.toString();
+  const output = childProcess.stdout.toString().trim();
   const lines = splitByLine(output);
 
   const scavengeRegex = /\bScavenge\b/;
@@ -27,8 +27,7 @@ const fixtures = require('../common/fixtures');
     /\bMark-sweep\b/,
   ];
   lines.forEach((line, index) => {
-    const expectedRegex = new RegExp(expectedOutput[index]);
-    assert.match(line, expectedRegex);
+    assert.match(line, expectedOutput[index]);
   });
 }
 
