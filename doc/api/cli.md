@@ -341,7 +341,7 @@ added: v16.6.0
 
 Use this flag to disable top-level await in REPL.
 
-### `--experimental-specifier-resolution=mode`
+### `--experimental-specifier-resolution=node`
 
 <!-- YAML
 added:
