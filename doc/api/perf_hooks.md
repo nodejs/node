@@ -1366,6 +1366,20 @@ dns.lookup('localhost', () => {});
 dns.promises.resolve('localhost');
 ```
 
+### Measuring how long fs sync API takes when the operation is successful
+
+```js
+'use strict';
+const { PerformanceObserver } = require('perf_hooks');
+const fs = require('fs');
+const obs = new PerformanceObserver((items) => {
+  items.getEntries().forEach((item) => {
+    console.log(item);
+  });
+});
+obs.observe({ entryTypes: ['fs'] });
+```
+
 [Async Hooks]: async_hooks.md
 [High Resolution Time]: https://www.w3.org/TR/hr-time-2
 [Performance Timeline]: https://w3c.github.io/performance-timeline/

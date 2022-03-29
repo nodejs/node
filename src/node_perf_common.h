@@ -36,7 +36,8 @@ extern uint64_t performance_v8_start;
   V(HTTP, "http")                                                             \
   V(HTTP2, "http2")                                                           \
   V(NET, "net")                                                               \
-  V(DNS, "dns")
+  V(DNS, "dns")                                                               \
+  V(FS, "fs")
 
 enum PerformanceMilestone {
 #define V(name, _) NODE_PERFORMANCE_MILESTONE_##name,
