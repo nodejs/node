@@ -144,7 +144,6 @@ def files(action):
     else:
       output_lib = 'libnode.' + variables.get('shlib_suffix')
       action([output_prefix + output_lib], 'lib/' + output_lib)
-  
   if 'true' == variables.get('node_use_dtrace'):
     action(['out/Release/node.d'], 'lib/dtrace/node.d')
 
