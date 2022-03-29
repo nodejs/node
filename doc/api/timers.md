@@ -264,7 +264,7 @@ cancel the timer and prevent it from triggering.
 
 For the promisified variants of [`setImmediate()`][] and [`setTimeout()`][],
 an [`AbortController`][] may be used to cancel the timer. When canceled, the
-returned Promises will be rejected with an `'AbortError'`.
+returned Promises will be rejected.
 
 For `setImmediate()`:
 
@@ -277,7 +277,7 @@ const signal = ac.signal;
 setImmediatePromise('foobar', { signal })
   .then(console.log)
   .catch((err) => {
-    if (err.name === 'AbortError')
+    if (signal.aborted)
       console.log('The immediate was aborted');
   });
 
@@ -295,7 +295,7 @@ const signal = ac.signal;
 setTimeoutPromise(1000, 'foobar', { signal })
   .then(console.log)
   .catch((err) => {
-    if (err.name === 'AbortError')
+    if (signal.aborted)
       console.log('The timeout was aborted');
   });
 

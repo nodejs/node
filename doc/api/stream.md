@@ -2356,8 +2356,9 @@ changes:
     **Default:** `true`.
   * `signal` {AbortSignal} allows aborting the wait for the stream finish. The
     underlying stream will _not_ be aborted if the signal is aborted. The
-    callback will get called with an `AbortError`. All registered
-    listeners added by this function will also be removed.
+    callback will get called with an `Error`. Use `signal.aborted` to test if
+    the error is from an abort. All registered listeners added by this
+    function will also be removed.
 * `callback` {Function} A callback function that takes an optional error
   argument.
 * Returns: {Function} A cleanup function which removes all registered
@@ -2484,7 +2485,7 @@ The `pipeline` API provides a promise version, which can also
 receive an options argument as the last parameter with a
 `signal` {AbortSignal} property. When the signal is aborted,
 `destroy` will be called on the underlying pipeline, with an
-`AbortError`.
+`Error`.
 
 ```js
 const { pipeline } = require('stream/promises');
@@ -2520,7 +2521,7 @@ async function run() {
   );
 }
 
-run().catch(console.error); // AbortError
+run().catch((err) => console.log('aborted', signal.aborted)); // true
 ```
 
 The `pipeline` API also supports async generators:
@@ -2900,8 +2901,8 @@ Attaches an AbortSignal to a readable or writeable stream. This lets code
 control stream destruction using an `AbortController`.
 
 Calling `abort` on the `AbortController` corresponding to the passed
-`AbortSignal` will behave the same way as calling `.destroy(new AbortError())`
-on the stream.
+`AbortSignal` will behave the same way as calling `.destroy(new Error())` on
+the stream.
 
 ```js
 const fs = require('fs');
@@ -2919,18 +2920,16 @@ Or using an `AbortSignal` with a readable stream as an async iterable:
 
 ```js
 const controller = new AbortController();
+const { signal } = ac;
 setTimeout(() => controller.abort(), 10_000); // set a timeout
-const stream = addAbortSignal(
-  controller.signal,
-  fs.createReadStream(('object.json'))
-);
+const stream = addAbortSignal(signal, fs.createReadStream(('object.json')));
 (async () => {
   try {
     for await (const chunk of stream) {
       await process(chunk);
     }
   } catch (e) {
-    if (e.name === 'AbortError') {
+    if (signal.aborted) {
       // The operation was cancelled
     } else {
       throw e;
@@ -3128,8 +3127,8 @@ const myWritable = new Writable({
 ```
 
 Calling `abort` on the `AbortController` corresponding to the passed
-`AbortSignal` will behave the same way as calling `.destroy(new AbortError())`
-on the writeable stream.
+`AbortSignal` will behave the same way as calling `.destroy(new Error())` on
+the writeable stream.
 
 ```js
 const { Writable } = require('stream');
@@ -3485,8 +3484,8 @@ const myReadable = new Readable({
 ```
 
 Calling `abort` on the `AbortController` corresponding to the passed
-`AbortSignal` will behave the same way as calling `.destroy(new AbortError())`
-on the readable created.
+`AbortSignal` will behave the same way as calling `.destroy(new Error())` on
+the readable created.
 
 ```js
 const { Readable } = require('stream');

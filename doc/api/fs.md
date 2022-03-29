@@ -1203,7 +1203,7 @@ with an error. On FreeBSD, a representation of the directory's contents will be
 returned.
 
 It is possible to abort an ongoing `readFile` using an {AbortSignal}. If a
-request is aborted the promise returned is rejected with an `AbortError`:
+request is aborted the promise will be rejected:
 
 ```mjs
 import { readFile } from 'fs/promises';
@@ -1218,8 +1218,8 @@ try {
 
   await promise;
 } catch (err) {
-  // When a request is aborted - err is an AbortError
-  console.error(err);
+  // When a request is aborted - signal.aborted is true
+  console.error('aborted', signal.aborted);
 }
 ```
 
@@ -1493,7 +1493,7 @@ setTimeout(() => ac.abort(), 10000);
     for await (const event of watcher)
       console.log(event);
   } catch (err) {
-    if (err.name === 'AbortError')
+    if (signal.aborted)
       return;
     throw err;
   }
@@ -1581,8 +1581,8 @@ try {
 
   await promise;
 } catch (err) {
-  // When a request is aborted - err is an AbortError
-  console.error(err);
+  // When a request is aborted - signal.aborted is true
+  console.error('aborted', signal.aborted);
 }
 ```
 
@@ -3402,7 +3402,7 @@ readFile('<directory>', (err, data) => {
 ```
 
 It is possible to abort an ongoing request using an `AbortSignal`. If a
-request is aborted the callback is called with an `AbortError`:
+request is aborted the callback is called with an `Error`:
 
 ```mjs
 import { readFile } from 'fs';
@@ -4584,7 +4584,7 @@ const controller = new AbortController();
 const { signal } = controller;
 const data = new Uint8Array(Buffer.from('Hello Node.js'));
 writeFile('message.txt', data, { signal }, (err) => {
-  // When a request is aborted - the callback is called with an AbortError
+  // When a request is aborted - signal.aborted is true
 });
 // When the request should be aborted
 controller.abort();
