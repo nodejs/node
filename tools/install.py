@@ -137,7 +137,6 @@ def files(action):
     output_file += '.exe'
   action([output_prefix + output_file], 'bin/' + output_file)
 
-
   if 'true' == variables.get('node_shared'):
     if is_windows:
       action([output_prefix + 'libnode.dll'], 'bin/libnode.dll')
