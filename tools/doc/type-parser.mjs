@@ -84,6 +84,7 @@ const customTypesMap = {
   'Crypto': 'webcrypto.html#class-crypto',
   'SubtleCrypto': 'webcrypto.html#class-subtlecrypto',
   'RsaOaepParams': 'webcrypto.html#class-rsaoaepparams',
+  'AlgorithmIdentifier': 'webcrypto.html#class-algorithmidentifier',
   'AesCtrParams': 'webcrypto.html#class-aesctrparams',
   'AesCbcParams': 'webcrypto.html#class-aescbcparams',
   'AesGcmParams': 'webcrypto.html#class-aesgcmparams',
@@ -116,10 +117,6 @@ const customTypesMap = {
   'NodeScryptImportParams':
     'webcrypto.html#class-nodescryptimportparams',
   'NodeScryptParams': 'webcrypto.html#class-nodescryptparams',
-  'NodeEdKeyImportParams':
-    'webcrypto.html#class-nodeedkeyimportparams',
-  'NodeEdKeyGenParams':
-    'webcrypto.html#class-nodeedkeygenparams',
 
   'dgram.Socket': 'dgram.html#class-dgramsocket',
 
