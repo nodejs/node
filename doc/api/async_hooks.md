@@ -76,7 +76,7 @@ function after(asyncId) { }
 function destroy(asyncId) { }
 
 // promiseResolve() is called only for promise resources, when the
-// `resolve` function passed to the `Promise` constructor is invoked
+// resolve() function passed to the Promise constructor is invoked
 // (either directly or through other means of resolving a promise).
 function promiseResolve(asyncId) { }
 ```
@@ -124,7 +124,7 @@ function after(asyncId) { }
 function destroy(asyncId) { }
 
 // promiseResolve() is called only for promise resources, when the
-// `resolve` function passed to the `Promise` constructor is invoked
+// resolve() function passed to the Promise constructor is invoked
 // (either directly or through other means of resolving a promise).
 function promiseResolve(asyncId) { }
 ```
