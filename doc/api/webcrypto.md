@@ -1,5 +1,21 @@
 # Web Crypto API
 
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42507
+    description: Added `'Ed25519'`, `'Ed448'`, `'X25519'`, and `'X448'` 
+      algorithms.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42507
+    description: Removed proprietary `'NODE-ED25519'` and `'NODE-ED448'` 
+      algorithms.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42507
+    description: Removed proprietary `'NODE-X25519'` and `'NODE-X448'` named
+      curves from the `'ECDH'` algorithm.
+-->
+
 <!-- introduced_in=v15.0.0 -->
 
 > Stability: 1 - Experimental
@@ -532,6 +548,10 @@ The algorithms currently supported include:
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42507
+    description: Added `'X25519'`, and `'X448'` algorithms.
 -->
 
 <!--lint disable maximum-line-length remark-lint-->
@@ -561,6 +581,10 @@ The algorithms currently supported include:
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42507
+    description: Added `'X25519'`, and `'X448'` algorithms.
 -->
 
 <!--lint disable maximum-line-length remark-lint-->
@@ -642,6 +666,10 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42507
+    description: Added `'Ed25519'`, `'Ed448'`, `'X25519'`, and `'X448'` 
+      algorithms.
   - version: v15.9.0
     pr-url: https://github.com/nodejs/node/pull/37203
     description: Removed `'NODE-DSA'` JWK export.
@@ -736,6 +764,10 @@ The {CryptoKey} (secret key) generating algorithms supported include:
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42507
+    description: Added `'Ed25519'`, `'Ed448'`, `'X25519'`, and `'X448'` 
+      algorithms.
   - version: v15.9.0
     pr-url: https://github.com/nodejs/node/pull/37203
     description: Removed `'NODE-DSA'` JWK import.
@@ -793,6 +825,10 @@ The algorithms currently supported include:
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42507
+    description: Added `'Ed25519'`, and `'Ed448'` algorithms.
 -->
 
 <!--lint disable maximum-line-length remark-lint-->
@@ -876,6 +912,10 @@ The unwrapped key algorithms supported include:
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42507
+    description: Added `'Ed25519'`, and `'Ed448'` algorithms.
 -->
 
 <!--lint disable maximum-line-length remark-lint-->
