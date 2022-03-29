@@ -57,6 +57,54 @@
     (out) = v8::type::New((buffer), (byte_offset), (length));                  \
   } while (0)
 
+void napi_env__::HandleFinalizerException(napi_env env,
+                                          v8::Local<v8::Value> exception) {
+  // We must reset the last exception here to enable Node-API calls in the
+  // handler.
+  env->last_exception.Reset();
+  if (!env->finalizer_error_handler.IsEmpty()) {
+    bool isHandled = true;
+    napi_status status = [&]() {
+      v8::Local<v8::Value> v8handler =
+          v8::Local<v8::Value>::New(env->isolate, env->finalizer_error_handler);
+      napi_value handler = v8impl::JsValueFromV8LocalValue(v8handler);
+      napi_value err_value = v8impl::JsValueFromV8LocalValue(exception);
+      napi_value recv, result;
+      STATUS_CALL(napi_get_undefined(env, &recv));
+      STATUS_CALL(
+          napi_call_function(env, recv, handler, 1, &err_value, &result));
+      napi_valuetype result_type;
+      STATUS_CALL(napi_typeof(env, result, &result_type));
+      if (result_type == napi_boolean) {
+        bool bool_result;
+        STATUS_CALL(napi_get_value_bool(env, result, &bool_result));
+        if (bool_result == false) {
+          isHandled = false;
+        }
+      }
+      return napi_clear_last_error(env);
+    }();
+
+    if (status == napi_ok) {
+      if (!isHandled) {
+        env->isolate->ThrowException(exception);
+      }
+    } else if (status == napi_pending_exception) {
+      napi_value ex;
+      napi_get_and_clear_last_exception(env, &ex);
+      env->isolate->ThrowException(v8impl::V8LocalValueFromJsValue(ex));
+    } else {
+      const napi_extended_error_info* error_info;
+      napi_get_last_error_info(env, &error_info);
+      napi_throw_error(
+          env, "ERR_NAPI_FINALIZER_ERROR_HANDLER", error_info->error_message);
+      napi_clear_last_error(env);
+    }
+  } else {
+    env->isolate->ThrowException(exception);
+  }
+}
+
 namespace v8impl {
 
 namespace {
@@ -3207,6 +3255,26 @@ napi_status napi_is_detached_arraybuffer(napi_env env,
 
   *result = value->IsArrayBuffer() &&
             value.As<v8::ArrayBuffer>()->GetBackingStore()->Data() == nullptr;
+
+  return napi_clear_last_error(env);
+}
+
+NAPI_EXTERN napi_status
+node_api_set_finalizer_error_handler(napi_env env, napi_value error_handler) {
+  CHECK_ENV(env);
+
+  if (error_handler) {
+    v8::Local<v8::Value> handler =
+        v8impl::V8LocalValueFromJsValue(error_handler);
+    if (handler->IsFunction()) {
+      env->finalizer_error_handler =
+          v8impl::Persistent<v8::Value>(env->isolate, handler);
+    } else {
+      env->finalizer_error_handler.Reset();
+    }
+  } else {
+    env->finalizer_error_handler.Reset();
+  }
 
   return napi_clear_last_error(env);
 }

@@ -102,9 +102,13 @@ struct napi_env__ {
     }
   }
 
+  static void HandleFinalizerException(napi_env env,
+                                       v8::Local<v8::Value> exception);
+
   virtual void CallFinalizer(napi_finalize cb, void* data, void* hint) {
     v8::HandleScope handle_scope(isolate);
-    CallIntoModule([&](napi_env env) { cb(env, data, hint); });
+    CallIntoModule([&](napi_env env) { cb(env, data, hint); },
+                   HandleFinalizerException);
   }
 
   v8impl::Persistent<v8::Value> last_exception;
@@ -119,6 +123,7 @@ struct napi_env__ {
   int open_callback_scopes = 0;
   int refs = 1;
   void* instance_data = nullptr;
+  v8impl::Persistent<v8::Value> finalizer_error_handler;
 };
 
 // This class is used to keep a napi_env live in a way that

@@ -35,17 +35,18 @@ v8::Maybe<bool> node_napi_env__::mark_arraybuffer_as_untransferable(
 }
 
 void node_napi_env__::CallFinalizer(napi_finalize cb, void* data, void* hint) {
-  // we need to keep the env live until the finalizer has been run
-  // EnvRefHolder provides an exception safe wrapper to Ref and then
-  // Unref once the lambda is freed
-  EnvRefHolder liveEnv(static_cast<napi_env>(this));
-  node_env()->SetImmediate(
-      [=, liveEnv = std::move(liveEnv)](node::Environment* node_env) {
-        napi_env env = liveEnv.env();
-        v8::HandleScope handle_scope(env->isolate);
-        v8::Context::Scope context_scope(env->context());
-        env->CallIntoModule([&](napi_env env) { cb(env, data, hint); });
-      });
+  // Handle JS exceptions from finalizers the same way as we do it in the
+  // SetImmediate. See Environment::RunAndClearNativeImmediates.
+  node::errors::TryCatchScope try_catch(node_env());
+  node::DebugSealHandleScope seal_handle_scope(isolate);
+
+  napi_env__::CallFinalizer(cb, data, hint);
+
+  if (UNLIKELY(try_catch.HasCaught())) {
+    if (!try_catch.HasTerminated() && can_call_into_js()) {
+      node::errors::TriggerUncaughtException(isolate, try_catch);
+    }
+  }
 }
 
 namespace v8impl {

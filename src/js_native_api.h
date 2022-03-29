@@ -562,6 +562,12 @@ NAPI_EXTERN napi_status napi_object_freeze(napi_env env, napi_value object);
 NAPI_EXTERN napi_status napi_object_seal(napi_env env, napi_value object);
 #endif  // NAPI_VERSION >= 8
 
+#ifdef NAPI_EXPERIMENTAL
+// Set a handler for JS errors in finalizers.
+NAPI_EXTERN napi_status
+node_api_set_finalizer_error_handler(napi_env env, napi_value error_handler);
+#endif  // NAPI_EXPERIMENTAL
+
 EXTERN_C_END
 
 #endif  // SRC_JS_NATIVE_API_H_
