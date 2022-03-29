@@ -531,6 +531,30 @@ When `performanceEntry.type` is equal to `'function'`, the
 `performanceEntry.detail` property will be an {Array} listing
 the input arguments to the timed function.
 
+### Net ('net') Details
+
+When `performanceEntry.type` is equal to `'net'`, the
+`performanceEntry.detail` property will be an {Object} containing
+additional information.
+
+If `performanceEntry.name` is equal to `connect`, the `detail`
+will contain the following properties: `host`, `port`.
+
+### DNS ('dns') Details
+
+When `performanceEntry.type` is equal to `'dns'`, the
+`performanceEntry.detail` property will be an {Object} containing
+additional information.
+
+If `performanceEntry.name` is equal to `lookup`, the `detail`
+will contain the following properties: `hostname`, `family`, `hints`, `verbatim`.
+
+If `performanceEntry.name` is equal to `lookupService`, the `detail` will
+contain the following properties: `host`, `port`.
+
+If `performanceEntry.name` is equal to `queryxxx` or `getHostByAddr`, the `detail` will
+contain the following properties: `host`, `ttl`.
+
 ## Class: `PerformanceNodeTiming`
 
 <!-- YAML
@@ -1304,6 +1328,42 @@ http.createServer((req, res) => {
 }).listen(PORT, () => {
   http.get(`http://127.0.0.1:${PORT}`);
 });
+```
+
+### Measuring how long the `net.connect` (only for TCP) takes when the connection is successful
+
+```js
+'use strict';
+const { PerformanceObserver } = require('perf_hooks');
+const net = require('net');
+const obs = new PerformanceObserver((items) => {
+  items.getEntries().forEach((item) => {
+    console.log(item);
+  });
+});
+obs.observe({ entryTypes: ['net'] });
+const PORT = 8080;
+net.createServer((socket) => {
+  socket.destroy();
+}).listen(PORT, () => {
+  net.connect(PORT);
+});
+```
+
+### Measuring how long the DNS takes when the request is successful
+
+```js
+'use strict';
+const { PerformanceObserver } = require('perf_hooks');
+const dns = require('dns');
+const obs = new PerformanceObserver((items) => {
+  items.getEntries().forEach((item) => {
+    console.log(item);
+  });
+});
+obs.observe({ entryTypes: ['dns'] });
+dns.lookup('localhost', () => {});
+dns.promises.resolve('localhost');
 ```
 
 [Async Hooks]: async_hooks.md
