@@ -4,11 +4,11 @@
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/42507
-    description: Added `'Ed25519'`, `'Ed448'`, `'X25519'`, and `'X448'` 
+    description: Added `'Ed25519'`, `'Ed448'`, `'X25519'`, and `'X448'`
       algorithms.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/42507
-    description: Removed proprietary `'NODE-ED25519'` and `'NODE-ED448'` 
+    description: Removed proprietary `'NODE-ED25519'` and `'NODE-ED448'`
       algorithms.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/42507
@@ -668,7 +668,7 @@ added: v15.0.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/42507
-    description: Added `'Ed25519'`, `'Ed448'`, `'X25519'`, and `'X448'` 
+    description: Added `'Ed25519'`, `'Ed448'`, `'X25519'`, and `'X448'`
       algorithms.
   - version: v15.9.0
     pr-url: https://github.com/nodejs/node/pull/37203
@@ -766,7 +766,7 @@ added: v15.0.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/42507
-    description: Added `'Ed25519'`, `'Ed448'`, `'X25519'`, and `'X448'` 
+    description: Added `'Ed25519'`, `'Ed448'`, `'X25519'`, and `'X448'`
       algorithms.
   - version: v15.9.0
     pr-url: https://github.com/nodejs/node/pull/37203
