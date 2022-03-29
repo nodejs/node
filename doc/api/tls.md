@@ -1525,6 +1525,11 @@ Verifies the certificate `cert` is issued to `hostname`.
 Returns {Error} object, populating it with `reason`, `host`, and `cert` on
 failure. On success, returns {undefined}.
 
+This function is intended to be used in combination with the
+`checkServerIdentity` option that can be passed to [`tls.connect()`][] and as
+such operates on a [certificate object][]. For other purposes, consider using
+[`x509.checkHost()`][] instead.
+
 This function can be overwritten by providing an alternative function as the
 `options.checkServerIdentity` option that is passed to `tls.connect()`. The
 overwriting function can call `tls.checkServerIdentity()` of course, to augment
@@ -2257,6 +2262,7 @@ added: v11.4.0
 [`tls.createServer()`]: #tlscreateserveroptions-secureconnectionlistener
 [`tls.getCiphers()`]: #tlsgetciphers
 [`tls.rootCertificates`]: #tlsrootcertificates
+[`x509.checkHost()`]: crypto.md#x509checkhostname-options
 [asn1.js]: https://www.npmjs.com/package/asn1.js
 [certificate object]: #certificate-object
 [cipher list format]: https://www.openssl.org/docs/man1.1.1/man1/ciphers.html#CIPHER-LIST-FORMAT
