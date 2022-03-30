@@ -18,7 +18,7 @@ Currently shared libary support has only be tested on:
 
 ## Building with shared library option
 
-Node.js is built with the shared libary option by adding `--shared`
+Node.js is built with the shared library option by adding `--shared`
 to the configure step before building on non-windows platforms
 and adding `dll` when building on windows.
 
