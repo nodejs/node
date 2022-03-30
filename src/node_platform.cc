@@ -45,6 +45,19 @@ static void PlatformWorkerThread(void* data) {
   }
 }
 
+static int GetActualThreadPoolSize(int thread_pool_size) {
+  if (thread_pool_size < 1) {
+    uv_cpu_info_t* cpu_info;
+    int count;
+
+    if (uv_cpu_info(&cpu_info, &count) == 0) {
+      uv_free_cpu_info(cpu_info, count);
+      thread_pool_size = count - 1;
+    }
+  }
+  return std::max(thread_pool_size, 1);
+}
+
 }  // namespace
 
 class WorkerThreadsTaskRunner::DelayedTaskScheduler {
@@ -340,6 +353,8 @@ NodePlatform::NodePlatform(int thread_pool_size,
   // current v8::Platform instance.
   SetTracingController(tracing_controller_);
   DCHECK_EQ(GetTracingController(), tracing_controller_);
+
+  thread_pool_size = GetActualThreadPoolSize(thread_pool_size);
   worker_thread_task_runner_ =
       std::make_shared<WorkerThreadsTaskRunner>(thread_pool_size);
 }
