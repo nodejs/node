@@ -16,7 +16,7 @@ Currently shared libary support has only be tested on:
 * Windows
 * AIX
 
-## Building with shared libary option
+## Building with shared library option
 
 Node.js is built with the shared libary option by adding `--shared`
 to the configure step before building on non-windows platforms
