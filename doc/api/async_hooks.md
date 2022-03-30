@@ -59,24 +59,24 @@ asyncHook.disable();
 // The following are the callbacks that can be passed to createHook().
 //
 
-// init is called during object construction. The resource may not have
-// completed construction when this callback runs, therefore all fields of the
+// init() is called during object construction. The resource may not have
+// completed construction when this callback runs. Therefore, all fields of the
 // resource referenced by "asyncId" may not have been populated.
 function init(asyncId, type, triggerAsyncId, resource) { }
 
-// Before is called just before the resource's callback is called. It can be
+// before() is called just before the resource's callback is called. It can be
 // called 0-N times for handles (such as TCPWrap), and will be called exactly 1
 // time for requests (such as FSReqCallback).
 function before(asyncId) { }
 
-// After is called just after the resource's callback has finished.
+// after() is called just after the resource's callback has finished.
 function after(asyncId) { }
 
-// Destroy is called when the resource is destroyed.
+// destroy() is called when the resource is destroyed.
 function destroy(asyncId) { }
 
-// promiseResolve is called only for promise resources, when the
-// `resolve` function passed to the `Promise` constructor is invoked
+// promiseResolve() is called only for promise resources, when the
+// resolve() function passed to the Promise constructor is invoked
 // (either directly or through other means of resolving a promise).
 function promiseResolve(asyncId) { }
 ```
@@ -107,24 +107,24 @@ asyncHook.disable();
 // The following are the callbacks that can be passed to createHook().
 //
 
-// init is called during object construction. The resource may not have
-// completed construction when this callback runs, therefore all fields of the
+// init() is called during object construction. The resource may not have
+// completed construction when this callback runs. Therefore, all fields of the
 // resource referenced by "asyncId" may not have been populated.
 function init(asyncId, type, triggerAsyncId, resource) { }
 
-// Before is called just before the resource's callback is called. It can be
+// before() is called just before the resource's callback is called. It can be
 // called 0-N times for handles (such as TCPWrap), and will be called exactly 1
 // time for requests (such as FSReqCallback).
 function before(asyncId) { }
 
-// After is called just after the resource's callback has finished.
+// after() is called just after the resource's callback has finished.
 function after(asyncId) { }
 
-// Destroy is called when the resource is destroyed.
+// destroy() is called when the resource is destroyed.
 function destroy(asyncId) { }
 
-// promiseResolve is called only for promise resources, when the
-// `resolve` function passed to the `Promise` constructor is invoked
+// promiseResolve() is called only for promise resources, when the
+// resolve() function passed to the Promise constructor is invoked
 // (either directly or through other means of resolving a promise).
 function promiseResolve(asyncId) { }
 ```
