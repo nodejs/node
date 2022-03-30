@@ -41,7 +41,7 @@ in a build on OSX `libnode.105.dylib`.
 
 In cases where an application links against the shared
 library it is up to the application developer to add options
-so that the shared libary can be found by the application or
+so that the shared library can be found by the application or
 to set the LIBPATH (AIX), LD\_LIBRARY\_PATH (Linux/Unix), etc.
 so that it is found at runtime.
 
