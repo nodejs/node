@@ -27,7 +27,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Environment Information
@@ -38,11 +38,11 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -53,11 +53,11 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Environment Information
@@ -77,11 +77,11 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Environment Information
@@ -92,11 +92,11 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -109,11 +109,11 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: Use Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -127,7 +127,7 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           persist-credentials: false
       - run: shellcheck -V
@@ -137,7 +137,7 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           persist-credentials: false
       - uses: mszostok/codeowners-validator@v0.6.0
@@ -147,7 +147,7 @@ jobs:
     if: ${{ github.event.pull_request }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 2
           persist-credentials: false
