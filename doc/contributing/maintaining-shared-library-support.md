@@ -9,7 +9,7 @@ of having to bundle in the full Node.js footprint into each application.
 This doc provides an outline of the approach and things to look
 out for when maintaining the shared library support.
 
-Currently shared libary support has only be tested on:
+Currently shared library support has only be tested on:
 
 * Linux
 * OSX
