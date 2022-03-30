@@ -70,7 +70,7 @@ a missing NODE\_EXTERN will cause the build to fail.
 For regular Node.js builds, native addons rely on symbols
 exported by the node executable. As a result any
 pre-built binaries will expect symbols from the executable
-instead of the shared libary itself.
+instead of the shared library itself.
 
 The current node executable wrapper addresses this by
 ensuring that node.lib from node.exe does not get generated
