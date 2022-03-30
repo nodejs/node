@@ -2,7 +2,7 @@
 
 Node.js unofficially supports a build option where Node.js is built as
 a shared library (node.dll/libnode.so). The shared library provides
-an easy way to way to embed Node.js into other aplications and to
+an easy way to way to embed Node.js into other applications and to
 have multiple applications use a single copy of Node.js instead
 of having to bundle in the full Node.js footprint into each application.
 
