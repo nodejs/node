@@ -112,6 +112,6 @@ some are run as part of daily testing. These include:
 
 TODO: add a Job for windows
 
-For code that modifies/affects shared libary support these CI jobs should
+For code that modifies/affects shared library support these CI jobs should
 run and it should be validated that there are no regressions in
 the test suite.
