@@ -2,6 +2,7 @@
 #include "../common.h"
 
 static bool exceptionWasPending = false;
+static int num = 0x23432;
 
 static napi_value returnException(napi_env env, napi_callback_info info) {
   size_t argc = 1;
@@ -83,7 +84,7 @@ static napi_value createExternal(napi_env env, napi_callback_info info) {
   napi_value external;
 
   NODE_API_CALL(env,
-      napi_create_external(env, NULL, finalizer, NULL, &external));
+      napi_create_external(env, &num, finalizer, NULL, &external));
 
   return external;
 }
