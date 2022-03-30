@@ -2443,6 +2443,7 @@ Contributed by Michaël Zasso - [#37587](https://github.com/nodejs/node/pull/375
 * **(SEMVER-MINOR)** **assert**: graduate assert.match and assert.doesNotMatch (James M Snell) [#38111](https://github.com/nodejs/node/pull/38111)
 * **(SEMVER-MAJOR)** **buffer**: expose btoa and atob as globals (James M Snell) [#37786](https://github.com/nodejs/node/pull/37786)
 * **(SEMVER-MAJOR)** **deps**: bump minimum ICU version to 68 (Michaël Zasso) [#37330](https://github.com/nodejs/node/pull/37330)
+* **(SEMVER-MAJOR)** **http**: use autoDestroy: true in incoming message (Daniele Belardi) [#33035](https://github.com/nodejs/node/pull/33035)
 * **deps**: update ICU to 69.1 (Michaël Zasso) [#38178](https://github.com/nodejs/node/pull/38178)
 * **deps**: update llhttp to 6.0.0 (Fedor Indutny) [#38277](https://github.com/nodejs/node/pull/38277)
 * **deps**: upgrade npm to 7.10.0 (Ruy Adorno) [#38254](https://github.com/nodejs/node/pull/38254)
