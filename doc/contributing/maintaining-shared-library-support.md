@@ -82,7 +82,7 @@ node.exe rather than libnode.dll. This would be a problem for
 package that use node-addon-api pre-compiled binaries with the
 goal of them working across different Node.js versions and
 types (stadard versus shared libary). At this point the
-main purpose for the node exectuable wrapper is for testing
+main purpose for the node executable wrapper is for testing
 so this is not considered a major issue.
 
 For applications that use the shared library and also
