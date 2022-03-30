@@ -40,7 +40,7 @@ The stability indices are as follows:
 
 <!-- separator -->
 
-> Stability 3 - Legacy. Although this feature is unlikely to be removed and is
+> Stability: 3 - Legacy. Although this feature is unlikely to be removed and is
 > still covered by semantic versioning guarantees, it is no longer actively
 > maintained, and other alternatives are available.
 
