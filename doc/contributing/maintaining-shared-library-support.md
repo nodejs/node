@@ -29,7 +29,7 @@ Once built there are two key components:
 
 The node executable is a thin wrapper around libnode which is
 generated so that we can run the standard Node.js test suite
-against the shared libary.
+against the shared library.
 
 The executable and library will have extensions as appropriate
 for the platform on which they are built. For
