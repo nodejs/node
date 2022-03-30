@@ -832,7 +832,7 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
 #endif
 
 #if defined(_MSC_VER)
-#if defined(__cplusplus)
+#if defined(__cplusplus) && defined(__cpp_inline_variables)
 // The NODE_C_CTOR macro defines a function fn that is called during dynamic
 // initialization of static variables.
 // The order of the dynamic initialization is not defined and code in fn
