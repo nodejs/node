@@ -949,11 +949,15 @@ The algorithms currently supported include:
 added: v15.0.0
 -->
 
+<!--lint disable maximum-line-length remark-lint-->
+
 * `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
 * `key`: {CryptoKey}
 * `wrappingKey`: {CryptoKey}
 * `wrapAlgo`: {AlgorithmIdentifier|RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
 * Returns: {Promise} containing {ArrayBuffer}
+
+<!--lint enable maximum-line-length remark-lint-->
 
 In cryptography, "wrapping a key" refers to exporting and then encrypting the
 keying material. The `subtle.wrapKey()` method exports the keying material into
