@@ -514,15 +514,14 @@ Only Node.js core collaborators and triagers can start a CI testing run. The
 specific details of how to do this are included in the new collaborator
 [Onboarding guide][]. Usually, a collaborator or triager will start a CI
 test run for you as approvals for the pull request come in.
-If not, you can ask a collaborator to start a CI run.
+If not, you can ask a collaborator or triager to start a CI run.
 
 Ideally, the code change will pass ("be green") on all platform configurations
-supported by Node.js. (There are over 30 platform configurations currently.)
-This means that all tests pass and there are no linting errors. In reality,
-however, it is not uncommon for the CI infrastructure itself to fail on
-specific platforms or for so-called "flaky" tests to fail ("be red"). It is
-vital to visually inspect the results of all failed ("red") tests to determine
-whether the failure was caused by the changes in the pull request.
+supported by Node.js. This means that all tests pass and there are no linting
+errors. In reality, however, it is not uncommon for the CI infrastructure itself
+to fail on specific platforms or for so-called "flaky" tests to fail ("be red").
+It is vital to visually inspect the results of all failed ("red") tests to
+determine whether the failure was caused by the changes in the pull request.
 
 ## Notes
 
