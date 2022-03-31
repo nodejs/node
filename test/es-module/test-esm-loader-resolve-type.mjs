@@ -37,6 +37,6 @@ await import(`${moduleName}`).finally(() => {
 const { importedESM: importedESMAfter,
         importedCJS: importedCJSAfter } = global.getModuleTypeStats();
 
-// Dynamic import above should incriment ESM counter but not CJS counter
+// Dynamic import above should increment ESM counter but not CJS counter
 assert.strictEqual(importedESMBefore + 1, importedESMAfter);
 assert.strictEqual(importedCJSBefore, importedCJSAfter);
