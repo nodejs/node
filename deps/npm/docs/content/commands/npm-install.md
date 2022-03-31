@@ -22,7 +22,7 @@ npm install <tarball url>
 npm install <git:// url>
 npm install <github username>/<github project>
 
-aliases: i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall, add
+aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
 ```
 
 <!-- automatically generated, do not edit manually -->

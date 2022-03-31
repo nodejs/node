@@ -13,7 +13,7 @@ description: View registry info
 ```bash
 npm view [<@scope>/]<pkg>[@<version>] [<field>[.subfield]...]
 
-aliases: v, info, show
+aliases: info, show, v
 ```
 
 <!-- automatically generated, do not edit manually -->
