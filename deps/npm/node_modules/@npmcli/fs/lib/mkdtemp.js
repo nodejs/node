@@ -2,11 +2,11 @@ const { dirname, sep } = require('path')
 
 const fs = require('./fs.js')
 const getOptions = require('./common/get-options.js')
-const owner = require('./common/owner.js')
+const withOwner = require('./with-owner.js')
 
 const mkdtemp = async (prefix, opts) => {
   const options = getOptions(opts, {
-    copy: ['encoding', 'owner'],
+    copy: ['encoding'],
     wrap: 'encoding',
   })
 
@@ -16,13 +16,8 @@ const mkdtemp = async (prefix, opts) => {
   // /tmp -> /tmpABCDEF, infers from /
   // /tmp/ -> /tmp/ABCDEF, infers from /tmp
   const root = prefix.endsWith(sep) ? prefix : dirname(prefix)
-  const { uid, gid } = await owner.validate(root, options.owner)
 
-  const result = await fs.mkdtemp(prefix, options)
-
-  await owner.update(result, uid, gid)
-
-  return result
+  return withOwner(root, () => fs.mkdtemp(prefix, options), opts)
 }
 
 module.exports = mkdtemp

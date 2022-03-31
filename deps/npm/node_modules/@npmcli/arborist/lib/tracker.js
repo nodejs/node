@@ -1,10 +1,12 @@
 const _progress = Symbol('_progress')
 const _onError = Symbol('_onError')
+const _setProgress = Symbol('_setProgess')
 const npmlog = require('npmlog')
 
 module.exports = cls => class Tracker extends cls {
   constructor (options = {}) {
     super(options)
+    this[_setProgress] = !!options.progress
     this[_progress] = new Map()
   }
 
@@ -27,7 +29,7 @@ module.exports = cls => class Tracker extends cls {
       // 1. no existing tracker, no subsection
       // Create a new tracker from npmlog
       // starts progress bar
-      if (this[_progress].size === 0) {
+      if (this[_setProgress] && this[_progress].size === 0) {
         npmlog.enableProgress()
       }
 
@@ -76,7 +78,7 @@ module.exports = cls => class Tracker extends cls {
 
       // remove progress bar if all
       // trackers are finished
-      if (this[_progress].size === 0) {
+      if (this[_setProgress] && this[_progress].size === 0) {
         npmlog.disableProgress()
       }
     } else if (!hasTracker && subsection === null) {
@@ -92,7 +94,9 @@ module.exports = cls => class Tracker extends cls {
   }
 
   [_onError] (msg) {
-    npmlog.disableProgress()
+    if (this[_setProgress]) {
+      npmlog.disableProgress()
+    }
     throw new Error(msg)
   }
 }

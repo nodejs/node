@@ -60,7 +60,7 @@ module.exports = (er, npm) => {
         npm.config.loaded &&
         er.dest.startsWith(npm.config.get('cache'))
 
-      const isWindows = require('./is-windows.js')
+      const { isWindows } = require('./is-windows.js')
 
       if (!isWindows && (isCachePath || isCacheDest)) {
         // user probably doesn't need this, but still add it to the debug log

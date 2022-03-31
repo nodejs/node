@@ -79,7 +79,7 @@ module.exports = cls => class VirtualLoader extends cls {
   async [loadRoot] (s) {
     const pj = this.path + '/package.json'
     const pkg = await rpj(pj).catch(() => s.data.packages['']) || {}
-    return this[loadWorkspaces](this[loadNode]('', pkg))
+    return this[loadWorkspaces](this[loadNode]('', pkg, true))
   }
 
   async [loadFromShrinkwrap] (s, root) {
@@ -264,7 +264,7 @@ module.exports = cls => class VirtualLoader extends cls {
     }
   }
 
-  [loadNode] (location, sw) {
+  [loadNode] (location, sw, loadOverrides) {
     const p = this.virtualTree ? this.virtualTree.realpath : this.path
     const path = resolve(p, location)
     // shrinkwrap doesn't include package name unless necessary
@@ -290,6 +290,7 @@ module.exports = cls => class VirtualLoader extends cls {
       optional,
       devOptional,
       peer,
+      loadOverrides,
     })
     // cast to boolean because they're undefined in the lock file when false
     node.extraneous = !!sw.extraneous

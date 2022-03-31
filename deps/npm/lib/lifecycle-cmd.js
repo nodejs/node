@@ -4,6 +4,7 @@
 const BaseCommand = require('./base-command.js')
 class LifecycleCmd extends BaseCommand {
   static usage = ['[-- <args>]']
+  static isShellout = true
 
   async exec (args, cb) {
     return this.npm.exec('run-script', [this.constructor.name, ...args])

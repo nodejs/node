@@ -1,3 +1,6 @@
+/* eslint-disable no-console */
+// XXX: remove console.log later
+
 // npm view [pkg [pkg ...]]
 
 const color = require('ansicolors')

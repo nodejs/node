@@ -45,7 +45,7 @@ t.test('unrecognized subcommand', async t => {
   const { npm } = await loadMockNpm(t)
   await t.rejects(
     npm.exec('access', ['blerg']),
-    /Usage: blerg is not a recognized subcommand/,
+    /blerg is not a recognized subcommand/,
     'should throw EUSAGE on missing subcommand'
   )
 })
@@ -69,7 +69,7 @@ t.test('access public on unscoped package', async t => {
   })
   await t.rejects(
     npm.exec('access', ['public']),
-    /Usage: This command is only available for scoped packages/,
+    /This command is only available for scoped packages/,
     'should throw scoped-restricted error'
   )
 })
@@ -131,7 +131,7 @@ t.test('access restricted on unscoped package', async t => {
   })
   await t.rejects(
     npm.exec('access', ['public']),
-    /Usage: This command is only available for scoped packages/,
+    /This command is only available for scoped packages/,
     'should throw scoped-restricted error'
   )
 })
@@ -262,7 +262,7 @@ t.test('access grant others', async t => {
       'myorg:myteam',
       '@scoped/another',
     ]),
-    /Usage: First argument must be either `read-only` or `read-write`./,
+    /First argument must be either `read-only` or `read-write`./,
     'should throw unrecognized argument error'
   )
 })
@@ -276,7 +276,7 @@ t.test('access grant missing team args', async t => {
       undefined,
       '@scoped/another',
     ]),
-    /Usage: `<scope:team>` argument is required./,
+    /`<scope:team>` argument is required./,
     'should throw missing argument error'
   )
 })
@@ -290,7 +290,7 @@ t.test('access grant malformed team arg', async t => {
       'foo',
       '@scoped/another',
     ]),
-    /Usage: Second argument used incorrect format.\n/,
+    /Second argument used incorrect format.\n/,
     'should throw malformed arg error'
   )
 })
@@ -343,7 +343,7 @@ t.test('access revoke missing team args', async t => {
       undefined,
       '@scoped/another',
     ]),
-    /Usage: `<scope:team>` argument is required./,
+    /`<scope:team>` argument is required./,
     'should throw missing argument error'
   )
 })
@@ -356,7 +356,7 @@ t.test('access revoke malformed team arg', async t => {
       'foo',
       '@scoped/another',
     ]),
-    /Usage: First argument used incorrect format.\n/,
+    /First argument used incorrect format.\n/,
     'should throw malformed arg error'
   )
 })
