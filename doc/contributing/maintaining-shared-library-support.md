@@ -14,7 +14,7 @@ out for when maintaining the shared library support.
 Currently shared library support has only be tested on:
 
 * Linux
-* OSX
+* macOS
 * Windows
 * AIX
 
