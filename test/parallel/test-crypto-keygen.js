@@ -117,7 +117,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 
 {
   // Test sync key generation with key objects with a non-standard
-  // publicExpononent
+  // publicExponent
   const { publicKey, privateKey } = generateKeyPairSync('rsa', {
     publicExponent: 3,
     modulusLength: 512

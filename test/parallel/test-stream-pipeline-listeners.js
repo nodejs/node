@@ -8,7 +8,7 @@ process.on('uncaughtException', common.mustCall((err) => {
   assert.strictEqual(err.message, 'no way');
 }, 2));
 
-// Ensure that listeners is removed if last stream is readble
+// Ensure that listeners is removed if last stream is readable
 // And other stream's listeners unchanged
 const a = new PassThrough();
 a.end('foobar');
