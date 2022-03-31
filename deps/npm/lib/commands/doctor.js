@@ -131,10 +131,6 @@ class Doctor extends BaseCommand {
 
     if (!this.npm.silent) {
       this.npm.output(table(outTable, tableOpts))
-      if (!allOk) {
-        // TODO is this really needed?
-        console.error('')
-      }
     }
     if (!allOk) {
       throw new Error('Some problems found. See above for recommendations.')

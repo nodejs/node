@@ -17,7 +17,7 @@ const loadMockCompletion = async (t, o = {}) => {
   }
   const res = await _loadMockNpm(t, {
     mocks: {
-      '../../lib/utils/is-windows-shell.js': !!windows,
+      '../../lib/utils/is-windows.js': { isWindowsShell: !!windows },
       ...options.mocks,
     },
     ...options,

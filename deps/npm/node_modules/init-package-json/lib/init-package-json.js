@@ -74,62 +74,62 @@ function init (dir, input, config, cb) {
     var pz = new PZ(input, ctx)
     pz.backupFile = def
     pz.on('error', cb)
-    pz.on('data', function (data) {
-      Object.keys(data).forEach(function (k) {
-        if (data[k] !== undefined && data[k] !== null) {
-          pkg[k] = data[k]
+    pz.on('data', function (pzData) {
+      Object.keys(pzData).forEach(function (k) {
+        if (pzData[k] !== undefined && pzData[k] !== null) {
+          pkg[k] = pzData[k]
         }
       })
 
       // only do a few of these.
       // no need for mans or contributors if they're in the files
-      var es = readJson.extraSet
+      es = readJson.extraSet
       readJson.extraSet = es.filter(function (fn) {
         return fn.name !== 'authors' && fn.name !== 'mans'
       })
-      readJson.extras(packageFile, pkg, function (er, pkg) {
-        if (er) {
-          return cb(er, pkg)
+      readJson.extras(packageFile, pkg, function (extrasErr, pkgWithExtras) {
+        if (extrasErr) {
+          return cb(extrasErr, pkgWithExtras)
         }
         readJson.extraSet = es
-        pkg = unParsePeople(pkg)
+        pkgWithExtras = unParsePeople(pkgWithExtras)
         // no need for the readme now.
-        delete pkg.readme
-        delete pkg.readmeFilename
+        delete pkgWithExtras.readme
+        delete pkgWithExtras.readmeFilename
 
         // really don't want to have this lying around in the file
-        delete pkg._id
+        delete pkgWithExtras._id
 
         // ditto
-        delete pkg.gitHead
+        delete pkgWithExtras.gitHead
 
         // if the repo is empty, remove it.
-        if (!pkg.repository) {
-          delete pkg.repository
+        if (!pkgWithExtras.repository) {
+          delete pkgWithExtras.repository
         }
 
         // readJson filters out empty descriptions, but init-package-json
         // traditionally leaves them alone
-        if (!pkg.description) {
-          pkg.description = data.description
+        if (!pkgWithExtras.description) {
+          pkgWithExtras.description = pzData.description
         }
 
-        var d = JSON.stringify(updateDeps(pkg), null, 2) + '\n'
-        function write (yes) {
-          fs.writeFile(packageFile, d, 'utf8', function (er) {
-            if (!er && yes && !config.get('silent')) {
-              console.log('Wrote to %s:\n\n%s\n', packageFile, d)
+        var stringified = JSON.stringify(updateDeps(pkgWithExtras), null, 2) + '\n'
+        function write (writeYes) {
+          fs.writeFile(packageFile, stringified, 'utf8', function (writeFileErr) {
+            if (!writeFileErr && writeYes && !config.get('silent')) {
+              console.log('Wrote to %s:\n\n%s\n', packageFile, stringified)
             }
-            return cb(er, pkg)
+            return cb(writeFileErr, pkgWithExtras)
           })
         }
         if (ctx.yes) {
           return write(true)
         }
-        console.log('About to write to %s:\n\n%s\n', packageFile, d)
-        read({ prompt: 'Is this OK? ', default: 'yes' }, function (er, ok) {
-          if (er) {
-            return cb(er)
+        console.log('About to write to %s:\n\n%s\n', packageFile, stringified)
+        read({ prompt: 'Is this OK? ', default: 'yes' }, function (promptErr, ok) {
+          if (promptErr) {
+            return cb(promptErr)
           }
           if (!ok || ok.toLowerCase().charAt(0) !== 'y') {
             console.log('Aborted.')

@@ -26,7 +26,6 @@ const mocks = {
     readPackageNamePrefix = prefix
     return readPackageNameResponse
   },
-  '../../../lib/utils/usage.js': () => 'usage instructions',
 }
 
 const npmcliMaintainers = [

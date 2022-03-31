@@ -19,6 +19,6 @@ module.exports = color => {
     magenta,
     yellow,
     white,
-    severity
+    severity,
   }
 }

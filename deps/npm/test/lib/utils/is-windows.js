@@ -1,8 +1,39 @@
 const t = require('tap')
-const actuallyWindows = process.platform === 'win32'
-t.equal(actuallyWindows, require('../../../lib/utils/is-windows.js'))
-Object.defineProperty(process, 'platform', {
-  value: actuallyWindows ? 'posix' : 'win32',
+
+const mockGlobals = require('../../fixtures/mock-globals')
+
+t.test('is not windows', async t => {
+  mockGlobals(t, { 'process.platform': 'posix' })
+  t.match({
+    isWindows: false,
+    isWindowsShell: false,
+  }, t.mock('../../../lib/utils/is-windows.js'))
 })
-delete require.cache[require.resolve('../../../lib/utils/is-windows.js')]
-t.equal(!actuallyWindows, require('../../../lib/utils/is-windows.js'))
+
+t.test('is windows, shell', async t => {
+  mockGlobals(t, {
+    'process.platform': 'win32',
+    'process.env': {
+      MSYSTEM: 'notmingw',
+      TERM: 'notcygwin',
+    },
+  })
+  t.match({
+    isWindows: true,
+    isWindowsShell: true,
+  }, t.mock('../../../lib/utils/is-windows.js'))
+})
+
+t.test('is windows, not shell', async t => {
+  mockGlobals(t, {
+    'process.platform': 'win32',
+    'process.env': {
+      MSYSTEM: 'MINGW32',
+      TERM: 'cygwin',
+    },
+  })
+  t.match({
+    isWindows: true,
+    isWindowsShell: false,
+  }, t.mock('../../../lib/utils/is-windows.js'))
+})
