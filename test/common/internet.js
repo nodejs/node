@@ -32,7 +32,7 @@ const addresses = {
   NAPTR_HOST: 'sip2sip.info',
   // A host with SOA records registered
   SOA_HOST: 'nodejs.org',
-  // A host with CAA record registred
+  // A host with CAA record registered
   CAA_HOST: 'google.com',
   // A host with CNAME records registered
   CNAME_HOST: 'blog.nodejs.org',
