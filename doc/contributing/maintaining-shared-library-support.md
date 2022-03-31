@@ -39,7 +39,7 @@ example, node.exe on windows and node on other platforms for
 the executable.
 
 libnode may have additional naming components, as an example
-in a build on OSX `libnode.105.dylib`.
+in a build on macOS `libnode.105.dylib`.
 
 In cases where an application links against the shared
 library it is up to the application developer to add options
