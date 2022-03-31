@@ -833,7 +833,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {RsaSignParams|RsaPssParams|EcdsaParams|HmacParams|AlgorithmIdentifier|NodeDsaSignParams}
+* `algorithm`: {RsaSignParams|RsaPssParams|EcdsaParams|HmacParams|AlgorithmIdentifier|Ed448Params|NodeDsaSignParams}
 * `key`: {CryptoKey}
 * `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
 * Returns: {Promise} containing {ArrayBuffer}
@@ -920,7 +920,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {RsaSignParams|RsaPssParams|EcdsaParams|HmacParams|AlgorithmIdentifier|NodeDsaSignParams}
+* `algorithm`: {RsaSignParams|RsaPssParams|EcdsaParams|HmacParams|AlgorithmIdentifier|Ed448Params|NodeDsaSignParams}
 * `key`: {CryptoKey}
 * `signature`: {ArrayBuffer|TypedArray|DataView|Buffer}
 * `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
@@ -1264,6 +1264,33 @@ added: v15.0.0
 -->
 
 * Type: {string} Must be one of `'P-256'`, `'P-384'`, `'P-521'`.
+
+### Class: `Ed448Params`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+#### `ed448Params.name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string} Must be `'Ed448'`.
+
+#### `ed448Params.context`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
+
+The `context` member represents the optional context data to associate with
+the message.
+The Node.js Web Crypto API implementation only supports zero-length context
+which is equivalent to not providing context at all.
 
 ### Class: `HkdfParams`
 

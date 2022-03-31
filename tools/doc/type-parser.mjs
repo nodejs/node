@@ -107,6 +107,7 @@ const customTypesMap = {
   'EcdsaParams': 'webcrypto.html#class-ecdsaparams',
   'RsaPssParams': 'webcrypto.html#class-rsapssparams',
   'RsaSignParams': 'webcrypto.html#class-rsasignparams',
+  'Ed448Params': 'webcrypto.html#class-ed448params',
   'NodeDhImportParams': 'webcrypto.html#class-nodedhimportparams',
   'NodeDhKeyGenParams': 'webcrypto.html#class-nodedhkeygenparams',
   'NodeDhDeriveBitsParams':
