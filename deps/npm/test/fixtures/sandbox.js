@@ -264,6 +264,7 @@ class Sandbox extends EventEmitter {
     const mockedLogs = mockLogs(this[_mocks])
     this[_logs] = mockedLogs.logs
     const Npm = this[_test].mock('../../lib/npm.js', {
+      '../../lib/utils/update-notifier.js': async () => {},
       ...this[_mocks],
       ...mockedLogs.logMocks,
     })
@@ -314,6 +315,7 @@ class Sandbox extends EventEmitter {
     const mockedLogs = mockLogs(this[_mocks])
     this[_logs] = mockedLogs.logs
     const Npm = this[_test].mock('../../lib/npm.js', {
+      '../../lib/utils/update-notifier.js': async () => {},
       ...this[_mocks],
       ...mockedLogs.logMocks,
     })

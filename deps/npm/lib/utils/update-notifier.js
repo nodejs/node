@@ -122,5 +122,5 @@ module.exports = async npm => {
   // fails, it's ok.  might be using /dev/null as the cache or something weird
   // like that.
   writeFile(lastCheckedFile(npm), '').catch(() => {})
-  npm.updateNotification = notification
+  return notification
 }

@@ -119,11 +119,11 @@ const exec = async (opts) => {
     ...flatOptions,
     path,
   })
-  const tree = await localArb.loadActual()
+  const localTree = await localArb.loadActual()
 
   // do we have all the packages in manifest list?
   const needInstall =
-    manis.some(manifest => manifestMissing({ tree, manifest }))
+    manis.some(manifest => manifestMissing({ tree: localTree, manifest }))
 
   if (needInstall) {
     const { npxCache } = flatOptions

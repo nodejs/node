@@ -1,13 +1,15 @@
+const libaccess = require('libnpmaccess')
+const libunpub = require('libnpmpublish').unpublish
+const npa = require('npm-package-arg')
+const npmFetch = require('npm-registry-fetch')
 const path = require('path')
 const util = require('util')
-const npa = require('npm-package-arg')
-const libaccess = require('libnpmaccess')
-const npmFetch = require('npm-registry-fetch')
-const libunpub = require('libnpmpublish').unpublish
 const readJson = util.promisify(require('read-package-json'))
+
+const flatten = require('../utils/config/flatten.js')
+const getIdentity = require('../utils/get-identity.js')
 const log = require('../utils/log-shim')
 const otplease = require('../utils/otplease.js')
-const getIdentity = require('../utils/get-identity.js')
 
 const LAST_REMAINING_VERSION_ERROR = 'Refusing to delete the last version of the package. ' +
 'It will block from republishing a new version for 24 hours.\n' +
@@ -22,7 +24,8 @@ class Unpublish extends BaseCommand {
   static ignoreImplicitWorkspace = false
 
   async getKeysOfVersions (name, opts) {
-    const json = await npmFetch.json(npa(name).escapedName, opts)
+    const pkgUri = npa(name).escapedName
+    const json = await npmFetch.json(`${pkgUri}?write=true`, opts)
     return Object.keys(json.versions)
   }
 
@@ -67,12 +70,10 @@ class Unpublish extends BaseCommand {
       throw this.usageError()
     }
 
-    const spec = args.length && npa(args[0])
+    let spec = args.length && npa(args[0])
     const force = this.npm.config.get('force')
     const { silent } = this.npm
     const dryRun = this.npm.config.get('dry-run')
-    let pkgName
-    let pkgVersion
 
     log.silly('unpublish', 'args[0]', args[0])
     log.silly('unpublish', 'spec', spec)
@@ -85,53 +86,52 @@ class Unpublish extends BaseCommand {
     }
 
     const opts = { ...this.npm.flatOptions }
-    if (!spec || path.resolve(spec.name) === this.npm.localPrefix) {
-      // if there's a package.json in the current folder, then
-      // read the package name and version out of that.
+
+    let pkgName
+    let pkgVersion
+    let manifest
+    let manifestErr
+    try {
       const pkgJson = path.join(this.npm.localPrefix, 'package.json')
-      let manifest
-      try {
-        manifest = await readJson(pkgJson)
-      } catch (err) {
-        if (err && err.code !== 'ENOENT' && err.code !== 'ENOTDIR') {
-          throw err
-        } else {
+      manifest = await readJson(pkgJson)
+    } catch (err) {
+      manifestErr = err
+    }
+    if (spec) {
+      // If cwd has a package.json with a name that matches the package being
+      // unpublished, load up the publishConfig
+      if (manifest && manifest.name === spec.name && manifest.publishConfig) {
+        flatten(manifest.publishConfig, opts)
+      }
+      const versions = await this.getKeysOfVersions(spec.name, opts)
+      if (versions.length === 1 && !force) {
+        throw this.usageError(LAST_REMAINING_VERSION_ERROR)
+      }
+      pkgName = spec.name
+      pkgVersion = spec.type === 'version' ? `@${spec.rawSpec}` : ''
+    } else {
+      if (manifestErr) {
+        if (manifestErr.code === 'ENOENT' || manifestErr.code === 'ENOTDIR') {
           throw this.usageError()
+        } else {
+          throw manifestErr
         }
       }
 
       log.verbose('unpublish', manifest)
 
-      const { name, version, publishConfig } = manifest
-      const pkgJsonSpec = npa.resolve(name, version)
-      const optsWithPub = { ...opts, publishConfig }
-
-      const versions = await this.getKeysOfVersions(name, optsWithPub)
-      if (versions.length === 1 && !force) {
-        throw this.usageError(
-          LAST_REMAINING_VERSION_ERROR
-        )
+      spec = npa.resolve(manifest.name, manifest.version)
+      if (manifest.publishConfig) {
+        flatten(manifest.publishConfig, opts)
       }
 
-      if (!dryRun) {
-        await otplease(opts, opts => libunpub(pkgJsonSpec, optsWithPub))
-      }
-      pkgName = name
-      pkgVersion = version ? `@${version}` : ''
-    } else {
-      const versions = await this.getKeysOfVersions(spec.name, opts)
-      if (versions.length === 1 && !force) {
-        throw this.usageError(
-          LAST_REMAINING_VERSION_ERROR
-        )
-      }
-      if (!dryRun) {
-        await otplease(opts, opts => libunpub(spec, opts))
-      }
-      pkgName = spec.name
-      pkgVersion = spec.type === 'version' ? `@${spec.rawSpec}` : ''
+      pkgName = manifest.name
+      pkgVersion = manifest.version ? `@${manifest.version}` : ''
     }
 
+    if (!dryRun) {
+      await otplease(opts, opts => libunpub(spec, opts))
+    }
     if (!silent) {
       this.npm.output(`- ${pkgName}${pkgVersion}`)
     }

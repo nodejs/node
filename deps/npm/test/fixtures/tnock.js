@@ -2,13 +2,15 @@
 
 const nock = require('nock')
 
-// TODO (other tests actually make network calls today, which is bad)
-// nock.disableNetConnect()
+// Uncomment this to find requests that aren't matching
+// nock.emitter.on('no match', req => console.log(req.options))
 
 module.exports = tnock
-function tnock (t, host) {
-  const server = nock(host)
+function tnock (t, host, opts) {
+  nock.disableNetConnect()
+  const server = nock(host, opts)
   t.teardown(function () {
+    nock.enableNetConnect()
     server.done()
   })
   return server

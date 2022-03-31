@@ -17,7 +17,6 @@ const npm = mockNpm({
   config,
 })
 const mocks = {
-  '../../../lib/utils/usage.js': () => 'usage instructions',
   npmlog: {
     disableProgress: () => null,
     enableProgress: () => null,
