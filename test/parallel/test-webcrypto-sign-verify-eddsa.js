@@ -230,3 +230,34 @@ async function testSign({ name,
 
   await Promise.all(variations);
 })().then(common.mustCall());
+
+// Ed448 context
+{
+  const vector = vectors.find(({ name }) => name === 'Ed448');
+  Promise.all([
+    subtle.importKey(
+      'pkcs8',
+      vector.privateKeyBuffer,
+      { name: 'Ed448' },
+      false,
+      ['sign']),
+    subtle.importKey(
+      'spki',
+      vector.publicKeyBuffer,
+      { name: 'Ed448' },
+      false,
+      ['verify']),
+  ]).then(async ([privateKey, publicKey]) => {
+    const sig = await subtle.sign({ name: 'Ed448', context: Buffer.alloc(0) }, privateKey, vector.data);
+    assert.deepStrictEqual(Buffer.from(sig), vector.signature);
+    assert.strictEqual(
+      await subtle.verify({ name: 'Ed448', context: Buffer.alloc(0) }, publicKey, sig, vector.data), true);
+
+    await assert.rejects(subtle.sign({ name: 'Ed448', context: Buffer.alloc(1) }, privateKey, vector.data), {
+      message: /Non zero-length context is not yet supported/
+    });
+    await assert.rejects(subtle.verify({ name: 'Ed448', context: Buffer.alloc(1) }, publicKey, sig, vector.data), {
+      message: /Non zero-length context is not yet supported/
+    });
+  }).then(common.mustCall());
+}
