@@ -47,7 +47,6 @@ const output = []
 const logs = []
 const getExplore = (windows) => {
   const Explore = t.mock('../../../lib/commands/explore.js', {
-    '../../../lib/utils/is-windows.js': windows,
     path: require('path')[windows ? 'win32' : 'posix'],
     'read-package-json-fast': mockRPJ,
     '@npmcli/run-script': mockRunScript,

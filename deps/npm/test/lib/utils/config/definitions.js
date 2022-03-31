@@ -53,11 +53,11 @@ t.test('editor', t => {
   t.test('has neither EDITOR nor VISUAL, system specific', t => {
     mockGlobals(t, { 'process.env': { EDITOR: undefined, VISUAL: undefined } })
     const defsWin = t.mock(defpath, {
-      [isWin]: true,
+      [isWin]: { isWindows: true },
     })
     t.equal(defsWin.editor.default, 'notepad.exe')
     const defsNix = t.mock(defpath, {
-      [isWin]: false,
+      [isWin]: { isWindows: false },
     })
     t.equal(defsNix.editor.default, 'vi')
     t.end()
@@ -69,12 +69,12 @@ t.test('shell', t => {
   t.test('windows, env.ComSpec then cmd.exe', t => {
     mockGlobals(t, { 'process.env.ComSpec': 'command.com' })
     const defsComSpec = t.mock(defpath, {
-      [isWin]: true,
+      [isWin]: { isWindows: true },
     })
     t.equal(defsComSpec.shell.default, 'command.com')
     mockGlobals(t, { 'process.env.ComSpec': undefined })
     const defsNoComSpec = t.mock(defpath, {
-      [isWin]: true,
+      [isWin]: { isWindows: true },
     })
     t.equal(defsNoComSpec.shell.default, 'cmd')
     t.end()
@@ -83,12 +83,12 @@ t.test('shell', t => {
   t.test('nix, SHELL then sh', t => {
     mockGlobals(t, { 'process.env.SHELL': '/usr/local/bin/bash' })
     const defsShell = t.mock(defpath, {
-      [isWin]: false,
+      [isWin]: { isWindows: false },
     })
     t.equal(defsShell.shell.default, '/usr/local/bin/bash')
     mockGlobals(t, { 'process.env.SHELL': undefined })
     const defsNoShell = t.mock(defpath, {
-      [isWin]: false,
+      [isWin]: { isWindows: false },
     })
     t.equal(defsNoShell.shell.default, 'sh')
     t.end()
@@ -158,18 +158,18 @@ t.test('unicode allowed?', t => {
 t.test('cache', t => {
   mockGlobals(t, { 'process.env.LOCALAPPDATA': 'app/data/local' })
   const defsWinLocalAppData = t.mock(defpath, {
-    [isWin]: true,
+    [isWin]: { isWindows: true },
   })
   t.equal(defsWinLocalAppData.cache.default, 'app/data/local/npm-cache')
 
   mockGlobals(t, { 'process.env.LOCALAPPDATA': undefined })
   const defsWinNoLocalAppData = t.mock(defpath, {
-    [isWin]: true,
+    [isWin]: { isWindows: true },
   })
   t.equal(defsWinNoLocalAppData.cache.default, '~/npm-cache')
 
   const defsNix = t.mock(defpath, {
-    [isWin]: false,
+    [isWin]: { isWindows: false },
   })
   t.equal(defsNix.cache.default, '~/.npm')
 

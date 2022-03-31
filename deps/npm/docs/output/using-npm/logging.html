@@ -137,16 +137,22 @@ npm command-line interface
 <section id="content">
 <header class="title">
 <h1 id="logging">Logging</h1>
-<span class="description">Why, What &amp; How we Log</span>
+<span class="description">Why, What &amp; How We Log</span>
 </header>
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#setting-log-levels">Setting Log Levels</a></li><ul><li><a href="#loglevel"><code>loglevel</code></a></li><ul><li><a href="#aliases">Aliases</a></li></ul><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li></ul><li><a href="#registry-response-headers">Registry Response Headers</a></li><ul><li><a href="#npm-notice"><code>npm-notice</code></a></li></ul><li><a href="#see-also">See also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#setting-log-file-location">Setting Log File Location</a></li><li><a href="#setting-log-levels">Setting Log Levels</a></li><ul><li><a href="#loglevel"><code>loglevel</code></a></li><ul><li><a href="#aliases">Aliases</a></li></ul><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li></ul><li><a href="#timing-information">Timing Information</a></li><li><a href="#registry-response-headers">Registry Response Headers</a></li><ul><li><a href="#npm-notice"><code>npm-notice</code></a></li></ul><li><a href="#logs-and-sensitive-information">Logs and Sensitive Information</a></li><li><a href="#see-also">See also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
 <p>The <code>npm</code> CLI has various mechanisms for showing different levels of information back to end-users for certain commands, configurations &amp; environments.</p>
+<h3 id="setting-log-file-location">Setting Log File Location</h3>
+<p>All logs are written to a debug log, with the path to that file printed if the execution of a command fails.</p>
+<p>The default location of the logs directory is a directory named <code>_logs</code> inside the npm cache. This can be changed
+with the <code>logs-dir</code> config option.</p>
+<p>Log files will be removed from the <code>logs-dir</code> when the number of log files exceeds <code>logs-max</code>, with the oldest logs being deleted first.</p>
+<p>To turn off logs completely set <code>--logs-max=0</code>.</p>
 <h3 id="setting-log-levels">Setting Log Levels</h3>
 <h4 id="loglevel"><code>loglevel</code></h4>
 <p><code>loglevel</code> is a global argument/config that can be set to determine the type of information to be displayed.</p>
@@ -163,7 +169,6 @@ npm command-line interface
 <li><code>"silly"</code></li>
 </ul>
 <p>All logs pertaining to a level proceeding the current setting will be shown.</p>
-<p>All logs are written to a debug log, with the path to that file printed if the execution of a command fails.</p>
 <h5 id="aliases">Aliases</h5>
 <p>The log levels listed above have various corresponding aliases, including:</p>
 <ul>
@@ -178,10 +183,24 @@ npm command-line interface
 </ul>
 <h4 id="foreground-scripts"><code>foreground-scripts</code></h4>
 <p>The <code>npm</code> CLI began hiding the output of lifecycle scripts for <code>npm install</code> as of <code>v7</code>. Notably, this means you will not see logs/output from packages that may be using "install scripts" to display information back to you or from your own project's scripts defined in <code>package.json</code>. If you'd like to change this behavior &amp; log this output you can set <code>foreground-scripts</code> to <code>true</code>.</p>
+<h3 id="timing-information">Timing Information</h3>
+<p>The <code>--timing</code> config can be set which does two things:</p>
+<ol>
+<li>Always shows the full path to the debug log regardless of command exit status</li>
+<li>Write timing information to a timing file in the cache or <code>logs-dir</code></li>
+</ol>
+<p>This file is a newline delimited list of JSON  objects that can be inspected to see timing data for each task in a <code>npm</code> CLI run.</p>
 <h3 id="registry-response-headers">Registry Response Headers</h3>
 <h4 id="npm-notice"><code>npm-notice</code></h4>
 <p>The <code>npm</code> CLI reads from &amp; logs any <code>npm-notice</code> headers that are returned from the configured registry. This mechanism can be used by third-party registries to provide useful information when network-dependent requests occur.</p>
 <p>This header is not cached, and will not be logged if the request is served from the cache.</p>
+<h3 id="logs-and-sensitive-information">Logs and Sensitive Information</h3>
+<p>The <code>npm</code> CLI makes a best effort to redact the following from terminal output and log files:</p>
+<ul>
+<li>Passwords inside basic auth URLs</li>
+<li>npm tokens</li>
+</ul>
+<p>However, this behavior should not be relied on to keep all possible sensitive information redacted. If you are concerned about secrets in your log file or terminal output, you can use <code>--loglevel=silent</code> and <code>--logs-max=0</code> to ensure no logs are written to your terminal or filesystem.</p>
 <h3 id="see-also">See also</h3>
 <ul>
 <li><a href="../using-npm/config.html">config</a></li>

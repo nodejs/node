@@ -34,7 +34,6 @@ const mocks = {
   'proc-log': { info: noop, verbose: noop },
   libnpmdiff: (...args) => libnpmdiff(...args),
   'npm-registry-fetch': async () => ({}),
-  '../../../lib/utils/usage.js': () => 'usage instructions',
 }
 
 t.afterEach(() => {

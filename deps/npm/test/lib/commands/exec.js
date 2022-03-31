@@ -72,8 +72,6 @@ const read = (options, cb) => {
   process.nextTick(() => cb(READ_ERROR, READ_RESULT))
 }
 
-const PATH = require('../../../lib/utils/path.js')
-
 let CI_NAME = 'travis-ci'
 
 const log = {
@@ -154,7 +152,7 @@ t.test('npx foo, bin already exists locally', async t => {
       stdioString: true,
       event: 'npx',
       env: {
-        PATH: [npm.localBin, ...PATH].join(delimiter),
+        PATH: [npm.localBin, process.env.PATH].join(delimiter),
       },
       stdio: 'inherit',
     },
@@ -183,7 +181,7 @@ t.test('npx foo, bin already exists globally', async t => {
       stdioString: true,
       event: 'npx',
       env: {
-        PATH: [npm.globalBin, ...PATH].join(delimiter),
+        PATH: [npm.globalBin, process.env.PATH].join(delimiter),
       },
       stdio: 'inherit',
     },
@@ -1175,7 +1173,7 @@ t.test('workspaces', t => {
         stdioString: true,
         event: 'npx',
         env: {
-          PATH: [npm.localBin, ...PATH].join(delimiter),
+          PATH: [npm.localBin, process.env.PATH].join(delimiter),
         },
         stdio: 'inherit',
       },
