@@ -998,7 +998,7 @@ an `emitReceived()` API for actin as if data has been received on it.
 `makeUDPPair` returns an object `{ clientSide, serverSide }` where each side
 is an `FakeUDPWrap` connected to the other side.
 
-There is no difference between cient or server side beyond their names.
+There is no difference between client or server side beyond their names.
 
 ## WPT Module
 
