@@ -556,7 +556,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params|AlgorithmIdentifier|NodeDhDeriveBitsParams|NodeScryptParams}
+* `algorithm`: {AlgorithmIdentifier|EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params|NodeDhDeriveBitsParams|NodeScryptParams}
 * `baseKey`: {CryptoKey}
 * `length`: {number}
 * Returns: {Promise} containing {ArrayBuffer}
@@ -589,7 +589,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params|AlgorithmIdentifier|NodeDhDeriveBitsParams|NodeScryptParams}
+* `algorithm`: {AlgorithmIdentifier|EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params|NodeDhDeriveBitsParams|NodeScryptParams}
 * `baseKey`: {CryptoKey}
 * `derivedKeyAlgorithm`: {HmacKeyGenParams|AesKeyGenParams}
 * `extractable`: {boolean}
@@ -724,7 +724,7 @@ added: v15.0.0
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams|AesKeyGenParams|AlgorithmIdentifier|NodeDsaKeyGenParams|NodeDhKeyGenParams}
+* `algorithm`: {AlgorithmIdentifier|RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams|AesKeyGenParams|NodeDsaKeyGenParams|NodeDhKeyGenParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -779,7 +779,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {RsaHashedImportParams|EcKeyImportParams|HmacImportParams|AesImportParams|Pbkdf2ImportParams|AlgorithmIdentifier|NodeDsaImportParams|NodeDhImportParams|NodeScryptImportParams}
+* `algorithm`: {AlgorithmIdentifier|RsaHashedImportParams|EcKeyImportParams|HmacImportParams|NodeDsaImportParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -833,7 +833,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {RsaSignParams|RsaPssParams|EcdsaParams|HmacParams|AlgorithmIdentifier|Ed448Params|NodeDsaSignParams}
+* `algorithm`: {AlgorithmIdentifier|RsaPssParams|EcdsaParams|Ed448Params}
 * `key`: {CryptoKey}
 * `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
 * Returns: {Promise} containing {ArrayBuffer}
@@ -867,8 +867,8 @@ added: v15.0.0
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `unwrapAlgo`: {RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams|AesKwParams}
-* `unwrappedKeyAlgo`: {RsaHashedImportParams|EcKeyImportParams|HmacImportParams|AesImportParams}
+* `unwrapAlgo`: {AlgorithmIdentifier|RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
+* `unwrappedKeyAlgo`: {AlgorithmIdentifier|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -920,7 +920,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {RsaSignParams|RsaPssParams|EcdsaParams|HmacParams|AlgorithmIdentifier|Ed448Params|NodeDsaSignParams}
+* `algorithm`: {AlgorithmIdentifier|RsaPssParams|EcdsaParams|Ed448Params}
 * `key`: {CryptoKey}
 * `signature`: {ArrayBuffer|TypedArray|DataView|Buffer}
 * `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
@@ -952,7 +952,7 @@ added: v15.0.0
 * `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
 * `key`: {CryptoKey}
 * `wrappingKey`: {CryptoKey}
-* `wrapAlgo`: {RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams|AesKwParams}
+* `wrapAlgo`: {AlgorithmIdentifier|RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
 * Returns: {Promise} containing {ArrayBuffer}
 
 In cryptography, "wrapping a key" refers to exporting and then encrypting the
@@ -1107,21 +1107,6 @@ added: v15.0.0
   This values must be one of `32`, `64`, `96`, `104`, `112`, `120`, or
   `128`. **Default:** `128`.
 
-### Class: `AesImportParams`
-
-<!-- YAML
-added: v15.0.0
--->
-
-#### `aesImportParams.name`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {string} Must be one of `'AES-CTR'`, `'AES-CBC'`, `'AES-GCM'`, or
-  `'AES-KW'`.
-
 ### Class: `AesKeyGenParams`
 
 <!-- YAML
@@ -1147,20 +1132,6 @@ added: v15.0.0
 
 * Type: {string} Must be one of `'AES-CBC'`, `'AES-CTR'`, `'AES-GCM'`, or
   `'AES-KW'`
-
-### Class: `AesKwParams`
-
-<!-- YAML
-added: v15.0.0
--->
-
-#### `aesKwParams.name`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {string} Must be `'AES-KW'`.
 
 ### Class: `EcdhKeyDeriveParams`
 
@@ -1435,34 +1406,6 @@ added: v15.0.0
 
 * Type: {string} Must be `'HMAC'`.
 
-### Class: `HmacParams`
-
-<!-- YAML
-added: v15.0.0
--->
-
-#### `hmacParams.name`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {string} Must be `'HMAC'`.
-
-### Class: `Pbkdf2ImportParams`
-
-<!-- YAML
-added: v15.0.0
--->
-
-#### `pbkdf2ImportParams.name`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {string} Must be `'PBKDF2'`
-
 ### Class: `Pbkdf2Params`
 
 <!-- YAML
@@ -1657,20 +1600,6 @@ added: v15.0.0
 
 The length (in bytes) of the random salt to use.
 
-### Class: `RsaSignParams`
-
-<!-- YAML
-added: v15.0.0
--->
-
-#### `rsaSignParams.name`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {string} Must be `'RSASSA-PKCS1-v1_5'`
-
 ## Node.js-specific extensions
 
 The Node.js Web Crypto API extends various aspects of the Web Crypto API.
@@ -1691,20 +1620,6 @@ added: v15.0.0
 
 The `NODE-DH` algorithm is the common implementation of Diffie-Hellman
 key agreement.
-
-#### Class: `NodeDhImportParams`
-
-<!-- YAML
-added: v15.0.0
--->
-
-##### `nodeDhImportParams.name`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {string} Must be `'NODE-DH'`.
 
 #### Class: `NodeDhKeyGenParams`
 
@@ -1852,20 +1767,6 @@ added: v15.0.0
 
 * Type: {string} Must be `'NODE-DSA'`.
 
-#### Class: `NodeDsaSignParams`
-
-<!-- YAML
-added: v15.0.0
--->
-
-##### `nodeDsaSignParams.name`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {string} Must be `'NODE-DSA'`
-
 ### `NODE-SCRYPT` Algorithm
 
 <!-- YAML
@@ -1874,20 +1775,6 @@ added: v15.0.0
 
 The `NODE-SCRYPT` algorithm is the common implementation of the scrypt key
 derivation algorithm.
-
-#### Class: `NodeScryptImportParams`
-
-<!-- YAML
-added: v15.0.0
--->
-
-##### `nodeScryptImportParams.name`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {string} Must be `'NODE-SCRYPT'`.
 
 #### Class: `NodeScryptParams`
 
