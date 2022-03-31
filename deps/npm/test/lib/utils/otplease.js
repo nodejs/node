@@ -1,4 +1,5 @@
 const t = require('tap')
+const mockGlobals = require('../../fixtures/mock-globals')
 
 const readUserInfo = {
   otp: async () => '1234',
@@ -6,6 +7,27 @@ const readUserInfo = {
 
 const otplease = t.mock('../../../lib/utils/otplease.js', {
   '../../../lib/utils/read-user-info.js': readUserInfo,
+})
+
+t.test('returns function results on success', async (t) => {
+  const fn = () => 'test string'
+  const result = await otplease({}, fn)
+  t.equal('test string', result)
+})
+
+t.test('returns function results on otp success', async (t) => {
+  mockGlobals(t, {
+    'process.stdin': { isTTY: true },
+    'process.stdout': { isTTY: true },
+  })
+  const fn = ({ otp }) => {
+    if (otp) {
+      return 'success'
+    }
+    throw Object.assign(new Error('nope'), { code: 'EOTP' })
+  }
+  const result = await otplease({}, fn)
+  t.equal('success', result)
 })
 
 t.test('prompts for otp for EOTP', async (t) => {

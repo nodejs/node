@@ -1,138 +1,137 @@
 const t = require('tap')
-const { resolve } = require('path')
-const { EventEmitter } = require('events')
+const path = require('path')
+const tspawk = require('../../fixtures/tspawk')
+const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 
-let editorBin = null
-let editorArgs = null
-let editorOpts = null
-let EDITOR_CODE = 0
-const childProcess = {
-  spawn: (bin, args, opts) => {
-    // save for assertions
-    editorBin = bin
-    editorArgs = args
-    editorOpts = opts
+const spawk = tspawk(t)
 
-    const editorEvents = new EventEmitter()
-    process.nextTick(() => {
-      editorEvents.emit('exit', EDITOR_CODE)
-    })
-    return editorEvents
-  },
-}
+// TODO this ... smells.  npm "script-shell" config mentions defaults but those
+// are handled by run-script, not npm.  So for now we have to tie tests to some
+// pretty specific internals of runScript
+const makeSpawnArgs = require('@npmcli/run-script/lib/make-spawn-args.js')
 
-let rebuildArgs = null
-let rebuildFail = null
-let EDITOR = 'vim'
-const npm = {
+const npmConfig = {
   config: {
-    get: () => EDITOR,
+    'ignore-scripts': false,
+    editor: 'testeditor',
   },
-  dir: resolve(__dirname, '../../../node_modules'),
-  exec: async (cmd, args) => {
-    rebuildArgs = args
-    if (rebuildFail) {
-      throw rebuildFail
-    }
+  prefixDir: {
+    node_modules: {
+      semver: {
+        'package.json': JSON.stringify({
+          scripts: {
+            install: 'testinstall',
+          },
+        }),
+        node_modules: {
+          abbrev: {},
+        },
+      },
+      '@npmcli': {
+        'scoped-package': {},
+      },
+    },
   },
 }
-
-const gracefulFs = require('graceful-fs')
-const Edit = t.mock('../../../lib/commands/edit.js', {
-  child_process: childProcess,
-  'graceful-fs': gracefulFs,
-})
-const edit = new Edit(npm)
 
 t.test('npm edit', async t => {
-  t.teardown(() => {
-    rebuildArgs = null
-    editorBin = null
-    editorArgs = null
-    editorOpts = null
-  })
+  const { npm, joinedOutput } = await loadMockNpm(t, npmConfig)
 
-  await edit.exec(['semver'])
-  const path = resolve(__dirname, '../../../node_modules/semver')
-  t.strictSame(editorBin, EDITOR, 'used the correct editor')
-  t.strictSame(editorArgs, [path], 'edited the correct directory')
-  t.strictSame(editorOpts, { stdio: 'inherit' }, 'passed the correct opts')
-  t.strictSame(rebuildArgs, [path], 'passed the correct path to rebuild')
+  const semverPath = path.resolve(npm.prefix, 'node_modules', 'semver')
+  const [scriptShell] = makeSpawnArgs({
+    event: 'install',
+    path: npm.prefix,
+  })
+  spawk.spawn('testeditor', [semverPath])
+  spawk.spawn(
+    scriptShell,
+    args => args.includes('testinstall'),
+    { cwd: semverPath }
+  )
+  await npm.exec('edit', ['semver'])
+  t.match(joinedOutput(), 'rebuilt dependencies successfully')
 })
 
-t.test('rebuild fails', async t => {
-  t.teardown(() => {
-    rebuildFail = null
-    rebuildArgs = null
-    editorBin = null
-    editorArgs = null
-    editorOpts = null
+t.test('rebuild failure', async t => {
+  const { npm } = await loadMockNpm(t, npmConfig)
+  const semverPath = path.resolve(npm.prefix, 'node_modules', 'semver')
+  const [scriptShell] = makeSpawnArgs({
+    event: 'install',
+    path: npm.prefix,
   })
-
-  rebuildFail = new Error('test error')
+  spawk.spawn('testeditor', [semverPath])
+  spawk.spawn(
+    scriptShell,
+    args => args.includes('testinstall'),
+    { cwd: semverPath }
+  ).exit(1).stdout('test error')
   await t.rejects(
-    edit.exec(['semver']),
-    { message: 'test error' }
+    npm.exec('edit', ['semver']),
+    { message: 'command failed' }
   )
-  const path = resolve(__dirname, '../../../node_modules/semver')
-  t.strictSame(editorBin, EDITOR, 'used the correct editor')
-  t.strictSame(editorArgs, [path], 'edited the correct directory')
-  t.strictSame(editorOpts, { stdio: 'inherit' }, 'passed the correct opts')
-  t.strictSame(rebuildArgs, [path], 'passed the correct path to rebuild')
+})
+
+t.test('editor failure', async t => {
+  const { npm } = await loadMockNpm(t, npmConfig)
+  const semverPath = path.resolve(npm.prefix, 'node_modules', 'semver')
+  spawk.spawn('testeditor', [semverPath]).exit(1).stdout('test editor failure')
+  await t.rejects(
+    npm.exec('edit', ['semver']),
+    { message: 'editor process exited with code: 1' }
+  )
 })
 
 t.test('npm edit editor has flags', async t => {
-  EDITOR = 'code -w'
-  t.teardown(() => {
-    rebuildArgs = null
-    editorBin = null
-    editorArgs = null
-    editorOpts = null
-    EDITOR = 'vim'
+  const { npm } = await loadMockNpm(t, {
+    ...npmConfig,
+    config: {
+      ...npmConfig.config,
+      editor: 'testeditor --flag',
+    },
   })
 
-  await edit.exec(['semver'])
-
-  const path = resolve(__dirname, '../../../node_modules/semver')
-  t.strictSame(editorBin, 'code', 'used the correct editor')
-  t.strictSame(editorArgs, ['-w', path], 'edited the correct directory, keeping flags')
-  t.strictSame(editorOpts, { stdio: 'inherit' }, 'passed the correct opts')
-  t.strictSame(rebuildArgs, [path], 'passed the correct path to rebuild')
+  const semverPath = path.resolve(npm.prefix, 'node_modules', 'semver')
+  const [scriptShell] = makeSpawnArgs({
+    event: 'install',
+    path: npm.prefix,
+  })
+  spawk.spawn('testeditor', ['--flag', semverPath])
+  spawk.spawn(
+    scriptShell,
+    args => args.includes('testinstall'),
+    { cwd: semverPath }
+  )
+  await npm.exec('edit', ['semver'])
 })
 
 t.test('npm edit no args', async t => {
+  const { npm } = await loadMockNpm(t)
   await t.rejects(
-    edit.exec([]),
-    /npm edit/,
+    npm.exec('edit', []),
+    { code: 'EUSAGE' },
     'throws usage error'
   )
 })
 
-t.test('npm edit lstat error propagates', async t => {
-  const _lstat = gracefulFs.lstat
-  gracefulFs.lstat = (dir, cb) => {
-    return cb(new Error('lstat failed'))
-  }
-  t.teardown(() => {
-    gracefulFs.lstat = _lstat
-  })
+t.test('npm edit nonexistent package', async t => {
+  const { npm } = await loadMockNpm(t, npmConfig)
 
   await t.rejects(
-    edit.exec(['semver']),
-    /lstat failed/,
-    'user received correct error'
+    npm.exec('edit', ['abbrev']),
+    /lstat/
   )
 })
 
-t.test('npm edit editor exit code error propagates', async t => {
-  EDITOR_CODE = 137
-  t.teardown(() => {
-    EDITOR_CODE = 0
-  })
+t.test('scoped package', async t => {
+  const { npm } = await loadMockNpm(t, npmConfig)
+  const scopedPath = path.resolve(npm.prefix, 'node_modules', '@npmcli', 'scoped-package')
+  spawk.spawn('testeditor', [scopedPath])
+  await npm.exec('edit', ['@npmcli/scoped-package'])
+})
 
-  await t.rejects(
-    edit.exec(['semver']),
-    /exited with code: 137/,
-    'user received correct error'
-  )
+t.test('subdependency', async t => {
+  const { npm } = await loadMockNpm(t, npmConfig)
+  const subdepPath = path.resolve(npm.prefix, 'node_modules', 'semver', 'node_modules', 'abbrev')
+  spawk.spawn('testeditor', [subdepPath])
+  await npm.exec('edit', ['semver/abbrev'])
 })

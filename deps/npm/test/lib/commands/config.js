@@ -1,10 +1,10 @@
 const { join } = require('path')
 const { promisify } = require('util')
 const fs = require('fs')
-const spawk = require('spawk')
+const tspawk = require('../../fixtures/tspawk')
 const t = require('tap')
 
-spawk.preventUnmatched()
+const spawk = tspawk(t)
 
 const readFile = promisify(fs.readFile)
 
@@ -369,10 +369,6 @@ t.test('config edit', async t => {
     '.npmrc': 'foo=bar\nbar=baz',
   })
 
-  t.teardown(() => {
-    spawk.clean()
-  })
-
   const EDITOR = 'vim'
   const editor = spawk.spawn(EDITOR).exit(0)
 
@@ -394,10 +390,6 @@ t.test('config edit', async t => {
 })
 
 t.test('config edit - editor exits non-0', async t => {
-  t.teardown(() => {
-    spawk.clean()
-  })
-
   const EDITOR = 'vim'
   const editor = spawk.spawn(EDITOR).exit(1)
 

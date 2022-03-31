@@ -45,7 +45,6 @@ const mocks = {
     withPromise: async a => a,
   },
   '../../../lib/utils/otplease.js': async (opts, fn) => fn(opts),
-  '../../../lib/utils/usage.js': () => 'usage instructions',
   '../../../lib/utils/read-user-info.js': {
     async password () {},
     async otp () {},

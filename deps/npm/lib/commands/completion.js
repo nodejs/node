@@ -30,7 +30,6 @@
 //
 
 const { definitions, shorthands } = require('../utils/config/index.js')
-const deref = require('../utils/deref-command.js')
 const { aliases, cmdList, plumbing } = require('../utils/cmd-list.js')
 const aliasNames = Object.keys(aliases)
 const fullList = cmdList.concat(aliasNames).filter(c => !plumbing.includes(c))
@@ -38,7 +37,7 @@ const nopt = require('nopt')
 const configNames = Object.keys(definitions)
 const shorthandNames = Object.keys(shorthands)
 const allConfs = configNames.concat(shorthandNames)
-const isWindowsShell = require('../utils/is-windows-shell.js')
+const { isWindowsShell } = require('../utils/is-windows.js')
 const fileExists = require('../utils/file-exists.js')
 
 const { promisify } = require('util')
@@ -152,7 +151,7 @@ class Completion extends BaseCommand {
     // check if there's a command already.
     const cmd = parsed.argv.remain[1]
     if (!cmd) {
-      return this.wrap(opts, cmdCompl(opts))
+      return this.wrap(opts, cmdCompl(opts, this.npm))
     }
 
     Object.keys(parsed).forEach(k => this.npm.config.set(k, parsed[k]))
@@ -269,13 +268,13 @@ const isFlag = word => {
 
 // complete against the npm commands
 // if they all resolve to the same thing, just return the thing it already is
-const cmdCompl = opts => {
+const cmdCompl = (opts, npm) => {
   const matches = fullList.filter(c => c.startsWith(opts.partialWord))
   if (!matches.length) {
     return matches
   }
 
-  const derefs = new Set([...matches.map(c => deref(c))])
+  const derefs = new Set([...matches.map(c => npm.deref(c))])
   if (derefs.size === 1) {
     return [...derefs]
   }

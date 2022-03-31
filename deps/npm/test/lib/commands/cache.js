@@ -196,7 +196,7 @@ t.test('cache add no arg', async t => {
     cache.exec(['add']),
     {
       code: 'EUSAGE',
-      message: 'Usage: First argument to `add` is required',
+      message: 'First argument to `add` is required',
     },
     'throws usage error'
   )

@@ -116,7 +116,7 @@ cmd.lsPackages.stream = (entity, opts = {}) => {
       if (err.code === 'E404' && !team) {
         uri = `/-/user/${eu(scope)}/package`
         npmFetch.json.stream(uri, '*', nextOpts)
-          .on('error', err => ret.emit('error', err))
+          .on('error', streamErr => ret.emit('error', streamErr))
           .pipe(ret)
       } else {
         ret.emit('error', err)

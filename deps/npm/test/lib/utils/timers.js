@@ -1,5 +1,5 @@
 const t = require('tap')
-const { resolve } = require('path')
+const { resolve, join } = require('path')
 const fs = require('graceful-fs')
 const mockLogs = require('../../fixtures/mock-logs')
 
@@ -29,6 +29,17 @@ t.test('listens/stops on process', async (t) => {
   timers.off()
   process.emit('time', 'baz')
   t.notOk(timers.unfinished.get('baz'))
+})
+
+t.test('convenience time method', async (t) => {
+  const { timers } = mockTimers(t)
+
+  const end = timers.time('later')
+  timers.time('sync', () => {})
+  await timers.time('async', () => new Promise(r => setTimeout(r, 10)))
+  end()
+
+  t.match(timers.finished, { later: Number, sync: Number, async: Number })
 })
 
 t.test('initial timer', async (t) => {
@@ -75,8 +86,21 @@ t.test('writes file', async (t) => {
 
 t.test('fails to write file', async (t) => {
   const { logs, timers } = mockTimers(t)
+  const dir = t.testdir()
+
+  timers.load({ dir: join(dir, 'does', 'not', 'exist') })
   timers.writeFile()
-  t.match(logs.warn, [
-    ['timing', 'could not write timing file', Error],
-  ])
+
+  t.match(logs.warn, [['timing', 'could not write timing file']])
+  t.equal(timers.file, null)
+})
+
+t.test('no dir and no file', async (t) => {
+  const { logs, timers } = mockTimers(t)
+
+  timers.load()
+  timers.writeFile()
+
+  t.strictSame(logs, [])
+  t.equal(timers.file, null)
 })

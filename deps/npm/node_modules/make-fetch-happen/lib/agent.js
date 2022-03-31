@@ -2,6 +2,7 @@
 const LRU = require('lru-cache')
 const url = require('url')
 const isLambda = require('is-lambda')
+const dns = require('./dns.js')
 
 const AGENT_CACHE = new LRU({ max: 50 })
 const HttpAgent = require('agentkeepalive')
@@ -77,11 +78,13 @@ function getAgent (uri, opts) {
     rejectUnauthorized: opts.rejectUnauthorized,
     timeout: agentTimeout,
     freeSocketTimeout: 15000,
+    lookup: dns.getLookup(opts.dns),
   }) : new HttpAgent({
     maxSockets: agentMaxSockets,
     localAddress: opts.localAddress,
     timeout: agentTimeout,
     freeSocketTimeout: 15000,
+    lookup: dns.getLookup(opts.dns),
   })
   AGENT_CACHE.set(key, agent)
   return agent
@@ -171,6 +174,8 @@ const HttpsProxyAgent = require('https-proxy-agent')
 const SocksProxyAgent = require('socks-proxy-agent')
 module.exports.getProxy = getProxy
 function getProxy (proxyUrl, opts, isHttps) {
+  // our current proxy agents do not support an overridden dns lookup method, so will not
+  // benefit from the dns cache
   const popts = {
     host: proxyUrl.hostname,
     port: proxyUrl.port,

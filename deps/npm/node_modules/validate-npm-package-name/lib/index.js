@@ -4,10 +4,10 @@ var scopedPackagePattern = new RegExp('^(?:@([^/]+?)[/])?([^/]+?)$')
 var builtins = require('builtins')
 var blacklist = [
   'node_modules',
-  'favicon.ico'
+  'favicon.ico',
 ]
 
-var validate = module.exports = function (name) {
+function validate (name) {
   var warnings = []
   var errors = []
 
@@ -52,14 +52,12 @@ var validate = module.exports = function (name) {
   // Generate warnings for stuff that used to be allowed
 
   // core module names like http, events, util, etc
-  builtins.forEach(function (builtin) {
+  builtins({ version: '*' }).forEach(function (builtin) {
     if (name.toLowerCase() === builtin) {
       warnings.push(builtin + ' is a core module name')
     }
   })
 
-  // really-long-package-names-------------------------------such--length-----many---wow
-  // the thisisareallyreallylongpackagenameitshouldpublishdowenowhavealimittothelengthofpackagenames-poch.
   if (name.length > 214) {
     warnings.push('name can no longer contain more than 214 characters')
   }
@@ -90,16 +88,20 @@ var validate = module.exports = function (name) {
   return done(warnings, errors)
 }
 
-validate.scopedPackagePattern = scopedPackagePattern
-
 var done = function (warnings, errors) {
   var result = {
     validForNewPackages: errors.length === 0 && warnings.length === 0,
     validForOldPackages: errors.length === 0,
     warnings: warnings,
-    errors: errors
+    errors: errors,
   }
-  if (!result.warnings.length) delete result.warnings
-  if (!result.errors.length) delete result.errors
+  if (!result.warnings.length) {
+    delete result.warnings
+  }
+  if (!result.errors.length) {
+    delete result.errors
+  }
   return result
 }
+
+module.exports = validate

@@ -13,7 +13,7 @@ description: Remove a package
 ```bash
 npm uninstall [<@scope>/]<pkg>...
 
-aliases: un, unlink, remove, rm, r
+aliases: unlink, remove, rm, r, un
 ```
 
 <!-- automatically generated, do not edit manually -->

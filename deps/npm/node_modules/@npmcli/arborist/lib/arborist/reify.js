@@ -1308,7 +1308,7 @@ module.exports = cls => class Reifier extends cls {
     // to only names that are found in this list
     const retrieveUpdatedNodes = names => {
       const filterDirectDependencies = node =>
-        !node.isRoot && node.resolveParent.isRoot
+        !node.isRoot && node.resolveParent && node.resolveParent.isRoot
         && (!names || names.includes(node.name))
         && exactVersion(node) // skip update for exact ranges
 

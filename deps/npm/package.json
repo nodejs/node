@@ -1,5 +1,5 @@
 {
-  "version": "8.5.5",
+  "version": "8.6.0",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -55,9 +55,10 @@
   },
   "dependencies": {
     "@isaacs/string-locale-compare": "^1.1.0",
-    "@npmcli/arborist": "^5.0.3",
+    "@npmcli/arborist": "^5.0.4",
     "@npmcli/ci-detect": "^2.0.0",
     "@npmcli/config": "^4.0.1",
+    "@npmcli/fs": "^2.1.0",
     "@npmcli/map-workspaces": "^2.0.2",
     "@npmcli/package-json": "^1.0.1",
     "@npmcli/run-script": "^3.0.1",
@@ -65,7 +66,7 @@
     "ansicolors": "~0.3.2",
     "ansistyles": "~0.1.3",
     "archy": "~1.0.0",
-    "cacache": "^16.0.2",
+    "cacache": "^16.0.3",
     "chalk": "^4.1.2",
     "chownr": "^2.0.0",
     "cli-columns": "^4.0.0",
@@ -76,7 +77,7 @@
     "graceful-fs": "^4.2.9",
     "hosted-git-info": "^5.0.0",
     "ini": "^2.0.0",
-    "init-package-json": "^3.0.1",
+    "init-package-json": "^3.0.2",
     "is-cidr": "^4.0.2",
     "json-parse-even-better-errors": "^2.3.1",
     "libnpmaccess": "^6.0.2",
@@ -90,7 +91,7 @@
     "libnpmsearch": "^5.0.2",
     "libnpmteam": "^4.0.2",
     "libnpmversion": "^3.0.1",
-    "make-fetch-happen": "^10.0.6",
+    "make-fetch-happen": "^10.1.1",
     "minipass": "^3.1.6",
     "minipass-pipeline": "^1.2.4",
     "mkdirp": "^1.0.4",
@@ -98,18 +99,18 @@
     "ms": "^2.1.2",
     "node-gyp": "^9.0.0",
     "nopt": "^5.0.0",
-    "npm-audit-report": "^2.1.5",
+    "npm-audit-report": "^3.0.0",
     "npm-install-checks": "^4.0.0",
     "npm-package-arg": "^9.0.1",
     "npm-pick-manifest": "^7.0.0",
     "npm-profile": "^6.0.2",
-    "npm-registry-fetch": "^13.0.1",
+    "npm-registry-fetch": "^13.1.0",
     "npm-user-validate": "^1.0.1",
     "npmlog": "^6.0.1",
     "opener": "^1.5.2",
     "pacote": "^13.0.5",
-    "parse-conflict-json": "^2.0.1",
-    "proc-log": "^2.0.0",
+    "parse-conflict-json": "^2.0.2",
+    "proc-log": "^2.0.1",
     "qrcode-terminal": "^0.12.0",
     "read": "~1.0.7",
     "read-package-json": "^5.0.0",
@@ -122,7 +123,7 @@
     "text-table": "~0.2.0",
     "tiny-relative-date": "^1.3.0",
     "treeverse": "^1.0.4",
-    "validate-npm-package-name": "~3.0.0",
+    "validate-npm-package-name": "^4.0.0",
     "which": "^2.0.2",
     "write-file-atomic": "^4.0.1"
   },
@@ -131,6 +132,7 @@
     "@npmcli/arborist",
     "@npmcli/ci-detect",
     "@npmcli/config",
+    "@npmcli/fs",
     "@npmcli/map-workspaces",
     "@npmcli/package-json",
     "@npmcli/run-script",
@@ -200,13 +202,12 @@
     "write-file-atomic"
   ],
   "devDependencies": {
-    "@npmcli/eslint-config": "^2.0.0",
-    "@npmcli/template-oss": "^2.9.2",
-    "eslint": "^8.3.0",
+    "@npmcli/eslint-config": "^3.0.1",
+    "@npmcli/template-oss": "3.2.2",
     "licensee": "^8.2.0",
     "nock": "^13.2.4",
     "spawk": "^1.7.1",
-    "tap": "^15.1.6"
+    "tap": "^15.2.3"
   },
   "scripts": {
     "dumpconf": "env | grep npm | sort | uniq",
@@ -214,19 +215,18 @@
     "licenses": "licensee --production --errors-only",
     "test": "tap",
     "test-all": "npm run test --if-present --workspaces --include-workspace-root",
-    "check-coverage": "tap",
     "snap": "tap",
     "postsnap": "make -s mandocs",
     "test:nocleanup": "NO_TEST_CLEANUP=1 npm run test --",
     "sudotest": "sudo npm run test --",
     "sudotest:nocleanup": "sudo NO_TEST_CLEANUP=1 npm run test --",
     "posttest": "npm run lint",
-    "eslint": "eslint",
-    "lint": "npm run eslint -- bin lib scripts smoke-tests test ./*.js",
+    "lint": "eslint \"**/*.js\"",
     "lintfix": "npm run lint -- --fix",
+    "lint-all": "npm run lint --if-present --workspaces --include-workspace-root",
     "prelint": "rimraf test/npm_cache*",
     "resetdeps": "bash scripts/resetdeps.sh",
-    "smoke-tests": "tap smoke-tests/index.js"
+    "smoke-tests": "tap smoke-tests/index.js --no-coverage"
   },
   "tap": {
     "test-env": [
@@ -235,28 +235,12 @@
     "color": 1,
     "files": "test/{lib,bin,index.js}",
     "coverage-map": "test/coverage-map.js",
-    "check-coverage": true,
     "timeout": 600
   },
   "templateOSS": {
-    "applyRootRepoFiles": false,
-    "applyWorkspaceRepoFiles": true,
-    "applyRootModuleFiles": false,
-    "workspaces": [
-      "@npmcli/arborist",
-      "libnpmaccess",
-      "libnpmdiff",
-      "libnpmfund",
-      "libnpmexec",
-      "libnpmorg",
-      "libnpmhook",
-      "libnpmpack",
-      "libnpmpublish",
-      "libnpmsearch",
-      "libnpmteam",
-      "libnpmversion"
-    ],
-    "version": "2.9.2"
+    "rootRepo": false,
+    "rootModule": false,
+    "version": "3.2.2"
   },
   "license": "Artistic-2.0",
   "engines": {

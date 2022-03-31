@@ -91,8 +91,8 @@ function readTree (tree, opts) {
     }
   }
 
-  function getFundingDependencies (tree) {
-    const edges = tree && tree.edgesOut && tree.edgesOut.values()
+  function getFundingDependencies (t) {
+    const edges = t && t.edgesOut && t.edgesOut.values()
     if (!edges) {
       return empty()
     }

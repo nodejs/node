@@ -62,7 +62,7 @@ const getRS = windows => {
       }
     ),
     'proc-log': log,
-    '../../../lib/utils/is-windows-shell.js': windows,
+    '../../../lib/utils/is-windows.js': { isWindowsShell: windows },
   })
   return new RunScript(npm)
 }
@@ -859,7 +859,7 @@ t.test('workspaces', t => {
         throw new Error('err')
       },
       'proc-log': log,
-      '../../../lib/utils/is-windows-shell.js': false,
+      '../../../lib/utils/is-windows.js': { isWindowsShell: false },
     })
     const runScript = new RunScript(npm)
 
@@ -877,7 +877,7 @@ t.test('workspaces', t => {
         RUN_SCRIPTS.push(opts)
       },
       'proc-log': log,
-      '../../../lib/utils/is-windows-shell.js': false,
+      '../../../lib/utils/is-windows.js': { isWindowsShell: false },
     })
     const runScript = new RunScript(npm)
 

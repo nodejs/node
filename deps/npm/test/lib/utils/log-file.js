@@ -116,12 +116,12 @@ t.test('max files per process', async t => {
   }
 
   for (const i of range(5)) {
-    logFile.log('verbose', `log ${i}`)
+    logFile.log('verbose', `ignored after maxlogs hit ${i}`)
   }
 
   const logs = await readLogs()
   t.equal(logs.length, maxFilesPerProcess, 'total log files')
-  t.equal(last(last(logs).logs), '49 error log 49')
+  t.match(last(last(logs).logs), /49 error log \d+/)
 })
 
 t.test('stream error', async t => {
@@ -182,8 +182,7 @@ t.test('turns off', async t => {
   logFile.load()
 
   const logs = await readLogs()
-  t.equal(logs.length, 1)
-  t.equal(logs[0].logs[0], '0 error test')
+  t.match(last(last(logs).logs), /^\d+ error test$/)
 })
 
 t.test('cleans logs', async t => {
@@ -198,7 +197,7 @@ t.test('cleans logs', async t => {
 })
 
 t.test('doesnt clean current log by default', async t => {
-  const logsMax = 0
+  const logsMax = 1
   const { readLogs, logFile } = await loadLogFile(t, {
     logsMax,
     testdir: makeOldLogs(10),
@@ -207,7 +206,6 @@ t.test('doesnt clean current log by default', async t => {
   logFile.log('error', 'test')
 
   const logs = await readLogs()
-  t.equal(logs.length, 1)
   t.match(last(logs).content, /\d+ error test/)
 })
 
@@ -221,8 +219,7 @@ t.test('negative logs max', async t => {
   logFile.log('error', 'test')
 
   const logs = await readLogs()
-  t.equal(logs.length, 1)
-  t.match(last(logs).content, /\d+ error test/)
+  t.equal(logs.length, 0)
 })
 
 t.test('doesnt need to clean', async t => {
@@ -257,7 +254,7 @@ t.test('cleans old style logs too', async t => {
   const oldLogs = 10
   const { readLogs } = await loadLogFile(t, {
     logsMax,
-    testdir: makeOldLogs(oldLogs, false),
+    testdir: makeOldLogs(oldLogs, true),
   })
 
   const logs = await readLogs()
@@ -304,7 +301,7 @@ t.test('delete log file while open', async t => {
 })
 
 t.test('snapshot', async t => {
-  const { logFile, readLogs } = await loadLogFile(t)
+  const { logFile, readLogs } = await loadLogFile(t, { logsMax: 10 })
 
   logFile.log('error', '', 'no prefix')
   logFile.log('error', 'prefix', 'with prefix')

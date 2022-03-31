@@ -17,8 +17,8 @@ function niceName (n) {
 
 function readDeps (test, excluded) {
   return function (cb) {
-    fs.readdir('node_modules', function (er, dir) {
-      if (er) {
+    fs.readdir('node_modules', function (readdirErr, dir) {
+      if (readdirErr) {
         return cb()
       }
       var deps = {}
@@ -35,8 +35,8 @@ function readDeps (test, excluded) {
         }
 
         var dp = path.join(dirname, 'node_modules', d, 'package.json')
-        fs.readFile(dp, 'utf8', function (er, p) {
-          if (er) {
+        fs.readFile(dp, 'utf8', function (readFileErr, p) {
+          if (readFileErr) {
             return next()
           }
           try {
@@ -108,11 +108,11 @@ var version = package.version ||
               '1.0.0'
 exports.version = yes ?
   version :
-  prompt('version', version, function (version) {
-    if (semver.valid(version)) {
-      return version
+  prompt('version', version, function (promptedVersion) {
+    if (semver.valid(promptedVersion)) {
+      return promptedVersion
     }
-    var er = new Error('Invalid version: "' + version + '"')
+    var er = new Error('Invalid version: "' + promptedVersion + '"')
     er.notValid = true
     return er
   })
@@ -128,8 +128,8 @@ if (!package.main) {
         f = []
       }
 
-      f = f.filter(function (f) {
-        return f.match(/\.js$/)
+      f = f.filter(function (filtered) {
+        return filtered.match(/\.js$/)
       })
 
       if (f.indexOf('index.js') !== -1) {
@@ -261,17 +261,17 @@ if (!package.repository) {
 }
 
 if (!package.keywords) {
-  exports.keywords = yes ? '' : prompt('keywords', function (s) {
-    if (!s) {
+  exports.keywords = yes ? '' : prompt('keywords', function (promptedKeywords) {
+    if (!promptedKeywords) {
       return undefined
     }
-    if (Array.isArray(s)) {
-      s = s.join(' ')
+    if (Array.isArray(promptedKeywords)) {
+      promptedKeywords = promptedKeywords.join(' ')
     }
-    if (typeof s !== 'string') {
-      return s
+    if (typeof promptedKeywords !== 'string') {
+      return promptedKeywords
     }
-    return s.split(/[\s,]+/)
+    return promptedKeywords.split(/[\s,]+/)
   })
 }
 

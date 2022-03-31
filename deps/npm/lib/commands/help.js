@@ -11,6 +11,8 @@ const BaseCommand = require('../base-command.js')
 // We don't currently compress our man pages but if we ever did this would
 // seemlessly continue supporting it
 const manNumberRegex = /\.(\d+)(\.[^/\\]*)?$/
+// Searches for the "npm-" prefix in page names, to prefer those.
+const manNpmPrefixRegex = /\/npm-/
 
 class Help extends BaseCommand {
   static description = 'Get help on npm'
@@ -61,13 +63,27 @@ class Help extends BaseCommand {
     const f = `${manroot}/${manSearch}/?(npm-)${section}.[0-9]*`
     let mans = await glob(f)
     mans = mans.sort((a, b) => {
-      // Because of the glob we know the manNumberRegex will pass
-      const aManNumber = a.match(manNumberRegex)[1]
-      const bManNumber = b.match(manNumberRegex)[1]
+      // Prefer the page with an npm prefix, if there's only one.
+      const aHasPrefix = manNpmPrefixRegex.test(a)
+      const bHasPrefix = manNpmPrefixRegex.test(b)
+      if (aHasPrefix !== bHasPrefix) {
+        return aHasPrefix ? -1 : 1
+      }
 
-      // man number sort first so that 1 aka commands are preferred
-      if (aManNumber !== bManNumber) {
-        return aManNumber - bManNumber
+      // Because the glob is (subtly) different from manNumberRegex,
+      // we can't rely on it passing.
+      const aManNumberMatch = a.match(manNumberRegex)
+      const bManNumberMatch = b.match(manNumberRegex)
+      if (aManNumberMatch) {
+        if (!bManNumberMatch) {
+          return -1
+        }
+        // man number sort first so that 1 aka commands are preferred
+        if (aManNumberMatch[1] !== bManNumberMatch[1]) {
+          return aManNumberMatch[1] - bManNumberMatch[1]
+        }
+      } else if (bManNumberMatch) {
+        return 1
       }
 
       return localeCompare(a, b)

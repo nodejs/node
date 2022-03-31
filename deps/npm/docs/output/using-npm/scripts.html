@@ -442,7 +442,7 @@ probably set it up that way for a reason.</li>
 <li>Don't prefix your script commands with "sudo".  If root permissions
 are required for some reason, then it'll fail with that error, and
 the user will sudo the npm command in question.</li>
-<li>Don't use <code>install</code>. Use a <code>.gyp</code> file for compilation, and <code>prepublish</code>
+<li>Don't use <code>install</code>. Use a <code>.gyp</code> file for compilation, and <code>prepare</code>
 for anything else. You should almost never have to explicitly set a
 preinstall or install script. If you are doing this, please consider if
 there is another option. The only valid use of <code>install</code> or <code>preinstall</code>

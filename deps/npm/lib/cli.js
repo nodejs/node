@@ -11,9 +11,25 @@ module.exports = async process => {
   // so now both broken and unsupported use console, but only broken
   // will process.exit. It is important to now perform *both* of these
   // checks as early as possible so the user gets the error message.
-  const { checkForBrokenNode, checkForUnsupportedNode } = require('./utils/unsupported.js')
-  checkForBrokenNode()
-  checkForUnsupportedNode()
+  const semver = require('semver')
+  const supported = require('../package.json').engines.node
+  const knownBroken = '<12.5.0'
+
+  const nodejsVersion = process.version.replace(/-.*$/, '')
+  /* eslint-disable no-console */
+  if (semver.satisfies(nodejsVersion, knownBroken)) {
+    console.error('ERROR: npm is known not to run on Node.js ' + process.version)
+    console.error("You'll need to upgrade to a newer Node.js version in order to use this")
+    console.error('version of npm. You can find the latest version at https://nodejs.org/')
+    process.exit(1)
+  }
+  if (!semver.satisfies(nodejsVersion, supported)) {
+    console.error('npm does not support Node.js ' + process.version)
+    console.error('You should probably upgrade to a newer version of node as we')
+    console.error("can't make any promises that npm will work with this version.")
+    console.error('You can find the latest version at https://nodejs.org/')
+  }
+  /* eslint-enable no-console */
 
   const exitHandler = require('./utils/exit-handler.js')
   process.on('uncaughtException', exitHandler)
@@ -30,13 +46,11 @@ module.exports = async process => {
   }
 
   const log = require('./utils/log-shim.js')
-  const replaceInfo = require('./utils/replace-info.js')
-  log.verbose('cli', replaceInfo(process.argv))
-
+  // only log node and npm paths in argv initially since argv can contain
+  // sensitive info. a cleaned version will be logged later
+  log.verbose('cli', process.argv.slice(0, 2).join(' '))
   log.info('using', 'npm@%s', npm.version)
   log.info('using', 'node@%s', process.version)
-
-  const updateNotifier = require('./utils/update-notifier.js')
 
   let cmd
   // now actually fire up npm and run the command.
@@ -53,8 +67,6 @@ module.exports = async process => {
       npm.argv = ['version']
       npm.config.set('usage', false, 'cli')
     }
-
-    updateNotifier(npm)
 
     cmd = npm.argv.shift()
     if (!cmd) {

@@ -125,7 +125,7 @@ class Owner extends BaseCommand {
       throw err
     }
 
-    if (user && (!u || !u.name || u.error)) {
+    if (!u || !u.name || u.error) {
       throw Object.assign(
         new Error(
           "Couldn't get user data for " + user + ': ' + JSON.stringify(u)

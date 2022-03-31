@@ -46,6 +46,7 @@ class Exec extends BaseCommand {
   ]
 
   static ignoreImplicitWorkspace = false
+  static isShellout = true
 
   async exec (_args, { locationMsg, path, runPath } = {}) {
     if (!path) {
