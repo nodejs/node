@@ -14,3 +14,4 @@ throws(() => buffer.atob(), /TypeError/);
 throws(() => buffer.btoa(), /TypeError/);
 
 strictEqual(atob(' '), '');
+strictEqual(atob('  YW\tJ\njZA=\r= '), 'abcd');
