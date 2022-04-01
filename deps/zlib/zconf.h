@@ -17,7 +17,7 @@
 #if !defined(CHROMIUM_ZLIB_NO_CHROMECONF)
 /* This include does prefixing as below, but with an updated set of names.  Also
  * sets up export macros in component builds. */
-//#include "chromeconf.h"
+#include "chromeconf.h"
 #endif
 
 /*

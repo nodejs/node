@@ -8,9 +8,6 @@
 #include "crc32_simd.h"
 
 #if defined(CRC32_SIMD_SSE42_PCLMUL)
-#ifndef __GNUC__
-#define __attribute__()
-#endif
 
 /*
  * crc32_sse42_simd_(): compute the crc32 of the buffer, where the buffer
@@ -24,7 +21,6 @@
 #include <smmintrin.h>
 #include <wmmintrin.h>
 
-__attribute__((target("sse4.2,pclmul")))
 uint32_t ZLIB_INTERNAL crc32_sse42_simd_(  /* SSE4.2+PCLMUL */
     const unsigned char *buf,
     z_size_t len,
