@@ -2447,6 +2447,7 @@ Contributed by Michaël Zasso - [#37587](https://github.com/nodejs/node/pull/375
 * **deps**: update llhttp to 6.0.0 (Fedor Indutny) [#38277](https://github.com/nodejs/node/pull/38277)
 * **deps**: upgrade npm to 7.10.0 (Ruy Adorno) [#38254](https://github.com/nodejs/node/pull/38254)
 * **(SEMVER-MINOR)** **http**: add http.ClientRequest.getRawHeaderNames() (simov) [#37660](https://github.com/nodejs/node/pull/37660)
+* **(SEMVER-MAJOR)** **http**: use `autoDestroy: true` in incoming message (Daniele Belardi) [#33035](https://github.com/nodejs/node/pull/33035)
 * **(SEMVER-MAJOR)** **lib,src**: update cluster to use Parent (Michael Dawson) [#36478](https://github.com/nodejs/node/pull/36478)
 * **(SEMVER-MINOR)** **module**: add support for `node:`‑prefixed `require(…)` calls (ExE Boss) [#37246](https://github.com/nodejs/node/pull/37246)
 * **(SEMVER-MINOR)** **perf\_hooks**: add histogram option to timerify (James M Snell) [#37475](https://github.com/nodejs/node/pull/37475)
