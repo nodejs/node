@@ -27,7 +27,6 @@
 * [Notes](#notes)
   * [Commit squashing](#commit-squashing)
   * [Getting approvals for your pull request](#getting-approvals-for-your-pull-request)
-  * [CI testing](#ci-testing)
   * [Waiting until the pull request gets landed](#waiting-until-the-pull-request-gets-landed)
   * [Check out the collaborator guide](#check-out-the-collaborator-guide)
   * [Appendix: subsystems](#appendix-subsystems)
@@ -511,17 +510,18 @@ feedback.
 All pull requests that contain changes to code must be run through
 continuous integration (CI) testing at [https://ci.nodejs.org/][].
 
-Only Node.js core collaborators with commit rights to the `nodejs/node`
-repository may start a CI testing run. The specific details of how to do
-this are included in the new collaborator [Onboarding guide][].
+Only Node.js core collaborators and triagers can start a CI testing run. The
+specific details of how to do this are included in the new collaborator
+[Onboarding guide][]. Usually, a collaborator or triager will start a CI
+test run for you as approvals for the pull request come in.
+If not, you can ask a collaborator or triager to start a CI run.
 
 Ideally, the code change will pass ("be green") on all platform configurations
-supported by Node.js (there are over 30 platform configurations currently).
-This means that all tests pass and there are no linting errors. In reality,
-however, it is not uncommon for the CI infrastructure itself to fail on
-specific platforms or for so-called "flaky" tests to fail ("be red"). It is
-vital to visually inspect the results of all failed ("red") tests to determine
-whether the failure was caused by the changes in the pull request.
+supported by Node.js. This means that all tests pass and there are no linting
+errors. In reality, however, it is not uncommon for the CI infrastructure itself
+to fail on specific platforms or for so-called "flaky" tests to fail ("be red").
+It is vital to visually inspect the results of all failed ("red") tests to
+determine whether the failure was caused by the changes in the pull request.
 
 ## Notes
 
@@ -553,16 +553,6 @@ After you push new changes to your branch, you need to get
 approval for these new changes again, even if GitHub shows "Approved"
 because the reviewers have hit the buttons before.
 
-### CI testing
-
-Every pull request needs to be tested
-to make sure that it works on the platforms that Node.js
-supports. This is done by running the code through the CI system.
-
-Only a collaborator can start a CI run. Usually one of them will do it
-for you as approvals for the pull request come in.
-If not, you can ask a collaborator to start a CI run.
-
 ### Waiting until the pull request gets landed
 
 A pull request needs to stay open for at least 48 hours from when it is
@@ -591,7 +581,7 @@ You can find the full list of supported subsystems in the
 More than one subsystem may be valid for any particular issue or pull request.
 
 [Building guide]: ../../BUILDING.md
-[CI (Continuous Integration) test run]: #ci-testing
+[CI (Continuous Integration) test run]: #continuous-integration-testing
 [Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
 [Onboarding guide]: ../../onboarding.md
 [approved]: #getting-approvals-for-your-pull-request
