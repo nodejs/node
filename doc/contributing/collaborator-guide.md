@@ -22,7 +22,7 @@
     * [Unintended breaking changes](#unintended-breaking-changes)
       * [Reverting commits](#reverting-commits)
   * [Introducing new modules](#introducing-new-modules)
-  * [Additions to Node-API](#additions-to-n-api)
+  * [Additions to Node-API](#additions-to-node-api)
   * [Deprecations](#deprecations)
   * [Involving the TSC](#involving-the-tsc)
 * [Landing pull requests](#landing-pull-requests)
