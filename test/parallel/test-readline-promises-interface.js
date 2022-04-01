@@ -3,14 +3,14 @@
 const common = require('../common');
 common.skipIfDumbTerminal();
 
-const assert = require('assert');
-const readline = require('readline/promises');
+const assert = require('node:assert');
+const readline = require('node:readline/promises');
 const {
   getStringWidth,
   stripVTControlCharacters
-} = require('internal/util/inspect');
-const EventEmitter = require('events').EventEmitter;
-const { Writable, Readable } = require('stream');
+} = require('node:internal/util/inspect');
+const EventEmitter = require('node:events').EventEmitter;
+const { Writable, Readable } = require('node:stream');
 
 class FakeInput extends EventEmitter {
   resume() {}

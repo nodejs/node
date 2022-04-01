@@ -2,11 +2,11 @@
 
 
 import '../common/index.mjs';
-import assert from 'assert';
-import { Readline } from 'readline/promises';
-import { Writable } from 'stream';
+import assert from 'node:assert';
+import { Readline } from 'node:readline/promises';
+import { Writable } from 'node:stream';
 
-import utils from 'internal/readline/utils';
+import utils from 'node:internal/readline/utils';
 const { CSI } = utils;
 
 const INVALID_ARG = {

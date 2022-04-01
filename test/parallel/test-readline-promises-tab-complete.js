@@ -3,10 +3,10 @@
 // Flags: --expose-internals
 
 const common = require('../common');
-const readline = require('readline/promises');
-const assert = require('assert');
-const { EventEmitter } = require('events');
-const { getStringWidth } = require('internal/util/inspect');
+const readline = require('node:readline/promises');
+const assert = require('node:assert');
+const { EventEmitter } = require('node:events');
+const { getStringWidth } = require('node:internal/util/inspect');
 
 common.skipIfDumbTerminal();
 

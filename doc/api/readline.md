@@ -16,7 +16,7 @@ import * as readline from 'node:readline/promises';
 ```
 
 ```cjs
-const readline = require('readline/promises');
+const readline = require('node:readline/promises');
 ```
 
 To use the callback and sync APIs:
@@ -773,7 +773,7 @@ The `readlinePromises.createInterface()` method creates a new `readlinePromises.
 instance.
 
 ```js
-const readlinePromises = require('readline/promises');
+const readlinePromises = require('node:readline/promises');
 const rl = readlinePromises.createInterface({
   input: process.stdin,
   output: process.stdout
