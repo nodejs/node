@@ -7,8 +7,7 @@
 <!-- source_link=lib/process.js -->
 
 The `process` object provides information about, and control over, the current
-Node.js process. While it is available as a global, it is recommended to
-explicitly access it via require or import:
+Node.js process.
 
 ```mjs
 import process from 'process';
@@ -1487,8 +1486,7 @@ The following additional handling is implemented if the warning `type` is
 ### Avoiding duplicate warnings
 
 As a best practice, warnings should be emitted only once per process. To do
-so, it is recommended to place the `emitWarning()` behind a simple boolean
-flag as illustrated in the example below:
+so, place the `emitWarning()` behind a boolean.
 
 ```mjs
 import { emitWarning } from 'process';
