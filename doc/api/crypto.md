@@ -2627,6 +2627,10 @@ added: v15.6.0
 
 The SHA-1 fingerprint of this certificate.
 
+Because SHA-1 is cryptographically broken and because the security of SHA-1 is
+significantly worse than that of algorithms that are commonly used to sign
+certificates, consider using [`x509.fingerprint256`][] instead.
+
 ### `x509.fingerprint256`
 
 <!-- YAML
@@ -2648,6 +2652,12 @@ added:
 * Type: {string}
 
 The SHA-512 fingerprint of this certificate.
+
+Because computing the SHA-256 fingerprint is usually faster and because it is
+only half the size of the SHA-512 fingerprint, [`x509.fingerprint256`][] may be
+a better choice. While SHA-512 presumably provides a higher level of security in
+general, the security of SHA-256 matches that of most algorithms that are
+commonly used to sign certificates.
 
 ### `x509.infoAccess`
 
@@ -2737,6 +2747,10 @@ added: v15.6.0
 * Type: {string}
 
 The serial number of this certificate.
+
+Serial numbers are assigned by certificate authorities and do not uniquely
+identify certificates. Consider using [`x509.fingerprint256`][] as a unique
+identifier instead.
 
 ### `x509.subject`
 
@@ -6137,6 +6151,7 @@ See the [list of SSL OP Flags][] for details.
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [`verify.update()`]: #verifyupdatedata-inputencoding
 [`verify.verify()`]: #verifyverifyobject-signature-signatureencoding
+[`x509.fingerprint256`]: #x509fingerprint256
 [caveats when using strings as inputs to cryptographic APIs]: #using-strings-as-inputs-to-cryptographic-apis
 [certificate object]: tls.md#certificate-object
 [encoding]: buffer.md#buffers-and-character-encodings
