@@ -209,7 +209,7 @@ class IoSessionDelegate : public InspectorSessionDelegate {
 class InspectorIoDelegate: public node::inspector::SocketServerDelegate {
  public:
   InspectorIoDelegate(std::shared_ptr<RequestQueueData> queue,
-                      std::shared_ptr<MainThreadHandle> main_threade,
+                      std::shared_ptr<MainThreadHandle> main_thread,
                       const std::string& target_id,
                       const std::string& script_path,
                       const std::string& script_name);
