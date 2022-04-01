@@ -209,7 +209,7 @@ local z_size_t gz_write(state, buf, len)
                               state->in);
             copy = state->size - have;
             if (copy > len)
-                copy = len;
+                copy = (unsigned)len;
             memcpy(state->in + have, buf, copy);
             state->strm.avail_in += copy;
             state->x.pos += copy;
@@ -229,7 +229,7 @@ local z_size_t gz_write(state, buf, len)
         do {
             unsigned n = (unsigned)-1;
             if (n > len)
-                n = len;
+                n = (unsigned)len;
             state->strm.avail_in = n;
             state->x.pos += n;
             if (gz_comp(state, Z_NO_FLUSH) == -1)
@@ -353,8 +353,7 @@ int ZEXPORT gzputs(file, str)
     gzFile file;
     const char *str;
 {
-    int ret;
-    z_size_t len;
+    z_size_t len, put;
     gz_statep state;
 
     /* get internal structure */
@@ -368,8 +367,12 @@ int ZEXPORT gzputs(file, str)
 
     /* write string */
     len = strlen(str);
-    ret = gz_write(state, str, len);
-    return ret == 0 && len != 0 ? -1 : ret;
+    if ((int)len < 0 || (unsigned)len != len) {
+        gz_error(state, Z_STREAM_ERROR, "string length does not fit in int");
+        return -1;
+    }
+    put = gz_write(state, str, len);
+    return put < len ? -1 : (int)len;
 }
 
 #if defined(STDC) || defined(Z_HAVE_STDARG_H)
