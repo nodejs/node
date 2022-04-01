@@ -131,7 +131,7 @@ Node.js process and a cluster worker differs:
    port is random the first time, but predictable thereafter. To listen
    on a unique port, generate a port number based on the cluster worker ID.
 
-Node.js does not provide routing logic. It is, therefore important to design an
+Node.js does not provide routing logic. It is therefore important to design an
 application such that it does not rely too heavily on in-memory data objects for
 things like sessions and login.
 
