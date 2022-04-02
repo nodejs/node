@@ -822,44 +822,19 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
 
 #ifdef NODE_SHARED_MODE
 # define NODE_CTOR_PREFIX
-# define NODE_CTOR_ANONYMOUS_NAMESPACE_START
-# define NODE_CTOR_ANONYMOUS_NAMESPACE_END
 #else
 # define NODE_CTOR_PREFIX static
-# define NODE_CTOR_NAMESPACE namespace
-# define NODE_CTOR_ANONYMOUS_NAMESPACE_START NODE_CTOR_NAMESPACE {
-# define NODE_CTOR_ANONYMOUS_NAMESPACE_END }
 #endif
 
 #if defined(_MSC_VER)
-#if defined(__cplusplus) && defined(__cpp_inline_variables)
-// The NODE_C_CTOR macro defines a function fn that is called during dynamic
-// initialization of static variables.
-// The order of the dynamic initialization is not defined and code in fn
-// function must avoid using other static variables with dynamic initialization.
 #define NODE_C_CTOR(fn)                                               \
   NODE_CTOR_PREFIX void __cdecl fn(void);                             \
-  NODE_CTOR_ANONYMOUS_NAMESPACE_START                                 \
+  namespace {                                                         \
   struct fn##_ {                                                      \
-    static int Call##fn() { return (fn(), 0); }                       \
-    static inline const int x = Call##fn();                           \
-  };                                                                  \
-  NODE_CTOR_ANONYMOUS_NAMESPACE_END                                   \
+    fn##_() { fn(); };                                                \
+  } fn##_v_;                                                          \
+  }                                                                   \
   NODE_CTOR_PREFIX void __cdecl fn(void)
-#else
-#pragma section(".CRT$XCU", read)
-// The NODE_C_CTOR macro defines a function fn that is called during CRT
-// initialization.
-// C does not support dynamic initialization of static variables and this code
-// simulates C++ behavior. Exporting the function pointer prevents it from being
-// optimized. See for details:
-// https://docs.microsoft.com/en-us/cpp/c-runtime-library/crt-initialization?view=msvc-170
-#define NODE_C_CTOR(fn)                                               \
-  NODE_CTOR_PREFIX void __cdecl fn(void);                             \
-  __declspec(dllexport, allocate(".CRT$XCU"))                         \
-      void (__cdecl*fn ## _)(void) = fn;                              \
-  NODE_CTOR_PREFIX void __cdecl fn(void)
-#endif
 #else
 #define NODE_C_CTOR(fn)                                               \
   NODE_CTOR_PREFIX void fn(void) __attribute__((constructor));        \

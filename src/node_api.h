@@ -44,21 +44,16 @@ typedef struct napi_module {
 #define NAPI_MODULE_VERSION 1
 
 #if defined(_MSC_VER)
-#if defined(__cplusplus) && defined(__cpp_inline_variables)
-// The NAPI_C_CTOR macro defines a function fn that is called during dynamic
-// initialization of static variables.
-// The order of the dynamic initialization is not defined and code in fn
-// function must avoid using other static variables with dynamic initialization.
+#if defined(__cplusplus)
 #define NAPI_C_CTOR(fn)                                                        \
   static void __cdecl fn(void);                                                \
   namespace {                                                                  \
   struct fn##_ {                                                               \
-    static int Call##fn() { return (fn(), 0); }                                \
-    static inline const int x = Call##fn();                                    \
-  };                                                                           \
+    fn##_() { fn(); }                                                          \
+  } fn##_v_;                                                                   \
   }                                                                            \
   static void __cdecl fn(void)
-#else
+#else  // !defined(__cplusplus)
 #pragma section(".CRT$XCU", read)
 // The NAPI_C_CTOR macro defines a function fn that is called during CRT
 // initialization.
