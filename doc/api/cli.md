@@ -1994,7 +1994,8 @@ are relevant to your application
 
 _The default max\_semi\_space\_size is
 16MB for 64-bit systems and 8MB for 32-bit systems.
-The recommand value is 64MB or 128MB if your system have enough memory._
+The recommended value is 64MB or 128MB if your system has enough
+memory._
 
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [CommonJS]: modules.md
