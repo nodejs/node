@@ -1993,7 +1993,7 @@ are relevant to your application
 ([reference](https://github.com/nodejs/node/issues/42511)).
 
 _The default max\_semi\_space\_size is
-16MB for 64bit system and 8MB for 32bit system.
+16MB for 64-bit systems and 8MB for 32-bit systems.
 The recommand value is 64MB or 128MB if your system have enough memory._
 
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
