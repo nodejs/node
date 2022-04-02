@@ -1986,8 +1986,9 @@ Sets the maximum
 [semi\_space](https://www.memorymanagement.org/glossary/s.html#semi.space)
 size for V8's [scavenge](https://v8.dev/blog/orinoco-parallel-scavenger)
 garbage collector.
-Increase the value of max\_semi\_space\_size may bring
-the throughput improvement for node and the cost is more memory consumption.
+Increasing the value of max\_semi\_space\_size may bring
+throughput improvement for Node.js and the cost is more
+memory consumption.
 The actual throughput improvement and memory consumption
 are relevant to your application
 ([reference](https://github.com/nodejs/node/issues/42511)).
