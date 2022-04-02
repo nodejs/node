@@ -1988,7 +1988,7 @@ size for V8's [scavenge](https://v8.dev/blog/orinoco-parallel-scavenger)
 garbage collector.
 Increase the value of max\_semi\_space\_size may bring
 the throughput improvement for node and the cost is more memory consumption.
-The acutal throughput improvement and memory consumption
+The actual throughput improvement and memory consumption
 are relevant to your application
 ([reference](https://github.com/nodejs/node/issues/42511)).
 
