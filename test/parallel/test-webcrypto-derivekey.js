@@ -7,7 +7,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const { webcrypto: { subtle }, KeyObject } = require('crypto');
 
 const { internalBinding } = require('internal/test/binding');
 
@@ -151,4 +151,36 @@ if (typeof internalBinding('crypto').ScryptJob === 'function') {
   const tests = Promise.all(kTests.map((args) => test(...args)));
 
   tests.then(common.mustCall());
+}
+
+// Test default key lengths
+{
+  const vectors = [
+    ['PBKDF2', 'deriveKey', 528],
+    ['HKDF', 'deriveKey', 528],
+    [{ name: 'HMAC', hash: 'SHA-1' }, 'sign', 160],
+    [{ name: 'HMAC', hash: 'SHA-256' }, 'sign', 256],
+    [{ name: 'HMAC', hash: 'SHA-384' }, 'sign', 384],
+    [{ name: 'HMAC', hash: 'SHA-512' }, 'sign', 512],
+  ];
+
+  (async () => {
+    const keyPair = await subtle.generateKey({ name: 'ECDH', namedCurve: 'P-521' }, false, ['deriveKey']);
+    for (const [derivedKeyAlgorithm, usage, expected] of vectors) {
+      const derived = await subtle.deriveKey(
+        { name: 'ECDH', public: keyPair.publicKey },
+        keyPair.privateKey,
+        derivedKeyAlgorithm,
+        false,
+        [usage]);
+
+      if (derived.algorithm.name === 'HMAC') {
+        assert.strictEqual(derived.algorithm.length, expected);
+      } else {
+        // KDFs cannot be exportable and do not indicate their length
+        const secretKey = KeyObject.from(derived);
+        assert.strictEqual(secretKey.symmetricKeySize, expected / 8);
+      }
+    }
+  })().then(common.mustCall());
 }
