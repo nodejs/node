@@ -12,4 +12,3 @@ rules:
     - error
     - args: after-used
   prefer-arrow-callback: error
-  no-var: error
