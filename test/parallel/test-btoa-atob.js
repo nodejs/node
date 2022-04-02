@@ -12,3 +12,6 @@ strictEqual(globalThis.btoa, buffer.btoa);
 // Throws type error on no argument passed
 throws(() => buffer.atob(), /TypeError/);
 throws(() => buffer.btoa(), /TypeError/);
+
+strictEqual(atob(' '), '');
+strictEqual(atob('  YW\tJ\njZA=\r= '), 'abcd');
