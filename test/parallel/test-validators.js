@@ -10,6 +10,8 @@ const {
   validateNumber,
   validateObject,
   validateString,
+  validateInt32,
+  validateUint32,
 } = require('internal/validators');
 const { MAX_SAFE_INTEGER, MIN_SAFE_INTEGER } = Number;
 const outOfRangeError = {
@@ -41,6 +43,34 @@ const invalidArgValueError = {
   // validateInteger() works with unsafe integers.
   validateInteger(MAX_SAFE_INTEGER + 1, 'foo', 0, MAX_SAFE_INTEGER + 1);
   validateInteger(MIN_SAFE_INTEGER - 1, 'foo', MIN_SAFE_INTEGER - 1);
+
+  // validateInt32() and validateUint32()
+  [
+    Symbol(), 1n, {}, [], false, true, undefined, null, () => {}, '', '1',
+  ].forEach((val) => assert.throws(() => validateInt32(val, 'name'), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }));
+  [
+    2147483647 + 1, -2147483648 - 1, NaN,
+  ].forEach((val) => assert.throws(() => validateInt32(val, 'name'), {
+    code: 'ERR_OUT_OF_RANGE'
+  }));
+  [
+    0, 1, -1,
+  ].forEach((val) => validateInt32(val, 'name'));
+  [
+    Symbol(), 1n, {}, [], false, true, undefined, null, () => {}, '', '1',
+  ].forEach((val) => assert.throws(() => validateUint32(val, 'name'), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }));
+  [
+    4294967296, -1, NaN,
+  ].forEach((val) => assert.throws(() => validateUint32(val, 'name'), {
+    code: 'ERR_OUT_OF_RANGE'
+  }));
+  [
+    0, 1,
+  ].forEach((val) => validateUint32(val, 'name'));
 }
 
 {
