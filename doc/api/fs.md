@@ -594,10 +594,6 @@ then resolves the promise with no arguments upon success.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v14.12.0
-    pr-url: https://github.com/nodejs/node/pull/34993
-    description: The `buffer` parameter will stringify an object with an
-                 explicit `toString` function.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31030
     description: The `buffer` parameter won't coerce unsupported input to
@@ -5794,10 +5790,6 @@ this API: [`fs.writeFile()`][].
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: v14.12.0
-    pr-url: https://github.com/nodejs/node/pull/34993
-    description: The `buffer` parameter will stringify an object with an
-                 explicit `toString` function.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31030
     description: The `buffer` parameter won't coerce unsupported input to
