@@ -1983,19 +1983,16 @@ $ node --max-old-space-size=1536 index.js
 ### `--max_semi_space_size=SIZE` (in megabytes)
 
 Sets the maximum
-[semi\_space](https://www.memorymanagement.org/glossary/s.html#semi.space)
+[semi-space](https://www.memorymanagement.org/glossary/s.html#semi.space)
 size for V8's [scavenge](https://v8.dev/blog/orinoco-parallel-scavenger)
-garbage collector.
-Increasing the value of max\_semi\_space\_size may bring
+garbage collector in MiB.
+Increasing the max size of a semi-space may bring
 throughput improvement for Node.js and the cost is more
-memory consumption.
-The actual throughput improvement and memory consumption
-are relevant to your application
-([reference](https://github.com/nodejs/node/issues/42511)).
+memory consumption (see [#42511](https://github.com/nodejs/node/issues/42511)).
 
-_The default max\_semi\_space\_size is
-16MB for 64-bit systems and 8MB for 32-bit systems.
-The recommended value is 64MB or 128MB if your system has enough
+_The default value is
+16MiB for 64-bit systems and 8MiB for 32-bit systems.
+The recommended value is 64MiB or 128MiB if your system has enough
 memory._
 
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
