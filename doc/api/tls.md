@@ -385,9 +385,6 @@ The default cipher suite prefers GCM ciphers for [Chrome's 'modern
 cryptography' setting][] and also prefers ECDHE and DHE ciphers for perfect
 forward secrecy, while offering _some_ backward compatibility.
 
-128 bit AES is preferred over 192 and 256 bit AES in light of [specific
-attacks affecting larger AES key sizes][].
-
 Old clients that rely on insecure and deprecated RC4 or DES-based ciphers
 (like Internet Explorer 6) cannot complete the handshaking process with
 the default configuration. If these clients _must_ be supported, the
@@ -2268,4 +2265,3 @@ added: v11.4.0
 [cipher list format]: https://www.openssl.org/docs/man1.1.1/man1/ciphers.html#CIPHER-LIST-FORMAT
 [forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [perfect forward secrecy]: #perfect-forward-secrecy
-[specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
