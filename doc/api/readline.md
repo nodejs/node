@@ -350,6 +350,9 @@ async function processLineByLine() {
 }
 ```
 
+`readline.createInterface()` will start to consume the input stream once invoked.
+Having asynchronous operations between interface creation and asynchronous iteration may result in missed lines.
+
 ## readline.clearLine(stream, dir)
 <!-- YAML
 added: v0.7.7
