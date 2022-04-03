@@ -605,7 +605,7 @@ no OCSP response.
 
 Calling `callback(err)` will result in a `socket.destroy(err)` call.
 
-The typical flow of an OCSP Request is as follows:
+The typical flow of an OCSP request is as follows:
 
 1. Client connects to the server and sends an `'OCSPRequest'` (via the status
    info extension in ClientHello).
