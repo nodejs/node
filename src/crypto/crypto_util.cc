@@ -136,7 +136,13 @@ bool InitCryptoOnce(Isolate* isolate) {
   return true;
 }
 
+// Protect accesses to FIPS state with a mutex. This should potentially
+// be part of a larger mutex for global OpenSSL state.
+static Mutex fips_mutex;
+
 void InitCryptoOnce() {
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  Mutex::ScopedLock fips_lock(fips_mutex);
 #ifndef OPENSSL_IS_BORINGSSL
   OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
 
@@ -196,6 +202,9 @@ void InitCryptoOnce() {
 }
 
 void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  Mutex::ScopedLock fips_lock(fips_mutex);
+
 #if OPENSSL_VERSION_MAJOR >= 3
   args.GetReturnValue().Set(EVP_default_properties_is_fips_enabled(nullptr) ?
       1 : 0);
@@ -205,8 +214,13 @@ void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
 }
 
 void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  Mutex::ScopedLock fips_lock(fips_mutex);
+
   CHECK(!per_process::cli_options->force_fips_crypto);
   Environment* env = Environment::GetCurrent(args);
+  // TODO(addaleax): This should not be possible to set from worker threads.
+  // CHECK(env->owns_process_state());
   bool enable = args[0]->BooleanValue(env->isolate());
 
 #if OPENSSL_VERSION_MAJOR >= 3
@@ -227,6 +241,9 @@ void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
 }
 
 void TestFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  Mutex::ScopedLock fips_lock(fips_mutex);
+
 #ifdef OPENSSL_FIPS
 #if OPENSSL_VERSION_MAJOR >= 3
   OSSL_PROVIDER* fips_provider = nullptr;
