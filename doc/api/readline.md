@@ -355,25 +355,6 @@ signal.addEventListener('abort', () => {
 setTimeout(() => ac.abort(), 10000);
 ```
 
-If this method is invoked as it's util.promisify()ed version, it returns a
-Promise that fulfills with the answer. If the question is canceled using
-an `AbortController` it will reject with an `AbortError`.
-
-```js
-const util = require('util');
-const question = util.promisify(rl.question).bind(rl);
-
-async function questionExample() {
-  try {
-    const answer = await question('What is you favorite food? ');
-    console.log(`Oh, so your favorite food is ${answer}`);
-  } catch (err) {
-    console.error('Question rejected', err);
-  }
-}
-questionExample();
-```
-
 ### `rl.resume()`
 
 <!-- YAML
@@ -897,25 +878,6 @@ signal.addEventListener('abort', () => {
 }, { once: true });
 
 setTimeout(() => ac.abort(), 10000);
-```
-
-If this method is invoked as it's util.promisify()ed version, it returns a
-Promise that fulfills with the answer. If the question is canceled using
-an `AbortController` it will reject with an `AbortError`.
-
-```js
-const util = require('util');
-const question = util.promisify(rl.question).bind(rl);
-
-async function questionExample() {
-  try {
-    const answer = await question('What is you favorite food? ');
-    console.log(`Oh, so your favorite food is ${answer}`);
-  } catch (err) {
-    console.error('Question rejected', err);
-  }
-}
-questionExample();
 ```
 
 ### `readline.clearLine(stream, dir[, callback])`
