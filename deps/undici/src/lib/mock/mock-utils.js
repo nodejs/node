@@ -33,6 +33,14 @@ function lowerCaseEntries (headers) {
 
 function matchHeaders (mockDispatch, headers) {
   if (typeof mockDispatch.headers === 'function') {
+    if (Array.isArray(headers)) { // fetch HeadersList
+      const clone = headers.slice()
+      const entries = []
+      for (let index = 0; index < clone.length; index += 2) {
+        entries.push([clone[index], clone[index + 1]])
+      }
+      headers = Object.fromEntries(entries)
+    }
     return mockDispatch.headers(headers ? lowerCaseEntries(headers) : {})
   }
   if (typeof mockDispatch.headers === 'undefined') {
