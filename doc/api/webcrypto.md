@@ -845,10 +845,10 @@ promise is resolved with a {CryptoKey} object.
 The wrapping algorithms currently supported include:
 
 * `'RSA-OAEP'`
-* `'AES-CTR'`[^1]
-* `'AES-CBC'`[^1]
-* `'AES-GCM'`[^1]
-* `'AES-KW'`[^1]
+* `'AES-CTR'`
+* `'AES-CBC'`
+* `'AES-GCM'`
+* `'AES-KW'`
 
 The unwrapped key algorithms supported include:
 
