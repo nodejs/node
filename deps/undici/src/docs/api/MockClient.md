@@ -58,10 +58,7 @@ import { MockAgent } from 'undici'
 const mockAgent = new MockAgent({ connections: 1 })
 
 const mockClient = mockAgent.get('http://localhost:3000')
-mockClient.intercept({
-  path: '/foo',
-  method: 'GET',
-}).reply(200, 'foo')
+mockClient.intercept({ path: '/foo' }).reply(200, 'foo')
 
 const {
   statusCode,

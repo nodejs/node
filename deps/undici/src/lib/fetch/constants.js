@@ -86,9 +86,12 @@ const subresource = [
   ''
 ]
 
+const corsSafeListedResponseHeaderNames = [] // TODO
+
 module.exports = {
   subresource,
   forbiddenResponseHeaderNames,
+  corsSafeListedResponseHeaderNames,
   forbiddenMethods,
   requestBodyHeader,
   referrerPolicy,

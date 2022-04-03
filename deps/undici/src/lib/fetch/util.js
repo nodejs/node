@@ -195,7 +195,7 @@ function appendFetchMetadata (httpRequest) {
   header = httpRequest.mode
 
   //  4. Set a structured field value `Sec-Fetch-Mode`/header in r’s header list.
-  httpRequest.headersList.append('sec-fetch-mode', header)
+  httpRequest.headersList.set('sec-fetch-mode', header)
 
   //  https://w3c.github.io/webappsec-fetch-metadata/#sec-fetch-site-header
   //  TODO
@@ -333,14 +333,25 @@ function createDeferredPromise () {
   return { promise, resolve: res, reject: rej }
 }
 
-class ServiceWorkerGlobalScope {} // dummy
-class Window {} // dummy
-class EnvironmentSettingsObject {} // dummy
+function isAborted (fetchParams) {
+  return fetchParams.controller.state === 'aborted'
+}
+
+function isCancelled (fetchParams) {
+  return fetchParams.controller.state === 'aborted' ||
+    fetchParams.controller.state === 'terminated'
+}
+
+// https://fetch.spec.whatwg.org/#concept-method-normalize
+function normalizeMethod (method) {
+  return /^(DELETE|GET|HEAD|OPTIONS|POST|PUT)$/i.test(method)
+    ? method.toUpperCase()
+    : method
+}
 
 module.exports = {
-  ServiceWorkerGlobalScope,
-  Window,
-  EnvironmentSettingsObject,
+  isAborted,
+  isCancelled,
   createDeferredPromise,
   ReadableStreamFrom,
   toUSVString,
@@ -366,5 +377,6 @@ module.exports = {
   isFileLike,
   isValidReasonPhrase,
   sameOrigin,
-  CORBCheck
+  CORBCheck,
+  normalizeMethod
 }

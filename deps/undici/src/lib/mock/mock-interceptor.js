@@ -64,7 +64,7 @@ class MockInterceptor {
       throw new InvalidArgumentError('opts.path must be defined')
     }
     if (typeof opts.method === 'undefined') {
-      throw new InvalidArgumentError('opts.method must be defined')
+      opts.method = 'GET'
     }
     // See https://github.com/nodejs/undici/issues/1245
     // As per RFC 3986, clients are not supposed to send URI

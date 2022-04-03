@@ -95,11 +95,7 @@ setGlobalDispatcher(mockAgent)
 
 // MockPool
 const mockPool = mockAgent.get('http://localhost:3000')
-
-mockPool.intercept({
-  path: '/foo',
-  method: 'GET',
-}).reply(200, 'foo')
+mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
 
 const {
   statusCode,

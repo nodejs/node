@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "4.16.0",
+  "version": "5.0.0",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -54,10 +54,10 @@
     "test:typescript": "tsd",
     "coverage": "nyc --reporter=text --reporter=html npm run test",
     "coverage:ci": "nyc --reporter=lcov npm run test",
-    "bench": "concurrently -k -s first npm:bench:server npm:bench:run",
+    "bench": "PORT=3042 concurrently -k -s first npm:bench:server npm:bench:run",
     "bench:server": "node benchmarks/server.js",
     "prebench:run": "node benchmarks/wait.js",
-    "bench:run": "CONNECTIONS=1 node --experimental-wasm-simd benchmarks/benchmark.js && CONNECTIONS=50 node --experimental-wasm-simd benchmarks/benchmark.js",
+    "bench:run": "CONNECTIONS=1 node --experimental-wasm-simd benchmarks/benchmark.js; CONNECTIONS=50 node --experimental-wasm-simd benchmarks/benchmark.js",
     "serve:website": "docsify serve .",
     "prepare": "husky install",
     "fuzz": "jsfuzz test/fuzzing/fuzz.js corpus"

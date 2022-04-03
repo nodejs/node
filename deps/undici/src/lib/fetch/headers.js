@@ -346,11 +346,12 @@ class Headers {
     const callback = args[0]
     const thisArg = args[1]
 
-    for (let index = 0; index < this[kHeadersList].length; index += 2) {
+    const clone = this[kHeadersList].slice()
+    for (let index = 0; index < clone.length; index += 2) {
       callback.call(
         thisArg,
-        this[kHeadersList][index + 1],
-        this[kHeadersList][index],
+        clone[index + 1],
+        clone[index],
         this
       )
     }

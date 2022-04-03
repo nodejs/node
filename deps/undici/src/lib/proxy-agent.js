@@ -1,14 +1,14 @@
 'use strict'
 
-const { kProxy } = require('./core/symbols')
+const { kProxy, kClose, kDestroy } = require('./core/symbols')
 const { URL } = require('url')
 const Agent = require('./agent')
-const Dispatcher = require('./dispatcher')
+const DispatcherBase = require('./dispatcher-base')
 const { InvalidArgumentError } = require('./core/errors')
 
 const kAgent = Symbol('proxy agent')
 
-class ProxyAgent extends Dispatcher {
+class ProxyAgent extends DispatcherBase {
   constructor (opts) {
     super(opts)
     this[kProxy] = buildProxyOptions(opts)
@@ -31,8 +31,12 @@ class ProxyAgent extends Dispatcher {
     )
   }
 
-  async close () {
+  async [kClose] () {
     await this[kAgent].close()
+  }
+
+  async [kDestroy] () {
+    await this[kAgent].destroy()
   }
 }
 

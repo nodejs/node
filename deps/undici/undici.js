@@ -8,6 +8,9 @@ var __commonJS = (cb, mod) => function __require() {
 var require_symbols = __commonJS({
   "lib/core/symbols.js"(exports2, module2) {
     module2.exports = {
+      kClose: Symbol("close"),
+      kDestroy: Symbol("destroy"),
+      kDispatch: Symbol("dispatch"),
       kUrl: Symbol("url"),
       kWriting: Symbol("writing"),
       kResuming: Symbol("resuming"),
@@ -753,6 +756,138 @@ var require_dispatcher = __commonJS({
   }
 });
 
+// lib/dispatcher-base.js
+var require_dispatcher_base = __commonJS({
+  "lib/dispatcher-base.js"(exports2, module2) {
+    "use strict";
+    var Dispatcher2 = require_dispatcher();
+    var {
+      ClientDestroyedError,
+      ClientClosedError,
+      InvalidArgumentError: InvalidArgumentError2
+    } = require_errors();
+    var { kDestroy, kClose, kDispatch } = require_symbols();
+    var kDestroyed = Symbol("destroyed");
+    var kClosed = Symbol("closed");
+    var kOnDestroyed = Symbol("onDestroyed");
+    var kOnClosed = Symbol("onClosed");
+    var DispatcherBase = class extends Dispatcher2 {
+      constructor() {
+        super();
+        this[kDestroyed] = false;
+        this[kOnDestroyed] = [];
+        this[kClosed] = false;
+        this[kOnClosed] = [];
+      }
+      get destroyed() {
+        return this[kDestroyed];
+      }
+      get closed() {
+        return this[kClosed];
+      }
+      close(callback) {
+        if (callback === void 0) {
+          return new Promise((resolve, reject) => {
+            this.close((err, data) => {
+              return err ? reject(err) : resolve(data);
+            });
+          });
+        }
+        if (typeof callback !== "function") {
+          throw new InvalidArgumentError2("invalid callback");
+        }
+        if (this[kDestroyed]) {
+          queueMicrotask(() => callback(new ClientDestroyedError(), null));
+          return;
+        }
+        if (this[kClosed]) {
+          if (this[kOnClosed]) {
+            this[kOnClosed].push(callback);
+          } else {
+            queueMicrotask(() => callback(null, null));
+          }
+          return;
+        }
+        this[kClosed] = true;
+        this[kOnClosed].push(callback);
+        const onClosed = () => {
+          const callbacks = this[kOnClosed];
+          this[kOnClosed] = null;
+          for (let i = 0; i < callbacks.length; i++) {
+            callbacks[i](null, null);
+          }
+        };
+        this[kClose]().then(() => this.destroy()).then(() => {
+          queueMicrotask(onClosed);
+        });
+      }
+      destroy(err, callback) {
+        if (typeof err === "function") {
+          callback = err;
+          err = null;
+        }
+        if (callback === void 0) {
+          return new Promise((resolve, reject) => {
+            this.destroy(err, (err2, data) => {
+              return err2 ? reject(err2) : resolve(data);
+            });
+          });
+        }
+        if (typeof callback !== "function") {
+          throw new InvalidArgumentError2("invalid callback");
+        }
+        if (this[kDestroyed]) {
+          if (this[kOnDestroyed]) {
+            this[kOnDestroyed].push(callback);
+          } else {
+            queueMicrotask(() => callback(null, null));
+          }
+          return;
+        }
+        if (!err) {
+          err = new ClientDestroyedError();
+        }
+        this[kDestroyed] = true;
+        this[kOnDestroyed].push(callback);
+        const onDestroyed = () => {
+          const callbacks = this[kOnDestroyed];
+          this[kOnDestroyed] = null;
+          for (let i = 0; i < callbacks.length; i++) {
+            callbacks[i](null, null);
+          }
+        };
+        this[kDestroy](err).then(() => {
+          queueMicrotask(onDestroyed);
+        });
+      }
+      dispatch(opts, handler) {
+        if (!handler || typeof handler !== "object") {
+          throw new InvalidArgumentError2("handler must be an object");
+        }
+        try {
+          if (!opts || typeof opts !== "object") {
+            throw new InvalidArgumentError2("opts must be an object.");
+          }
+          if (this[kDestroyed]) {
+            throw new ClientDestroyedError();
+          }
+          if (this[kClosed]) {
+            throw new ClientClosedError();
+          }
+          return this[kDispatch](opts, handler);
+        } catch (err) {
+          if (typeof handler.onError !== "function") {
+            throw new InvalidArgumentError2("invalid onError method");
+          }
+          handler.onError(err);
+          return false;
+        }
+      }
+    };
+    module2.exports = DispatcherBase;
+  }
+});
+
 // lib/handler/redirect.js
 var require_redirect = __commonJS({
   "lib/handler/redirect.js"(exports2, module2) {
@@ -1336,7 +1471,7 @@ var require_client = __commonJS({
     var net = require("net");
     var util2 = require_util();
     var Request = require_request();
-    var Dispatcher2 = require_dispatcher();
+    var DispatcherBase = require_dispatcher_base();
     var RedirectHandler = require_redirect();
     var {
       RequestContentLengthMismatchError,
@@ -1346,8 +1481,6 @@ var require_client = __commonJS({
       RequestAbortedError,
       HeadersTimeoutError,
       HeadersOverflowError,
-      ClientDestroyedError,
-      ClientClosedError,
       SocketError,
       InformationalError,
       BodyTimeoutError,
@@ -1375,12 +1508,9 @@ var require_client = __commonJS({
       kNoRef,
       kKeepAliveDefaultTimeout,
       kHostHeader,
-      kClosed,
-      kDestroyed,
       kPendingIdx,
       kRunningIdx,
       kError,
-      kOnDestroyed,
       kPipelining,
       kSocket,
       kKeepAliveTimeoutValue,
@@ -1393,8 +1523,12 @@ var require_client = __commonJS({
       kConnector,
       kMaxRedirections,
       kMaxRequests,
-      kCounter
+      kCounter,
+      kClose,
+      kDestroy,
+      kDispatch
     } = require_symbols();
+    var kClosedResolve = Symbol("kClosedResolve");
     var channels = {};
     try {
       const diagnosticsChannel = require("diagnostics_channel");
@@ -1408,7 +1542,7 @@ var require_client = __commonJS({
       channels.connectError = { hasSubscribers: false };
       channels.connected = { hasSubscribers: false };
     }
-    var Client2 = class extends Dispatcher2 {
+    var Client2 = class extends DispatcherBase {
       constructor(url, {
         maxHeaderSize,
         headersTimeout,
@@ -1498,10 +1632,7 @@ var require_client = __commonJS({
         this[kKeepAliveMaxTimeout] = keepAliveMaxTimeout == null ? 6e5 : keepAliveMaxTimeout;
         this[kKeepAliveTimeoutThreshold] = keepAliveTimeoutThreshold == null ? 1e3 : keepAliveTimeoutThreshold;
         this[kKeepAliveTimeoutValue] = this[kKeepAliveDefaultTimeout];
-        this[kClosed] = false;
-        this[kDestroyed] = false;
         this[kServerName] = null;
-        this[kOnDestroyed] = [];
         this[kResuming] = 0;
         this[kNeedDrain] = 0;
         this[kHostHeader] = `host: ${this[kUrl].hostname}${this[kUrl].port ? `:${this[kUrl].port}` : ""}\r
@@ -1511,6 +1642,7 @@ var require_client = __commonJS({
         this[kStrictContentLength] = strictContentLength == null ? true : strictContentLength;
         this[kMaxRedirections] = maxRedirections;
         this[kMaxRequests] = maxRequestsPerClient;
+        this[kClosedResolve] = null;
         this[kQueue] = [];
         this[kRunningIdx] = 0;
         this[kPendingIdx] = 0;
@@ -1521,12 +1653,6 @@ var require_client = __commonJS({
       set pipelining(value) {
         this[kPipelining] = value;
         resume(this, true);
-      }
-      get destroyed() {
-        return this[kDestroyed];
-      }
-      get closed() {
-        return this[kClosed];
       }
       get [kPending]() {
         return this[kQueue].length - this[kPendingIdx];
@@ -1548,114 +1674,56 @@ var require_client = __commonJS({
         connect(this);
         this.once("connect", cb);
       }
-      dispatch(opts, handler) {
-        if (!handler || typeof handler !== "object") {
-          throw new InvalidArgumentError2("handler must be an object");
+      [kDispatch](opts, handler) {
+        const { maxRedirections = this[kMaxRedirections] } = opts;
+        if (maxRedirections) {
+          handler = new RedirectHandler(this, maxRedirections, opts, handler);
         }
-        try {
-          if (!opts || typeof opts !== "object") {
-            throw new InvalidArgumentError2("opts must be an object.");
-          }
-          if (this[kDestroyed]) {
-            throw new ClientDestroyedError();
-          }
-          if (this[kClosed]) {
-            throw new ClientClosedError();
-          }
-          const { maxRedirections = this[kMaxRedirections] } = opts;
-          if (maxRedirections) {
-            handler = new RedirectHandler(this, maxRedirections, opts, handler);
-          }
-          const origin = opts.origin || this[kUrl].origin;
-          const request = new Request(origin, opts, handler);
-          this[kQueue].push(request);
-          if (this[kResuming]) {
-          } else if (util2.bodyLength(request.body) == null && util2.isIterable(request.body)) {
-            this[kResuming] = 1;
-            process.nextTick(resume, this);
-          } else {
-            resume(this, true);
-          }
-          if (this[kResuming] && this[kNeedDrain] !== 2 && this[kBusy]) {
-            this[kNeedDrain] = 2;
-          }
-        } catch (err) {
-          if (typeof handler.onError !== "function") {
-            throw new InvalidArgumentError2("invalid onError method");
-          }
-          handler.onError(err);
+        const origin = opts.origin || this[kUrl].origin;
+        const request = new Request(origin, opts, handler);
+        this[kQueue].push(request);
+        if (this[kResuming]) {
+        } else if (util2.bodyLength(request.body) == null && util2.isIterable(request.body)) {
+          this[kResuming] = 1;
+          process.nextTick(resume, this);
+        } else {
+          resume(this, true);
+        }
+        if (this[kResuming] && this[kNeedDrain] !== 2 && this[kBusy]) {
+          this[kNeedDrain] = 2;
         }
         return this[kNeedDrain] < 2;
       }
-      close(callback) {
-        if (callback === void 0) {
-          return new Promise((resolve, reject) => {
-            this.close((err, data) => {
-              return err ? reject(err) : resolve(data);
-            });
-          });
-        }
-        if (typeof callback !== "function") {
-          throw new InvalidArgumentError2("invalid callback");
-        }
-        if (this[kDestroyed]) {
-          queueMicrotask(() => callback(new ClientDestroyedError(), null));
-          return;
-        }
-        this[kClosed] = true;
-        if (!this[kSize]) {
-          this.destroy(callback);
-        } else {
-          this[kOnDestroyed].push(callback);
-        }
-      }
-      destroy(err, callback) {
-        if (typeof err === "function") {
-          callback = err;
-          err = null;
-        }
-        if (callback === void 0) {
-          return new Promise((resolve, reject) => {
-            this.destroy(err, (err2, data) => {
-              return err2 ? reject(err2) : resolve(data);
-            });
-          });
-        }
-        if (typeof callback !== "function") {
-          throw new InvalidArgumentError2("invalid callback");
-        }
-        if (this[kDestroyed]) {
-          if (this[kOnDestroyed]) {
-            this[kOnDestroyed].push(callback);
+      async [kClose]() {
+        return new Promise((resolve) => {
+          if (!this[kSize]) {
+            this.destroy(resolve);
           } else {
-            queueMicrotask(() => callback(null, null));
+            this[kClosedResolve] = resolve;
           }
-          return;
-        }
-        if (!err) {
-          err = new ClientDestroyedError();
-        }
-        const requests = this[kQueue].splice(this[kPendingIdx]);
-        for (let i = 0; i < requests.length; i++) {
-          const request = requests[i];
-          errorRequest(this, request, err);
-        }
-        this[kClosed] = true;
-        this[kDestroyed] = true;
-        this[kOnDestroyed].push(callback);
-        const onDestroyed = () => {
-          const callbacks = this[kOnDestroyed];
-          this[kOnDestroyed] = null;
-          for (let i = 0; i < callbacks.length; i++) {
-            callbacks[i](null, null);
+        });
+      }
+      async [kDestroy](err) {
+        return new Promise((resolve) => {
+          const requests = this[kQueue].splice(this[kPendingIdx]);
+          for (let i = 0; i < requests.length; i++) {
+            const request = requests[i];
+            errorRequest(this, request, err);
           }
-        };
-        if (!this[kSocket]) {
-          queueMicrotask(onDestroyed);
-        } else {
-          util2.destroy(this[kSocket].on("close", onDestroyed), err);
-        }
-        resume(this);
+          const callback = () => {
+            if (this[kClosedResolve]) {
+              this[kClosedResolve]();
+              this[kClosedResolve] = null;
+            }
+            resolve();
+          };
+          if (!this[kSocket]) {
+            queueMicrotask(callback);
+          } else {
+            util2.destroy(this[kSocket].on("close", callback), err);
+          }
+          resume(this);
+        });
       }
     };
     var constants = require_constants();
@@ -1839,7 +1907,6 @@ var require_client = __commonJS({
         try {
           try {
             currentParser = this;
-            this.llhttp.llhttp_finish(this.ptr);
           } finally {
             currentParser = null;
           }
@@ -2156,7 +2223,7 @@ var require_client = __commonJS({
       this[kParser] = null;
       const err = this[kError] || new SocketError("closed", util2.getSocketInfo(this));
       client[kSocket] = null;
-      if (client[kDestroyed]) {
+      if (client.destroyed) {
         assert(client[kPending] === 0);
         const requests = client[kQueue].splice(client[kRunningIdx]);
         for (let i = 0; i < requests.length; i++) {
@@ -2291,13 +2358,13 @@ var require_client = __commonJS({
     }
     function _resume(client, sync) {
       while (true) {
-        if (client[kDestroyed]) {
+        if (client.destroyed) {
           assert(client[kPending] === 0);
           return;
         }
-        if (client[kClosed] && !client[kSize]) {
-          client.destroy(util2.nop);
-          continue;
+        if (client.closed && !client[kSize]) {
+          client.destroy();
+          return;
         }
         const socket = client[kSocket];
         if (socket) {
@@ -2807,20 +2874,13 @@ var require_pool_stats = __commonJS({
 var require_pool_base = __commonJS({
   "lib/pool-base.js"(exports2, module2) {
     "use strict";
-    var Dispatcher2 = require_dispatcher();
-    var {
-      ClientDestroyedError,
-      ClientClosedError,
-      InvalidArgumentError: InvalidArgumentError2
-    } = require_errors();
+    var DispatcherBase = require_dispatcher_base();
     var FixedQueue = require_fixed_queue();
-    var { kConnected, kSize, kRunning, kPending, kQueued, kBusy, kFree, kUrl } = require_symbols();
+    var { kConnected, kSize, kRunning, kPending, kQueued, kBusy, kFree, kUrl, kClose, kDestroy, kDispatch } = require_symbols();
     var PoolStats = require_pool_stats();
     var kClients = Symbol("clients");
     var kNeedDrain = Symbol("needDrain");
     var kQueue = Symbol("queue");
-    var kDestroyed = Symbol("destroyed");
-    var kClosedPromise = Symbol("closed promise");
     var kClosedResolve = Symbol("closed resolve");
     var kOnDrain = Symbol("onDrain");
     var kOnConnect = Symbol("onConnect");
@@ -2830,15 +2890,11 @@ var require_pool_base = __commonJS({
     var kAddClient = Symbol("add client");
     var kRemoveClient = Symbol("remove client");
     var kStats = Symbol("stats");
-    var PoolBase = class extends Dispatcher2 {
+    var PoolBase = class extends DispatcherBase {
       constructor() {
         super();
         this[kQueue] = new FixedQueue();
-        this[kClosedPromise] = null;
-        this[kClosedResolve] = null;
-        this[kDestroyed] = false;
         this[kClients] = [];
-        this[kNeedDrain] = false;
         this[kQueued] = 0;
         const pool = this;
         this[kOnDrain] = function onDrain(origin, targets) {
@@ -2905,51 +2961,16 @@ var require_pool_base = __commonJS({
       get stats() {
         return this[kStats];
       }
-      get destroyed() {
-        return this[kDestroyed];
-      }
-      get closed() {
-        return this[kClosedPromise] != null;
-      }
-      close(cb) {
-        try {
-          if (this[kDestroyed]) {
-            throw new ClientDestroyedError();
-          }
-          if (!this[kClosedPromise]) {
-            if (this[kQueue].isEmpty()) {
-              this[kClosedPromise] = Promise.all(this[kClients].map((c) => c.close()));
-            } else {
-              this[kClosedPromise] = new Promise((resolve) => {
-                this[kClosedResolve] = resolve;
-              });
-            }
-            this[kClosedPromise] = this[kClosedPromise].then(() => {
-              this[kDestroyed] = true;
-            });
-          }
-          if (cb) {
-            this[kClosedPromise].then(() => cb(null, null));
-          } else {
-            return this[kClosedPromise];
-          }
-        } catch (err) {
-          if (cb) {
-            cb(err);
-          } else {
-            return Promise.reject(err);
-          }
+      async [kClose]() {
+        if (this[kQueue].isEmpty()) {
+          return Promise.all(this[kClients].map((c) => c.close()));
+        } else {
+          return new Promise((resolve) => {
+            this[kClosedResolve] = resolve;
+          });
         }
       }
-      destroy(err, cb) {
-        this[kDestroyed] = true;
-        if (typeof err === "function") {
-          cb = err;
-          err = null;
-        }
-        if (!err) {
-          err = new ClientDestroyedError();
-        }
+      async [kDestroy](err) {
         while (true) {
           const item = this[kQueue].shift();
           if (!item) {
@@ -2957,38 +2978,17 @@ var require_pool_base = __commonJS({
           }
           item.handler.onError(err);
         }
-        const promise = Promise.all(this[kClients].map((c) => c.destroy(err)));
-        if (cb) {
-          promise.then(() => cb(null, null));
-        } else {
-          return promise;
-        }
+        return Promise.all(this[kClients].map((c) => c.destroy(err)));
       }
-      dispatch(opts, handler) {
-        if (!handler || typeof handler !== "object") {
-          throw new InvalidArgumentError2("handler must be an object");
-        }
-        try {
-          if (this[kDestroyed]) {
-            throw new ClientDestroyedError();
-          }
-          if (this[kClosedPromise]) {
-            throw new ClientClosedError();
-          }
-          const dispatcher = this[kGetDispatcher]();
-          if (!dispatcher) {
-            this[kNeedDrain] = true;
-            this[kQueue].push({ opts, handler });
-            this[kQueued]++;
-          } else if (!dispatcher.dispatch(opts, handler)) {
-            dispatcher[kNeedDrain] = true;
-            this[kNeedDrain] = !this[kGetDispatcher]();
-          }
-        } catch (err) {
-          if (typeof handler.onError !== "function") {
-            throw new InvalidArgumentError2("invalid onError method");
-          }
-          handler.onError(err);
+      [kDispatch](opts, handler) {
+        const dispatcher = this[kGetDispatcher]();
+        if (!dispatcher) {
+          this[kNeedDrain] = true;
+          this[kQueue].push({ opts, handler });
+          this[kQueued]++;
+        } else if (!dispatcher.dispatch(opts, handler)) {
+          dispatcher[kNeedDrain] = true;
+          this[kNeedDrain] = !this[kGetDispatcher]();
         }
         return !this[kNeedDrain];
       }
@@ -3213,20 +3213,14 @@ var require_dispatcher_weakref = __commonJS({
 var require_agent = __commonJS({
   "lib/agent.js"(exports2, module2) {
     "use strict";
-    var {
-      ClientClosedError,
-      InvalidArgumentError: InvalidArgumentError2,
-      ClientDestroyedError
-    } = require_errors();
-    var { kClients, kRunning } = require_symbols();
-    var Dispatcher2 = require_dispatcher();
+    var { InvalidArgumentError: InvalidArgumentError2 } = require_errors();
+    var { kClients, kRunning, kClose, kDestroy, kDispatch } = require_symbols();
+    var DispatcherBase = require_dispatcher_base();
     var Pool2 = require_pool();
     var Client2 = require_client();
     var util2 = require_util();
     var RedirectHandler = require_redirect();
     var { WeakRef, FinalizationRegistry: FinalizationRegistry2 } = require_dispatcher_weakref()();
-    var kDestroyed = Symbol("destroyed");
-    var kClosed = Symbol("closed");
     var kOnConnect = Symbol("onConnect");
     var kOnDisconnect = Symbol("onDisconnect");
     var kOnConnectionError = Symbol("onConnectionError");
@@ -3238,7 +3232,7 @@ var require_agent = __commonJS({
     function defaultFactory(origin, opts) {
       return opts && opts.connections === 1 ? new Client2(origin, opts) : new Pool2(origin, opts);
     }
-    var Agent2 = class extends Dispatcher2 {
+    var Agent2 = class extends DispatcherBase {
       constructor({ factory = defaultFactory, maxRedirections = 0, connect, ...options } = {}) {
         super();
         if (typeof factory !== "function") {
@@ -3263,8 +3257,6 @@ var require_agent = __commonJS({
             this[kClients].delete(key);
           }
         });
-        this[kClosed] = false;
-        this[kDestroyed] = false;
         const agent = this;
         this[kOnDrain] = (origin, targets) => {
           agent.emit("drain", origin, [agent, ...targets]);
@@ -3289,57 +3281,28 @@ var require_agent = __commonJS({
         }
         return ret;
       }
-      dispatch(opts, handler) {
-        if (!handler || typeof handler !== "object") {
-          throw new InvalidArgumentError2("handler must be an object.");
+      [kDispatch](opts, handler) {
+        let key;
+        if (opts.origin && (typeof opts.origin === "string" || opts.origin instanceof URL)) {
+          key = String(opts.origin);
+        } else {
+          throw new InvalidArgumentError2("opts.origin must be a non-empty string or URL.");
         }
-        try {
-          if (!opts || typeof opts !== "object") {
-            throw new InvalidArgumentError2("opts must be an object.");
-          }
-          let key;
-          if (opts.origin && (typeof opts.origin === "string" || opts.origin instanceof URL)) {
-            key = String(opts.origin);
-          } else {
-            throw new InvalidArgumentError2("opts.origin must be a non-empty string or URL.");
-          }
-          if (this[kDestroyed]) {
-            throw new ClientDestroyedError();
-          }
-          if (this[kClosed]) {
-            throw new ClientClosedError();
-          }
-          const ref = this[kClients].get(key);
-          let dispatcher = ref ? ref.deref() : null;
-          if (!dispatcher) {
-            dispatcher = this[kFactory](opts.origin, this[kOptions]).on("drain", this[kOnDrain]).on("connect", this[kOnConnect]).on("disconnect", this[kOnDisconnect]).on("connectionError", this[kOnConnectionError]);
-            this[kClients].set(key, new WeakRef(dispatcher));
-            this[kFinalizer].register(dispatcher, key);
-          }
-          const { maxRedirections = this[kMaxRedirections] } = opts;
-          if (maxRedirections != null && maxRedirections !== 0) {
-            opts = { ...opts, maxRedirections: 0 };
-            handler = new RedirectHandler(this, maxRedirections, opts, handler);
-          }
-          return dispatcher.dispatch(opts, handler);
-        } catch (err) {
-          if (typeof handler.onError !== "function") {
-            throw new InvalidArgumentError2("invalid onError method");
-          }
-          handler.onError(err);
+        const ref = this[kClients].get(key);
+        let dispatcher = ref ? ref.deref() : null;
+        if (!dispatcher) {
+          dispatcher = this[kFactory](opts.origin, this[kOptions]).on("drain", this[kOnDrain]).on("connect", this[kOnConnect]).on("disconnect", this[kOnDisconnect]).on("connectionError", this[kOnConnectionError]);
+          this[kClients].set(key, new WeakRef(dispatcher));
+          this[kFinalizer].register(dispatcher, key);
         }
-      }
-      get closed() {
-        return this[kClosed];
-      }
-      get destroyed() {
-        return this[kDestroyed];
-      }
-      close(callback) {
-        if (callback != null && typeof callback !== "function") {
-          throw new InvalidArgumentError2("callback must be a function");
+        const { maxRedirections = this[kMaxRedirections] } = opts;
+        if (maxRedirections != null && maxRedirections !== 0) {
+          opts = { ...opts, maxRedirections: 0 };
+          handler = new RedirectHandler(this, maxRedirections, opts, handler);
         }
-        this[kClosed] = true;
+        return dispatcher.dispatch(opts, handler);
+      }
+      async [kClose]() {
         const closePromises = [];
         for (const ref of this[kClients].values()) {
           const client = ref.deref();
@@ -3347,21 +3310,9 @@ var require_agent = __commonJS({
             closePromises.push(client.close());
           }
         }
-        if (!callback) {
-          return Promise.all(closePromises);
-        }
-        Promise.all(closePromises).then(() => process.nextTick(callback));
+        await Promise.all(closePromises);
       }
-      destroy(err, callback) {
-        if (typeof err === "function") {
-          callback = err;
-          err = null;
-        }
-        if (callback != null && typeof callback !== "function") {
-          throw new InvalidArgumentError2("callback must be a function");
-        }
-        this[kClosed] = true;
-        this[kDestroyed] = true;
+      async [kDestroy](err) {
         const destroyPromises = [];
         for (const ref of this[kClients].values()) {
           const client = ref.deref();
@@ -3369,10 +3320,7 @@ var require_agent = __commonJS({
             destroyPromises.push(client.destroy(err));
           }
         }
-        if (!callback) {
-          return Promise.all(destroyPromises);
-        }
-        Promise.all(destroyPromises).then(() => process.nextTick(callback));
+        await Promise.all(destroyPromises);
       }
     };
     module2.exports = Agent2;
@@ -4400,6 +4348,14 @@ var require_mock_utils = __commonJS({
     }
     function matchHeaders(mockDispatch2, headers) {
       if (typeof mockDispatch2.headers === "function") {
+        if (Array.isArray(headers)) {
+          const clone = headers.slice();
+          const entries = [];
+          for (let index = 0; index < clone.length; index += 2) {
+            entries.push([clone[index], clone[index + 1]]);
+          }
+          headers = Object.fromEntries(entries);
+        }
         return mockDispatch2.headers(headers ? lowerCaseEntries(headers) : {});
       }
       if (typeof mockDispatch2.headers === "undefined") {
@@ -4633,7 +4589,7 @@ var require_mock_interceptor = __commonJS({
           throw new InvalidArgumentError2("opts.path must be defined");
         }
         if (typeof opts.method === "undefined") {
-          throw new InvalidArgumentError2("opts.method must be defined");
+          opts.method = "GET";
         }
         if (typeof opts.path === "string") {
           const parsedURL = new URL(opts.path, "data://");
@@ -4936,13 +4892,13 @@ var require_mock_agent = __commonJS({
 var require_proxy_agent = __commonJS({
   "lib/proxy-agent.js"(exports2, module2) {
     "use strict";
-    var { kProxy } = require_symbols();
+    var { kProxy, kClose, kDestroy } = require_symbols();
     var { URL: URL2 } = require("url");
     var Agent2 = require_agent();
-    var Dispatcher2 = require_dispatcher();
+    var DispatcherBase = require_dispatcher_base();
     var { InvalidArgumentError: InvalidArgumentError2 } = require_errors();
     var kAgent = Symbol("proxy agent");
-    var ProxyAgent2 = class extends Dispatcher2 {
+    var ProxyAgent2 = class extends DispatcherBase {
       constructor(opts) {
         super(opts);
         this[kProxy] = buildProxyOptions(opts);
@@ -4960,8 +4916,11 @@ var require_proxy_agent = __commonJS({
           }
         }, handler);
       }
-      async close() {
+      async [kClose]() {
         await this[kAgent].close();
+      }
+      async [kDestroy]() {
+        await this[kAgent].destroy();
       }
     };
     function buildProxyOptions(opts) {
@@ -5069,9 +5028,11 @@ var require_constants2 = __commonJS({
       "xslt",
       ""
     ];
+    var corsSafeListedResponseHeaderNames = [];
     module2.exports = {
       subresource,
       forbiddenResponseHeaderNames,
+      corsSafeListedResponseHeaderNames,
       forbiddenMethods,
       requestBodyHeader,
       referrerPolicy,
@@ -5320,8 +5281,9 @@ var require_headers = __commonJS({
         }
         const callback = args[0];
         const thisArg = args[1];
-        for (let index = 0; index < this[kHeadersList].length; index += 2) {
-          callback.call(thisArg, this[kHeadersList][index + 1], this[kHeadersList][index], this);
+        const clone = this[kHeadersList].slice();
+        for (let index = 0; index < clone.length; index += 2) {
+          callback.call(thisArg, clone[index + 1], clone[index], this);
         }
       }
       [Symbol.for("nodejs.util.inspect.custom")]() {
@@ -5625,7 +5587,7 @@ var require_util2 = __commonJS({
     function appendFetchMetadata(httpRequest) {
       let header = null;
       header = httpRequest.mode;
-      httpRequest.headersList.append("sec-fetch-mode", header);
+      httpRequest.headersList.set("sec-fetch-mode", header);
     }
     function appendRequestOriginHeader(request) {
       let serializedOrigin = request.origin;
@@ -5707,16 +5669,18 @@ var require_util2 = __commonJS({
       });
       return { promise, resolve: res, reject: rej };
     }
-    var ServiceWorkerGlobalScope = class {
-    };
-    var Window = class {
-    };
-    var EnvironmentSettingsObject = class {
-    };
+    function isAborted(fetchParams) {
+      return fetchParams.controller.state === "aborted";
+    }
+    function isCancelled(fetchParams) {
+      return fetchParams.controller.state === "aborted" || fetchParams.controller.state === "terminated";
+    }
+    function normalizeMethod(method) {
+      return /^(DELETE|GET|HEAD|OPTIONS|POST|PUT)$/i.test(method) ? method.toUpperCase() : method;
+    }
     module2.exports = {
-      ServiceWorkerGlobalScope,
-      Window,
-      EnvironmentSettingsObject,
+      isAborted,
+      isCancelled,
       createDeferredPromise,
       ReadableStreamFrom,
       toUSVString,
@@ -5742,7 +5706,8 @@ var require_util2 = __commonJS({
       isFileLike,
       isValidReasonPhrase,
       sameOrigin,
-      CORBCheck
+      CORBCheck,
+      normalizeMethod
     };
   }
 });
@@ -6138,14 +6103,16 @@ var require_response = __commonJS({
   "lib/fetch/response.js"(exports2, module2) {
     "use strict";
     var { Headers, HeadersList, fill } = require_headers();
+    var { AbortError } = require_errors();
     var { extractBody, cloneBody, mixinBody } = require_body();
     var util2 = require_util();
     var { kEnumerableProperty } = util2;
-    var { responseURL, isValidReasonPhrase, toUSVString } = require_util2();
+    var { responseURL, isValidReasonPhrase, toUSVString, isCancelled, isAborted } = require_util2();
     var {
       redirectStatus,
       nullBodyStatus,
-      forbiddenResponseHeaderNames
+      forbiddenResponseHeaderNames,
+      corsSafeListedResponseHeaderNames
     } = require_constants2();
     var { kState, kHeaders, kGuard, kRealm } = require_symbols2();
     var { kHeadersList } = require_symbols();
@@ -6329,10 +6296,10 @@ var require_response = __commonJS({
     }
     function makeResponse(init) {
       return {
-        internalResponse: null,
         aborted: false,
         rangeRequested: false,
         timingAllowPassed: false,
+        requestIncludesCredentials: false,
         type: "default",
         status: 200,
         timingInfo: null,
@@ -6347,55 +6314,92 @@ var require_response = __commonJS({
       return makeResponse({
         type: "error",
         status: 0,
-        error: reason instanceof Error ? reason : new Error(reason ? String(reason) : reason),
+        error: reason instanceof Error ? reason : new Error(reason ? String(reason) : reason, {
+          cause: reason instanceof Error ? reason : void 0
+        }),
         aborted: reason && reason.name === "AbortError"
+      });
+    }
+    function makeFilteredResponse(response, state) {
+      state = {
+        internalResponse: response,
+        ...state
+      };
+      return new Proxy(response, {
+        get(target, p) {
+          return p in state ? state[p] : target[p];
+        },
+        set(target, p, value) {
+          assert(!(p in state));
+          target[p] = value;
+          return true;
+        }
+      });
+    }
+    function makeFilteredHeadersList(headersList, filter) {
+      return new Proxy(headersList, {
+        get(target, prop) {
+          if (prop === "get" || prop === "has") {
+            return (name) => filter(name) ? target[prop](name) : void 0;
+          } else if (prop === "slice") {
+            return (...args) => {
+              assert(args.length === 0);
+              const arr = [];
+              for (let index = 0; index < target.length; index += 2) {
+                if (filter(target[index])) {
+                  arr.push(target[index], target[index + 1]);
+                }
+              }
+              return arr;
+            };
+          } else {
+            return target[prop];
+          }
+        }
       });
     }
     function filterResponse(response, type) {
       if (type === "basic") {
-        const headers = [];
-        for (let n = 0; n < response.headersList.length; n += 2) {
-          if (!forbiddenResponseHeaderNames.includes(response.headersList[n])) {
-            headers.push(response.headersList[n + 0], response.headersList[n + 1]);
-          }
-        }
-        return makeResponse({
-          ...response,
-          internalResponse: response,
-          headersList: new HeadersList(...headers),
-          type: "basic"
+        return makeFilteredResponse(response, {
+          type: "basic",
+          headersList: makeFilteredHeadersList(response.headersList, (name) => !forbiddenResponseHeaderNames.includes(name))
         });
       } else if (type === "cors") {
-        return makeResponse({
-          ...response,
-          internalResponse: response,
-          type: "cors"
+        return makeFilteredResponse(response, {
+          type: "cors",
+          headersList: makeFilteredHeadersList(response.headersList, (name) => !corsSafeListedResponseHeaderNames.includes(name))
         });
       } else if (type === "opaque") {
-        return makeResponse({
-          ...response,
-          internalResponse: response,
+        return makeFilteredResponse(response, {
           type: "opaque",
-          urlList: [],
+          urlList: Object.freeze([]),
           status: 0,
           statusText: "",
           body: null
         });
       } else if (type === "opaqueredirect") {
-        return makeResponse({
-          ...response,
-          internalResponse: response,
+        return makeFilteredResponse(response, {
           type: "opaqueredirect",
           status: 0,
           statusText: "",
-          headersList: new HeadersList(),
+          headersList: makeFilteredHeadersList(response.headersList, () => false),
           body: null
         });
       } else {
         assert(false);
       }
     }
-    module2.exports = { makeNetworkError, makeResponse, filterResponse, Response };
+    function makeAppropriateNetworkError(fetchParams) {
+      assert(isCancelled(fetchParams));
+      return isAborted(fetchParams) ? makeNetworkError(new AbortError()) : makeNetworkError(fetchParams.controller.terminated.reason);
+    }
+    module2.exports = {
+      makeNetworkError,
+      makeResponse,
+      makeAppropriateNetworkError,
+      filterResponse,
+      Response
+    };
   }
 });
 
@@ -6408,9 +6412,9 @@ var require_request2 = __commonJS({
     var util2 = require_util();
     var {
       isValidHTTPToken,
-      EnvironmentSettingsObject,
       sameOrigin,
-      toUSVString
+      toUSVString,
+      normalizeMethod
     } = require_util2();
     var {
       forbiddenMethods,
@@ -6453,9 +6457,7 @@ var require_request2 = __commonJS({
           try {
             parsedURL = new URL(input, baseUrl);
           } catch (err) {
-            const error = new TypeError("Failed to parse URL from " + input);
-            error.cause = err;
-            throw error;
+            throw new TypeError("Failed to parse URL from " + input, { cause: err });
           }
           if (parsedURL.username || parsedURL.password) {
             throw new TypeError("Request cannot be constructed from a URL that includes credentials: " + input);
@@ -6469,7 +6471,7 @@ var require_request2 = __commonJS({
         }
         const origin = this[kRealm].settingsObject.origin;
         let window = "client";
-        if (request.window instanceof EnvironmentSettingsObject && sameOrigin(request.window, origin)) {
+        if (request.window?.constructor?.name === "EnvironmentSettingsObject" && sameOrigin(request.window, origin)) {
           window = request.window;
         }
         if (init.window !== void 0 && init.window != null) {
@@ -6482,7 +6484,7 @@ var require_request2 = __commonJS({
           method: request.method,
           headersList: request.headersList,
           unsafeRequest: request.unsafeRequest,
-          client: request.client,
+          client: this[kRealm].settingsObject,
           window,
           priority: request.priority,
           origin: request.origin,
@@ -6496,7 +6498,7 @@ var require_request2 = __commonJS({
           keepalive: request.keepalive,
           reloadNavigation: request.reloadNavigation,
           historyNavigation: request.historyNavigation,
-          urlList: request.urlList
+          urlList: [...request.urlList]
         });
         if (Object.keys(init).length > 0) {
           if (request.mode === "navigate") {
@@ -6519,9 +6521,7 @@ var require_request2 = __commonJS({
             try {
               parsedReferrer = new URL(referrer, baseUrl);
             } catch (err) {
-              const error = new TypeError(`Referrer "${referrer}" is not a valid URL.`);
-              error.cause = err;
-              throw error;
+              throw new TypeError(`Referrer "${referrer}" is not a valid URL.`, { cause: err });
             }
             request.referrer = parsedReferrer;
           }
@@ -6582,7 +6582,7 @@ var require_request2 = __commonJS({
           if (forbiddenMethods.indexOf(method.toUpperCase()) !== -1) {
             throw TypeError(`'${init.method}' HTTP method is unsupported.`);
           }
-          method = init.method.toUpperCase();
+          method = normalizeMethod(init.method);
           request.method = method;
         }
         if (init.signal !== void 0) {
@@ -6767,7 +6767,7 @@ var require_request2 = __commonJS({
         if (!(this instanceof Request)) {
           throw new TypeError("Illegal invocation");
         }
-        if (this.bodyUsed || this.body && this.body.locked) {
+        if (this.bodyUsed || this.body?.locked) {
           throw new TypeError("unusable");
         }
         const clonedRequest = cloneRequest(this[kState]);
@@ -7067,6 +7067,7 @@ var require_fetch = __commonJS({
     var {
       Response,
       makeNetworkError,
+      makeAppropriateNetworkError,
       filterResponse,
       makeResponse
     } = require_response();
@@ -7074,8 +7075,6 @@ var require_fetch = __commonJS({
     var { Request, makeRequest } = require_request2();
     var zlib = require("zlib");
     var {
-      ServiceWorkerGlobalScope,
-      Window,
       matchRequestIntegrity,
       makePolicyContainer,
       clonePolicyContainer,
@@ -7095,7 +7094,9 @@ var require_fetch = __commonJS({
       createDeferredPromise,
       isBlobLike,
       CORBCheck,
-      sameOrigin
+      sameOrigin,
+      isCancelled,
+      isAborted
     } = require_util2();
     var { kState, kHeaders, kGuard, kRealm } = require_symbols2();
     var { AbortError } = require_errors();
@@ -7110,25 +7111,35 @@ var require_fetch = __commonJS({
     } = require_constants2();
     var { kHeadersList } = require_symbols();
     var EE = require("events");
-    var { PassThrough, pipeline } = require("stream");
+    var { Readable, pipeline } = require("stream");
     var { isErrored, isReadable } = require_util();
-    var { kIsMockActive } = require_mock_symbols();
     var { dataURLProcessor } = require_dataURL();
+    var { kIsMockActive } = require_mock_symbols();
+    var { TransformStream } = require("stream/web");
     var resolveObjectURL;
     var ReadableStream;
     var Fetch = class extends EE {
       constructor(dispatcher) {
         super();
         this.dispatcher = dispatcher;
-        this.terminated = null;
         this.connection = null;
         this.dump = false;
+        this.state = "ongoing";
       }
-      terminate({ reason, aborted } = {}) {
-        if (this.terminated) {
+      terminate(reason) {
+        if (this.state !== "ongoing") {
           return;
         }
-        this.terminated = { aborted, reason };
+        this.state = "terminated";
+        this.connection?.destroy(reason);
+        this.emit("terminated", reason);
+      }
+      abort() {
+        if (this.state !== "ongoing") {
+          return;
+        }
+        const reason = new AbortError();
+        this.state = "aborted";
         this.connection?.destroy(reason);
         this.emit("terminated", reason);
       }
@@ -7142,25 +7153,27 @@ var require_fetch = __commonJS({
       }
       const resource = args[0];
       const init = args.length >= 1 ? args[1] ?? {} : {};
-      const context = new Fetch(this);
       const p = createDeferredPromise();
       const requestObject = new Request(resource, init);
       const request = requestObject[kState];
       if (requestObject.signal.aborted) {
-        abortFetch.call(context, p, request, null);
+        abortFetch(p, request, null);
         return p.promise;
       }
-      const globalObject = request.client?.globalObject;
-      if (globalObject instanceof ServiceWorkerGlobalScope) {
+      const globalObject = request.client.globalObject;
+      if (globalObject?.constructor?.name === "ServiceWorkerGlobalScope") {
         request.serviceWorkers = "none";
       }
       let responseObject = null;
       const relevantRealm = null;
       let locallyAborted = false;
+      let controller = null;
       requestObject.signal.addEventListener("abort", () => {
         locallyAborted = true;
-        abortFetch.call(context, p, request, responseObject);
-        context.terminate({ aborted: true });
+        abortFetch(p, request, responseObject);
+        if (controller != null) {
+          controller.abort();
+        }
       }, { once: true });
       const handleFetchDone = (response) => finalizeAndReportTiming(response, "fetch");
       const processResponse = (response) => {
@@ -7168,7 +7181,7 @@ var require_fetch = __commonJS({
           return;
         }
         if (response.aborted) {
-          abortFetch.call(context, p, request, responseObject);
+          abortFetch(p, request, responseObject);
           return;
         }
         if (response.type === "error") {
@@ -7183,12 +7196,11 @@ var require_fetch = __commonJS({
         responseObject[kHeaders][kRealm] = relevantRealm;
         p.resolve(responseObject);
       };
-      fetching.call(context, {
+      controller = fetching({
         request,
         processResponseEndOfBody: handleFetchDone,
-        processResponse
-      }).catch((err) => {
-        p.reject(err);
+        processResponse,
+        dispatcher: this
       });
       return p.promise;
     }
@@ -7251,7 +7263,8 @@ var require_fetch = __commonJS({
       processResponse,
       processResponseEndOfBody,
       processResponseConsumeBody,
-      useParallelQueue = false
+      useParallelQueue = false,
+      dispatcher
     }) {
       let taskDestination = null;
       let crossOriginIsolatedCapability = false;
@@ -7264,6 +7277,7 @@ var require_fetch = __commonJS({
         startTime: currenTime
       });
       const fetchParams = {
+        controller: new Fetch(dispatcher),
         request,
         timingInfo,
         processRequestBodyChunkLength,
@@ -7276,7 +7290,7 @@ var require_fetch = __commonJS({
       };
       assert(!request.body || request.body.stream);
       if (request.window === "client") {
-        request.window = request.client?.globalObject instanceof Window ? request.client : "no-window";
+        request.window = request.client?.globalObject?.constructor?.name === "Window" ? request.client : "no-window";
       }
       if (request.origin === "client") {
         request.origin = request.client?.origin;
@@ -7299,10 +7313,12 @@ var require_fetch = __commonJS({
       }
       if (subresource.includes(request.destination)) {
       }
-      return mainFetch.call(this, fetchParams);
+      mainFetch(fetchParams).catch((err) => {
+        fetchParams.controller.terminate(err);
+      });
+      return fetchParams.controller;
     }
     async function mainFetch(fetchParams, recursive = false) {
-      const context = this;
       const request = fetchParams.request;
       let response = null;
       if (request.localURLsOnly && !/^(about|blob|data):/.test(requestCurrentURL(request).protocol)) {
@@ -7323,7 +7339,7 @@ var require_fetch = __commonJS({
           const currentURL = requestCurrentURL(request);
           if (sameOrigin(currentURL, request.url) && request.responseTainting === "basic" || currentURL.protocol === "data:" || (request.mode === "navigate" || request.mode === "websocket")) {
             request.responseTainting = "basic";
-            return await schemeFetch.call(this, fetchParams);
+            return await schemeFetch(fetchParams);
           }
           if (request.mode === "same-origin") {
             return makeNetworkError('request mode cannot be "same-origin"');
@@ -7333,7 +7349,7 @@ var require_fetch = __commonJS({
               return makeNetworkError('redirect mode cannot be "follow" for "no-cors" request');
             }
             request.responseTainting = "opaque";
-            const noCorsResponse = await schemeFetch.call(this, fetchParams);
+            const noCorsResponse = await schemeFetch(fetchParams);
             if (noCorsResponse.status === 0 || CORBCheck(request, noCorsResponse) === "allowed") {
               return noCorsResponse;
             }
@@ -7343,7 +7359,7 @@ var require_fetch = __commonJS({
             return makeNetworkError("URL scheme must be a HTTP(S) scheme");
           }
           request.responseTainting = "cors";
-          return await httpFetch.call(this, fetchParams).catch((err) => makeNetworkError(err));
+          return await httpFetch(fetchParams);
         })();
       }
       if (recursive) {
@@ -7374,10 +7390,10 @@ var require_fetch = __commonJS({
       }
       if (response.status !== 0 && (request.method === "HEAD" || request.method === "CONNECT" || nullBodyStatus.includes(internalResponse.status))) {
         internalResponse.body = null;
-        context.dump = true;
+        fetchParams.controller.dump = true;
       }
       if (request.integrity) {
-        const processBodyError = (reason) => fetchFinale.call(context, fetchParams, makeNetworkError(reason));
+        const processBodyError = (reason) => fetchFinale(fetchParams, makeNetworkError(reason));
         if (request.responseTainting === "opaque" || response.body == null) {
           processBodyError(response.error);
           return;
@@ -7388,7 +7404,7 @@ var require_fetch = __commonJS({
             return;
           }
           response.body = safelyExtractBody(bytes)[0];
-          fetchFinale.call(context, fetchParams, response);
+          fetchFinale(fetchParams, response);
         };
         try {
           processBody(await response.arrayBuffer());
@@ -7396,11 +7412,10 @@ var require_fetch = __commonJS({
           processBodyError(err);
         }
       } else {
-        fetchFinale.call(context, fetchParams, response);
+        fetchFinale(fetchParams, response);
       }
     }
     async function schemeFetch(fetchParams) {
-      const context = this;
       const { request } = fetchParams;
       const {
         protocol: scheme,
@@ -7422,15 +7437,7 @@ var require_fetch = __commonJS({
           return makeNetworkError("invalid path called");
         }
         case "blob:": {
-          let onRequestAborted = function() {
-            const aborted = context.terminated.aborted;
-            if (aborted) {
-              return makeNetworkError(new AbortError());
-            }
-            return makeNetworkError(context.terminated.reason);
-          };
           resolveObjectURL ??= require("buffer").resolveObjectURL;
-          context.on("terminated", onRequestAborted);
           const currentURL = requestCurrentURL(request);
           if (currentURL.search.length !== 0) {
             return makeNetworkError("NetworkError when attempting to fetch resource.");
@@ -7443,7 +7450,6 @@ var require_fetch = __commonJS({
           response.headersList.set("content-length", `${blob.size}`);
           response.headersList.set("content-type", blob.type);
           response.body = extractBody(blob)[0];
-          context.off("terminated", onRequestAborted);
           return response;
         }
         case "data:": {
@@ -7472,7 +7478,7 @@ var require_fetch = __commonJS({
               "content-type",
               contentType
             ],
-            body: dataURLStruct.body
+            body: extractBody(dataURLStruct.body)[0]
           });
         }
         case "file:": {
@@ -7480,7 +7486,7 @@ var require_fetch = __commonJS({
         }
         case "http:":
         case "https:": {
-          return await httpFetch.call(this, fetchParams).catch((err) => makeNetworkError(err));
+          return await httpFetch(fetchParams).catch((err) => makeNetworkError(err));
         }
         default: {
           return makeNetworkError("unknown scheme");
@@ -7490,26 +7496,54 @@ var require_fetch = __commonJS({
     function finalizeResponse(fetchParams, response) {
       fetchParams.request.done = true;
       if (fetchParams.processResponseDone != null) {
-        fetchParams.processResponseDone(response);
+        queueMicrotask(() => fetchParams.processResponseDone(response));
       }
     }
-    function fetchFinale(fetchParams, response) {
-      const context = this;
+    async function fetchFinale(fetchParams, response) {
       if (response.type === "error") {
         response.urlList = [fetchParams.request.urlList[0]];
         response.timingInfo = createOpaqueTimingInfo({
           startTime: fetchParams.timingInfo.startTime
         });
       }
+      const processResponseEndOfBody = () => {
+        fetchParams.request.done = true;
+        if (fetchParams.processResponseEndOfBody != null) {
+          queueMicrotask(() => fetchParams.processResponseEndOfBody(response));
+        }
+      };
       if (fetchParams.processResponse != null) {
-        fetchParams.processResponse(response);
+        queueMicrotask(() => fetchParams.processResponse(response));
       }
-      if (response.type === "error") {
-        context.terminate({ reason: response.error });
+      if (response.body == null) {
+        processResponseEndOfBody();
+      } else {
+        const identityTransformAlgorithm = (chunk, controller) => {
+          controller.enqueue(chunk);
+        };
+        const transformStream = new TransformStream({
+          start() {
+          },
+          transform: identityTransformAlgorithm,
+          flush: processResponseEndOfBody
+        });
+        response.body = { stream: response.body.stream.pipeThrough(transformStream) };
+      }
+      if (fetchParams.processResponseConsumeBody != null) {
+        const processBody = (nullOrBytes) => fetchParams.processResponseConsumeBody(response, nullOrBytes);
+        const processBodyError = (failure) => fetchParams.processResponseConsumeBody(response, failure);
+        if (response.body == null) {
+          queueMicrotask(() => processBody(null));
+        } else {
+          try {
+            processBody(await response.body.stream.arrayBuffer());
+          } catch (err) {
+            processBodyError(err);
+          }
+        }
       }
     }
     async function httpFetch(fetchParams) {
-      const context = this;
       const request = fetchParams.request;
       let response = null;
       let actualResponse = null;
@@ -7520,7 +7554,7 @@ var require_fetch = __commonJS({
         if (request.redirect === "follow") {
           request.serviceWorkers = "none";
         }
-        actualResponse = response = await httpNetworkOrCacheFetch.call(this, fetchParams);
+        actualResponse = response = await httpNetworkOrCacheFetch(fetchParams);
         if (request.responseTainting === "cors" && corsCheck(request, response) === "failure") {
           return makeNetworkError("cors failure");
         }
@@ -7532,13 +7566,13 @@ var require_fetch = __commonJS({
         return makeNetworkError("blocked");
       }
       if (redirectStatus.includes(actualResponse.status)) {
-        context.connection.destroy();
+        fetchParams.controller.connection.destroy();
         if (request.redirect === "error") {
           response = makeNetworkError();
         } else if (request.redirect === "manual") {
           response = actualResponse;
         } else if (request.redirect === "follow") {
-          response = await httpRedirectFetch.call(this, fetchParams, response);
+          response = await httpRedirectFetch(fetchParams, response);
         } else {
           assert(false);
         }
@@ -7592,10 +7626,9 @@ var require_fetch = __commonJS({
       }
       request.urlList.push(locationURL);
       setRequestReferrerPolicyOnRedirect(request, actualResponse);
-      return mainFetch.call(this, fetchParams, true);
+      return mainFetch(fetchParams, true);
     }
     async function httpNetworkOrCacheFetch(fetchParams, isAuthenticationFetch = false, isNewConnectionFetch = false) {
-      const context = this;
       const request = fetchParams.request;
       let httpFetchParams = null;
       let httpRequest = null;
@@ -7667,7 +7700,7 @@ var require_fetch = __commonJS({
         if (httpRequest.mode === "only-if-cached") {
           return makeNetworkError("only if cached");
         }
-        const forwardResponse = await httpNetworkFetch.call(this, httpFetchParams, includeCredentials, isNewConnectionFetch);
+        const forwardResponse = await httpNetworkFetch(httpFetchParams, includeCredentials, isNewConnectionFetch);
         if (!safeMethods.includes(httpRequest.method) && forwardResponse.status >= 200 && forwardResponse.status <= 399) {
         }
         if (revalidatingFlag && forwardResponse.status === 304) {
@@ -7680,150 +7713,197 @@ var require_fetch = __commonJS({
       if (httpRequest.headersList.has("range")) {
         response.rangeRequested = true;
       }
+      response.requestIncludesCredentials = includeCredentials;
       if (response.status === 407) {
         if (request.window === "no-window") {
           return makeNetworkError();
         }
-        if (context.terminated) {
-          const aborted = context.terminated.aborted;
-          if (aborted) {
-            return makeNetworkError(new AbortError());
-          }
-          return makeNetworkError(context.terminated.reason);
+        if (isCancelled(fetchParams)) {
+          return makeAppropriateNetworkError(fetchParams);
         }
         return makeNetworkError("proxy authentication required");
       }
       if (response.status === 421 && !isNewConnectionFetch && (request.body == null || request.body.source != null)) {
-        if (context.terminated) {
-          const aborted = context.terminated.aborted;
-          if (aborted) {
-            return makeNetworkError(new AbortError());
-          }
-          return makeNetworkError(context.terminated.reason);
+        if (isCancelled(fetchParams)) {
+          return makeAppropriateNetworkError(fetchParams);
         }
-        context.connection.destroy();
-        response = await httpNetworkOrCacheFetch.call(this, fetchParams, isAuthenticationFetch, true);
+        fetchParams.controller.connection.destroy();
+        response = await httpNetworkOrCacheFetch(fetchParams, isAuthenticationFetch, true);
       }
       if (isAuthenticationFetch) {
       }
       return response;
     }
-    function httpNetworkFetch(fetchParams, includeCredentials = false, forceNewConnection = false) {
-      const context = this;
-      return new Promise((resolve) => {
-        assert(!context.connection || context.connection.destroyed);
-        context.connection = {
-          abort: null,
-          destroyed: false,
-          destroy(err) {
-            if (!this.destroyed) {
-              this.destroyed = true;
-              this.abort?.(err ?? new AbortError());
-            }
+    async function httpNetworkFetch(fetchParams, includeCredentials = false, forceNewConnection = false) {
+      assert(!fetchParams.controller.connection || fetchParams.controller.connection.destroyed);
+      fetchParams.controller.connection = {
+        abort: null,
+        destroyed: false,
+        destroy(err) {
+          if (!this.destroyed) {
+            this.destroyed = true;
+            this.abort?.(err ?? new AbortError());
+          }
+        }
+      };
+      const request = fetchParams.request;
+      let response = null;
+      const timingInfo = fetchParams.timingInfo;
+      const httpCache = null;
+      if (httpCache == null) {
+        request.cache = "no-store";
+      }
+      const newConnection = forceNewConnection ? "yes" : "no";
+      if (request.mode === "websocket") {
+      } else {
+      }
+      let requestBody = null;
+      if (request.body == null && fetchParams.processRequestEndOfBody) {
+        queueMicrotask(() => fetchParams.processRequestEndOfBody());
+      } else if (request.body != null) {
+        const processBodyChunk = async function* (bytes) {
+          if (isCancelled(fetchParams)) {
+            return;
+          }
+          yield bytes;
+          fetchParams.processRequestBodyChunkLength?.(bytes.byteLength);
+        };
+        const processEndOfBody = () => {
+          if (isCancelled(fetchParams)) {
+            return;
+          }
+          if (fetchParams.processRequestEndOfBody) {
+            fetchParams.processRequestEndOfBody();
           }
         };
-        const request = fetchParams.request;
-        let response = null;
-        const timingInfo = fetchParams.timingInfo;
-        const httpCache = null;
-        if (httpCache == null) {
-          request.cache = "no-store";
-        }
-        if (request.mode === "websocket") {
-        } else {
-        }
-        context.on("terminated", onRequestAborted);
-        const body = async function* () {
+        const processBodyError = (e) => {
+          if (isCancelled(fetchParams)) {
+            return;
+          }
+          if (e.name === "AbortError") {
+            fetchParams.controller.abort();
+          } else {
+            fetchParams.controller.terminate(e);
+          }
+        };
+        requestBody = async function* () {
           try {
-            if (request.body === null) {
-              fetchParams.processEndOfBody?.();
-              return;
-            }
             for await (const bytes of request.body.stream) {
-              if (context.terminated) {
-                return;
-              }
-              yield bytes;
-              fetchParams.processRequestBody?.(bytes.byteLength);
+              yield* processBodyChunk(bytes);
             }
-            if (context.terminated) {
-              return;
-            }
-            fetchParams.processRequestEndOfBody?.();
-          } catch (e) {
-            if (context.terminated) {
-              return;
-            }
-            context.terminate({
-              aborted: e.name === "AbortError",
-              reason: e
-            });
+            processEndOfBody();
+          } catch (err) {
+            processBodyError(err);
           }
         }();
-        function onRequestAborted() {
-          const aborted = this.terminated.aborted;
-          this.connection.destroy();
-          if (aborted) {
-            return resolve(makeNetworkError(new AbortError()));
-          }
-          return resolve(makeNetworkError(this.terminated.reason));
+      }
+      try {
+        const { body, status, statusText, headersList } = await dispatch({ body: requestBody });
+        const iterator = body[Symbol.asyncIterator]();
+        fetchParams.controller.next = () => iterator.next();
+        response = makeResponse({ status, statusText, headersList });
+      } catch (err) {
+        if (err.name === "AbortError") {
+          fetchParams.controller.connection.destroy();
+          return makeAppropriateNetworkError(fetchParams);
         }
-        let pullAlgorithm;
-        const cancelAlgorithm = () => {
-          context.terminate({ aborted: true });
-        };
-        const highWaterMark = 64 * 1024;
-        if (!ReadableStream) {
-          ReadableStream = require("stream/web").ReadableStream;
+        return makeNetworkError(err);
+      }
+      const pullAlgorithm = () => {
+        fetchParams.controller.resume();
+      };
+      const cancelAlgorithm = () => {
+        fetchParams.controller.abort();
+      };
+      if (!ReadableStream) {
+        ReadableStream = require("stream/web").ReadableStream;
+      }
+      const stream = new ReadableStream({
+        async start(controller) {
+          fetchParams.controller.controller = controller;
+        },
+        async pull(controller) {
+          await pullAlgorithm(controller);
+        },
+        async cancel(reason) {
+          await cancelAlgorithm(reason);
         }
-        let pullResolve;
-        const stream = new ReadableStream({
-          async start(controller) {
-            context.controller = controller;
-          },
-          async pull(controller) {
-            if (!pullAlgorithm) {
-              await new Promise((resolve2) => {
-                pullResolve = resolve2;
-              });
-            }
-            await pullAlgorithm(controller);
-          },
-          async cancel(reason) {
-            await cancelAlgorithm(reason);
-          }
-        }, { highWaterMark });
-        function onResponseAborted() {
-          const aborted = this.terminated.aborted;
-          if (aborted) {
-            response.aborted = true;
-            if (isReadable(stream)) {
-              this.controller.error(new AbortError());
-            }
-          } else {
-            if (isReadable(stream)) {
-              this.controller.error(new TypeError("terminated"));
+      }, { highWaterMark: 0 });
+      response.body = { stream };
+      fetchParams.controller.on("terminated", onAborted);
+      fetchParams.controller.resume = async () => {
+        while (true) {
+          let bytes;
+          try {
+            const { done, value } = await fetchParams.controller.next();
+            bytes = done ? void 0 : value;
+          } catch (err) {
+            if (fetchParams.controller.ended && !timingInfo.encodedBodySize) {
+              bytes = void 0;
+            } else {
+              bytes = err;
             }
           }
-          this.connection.destroy();
+          if (bytes === void 0) {
+            try {
+              fetchParams.controller.controller.close();
+            } catch (err) {
+              if (!/Controller is already closed/.test(err)) {
+                throw err;
+              }
+            }
+            finalizeResponse(fetchParams, response);
+            return;
+          }
+          timingInfo.decodedBodySize += bytes?.byteLength ?? 0;
+          if (bytes instanceof Error) {
+            fetchParams.controller.terminate(bytes);
+            return;
+          }
+          fetchParams.controller.controller.enqueue(new Uint8Array(bytes));
+          if (isErrored(stream)) {
+            fetchParams.controller.terminate();
+            return;
+          }
+          if (!fetchParams.controller.controller.desiredSize) {
+            return;
+          }
         }
+      };
+      function onAborted(reason) {
+        if (isAborted(fetchParams)) {
+          response.aborted = true;
+          if (isReadable(stream)) {
+            fetchParams.controller.controller.error(new AbortError());
+          }
+        } else {
+          if (isReadable(stream)) {
+            fetchParams.controller.controller.error(new TypeError("terminated", {
+              cause: reason instanceof Error ? reason : void 0
+            }));
+          }
+        }
+        fetchParams.controller.connection.destroy();
+      }
+      return response;
+      async function dispatch({ body }) {
         const url = requestCurrentURL(request);
-        context.dispatcher.dispatch({
+        return new Promise((resolve, reject) => fetchParams.controller.dispatcher.dispatch({
           path: url.pathname + url.search,
           origin: url.origin,
           method: request.method,
-          body: context.dispatcher[kIsMockActive] ? request.body && request.body.source : body,
+          body: fetchParams.controller.dispatcher[kIsMockActive] ? request.body && request.body.source : body,
           headers: request.headersList,
           maxRedirections: 0
         }, {
-          decoder: null,
+          body: null,
           abort: null,
-          context,
           onConnect(abort) {
-            const { connection } = this.context;
+            const { connection } = fetchParams.controller;
             if (connection.destroyed) {
               abort(new AbortError());
             } else {
+              fetchParams.controller.on("terminated", abort);
               this.abort = connection.abort = abort;
             }
           },
@@ -7831,18 +7911,17 @@ var require_fetch = __commonJS({
             if (status < 200) {
               return;
             }
+            let codings = [];
             const headers = new Headers();
             for (let n = 0; n < headersList.length; n += 2) {
-              headers.append(headersList[n + 0].toString(), headersList[n + 1].toString());
+              const key = headersList[n + 0].toString();
+              const val = headersList[n + 1].toString();
+              if (key.toLowerCase() === "content-encoding") {
+                codings = val.split(",").map((x) => x.trim());
+              }
+              headers.append(key, val);
             }
-            response = makeResponse({
-              status,
-              statusText,
-              headersList: headers[kHeadersList],
-              body: { stream }
-            });
-            this.context.on("terminated", onResponseAborted);
-            const codings = headers.get("content-encoding")?.toLowerCase().split(",").map((x) => x.trim()) ?? [];
+            this.body = new Readable({ read: resume });
             const decoders = [];
             for (const coding of codings) {
               if (/(x-)?gzip/.test(coding)) {
@@ -7856,70 +7935,41 @@ var require_fetch = __commonJS({
                 break;
               }
             }
-            if (decoders.length > 1) {
-              pipeline(...decoders, () => {
-              });
-            } else if (decoders.length === 0) {
-              decoders.push(new PassThrough());
-            }
-            this.decoder = decoders[0].on("drain", resume);
-            const iterator = decoders[decoders.length - 1][Symbol.asyncIterator]();
-            pullAlgorithm = async (controller) => {
-              let bytes;
-              try {
-                const { done, value } = await iterator.next();
-                bytes = done ? void 0 : value;
-              } catch (err) {
-                if (this.decoder.writableEnded && !timingInfo.encodedBodySize) {
-                  bytes = void 0;
-                } else {
-                  bytes = err;
-                }
-              }
-              if (bytes === void 0) {
-                finalizeResponse(fetchParams, response);
-                controller.close();
-                return;
-              }
-              timingInfo.decodedBodySize += bytes?.byteLength ?? 0;
-              if (bytes instanceof Error) {
-                this.context.terminate({ reason: bytes });
-                return;
-              }
-              controller.enqueue(new Uint8Array(bytes));
-              if (isErrored(stream)) {
-                this.context.terminate();
-                return;
-              }
-              return controller.desiredSize > 0;
-            };
-            if (pullResolve) {
-              pullResolve();
-              pullResolve = null;
-            }
-            resolve(response);
+            resolve({
+              status,
+              statusText,
+              headersList: headers[kHeadersList],
+              body: decoders.length ? pipeline(this.body, ...decoders, () => {
+              }) : this.body.on("error", () => {
+              })
+            });
             return true;
           },
           onData(chunk) {
-            if (this.context.dump) {
+            if (fetchParams.controller.dump) {
               return;
             }
             const bytes = chunk;
             timingInfo.encodedBodySize += bytes.byteLength;
-            return this.decoder.write(bytes);
+            return this.body.push(bytes);
           },
           onComplete() {
-            this.decoder.end();
+            if (this.abort) {
+              fetchParams.controller.off("terminated", this.abort);
+            }
+            fetchParams.controller.ended = true;
+            this.body.push(null);
           },
           onError(error) {
-            this.decoder?.destroy(error);
-            this.context.terminate({ reason: error });
-            if (!response) {
-              resolve(makeNetworkError(error));
+            if (this.abort) {
+              fetchParams.controller.off("terminated", this.abort);
             }
+            this.body?.destroy(error);
+            fetchParams.controller.terminate(error);
+            reject(makeNetworkError(error));
           }
-        });
-      });
+        }));
+      }
     }
     module2.exports = fetch;
   }
