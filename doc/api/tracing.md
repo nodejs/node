@@ -85,7 +85,7 @@ To guarantee that the log file is properly generated after signal events like
 in your code, such as:
 
 ```js
-process.on('SIGINT', function onSigint() {
+process.on('SIGINT', () => {
   console.info('Received SIGINT.');
   process.exit(130);  // Or applicable exit code depending on OS and signal
 });

@@ -7,6 +7,7 @@ env:
 rules:
   multiline-comment-style: [error, separate-lines]
   no-var: error
+  prefer-arrow-callback: off
   prefer-const: error
   symbol-description: off
 

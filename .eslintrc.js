@@ -271,6 +271,7 @@ module.exports = {
       'error',
       { blankLine: 'always', prev: 'function', next: 'function' },
     ],
+    'prefer-arrow-callback': ['error', { allowNamedFunctions: true }],
     'prefer-const': ['error', { ignoreReadBeforeAssign: true }],
     'prefer-object-has-own': 'error',
     'quotes': ['error', 'single', { avoidEscape: true }],

@@ -661,7 +661,7 @@ createHook({
 
 const server = createServer((req, res) => {
   executionAsyncResource()[sym] = { state: req.url };
-  setTimeout(function() {
+  setTimeout(() => {
     res.end(JSON.stringify(executionAsyncResource()[sym]));
   }, 100);
 }).listen(3000);
@@ -687,7 +687,7 @@ createHook({
 
 const server = createServer((req, res) => {
   executionAsyncResource()[sym] = { state: req.url };
-  setTimeout(function() {
+  setTimeout(() => {
     res.end(JSON.stringify(executionAsyncResource()[sym]));
   }, 100);
 }).listen(3000);
