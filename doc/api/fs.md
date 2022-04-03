@@ -180,19 +180,11 @@ longer be used.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/41677
-    description: The `data` parameter no longer accepts objects with an
-                 own `toString` function property.
   - version:
       - v15.14.0
       - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37490
     description: The `data` argument supports `AsyncIterable`, `Iterable` and `Stream`.
-  - version: v14.12.0
-    pr-url: https://github.com/nodejs/node/pull/34993
-    description: The `data` parameter will stringify an object with an
-                 explicit `toString` function.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31030
     description: The `data` parameter won't coerce unsupported input to
@@ -651,14 +643,6 @@ default with the above values.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/41677
-    description: The `string` parameter no longer accepts objects with an
-                 own `toString` function property.
-  - version: v14.12.0
-    pr-url: https://github.com/nodejs/node/pull/34993
-    description: The `string` parameter will stringify an object with an
-                 explicit `toString` function.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31030
     description: The `string` parameter won't coerce unsupported input to
@@ -694,19 +678,11 @@ the end of the file.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/41677
-    description: The `data` parameter no longer accepts objects with an
-                 own `toString` function property.
   - version:
       - v15.14.0
       - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37490
     description: The `data` argument supports `AsyncIterable`, `Iterable` and `Stream`.
-  - version: v14.12.0
-    pr-url: https://github.com/nodejs/node/pull/34993
-    description: The `data` parameter will stringify an object with an
-                 explicit `toString` function.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31030
     description: The `data` parameter won't coerce unsupported input to
@@ -5834,14 +5810,6 @@ this API: [`fs.write(fd, buffer...)`][].
 <!-- YAML
 added: v0.11.5
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/41677
-    description: The `string` parameter no longer accepts objects with an
-                 own `toString` function property.
-  - version: v14.12.0
-    pr-url: https://github.com/nodejs/node/pull/34993
-    description: The `string` parameter will stringify an object with an
-                 explicit `toString` function.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31030
     description: The `string` parameter won't coerce unsupported input to
