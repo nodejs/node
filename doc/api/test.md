@@ -352,6 +352,89 @@ Otherwise, the test is considered to be a failure. Test files must be
 executable by Node.js, but are not required to use the `node:test` module
 internally.
 
+## Mocking
+
+The `node:test` module supports mocking during testing via a top-level `mock`
+object. The following example creates a spy on a function that adds two numbers
+together. The spy is then used to assert that the function was called as
+expected.
+
+```mjs
+import assert from 'node:assert';
+import { mock, test } from 'node:test';
+
+test('spies on a function', () => {
+  const sum = mock.fn((a, b) => {
+    return a + b;
+  });
+
+  assert.strictEqual(sum.mock.calls.length, 0);
+  assert.strictEqual(sum(3, 4), 7);
+  assert.strictEqual(sum.mock.calls.length, 1);
+
+  const call = sum.mock.calls[0];
+  assert.deepStrictEqual(call.arguments, [3, 4]);
+  assert.strictEqual(call.result, 7);
+  assert.strictEqual(call.error, undefined);
+
+  // Reset the globally tracked mocks.
+  mock.reset();
+});
+```
+
+```cjs
+'use strict';
+const assert = require('node:assert');
+const { mock, test } = require('node:test');
+
+test('spies on a function', () => {
+  const sum = mock.fn((a, b) => {
+    return a + b;
+  });
+
+  assert.strictEqual(sum.mock.calls.length, 0);
+  assert.strictEqual(sum(3, 4), 7);
+  assert.strictEqual(sum.mock.calls.length, 1);
+
+  const call = sum.mock.calls[0];
+  assert.deepStrictEqual(call.arguments, [3, 4]);
+  assert.strictEqual(call.result, 7);
+  assert.strictEqual(call.error, undefined);
+
+  // Reset the globally tracked mocks.
+  mock.reset();
+});
+```
+
+The same mocking functionality is also exposed on the [`TestContext`][] object
+of each test. The following example creates a spy on an object method using the
+API exposed on the `TestContext`. The benefit of mocking via the test context is
+that the test runner will automatically restore all mocked functionality once
+the test finishes.
+
+```js
+test('spies on an object method', (t) => {
+  const number = {
+    value: 5,
+    add(a) {
+      return this.value + a;
+    },
+  };
+
+  t.mock.method(number, 'add');
+  assert.strictEqual(number.add.mock.calls.length, 0);
+  assert.strictEqual(number.add(3), 8);
+  assert.strictEqual(number.add.mock.calls.length, 1);
+
+  const call = number.add.mock.calls[0];
+
+  assert.deepStrictEqual(call.arguments, [3]);
+  assert.strictEqual(call.result, 8);
+  assert.strictEqual(call.target, undefined);
+  assert.strictEqual(call.this, number);
+});
+```
+
 ## `run([options])`
 
 <!-- YAML
@@ -643,6 +726,281 @@ describe('tests', async () => {
   });
 });
 ```
+
+## Class: `MockFunctionContext`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `MockFunctionContext` class is used to inspect or manipulate the behavior of
+mocks created via the [`MockTracker`][] APIs.
+
+### `ctx.calls`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Array}
+
+A getter that returns a copy of the internal array used to track calls to the
+mock. Each entry in the array is an object with the following properties.
+
+* `arguments` {Array} An array of the arguments passed to the mock function.
+* `error` {any} If the mocked function threw then this property contains the
+  thrown value. **Default:** `undefined`.
+* `result` {any} The value returned by the mocked function.
+* `stack` {Error} An `Error` object whose stack can be used to determine the
+  callsite of the mocked function invocation.
+* `target` {Function|undefined} If the mocked function is a constructor, this
+  field contains the class being constructed. Otherwise this will be
+  `undefined`.
+* `this` {any} The mocked function's `this` value.
+
+### `ctx.callCount()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {integer} The number of times that this mock has been invoked.
+
+This function returns the number of times that this mock has been invoked. This
+function is more efficient than checking `ctx.calls.length` because `ctx.calls`
+is a getter that creates a copy of the internal call tracking array.
+
+### `ctx.mockImplementation(implementation)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `implementation` {Function|AsyncFunction} The function to be used as the
+  mock's new implementation.
+
+This function is used to change the behavior of an existing mock.
+
+The following example creates a mock function using `t.mock.fn()`, calls the
+mock function, and then changes the mock implementation to a different function.
+
+```js
+test('changes a mock behavior', (t) => {
+  let cnt = 0;
+
+  function addOne() {
+    cnt++;
+    return cnt;
+  }
+
+  function addTwo() {
+    cnt += 2;
+    return cnt;
+  }
+
+  const fn = t.mock.fn(addOne);
+
+  assert.strictEqual(fn(), 1);
+  fn.mock.mockImplementation(addTwo);
+  assert.strictEqual(fn(), 3);
+  assert.strictEqual(fn(), 5);
+});
+```
+
+### `ctx.mockImplementationOnce(implementation[, onCall])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `implementation` {Function|AsyncFunction} The function to be used as the
+  mock's implementation for the invocation number specified by `onCall`.
+* `onCall` {integer} The invocation number that will use `implementation`. If
+  the specified invocation has already occurred then an exception is thrown.
+  **Default:** The number of the next invocation.
+
+This function is used to change the behavior of an existing mock for a single
+invocation. Once invocation `onCall` has occurred, the mock will revert to
+whatever behavior it would have used had `mockImplementationOnce()` not been
+called.
+
+The following example creates a mock function using `t.mock.fn()`, calls the
+mock function, changes the mock implementation to a different function for the
+next invocation, and then resumes its previous behavior.
+
+```js
+test('changes a mock behavior once', (t) => {
+  let cnt = 0;
+
+  function addOne() {
+    cnt++;
+    return cnt;
+  }
+
+  function addTwo() {
+    cnt += 2;
+    return cnt;
+  }
+
+  const fn = t.mock.fn(addOne);
+
+  assert.strictEqual(fn(), 1);
+  fn.mock.mockImplementationOnce(addTwo);
+  assert.strictEqual(fn(), 3);
+  assert.strictEqual(fn(), 4);
+});
+```
+
+### `ctx.restore()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Resets the implementation of the mock function to its original behavior. The
+mock can still be used after calling this function.
+
+## Class: `MockTracker`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `MockTracker` class is used to manage mocking functionality. The test runner
+module provides a top level `mock` export which is a `MockTracker` instance.
+Each test also provides its own `MockTracker` instance via the test context's
+`mock` property.
+
+### `mock.fn([original[, implementation]][, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `original` {Function|AsyncFunction} An optional function to create a mock on.
+  **Default:** A no-op function.
+* `implementation` {Function|AsyncFunction} An optional function used as the
+  mock implementation for `original`. This is useful for creating mocks that
+  exhibit one behavior for a specified number of calls and then restore the
+  behavior of `original`. **Default:** The function specified by `original`.
+* `options` {Object} Optional configuration options for the mock function. The
+  following properties are supported:
+  * `times` {integer} The number of times that the mock will use the behavior of
+    `implementation`. Once the mock function has been called `times` times, it
+    will automatically restore the behavior of `original`. This value must be an
+    integer greater than zero. **Default:** `Infinity`.
+* Returns: {Proxy} The mocked function. The mocked function contains a special
+  `mock` property, which is an instance of [`MockFunctionContext`][], and can
+  be used for inspecting and changing the behavior of the mocked function.
+
+This function is used to create a mock function.
+
+The following example creates a mock function that increments a counter by one
+on each invocation. The `times` option is used to modify the mock behavior such
+that the first two invocations add two to the counter instead of one.
+
+```js
+test('mocks a counting function', (t) => {
+  let cnt = 0;
+
+  function addOne() {
+    cnt++;
+    return cnt;
+  }
+
+  function addTwo() {
+    cnt += 2;
+    return cnt;
+  }
+
+  const fn = t.mock.fn(addOne, addTwo, { times: 2 });
+
+  assert.strictEqual(fn(), 2);
+  assert.strictEqual(fn(), 4);
+  assert.strictEqual(fn(), 5);
+  assert.strictEqual(fn(), 6);
+});
+```
+
+### `mock.method(object, methodName[, implementation][, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `object` {Object} The object whose method is being mocked.
+* `methodName` {string|symbol} The identifier of the method on `object` to mock.
+  If `object[methodName]` is not a function, an error is thrown.
+* `implementation` {Function|AsyncFunction} An optional function used as the
+  mock implementation for `object[methodName]`. **Default:** The original method
+  specified by `object[methodName]`.
+* `options` {Object} Optional configuration options for the mock method. The
+  following properties are supported:
+  * `getter` {boolean} If `true`, `object[methodName]` is treated as a getter.
+    This option cannot be used with the `setter` option. **Default:** false.
+  * `setter` {boolean} If `true`, `object[methodName]` is treated as a setter.
+    This option cannot be used with the `getter` option. **Default:** false.
+  * `times` {integer} The number of times that the mock will use the behavior of
+    `implementation`. Once the mocked method has been called `times` times, it
+    will automatically restore the original behavior. This value must be an
+    integer greater than zero. **Default:** `Infinity`.
+* Returns: {Proxy} The mocked method. The mocked method contains a special
+  `mock` property, which is an instance of [`MockFunctionContext`][], and can
+  be used for inspecting and changing the behavior of the mocked method.
+
+This function is used to create a mock on an existing object method. The
+following example demonstrates how a mock is created on an existing object
+method.
+
+```js
+test('spies on an object method', (t) => {
+  const number = {
+    value: 5,
+    subtract(a) {
+      return this.value - a;
+    },
+  };
+
+  t.mock.method(number, 'subtract');
+  assert.strictEqual(number.subtract.mock.calls.length, 0);
+  assert.strictEqual(number.subtract(3), 2);
+  assert.strictEqual(number.subtract.mock.calls.length, 1);
+
+  const call = number.subtract.mock.calls[0];
+
+  assert.deepStrictEqual(call.arguments, [3]);
+  assert.strictEqual(call.result, 2);
+  assert.strictEqual(call.error, undefined);
+  assert.strictEqual(call.target, undefined);
+  assert.strictEqual(call.this, number);
+});
+```
+
+### `mock.reset()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+This function restores the default behavior of all mocks that were previously
+created by this `MockTracker` and disassociates the mocks from the
+`MockTracker` instance. Once disassociated, the mocks can still be used, but the
+`MockTracker` instance can no longer be used to reset their behavior or
+otherwise interact with them.
+
+After each test completes, this function is called on the test context's
+`MockTracker`. If the global `MockTracker` is used extensively, calling this
+function manually is recommended.
+
+### `mock.restoreAll()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+This function restores the default behavior of all mocks that were previously
+created by this `MockTracker`. Unlike `mock.reset()`, `mock.restoreAll()` does
+not disassociate the mocks from the `MockTracker` instance.
 
 ## Class: `TapStream`
 
@@ -979,6 +1337,8 @@ added:
 [`--test-name-pattern`]: cli.md#--test-name-pattern
 [`--test-only`]: cli.md#--test-only
 [`--test`]: cli.md#--test
+[`MockFunctionContext`]: #class-mockfunctioncontext
+[`MockTracker`]: #class-mocktracker
 [`SuiteContext`]: #class-suitecontext
 [`TestContext`]: #class-testcontext
 [`context.diagnostic`]: #contextdiagnosticmessage
