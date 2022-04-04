@@ -619,25 +619,6 @@ On Linux, positional writes do not work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
 
-#### `filehandle.write(buffer, options)`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `buffer` {Buffer|TypedArray|DataView}
-* `options` {Object}
-  * `offset` {integer} **Default:** `0`
-  * `length` {integer} **Default:** `buffer.byteLength - offset`
-  * `position` {integer} **Default:** `null`
-* Returns: {Promise}
-
-Write `buffer` to the file.
-
-Similar to the above `filehandle.write` function, this version takes an
-optional `options` object. If no `options` object is specified, it will
-default with the above values.
-
 #### `filehandle.write(string[, position[, encoding]])`
 
 <!-- YAML
@@ -5779,23 +5760,6 @@ changes:
 * `offset` {integer}
 * `length` {integer}
 * `position` {integer}
-* Returns: {number} The number of bytes written.
-
-For detailed information, see the documentation of the asynchronous version of
-this API: [`fs.write(fd, buffer...)`][].
-
-### `fs.writeSync(fd, buffer, options)`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `fd` {integer}
-* `buffer` {Buffer|TypedArray|DataView}
-* `options` {Object}
-  * `offset` {integer} **Default:** `0`
-  * `length` {integer} **Default:** `buffer.byteLength - offset`
-  * `position` {integer} **Default:** `null`
 * Returns: {number} The number of bytes written.
 
 For detailed information, see the documentation of the asynchronous version of
