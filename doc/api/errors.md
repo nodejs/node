@@ -1921,6 +1921,13 @@ valid.
 The imported module string is an invalid URL, package name, or package subpath
 specifier.
 
+<a id="ERR_INVALID_OBJECT_DEFINE_PROPERTY"></a>
+
+### `ERR_INVALID_OBJECT_DEFINE_PROPERTY`
+
+An error occurred while setting an invalid attribute on the property of
+an object.
+
 <a id="ERR_INVALID_PACKAGE_CONFIG"></a>
 
 ### `ERR_INVALID_PACKAGE_CONFIG`

@@ -28,6 +28,7 @@ using v8::Nothing;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::PropertyCallbackInfo;
+using v8::PropertyDescriptor;
 using v8::PropertyHandlerFlags;
 using v8::ReadOnly;
 using v8::String;
@@ -396,11 +397,57 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
       env->env_vars()->Enumerate(env->isolate()));
 }
 
+static void EnvDefiner(Local<Name> property,
+                       const PropertyDescriptor& desc,
+                       const PropertyCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  if (desc.has_value()) {
+    if (!desc.has_writable() ||
+        !desc.has_enumerable() ||
+        !desc.has_configurable()) {
+      THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
+                                               "'process.env' only accepts a "
+                                               "configurable, writable,"
+                                               " and enumerable "
+                                               "data descriptor");
+    } else if (!desc.configurable() ||
+               !desc.enumerable() ||
+               !desc.writable()) {
+      THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
+                                               "'process.env' only accepts a "
+                                               "configurable, writable,"
+                                               " and enumerable "
+                                               "data descriptor");
+    } else {
+      return EnvSetter(property, desc.value(), info);
+    }
+  } else if (desc.has_get() || desc.has_set()) {
+    // we don't accept a getter/setter in 'process.env'
+    THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
+                             "'process.env' does not accept an"
+                                             "accessor(getter/setter)"
+                                             " descriptor");
+  } else {
+    THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
+                                             "'process.env' only accepts a "
+                                             "configurable, writable,"
+                                             " and enumerable "
+                                             "data descriptor");
+  }
+}
+
 MaybeLocal<Object> CreateEnvVarProxy(Local<Context> context, Isolate* isolate) {
   EscapableHandleScope scope(isolate);
   Local<ObjectTemplate> env_proxy_template = ObjectTemplate::New(isolate);
   env_proxy_template->SetHandler(NamedPropertyHandlerConfiguration(
-      EnvGetter, EnvSetter, EnvQuery, EnvDeleter, EnvEnumerator, Local<Value>(),
+      EnvGetter,
+      EnvSetter,
+      EnvQuery,
+      EnvDeleter,
+      EnvEnumerator,
+      EnvDefiner,
+      nullptr,
+      Local<Value>(),
       PropertyHandlerFlags::kHasNoSideEffect));
   return scope.EscapeMaybe(env_proxy_template->NewInstance(context));
 }
@@ -411,6 +458,7 @@ void RegisterEnvVarExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(EnvQuery);
   registry->Register(EnvDeleter);
   registry->Register(EnvEnumerator);
+  registry->Register(EnvDefiner);
 }
 }  // namespace node
 
