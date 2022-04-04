@@ -3115,7 +3115,7 @@ resources and not the actual references.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/42607
     description: Runtime deprecation.
   - version: v17.8.0
     pr-url: https://github.com/nodejs/node/pull/42149
