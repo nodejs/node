@@ -5,6 +5,33 @@ prefix message
 # sample-test                       : PASS,FLAKY
 
 [true] # This section applies to all platforms
+# https://crrev.com/c/3565724
+async_error_nexttick_main: SKIP
+core_line_numbers: SKIP
+error_aggregateTwoErrors: SKIP
+error_exit: SKIP
+error_with_nul: SKIP
+events_unhandled_error_common_trace: SKIP
+events_unhandled_error_nexttick: SKIP
+events_unhandled_error_sameline: SKIP
+events_unhandled_error_subclass: SKIP
+if-error-has-good-stack: SKIP
+nexttick_throw: SKIP
+source_map_disabled_by_api: SKIP
+source_map_enabled_by_api: SKIP
+source_map_enclosing_function: SKIP
+source_map_reference_error_tabs: SKIP
+source_map_throw_catch: SKIP
+source_map_throw_first_tick: SKIP
+source_map_throw_icu: SKIP
+source_map_throw_set_immediate: SKIP
+test-no-extra-info-on-fatal-exception: SKIP
+timeout_throw: SKIP
+undefined_reference_in_new_context: SKIP
+vm_display_runtime_error: SKIP
+vm_display_syntax_error: SKIP
+vm_dont_display_runtime_error: SKIP
+vm_dont_display_syntax_error: SKIP
 
 [$system==win32]
 
