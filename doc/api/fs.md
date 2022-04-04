@@ -1521,8 +1521,7 @@ changes:
 -->
 
 * `file` {string|Buffer|URL|FileHandle} filename or `FileHandle`
-* `data` {string|Buffer|TypedArray|DataView|Object|AsyncIterable|Iterable
-  |Stream}
+* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
@@ -1531,8 +1530,7 @@ changes:
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously writes data to a file, replacing the file if it already exists.
-`data` can be a string, a {Buffer}, or, an object with an own (not inherited)
-`toString` function property.
+`data` can be a string, a buffer, an {AsyncIterable} or {Iterable} object.
 
 The `encoding` option is ignored if `data` is a buffer.
 
