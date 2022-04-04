@@ -498,6 +498,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "write warnings to file instead of stderr",
             &EnvironmentOptions::redirect_warnings,
             kAllowedInEnvironment);
+  AddOption("--test-only",
+            "run tests with 'only' option set",
+            &EnvironmentOptions::test_only,
+            kAllowedInEnvironment);
   AddOption("--test-udp-no-try-send", "",  // For testing only.
             &EnvironmentOptions::test_udp_no_try_send);
   AddOption("--throw-deprecation",
