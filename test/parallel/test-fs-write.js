@@ -155,7 +155,11 @@ fs.open(fn4, 'w', 0o644, common.mustSucceed((fd) => {
   );
 });
 
-[false, 5, {}, [], null, undefined].forEach((data) => {
+[
+  false, 5, {}, [], null, undefined,
+  new String('notPrimitive'),
+  { [Symbol.toPrimitive]: (hint) => 'amObject' },
+].forEach((data) => {
   assert.throws(
     () => fs.write(1, data, common.mustNotCall()),
     {
