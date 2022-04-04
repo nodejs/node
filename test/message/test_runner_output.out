@@ -402,7 +402,28 @@ ok 52 - callback async throw after done
   ---
   duration_ms: *
   ...
-not ok 53 - invalid subtest fail
+    ok 1 - running subtest 1
+      ---
+      duration_ms: *
+      ...
+    ok 2 - running subtest 2
+      ---
+      duration_ms: *
+      ...
+    ok 3 - running subtest 3
+      ---
+      duration_ms: *
+      ...
+    ok 4 - running subtest 4
+      ---
+      duration_ms: *
+      ...
+    1..4
+ok 53 - only is set but not in only mode
+  ---
+  duration_ms: *
+  ...
+not ok 54 - invalid subtest fail
   ---
   duration_ms: *
   failureType: 'parentAlreadyFinished'
@@ -411,15 +432,15 @@ not ok 53 - invalid subtest fail
   stack: |-
     *
   ...
-1..53
+1..54
 # Warning: Test "unhandled rejection - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
 # Warning: Test "async unhandled rejection - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from async unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
 # Warning: Test "immediate throw - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: thrown from immediate throw fail" and would have caused the test to fail, but instead triggered an uncaughtException event.
 # Warning: Test "immediate reject - passes but warns" generated asynchronous activity after the test ended. This activity created the error "Error: rejected from immediate reject fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
 # Warning: Test "callback called twice in different ticks" generated asynchronous activity after the test ended. This activity created the error "Error [ERR_TEST_FAILURE]: 'callback invoked multiple times'" and would have caused the test to fail, but instead triggered an uncaughtException event.
 # Warning: Test "callback async throw after done" generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event.
-# tests 53
-# pass 23
+# tests 54
+# pass 24
 # fail 15
 # skipped 10
 # todo 5
