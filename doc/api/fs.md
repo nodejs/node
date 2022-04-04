@@ -608,7 +608,7 @@ added: v10.0.0
 Change the file system timestamps of the object referenced by the {FileHandle}
 then resolves the promise with no arguments upon success.
 
-#### `filehandle.write(buffer[, offset[, length[, position]]])`
+#### `filehandle.write(buffer, offset[, length[, position]])`
 
 <!-- YAML
 added: v10.0.0
@@ -621,7 +621,7 @@ changes:
 
 * `buffer` {Buffer|TypedArray|DataView}
 * `offset` {integer} The start position from within `buffer` where the data
-  to write begins. **Default:** `0`
+  to write begins.
 * `length` {integer} The number of bytes from `buffer` to write. **Default:**
   `buffer.byteLength - offset`
 * `position` {integer|null} The offset from the beginning of the file where the
@@ -645,6 +645,25 @@ scenario, use [`filehandle.createWriteStream()`][].
 On Linux, positional writes do not work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
+
+#### `filehandle.write(buffer[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `buffer` {Buffer|TypedArray|DataView}
+* `options` {Object}
+  * `offset` {integer} **Default:** `0`
+  * `length` {integer} **Default:** `buffer.byteLength - offset`
+  * `position` {integer} **Default:** `null`
+* Returns: {Promise}
+
+Write `buffer` to the file.
+
+Similar to the above `filehandle.write` function, this version takes an
+optional `options` object. If no `options` object is specified, it will
+default with the above values.
 
 #### `filehandle.write(string[, position[, encoding]])`
 
@@ -4376,7 +4395,7 @@ This happens when:
 * the file is deleted, followed by a restore
 * the file is renamed and then renamed a second time back to its original name
 
-### `fs.write(fd, buffer[, offset[, length[, position]]], callback)`
+### `fs.write(fd, buffer, offset[, length[, position]], callback)`
 
 <!-- YAML
 added: v0.0.2
@@ -4442,6 +4461,29 @@ recommended.
 On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
+
+### `fs.write(fd, buffer[, options], callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fd` {integer}
+* `buffer` {Buffer|TypedArray|DataView}
+* `options` {Object}
+  * `offset` {integer} **Default:** `0`
+  * `length` {integer} **Default:** `buffer.byteLength - offset`
+  * `position` {integer} **Default:** `null`
+* `callback` {Function}
+  * `err` {Error}
+  * `bytesWritten` {integer}
+  * `buffer` {Buffer|TypedArray|DataView}
+
+Write `buffer` to the file specified by `fd`.
+
+Similar to the above `fs.write` function, this version takes an
+optional `options` object. If no `options` object is specified, it will
+default with the above values.
 
 ### `fs.write(fd, string[, position[, encoding]], callback)`
 
@@ -5793,7 +5835,7 @@ for more details.
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.writeFile()`][].
 
-### `fs.writeSync(fd, buffer[, offset[, length[, position]]])`
+### `fs.writeSync(fd, buffer, offset[, length[, position]])`
 
 <!-- YAML
 added: v0.1.21
@@ -5819,6 +5861,23 @@ changes:
 * `offset` {integer} **Default:** `0`
 * `length` {integer} **Default:** `buffer.byteLength - offset`
 * `position` {integer|null} **Default:** `null`
+* Returns: {number} The number of bytes written.
+
+For detailed information, see the documentation of the asynchronous version of
+this API: [`fs.write(fd, buffer...)`][].
+
+### `fs.writeSync(fd, buffer[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fd` {integer}
+* `buffer` {Buffer|TypedArray|DataView}
+* `options` {Object}
+  * `offset` {integer} **Default:** `0`
+  * `length` {integer} **Default:** `buffer.byteLength - offset`
+  * `position` {integer} **Default:** `null`
 * Returns: {number} The number of bytes written.
 
 For detailed information, see the documentation of the asynchronous version of
