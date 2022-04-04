@@ -309,6 +309,27 @@ if (hasCrypto && global.crypto) {
   knownGlobals.push(global.CryptoKey);
   knownGlobals.push(global.SubtleCrypto);
 }
+if (global.ReadableStream) {
+  knownGlobals.push(
+    global.ReadableStream,
+    global.ReadableStreamDefaultReader,
+    global.ReadableStreamBYOBReader,
+    global.ReadableStreamBYOBRequest,
+    global.ReadableByteStreamController,
+    global.ReadableStreamDefaultController,
+    global.TransformStream,
+    global.TransformStreamDefaultController,
+    global.WritableStream,
+    global.WritableStreamDefaultWriter,
+    global.WritableStreamDefaultController,
+    global.ByteLengthQueuingStrategy,
+    global.CountQueuingStrategy,
+    global.TextEncoderStream,
+    global.TextDecoderStream,
+    global.CompressionStream,
+    global.DecompressionStream,
+  );
+}
 
 function allowGlobals(...allowlist) {
   knownGlobals = knownGlobals.concat(allowlist);

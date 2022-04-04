@@ -43,6 +43,14 @@ rules:
       message: Use `const { BroadcastChannel } = require('internal/worker/io');` instead of the global.
     - name: Buffer
       message: Use `const { Buffer } = require('buffer');` instead of the global.
+    - name: ByteLengthQueuingStrategy
+      message: Use `const { ByteLengthQueuingStrategy } = require('internal/webstreams/queuingstrategies')` instead of the global.
+    - name: CompressionStream
+      message: Use `const { CompressionStream } = require('internal/webstreams/compression')` instead of the global.
+    - name: CountQueuingStrategy
+      message: Use `const { CountQueuingStrategy } = require('internal/webstreams/queuingstrategies')` instead of the global.
+    - name: DecompressionStream
+      message: Use `const { DecompressionStream } = require('internal/webstreams/compression')` instead of the global.
     - name: DOMException
       message: Use lazy function `const { lazyDOMException } = require('internal/util');` instead of the global.
     - name: Event
@@ -63,6 +71,18 @@ rules:
       message: Use `const { MessageEvent } = require('internal/worker/io');` instead of the global.
     - name: MessagePort
       message: Use `const { MessagePort } = require('internal/worker/io');` instead of the global.
+    - name: ReadableStream
+      message: Use `const { ReadableStream } = require('internal/webstreams/readablestream')` instead of the global.
+    - name: ReadableStreamDefaultReader
+      message: Use `const { ReadableStreamDefaultReader } = require('internal/webstreams/readablestream')` instead of the global.
+    - name: ReadableStreamBYOBReader
+      message: Use `const { ReadableStreamBYOBReader } = require('internal/webstreams/readablestream')` instead of the global.
+    - name: ReadableStreamBYOBRequest
+      message: Use `const { ReadableStreamBYOBRequest } = require('internal/webstreams/readablestream')` instead of the global.
+    - name: ReadableByteStreamController
+      message: Use `const { ReadableByteStreamController } = require('internal/webstreams/readablestream')` instead of the global.
+    - name: ReadableStreamDefaultController
+      message: Use `const { ReadableStreamDefaultController } = require('internal/webstreams/readablestream')` instead of the global.
     - name: Request
       message: Use `const { Request } = require('internal/deps/undici/undici');` instead of the global.
     - name: Response
@@ -73,8 +93,16 @@ rules:
       message: Use `const { SharedArrayBuffer } = globalThis;` instead of the global.
     - name: TextDecoder
       message: Use `const { TextDecoder } = require('internal/encoding');` instead of the global.
+    - name: TextDecoderStream
+      message: Use `const { TextDecoderStream } = require('internal/webstreams/encoding')` instead of the global.
     - name: TextEncoder
       message: Use `const { TextEncoder } = require('internal/encoding');` instead of the global.
+    - name: TextEncoderStream
+      message: Use `const { TextEncoderStream } = require('internal/webstreams/encoding')` instead of the global.
+    - name: TransformStream
+      message: Use `const { TransformStream } = require('internal/webstreams/transformstream')` instead of the global.
+    - name: TransformStreamDefaultController
+      message: Use `const { TransformStreamDefaultController } = require('internal/webstreams/transformstream')` instead of the global.
     - name: URL
       message: Use `const { URL } = require('internal/url');` instead of the global.
     - name: URLSearchParams
@@ -83,6 +111,12 @@ rules:
       # disabled with --jitless CLI flag.
     - name: WebAssembly
       message: Use `const { WebAssembly } = globalThis;` instead of the global.
+    - name: WritableStream
+      message: Use `const { WritableStream } = require('internal/webstreams/writablestream')` instead of the global.
+    - name: WritableStreamDefaultWriter
+      message: Use `const { WritableStreamDefaultWriter } = require('internal/webstreams/writablestream')` instead of the global.
+    - name: WritableStreamDefaultController
+      message: Use `const { WritableStreamDefaultController } = require('internal/webstreams/writablestream')` instead of the global.
     - name: atob
       message: Use `const { atob } = require('buffer');` instead of the global.
     - name: btoa
