@@ -5,6 +5,17 @@
 #include "stream_base-inl.h"
 #include "util-inl.h"
 
+// Copied from https://github.com/nodejs/node/blob/b07dc4d19fdbc15b4f76557dc45b3ce3a43ad0c3/src/util.cc#L36-L41.
+#ifdef _WIN32
+#include <io.h>  // _S_IREAD _S_IWRITE
+#ifndef S_IRUSR
+#define S_IRUSR _S_IREAD
+#endif  // S_IRUSR
+#ifndef S_IWUSR
+#define S_IWUSR _S_IWRITE
+#endif  // S_IWUSR
+#endif
+
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
@@ -16,8 +27,11 @@ using v8::Global;
 using v8::HandleScope;
 using v8::HeapSnapshot;
 using v8::Isolate;
+using v8::JustVoid;
 using v8::Local;
+using v8::Maybe;
 using v8::MaybeLocal;
+using v8::Nothing;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -206,7 +220,7 @@ void BuildEmbedderGraph(const FunctionCallbackInfo<Value>& args) {
 namespace {
 class FileOutputStream : public v8::OutputStream {
  public:
-  explicit FileOutputStream(FILE* stream) : stream_(stream) {}
+  FileOutputStream(const int fd, uv_fs_t* req) : fd_(fd), req_(req) {}
 
   int GetChunkSize() override {
     return 65536;  // big chunks == faster
@@ -214,18 +228,36 @@ class FileOutputStream : public v8::OutputStream {
 
   void EndOfStream() override {}
 
-  WriteResult WriteAsciiChunk(char* data, int size) override {
-    const size_t len = static_cast<size_t>(size);
-    size_t off = 0;
-
-    while (off < len && !feof(stream_) && !ferror(stream_))
-      off += fwrite(data + off, 1, len - off, stream_);
-
-    return off == len ? kContinue : kAbort;
+  WriteResult WriteAsciiChunk(char* data, const int size) override {
+    DCHECK_EQ(status_, 0);
+    int offset = 0;
+    while (offset < size) {
+      const uv_buf_t buf = uv_buf_init(data + offset, size - offset);
+      const int num_bytes_written = uv_fs_write(nullptr,
+                                                req_,
+                                                fd_,
+                                                &buf,
+                                                1,
+                                                -1,
+                                                nullptr);
+      uv_fs_req_cleanup(req_);
+      if (num_bytes_written < 0) {
+        status_ = num_bytes_written;
+        return kAbort;
+      }
+      DCHECK_LE(num_bytes_written, buf.len);
+      offset += num_bytes_written;
+    }
+    DCHECK_EQ(offset, size);
+    return kContinue;
   }
 
+  int status() const { return status_; }
+
  private:
-  FILE* stream_;
+  const int fd_;
+  uv_fs_t* req_;
+  int status_ = 0;
 };
 
 class HeapSnapshotStream : public AsyncWrap,
@@ -316,19 +348,37 @@ inline void TakeSnapshot(Environment* env, v8::OutputStream* out) {
 
 }  // namespace
 
-bool WriteSnapshot(Environment* env, const char* filename) {
-  FILE* fp = fopen(filename, "w");
-  if (fp == nullptr) {
-    env->ThrowErrnoException(errno, "open");
-    return false;
+Maybe<void> WriteSnapshot(Environment* env, const char* filename) {
+  uv_fs_t req;
+  int err;
+
+  const int fd = uv_fs_open(nullptr,
+                            &req,
+                            filename,
+                            O_WRONLY | O_CREAT | O_TRUNC,
+                            S_IWUSR | S_IRUSR,
+                            nullptr);
+  uv_fs_req_cleanup(&req);
+  if ((err = fd) < 0) {
+    env->ThrowUVException(err, "open", nullptr, filename);
+    return Nothing<void>();
   }
-  FileOutputStream stream(fp);
+
+  FileOutputStream stream(fd, &req);
   TakeSnapshot(env, &stream);
-  if (fclose(fp) == EOF) {
-    env->ThrowErrnoException(errno, "close");
-    return false;
+  if ((err = stream.status()) < 0) {
+    env->ThrowUVException(err, "write", nullptr, filename);
+    return Nothing<void>();
   }
-  return true;
+
+  err = uv_fs_close(nullptr, &req, fd, nullptr);
+  uv_fs_req_cleanup(&req);
+  if (err < 0) {
+    env->ThrowUVException(err, "close", nullptr, filename);
+    return Nothing<void>();
+  }
+
+  return JustVoid();
 }
 
 void DeleteHeapSnapshot(const HeapSnapshot* snapshot) {
@@ -379,7 +429,7 @@ void TriggerHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
 
   if (filename_v->IsUndefined()) {
     DiagnosticFilename name(env, "Heap", "heapsnapshot");
-    if (!WriteSnapshot(env, *name))
+    if (WriteSnapshot(env, *name).IsNothing())
       return;
     if (String::NewFromUtf8(isolate, *name).ToLocal(&filename_v)) {
       args.GetReturnValue().Set(filename_v);
@@ -389,7 +439,7 @@ void TriggerHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
 
   BufferValue path(isolate, filename_v);
   CHECK_NOT_NULL(*path);
-  if (!WriteSnapshot(env, *path))
+  if (WriteSnapshot(env, *path).IsNothing())
     return;
   return args.GetReturnValue().Set(filename_v);
 }
