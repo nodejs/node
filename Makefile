@@ -679,7 +679,7 @@ ifneq ("","$(wildcard deps/v8/tools/run-tests.py)")
 # Related CI job: node-test-commit-v8-linux
 test-v8: v8  ## Runs the V8 test suite on deps/v8.
 	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
-		deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) $(V8_TEST_OPTIONS) \
+		$(PYTHON) deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) $(V8_TEST_OPTIONS) \
 				mjsunit cctest debugger inspector message preparser \
 				$(TAP_V8)
 	$(info Testing hash seed)
@@ -687,13 +687,13 @@ test-v8: v8  ## Runs the V8 test suite on deps/v8.
 
 test-v8-intl: v8
 	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
-		deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) \
+		$(PYTHON) deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) \
 				intl \
 				$(TAP_V8_INTL)
 
 test-v8-benchmarks: v8
 	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
-		deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) \
+		$(PYTHON) deps/v8/tools/run-tests.py --gn --arch=$(V8_ARCH) \
 				benchmarks \
 				$(TAP_V8_BENCHMARKS)
 
