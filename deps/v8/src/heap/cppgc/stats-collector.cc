@@ -120,13 +120,18 @@ void StatsCollector::NotifyMarkingCompleted(size_t marked_bytes) {
   gc_state_ = GarbageCollectionState::kSweeping;
   current_.marked_bytes = marked_bytes;
   current_.object_size_before_sweep_bytes =
-      previous_.marked_bytes + allocated_bytes_since_end_of_marking_ +
+      marked_bytes_so_far_ + allocated_bytes_since_end_of_marking_ +
       allocated_bytes_since_safepoint_ -
       explicitly_freed_bytes_since_safepoint_;
   allocated_bytes_since_safepoint_ = 0;
   explicitly_freed_bytes_since_safepoint_ = 0;
+
+  if (current_.collection_type == CollectionType::kMajor)
+    marked_bytes_so_far_ = 0;
+  marked_bytes_so_far_ += marked_bytes;
+
 #ifdef CPPGC_VERIFY_HEAP
-  tracked_live_bytes_ = marked_bytes;
+  tracked_live_bytes_ = marked_bytes_so_far_;
 #endif  // CPPGC_VERIFY_HEAP
 
   DCHECK_LE(memory_freed_bytes_since_end_of_marking_, memory_allocated_bytes_);
@@ -134,8 +139,8 @@ void StatsCollector::NotifyMarkingCompleted(size_t marked_bytes) {
   current_.memory_size_before_sweep_bytes = memory_allocated_bytes_;
   memory_freed_bytes_since_end_of_marking_ = 0;
 
-  ForAllAllocationObservers([marked_bytes](AllocationObserver* observer) {
-    observer->ResetAllocatedObjectSize(marked_bytes);
+  ForAllAllocationObservers([this](AllocationObserver* observer) {
+    observer->ResetAllocatedObjectSize(marked_bytes_so_far_);
   });
 
   // HeapGrowing would use the below fields to estimate allocation rate during
@@ -154,20 +159,23 @@ double StatsCollector::GetRecentAllocationSpeedInBytesPerMs() const {
 
 namespace {
 
-int64_t SumPhases(const MetricRecorder::FullCycle::Phases& phases) {
+int64_t SumPhases(const MetricRecorder::GCCycle::Phases& phases) {
   return phases.mark_duration_us + phases.weak_duration_us +
          phases.compact_duration_us + phases.sweep_duration_us;
 }
 
-MetricRecorder::FullCycle GetFullCycleEventForMetricRecorder(
-    int64_t atomic_mark_us, int64_t atomic_weak_us, int64_t atomic_compact_us,
-    int64_t atomic_sweep_us, int64_t incremental_mark_us,
-    int64_t incremental_sweep_us, int64_t concurrent_mark_us,
-    int64_t concurrent_sweep_us, int64_t objects_before_bytes,
-    int64_t objects_after_bytes, int64_t objects_freed_bytes,
-    int64_t memory_before_bytes, int64_t memory_after_bytes,
-    int64_t memory_freed_bytes) {
-  MetricRecorder::FullCycle event;
+MetricRecorder::GCCycle GetCycleEventForMetricRecorder(
+    StatsCollector::CollectionType type, int64_t atomic_mark_us,
+    int64_t atomic_weak_us, int64_t atomic_compact_us, int64_t atomic_sweep_us,
+    int64_t incremental_mark_us, int64_t incremental_sweep_us,
+    int64_t concurrent_mark_us, int64_t concurrent_sweep_us,
+    int64_t objects_before_bytes, int64_t objects_after_bytes,
+    int64_t objects_freed_bytes, int64_t memory_before_bytes,
+    int64_t memory_after_bytes, int64_t memory_freed_bytes) {
+  MetricRecorder::GCCycle event;
+  event.type = (type == StatsCollector::CollectionType::kMajor)
+                   ? MetricRecorder::GCCycle::Type::kMajor
+                   : MetricRecorder::GCCycle::Type::kMinor;
   // MainThread.Incremental:
   event.main_thread_incremental.mark_duration_us = incremental_mark_us;
   event.main_thread_incremental.sweep_duration_us = incremental_sweep_us;
@@ -223,7 +231,8 @@ void StatsCollector::NotifySweepingCompleted() {
   previous_ = std::move(current_);
   current_ = Event();
   if (metric_recorder_) {
-    MetricRecorder::FullCycle event = GetFullCycleEventForMetricRecorder(
+    MetricRecorder::GCCycle event = GetCycleEventForMetricRecorder(
+        previous_.collection_type,
         previous_.scope_data[kAtomicMark].InMicroseconds(),
         previous_.scope_data[kAtomicWeak].InMicroseconds(),
         previous_.scope_data[kAtomicCompact].InMicroseconds(),
@@ -233,9 +242,9 @@ void StatsCollector::NotifySweepingCompleted() {
         previous_.concurrent_scope_data[kConcurrentMark],
         previous_.concurrent_scope_data[kConcurrentSweep],
         previous_.object_size_before_sweep_bytes /* objects_before */,
-        previous_.marked_bytes /* objects_after */,
+        marked_bytes_so_far_ /* objects_after */,
         previous_.object_size_before_sweep_bytes -
-            previous_.marked_bytes /* objects_freed */,
+            marked_bytes_so_far_ /* objects_freed */,
         previous_.memory_size_before_sweep_bytes /* memory_before */,
         previous_.memory_size_before_sweep_bytes -
             memory_freed_bytes_since_end_of_marking_ /* memory_after */,
@@ -249,26 +258,17 @@ size_t StatsCollector::allocated_memory_size() const {
 }
 
 size_t StatsCollector::allocated_object_size() const {
-  // During sweeping we refer to the current Event as that already holds the
-  // correct marking information. In all other phases, the previous event holds
-  // the most up-to-date marking information.
-  const Event& event =
-      gc_state_ == GarbageCollectionState::kSweeping ? current_ : previous_;
-  DCHECK_GE(static_cast<int64_t>(event.marked_bytes) +
-                allocated_bytes_since_end_of_marking_,
-            0);
-  return static_cast<size_t>(static_cast<int64_t>(event.marked_bytes) +
-                             allocated_bytes_since_end_of_marking_);
+  return marked_bytes_so_far_ + allocated_bytes_since_end_of_marking_;
 }
 
 size_t StatsCollector::marked_bytes() const {
   DCHECK_NE(GarbageCollectionState::kMarking, gc_state_);
-  // During sweeping we refer to the current Event as that already holds the
-  // correct marking information. In all other phases, the previous event holds
-  // the most up-to-date marking information.
-  const Event& event =
-      gc_state_ == GarbageCollectionState::kSweeping ? current_ : previous_;
-  return event.marked_bytes;
+  return marked_bytes_so_far_;
+}
+
+size_t StatsCollector::marked_bytes_on_current_cycle() const {
+  DCHECK_NE(GarbageCollectionState::kNotRunning, gc_state_);
+  return current_.marked_bytes;
 }
 
 v8::base::TimeDelta StatsCollector::marking_time() const {

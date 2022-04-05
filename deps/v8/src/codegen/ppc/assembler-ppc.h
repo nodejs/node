@@ -43,7 +43,6 @@
 #include <stdio.h>
 
 #include <memory>
-#include <vector>
 
 #include "src/base/numbers/double.h"
 #include "src/codegen/assembler.h"
@@ -605,6 +604,16 @@ class Assembler : public AssemblerBase {
   PPC_VC_OPCODE_LIST(DECLARE_PPC_VC_INSTRUCTIONS)
 #undef DECLARE_PPC_VC_INSTRUCTIONS
 
+#define DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_10(name, instr_name, instr_value) \
+  inline void name(const Operand& imm, const PRBit pr = LeavePR) {             \
+    prefix_10_form(instr_name, imm, pr);                                       \
+  }
+  inline void prefix_10_form(Instr instr, const Operand& imm, int pr) {
+    emit_prefix(instr | pr * B20 | (imm.immediate() & kImm18Mask));
+  }
+  PPC_PREFIX_OPCODE_TYPE_10_LIST(DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_10)
+#undef DECLARE_PPC_PREFIX_INSTRUCTIONS_TYPE_10
+
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
   // ---------------------------------------------------------------------------
   // Code generation
@@ -1120,6 +1129,11 @@ class Assembler : public AssemblerBase {
   void stxvx(const Simd128Register rt, const MemOperand& dst);
   void xxspltib(const Simd128Register rt, const Operand& imm);
 
+  // Prefixed instructioons.
+  void paddi(Register dst, Register src, const Operand& imm);
+  void pli(Register dst, const Operand& imm);
+  void psubi(Register dst, Register src, const Operand& imm);
+
   // Pseudo instructions
 
   // Different nop operations are used by the code generator to detect certain
@@ -1404,6 +1418,19 @@ class Assembler : public AssemblerBase {
     pc_ += kInstrSize;
     CheckTrampolinePoolQuick();
   }
+
+  void emit_prefix(Instr x) {
+    // Prefixed instructions cannot cross 64-byte boundaries. Add a nop if the
+    // boundary will be crossed mid way.
+    // Code is set to be 64-byte aligned on PPC64 after relocation (look for
+    // kCodeAlignment). We use pc_offset() instead of pc_ as current pc_
+    // alignment could be different after relocation.
+    if (((pc_offset() + sizeof(Instr)) & 63) == 0) {
+      nop();
+    }
+    emit(x);
+  }
+
   void TrackBranch() {
     DCHECK(!trampoline_emitted_);
     int count = tracked_branch_count_++;
@@ -1514,7 +1541,9 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
   Register Acquire();
 
   // Check if we have registers available to acquire.
-  bool CanAcquire() const { return *assembler_->GetScratchRegisterList() != 0; }
+  bool CanAcquire() const {
+    return !assembler_->GetScratchRegisterList()->is_empty();
+  }
 
  private:
   friend class Assembler;

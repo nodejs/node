@@ -12,7 +12,7 @@
 #include "src/logging/log.h"
 #include "src/objects/code-inl.h"
 #include "src/regexp/regexp-stack.h"
-#include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -737,13 +737,13 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
     FrameScope scope(masm_.get(), StackFrame::MANUAL);
 
     // Ensure register assigments are consistent with callee save mask
-    DCHECK(r25.bit() & kRegExpCalleeSaved);
-    DCHECK(code_pointer().bit() & kRegExpCalleeSaved);
-    DCHECK(current_input_offset().bit() & kRegExpCalleeSaved);
-    DCHECK(current_character().bit() & kRegExpCalleeSaved);
-    DCHECK(backtrack_stackpointer().bit() & kRegExpCalleeSaved);
-    DCHECK(end_of_input_address().bit() & kRegExpCalleeSaved);
-    DCHECK(frame_pointer().bit() & kRegExpCalleeSaved);
+    DCHECK(kRegExpCalleeSaved.has(r25));
+    DCHECK(kRegExpCalleeSaved.has(code_pointer()));
+    DCHECK(kRegExpCalleeSaved.has(current_input_offset()));
+    DCHECK(kRegExpCalleeSaved.has(current_character()));
+    DCHECK(kRegExpCalleeSaved.has(backtrack_stackpointer()));
+    DCHECK(kRegExpCalleeSaved.has(end_of_input_address()));
+    DCHECK(kRegExpCalleeSaved.has(frame_pointer()));
 
     // Actually emit code to start a new stack frame.
     // Push arguments
@@ -752,8 +752,7 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
     // Store link register in existing stack-cell.
     // Order here should correspond to order of offset constants in header file.
     RegList registers_to_retain = kRegExpCalleeSaved;
-    RegList argument_registers = r3.bit() | r4.bit() | r5.bit() | r6.bit() |
-                                 r7.bit() | r8.bit() | r9.bit() | r10.bit();
+    RegList argument_registers = {r3, r4, r5, r6, r7, r8, r9, r10};
     __ mflr(r0);
     __ push(r0);
     __ MultiPush(argument_registers | registers_to_retain);

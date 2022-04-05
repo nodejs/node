@@ -21,7 +21,6 @@
 #include "src/strings/char-predicates.h"
 #include "src/strings/unicode.h"
 #include "src/utils/allocation.h"
-#include "src/utils/pointer-with-payload.h"
 
 namespace v8 {
 namespace internal {

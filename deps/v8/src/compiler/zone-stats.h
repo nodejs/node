@@ -6,7 +6,6 @@
 #define V8_COMPILER_ZONE_STATS_H_
 
 #include <map>
-#include <set>
 #include <vector>
 
 #include "src/common/globals.h"

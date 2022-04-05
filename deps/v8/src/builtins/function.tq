@@ -17,11 +17,13 @@ FunctionPrototypeBind(implicit context: Context)(
     JSFunction, JSAny, int32): JSAny;
 
 const kLengthDescriptorIndex: constexpr int32
-    generates 'JSFunctionOrBoundFunction::kLengthDescriptorIndex';
+    generates 'JSFunctionOrBoundFunctionOrWrappedFunction::kLengthDescriptorIndex'
+    ;
 const kNameDescriptorIndex: constexpr int32
-    generates 'JSFunctionOrBoundFunction::kNameDescriptorIndex';
-const kMinDescriptorsForFastBind:
-    constexpr int31 generates 'JSFunction::kMinDescriptorsForFastBind';
+    generates 'JSFunctionOrBoundFunctionOrWrappedFunction::kNameDescriptorIndex'
+    ;
+const kMinDescriptorsForFastBindAndWrap: constexpr int31
+    generates 'JSFunction::kMinDescriptorsForFastBindAndWrap';
 
 macro CheckAccessor(implicit context: Context)(
     array: DescriptorArray, index: constexpr int32,
@@ -42,7 +44,7 @@ FastFunctionPrototypeBind(
   const argc: intptr = arguments.actual_count;
   try {
     typeswitch (receiver) {
-      case (fn: JSFunction|JSBoundFunction): {
+      case (fn: JSFunction|JSBoundFunction|JSWrappedFunction): {
         // Disallow binding of slow-mode functions. We need to figure out
         // whether the length and name property are in the original state.
         Comment('Disallow binding of slow-mode functions');
@@ -53,7 +55,7 @@ FastFunctionPrototypeBind(
         // the actual value on the object changes.
 
         if (fn.map.bit_field3.number_of_own_descriptors <
-            kMinDescriptorsForFastBind) {
+            kMinDescriptorsForFastBindAndWrap) {
           goto Slow;
         }
 

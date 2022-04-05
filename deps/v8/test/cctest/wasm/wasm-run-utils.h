@@ -186,7 +186,7 @@ class TestingModuleBuilder {
     memset(raw, 0, mem_size_);
   }
 
-  // Pseudo-randomly intialize the memory.
+  // Pseudo-randomly initialize the memory.
   void RandomizeMemory(unsigned int seed = 88) {
     byte* raw = raw_mem_start<byte>();
     byte* end = raw_mem_end<byte>();

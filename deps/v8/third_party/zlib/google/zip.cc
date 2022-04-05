@@ -10,10 +10,12 @@
 #include "base/bind.h"
 #include "base/files/file.h"
 #include "base/files/file_enumerator.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
+#include "third_party/zlib/google/redact.h"
 #include "third_party/zlib/google/zip_internal.h"
 #include "third_party/zlib/google/zip_reader.h"
 #include "third_party/zlib/google/zip_writer.h"
@@ -25,14 +27,13 @@ bool IsHiddenFile(const base::FilePath& file_path) {
   return file_path.BaseName().value()[0] == '.';
 }
 
-bool ExcludeNoFilesFilter(const base::FilePath& file_path) {
-  return true;
-}
-
 // Creates a directory at |extract_dir|/|entry_path|, including any parents.
 bool CreateDirectory(const base::FilePath& extract_dir,
                      const base::FilePath& entry_path) {
-  return base::CreateDirectory(extract_dir.Append(entry_path));
+  const base::FilePath dir = extract_dir.Append(entry_path);
+  const bool ok = base::CreateDirectory(dir);
+  PLOG_IF(ERROR, !ok) << "Cannot create directory " << Redact(dir);
+  return ok;
 }
 
 // Creates a WriterDelegate that can write a file at |extract_dir|/|entry_path|.
@@ -59,12 +60,13 @@ class DirectFileAccessor : public FileAccessor {
       const base::FilePath absolute_path = src_dir_.Append(path);
       if (base::DirectoryExists(absolute_path)) {
         files->emplace_back();
-        LOG(ERROR) << "Cannot open '" << path << "': It is a directory";
+        LOG(ERROR) << "Cannot open " << Redact(path) << ": It is a directory";
       } else {
-        files->emplace_back(absolute_path,
-                            base::File::FLAG_OPEN | base::File::FLAG_READ);
-        LOG_IF(ERROR, !files->back().IsValid())
-            << "Cannot open '" << path << "'";
+        const base::File& file = files->emplace_back(
+            absolute_path, base::File::FLAG_OPEN | base::File::FLAG_READ);
+        LOG_IF(ERROR, !file.IsValid())
+            << "Cannot open " << Redact(path) << ": "
+            << base::File::ErrorToString(file.error_details());
       }
     }
 
@@ -97,7 +99,7 @@ class DirectFileAccessor : public FileAccessor {
 
     base::File::Info file_info;
     if (!base::GetFileInfo(src_dir_.Append(path), &file_info)) {
-      LOG(ERROR) << "Cannot get info of '" << path << "'";
+      PLOG(ERROR) << "Cannot get info of " << Redact(path);
       return false;
     }
 
@@ -125,7 +127,7 @@ bool Zip(const ZipParams& params) {
 
   std::unique_ptr<internal::ZipWriter> zip_writer;
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
   if (params.dest_fd != base::kInvalidPlatformFile) {
     DCHECK(params.dest_file.empty());
     zip_writer =
@@ -169,79 +171,82 @@ bool Zip(const ZipParams& params) {
   return zip_writer->Close();
 }
 
-bool Unzip(const base::FilePath& src_file, const base::FilePath& dest_dir) {
-  return UnzipWithFilterCallback(
-      src_file, dest_dir, base::BindRepeating(&ExcludeNoFilesFilter), true);
-}
-
-bool UnzipWithFilterCallback(const base::FilePath& src_file,
-                             const base::FilePath& dest_dir,
-                             FilterCallback filter_cb,
-                             bool log_skipped_files) {
+bool Unzip(const base::FilePath& src_file,
+           const base::FilePath& dest_dir,
+           UnzipOptions options) {
   base::File file(src_file, base::File::FLAG_OPEN | base::File::FLAG_READ);
   if (!file.IsValid()) {
-    DLOG(WARNING) << "Cannot open '" << src_file << "'";
+    PLOG(ERROR) << "Cannot open " << Redact(src_file) << ": "
+                << base::File::ErrorToString(file.error_details());
     return false;
   }
 
-  return UnzipWithFilterAndWriters(
-      file.GetPlatformFile(),
-      base::BindRepeating(&CreateFilePathWriterDelegate, dest_dir),
-      base::BindRepeating(&CreateDirectory, dest_dir), std::move(filter_cb),
-      log_skipped_files);
+  DLOG_IF(WARNING, !base::IsDirectoryEmpty(dest_dir))
+      << "ZIP extraction directory is not empty: " << dest_dir;
+
+  return Unzip(file.GetPlatformFile(),
+               base::BindRepeating(&CreateFilePathWriterDelegate, dest_dir),
+               base::BindRepeating(&CreateDirectory, dest_dir),
+               std::move(options));
 }
 
-bool UnzipWithFilterAndWriters(const base::PlatformFile& src_file,
-                               WriterFactory writer_factory,
-                               DirectoryCreator directory_creator,
-                               FilterCallback filter_cb,
-                               bool log_skipped_files) {
+bool Unzip(const base::PlatformFile& src_file,
+           WriterFactory writer_factory,
+           DirectoryCreator directory_creator,
+           UnzipOptions options) {
   ZipReader reader;
+  reader.SetEncoding(std::move(options.encoding));
+  reader.SetPassword(std::move(options.password));
+
   if (!reader.OpenFromPlatformFile(src_file)) {
-    DLOG(WARNING) << "Cannot open '" << src_file << "'";
+    LOG(ERROR) << "Cannot open ZIP from file handle " << src_file;
     return false;
   }
-  while (reader.HasMore()) {
-    if (!reader.OpenCurrentEntryInZip()) {
-      DLOG(WARNING) << "Failed to open the current file in zip";
-      return false;
-    }
-    const base::FilePath& entry_path = reader.current_entry_info()->file_path();
-    if (reader.current_entry_info()->is_unsafe()) {
-      DLOG(WARNING) << "Found an unsafe file in zip " << entry_path;
-      return false;
-    }
-    if (filter_cb.Run(entry_path)) {
-      if (reader.current_entry_info()->is_directory()) {
-        if (!directory_creator.Run(entry_path))
-          return false;
-      } else {
-        std::unique_ptr<WriterDelegate> writer = writer_factory.Run(entry_path);
-        if (!reader.ExtractCurrentEntry(writer.get(),
-                                        std::numeric_limits<uint64_t>::max())) {
-          DLOG(WARNING) << "Failed to extract " << entry_path;
-          return false;
-        }
-      }
-    } else if (log_skipped_files) {
-      DLOG(WARNING) << "Skipped file " << entry_path;
+
+  while (const ZipReader::Entry* const entry = reader.Next()) {
+    if (entry->is_unsafe) {
+      LOG(ERROR) << "Found unsafe entry " << Redact(entry->path) << " in ZIP";
+      if (!options.continue_on_error)
+        return false;
+      continue;
     }
 
-    if (!reader.AdvanceToNextEntry()) {
-      DLOG(WARNING) << "Failed to advance to the next file";
-      return false;
+    if (options.filter && !options.filter.Run(entry->path)) {
+      VLOG(1) << "Skipped ZIP entry " << Redact(entry->path);
+      continue;
+    }
+
+    if (entry->is_directory) {
+      // It's a directory.
+      if (!directory_creator.Run(entry->path)) {
+        LOG(ERROR) << "Cannot create directory " << Redact(entry->path);
+        if (!options.continue_on_error)
+          return false;
+      }
+
+      continue;
+    }
+
+    // It's a file.
+    std::unique_ptr<WriterDelegate> writer = writer_factory.Run(entry->path);
+    if (!writer || !reader.ExtractCurrentEntry(writer.get())) {
+      LOG(ERROR) << "Cannot extract file " << Redact(entry->path)
+                 << " from ZIP";
+      if (!options.continue_on_error)
+        return false;
     }
   }
-  return true;
+
+  return reader.ok();
 }
 
 bool ZipWithFilterCallback(const base::FilePath& src_dir,
                            const base::FilePath& dest_file,
-                           FilterCallback filter_cb) {
+                           FilterCallback filter) {
   DCHECK(base::DirectoryExists(src_dir));
   return Zip({.src_dir = src_dir,
               .dest_file = dest_file,
-              .filter_callback = std::move(filter_cb)});
+              .filter_callback = std::move(filter)});
 }
 
 bool Zip(const base::FilePath& src_dir,
@@ -252,7 +257,7 @@ bool Zip(const base::FilePath& src_dir,
               .include_hidden_files = include_hidden_files});
 }
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
 bool ZipFiles(const base::FilePath& src_dir,
               Paths src_relative_paths,
               int dest_fd) {
@@ -261,6 +266,6 @@ bool ZipFiles(const base::FilePath& src_dir,
               .dest_fd = dest_fd,
               .src_files = src_relative_paths});
 }
-#endif  // defined(OS_POSIX)
+#endif  // defined(OS_POSIX) || defined(OS_FUCHSIA)
 
 }  // namespace zip

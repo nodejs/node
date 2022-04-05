@@ -1,0 +1,9 @@
+{
+  "include": [
+    "build/config/fuchsia/test/minimum_capabilities.test-cmx",
+    "gni/v8.cmx"
+  ],
+  "program": {
+    "binary": "d8"
+  }
+}

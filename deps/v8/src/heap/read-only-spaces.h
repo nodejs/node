@@ -26,6 +26,9 @@ class SnapshotData;
 
 class ReadOnlyPage : public BasicMemoryChunk {
  public:
+  ReadOnlyPage(Heap* heap, BaseSpace* space, size_t chunk_size,
+               Address area_start, Address area_end, VirtualMemory reservation);
+
   // Clears any pointers in the header that point out of the page that would
   // otherwise make the header non-relocatable.
   void MakeHeaderRelocatable();
@@ -228,8 +231,6 @@ class ReadOnlySpace : public BaseSpace {
 
   // Return size of allocatable area on a page in this space.
   int AreaSize() const { return static_cast<int>(area_size_); }
-
-  ReadOnlyPage* InitializePage(BasicMemoryChunk* chunk);
 
   Address FirstPageAddress() const { return pages_.front()->address(); }
 

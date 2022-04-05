@@ -2604,7 +2604,38 @@ TEST(PrivateMethodAccess) {
       "}\n"
       "\n"
       "var test = D;\n"
-      "new test;\n"};
+      "new test;\n",
+
+      "var test;\n"
+      "class F extends class {} {\n"
+      "  #method() { }\n"
+      "  constructor() {\n"
+      "    (test = () => super())();\n"
+      "    this.#method();\n"
+      "  }\n"
+      "};\n"
+      "new F;\n",
+
+      "var test;\n"
+      "class G extends class {} {\n"
+      "  #method() { }\n"
+      "  constructor() {\n"
+      "    test = () => super();\n"
+      "    test();\n"
+      "    this.#method();\n"
+      "  }\n"
+      "};\n"
+      "new G();\n",
+
+      "var test;\n"
+      "class H extends class {} {\n"
+      "  #method() { }\n"
+      "  constructor(str) {\n"
+      "    eval(str);\n"
+      "    this.#method();\n"
+      "  }\n"
+      "};\n"
+      "new test('test = () => super(); test()');\n"};
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("PrivateMethodAccess.golden")));

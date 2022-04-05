@@ -88,8 +88,8 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
   std::vector<Node*> params;
   // The first parameter is always the callee.
   params.push_back(__ Parameter<Object>(1));
-  params.push_back(__ HeapConstant(
-      BuildTeardownFunction(isolate, call_descriptor, parameters)));
+  params.push_back(__ HeapConstant(ToCodeT(
+      BuildTeardownFunction(isolate, call_descriptor, parameters), isolate)));
   // First allocate the FixedArray which will hold the final results. Here we
   // should take care of all allocations, meaning we allocate HeapNumbers and
   // FixedArrays representing Simd128 values.
@@ -441,12 +441,13 @@ class TestEnvironment : public HandleAndZoneScope {
     DCHECK_LE(kGeneralRegisterCount,
               GetRegConfig()->num_allocatable_general_registers() - 2);
 
-    int32_t general_mask = GetRegConfig()->allocatable_general_codes_mask();
+    RegList general_mask =
+        RegList::FromBits(GetRegConfig()->allocatable_general_codes_mask());
     // kReturnRegister0 is used to hold the "teardown" code object, do not
     // generate moves using it.
+    general_mask.clear(kReturnRegister0);
     std::unique_ptr<const RegisterConfiguration> registers(
-        RegisterConfiguration::RestrictGeneralRegisters(
-            general_mask & ~kReturnRegister0.bit()));
+        RegisterConfiguration::RestrictGeneralRegisters(general_mask));
 
     for (int i = 0; i < kGeneralRegisterCount; i++) {
       int code = registers->GetAllocatableGeneralCode(i);
@@ -460,7 +461,7 @@ class TestEnvironment : public HandleAndZoneScope {
         ((kDoubleRegisterCount % 2) == 0) && ((kDoubleRegisterCount % 3) == 0),
         "kDoubleRegisterCount should be a multiple of two and three.");
     for (int i = 0; i < kDoubleRegisterCount; i += 2) {
-      if (kSimpleFPAliasing) {
+      if (kFPAliasing != AliasingKind::kCombine) {
         // Allocate three registers at once if kSimd128 is supported, else
         // allocate in pairs.
         AddRegister(&test_signature, MachineRepresentation::kFloat32,
@@ -577,7 +578,7 @@ class TestEnvironment : public HandleAndZoneScope {
         kTotalStackParameterCount,      // stack_parameter_count
         Operator::kNoProperties,        // properties
         kNoCalleeSaved,                 // callee-saved registers
-        kNoCalleeSaved,                 // callee-saved fp
+        kNoCalleeSavedFp,               // callee-saved fp
         CallDescriptor::kNoFlags);      // flags
   }
 
@@ -696,7 +697,8 @@ class TestEnvironment : public HandleAndZoneScope {
       // return value will be freed along with it. Copy the result into
       // state_out.
       FunctionTester ft(setup, 2);
-      Handle<FixedArray> result = ft.CallChecked<FixedArray>(test, state_in);
+      Handle<FixedArray> result =
+          ft.CallChecked<FixedArray>(ToCodeT(test, main_isolate()), state_in);
       CHECK_EQ(result->length(), state_in->length());
       result->CopyTo(0, *state_out, 0, result->length());
     }

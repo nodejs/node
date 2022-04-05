@@ -38,7 +38,7 @@ class OperandSet {
   void InsertOp(const InstructionOperand& op) {
     set_->push_back(op);
 
-    if (!kSimpleFPAliasing && op.IsFPRegister())
+    if (kFPAliasing == AliasingKind::kCombine && op.IsFPRegister())
       fp_reps_ |= RepresentationBit(LocationOperand::cast(op).representation());
   }
 
@@ -52,7 +52,7 @@ class OperandSet {
   bool ContainsOpOrAlias(const InstructionOperand& op) const {
     if (Contains(op)) return true;
 
-    if (!kSimpleFPAliasing && op.IsFPRegister()) {
+    if (kFPAliasing == AliasingKind::kCombine && op.IsFPRegister()) {
       // Platforms where FP registers have complex aliasing need extra checks.
       const LocationOperand& loc = LocationOperand::cast(op);
       MachineRepresentation rep = loc.representation();

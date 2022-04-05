@@ -79,31 +79,27 @@ class BasicMemoryChunk {
     // triggering on the same page.
     COMPACTION_WAS_ABORTED_FOR_TESTING = 1u << 16,
 
-    // |SWEEP_TO_ITERATE|: The page requires sweeping using external markbits
-    // to iterate the page.
-    SWEEP_TO_ITERATE = 1u << 17,
-
     // |INCREMENTAL_MARKING|: Indicates whether incremental marking is currently
     // enabled.
-    INCREMENTAL_MARKING = 1u << 18,
-    NEW_SPACE_BELOW_AGE_MARK = 1u << 19,
+    INCREMENTAL_MARKING = 1u << 17,
+    NEW_SPACE_BELOW_AGE_MARK = 1u << 18,
 
     // The memory chunk freeing bookkeeping has been performed but the chunk has
     // not yet been freed.
-    UNREGISTERED = 1u << 20,
+    UNREGISTERED = 1u << 19,
 
     // The memory chunk belongs to the read-only heap and does not participate
     // in garbage collection. This is used instead of owner for identity
     // checking since read-only chunks have no owner once they are detached.
-    READ_ONLY_HEAP = 1u << 21,
+    READ_ONLY_HEAP = 1u << 20,
 
     // The memory chunk is pinned in memory and can't be moved. This is likely
     // because there exists a potential pointer to somewhere in the chunk which
     // can't be updated.
-    PINNED = 1u << 22,
+    PINNED = 1u << 21,
 
     // This page belongs to a shared heap.
-    IN_SHARED_HEAP = 1u << 23,
+    IN_SHARED_HEAP = 1u << 22,
   };
 
   using MainThreadFlags = base::Flags<Flag, uintptr_t>;
@@ -133,7 +129,9 @@ class BasicMemoryChunk {
 
   static const intptr_t kAlignmentMask = kAlignment - 1;
 
-  BasicMemoryChunk(size_t size, Address area_start, Address area_end);
+  BasicMemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
+                   Address area_start, Address area_end,
+                   VirtualMemory reservation);
 
   static Address BaseAddress(Address a) { return a & ~kAlignmentMask; }
 
@@ -182,7 +180,7 @@ class BasicMemoryChunk {
   void ClearFlags(MainThreadFlags flags) { main_thread_flags_ &= ~flags; }
   // Set or clear multiple flags at a time. `mask` indicates which flags are
   // should be replaced with new `flags`.
-  void SetFlags(MainThreadFlags flags, MainThreadFlags mask) {
+  void SetFlags(MainThreadFlags flags, MainThreadFlags mask = kAllFlagsMask) {
     main_thread_flags_ = (main_thread_flags_ & ~mask) | (flags & mask);
   }
 
@@ -257,11 +255,6 @@ class BasicMemoryChunk {
   bool ContainsLimit(Address addr) const {
     return addr >= area_start() && addr <= area_end();
   }
-
-  static BasicMemoryChunk* Initialize(Heap* heap, Address base, size_t size,
-                                      Address area_start, Address area_end,
-                                      BaseSpace* owner,
-                                      VirtualMemory reservation);
 
   size_t wasted_memory() const { return wasted_memory_; }
   void add_wasted_memory(size_t waste) { wasted_memory_ += waste; }

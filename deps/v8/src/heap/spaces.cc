@@ -13,6 +13,7 @@
 #include "src/base/macros.h"
 #include "src/base/sanitizer/msan.h"
 #include "src/common/globals.h"
+#include "src/heap/base/active-system-pages.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/gc-tracer.h"
@@ -22,6 +23,7 @@
 #include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/remembered-set.h"
@@ -47,6 +49,12 @@ STATIC_ASSERT(kClearedWeakHeapObjectLower32 < Page::kHeaderSize);
 
 // static
 constexpr Page::MainThreadFlags Page::kCopyOnFlipFlagsMask;
+
+Page::Page(Heap* heap, BaseSpace* space, size_t size, Address area_start,
+           Address area_end, VirtualMemory reservation,
+           Executability executable)
+    : MemoryChunk(heap, space, size, area_start, area_end,
+                  std::move(reservation), executable, PageSize::kRegular) {}
 
 void Page::AllocateFreeListCategories() {
   DCHECK_NULL(categories_);
@@ -89,33 +97,6 @@ Page* Page::ConvertNewToOld(Page* old_page) {
   Page* new_page = old_space->InitializePage(old_page);
   old_space->AddPage(new_page);
   return new_page;
-}
-
-void Page::MoveOldToNewRememberedSetForSweeping() {
-  CHECK_NULL(sweeping_slot_set_);
-  sweeping_slot_set_ = slot_set_[OLD_TO_NEW];
-  slot_set_[OLD_TO_NEW] = nullptr;
-}
-
-void Page::MergeOldToNewRememberedSets() {
-  if (sweeping_slot_set_ == nullptr) return;
-
-  if (slot_set_[OLD_TO_NEW]) {
-    RememberedSet<OLD_TO_NEW>::Iterate(
-        this,
-        [this](MaybeObjectSlot slot) {
-          Address address = slot.address();
-          RememberedSetSweeping::Insert<AccessMode::NON_ATOMIC>(this, address);
-          return KEEP_SLOT;
-        },
-        SlotSet::KEEP_EMPTY_BUCKETS);
-
-    ReleaseSlotSet<OLD_TO_NEW>();
-  }
-
-  CHECK_NULL(slot_set_[OLD_TO_NEW]);
-  slot_set_[OLD_TO_NEW] = sweeping_slot_set_;
-  sweeping_slot_set_ = nullptr;
 }
 
 size_t Page::AvailableInFreeList() {
@@ -164,7 +145,6 @@ size_t Page::ShrinkToHighWaterMark() {
   // area would not be freed when deallocating this page.
   DCHECK_NULL(slot_set<OLD_TO_NEW>());
   DCHECK_NULL(slot_set<OLD_TO_OLD>());
-  DCHECK_NULL(sweeping_slot_set());
 
   size_t unused = RoundDown(static_cast<size_t>(area_end() - filler.address()),
                             MemoryAllocator::GetCommitPageSize());
@@ -251,24 +231,20 @@ void Space::RemoveAllocationObserver(AllocationObserver* observer) {
   allocation_counter_.RemoveAllocationObserver(observer);
 }
 
-void Space::PauseAllocationObservers() {
-  allocation_observers_paused_depth_++;
-  if (allocation_observers_paused_depth_ == 1) allocation_counter_.Pause();
-}
+void Space::PauseAllocationObservers() { allocation_counter_.Pause(); }
 
-void Space::ResumeAllocationObservers() {
-  allocation_observers_paused_depth_--;
-  if (allocation_observers_paused_depth_ == 0) allocation_counter_.Resume();
-}
+void Space::ResumeAllocationObservers() { allocation_counter_.Resume(); }
 
 Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
                                           size_t min_size) {
   DCHECK_GE(end - start, min_size);
 
-  if (heap()->inline_allocation_disabled()) {
-    // Fit the requested area exactly.
+  if (!use_lab_) {
+    // LABs are disabled, so we fit the requested area exactly.
     return start + min_size;
-  } else if (SupportsAllocationObserver() && allocation_counter_.IsActive()) {
+  }
+
+  if (SupportsAllocationObserver() && allocation_counter_.IsActive()) {
     // Ensure there are no unaccounted allocations.
     DCHECK_EQ(allocation_info_->start(), allocation_info_->top());
 
@@ -283,10 +259,27 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
         static_cast<uint64_t>(start) + std::max(min_size, rounded_step);
     uint64_t new_end = std::min(step_end, static_cast<uint64_t>(end));
     return static_cast<Address>(new_end);
-  } else {
-    // The entire node can be used as the linear allocation area.
-    return end;
   }
+
+  // LABs are enabled and no observers attached. Return the whole node for the
+  // LAB.
+  return end;
+}
+
+void SpaceWithLinearArea::DisableInlineAllocation() {
+  if (!use_lab_) return;
+
+  use_lab_ = false;
+  FreeLinearAllocationArea();
+  UpdateInlineAllocationLimit(0);
+}
+
+void SpaceWithLinearArea::EnableInlineAllocation() {
+  if (use_lab_) return;
+
+  use_lab_ = true;
+  AdvanceAllocationObservers();
+  UpdateInlineAllocationLimit(0);
 }
 
 void SpaceWithLinearArea::UpdateAllocationOrigins(AllocationOrigin origin) {

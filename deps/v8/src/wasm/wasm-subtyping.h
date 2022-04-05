@@ -23,25 +23,20 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
 
 // Checks if type1, defined in module1, is equivalent with type2, defined in
 // module2.
-// Type equivalence (~) is described by the following rules (structural
-// equivalence):
+// Type equivalence (~) is described by the following rules:
 // - Two numeric types are equivalent iff they are equal.
-// - optref(ht1) ~ optref(ht2) iff ht1 ~ ht2.
-// - ref(ht1) ~ ref(ht2) iff ht1 ~ ht2.
-// - rtt(d1, ht1) ~ rtt(d2, ht2) iff (d1 = d2 and ht1 ~ ht2).
-// For heap types, the following rules hold:
-// - Two generic heap types are equivalent iff they are equal.
-// - Two structs are equivalent iff they contain the same number of fields and
-//   these are pairwise equivalent.
-// - Two functions are equivalent iff they contain the same number of parameters
-//   and returns and these are pairwise equivalent.
-// - Two arrays are equivalent iff their underlying types are equivalent.
-V8_NOINLINE bool EquivalentTypes(ValueType type1, ValueType type2,
-                                 const WasmModule* module1,
-                                 const WasmModule* module2);
+// - T(ht1) ~ T(ht2) iff ht1 ~ ht2 for T in {ref, optref, rtt}.
+// Equivalence of heap types ht1 ~ ht2 is defined as follows:
+// - Two non-index heap types are equivalent iff they are equal.
+// - Two indexed heap types are equivalent iff they are iso-recursive
+//   equivalent.
+V8_NOINLINE V8_EXPORT_PRIVATE bool EquivalentTypes(ValueType type1,
+                                                   ValueType type2,
+                                                   const WasmModule* module1,
+                                                   const WasmModule* module2);
 
-// Checks if subtype, defined in module1, is a subtype of supertype, defined in
-// module2.
+// Checks if {subtype}, defined in {module1}, is a subtype of {supertype},
+// defined in {module2}.
 // Subtyping between value types is described by the following rules
 // (structural subtyping):
 // - numeric types are subtype-related iff they are equal.
@@ -55,15 +50,13 @@ V8_NOINLINE bool EquivalentTypes(ValueType type1, ValueType type2,
 //       eq func  extern
 //      / \
 //   i31   data
-// - All structs and arrays are subtypes of data.
+//          |
+//        array
 // - All functions are subtypes of func.
-// - Struct subtyping: Subtype must have at least as many fields as supertype,
-//   covariance for immutable fields, equivalence for mutable fields.
-// - Array subtyping (mutable only) is the equivalence relation.
-// - Function subtyping depends on the enabled wasm features: if
-//   --experimental-wasm-gc is enabled, then subtyping is computed
-//   contravariantly for parameter types and covariantly for return types.
-//   Otherwise, the subtyping relation is the equivalence relation.
+// - All structs are subtypes of data.
+// - All arrays are subtypes of array.
+// - An indexed heap type h1 is a subtype of indexed heap type h2 if h2 is
+//   transitively an explicit canonical supertype of h1.
 V8_INLINE bool IsSubtypeOf(ValueType subtype, ValueType supertype,
                            const WasmModule* sub_module,
                            const WasmModule* super_module) {
@@ -71,7 +64,7 @@ V8_INLINE bool IsSubtypeOf(ValueType subtype, ValueType supertype,
   return IsSubtypeOfImpl(subtype, supertype, sub_module, super_module);
 }
 
-// Checks if 'subtype' is a subtype of 'supertype' (both defined in module).
+// Checks if {subtype} is a subtype of {supertype} (both defined in {module}).
 V8_INLINE bool IsSubtypeOf(ValueType subtype, ValueType supertype,
                            const WasmModule* module) {
   // If the types are trivially identical, exit early.
@@ -80,37 +73,28 @@ V8_INLINE bool IsSubtypeOf(ValueType subtype, ValueType supertype,
 }
 
 // We have this function call IsSubtypeOf instead of the opposite because type
-// checks are much more common than heap type checks.}
-V8_INLINE bool IsHeapSubtypeOf(uint32_t subtype_index,
+// checks are much more common than heap type checks.
+V8_INLINE bool IsHeapSubtypeOf(HeapType::Representation subtype,
                                HeapType::Representation supertype,
                                const WasmModule* module) {
-  return IsSubtypeOf(ValueType::Ref(subtype_index, kNonNullable),
+  return IsSubtypeOf(ValueType::Ref(subtype, kNonNullable),
                      ValueType::Ref(supertype, kNonNullable), module);
 }
-V8_INLINE bool IsHeapSubtypeOf(uint32_t subtype_index, uint32_t supertype_index,
-                               const WasmModule* module) {
-  return IsSubtypeOf(ValueType::Ref(subtype_index, kNonNullable),
-                     ValueType::Ref(supertype_index, kNonNullable), module);
-}
 
-// Call this function in {module}'s destructor to avoid spurious cache hits in
-// case another WasmModule gets allocated in the same address later.
-void DeleteCachedTypeJudgementsForModule(const WasmModule* module);
-
-// Checks whether {subtype_index} is a legal subtype of {supertype_index}.
-// These are the same checks that {IsSubtypeOf} uses for comparing types without
-// explicitly given supertypes; for validating such explicit supertypes they
-// can be called directly.
-bool StructIsSubtypeOf(uint32_t subtype_index, uint32_t supertype_index,
-                       const WasmModule* sub_module,
-                       const WasmModule* super_module);
-bool ArrayIsSubtypeOf(uint32_t subtype_index, uint32_t supertype_index,
-                      const WasmModule* sub_module,
-                      const WasmModule* super_module);
-bool FunctionIsSubtypeOf(uint32_t subtype_index, uint32_t supertype_index,
-                         const WasmModule* sub_module,
-                         const WasmModule* super_module);
-
+// Checks whether {subtype_index} is valid as a declared subtype of
+// {supertype_index}.
+// - Both type must be of the same kind (function, struct, or array).
+// - Structs: Subtype must have at least as many fields as supertype,
+//   covariance for respective immutable fields, equivalence for respective
+//   mutable fields.
+// - Arrays: subtyping of respective element types for immutable arrays,
+//   equivalence of element types for mutable arrays.
+// - Functions: equal number of parameter and return types. Contravariance for
+//   respective parameter types, covariance for respective return types.
+V8_EXPORT_PRIVATE bool ValidSubtypeDefinition(uint32_t subtype_index,
+                                              uint32_t supertype_index,
+                                              const WasmModule* sub_module,
+                                              const WasmModule* super_module);
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

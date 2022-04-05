@@ -235,7 +235,7 @@ BytecodeRegisterOptimizer::BytecodeRegisterOptimizer(
   DCHECK_NE(parameter_count, 0);
   int first_slot_index = parameter_count - 1;
   register_info_table_offset_ =
-      -Register::FromParameterIndex(first_slot_index, parameter_count).index();
+      -Register::FromParameterIndex(first_slot_index).index();
 
   // Initialize register map for parameters, locals, and the
   // accumulator.

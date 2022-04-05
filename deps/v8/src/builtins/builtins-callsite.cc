@@ -6,8 +6,8 @@
 #include "src/builtins/builtins.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean.
 #include "src/logging/counters.h"
+#include "src/objects/call-site-info-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/stack-frame-info-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -15,7 +15,7 @@ namespace internal {
 #define CHECK_CALLSITE(frame, method)                                         \
   CHECK_RECEIVER(JSObject, receiver, method);                                 \
   LookupIterator it(isolate, receiver,                                        \
-                    isolate->factory()->call_site_frame_info_symbol(),        \
+                    isolate->factory()->call_site_info_symbol(),              \
                     LookupIterator::OWN_SKIP_INTERCEPTOR);                    \
   if (it.state() != LookupIterator::DATA) {                                   \
     THROW_NEW_ERROR_RETURN_FAILURE(                                           \
@@ -23,7 +23,7 @@ namespace internal {
         NewTypeError(MessageTemplate::kCallSiteMethod,                        \
                      isolate->factory()->NewStringFromAsciiChecked(method))); \
   }                                                                           \
-  Handle<StackFrameInfo> frame = Handle<StackFrameInfo>::cast(it.GetDataValue())
+  Handle<CallSiteInfo> frame = Handle<CallSiteInfo>::cast(it.GetDataValue())
 namespace {
 
 Object PositiveNumberOrNull(int value, Isolate* isolate) {
@@ -36,27 +36,27 @@ Object PositiveNumberOrNull(int value, Isolate* isolate) {
 BUILTIN(CallSitePrototypeGetColumnNumber) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "getColumnNumber");
-  return PositiveNumberOrNull(StackFrameInfo::GetColumnNumber(frame), isolate);
+  return PositiveNumberOrNull(CallSiteInfo::GetColumnNumber(frame), isolate);
 }
 
 BUILTIN(CallSitePrototypeGetEnclosingColumnNumber) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "getEnclosingColumnNumber");
-  return PositiveNumberOrNull(StackFrameInfo::GetEnclosingColumnNumber(frame),
+  return PositiveNumberOrNull(CallSiteInfo::GetEnclosingColumnNumber(frame),
                               isolate);
 }
 
 BUILTIN(CallSitePrototypeGetEnclosingLineNumber) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "getEnclosingLineNumber");
-  return PositiveNumberOrNull(StackFrameInfo::GetEnclosingLineNumber(frame),
+  return PositiveNumberOrNull(CallSiteInfo::GetEnclosingLineNumber(frame),
                               isolate);
 }
 
 BUILTIN(CallSitePrototypeGetEvalOrigin) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "getEvalOrigin");
-  return *StackFrameInfo::GetEvalOrigin(frame);
+  return *CallSiteInfo::GetEvalOrigin(frame);
 }
 
 BUILTIN(CallSitePrototypeGetFileName) {
@@ -80,34 +80,35 @@ BUILTIN(CallSitePrototypeGetFunction) {
 BUILTIN(CallSitePrototypeGetFunctionName) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "getFunctionName");
-  return *StackFrameInfo::GetFunctionName(frame);
+  return *CallSiteInfo::GetFunctionName(frame);
 }
 
 BUILTIN(CallSitePrototypeGetLineNumber) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "getLineNumber");
-  return PositiveNumberOrNull(StackFrameInfo::GetLineNumber(frame), isolate);
+  return PositiveNumberOrNull(CallSiteInfo::GetLineNumber(frame), isolate);
 }
 
 BUILTIN(CallSitePrototypeGetMethodName) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "getMethodName");
-  return *StackFrameInfo::GetMethodName(frame);
+  return *CallSiteInfo::GetMethodName(frame);
 }
 
 BUILTIN(CallSitePrototypeGetPosition) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "getPosition");
-  return Smi::FromInt(StackFrameInfo::GetSourcePosition(frame));
+  return Smi::FromInt(CallSiteInfo::GetSourcePosition(frame));
 }
 
 BUILTIN(CallSitePrototypeGetPromiseIndex) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "getPromiseIndex");
-  if (!frame->IsPromiseAll() && !frame->IsPromiseAny()) {
+  if (!frame->IsPromiseAll() && !frame->IsPromiseAny() &&
+      !frame->IsPromiseAllSettled()) {
     return ReadOnlyRoots(isolate).null_value();
   }
-  return Smi::FromInt(StackFrameInfo::GetSourcePosition(frame));
+  return Smi::FromInt(CallSiteInfo::GetSourcePosition(frame));
 }
 
 BUILTIN(CallSitePrototypeGetScriptNameOrSourceURL) {
@@ -132,7 +133,7 @@ BUILTIN(CallSitePrototypeGetThis) {
 BUILTIN(CallSitePrototypeGetTypeName) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "getTypeName");
-  return *StackFrameInfo::GetTypeName(frame);
+  return *CallSiteInfo::GetTypeName(frame);
 }
 
 BUILTIN(CallSitePrototypeIsAsync) {
@@ -174,7 +175,7 @@ BUILTIN(CallSitePrototypeIsToplevel) {
 BUILTIN(CallSitePrototypeToString) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "toString");
-  RETURN_RESULT_OR_FAILURE(isolate, SerializeStackFrameInfo(isolate, frame));
+  RETURN_RESULT_OR_FAILURE(isolate, SerializeCallSiteInfo(isolate, frame));
 }
 
 #undef CHECK_CALLSITE

@@ -65,13 +65,14 @@ path. Add it with -I<path> to the command line
 // Operating system detection (host)
 //
 //  V8_OS_ANDROID       - Android
-//  V8_OS_BSD           - BSDish (Mac OS X, Net/Free/Open/DragonFlyBSD)
+//  V8_OS_BSD           - BSDish (macOS, Net/Free/Open/DragonFlyBSD)
 //  V8_OS_CYGWIN        - Cygwin
 //  V8_OS_DRAGONFLYBSD  - DragonFlyBSD
 //  V8_OS_FREEBSD       - FreeBSD
 //  V8_OS_FUCHSIA       - Fuchsia
-//  V8_OS_LINUX         - Linux
-//  V8_OS_MACOSX        - Mac OS X
+//  V8_OS_LINUX         - Linux (Android, ChromeOS, Linux, ...)
+//  V8_OS_DARWIN        - Darwin (macOS, iOS)
+//  V8_OS_MACOS         - macOS
 //  V8_OS_IOS           - iOS
 //  V8_OS_NETBSD        - NetBSD
 //  V8_OS_OPENBSD       - OpenBSD
@@ -89,13 +90,14 @@ path. Add it with -I<path> to the command line
 # define V8_OS_STRING "android"
 
 #elif defined(__APPLE__)
-# define V8_OS_BSD 1
-# define V8_OS_MACOSX 1
 # define V8_OS_POSIX 1
+# define V8_OS_BSD 1
+# define V8_OS_DARWIN 1
 # if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
 #  define V8_OS_IOS 1
 #  define V8_OS_STRING "ios"
 # else
+#  define V8_OS_MACOS 1
 #  define V8_OS_STRING "macos"
 # endif  // defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
 
@@ -169,7 +171,7 @@ path. Add it with -I<path> to the command line
 //  V8_TARGET_OS_FUCHSIA
 //  V8_TARGET_OS_IOS
 //  V8_TARGET_OS_LINUX
-//  V8_TARGET_OS_MACOSX
+//  V8_TARGET_OS_MACOS
 //  V8_TARGET_OS_WIN
 //
 // If not set explicitly, these fall back to corresponding V8_OS_ values.
@@ -181,7 +183,7 @@ path. Add it with -I<path> to the command line
   && !defined(V8_TARGET_OS_FUCHSIA) \
   && !defined(V8_TARGET_OS_IOS) \
   && !defined(V8_TARGET_OS_LINUX) \
-  && !defined(V8_TARGET_OS_MACOSX) \
+  && !defined(V8_TARGET_OS_MACOS) \
   && !defined(V8_TARGET_OS_WIN)
 #  error No known target OS defined.
 # endif
@@ -192,7 +194,7 @@ path. Add it with -I<path> to the command line
   || defined(V8_TARGET_OS_FUCHSIA) \
   || defined(V8_TARGET_OS_IOS) \
   || defined(V8_TARGET_OS_LINUX) \
-  || defined(V8_TARGET_OS_MACOSX) \
+  || defined(V8_TARGET_OS_MACOS) \
   || defined(V8_TARGET_OS_WIN)
 #  error A target OS is defined but V8_HAVE_TARGET_OS is unset.
 # endif
@@ -214,8 +216,8 @@ path. Add it with -I<path> to the command line
 # define V8_TARGET_OS_LINUX
 #endif
 
-#ifdef V8_OS_MACOSX
-# define V8_TARGET_OS_MACOSX
+#ifdef V8_OS_MACOS
+# define V8_TARGET_OS_MACOS
 #endif
 
 #ifdef V8_OS_WIN
@@ -232,7 +234,7 @@ path. Add it with -I<path> to the command line
 # define V8_TARGET_OS_STRING "ios"
 #elif defined(V8_TARGET_OS_LINUX)
 # define V8_TARGET_OS_STRING "linux"
-#elif defined(V8_TARGET_OS_MACOSX)
+#elif defined(V8_TARGET_OS_MACOS)
 # define V8_TARGET_OS_STRING "macos"
 #elif defined(V8_TARGET_OS_WINDOWS)
 # define V8_TARGET_OS_STRING "windows"
@@ -578,17 +580,15 @@ V8 shared library set USING_V8_SHARED.
 
 #endif  // V8_OS_WIN
 
-// The virtual memory cage is available (i.e. defined) when pointer compression
-// is enabled, but it is only used when V8_VIRTUAL_MEMORY_CAGE is enabled as
-// well. This allows better test coverage of the cage.
+// The sandbox is available (i.e. defined) when pointer compression
+// is enabled, but it is only used when V8_SANDBOX is enabled as
+// well. This allows better test coverage of the sandbox.
 #if defined(V8_COMPRESS_POINTERS)
-#define V8_VIRTUAL_MEMORY_CAGE_IS_AVAILABLE
+#define V8_SANDBOX_IS_AVAILABLE
 #endif
 
-// CagedPointers are currently only used if the heap sandbox is enabled.
-// In the future, they will be enabled when the virtual memory cage is enabled.
-#if defined(V8_HEAP_SANDBOX)
-#define V8_CAGED_POINTERS
+#if defined(V8_SANDBOX) && !defined(V8_SANDBOX_IS_AVAILABLE)
+#error Inconsistent configuration: sandbox is enabled but not available
 #endif
 
 // From C++17 onwards, static constexpr member variables are defined to be

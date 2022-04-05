@@ -31,6 +31,10 @@ class LargePage : public MemoryChunk {
   // already imposes on x64 and ia32 architectures.
   static const int kMaxCodePageSize = 512 * MB;
 
+  LargePage(Heap* heap, BaseSpace* space, size_t chunk_size, Address area_start,
+            Address area_end, VirtualMemory reservation,
+            Executability executable);
+
   static LargePage* FromHeapObject(HeapObject o) {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return static_cast<LargePage*>(MemoryChunk::FromHeapObject(o));
@@ -94,8 +98,8 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
   virtual void AddPage(LargePage* page, size_t object_size);
   virtual void RemovePage(LargePage* page, size_t object_size);
 
-  LargePage* first_page() {
-    return reinterpret_cast<LargePage*>(Space::first_page());
+  LargePage* first_page() override {
+    return reinterpret_cast<LargePage*>(memory_chunk_list_.front());
   }
 
   iterator begin() { return iterator(first_page()); }

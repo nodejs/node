@@ -17,7 +17,7 @@ void TestWebSnapshotExtensive(
     const char* snapshot_source, const char* test_source,
     std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester,
     uint32_t string_count, uint32_t map_count, uint32_t context_count,
-    uint32_t function_count, uint32_t object_count) {
+    uint32_t function_count, uint32_t object_count, uint32_t array_count) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
 
@@ -41,15 +41,16 @@ void TestWebSnapshotExtensive(
     CHECK_EQ(context_count, serializer.context_count());
     CHECK_EQ(function_count, serializer.function_count());
     CHECK_EQ(object_count, serializer.object_count());
+    CHECK_EQ(array_count, serializer.array_count());
   }
 
   {
     v8::HandleScope scope(isolate);
     v8::Local<v8::Context> new_context = CcTest::NewContext();
     v8::Context::Scope context_scope(new_context);
-    WebSnapshotDeserializer deserializer(isolate);
-    CHECK(deserializer.UseWebSnapshot(snapshot_data.buffer,
-                                      snapshot_data.buffer_size));
+    WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
+                                         snapshot_data.buffer_size);
+    CHECK(deserializer.Deserialize());
     CHECK(!deserializer.has_error());
     tester(isolate, new_context);
     CHECK_EQ(string_count, deserializer.string_count());
@@ -63,7 +64,8 @@ void TestWebSnapshotExtensive(
 void TestWebSnapshot(const char* snapshot_source, const char* test_source,
                      const char* expected_result, uint32_t string_count,
                      uint32_t map_count, uint32_t context_count,
-                     uint32_t function_count, uint32_t object_count) {
+                     uint32_t function_count, uint32_t object_count,
+                     uint32_t array_count) {
   TestWebSnapshotExtensive(
       snapshot_source, test_source,
       [test_source, expected_result](v8::Isolate* isolate,
@@ -71,7 +73,8 @@ void TestWebSnapshot(const char* snapshot_source, const char* test_source,
         v8::Local<v8::String> result = CompileRun(test_source).As<v8::String>();
         CHECK(result->Equals(new_context, v8_str(expected_result)).FromJust());
       },
-      string_count, map_count, context_count, function_count, object_count);
+      string_count, map_count, context_count, function_count, object_count,
+      array_count);
 }
 
 }  // namespace
@@ -80,13 +83,15 @@ TEST(Minimal) {
   const char* snapshot_source = "var foo = {'key': 'lol'};";
   const char* test_source = "foo.key";
   const char* expected_result = "lol";
-  uint32_t kStringCount = 3;  // 'foo', 'key', 'lol'
+  uint32_t kStringCount = 2;  // 'foo', 'key'
   uint32_t kMapCount = 1;
   uint32_t kContextCount = 0;
   uint32_t kFunctionCount = 0;
   uint32_t kObjectCount = 1;
+  uint32_t kArrayCount = 0;
   TestWebSnapshot(snapshot_source, test_source, expected_result, kStringCount,
-                  kMapCount, kContextCount, kFunctionCount, kObjectCount);
+                  kMapCount, kContextCount, kFunctionCount, kObjectCount,
+                  kArrayCount);
 }
 
 TEST(EmptyObject) {
@@ -97,6 +102,7 @@ TEST(EmptyObject) {
   uint32_t kContextCount = 0;
   uint32_t kFunctionCount = 0;
   uint32_t kObjectCount = 1;
+  uint32_t kArrayCount = 0;
   std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester =
       [test_source](v8::Isolate* isolate, v8::Local<v8::Context> new_context) {
         v8::Local<v8::Object> result = CompileRun(test_source).As<v8::Object>();
@@ -107,7 +113,7 @@ TEST(EmptyObject) {
       };
   TestWebSnapshotExtensive(snapshot_source, test_source, tester, kStringCount,
                            kMapCount, kContextCount, kFunctionCount,
-                           kObjectCount);
+                           kObjectCount, kArrayCount);
 }
 
 TEST(Numbers) {
@@ -125,6 +131,8 @@ TEST(Numbers) {
   uint32_t kContextCount = 0;
   uint32_t kFunctionCount = 0;
   uint32_t kObjectCount = 1;
+  uint32_t kArrayCount = 0;
+
   std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester =
       [test_source](v8::Isolate* isolate, v8::Local<v8::Context> new_context) {
         v8::Local<v8::Object> result = CompileRun(test_source).As<v8::Object>();
@@ -161,7 +169,7 @@ TEST(Numbers) {
       };
   TestWebSnapshotExtensive(snapshot_source, test_source, tester, kStringCount,
                            kMapCount, kContextCount, kFunctionCount,
-                           kObjectCount);
+                           kObjectCount, kArrayCount);
 }
 
 TEST(Oddballs) {
@@ -177,6 +185,7 @@ TEST(Oddballs) {
   uint32_t kContextCount = 0;
   uint32_t kFunctionCount = 0;
   uint32_t kObjectCount = 1;
+  uint32_t kArrayCount = 0;
   std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester =
       [test_source](v8::Isolate* isolate, v8::Local<v8::Context> new_context) {
         v8::Local<v8::Object> result = CompileRun(test_source).As<v8::Object>();
@@ -191,7 +200,7 @@ TEST(Oddballs) {
       };
   TestWebSnapshotExtensive(snapshot_source, test_source, tester, kStringCount,
                            kMapCount, kContextCount, kFunctionCount,
-                           kObjectCount);
+                           kObjectCount, kArrayCount);
 }
 
 TEST(Function) {
@@ -204,8 +213,10 @@ TEST(Function) {
   uint32_t kContextCount = 0;
   uint32_t kFunctionCount = 1;
   uint32_t kObjectCount = 1;
+  uint32_t kArrayCount = 0;
   TestWebSnapshot(snapshot_source, test_source, expected_result, kStringCount,
-                  kMapCount, kContextCount, kFunctionCount, kObjectCount);
+                  kMapCount, kContextCount, kFunctionCount, kObjectCount,
+                  kArrayCount);
 }
 
 TEST(InnerFunctionWithContext) {
@@ -217,14 +228,16 @@ TEST(InnerFunctionWithContext) {
       "                   })()};";
   const char* test_source = "foo.key()";
   const char* expected_result = "11525";
-  // Strings: 'foo', 'key', function source code (inner), 'result', '11525'
-  uint32_t kStringCount = 5;
+  // Strings: 'foo', 'key', function source code (inner), 'result'
+  uint32_t kStringCount = 4;
   uint32_t kMapCount = 1;
   uint32_t kContextCount = 1;
   uint32_t kFunctionCount = 1;
   uint32_t kObjectCount = 1;
+  uint32_t kArrayCount = 0;
   TestWebSnapshot(snapshot_source, test_source, expected_result, kStringCount,
-                  kMapCount, kContextCount, kFunctionCount, kObjectCount);
+                  kMapCount, kContextCount, kFunctionCount, kObjectCount,
+                  kArrayCount);
 }
 
 TEST(InnerFunctionWithContextAndParentContext) {
@@ -242,15 +255,16 @@ TEST(InnerFunctionWithContextAndParentContext) {
       "                   })()};";
   const char* test_source = "foo.key()";
   const char* expected_result = "11525";
-  // Strings: 'foo', 'key', function source code (innerinner), 'part1', 'part2',
-  // '11', '525'
-  uint32_t kStringCount = 7;
+  // Strings: 'foo', 'key', function source code (innerinner), 'part1', 'part2'.
+  uint32_t kStringCount = 5;
   uint32_t kMapCount = 1;
   uint32_t kContextCount = 2;
   uint32_t kFunctionCount = 1;
   uint32_t kObjectCount = 1;
+  uint32_t kArrayCount = 0;
   TestWebSnapshot(snapshot_source, test_source, expected_result, kStringCount,
-                  kMapCount, kContextCount, kFunctionCount, kObjectCount);
+                  kMapCount, kContextCount, kFunctionCount, kObjectCount,
+                  kArrayCount);
 }
 
 TEST(RegExp) {
@@ -261,6 +275,7 @@ TEST(RegExp) {
   uint32_t kContextCount = 0;
   uint32_t kFunctionCount = 0;
   uint32_t kObjectCount = 1;
+  uint32_t kArrayCount = 0;
   std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester =
       [test_source](v8::Isolate* isolate, v8::Local<v8::Context> new_context) {
         v8::Local<v8::Object> result = CompileRun(test_source).As<v8::Object>();
@@ -279,7 +294,7 @@ TEST(RegExp) {
       };
   TestWebSnapshotExtensive(snapshot_source, test_source, tester, kStringCount,
                            kMapCount, kContextCount, kFunctionCount,
-                           kObjectCount);
+                           kObjectCount, kArrayCount);
 }
 
 TEST(RegExpNoFlags) {
@@ -290,6 +305,7 @@ TEST(RegExpNoFlags) {
   uint32_t kContextCount = 0;
   uint32_t kFunctionCount = 0;
   uint32_t kObjectCount = 1;
+  uint32_t kArrayCount = 0;
   std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester =
       [test_source](v8::Isolate* isolate, v8::Local<v8::Context> new_context) {
         v8::Local<v8::Object> result = CompileRun(test_source).As<v8::Object>();
@@ -308,7 +324,7 @@ TEST(RegExpNoFlags) {
       };
   TestWebSnapshotExtensive(snapshot_source, test_source, tester, kStringCount,
                            kMapCount, kContextCount, kFunctionCount,
-                           kObjectCount);
+                           kObjectCount, kArrayCount);
 }
 
 TEST(SFIDeduplication) {
@@ -343,9 +359,9 @@ TEST(SFIDeduplication) {
   {
     v8::Local<v8::Context> new_context = CcTest::NewContext();
     v8::Context::Scope context_scope(new_context);
-    WebSnapshotDeserializer deserializer(isolate);
-    CHECK(deserializer.UseWebSnapshot(snapshot_data.buffer,
-                                      snapshot_data.buffer_size));
+    WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
+                                         snapshot_data.buffer_size);
+    CHECK(deserializer.Deserialize());
     CHECK(!deserializer.has_error());
 
     const char* get_inner = "foo.inner";
@@ -399,9 +415,9 @@ TEST(SFIDeduplicationClasses) {
   {
     v8::Local<v8::Context> new_context = CcTest::NewContext();
     v8::Context::Scope context_scope(new_context);
-    WebSnapshotDeserializer deserializer(isolate);
-    CHECK(deserializer.UseWebSnapshot(snapshot_data.buffer,
-                                      snapshot_data.buffer_size));
+    WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
+                                         snapshot_data.buffer_size);
+    CHECK(deserializer.Deserialize());
     CHECK(!deserializer.has_error());
 
     const char* get_class = "foo.class";
@@ -464,9 +480,9 @@ TEST(SFIDeduplicationAfterBytecodeFlushing) {
     v8::HandleScope scope(isolate);
     v8::Local<v8::Context> new_context = CcTest::NewContext();
     v8::Context::Scope context_scope(new_context);
-    WebSnapshotDeserializer deserializer(isolate);
-    CHECK(deserializer.UseWebSnapshot(snapshot_data.buffer,
-                                      snapshot_data.buffer_size));
+    WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
+                                         snapshot_data.buffer_size);
+    CHECK(deserializer.Deserialize());
     CHECK(!deserializer.has_error());
 
     const char* get_outer = "foo.outer";
@@ -549,9 +565,9 @@ TEST(SFIDeduplicationAfterBytecodeFlushingClasses) {
     v8::HandleScope scope(isolate);
     v8::Local<v8::Context> new_context = CcTest::NewContext();
     v8::Context::Scope context_scope(new_context);
-    WebSnapshotDeserializer deserializer(isolate);
-    CHECK(deserializer.UseWebSnapshot(snapshot_data.buffer,
-                                      snapshot_data.buffer_size));
+    WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
+                                         snapshot_data.buffer_size);
+    CHECK(deserializer.Deserialize());
     CHECK(!deserializer.has_error());
 
     const char* get_create = "foo.create";
@@ -626,9 +642,9 @@ TEST(SFIDeduplicationOfFunctionsNotInSnapshot) {
   {
     v8::Local<v8::Context> new_context = CcTest::NewContext();
     v8::Context::Scope context_scope(new_context);
-    WebSnapshotDeserializer deserializer(isolate);
-    CHECK(deserializer.UseWebSnapshot(snapshot_data.buffer,
-                                      snapshot_data.buffer_size));
+    WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
+                                         snapshot_data.buffer_size);
+    CHECK(deserializer.Deserialize());
     CHECK(!deserializer.has_error());
 
     const char* create_new_inner = "foo.outer()";
@@ -678,6 +694,7 @@ TEST(FunctionKinds) {
   uint32_t kContextCount = 0;
   uint32_t kFunctionCount = 6;
   uint32_t kObjectCount = 1;
+  uint32_t kArrayCount = 0;
   std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester =
       [test_source](v8::Isolate* isolate, v8::Local<v8::Context> new_context) {
         v8::Local<v8::Object> result = CompileRun(test_source).As<v8::Object>();
@@ -697,7 +714,7 @@ TEST(FunctionKinds) {
       };
   TestWebSnapshotExtensive(snapshot_source, test_source, tester, kStringCount,
                            kMapCount, kContextCount, kFunctionCount,
-                           kObjectCount);
+                           kObjectCount, kArrayCount);
 }
 
 // Test that concatenating JS code to the snapshot works.
@@ -738,8 +755,8 @@ TEST(Concatenation) {
     v8::HandleScope scope(isolate);
     v8::Local<v8::Context> new_context = CcTest::NewContext();
     v8::Context::Scope context_scope(new_context);
-    WebSnapshotDeserializer deserializer(isolate);
-    CHECK(deserializer.UseWebSnapshot(buffer.get(), buffer_size));
+    WebSnapshotDeserializer deserializer(isolate, buffer.get(), buffer_size);
+    CHECK(deserializer.Deserialize());
     CHECK(!deserializer.has_error());
     CHECK_EQ(kObjectCount, deserializer.object_count());
 
@@ -785,9 +802,124 @@ TEST(ConcatenationErrors) {
     v8::HandleScope scope(isolate);
     v8::Local<v8::Context> new_context = CcTest::NewContext();
     v8::Context::Scope context_scope(new_context);
-    WebSnapshotDeserializer deserializer(isolate);
-    CHECK(!deserializer.UseWebSnapshot(buffer.get(), buffer_size));
+    WebSnapshotDeserializer deserializer(isolate, buffer.get(), buffer_size);
+    CHECK(!deserializer.Deserialize());
   }
+}
+
+TEST(CompactedSourceCode) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  Isolate* i_isolate = CcTest::i_isolate();
+  v8::HandleScope scope(isolate);
+
+  WebSnapshotData snapshot_data;
+  {
+    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Context::Scope context_scope(new_context);
+    const char* snapshot_source =
+        "function foo() { 'foo' }\n"
+        "function bar() { 'bar' }\n"
+        "function baz() { 'baz' }\n"
+        "let e = [foo, bar, baz]";
+    CompileRun(snapshot_source);
+    v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 1);
+    v8::Local<v8::String> str =
+        v8::String::NewFromUtf8(isolate, "e").ToLocalChecked();
+    exports->Set(isolate, 0, str);
+    WebSnapshotSerializer serializer(isolate);
+    CHECK(serializer.TakeSnapshot(new_context, exports, snapshot_data));
+    CHECK(!serializer.has_error());
+    CHECK_NOT_NULL(snapshot_data.buffer);
+  }
+
+  {
+    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Context::Scope context_scope(new_context);
+    WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
+                                         snapshot_data.buffer_size);
+    CHECK(deserializer.Deserialize());
+    CHECK(!deserializer.has_error());
+
+    const char* get_function = "e[0]";
+
+    // Verify that the source code got compacted.
+    v8::Local<v8::Function> v8_function =
+        CompileRun(get_function).As<v8::Function>();
+    Handle<JSFunction> function =
+        Handle<JSFunction>::cast(Utils::OpenHandle(*v8_function));
+    Handle<String> function_script_source =
+        handle(String::cast(Script::cast(function->shared().script()).source()),
+               i_isolate);
+    const char* raw_expected_source = "() { 'foo' }() { 'bar' }() { 'baz' }";
+
+    Handle<String> expected_source = Utils::OpenHandle(
+        *v8::String::NewFromUtf8(isolate, raw_expected_source).ToLocalChecked(),
+        i_isolate);
+    CHECK(function_script_source->Equals(*expected_source));
+  }
+}
+
+TEST(InPlaceStringsInArrays) {
+  const char* snapshot_source = "var foo = ['one', 'two', 'three'];";
+  const char* test_source = "foo.join('');";
+  const char* expected_result = "onetwothree";
+  uint32_t kStringCount = 1;  // 'foo'; Other strings are in-place.
+  uint32_t kMapCount = 0;
+  uint32_t kContextCount = 0;
+  uint32_t kFunctionCount = 0;
+  uint32_t kObjectCount = 0;
+  uint32_t kArrayCount = 1;
+  TestWebSnapshot(snapshot_source, test_source, expected_result, kStringCount,
+                  kMapCount, kContextCount, kFunctionCount, kObjectCount,
+                  kArrayCount);
+}
+
+TEST(RepeatedInPlaceStringsInArrays) {
+  const char* snapshot_source = "var foo = ['one', 'two', 'one'];";
+  const char* test_source = "foo.join('');";
+  const char* expected_result = "onetwoone";
+  uint32_t kStringCount = 2;  // 'foo', 'one'; Other strings are in-place.
+  uint32_t kMapCount = 0;
+  uint32_t kContextCount = 0;
+  uint32_t kFunctionCount = 0;
+  uint32_t kObjectCount = 0;
+  uint32_t kArrayCount = 1;
+  TestWebSnapshot(snapshot_source, test_source, expected_result, kStringCount,
+                  kMapCount, kContextCount, kFunctionCount, kObjectCount,
+                  kArrayCount);
+}
+
+TEST(InPlaceStringsInObjects) {
+  const char* snapshot_source = "var foo =  {a: 'one', b: 'two', c: 'three'};";
+  const char* test_source = "foo.a + foo.b + foo.c;";
+  const char* expected_result = "onetwothree";
+  // 'foo', 'a', 'b', 'c'. Other strings are in-place.
+  uint32_t kStringCount = 4;
+  uint32_t kMapCount = 1;
+  uint32_t kContextCount = 0;
+  uint32_t kFunctionCount = 0;
+  uint32_t kObjectCount = 1;
+  uint32_t kArrayCount = 0;
+  TestWebSnapshot(snapshot_source, test_source, expected_result, kStringCount,
+                  kMapCount, kContextCount, kFunctionCount, kObjectCount,
+                  kArrayCount);
+}
+
+TEST(RepeatedInPlaceStringsInObjects) {
+  const char* snapshot_source = "var foo =  {a: 'one', b: 'two', c: 'one'};";
+  const char* test_source = "foo.a + foo.b + foo.c;";
+  const char* expected_result = "onetwoone";
+  // 'foo', 'a', 'b', 'c', 'one'. Other strings are in-place.
+  uint32_t kStringCount = 5;
+  uint32_t kMapCount = 1;
+  uint32_t kContextCount = 0;
+  uint32_t kFunctionCount = 0;
+  uint32_t kObjectCount = 1;
+  uint32_t kArrayCount = 0;
+  TestWebSnapshot(snapshot_source, test_source, expected_result, kStringCount,
+                  kMapCount, kContextCount, kFunctionCount, kObjectCount,
+                  kArrayCount);
 }
 
 }  // namespace internal

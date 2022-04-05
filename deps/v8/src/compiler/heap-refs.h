@@ -59,13 +59,6 @@ inline bool IsAnyStore(AccessMode mode) {
   return mode == AccessMode::kStore || mode == AccessMode::kStoreInLiteral;
 }
 
-// Clarifies in function signatures that a method may only be called when
-// concurrent inlining is disabled.
-class NotConcurrentInliningTag final {
- public:
-  explicit NotConcurrentInliningTag(JSHeapBroker* broker);
-};
-
 enum class OddballType : uint8_t {
   kNone,     // Not an Oddball.
   kBoolean,  // True or False.
@@ -424,13 +417,9 @@ class JSObjectRef : public JSReceiverRef {
   // relaxed read. This is to ease the transition to unserialized (or
   // background-serialized) elements.
   base::Optional<FixedArrayBaseRef> elements(RelaxedLoadTag) const;
-  void SerializeElements(NotConcurrentInliningTag tag);
   bool IsElementsTenured(const FixedArrayBaseRef& elements);
 
-  void SerializeObjectCreateMap(NotConcurrentInliningTag tag);
   base::Optional<MapRef> GetObjectCreateMap() const;
-
-  void SerializeAsBoilerplateRecursive(NotConcurrentInliningTag tag);
 };
 
 class JSDataViewRef : public JSObjectRef {
@@ -488,8 +477,6 @@ class RegExpBoilerplateDescriptionRef : public HeapObjectRef {
   DEFINE_REF_CONSTRUCTOR(RegExpBoilerplateDescription, HeapObjectRef)
 
   Handle<RegExpBoilerplateDescription> object() const;
-
-  void Serialize(NotConcurrentInliningTag tag);
 
   FixedArrayRef data() const;
   StringRef source() const;
@@ -577,8 +564,6 @@ class NativeContextRef : public ContextRef {
 
   Handle<NativeContext> object() const;
 
-  void Serialize(NotConcurrentInliningTag tag);
-
 #define DECL_ACCESSOR(type, name) type##Ref name() const;
   BROKER_NATIVE_CONTEXT_FIELDS(DECL_ACCESSOR)
 #undef DECL_ACCESSOR
@@ -662,8 +647,6 @@ class AllocationSiteRef : public HeapObjectRef {
   AllocationType GetAllocationType() const;
   ObjectRef nested_site() const;
 
-  void SerializeRecursive(NotConcurrentInliningTag tag);
-
   base::Optional<JSObjectRef> boilerplate() const;
   ElementsKind GetElementsKind() const;
   bool CanInlineCall() const;
@@ -725,17 +708,10 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   INSTANCE_TYPE_CHECKERS(DEF_TESTER)
 #undef DEF_TESTER
 
-  void SerializeBackPointer(NotConcurrentInliningTag tag);
   HeapObjectRef GetBackPointer() const;
 
-  void SerializePrototype(NotConcurrentInliningTag tag);
-  // TODO(neis): We should be able to remove TrySerializePrototype once
-  // concurrent-inlining is always on. Then we can also change the return type
-  // of prototype() back to HeapObjectRef.
-  bool TrySerializePrototype(NotConcurrentInliningTag tag);
-  base::Optional<HeapObjectRef> prototype() const;
+  HeapObjectRef prototype() const;
 
-  void SerializeForElementStore(NotConcurrentInliningTag tag);
   bool HasOnlyStablePrototypesWithFastElements(
       ZoneVector<MapRef>* prototype_maps);
 
@@ -944,7 +920,8 @@ class StringRef : public NameRef {
   // base::nullopt for these methods.
   base::Optional<Handle<String>> ObjectIfContentAccessible();
   base::Optional<int> length() const;
-  base::Optional<uint16_t> GetFirstChar();
+  base::Optional<uint16_t> GetFirstChar() const;
+  base::Optional<uint16_t> GetChar(int index) const;
   base::Optional<double> ToNumber();
 
   bool IsSeqString() const;
@@ -1028,8 +1005,8 @@ class CodeRef : public HeapObjectRef {
   unsigned GetInlinedBytecodeSize() const;
 };
 
-// CodeDataContainerRef doesn't appear to be used, but it is used via CodeT when
-// V8_EXTERNAL_CODE_SPACE is defined.
+// CodeDataContainerRef doesn't appear to be used directly, but it is used via
+// CodeTRef when V8_EXTERNAL_CODE_SPACE is enabled.
 class CodeDataContainerRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(CodeDataContainer, HeapObjectRef)

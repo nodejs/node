@@ -64,7 +64,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteImportWrapperCompilation(
   bool source_positions = is_asmjs_module(env->module);
   WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
       env, kind, sig, source_positions,
-      static_cast<int>(sig->parameter_count()));
+      static_cast<int>(sig->parameter_count()), wasm::kNoSuspend);
   return result;
 }
 
@@ -175,14 +175,21 @@ bool UseGenericWrapper(const FunctionSig* sig) {
   if (sig->returns().size() > 1) {
     return false;
   }
-  if (sig->returns().size() == 1 && sig->GetReturn(0).kind() != kI32 &&
-      sig->GetReturn(0).kind() != kI64 && sig->GetReturn(0).kind() != kF32 &&
-      sig->GetReturn(0).kind() != kF64) {
-    return false;
+  if (sig->returns().size() == 1) {
+    ValueType ret = sig->GetReturn(0);
+    if (ret.kind() == kS128) return false;
+    if (ret.is_reference()) {
+      if (ret.heap_representation() != wasm::HeapType::kAny &&
+          ret.heap_representation() != wasm::HeapType::kFunc) {
+        return false;
+      }
+    }
   }
   for (ValueType type : sig->parameters()) {
     if (type.kind() != kI32 && type.kind() != kI64 && type.kind() != kF32 &&
-        type.kind() != kF64) {
+        type.kind() != kF64 &&
+        !(type.is_reference() &&
+          type.heap_representation() == wasm::HeapType::kAny)) {
       return false;
     }
   }
@@ -220,7 +227,9 @@ void JSToWasmWrapperCompilationUnit::Execute() {
 
 Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
   if (use_generic_wrapper_) {
-    return isolate_->builtins()->code_handle(Builtin::kGenericJSToWasmWrapper);
+    return FromCodeT(
+        isolate_->builtins()->code_handle(Builtin::kGenericJSToWasmWrapper),
+        isolate_);
   }
 
   CompilationJob::Status status = job_->FinalizeJob(isolate_);

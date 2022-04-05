@@ -26,6 +26,8 @@ class BaselineAssembler {
   explicit BaselineAssembler(MacroAssembler* masm) : masm_(masm) {}
   inline static MemOperand RegisterFrameOperand(
       interpreter::Register interpreter_register);
+  inline void RegisterFrameAddress(interpreter::Register interpreter_register,
+                                   Register rscratch);
   inline MemOperand ContextOperand();
   inline MemOperand FunctionOperand();
   inline MemOperand FeedbackVectorOperand();

@@ -12,7 +12,7 @@
 #include "src/logging/log.h"
 #include "src/objects/code-inl.h"
 #include "src/regexp/regexp-stack.h"
-#include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -715,13 +715,12 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
     // Order here should correspond to order of offset constants in header file.
     // TODO(plind): we save s0..s7, but ONLY use s3 here - use the regs
     // or dont save.
-    RegList registers_to_retain = s0.bit() | s1.bit() | s2.bit() |
-        s3.bit() | s4.bit() | s5.bit() | s6.bit() | s7.bit() | fp.bit();
-    RegList argument_registers = a0.bit() | a1.bit() | a2.bit() | a3.bit();
+    RegList registers_to_retain = {s0, s1, s2, s3, s4, s5, s6, s7, fp};
+    RegList argument_registers = {a0, a1, a2, a3};
 
-    argument_registers |= a4.bit() | a5.bit() | a6.bit() | a7.bit();
+    argument_registers |= {a4, a5, a6, a7};
 
-    __ MultiPush(argument_registers | registers_to_retain | ra.bit());
+    __ MultiPush(argument_registers | registers_to_retain | ra);
     // Set frame pointer in space for it if this is not a direct call
     // from generated code.
     // TODO(plind): this 8 is the # of argument regs, should have definition.
@@ -942,7 +941,7 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
     // Skip sp past regexp registers and local variables..
     __ mov(sp, frame_pointer());
     // Restore registers s0..s7 and return (restoring ra to pc).
-    __ MultiPop(registers_to_retain | ra.bit());
+    __ MultiPop(registers_to_retain | ra);
     __ Ret();
 
     // Backtrack code (branch target for conditional backtracks).

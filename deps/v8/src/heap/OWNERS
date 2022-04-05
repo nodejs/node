@@ -4,5 +4,4 @@ hpayer@chromium.org
 mlippautz@chromium.org
 omerkatz@chromium.org
 
-per-file *factory*=leszeks@chromium.org
-per-file read-only-*=delphick@chromium.org
+per-file *factory*=file:../objects/OWNERS

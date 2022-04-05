@@ -156,39 +156,49 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   // Store properties. Flag for NeedsSetFunctionName() should
   // be in the accumulator.
-  BytecodeArrayBuilder& StoreDataPropertyInLiteral(
-      Register object, Register name, DataPropertyInLiteralFlags flags,
-      int feedback_slot);
+  BytecodeArrayBuilder& DefineKeyedOwnPropertyInLiteral(
+      Register object, Register name,
+      DefineKeyedOwnPropertyInLiteralFlags flags, int feedback_slot);
 
   // Collect type information for developer tools. The value for which we
   // record the type is stored in the accumulator.
   BytecodeArrayBuilder& CollectTypeProfile(int position);
 
-  // Store a property named by a property name. The value to be stored should be
-  // in the accumulator.
-  BytecodeArrayBuilder& StoreNamedProperty(Register object,
-                                           const AstRawString* name,
-                                           int feedback_slot,
-                                           LanguageMode language_mode);
+  // Set a property named by a property name, trigger the setters and
+  // set traps if necessary. The value to be set should be in the
+  // accumulator.
+  BytecodeArrayBuilder& SetNamedProperty(Register object,
+                                         const AstRawString* name,
+                                         int feedback_slot,
+                                         LanguageMode language_mode);
 
-  // Store a property named by a constant from the constant pool. The value to
-  // be stored should be in the accumulator.
-  BytecodeArrayBuilder& StoreNamedProperty(Register object,
-                                           size_t constant_pool_entry,
-                                           int feedback_slot,
-                                           LanguageMode language_mode);
-  // Store an own property named by a constant from the constant pool. The
-  // value to be stored should be in the accumulator.
-  BytecodeArrayBuilder& StoreNamedOwnProperty(Register object,
-                                              const AstRawString* name,
-                                              int feedback_slot);
-  // Store a property keyed by a value in a register. The value to be stored
-  // should be in the accumulator.
-  BytecodeArrayBuilder& StoreKeyedProperty(Register object, Register key,
-                                           int feedback_slot,
-                                           LanguageMode language_mode);
-  BytecodeArrayBuilder& DefineKeyedProperty(Register object, Register key,
-                                            int feedback_slot);
+  // Set a property named by a constant from the constant pool,
+  // trigger the setters and set traps if necessary. The value to be
+  // set should be in the accumulator.
+  BytecodeArrayBuilder& SetNamedProperty(Register object,
+                                         size_t constant_pool_entry,
+                                         int feedback_slot,
+                                         LanguageMode language_mode);
+
+  // Define an own property named by a constant from the constant pool,
+  // trigger the defineProperty traps if necessary. The value to be
+  // defined should be in the accumulator.
+  BytecodeArrayBuilder& DefineNamedOwnProperty(Register object,
+                                               const AstRawString* name,
+                                               int feedback_slot);
+
+  // Set a property keyed by a value in a register, trigger the setters and
+  // set traps if necessary. The value to be set should be in the
+  // accumulator.
+  BytecodeArrayBuilder& SetKeyedProperty(Register object, Register key,
+                                         int feedback_slot,
+                                         LanguageMode language_mode);
+
+  // Define an own property keyed by a value in a register, trigger the
+  // defineProperty traps if necessary. The value to be defined should be
+  // in the accumulator.
+  BytecodeArrayBuilder& DefineKeyedOwnProperty(Register object, Register key,
+                                               int feedback_slot);
 
   // Store an own element in an array literal. The value to be stored should be
   // in the accumulator.

@@ -60,7 +60,7 @@
     "type": "script",
   },
   "run-gcmole": {
-    "label": "//tools/gcmole:v8_run_gcmole",
+    "label": "//tools/gcmole:v8_gcmole_files",
     "type": "script",
   },
   "run-num-fuzzer": {

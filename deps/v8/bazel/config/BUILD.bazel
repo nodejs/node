@@ -16,6 +16,20 @@ package(
 )
 
 config_setting(
+    name = "is_fastbuild",
+    values = {
+        "compilation_mode": "fastbuild",
+    },
+)
+
+config_setting(
+    name = "is_debug",
+    values = {
+        "compilation_mode": "dbg",
+    },
+)
+
+config_setting(
     name = "platform_cpu_x64",
     constraint_values = ["@platforms//cpu:x86_64"],
 )
@@ -27,12 +41,27 @@ config_setting(
 
 config_setting(
     name = "platform_cpu_arm64",
-    constraint_values = ["@platforms//cpu:arm"],
+    constraint_values = ["@platforms//cpu:aarch64"],
 )
 
 config_setting(
     name = "platform_cpu_arm",
     constraint_values = ["@platforms//cpu:arm"],
+)
+
+config_setting(
+    name = "platform_cpu_s390x",
+    constraint_values = ["@platforms//cpu:s390x"],
+)
+
+config_setting(
+    name = "platform_cpu_riscv64",
+    constraint_values = ["@platforms//cpu:riscv64"],
+)
+
+config_setting(
+    name = "platform_cpu_ppc64le",
+    constraint_values = ["@platforms//cpu:ppc"],
 )
 
 v8_target_cpu(
@@ -58,13 +87,28 @@ v8_configure_target_cpu(
 )
 
 v8_configure_target_cpu(
-    name = "arm",
+    name = "arm64",
     matching_configs = [":platform_cpu_arm64"],
 )
 
 v8_configure_target_cpu(
-    name = "arm64",
+    name = "arm",
     matching_configs = [":platform_cpu_arm"],
+)
+
+v8_configure_target_cpu(
+    name = "s390x",
+    matching_configs = [":platform_cpu_s390x"],
+)
+
+v8_configure_target_cpu(
+    name = "riscv64",
+    matching_configs = [":platform_cpu_riscv64"],
+)
+
+v8_configure_target_cpu(
+    name = "ppc64le",
+    matching_configs = [":platform_cpu_ppc64le"],
 )
 
 selects.config_setting_group(
@@ -110,6 +154,9 @@ selects.config_setting_group(
         ":v8_target_arm64",
         ":is_x64",
         ":is_arm64",
+        ":is_s390x",
+        ":is_riscv64",
+        ":is_ppc64le",
     ],
 )
 
@@ -131,44 +178,183 @@ selects.config_setting_group(
 )
 
 selects.config_setting_group(
-    name = "is_posix_x64",
-    match_all = [
-        ":is_posix",
-        ":is_x64",
+    name = "is_not_android",
+    match_any = [
+        ":is_windows",
+        ":is_linux",
+        ":is_macos",
     ]
 )
 
 selects.config_setting_group(
+    name = "is_non_android_posix",
+    match_any = [
+        ":is_linux",
+        ":is_macos",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_posix_x64",
+    match_all = [
+        ":is_posix",
+        ":is_x64",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_non_android_posix_x64",
+    match_all = [
+        ":is_non_android_posix",
+        ":is_x64",
+    ],
+)
+
+selects.config_setting_group(
     name = "is_inline_asm_x64",
-    match_all = [":is_posix", ":is_x64"],
+    match_all = [
+        ":is_posix",
+        ":is_x64",
+    ],
 )
 
 selects.config_setting_group(
     name = "is_inline_asm_ia32",
-    match_all = [":is_posix", ":is_ia32"],
+    match_all = [
+        ":is_posix",
+        ":is_ia32",
+    ],
 )
 
 selects.config_setting_group(
     name = "is_inline_asm_arm64",
-    match_all = [":is_posix", ":is_arm64"],
+    match_all = [
+        ":is_posix",
+        ":is_arm64",
+    ],
 )
 
 selects.config_setting_group(
     name = "is_inline_asm_arm",
-    match_all = [":is_posix", ":is_arm"],
+    match_all = [
+        ":is_posix",
+        ":is_arm",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_inline_asm_s390x",
+    match_all = [
+        ":is_posix",
+        ":is_s390x",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_inline_asm_riscv64",
+    match_all = [
+        ":is_posix",
+        ":is_riscv64",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_inline_asm_ppc64le",
+    match_all = [
+        ":is_posix",
+        ":is_ppc64le",
+    ],
 )
 
 selects.config_setting_group(
     name = "is_msvc_asm_x64",
-    match_all = [":is_windows", ":is_x64"],
+    match_all = [
+        ":is_windows",
+        ":is_x64",
+    ],
 )
 
 selects.config_setting_group(
     name = "is_msvc_asm_ia32",
-    match_all = [":is_windows", ":is_ia32"],
+    match_all = [
+        ":is_windows",
+        ":is_ia32",
+    ],
 )
 
 selects.config_setting_group(
     name = "is_msvc_asm_arm64",
-    match_all = [":is_windows", ":is_arm64"],
+    match_all = [
+        ":is_windows",
+        ":is_arm64",
+    ],
+)
+
+config_setting(
+    name = "is_compiler_default",
+    flag_values = {
+        "@bazel_tools//tools/cpp:compiler": "compiler",
+    },
+)
+
+selects.config_setting_group(
+    name = "is_compiler_default_on_linux",
+    match_all = [
+        ":is_compiler_default",
+        ":is_linux",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_compiler_default_on_macos",
+    match_all = [
+        ":is_compiler_default",
+        ":is_macos",
+    ],
+)
+
+config_setting(
+    name = "is_compiler_clang",
+    flag_values = {
+        "@bazel_tools//tools/cpp:compiler": "clang",
+    },
+)
+
+selects.config_setting_group(
+    name = "is_clang",
+    match_any = [
+        ":is_compiler_default_on_macos",
+        ":is_compiler_clang",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_clang_s390x",
+    match_all = [
+        ":is_clang",
+        ":is_s390x",
+    ],
+)
+
+config_setting(
+    name = "is_compiler_gcc",
+    flag_values = {
+        "@bazel_tools//tools/cpp:compiler": "gcc",
+    },
+)
+
+selects.config_setting_group(
+    name = "is_gcc",
+    match_any = [
+        ":is_compiler_default_on_linux",
+        ":is_compiler_gcc",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_gcc_fastbuild",
+    match_all = [
+        ":is_gcc",
+        ":is_fastbuild",
+    ],
 )

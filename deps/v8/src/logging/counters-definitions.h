@@ -5,20 +5,23 @@
 #ifndef V8_LOGGING_COUNTERS_DEFINITIONS_H_
 #define V8_LOGGING_COUNTERS_DEFINITIONS_H_
 
+#include "include/v8-internal.h"
+
 namespace v8 {
 namespace internal {
 
 #define HISTOGRAM_RANGE_LIST(HR)                                               \
   /* Generic range histograms: HR(name, caption, min, max, num_buckets) */     \
   HR(background_marking, V8.GCBackgroundMarking, 0, 10000, 101)                \
-  HR(background_scavenger, V8.GCBackgroundScavenger, 0, 10000, 101)            \
   HR(background_sweeping, V8.GCBackgroundSweeping, 0, 10000, 101)              \
   HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)              \
   HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)         \
   HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                       \
-  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 25, 26)     \
+  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0,             \
+     kGarbageCollectionReasonMaxValue, kGarbageCollectionReasonMaxValue + 1)   \
   HR(incremental_marking_sum, V8.GCIncrementalMarkingSum, 0, 10000, 101)       \
-  HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 25, 26)                   \
+  HR(mark_compact_reason, V8.GCMarkCompactReason, 0,                           \
+     kGarbageCollectionReasonMaxValue, kGarbageCollectionReasonMaxValue + 1)   \
   HR(gc_finalize_clear, V8.GCFinalizeMC.Clear, 0, 10000, 101)                  \
   HR(gc_finalize_epilogue, V8.GCFinalizeMC.Epilogue, 0, 10000, 101)            \
   HR(gc_finalize_evacuate, V8.GCFinalizeMC.Evacuate, 0, 10000, 101)            \
@@ -28,12 +31,10 @@ namespace internal {
   HR(gc_finalize_sweep, V8.GCFinalizeMC.Sweep, 0, 10000, 101)                  \
   HR(gc_scavenger_scavenge_main, V8.GCScavenger.ScavengeMain, 0, 10000, 101)   \
   HR(gc_scavenger_scavenge_roots, V8.GCScavenger.ScavengeRoots, 0, 10000, 101) \
-  HR(gc_mark_compactor, V8.GCMarkCompactor, 0, 10000, 101)                     \
   HR(gc_marking_sum, V8.GCMarkingSum, 0, 10000, 101)                           \
   /* Range and bucket matches BlinkGC.MainThreadMarkingThroughput. */          \
   HR(gc_main_thread_marking_throughput, V8.GCMainThreadMarkingThroughput, 0,   \
      100000, 50)                                                               \
-  HR(scavenge_reason, V8.GCScavengeReason, 0, 25, 26)                          \
   HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)         \
   /* Asm/Wasm. */                                                              \
   HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 1000000, \
@@ -105,7 +106,18 @@ namespace internal {
   HR(caged_memory_allocation_outcome, V8.CagedMemoryAllocationOutcome, 0, 2,   \
      3)                                                                        \
   /* number of times a cache event is triggered for a wasm module */           \
-  HR(wasm_cache_count, V8.WasmCacheCount, 0, 100, 101)
+  HR(wasm_cache_count, V8.WasmCacheCount, 0, 100, 101)                         \
+  SANDBOXED_HISTOGRAM_LIST(HR)
+
+#ifdef V8_SANDBOX_IS_AVAILABLE
+#define SANDBOXED_HISTOGRAM_LIST(HR)                                          \
+  /* Number of in-use external pointers in the external pointer table */      \
+  /* Counted after sweeping the table at the end of mark-compact GC */        \
+  HR(sandboxed_external_pointers_count, V8.SandboxedExternalPointersCount, 0, \
+     kMaxSandboxedExternalPointers, 101)
+#else
+#define SANDBOXED_HISTOGRAM_LIST(HR)
+#endif  // V8_SANDBOX_IS_AVAILABLE
 
 #define NESTED_TIMED_HISTOGRAM_LIST(HT)                                       \
   /* Timer histograms, not thread safe: HT(name, caption, max, unit) */       \
@@ -132,17 +144,12 @@ namespace internal {
   /* Time for lazily compiling Wasm functions. */                             \
   HT(wasm_lazy_compile_time, V8.WasmLazyCompileTimeMicroSeconds, 100000000,   \
      MICROSECOND)                                                             \
-  /* Total time to decompress isolate snapshot. */                            \
-  HT(snapshot_decompress, V8.SnapshotDecompress, 10000000, MICROSECOND)       \
-  /* Time to decompress context snapshot. */                                  \
-  HT(context_snapshot_decompress, V8.ContextSnapshotDecompress, 10000000,     \
-     MICROSECOND)                                                             \
   HT(wasm_compile_after_deserialize,                                          \
      V8.WasmCompileAfterDeserializeMilliSeconds, 1000000, MILLISECOND)
 
 #define NESTED_TIMED_HISTOGRAM_LIST_SLOW(HT)                               \
   /* Total V8 time (including JS and runtime calls, exluding callbacks) */ \
-  HT(execute_precise, V8.ExecuteMicroSeconds, 1000000, MICROSECOND)
+  HT(execute, V8.ExecuteMicroSeconds, 1000000, MICROSECOND)
 
 #define TIMED_HISTOGRAM_LIST(HT)                                               \
   /* Timer histograms, thread safe: HT(name, caption, max, unit) */            \
@@ -161,9 +168,6 @@ namespace internal {
      V8.GCFinalizeMCReduceMemoryBackground, 10000, MILLISECOND)                \
   HT(gc_finalize_reduce_memory_foreground,                                     \
      V8.GCFinalizeMCReduceMemoryForeground, 10000, MILLISECOND)                \
-  HT(gc_scavenger, V8.GCScavenger, 10000, MILLISECOND)                         \
-  HT(gc_scavenger_background, V8.GCScavengerBackground, 10000, MILLISECOND)    \
-  HT(gc_scavenger_foreground, V8.GCScavengerForeground, 10000, MILLISECOND)    \
   HT(measure_memory_delay_ms, V8.MeasureMemoryDelayMilliseconds, 100000,       \
      MILLISECOND)                                                              \
   HT(gc_time_to_global_safepoint, V8.GC.TimeToGlobalSafepoint, 10000000,       \
@@ -329,8 +333,6 @@ namespace internal {
   SC(sub_string_runtime, V8.SubStringRuntime)                                  \
   SC(regexp_entry_runtime, V8.RegExpEntryRuntime)                              \
   SC(stack_interrupts, V8.StackInterrupts)                                     \
-  SC(runtime_profiler_ticks, V8.RuntimeProfilerTicks)                          \
-  SC(soft_deopts_executed, V8.SoftDeoptsExecuted)                              \
   SC(new_space_bytes_available, V8.MemoryNewSpaceBytesAvailable)               \
   SC(new_space_bytes_committed, V8.MemoryNewSpaceBytesCommitted)               \
   SC(new_space_bytes_used, V8.MemoryNewSpaceBytesUsed)                         \

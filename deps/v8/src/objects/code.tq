@@ -22,7 +22,9 @@ extern class BytecodeArray extends FixedArrayBase {
   frame_size: int32;
   parameter_size: int32;
   incoming_new_target_or_generator_register: int32;
-  osr_loop_nesting_level: int8;
+  // TODO(jgruber): We only use 3 bits for the urgency; consider folding
+  // into other fields.
+  osr_urgency: int8;
   bytecode_age: int8;
 }
 

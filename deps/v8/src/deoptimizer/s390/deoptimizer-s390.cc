@@ -16,19 +16,10 @@ namespace internal {
                 0x1000)
 ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Eager);
 ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Lazy);
-ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Soft);
-ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Bailout);
 #undef ASSERT_OFFSET
 
-const bool Deoptimizer::kSupportsFixedDeoptExitSizes = true;
-const int Deoptimizer::kNonLazyDeoptExitSize = 6 + 2;
+const int Deoptimizer::kEagerDeoptExitSize = 6 + 2;
 const int Deoptimizer::kLazyDeoptExitSize = 6 + 2;
-const int Deoptimizer::kEagerWithResumeBeforeArgsSize = 6 + 2 + 6;
-const int Deoptimizer::kEagerWithResumeDeoptExitSize =
-    kEagerWithResumeBeforeArgsSize + 2 * kSystemPointerSize;
-const int Deoptimizer::kEagerWithResumeImmedArgs1PcOffset = 6;
-const int Deoptimizer::kEagerWithResumeImmedArgs2PcOffset =
-    6 + kSystemPointerSize;
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   return Float32::FromBits(

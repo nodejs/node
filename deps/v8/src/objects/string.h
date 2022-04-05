@@ -116,6 +116,8 @@ class String : public TorqueGeneratedString<String, Name> {
   // FlatStringReader is relocatable.
   class FlatContent {
    public:
+    inline ~FlatContent();
+
     // Returns true if the string is flat and this structure contains content.
     bool IsFlat() const { return state_ != NON_FLAT; }
     // Returns true if the structure contains one-byte content.
@@ -147,24 +149,27 @@ class String : public TorqueGeneratedString<String, Name> {
       return onebyte_start == other.onebyte_start;
     }
 
+    // It is almost always a bug if the contents of a FlatContent changes during
+    // its lifetime, which can happen due to GC or bugs in concurrent string
+    // access. Rarely, callers need the ability to GC and have ensured safety in
+    // other ways, such as in IrregexpInterpreter. Those callers can disable the
+    // checksum verification with this call.
+    void UnsafeDisableChecksumVerification() {
+#ifdef ENABLE_SLOW_DCHECKS
+      checksum_ = kChecksumVerificationDisabled;
+#endif
+    }
+
     int length() const { return length_; }
 
    private:
     enum State { NON_FLAT, ONE_BYTE, TWO_BYTE };
 
     // Constructors only used by String::GetFlatContent().
-    FlatContent(const uint8_t* start, int length,
-                const DisallowGarbageCollection& no_gc)
-        : onebyte_start(start),
-          length_(length),
-          state_(ONE_BYTE),
-          no_gc_(no_gc) {}
-    FlatContent(const base::uc16* start, int length,
-                const DisallowGarbageCollection& no_gc)
-        : twobyte_start(start),
-          length_(length),
-          state_(TWO_BYTE),
-          no_gc_(no_gc) {}
+    inline FlatContent(const uint8_t* start, int length,
+                       const DisallowGarbageCollection& no_gc);
+    inline FlatContent(const base::uc16* start, int length,
+                       const DisallowGarbageCollection& no_gc);
     explicit FlatContent(const DisallowGarbageCollection& no_gc)
         : onebyte_start(nullptr), length_(0), state_(NON_FLAT), no_gc_(no_gc) {}
 
@@ -175,6 +180,14 @@ class String : public TorqueGeneratedString<String, Name> {
     int length_;
     State state_;
     const DisallowGarbageCollection& no_gc_;
+
+    static constexpr uint32_t kChecksumVerificationDisabled = 0;
+
+#ifdef ENABLE_SLOW_DCHECKS
+    inline uint32_t ComputeChecksum() const;
+
+    uint32_t checksum_;
+#endif
 
     friend class String;
     friend class IterableSubString;
@@ -378,6 +391,9 @@ class String : public TorqueGeneratedString<String, Name> {
   V8_EXPORT_PRIVATE bool HasOneBytePrefix(base::Vector<const char> str);
   V8_EXPORT_PRIVATE inline bool IsOneByteEqualTo(base::Vector<const char> str);
 
+  // Returns true if the |str| is a valid ECMAScript identifier.
+  static bool IsIdentifier(Isolate* isolate, Handle<String> str);
+
   // Return a UTF8 representation of the string.  The string is null
   // terminated but may optionally contain nulls.  Length is returned
   // in length_output if length_output is not a null pointer  The string
@@ -576,6 +592,9 @@ class String : public TorqueGeneratedString<String, Name> {
   // internalized equivalent.
   static inline bool IsInPlaceInternalizable(String string);
   static inline bool IsInPlaceInternalizable(InstanceType instance_type);
+
+  static inline bool IsInPlaceInternalizableExcludingExternal(
+      InstanceType instance_type);
 
  private:
   friend class Name;

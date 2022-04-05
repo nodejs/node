@@ -260,8 +260,9 @@ BUILTIN(ObjectPrototypeSetProto) {
 
   // 4. Let status be ? O.[[SetPrototypeOf]](proto).
   // 5. If status is false, throw a TypeError exception.
-  MAYBE_RETURN(JSReceiver::SetPrototype(receiver, proto, true, kThrowOnError),
-               ReadOnlyRoots(isolate).exception());
+  MAYBE_RETURN(
+      JSReceiver::SetPrototype(isolate, receiver, proto, true, kThrowOnError),
+      ReadOnlyRoots(isolate).exception());
 
   // Return undefined.
   return ReadOnlyRoots(isolate).undefined_value();

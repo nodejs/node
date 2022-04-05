@@ -28,8 +28,9 @@
 [
 ################################################################################
 [ALWAYS, {
-# TODO(jochen): The following test is flaky.
+# TODO(ftang,jshin): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
+  'number-format/rounding-increment-resolved-match-v3': [FAIL],
 }],  # ALWAYS
 
 ################################################################################
@@ -87,5 +88,13 @@
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
+
+##############################################################################
+['variant == maglev', {
+  # TODO(v8:7700): This test is in an infinite loop. The loop condition checks
+  # if the function is optimized, but maglev fails with unsupported bytecode.
+  # Re-enable this when maglev support all bytecodes.
+  'string-localecompare': [SKIP],
+}],  # variant == maglev
 
 ]

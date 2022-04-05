@@ -76,7 +76,13 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 #else
   base::CPU cpu;
   if (cpu.part() == base::CPU::kPPCPower10) {
+// IBMi does not yet support prefixed instructions introduced on Power10.
+// Run on P9 mode until OS adds support.
+#if defined(__PASE__)
+    supported_ |= (1u << PPC_9_PLUS);
+#else
     supported_ |= (1u << PPC_10_PLUS);
+#endif
   } else if (cpu.part() == base::CPU::kPPCPower9) {
     supported_ |= (1u << PPC_9_PLUS);
   } else if (cpu.part() == base::CPU::kPPCPower8) {
@@ -226,7 +232,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
-      scratch_register_list_(ip.bit()),
+      scratch_register_list_({ip}),
       constant_pool_builder_(kLoadPtrMaxReachBits, kLoadDoubleMaxReachBits) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
@@ -276,7 +282,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
   const int safepoint_table_offset =
       (safepoint_table_builder == kNoSafepointTable)
           ? handler_table_offset2
-          : safepoint_table_builder->GetCodeOffset();
+          : safepoint_table_builder->safepoint_table_offset();
   const int reloc_info_offset =
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
@@ -1135,6 +1141,30 @@ void Assembler::divdu(Register dst, Register src1, Register src2, OEBit o,
 }
 #endif
 
+// Prefixed instructions.
+void Assembler::paddi(Register dst, Register src, const Operand& imm) {
+  CHECK(CpuFeatures::IsSupported(PPC_10_PLUS));
+  CHECK(is_int34(imm.immediate()));
+  DCHECK(src != r0);  // use pli instead to show intent.
+  int32_t hi = (imm.immediate() >> 16) & kImm18Mask;  // 18 bits.
+  int16_t lo = imm.immediate() & kImm16Mask;          // 16 bits.
+  ppaddi(Operand(hi));
+  addi(dst, src, Operand(lo));
+}
+
+void Assembler::pli(Register dst, const Operand& imm) {
+  CHECK(CpuFeatures::IsSupported(PPC_10_PLUS));
+  CHECK(is_int34(imm.immediate()));
+  int32_t hi = (imm.immediate() >> 16) & kImm18Mask;  // 18 bits.
+  int16_t lo = imm.immediate() & kImm16Mask;          // 16 bits.
+  ppaddi(Operand(hi));
+  li(dst, Operand(lo));
+}
+
+void Assembler::psubi(Register dst, Register src, const Operand& imm) {
+  paddi(dst, src, Operand(-(imm.immediate())));
+}
+
 int Assembler::instructions_required_for_mov(Register dst,
                                              const Operand& src) const {
   bool canOptimize =
@@ -1162,7 +1192,9 @@ bool Assembler::use_constant_pool_for_mov(Register dst, const Operand& src,
 #else
   bool allowOverflow = !(canOptimize || dst == r0);
 #endif
-  if (canOptimize && is_int16(value)) {
+  if (canOptimize &&
+      (is_int16(value) ||
+       (CpuFeatures::IsSupported(PPC_10_PLUS) && is_int34(value)))) {
     // Prefer a single-instruction load-immediate.
     return false;
   }
@@ -1209,7 +1241,10 @@ void Assembler::mov(Register dst, const Operand& src) {
   bool canOptimize;
 
   canOptimize =
-      !(relocatable || (is_trampoline_pool_blocked() && !is_int16(value)));
+      !(relocatable ||
+        (is_trampoline_pool_blocked() &&
+         (!is_int16(value) ||
+          !(CpuFeatures::IsSupported(PPC_10_PLUS) && is_int34(value)))));
 
   if (!src.IsHeapObjectRequest() &&
       use_constant_pool_for_mov(dst, src, canOptimize)) {
@@ -1239,6 +1274,8 @@ void Assembler::mov(Register dst, const Operand& src) {
   if (canOptimize) {
     if (is_int16(value)) {
       li(dst, Operand(value));
+    } else if (CpuFeatures::IsSupported(PPC_10_PLUS) && is_int34(value)) {
+      pli(dst, Operand(value));
     } else {
       uint16_t u16;
 #if V8_TARGET_ARCH_PPC64
@@ -2109,11 +2146,7 @@ UseScratchRegisterScope::~UseScratchRegisterScope() {
 Register UseScratchRegisterScope::Acquire() {
   RegList* available = assembler_->GetScratchRegisterList();
   DCHECK_NOT_NULL(available);
-  DCHECK_NE(*available, 0);
-  int index = static_cast<int>(base::bits::CountTrailingZeros32(*available));
-  Register reg = Register::from_code(index);
-  *available &= ~reg.bit();
-  return reg;
+  return available->PopFirst();
 }
 
 }  // namespace internal

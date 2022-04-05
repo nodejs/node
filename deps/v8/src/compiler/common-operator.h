@@ -32,6 +32,13 @@ class Operator;
 class Type;
 class Node;
 
+// The semantics of IrOpcode::kBranch changes throughout the pipeline, and in
+// particular is not the same before SimplifiedLowering (JS semantics) and after
+// (machine branch semantics). Some passes are applied both before and after
+// SimplifiedLowering, and use the BranchSemantics enum to know how branches
+// should be treated.
+enum class BranchSemantics { kJS, kMachine };
+
 // Prediction hint for branches.
 enum class BranchHint : uint8_t { kNone, kTrue, kFalse };
 
@@ -420,6 +427,33 @@ const StringConstantBase* StringConstantBaseOf(const Operator* op)
 
 const char* StaticAssertSourceOf(const Operator* op);
 
+class SLVerifierHintParameters final {
+ public:
+  explicit SLVerifierHintParameters(const Operator* semantics,
+                                    base::Optional<Type> override_output_type)
+      : semantics_(semantics), override_output_type_(override_output_type) {}
+
+  const Operator* semantics() const { return semantics_; }
+  const base::Optional<Type>& override_output_type() const {
+    return override_output_type_;
+  }
+
+ private:
+  const Operator* semantics_;
+  base::Optional<Type> override_output_type_;
+};
+
+V8_EXPORT_PRIVATE bool operator==(const SLVerifierHintParameters& p1,
+                                  const SLVerifierHintParameters& p2);
+
+size_t hash_value(const SLVerifierHintParameters& p);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
+                                           const SLVerifierHintParameters& p);
+
+V8_EXPORT_PRIVATE const SLVerifierHintParameters& SLVerifierHintParametersOf(
+    const Operator* op) V8_WARN_UNUSED_RESULT;
+
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
 class V8_EXPORT_PRIVATE CommonOperatorBuilder final
@@ -438,6 +472,12 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* DeadValue(MachineRepresentation rep);
   const Operator* Unreachable();
   const Operator* StaticAssert(const char* source);
+  // SLVerifierHint is used only during SimplifiedLowering. It may be introduced
+  // during lowering to provide additional hints for the verifier. These nodes
+  // are removed at the end of SimplifiedLowering after verification.
+  const Operator* SLVerifierHint(
+      const Operator* semantics,
+      const base::Optional<Type>& override_output_type);
   const Operator* End(size_t control_input_count);
   const Operator* Branch(BranchHint = BranchHint::kNone);
   const Operator* IfTrue();
@@ -455,10 +495,6 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
                                FeedbackSource const& feedback);
   const Operator* DeoptimizeUnless(DeoptimizeKind kind, DeoptimizeReason reason,
                                    FeedbackSource const& feedback);
-  // DynamicCheckMapsWithDeoptUnless will call the dynamic map check builtin if
-  // the condition is false, which may then either deoptimize or resume
-  // execution.
-  const Operator* DynamicCheckMapsWithDeoptUnless(bool is_inlined_frame_state);
   const Operator* TrapIf(TrapId trap_id);
   const Operator* TrapUnless(TrapId trap_id);
   const Operator* Return(int value_input_count = 1);
@@ -721,27 +757,6 @@ class StartNode final : public CommonNodeWrapperBase {
     return node()->op()->ValueOutputCount() - 1;
   }
   int LastOutputIndex() const { return ContextOutputIndex(); }
-};
-
-class DynamicCheckMapsWithDeoptUnlessNode final : public CommonNodeWrapperBase {
- public:
-  explicit constexpr DynamicCheckMapsWithDeoptUnlessNode(Node* node)
-      : CommonNodeWrapperBase(node) {
-    DCHECK_EQ(IrOpcode::kDynamicCheckMapsWithDeoptUnless, node->opcode());
-  }
-
-#define INPUTS(V)                   \
-  V(Condition, condition, 0, BoolT) \
-  V(Slot, slot, 1, IntPtrT)         \
-  V(Map, map, 2, Map)               \
-  V(Handler, handler, 3, Object)    \
-  V(FeedbackVector, feedback_vector, 4, FeedbackVector)
-  INPUTS(DEFINE_INPUT_ACCESSORS)
-#undef INPUTS
-
-  FrameState frame_state() {
-    return FrameState{NodeProperties::GetValueInput(node(), 5)};
-  }
 };
 
 #undef DEFINE_INPUT_ACCESSORS

@@ -329,6 +329,19 @@ void ReadOnlySpace::DetachPagesAndAddToArtifacts(
   artifacts->Initialize(heap->isolate(), std::move(pages_), accounting_stats_);
 }
 
+ReadOnlyPage::ReadOnlyPage(Heap* heap, BaseSpace* space, size_t chunk_size,
+                           Address area_start, Address area_end,
+                           VirtualMemory reservation)
+    : BasicMemoryChunk(heap, space, chunk_size, area_start, area_end,
+                       std::move(reservation)) {
+  allocated_bytes_ = 0;
+  SetFlags(Flag::NEVER_EVACUATE | Flag::READ_ONLY_HEAP);
+  heap->incremental_marking()
+      ->non_atomic_marking_state()
+      ->bitmap(this)
+      ->MarkAllBits();
+}
+
 void ReadOnlyPage::MakeHeaderRelocatable() {
   heap_ = nullptr;
   owner_ = nullptr;
@@ -397,7 +410,7 @@ void ReadOnlySpace::Seal(SealMode ro_mode) {
     DetachFromHeap();
     for (ReadOnlyPage* p : pages_) {
       if (ro_mode == SealMode::kDetachFromHeapAndUnregisterMemory) {
-        memory_allocator->UnregisterMemory(p);
+        memory_allocator->UnregisterReadOnlyPage(p);
       }
       if (ReadOnlyHeap::IsReadOnlySpaceShared()) {
         p->MakeHeaderRelocatable();
@@ -533,6 +546,9 @@ void ReadOnlySpace::Verify(Isolate* isolate) {
       CHECK(!object.IsExternalString());
       CHECK(!object.IsJSArrayBuffer());
     }
+
+    CHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
+    CHECK(!page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
   }
   CHECK(allocation_pointer_found_in_space);
 
@@ -609,7 +625,7 @@ void ReadOnlySpace::EnsureSpaceForAllocation(int size_in_bytes) {
   FreeLinearAllocationArea();
 
   BasicMemoryChunk* chunk =
-      heap()->memory_allocator()->AllocateReadOnlyPage(AreaSize(), this);
+      heap()->memory_allocator()->AllocateReadOnlyPage(this);
   capacity_ += AreaSize();
 
   accounting_stats_.IncreaseCapacity(chunk->area_size());
@@ -667,7 +683,7 @@ AllocationResult ReadOnlySpace::AllocateRawAligned(
   }
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(object.address(), size_in_bytes);
 
-  return object;
+  return AllocationResult::FromObject(object);
 }
 
 AllocationResult ReadOnlySpace::AllocateRawUnaligned(int size_in_bytes) {
@@ -687,7 +703,7 @@ AllocationResult ReadOnlySpace::AllocateRawUnaligned(int size_in_bytes) {
   accounting_stats_.IncreaseAllocatedBytes(size_in_bytes, chunk);
   chunk->IncreaseAllocatedBytes(size_in_bytes);
 
-  return object;
+  return AllocationResult::FromObject(object);
 }
 
 AllocationResult ReadOnlySpace::AllocateRaw(int size_in_bytes,
@@ -697,7 +713,7 @@ AllocationResult ReadOnlySpace::AllocateRaw(int size_in_bytes,
           ? AllocateRawAligned(size_in_bytes, alignment)
           : AllocateRawUnaligned(size_in_bytes);
   HeapObject heap_obj;
-  if (!result.IsRetry() && result.To(&heap_obj)) {
+  if (result.To(&heap_obj)) {
     DCHECK(heap()->incremental_marking()->marking_state()->IsBlack(heap_obj));
   }
   return result;
@@ -749,20 +765,6 @@ void ReadOnlySpace::ShrinkPages() {
     AccountUncommitted(unused);
   }
   limit_ = pages_.back()->area_end();
-}
-
-ReadOnlyPage* ReadOnlySpace::InitializePage(BasicMemoryChunk* chunk) {
-  ReadOnlyPage* page = reinterpret_cast<ReadOnlyPage*>(chunk);
-  page->allocated_bytes_ = 0;
-  page->SetFlag(BasicMemoryChunk::Flag::NEVER_EVACUATE);
-  heap()
-      ->incremental_marking()
-      ->non_atomic_marking_state()
-      ->bitmap(chunk)
-      ->MarkAllBits();
-  chunk->SetFlag(BasicMemoryChunk::READ_ONLY_HEAP);
-
-  return page;
 }
 
 SharedReadOnlySpace::SharedReadOnlySpace(

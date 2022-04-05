@@ -477,7 +477,7 @@ TEST(SampleIds) {
   // (root)#1 -> aaa #2 -> bbb #4 -> ccc #5 - sample2
   //                    -> ccc #6 -> aaa #7 - sample3
   TickSample sample1;
-  sample1.timestamp = v8::base::TimeTicks::HighResolutionNow();
+  sample1.timestamp = v8::base::TimeTicks::Now();
   sample1.pc = ToPointer(0x1600);
   sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
@@ -487,7 +487,7 @@ TEST(SampleIds) {
       base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
 
   TickSample sample2;
-  sample2.timestamp = v8::base::TimeTicks::HighResolutionNow();
+  sample2.timestamp = v8::base::TimeTicks::Now();
   sample2.pc = ToPointer(0x1925);
   sample2.stack[0] = ToPointer(0x1780);
   sample2.stack[1] = ToPointer(0x10000);  // non-existent.
@@ -499,7 +499,7 @@ TEST(SampleIds) {
       base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
 
   TickSample sample3;
-  sample3.timestamp = v8::base::TimeTicks::HighResolutionNow();
+  sample3.timestamp = v8::base::TimeTicks::Now();
   sample3.pc = ToPointer(0x1510);
   sample3.stack[0] = ToPointer(0x1910);
   sample3.stack[1] = ToPointer(0x1610);
@@ -528,17 +528,9 @@ class DiscardedSamplesDelegateImpl : public v8::DiscardedSamplesDelegate {
   void Notify() override {}
 };
 
-class MockPlatform : public TestPlatform {
+class MockPlatform final : public TestPlatform {
  public:
-  MockPlatform()
-      : old_platform_(i::V8::GetCurrentPlatform()),
-        mock_task_runner_(new MockTaskRunner()) {
-    // Now that it's completely constructed, make this the current platform.
-    i::V8::SetPlatformForTesting(this);
-  }
-
-  // When done, explicitly revert to old_platform_.
-  ~MockPlatform() override { i::V8::SetPlatformForTesting(old_platform_); }
+  MockPlatform() : mock_task_runner_(new MockTaskRunner()) {}
 
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       v8::Isolate*) override {
@@ -566,6 +558,8 @@ class MockPlatform : public TestPlatform {
     }
 
     bool IdleTasksEnabled() override { return false; }
+    bool NonNestableTasksEnabled() const override { return true; }
+    bool NonNestableDelayedTasksEnabled() const override { return true; }
 
     int posted_count() { return posted_count_; }
 
@@ -575,17 +569,15 @@ class MockPlatform : public TestPlatform {
     std::unique_ptr<Task> task_;
   };
 
-  v8::Platform* old_platform_;
   std::shared_ptr<MockTaskRunner> mock_task_runner_;
 };
 }  // namespace
 
-TEST(MaxSamplesCallback) {
+TEST_WITH_PLATFORM(MaxSamplesCallback, MockPlatform) {
   i::Isolate* isolate = CcTest::i_isolate();
   CpuProfilesCollection profiles(isolate);
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
-  MockPlatform* mock_platform = new MockPlatform();
   std::unique_ptr<DiscardedSamplesDelegateImpl> impl =
       std::make_unique<DiscardedSamplesDelegateImpl>(
           DiscardedSamplesDelegateImpl());
@@ -598,7 +590,7 @@ TEST(MaxSamplesCallback) {
   CodeMap code_map(storage);
   Symbolizer symbolizer(&code_map);
   TickSample sample1;
-  sample1.timestamp = v8::base::TimeTicks::HighResolutionNow();
+  sample1.timestamp = v8::base::TimeTicks::Now();
   sample1.pc = ToPointer(0x1600);
   sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
@@ -606,9 +598,9 @@ TEST(MaxSamplesCallback) {
   profiles.AddPathToCurrentProfiles(
       sample1.timestamp, symbolized.stack_trace, symbolized.src_line, true,
       base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
-  CHECK_EQ(0, mock_platform->posted_count());
+  CHECK_EQ(0, platform.posted_count());
   TickSample sample2;
-  sample2.timestamp = v8::base::TimeTicks::HighResolutionNow();
+  sample2.timestamp = v8::base::TimeTicks::Now();
   sample2.pc = ToPointer(0x1925);
   sample2.stack[0] = ToPointer(0x1780);
   sample2.frames_count = 2;
@@ -616,20 +608,19 @@ TEST(MaxSamplesCallback) {
   profiles.AddPathToCurrentProfiles(
       sample2.timestamp, symbolized.stack_trace, symbolized.src_line, true,
       base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
-  CHECK_EQ(1, mock_platform->posted_count());
+  CHECK_EQ(1, platform.posted_count());
   TickSample sample3;
-  sample3.timestamp = v8::base::TimeTicks::HighResolutionNow();
+  sample3.timestamp = v8::base::TimeTicks::Now();
   sample3.pc = ToPointer(0x1510);
   sample3.frames_count = 3;
   symbolized = symbolizer.SymbolizeTickSample(sample3);
   profiles.AddPathToCurrentProfiles(
       sample3.timestamp, symbolized.stack_trace, symbolized.src_line, true,
       base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
-  CHECK_EQ(1, mock_platform->posted_count());
+  CHECK_EQ(1, platform.posted_count());
 
   // Teardown
   profiles.StopProfiling("");
-  delete mock_platform;
 }
 
 TEST(NoSamples) {
@@ -652,10 +643,9 @@ TEST(NoSamples) {
   sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
   auto symbolized = symbolizer.SymbolizeTickSample(sample1);
-  profiles.AddPathToCurrentProfiles(v8::base::TimeTicks::HighResolutionNow(),
-                                    symbolized.stack_trace, symbolized.src_line,
-                                    true, base::TimeDelta(), StateTag::JS,
-                                    EmbedderStateTag::EMPTY);
+  profiles.AddPathToCurrentProfiles(
+      v8::base::TimeTicks::Now(), symbolized.stack_trace, symbolized.src_line,
+      true, base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
 
   CpuProfile* profile = profiles.StopProfiling("");
   unsigned nodeId = 1;

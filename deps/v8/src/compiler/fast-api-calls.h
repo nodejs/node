@@ -42,6 +42,8 @@ OverloadsResolutionResult ResolveOverloads(
     Zone* zone, const FastApiCallFunctionVector& candidates,
     unsigned int arg_count);
 
+bool CanOptimizeFastSignature(const CFunctionInfo* c_signature);
+
 }  // namespace fast_api_call
 }  // namespace compiler
 }  // namespace internal

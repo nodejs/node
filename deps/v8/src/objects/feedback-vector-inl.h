@@ -80,16 +80,16 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
     case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kHasKeyed:
-    case FeedbackSlotKind::kStoreNamedSloppy:
-    case FeedbackSlotKind::kStoreNamedStrict:
-    case FeedbackSlotKind::kStoreOwnNamed:
-    case FeedbackSlotKind::kDefineOwnKeyed:
+    case FeedbackSlotKind::kSetNamedSloppy:
+    case FeedbackSlotKind::kSetNamedStrict:
+    case FeedbackSlotKind::kDefineNamedOwn:
+    case FeedbackSlotKind::kDefineKeyedOwn:
     case FeedbackSlotKind::kStoreGlobalSloppy:
     case FeedbackSlotKind::kStoreGlobalStrict:
-    case FeedbackSlotKind::kStoreKeyedSloppy:
-    case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kSetKeyedSloppy:
+    case FeedbackSlotKind::kSetKeyedStrict:
     case FeedbackSlotKind::kStoreInArrayLiteral:
-    case FeedbackSlotKind::kStoreDataPropertyInLiteral:
+    case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
       return 2;
 
     case FeedbackSlotKind::kInvalid:
@@ -124,42 +124,36 @@ void FeedbackVector::clear_invocation_count(RelaxedStoreTag tag) {
   set_invocation_count(0, tag);
 }
 
-Code FeedbackVector::optimized_code() const {
+CodeT FeedbackVector::optimized_code() const {
   MaybeObject slot = maybe_optimized_code(kAcquireLoad);
   DCHECK(slot->IsWeakOrCleared());
   HeapObject heap_object;
-  Code code;
+  CodeT code;
   if (slot->GetHeapObject(&heap_object)) {
-    code = FromCodeT(CodeT::cast(heap_object));
+    code = CodeT::cast(heap_object);
   }
-  // It is possible that the maybe_optimized_code slot is cleared but the
-  // optimization tier hasn't been updated yet. We update the tier when we
-  // execute the function next time / when we create new closure.
-  DCHECK_IMPLIES(!code.is_null(), OptimizationTierBits::decode(flags()) ==
-                                      GetTierForCodeKind(code.kind()));
+  // It is possible that the maybe_optimized_code slot is cleared but the flags
+  // haven't been updated yet. We update them when we execute the function next
+  // time / when we create new closure.
+  DCHECK_IMPLIES(!code.is_null(), maybe_has_optimized_code());
   return code;
 }
 
-OptimizationMarker FeedbackVector::optimization_marker() const {
-  return OptimizationMarkerBits::decode(flags());
-}
-
-OptimizationTier FeedbackVector::optimization_tier() const {
-  OptimizationTier tier = OptimizationTierBits::decode(flags());
-  // It is possible that the optimization tier bits aren't updated when the code
-  // was cleared due to a GC.
-  DCHECK_IMPLIES(tier == OptimizationTier::kNone,
-                 maybe_optimized_code(kAcquireLoad)->IsCleared());
-  return tier;
+TieringState FeedbackVector::tiering_state() const {
+  return TieringStateBits::decode(flags());
 }
 
 bool FeedbackVector::has_optimized_code() const {
+  DCHECK_IMPLIES(!optimized_code().is_null(), maybe_has_optimized_code());
   return !optimized_code().is_null();
 }
 
-bool FeedbackVector::has_optimization_marker() const {
-  return optimization_marker() != OptimizationMarker::kLogFirstExecution &&
-         optimization_marker() != OptimizationMarker::kNone;
+bool FeedbackVector::maybe_has_optimized_code() const {
+  return MaybeHasOptimizedCodeBit::decode(flags());
+}
+
+void FeedbackVector::set_maybe_has_optimized_code(bool value) {
+  set_flags(MaybeHasOptimizedCodeBit::update(flags(), value));
 }
 
 // Conversion from an integer index to either a slot or an ic slot.

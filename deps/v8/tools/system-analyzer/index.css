@@ -13,6 +13,7 @@
   --map-background-color: #5e5454;
   --timeline-background-color: #1f1f1f;
   --file-reader-background-color: #ffffff80;
+  --file-reader-border-color: #ffffff;
   --red: #dc6eae;
   --green: #aedc6e;
   --yellow: #eeff41;
@@ -227,6 +228,7 @@ button:hover,
 .mark:hover,
 .clickable:active,
 .mark:active {
+  border-radius: 3px;
   background-color: var(--primary-color);
   color: var(--on-primary-color);
   cursor: pointer;
@@ -249,11 +251,10 @@ button:hover,
   margin-top: 10px;
 }
 
-
 .panelCloserLabel {
   float: left;
   cursor: zoom-out;
-  margin: 0 10px 0 0;
+  margin: 0 5px 0 0;
   transition: transform 0.2s ease-out;
   user-select: none;
 }

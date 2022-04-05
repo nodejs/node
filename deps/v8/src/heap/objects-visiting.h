@@ -30,6 +30,7 @@ namespace internal {
   V(FixedDoubleArray)                   \
   V(JSArrayBuffer)                      \
   V(JSDataView)                         \
+  V(JSExternalObject)                   \
   V(JSFinalizationRegistry)             \
   V(JSFunction)                         \
   V(JSObject)                           \
@@ -40,6 +41,7 @@ namespace internal {
   V(Map)                                \
   V(NativeContext)                      \
   V(PreparseData)                       \
+  V(PromiseOnStack)                     \
   V(PropertyArray)                      \
   V(PropertyCell)                       \
   V(PrototypeInfo)                      \
@@ -62,6 +64,7 @@ namespace internal {
   IF_WASM(V, WasmJSFunctionData)        \
   IF_WASM(V, WasmStruct)                \
   IF_WASM(V, WasmSuspenderObject)       \
+  IF_WASM(V, WasmOnFulfilledData)       \
   IF_WASM(V, WasmTypeInfo)
 
 #define FORWARD_DECLARE(TypeName) class TypeName;

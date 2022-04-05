@@ -6,6 +6,7 @@
 // container, like SwissNameDictionary. Taken almost in verbatim from Abseil,
 // comments in this file indicate what is taken from what Abseil file.
 
+#include <climits>
 #include <cstdint>
 #include <type_traits>
 

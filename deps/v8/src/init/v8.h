@@ -19,18 +19,19 @@ class Isolate;
 class V8 : public AllStatic {
  public:
   // Global actions.
-
   static void Initialize();
   static void Dispose();
 
   // Report process out of memory. Implementation found in api.cc.
   // This function will not return, but will terminate the execution.
+  // IMPORTANT: Update the Google-internal crash processer if this signature
+  // changes to be able to extract detailed v8::internal::HeapStats on OOM.
   [[noreturn]] static void FatalProcessOutOfMemory(Isolate* isolate,
                                                    const char* location,
                                                    bool is_heap_oom = false);
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  static bool InitializeVirtualMemoryCage();
+#ifdef V8_SANDBOX
+  static bool InitializeSandbox();
 #endif
 
   static void InitializePlatform(v8::Platform* platform);
@@ -43,10 +44,6 @@ class V8 : public AllStatic {
   static void SetSnapshotBlob(StartupData* snapshot_blob);
 
  private:
-  static void InitializeOncePerProcessImpl();
-  static void InitializeOncePerProcess();
-
-  // v8::Platform to use.
   static v8::Platform* platform_;
 };
 

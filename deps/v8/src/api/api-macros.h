@@ -22,12 +22,17 @@
  * Exceptions should be handled either by invoking one of the
  * RETURN_ON_FAILED_EXECUTION* macros.
  *
+ * API methods that are part of the debug interface should use
+ *
+ * PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE
+ *
+ * in a similar fashion to ENTER_V8.
+ *
  * Don't use macros with DO_NOT_USE in their name.
  *
- * TODO(jochen): Document debugger specific macros.
- * TODO(jochen): Document LOG_API and other RuntimeCallStats macros.
- * TODO(jochen): All API methods should invoke one of the ENTER_V8* macros.
- * TODO(jochen): Remove calls form API methods to DO_NOT_USE macros.
+ * TODO(cbruni): Document LOG_API and other RuntimeCallStats macros.
+ * TODO(verwaest): All API methods should invoke one of the ENTER_V8* macros.
+ * TODO(verwaest): Remove calls form API methods to DO_NOT_USE macros.
  */
 
 #define LOG_API(isolate, class_name, function_name)                        \

@@ -37,12 +37,11 @@
   'fail/modules-skip*': [SKIP],
 }],  # ALWAYS
 
-# Liftoff is currently only sufficiently implemented on x64, ia32, arm, arm64.
-# TODO(clemensb): Implement on all other platforms (crbug.com/v8/6600).
-['arch != x64 and arch != ia32 and arch != arm64 and arch != arm', {
+# Skip Liftoff tests on platforms that don't support Liftoff.
+['arch != x64 and arch != ia32 and arch != arm64 and arch != arm and arch != s390x', {
   'wasm-trace-memory-liftoff': [SKIP],
   'wasm-trace-liftoff': [SKIP],
-}], # arch != x64 and arch != ia32 and arch != arm64 and arch != arm
+}], # arch != x64 and arch != ia32 and arch != arm64 and arch != arm and arch != s390x
 
 ['variant == code_serializer', {
   # Code serializer output is incompatible with all message tests
@@ -88,31 +87,11 @@
 }], # third_party_heap
 
 ##############################################################################
-['msan == True', {
-  # Large allocations
+['not (arch == x64 and mode == release)', {
+  # Only run these known slow tests on bots that we think to be reasonably
+  # fast.
   'fail/map-grow-failed': [SKIP],
   'fail/set-grow-failed': [SKIP],
-}],  # 'msan == True'
-
-##############################################################################
-['tsan == True', {
-  # Large allocations
-  'fail/map-grow-failed': [SKIP],
-  'fail/set-grow-failed': [SKIP],
-}],  # 'tsan == True'
-
-##############################################################################
-['simulator_run', {
-  # Too slow on simulators
-  'fail/map-grow-failed': [SKIP],
-  'fail/set-grow-failed': [SKIP],
-}],  # simulator_run
-
-##############################################################################
-['is_full_debug', {
-  # Too slow in non-optimized debug mode
-  'fail/map-grow-failed': [SKIP],
-  'fail/set-grow-failed': [SKIP],
-}],  # is_full_debug
+}],  # not (arch == x64 and mode == release)
 
 ]

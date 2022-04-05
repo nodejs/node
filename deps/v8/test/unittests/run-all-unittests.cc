@@ -21,8 +21,8 @@ class DefaultPlatformEnvironment final : public ::testing::Environment {
         0, v8::platform::IdleTaskSupport::kEnabled);
     ASSERT_TRUE(platform_.get() != nullptr);
     v8::V8::InitializePlatform(platform_.get());
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-    ASSERT_TRUE(v8::V8::InitializeVirtualMemoryCage());
+#ifdef V8_SANDBOX
+    ASSERT_TRUE(v8::V8::InitializeSandbox());
 #endif
     cppgc::InitializeProcess(platform_->GetPageAllocator());
     v8::V8::Initialize();

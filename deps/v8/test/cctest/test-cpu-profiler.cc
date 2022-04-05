@@ -120,7 +120,7 @@ static void EnqueueTickSampleEvent(ProfilerEventsProcessor* proc,
     sample.stack[1] = reinterpret_cast<void*>(frame3);
     sample.frames_count = 2;
   }
-  sample.timestamp = base::TimeTicks::HighResolutionNow();
+  sample.timestamp = base::TimeTicks::Now();
   proc->AddSample(sample);
 }
 
@@ -424,7 +424,7 @@ TEST(Issue1398) {
   for (unsigned i = 0; i < sample.frames_count; ++i) {
     sample.stack[i] = reinterpret_cast<void*>(code->InstructionStart());
   }
-  sample.timestamp = base::TimeTicks::HighResolutionNow();
+  sample.timestamp = base::TimeTicks::Now();
   processor->AddSample(sample);
 
   processor->StopSynchronously();
@@ -3920,6 +3920,15 @@ TEST(ContextIsolation) {
         diff_context_profile->GetTopDownRoot();
     // Ensure that no children were recorded (including callbacks, builtins).
     CHECK(!FindChild(diff_root, "start"));
+
+    CHECK_GT(diff_context_profile->GetSamplesCount(), 0);
+    for (int i = 0; i < diff_context_profile->GetSamplesCount(); i++) {
+      CHECK(diff_context_profile->GetSampleState(i) == StateTag::IDLE ||
+            // GC State do not have a context
+            diff_context_profile->GetSampleState(i) == StateTag::GC ||
+            // first frame and native code reports as external
+            diff_context_profile->GetSampleState(i) == StateTag::EXTERNAL);
+    }
   }
 }
 
@@ -4205,7 +4214,7 @@ int GetSourcePositionEntryCount(i::Isolate* isolate, const char* source,
   i::Handle<i::JSFunction> function = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*CompileRun(source)));
   if (function->ActiveTierIsIgnition()) return -1;
-  i::Handle<i::Code> code(function->code(), isolate);
+  i::Handle<i::Code> code(i::FromCodeT(function->code()), isolate);
   i::SourcePositionTableIterator iterator(
       ByteArray::cast(code->source_position_table()));
 
@@ -4332,7 +4341,7 @@ struct FastApiReceiver {
     // TODO(mslekova): The fallback is not used by the test. Replace this
     // with a CHECK.
     if (!IsValidUnwrapObject(*receiver)) {
-      options.fallback = 1;
+      options.fallback = true;
       return;
     }
     FastApiReceiver* receiver_ptr =
@@ -4383,7 +4392,6 @@ TEST(FastApiCPUProfiler) {
 #if !defined(V8_LITE_MODE) && !defined(USE_SIMULATOR)
   // None of the following configurations include JSCallReducer.
   if (i::FLAG_jitless) return;
-  if (i::FLAG_turboprop) return;
 
   FLAG_SCOPE(opt);
   FLAG_SCOPE(turbo_fast_api_calls);

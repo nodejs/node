@@ -23,9 +23,9 @@ FuzzerSupport::FuzzerSupport(int* argc, char*** argv) {
   v8::V8::InitializeExternalStartupData((*argv)[0]);
   platform_ = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(platform_.get());
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  if (!v8::V8::InitializeVirtualMemoryCage()) {
-    FATAL("Could not initialize the virtual memory cage");
+#ifdef V8_SANDBOX
+  if (!v8::V8::InitializeSandbox()) {
+    FATAL("Could not initialize the sandbox");
   }
 #endif
   v8::V8::Initialize();
@@ -106,9 +106,9 @@ bool FuzzerSupport::PumpMessageLoop(
 // Explicitly specify some attributes to avoid issues with the linker dead-
 // stripping the following function on macOS, as it is not called directly
 // by fuzz target. LibFuzzer runtime uses dlsym() to resolve that function.
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 __attribute__((used)) __attribute__((visibility("default")))
-#endif  // V8_OS_MACOSX
+#endif  // V8_OS_DARWIN
 extern "C" int
 LLVMFuzzerInitialize(int* argc, char*** argv) {
   v8_fuzzer::FuzzerSupport::InitializeFuzzerSupport(argc, argv);

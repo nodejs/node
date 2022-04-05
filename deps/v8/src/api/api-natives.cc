@@ -386,7 +386,7 @@ bool IsSimpleInstantiation(Isolate* isolate, ObjectTemplateInfo info,
   if (fun.shared().function_data(kAcquireLoad) != info.constructor())
     return false;
   if (info.immutable_proto()) return false;
-  return fun.context().native_context() == isolate->raw_native_context();
+  return fun.native_context() == isolate->raw_native_context();
 }
 
 MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,

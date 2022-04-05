@@ -15,36 +15,35 @@ namespace internal {
 // The order of INTERPRETED_FUNCTION to TURBOFAN is important. We use it to
 // check the relative ordering of the tiers when fetching / installing optimized
 // code.
-#define CODE_KIND_LIST(V)       \
-  V(BYTECODE_HANDLER)           \
-  V(FOR_TESTING)                \
-  V(BUILTIN)                    \
-  V(REGEXP)                     \
-  V(WASM_FUNCTION)              \
-  V(WASM_TO_CAPI_FUNCTION)      \
-  V(WASM_TO_JS_FUNCTION)        \
-  V(JS_TO_WASM_FUNCTION)        \
-  V(JS_TO_JS_FUNCTION)          \
-  V(C_WASM_ENTRY)               \
-  V(INTERPRETED_FUNCTION)       \
-  V(BASELINE)                   \
-  V(TURBOPROP)                  \
+#define CODE_KIND_LIST(V)  \
+  V(BYTECODE_HANDLER)      \
+  V(FOR_TESTING)           \
+  V(BUILTIN)               \
+  V(REGEXP)                \
+  V(WASM_FUNCTION)         \
+  V(WASM_TO_CAPI_FUNCTION) \
+  V(WASM_TO_JS_FUNCTION)   \
+  V(JS_TO_WASM_FUNCTION)   \
+  V(JS_TO_JS_FUNCTION)     \
+  V(C_WASM_ENTRY)          \
+  V(INTERPRETED_FUNCTION)  \
+  V(BASELINE)              \
+  V(MAGLEV)                \
   V(TURBOFAN)
 
-enum class CodeKind {
+enum class CodeKind : uint8_t {
 #define DEFINE_CODE_KIND_ENUM(name) name,
   CODE_KIND_LIST(DEFINE_CODE_KIND_ENUM)
 #undef DEFINE_CODE_KIND_ENUM
 };
-STATIC_ASSERT(CodeKind::INTERPRETED_FUNCTION < CodeKind::TURBOPROP &&
-              CodeKind::INTERPRETED_FUNCTION < CodeKind::BASELINE);
-STATIC_ASSERT(CodeKind::BASELINE < CodeKind::TURBOPROP);
-STATIC_ASSERT(CodeKind::BASELINE < CodeKind::TURBOFAN &&
-              CodeKind::TURBOPROP < CodeKind::TURBOFAN);
+STATIC_ASSERT(CodeKind::INTERPRETED_FUNCTION < CodeKind::BASELINE);
+STATIC_ASSERT(CodeKind::BASELINE < CodeKind::TURBOFAN);
 
 #define V(...) +1
 static constexpr int kCodeKindCount = CODE_KIND_LIST(V);
 #undef V
+// Unlikely, but just to be safe:
+STATIC_ASSERT(kCodeKindCount <= std::numeric_limits<uint8_t>::max());
 
 const char* CodeKindToString(CodeKind kind);
 
@@ -58,6 +57,10 @@ inline constexpr bool CodeKindIsBaselinedJSFunction(CodeKind kind) {
   return kind == CodeKind::BASELINE;
 }
 
+inline constexpr bool CodeKindIsStaticallyCompiled(CodeKind kind) {
+  return kind == CodeKind::BYTECODE_HANDLER || kind == CodeKind::BUILTIN;
+}
+
 inline constexpr bool CodeKindIsUnoptimizedJSFunction(CodeKind kind) {
   STATIC_ASSERT(static_cast<int>(CodeKind::INTERPRETED_FUNCTION) + 1 ==
                 static_cast<int>(CodeKind::BASELINE));
@@ -66,14 +69,16 @@ inline constexpr bool CodeKindIsUnoptimizedJSFunction(CodeKind kind) {
 }
 
 inline constexpr bool CodeKindIsOptimizedJSFunction(CodeKind kind) {
-  STATIC_ASSERT(static_cast<int>(CodeKind::TURBOPROP) + 1 ==
+  STATIC_ASSERT(static_cast<int>(CodeKind::MAGLEV) + 1 ==
                 static_cast<int>(CodeKind::TURBOFAN));
-  return base::IsInRange(kind, CodeKind::TURBOPROP, CodeKind::TURBOFAN);
+  return base::IsInRange(kind, CodeKind::MAGLEV, CodeKind::TURBOFAN);
 }
 
 inline constexpr bool CodeKindIsJSFunction(CodeKind kind) {
-  return CodeKindIsUnoptimizedJSFunction(kind) ||
-         CodeKindIsOptimizedJSFunction(kind);
+  STATIC_ASSERT(static_cast<int>(CodeKind::BASELINE) + 1 ==
+                static_cast<int>(CodeKind::MAGLEV));
+  return base::IsInRange(kind, CodeKind::INTERPRETED_FUNCTION,
+                         CodeKind::TURBOFAN);
 }
 
 inline constexpr bool CodeKindIsBuiltinOrJSFunction(CodeKind kind) {
@@ -85,47 +90,20 @@ inline constexpr bool CodeKindCanDeoptimize(CodeKind kind) {
 }
 
 inline constexpr bool CodeKindCanOSR(CodeKind kind) {
-  return kind == CodeKind::TURBOFAN || kind == CodeKind::TURBOPROP;
-}
-
-inline bool CodeKindIsOptimizedAndCanTierUp(CodeKind kind) {
-  return !FLAG_turboprop_as_toptier && kind == CodeKind::TURBOPROP;
+  return kind == CodeKind::TURBOFAN;
 }
 
 inline constexpr bool CodeKindCanTierUp(CodeKind kind) {
-  return CodeKindIsUnoptimizedJSFunction(kind) ||
-         CodeKindIsOptimizedAndCanTierUp(kind);
+  return CodeKindIsUnoptimizedJSFunction(kind);
 }
 
-// The optimization marker field on the feedback vector has a dual purpose of
-// controlling the tier-up workflow, and caching the produced code object for
-// access from multiple closures.
+// TODO(jgruber): Rename or remove this predicate. Currently it means 'is this
+// kind stored either in the FeedbackVector cache, or in the OSR cache?'.
 inline constexpr bool CodeKindIsStoredInOptimizedCodeCache(CodeKind kind) {
-  return kind == CodeKind::TURBOFAN || kind == CodeKind::TURBOPROP;
+  return kind == CodeKind::TURBOFAN;
 }
 
-inline OptimizationTier GetTierForCodeKind(CodeKind kind) {
-  if (kind == CodeKind::TURBOFAN) return OptimizationTier::kTopTier;
-  if (kind == CodeKind::TURBOPROP) {
-    return FLAG_turboprop_as_toptier ? OptimizationTier::kTopTier
-                                     : OptimizationTier::kMidTier;
-  }
-  return OptimizationTier::kNone;
-}
-
-inline CodeKind CodeKindForTopTier() {
-  if (V8_UNLIKELY(FLAG_turboprop_as_toptier)) {
-    return CodeKind::TURBOPROP;
-  }
-  return CodeKind::TURBOFAN;
-}
-
-inline CodeKind CodeKindForOSR() {
-  if (V8_UNLIKELY(FLAG_turboprop)) {
-    return CodeKind::TURBOPROP;
-  }
-  return CodeKind::TURBOFAN;
-}
+inline CodeKind CodeKindForTopTier() { return CodeKind::TURBOFAN; }
 
 // The dedicated CodeKindFlag enum represents all code kinds in a format
 // suitable for bit sets.
@@ -147,10 +125,10 @@ using CodeKinds = base::Flags<CodeKindFlag>;
 DEFINE_OPERATORS_FOR_FLAGS(CodeKinds)
 
 static constexpr CodeKinds kJSFunctionCodeKindsMask{
-    CodeKindFlag::INTERPRETED_FUNCTION | CodeKindFlag::TURBOFAN |
-    CodeKindFlag::TURBOPROP | CodeKindFlag::BASELINE};
+    CodeKindFlag::INTERPRETED_FUNCTION | CodeKindFlag::BASELINE |
+    CodeKindFlag::MAGLEV | CodeKindFlag::TURBOFAN};
 static constexpr CodeKinds kOptimizedJSFunctionCodeKindsMask{
-    CodeKindFlag::TURBOFAN | CodeKindFlag::TURBOPROP};
+    CodeKindFlag::MAGLEV | CodeKindFlag::TURBOFAN};
 
 }  // namespace internal
 }  // namespace v8

@@ -134,15 +134,10 @@ class V8_EXPORT_PRIVATE Zone final {
   // Seals the zone to prevent any further allocation.
   void Seal() { sealed_ = true; }
 
-  // Allows the zone to be safely reused. Releases the memory and fires zone
-  // destruction and creation events for the accounting allocator.
-  void ReleaseMemory();
-
-  // Returns true if more memory has been allocated in zones than
-  // the limit allows.
-  bool excess_allocation() const {
-    return segment_bytes_allocated_ > kExcessLimit;
-  }
+  // Allows the zone to be safely reused. Releases the memory except for the
+  // last page, and fires zone destruction and creation events for the
+  // accounting allocator.
+  void Reset();
 
   size_t segment_bytes_allocated() const { return segment_bytes_allocated_; }
 
@@ -202,16 +197,13 @@ class V8_EXPORT_PRIVATE Zone final {
   // Never allocate segments larger than this size in bytes.
   static const size_t kMaximumSegmentSize = 32 * KB;
 
-  // Report zone excess when allocation exceeds this limit.
-  static const size_t kExcessLimit = 256 * MB;
-
   // The number of bytes allocated in this zone so far.
-  size_t allocation_size_ = 0;
+  std::atomic<size_t> allocation_size_ = {0};
 
   // The number of bytes allocated in segments.  Note that this number
   // includes memory allocated from the OS but not yet allocated from
   // the zone.
-  size_t segment_bytes_allocated_ = 0;
+  std::atomic<size_t> segment_bytes_allocated_ = {0};
 
   // Expand the Zone to hold at least 'size' more bytes and allocate
   // the bytes. Returns the address of the newly allocated chunk of
@@ -234,10 +226,10 @@ class V8_EXPORT_PRIVATE Zone final {
 
 #ifdef V8_ENABLE_PRECISE_ZONE_STATS
   TypeStats type_stats_;
-  size_t allocation_size_for_tracing_ = 0;
+  std::atomic<size_t> allocation_size_for_tracing_ = {0};
 
   // The number of bytes freed in this zone so far.
-  size_t freed_size_for_tracing_ = 0;
+  stdd::atomic<size_t> freed_size_for_tracing_ = {0};
 #endif
 
   friend class ZoneScope;

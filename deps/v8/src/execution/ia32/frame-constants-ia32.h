@@ -7,7 +7,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/macros.h"
-#include "src/codegen/ia32/register-ia32.h"
+#include "src/codegen/register.h"
 #include "src/execution/frame-constants.h"
 
 namespace v8 {
@@ -53,17 +53,14 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
 class WasmDebugBreakFrameConstants : public TypedFrameConstants {
  public:
   // Omit ebx, which is the root register.
-  static constexpr RegList kPushedGpRegs =
-      Register::ListOf(eax, ecx, edx, esi, edi);
+  static constexpr RegList kPushedGpRegs = {eax, ecx, edx, esi, edi};
 
   // Omit xmm7, which is the kScratchDoubleReg.
-  static constexpr RegList kPushedFpRegs =
-      DoubleRegister::ListOf(xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6);
+  static constexpr DoubleRegList kPushedFpRegs = {xmm0, xmm1, xmm2, xmm3,
+                                                  xmm4, xmm5, xmm6};
 
-  static constexpr int kNumPushedGpRegisters =
-      base::bits::CountPopulation(kPushedGpRegs);
-  static constexpr int kNumPushedFpRegisters =
-      base::bits::CountPopulation(kPushedFpRegs);
+  static constexpr int kNumPushedGpRegisters = kPushedGpRegs.Count();
+  static constexpr int kNumPushedFpRegisters = kPushedFpRegs.Count();
 
   static constexpr int kLastPushedGpRegisterOffset =
       -kFixedFrameSizeFromFp - kNumPushedGpRegisters * kSystemPointerSize;
@@ -72,15 +69,17 @@ class WasmDebugBreakFrameConstants : public TypedFrameConstants {
 
   // Offsets are fp-relative.
   static int GetPushedGpRegisterOffset(int reg_code) {
-    DCHECK_NE(0, kPushedGpRegs & (1 << reg_code));
-    uint32_t lower_regs = kPushedGpRegs & ((uint32_t{1} << reg_code) - 1);
+    DCHECK_NE(0, kPushedGpRegs.bits() & (1 << reg_code));
+    uint32_t lower_regs =
+        kPushedGpRegs.bits() & ((uint32_t{1} << reg_code) - 1);
     return kLastPushedGpRegisterOffset +
            base::bits::CountPopulation(lower_regs) * kSystemPointerSize;
   }
 
   static int GetPushedFpRegisterOffset(int reg_code) {
-    DCHECK_NE(0, kPushedFpRegs & (1 << reg_code));
-    uint32_t lower_regs = kPushedFpRegs & ((uint32_t{1} << reg_code) - 1);
+    DCHECK_NE(0, kPushedFpRegs.bits() & (1 << reg_code));
+    uint32_t lower_regs =
+        kPushedFpRegs.bits() & ((uint32_t{1} << reg_code) - 1);
     return kLastPushedFpRegisterOffset +
            base::bits::CountPopulation(lower_regs) * kSimd128Size;
   }

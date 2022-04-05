@@ -7,16 +7,11 @@
 let cal = new Temporal.Calendar("iso8601")
 
 // Test throwing
-assertThrows(() => cal.mergeFields(), TypeError,
-    "Cannot convert undefined or null to object");
-assertThrows(() => cal.mergeFields(undefined, {}), TypeError,
-    "Cannot convert undefined or null to object");
-assertThrows(() => cal.mergeFields(null, {}), TypeError,
-    "Cannot convert undefined or null to object");
-assertThrows(() => cal.mergeFields({}, undefined), TypeError,
-    "Cannot convert undefined or null to object");
-assertThrows(() => cal.mergeFields({}, null), TypeError,
-    "Cannot convert undefined or null to object");
+assertThrows(() => cal.mergeFields(), TypeError);
+assertThrows(() => cal.mergeFields(undefined, {}), TypeError);
+assertThrows(() => cal.mergeFields(null, {}), TypeError);
+assertThrows(() => cal.mergeFields({}, undefined), TypeError);
+assertThrows(() => cal.mergeFields({}, null), TypeError);
 
 // Test String, number, true, false, NaN, BigInt, Symbol types
 // pending on https://github.com/tc39/proposal-temporal/issues/1647

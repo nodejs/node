@@ -43,7 +43,6 @@
 #include <stdio.h>
 
 #include <memory>
-#include <vector>
 
 #include "src/base/numbers/double.h"
 #include "src/base/small-vector.h"
@@ -1400,21 +1399,25 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
   }
 
   // Check if we have registers available to acquire.
-  bool CanAcquire() const { return *assembler_->GetScratchRegisterList() != 0; }
+  bool CanAcquire() const {
+    return !assembler_->GetScratchRegisterList()->is_empty();
+  }
   bool CanAcquireD() const { return CanAcquireVfp<DwVfpRegister>(); }
 
   void Include(const Register& reg1, const Register& reg2 = no_reg) {
     RegList* available = assembler_->GetScratchRegisterList();
     DCHECK_NOT_NULL(available);
-    DCHECK_EQ((*available) & (reg1.bit() | reg2.bit()), 0);
-    *available |= reg1.bit() | reg2.bit();
+    DCHECK(!available->has(reg1));
+    DCHECK(!available->has(reg2));
+    available->set(reg1);
+    available->set(reg2);
   }
   void Exclude(const Register& reg1, const Register& reg2 = no_reg) {
     RegList* available = assembler_->GetScratchRegisterList();
     DCHECK_NOT_NULL(available);
-    DCHECK_EQ((*available) & (reg1.bit() | reg2.bit()),
-              reg1.bit() | reg2.bit());
-    *available &= ~(reg1.bit() | reg2.bit());
+    DCHECK(available->has(reg1));
+    DCHECK_IMPLIES(reg2.is_valid(), available->has(reg2));
+    available->clear(RegList{reg1, reg2});
   }
 
  private:

@@ -102,6 +102,11 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
   // Make sure we allocate the correct amount.
   DCHECK_EQ(scope->ContextLocalCount(), context_local_count);
 
+  // If the number of locals is small, we inline directly
+  // in the scope info object.
+  bool has_inlined_local_names =
+      context_local_count < kScopeInfoMaxInlinedLocalNamesSize;
+
   const bool has_new_target =
       scope->is_declaration_scope() &&
       scope->AsDeclarationScope()->new_target_var() != nullptr;
@@ -133,9 +138,11 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
     function_name_info = VariableAllocationInfo::NONE;
   }
 
-  const bool has_brand = scope->is_class_scope()
-                             ? scope->AsClassScope()->brand() != nullptr
-                             : false;
+  const bool has_brand =
+      scope->is_class_scope()
+          ? scope->AsClassScope()->brand() != nullptr
+          : scope->IsConstructorScope() &&
+                scope->AsDeclarationScope()->class_scope_has_private_brand();
   const bool should_save_class_variable_index =
       scope->is_class_scope()
           ? scope->AsClassScope()->should_save_class_variable_index()
@@ -161,7 +168,11 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
   FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(ASSERT_MATCHED_FIELD)
 #undef ASSERT_MATCHED_FIELD
 
-  const int length = kVariablePartIndex + 2 * context_local_count +
+  const int local_names_container_size =
+      has_inlined_local_names ? context_local_count : 1;
+
+  const int length = kVariablePartIndex + local_names_container_size +
+                     context_local_count +
                      (should_save_class_variable_index ? 1 : 0) +
                      (has_function_name ? kFunctionNameEntries : 0) +
                      (has_inferred_function_name ? 1 : 0) +
@@ -170,6 +181,13 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
                      (scope->is_module_scope()
                           ? 2 + kModuleVariableEntryLength * module_vars_count
                           : 0);
+
+  // Create hash table if local names are not inlined.
+  Handle<NameToIndexHashTable> local_names_hashtable;
+  if (!has_inlined_local_names) {
+    local_names_hashtable = NameToIndexHashTable::New(
+        isolate, context_local_count, AllocationType::kOld);
+  }
 
   Handle<ScopeInfo> scope_info_handle =
       isolate->factory()->NewScopeInfo(length);
@@ -203,9 +221,8 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         LanguageModeBit::encode(scope->language_mode()) |
         DeclarationScopeBit::encode(scope->is_declaration_scope()) |
         ReceiverVariableBits::encode(receiver_info) |
-        HasClassBrandBit::encode(has_brand) |
-        HasSavedClassVariableIndexBit::encode(
-            should_save_class_variable_index) |
+        ClassScopeHasPrivateBrandBit::encode(has_brand) |
+        HasSavedClassVariableBit::encode(should_save_class_variable_index) |
         HasNewTargetBit::encode(has_new_target) |
         FunctionVariableBits::encode(function_name_info) |
         HasInferredFunctionNameBit::encode(has_inferred_function_name) |
@@ -231,11 +248,15 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
     if (scope->is_module_scope()) {
       scope_info.set_module_variable_count(module_vars_count);
     }
+    if (!has_inlined_local_names) {
+      scope_info.set_context_local_names_hashtable(*local_names_hashtable);
+    }
 
     // Add context locals' names and info, module variables' names and info.
     // Context locals are added using their index.
     int context_local_base = index;
-    int context_local_info_base = context_local_base + context_local_count;
+    int context_local_info_base =
+        context_local_base + local_names_container_size;
     int module_var_entry = scope_info.ModuleVariableCountIndex() + 1;
 
     for (Variable* var : *scope->locals()) {
@@ -253,7 +274,15 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
               MaybeAssignedFlagBit::encode(var->maybe_assigned()) |
               ParameterNumberBits::encode(ParameterNumberBits::kMax) |
               IsStaticFlagBit::encode(var->is_static_flag());
-          scope_info.set(context_local_base + local_index, *var->name(), mode);
+          if (has_inlined_local_names) {
+            scope_info.set(context_local_base + local_index, *var->name(),
+                           mode);
+          } else {
+            Handle<NameToIndexHashTable> new_table = NameToIndexHashTable::Add(
+                isolate, local_names_hashtable, var->name(), local_index);
+            DCHECK_EQ(*new_table, *local_names_hashtable);
+            USE(new_table);
+          }
           scope_info.set(context_local_info_base + local_index,
                          Smi::FromInt(info));
           break;
@@ -306,7 +335,8 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
       }
     }
 
-    index += 2 * context_local_count;
+    // Advance past local names and local names info.
+    index += local_names_container_size + context_local_count;
 
     DCHECK_EQ(index, scope_info.SavedClassVariableInfoIndex());
     // If the scope is a class scope and has used static private methods, save
@@ -315,7 +345,15 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
     if (should_save_class_variable_index) {
       Variable* class_variable = scope->AsClassScope()->class_variable();
       DCHECK_EQ(class_variable->location(), VariableLocation::CONTEXT);
-      scope_info.set(index++, Smi::FromInt(class_variable->index()));
+      int local_index;
+      if (has_inlined_local_names) {
+        local_index = class_variable->index();
+      } else {
+        Handle<Name> name = class_variable->name();
+        InternalIndex entry = local_names_hashtable->FindEntry(isolate, name);
+        local_index = entry.as_int();
+      }
+      scope_info.set(index++, Smi::FromInt(local_index));
     }
 
     // If present, add the function variable name and its index.
@@ -368,6 +406,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
   DCHECK_EQ(index, scope_info_handle->length());
   DCHECK_EQ(parameter_count, scope_info_handle->ParameterCount());
   DCHECK_EQ(scope->num_heap_slots(), scope_info_handle->ContextLength());
+
   return scope_info_handle;
 }
 
@@ -396,9 +435,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
       LanguageModeBit::encode(LanguageMode::kSloppy) |
       DeclarationScopeBit::encode(false) |
       ReceiverVariableBits::encode(VariableAllocationInfo::NONE) |
-      HasClassBrandBit::encode(false) |
-      HasSavedClassVariableIndexBit::encode(false) |
-      HasNewTargetBit::encode(false) |
+      ClassScopeHasPrivateBrandBit::encode(false) |
+      HasSavedClassVariableBit::encode(false) | HasNewTargetBit::encode(false) |
       FunctionVariableBits::encode(VariableAllocationInfo::NONE) |
       IsAsmModuleBit::encode(false) | HasSimpleParametersBit::encode(true) |
       FunctionKindBits::encode(FunctionKind::kNormalFunction) |
@@ -453,6 +491,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       is_empty_function || is_native_context ? 0 : 1;
   const bool has_inferred_function_name = is_empty_function;
   const bool has_position_info = true;
+  // NOTE: Local names are always inlined here, since context_local_count < 2.
+  DCHECK_LT(context_local_count, kScopeInfoMaxInlinedLocalNamesSize);
   const int length = kVariablePartIndex + 2 * context_local_count +
                      (is_empty_function ? kFunctionNameEntries : 0) +
                      (has_inferred_function_name ? 1 : 0) +
@@ -470,9 +510,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       DeclarationScopeBit::encode(true) |
       ReceiverVariableBits::encode(is_script ? VariableAllocationInfo::CONTEXT
                                              : VariableAllocationInfo::UNUSED) |
-      HasClassBrandBit::encode(false) |
-      HasSavedClassVariableIndexBit::encode(false) |
-      HasNewTargetBit::encode(false) |
+      ClassScopeHasPrivateBrandBit::encode(false) |
+      HasSavedClassVariableBit::encode(false) | HasNewTargetBit::encode(false) |
       FunctionVariableBits::encode(is_empty_function
                                        ? VariableAllocationInfo::UNUSED
                                        : VariableAllocationInfo::NONE) |
@@ -681,12 +720,12 @@ bool ScopeInfo::HasAllocatedReceiver() const {
          allocation == VariableAllocationInfo::CONTEXT;
 }
 
-bool ScopeInfo::HasClassBrand() const {
-  return HasClassBrandBit::decode(Flags());
+bool ScopeInfo::ClassScopeHasPrivateBrand() const {
+  return ClassScopeHasPrivateBrandBit::decode(Flags());
 }
 
-bool ScopeInfo::HasSavedClassVariableIndex() const {
-  return HasSavedClassVariableIndexBit::decode(Flags());
+bool ScopeInfo::HasSavedClassVariable() const {
+  return HasSavedClassVariableBit::decode(Flags());
 }
 
 bool ScopeInfo::HasNewTarget() const {
@@ -714,7 +753,7 @@ bool ScopeInfo::HasPositionInfo() const {
 // static
 bool ScopeInfo::NeedsPositionInfo(ScopeType type) {
   return type == FUNCTION_SCOPE || type == SCRIPT_SCOPE || type == EVAL_SCOPE ||
-         type == MODULE_SCOPE;
+         type == MODULE_SCOPE || type == CLASS_SCOPE;
 }
 
 bool ScopeInfo::HasSharedFunctionName() const {
@@ -817,8 +856,15 @@ SourceTextModuleInfo ScopeInfo::ModuleDescriptorInfo() const {
   return SourceTextModuleInfo::cast(module_info());
 }
 
-String ScopeInfo::ContextLocalName(int var) const {
+String ScopeInfo::ContextInlinedLocalName(int var) const {
+  DCHECK(HasInlinedLocalNames());
   return context_local_names(var);
+}
+
+String ScopeInfo::ContextInlinedLocalName(PtrComprCageBase cage_base,
+                                          int var) const {
+  DCHECK(HasInlinedLocalNames());
+  return context_local_names(cage_base, var);
 }
 
 VariableMode ScopeInfo::ContextLocalMode(int var) const {
@@ -890,41 +936,67 @@ int ScopeInfo::ModuleIndex(String name, VariableMode* mode,
   return 0;
 }
 
-// static
-int ScopeInfo::ContextSlotIndex(ScopeInfo scope_info, String name,
+int ScopeInfo::InlinedLocalNamesLookup(String name) {
+  DisallowGarbageCollection no_gc;
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  int local_count = context_local_count();
+  for (int i = 0; i < local_count; ++i) {
+    if (name == ContextInlinedLocalName(cage_base, i)) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+int ScopeInfo::ContextSlotIndex(Handle<String> name,
                                 VariableLookupResult* lookup_result) {
   DisallowGarbageCollection no_gc;
-  DCHECK(name.IsInternalizedString());
+  DCHECK(name->IsInternalizedString());
   DCHECK_NOT_NULL(lookup_result);
 
-  if (scope_info.IsEmpty()) return -1;
+  if (IsEmpty()) return -1;
 
-  int context_local_count = scope_info.context_local_count();
-  for (int var = 0; var < context_local_count; ++var) {
-    if (name != scope_info.context_local_names(var)) {
-      continue;
-    }
-    lookup_result->mode = scope_info.ContextLocalMode(var);
-    lookup_result->is_static_flag = scope_info.ContextLocalIsStaticFlag(var);
-    lookup_result->init_flag = scope_info.ContextLocalInitFlag(var);
-    lookup_result->maybe_assigned_flag =
-        scope_info.ContextLocalMaybeAssignedFlag(var);
-    lookup_result->is_repl_mode = scope_info.IsReplModeScope();
-    int result = scope_info.ContextHeaderLength() + var;
+  int index = HasInlinedLocalNames()
+                  ? InlinedLocalNamesLookup(*name)
+                  : context_local_names_hashtable().Lookup(name);
 
-    DCHECK_LT(result, scope_info.ContextLength());
-    return result;
+  if (index != -1) {
+    lookup_result->mode = ContextLocalMode(index);
+    lookup_result->is_static_flag = ContextLocalIsStaticFlag(index);
+    lookup_result->init_flag = ContextLocalInitFlag(index);
+    lookup_result->maybe_assigned_flag = ContextLocalMaybeAssignedFlag(index);
+    lookup_result->is_repl_mode = IsReplModeScope();
+    int context_slot = ContextHeaderLength() + index;
+    DCHECK_LT(context_slot, ContextLength());
+    return context_slot;
   }
 
   return -1;
 }
 
-int ScopeInfo::SavedClassVariableContextLocalIndex() const {
-  if (HasSavedClassVariableIndexBit::decode(Flags())) {
-    int index = saved_class_variable_info();
-    return index - Context::MIN_CONTEXT_SLOTS;
+int ScopeInfo::ContextSlotIndex(Handle<String> name) {
+  VariableLookupResult lookup_result;
+  return ContextSlotIndex(name, &lookup_result);
+}
+
+std::pair<String, int> ScopeInfo::SavedClassVariable() const {
+  DCHECK(HasSavedClassVariableBit::decode(Flags()));
+  if (HasInlinedLocalNames()) {
+    // The saved class variable info corresponds to the context slot index.
+    int index = saved_class_variable_info() - Context::MIN_CONTEXT_SLOTS;
+    DCHECK_GE(index, 0);
+    DCHECK_LT(index, ContextLocalCount());
+    String name = ContextInlinedLocalName(index);
+    return std::make_pair(name, index);
+  } else {
+    // The saved class variable info corresponds to the offset in the hash
+    // table storage.
+    InternalIndex entry(saved_class_variable_info());
+    NameToIndexHashTable table = context_local_names_hashtable();
+    Object name = table.KeyAt(entry);
+    DCHECK(name.IsString());
+    return std::make_pair(String::cast(name), table.IndexAt(entry));
   }
-  return -1;
 }
 
 int ScopeInfo::ReceiverContextSlotIndex() const {

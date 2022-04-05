@@ -91,6 +91,9 @@ std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
   if (access.is_store_in_literal) {
     os << " (store in literal)";
   }
+  if (access.maybe_initializing_or_transitioning_store) {
+    os << " (initializing or transitioning store)";
+  }
   os << "]";
   return os;
 }
@@ -160,7 +163,9 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
 const ObjectAccess& ObjectAccessOf(const Operator* op) {
   DCHECK_NOT_NULL(op);
   DCHECK(op->opcode() == IrOpcode::kLoadFromObject ||
-         op->opcode() == IrOpcode::kStoreToObject);
+         op->opcode() == IrOpcode::kLoadImmutableFromObject ||
+         op->opcode() == IrOpcode::kStoreToObject ||
+         op->opcode() == IrOpcode::kInitializeImmutableInObject);
   return OpParameter<ObjectAccess>(op);
 }
 
@@ -263,36 +268,6 @@ std::ostream& operator<<(std::ostream& os, CheckMapsParameters const& p) {
 CheckMapsParameters const& CheckMapsParametersOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kCheckMaps, op->opcode());
   return OpParameter<CheckMapsParameters>(op);
-}
-
-bool operator==(DynamicCheckMapsParameters const& lhs,
-                DynamicCheckMapsParameters const& rhs) {
-  // FeedbackSource is sufficient as an equality check. FeedbackSource uniquely
-  // determines all other properties (handler, flags and the monomorphic map
-  DCHECK_IMPLIES(lhs.feedback() == rhs.feedback(),
-                 lhs.flags() == rhs.flags() && lhs.state() == rhs.state() &&
-                     lhs.handler().address() == rhs.handler().address() &&
-                     lhs.maps() == rhs.maps());
-  return lhs.feedback() == rhs.feedback();
-}
-
-size_t hash_value(DynamicCheckMapsParameters const& p) {
-  FeedbackSource::Hash feedback_hash;
-  // FeedbackSource is sufficient for hashing. FeedbackSource uniquely
-  // determines all other properties (handler, flags and the monomorphic map
-  return base::hash_combine(feedback_hash(p.feedback()));
-}
-
-std::ostream& operator<<(std::ostream& os,
-                         DynamicCheckMapsParameters const& p) {
-  return os << p.handler() << ", " << p.feedback() << "," << p.state() << ","
-            << p.flags() << "," << p.maps();
-}
-
-DynamicCheckMapsParameters const& DynamicCheckMapsParametersOf(
-    Operator const* op) {
-  DCHECK_EQ(IrOpcode::kDynamicCheckMaps, op->opcode());
-  return OpParameter<DynamicCheckMapsParameters>(op);
 }
 
 ZoneHandleSet<Map> const& CompareMapsParametersOf(Operator const* op) {
@@ -1315,18 +1290,6 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntAsUintN(
       SpeculativeBigIntAsNParameters(bits, feedback));
 }
 
-const Operator* SimplifiedOperatorBuilder::UpdateInterruptBudget(int delta) {
-  return zone()->New<Operator1<int>>(
-      IrOpcode::kUpdateInterruptBudget, Operator::kNoThrow | Operator::kNoDeopt,
-      "UpdateInterruptBudget", 1, 1, 1, 0, 1, 0, delta);
-}
-
-const Operator* SimplifiedOperatorBuilder::TierUpCheck() {
-  return zone()->New<Operator>(IrOpcode::kTierUpCheck,
-                               Operator::kNoThrow | Operator::kNoDeopt,
-                               "TierUpCheck", 5, 1, 1, 0, 1, 0);
-}
-
 const Operator* SimplifiedOperatorBuilder::AssertType(Type type) {
   DCHECK(type.CanBeAsserted());
   return zone()->New<Operator1<Type>>(IrOpcode::kAssertType,
@@ -1489,18 +1452,6 @@ const Operator* SimplifiedOperatorBuilder::CheckMaps(
       "CheckMaps",                                     // name
       1, 1, 1, 0, 1, 0,                                // counts
       parameters);                                     // parameter
-}
-
-const Operator* SimplifiedOperatorBuilder::DynamicCheckMaps(
-    CheckMapsFlags flags, Handle<Object> handler,
-    ZoneHandleSet<Map> const& maps, const FeedbackSource& feedback) {
-  DynamicCheckMapsParameters const parameters(flags, handler, maps, feedback);
-  return zone()->New<Operator1<DynamicCheckMapsParameters>>(  // --
-      IrOpcode::kDynamicCheckMaps,                            // opcode
-      Operator::kNoThrow | Operator::kNoWrite,                // flags
-      "DynamicCheckMaps",                                     // name
-      1, 1, 1, 0, 1, 0,                                       // counts
-      parameters);                                            // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::MapGuard(ZoneHandleSet<Map> maps) {
@@ -1829,11 +1780,6 @@ const Operator* SimplifiedOperatorBuilder::Allocate(Type type,
 const Operator* SimplifiedOperatorBuilder::AllocateRaw(
     Type type, AllocationType allocation,
     AllowLargeObjects allow_large_objects) {
-  // We forbid optimized allocations to allocate in a different generation than
-  // requested.
-  DCHECK(!(allow_large_objects == AllowLargeObjects::kTrue &&
-           allocation == AllocationType::kYoung &&
-           !FLAG_young_generation_large_objects));
   return zone()->New<Operator1<AllocateParameters>>(
       IrOpcode::kAllocateRaw, Operator::kEliminatable, "AllocateRaw", 1, 1, 1,
       1, 1, 1, AllocateParameters(type, allocation, allow_large_objects));
@@ -1878,16 +1824,17 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeNumberEqual(
   UNREACHABLE();
 }
 
-#define ACCESS_OP_LIST(V)                                                \
-  V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1, 1)                 \
-  V(StoreField, FieldAccess, Operator::kNoRead, 2, 1, 0)                 \
-  V(LoadElement, ElementAccess, Operator::kNoWrite, 2, 1, 1)             \
-  V(StoreElement, ElementAccess, Operator::kNoRead, 3, 1, 0)             \
-  V(LoadTypedElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1)    \
-  V(LoadFromObject, ObjectAccess, Operator::kNoWrite, 2, 1, 1)           \
-  V(StoreTypedElement, ExternalArrayType, Operator::kNoRead, 5, 1, 0)    \
-  V(StoreToObject, ObjectAccess, Operator::kNoRead, 3, 1, 0)             \
-  V(LoadDataViewElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1) \
+#define ACCESS_OP_LIST(V)                                                  \
+  V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1, 1)                   \
+  V(LoadElement, ElementAccess, Operator::kNoWrite, 2, 1, 1)               \
+  V(StoreElement, ElementAccess, Operator::kNoRead, 3, 1, 0)               \
+  V(LoadTypedElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1)      \
+  V(StoreTypedElement, ExternalArrayType, Operator::kNoRead, 5, 1, 0)      \
+  V(LoadFromObject, ObjectAccess, Operator::kNoWrite, 2, 1, 1)             \
+  V(StoreToObject, ObjectAccess, Operator::kNoRead, 3, 1, 0)               \
+  V(LoadImmutableFromObject, ObjectAccess, Operator::kNoWrite, 2, 1, 1)    \
+  V(InitializeImmutableInObject, ObjectAccess, Operator::kNoRead, 3, 1, 0) \
+  V(LoadDataViewElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1)   \
   V(StoreDataViewElement, ExternalArrayType, Operator::kNoRead, 5, 1, 0)
 
 #define ACCESS(Name, Type, properties, value_input_count, control_input_count, \
@@ -1901,6 +1848,17 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeNumberEqual(
   }
 ACCESS_OP_LIST(ACCESS)
 #undef ACCESS
+
+const Operator* SimplifiedOperatorBuilder::StoreField(
+    const FieldAccess& access, bool maybe_initializing_or_transitioning) {
+  FieldAccess store_access = access;
+  store_access.maybe_initializing_or_transitioning_store =
+      maybe_initializing_or_transitioning;
+  return zone()->New<Operator1<FieldAccess>>(
+      IrOpcode::kStoreField,
+      Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoRead, "StoreField",
+      2, 1, 1, 0, 1, 0, store_access);
+}
 
 const Operator* SimplifiedOperatorBuilder::LoadMessage() {
   return zone()->New<Operator>(IrOpcode::kLoadMessage, Operator::kEliminatable,

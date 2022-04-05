@@ -64,7 +64,7 @@ void TypedSlotSet::ClearInvalidSlots(
   while (chunk != nullptr) {
     for (TypedSlot& slot : chunk->buffer) {
       SlotType type = TypeField::decode(slot.type_and_offset);
-      if (type == CLEARED_SLOT) continue;
+      if (type == SlotType::kCleared) continue;
       uint32_t offset = OffsetField::decode(slot.type_and_offset);
       std::map<uint32_t, uint32_t>::const_iterator upper_bound =
           invalid_ranges.upper_bound(offset);

@@ -234,8 +234,8 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Updates the profiler interrupt budget for a return.
   void UpdateInterruptBudgetOnReturn();
 
-  // Returns the OSR nesting level from the bytecode header.
-  TNode<Int8T> LoadOsrNestingLevel();
+  // Returns the OSR urgency from the bytecode header.
+  TNode<Int8T> LoadOsrUrgency();
 
   // Dispatch to the bytecode.
   void Dispatch();

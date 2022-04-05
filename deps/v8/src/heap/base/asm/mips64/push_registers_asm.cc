@@ -10,7 +10,8 @@
 //
 // Do not depend on V8_TARGET_OS_* defines as some embedders may override the
 // GN toolchain (e.g. ChromeOS) and not provide them.
-asm(".set noreorder                                      \n"
+asm(".text                                               \n"
+    ".set noreorder                                      \n"
     ".global PushAllRegistersAndIterateStack             \n"
     ".type PushAllRegistersAndIterateStack, %function    \n"
     ".hidden PushAllRegistersAndIterateStack             \n"

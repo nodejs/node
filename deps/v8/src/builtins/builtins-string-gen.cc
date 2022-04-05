@@ -751,21 +751,6 @@ TF_BUILTIN(StringGreaterThanOrEqual, StringBuiltinsAssembler) {
                                      Operation::kGreaterThanOrEqual);
 }
 
-TF_BUILTIN(StringCodePointAt, StringBuiltinsAssembler) {
-  auto receiver = Parameter<String>(Descriptor::kReceiver);
-  auto position = UncheckedParameter<IntPtrT>(Descriptor::kPosition);
-
-  // TODO(sigurds) Figure out if passing length as argument pays off.
-  TNode<IntPtrT> length = LoadStringLengthAsWord(receiver);
-  // Load the character code at the {position} from the {receiver}.
-  TNode<Int32T> code =
-      LoadSurrogatePairAt(receiver, length, position, UnicodeEncoding::UTF32);
-  // And return it as TaggedSigned value.
-  // TODO(turbofan): Allow builtins to return values untagged.
-  TNode<Smi> result = SmiFromInt32(code);
-  Return(result);
-}
-
 TF_BUILTIN(StringFromCodePointAt, StringBuiltinsAssembler) {
   auto receiver = Parameter<String>(Descriptor::kReceiver);
   auto position = UncheckedParameter<IntPtrT>(Descriptor::kPosition);

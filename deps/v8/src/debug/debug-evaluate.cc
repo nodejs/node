@@ -31,7 +31,7 @@ static MaybeHandle<SharedFunctionInfo> GetFunctionInfo(Isolate* isolate,
                                                        Handle<String> source,
                                                        REPLMode repl_mode) {
   ScriptDetails script_details(isolate->factory()->empty_string(),
-                               ScriptOriginOptions(false, true));
+                               ScriptOriginOptions(true, true));
   script_details.repl_mode = repl_mode;
   return Compiler::GetSharedFunctionInfoForScript(
       isolate, source, script_details, ScriptCompiler::kNoCompileOptions,
@@ -283,8 +283,8 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
       for (int i = 0; i < keys->length(); i++) {
         DCHECK(keys->get(i).IsString());
         Handle<String> key(String::cast(keys->get(i)), isolate_);
-        Handle<Object> value =
-            JSReceiver::GetDataProperty(element.materialized_object, key);
+        Handle<Object> value = JSReceiver::GetDataProperty(
+            isolate_, element.materialized_object, key);
         scope_iterator_.SetVariableValue(key, value);
       }
     }
@@ -433,8 +433,8 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     // Loads.
     case Bytecode::kLdaLookupSlot:
     case Bytecode::kLdaGlobal:
-    case Bytecode::kLdaNamedProperty:
-    case Bytecode::kLdaKeyedProperty:
+    case Bytecode::kGetNamedProperty:
+    case Bytecode::kGetKeyedProperty:
     case Bytecode::kLdaGlobalInsideTypeof:
     case Bytecode::kLdaLookupSlotInsideTypeof:
     case Bytecode::kGetIterator:
@@ -831,12 +831,22 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kErrorConstructor:
     // RegExp builtins.
     case Builtin::kRegExpConstructor:
+    // Reflect builtins.
+    case Builtin::kReflectApply:
+    case Builtin::kReflectConstruct:
+    case Builtin::kReflectGetOwnPropertyDescriptor:
+    case Builtin::kReflectGetPrototypeOf:
+    case Builtin::kReflectHas:
+    case Builtin::kReflectIsExtensible:
+    case Builtin::kReflectOwnKeys:
     // Internal.
     case Builtin::kStrictPoisonPillThrower:
     case Builtin::kAllocateInYoungGeneration:
     case Builtin::kAllocateInOldGeneration:
     case Builtin::kAllocateRegularInYoungGeneration:
     case Builtin::kAllocateRegularInOldGeneration:
+    case Builtin::kConstructVarargs:
+    case Builtin::kConstructWithArrayLike:
       return DebugInfo::kHasNoSideEffect;
 
 #ifdef V8_INTL_SUPPORT
@@ -975,11 +985,11 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
 bool BytecodeRequiresRuntimeCheck(interpreter::Bytecode bytecode) {
   using interpreter::Bytecode;
   switch (bytecode) {
-    case Bytecode::kStaNamedProperty:
-    case Bytecode::kStaNamedOwnProperty:
-    case Bytecode::kStaKeyedProperty:
+    case Bytecode::kSetNamedProperty:
+    case Bytecode::kDefineNamedOwnProperty:
+    case Bytecode::kSetKeyedProperty:
     case Bytecode::kStaInArrayLiteral:
-    case Bytecode::kStaDataPropertyInLiteral:
+    case Bytecode::kDefineKeyedOwnPropertyInLiteral:
     case Bytecode::kStaCurrentContextSlot:
       return true;
     default:
@@ -1188,7 +1198,7 @@ void DebugEvaluate::VerifyTransitiveBuiltins(Isolate* isolate) {
   for (Builtin caller = Builtins::kFirst; caller <= Builtins::kLast; ++caller) {
     DebugInfo::SideEffectState state = BuiltinGetSideEffectState(caller);
     if (state != DebugInfo::kHasNoSideEffect) continue;
-    Code code = isolate->builtins()->code(caller);
+    Code code = FromCodeT(isolate->builtins()->code(caller));
     int mode = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
 

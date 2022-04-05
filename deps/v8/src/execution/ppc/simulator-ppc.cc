@@ -1632,21 +1632,42 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       set_register(rt, alu_out);
       break;
     }
+#define SET_ADDI_RESULT()               \
+  intptr_t alu_out;                     \
+  if (ra == 0) {                        \
+    alu_out = im_val;                   \
+  } else {                              \
+    intptr_t ra_val = get_register(ra); \
+    alu_out = ra_val + im_val;          \
+  }                                     \
+  set_register(rt, alu_out);
     case ADDI: {
       int rt = instr->RTValue();
       int ra = instr->RAValue();
       int32_t im_val = SIGN_EXT_IMM16(instr->Bits(15, 0));
-      intptr_t alu_out;
-      if (ra == 0) {
-        alu_out = im_val;
-      } else {
-        intptr_t ra_val = get_register(ra);
-        alu_out = ra_val + im_val;
-      }
-      set_register(rt, alu_out);
+      SET_ADDI_RESULT();
       // todo - handle RC bit
       break;
     }
+    case PPADDI: {
+      // Read prefix.
+      uint64_t prefix_value = instr->Bits(17, 0);
+      // Read suffix (next instruction).
+      Instruction* next_instr = bit_cast<Instruction*>(get_pc() + kInstrSize);
+      CHECK_EQ(ADDI, next_instr->OpcodeBase());
+      // Execute as a single instruction.
+      int rt = next_instr->RTValue();
+      int ra = next_instr->RAValue();
+      int64_t im_val;
+      uint16_t addi_value = next_instr->Bits(15, 0);
+      im_val = SIGN_EXT_IMM34(
+          static_cast<int64_t>((prefix_value << 16) | addi_value));
+      SET_ADDI_RESULT();
+      // We have now executed instructions at this as well as next pc.
+      set_pc(get_pc() + (2 * kInstrSize));
+      break;
+    }
+#undef SET_ADDI_RESULT
     case ADDIS: {
       int rt = instr->RTValue();
       int ra = instr->RAValue();

@@ -27,7 +27,7 @@ assertEquals("OK", outer.boom());
 assertEquals("OK", outer.boom());
 
 inner = undefined;
-%SetAllocationTimeout(0 /*interval*/, 2 /*timeout*/);
+%SetAllocationTimeout(6 /*interval*/, 2 /*timeout*/);
 // Call something that will do GC while holding a handle to outer's map.
 // The key is that this lets inner's map die while keeping outer's map alive.
 delete outer.inner;

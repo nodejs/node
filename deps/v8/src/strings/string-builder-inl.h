@@ -297,6 +297,8 @@ class IncrementalStringBuilder {
     IncrementalStringBuilder* builder_;
   };
 
+  Isolate* isolate() { return isolate_; }
+
  private:
   Factory* factory() { return isolate_->factory(); }
 

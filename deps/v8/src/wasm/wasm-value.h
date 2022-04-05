@@ -202,7 +202,6 @@ class WasmValue {
       case kOptRef:
       case kRef:
       case kRtt:
-      case kRttWithDepth:
         return "Handle [" + std::to_string(to_ref().address()) + "]";
       case kVoid:
       case kBottom:
