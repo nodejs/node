@@ -280,7 +280,11 @@
           '-std:c++17'
         ],
         'BufferSecurityCheck': 'true',
-        'DebugInformationFormat': 1,          # /Z7 embed info in .obj files
+        'target_conditions': [
+          ['_toolset=="target"', {
+            'DebugInformationFormat': 1      # /Z7 embed info in .obj files
+          }],
+        ],
         'ExceptionHandling': 0,               # /EHsc
         'MultiProcessorCompilation': 'true',
         'StringPooling': 'true',              # pool string literals
