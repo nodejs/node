@@ -896,11 +896,6 @@ to consume data from a single stream. Specifically, using a combination
 of `on('data')`, `on('readable')`, `pipe()`, or async iterators could
 lead to unintuitive behavior.
 
-`readable.pipe()` provides the easiest way to consume stream data. Developers
-that require more fine-grained control over the transfer and generation of data
-can use the [`EventEmitter`][] and `readable.on('readable')`/`readable.read()`
-or the `readable.pause()`/`readable.resume()` APIs.
-
 #### Class: `stream.Readable`
 
 <!-- YAML
