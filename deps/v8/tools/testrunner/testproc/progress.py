@@ -365,7 +365,7 @@ class JUnitTestProgressIndicator(ProgressIndicator):
 
     self.outputter = junit_output.JUnitTestOutput(junittestsuite)
     if junitout:
-      self.outfile = open(junitout, "w")
+      self.outfile = open(junitout, "wb")
     else:
       self.outfile = sys.stdout
 
