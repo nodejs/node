@@ -6,9 +6,9 @@ Error: an error
     at *icu.jsx:3:23*
     at *icu.jsx:9:5*
     at Module._compile (node:internal/modules/cjs/loader:*
-    at Object.Module._extensions..js (node:internal/modules/cjs/loader:*
+    at Module._extensions..js (node:internal/modules/cjs/loader:*
     at Module.load (node:internal/modules/cjs/loader:*
-    at Function.Module._load (node:internal/modules/cjs/loader:*
+    at Module._load (node:internal/modules/cjs/loader:*
     at Module.require (node:internal/modules/cjs/loader:*
     at require (node:internal/modules/cjs/helpers:*
     at Object.<anonymous> (*source_map_throw_icu.js:*

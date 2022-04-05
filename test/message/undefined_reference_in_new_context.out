@@ -12,7 +12,7 @@ ReferenceError: foo is not defined
     at Module._compile (node:internal/modules/cjs/loader:*)
     at *..js (node:internal/modules/cjs/loader:*)
     at Module.load (node:internal/modules/cjs/loader:*)
-    at Function.Module._load (node:internal/modules/cjs/loader:*:*)
+    at Module._load (node:internal/modules/cjs/loader:*:*)
     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:*:*)
 
 Node.js *

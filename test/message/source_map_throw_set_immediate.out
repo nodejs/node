@@ -5,6 +5,6 @@
 Error: goodbye
     at Hello *uglify-throw-original.js:5:9*
     at *uglify-throw-original.js:9:3*
-    at processImmediate (node:internal/timers:*)
+    at process.processImmediate (node:internal/timers:*)
 
 Node.js *
