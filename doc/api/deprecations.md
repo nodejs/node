@@ -3019,13 +3019,12 @@ it was an aborted or graceful destroy.
 
 <!-- YAML
 changes:
-  - version:
-      - v17.2.0
-      - v16.14.0
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/40773
     description: End-of-life.
-  - version: v17.2.0
+  - version:
+      - v17.2.0
+      - v16.14.0
     pr-url: https://github.com/nodejs/node/pull/40860
     description: Documentation-only deprecation.
 -->
