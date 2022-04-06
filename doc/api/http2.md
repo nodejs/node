@@ -54,7 +54,7 @@ a preload module).
 
 When using ESM, if there is a chance that the code may be run on a build
 of Node.js where crypto support is not enabled, consider using the
-`import()` function instead of the lexical `import` keyword:
+[`import()`][] function instead of the lexical `import` keyword:
 
 ```mjs
 let http2;
@@ -4143,6 +4143,7 @@ you need to implement any fall-back behavior yourself.
 [`http2.createServer()`]: #http2createserveroptions-onrequesthandler
 [`http2session.close()`]: #http2sessionclosecallback
 [`http2stream.pushStream()`]: #http2streampushstreamheaders-options-callback
+[`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
 [`net.Server.close()`]: net.md#serverclosecallback
 [`net.Socket.bufferSize`]: net.md#socketbuffersize
 [`net.Socket.prototype.ref()`]: net.md#socketref
