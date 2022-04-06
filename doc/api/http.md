@@ -995,7 +995,7 @@ using the [RFC 8187][] standard.
 
 ```js
 const filename = 'Rock 🎵.txt';
-request.setHeader('Content-Disposition', `inline; filename*=utf-8''${encodeURIComponent(filename)}`);
+request.setHeader('Content-Disposition', `attachment; filename*=utf-8''${encodeURIComponent(filename)}`);
 ```
 
 ### `request.setNoDelay([noDelay])`
