@@ -1031,10 +1031,9 @@ All `Http2Stream` instances are [`Duplex`][] streams. The `Writable` side of the
 `Duplex` is used to send data to the connected peer, while the `Readable` side
 is used to receive data sent by the connected peer.
 
-The default text character encoding for all `Http2Stream`s is UTF-8. As a best
-practice, it is recommended that when using an `Http2Stream` to send text,
-the `'content-type'` header should be set and should identify the character
-encoding used.
+The default text character encoding for an `Http2Stream` is UTF-8. When using an
+`Http2Stream` to send text, use the `'content-type'` header to set the character
+encoding.
 
 ```js
 stream.respond({
