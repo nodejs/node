@@ -2365,14 +2365,6 @@ Accessing `Object.prototype.__proto__` has been forbidden using
 [`Object.setPrototypeOf`][] should be used to get and set the prototype of an
 object.
 
-<a id="ERR_READLINE_CLOSED"></a>
-
-### `ERR_READLINE_CLOSED`
-
-> Stability: 1 - Experimental
-
-An attempt was made to use a readline that was already closed.
-
 <a id="ERR_REQUIRE_ESM"></a>
 
 ### `ERR_REQUIRE_ESM`
@@ -2809,6 +2801,14 @@ import 'package-name'; // supported
 ### `ERR_UNSUPPORTED_ESM_URL_SCHEME`
 
 `import` with URL schemes other than `file` and `data` is unsupported.
+
+<a id="ERR_USE_AFTER_CLOSE"></a>
+
+### `ERR_USE_AFTER_CLOSE`
+
+> Stability: 1 - Experimental
+
+An attempt was made to use something that was already closed.
 
 <a id="ERR_VALID_PERFORMANCE_ENTRY_TYPE"></a>
 

@@ -1102,7 +1102,7 @@ for (let i = 0; i < 12; i++) {
         rli.question('How are you?', common.mustNotCall());
       }, {
         name: 'Error',
-        code: 'ERR_READLINE_CLOSED'
+        code: 'ERR_USE_AFTER_CLOSE'
       });
       assert.notStrictEqual(rli.getPrompt(), 'How are you?');
     }));
@@ -1118,7 +1118,7 @@ for (let i = 0; i < 12; i++) {
       rli.close();
       question('How are you?')
         .then(common.mustNotCall(), common.expectsError({
-          code: 'ERR_READLINE_CLOSED',
+          code: 'ERR_USE_AFTER_CLOSE',
           name: 'Error'
         }));
       assert.notStrictEqual(rli.getPrompt(), 'How are you?');
