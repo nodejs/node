@@ -1117,8 +1117,7 @@ for (let i = 0; i < 12; i++) {
       assert.strictEqual(name, 'Node.js');
       rli.close();
       question('How are you?')
-        .then(common.mustNotCall())
-        .catch(common.expectsError({
+        .then(common.mustNotCall(), common.expectsError({
           code: 'ERR_READLINE_CLOSED',
           name: 'Error'
         }));
