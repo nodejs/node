@@ -134,7 +134,6 @@ The tools are currently assigned to Tiers as follows:
 | Debugger  | Command line Debug Client | ?                             | Yes                     | 1           |
 | Debugger  | llnode                    | ?                             | No                      | 2           |
 | Debugger  | Chrome Dev tools          | ?                             | No                      | 3           |
-| Debugger  | Chakracore - time-travel  | No                            | Data source only        | too early   |
 | Tracing   | trace\_events (API)       | No                            | Yes                     | 1           |
 | Tracing   | trace\_gc                 | No                            | Yes                     | 1           |
 | Tracing   | DTrace                    | No                            | Partial                 | 3           |
