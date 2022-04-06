@@ -1392,6 +1392,8 @@ class Environment : public MemoryRetainer {
   inline void RemoveCleanupHook(CleanupCallback cb, void* arg);
   void RunCleanup();
 
+  static void TakeSnapshotInNearHeapLimitCallback(v8::Isolate* isolate,
+                                                  void* data);
   static size_t NearHeapLimitCallback(void* data,
                                       size_t current_heap_limit,
                                       size_t initial_heap_limit);
@@ -1524,6 +1526,7 @@ class Environment : public MemoryRetainer {
 
   bool is_processing_heap_limit_callback_ = false;
   int64_t heap_limit_snapshot_taken_ = 0;
+  size_t initial_heap_limit_ = 0;
 
   uint32_t module_id_counter_ = 0;
   uint32_t script_id_counter_ = 0;

@@ -1562,14 +1562,31 @@ size_t Environment::NearHeapLimitCallback(void* data,
   size_t num_heap_spaces = env->isolate()->NumberOfHeapSpaces();
   for (size_t i = 0; i < num_heap_spaces; ++i) {
     env->isolate()->GetHeapSpaceStatistics(&stats, i);
+
+    Debug(env,
+          DebugCategory::DIAGNOSTICS,
+          "%s space_size = %" PRIu64 ", "
+          "space_used_size = %" PRIu64 ", "
+          "space_available_size = %" PRIu64 ", "
+          "physical_space_size = %" PRIu64 "\n",
+          stats.space_name(),
+          static_cast<uint64_t>(stats.space_size()),
+          static_cast<uint64_t>(stats.space_used_size()),
+          static_cast<uint64_t>(stats.space_available_size()),
+          static_cast<uint64_t>(stats.physical_space_size()));
+
+    // space_size() returns the allocated size of a given space,
+    // we use this to calculate the new limit because V8 also
+    // uses the allocated size to determine whether it should crash.
     if (strcmp(stats.space_name(), "new_space") == 0 ||
         strcmp(stats.space_name(), "new_large_object_space") == 0) {
-      young_gen_size += stats.space_used_size();
+      young_gen_size += stats.space_size();
     } else {
-      old_gen_size += stats.space_used_size();
+      old_gen_size += stats.space_size();
     }
   }
 
+  size_t total_size = young_gen_size + old_gen_size;
   Debug(env,
         DebugCategory::DIAGNOSTICS,
         "max_young_gen_size=%" PRIu64 ", "
@@ -1579,21 +1596,15 @@ size_t Environment::NearHeapLimitCallback(void* data,
         static_cast<uint64_t>(max_young_gen_size),
         static_cast<uint64_t>(young_gen_size),
         static_cast<uint64_t>(old_gen_size),
-        static_cast<uint64_t>(young_gen_size + old_gen_size));
+        static_cast<uint64_t>(total_size));
 
   uint64_t available = GuessMemoryAvailableToTheProcess();
   // TODO(joyeecheung): get a better estimate about the native memory
   // usage into the overhead, e.g. based on the count of objects.
-  uint64_t estimated_overhead = max_young_gen_size;
-  Debug(env,
-        DebugCategory::DIAGNOSTICS,
-        "Estimated available memory=%" PRIu64 ", "
-        "estimated overhead=%" PRIu64 "\n",
-        static_cast<uint64_t>(available),
-        static_cast<uint64_t>(estimated_overhead));
-
-  // This might be hit when the snapshot is being taken in another
-  // NearHeapLimitCallback invocation.
+  uint64_t estimated_overhead = young_gen_size;
+  // The new limit must be higher than current_heap_limit or V8 might
+  // crash.
+  uint64_t minimun_new_limit = static_cast<uint64_t>(current_heap_limit + 1);
   // When taking the snapshot, objects in the young generation may be
   // promoted to the old generation, result in increased heap usage,
   // but it should be no more than the young generation size.
@@ -1602,33 +1613,56 @@ size_t Environment::NearHeapLimitCallback(void* data,
   // new limit, so in a heap with unbounded growth the isolate
   // may eventually crash with this new limit - effectively raising
   // the heap limit to the new one.
+  uint64_t estimated_space_needed =
+      std::max(estimated_overhead + total_size, minimun_new_limit);
+
+  Debug(env,
+        DebugCategory::DIAGNOSTICS,
+        "Estimated available memory=%" PRIu64 ", "
+        "estimated overhead=%" PRIu64 "\n"
+        "estimated space needed=%" PRIu64 "\n",
+        static_cast<uint64_t>(available),
+        static_cast<uint64_t>(estimated_overhead),
+        static_cast<uint64_t>(estimated_space_needed));
+
+  // This might be hit when the snapshot is being taken in another
+  // NearHeapLimitCallback invocation.
+  // TODO(joyeecheung): turn this into
+  //     DCHECK(!env->is_processing_heap_limit_callback_)
+  // when V8 ensures that the callback can't be nested.
   if (env->is_processing_heap_limit_callback_) {
-    size_t new_limit = current_heap_limit + max_young_gen_size;
     Debug(env,
           DebugCategory::DIAGNOSTICS,
           "Not generating snapshots in nested callback. "
           "new_limit=%" PRIu64 "\n",
-          static_cast<uint64_t>(new_limit));
-    return new_limit;
+          static_cast<uint64_t>(estimated_space_needed));
+    return estimated_space_needed;
   }
 
   // Estimate whether the snapshot is going to use up all the memory
   // available to the process. If so, just give up to prevent the system
   // from killing the process for a system OOM.
-  if (estimated_overhead > available) {
+  if (estimated_space_needed > available) {
     Debug(env,
           DebugCategory::DIAGNOSTICS,
           "Not generating snapshots because it's too risky.\n");
     env->isolate()->RemoveNearHeapLimitCallback(NearHeapLimitCallback,
                                                 initial_heap_limit);
-    // The new limit must be higher than current_heap_limit or V8 might
-    // crash.
-    return current_heap_limit + 1;
+
+    return minimun_new_limit;
   }
 
-  // Take the snapshot synchronously.
+  env->initial_heap_limit_ = initial_heap_limit;
   env->is_processing_heap_limit_callback_ = true;
+  env->isolate()->RequestInterrupt(TakeSnapshotInNearHeapLimitCallback, env);
+  // The new limit must be higher than current_heap_limit or V8 might
+  // crash.
+  return estimated_space_needed;
+}
 
+void Environment::TakeSnapshotInNearHeapLimitCallback(v8::Isolate* isolate,
+                                                      void* data) {
+  Environment* env = static_cast<Environment*>(data);
   std::string dir = env->options()->diagnostic_dir;
   if (dir.empty()) {
     dir = env->GetCwd();
@@ -1640,8 +1674,12 @@ size_t Environment::NearHeapLimitCallback(void* data,
 
   // Remove the callback first in case it's triggered when generating
   // the snapshot.
+  // TODO(joyeecheung): when V8 ensures that the callback can't be nested,
+  // we can simply remove the callback when env->heap_limit_snapshot_taken_
+  // reaches env->options_->heap_snapshot_near_heap_limit at the
+  // end of this interrupt.
   env->isolate()->RemoveNearHeapLimitCallback(NearHeapLimitCallback,
-                                              initial_heap_limit);
+                                              env->initial_heap_limit_);
 
   heap::WriteSnapshot(env, filename.c_str());
   env->heap_limit_snapshot_taken_ += 1;
@@ -1659,10 +1697,6 @@ size_t Environment::NearHeapLimitCallback(void* data,
   env->isolate()->AutomaticallyRestoreInitialHeapLimit(0.95);
 
   env->is_processing_heap_limit_callback_ = false;
-
-  // The new limit must be higher than current_heap_limit or V8 might
-  // crash.
-  return current_heap_limit + 1;
 }
 
 inline size_t Environment::SelfSize() const {
