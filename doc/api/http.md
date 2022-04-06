@@ -987,6 +987,17 @@ or
 request.setHeader('Cookie', ['type=ninja', 'language=javascript']);
 ```
 
+When the value is a string an exception will be thrown if it contains
+characters outside the `latin1` encoding.
+
+If you need to pass UTF-8 characters in the value please encode the value
+using the [RFC 8187][] standard.
+
+```js
+const filename = 'Rock 🎵.txt';
+request.setHeader('Content-Disposition', `attachment; filename*=utf-8''${encodeURIComponent(filename)}`);
+```
+
 ### `request.setNoDelay([noDelay])`
 
 <!-- YAML
@@ -3406,6 +3417,7 @@ try {
 }
 ```
 
+[RFC 8187]: https://www.rfc-editor.org/rfc/rfc8187.txt
 [`'checkContinue'`]: #event-checkcontinue
 [`'finish'`]: #event-finish
 [`'request'`]: #event-request
