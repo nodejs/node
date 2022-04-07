@@ -1,12 +1,13 @@
 # Maintaining shared library support
 
 Node.js unofficially supports a build option where Node.js is built as
-a shared library (node.dll/libnode.so). The shared library provides
-an easy way to embed Node.js into other applications and to
-have multiple applications use a single copy of Node.js instead
-of having to bundle in the full Node.js footprint into each application.
-For workloads that require multiple node instances this can result
-in a significant footprint savings.
+a shared library. The shared library is node.dll on windows, and 
+libnode on other platforms.
+The shared library provides a way to embed Node.js into other
+applications and to have multiple applications use a single copy of
+Node.js instead of having to bundle in the full Node.js footprint
+into each application. For workloads that require multiple Node.js
+instances this can result in a significant footprint savings.
 
 This document provides an outline of the approach and things to look
 out for when maintaining the shared library support.
@@ -20,9 +21,10 @@ Currently, shared library support has only been tested on:
 
 ## Building with shared library option
 
-Node.js is built with the shared library option by adding `--shared`
-to the configure step before building on non-windows platforms
-and adding `dll` when building on windows.
+On non-Windows platoforms, Node.js is built with the shared library
+option by adding `--shared` to the configure step. On Windows
+platofrms Node.js is built with the shared library option by
+adding `dll` to the vcbuild command line.
 
 Once built there are two key components:
 
