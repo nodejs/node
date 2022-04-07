@@ -1052,6 +1052,16 @@ minimum allocation from the secure heap. The minimum value is `2`.
 The maximum value is the lesser of `--secure-heap` or `2147483647`.
 The value given must be a power of two.
 
+### `--test`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Starts the Node.js command line test runner. This flag cannot be combined with
+`--check`, `--eval`, `--interactive`, or the inspector. See the documentation
+on [running tests from the command line][] for more details.
+
 ### `--test-only`
 
 <!-- YAML
@@ -2033,6 +2043,7 @@ $ node --max-old-space-size=1536 index.js
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
+[running tests from the command line]: test.md#running-tests-from-the-command-line
 [security warning]: #warning-binding-inspector-to-a-public-ipport-combination-is-insecure
 [timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [ways that `TZ` is handled in other environments]: https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html
