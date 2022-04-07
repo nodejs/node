@@ -1,7 +1,7 @@
 # Maintaining shared library support
 
 Node.js unofficially supports a build option where Node.js is built as
-a shared library. The shared library is node.dll on windows, and 
+a shared library. The shared library is node.dll on windows, and
 libnode on other platforms.
 The shared library provides a way to embed Node.js into other
 applications and to have multiple applications use a single copy of
