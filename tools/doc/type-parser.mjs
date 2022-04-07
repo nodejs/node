@@ -148,6 +148,7 @@ const customTypesMap = {
   'http.Agent': 'http.html#class-httpagent',
   'http.ClientRequest': 'http.html#class-httpclientrequest',
   'http.IncomingMessage': 'http.html#class-httpincomingmessage',
+  'http.OutgoingMessage': 'http.html#class-httpoutgoingmessage',
   'http.Server': 'http.html#class-httpserver',
   'http.ServerResponse': 'http.html#class-httpserverresponse',
 
