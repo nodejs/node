@@ -13088,8 +13088,7 @@ void CodeStubAssembler::InitializeSyntheticFunctionContext(
                                  SmiConstant(slots));
 
   TNode<Context> context = CAST(context_heap_object);
-  const TNode<Object> empty_scope_info =
-      LoadContextElement(native_context, Context::SCOPE_INFO_INDEX);
+  const TNode<Object> empty_scope_info = LoadRoot(RootIndex::kEmptyScopeInfo);
   StoreContextElementNoWriteBarrier(context, Context::SCOPE_INFO_INDEX,
                                     empty_scope_info);
   StoreContextElementNoWriteBarrier(context, Context::PREVIOUS_INDEX,
