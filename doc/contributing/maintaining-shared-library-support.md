@@ -11,7 +11,7 @@ in a significant footprint savings.
 This document provides an outline of the approach and things to look
 out for when maintaining the shared library support.
 
-Currently shared library support has only be tested on:
+Currently, shared library support has only been tested on:
 
 * Linux
 * macOS
