@@ -393,7 +393,7 @@ agent. Do not modify.
 added: v0.1.17
 -->
 
-* Extends: {Stream}
+* Extends: {http.OutgoingMessage}
 
 This object is created internally and returned from [`http.request()`][]. It
 represents an _in-progress_ request whose header has already been queued. The
@@ -2221,7 +2221,7 @@ Key-value pairs of header names and values. Header names are lower-cased.
 // { 'user-agent': 'curl/7.22.0',
 //   host: '127.0.0.1:8000',
 //   accept: '*/*' }
-console.log(request.headers);
+console.log(request.getHeaders());
 ```
 
 Duplicates in raw headers are handled in the following ways, depending on the
@@ -2388,15 +2388,15 @@ Accept: text/plain
 To parse the URL into its parts:
 
 ```js
-new URL(request.url, `http://${request.headers.host}`);
+new URL(request.url, `http://${request.getHeaders().host}`);
 ```
 
 When `request.url` is `'/status?name=ryan'` and
-`request.headers.host` is `'localhost:3000'`:
+`request.getHeaders().host` is `'localhost:3000'`:
 
 ```console
 $ node
-> new URL(request.url, `http://${request.headers.host}`)
+> new URL(request.url, `http://${request.getHeaders().host}`)
 URL {
   href: 'http://localhost:3000/status?name=ryan',
   origin: 'http://localhost:3000',
