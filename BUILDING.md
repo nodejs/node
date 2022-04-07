@@ -116,7 +116,7 @@ platforms. This is true regardless of entries in the table below.
 | macOS            | x64              | >= 10.15                        | Tier 1                                          | For notes about compilation see [^7]      |
 | macOS            | arm64            | >= 11                           | Tier 1                                          |                                           |
 | SmartOS          | x64              | >= 18                           | Tier 2                                          |                                           |
-| AIX              | ppc64be >=power7 | >= 7.2 TL04                     | Tier 2                                          |                                           |
+| AIX              | ppc64be >=power8 | >= 7.2 TL04                     | Tier 2                                          |                                           |
 | FreeBSD          | x64              | >= 12.2                         | Experimental                                    |                                           |
 
 [^1]: GCC 8 is not provided on the base platform. Users will
