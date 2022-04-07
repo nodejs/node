@@ -8,7 +8,7 @@ of having to bundle in the full Node.js footprint into each application.
 For workloads that require multiple node instances this can result
 in a significant footprint savings.
 
-This doc provides an outline of the approach and things to look
+This document provides an outline of the approach and things to look
 out for when maintaining the shared library support.
 
 Currently shared library support has only be tested on:
