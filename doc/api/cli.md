@@ -1987,7 +1987,7 @@ Sets the maximum
 size for V8's [scavenge](https://v8.dev/blog/orinoco-parallel-scavenger)
 garbage collector in MiB.
 Increasing the max size of a semi-space may bring
-throughput improvement for Node.js and the cost is more
+throughput improvement for Node.js at the cost of more
 memory consumption (see [#42511](https://github.com/nodejs/node/issues/42511)).
 
 _The default value is
