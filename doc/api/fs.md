@@ -3056,7 +3056,7 @@ number of bytes read is zero.
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
 a promise for an `Object` with `bytesRead` and `buffer` properties.
 
-### `fs.read(fd, [options,] callback)`
+### `fs.read(fd[, options], callback)`
 
 <!-- YAML
 added:
