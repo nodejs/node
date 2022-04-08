@@ -95,6 +95,8 @@ static void ReportPipeEndpoints(uv_handle_t* h, JSONWriter* writer) {
     buffer = MallocedBuffer<char>(buffer_size);
     if (buffer.data != nullptr) {
       rc = uv_pipe_getsockname(&handle->pipe, buffer.data, &buffer_size);
+    } else {
+      buffer_size = 0;
     }
   }
   if (rc == 0 && buffer_size != 0 && buffer.data != nullptr) {
