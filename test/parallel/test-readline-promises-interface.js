@@ -959,8 +959,7 @@ for (let i = 0; i < 12; i++) {
       assert.strictEqual(name, 'Node.js');
       rli.close();
       rli.question('How are you?')
-        .then(common.mustNotCall())
-        .catch(common.expectsError({
+        .then(common.mustNotCall(), common.expectsError({
           code: 'ERR_USE_AFTER_CLOSE',
           name: 'Error'
         }));
