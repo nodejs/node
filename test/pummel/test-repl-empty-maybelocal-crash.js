@@ -1,5 +1,9 @@
 'use strict';
-require('../common');
+const common = require('../common');
+
+if (process.config.variables.arm_version === '7') {
+  common.skip('Too slow for armv7 bots');
+}
 
 // The process should not crash when the REPL receives the string, 'ss'.
 // Test for https://github.com/nodejs/node/issues/42407.
