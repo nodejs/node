@@ -26,7 +26,7 @@ U_NAMESPACE_BEGIN
 
 class FormatNameEnumeration : public StringEnumeration {
 public:
-    FormatNameEnumeration(UVector *fFormatNames, UErrorCode& status);
+    FormatNameEnumeration(LocalPointer<UVector> fFormatNames, UErrorCode& status);
     virtual ~FormatNameEnumeration();
     static UClassID U_EXPORT2 getStaticClassID(void);
     virtual UClassID getDynamicClassID(void) const override;
@@ -35,7 +35,7 @@ public:
     virtual int32_t count(UErrorCode& status) const override;
 private:
     int32_t pos;
-    UVector *fFormatNames;
+    LocalPointer<UVector> fFormatNames;
 };
 
 U_NAMESPACE_END

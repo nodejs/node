@@ -228,18 +228,19 @@ uprv_compareGoldenFiles(
     std::ifstream ifs(goldenFilePath, std::ifstream::in);
     int32_t pos = 0;
     char c;
-    while ((c = ifs.get()) != std::char_traits<char>::eof() && pos < bufferLen) {
+    while (ifs.get(c) && pos < bufferLen) {
         if (c != buffer[pos]) {
             // Files differ at this position
-            return pos;
+            break;
         }
         pos++;
     }
-    if (pos < bufferLen || c != std::char_traits<char>::eof()) {
-        // Files are different lengths
-        return pos;
+    if (pos == bufferLen && ifs.eof()) {
+        // Files are same lengths
+        pos = -1;
     }
-    return -1;
+    ifs.close();
+    return pos;
 }
 
 /*U_CAPI UDate U_EXPORT2

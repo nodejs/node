@@ -270,6 +270,11 @@ const CharsetMatch * const *CharsetDetector::detectAll(int32_t &maxMatchesFound,
 
     maxMatchesFound = resultCount;
 
+    if (maxMatchesFound == 0) {
+        status = U_INVALID_CHAR_FOUND;
+        return NULL;
+    }
+
     return resultArray;
 }
 
