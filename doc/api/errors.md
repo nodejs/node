@@ -2802,6 +2802,14 @@ import 'package-name'; // supported
 
 `import` with URL schemes other than `file` and `data` is unsupported.
 
+<a id="ERR_USE_AFTER_CLOSE"></a>
+
+### `ERR_USE_AFTER_CLOSE`
+
+> Stability: 1 - Experimental
+
+An attempt was made to use something that was already closed.
+
 <a id="ERR_VALID_PERFORMANCE_ENTRY_TYPE"></a>
 
 ### `ERR_VALID_PERFORMANCE_ENTRY_TYPE`

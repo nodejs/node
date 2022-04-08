@@ -330,6 +330,8 @@ The `callback` function passed to `rl.question()` does not follow the typical
 pattern of accepting an `Error` object or `null` as the first argument.
 The `callback` is called with the provided answer as the only argument.
 
+An error will be thrown if calling `rl.question()` after `rl.close()`.
+
 Example usage:
 
 ```js
@@ -585,6 +587,8 @@ paused.
 
 If the `readlinePromises.Interface` was created with `output` set to `null` or
 `undefined` the `query` is not written.
+
+If the question is called after `rl.close()`, it returns a rejected promise.
 
 Example usage:
 
@@ -854,6 +858,8 @@ If the `readline.Interface` was created with `output` set to `null` or
 The `callback` function passed to `rl.question()` does not follow the typical
 pattern of accepting an `Error` object or `null` as the first argument.
 The `callback` is called with the provided answer as the only argument.
+
+An error will be thrown if calling `rl.question()` after `rl.close()`.
 
 Example usage:
 
