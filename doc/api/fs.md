@@ -4132,6 +4132,10 @@ the end of the file.
 <!-- YAML
 added: v0.11.5
 changes:
+  - version: v17.8.0
+    pr-url: https://github.com/nodejs/node/pull/42149
+    description: Passing to the `string` parameter an object with an own
+                 `toString` function is deprecated.
   - version: v14.12.0
     pr-url: https://github.com/nodejs/node/pull/34993
     description: The `string` parameter will stringify an object with an
@@ -4196,6 +4200,11 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37460
     description: The error returned may be an `AggregateError` if more than one
@@ -4253,9 +4262,6 @@ The `encoding` option is ignored if `data` is a buffer.
 
 The `mode` option only affects the newly created file. See [`fs.open()`][]
 for more details.
-
-If `data` is a plain object, it must have an own (not inherited) `toString`
-function property.
 
 ```mjs
 import { writeFile } from 'fs';
@@ -5414,6 +5420,10 @@ this API: [`fs.utimes()`][].
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: v17.8.0
+    pr-url: https://github.com/nodejs/node/pull/42149
+    description: Passing to the `data` parameter an object with an own
+                 `toString` function is deprecated.
   - version: v14.12.0
     pr-url: https://github.com/nodejs/node/pull/34993
     description: The `data` parameter will stringify an object with an
@@ -5442,9 +5452,6 @@ changes:
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
 
 Returns `undefined`.
-
-If `data` is a plain object, it must have an own (not inherited) `toString`
-function property.
 
 The `mode` option only affects the newly created file. See [`fs.open()`][]
 for more details.
