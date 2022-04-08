@@ -3114,12 +3114,15 @@ resources and not the actual references.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42607
+    description: Runtime deprecation.
   - version: v17.8.0
     pr-url: https://github.com/nodejs/node/pull/42149
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 Implicit coercion of objects with own `toString` property, passed as second
 parameter in [`fs.write()`][], [`fs.writeFile()`][], [`fs.appendFile()`][],
