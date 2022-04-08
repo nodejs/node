@@ -340,10 +340,13 @@ assert.throws(
   assert.strictEqual(desc.configurable, true);
   assert.strictEqual(desc.enumerable, false);
 
-  crypto[f] = { key: 'value' };
-  assert.deepStrictEqual(Object.getOwnPropertyDescriptor(crypto, f).value, {
-    key: 'value',
-  });
+  const newVal = Symbol();
+  crypto[f] = newVal;
+
+  {
+    const desc = Object.getOwnPropertyDescriptor(crypto, f);
+    assert.strictEqual(desc.value, newVal);
+  }
 });
 
 
