@@ -25,7 +25,6 @@ strictEqual(atob([]), '');
 strictEqual(atob({ toString: () => '' }), '');
 strictEqual(atob({ [Symbol.toPrimitive]: () => '' }), '');
 
-throws(() => atob(), /ERR_MISSING_ARGS/);
 throws(() => atob(Symbol()), /TypeError/);
 [undefined, false, () => {}, 0, 1, 0n, 1n, -Infinity, [1], {}].forEach((value) =>
   throws(() => atob(value), { constructor: DOMException }));
