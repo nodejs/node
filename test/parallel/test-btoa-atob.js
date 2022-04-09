@@ -16,11 +16,16 @@ throws(() => buffer.btoa(), /TypeError/);
 strictEqual(atob(' '), '');
 strictEqual(atob('  YW\tJ\njZA=\r= '), 'abcd');
 
-throws(() => buffer.atob(undefined), /ValidationError/);
-throws(() => buffer.atob(false), /ValidationError/);
-throws(() => buffer.atob(1), /ValidationError/);
-throws(() => buffer.atob(0), /ValidationError/);
-throws(() => buffer.atob('a'), /ValidationError/);
-throws(() => buffer.atob('a '), /ValidationError/);
-throws(() => buffer.atob(' a'), /ValidationError/);
-throws(() => buffer.atob('aaaaa'), /ValidationError/);
+strictEqual(atob(null), '\x9Eée');
+strictEqual(atob(NaN), '5£');
+strictEqual(atob(Infinity), '"wâ\x9E+r');
+strictEqual(atob(true), '¶»\x9E');
+strictEqual(atob(1234), '×mø');
+strictEqual(atob([]), '');
+strictEqual(atob({ toString: () => '' }), '');
+strictEqual(atob({ [Symbol.toPrimitive]: () => '' }), '');
+
+throws(() => atob(), /ERR_MISSING_ARGS/);
+throws(() => atob(Symbol()), /TypeError/);
+[undefined, false, () => {}, 0, 1, 0n, 1n, -Infinity, [1], {}].forEach((value) =>
+  throws(() => atob(value), { constructor: DOMException }));
