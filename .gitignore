@@ -8,7 +8,6 @@
 # Exclude specific dotfiles that we want to track.
 !deps/**/.*
 !test/fixtures/**/.*
-!.clang-format
 !.cpplint
 !.editorconfig
 !.eslintignore
@@ -111,7 +110,6 @@ tools/*/*.i.tmp
 !**/node_modules/**
 /node_modules
 /tools/doc/node_modules
-/tools/clang-format/node_modules
 
 # === Rules for test artifacts ===
 /*.tap
