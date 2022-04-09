@@ -109,8 +109,8 @@ platforms. This is true regardless of entries in the table below.
 | GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24   | Experimental                                    | Downgraded as of Node.js 12               |
 | GNU/Linux        | ppc64le >=power8 | kernel >= 3.10.0, glibc >= 2.17 | Tier 2                                          | e.g. Ubuntu 16.04[^1], EL 7[^2]           |
 | GNU/Linux        | s390x            | kernel >= 3.10.0, glibc >= 2.17 | Tier 2                                          | e.g. EL 7[^2]                             |
-| Windows          | x64, x86 (WoW64) | >= Windows 10/Server 2016       | Tier 1                                          | [^4],[^5]                                 |
-| Windows          | x86 (native)     | >= Windows 10/Server 2016       | Tier 1 (running) / Experimental (compiling)[^6] |                                           |
+| Windows          | x64              | >= Windows 10/Server 2016       | Tier 1                                          | [^4],[^5]                                 |
+| Windows          | x86              | >= Windows 10/Server 2016       | Experimental                                    | [^6]                                      |
 | Windows          | x64, x86         | Windows 8.1/Server 2012         | Experimental                                    |                                           |
 | Windows          | arm64            | >= Windows 10                   | Tier 2 (compiling) / Experimental (running)     |                                           |
 | macOS            | x64              | >= 10.15                        | Tier 1                                          | For notes about compilation see [^7]      |
@@ -146,10 +146,9 @@ platforms. This is true regardless of entries in the table below.
     Windows binary (`node.exe`) in WSL will not work without workarounds such as
     stdio redirection.
 
-[^6]: Running Node.js on x86 Windows should work and binaries
-    are provided. However, tests in our infrastructure only run on WoW64.
-    Furthermore, compiling on x86 Windows is Experimental and
-    may not be possible.
+[^6]: Compiling Node.js for x86 Windows is currently impossible due to
+    issues with version 10.1 of the V8 engine. Support will come back to its
+    previous status as soon as possible.
 
 [^7]: Our macOS x64 Binaries are compiled with 10.15 as a target. Xcode11 is
     required to compile.
