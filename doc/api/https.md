@@ -35,7 +35,7 @@ a preload module).
 
 When using ESM, if there is a chance that the code may be run on a build
 of Node.js where crypto support is not enabled, consider using the
-`import()` function instead of the lexical `import` keyword:
+[`import()`][] function instead of the lexical `import` keyword:
 
 ```mjs
 let https;
@@ -536,6 +536,7 @@ headers: max-age=0; pin-sha256="WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18="; p
 [`http.request()`]: http.md#httprequestoptions-callback
 [`https.Agent`]: #class-httpsagent
 [`https.request()`]: #httpsrequestoptions-callback
+[`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
 [`net.Server`]: net.md#class-netserver
 [`new URL()`]: url.md#new-urlinput-base
 [`server.listen()`]: net.md#serverlisten

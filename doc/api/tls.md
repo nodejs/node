@@ -40,7 +40,7 @@ a preload module).
 
 When using ESM, if there is a chance that the code may be run on a build
 of Node.js where crypto support is not enabled, consider using the
-`import()` function instead of the lexical `import` keyword:
+[`import()`][] function instead of the lexical `import` keyword:
 
 ```mjs
 let tls;
@@ -2235,6 +2235,7 @@ added: v11.4.0
 [`SSL_export_keying_material`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_export_keying_material.html
 [`SSL_get_version`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_get_version.html
 [`crypto.getCurves()`]: crypto.md#cryptogetcurves
+[`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
 [`net.Server.address()`]: net.md#serveraddress
 [`net.Server`]: net.md#class-netserver
 [`net.Socket`]: net.md#class-netsocket

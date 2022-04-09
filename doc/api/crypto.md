@@ -59,7 +59,7 @@ a preload module).
 
 When using ESM, if there is a chance that the code may be run on a build
 of Node.js where crypto support is not enabled, consider using the
-`import()` function instead of the lexical `import` keyword:
+[`import()`][] function instead of the lexical `import` keyword:
 
 ```mjs
 let crypto;
@@ -6142,6 +6142,7 @@ See the [list of SSL OP Flags][] for details.
 [`hash.update()`]: #hashupdatedata-inputencoding
 [`hmac.digest()`]: #hmacdigestencoding
 [`hmac.update()`]: #hmacupdatedata-inputencoding
+[`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
 [`keyObject.export()`]: #keyobjectexportoptions
 [`postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
 [`sign.sign()`]: #signsignprivatekey-outputencoding
