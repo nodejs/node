@@ -2702,6 +2702,10 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
             JSReceiver::GetOwnPropertyDescriptor(&own_lookup, &desc);
         MAYBE_RETURN(owned, Nothing<bool>());
         if (!owned.FromJust()) {
+          if (!CheckContextualStoreToJSGlobalObject(&own_lookup,
+                                                    should_throw)) {
+            return Nothing<bool>();
+          }
           return JSReceiver::CreateDataProperty(&own_lookup, value,
                                                 should_throw);
         }
