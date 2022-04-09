@@ -99,25 +99,25 @@ Node.js does not support a platform version if a vendor has expired support
 for it. In other words, Node.js does not support running on End-of-Life (EoL)
 platforms. This is true regardless of entries in the table below.
 
-| Operating System | Architectures    | Versions                        | Support Type                                    | Notes                                     |
-| ---------------- | ---------------- | ------------------------------- | ----------------------------------------------- | ----------------------------------------- |
-| GNU/Linux        | x64              | kernel >= 3.10, glibc >= 2.17   | Tier 1                                          | e.g. Ubuntu 16.04[^1], Debian 9, EL 7[^2] |
-| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19  | Experimental                                    | e.g. Alpine 3.8                           |
-| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17   | Experimental                                    | Downgraded as of Node.js 10               |
-| GNU/Linux        | arm64            | kernel >= 4.5, glibc >= 2.17    | Tier 1                                          | e.g. Ubuntu 16.04, Debian 9, EL 7[^3]     |
-| GNU/Linux        | armv7            | kernel >= 4.14, glibc >= 2.24   | Tier 1                                          | e.g. Ubuntu 18.04, Debian 9               |
-| GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24   | Experimental                                    | Downgraded as of Node.js 12               |
-| GNU/Linux        | ppc64le >=power8 | kernel >= 3.10.0, glibc >= 2.17 | Tier 2                                          | e.g. Ubuntu 16.04[^1], EL 7[^2]           |
-| GNU/Linux        | s390x            | kernel >= 3.10.0, glibc >= 2.17 | Tier 2                                          | e.g. EL 7[^2]                             |
-| Windows          | x64              | >= Windows 10/Server 2016       | Tier 1                                          | [^4],[^5]                                 |
-| Windows          | x86              | >= Windows 10/Server 2016       | Experimental                                    | [^6]                                      |
-| Windows          | x64, x86         | Windows 8.1/Server 2012         | Experimental                                    |                                           |
-| Windows          | arm64            | >= Windows 10                   | Tier 2 (compiling) / Experimental (running)     |                                           |
-| macOS            | x64              | >= 10.15                        | Tier 1                                          | For notes about compilation see [^7]      |
-| macOS            | arm64            | >= 11                           | Tier 1                                          |                                           |
-| SmartOS          | x64              | >= 18                           | Tier 2                                          |                                           |
-| AIX              | ppc64be >=power8 | >= 7.2 TL04                     | Tier 2                                          |                                           |
-| FreeBSD          | x64              | >= 12.2                         | Experimental                                    |                                           |
+| Operating System | Architectures    | Versions                        | Support Type                                | Notes                                     |
+| ---------------- | ---------------- | ------------------------------- | ------------------------------------------- | ----------------------------------------- |
+| GNU/Linux        | x64              | kernel >= 3.10, glibc >= 2.17   | Tier 1                                      | e.g. Ubuntu 16.04[^1], Debian 9, EL 7[^2] |
+| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19  | Experimental                                | e.g. Alpine 3.8                           |
+| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17   | Experimental                                | Downgraded as of Node.js 10               |
+| GNU/Linux        | arm64            | kernel >= 4.5, glibc >= 2.17    | Tier 1                                      | e.g. Ubuntu 16.04, Debian 9, EL 7[^3]     |
+| GNU/Linux        | armv7            | kernel >= 4.14, glibc >= 2.24   | Tier 1                                      | e.g. Ubuntu 18.04, Debian 9               |
+| GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24   | Experimental                                | Downgraded as of Node.js 12               |
+| GNU/Linux        | ppc64le >=power8 | kernel >= 3.10.0, glibc >= 2.17 | Tier 2                                      | e.g. Ubuntu 16.04[^1], EL 7[^2]           |
+| GNU/Linux        | s390x            | kernel >= 3.10.0, glibc >= 2.17 | Tier 2                                      | e.g. EL 7[^2]                             |
+| Windows          | x64              | >= Windows 10/Server 2016       | Tier 1                                      | [^4],[^5]                                 |
+| Windows          | x86              | >= Windows 10/Server 2016       | Experimental                                | [^6]                                      |
+| Windows          | x64, x86         | Windows 8.1/Server 2012         | Experimental                                |                                           |
+| Windows          | arm64            | >= Windows 10                   | Tier 2 (compiling) / Experimental (running) |                                           |
+| macOS            | x64              | >= 10.15                        | Tier 1                                      | For notes about compilation see [^7]      |
+| macOS            | arm64            | >= 11                           | Tier 1                                      |                                           |
+| SmartOS          | x64              | >= 18                           | Tier 2                                      |                                           |
+| AIX              | ppc64be >=power8 | >= 7.2 TL04                     | Tier 2                                      |                                           |
+| FreeBSD          | x64              | >= 12.2                         | Experimental                                |                                           |
 
 [^1]: GCC 8 is not provided on the base platform. Users will
     need the
