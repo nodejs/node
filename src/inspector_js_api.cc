@@ -75,10 +75,10 @@ class JSBindingsConnection : public AsyncWrap {
       Isolate* isolate = env_->isolate();
       HandleScope handle_scope(isolate);
       Context::Scope context_scope(env_->context());
-      MaybeLocal<String> v8string =
-          String::NewFromTwoByte(isolate, message.characters16(),
-                                 NewStringType::kNormal, message.length());
-      Local<Value> argument = v8string.ToLocalChecked().As<Value>();
+      Local<Value> argument;
+      if (!String::NewFromTwoByte(isolate, message.characters16(),
+                                  NewStringType::kNormal,
+                                  message.length()).ToLocal(&argument)) return;
       connection_->OnMessage(argument);
     }
 
