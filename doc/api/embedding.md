@@ -124,6 +124,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
   {
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
+    HandleScope handle_scope(isolate);
     // The v8::Context needs to be entered when node::CreateEnvironment() and
     // node::LoadEnvironment() are being called.
     Context::Scope context_scope(setup->context());
