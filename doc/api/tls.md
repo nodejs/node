@@ -243,7 +243,7 @@ handlers.
 
 The servers encrypt the entire session state and send it
 to the client as a "ticket". When reconnecting, the state is sent to the server
-in the initial connection. This mechanism avoids the need for server-side
+in the initial connection. This mechanism avoids the need for a server-side
 session cache. If the server doesn't use the ticket, for any reason (failure
 to decrypt it, it's too old, etc.), it will create a new session and send a new
 ticket. See [RFC 5077][] for more information.
