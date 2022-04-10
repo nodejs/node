@@ -163,16 +163,13 @@ U_NAMESPACE_BEGIN
 /**
  * Construct a new empty rule set.
  */
-TransliterationRuleSet::TransliterationRuleSet(UErrorCode& status) : UMemory() {
-    ruleVector = new UVector(&_deleteRule, NULL, status);
+TransliterationRuleSet::TransliterationRuleSet(UErrorCode& status) :
+        UMemory(), ruleVector(nullptr), rules(nullptr), index {}, maxContextLength(0) {
+    LocalPointer<UVector> lpRuleVector(new UVector(_deleteRule, nullptr, status), status);
     if (U_FAILURE(status)) {
         return;
     }
-    if (ruleVector == NULL) {
-        status = U_MEMORY_ALLOCATION_ERROR;
-    }
-    rules = NULL;
-    maxContextLength = 0;
+    ruleVector = lpRuleVector.orphan();
 }
 
 /**
@@ -180,27 +177,24 @@ TransliterationRuleSet::TransliterationRuleSet(UErrorCode& status) : UMemory() {
  */
 TransliterationRuleSet::TransliterationRuleSet(const TransliterationRuleSet& other) :
     UMemory(other),
-    ruleVector(0),
-    rules(0),
+    ruleVector(nullptr),
+    rules(nullptr),
     maxContextLength(other.maxContextLength) {
 
     int32_t i, len;
     uprv_memcpy(index, other.index, sizeof(index));
     UErrorCode status = U_ZERO_ERROR;
-    ruleVector = new UVector(&_deleteRule, NULL, status);
-    if (other.ruleVector != 0 && ruleVector != 0 && U_SUCCESS(status)) {
+    LocalPointer<UVector> lpRuleVector(new UVector(_deleteRule, nullptr, status), status);
+    if (U_FAILURE(status)) {
+        return;
+    }
+    ruleVector = lpRuleVector.orphan();
+    if (other.ruleVector != nullptr && U_SUCCESS(status)) {
         len = other.ruleVector->size();
         for (i=0; i<len && U_SUCCESS(status); ++i) {
-            TransliterationRule *tempTranslitRule = new TransliterationRule(*(TransliterationRule*)other.ruleVector->elementAt(i));
-            // Null pointer test
-            if (tempTranslitRule == NULL) {
-                status = U_MEMORY_ALLOCATION_ERROR;
-                break;
-            }
-            ruleVector->addElementX(tempTranslitRule, status);
-            if (U_FAILURE(status)) {
-                break;
-            }
+            LocalPointer<TransliterationRule> tempTranslitRule(
+                new TransliterationRule(*(TransliterationRule*)other.ruleVector->elementAt(i)), status);
+            ruleVector->adoptElement(tempTranslitRule.orphan(), status);
         }
     }
     if (other.rules != 0 && U_SUCCESS(status)) {
@@ -247,11 +241,11 @@ int32_t TransliterationRuleSet::getMaximumContextLength(void) const {
  */
 void TransliterationRuleSet::addRule(TransliterationRule* adoptedRule,
                                      UErrorCode& status) {
+    LocalPointer<TransliterationRule> lpAdoptedRule(adoptedRule);
+    ruleVector->adoptElement(lpAdoptedRule.orphan(), status);
     if (U_FAILURE(status)) {
-        delete adoptedRule;
         return;
     }
-    ruleVector->addElementX(adoptedRule, status);
 
     int32_t len;
     if ((len = adoptedRule->getContextLength()) > maxContextLength) {
@@ -316,7 +310,7 @@ void TransliterationRuleSet::freeze(UParseError& parseError,UErrorCode& status) 
         for (j=0; j<n; ++j) {
             if (indexValue[j] >= 0) {
                 if (indexValue[j] == x) {
-                    v.addElementX(ruleVector->elementAt(j), status);
+                    v.addElement(ruleVector->elementAt(j), status);
                 }
             } else {
                 // If the indexValue is < 0, then the first key character is
@@ -325,13 +319,16 @@ void TransliterationRuleSet::freeze(UParseError& parseError,UErrorCode& status) 
                 // rarely, so we seldom treat this code path.
                 TransliterationRule* r = (TransliterationRule*) ruleVector->elementAt(j);
                 if (r->matchesIndexValue((uint8_t)x)) {
-                    v.addElementX(r, status);
+                    v.addElement(r, status);
                 }
             }
         }
     }
     uprv_free(indexValue);
     index[256] = v.size();
+    if (U_FAILURE(status)) {
+        return;
+    }
 
     /* Freeze things into an array.
      */

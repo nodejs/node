@@ -60,7 +60,7 @@
  *  This value will change in the subsequent releases of ICU
  *  @stable ICU 2.4
  */
-#define U_ICU_VERSION_MAJOR_NUM 70
+#define U_ICU_VERSION_MAJOR_NUM 71
 
 /** The current ICU minor version as an integer.
  *  This value will change in the subsequent releases of ICU
@@ -86,7 +86,7 @@
  *  This value will change in the subsequent releases of ICU
  *  @stable ICU 2.6
  */
-#define U_ICU_VERSION_SUFFIX _70
+#define U_ICU_VERSION_SUFFIX _71
 
 /**
  * \def U_DEF2_ICU_ENTRY_POINT_RENAME
@@ -139,7 +139,7 @@
  *  This value will change in the subsequent releases of ICU
  *  @stable ICU 2.4
  */
-#define U_ICU_VERSION "70.1"
+#define U_ICU_VERSION "71.1"
 
 /**
  * The current ICU library major version number as a string, for library name suffixes.
@@ -152,13 +152,13 @@
  *
  * @stable ICU 2.6
  */
-#define U_ICU_VERSION_SHORT "70"
+#define U_ICU_VERSION_SHORT "71"
 
 #ifndef U_HIDE_INTERNAL_API
 /** Data version in ICU4C.
  * @internal ICU 4.4 Internal Use Only
  **/
-#define U_ICU_DATA_VERSION "70.1"
+#define U_ICU_DATA_VERSION "71.1"
 #endif  /* U_HIDE_INTERNAL_API */
 
 /*===========================================================================

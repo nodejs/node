@@ -477,7 +477,7 @@ ucnv_openCCSID(int32_t codepage,
  *
  * <p>The name will NOT be looked up in the alias mechanism, nor will the converter be
  * stored in the converter cache or the alias table. The only way to open further converters
- * is call this function multiple times, or use the ucnv_safeClone() function to clone a
+ * is call this function multiple times, or use the ucnv_clone() function to clone a
  * 'primary' converter.</p>
  *
  * <p>A future version of ICU may add alias table lookups and/or caching
@@ -493,12 +493,26 @@ ucnv_openCCSID(int32_t codepage,
  * @return the created Unicode converter object, or <TT>NULL</TT> if an error occurred
  * @see udata_open
  * @see ucnv_open
- * @see ucnv_safeClone
+ * @see ucnv_clone
  * @see ucnv_close
  * @stable ICU 2.2
  */
 U_CAPI UConverter* U_EXPORT2
 ucnv_openPackage(const char *packageName, const char *converterName, UErrorCode *err);
+
+/**
+ * Thread safe converter cloning operation.
+ *
+ * You must ucnv_close() the clone.
+ *
+ * @param cnv converter to be cloned
+ * @param status to indicate whether the operation went on smoothly or there were errors
+ * @return pointer to the new clone
+ * @stable ICU 71
+ */
+U_CAPI UConverter* U_EXPORT2 ucnv_clone(const UConverter *cnv, UErrorCode *status);
+
+#ifndef U_HIDE_DEPRECATED_API
 
 /**
  * Thread safe converter cloning operation.
@@ -532,20 +546,18 @@ ucnv_openPackage(const char *packageName, const char *converterName, UErrorCode 
  *  pointer to size of allocated space.
  * @param status to indicate whether the operation went on smoothly or there were errors
  *  An informational status value, U_SAFECLONE_ALLOCATED_WARNING,
- *  is used if any allocations were necessary.
+ *  is used if pBufferSize != NULL and any allocations were necessary
  *  However, it is better to check if *pBufferSize grew for checking for
  *  allocations because warning codes can be overridden by subsequent
  *  function calls.
  * @return pointer to the new clone
- * @stable ICU 2.0
+ * @deprecated ICU 71 Use ucnv_clone() instead.
  */
-U_CAPI UConverter * U_EXPORT2
+U_DEPRECATED UConverter * U_EXPORT2
 ucnv_safeClone(const UConverter *cnv,
                void             *stackBuffer,
                int32_t          *pBufferSize,
                UErrorCode       *status);
-
-#ifndef U_HIDE_DEPRECATED_API
 
 /**
  * \def U_CNV_SAFECLONE_BUFFERSIZE

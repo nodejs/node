@@ -157,8 +157,8 @@ void CompactData::getUniquePatterns(UVector &output, UErrorCode &status) const {
         }
 
         // The string was not found; add it to the UVector.
-        // ANDY: This requires a const_cast.  Why?
-        output.addElementX(const_cast<UChar *>(pattern), status);
+        // Note: must cast off const from pattern to store it in a UVector, which expects (void *)
+        output.addElement(const_cast<UChar *>(pattern), status);
 
         continue_outer:
         continue;
