@@ -55,7 +55,7 @@ static bool extra_root_certs_loaded = false;
 BIOPointer LoadBIO(Environment* env, Local<Value> v) {
   HandleScope scope(env->isolate());
 
-  if (v->IsString()) {
+  if (v-> IsString()) {
     Utf8Value s(env->isolate(), v);
     return NodeBIO::NewFixed(*s, s.length());
   }
