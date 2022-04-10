@@ -56,6 +56,7 @@ const validFixTypes = new Set(["directive", "problem", "suggestion", "layout"]);
 /** @typedef {import("../shared/types").Plugin} Plugin */
 /** @typedef {import("../shared/types").RuleConf} RuleConf */
 /** @typedef {import("../shared/types").Rule} Rule */
+/** @typedef {import("../shared/types").FormatterFunction} FormatterFunction */
 /** @typedef {ReturnType<CascadingConfigArrayFactory.getConfigArrayForFile>} ConfigArray */
 /** @typedef {ReturnType<ConfigArray.extractConfig>} ExtractedConfig */
 
@@ -1002,7 +1003,7 @@ class CLIEngine {
      * @param {string} [format] The name of the format to load or the path to a
      *      custom formatter.
      * @throws {any} As may be thrown by requiring of formatter
-     * @returns {(Function|null)} The formatter function or null if the `format` is not a string.
+     * @returns {(FormatterFunction|null)} The formatter function or null if the `format` is not a string.
      */
     getFormatter(format) {
 

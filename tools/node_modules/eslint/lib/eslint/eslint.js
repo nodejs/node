@@ -35,10 +35,11 @@ const { version } = require("../../package.json");
 /** @typedef {import("../shared/types").SuppressedLintMessage} SuppressedLintMessage */
 /** @typedef {import("../shared/types").Plugin} Plugin */
 /** @typedef {import("../shared/types").Rule} Rule */
+/** @typedef {import("../shared/types").LintResult} LintResult */
 
 /**
  * The main formatter object.
- * @typedef Formatter
+ * @typedef LoadedFormatter
  * @property {function(LintResult[]): string | Promise<string>} format format function.
  */
 
@@ -72,22 +73,6 @@ const { version } = require("../../package.json");
  * @typedef {Object} RulesMeta
  * @property {string} id The plugin ID.
  * @property {Object} definition The plugin definition.
- */
-
-/**
- * A linting result.
- * @typedef {Object} LintResult
- * @property {string} filePath The path to the file that was linted.
- * @property {LintMessage[]} messages All of the messages for the result.
- * @property {SuppressedLintMessage[]} suppressedMessages All of the suppressed messages for the result.
- * @property {number} errorCount Number of errors for the result.
- * @property {number} fatalErrorCount Number of fatal errors for the result.
- * @property {number} warningCount Number of warnings for the result.
- * @property {number} fixableErrorCount Number of fixable errors for the result.
- * @property {number} fixableWarningCount Number of fixable warnings for the result.
- * @property {string} [source] The source code of the file that was linted.
- * @property {string} [output] The source code of the file that was linted, with as many fixes applied as possible.
- * @property {DeprecatedRuleInfo[]} usedDeprecatedRules The list of used deprecated rules.
  */
 
 /**
@@ -619,7 +604,7 @@ class ESLint {
      *   - `@foo` → `@foo/eslint-formatter`
      *   - `@foo/bar` → `@foo/eslint-formatter-bar`
      * - A file path ... Load the file.
-     * @returns {Promise<Formatter>} A promise resolving to the formatter object.
+     * @returns {Promise<LoadedFormatter>} A promise resolving to the formatter object.
      * This promise will be rejected if the given formatter was not found or not
      * a function.
      */
@@ -639,7 +624,7 @@ class ESLint {
 
             /**
              * The main formatter method.
-             * @param {LintResults[]} results The lint results to format.
+             * @param {LintResult[]} results The lint results to format.
              * @returns {string | Promise<string>} The formatted lint results.
              */
             format(results) {
