@@ -27,10 +27,12 @@ const semver = require('../')
 
 let reverse = false
 
-const options = {}
+let options = {}
 
 const main = () => {
-  if (!argv.length) return help()
+  if (!argv.length) {
+    return help()
+  }
   while (argv.length) {
     let a = argv.shift()
     const indexOfEqualSign = a.indexOf('=')
@@ -85,25 +87,30 @@ const main = () => {
     }
   }
 
-  const options = { loose: loose, includePrerelease: includePrerelease, rtl: rtl }
+  options = { loose: loose, includePrerelease: includePrerelease, rtl: rtl }
 
   versions = versions.map((v) => {
     return coerce ? (semver.coerce(v, options) || { version: v }).version : v
   }).filter((v) => {
     return semver.valid(v)
   })
-  if (!versions.length) return fail()
-  if (inc && (versions.length !== 1 || range.length)) { return failInc() }
+  if (!versions.length) {
+    return fail()
+  }
+  if (inc && (versions.length !== 1 || range.length)) {
+    return failInc()
+  }
 
   for (let i = 0, l = range.length; i < l; i++) {
     versions = versions.filter((v) => {
       return semver.satisfies(v, range[i], options)
     })
-    if (!versions.length) return fail()
+    if (!versions.length) {
+      return fail()
+    }
   }
   return success(versions)
 }
-
 
 const failInc = () => {
   console.error('--inc can only be used on a single version with no range')
@@ -120,7 +127,9 @@ const success = () => {
     return semver.clean(v, options)
   }).map((v) => {
     return inc ? semver.inc(v, inc, options, identifier) : v
-  }).forEach((v, i, _) => { console.log(v) })
+  }).forEach((v, i, _) => {
+    console.log(v)
+  })
 }
 
 const help = () => console.log(

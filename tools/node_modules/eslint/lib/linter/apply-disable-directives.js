@@ -66,7 +66,7 @@ function createIndividualDirectivesRemoval(directives, commentToken) {
     const listText = commentToken.value
         .slice(listStartOffset) // remove directive name and all whitespace before the list
         .split(/\s-{2,}\s/u)[0] // remove `-- comment`, if it exists
-        .trimRight(); // remove all whitespace after the list
+        .trimEnd(); // remove all whitespace after the list
 
     /*
      * We can assume that `listText` contains multiple elements.
