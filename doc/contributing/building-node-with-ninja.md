@@ -22,7 +22,7 @@ ninja: Entering directory `out/Release`
 
 The bottom line will change while building, showing the progress as
 `[finished/total]` build steps. This is useful output that `make` does not
-produce and is one of the benefits of using Ninja. When using Ninja builds
+produce and is one of the benefits of using Ninja. When using Ninja, builds
 are always run in parallel, based by default on the number of CPUs your
 system has, you can also use the `-j` parameter if you don't want to use
 all the CPU. This will be the equivalent to the `-j` parameter in the
