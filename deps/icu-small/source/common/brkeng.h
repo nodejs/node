@@ -75,6 +75,7 @@ class LanguageBreakEngine : public UMemory {
                               int32_t startPos,
                               int32_t endPos,
                               UVector32 &foundBreaks,
+                              UBool isPhraseBreaking,
                               UErrorCode &status) const = 0;
 
 };
@@ -194,6 +195,7 @@ class UnhandledEngine : public LanguageBreakEngine {
                               int32_t startPos,
                               int32_t endPos,
                               UVector32 &foundBreaks,
+                              UBool isPhraseBreaking,
                               UErrorCode &status) const override;
 
  /**

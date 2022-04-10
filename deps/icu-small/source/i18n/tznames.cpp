@@ -414,15 +414,12 @@ TimeZoneNames::MatchInfoCollection::addZone(UTimeZoneNameType nameType, int32_t 
     if (U_FAILURE(status)) {
         return;
     }
-    MatchInfo* matchInfo = new MatchInfo(nameType, matchLength, &tzID, NULL);
-    if (matchInfo == NULL) {
-        status = U_MEMORY_ALLOCATION_ERROR;
+    LocalPointer <MatchInfo> matchInfo(new MatchInfo(nameType, matchLength, &tzID, NULL), status);
+    UVector *matchesVec = matches(status);
+    if (U_FAILURE(status)) {
         return;
     }
-    matches(status)->addElementX(matchInfo, status);
-    if (U_FAILURE(status)) {
-        delete matchInfo;
-    }
+    matchesVec->adoptElement(matchInfo.orphan(), status);
 }
 
 void
@@ -431,15 +428,12 @@ TimeZoneNames::MatchInfoCollection::addMetaZone(UTimeZoneNameType nameType, int3
     if (U_FAILURE(status)) {
         return;
     }
-    MatchInfo* matchInfo = new MatchInfo(nameType, matchLength, NULL, &mzID);
-    if (matchInfo == NULL) {
-        status = U_MEMORY_ALLOCATION_ERROR;
+    LocalPointer<MatchInfo> matchInfo(new MatchInfo(nameType, matchLength, NULL, &mzID), status);
+    UVector *matchesVec = matches(status);
+    if (U_FAILURE(status)) {
         return;
     }
-    matches(status)->addElementX(matchInfo, status);
-    if (U_FAILURE(status)) {
-        delete matchInfo;
-    }
+    matchesVec->adoptElement(matchInfo.orphan(), status);
 }
 
 int32_t

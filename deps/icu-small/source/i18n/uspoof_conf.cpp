@@ -63,23 +63,24 @@ U_NAMESPACE_USE
 //         at the same time
 //
 
-SPUString::SPUString(UnicodeString *s) {
-    fStr = s;
+SPUString::SPUString(LocalPointer<UnicodeString> s) {
+    fStr = std::move(s);
     fCharOrStrTableIndex = 0;
 }
 
 
 SPUString::~SPUString() {
-    delete fStr;
 }
 
 
-SPUStringPool::SPUStringPool(UErrorCode &status) : fVec(NULL), fHash(NULL) {
-    fVec = new UVector(status);
-    if (fVec == NULL) {
-        status = U_MEMORY_ALLOCATION_ERROR;
+SPUStringPool::SPUStringPool(UErrorCode &status) : fVec(nullptr), fHash(nullptr) {
+    LocalPointer<UVector> vec(new UVector(status), status);
+    if (U_FAILURE(status)) {
         return;
     }
+    vec->setDeleter(
+        [](void *obj) {delete (SPUString *)obj;});
+    fVec = vec.orphan();
     fHash = uhash_open(uhash_hashUnicodeString,           // key hash function
                        uhash_compareUnicodeString,        // Key Comparator
                        NULL,                              // Value Comparator
@@ -88,11 +89,6 @@ SPUStringPool::SPUStringPool(UErrorCode &status) : fVec(NULL), fHash(NULL) {
 
 
 SPUStringPool::~SPUStringPool() {
-    int i;
-    for (i=fVec->size()-1; i>=0; i--) {
-        SPUString *s = static_cast<SPUString *>(fVec->elementAt(i));
-        delete s;
-    }
     delete fVec;
     uhash_close(fHash);
 }
@@ -135,18 +131,21 @@ void SPUStringPool::sort(UErrorCode &status) {
 
 
 SPUString *SPUStringPool::addString(UnicodeString *src, UErrorCode &status) {
-    SPUString *hashedString = static_cast<SPUString *>(uhash_get(fHash, src));
-    if (hashedString != NULL) {
-        delete src;
-    } else {
-        hashedString = new SPUString(src);
-        if (hashedString == NULL) {
-            status = U_MEMORY_ALLOCATION_ERROR;
-            return NULL;
-        }
-        uhash_put(fHash, src, hashedString, &status);
-        fVec->addElementX(hashedString, status);
+    LocalPointer<UnicodeString> lpSrc(src);
+    if (U_FAILURE(status)) {
+        return nullptr;
     }
+    SPUString *hashedString = static_cast<SPUString *>(uhash_get(fHash, src));
+    if (hashedString != nullptr) {
+        return hashedString;
+    }
+    LocalPointer<SPUString> spuStr(new SPUString(std::move(lpSrc)), status);
+    hashedString = spuStr.getAlias();
+    fVec->adoptElement(spuStr.orphan(), status);
+    if (U_FAILURE(status)) {
+        return nullptr;
+    }
+    uhash_put(fHash, src, hashedString, &status);
     return hashedString;
 }
 

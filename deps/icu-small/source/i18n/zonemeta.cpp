@@ -98,20 +98,12 @@ deleteUCharString(void *obj) {
 }
 
 /**
- * Deleter for UVector
- */
-static void U_CALLCONV
-deleteUVector(void *obj) {
-   delete (icu::UVector*) obj;
-}
-
-/**
  * Deleter for OlsonToMetaMappingEntry
  */
 static void U_CALLCONV
 deleteOlsonToMetaMappingEntry(void *obj) {
     icu::OlsonToMetaMappingEntry *entry = (icu::OlsonToMetaMappingEntry*)obj;
-    uprv_free(entry);
+    delete entry;
 }
 
 U_CDECL_END
@@ -477,11 +469,11 @@ ZoneMeta::getCanonicalCountry(const UnicodeString &tzid, UnicodeString &country,
                 UErrorCode ec = U_ZERO_ERROR;
                 if (singleZone) {
                     if (!gSingleZoneCountries->contains((void*)region)) {
-                        gSingleZoneCountries->addElementX((void*)region, ec);
+                        gSingleZoneCountries->addElement((void*)region, ec);
                     }
                 } else {
                     if (!gMultiZonesCountries->contains((void*)region)) {
-                        gMultiZonesCountries->addElementX((void*)region, ec);
+                        gMultiZonesCountries->addElement((void*)region, ec);
                     }
                 }
             }
@@ -550,7 +542,7 @@ static void U_CALLCONV olsonToMetaInit(UErrorCode &status) {
         gOlsonToMeta = NULL;
     } else {
         uhash_setKeyDeleter(gOlsonToMeta, deleteUCharString);
-        uhash_setValueDeleter(gOlsonToMeta, deleteUVector);
+        uhash_setValueDeleter(gOlsonToMeta, uprv_deleteUObject);
     }
 }
 
@@ -625,7 +617,7 @@ ZoneMeta::getMetazoneMappings(const UnicodeString &tzid) {
 
 UVector*
 ZoneMeta::createMetazoneMappings(const UnicodeString &tzid) {
-    UVector *mzMappings = NULL;
+    LocalPointer <UVector> mzMappings;
     UErrorCode status = U_ZERO_ERROR;
 
     UnicodeString canonicalID;
@@ -677,41 +669,32 @@ ZoneMeta::createMetazoneMappings(const UnicodeString &tzid) {
                     continue;
                 }
 
-                OlsonToMetaMappingEntry *entry = (OlsonToMetaMappingEntry*)uprv_malloc(sizeof(OlsonToMetaMappingEntry));
-                if (entry == NULL) {
-                    status = U_MEMORY_ALLOCATION_ERROR;
+                LocalPointer<OlsonToMetaMappingEntry> entry(new OlsonToMetaMappingEntry, status);
+                if (U_FAILURE(status)) {
                     break;
                 }
                 entry->mzid = mz_name;
                 entry->from = from;
                 entry->to = to;
 
-                if (mzMappings == NULL) {
-                    mzMappings = new UVector(deleteOlsonToMetaMappingEntry, NULL, status);
+                if (mzMappings.isNull()) {
+                    mzMappings.adoptInsteadAndCheckErrorCode(
+                        new UVector(deleteOlsonToMetaMappingEntry, nullptr, status), status);
                     if (U_FAILURE(status)) {
-                        delete mzMappings;
-                        mzMappings = NULL;
-                        uprv_free(entry);
                         break;
                     }
                 }
 
-                mzMappings->addElementX(entry, status);
+                mzMappings->adoptElement(entry.orphan(), status);
                 if (U_FAILURE(status)) {
                     break;
                 }
             }
             ures_close(mz);
-            if (U_FAILURE(status)) {
-                if (mzMappings != NULL) {
-                    delete mzMappings;
-                    mzMappings = NULL;
-                }
-            }
         }
     }
     ures_close(rb);
-    return mzMappings;
+    return U_SUCCESS(status) ? mzMappings.orphan() : nullptr;
 }
 
 UnicodeString& U_EXPORT2
@@ -775,6 +758,7 @@ static void U_CALLCONV initAvailableMetaZoneIDs () {
     // No valueDeleter, because the vector maintain the value objects
     gMetaZoneIDs = new UVector(NULL, uhash_compareUChars, status);
     if (U_FAILURE(status) || gMetaZoneIDs == NULL) {
+        delete gMetaZoneIDs;
         gMetaZoneIDs = NULL;
         uhash_close(gMetaZoneIDTable);
         gMetaZoneIDTable = NULL;
@@ -792,20 +776,22 @@ static void U_CALLCONV initAvailableMetaZoneIDs () {
         }
         const char *mzID = ures_getKey(res.getAlias());
         int32_t len = static_cast<int32_t>(uprv_strlen(mzID));
-        UChar *uMzID = (UChar*)uprv_malloc(sizeof(UChar) * (len + 1));
-        if (uMzID == NULL) {
+        LocalMemory<UChar> uMzID((UChar*)uprv_malloc(sizeof(UChar) * (len + 1)));
+        if (uMzID.isNull()) {
             status = U_MEMORY_ALLOCATION_ERROR;
             break;
         }
-        u_charsToUChars(mzID, uMzID, len);
+        u_charsToUChars(mzID, uMzID.getAlias(), len);
         uMzID[len] = 0;
-        UnicodeString *usMzID = new UnicodeString(uMzID);
-        if (uhash_get(gMetaZoneIDTable, usMzID) == NULL) {
-            gMetaZoneIDs->addElementX((void *)uMzID, status);
-            uhash_put(gMetaZoneIDTable, (void *)usMzID, (void *)uMzID, &status);
-        } else {
-            uprv_free(uMzID);
-            delete usMzID;
+        LocalPointer<UnicodeString> usMzID(new UnicodeString(uMzID.getAlias()), status);
+        if (U_FAILURE(status)) {
+            break;
+        }
+        if (uhash_get(gMetaZoneIDTable, usMzID.getAlias()) == NULL) {
+            // Note: gMetaZoneIDTable adopts its keys, but not its values.
+            //       gMetaZoneIDs adopts its values.
+            uhash_put(gMetaZoneIDTable, usMzID.orphan(), uMzID.getAlias(), &status);
+            gMetaZoneIDs->adoptElement(uMzID.orphan(), status);
         }
     }
     ures_close(bundle);

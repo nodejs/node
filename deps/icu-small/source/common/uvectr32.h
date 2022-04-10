@@ -86,12 +86,12 @@ public:
      * equal if they are of the same size and all elements are equal,
      * as compared using this object's comparer.
      */
-    bool operator==(const UVector32& other);
+    bool operator==(const UVector32& other) const;
 
     /**
      * Equivalent to !operator==()
      */
-    inline bool operator!=(const UVector32& other);
+    inline bool operator!=(const UVector32& other) const;
 
     //------------------------------------------------------------
     // java.util.Vector API
@@ -268,7 +268,7 @@ inline int32_t UVector32::lastElementi(void) const {
     return elementAti(count-1);
 }
 
-inline bool UVector32::operator!=(const UVector32& other) {
+inline bool UVector32::operator!=(const UVector32& other) const {
     return !operator==(other);
 }
 

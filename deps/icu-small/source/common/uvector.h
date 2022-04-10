@@ -123,12 +123,6 @@ public:
     // java.util.Vector API
     //------------------------------------------------------------
 
-    /*
-     * Old version of addElement, with non-standard error handling.
-     * Will be removed once all uses have been switched to the new addElement().
-     */
-    void addElementX(void* obj, UErrorCode &status);
-
     /**
      * Add an element at the end of the vector.
      * For use only with vectors that do not adopt their elements, which is to say,
@@ -196,12 +190,6 @@ public:
     inline int32_t size(void) const {return count;}
 
     inline UBool isEmpty(void) const {return count == 0;}
-
-    /*
-     * Old version of ensureCapacity, with non-standard error handling.
-     * Will be removed once all uses have been switched to the new ensureCapacity().
-     */
-    UBool ensureCapacityX(int32_t minimumCapacity, UErrorCode &status);
 
     UBool ensureCapacity(int32_t minimumCapacity, UErrorCode &status);
 

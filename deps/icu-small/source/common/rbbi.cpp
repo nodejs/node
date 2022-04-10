@@ -82,6 +82,19 @@ RuleBasedBreakIterator::RuleBasedBreakIterator(RBBIDataHeader* data, UErrorCode 
     }
 }
 
+//-------------------------------------------------------------------------------
+//
+//   Constructor   from a UDataMemory handle to precompiled break rules
+//                 stored in an ICU data file. This construcotr is private API,
+//                 only for internal use.
+//
+//-------------------------------------------------------------------------------
+RuleBasedBreakIterator::RuleBasedBreakIterator(UDataMemory* udm, UBool isPhraseBreaking,
+        UErrorCode &status) : RuleBasedBreakIterator(udm, status)
+{
+    fIsPhraseBreaking = isPhraseBreaking;
+}
+
 //
 //  Construct from precompiled binary rules (tables).  This constructor is public API,
 //  taking the rules as a (const uint8_t *) to match the type produced by getBinaryRules().
@@ -322,6 +335,7 @@ void RuleBasedBreakIterator::init(UErrorCode &status) {
     fBreakCache           = nullptr;
     fDictionaryCache      = nullptr;
     fLookAheadMatches     = nullptr;
+    fIsPhraseBreaking     = false;
 
     // Note: IBM xlC is unable to assign or initialize member fText from UTEXT_INITIALIZER.
     // fText                 = UTEXT_INITIALIZER;
