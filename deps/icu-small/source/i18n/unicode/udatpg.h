@@ -492,6 +492,11 @@ udatpg_getFieldDisplayName(const UDateTimePatternGenerator *dtpg,
  * for those two skeletons, so the result is put together with this pattern,
  * resulting in "d-MMM h:mm".
  *
+ * There are four DateTimeFormats in a UDateTimePatternGenerator object,
+ * corresponding to date styles UDAT_FULL..UDAT_SHORT. This method sets
+ * all of them to the specified pattern. To set them individually, see
+ * udatpg_setDateTimeFormatForStyle.
+ *
  * @param dtpg a pointer to UDateTimePatternGenerator.
  * @param dtFormat
  *            message format pattern, here {1} will be replaced by the date
@@ -505,6 +510,12 @@ udatpg_setDateTimeFormat(const UDateTimePatternGenerator *dtpg,
 
 /**
  * Getter corresponding to setDateTimeFormat.
+ *
+ * There are four DateTimeFormats in a UDateTimePatternGenerator object,
+ * corresponding to date styles UDAT_FULL..UDAT_SHORT. This method gets
+ * the style for UDAT_MEDIUM (the default). To get them individually, see
+ * udatpg_getDateTimeFormatForStyle.
+ *
  * @param dtpg   a pointer to UDateTimePatternGenerator.
  * @param pLength A pointer that will receive the length of the format
  * @return dateTimeFormat.
@@ -513,6 +524,70 @@ udatpg_setDateTimeFormat(const UDateTimePatternGenerator *dtpg,
 U_CAPI const UChar * U_EXPORT2
 udatpg_getDateTimeFormat(const UDateTimePatternGenerator *dtpg,
                          int32_t *pLength);
+
+#if !UCONFIG_NO_FORMATTING
+#ifndef U_HIDE_DRAFT_API
+/**
+ * dateTimeFormats are message patterns used to compose combinations of date
+ * and time patterns. There are four length styles, corresponding to the
+ * inferred style of the date pattern; these are UDateFormatStyle values:
+ *  - UDAT_FULL (for date pattern with weekday and long month), else
+ *  - UDAT_LONG (for a date pattern with long month), else
+ *  - UDAT_MEDIUM (for a date pattern with abbreviated month), else
+ *  - UDAT_SHORT (for any other date pattern).
+ * For details on dateTimeFormats, see
+ * https://www.unicode.org/reports/tr35/tr35-dates.html#dateTimeFormats.
+ * The default pattern in the root locale for all styles is "{1} {0}".
+ *
+ * @param udtpg
+ *              a pointer to the UDateTimePatternGenerator
+ * @param style
+ *              one of UDAT_FULL..UDAT_SHORT. Error if out of range.
+ * @param dateTimeFormat
+ *              the new dateTimeFormat to set for the the specified style
+ * @param length
+ *              the length of dateTimeFormat, or -1 if unknown and pattern
+ *              is null-terminated
+ * @param pErrorCode
+ *              a pointer to the UErrorCode (in/out parameter); if no failure
+ *              status is already set, it will be set according to result of the
+ *              function (e.g. U_ILLEGAL_ARGUMENT_ERROR for style out of range).
+ * @draft ICU 71
+ */
+U_CAPI void U_EXPORT2
+udatpg_setDateTimeFormatForStyle(UDateTimePatternGenerator *udtpg,
+                        UDateFormatStyle style,
+                        const UChar *dateTimeFormat, int32_t length,
+                        UErrorCode *pErrorCode);
+
+/**
+ * Getter corresponding to udatpg_setDateTimeFormatForStyle.
+ *
+ * @param udtpg
+ *              a pointer to the UDateTimePatternGenerator
+ * @param style
+ *              one of UDAT_FULL..UDAT_SHORT. Error if out of range.
+ * @param pLength
+ *              a pointer that will receive the length of the format. May be NULL
+ *              if length is not desired.
+ * @param pErrorCode
+ *              a pointer to the UErrorCode (in/out parameter); if no failure
+ *              status is already set, it will be set according to result of the
+ *              function (e.g. U_ILLEGAL_ARGUMENT_ERROR for style out of range).
+ * @return
+ *              pointer to the current dateTimeFormat (0 terminated) for the specified
+ *              style, or empty string in case of error. The pointer and its contents
+ *              may no longer be valid if udatpg_setDateTimeFormat is called, or
+ *              udatpg_setDateTimeFormatForStyle for the same style is called, or the
+ *              UDateTimePatternGenerator object is closed.
+ * @draft ICU 71
+ */
+U_CAPI const UChar* U_EXPORT2
+udatpg_getDateTimeFormatForStyle(const UDateTimePatternGenerator *udtpg,
+                        UDateFormatStyle style, int32_t *pLength,
+                        UErrorCode *pErrorCode);
+#endif /* U_HIDE_DRAFT_API */
+#endif /* #if !UCONFIG_NO_FORMATTING */
 
 /**
  * The decimal value is used in formatting fractions of seconds. If the

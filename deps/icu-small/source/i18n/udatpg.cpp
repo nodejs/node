@@ -210,12 +210,47 @@ udatpg_setDateTimeFormat(const UDateTimePatternGenerator *dtpg,
 U_CAPI const UChar * U_EXPORT2
 udatpg_getDateTimeFormat(const UDateTimePatternGenerator *dtpg,
                          int32_t *pLength) {
-    const UnicodeString &result=((const DateTimePatternGenerator *)dtpg)->getDateTimeFormat();
-    if(pLength!=NULL) {
+    UErrorCode status = U_ZERO_ERROR;
+    return udatpg_getDateTimeFormatForStyle(dtpg, UDAT_MEDIUM, pLength, &status);
+}
+
+U_CAPI void U_EXPORT2
+udatpg_setDateTimeFormatForStyle(UDateTimePatternGenerator *udtpg,
+                        UDateFormatStyle style,
+                        const UChar *dateTimeFormat, int32_t length,
+                        UErrorCode *pErrorCode) {
+    if (U_FAILURE(*pErrorCode)) {
+        return;
+    } else if (dateTimeFormat==nullptr) {
+        *pErrorCode = U_ILLEGAL_ARGUMENT_ERROR;
+        return;
+    }
+    DateTimePatternGenerator *dtpg = reinterpret_cast<DateTimePatternGenerator *>(udtpg);
+    UnicodeString dtFormatString((UBool)(length<0), dateTimeFormat, length);
+    dtpg->setDateTimeFormat(style, dtFormatString, *pErrorCode);
+}
+
+U_CAPI const UChar* U_EXPORT2
+udatpg_getDateTimeFormatForStyle(const UDateTimePatternGenerator *udtpg,
+                        UDateFormatStyle style, int32_t *pLength,
+                        UErrorCode *pErrorCode) {
+    static const UChar emptyString[] = { (UChar)0 };
+    if (U_FAILURE(*pErrorCode)) {
+        if (pLength !=nullptr) {
+            *pLength = 0;
+        }
+        return emptyString;
+    }
+    const DateTimePatternGenerator *dtpg = reinterpret_cast<const DateTimePatternGenerator *>(udtpg);
+    const UnicodeString &result = dtpg->getDateTimeFormat(style, *pErrorCode);
+    if (pLength != nullptr) {
         *pLength=result.length();
     }
+    // Note: The UnicodeString for the dateTimeFormat string in the DateTimePatternGenerator
+    // was NUL-terminated what it was set, to avoid doing it here which could re-allocate
+    // the buffe and affect and cont references to the string or its buffer.
     return result.getBuffer();
-}
+ }
 
 U_CAPI void U_EXPORT2
 udatpg_setDecimal(UDateTimePatternGenerator *dtpg,
