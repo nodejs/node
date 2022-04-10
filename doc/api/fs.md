@@ -613,7 +613,7 @@ The promise is resolved with an object containing two properties:
 
 It is unsafe to use `filehandle.write()` multiple times on the same file
 without waiting for the promise to be resolved (or rejected). For this
-scenario, use [`fs.createWriteStream()`][].
+scenario, use [`filehandle.createWriteStream()`][].
 
 On Linux, positional writes do not work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
@@ -648,7 +648,7 @@ The promise is resolved with an object containing two properties:
 
 It is unsafe to use `filehandle.write()` multiple times on the same file
 without waiting for the promise to be resolved (or rejected). For this
-scenario, use [`fs.createWriteStream()`][].
+scenario, use [`filehandle.createWriteStream()`][].
 
 On Linux, positional writes do not work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
@@ -1547,7 +1547,7 @@ without waiting for the promise to be settled.
 Similarly to `fsPromises.readFile` - `fsPromises.writeFile` is a convenience
 method that performs multiple `write` calls internally to write the buffer
 passed to it. For performance sensitive code consider using
-[`fs.createWriteStream()`][].
+[`fs.createWriteStream()`][] or [`filehandle.createWriteStream()`][].
 
 It is possible to use an {AbortSignal} to cancel an `fsPromises.writeFile()`.
 Cancelation is "best effort", and some amount of data is likely still
@@ -7471,6 +7471,7 @@ the file contents.
 [`ReadDirectoryChangesW`]: https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-readdirectorychangesw
 [`UV_THREADPOOL_SIZE`]: cli.md#uv_threadpool_sizesize
 [`event ports`]: https://illumos.org/man/port_create
+[`filehandle.createWriteStream()`]: #filehandlecreatewritestreamoptions
 [`filehandle.writeFile()`]: #filehandlewritefiledata-options
 [`fs.access()`]: #fsaccesspath-mode-callback
 [`fs.accessSync()`]: #fsaccesssyncpath-mode
