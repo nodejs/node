@@ -74,7 +74,7 @@ assert.deepStrictEqual(Intl.getCanonicalLocales(localesISO639), locales);
 
 
 // Tests with mocked env
-{
+if (!common.isOSX) {
   assert.strictEqual(
     isSet(zones.map((TZ) => runEnvOutside({ TZ }, 'new Date(333333333333).toString()'))),
     true
