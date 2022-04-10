@@ -112,8 +112,7 @@ ucasemap_setLocale(UCaseMap *csm, const char *locale, UErrorCode *pErrorCode) {
     if(length==sizeof(csm->locale)) {
         *pErrorCode=U_BUFFER_OVERFLOW_ERROR;
     }
-    if(U_SUCCESS(*pErrorCode)) {
-        csm->caseLocale=UCASE_LOC_UNKNOWN;
+    if(U_SUCCESS(*pErrorCode)) {     
         csm->caseLocale = ucase_getCaseLocale(csm->locale);
     } else {
         csm->locale[0]=0;
@@ -420,6 +419,97 @@ void toUpper(int32_t caseLocale, uint32_t options,
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
+namespace {
+
+constexpr uint8_t ACUTE_BYTE0 = u8"\u0301"[0];
+
+constexpr uint8_t ACUTE_BYTE1 = u8"\u0301"[1];
+
+/**
+ * Input: c is a letter I with or without acute accent.
+ * start is the index in src after c, and is less than segmentLimit.
+ * If a plain i/I is followed by a plain j/J,
+ * or an i/I with acute (precomposed or decomposed) is followed by a j/J with acute,
+ * then we output accordingly.
+ *
+ * @return the src index after the titlecased sequence, or the start index if no Dutch IJ
+ */
+int32_t maybeTitleDutchIJ(const uint8_t *src, UChar32 c, int32_t start, int32_t segmentLimit,
+                          ByteSink &sink, uint32_t options, icu::Edits *edits, UErrorCode &errorCode) {
+    U_ASSERT(start < segmentLimit);
+
+    int32_t index = start;
+    bool withAcute = false;
+
+    // If the conditions are met, then the following variables tell us what to output.
+    int32_t unchanged1 = 0;  // code units before the j, or the whole sequence (0..3)
+    bool doTitleJ = false;  // true if the j needs to be titlecased
+    int32_t unchanged2 = 0;  // after the j (0 or 1)
+
+    // next character after the first letter
+    UChar32 c2;
+    c2 = src[index++];
+
+    // Is the first letter an i/I with accent?
+    if (c == u'I') {
+        if (c2 == ACUTE_BYTE0 && index < segmentLimit && src[index++] == ACUTE_BYTE1) {
+            withAcute = true;
+            unchanged1 = 2;  // ACUTE is 2 code units in UTF-8
+            if (index == segmentLimit) { return start; }
+            c2 = src[index++];
+        }
+    } else {  // Í
+        withAcute = true;
+    }
+
+    // Is the next character a j/J?
+    if (c2 == u'j') {
+        doTitleJ = true;
+    } else if (c2 == u'J') {
+        ++unchanged1;
+    } else {
+        return start;
+    }
+
+    // A plain i/I must be followed by a plain j/J.
+    // An i/I with acute must be followed by a j/J with acute.
+    if (withAcute) {
+        if ((index + 1) >= segmentLimit || src[index++] != ACUTE_BYTE0 || src[index++] != ACUTE_BYTE1) {
+            return start;
+        }
+        if (doTitleJ) {
+            unchanged2 = 2;  // ACUTE is 2 code units in UTF-8
+        } else {
+            unchanged1 = unchanged1 + 2;    // ACUTE is 2 code units in UTF-8
+        }
+    }
+
+    // There must not be another combining mark.
+    if (index < segmentLimit) {
+        int32_t cp;
+        int32_t i = index;
+        U8_NEXT(src, i, segmentLimit, cp);
+        uint32_t typeMask = U_GET_GC_MASK(cp);
+        if ((typeMask & U_GC_M_MASK) != 0) {
+            return start;
+        }
+    }
+
+    // Output the rest of the Dutch IJ.
+    ByteSinkUtil::appendUnchanged(src + start, unchanged1, sink, options, edits, errorCode);
+    start += unchanged1;
+    if (doTitleJ) {
+        ByteSinkUtil::appendCodePoint(1, u'J', sink, edits);
+        ++start;
+    }
+    ByteSinkUtil::appendUnchanged(src + start, unchanged2, sink, options, edits, errorCode);
+
+    U_ASSERT(start + unchanged2 == index);
+    return index;
+}
+
+}  // namespace
+
 U_CFUNC void U_CALLCONV
 ucasemap_internalUTF8ToTitle(
         int32_t caseLocale, uint32_t options, BreakIterator *iter,
@@ -504,19 +594,14 @@ ucasemap_internalUTF8ToTitle(
                 }
 
                 /* Special case Dutch IJ titlecasing */
-                if (titleStart+1 < index &&
-                        caseLocale == UCASE_LOC_DUTCH &&
-                        (src[titleStart] == 0x0049 || src[titleStart] == 0x0069)) {
-                    if (src[titleStart+1] == 0x006A) {
-                        ByteSinkUtil::appendCodePoint(1, 0x004A, sink, edits);
-                        titleLimit++;
-                    } else if (src[titleStart+1] == 0x004A) {
-                        // Keep the capital J from getting lowercased.
-                        if (!ByteSinkUtil::appendUnchanged(src+titleStart+1, 1,
-                                                           sink, options, edits, errorCode)) {
-                            return;
-                        }
-                        titleLimit++;
+                if (titleLimit < index &&
+                    caseLocale == UCASE_LOC_DUTCH) {
+                    if (c < 0) {
+                        c = ~c;
+                    }
+
+                    if (c == u'I' || c == u'Í') {
+                        titleLimit = maybeTitleDutchIJ(src, c, titleLimit, index, sink, options, edits, errorCode);
                     }
                 }
 

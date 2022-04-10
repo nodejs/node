@@ -965,14 +965,20 @@ DateIntervalFormat::normalizeHourMetacharacters(const UnicodeString& skeleton) c
     UnicodeString result = skeleton;
     
     UChar hourMetachar = u'\0';
+    UChar dayPeriodChar = u'\0';
     int32_t metacharStart = 0;
     int32_t metacharCount = 0;
     for (int32_t i = 0; i < result.length(); i++) {
         UChar c = result[i];
-        if (c == LOW_J || c == CAP_J || c == CAP_C) {
+        if (c == LOW_J || c == CAP_J || c == CAP_C || c == LOW_H || c == CAP_H || c == LOW_K || c == CAP_K) {
             if (hourMetachar == u'\0') {
                 hourMetachar = c;
                 metacharStart = i;
+            }
+            ++metacharCount;
+        } else if (c == LOW_A || c == LOW_B || c == CAP_B) {
+            if (dayPeriodChar == u'\0') {
+                dayPeriodChar = c;
             }
             ++metacharCount;
         } else {
@@ -985,7 +991,6 @@ DateIntervalFormat::normalizeHourMetacharacters(const UnicodeString& skeleton) c
     if (hourMetachar != u'\0') {
         UErrorCode err = U_ZERO_ERROR;
         UChar hourChar = CAP_H;
-        UChar dayPeriodChar = LOW_A;
         UnicodeString convertedPattern = DateFormat::getBestPattern(fLocale, UnicodeString(hourMetachar), err);
 
         if (U_SUCCESS(err)) {
@@ -1012,6 +1017,8 @@ DateIntervalFormat::normalizeHourMetacharacters(const UnicodeString& skeleton) c
                 dayPeriodChar = LOW_B;
             } else if (convertedPattern.indexOf(CAP_B) != -1) {
                 dayPeriodChar = CAP_B;
+            } else if (dayPeriodChar == u'\0') {
+                dayPeriodChar = LOW_A;
             }
         }
         

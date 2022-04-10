@@ -2496,15 +2496,18 @@ void CanonIterData::addToStartSet(UChar32 origin, UChar32 decompLead, UErrorCode
         // origin is not the first character, or it is U+0000.
         UnicodeSet *set;
         if((canonValue&CANON_HAS_SET)==0) {
-            set=new UnicodeSet;
-            if(set==NULL) {
-                errorCode=U_MEMORY_ALLOCATION_ERROR;
+            LocalPointer<UnicodeSet> lpSet(new UnicodeSet, errorCode);
+            set=lpSet.getAlias();
+            if(U_FAILURE(errorCode)) {
                 return;
             }
             UChar32 firstOrigin=(UChar32)(canonValue&CANON_VALUE_MASK);
             canonValue=(canonValue&~CANON_VALUE_MASK)|CANON_HAS_SET|(uint32_t)canonStartSets.size();
             umutablecptrie_set(mutableTrie, decompLead, canonValue, &errorCode);
-            canonStartSets.addElementX(set, errorCode);
+            canonStartSets.adoptElement(lpSet.orphan(), errorCode);
+            if (U_FAILURE(errorCode)) {
+                return;
+            }
             if(firstOrigin!=0) {
                 set->add(firstOrigin);
             }
