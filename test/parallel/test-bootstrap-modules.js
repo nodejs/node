@@ -99,6 +99,7 @@ const expectedModules = new Set([
   'NativeModule internal/perf/performance',
   'NativeModule internal/perf/timerify',
   'NativeModule internal/perf/usertiming',
+  'NativeModule internal/perf/resource_timing',
   'NativeModule internal/perf/utils',
   'NativeModule internal/priority_queue',
   'NativeModule internal/process/esm_loader',
