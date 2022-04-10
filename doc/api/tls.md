@@ -978,10 +978,10 @@ property is set only when `tlsSocket.authorized === false`.
 added: v0.11.4
 -->
 
-* Returns: {boolean}
+* {boolean}
 
-Returns `true` if the peer certificate was signed by one of the CAs specified
-when creating the `tls.TLSSocket` instance, otherwise `false`.
+This property is `true` if the peer certificate was signed by one of the CAs
+specified when creating the `tls.TLSSocket` instance, otherwise `false`.
 
 ### `tlsSocket.disableRenegotiation()`
 
