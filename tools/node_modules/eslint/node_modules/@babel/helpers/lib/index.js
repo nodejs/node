@@ -20,10 +20,8 @@ const {
   assignmentExpression,
   cloneNode,
   expressionStatement,
-  file: t_file,
-  identifier,
-  variableDeclaration,
-  variableDeclarator
+  file,
+  identifier
 } = _t;
 
 function makePath(path) {
@@ -37,7 +35,7 @@ function makePath(path) {
   return parts.reverse().join(".");
 }
 
-let fileClass = undefined;
+let FileClass = undefined;
 
 function getHelperMetadata(file) {
   const globals = new Set();
@@ -68,14 +66,11 @@ function getHelperMetadata(file) {
     ExportDefaultDeclaration(child) {
       const decl = child.get("declaration");
 
-      if (decl.isFunctionDeclaration()) {
-        if (!decl.node.id) {
-          throw decl.buildCodeFrameError("Helpers should give names to their exported func declaration");
-        }
-
-        exportName = decl.node.id.name;
+      if (!decl.isFunctionDeclaration() || !decl.node.id) {
+        throw decl.buildCodeFrameError("Helpers can only export named function declarations");
       }
 
+      exportName = decl.node.id.name;
       exportPath = makePath(child);
     },
 
@@ -132,7 +127,7 @@ function getHelperMetadata(file) {
   };
   (0, _traverse.default)(file.ast, dependencyVisitor, file.scope);
   (0, _traverse.default)(file.ast, referenceVisitor, file.scope);
-  if (!exportPath) throw new Error("Helpers must default-export something.");
+  if (!exportPath) throw new Error("Helpers must have a default export.");
   exportBindingAssignments.reverse();
   return {
     globals: Array.from(globals),
@@ -179,50 +174,37 @@ function permuteHelperAST(file, metadata, id, localBindings, getDependency) {
     toRename[exportName] = id.name;
   }
 
-  const visitor = {
-    Program(path) {
-      const exp = path.get(exportPath);
-      const imps = importPaths.map(p => path.get(p));
-      const impsBindingRefs = importBindingsReferences.map(p => path.get(p));
-      const decl = exp.get("declaration");
+  const {
+    path
+  } = file;
+  const exp = path.get(exportPath);
+  const imps = importPaths.map(p => path.get(p));
+  const impsBindingRefs = importBindingsReferences.map(p => path.get(p));
+  const decl = exp.get("declaration");
 
-      if (id.type === "Identifier") {
-        if (decl.isFunctionDeclaration()) {
-          exp.replaceWith(decl);
-        } else {
-          exp.replaceWith(variableDeclaration("var", [variableDeclarator(id, decl.node)]));
-        }
-      } else if (id.type === "MemberExpression") {
-        if (decl.isFunctionDeclaration()) {
-          exportBindingAssignments.forEach(assignPath => {
-            const assign = path.get(assignPath);
-            assign.replaceWith(assignmentExpression("=", id, assign.node));
-          });
-          exp.replaceWith(decl);
-          path.pushContainer("body", expressionStatement(assignmentExpression("=", id, identifier(exportName))));
-        } else {
-          exp.replaceWith(expressionStatement(assignmentExpression("=", id, decl.node)));
-        }
-      } else {
-        throw new Error("Unexpected helper format.");
-      }
+  if (id.type === "Identifier") {
+    exp.replaceWith(decl);
+  } else if (id.type === "MemberExpression") {
+    exportBindingAssignments.forEach(assignPath => {
+      const assign = path.get(assignPath);
+      assign.replaceWith(assignmentExpression("=", id, assign.node));
+    });
+    exp.replaceWith(decl);
+    path.pushContainer("body", expressionStatement(assignmentExpression("=", id, identifier(exportName))));
+  } else {
+    throw new Error("Unexpected helper format.");
+  }
 
-      Object.keys(toRename).forEach(name => {
-        path.scope.rename(name, toRename[name]);
-      });
+  Object.keys(toRename).forEach(name => {
+    path.scope.rename(name, toRename[name]);
+  });
 
-      for (const path of imps) path.remove();
+  for (const path of imps) path.remove();
 
-      for (const path of impsBindingRefs) {
-        const node = cloneNode(dependenciesRefs[path.node.name]);
-        path.replaceWith(node);
-      }
-
-      path.stop();
-    }
-
-  };
-  (0, _traverse.default)(file.ast, visitor, file.scope);
+  for (const path of impsBindingRefs) {
+    const node = cloneNode(dependenciesRefs[path.node.name]);
+    path.replaceWith(node);
+  }
 }
 
 const helperData = Object.create(null);
@@ -239,23 +221,34 @@ function loadHelper(name) {
     }
 
     const fn = () => {
-      const file = {
-        ast: t_file(helper.ast())
-      };
-
-      if (fileClass) {
-        return new fileClass({
-          filename: `babel-helper://${name}`
-        }, file);
+      {
+        if (!FileClass) {
+          const fakeFile = {
+            ast: file(helper.ast()),
+            path: null
+          };
+          (0, _traverse.default)(fakeFile.ast, {
+            Program: path => (fakeFile.path = path).stop()
+          });
+          return fakeFile;
+        }
       }
-
-      return file;
+      return new FileClass({
+        filename: `babel-helper://${name}`
+      }, {
+        ast: file(helper.ast()),
+        code: "[internal Babel helper code]",
+        inputMap: null
+      });
     };
 
-    const metadata = getHelperMetadata(fn());
+    let metadata = null;
     helperData[name] = {
+      minVersion: helper.minVersion,
+
       build(getDependency, id, localBindings) {
         const file = fn();
+        metadata || (metadata = getHelperMetadata(file));
         permuteHelperAST(file, metadata, id, localBindings, getDependency);
         return {
           nodes: file.ast.program.body,
@@ -263,11 +256,11 @@ function loadHelper(name) {
         };
       },
 
-      minVersion() {
-        return helper.minVersion;
-      },
+      getDependencies() {
+        metadata || (metadata = getHelperMetadata(fn()));
+        return Array.from(metadata.dependencies.values());
+      }
 
-      dependencies: metadata.dependencies
     };
   }
 
@@ -279,18 +272,15 @@ function get(name, getDependency, id, localBindings) {
 }
 
 function minVersion(name) {
-  return loadHelper(name).minVersion();
+  return loadHelper(name).minVersion;
 }
 
 function getDependencies(name) {
-  return Array.from(loadHelper(name).dependencies.values());
+  return loadHelper(name).getDependencies();
 }
 
 function ensure(name, newFileClass) {
-  if (!fileClass) {
-    fileClass = newFileClass;
-  }
-
+  FileClass || (FileClass = newFileClass);
   loadHelper(name);
 }
 

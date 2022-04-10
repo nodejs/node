@@ -81,7 +81,7 @@ function descriptorToConfig(d) {
     if (typeof d.value === "object") {
       name = d.value;
     } else if (typeof d.value === "function") {
-      name = `[Function: ${d.value.toString().substr(0, 50)} ... ]`;
+      name = `[Function: ${d.value.toString().slice(0, 50)} ... ]`;
     }
   }
 
