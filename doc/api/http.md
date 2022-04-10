@@ -2655,11 +2655,13 @@ it inherits from `Stream`.
 
 The User should not call this function directly.
 
-### `outgoingMessage.removeHeader()`
+### `outgoingMessage.removeHeader(name)`
 
 <!-- YAML
-added:  v0.4.0
+added: v0.4.0
 -->
+
+* `name` {string} Header name
 
 Removes a header that is queued for implicit sending.
 
