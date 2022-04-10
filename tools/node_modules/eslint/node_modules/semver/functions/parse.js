@@ -1,4 +1,4 @@
-const {MAX_LENGTH} = require('../internal/constants')
+const { MAX_LENGTH } = require('../internal/constants')
 const { re, t } = require('../internal/re')
 const SemVer = require('../classes/semver')
 
