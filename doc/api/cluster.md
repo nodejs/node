@@ -477,7 +477,7 @@ worker.kill();
 added: v0.8.0
 -->
 
-* {number}
+* {integer}
 
 Each new worker is given its own unique id, this id is stored in the
 `id`.
