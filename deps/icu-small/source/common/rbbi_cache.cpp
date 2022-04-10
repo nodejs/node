@@ -163,7 +163,7 @@ void RuleBasedBreakIterator::DictionaryCache::populateDictionary(int32_t startPo
         // Ask the language object if there are any breaks. It will add them to the cache and
         // leave the text pointer on the other side of its range, ready to search for the next one.
         if (lbe != NULL) {
-            foundBreakCount += lbe->findBreaks(text, rangeStart, rangeEnd, fBreaks, status);
+            foundBreakCount += lbe->findBreaks(text, rangeStart, rangeEnd, fBreaks, fBI->fIsPhraseBreaking, status);
         }
 
         // Reload the loop variables for the next go-round

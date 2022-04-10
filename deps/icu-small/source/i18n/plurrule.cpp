@@ -1548,14 +1548,9 @@ PluralKeywordEnumeration::PluralKeywordEnumeration(RuleChain *header, UErrorCode
     UBool  addKeywordOther = TRUE;
     RuleChain *node = header;
     while (node != nullptr) {
-        auto newElem = new UnicodeString(node->fKeyword);
-        if (newElem == nullptr) {
-            status = U_MEMORY_ALLOCATION_ERROR;
-            return;
-        }
-        fKeywordNames.addElementX(newElem, status);
+        LocalPointer<UnicodeString> newElem(node->fKeyword.clone(), status);
+        fKeywordNames.adoptElement(newElem.orphan(), status);
         if (U_FAILURE(status)) {
-            delete newElem;
             return;
         }
         if (0 == node->fKeyword.compare(PLURAL_KEYWORD_OTHER, 5)) {
@@ -1565,14 +1560,9 @@ PluralKeywordEnumeration::PluralKeywordEnumeration(RuleChain *header, UErrorCode
     }
 
     if (addKeywordOther) {
-        auto newElem = new UnicodeString(PLURAL_KEYWORD_OTHER);
-        if (newElem == nullptr) {
-            status = U_MEMORY_ALLOCATION_ERROR;
-            return;
-        }
-        fKeywordNames.addElementX(newElem, status);
+        LocalPointer<UnicodeString> newElem(new UnicodeString(PLURAL_KEYWORD_OTHER), status);
+        fKeywordNames.adoptElement(newElem.orphan(), status);
         if (U_FAILURE(status)) {
-            delete newElem;
             return;
         }
     }
@@ -1628,7 +1618,7 @@ FixedDecimal::FixedDecimal(double n, int32_t v, int64_t f, int32_t e) {
     init(n, v, f, e);
     // check values. TODO make into unit test.
     //            
-    //            long visiblePower = (int) Math.pow(10, v);
+    //            long visiblePower = (int) Math.pow(10.0, v);
     //            if (decimalDigits > visiblePower) {
     //                throw new IllegalArgumentException();
     //            }
@@ -1881,7 +1871,7 @@ void FixedDecimal::adjustForMinFractionDigits(int32_t minFractionDigits) {
 
 double FixedDecimal::getPluralOperand(PluralOperand operand) const {
     switch(operand) {
-        case PLURAL_OPERAND_N: return (exponent == 0 ? source : source * pow(10, exponent));
+        case PLURAL_OPERAND_N: return (exponent == 0 ? source : source * pow(10.0, exponent));
         case PLURAL_OPERAND_I: return (double) longValue();
         case PLURAL_OPERAND_F: return static_cast<double>(decimalDigits);
         case PLURAL_OPERAND_T: return static_cast<double>(decimalDigitsWithoutTrailingZeros);
@@ -1932,14 +1922,14 @@ UnicodeString FixedDecimal::toString() const {
 }
 
 double FixedDecimal::doubleValue() const {
-    return (isNegative ? -source : source) * pow(10, exponent);
+    return (isNegative ? -source : source) * pow(10.0, exponent);
 }
 
 int64_t FixedDecimal::longValue() const {
     if (exponent == 0) {
         return intValue;
     } else {
-        return (long) (pow(10, exponent) * intValue);
+        return (long) (pow(10.0, exponent) * intValue);
     }
 }
 
