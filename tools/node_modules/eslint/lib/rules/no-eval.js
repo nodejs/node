@@ -72,15 +72,18 @@ module.exports = {
         let funcInfo = null;
 
         /**
-         * Pushs a variable scope (Program or Function) information to the stack.
+         * Pushs a `this` scope (non-arrow function, class static block, or class field initializer) information to the stack.
+         * Top-level scopes are handled separately.
          *
          * This is used in order to check whether or not `this` binding is a
          * reference to the global object.
-         * @param {ASTNode} node A node of the scope. This is one of Program,
-         *      FunctionDeclaration, FunctionExpression, and ArrowFunctionExpression.
+         * @param {ASTNode} node A node of the scope.
+         *      For functions, this is one of FunctionDeclaration, FunctionExpression.
+         *      For class static blocks, this is StaticBlock.
+         *      For class field initializers, this can be any node that is PropertyDefinition#value.
          * @returns {void}
          */
-        function enterVarScope(node) {
+        function enterThisScope(node) {
             const strict = context.getScope().isStrict;
 
             funcInfo = {
@@ -97,7 +100,7 @@ module.exports = {
          * Pops a variable scope from the stack.
          * @returns {void}
          */
-        function exitVarScope() {
+        function exitThisScope() {
             funcInfo = funcInfo.upper;
         }
 
@@ -239,21 +242,19 @@ module.exports = {
             "Program:exit"() {
                 const globalScope = context.getScope();
 
-                exitVarScope();
+                exitThisScope();
                 reportAccessingEval(globalScope);
                 reportAccessingEvalViaGlobalObject(globalScope);
             },
 
-            FunctionDeclaration: enterVarScope,
-            "FunctionDeclaration:exit": exitVarScope,
-            FunctionExpression: enterVarScope,
-            "FunctionExpression:exit": exitVarScope,
-            ArrowFunctionExpression: enterVarScope,
-            "ArrowFunctionExpression:exit": exitVarScope,
-            "PropertyDefinition > *.value": enterVarScope,
-            "PropertyDefinition > *.value:exit": exitVarScope,
-            StaticBlock: enterVarScope,
-            "StaticBlock:exit": exitVarScope,
+            FunctionDeclaration: enterThisScope,
+            "FunctionDeclaration:exit": exitThisScope,
+            FunctionExpression: enterThisScope,
+            "FunctionExpression:exit": exitThisScope,
+            "PropertyDefinition > *.value": enterThisScope,
+            "PropertyDefinition > *.value:exit": exitThisScope,
+            StaticBlock: enterThisScope,
+            "StaticBlock:exit": exitThisScope,
 
             ThisExpression(node) {
                 if (!isMember(node.parent, "eval")) {
