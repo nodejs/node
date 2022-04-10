@@ -229,30 +229,27 @@ GNameSearchHandler::handleMatch(int32_t matchLength, const CharacterNode *node, 
             if ((nameinfo->type & fTypes) != 0) {
                 // matches a requested type
                 if (fResults == NULL) {
-                    fResults = new UVector(uprv_free, NULL, status);
-                    if (fResults == NULL) {
-                        status = U_MEMORY_ALLOCATION_ERROR;
+                    LocalPointer<UVector> lpResults(new UVector(uprv_free, NULL, status), status);
+                    if (U_FAILURE(status)) {
+                        return false;
                     }
+                    fResults = lpResults.orphan();
                 }
-                if (U_SUCCESS(status)) {
-                    U_ASSERT(fResults != NULL);
-                    GMatchInfo *gmatch = (GMatchInfo *)uprv_malloc(sizeof(GMatchInfo));
-                    if (gmatch == NULL) {
-                        status = U_MEMORY_ALLOCATION_ERROR;
-                    } else {
-                        // add the match to the vector
-                        gmatch->gnameInfo = nameinfo;
-                        gmatch->matchLength = matchLength;
-                        gmatch->timeType = UTZFMT_TIME_TYPE_UNKNOWN;
-                        fResults->addElementX(gmatch, status);
-                        if (U_FAILURE(status)) {
-                            uprv_free(gmatch);
-                        } else {
-                            if (matchLength > fMaxMatchLen) {
-                                fMaxMatchLen = matchLength;
-                            }
-                        }
-                    }
+                GMatchInfo *gmatch = (GMatchInfo *)uprv_malloc(sizeof(GMatchInfo));
+                if (gmatch == NULL) {
+                    status = U_MEMORY_ALLOCATION_ERROR;
+                    return false;
+                }
+                // add the match to the vector
+                gmatch->gnameInfo = nameinfo;
+                gmatch->matchLength = matchLength;
+                gmatch->timeType = UTZFMT_TIME_TYPE_UNKNOWN;
+                fResults->adoptElement(gmatch, status);
+                if (U_FAILURE(status)) {
+                    return false;
+                }
+                if (matchLength > fMaxMatchLen) {
+                    fMaxMatchLen = matchLength;
                 }
             }
         }

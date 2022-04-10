@@ -148,19 +148,29 @@ CharacterNode::addValue(void *value, UObjectDeleter *valueDeleter, UErrorCode &s
         if (!fHasValuesVector) {
             // There is only one value so far, and not in a vector yet.
             // Create a vector and add the old value.
-            UVector *values = new UVector(valueDeleter, NULL, DEFAULT_CHARACTERNODE_CAPACITY, status);
+            LocalPointer<UVector> values(
+                new UVector(valueDeleter, NULL, DEFAULT_CHARACTERNODE_CAPACITY, status), status);
             if (U_FAILURE(status)) {
                 if (valueDeleter) {
                     valueDeleter(value);
                 }
                 return;
             }
-            values->addElementX(fValues, status);
-            fValues = values;
+            if (values->hasDeleter()) {
+                values->adoptElement(fValues, status);
+            } else {
+                values->addElement(fValues, status);
+            }
+            fValues = values.orphan();
             fHasValuesVector = TRUE;
         }
         // Add the new value.
-        ((UVector *)fValues)->addElementX(value, status);
+        UVector *values = (UVector *)fValues;
+        if (values->hasDeleter()) {
+            values->adoptElement(value, status);
+        } else {
+            values->addElement(value, status);
+        }
     }
 }
 
@@ -219,10 +229,8 @@ void
 TextTrieMap::put(const UChar *key, void *value, UErrorCode &status) {
     fIsEmpty = FALSE;
     if (fLazyContents == NULL) {
-        fLazyContents = new UVector(status);
-        if (fLazyContents == NULL) {
-            status = U_MEMORY_ALLOCATION_ERROR;
-        }
+        LocalPointer<UVector> lpLazyContents(new UVector(status), status);
+        fLazyContents = lpLazyContents.orphan();
     }
     if (U_FAILURE(status)) {
         if (fValueDeleter) {
@@ -233,7 +241,7 @@ TextTrieMap::put(const UChar *key, void *value, UErrorCode &status) {
     U_ASSERT(fLazyContents != NULL);
 
     UChar *s = const_cast<UChar *>(key);
-    fLazyContents->addElementX(s, status);
+    fLazyContents->addElement(s, status);
     if (U_FAILURE(status)) {
         if (fValueDeleter) {
             fValueDeleter((void*) key);
@@ -241,7 +249,7 @@ TextTrieMap::put(const UChar *key, void *value, UErrorCode &status) {
         return;
     }
 
-    fLazyContents->addElementX(value, status);
+    fLazyContents->addElement(value, status);
 }
 
 void
@@ -854,7 +862,7 @@ class MetaZoneIDsEnumeration : public StringEnumeration {
 public:
     MetaZoneIDsEnumeration();
     MetaZoneIDsEnumeration(const UVector& mzIDs);
-    MetaZoneIDsEnumeration(UVector* mzIDs);
+    MetaZoneIDsEnumeration(LocalPointer<UVector> mzIDs);
     virtual ~MetaZoneIDsEnumeration();
     static UClassID U_EXPORT2 getStaticClassID(void);
     virtual UClassID getDynamicClassID(void) const override;
@@ -865,7 +873,7 @@ private:
     int32_t fLen;
     int32_t fPos;
     const UVector* fMetaZoneIDs;
-    UVector *fLocalVector;
+    LocalPointer<UVector> fLocalVector;
 };
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(MetaZoneIDsEnumeration)
@@ -879,8 +887,9 @@ MetaZoneIDsEnumeration::MetaZoneIDsEnumeration(const UVector& mzIDs)
     fLen = fMetaZoneIDs->size();
 }
 
-MetaZoneIDsEnumeration::MetaZoneIDsEnumeration(UVector *mzIDs)
-: fLen(0), fPos(0), fMetaZoneIDs(mzIDs), fLocalVector(mzIDs) {
+MetaZoneIDsEnumeration::MetaZoneIDsEnumeration(LocalPointer<UVector> mzIDs)
+: fLen(0), fPos(0), fMetaZoneIDs(nullptr), fLocalVector(std::move(mzIDs)) {
+    fMetaZoneIDs = fLocalVector.getAlias();
     if (fMetaZoneIDs) {
         fLen = fMetaZoneIDs->size();
     }
@@ -906,9 +915,6 @@ MetaZoneIDsEnumeration::count(UErrorCode& /*status*/) const {
 }
 
 MetaZoneIDsEnumeration::~MetaZoneIDsEnumeration() {
-    if (fLocalVector) {
-        delete fLocalVector;
-    }
 }
 
 
@@ -1153,28 +1159,23 @@ TimeZoneNamesImpl::_getAvailableMetaZoneIDs(const UnicodeString& tzID, UErrorCod
         return new MetaZoneIDsEnumeration();
     }
 
-    MetaZoneIDsEnumeration *senum = NULL;
-    UVector* mzIDs = new UVector(NULL, uhash_compareUChars, status);
-    if (mzIDs == NULL) {
-        status = U_MEMORY_ALLOCATION_ERROR;
-    }
+    LocalPointer<MetaZoneIDsEnumeration> senum;
+    LocalPointer<UVector> mzIDs(new UVector(NULL, uhash_compareUChars, status), status);
     if (U_SUCCESS(status)) {
-        U_ASSERT(mzIDs != NULL);
+        U_ASSERT(mzIDs.isValid());
         for (int32_t i = 0; U_SUCCESS(status) && i < mappings->size(); i++) {
 
             OlsonToMetaMappingEntry *map = (OlsonToMetaMappingEntry *)mappings->elementAt(i);
             const UChar *mzID = map->mzid;
             if (!mzIDs->contains((void *)mzID)) {
-                mzIDs->addElementX((void *)mzID, status);
+                mzIDs->addElement((void *)mzID, status);
             }
         }
         if (U_SUCCESS(status)) {
-            senum = new MetaZoneIDsEnumeration(mzIDs);
-        } else {
-            delete mzIDs;
+            senum.adoptInsteadAndCheckErrorCode(new MetaZoneIDsEnumeration(std::move(mzIDs)), status);
         }
     }
-    return senum;
+    return U_SUCCESS(status) ? senum.orphan() : nullptr;
 }
 
 UnicodeString&

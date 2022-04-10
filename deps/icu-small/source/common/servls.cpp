@@ -179,7 +179,8 @@ private:
 
             length = other._ids.size();
             for(i = 0; i < length; ++i) {
-                _ids.addElementX(((UnicodeString *)other._ids.elementAt(i))->clone(), status);
+                LocalPointer<UnicodeString> clonedId(((UnicodeString *)other._ids.elementAt(i))->clone(), status);
+                _ids.adoptElement(clonedId.orphan(), status);
             }
 
             if(U_SUCCESS(status)) {

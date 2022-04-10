@@ -431,13 +431,33 @@ void getMeasureData(const Locale &locale,
     subKey.append(unit.getType(), status);
     subKey.append("/", status);
 
+    // Check if unitSubType is an alias or not.
+    LocalUResourceBundlePointer aliasBundle(ures_open(U_ICUDATA_ALIAS, "metadata", &status));
+
+    UErrorCode aliasStatus = status;
+    StackUResourceBundle aliasFillIn;
+    CharString aliasKey;
+    aliasKey.append("alias/unit/", aliasStatus);
+    aliasKey.append(unit.getSubtype(), aliasStatus);
+    aliasKey.append("/replacement", aliasStatus);
+    ures_getByKeyWithFallback(aliasBundle.getAlias(), aliasKey.data(), aliasFillIn.getAlias(),
+                              &aliasStatus);
+    CharString unitSubType;
+    if (!U_FAILURE(aliasStatus)) {
+        // This means the subType is an alias. Then, replace unitSubType with the replacement.
+        auto replacement = ures_getUnicodeString(aliasFillIn.getAlias(), &status);
+        unitSubType.appendInvariantChars(replacement, status);
+    } else {
+        unitSubType.append(unit.getSubtype(), status);
+    }
+
     // Map duration-year-person, duration-week-person, etc. to duration-year, duration-week, ...
     // TODO(ICU-20400): Get duration-*-person data properly with aliases.
-    int32_t subtypeLen = static_cast<int32_t>(uprv_strlen(unit.getSubtype()));
-    if (subtypeLen > 7 && uprv_strcmp(unit.getSubtype() + subtypeLen - 7, "-person") == 0) {
-        subKey.append({unit.getSubtype(), subtypeLen - 7}, status);
+    int32_t subtypeLen = static_cast<int32_t>(uprv_strlen(unitSubType.data()));
+    if (subtypeLen > 7 && uprv_strcmp(unitSubType.data() + subtypeLen - 7, "-person") == 0) {
+        subKey.append({unitSubType.data(), subtypeLen - 7}, status);
     } else {
-        subKey.append({unit.getSubtype(), subtypeLen}, status);
+        subKey.append({unitSubType.data(), subtypeLen}, status);
     }
 
     if (width != UNUM_UNIT_WIDTH_FULL_NAME) {
