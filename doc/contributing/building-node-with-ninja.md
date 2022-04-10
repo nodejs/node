@@ -22,14 +22,14 @@ ninja: Entering directory `out/Release`
 
 The bottom line will change while building, showing the progress as
 `[finished/total]` build steps. This is useful output that `make` does not
-produce and is one of the benefits of using Ninja. Also, Ninja will likely
-compile much faster than even `make -j4` (or
-`-j<number of processor threads on your machine>`). You can still pass the
-number of processes to run for [Ninja][] using the environment variable `JOBS`.
-This will be the equivalent to the `-j` parameter in the regular `make`:
+produce and is one of the benefits of using Ninja. When using Ninja builds
+are always run in parallel, based by default on the number of CPUs your
+system has, you can also use the `-j` parameter if you don't want to use
+all the CPU. This will be the equivalent to the `-j` parameter in the
+regular `make`:
 
 ```bash
-JOBS=12 make
+make -j [number]
 ```
 
 ## Producing a debug build
