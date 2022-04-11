@@ -71,6 +71,20 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   assert(rl instanceof readline.Interface);
 }
 
+{
+  const fi = new FakeInput();
+  const completer = (line) => [[], line];
+  const rli = new readline.Interface(
+    fi,
+    fi,
+    common.mustCallAtLeast(completer),
+    true,
+  );
+  assert(rli instanceof readline.Interface);
+  fi.emit('data', 'a\t');
+  rli.close();
+}
+
 [
   undefined,
   50,
