@@ -7,7 +7,7 @@
 
 #include "libplatform/libplatform.h"
 #include "node_internals.h"
-#include "node_snapshotable.h"
+#include "node_snapshot_builder.h"
 #include "util-inl.h"
 #include "v8.h"
 
