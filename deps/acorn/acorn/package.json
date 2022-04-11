@@ -16,7 +16,7 @@
     ],
     "./package.json": "./package.json"
   },
-  "version": "8.6.0",
+  "version": "8.7.0",
   "engines": {"node": ">=0.4.0"},
   "maintainers": [
     {
@@ -40,7 +40,7 @@
   },
   "license": "MIT",
   "scripts": {
-    "prepare": "cd ..; npm run build:main && npm run build:bin"
+    "prepare": "cd ..; npm run build:main"
   },
   "bin": {"acorn": "./bin/acorn"}
 }
