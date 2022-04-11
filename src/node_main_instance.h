@@ -65,11 +65,6 @@ class NodeMainInstance {
   DeleteFnPtr<Environment, FreeEnvironment> CreateMainEnvironment(
       int* exit_code);
 
-  // If nullptr is returned, the binary is not built with embedded
-  // snapshot.
-  static const SnapshotData* GetEmbeddedSnapshotData();
-  static const std::vector<intptr_t>& CollectExternalReferences();
-
   static const size_t kNodeContextIndex = 0;
   NodeMainInstance(const NodeMainInstance&) = delete;
   NodeMainInstance& operator=(const NodeMainInstance&) = delete;
