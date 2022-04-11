@@ -76,7 +76,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   const rli = new readline.Interface(
     fi,
     fi,
-    common.mustCallAtLeast((line) => [[], line]),
+    common.mustCall((line) => [[], line]),
     true,
   );
   assert(rli instanceof readline.Interface);
