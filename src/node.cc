@@ -1171,7 +1171,7 @@ int Start(int argc, char** argv) {
     bool use_node_snapshot =
         per_process::cli_options->per_isolate->node_snapshot;
     const SnapshotData* snapshot_data =
-        use_node_snapshot ? NodeMainInstance::GetEmbeddedSnapshotData()
+        use_node_snapshot ? SnapshotBuilder::GetEmbeddedSnapshotData()
                           : nullptr;
     uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
 

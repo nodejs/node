@@ -5,6 +5,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "base_object.h"
+#include "node_mutex.h"
 #include "util.h"
 
 namespace node {
@@ -12,6 +13,7 @@ namespace node {
 class Environment;
 struct EnvSerializeInfo;
 struct SnapshotData;
+class ExternalReferenceRegistry;
 
 #define SERIALIZABLE_OBJECT_TYPES(V)                                           \
   V(fs_binding_data, fs::BindingData)                                          \
@@ -132,6 +134,19 @@ class SnapshotBuilder {
   static void Generate(SnapshotData* out,
                        const std::vector<std::string> args,
                        const std::vector<std::string> exec_args);
+
+  // If nullptr is returned, the binary is not built with embedded
+  // snapshot.
+  static const SnapshotData* GetEmbeddedSnapshotData();
+  static void InitializeIsolateParams(const SnapshotData* data,
+                                      v8::Isolate::CreateParams* params);
+
+ private:
+  static const std::vector<intptr_t>& CollectExternalReferences();
+
+  // Used to synchronize access to the snapshot data
+  static Mutex snapshot_data_mutex_;
+  static std::unique_ptr<ExternalReferenceRegistry> registry_;
 };
 }  // namespace node
 
