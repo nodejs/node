@@ -25,8 +25,8 @@
 
 #include "debug_utils-inl.h"
 #include "env-inl.h"
-#include "memory_tracker-inl.h"
 #include "histogram-inl.h"
+#include "memory_tracker-inl.h"
 #include "node_binding.h"
 #include "node_errors.h"
 #include "node_internals.h"
@@ -38,6 +38,7 @@
 #include "node_process-inl.h"
 #include "node_report.h"
 #include "node_revert.h"
+#include "node_snapshot_builder.h"
 #include "node_v8_platform-inl.h"
 #include "node_version.h"
 
@@ -1171,7 +1172,7 @@ int Start(int argc, char** argv) {
     bool use_node_snapshot =
         per_process::cli_options->per_isolate->node_snapshot;
     const SnapshotData* snapshot_data =
-        use_node_snapshot ? NodeMainInstance::GetEmbeddedSnapshotData()
+        use_node_snapshot ? SnapshotBuilder::GetEmbeddedSnapshotData()
                           : nullptr;
     uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
 
