@@ -2565,7 +2565,7 @@ exist in message, it will be `undefined`.
 ### `outgoingMessage.getHeaderNames()`
 
 <!-- YAML
-added: v8.0.0
+added: v7.7.0
 -->
 
 * Returns {string\[]}
@@ -2576,7 +2576,7 @@ names are lowercase.
 ### `outgoingMessage.getHeaders()`
 
 <!-- YAML
-added:  v8.0.0
+added: v7.7.0
 -->
 
 * Returns: {Object}
@@ -2603,7 +2603,7 @@ const headers = outgoingMessage.getHeaders();
 ### `outgoingMessage.hasHeader(name)`
 
 <!-- YAML
-added:  v8.0.0
+added: v7.7.0
 -->
 
 * `name` {string}
