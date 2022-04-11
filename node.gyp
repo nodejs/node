@@ -637,6 +637,7 @@
         'src/node_revert.h',
         'src/node_root_certs.h',
         'src/node_snapshotable.h',
+        'src/node_snapshot_builder.h',
         'src/node_sockaddr.h',
         'src/node_sockaddr-inl.h',
         'src/node_stat_watcher.h',

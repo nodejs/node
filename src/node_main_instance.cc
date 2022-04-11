@@ -7,6 +7,7 @@
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_options-inl.h"
+#include "node_snapshot_builder.h"
 #include "node_snapshotable.h"
 #include "node_v8_platform-inl.h"
 #include "util-inl.h"
@@ -26,8 +27,6 @@ using v8::Isolate;
 using v8::Local;
 using v8::Locker;
 
-std::unique_ptr<ExternalReferenceRegistry> NodeMainInstance::registry_ =
-    nullptr;
 NodeMainInstance::NodeMainInstance(Isolate* isolate,
                                    uv_loop_t* event_loop,
                                    MultiIsolatePlatform* platform,
@@ -44,13 +43,6 @@ NodeMainInstance::NodeMainInstance(Isolate* isolate,
       std::make_unique<IsolateData>(isolate_, event_loop, platform, nullptr);
 
   SetIsolateMiscHandlers(isolate_, {});
-}
-
-const std::vector<intptr_t>& NodeMainInstance::CollectExternalReferences() {
-  // Cannot be called more than once.
-  CHECK_NULL(registry_);
-  registry_.reset(new ExternalReferenceRegistry());
-  return registry_->external_references();
 }
 
 std::unique_ptr<NodeMainInstance> NodeMainInstance::Create(
@@ -78,13 +70,8 @@ NodeMainInstance::NodeMainInstance(const SnapshotData* snapshot_data,
       snapshot_data_(snapshot_data) {
   isolate_params_->array_buffer_allocator = array_buffer_allocator_.get();
   if (snapshot_data != nullptr) {
-    // TODO(joyeecheung): collect external references and set it in
-    // params.external_references.
-    const std::vector<intptr_t>& external_references =
-        CollectExternalReferences();
-    isolate_params_->external_references = external_references.data();
-    isolate_params_->snapshot_blob =
-        const_cast<v8::StartupData*>(&(snapshot_data->blob));
+    SnapshotBuilder::InitializeIsolateParams(snapshot_data,
+                                             isolate_params_.get());
   }
 
   isolate_ = Isolate::Allocate();
