@@ -65,7 +65,7 @@
       [ 'node_shared=="true"', {
         'node_target_type%': 'shared_library',
         'conditions': [
-          ['OS=="aix"', {
+          ['OS=="aix" or OS=="os400"', {
             # For AIX, always generate static library first,
             # It needs an extra step to generate exp and
             # then use both static lib and exp to create
@@ -113,7 +113,7 @@
     },
 
     'conditions': [
-      ['OS=="aix"', {
+      ['OS=="aix" or OS=="os400"', {
         'ldflags': [
           '-Wl,-bnoerrmsg',
         ],
@@ -188,7 +188,7 @@
           },
         }],
         [ 'node_intermediate_lib_type=="static_library" and '
-            'node_shared=="true" and OS=="aix"', {
+            'node_shared=="true" and OS in "aix os400"', {
           # For AIX, shared lib is linked by static lib and .exp. In the
           # case here, the executable needs to link to shared lib.
           # Therefore, use 'node_aix_shared' target to generate the
@@ -213,7 +213,7 @@
             },
           },
           'conditions': [
-            ['OS != "aix" and OS != "mac"', {
+            ['OS != "aix" and OS != "os400" and OS != "mac"', {
               'ldflags': [
                 '-Wl,--whole-archive',
                 '<(obj_dir)/<(STATIC_LIB_PREFIX)<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
@@ -728,7 +728,7 @@
               '@rpath/lib<(node_core_target_name).<(shlib_suffix)'
           },
         }],
-        ['node_shared=="true" and OS=="aix"', {
+        ['node_shared=="true" and OS in "aix os400"', {
           'product_name': 'node_base',
         }],
         [ 'v8_enable_inspector==1', {
@@ -1473,7 +1473,7 @@
   ], # end targets
 
   'conditions': [
-    ['OS=="aix" and node_shared=="true"', {
+    ['OS in "aix os400" and node_shared=="true"', {
       'targets': [
         {
           'target_name': 'node_aix_shared',

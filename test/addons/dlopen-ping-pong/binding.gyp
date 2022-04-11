@@ -11,7 +11,7 @@
             'OTHER_LDFLAGS': [ '-Wl,-undefined', '-Wl,dynamic_lookup' ]
         }}],
         # Enable the shared object to be linked by runtime linker
-        ['OS=="aix"', {
+        ['OS in "aix os400"', {
           'ldflags': [ '-Wl,-G' ]
         }]],
     },

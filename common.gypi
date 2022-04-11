@@ -137,7 +137,7 @@
         'defines': [ 'DEBUG', '_DEBUG', 'V8_ENABLE_CHECKS' ],
         'cflags': [ '-g', '-O0' ],
         'conditions': [
-          ['OS=="aix"', {
+          ['OS=="aix" or OS=="os400"', {
             'cflags': [ '-gxcoff' ],
             'ldflags': [ '-Wl,-bbigtoc' ],
           }],
@@ -394,11 +394,11 @@
           'BUILDING_UV_SHARED=1',
         ],
       }],
-      [ 'OS in "linux freebsd openbsd solaris aix"', {
+      [ 'OS in "linux freebsd openbsd solaris aix os400"', {
         'cflags': [ '-pthread' ],
         'ldflags': [ '-pthread' ],
       }],
-      [ 'OS in "linux freebsd openbsd solaris android aix cloudabi"', {
+      [ 'OS in "linux freebsd openbsd solaris android aix os400 cloudabi"', {
         'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
         'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++17' ],
         'defines': [ '__STDC_FORMAT_MACROS' ],
@@ -422,11 +422,11 @@
             'cflags': [ '-m64' ],
             'ldflags': [ '-m64' ],
           }],
-          [ 'target_arch=="ppc" and OS!="aix"', {
+          [ 'target_arch=="ppc" and OS not in "aix os400"', {
             'cflags': [ '-m32' ],
             'ldflags': [ '-m32' ],
           }],
-          [ 'target_arch=="ppc64" and OS!="aix"', {
+          [ 'target_arch=="ppc64" and OS not in "aix os400"', {
             'cflags': [ '-m64', '-mminimal-toc' ],
             'ldflags': [ '-m64' ],
           }],
@@ -445,39 +445,33 @@
           }],
         ],
       }],
+      [ 'OS=="os400"', {
+         'ldflags!': [ '-rdynamic', ],
+         'ldflags': [
+            '-Wl,-bbigtoc',
+            '-Wl,-blibpath:/QOpenSys/pkgs/lib:/QOpenSys/usr/lib',
+        ],
+      }],
       [ 'OS=="aix"', {
-        'variables': {
-          # Used to differentiate `AIX` and `OS400`(IBM i).
-          'aix_variant_name': '<!(uname -s)',
-        },
-        'cflags': [ '-maix64', ],
+        'cflags': [
+           '-maix64',
+          # Disable the following compiler warning:
+          #
+          #   warning: visibility attribute not supported in this
+          #   configuration; ignored [-Wattributes]
+          #
+          # This is gcc complaining about __attribute((visibility("default"))
+          # in static library builds. Legitimate but harmless and it drowns
+          # out more relevant warnings.
+          '-Wno-attributes'
+         ],
         'ldflags!': [ '-rdynamic', ],
         'ldflags': [
           '-Wl,-bbigtoc',
           '-maix64',
-        ],
-        'conditions': [
-          [ '"<(aix_variant_name)"=="OS400"', {            # a.k.a. `IBM i`
-            'ldflags': [
-              '-Wl,-blibpath:/QOpenSys/pkgs/lib:/QOpenSys/usr/lib',
-              '-Wl,-brtl',
-            ],
-          }, {                                             # else it's `AIX`
-            # Disable the following compiler warning:
-            #
-            #   warning: visibility attribute not supported in this
-            #   configuration; ignored [-Wattributes]
-            #
-            # This is gcc complaining about __attribute((visibility("default"))
-            # in static library builds. Legitimate but harmless and it drowns
-            # out more relevant warnings.
-            'cflags': [ '-Wno-attributes' ],
-            'ldflags': [
-              '-Wl,-blibpath:/usr/lib:/lib:/opt/freeware/lib/pthread/ppc64',
-            ],
-          }],
-        ],
-      }],
+          '-Wl,-blibpath:/usr/lib:/lib:/opt/freeware/lib/pthread/ppc64',
+         ],
+       }],
       ['OS=="android"', {
         'target_conditions': [
           ['_toolset=="target"', {
