@@ -2222,12 +2222,6 @@ void TurboAssembler::CallForDeoptimization(
             (kind == DeoptimizeKind::kLazy)
                 ? Deoptimizer::kLazyDeoptExitSize
                 : Deoptimizer::kNonLazyDeoptExitSize);
-
-  if (kind == DeoptimizeKind::kEagerWithResume) {
-    b(ret);
-    DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
-              Deoptimizer::kEagerWithResumeBeforeArgsSize);
-  }
 }
 
 void MacroAssembler::LoadStackLimit(Register destination, StackLimitKind kind) {

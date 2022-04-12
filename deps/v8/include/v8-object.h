@@ -493,7 +493,7 @@ class V8_EXPORT Object : public Value {
     return object.val_->GetAlignedPointerFromInternalField(index);
   }
 
-  /** Same as above, but works for TracedGlobal. */
+  /** Same as above, but works for TracedReference. */
   V8_INLINE static void* GetAlignedPointerFromInternalField(
       const BasicTracedReference<Object>& object, int index) {
     return object->GetAlignedPointerFromInternalField(index);

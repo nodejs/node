@@ -28,6 +28,7 @@ enum StateTag : int;
 
 using NativeObject = void*;
 using SnapshotObjectId = uint32_t;
+using ProfilerId = uint32_t;
 
 struct CpuProfileDeoptFrame {
   int script_id;
@@ -274,14 +275,32 @@ enum class CpuProfilingStatus {
 };
 
 /**
+ * Result from StartProfiling returning the Profiling Status, and
+ * id of the started profiler, or 0 if profiler is not started
+ */
+struct CpuProfilingResult {
+  const ProfilerId id;
+  const CpuProfilingStatus status;
+};
+
+/**
  * Delegate for when max samples reached and samples are discarded.
  */
 class V8_EXPORT DiscardedSamplesDelegate {
  public:
-  DiscardedSamplesDelegate() {}
+  DiscardedSamplesDelegate() = default;
 
   virtual ~DiscardedSamplesDelegate() = default;
   virtual void Notify() = 0;
+
+  ProfilerId GetId() const { return profiler_id_; }
+
+ private:
+  friend internal::CpuProfile;
+
+  void SetId(ProfilerId id) { profiler_id_ = id; }
+
+  ProfilerId profiler_id_;
 };
 
 /**
@@ -372,6 +391,45 @@ class V8_EXPORT CpuProfiler {
   void SetUsePreciseSampling(bool);
 
   /**
+   * Starts collecting a CPU profile. Several profiles may be collected at once.
+   * Generates an anonymous profiler, without a String identifier.
+   */
+  CpuProfilingResult Start(
+      CpuProfilingOptions options,
+      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
+
+  /**
+   * Starts collecting a CPU profile. Title may be an empty string. Several
+   * profiles may be collected at once. Attempts to start collecting several
+   * profiles with the same title are silently ignored.
+   */
+  CpuProfilingResult Start(
+      Local<String> title, CpuProfilingOptions options,
+      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
+
+  /**
+   * Starts profiling with the same semantics as above, except with expanded
+   * parameters.
+   *
+   * |record_samples| parameter controls whether individual samples should
+   * be recorded in addition to the aggregated tree.
+   *
+   * |max_samples| controls the maximum number of samples that should be
+   * recorded by the profiler. Samples obtained after this limit will be
+   * discarded.
+   */
+  CpuProfilingResult Start(
+      Local<String> title, CpuProfilingMode mode, bool record_samples = false,
+      unsigned max_samples = CpuProfilingOptions::kNoSampleLimit);
+
+  /**
+   * The same as StartProfiling above, but the CpuProfilingMode defaults to
+   * kLeafNodeLineNumbers mode, which was the previous default behavior of the
+   * profiler.
+   */
+  CpuProfilingResult Start(Local<String> title, bool record_samples = false);
+
+  /**
    * Starts collecting a CPU profile. Title may be an empty string. Several
    * profiles may be collected at once. Attempts to start collecting several
    * profiles with the same title are silently ignored.
@@ -394,6 +452,7 @@ class V8_EXPORT CpuProfiler {
   CpuProfilingStatus StartProfiling(
       Local<String> title, CpuProfilingMode mode, bool record_samples = false,
       unsigned max_samples = CpuProfilingOptions::kNoSampleLimit);
+
   /**
    * The same as StartProfiling above, but the CpuProfilingMode defaults to
    * kLeafNodeLineNumbers mode, which was the previous default behavior of the
@@ -401,6 +460,11 @@ class V8_EXPORT CpuProfiler {
    */
   CpuProfilingStatus StartProfiling(Local<String> title,
                                     bool record_samples = false);
+
+  /**
+   * Stops collecting CPU profile with a given id and returns it.
+   */
+  CpuProfile* Stop(ProfilerId id);
 
   /**
    * Stops collecting CPU profile with a given title and returns it.

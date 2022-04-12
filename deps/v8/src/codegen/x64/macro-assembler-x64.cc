@@ -3111,16 +3111,6 @@ void TurboAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
             (kind == DeoptimizeKind::kLazy)
                 ? Deoptimizer::kLazyDeoptExitSize
                 : Deoptimizer::kNonLazyDeoptExitSize);
-
-  if (kind == DeoptimizeKind::kEagerWithResume) {
-    bool old_predictable_code_size = predictable_code_size();
-    set_predictable_code_size(true);
-    jmp(ret);
-
-    DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
-              Deoptimizer::kEagerWithResumeBeforeArgsSize);
-    set_predictable_code_size(old_predictable_code_size);
-  }
 }
 
 void TurboAssembler::Trap() { int3(); }

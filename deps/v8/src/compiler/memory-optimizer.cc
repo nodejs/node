@@ -29,7 +29,6 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kDebugBreak:
     case IrOpcode::kDeoptimizeIf:
     case IrOpcode::kDeoptimizeUnless:
-    case IrOpcode::kDynamicCheckMapsWithDeoptUnless:
     case IrOpcode::kEffectPhi:
     case IrOpcode::kIfException:
     case IrOpcode::kLoad:

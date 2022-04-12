@@ -4990,11 +4990,6 @@ void TurboAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
             (kind == DeoptimizeKind::kLazy)
                 ? Deoptimizer::kLazyDeoptExitSize
                 : Deoptimizer::kNonLazyDeoptExitSize);
-  if (kind == DeoptimizeKind::kEagerWithResume) {
-    Branch(ret);
-    DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
-              Deoptimizer::kEagerWithResumeBeforeArgsSize);
-  }
 }
 
 void TurboAssembler::LoadCodeObjectEntry(Register destination,

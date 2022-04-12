@@ -3710,11 +3710,6 @@ void TurboAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
             (kind == DeoptimizeKind::kLazy)
                 ? Deoptimizer::kLazyDeoptExitSize
                 : Deoptimizer::kNonLazyDeoptExitSize);
-  if (kind == DeoptimizeKind::kEagerWithResume) {
-    b(ret);
-    DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
-              Deoptimizer::kEagerWithResumeBeforeArgsSize);
-  }
 }
 
 void TurboAssembler::ZeroExtByte(Register dst, Register src) {

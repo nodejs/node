@@ -535,18 +535,6 @@ Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason,
                          frame_state);
 }
 
-Node* GraphAssembler::DynamicCheckMapsWithDeoptUnless(Node* condition,
-                                                      Node* slot_index,
-                                                      Node* value, Node* map,
-                                                      Node* feedback_vector,
-                                                      FrameState frame_state) {
-  return AddNode(graph()->NewNode(
-      common()->DynamicCheckMapsWithDeoptUnless(
-          frame_state.outer_frame_state()->opcode() == IrOpcode::kFrameState),
-      condition, slot_index, value, map, feedback_vector, frame_state, effect(),
-      control()));
-}
-
 TNode<Object> GraphAssembler::Call(const CallDescriptor* call_descriptor,
                                    int inputs_size, Node** inputs) {
   return Call(common()->Call(call_descriptor), inputs_size, inputs);
