@@ -208,8 +208,12 @@ class ConnectionsList: public BaseObject {
 
       // This is needed due to the forward declaration of CompareParsers
       std::set<ExpirableParser*, decltype(ConnectionsList::CompareParsers)*>
-        newMembers(ConnectionsList::CompareParsers);
-      list->members = newMembers;
+        newAllConnections(ConnectionsList::CompareParsers);
+      std::set<ExpirableParser*, decltype(ConnectionsList::CompareParsers)*>
+        newActiveConnections(ConnectionsList::CompareParsers);
+
+      list->allConnections = newAllConnections;
+      list->activeConnections = newActiveConnections;
     }
 
     static bool CompareParsers(
@@ -225,7 +229,7 @@ class ConnectionsList: public BaseObject {
       return lhs->last_message_start_ < rhs->last_message_start_;
     }
 
-    static void Pending(const FunctionCallbackInfo<Value>& args) {
+    static void All(const FunctionCallbackInfo<Value>& args) {
       v8::Isolate* isolate = args.GetIsolate();
       Local<Context> context = isolate->GetCurrentContext();
 
@@ -235,7 +239,43 @@ class ConnectionsList: public BaseObject {
       ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
 
       uint32_t i = 0;
-      for (auto parser : list->members) {
+      for (auto parser : list->allConnections) {
+        expired->Set(context, i++, parser->AsJSObject()).Check();
+      }
+
+      return args.GetReturnValue().Set(expired);
+    }
+
+    static void Idle(const FunctionCallbackInfo<Value>& args) {
+      v8::Isolate* isolate = args.GetIsolate();
+      Local<Context> context = isolate->GetCurrentContext();
+
+      Local<Array> expired = Array::New(isolate);
+      ConnectionsList* list;
+
+      ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
+
+      uint32_t i = 0;
+      for (auto parser : list->allConnections) {
+        if (parser->last_message_start_ == 0) {
+          expired->Set(context, i++, parser->AsJSObject()).Check();
+        }
+      }
+
+      return args.GetReturnValue().Set(expired);
+    }
+
+    static void Active(const FunctionCallbackInfo<Value>& args) {
+      v8::Isolate* isolate = args.GetIsolate();
+      Local<Context> context = isolate->GetCurrentContext();
+
+      Local<Array> expired = Array::New(isolate);
+      ConnectionsList* list;
+
+      ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
+
+      uint32_t i = 0;
+      for (auto parser : list->activeConnections) {
         expired->Set(context, i++, parser->AsJSObject()).Check();
       }
 
@@ -252,8 +292,10 @@ class ConnectionsList: public BaseObject {
       ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
       CHECK(args[0]->IsNumber());
       CHECK(args[1]->IsNumber());
-      uint64_t headers_timeout = args[0].As<v8::Uint32>()->Value() * 1000000;
-      uint64_t request_timeout = args[1].As<v8::Uint32>()->Value() * 1000000;
+      uint64_t headers_timeout =
+        static_cast<uint64_t>(args[0].As<v8::Uint32>()->Value()) * 1000000;
+      uint64_t request_timeout =
+        static_cast<uint64_t>(args[1].As<v8::Uint32>()->Value()) * 1000000;
 
       if (headers_timeout == 0 && request_timeout == 0) {
         return args.GetReturnValue().Set(expired);
@@ -268,8 +310,8 @@ class ConnectionsList: public BaseObject {
         request_timeout > 0 ? now - request_timeout : 0;
 
       uint32_t i = 0;
-      auto iter = list->members.begin();
-      auto end = list->members.end();
+      auto iter = list->activeConnections.begin();
+      auto end = list->activeConnections.end();
       while (iter != end) {
         ExpirableParser* parser = *iter;
         iter++;
@@ -283,10 +325,8 @@ class ConnectionsList: public BaseObject {
             parser->last_message_start_ < request_deadline)
         ) {
           expired->Set(context, i++, parser->AsJSObject()).Check();
-          list->members.erase(parser);
+          list->activeConnections.erase(parser);
         }
-
-        // TODO@PI: How do we bail out earlier?
       }
 
       return args.GetReturnValue().Set(expired);
@@ -296,11 +336,19 @@ class ConnectionsList: public BaseObject {
       : BaseObject(env, object) {}
 
     void Push(ExpirableParser* parser) {
-      members.insert(parser);
+      allConnections.insert(parser);
     }
 
     void Pop(ExpirableParser* parser) {
-      members.erase(parser);
+      allConnections.erase(parser);
+    }
+
+    void PushActive(ExpirableParser* parser) {
+      activeConnections.insert(parser);
+    }
+
+    void PopActive(ExpirableParser* parser) {
+      activeConnections.erase(parser);
     }
 
     SET_NO_MEMORY_INFO()
@@ -310,7 +358,10 @@ class ConnectionsList: public BaseObject {
  protected:
     std::set<
       ExpirableParser*, bool(*)(const ExpirableParser*, const ExpirableParser*)
-    > members;
+    > allConnections;
+    std::set<
+      ExpirableParser*, bool(*)(const ExpirableParser*, const ExpirableParser*)
+    > activeConnections;
 };
 
 class Parser : public ExpirableParser, public AsyncWrap, public StreamListener {
@@ -336,7 +387,7 @@ class Parser : public ExpirableParser, public AsyncWrap, public StreamListener {
       otherwise std::set.erase will fail.
     */
     if (connectionsList_ != nullptr) {
-      connectionsList_->Pop(this);
+      connectionsList_->PopActive(this);
     }
 
     num_fields_ = num_values_ = 0;
@@ -346,7 +397,7 @@ class Parser : public ExpirableParser, public AsyncWrap, public StreamListener {
     status_message_.Reset();
 
     if (connectionsList_ != nullptr) {
-      connectionsList_->Push(this);
+      connectionsList_->PushActive(this);
     }
 
     Local<Value> cb = object()->Get(env()->context(), kOnMessageBegin)
@@ -573,7 +624,7 @@ class Parser : public ExpirableParser, public AsyncWrap, public StreamListener {
       otherwise std::set.erase will fail.
     */
     if (connectionsList_ != nullptr) {
-      connectionsList_->Pop(this);
+      connectionsList_->PopActive(this);
     }
 
     last_message_start_ = 0;
@@ -634,6 +685,11 @@ class Parser : public ExpirableParser, public AsyncWrap, public StreamListener {
   static void Free(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
+
+    if (parser->connectionsList_ != nullptr) {
+      parser->connectionsList_->Pop(parser);
+      parser->connectionsList_->PopActive(parser);
+    }
 
     // Since the Parser destructor isn't going to run the destroy() callbacks
     // it needs to be triggered manually.
@@ -743,13 +799,15 @@ class Parser : public ExpirableParser, public AsyncWrap, public StreamListener {
     if (connectionsList != nullptr) {
       parser->connectionsList_ = connectionsList;
 
+      parser->connectionsList_->Push(parser);
+
       /*
         This protects from DOS attack where an attacker establish 
         the connection without sending any data on applications where
         server.timeout is left to the default value of zero.
       */
       parser->last_message_start_ = uv_hrtime();
-      parser->connectionsList_->Push(parser);
+      parser->connectionsList_->PushActive(parser);
     } else {
       parser->connectionsList_ = nullptr;
     }
@@ -1212,7 +1270,9 @@ void InitializeHttpParser(Local<Object> target,
   Local<FunctionTemplate> c = env->NewFunctionTemplate(ConnectionsList::New);
   c->InstanceTemplate()
     ->SetInternalFieldCount(ConnectionsList::kInternalFieldCount);
-  env->SetProtoMethod(c, "pending", ConnectionsList::Pending);
+  env->SetProtoMethod(c, "all", ConnectionsList::All);
+  env->SetProtoMethod(c, "idle", ConnectionsList::Idle);
+  env->SetProtoMethod(c, "active", ConnectionsList::Active);
   env->SetProtoMethod(c, "expired", ConnectionsList::Expired);
   env->SetConstructorFunction(target, "ConnectionsList", c);
 }

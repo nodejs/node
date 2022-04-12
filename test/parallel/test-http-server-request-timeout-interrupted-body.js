@@ -15,7 +15,7 @@ const server = createServer({
   headersTimeout: 0,
   requestTimeout,
   keepAliveTimeout: 0,
-  connectionsCheckingInterval: common.platformTimeout(250)
+  connectionsCheckingInterval: common.platformTimeout(250),
 }, common.mustCall((req, res) => {
   let body = '';
   req.setEncoding('utf-8');

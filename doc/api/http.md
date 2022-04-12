@@ -1398,9 +1398,14 @@ Limits maximum incoming headers count. If set to 0, no limit will be applied.
 
 <!-- YAML
 added: v14.11.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41263
+    description: The default request timeout changed
+                 from no timeout to 300s (5 minutes).
 -->
 
-* {number} **Default:** `0`
+* {number} **Default:** `300000`
 
 Sets the timeout value in milliseconds for receiving the entire request from
 the client.
@@ -2890,15 +2895,19 @@ changes:
   * `requestTimeout`: Sets the timeout value in milliseconds for receiving
     the entire request from the client.
     See [`server.requestTimeout`][] for more information.
+    **Default:** `300000`.
   * `headersTimeout`: Sets the timeout value in milliseconds for receiving
     the complete HTTP headers from the client.
     See [`server.headersTimeout`][] for more information.
+    **Default:** `60000`.
   * `keepAliveTimeout`: The number of milliseconds of inactivity a server
     needs to wait for additional incoming data, after it has finished writing
     the last response, before a socket will be destroyed.
     See [`server.keepAliveTimeout`][] for more information.
+    **Default:** `5000`.
   * `connectionsCheckingInterval`: Sets the interval value in milliseconds to
     check for request and headers timeout in incomplete requests.
+    **Default:** `30000`.
   * `insecureHTTPParser` {boolean} Use an insecure HTTP parser that accepts
     invalid HTTP headers when `true`. Using the insecure parser should be
     avoided. See [`--insecure-http-parser`][] for more information.

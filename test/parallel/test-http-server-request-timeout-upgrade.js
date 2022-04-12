@@ -13,7 +13,7 @@ const server = createServer({
   headersTimeout: 0,
   requestTimeout,
   keepAliveTimeout: 0,
-  connectionsCheckingInterval: common.platformTimeout(250)
+  connectionsCheckingInterval: common.platformTimeout(250),
 }, common.mustNotCall());
 server.on('connection', common.mustCall(() => {
   assert.strictEqual(typeof sendDelayedRequestHeaders, 'function');
