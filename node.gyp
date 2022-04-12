@@ -543,6 +543,7 @@
         'src/node_util.cc',
         'src/node_v8.cc',
         'src/node_wasi.cc',
+        'src/node_wasm_web_api.cc',
         'src/node_watchdog.cc',
         'src/node_worker.cc',
         'src/node_zlib.cc',
