@@ -43,10 +43,12 @@ import diagnostics_channel from 'node:diagnostics_channel';
 // Get a reusable channel object
 const channel = diagnostics_channel.channel('my-channel');
 
-// Subscribe to the channel
-channel.subscribe((message, name) => {
+function onMessage(message, name) {
   // Received data
-});
+}
+
+// Subscribe to the channel
+diagnostics_channel.subscribe('my-channel', onMessage);
 
 // Check if the channel has an active subscriber
 if (channel.hasSubscribers) {
@@ -55,6 +57,9 @@ if (channel.hasSubscribers) {
     some: 'data'
   });
 }
+
+// Unsubscribe from the channel
+diagnostics_channel.unsubscribe('my-channel', onMessage);
 ```
 
 ```cjs
@@ -63,10 +68,12 @@ const diagnostics_channel = require('node:diagnostics_channel');
 // Get a reusable channel object
 const channel = diagnostics_channel.channel('my-channel');
 
-// Subscribe to the channel
-channel.subscribe((message, name) => {
+function onMessage(message, name) {
   // Received data
-});
+}
+
+// Subscribe to the channel
+diagnostics_channel.subscribe('my-channel', onMessage);
 
 // Check if the channel has an active subscriber
 if (channel.hasSubscribers) {
@@ -75,6 +82,9 @@ if (channel.hasSubscribers) {
     some: 'data'
   });
 }
+
+// Unsubscribe from the channel
+diagnostics_channel.unsubscribe('my-channel', onMessage);
 ```
 
 #### `diagnostics_channel.hasSubscribers(name)`
@@ -121,7 +131,7 @@ added:
 * `name` {string|symbol} The channel name
 * Returns: {Channel} The named channel object
 
-This is the primary entry-point for anyone wanting to interact with a named
+This is the primary entry-point for anyone wanting to publish to a named
 channel. It produces a channel object which is optimized to reduce overhead at
 publish time as much as possible.
 
@@ -135,6 +145,76 @@ const channel = diagnostics_channel.channel('my-channel');
 const diagnostics_channel = require('node:diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
+```
+
+#### `diagnostics_channel.subscribe(name, onMessage)`
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+* `name` {string|symbol} The channel name
+* `onMessage` {Function} The handler to receive channel messages
+  * `message` {any} The message data
+  * `name` {string|symbol} The name of the channel
+
+Register a message handler to subscribe to this channel. This message handler
+will be run synchronously whenever a message is published to the channel. Any
+errors thrown in the message handler will trigger an [`'uncaughtException'`][].
+
+```mjs
+import diagnostics_channel from 'diagnostics_channel';
+
+diagnostics_channel.subscribe('my-channel', (message, name) => {
+  // Received data
+});
+```
+
+```cjs
+const diagnostics_channel = require('diagnostics_channel');
+
+diagnostics_channel.subscribe('my-channel', (message, name) => {
+  // Received data
+});
+```
+
+#### `diagnostics_channel.unsubscribe(name, onMessage)`
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+* `name` {string|symbol} The channel name
+* `onMessage` {Function} The previous subscribed handler to remove
+* Returns: {boolean} `true` if the handler was found, `false` otherwise.
+
+Remove a message handler previously registered to this channel with
+[`diagnostics_channel.subscribe(name, onMessage)`][].
+
+```mjs
+import diagnostics_channel from 'diagnostics_channel';
+
+function onMessage(message, name) {
+  // Received data
+}
+
+diagnostics_channel.subscribe('my-channel', onMessage);
+
+diagnostics_channel.unsubscribe('my-channel', onMessage);
+```
+
+```cjs
+const diagnostics_channel = require('diagnostics_channel');
+
+function onMessage(message, name) {
+  // Received data
+}
+
+diagnostics_channel.subscribe('my-channel', onMessage);
+
+diagnostics_channel.unsubscribe('my-channel', onMessage);
 ```
 
 ### Class: `Channel`
@@ -344,4 +424,5 @@ Emitted when server sends a response.
 
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`channel.subscribe(onMessage)`]: #channelsubscribeonmessage
+[`diagnostics_channel.subscribe(name, onMessage)`]: #diagnostics_channelunsubscribename_onmessage
 [`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname
