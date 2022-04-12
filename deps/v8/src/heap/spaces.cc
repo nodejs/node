@@ -13,6 +13,7 @@
 #include "src/base/macros.h"
 #include "src/base/sanitizer/msan.h"
 #include "src/common/globals.h"
+#include "src/heap/base/active-system-pages.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/gc-tracer.h"
@@ -22,6 +23,7 @@
 #include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/remembered-set.h"
@@ -251,24 +253,20 @@ void Space::RemoveAllocationObserver(AllocationObserver* observer) {
   allocation_counter_.RemoveAllocationObserver(observer);
 }
 
-void Space::PauseAllocationObservers() {
-  allocation_observers_paused_depth_++;
-  if (allocation_observers_paused_depth_ == 1) allocation_counter_.Pause();
-}
+void Space::PauseAllocationObservers() { allocation_counter_.Pause(); }
 
-void Space::ResumeAllocationObservers() {
-  allocation_observers_paused_depth_--;
-  if (allocation_observers_paused_depth_ == 0) allocation_counter_.Resume();
-}
+void Space::ResumeAllocationObservers() { allocation_counter_.Resume(); }
 
 Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
                                           size_t min_size) {
   DCHECK_GE(end - start, min_size);
 
-  if (heap()->inline_allocation_disabled()) {
-    // Fit the requested area exactly.
+  if (!use_lab_) {
+    // LABs are disabled, so we fit the requested area exactly.
     return start + min_size;
-  } else if (SupportsAllocationObserver() && allocation_counter_.IsActive()) {
+  }
+
+  if (SupportsAllocationObserver() && allocation_counter_.IsActive()) {
     // Ensure there are no unaccounted allocations.
     DCHECK_EQ(allocation_info_->start(), allocation_info_->top());
 
@@ -283,10 +281,27 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
         static_cast<uint64_t>(start) + std::max(min_size, rounded_step);
     uint64_t new_end = std::min(step_end, static_cast<uint64_t>(end));
     return static_cast<Address>(new_end);
-  } else {
-    // The entire node can be used as the linear allocation area.
-    return end;
   }
+
+  // LABs are enabled and no observers attached. Return the whole node for the
+  // LAB.
+  return end;
+}
+
+void SpaceWithLinearArea::DisableInlineAllocation() {
+  if (!use_lab_) return;
+
+  use_lab_ = false;
+  FreeLinearAllocationArea();
+  UpdateInlineAllocationLimit(0);
+}
+
+void SpaceWithLinearArea::EnableInlineAllocation() {
+  if (use_lab_) return;
+
+  use_lab_ = true;
+  AdvanceAllocationObservers();
+  UpdateInlineAllocationLimit(0);
 }
 
 void SpaceWithLinearArea::UpdateAllocationOrigins(AllocationOrigin origin) {

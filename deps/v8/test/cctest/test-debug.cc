@@ -4360,6 +4360,7 @@ TEST(DebugCoverage) {
   v8::debug::Coverage::ScriptData script_data = coverage.GetScriptData(0);
   v8::Local<v8::debug::Script> script = script_data.GetScript();
   CHECK(script->Source()
+            ->JavaScriptCode()
             .ToLocalChecked()
             ->Equals(env.local(), source)
             .FromMaybe(false));
@@ -4413,6 +4414,7 @@ TEST(DebugCoverageWithCoverageOutOfScope) {
       GetScriptDataAndDeleteCoverage(isolate);
   v8::Local<v8::debug::Script> script = script_data.GetScript();
   CHECK(script->Source()
+            ->JavaScriptCode()
             .ToLocalChecked()
             ->Equals(env.local(), source)
             .FromMaybe(false));
@@ -4497,7 +4499,7 @@ TEST(BuiltinsExceptionPrediction) {
   bool fail = false;
   for (i::Builtin builtin = i::Builtins::kFirst; builtin <= i::Builtins::kLast;
        ++builtin) {
-    i::Code code = builtins->code(builtin);
+    i::Code code = FromCodeT(builtins->code(builtin));
     if (code.kind() != i::CodeKind::BUILTIN) continue;
     auto prediction = code.GetBuiltinCatchPrediction();
     USE(prediction);
@@ -5724,4 +5726,70 @@ TEST(AwaitCleansUpGlobalPromiseStack) {
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
+}
+
+TEST(CreateMessageFromOldException) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  context->GetIsolate()->SetCaptureStackTraceForUncaughtExceptions(true);
+
+  v8::Local<v8::Value> error;
+  {
+    v8::TryCatch try_catch(context->GetIsolate());
+    CompileRun(R"javascript(
+        function f1() {
+          throw new Error('error in f1');
+        };
+        f1();
+    )javascript");
+    CHECK(try_catch.HasCaught());
+
+    error = try_catch.Exception();
+  }
+  CHECK(error->IsObject());
+
+  v8::Local<v8::Message> message =
+      v8::debug::CreateMessageFromException(context->GetIsolate(), error);
+  CHECK(!message.IsEmpty());
+  CHECK_EQ(3, message->GetLineNumber(context.local()).FromJust());
+  CHECK_EQ(16, message->GetStartColumn(context.local()).FromJust());
+
+  v8::Local<v8::StackTrace> stackTrace = message->GetStackTrace();
+  CHECK(!stackTrace.IsEmpty());
+  CHECK_EQ(2, stackTrace->GetFrameCount());
+
+  stackTrace = v8::Exception::GetStackTrace(error);
+  CHECK(!stackTrace.IsEmpty());
+  CHECK_EQ(2, stackTrace->GetFrameCount());
+}
+
+TEST(CreateMessageDoesNotInspectStack) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  // Do not enable Isolate::SetCaptureStackTraceForUncaughtExceptions.
+
+  v8::Local<v8::Value> error;
+  {
+    v8::TryCatch try_catch(context->GetIsolate());
+    CompileRun(R"javascript(
+        function f1() {
+          throw new Error('error in f1');
+        };
+        f1();
+    )javascript");
+    CHECK(try_catch.HasCaught());
+
+    error = try_catch.Exception();
+  }
+  // The caught error should not have a stack trace attached.
+  CHECK(error->IsObject());
+  CHECK(v8::Exception::GetStackTrace(error).IsEmpty());
+
+  // The corresponding message should also not have a stack trace.
+  v8::Local<v8::Message> message =
+      v8::debug::CreateMessageFromException(context->GetIsolate(), error);
+  CHECK(!message.IsEmpty());
+  CHECK(message->GetStackTrace().IsEmpty());
 }

@@ -291,7 +291,7 @@ void EmbeddedFileWriter::PrepareBuiltinSourcePositionMap(Builtins* builtins) {
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     // Retrieve the SourcePositionTable and copy it.
-    Code code = builtins->code(builtin);
+    Code code = FromCodeT(builtins->code(builtin));
     // Verify that the code object is still the "real code" and not a
     // trampoline (which wouldn't have source positions).
     DCHECK(!code.is_off_heap_trampoline());

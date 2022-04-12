@@ -66,6 +66,10 @@ export class CodeLogEntry extends LogEntry {
     return this._kindName === 'Builtin';
   }
 
+  get isBytecodeKind() {
+    return this._kindName === 'Unopt';
+  }
+
   get kindName() {
     return this._kindName;
   }

@@ -730,8 +730,7 @@ bool AccessInfoFactory::TryLoadPropertyDetails(
     }
   } else {
     DescriptorArray descriptors = *map.instance_descriptors().object();
-    *index_out = descriptors.Search(*name.object(), *map.object(),
-                                    broker()->is_concurrent_inlining());
+    *index_out = descriptors.Search(*name.object(), *map.object(), true);
     if (index_out->is_found()) {
       *details_out = descriptors.GetDetails(*index_out);
     }
@@ -744,10 +743,8 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     MapRef map, NameRef name, AccessMode access_mode) const {
   CHECK(name.IsUniqueName());
 
-  // Dictionary property const tracking is unsupported when concurrent inlining
-  // is enabled.
-  CHECK_IMPLIES(V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
-                !broker()->is_concurrent_inlining());
+  // Dictionary property const tracking is unsupported with concurrent inlining.
+  CHECK(!V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
 
   JSHeapBroker::MapUpdaterGuardIfNeeded mumd_scope(broker());
 
@@ -911,26 +908,19 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     }
 
     // Walk up the prototype chain.
-    if (!broker()->is_concurrent_inlining()) {
-      if (!map.TrySerializePrototype(NotConcurrentInliningTag{broker()})) {
-        return Invalid();
-      }
-    }
-
     // Load the map's prototype's map to guarantee that every time we use it,
     // we use the same Map.
-    base::Optional<HeapObjectRef> prototype = map.prototype();
-    if (!prototype.has_value()) return Invalid();
+    HeapObjectRef prototype = map.prototype();
 
-    MapRef map_prototype_map = prototype->map();
+    MapRef map_prototype_map = prototype.map();
     if (!map_prototype_map.object()->IsJSObjectMap()) {
       // Don't allow proxies on the prototype chain.
-      if (!prototype->IsNull()) {
-        DCHECK(prototype->object()->IsJSProxy());
+      if (!prototype.IsNull()) {
+        DCHECK(prototype.object()->IsJSProxy());
         return Invalid();
       }
 
-      DCHECK(prototype->IsNull());
+      DCHECK(prototype.IsNull());
 
       if (dictionary_prototype_on_chain) {
         // TODO(v8:11248) See earlier comment about
@@ -954,7 +944,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
       return PropertyAccessInfo::NotFound(zone(), receiver_map, holder);
     }
 
-    holder = prototype->AsJSObject();
+    holder = prototype.AsJSObject();
     map = map_prototype_map;
 
     if (!CanInlinePropertyAccess(map, access_mode)) {
@@ -1129,11 +1119,9 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
     PropertyAttributes attrs) const {
   // Check if the {map} has a data transition with the given {name}.
   Map transition =
-      TransitionsAccessor(isolate(), map.object(),
-                          broker()->is_concurrent_inlining())
+      TransitionsAccessor(isolate(), *map.object(), true)
           .SearchTransition(*name.object(), PropertyKind::kData, attrs);
   if (transition.is_null()) return Invalid();
-
   base::Optional<MapRef> maybe_transition_map =
       TryMakeRef(broker(), transition);
   if (!maybe_transition_map.has_value()) return Invalid();
@@ -1202,11 +1190,6 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
 
   unrecorded_dependencies.push_back(
       dependencies()->TransitionDependencyOffTheRecord(transition_map));
-  if (!broker()->is_concurrent_inlining()) {
-    transition_map.SerializeBackPointer(
-        NotConcurrentInliningTag{broker()});  // For BuildPropertyStore.
-  }
-
   // Transitioning stores *may* store to const fields. The resulting
   // DataConstant access infos can be distinguished from later, i.e. redundant,
   // stores to the same constant field by the presence of a transition map.

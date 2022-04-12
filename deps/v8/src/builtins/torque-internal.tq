@@ -105,6 +105,10 @@ struct Slice<T: type, Reference: type> {
     return this.TryAtIndex(Convert<intptr>(index)) otherwise unreachable;
   }
 
+  macro AtIndex(index: constexpr IntegerLiteral): Reference {
+    return this.AtIndex(FromConstexpr<uintptr>(index));
+  }
+
   macro AtIndex(index: constexpr int31): Reference {
     const i: intptr = Convert<intptr>(index);
     return this.TryAtIndex(i) otherwise unreachable;

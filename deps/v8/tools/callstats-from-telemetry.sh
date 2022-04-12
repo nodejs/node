@@ -46,7 +46,7 @@ fi
 OUT=out.json
 if [[ -e $OUT ]]; then
   echo "# Creating backup for $OUT"
-  cp --backup=numbered $OUT $OUT.bak
+  cp $OUT $OUT.bak
 fi
 echo "# Writing to $OUT"
 
@@ -54,11 +54,14 @@ echo "# Writing to $OUT"
 function convert {
   NAME=$1
   JSON=$2
-  du -sh $JSON;
-  echo "Converting NAME=$NAME";
-  echo "," >> $OUT;
-  echo "\"$NAME\": " >> $OUT;
-  jq '[.traceEvents[].args | select(."runtime-call-stats" != null) | ."runtime-call-stats"]' $JSON >> $OUT;
+  # Check if any json file exists:
+  if ls $JSON 1> /dev/null 2>&1; then
+    du -sh $JSON;
+    echo "Converting NAME=$NAME";
+    echo "," >> $OUT;
+    echo "\"$NAME\": " >> $OUT;
+    jq '[.traceEvents[].args | select(."runtime-call-stats" != null) | ."runtime-call-stats"]' $JSON >> $OUT;
+  fi
 }
 
 

@@ -313,7 +313,7 @@ V8_INLINE A implicit_cast(A x) {
 #endif
 
 // Fix for Mac OS X defining uintptr_t as "unsigned long":
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 #undef V8PRIxPTR
 #define V8PRIxPTR "lx"
 #undef V8PRIdPTR

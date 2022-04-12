@@ -42,10 +42,11 @@ Handle<Object> StdlibMathMember(Isolate* isolate, Handle<JSReceiver> stdlib,
                                 Handle<Name> name) {
   Handle<Name> math_name(
       isolate->factory()->InternalizeString(base::StaticCharVector("Math")));
-  Handle<Object> math = JSReceiver::GetDataProperty(stdlib, math_name);
+  Handle<Object> math = JSReceiver::GetDataProperty(isolate, stdlib, math_name);
   if (!math->IsJSReceiver()) return isolate->factory()->undefined_value();
   Handle<JSReceiver> math_receiver = Handle<JSReceiver>::cast(math);
-  Handle<Object> value = JSReceiver::GetDataProperty(math_receiver, name);
+  Handle<Object> value =
+      JSReceiver::GetDataProperty(isolate, math_receiver, name);
   return value;
 }
 
@@ -55,13 +56,13 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
   if (members.contains(wasm::AsmJsParser::StandardMember::kInfinity)) {
     members.Remove(wasm::AsmJsParser::StandardMember::kInfinity);
     Handle<Name> name = isolate->factory()->Infinity_string();
-    Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);
+    Handle<Object> value = JSReceiver::GetDataProperty(isolate, stdlib, name);
     if (!value->IsNumber() || !std::isinf(value->Number())) return false;
   }
   if (members.contains(wasm::AsmJsParser::StandardMember::kNaN)) {
     members.Remove(wasm::AsmJsParser::StandardMember::kNaN);
     Handle<Name> name = isolate->factory()->NaN_string();
-    Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);
+    Handle<Object> value = JSReceiver::GetDataProperty(isolate, stdlib, name);
     if (!value->IsNaN()) return false;
   }
 #define STDLIB_MATH_FUNC(fname, FName, ignore1, ignore2)                   \
@@ -77,7 +78,7 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
       return false;                                                        \
     }                                                                      \
     DCHECK_EQ(shared.GetCode(),                                            \
-              isolate->builtins()->codet(Builtin::kMath##FName));          \
+              isolate->builtins()->code(Builtin::kMath##FName));           \
   }
   STDLIB_MATH_FUNCTION_LIST(STDLIB_MATH_FUNC)
 #undef STDLIB_MATH_FUNC
@@ -91,16 +92,16 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
   }
   STDLIB_MATH_VALUE_LIST(STDLIB_MATH_CONST)
 #undef STDLIB_MATH_CONST
-#define STDLIB_ARRAY_TYPE(fname, FName)                                \
-  if (members.contains(wasm::AsmJsParser::StandardMember::k##FName)) { \
-    members.Remove(wasm::AsmJsParser::StandardMember::k##FName);       \
-    *is_typed_array = true;                                            \
-    Handle<Name> name(isolate->factory()->InternalizeString(           \
-        base::StaticCharVector(#FName)));                              \
-    Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);  \
-    if (!value->IsJSFunction()) return false;                          \
-    Handle<JSFunction> func = Handle<JSFunction>::cast(value);         \
-    if (!func.is_identical_to(isolate->fname())) return false;         \
+#define STDLIB_ARRAY_TYPE(fname, FName)                                        \
+  if (members.contains(wasm::AsmJsParser::StandardMember::k##FName)) {         \
+    members.Remove(wasm::AsmJsParser::StandardMember::k##FName);               \
+    *is_typed_array = true;                                                    \
+    Handle<Name> name(isolate->factory()->InternalizeString(                   \
+        base::StaticCharVector(#FName)));                                      \
+    Handle<Object> value = JSReceiver::GetDataProperty(isolate, stdlib, name); \
+    if (!value->IsJSFunction()) return false;                                  \
+    Handle<JSFunction> func = Handle<JSFunction>::cast(value);                 \
+    if (!func.is_identical_to(isolate->fname())) return false;                 \
   }
   STDLIB_ARRAY_TYPE(int8_array_fun, Int8Array)
   STDLIB_ARRAY_TYPE(uint8_array_fun, Uint8Array)

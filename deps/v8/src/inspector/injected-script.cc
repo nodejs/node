@@ -271,7 +271,7 @@ class InjectedScript::ProtocolPromiseHandler {
                            result->ToDetailString(isolate->GetCurrentContext())
                                .ToLocalChecked());
       v8::Local<v8::StackTrace> stackTrace =
-          v8::debug::GetDetailedStackTrace(isolate, result.As<v8::Object>());
+          v8::Exception::GetStackTrace(result);
       if (!stackTrace.IsEmpty()) {
         stack = m_inspector->debugger()->createStackTrace(stackTrace);
       }
@@ -440,6 +440,7 @@ Response InjectedScript::getProperties(
 
 Response InjectedScript::getInternalAndPrivateProperties(
     v8::Local<v8::Value> value, const String16& groupName,
+    bool accessorPropertiesOnly,
     std::unique_ptr<protocol::Array<InternalPropertyDescriptor>>*
         internalProperties,
     std::unique_ptr<protocol::Array<PrivatePropertyDescriptor>>*
@@ -453,27 +454,31 @@ Response InjectedScript::getInternalAndPrivateProperties(
 
   v8::Local<v8::Context> context = m_context->context();
   int sessionId = m_sessionId;
-  std::vector<InternalPropertyMirror> internalPropertiesWrappers;
-  ValueMirror::getInternalProperties(m_context->context(), value_obj,
-                                     &internalPropertiesWrappers);
-  for (const auto& internalProperty : internalPropertiesWrappers) {
-    std::unique_ptr<RemoteObject> remoteObject;
-    Response response = internalProperty.value->buildRemoteObject(
-        m_context->context(), WrapMode::kNoPreview, &remoteObject);
-    if (!response.IsSuccess()) return response;
-    response = bindRemoteObjectIfNeeded(sessionId, context,
-                                        internalProperty.value->v8Value(),
-                                        groupName, remoteObject.get());
-    if (!response.IsSuccess()) return response;
-    (*internalProperties)
-        ->emplace_back(InternalPropertyDescriptor::create()
-                           .setName(internalProperty.name)
-                           .setValue(std::move(remoteObject))
-                           .build());
+
+  if (!accessorPropertiesOnly) {
+    std::vector<InternalPropertyMirror> internalPropertiesWrappers;
+    ValueMirror::getInternalProperties(m_context->context(), value_obj,
+                                       &internalPropertiesWrappers);
+    for (const auto& internalProperty : internalPropertiesWrappers) {
+      std::unique_ptr<RemoteObject> remoteObject;
+      Response response = internalProperty.value->buildRemoteObject(
+          m_context->context(), WrapMode::kNoPreview, &remoteObject);
+      if (!response.IsSuccess()) return response;
+      response = bindRemoteObjectIfNeeded(sessionId, context,
+                                          internalProperty.value->v8Value(),
+                                          groupName, remoteObject.get());
+      if (!response.IsSuccess()) return response;
+      (*internalProperties)
+          ->emplace_back(InternalPropertyDescriptor::create()
+                             .setName(internalProperty.name)
+                             .setValue(std::move(remoteObject))
+                             .build());
+    }
   }
 
   std::vector<PrivatePropertyMirror> privatePropertyWrappers =
-      ValueMirror::getPrivateProperties(context, value_obj);
+      ValueMirror::getPrivateProperties(context, value_obj,
+                                        accessorPropertiesOnly);
   for (const auto& privateProperty : privatePropertyWrappers) {
     std::unique_ptr<PrivatePropertyDescriptor> descriptor =
         PrivatePropertyDescriptor::create()

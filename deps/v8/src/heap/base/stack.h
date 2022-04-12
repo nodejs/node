@@ -21,7 +21,10 @@ class StackVisitor {
 // - SafeStack: https://releases.llvm.org/10.0.0/tools/clang/docs/SafeStack.html
 class V8_EXPORT_PRIVATE Stack final {
  public:
-  explicit Stack(const void* stack_start);
+  explicit Stack(const void* stack_start = nullptr);
+
+  // Sets the start of the stack.
+  void SetStackStart(const void* stack_start);
 
   // Returns true if |slot| is part of the stack and false otherwise.
   bool IsOnStack(void* slot) const;
@@ -42,6 +45,12 @@ class V8_EXPORT_PRIVATE Stack final {
 
   // Returns the start of the stack.
   const void* stack_start() const { return stack_start_; }
+
+  // Get the current stack pointer for the stack, on which local variables are
+  // stored. In case the safe-stack is enabled (-fsanitize=safe-stack), this
+  // will return the stack pointer for the unsafe-stack. Otherwise, the function
+  // returns the stack pointer for the native stack.
+  static const void* GetCurrentStackPointerForLocalVariables();
 
  private:
   const void* stack_start_;

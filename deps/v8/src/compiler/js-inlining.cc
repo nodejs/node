@@ -533,24 +533,18 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // always hold true.
   CHECK(shared_info->is_compiled());
 
-  if (info_->source_positions()) {
-    if (broker()->is_concurrent_inlining()) {
-      if (!shared_info->object()->AreSourcePositionsAvailable(
-              broker()->local_isolate_or_isolate())) {
-        // This case is expected to be very rare, since we generate source
-        // positions for all functions when debugging or profiling are turned
-        // on (see Isolate::NeedsDetailedOptimizedCodeLineInfo). Source
-        // positions should only be missing here if there is a race between 1)
-        // enabling/disabling the debugger/profiler, and 2) this compile job.
-        // In that case, we simply don't inline.
-        TRACE("Not inlining " << *shared_info << " into " << outer_shared_info
-                              << " because source positions are missing.");
-        return NoChange();
-      }
-    } else {
-      SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(),
-                                                         shared_info->object());
-    }
+  if (info_->source_positions() &&
+      !shared_info->object()->AreSourcePositionsAvailable(
+          broker()->local_isolate_or_isolate())) {
+    // This case is expected to be very rare, since we generate source
+    // positions for all functions when debugging or profiling are turned
+    // on (see Isolate::NeedsDetailedOptimizedCodeLineInfo). Source
+    // positions should only be missing here if there is a race between 1)
+    // enabling/disabling the debugger/profiler, and 2) this compile job.
+    // In that case, we simply don't inline.
+    TRACE("Not inlining " << *shared_info << " into " << outer_shared_info
+                          << " because source positions are missing.");
+    return NoChange();
   }
 
   // Determine the target's feedback vector and its context.

@@ -19,22 +19,27 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
     Isolate* isolate, Handle<NativeContext> native_context,
     Handle<TemplateObjectDescription> description,
     Handle<SharedFunctionInfo> shared_info, int slot_id) {
-  // Check the template weakmap to see if the template object already exists.
-  Handle<EphemeronHashTable> template_weakmap =
-      native_context->template_weakmap().IsUndefined(isolate)
-          ? EphemeronHashTable::New(isolate, 0)
-          : handle(EphemeronHashTable::cast(native_context->template_weakmap()),
-                   isolate);
-
   uint32_t hash = shared_info->Hash();
-  Object maybe_cached_template = template_weakmap->Lookup(shared_info, hash);
-  while (!maybe_cached_template.IsTheHole()) {
-    CachedTemplateObject cached_template =
-        CachedTemplateObject::cast(maybe_cached_template);
-    if (cached_template.slot_id() == slot_id)
-      return handle(cached_template.template_object(), isolate);
 
-    maybe_cached_template = cached_template.next();
+  // Check the template weakmap to see if the template object already exists.
+  Handle<EphemeronHashTable> template_weakmap;
+
+  if (native_context->template_weakmap().IsUndefined(isolate)) {
+    template_weakmap = EphemeronHashTable::New(isolate, 1);
+  } else {
+    DisallowGarbageCollection no_gc;
+    ReadOnlyRoots roots(isolate);
+    template_weakmap = handle(
+        EphemeronHashTable::cast(native_context->template_weakmap()), isolate);
+    Object maybe_cached_template = template_weakmap->Lookup(shared_info, hash);
+    while (!maybe_cached_template.IsTheHole(roots)) {
+      CachedTemplateObject cached_template =
+          CachedTemplateObject::cast(maybe_cached_template);
+      if (cached_template.slot_id() == slot_id) {
+        return handle(cached_template.template_object(), isolate);
+      }
+      maybe_cached_template = cached_template.next();
+    }
   }
 
   // Create the raw object from the {raw_strings}.
@@ -83,13 +88,17 @@ Handle<CachedTemplateObject> CachedTemplateObject::New(
     Isolate* isolate, int slot_id, Handle<JSArray> template_object,
     Handle<HeapObject> next) {
   DCHECK(next->IsCachedTemplateObject() || next->IsTheHole());
-  Factory* factory = isolate->factory();
-  Handle<CachedTemplateObject> result = Handle<CachedTemplateObject>::cast(
-      factory->NewStruct(CACHED_TEMPLATE_OBJECT_TYPE, AllocationType::kOld));
-  result->set_slot_id(slot_id);
-  result->set_template_object(*template_object);
-  result->set_next(*next);
-  return result;
+  Handle<CachedTemplateObject> result_handle =
+      Handle<CachedTemplateObject>::cast(isolate->factory()->NewStruct(
+          CACHED_TEMPLATE_OBJECT_TYPE, AllocationType::kOld));
+  {
+    DisallowGarbageCollection no_gc;
+    auto result = *result_handle;
+    result.set_slot_id(slot_id);
+    result.set_template_object(*template_object);
+    result.set_next(*next);
+  }
+  return result_handle;
 }
 
 }  // namespace internal

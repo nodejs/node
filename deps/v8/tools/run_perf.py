@@ -119,12 +119,20 @@ import sys
 import time
 import traceback
 
-import numpy
-
 from testrunner.local import android
 from testrunner.local import command
 from testrunner.local import utils
 from testrunner.objects.output import Output, NULL_OUTPUT
+
+from math import sqrt
+# NOTE: added import here to prevent breakages during the py2/3 migration,
+# once we enable python3 only, we can move the import up
+try:
+  from numpy import mean
+  from numpy import std as stdev
+except ImportError:
+  from statistics import mean, stdev
+
 
 # for py2/py3 compatibility
 try:
@@ -265,11 +273,11 @@ class ResultTracker(object):
       return False
 
     logging.debug('  Results: %d entries', len(results))
-    mean = numpy.mean(results)
-    mean_stderr = numpy.std(results) / numpy.sqrt(len(results))
-    logging.debug('  Mean: %.2f, mean_stderr: %.2f', mean, mean_stderr)
-    logging.info('>>> Confidence level is %.2f', mean / (1000.0 * mean_stderr))
-    return confidence_level * mean_stderr < mean / 1000.0
+    avg = mean(results)
+    avg_stderr = stdev(results) / sqrt(len(results))
+    logging.debug('  Mean: %.2f, mean_stderr: %.2f', avg, avg_stderr)
+    logging.info('>>> Confidence level is %.2f', avg / (1000.0 * avg_stderr))
+    return confidence_level * avg_stderr < avg / 1000.0
 
   def __str__(self):  # pragma: no cover
     return json.dumps(self.ToDict(), indent=2, separators=(',', ': '))
@@ -289,7 +297,8 @@ def RunResultsProcessor(results_processor, output, count):
       stderr=subprocess.PIPE,
   )
   new_output = copy.copy(output)
-  new_output.stdout, _ = p.communicate(input=output.stdout)
+  new_output.stdout = p.communicate(
+      input=output.stdout.encode('utf-8'))[0].decode('utf-8')
   logging.info('>>> Processed stdout (#%d):\n%s', count, output.stdout)
   return new_output
 

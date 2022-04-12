@@ -28,6 +28,8 @@ TEST_DATA = os.path.join(BASE_DIR, 'unittests', 'testdata')
 
 TEST_WORKSPACE = os.path.join(tempfile.gettempdir(), 'test-v8-run-perf')
 
+SORT_KEY = lambda x: x['graphs']
+
 V8_JSON = {
   'path': ['.'],
   'owners': ['username@chromium.org'],
@@ -196,8 +198,8 @@ class PerfTest(unittest.TestCase):
       {'units': units,
        'graphs': [suite, trace['name']],
        'results': trace['results'],
-       'stddev': trace['stddev']} for trace in traces]),
-      sorted(self._LoadResults(file_name)['traces']))
+       'stddev': trace['stddev']} for trace in traces], key=SORT_KEY),
+      sorted(self._LoadResults(file_name)['traces'], key=SORT_KEY))
 
   def _VerifyRunnableDurations(self, runs, timeout, file_name=None):
     self.assertListEqual([
@@ -368,7 +370,7 @@ class PerfTest(unittest.TestCase):
        'graphs': ['test', 'DeltaBlue'],
        'results': [200.0],
        'stddev': ''},
-      ]), sorted(self._LoadResults()['traces']))
+      ], key=SORT_KEY), sorted(self._LoadResults()['traces'], key=SORT_KEY))
     self._VerifyErrors([])
     self._VerifyMockMultiple(
         (os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js'),
@@ -605,7 +607,7 @@ class PerfTest(unittest.TestCase):
         'results': [2.1, 2.1],
         'stddev': '',
       },
-    ]), sorted(results['traces']))
+    ], key=SORT_KEY), sorted(results['traces'], key=SORT_KEY))
 
   def testResultsProcessor(self):
     results = self._RunPerf('d8_mocked2.py', 'test2.json')

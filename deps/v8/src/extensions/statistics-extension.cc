@@ -125,36 +125,41 @@ void StatisticsExtension::GetCounters(
 
   AddNumber64(args.GetIsolate(), result, heap->external_memory(),
               "amount_of_external_allocated_memory");
-  args.GetReturnValue().Set(result);
 
-  DisallowGarbageCollection no_gc;
-  HeapObjectIterator iterator(
-      reinterpret_cast<Isolate*>(args.GetIsolate())->heap());
   int reloc_info_total = 0;
   int source_position_table_total = 0;
-  for (HeapObject obj = iterator.Next(); !obj.is_null();
-       obj = iterator.Next()) {
-    Object maybe_source_positions;
-    if (obj.IsCode()) {
-      Code code = Code::cast(obj);
-      reloc_info_total += code.relocation_info().Size();
-      maybe_source_positions = code.source_position_table();
-    } else if (obj.IsBytecodeArray()) {
-      maybe_source_positions =
-          BytecodeArray::cast(obj).source_position_table(kAcquireLoad);
-    } else {
-      continue;
+  {
+    HeapObjectIterator iterator(
+        reinterpret_cast<Isolate*>(args.GetIsolate())->heap());
+    DCHECK(!AllowGarbageCollection::IsAllowed());
+    for (HeapObject obj = iterator.Next(); !obj.is_null();
+         obj = iterator.Next()) {
+      Object maybe_source_positions;
+      if (obj.IsCode()) {
+        Code code = Code::cast(obj);
+        reloc_info_total += code.relocation_info().Size();
+        // Baseline code doesn't have source positions since it uses
+        // interpreter code positions.
+        if (code.kind() == CodeKind::BASELINE) continue;
+        maybe_source_positions = code.source_position_table();
+      } else if (obj.IsBytecodeArray()) {
+        maybe_source_positions =
+            BytecodeArray::cast(obj).source_position_table(kAcquireLoad);
+      } else {
+        continue;
+      }
+      if (!maybe_source_positions.IsByteArray()) continue;
+      ByteArray source_positions = ByteArray::cast(maybe_source_positions);
+      if (source_positions.length() == 0) continue;
+      source_position_table_total += source_positions.Size();
     }
-    if (!maybe_source_positions.IsByteArray()) continue;
-    ByteArray source_positions = ByteArray::cast(maybe_source_positions);
-    if (source_positions.length() == 0) continue;
-    source_position_table_total += source_positions.Size();
   }
 
   AddNumber(args.GetIsolate(), result, reloc_info_total,
             "reloc_info_total_size");
   AddNumber(args.GetIsolate(), result, source_position_table_total,
             "source_position_table_total_size");
+  args.GetReturnValue().Set(result);
 }
 
 }  // namespace internal

@@ -14,8 +14,7 @@
 namespace v8 {
 namespace internal {
 
-LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind,
-                           RuntimeCallStats* runtime_call_stats)
+LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind)
     : HiddenLocalFactory(isolate),
       heap_(isolate->heap(), kind),
       isolate_(isolate),
@@ -23,16 +22,20 @@ LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind,
       thread_id_(ThreadId::Current()),
       stack_limit_(kind == ThreadKind::kMain
                        ? isolate->stack_guard()->real_climit()
-                       : GetCurrentStackPosition() - FLAG_stack_size * KB),
-      runtime_call_stats_(kind == ThreadKind::kMain &&
-                                  runtime_call_stats == nullptr
-                              ? isolate->counters()->runtime_call_stats()
-                              : runtime_call_stats)
+                       : GetCurrentStackPosition() - FLAG_stack_size * KB)
 #ifdef V8_INTL_SUPPORT
       ,
       default_locale_(isolate->DefaultLocale())
 #endif
 {
+#ifdef V8_RUNTIME_CALL_STATS
+  if (kind == ThreadKind::kMain) {
+    runtime_call_stats_ = isolate->counters()->runtime_call_stats();
+  } else {
+    rcs_scope_.emplace(isolate->counters()->worker_thread_runtime_call_stats());
+    runtime_call_stats_ = rcs_scope_->Get();
+  }
+#endif
 }
 
 LocalIsolate::~LocalIsolate() {

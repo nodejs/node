@@ -56,7 +56,7 @@ class RuntimeCallStatsTest : public TestWithNativeContext {
   static void TearDownTestCase() {
     TestWithIsolate::TearDownTestCase();
     // Restore the original time source.
-    RuntimeCallTimer::Now = &base::TimeTicks::HighResolutionNow;
+    RuntimeCallTimer::Now = &base::TimeTicks::Now;
   }
 
   RuntimeCallStats* stats() {
@@ -111,10 +111,10 @@ class V8_NODISCARD NativeTimeScope {
  public:
   NativeTimeScope() {
     CHECK_EQ(RuntimeCallTimer::Now, &RuntimeCallStatsTestNow);
-    RuntimeCallTimer::Now = &base::TimeTicks::HighResolutionNow;
+    RuntimeCallTimer::Now = &base::TimeTicks::Now;
   }
   ~NativeTimeScope() {
-    CHECK_EQ(RuntimeCallTimer::Now, &base::TimeTicks::HighResolutionNow);
+    CHECK_EQ(RuntimeCallTimer::Now, &base::TimeTicks::Now);
     RuntimeCallTimer::Now = &RuntimeCallStatsTestNow;
   }
 };

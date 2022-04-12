@@ -5,8 +5,6 @@
 #ifndef V8_COMPILER_PROPERTY_ACCESS_BUILDER_H_
 #define V8_COMPILER_PROPERTY_ACCESS_BUILDER_H_
 
-#include <vector>
-
 #include "src/base/optional.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/js-heap-broker.h"

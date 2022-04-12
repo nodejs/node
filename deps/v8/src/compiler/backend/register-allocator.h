@@ -372,8 +372,10 @@ class TopTierRegisterAllocationData final : public RegisterAllocationData {
   DelayedReferences delayed_references_;
   BitVector* assigned_registers_;
   BitVector* assigned_double_registers_;
+  BitVector* assigned_simd128_registers_;
   BitVector* fixed_register_use_;
   BitVector* fixed_fp_register_use_;
+  BitVector* fixed_simd128_register_use_;
   int virtual_register_count_;
   RangesWithPreassignedSlots preassigned_slot_ranges_;
   ZoneVector<ZoneVector<LiveRange*>> spill_state_;
@@ -1244,6 +1246,7 @@ class LiveRangeBuilder final : public ZoneObject {
   TopLevelLiveRange* FixedLiveRangeFor(int index, SpillMode spill_mode);
   TopLevelLiveRange* FixedFPLiveRangeFor(int index, MachineRepresentation rep,
                                          SpillMode spill_mode);
+  TopLevelLiveRange* FixedSIMD128LiveRangeFor(int index, SpillMode spill_mode);
 
   void MapPhiHint(InstructionOperand* operand, UsePosition* use_pos);
   void ResolvePhiHint(InstructionOperand* operand, UsePosition* use_pos);
@@ -1484,6 +1487,8 @@ class LinearScanAllocator final : public RegisterAllocator {
       LiveRange* range, const base::Vector<LifetimePosition>& free_until_pos);
   void GetFPRegisterSet(MachineRepresentation rep, int* num_regs,
                         int* num_codes, const int** codes) const;
+  void GetSIMD128RegisterSet(int* num_regs, int* num_codes,
+                             const int** codes) const;
   void FindFreeRegistersForRange(LiveRange* range,
                                  base::Vector<LifetimePosition> free_until_pos);
   void ProcessCurrentRange(LiveRange* current, SpillMode spill_mode);

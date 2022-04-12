@@ -2,9 +2,13 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import itertools
 import os
 import re
+
+try: # Python3
+  from itertools import zip_longest
+except ImportError: # Python2
+  from itertools import izip_longest as zip_longest
 
 from . import base
 
@@ -44,7 +48,7 @@ class OutProc(base.ExpectedOutProc):
     env = {
       'basename': os.path.basename(base_path),
     }
-    for (expected, actual) in itertools.izip_longest(
+    for (expected, actual) in zip_longest(
         expected_lines, actual_lines, fillvalue=''):
       pattern = re.escape(expected.rstrip() % env)
       pattern = pattern.replace('\\*', '.*')

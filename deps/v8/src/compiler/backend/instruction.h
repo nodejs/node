@@ -5,15 +5,13 @@
 #ifndef V8_COMPILER_BACKEND_INSTRUCTION_H_
 #define V8_COMPILER_BACKEND_INSTRUCTION_H_
 
-#include <deque>
 #include <iosfwd>
 #include <map>
-#include <set>
 
 #include "src/base/compiler-specific.h"
 #include "src/base/numbers/double.h"
 #include "src/codegen/external-reference.h"
-#include "src/codegen/register-arch.h"
+#include "src/codegen/register.h"
 #include "src/codegen/source-position.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-codes.h"
@@ -141,6 +139,9 @@ class V8_EXPORT_PRIVATE INSTRUCTION_OPERAND_ALIGN InstructionOperand {
 
   // APIs to aid debugging. For general-stream APIs, use operator<<.
   void Print() const;
+
+  bool operator==(InstructionOperand& other) const { return Equals(other); }
+  bool operator!=(InstructionOperand& other) const { return !Equals(other); }
 
  protected:
   explicit InstructionOperand(Kind kind) : value_(KindField::encode(kind)) {}
@@ -553,7 +554,7 @@ class LocationOperand : public InstructionOperand {
       case MachineRepresentation::kTagged:
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressed:
-      case MachineRepresentation::kCagedPointer:
+      case MachineRepresentation::kSandboxedPointer:
         return true;
       case MachineRepresentation::kBit:
       case MachineRepresentation::kWord8:
@@ -694,12 +695,19 @@ uint64_t InstructionOperand::GetCanonicalizedValue() const {
   if (IsAnyLocationOperand()) {
     MachineRepresentation canonical = MachineRepresentation::kNone;
     if (IsFPRegister()) {
-      if (kSimpleFPAliasing) {
+      if (kFPAliasing == AliasingKind::kOverlap) {
         // We treat all FP register operands the same for simple aliasing.
         canonical = MachineRepresentation::kFloat64;
+      } else if (kFPAliasing == AliasingKind::kIndependent) {
+        if (IsSimd128Register()) {
+          canonical = MachineRepresentation::kSimd128;
+        } else {
+          canonical = MachineRepresentation::kFloat64;
+        }
       } else {
         // We need to distinguish FP register operands of different reps when
-        // aliasing is not simple (e.g. ARM).
+        // aliasing is AliasingKind::kCombine (e.g. ARM).
+        DCHECK_EQ(kFPAliasing, AliasingKind::kCombine);
         canonical = LocationOperand::cast(this)->representation();
       }
     }
@@ -1170,7 +1178,7 @@ class V8_EXPORT_PRIVATE Constant final {
   }
 
   Handle<HeapObject> ToHeapObject() const;
-  Handle<Code> ToCode() const;
+  Handle<CodeT> ToCode() const;
   const StringConstantBase* ToDelayedStringConstant() const;
 
  private:
@@ -1693,6 +1701,12 @@ class V8_EXPORT_PRIVATE InstructionSequence final
         RepresentationBit(MachineRepresentation::kFloat64) |
         RepresentationBit(MachineRepresentation::kSimd128);
     return (representation_mask() & kFPRepMask) != 0;
+  }
+
+  bool HasSimd128VirtualRegisters() const {
+    constexpr int kSimd128RepMask =
+        RepresentationBit(MachineRepresentation::kSimd128);
+    return (representation_mask() & kSimd128RepMask) != 0;
   }
 
   Instruction* GetBlockStart(RpoNumber rpo) const;

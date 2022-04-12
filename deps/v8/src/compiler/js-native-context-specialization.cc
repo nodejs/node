@@ -96,20 +96,20 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
       return ReduceJSLoadNamed(node);
     case IrOpcode::kJSLoadNamedFromSuper:
       return ReduceJSLoadNamedFromSuper(node);
-    case IrOpcode::kJSStoreNamed:
-      return ReduceJSStoreNamed(node);
+    case IrOpcode::kJSSetNamedProperty:
+      return ReduceJSSetNamedProperty(node);
     case IrOpcode::kJSHasProperty:
       return ReduceJSHasProperty(node);
     case IrOpcode::kJSLoadProperty:
       return ReduceJSLoadProperty(node);
-    case IrOpcode::kJSStoreProperty:
-      return ReduceJSStoreProperty(node);
-    case IrOpcode::kJSDefineProperty:
-      return ReduceJSDefineProperty(node);
-    case IrOpcode::kJSStoreNamedOwn:
-      return ReduceJSStoreNamedOwn(node);
-    case IrOpcode::kJSStoreDataPropertyInLiteral:
-      return ReduceJSStoreDataPropertyInLiteral(node);
+    case IrOpcode::kJSSetKeyedProperty:
+      return ReduceJSSetKeyedProperty(node);
+    case IrOpcode::kJSDefineKeyedOwnProperty:
+      return ReduceJSDefineKeyedOwnProperty(node);
+    case IrOpcode::kJSDefineNamedOwnProperty:
+      return ReduceJSDefineNamedOwnProperty(node);
+    case IrOpcode::kJSDefineKeyedOwnPropertyInLiteral:
+      return ReduceJSDefineKeyedOwnPropertyInLiteral(node);
     case IrOpcode::kJSStoreInArrayLiteral:
       return ReduceJSStoreInArrayLiteral(node);
     case IrOpcode::kJSToObject:
@@ -365,15 +365,14 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
   }
   JSFunctionRef function = m.Ref(broker()).AsJSFunction();
   MapRef function_map = function.map();
-  base::Optional<HeapObjectRef> function_prototype = function_map.prototype();
-  if (!function_prototype.has_value()) return NoChange();
+  HeapObjectRef function_prototype = function_map.prototype();
 
   // We can constant-fold the super constructor access if the
   // {function}s map is stable, i.e. we can use a code dependency
   // to guard against [[Prototype]] changes of {function}.
   if (function_map.is_stable()) {
     dependencies()->DependOnStableMap(function_map);
-    Node* value = jsgraph()->Constant(*function_prototype);
+    Node* value = jsgraph()->Constant(function_prototype);
     ReplaceWithValue(node, value);
     return Replace(value);
   }
@@ -540,13 +539,12 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
         all = false;
         break;
       }
-      base::Optional<HeapObjectRef> map_prototype = map.prototype();
-      if (!map_prototype.has_value()) return kMayBeInPrototypeChain;
-      if (map_prototype->equals(prototype)) {
+      HeapObjectRef map_prototype = map.prototype();
+      if (map_prototype.equals(prototype)) {
         none = false;
         break;
       }
-      map = map_prototype->map();
+      map = map_prototype.map();
       // TODO(v8:11457) Support dictionary mode protoypes here.
       if (!map.is_stable() || map.is_dictionary_map()) {
         return kMayBeInPrototypeChain;
@@ -1092,23 +1090,23 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     Node* node, Node* value, NamedAccessFeedback const& feedback,
     AccessMode access_mode, Node* key) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
-         node->opcode() == IrOpcode::kJSStoreNamed ||
+         node->opcode() == IrOpcode::kJSSetNamedProperty ||
          node->opcode() == IrOpcode::kJSLoadProperty ||
-         node->opcode() == IrOpcode::kJSStoreProperty ||
-         node->opcode() == IrOpcode::kJSStoreNamedOwn ||
-         node->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral ||
+         node->opcode() == IrOpcode::kJSSetKeyedProperty ||
+         node->opcode() == IrOpcode::kJSDefineNamedOwnProperty ||
+         node->opcode() == IrOpcode::kJSDefineKeyedOwnPropertyInLiteral ||
          node->opcode() == IrOpcode::kJSHasProperty ||
          node->opcode() == IrOpcode::kJSLoadNamedFromSuper ||
-         node->opcode() == IrOpcode::kJSDefineProperty);
+         node->opcode() == IrOpcode::kJSDefineKeyedOwnProperty);
   STATIC_ASSERT(JSLoadNamedNode::ObjectIndex() == 0 &&
-                JSStoreNamedNode::ObjectIndex() == 0 &&
+                JSSetNamedPropertyNode::ObjectIndex() == 0 &&
                 JSLoadPropertyNode::ObjectIndex() == 0 &&
-                JSStorePropertyNode::ObjectIndex() == 0 &&
-                JSStoreNamedOwnNode::ObjectIndex() == 0 &&
-                JSStoreNamedNode::ObjectIndex() == 0 &&
-                JSStoreDataPropertyInLiteralNode::ObjectIndex() == 0 &&
+                JSSetKeyedPropertyNode::ObjectIndex() == 0 &&
+                JSDefineNamedOwnPropertyNode::ObjectIndex() == 0 &&
+                JSSetNamedPropertyNode::ObjectIndex() == 0 &&
+                JSDefineKeyedOwnPropertyInLiteralNode::ObjectIndex() == 0 &&
                 JSHasPropertyNode::ObjectIndex() == 0 &&
-                JSDefinePropertyNode::ObjectIndex() == 0);
+                JSDefineKeyedOwnPropertyNode::ObjectIndex() == 0);
   STATIC_ASSERT(JSLoadNamedFromSuperNode::ReceiverIndex() == 0);
 
   Node* context = NodeProperties::GetContextInput(node);
@@ -1164,6 +1162,14 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     ZoneVector<PropertyAccessInfo> access_infos_for_feedback(zone());
     for (const MapRef& map : inferred_maps) {
       if (map.is_deprecated()) continue;
+
+      // TODO(v8:12547): Support writing to shared structs, which needs a write
+      // barrier that calls Object::Share to ensure the RHS is shared.
+      if (InstanceTypeChecker::IsJSSharedStruct(map.instance_type()) &&
+          access_mode == AccessMode::kStore) {
+        return NoChange();
+      }
+
       PropertyAccessInfo access_info = broker()->GetPropertyAccessInfo(
           map, feedback.name(), access_mode, dependencies());
       access_infos_for_feedback.push_back(access_info);
@@ -1571,17 +1577,18 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
   return Replace(call_property);
 }
 
-Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
-  JSStoreNamedNode n(node);
+Reduction JSNativeContextSpecialization::ReduceJSSetNamedProperty(Node* node) {
+  JSSetNamedPropertyNode n(node);
   NamedAccess const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
   return ReducePropertyAccess(node, nullptr, p.name(broker()), n.value(),
                               FeedbackSource(p.feedback()), AccessMode::kStore);
 }
 
-Reduction JSNativeContextSpecialization::ReduceJSStoreNamedOwn(Node* node) {
-  JSStoreNamedOwnNode n(node);
-  StoreNamedOwnParameters const& p = n.Parameters();
+Reduction JSNativeContextSpecialization::ReduceJSDefineNamedOwnProperty(
+    Node* node) {
+  JSDefineNamedOwnPropertyNode n(node);
+  DefineNamedOwnPropertyParameters const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
   return ReducePropertyAccess(node, nullptr, p.name(broker()), n.value(),
                               FeedbackSource(p.feedback()),
@@ -1669,15 +1676,15 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     Node* node, Node* index, Node* value,
     ElementAccessFeedback const& feedback) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
-         node->opcode() == IrOpcode::kJSStoreProperty ||
+         node->opcode() == IrOpcode::kJSSetKeyedProperty ||
          node->opcode() == IrOpcode::kJSStoreInArrayLiteral ||
-         node->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral ||
+         node->opcode() == IrOpcode::kJSDefineKeyedOwnPropertyInLiteral ||
          node->opcode() == IrOpcode::kJSHasProperty ||
-         node->opcode() == IrOpcode::kJSDefineProperty);
+         node->opcode() == IrOpcode::kJSDefineKeyedOwnProperty);
   STATIC_ASSERT(JSLoadPropertyNode::ObjectIndex() == 0 &&
-                JSStorePropertyNode::ObjectIndex() == 0 &&
+                JSSetKeyedPropertyNode::ObjectIndex() == 0 &&
                 JSStoreInArrayLiteralNode::ArrayIndex() == 0 &&
-                JSStoreDataPropertyInLiteralNode::ObjectIndex() == 0 &&
+                JSDefineKeyedOwnPropertyInLiteralNode::ObjectIndex() == 0 &&
                 JSHasPropertyNode::ObjectIndex() == 0);
 
   Node* receiver = NodeProperties::GetValueInput(node, 0);
@@ -1732,6 +1739,13 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
              IsGrowStoreMode(feedback.keyed_mode().store_mode())) &&
             !receiver_map.HasOnlyStablePrototypesWithFastElements(
                 &prototype_maps)) {
+          return NoChange();
+        }
+
+        // TODO(v8:12547): Support writing to shared structs, which needs a
+        // write barrier that calls Object::Share to ensure the RHS is shared.
+        if (InstanceTypeChecker::IsJSSharedStruct(
+                receiver_map.instance_type())) {
           return NoChange();
         }
       }
@@ -1978,15 +1992,15 @@ Reduction JSNativeContextSpecialization::ReducePropertyAccess(
     FeedbackSource const& source, AccessMode access_mode) {
   DCHECK_EQ(key == nullptr, static_name.has_value());
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
-         node->opcode() == IrOpcode::kJSStoreProperty ||
+         node->opcode() == IrOpcode::kJSSetKeyedProperty ||
          node->opcode() == IrOpcode::kJSStoreInArrayLiteral ||
-         node->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral ||
+         node->opcode() == IrOpcode::kJSDefineKeyedOwnPropertyInLiteral ||
          node->opcode() == IrOpcode::kJSHasProperty ||
          node->opcode() == IrOpcode::kJSLoadNamed ||
-         node->opcode() == IrOpcode::kJSStoreNamed ||
-         node->opcode() == IrOpcode::kJSStoreNamedOwn ||
+         node->opcode() == IrOpcode::kJSSetNamedProperty ||
+         node->opcode() == IrOpcode::kJSDefineNamedOwnProperty ||
          node->opcode() == IrOpcode::kJSLoadNamedFromSuper ||
-         node->opcode() == IrOpcode::kJSDefineProperty);
+         node->opcode() == IrOpcode::kJSDefineKeyedOwnProperty);
   DCHECK_GE(node->op()->ControlOutputCount(), 1);
 
   ProcessedFeedback const& feedback =
@@ -2163,16 +2177,17 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
                               FeedbackSource(p.feedback()), AccessMode::kLoad);
 }
 
-Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
-  JSStorePropertyNode n(node);
+Reduction JSNativeContextSpecialization::ReduceJSSetKeyedProperty(Node* node) {
+  JSSetKeyedPropertyNode n(node);
   PropertyAccess const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
   return ReducePropertyAccess(node, n.key(), base::nullopt, n.value(),
                               FeedbackSource(p.feedback()), AccessMode::kStore);
 }
 
-Reduction JSNativeContextSpecialization::ReduceJSDefineProperty(Node* node) {
-  JSDefinePropertyNode n(node);
+Reduction JSNativeContextSpecialization::ReduceJSDefineKeyedOwnProperty(
+    Node* node) {
+  JSDefineKeyedOwnPropertyNode n(node);
   PropertyAccess const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
   return ReducePropertyAccess(node, n.key(), base::nullopt, n.value(),
@@ -2557,7 +2572,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
       case MachineRepresentation::kBit:
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressed:
-      case MachineRepresentation::kCagedPointer:
+      case MachineRepresentation::kSandboxedPointer:
       case MachineRepresentation::kWord8:
       case MachineRepresentation::kWord16:
       case MachineRepresentation::kWord32:
@@ -2609,17 +2624,19 @@ JSNativeContextSpecialization::BuildPropertyStore(
   return ValueEffectControl(value, effect, control);
 }
 
-Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
+Reduction
+JSNativeContextSpecialization::ReduceJSDefineKeyedOwnPropertyInLiteral(
     Node* node) {
-  JSStoreDataPropertyInLiteralNode n(node);
+  JSDefineKeyedOwnPropertyInLiteralNode n(node);
   FeedbackParameter const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
 
   NumberMatcher mflags(n.flags());
   CHECK(mflags.HasResolvedValue());
-  DataPropertyInLiteralFlags cflags(mflags.ResolvedValue());
-  DCHECK(!(cflags & DataPropertyInLiteralFlag::kDontEnum));
-  if (cflags & DataPropertyInLiteralFlag::kSetFunctionName) return NoChange();
+  DefineKeyedOwnPropertyInLiteralFlags cflags(mflags.ResolvedValue());
+  DCHECK(!(cflags & DefineKeyedOwnPropertyInLiteralFlag::kDontEnum));
+  if (cflags & DefineKeyedOwnPropertyInLiteralFlag::kSetFunctionName)
+    return NoChange();
 
   return ReducePropertyAccess(node, n.name(), base::nullopt, n.value(),
                               FeedbackSource(p.feedback()),
@@ -3411,7 +3428,7 @@ bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
   // or Object.prototype objects as their prototype (in any of the current
   // native contexts, as the global Array protector works isolate-wide).
   for (MapRef receiver_map : receiver_maps) {
-    ObjectRef receiver_prototype = receiver_map.prototype().value();
+    ObjectRef receiver_prototype = receiver_map.prototype();
     if (!receiver_prototype.IsJSObject() ||
         !broker()->IsArrayOrObjectPrototype(receiver_prototype.AsJSObject())) {
       return false;

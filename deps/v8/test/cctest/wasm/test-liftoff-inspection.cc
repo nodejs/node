@@ -431,7 +431,7 @@ TEST(Liftoff_debug_side_table_catch_all) {
   LiftoffCompileEnvironment env;
   TestSignatures sigs;
   int ex = env.builder()->AddException(sigs.v_v());
-  ValueType exception_type = ValueType::Ref(HeapType::kExtern, kNonNullable);
+  ValueType exception_type = ValueType::Ref(HeapType::kAny, kNonNullable);
   auto debug_side_table = env.GenerateDebugSideTable(
       {}, {kWasmI32},
       {WASM_TRY_CATCH_ALL_T(kWasmI32, WASM_STMTS(WASM_I32V(0), WASM_THROW(ex)),
@@ -456,7 +456,7 @@ TEST(Liftoff_debug_side_table_catch_all) {
 TEST(Regress1199526) {
   EXPERIMENTAL_FLAG_SCOPE(eh);
   LiftoffCompileEnvironment env;
-  ValueType exception_type = ValueType::Ref(HeapType::kExtern, kNonNullable);
+  ValueType exception_type = ValueType::Ref(HeapType::kAny, kNonNullable);
   auto debug_side_table = env.GenerateDebugSideTable(
       {}, {},
       {kExprTry, kVoidCode, kExprCallFunction, 0, kExprCatchAll, kExprLoop,

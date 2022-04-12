@@ -27,7 +27,6 @@ export class TimelineTrackBase extends V8CustomElement {
     super(templateText);
     this._selectionHandler = new SelectionHandler(this);
     this._legend = new Legend(this.$('#legendTable'));
-    this._legend.onFilter = (type) => this._handleFilterTimeline();
 
     this.timelineChunks = this.$('#timelineChunks');
     this.timelineSamples = this.$('#timelineSamples');
@@ -37,14 +36,17 @@ export class TimelineTrackBase extends V8CustomElement {
     this.timelineAnnotationsNode = this.$('#timelineAnnotations');
     this.timelineMarkersNode = this.$('#timelineMarkers');
     this._scalableContentNode = this.$('#scalableContent');
+    this.isLocked = false;
+  }
 
+  _initEventListeners() {
+    this._legend.onFilter = (type) => this._handleFilterTimeline();
     this.timelineNode.addEventListener(
         'scroll', e => this._handleTimelineScroll(e));
     this.hitPanelNode.onclick = this._handleClick.bind(this);
     this.hitPanelNode.ondblclick = this._handleDoubleClick.bind(this);
     this.hitPanelNode.onmousemove = this._handleMouseMove.bind(this);
     window.addEventListener('resize', () => this._resetCachedDimensions());
-    this.isLocked = false;
   }
 
   static get observedAttributes() {
@@ -62,6 +64,8 @@ export class TimelineTrackBase extends V8CustomElement {
   }
 
   set data(timeline) {
+    console.assert(timeline);
+    if (!this._timeline) this._initEventListeners();
     this._timeline = timeline;
     this._legend.timeline = timeline;
     this.$('.content').style.display = timeline.isEmpty() ? 'none' : 'relative';
@@ -136,6 +140,11 @@ export class TimelineTrackBase extends V8CustomElement {
   }
 
   get chunks() {
+    if (this._chunks?.length != this.nofChunks) {
+      this._chunks =
+          this._timeline.chunks(this.nofChunks, this._legend.filterPredicate);
+      console.assert(this._chunks.length == this._nofChunks);
+    }
     return this._chunks;
   }
 
@@ -209,19 +218,13 @@ export class TimelineTrackBase extends V8CustomElement {
 
   _update() {
     this._legend.update();
-    this._drawContent();
-    this._drawAnnotations(this.selectedEntry);
+    this._drawContent().then(() => this._drawAnnotations(this.selectedEntry));
     this._resetCachedDimensions();
   }
 
   async _drawContent() {
-    await delay(5);
     if (this._timeline.isEmpty()) return;
-    if (this.chunks?.length != this.nofChunks) {
-      this._chunks =
-          this._timeline.chunks(this.nofChunks, this._legend.filterPredicate);
-      console.assert(this._chunks.length == this._nofChunks);
-    }
+    await delay(5);
     const chunks = this.chunks;
     const max = chunks.max(each => each.size());
     let buffer = '';
@@ -558,12 +561,13 @@ class Legend {
           tbody.appendChild(this._addTypeRow(group));
           missingTypes.delete(group.key);
         });
-    missingTypes.forEach(key => tbody.appendChild(this._row('', key, 0, '0%')));
+    missingTypes.forEach(
+        key => tbody.appendChild(this._addRow('', key, 0, '0%')));
     if (this._timeline.selection) {
       tbody.appendChild(
-          this._row('', 'Selection', this.selection.length, '100%'));
+          this._addRow('', 'Selection', this.selection.length, '100%'));
     }
-    tbody.appendChild(this._row('', 'All', this._timeline.length, ''));
+    tbody.appendChild(this._addRow('', 'All', this._timeline.length, ''));
     this._table.tBodies[0].replaceWith(tbody);
   }
 
@@ -572,11 +576,10 @@ class Legend {
     const example = this.selection.at(0);
     if (!example || !('duration' in example)) return;
     this._enableDuration = true;
-    this._table.tHead.appendChild(DOM.td('Duration'));
-    this._table.tHead.appendChild(DOM.td(''));
+    this._table.tHead.rows[0].appendChild(DOM.td('Duration'));
   }
 
-  _row(colorNode, type, count, countPercent, duration, durationPercent) {
+  _addRow(colorNode, type, count, countPercent, duration, durationPercent) {
     const row = DOM.tr();
     row.appendChild(DOM.td(colorNode));
     const typeCell = row.appendChild(DOM.td(type));
@@ -608,7 +611,7 @@ class Legend {
     }
     let countPercent =
         `${(group.length / this.selection.length * 100).toFixed(1)}%`;
-    const row = this._row(
+    const row = this._addRow(
         colorDiv, group.key, group.length, countPercent, duration, '');
     row.className = 'clickable';
     row.onclick = this._typeClickHandler;

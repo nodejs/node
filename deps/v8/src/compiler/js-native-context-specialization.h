@@ -38,8 +38,8 @@ class TypeCache;
 
 // Specializes a given JSGraph to a given native context, potentially constant
 // folding some {LoadGlobal} nodes or strength reducing some {StoreGlobal}
-// nodes.  And also specializes {LoadNamed} and {StoreNamed} nodes according
-// to type feedback (if available).
+// nodes.  And also specializes {LoadNamed} and {SetNamedProperty} nodes
+// according to type feedback (if available).
 class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
     : public AdvancedReducer {
  public:
@@ -86,13 +86,13 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceJSLoadNamed(Node* node);
   Reduction ReduceJSLoadNamedFromSuper(Node* node);
   Reduction ReduceJSGetIterator(Node* node);
-  Reduction ReduceJSStoreNamed(Node* node);
+  Reduction ReduceJSSetNamedProperty(Node* node);
   Reduction ReduceJSHasProperty(Node* node);
   Reduction ReduceJSLoadProperty(Node* node);
-  Reduction ReduceJSStoreProperty(Node* node);
-  Reduction ReduceJSDefineProperty(Node* node);
-  Reduction ReduceJSStoreNamedOwn(Node* node);
-  Reduction ReduceJSStoreDataPropertyInLiteral(Node* node);
+  Reduction ReduceJSSetKeyedProperty(Node* node);
+  Reduction ReduceJSDefineKeyedOwnProperty(Node* node);
+  Reduction ReduceJSDefineNamedOwnProperty(Node* node);
+  Reduction ReduceJSDefineKeyedOwnPropertyInLiteral(Node* node);
   Reduction ReduceJSStoreInArrayLiteral(Node* node);
   Reduction ReduceJSToObject(Node* node);
 

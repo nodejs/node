@@ -55,9 +55,9 @@ bytecode array length: 18
 bytecodes: [
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
                 B(Star0),
-  /*   54 S> */ B(LdaNamedProperty), R(0), U8(1), U8(1),
+  /*   54 S> */ B(GetNamedProperty), R(0), U8(1), U8(1),
                 B(MulSmi), I8(2), U8(3),
-  /*   61 E> */ B(StaNamedProperty), R(0), U8(1), U8(4),
+  /*   61 E> */ B(SetNamedProperty), R(0), U8(1), U8(4),
                 B(LdaUndefined),
   /*   67 S> */ B(Return),
 ]
@@ -80,9 +80,9 @@ bytecodes: [
                 B(Star0),
   /*   52 S> */ B(LdaSmi), I8(1),
                 B(Star2),
-                B(LdaKeyedProperty), R(0), U8(1),
+                B(GetKeyedProperty), R(0), U8(1),
                 B(BitwiseXorSmi), I8(2), U8(3),
-  /*   57 E> */ B(StaKeyedProperty), R(0), R(2), U8(4),
+  /*   57 E> */ B(SetKeyedProperty), R(0), R(2), U8(4),
                 B(LdaUndefined),
   /*   63 S> */ B(Return),
 ]

@@ -24,6 +24,7 @@ InstructionSequenceTest::InstructionSequenceTest()
     : sequence_(nullptr),
       num_general_registers_(Register::kNumRegisters),
       num_double_registers_(DoubleRegister::kNumRegisters),
+      num_simd128_registers_(Simd128Register::kNumRegisters),
       instruction_blocks_(zone()),
       current_block_(nullptr),
       block_returns_(false) {}
@@ -69,11 +70,10 @@ int InstructionSequenceTest::GetAllocatableCode(int index,
 const RegisterConfiguration* InstructionSequenceTest::config() {
   if (!config_) {
     config_.reset(new RegisterConfiguration(
-        num_general_registers_, num_double_registers_, num_general_registers_,
-        num_double_registers_, kAllocatableCodes.data(),
-        kAllocatableCodes.data(),
-        kSimpleFPAliasing ? RegisterConfiguration::OVERLAP
-                          : RegisterConfiguration::COMBINE));
+        kFPAliasing, num_general_registers_, num_double_registers_,
+        num_simd128_registers_, num_general_registers_, num_double_registers_,
+        num_simd128_registers_, kAllocatableCodes.data(),
+        kAllocatableCodes.data(), kAllocatableCodes.data()));
   }
   return config_.get();
 }

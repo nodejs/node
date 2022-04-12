@@ -6,7 +6,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/codegen/macro-assembler.h"
-
+#include "src/objects/code-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
@@ -44,7 +44,9 @@ Handle<Code> BuildCaller(Isolate* isolate, CallDescriptor* call_descriptor,
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.
-  params.push_back(__ HeapConstant(BuildCallee(isolate, callee_descriptor)));
+  Handle<CodeT> code =
+      ToCodeT(BuildCallee(isolate, callee_descriptor), isolate);
+  params.push_back(__ HeapConstant(code));
   int param_slots = static_cast<int>(callee_descriptor->ParameterSlotCount());
   for (int i = 0; i < param_slots; ++i) {
     params.push_back(__ IntPtrConstant(i));
@@ -63,8 +65,9 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.
-  params.push_back(__ HeapConstant(
-      BuildCaller(isolate, caller_descriptor, callee_descriptor)));
+  Handle<CodeT> code = ToCodeT(
+      BuildCaller(isolate, caller_descriptor, callee_descriptor), isolate);
+  params.push_back(__ HeapConstant(code));
   // Set up arguments for "Caller".
   int param_slots = static_cast<int>(caller_descriptor->ParameterSlotCount());
   for (int i = 0; i < param_slots; ++i) {
@@ -101,7 +104,7 @@ CallDescriptor* CreateDescriptorForStackArguments(Zone* zone, int param_slots) {
       param_slots,                    // stack parameter slots
       Operator::kNoProperties,        // properties
       kNoCalleeSaved,                 // callee-saved registers
-      kNoCalleeSaved,                 // callee-saved fp
+      kNoCalleeSavedFp,               // callee-saved fp
       CallDescriptor::kNoFlags);      // flags
 }
 

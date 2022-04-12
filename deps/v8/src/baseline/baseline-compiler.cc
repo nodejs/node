@@ -586,7 +586,7 @@ void BaselineCompiler::UpdateInterruptBudgetAndJumpToLabel(
 
     if (weight < 0) {
       SaveAccumulatorScope accumulator_scope(&basm_);
-      CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheckFromBytecode,
+      CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck,
                   __ FunctionOperand());
     }
   }
@@ -841,13 +841,13 @@ void BaselineCompiler::VisitMov() {
   StoreRegister(1, scratch);
 }
 
-void BaselineCompiler::VisitLdaNamedProperty() {
+void BaselineCompiler::VisitGetNamedProperty() {
   CallBuiltin<Builtin::kLoadICBaseline>(RegisterOperand(0),  // object
                                         Constant<Name>(1),   // name
                                         IndexAsTagged(2));   // slot
 }
 
-void BaselineCompiler::VisitLdaNamedPropertyFromSuper() {
+void BaselineCompiler::VisitGetNamedPropertyFromSuper() {
   __ LoadPrototype(
       LoadWithReceiverAndVectorDescriptor::LookupStartObjectRegister(),
       kInterpreterAccumulatorRegister);
@@ -860,7 +860,7 @@ void BaselineCompiler::VisitLdaNamedPropertyFromSuper() {
       IndexAsTagged(2));                // slot
 }
 
-void BaselineCompiler::VisitLdaKeyedProperty() {
+void BaselineCompiler::VisitGetKeyedProperty() {
   CallBuiltin<Builtin::kKeyedLoadICBaseline>(
       RegisterOperand(0),               // object
       kInterpreterAccumulatorRegister,  // key
@@ -921,7 +921,12 @@ void BaselineCompiler::VisitStaModuleVariable() {
   __ StoreTaggedFieldWithWriteBarrier(scratch, Cell::kValueOffset, value);
 }
 
-void BaselineCompiler::VisitStaNamedProperty() {
+void BaselineCompiler::VisitSetNamedProperty() {
+  // StoreIC is currently a base class for multiple property store operations
+  // and contains mixed logic for named and keyed, set and define operations,
+  // the paths are controlled by feedback.
+  // TODO(v8:12548): refactor SetNamedIC as a subclass of StoreIC, which can be
+  // called here.
   CallBuiltin<Builtin::kStoreICBaseline>(
       RegisterOperand(0),               // object
       Constant<Name>(1),                // name
@@ -929,15 +934,20 @@ void BaselineCompiler::VisitStaNamedProperty() {
       IndexAsTagged(2));                // slot
 }
 
-void BaselineCompiler::VisitStaNamedOwnProperty() {
-  CallBuiltin<Builtin::kStoreOwnICBaseline>(
+void BaselineCompiler::VisitDefineNamedOwnProperty() {
+  CallBuiltin<Builtin::kDefineNamedOwnICBaseline>(
       RegisterOperand(0),               // object
       Constant<Name>(1),                // name
       kInterpreterAccumulatorRegister,  // value
       IndexAsTagged(2));                // slot
 }
 
-void BaselineCompiler::VisitStaKeyedProperty() {
+void BaselineCompiler::VisitSetKeyedProperty() {
+  // KeyedStoreIC is currently a base class for multiple keyed property store
+  // operations and contains mixed logic for set and define operations,
+  // the paths are controlled by feedback.
+  // TODO(v8:12548): refactor SetKeyedIC as a subclass of KeyedStoreIC, which
+  // can be called here.
   CallBuiltin<Builtin::kKeyedStoreICBaseline>(
       RegisterOperand(0),               // object
       RegisterOperand(1),               // key
@@ -945,8 +955,8 @@ void BaselineCompiler::VisitStaKeyedProperty() {
       IndexAsTagged(2));                // slot
 }
 
-void BaselineCompiler::VisitStaKeyedPropertyAsDefine() {
-  CallBuiltin<Builtin::kKeyedDefineOwnICBaseline>(
+void BaselineCompiler::VisitDefineKeyedOwnProperty() {
+  CallBuiltin<Builtin::kDefineKeyedOwnICBaseline>(
       RegisterOperand(0),               // object
       RegisterOperand(1),               // key
       kInterpreterAccumulatorRegister,  // value
@@ -961,11 +971,12 @@ void BaselineCompiler::VisitStaInArrayLiteral() {
       IndexAsTagged(2));                // slot
 }
 
-void BaselineCompiler::VisitStaDataPropertyInLiteral() {
-  // Here we should save the accumulator, since StaDataPropertyInLiteral doesn't
-  // write the accumulator, but Runtime::kDefineDataPropertyInLiteral returns
-  // the value that we got from the accumulator so this still works.
-  CallRuntime(Runtime::kDefineDataPropertyInLiteral,
+void BaselineCompiler::VisitDefineKeyedOwnPropertyInLiteral() {
+  // Here we should save the accumulator, since
+  // DefineKeyedOwnPropertyInLiteral doesn't write the accumulator, but
+  // Runtime::kDefineKeyedOwnPropertyInLiteral returns the value that we got
+  // from the accumulator so this still works.
+  CallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral,
               RegisterOperand(0),               // object
               RegisterOperand(1),               // name
               kInterpreterAccumulatorRegister,  // value
@@ -1211,14 +1222,12 @@ void BaselineCompiler::BuildCall(uint32_t slot, uint32_t arg_count,
 void BaselineCompiler::VisitCallAnyReceiver() {
   interpreter::RegisterList args = iterator().GetRegisterListOperand(1);
   uint32_t arg_count = args.register_count();
-  if (!kJSArgcIncludesReceiver) arg_count -= 1;  // Remove receiver.
   BuildCall<ConvertReceiverMode::kAny>(Index(3), arg_count, args);
 }
 
 void BaselineCompiler::VisitCallProperty() {
   interpreter::RegisterList args = iterator().GetRegisterListOperand(1);
   uint32_t arg_count = args.register_count();
-  if (!kJSArgcIncludesReceiver) arg_count -= 1;  // Remove receiver.
   BuildCall<ConvertReceiverMode::kNotNullOrUndefined>(Index(3), arg_count,
                                                       args);
 }
@@ -1271,7 +1280,6 @@ void BaselineCompiler::VisitCallWithSpread() {
   args = args.Truncate(args.register_count() - 1);
 
   uint32_t arg_count = args.register_count();
-  if (!kJSArgcIncludesReceiver) arg_count -= 1;  // Remove receiver.
 
   CallBuiltin<Builtin::kCallWithSpread_Baseline>(
       RegisterOperand(0),  // kFunction
@@ -1327,6 +1335,19 @@ void BaselineCompiler::VisitInvokeIntrinsic() {
 void BaselineCompiler::VisitIntrinsicCopyDataProperties(
     interpreter::RegisterList args) {
   CallBuiltin<Builtin::kCopyDataProperties>(args);
+}
+
+void BaselineCompiler::
+    VisitIntrinsicCopyDataPropertiesWithExcludedPropertiesOnStack(
+        interpreter::RegisterList args) {
+  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+  Register rscratch = scratch_scope.AcquireScratch();
+  // Use an offset from args[0] instead of args[1] to pass a valid "end of"
+  // pointer in the case where args.register_count() == 1.
+  basm_.RegisterFrameAddress(interpreter::Register(args[0].index() + 1),
+                             rscratch);
+  CallBuiltin<Builtin::kCopyDataPropertiesWithExcludedPropertiesOnStack>(
+      args[0], args.register_count() - 1, rscratch);
 }
 
 void BaselineCompiler::VisitIntrinsicCreateIterResultObject(
@@ -2121,15 +2142,8 @@ void BaselineCompiler::VisitReturn() {
                          iterator().current_bytecode_size_without_prefix();
   int parameter_count = bytecode_->parameter_count();
 
-  if (kJSArgcIncludesReceiver) {
-    TailCallBuiltin<Builtin::kBaselineLeaveFrame>(parameter_count,
-                                                  -profiling_weight);
-
-  } else {
-    int parameter_count_without_receiver = parameter_count - 1;
-    TailCallBuiltin<Builtin::kBaselineLeaveFrame>(
-        parameter_count_without_receiver, -profiling_weight);
-  }
+  TailCallBuiltin<Builtin::kBaselineLeaveFrame>(parameter_count,
+                                                -profiling_weight);
 }
 
 void BaselineCompiler::VisitThrowReferenceErrorIfHole() {

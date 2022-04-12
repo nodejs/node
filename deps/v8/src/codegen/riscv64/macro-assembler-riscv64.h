@@ -358,7 +358,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Registers are saved in numerical order, with higher numbered registers
   // saved in higher memory addresses.
   void MultiPush(RegList regs);
-  void MultiPushFPU(RegList regs);
+  void MultiPushFPU(DoubleRegList regs);
 
   // Calculate how much stack space (in bytes) are required to store caller
   // registers excluding those specified in the arguments.
@@ -407,7 +407,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Pops multiple values from the stack and load them in the
   // registers specified in regs. Pop order is the opposite as in MultiPush.
   void MultiPop(RegList regs);
-  void MultiPopFPU(RegList regs);
+  void MultiPopFPU(DoubleRegList regs);
 
 #define DEFINE_INSTRUCTION(instr)                          \
   void instr(Register rd, Register rs, const Operand& rt); \
@@ -1107,7 +1107,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Enter exit frame.
   // argc - argument count to be dropped by LeaveExitFrame.
-  // save_doubles - saves FPU registers on stack, currently disabled.
+  // save_doubles - saves FPU registers on stack.
   // stack_space - extra stack space.
   void EnterExitFrame(bool save_doubles, int stack_space = 0,
                       StackFrame::Type frame_type = StackFrame::EXIT);

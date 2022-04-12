@@ -17,7 +17,7 @@ const int OSROptimizedCodeCache::kMaxLength;
 
 void OSROptimizedCodeCache::AddOptimizedCode(
     Handle<NativeContext> native_context, Handle<SharedFunctionInfo> shared,
-    Handle<Code> code, BytecodeOffset osr_offset) {
+    Handle<CodeT> code, BytecodeOffset osr_offset) {
   DCHECK(!osr_offset.IsNone());
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
   STATIC_ASSERT(kEntryLength == 3);
@@ -90,16 +90,16 @@ void OSROptimizedCodeCache::Compact(Handle<NativeContext> native_context) {
   native_context->set_osr_code_cache(*new_osr_cache);
 }
 
-Code OSROptimizedCodeCache::GetOptimizedCode(Handle<SharedFunctionInfo> shared,
-                                             BytecodeOffset osr_offset,
-                                             Isolate* isolate) {
+CodeT OSROptimizedCodeCache::GetOptimizedCode(Handle<SharedFunctionInfo> shared,
+                                              BytecodeOffset osr_offset,
+                                              Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   int index = FindEntry(shared, osr_offset);
-  if (index == -1) return Code();
-  Code code = GetCodeFromEntry(index);
+  if (index == -1) return CodeT();
+  CodeT code = GetCodeFromEntry(index);
   if (code.is_null()) {
     ClearEntry(index, isolate);
-    return code;
+    return CodeT();
   }
   DCHECK(code.is_optimized_code() && !code.marked_for_deoptimization());
   return code;
@@ -114,13 +114,24 @@ void OSROptimizedCodeCache::EvictMarkedCode(Isolate* isolate) {
     HeapObject heap_object;
     if (!code_entry->GetHeapObject(&heap_object)) continue;
 
-    // TODO(v8:11880): avoid roundtrips between cdc and code.
-    Code code = FromCodeT(CodeT::cast(heap_object));
+    CodeT code = CodeT::cast(heap_object);
     DCHECK(code.is_optimized_code());
     if (!code.marked_for_deoptimization()) continue;
 
     ClearEntry(index, isolate);
   }
+}
+
+std::vector<int> OSROptimizedCodeCache::GetBytecodeOffsetsFromSFI(
+    SharedFunctionInfo shared) {
+  std::vector<int> bytecode_offsets;
+  DisallowGarbageCollection gc;
+  for (int index = 0; index < length(); index += kEntryLength) {
+    if (GetSFIFromEntry(index) == shared) {
+      bytecode_offsets.push_back(GetBytecodeOffsetFromEntry(index).ToInt());
+    }
+  }
+  return bytecode_offsets;
 }
 
 int OSROptimizedCodeCache::GrowOSRCache(
@@ -140,14 +151,14 @@ int OSROptimizedCodeCache::GrowOSRCache(
   return old_length;
 }
 
-Code OSROptimizedCodeCache::GetCodeFromEntry(int index) {
+CodeT OSROptimizedCodeCache::GetCodeFromEntry(int index) {
   DCHECK_LE(index + OSRCodeCacheConstants::kEntryLength, length());
   DCHECK_EQ(index % kEntryLength, 0);
   HeapObject code_entry;
   Get(index + OSRCodeCacheConstants::kCachedCodeOffset)
       ->GetHeapObject(&code_entry);
-  if (code_entry.is_null()) return Code();
-  return FromCodeT(CodeT::cast(code_entry));
+  if (code_entry.is_null()) return CodeT();
+  return CodeT::cast(code_entry);
 }
 
 SharedFunctionInfo OSROptimizedCodeCache::GetSFIFromEntry(int index) {
@@ -180,25 +191,43 @@ int OSROptimizedCodeCache::FindEntry(Handle<SharedFunctionInfo> shared,
 }
 
 void OSROptimizedCodeCache::ClearEntry(int index, Isolate* isolate) {
-  Set(index + OSRCodeCacheConstants::kSharedOffset,
-      HeapObjectReference::ClearedValue(isolate));
-  Set(index + OSRCodeCacheConstants::kCachedCodeOffset,
-      HeapObjectReference::ClearedValue(isolate));
-  Set(index + OSRCodeCacheConstants::kOsrIdOffset,
-      HeapObjectReference::ClearedValue(isolate));
+  SharedFunctionInfo shared = GetSFIFromEntry(index);
+  DCHECK_GT(shared.osr_code_cache_state(), kNotCached);
+  if (V8_LIKELY(shared.osr_code_cache_state() == kCachedOnce)) {
+    shared.set_osr_code_cache_state(kNotCached);
+  } else if (shared.osr_code_cache_state() == kCachedMultiple) {
+    int osr_code_cache_count = 0;
+    for (int index = 0; index < length(); index += kEntryLength) {
+      if (GetSFIFromEntry(index) == shared) {
+        osr_code_cache_count++;
+      }
+    }
+    if (osr_code_cache_count == 2) {
+      shared.set_osr_code_cache_state(kCachedOnce);
+    }
+  }
+  HeapObjectReference cleared_value =
+      HeapObjectReference::ClearedValue(isolate);
+  Set(index + OSRCodeCacheConstants::kSharedOffset, cleared_value);
+  Set(index + OSRCodeCacheConstants::kCachedCodeOffset, cleared_value);
+  Set(index + OSRCodeCacheConstants::kOsrIdOffset, cleared_value);
 }
 
 void OSROptimizedCodeCache::InitializeEntry(int entry,
                                             SharedFunctionInfo shared,
-                                            Code code,
+                                            CodeT code,
                                             BytecodeOffset osr_offset) {
   Set(entry + OSRCodeCacheConstants::kSharedOffset,
       HeapObjectReference::Weak(shared));
-  HeapObjectReference weak_code_entry =
-      HeapObjectReference::Weak(ToCodeT(code));
+  HeapObjectReference weak_code_entry = HeapObjectReference::Weak(code);
   Set(entry + OSRCodeCacheConstants::kCachedCodeOffset, weak_code_entry);
   Set(entry + OSRCodeCacheConstants::kOsrIdOffset,
       MaybeObject::FromSmi(Smi::FromInt(osr_offset.ToInt())));
+  if (V8_LIKELY(shared.osr_code_cache_state() == kNotCached)) {
+    shared.set_osr_code_cache_state(kCachedOnce);
+  } else if (shared.osr_code_cache_state() == kCachedOnce) {
+    shared.set_osr_code_cache_state(kCachedMultiple);
+  }
 }
 
 void OSROptimizedCodeCache::MoveEntry(int src, int dst, Isolate* isolate) {
@@ -207,7 +236,11 @@ void OSROptimizedCodeCache::MoveEntry(int src, int dst, Isolate* isolate) {
   Set(dst + OSRCodeCacheConstants::kCachedCodeOffset,
       Get(src + OSRCodeCacheConstants::kCachedCodeOffset));
   Set(dst + OSRCodeCacheConstants::kOsrIdOffset, Get(src + kOsrIdOffset));
-  ClearEntry(src, isolate);
+  HeapObjectReference cleared_value =
+      HeapObjectReference::ClearedValue(isolate);
+  Set(src + OSRCodeCacheConstants::kSharedOffset, cleared_value);
+  Set(src + OSRCodeCacheConstants::kCachedCodeOffset, cleared_value);
+  Set(src + OSRCodeCacheConstants::kOsrIdOffset, cleared_value);
 }
 
 int OSROptimizedCodeCache::CapacityForLength(int curr_length) {

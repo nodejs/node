@@ -13,15 +13,19 @@ namespace v8 {
 namespace internal {
 
 InvalidatedSlotsFilter InvalidatedSlotsFilter::OldToOld(MemoryChunk* chunk) {
-  return InvalidatedSlotsFilter(chunk, chunk->invalidated_slots<OLD_TO_OLD>());
+  return InvalidatedSlotsFilter(chunk, chunk->invalidated_slots<OLD_TO_OLD>(),
+                                OLD_TO_OLD);
 }
 
 InvalidatedSlotsFilter InvalidatedSlotsFilter::OldToNew(MemoryChunk* chunk) {
-  return InvalidatedSlotsFilter(chunk, chunk->invalidated_slots<OLD_TO_NEW>());
+  return InvalidatedSlotsFilter(chunk, chunk->invalidated_slots<OLD_TO_NEW>(),
+                                OLD_TO_NEW);
 }
 
 InvalidatedSlotsFilter::InvalidatedSlotsFilter(
-    MemoryChunk* chunk, InvalidatedSlots* invalidated_slots) {
+    MemoryChunk* chunk, InvalidatedSlots* invalidated_slots,
+    RememberedSetType remembered_set_type) {
+  USE(remembered_set_type);
   invalidated_slots = invalidated_slots ? invalidated_slots : &empty_;
 
   iterator_ = invalidated_slots->begin();
@@ -36,6 +40,7 @@ InvalidatedSlotsFilter::InvalidatedSlotsFilter(
 
 #ifdef DEBUG
   last_slot_ = chunk->area_start();
+  remembered_set_type_ = remembered_set_type;
 #endif
 }
 

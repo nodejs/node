@@ -9,6 +9,7 @@
 #include <stack>
 
 #include "src/base/atomic-utils.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "src/objects/heap-object.h"
 #include "src/utils/allocation.h"
 #include "src/utils/utils.h"
@@ -33,11 +34,13 @@ class V8_EXPORT_PRIVATE InvalidatedSlotsFilter {
   static InvalidatedSlotsFilter OldToOld(MemoryChunk* chunk);
   static InvalidatedSlotsFilter OldToNew(MemoryChunk* chunk);
 
-  explicit InvalidatedSlotsFilter(MemoryChunk* chunk,
-                                  InvalidatedSlots* invalidated_slots);
   inline bool IsValid(Address slot);
 
  private:
+  explicit InvalidatedSlotsFilter(MemoryChunk* chunk,
+                                  InvalidatedSlots* invalidated_slots,
+                                  RememberedSetType remembered_set_type);
+
   InvalidatedSlots::const_iterator iterator_;
   InvalidatedSlots::const_iterator iterator_end_;
   Address sentinel_;
@@ -47,6 +50,7 @@ class V8_EXPORT_PRIVATE InvalidatedSlotsFilter {
   InvalidatedSlots empty_;
 #ifdef DEBUG
   Address last_slot_;
+  RememberedSetType remembered_set_type_;
 #endif
 
  private:

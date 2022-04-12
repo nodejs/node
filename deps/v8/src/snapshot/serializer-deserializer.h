@@ -29,9 +29,9 @@ class SerializerDeserializer : public RootVisitor {
   static bool CanBeDeferred(HeapObject o);
 
   void RestoreExternalReferenceRedirector(Isolate* isolate,
-                                          Handle<AccessorInfo> accessor_info);
-  void RestoreExternalReferenceRedirector(
-      Isolate* isolate, Handle<CallHandlerInfo> call_handler_info);
+                                          AccessorInfo accessor_info);
+  void RestoreExternalReferenceRedirector(Isolate* isolate,
+                                          CallHandlerInfo call_handler_info);
 
 // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \

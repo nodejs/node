@@ -8,6 +8,7 @@
 #ifndef V8_TORQUE_DEBUG_MACRO_SHIMS_H_
 #define V8_TORQUE_DEBUG_MACRO_SHIMS_H_
 
+#include "src/numbers/integer-literal.h"
 #include "src/objects/smi.h"
 #include "tools/debug_helper/debug-helper-internal.h"
 
@@ -66,12 +67,23 @@ inline Value<intptr_t> IntPtrMul(d::MemoryAccessor accessor, intptr_t a,
                                  intptr_t b) {
   return {d::MemoryAccessResult::kOk, a * b};
 }
+inline Value<bool> IntPtrLessThan(d::MemoryAccessor accessor, intptr_t a,
+                                  intptr_t b) {
+  return {d::MemoryAccessResult::kOk, a < b};
+}
+inline Value<bool> IntPtrLessThanOrEqual(d::MemoryAccessor accessor, intptr_t a,
+                                         intptr_t b) {
+  return {d::MemoryAccessResult::kOk, a <= b};
+}
 inline Value<intptr_t> Signed(d::MemoryAccessor accessor, uintptr_t u) {
   return {d::MemoryAccessResult::kOk, static_cast<intptr_t>(u)};
 }
 inline Value<int32_t> SmiUntag(d::MemoryAccessor accessor, uintptr_t s_t) {
   Smi s(s_t);
   return {d::MemoryAccessResult::kOk, s.value()};
+}
+inline Value<uintptr_t> SmiFromInt32(d::MemoryAccessor accessor, int32_t i) {
+  return {d::MemoryAccessResult::kOk, Smi::FromInt(i).ptr()};
 }
 inline Value<bool> UintPtrLessThan(d::MemoryAccessor accessor, uintptr_t a,
                                    uintptr_t b) {
@@ -92,6 +104,19 @@ inline Value<bool> Word32Equal(d::MemoryAccessor accessor, uint32_t a,
 inline Value<bool> Word32NotEqual(d::MemoryAccessor accessor, uint32_t a,
                                   uint32_t b) {
   return {d::MemoryAccessResult::kOk, a != b};
+}
+// This is used in a nested call where we cannot pass Value<int32_t>.
+inline int31_t ConstexprIntegerLiteralToInt31(d::MemoryAccessor accessor,
+                                              const IntegerLiteral& i) {
+  return i.To<int32_t>();
+}
+inline int32_t ConstexprIntegerLiteralToInt32(d::MemoryAccessor accessor,
+                                              const IntegerLiteral& i) {
+  return i.To<int32_t>();
+}
+inline intptr_t ConstexprIntegerLiteralToIntptr(d::MemoryAccessor accessor,
+                                                const IntegerLiteral& i) {
+  return i.To<intptr_t>();
 }
 
 }  // namespace CodeStubAssembler

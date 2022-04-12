@@ -199,18 +199,21 @@ class CcTest {
   static void TearDown();
 
  private:
-  friend int main(int argc, char** argv);
+  static CcTest* last_;
+  static v8::ArrayBuffer::Allocator* allocator_;
+  static v8::Isolate* isolate_;
+  static bool initialize_called_;
+  static v8::base::Atomic32 isolate_used_;
+
   TestFunction* callback_;
   const char* file_;
   const char* name_;
   bool enabled_;
   bool initialize_;
   CcTest* prev_;
-  static CcTest* last_;
-  static v8::ArrayBuffer::Allocator* allocator_;
-  static v8::Isolate* isolate_;
-  static bool initialize_called_;
-  static v8::base::Atomic32 isolate_used_;
+
+  friend int main(int argc, char** argv);
+  friend class ManualGCScope;
 };
 
 // Switches between all the Api tests using the threading support.
@@ -528,6 +531,25 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(
   return CompileRunWithOrigin(v8_str(source), origin_url);
 }
 
+// Run a ScriptStreamingTask in a separate thread.
+class StreamerThread : public v8::base::Thread {
+ public:
+  static void StartThreadForTaskAndJoin(
+      v8::ScriptCompiler::ScriptStreamingTask* task) {
+    StreamerThread thread(task);
+    CHECK(thread.Start());
+    thread.Join();
+  }
+
+  explicit StreamerThread(v8::ScriptCompiler::ScriptStreamingTask* task)
+      : Thread(Thread::Options()), task_(task) {}
+
+  void Run() override { task_->Run(); }
+
+ private:
+  v8::ScriptCompiler::ScriptStreamingTask* task_;
+};
+
 // Takes a JSFunction and runs it through the test version of the optimizing
 // pipeline, allocating the temporary compilation artifacts in a given Zone.
 // For possible {flags} values, look at OptimizedCompilationInfo::Flag.  If
@@ -657,42 +679,25 @@ class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
   const char* data_;
 };
 
+// ManualGCScope allows for disabling GC heuristics. This is useful for tests
+// that want to check specific corner cases around GC.
+//
+// The scope will finalize any ongoing GC on the provided Isolate. If no Isolate
+// is manually provided, it is assumed that a CcTest setup (e.g.
+// CcTest::InitializeVM()) is used.
 class V8_NODISCARD ManualGCScope {
  public:
-  ManualGCScope()
-      : flag_concurrent_marking_(i::FLAG_concurrent_marking),
-        flag_concurrent_sweeping_(i::FLAG_concurrent_sweeping),
-        flag_stress_concurrent_allocation_(
-            i::FLAG_stress_concurrent_allocation),
-        flag_stress_incremental_marking_(i::FLAG_stress_incremental_marking),
-        flag_parallel_marking_(i::FLAG_parallel_marking),
-        flag_detect_ineffective_gcs_near_heap_limit_(
-            i::FLAG_detect_ineffective_gcs_near_heap_limit) {
-    i::FLAG_concurrent_marking = false;
-    i::FLAG_concurrent_sweeping = false;
-    i::FLAG_stress_incremental_marking = false;
-    i::FLAG_stress_concurrent_allocation = false;
-    // Parallel marking has a dependency on concurrent marking.
-    i::FLAG_parallel_marking = false;
-    i::FLAG_detect_ineffective_gcs_near_heap_limit = false;
-  }
-  ~ManualGCScope() {
-    i::FLAG_concurrent_marking = flag_concurrent_marking_;
-    i::FLAG_concurrent_sweeping = flag_concurrent_sweeping_;
-    i::FLAG_stress_concurrent_allocation = flag_stress_concurrent_allocation_;
-    i::FLAG_stress_incremental_marking = flag_stress_incremental_marking_;
-    i::FLAG_parallel_marking = flag_parallel_marking_;
-    i::FLAG_detect_ineffective_gcs_near_heap_limit =
-        flag_detect_ineffective_gcs_near_heap_limit_;
-  }
+  explicit ManualGCScope(
+      i::Isolate* isolate = reinterpret_cast<i::Isolate*>(CcTest::isolate_));
+  ~ManualGCScope();
 
  private:
-  bool flag_concurrent_marking_;
-  bool flag_concurrent_sweeping_;
-  bool flag_stress_concurrent_allocation_;
-  bool flag_stress_incremental_marking_;
-  bool flag_parallel_marking_;
-  bool flag_detect_ineffective_gcs_near_heap_limit_;
+  const bool flag_concurrent_marking_;
+  const bool flag_concurrent_sweeping_;
+  const bool flag_stress_concurrent_allocation_;
+  const bool flag_stress_incremental_marking_;
+  const bool flag_parallel_marking_;
+  const bool flag_detect_ineffective_gcs_near_heap_limit_;
 };
 
 // This is an abstract base class that can be overridden to implement a test
@@ -705,55 +710,56 @@ class TestPlatform : public v8::Platform {
 
   // v8::Platform implementation.
   v8::PageAllocator* GetPageAllocator() override {
-    return old_platform_->GetPageAllocator();
+    return old_platform()->GetPageAllocator();
   }
 
   void OnCriticalMemoryPressure() override {
-    old_platform_->OnCriticalMemoryPressure();
+    old_platform()->OnCriticalMemoryPressure();
   }
 
   bool OnCriticalMemoryPressure(size_t length) override {
-    return old_platform_->OnCriticalMemoryPressure(length);
+    return old_platform()->OnCriticalMemoryPressure(length);
   }
 
   int NumberOfWorkerThreads() override {
-    return old_platform_->NumberOfWorkerThreads();
+    return old_platform()->NumberOfWorkerThreads();
   }
 
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       v8::Isolate* isolate) override {
-    return old_platform_->GetForegroundTaskRunner(isolate);
+    return old_platform()->GetForegroundTaskRunner(isolate);
   }
 
   void CallOnWorkerThread(std::unique_ptr<v8::Task> task) override {
-    old_platform_->CallOnWorkerThread(std::move(task));
+    old_platform()->CallOnWorkerThread(std::move(task));
   }
 
   void CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
                                  double delay_in_seconds) override {
-    old_platform_->CallDelayedOnWorkerThread(std::move(task), delay_in_seconds);
+    old_platform()->CallDelayedOnWorkerThread(std::move(task),
+                                              delay_in_seconds);
   }
 
   std::unique_ptr<v8::JobHandle> PostJob(
       v8::TaskPriority priority,
       std::unique_ptr<v8::JobTask> job_task) override {
-    return old_platform_->PostJob(priority, std::move(job_task));
+    return old_platform()->PostJob(priority, std::move(job_task));
   }
 
   double MonotonicallyIncreasingTime() override {
-    return old_platform_->MonotonicallyIncreasingTime();
+    return old_platform()->MonotonicallyIncreasingTime();
   }
 
   double CurrentClockTimeMillis() override {
-    return old_platform_->CurrentClockTimeMillis();
+    return old_platform()->CurrentClockTimeMillis();
   }
 
   bool IdleTasksEnabled(v8::Isolate* isolate) override {
-    return old_platform_->IdleTasksEnabled(isolate);
+    return old_platform()->IdleTasksEnabled(isolate);
   }
 
   v8::TracingController* GetTracingController() override {
-    return old_platform_->GetTracingController();
+    return old_platform()->GetTracingController();
   }
 
  protected:
@@ -763,7 +769,7 @@ class TestPlatform : public v8::Platform {
   v8::Platform* old_platform() const { return old_platform_; }
 
  private:
-  v8::Platform* old_platform_;
+  std::atomic<v8::Platform*> old_platform_;
 };
 
 #if defined(USE_SIMULATOR)

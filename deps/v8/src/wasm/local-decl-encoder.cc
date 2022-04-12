@@ -37,10 +37,6 @@ size_t LocalDeclEncoder::Emit(byte* buffer) const {
     LEBHelper::write_u32v(&pos, locals_count);
     *pos = locals_type.value_type_code();
     ++pos;
-    if (locals_type.has_depth()) {
-      *pos = locals_type.depth();
-      ++pos;
-    }
     if (locals_type.is_rtt()) {
       LEBHelper::write_u32v(&pos, locals_type.ref_index());
     }
@@ -72,7 +68,6 @@ size_t LocalDeclEncoder::Size() const {
     size +=
         LEBHelper::sizeof_u32v(p.first) +  // number of locals
         1 +                                // Opcode
-        (p.second.has_depth() ? 1 : 0) +   // Inheritance depth
         (p.second.encoding_needs_heap_type()
              ? LEBHelper::sizeof_i32v(p.second.heap_type().code())
              : 0) +

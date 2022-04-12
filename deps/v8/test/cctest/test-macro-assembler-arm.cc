@@ -73,7 +73,7 @@ TEST(ExtractLane) {
   };
   T t;
 
-  __ stm(db_w, sp, r4.bit() | r5.bit() | lr.bit());
+  __ stm(db_w, sp, {r4, r5, lr});
 
   for (int i = 0; i < 4; i++) {
     __ mov(r4, Operand(i));
@@ -143,7 +143,7 @@ TEST(ExtractLane) {
     }
   }
 
-  __ ldm(ia_w, sp, r4.bit() | r5.bit() | pc.bit());
+  __ ldm(ia_w, sp, {r4, r5, pc});
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
@@ -210,7 +210,7 @@ TEST(ReplaceLane) {
   };
   T t;
 
-  __ stm(db_w, sp, r4.bit() | r5.bit() | r6.bit() | r7.bit() | lr.bit());
+  __ stm(db_w, sp, {r4, r5, r6, r7, lr});
 
   __ veor(q0, q0, q0);  // Zero
   __ veor(q1, q1, q1);  // Zero
@@ -274,7 +274,7 @@ TEST(ReplaceLane) {
     __ vst1(Neon8, NeonListOperand(q14), NeonMemOperand(r4));
   }
 
-  __ ldm(ia_w, sp, r4.bit() | r5.bit() | r6.bit() | r7.bit() | pc.bit());
+  __ ldm(ia_w, sp, {r4, r5, r6, r7, pc});
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);

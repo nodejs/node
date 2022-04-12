@@ -5,8 +5,8 @@
 #ifndef V8_HEAP_SCAVENGER_INL_H_
 #define V8_HEAP_SCAVENGER_INL_H_
 
+#include "src/heap/evacuation-allocator-inl.h"
 #include "src/heap/incremental-marking-inl.h"
-#include "src/heap/local-allocator-inl.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/scavenger.h"
 #include "src/objects/map.h"
@@ -83,7 +83,8 @@ void Scavenger::PageMemoryFence(MaybeObject object) {
 }
 
 bool Scavenger::MigrateObject(Map map, HeapObject source, HeapObject target,
-                              int size) {
+                              int size,
+                              PromotionHeapChoice promotion_heap_choice) {
   // Copy the content of source to target.
   target.set_map_word(MapWord::FromMap(map), kRelaxedStore);
   heap()->CopyBlock(target.address() + kTaggedSize,
@@ -100,7 +101,8 @@ bool Scavenger::MigrateObject(Map map, HeapObject source, HeapObject target,
     heap()->OnMoveEvent(target, source, size);
   }
 
-  if (is_incremental_marking_) {
+  if (is_incremental_marking_ &&
+      promotion_heap_choice != kPromoteIntoSharedHeap) {
     heap()->incremental_marking()->TransferColor(source, target);
   }
   heap()->UpdateAllocationSite(map, source, &local_pretenuring_feedback_);
@@ -123,7 +125,8 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
   if (allocation.To(&target)) {
     DCHECK(heap()->incremental_marking()->non_atomic_marking_state()->IsWhite(
         target));
-    const bool self_success = MigrateObject(map, object, target, object_size);
+    const bool self_success =
+        MigrateObject(map, object, target, object_size, kPromoteIntoLocalHeap);
     if (!self_success) {
       allocator_.FreeLast(NEW_SPACE, target, object_size);
       MapWord map_word = object.map_word(kAcquireLoad);
@@ -171,7 +174,8 @@ CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
   if (allocation.To(&target)) {
     DCHECK(heap()->incremental_marking()->non_atomic_marking_state()->IsWhite(
         target));
-    const bool self_success = MigrateObject(map, object, target, object_size);
+    const bool self_success =
+        MigrateObject(map, object, target, object_size, promotion_heap_choice);
     if (!self_success) {
       allocator_.FreeLast(OLD_SPACE, target, object_size);
       MapWord map_word = object.map_word(kAcquireLoad);
@@ -182,7 +186,11 @@ CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
                  : CopyAndForwardResult::SUCCESS_OLD_GENERATION;
     }
     HeapObjectReference::Update(slot, target);
-    if (object_fields == ObjectFields::kMaybePointers) {
+
+    // During incremental marking we want to push every object in order to
+    // record slots for map words. Necessary for map space compaction.
+    if (object_fields == ObjectFields::kMaybePointers ||
+        is_compacting_including_map_space_) {
       promotion_list_local_.PushRegularObject(target, object_size);
     }
     promoted_size_ += object_size;
@@ -203,7 +211,6 @@ bool Scavenger::HandleLargeObject(Map map, HeapObject object, int object_size,
   // TODO(hpayer): Make this check size based, i.e.
   // object_size > kMaxRegularHeapObjectSize
   if (V8_UNLIKELY(
-          FLAG_young_generation_large_objects &&
           BasicMemoryChunk::FromHeapObject(object)->InNewLargeObjectSpace())) {
     DCHECK_EQ(NEW_LO_SPACE,
               MemoryChunk::FromHeapObject(object)->owner_identity());
@@ -377,7 +384,8 @@ SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot, Map map,
           map, slot, String::unchecked_cast(source), size,
           ObjectFields::kMaybePointers);
     case kVisitDataObject:  // External strings have kVisitDataObject.
-      if (String::IsInPlaceInternalizable(map.instance_type())) {
+      if (String::IsInPlaceInternalizableExcludingExternal(
+              map.instance_type())) {
         return EvacuateInPlaceInternalizableString(
             map, slot, String::unchecked_cast(source), size,
             ObjectFields::kDataOnly);

@@ -13,8 +13,10 @@
 #include "include/v8-template.h"
 #include "include/v8-traced-handle.h"
 #include "src/api/api-inl.h"
+#include "src/common/allow-deprecated.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/embedder-tracing.h"
+#include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/safepoint.h"
@@ -24,6 +26,8 @@
 #include "src/objects/shared-function-info.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
+
+START_ALLOW_USE_DEPRECATED()
 
 namespace v8 {
 
@@ -264,22 +268,26 @@ TEST(FinalizeTracingWhenMarking) {
   ManualGCScope manual_gc;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
-  Isolate* i_isolate = CcTest::i_isolate();
+  Heap* heap = CcTest::i_isolate()->heap();
   TestEmbedderHeapTracer tracer;
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
 
   // Finalize a potentially running garbage collection.
-  i_isolate->heap()->CollectGarbage(OLD_SPACE,
-                                    GarbageCollectionReason::kTesting);
-  if (i_isolate->heap()->mark_compact_collector()->sweeping_in_progress()) {
-    i_isolate->heap()->mark_compact_collector()->EnsureSweepingCompleted();
+  heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
+  if (heap->mark_compact_collector()->sweeping_in_progress()) {
+    heap->mark_compact_collector()->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
-  CHECK(i_isolate->heap()->incremental_marking()->IsStopped());
+  heap->tracer()->StopCycleIfNeeded();
+  CHECK(heap->incremental_marking()->IsStopped());
 
-  i::IncrementalMarking* marking = i_isolate->heap()->incremental_marking();
+  i::IncrementalMarking* marking = heap->incremental_marking();
   {
-    SafepointScope scope(i_isolate->heap());
-    marking->Start(i::GarbageCollectionReason::kTesting);
+    SafepointScope scope(heap);
+    heap->tracer()->StartCycle(
+        GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
+        "collector cctest", GCTracer::MarkingType::kIncremental);
+    marking->Start(GarbageCollectionReason::kTesting);
   }
 
   // Sweeping is not runing so we should immediately start marking.
@@ -1327,3 +1335,5 @@ TEST(NotifyEmptyStack) {
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8
+
+END_ALLOW_USE_DEPRECATED()

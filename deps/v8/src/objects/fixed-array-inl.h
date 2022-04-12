@@ -5,13 +5,12 @@
 #ifndef V8_OBJECTS_FIXED_ARRAY_INL_H_
 #define V8_OBJECTS_FIXED_ARRAY_INL_H_
 
-#include "src/objects/fixed-array.h"
-
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/bigint.h"
 #include "src/objects/compressed-slots.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/objects-inl.h"
@@ -84,7 +83,6 @@ bool FixedArray::is_the_hole(Isolate* isolate, int index) {
   return get(isolate, index).IsTheHole(isolate);
 }
 
-#if !defined(_WIN32) || (defined(_WIN64) && _MSC_VER < 1930 && __cplusplus < 201703L)
 void FixedArray::set(int index, Smi value) {
   DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
@@ -92,7 +90,6 @@ void FixedArray::set(int index, Smi value) {
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
 }
-#endif
 
 void FixedArray::set(int index, Object value) {
   DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());

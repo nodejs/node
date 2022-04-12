@@ -95,7 +95,7 @@ class App {
     document.addEventListener(
         SelectionEvent.name, e => this.handleSelectEntries(e))
     document.addEventListener(
-        FocusEvent.name, e => this.handleFocusLogEntryl(e));
+        FocusEvent.name, e => this.handleFocusLogEntry(e));
     document.addEventListener(
         SelectTimeEvent.name, e => this.handleTimeRangeSelect(e));
     document.addEventListener(ToolTipEvent.name, e => this.handleToolTip(e));
@@ -151,7 +151,7 @@ class App {
 
   handleSelectEntries(e) {
     e.stopImmediatePropagation();
-    this.showEntries(e.entries);
+    this.selectEntries(e.entries);
   }
 
   selectEntries(entries) {
@@ -160,29 +160,30 @@ class App {
       this.selectEntriesOfSingleType(group.entries);
       missingTypes.delete(group.key);
     });
-    missingTypes.forEach(type => this.selectEntriesOfSingleType([], type));
+    missingTypes.forEach(
+        type => this.selectEntriesOfSingleType([], type, false));
   }
 
-  selectEntriesOfSingleType(entries, type) {
+  selectEntriesOfSingleType(entries, type, focusView = true) {
     const entryType = entries[0]?.constructor ?? type;
     switch (entryType) {
       case Script:
         entries = entries.flatMap(script => script.sourcePositions);
-        return this.showSourcePositions(entries);
+        return this.showSourcePositions(entries, focusView);
       case SourcePosition:
-        return this.showSourcePositions(entries);
+        return this.showSourcePositions(entries, focusView);
       case MapLogEntry:
-        return this.showMapEntries(entries);
+        return this.showMapEntries(entries, focusView);
       case IcLogEntry:
-        return this.showIcEntries(entries);
+        return this.showIcEntries(entries, focusView);
       case ApiLogEntry:
-        return this.showApiEntries(entries);
+        return this.showApiEntries(entries, focusView);
       case CodeLogEntry:
-        return this.showCodeEntries(entries);
+        return this.showCodeEntries(entries, focusView);
       case DeoptLogEntry:
-        return this.showDeoptEntries(entries);
+        return this.showDeoptEntries(entries, focusView);
       case SharedLibLogEntry:
-        return this.showSharedLibEntries(entries);
+        return this.showSharedLibEntries(entries, focusView);
       case TimerLogEntry:
       case TickLogEntry:
         break;
@@ -245,7 +246,7 @@ class App {
     this._view.timelinePanel.timeSelection = {start, end};
   }
 
-  handleFocusLogEntryl(e) {
+  handleFocusLogEntry(e) {
     e.stopImmediatePropagation();
     this.focusLogEntry(e.entry);
   }
@@ -281,11 +282,11 @@ class App {
     this._state.map = entry;
     this._view.mapTrack.focusedEntry = entry;
     this._view.mapPanel.map = entry;
-    this._view.mapPanel.show();
     if (focusSourcePosition) {
       this.focusCodeLogEntry(entry.code, false);
       this.focusSourcePosition(entry.sourcePosition);
     }
+    this._view.mapPanel.show();
   }
 
   focusIcLogEntry(entry) {

@@ -106,11 +106,6 @@ void SimulatorData::RegisterFunctionsAndSignatures(
   }
 }
 
-void SimulatorData::AddSignatureForTarget(Address target,
-                                          const EncodedCSignature& signature) {
-  target_to_signature_table_[target] = signature;
-}
-
 const EncodedCSignature& SimulatorData::GetSignatureForTarget(Address target) {
   base::MutexGuard guard(&signature_map_mutex_);
   auto entry = target_to_signature_table_.find(target);
