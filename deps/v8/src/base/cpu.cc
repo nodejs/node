@@ -764,9 +764,11 @@ CPU::CPU()
   // user-space.
   has_non_stop_time_stamp_counter_ = true;
 
-  // Defined in winnt.h, but in a newer version of the Windows SDK than the one
-  // that V8 requires, so we must copy the value here.
+  // Defined in winnt.h, but only in 10.0.20348.0 version of the Windows SDK.
+  // Copy the value here to support older versions as well.
+#if !defined(PF_ARM_V83_JSCVT_INSTRUCTIONS_AVAILABLE)
   constexpr int PF_ARM_V83_JSCVT_INSTRUCTIONS_AVAILABLE = 44;
+#endif
 
   has_jscvt_ =
       IsProcessorFeaturePresent(PF_ARM_V83_JSCVT_INSTRUCTIONS_AVAILABLE);
