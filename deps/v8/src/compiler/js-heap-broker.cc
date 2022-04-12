@@ -49,6 +49,11 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
       cage_base_(isolate),
 #endif  // V8_COMPRESS_POINTERS
       zone_(broker_zone),
+      // Note that this initialization of {refs_} with the minimal initial
+      // capacity is redundant in the normal use case (concurrent compilation
+      // enabled, standard objects to be serialized), as the map is going to be
+      // replaced immediately with a larger-capacity one.  It doesn't seem to
+      // affect the performance in a noticeable way though.
       refs_(zone()->New<RefsMap>(kMinimalRefsBucketCount, AddressMatcher(),
                                  zone())),
       root_index_map_(isolate),
@@ -56,13 +61,7 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
       tracing_enabled_(tracing_enabled),
       code_kind_(code_kind),
       feedback_(zone()),
-      property_access_infos_(zone()),
-      minimorphic_property_access_infos_(zone()) {
-  // Note that this initialization of {refs_} with the minimal initial capacity
-  // is redundant in the normal use case (concurrent compilation enabled,
-  // standard objects to be serialized), as the map is going to be replaced
-  // immediately with a larger-capacity one.  It doesn't seem to affect the
-  // performance in a noticeable way though.
+      property_access_infos_(zone()) {
   TRACE(this, "Constructing heap broker");
 }
 
@@ -424,18 +423,6 @@ bool ElementAccessFeedback::HasOnlyStringMaps(JSHeapBroker* broker) const {
     }
   }
   return true;
-}
-
-// TODO(v8:12552): Remove.
-MinimorphicLoadPropertyAccessFeedback::MinimorphicLoadPropertyAccessFeedback(
-    NameRef const& name, FeedbackSlotKind slot_kind, Handle<Object> handler,
-    ZoneVector<MapRef> const& maps, bool has_migration_target_maps)
-    : ProcessedFeedback(kMinimorphicPropertyAccess, slot_kind),
-      name_(name),
-      handler_(handler),
-      maps_(maps),
-      has_migration_target_maps_(has_migration_target_maps) {
-  DCHECK(IsLoadICKind(slot_kind));
 }
 
 NamedAccessFeedback::NamedAccessFeedback(NameRef const& name,
@@ -909,29 +896,6 @@ PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
   return access_info;
 }
 
-// TODO(v8:12552): Remove.
-MinimorphicLoadPropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(
-    MinimorphicLoadPropertyAccessFeedback const& feedback,
-    FeedbackSource const& source) {
-  auto it = minimorphic_property_access_infos_.find(source);
-  if (it != minimorphic_property_access_infos_.end()) return it->second;
-
-  AccessInfoFactory factory(this, nullptr, zone());
-  MinimorphicLoadPropertyAccessInfo access_info =
-      factory.ComputePropertyAccessInfo(feedback);
-
-  // We can assume a memory fence on {source.vector} because in production,
-  // the vector has already passed the gc predicate. Unit tests create
-  // FeedbackSource objects directly from handles, but they run on
-  // the main thread.
-  TRACE(this, "Storing MinimorphicLoadPropertyAccessInfo for "
-                  << source.index() << "  "
-                  << MakeRefAssumeMemoryFence<Object>(this, source.vector));
-  minimorphic_property_access_infos_.insert({source, access_info});
-
-  return access_info;
-}
-
 BinaryOperationFeedback const& ProcessedFeedback::AsBinaryOperation() const {
   CHECK_EQ(kBinaryOperation, kind());
   return *static_cast<BinaryOperationFeedback const*>(this);
@@ -970,13 +934,6 @@ InstanceOfFeedback const& ProcessedFeedback::AsInstanceOf() const {
 NamedAccessFeedback const& ProcessedFeedback::AsNamedAccess() const {
   CHECK_EQ(kNamedAccess, kind());
   return *static_cast<NamedAccessFeedback const*>(this);
-}
-
-// TODO(v8:12552): Remove.
-MinimorphicLoadPropertyAccessFeedback const&
-ProcessedFeedback::AsMinimorphicPropertyAccess() const {
-  CHECK_EQ(kMinimorphicPropertyAccess, kind());
-  return *static_cast<MinimorphicLoadPropertyAccessFeedback const*>(this);
 }
 
 LiteralFeedback const& ProcessedFeedback::AsLiteral() const {

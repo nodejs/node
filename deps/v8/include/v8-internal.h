@@ -365,8 +365,8 @@ class Internals {
 
   static const uint32_t kNumIsolateDataSlots = 4;
   static const int kStackGuardSize = 7 * kApiSystemPointerSize;
-  static const int kBuiltinTier0EntryTableSize = 13 * kApiSystemPointerSize;
-  static const int kBuiltinTier0TableSize = 13 * kApiSystemPointerSize;
+  static const int kBuiltinTier0EntryTableSize = 10 * kApiSystemPointerSize;
+  static const int kBuiltinTier0TableSize = 10 * kApiSystemPointerSize;
 
   // IsolateData layout guarantees.
   static const int kIsolateCageBaseOffset = 0;

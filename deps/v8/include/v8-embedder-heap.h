@@ -34,28 +34,21 @@ class V8_EXPORT EmbedderRootsHandler {
   virtual ~EmbedderRootsHandler() = default;
 
   /**
-   * Returns true if the TracedGlobal handle should be considered as root for
-   * the currently running non-tracing garbage collection and false otherwise.
-   * The default implementation will keep all TracedGlobal references as roots.
+   * Returns true if the |TracedReference| handle should be considered as root
+   * for the currently running non-tracing garbage collection and false
+   * otherwise. The default implementation will keep all |TracedReference|
+   * references as roots.
    *
    * If this returns false, then V8 may decide that the object referred to by
-   * such a handle is reclaimed. In that case:
-   * - No action is required if handles are used with destructors, i.e., by just
-   *   using |TracedGlobal|.
-   * - When run without destructors, i.e., by using |TracedReference|, V8 calls
-   *  |ResetRoot|.
+   * such a handle is reclaimed. In that case, V8 calls |ResetRoot()| for the
+   * |TracedReference|.
    *
-   * Note that the |handle| is different from the handle that the embedder holds
+   * Note that the `handle` is different from the handle that the embedder holds
    * for retaining the object. The embedder may use |WrapperClassId()| to
    * distinguish cases where it wants handles to be treated as roots from not
    * being treated as roots.
    */
   virtual bool IsRoot(const v8::TracedReference<v8::Value>& handle) = 0;
-
-  V8_DEPRECATED("See v8::TracedGlobal class comment.")
-  virtual bool IsRoot(const v8::TracedGlobal<v8::Value>& handle) {
-    return true;
-  }
 
   /**
    * Used in combination with |IsRoot|. Called by V8 when an
@@ -87,13 +80,11 @@ class V8_EXPORT EmbedderHeapTracer {
   };
 
   /**
-   * Interface for iterating through TracedGlobal handles.
+   * Interface for iterating through |TracedReference| handles.
    */
   class V8_EXPORT TracedGlobalHandleVisitor {
    public:
     virtual ~TracedGlobalHandleVisitor() = default;
-    V8_DEPRECATED("See v8::TracedGlobal class comment.")
-    virtual void VisitTracedGlobalHandle(const TracedGlobal<Value>& handle) {}
     virtual void VisitTracedReference(const TracedReference<Value>& handle) {}
   };
 
@@ -118,8 +109,8 @@ class V8_EXPORT EmbedderHeapTracer {
   virtual ~EmbedderHeapTracer() = default;
 
   /**
-   * Iterates all TracedGlobal handles created for the v8::Isolate the tracer is
-   * attached to.
+   * Iterates all |TracedReference| handles created for the |v8::Isolate| the
+   * tracer is attached to.
    */
   void IterateTracedGlobalHandles(TracedGlobalHandleVisitor* visitor);
 
@@ -194,8 +185,6 @@ class V8_EXPORT EmbedderHeapTracer {
    */
   virtual bool IsRootForNonTracingGC(
       const v8::TracedReference<v8::Value>& handle);
-  V8_DEPRECATED("See v8::TracedGlobal class comment.")
-  virtual bool IsRootForNonTracingGC(const v8::TracedGlobal<v8::Value>& handle);
 
   /**
    * See documentation on EmbedderRootsHandler.

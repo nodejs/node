@@ -2652,12 +2652,6 @@ void TurboAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
                 ? Deoptimizer::kLazyDeoptExitSize
                 : Deoptimizer::kNonLazyDeoptExitSize);
 
-  if (kind == DeoptimizeKind::kEagerWithResume) {
-    b(ret);
-    DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
-              Deoptimizer::kEagerWithResumeBeforeArgsSize);
-  }
-
   // The above code must not emit constants either.
   DCHECK(!has_pending_constants());
 }

@@ -54,30 +54,6 @@ constexpr auto TSANLoadDescriptor::registers() {
 #endif  // V8_IS_TSAN
 
 // static
-constexpr auto DynamicCheckMapsDescriptor::registers() {
-#if V8_TARGET_OS_WIN
-  return RegisterArray(kReturnRegister0, arg_reg_1, arg_reg_2, arg_reg_3,
-                       kRuntimeCallFunctionRegister, kContextRegister);
-#else
-  STATIC_ASSERT(kContextRegister == arg_reg_2);
-  return RegisterArray(kReturnRegister0, arg_reg_1, arg_reg_2, arg_reg_3,
-                       kRuntimeCallFunctionRegister);
-#endif  // V8_TARGET_OS_WIN
-}
-
-// static
-constexpr auto DynamicCheckMapsWithFeedbackVectorDescriptor::registers() {
-#if V8_TARGET_OS_WIN
-  return RegisterArray(kReturnRegister0, arg_reg_1, arg_reg_2, arg_reg_3,
-                       kRuntimeCallFunctionRegister, kContextRegister);
-#else
-  STATIC_ASSERT(kContextRegister == arg_reg_2);
-  return RegisterArray(kReturnRegister0, arg_reg_1, arg_reg_2, arg_reg_3,
-                       kRuntimeCallFunctionRegister);
-#endif  // V8_TARGET_OS_WIN
-}
-
-// static
 constexpr Register LoadDescriptor::ReceiverRegister() { return rdx; }
 // static
 constexpr Register LoadDescriptor::NameRegister() { return rcx; }

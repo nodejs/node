@@ -3298,24 +3298,19 @@ void CodeGenerator::FinishCode() { __ ForceConstantPoolEmissionWithoutJump(); }
 void CodeGenerator::PrepareForDeoptimizationExits(
     ZoneDeque<DeoptimizationExit*>* exits) {
   __ ForceConstantPoolEmissionWithoutJump();
-  // We are conservative here, assuming all deopts are eager with resume deopts.
-  DCHECK_GE(Deoptimizer::kEagerWithResumeDeoptExitSize,
-            Deoptimizer::kLazyDeoptExitSize);
+  // We are conservative here, reserving sufficient space for the largest deopt
+  // kind.
   DCHECK_GE(Deoptimizer::kLazyDeoptExitSize,
             Deoptimizer::kNonLazyDeoptExitSize);
-  __ CheckVeneerPool(false, false,
-                     static_cast<int>(exits->size()) *
-                         Deoptimizer::kEagerWithResumeDeoptExitSize);
+  __ CheckVeneerPool(
+      false, false,
+      static_cast<int>(exits->size()) * Deoptimizer::kLazyDeoptExitSize);
 
   // Check which deopt kinds exist in this Code object, to avoid emitting jumps
   // to unused entries.
   bool saw_deopt_kind[kDeoptimizeKindCount] = {false};
-  bool saw_deopt_with_resume_reason[kDeoptimizeReasonCount] = {false};
   for (auto exit : *exits) {
     saw_deopt_kind[static_cast<int>(exit->kind())] = true;
-    if (exit->kind() == DeoptimizeKind::kEagerWithResume) {
-      saw_deopt_with_resume_reason[static_cast<int>(exit->reason())] = true;
-    }
   }
 
   // Emit the jumps to deoptimization entries.
@@ -3325,21 +3320,9 @@ void CodeGenerator::PrepareForDeoptimizationExits(
   for (int i = 0; i < kDeoptimizeKindCount; i++) {
     if (!saw_deopt_kind[i]) continue;
     DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
-    if (kind == DeoptimizeKind::kEagerWithResume) {
-      for (int j = 0; j < kDeoptimizeReasonCount; j++) {
-        if (!saw_deopt_with_resume_reason[j]) continue;
-        DeoptimizeReason reason = static_cast<DeoptimizeReason>(j);
-        __ bind(&jump_deoptimization_or_resume_entry_labels_[j]);
-        __ LoadEntryFromBuiltin(Deoptimizer::GetDeoptWithResumeBuiltin(reason),
-                                scratch);
-        __ Jump(scratch);
-      }
-    } else {
-      __ bind(&jump_deoptimization_entry_labels_[i]);
-      __ LoadEntryFromBuiltin(Deoptimizer::GetDeoptimizationEntry(kind),
-                              scratch);
-      __ Jump(scratch);
-    }
+    __ bind(&jump_deoptimization_entry_labels_[i]);
+    __ LoadEntryFromBuiltin(Deoptimizer::GetDeoptimizationEntry(kind), scratch);
+    __ Jump(scratch);
   }
 }
 

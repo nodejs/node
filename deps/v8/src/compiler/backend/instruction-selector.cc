@@ -1456,8 +1456,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitDeoptimizeIf(node);
     case IrOpcode::kDeoptimizeUnless:
       return VisitDeoptimizeUnless(node);
-    case IrOpcode::kDynamicCheckMapsWithDeoptUnless:
-      return VisitDynamicCheckMapsWithDeoptUnless(node);
     case IrOpcode::kTrapIf:
       return VisitTrapIf(node, TrapIdOf(node->op()));
     case IrOpcode::kTrapUnless:
@@ -3162,46 +3160,6 @@ void InstructionSelector::VisitSelect(Node* node) {
       FlagsContinuation::ForSelect(kNotEqual, node,
                                    node->InputAt(1), node->InputAt(2));
   VisitWordCompareZero(node, node->InputAt(0), &cont);
-}
-
-void InstructionSelector::VisitDynamicCheckMapsWithDeoptUnless(Node* node) {
-  OperandGenerator g(this);
-  DynamicCheckMapsWithDeoptUnlessNode n(node);
-  DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
-
-  CallDescriptor* call_descriptor;
-  ZoneVector<InstructionOperand> dynamic_check_args(zone());
-
-  if (p.reason() == DeoptimizeReason::kDynamicCheckMaps) {
-    DynamicCheckMapsDescriptor descriptor;
-    // Note: We use Operator::kNoDeopt here because this builtin does not lazy
-    // deoptimize (which is the meaning of Operator::kNoDeopt), even though it
-    // can eagerly deoptimize.
-    call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), descriptor, descriptor.GetStackParameterCount(),
-        CallDescriptor::kNoFlags, Operator::kNoDeopt | Operator::kNoThrow);
-    dynamic_check_args.insert(
-        dynamic_check_args.end(),
-        {g.UseLocation(n.map(), call_descriptor->GetInputLocation(1)),
-         g.UseImmediate(n.slot()), g.UseImmediate(n.handler())});
-  } else {
-    DCHECK_EQ(p.reason(), DeoptimizeReason::kDynamicCheckMapsInlined);
-    DynamicCheckMapsWithFeedbackVectorDescriptor descriptor;
-    call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), descriptor, descriptor.GetStackParameterCount(),
-        CallDescriptor::kNoFlags, Operator::kNoDeopt | Operator::kNoThrow);
-    dynamic_check_args.insert(
-        dynamic_check_args.end(),
-        {g.UseLocation(n.map(), call_descriptor->GetInputLocation(1)),
-         g.UseLocation(n.feedback_vector(),
-                       call_descriptor->GetInputLocation(2)),
-         g.UseImmediate(n.slot()), g.UseImmediate(n.handler())});
-  }
-
-  FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kEqual, p.kind(), p.reason(), node->id(), p.feedback(), n.frame_state(),
-      dynamic_check_args.data(), static_cast<int>(dynamic_check_args.size()));
-  VisitWordCompareZero(node, n.condition(), &cont);
 }
 
 void InstructionSelector::VisitTrapIf(Node* node, TrapId trap_id) {

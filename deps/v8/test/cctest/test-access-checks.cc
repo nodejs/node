@@ -294,9 +294,9 @@ TEST(AccessCheckWithInterceptor) {
                                               IndexedEnumerator));
   global_template->SetNativeDataProperty(
       v8_str("cross_context_int"), GetCrossContextInt, SetCrossContextInt);
-  global_template->SetNativeDataProperty(
-      v8_str("all_can_read"), Return42, nullptr, v8::Local<v8::Value>(),
-      v8::None, v8::Local<v8::AccessorSignature>(), v8::ALL_CAN_READ);
+  global_template->SetNativeDataProperty(v8_str("all_can_read"), Return42,
+                                         nullptr, v8::Local<v8::Value>(),
+                                         v8::None, v8::ALL_CAN_READ);
 
   v8::Local<v8::Context> context0 =
       v8::Context::New(isolate, nullptr, global_template);
@@ -386,9 +386,9 @@ TEST(NewRemoteContext) {
                                               IndexedEnumerator));
   global_template->SetNativeDataProperty(
       v8_str("cross_context_int"), GetCrossContextInt, SetCrossContextInt);
-  global_template->SetNativeDataProperty(
-      v8_str("all_can_read"), Return42, nullptr, v8::Local<v8::Value>(),
-      v8::None, v8::Local<v8::AccessorSignature>(), v8::ALL_CAN_READ);
+  global_template->SetNativeDataProperty(v8_str("all_can_read"), Return42,
+                                         nullptr, v8::Local<v8::Value>(),
+                                         v8::None, v8::ALL_CAN_READ);
 
   v8::Local<v8::Object> global0 =
       v8::Context::NewRemoteContext(isolate, global_template).ToLocalChecked();
@@ -451,9 +451,9 @@ TEST(NewRemoteInstance) {
       v8::IndexedPropertyHandlerConfiguration(IndexedGetter, IndexedSetter,
                                               IndexedQuery, IndexedDeleter,
                                               IndexedEnumerator));
-  tmpl->SetNativeDataProperty(
-      v8_str("all_can_read"), Return42, nullptr, v8::Local<v8::Value>(),
-      v8::None, v8::Local<v8::AccessorSignature>(), v8::ALL_CAN_READ);
+  tmpl->SetNativeDataProperty(v8_str("all_can_read"), Return42, nullptr,
+                              v8::Local<v8::Value>(), v8::None,
+                              v8::ALL_CAN_READ);
 
   v8::Local<v8::Object> obj = tmpl->NewRemoteInstance().ToLocalChecked();
 

@@ -46,11 +46,7 @@ namespace internal {
   /* Deoptimization entries. */                               \
   ASM(DeoptimizationEntry_Eager, DeoptimizationEntry)         \
   ASM(DeoptimizationEntry_Soft, DeoptimizationEntry)          \
-  ASM(DeoptimizationEntry_Bailout, DeoptimizationEntry)       \
   ASM(DeoptimizationEntry_Lazy, DeoptimizationEntry)          \
-  ASM(DynamicCheckMapsTrampoline, DynamicCheckMaps)           \
-  ASM(DynamicCheckMapsWithFeedbackVectorTrampoline,           \
-      DynamicCheckMapsWithFeedbackVector)                     \
                                                               \
   /* GC write barrier. */                                     \
   TFC(RecordWriteEmitRememberedSetSaveFP, WriteBarrier)       \
@@ -301,10 +297,6 @@ namespace internal {
   TFH(KeyedHasIC_PolymorphicName, LoadWithVector)                              \
   TFH(KeyedHasIC_SloppyArguments, LoadWithVector)                              \
   TFH(HasIndexedInterceptorIC, LoadWithVector)                                 \
-                                                                               \
-  /* Dynamic check maps */                                                     \
-  TFC(DynamicCheckMaps, DynamicCheckMaps)                                      \
-  TFC(DynamicCheckMapsWithFeedbackVector, DynamicCheckMapsWithFeedbackVector)  \
                                                                                \
   /* Microtask helpers */                                                      \
   TFS(EnqueueMicrotask, kMicrotask)                                            \

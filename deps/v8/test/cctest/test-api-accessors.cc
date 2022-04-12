@@ -411,11 +411,9 @@ TEST(NativeTemplateAccessorWithSideEffects) {
   v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
   templ->SetAccessor(v8_str("get"), Getter, nullptr, v8::Local<v8::Value>(),
                      v8::AccessControl::DEFAULT, v8::PropertyAttribute::None,
-                     v8::Local<v8::AccessorSignature>(),
                      v8::SideEffectType::kHasSideEffect);
   templ->SetAccessor(v8_str("set"), Getter, Setter, v8::Local<v8::Value>(),
                      v8::AccessControl::DEFAULT, v8::PropertyAttribute::None,
-                     v8::Local<v8::AccessorSignature>(),
                      v8::SideEffectType::kHasNoSideEffect,
                      v8::SideEffectType::kHasSideEffect);
 
@@ -551,7 +549,6 @@ TEST(SetAccessorSetSideEffectReceiverCheck2) {
   templ->InstanceTemplate()->SetAccessor(
       v8_str("bar"), Getter, Setter, v8::Local<v8::Value>(),
       v8::AccessControl::DEFAULT, v8::PropertyAttribute::None,
-      v8::Local<v8::AccessorSignature>(),
       v8::SideEffectType::kHasSideEffectToReceiver,
       v8::SideEffectType::kHasSideEffectToReceiver);
   CHECK(env->Global()
@@ -668,10 +665,10 @@ TEST(ObjectTemplateSetAccessorHasNoSideEffect) {
 
   v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
   templ->SetAccessor(v8_str("foo"), StringGetter);
-  templ->SetAccessor(
-      v8_str("foo2"), StringGetter, nullptr, v8::Local<v8::Value>(),
-      v8::AccessControl::DEFAULT, v8::PropertyAttribute::None,
-      v8::Local<v8::AccessorSignature>(), v8::SideEffectType::kHasNoSideEffect);
+  templ->SetAccessor(v8_str("foo2"), StringGetter, nullptr,
+                     v8::Local<v8::Value>(), v8::AccessControl::DEFAULT,
+                     v8::PropertyAttribute::None,
+                     v8::SideEffectType::kHasNoSideEffect);
   v8::Local<v8::Object> obj = templ->NewInstance(env.local()).ToLocalChecked();
   CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
 
@@ -711,8 +708,8 @@ TEST(ObjectTemplateSetNativePropertyHasNoSideEffect) {
   templ->SetNativeDataProperty(v8_str("foo"), Getter);
   templ->SetNativeDataProperty(
       v8_str("foo2"), Getter, nullptr, v8::Local<v8::Value>(),
-      v8::PropertyAttribute::None, v8::Local<v8::AccessorSignature>(),
-      v8::AccessControl::DEFAULT, v8::SideEffectType::kHasNoSideEffect);
+      v8::PropertyAttribute::None, v8::AccessControl::DEFAULT,
+      v8::SideEffectType::kHasNoSideEffect);
   v8::Local<v8::Object> obj = templ->NewInstance(env.local()).ToLocalChecked();
   CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
 

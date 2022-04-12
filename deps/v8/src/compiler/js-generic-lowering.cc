@@ -250,11 +250,6 @@ bool ShouldUseMegamorphicLoadBuiltin(FeedbackSource const& source,
     return feedback.AsNamedAccess().maps().empty();
   } else if (feedback.kind() == ProcessedFeedback::kInsufficient) {
     return false;
-  } else if (feedback.kind() == ProcessedFeedback::kMinimorphicPropertyAccess) {
-    // MinimorphicPropertyAccess is used for dynamic map checks and the IC state
-    // is either monomorphic or polymorphic. So it will still benefit from
-    // collecting feedback, so don't use megamorphic builtin.
-    return false;
   }
   UNREACHABLE();
 }

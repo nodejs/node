@@ -69,8 +69,6 @@ namespace internal {
   V(ConstructWithSpread_WithFeedback)                \
   V(ContextOnly)                                     \
   V(CppBuiltinAdaptor)                               \
-  V(DynamicCheckMaps)                                \
-  V(DynamicCheckMapsWithFeedbackVector)              \
   V(FastNewObject)                                   \
   V(ForInPrepare)                                    \
   V(GetIteratorStackParameter)                       \
@@ -1063,39 +1061,6 @@ class LoadGlobalWithVectorDescriptor
   static constexpr inline Register VectorRegister();
 
   static constexpr auto registers();
-};
-
-class DynamicCheckMapsDescriptor final
-    : public StaticCallInterfaceDescriptor<DynamicCheckMapsDescriptor> {
- public:
-  DEFINE_PARAMETERS(kMap, kSlot, kHandler)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Int32(),          // return val
-                                    MachineType::TaggedPointer(),  // kMap
-                                    MachineType::IntPtr(),         // kSlot
-                                    MachineType::TaggedSigned())   // kHandler
-
-  DECLARE_DESCRIPTOR(DynamicCheckMapsDescriptor)
-
-  static constexpr auto registers();
-  static constexpr bool kRestrictAllocatableRegisters = true;
-};
-
-class DynamicCheckMapsWithFeedbackVectorDescriptor final
-    : public StaticCallInterfaceDescriptor<
-          DynamicCheckMapsWithFeedbackVectorDescriptor> {
- public:
-  DEFINE_PARAMETERS(kMap, kFeedbackVector, kSlot, kHandler)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(
-      MachineType::Int32(),          // return val
-      MachineType::TaggedPointer(),  // kMap
-      MachineType::TaggedPointer(),  // kFeedbackVector
-      MachineType::IntPtr(),         // kSlot
-      MachineType::TaggedSigned())   // kHandler
-
-  DECLARE_DESCRIPTOR(DynamicCheckMapsWithFeedbackVectorDescriptor)
-
-  static constexpr auto registers();
-  static constexpr bool kRestrictAllocatableRegisters = true;
 };
 
 class FastNewObjectDescriptor

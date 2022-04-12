@@ -599,25 +599,31 @@ size_t CpuProfiler::GetEstimatedMemoryUsage() const {
   return code_observer_->GetEstimatedMemoryUsage();
 }
 
-CpuProfilingStatus CpuProfiler::StartProfiling(
+CpuProfilingResult CpuProfiler::StartProfiling(
+    CpuProfilingOptions options,
+    std::unique_ptr<DiscardedSamplesDelegate> delegate) {
+  return StartProfiling(nullptr, options, std::move(delegate));
+}
+
+CpuProfilingResult CpuProfiler::StartProfiling(
     const char* title, CpuProfilingOptions options,
     std::unique_ptr<DiscardedSamplesDelegate> delegate) {
-  StartProfilingStatus status =
+  CpuProfilingResult result =
       profiles_->StartProfiling(title, options, std::move(delegate));
 
   // TODO(nicodubus): Revisit logic for if we want to do anything different for
   // kAlreadyStarted
-  if (status == CpuProfilingStatus::kStarted ||
-      status == CpuProfilingStatus::kAlreadyStarted) {
+  if (result.status == CpuProfilingStatus::kStarted ||
+      result.status == CpuProfilingStatus::kAlreadyStarted) {
     TRACE_EVENT0("v8", "CpuProfiler::StartProfiling");
     AdjustSamplingInterval();
     StartProcessorIfNotStarted();
   }
 
-  return status;
+  return result;
 }
 
-CpuProfilingStatus CpuProfiler::StartProfiling(
+CpuProfilingResult CpuProfiler::StartProfiling(
     String title, CpuProfilingOptions options,
     std::unique_ptr<DiscardedSamplesDelegate> delegate) {
   return StartProfiling(profiles_->GetName(title), options,
@@ -651,10 +657,19 @@ void CpuProfiler::StartProcessorIfNotStarted() {
 }
 
 CpuProfile* CpuProfiler::StopProfiling(const char* title) {
+  CpuProfile* profile = profiles_->Lookup(title);
+  if (profile) {
+    return StopProfiling(profile->id());
+  }
+  return nullptr;
+}
+
+CpuProfile* CpuProfiler::StopProfiling(ProfilerId id) {
   if (!is_profiling_) return nullptr;
-  const bool last_profile = profiles_->IsLastProfile(title);
+  const bool last_profile = profiles_->IsLastProfileLeft(id);
   if (last_profile) StopProcessor();
-  CpuProfile* result = profiles_->StopProfiling(title);
+
+  CpuProfile* profile = profiles_->StopProfiling(id);
 
   AdjustSamplingInterval();
 
@@ -663,7 +678,7 @@ CpuProfile* CpuProfiler::StopProfiling(const char* title) {
     DisableLogging();
   }
 
-  return result;
+  return profile;
 }
 
 CpuProfile* CpuProfiler::StopProfiling(String title) {

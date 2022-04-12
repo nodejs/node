@@ -234,10 +234,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       MapRef map, NameRef name, AccessMode access_mode,
       CompilationDependencies* dependencies);
 
-  MinimorphicLoadPropertyAccessInfo GetPropertyAccessInfo(
-      MinimorphicLoadPropertyAccessFeedback const& feedback,
-      FeedbackSource const& source);
-
   StringRef GetTypedArrayStringTag(ElementsKind kind);
 
   bool IsMainThread() const {
@@ -456,9 +452,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   ZoneUnorderedMap<PropertyAccessTarget, PropertyAccessInfo,
                    PropertyAccessTarget::Hash, PropertyAccessTarget::Equal>
       property_access_infos_;
-  ZoneUnorderedMap<FeedbackSource, MinimorphicLoadPropertyAccessInfo,
-                   FeedbackSource::Hash, FeedbackSource::Equal>
-      minimorphic_property_access_infos_;
 
   CompilationDependencies* dependencies_ = nullptr;
 

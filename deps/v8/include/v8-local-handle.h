@@ -46,8 +46,6 @@ class String;
 template <class F>
 class Traced;
 template <class F>
-class TracedGlobal;
-template <class F>
 class TracedReference;
 class TracedReferenceBase;
 class Utils;
@@ -311,8 +309,6 @@ class Local {
   friend class ReturnValue;
   template <class F>
   friend class Traced;
-  template <class F>
-  friend class TracedGlobal;
   template <class F>
   friend class BasicTracedReference;
   template <class F>

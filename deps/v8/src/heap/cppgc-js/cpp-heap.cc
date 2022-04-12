@@ -64,10 +64,6 @@ class V8ToCppGCReferencesVisitor final
         isolate_(isolate),
         wrapper_descriptor_(wrapper_descriptor) {}
 
-  void VisitTracedGlobalHandle(const v8::TracedGlobal<v8::Value>&) final {
-    UNREACHABLE();
-  }
-
   void VisitTracedReference(const v8::TracedReference<v8::Value>& value) final {
     VisitHandle(value, value.WrapperClassId());
   }

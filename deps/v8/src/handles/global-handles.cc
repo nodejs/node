@@ -33,10 +33,6 @@ namespace internal {
 
 namespace {
 
-// Specifies whether V8 expects the holder memory of a global handle to be live
-// or dead.
-enum class HandleHolder { kLive, kDead };
-
 constexpr size_t kBlockSize = 256;
 
 }  // namespace
@@ -574,8 +570,7 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
     set_state(NEAR_DEATH);
   }
 
-  void ResetPhantomHandle(HandleHolder handle_holder) {
-    DCHECK_EQ(HandleHolder::kLive, handle_holder);
+  void ResetPhantomHandle() {
     DCHECK_EQ(PHANTOM_WEAK_RESET_HANDLE, weakness_type());
     DCHECK_EQ(PENDING, state());
     DCHECK_NULL(weak_callback_);
@@ -653,16 +648,12 @@ class GlobalHandles::TracedNode final
   void MarkAsUsed() { set_state(NORMAL); }
   bool IsInUse() const { return state() != FREE; }
   bool IsRetainer() const { return state() == NORMAL; }
-  bool IsPhantomResetHandle() const { return callback_ == nullptr; }
 
   bool is_in_young_list() const { return IsInYoungList::decode(flags_); }
   void set_in_young_list(bool v) { flags_ = IsInYoungList::update(flags_, v); }
 
   bool is_root() const { return IsRoot::decode(flags_); }
   void set_root(bool v) { flags_ = IsRoot::update(flags_, v); }
-
-  bool has_destructor() const { return HasDestructor::decode(flags_); }
-  void set_has_destructor(bool v) { flags_ = HasDestructor::update(flags_, v); }
 
   bool markbit() const { return Markbit::decode(flags_); }
   void clear_markbit() { flags_ = Markbit::update(flags_, false); }
@@ -673,44 +664,10 @@ class GlobalHandles::TracedNode final
 
   void clear_object() { object_ = kNullAddress; }
 
-  void SetFinalizationCallback(void* parameter,
-                               WeakCallbackInfo<void>::Callback callback) {
-    set_parameter(parameter);
-    callback_ = callback;
-  }
-  bool HasFinalizationCallback() const { return callback_ != nullptr; }
-
   void CopyObjectReference(const TracedNode& other) { object_ = other.object_; }
 
-  void CollectPhantomCallbackData(
-      std::vector<std::pair<TracedNode*, PendingPhantomCallback>>*
-          pending_phantom_callbacks) {
+  void ResetPhantomHandle() {
     DCHECK(IsInUse());
-    DCHECK_NOT_NULL(callback_);
-
-    void* embedder_fields[v8::kEmbedderFieldsInWeakCallback] = {nullptr,
-                                                                nullptr};
-    ExtractInternalFields(JSObject::cast(object()), embedder_fields,
-                          v8::kEmbedderFieldsInWeakCallback);
-
-    // Zap with something dangerous.
-    location().store(Object(0xCA11));
-
-    pending_phantom_callbacks->push_back(std::make_pair(
-        this, PendingPhantomCallback(callback_, parameter(), embedder_fields)));
-    set_state(NEAR_DEATH);
-  }
-
-  void ResetPhantomHandle(HandleHolder handle_holder) {
-    DCHECK(IsInUse());
-    // Even if the handle holder should be alive, the back reference may have
-    // been cleared which prevents the handle from being reclaimed at this
-    // point. This can happen for explicitly reset handles during incremental
-    // marking that then cannot be reclaimed during Scavenge.
-    if (handle_holder == HandleHolder::kLive && data_.parameter) {
-      Address** handle = reinterpret_cast<Address**>(data_.parameter);
-      *handle = nullptr;
-    }
     NodeSpace<TracedNode>::Release(this);
     DCHECK(!IsInUse());
   }
@@ -721,26 +678,20 @@ class GlobalHandles::TracedNode final
   using NodeState = base::BitField8<State, 0, 2>;
   using IsInYoungList = NodeState::Next<bool, 1>;
   using IsRoot = IsInYoungList::Next<bool, 1>;
-  using HasDestructor = IsRoot::Next<bool, 1>;
-  using Markbit = HasDestructor::Next<bool, 1>;
+  using Markbit = IsRoot::Next<bool, 1>;
   using IsOnStack = Markbit::Next<bool, 1>;
 
   void ClearImplFields() {
     set_root(true);
     // Nodes are black allocated for simplicity.
     set_markbit();
-    callback_ = nullptr;
     set_is_on_stack(false);
-    set_has_destructor(false);
   }
 
   void CheckImplFieldsAreCleared() const {
     DCHECK(is_root());
     DCHECK(markbit());
-    DCHECK_NULL(callback_);
   }
-
-  WeakCallbackInfo<void>::Callback callback_;
 
   friend class NodeBase<GlobalHandles::TracedNode>;
 };
@@ -902,9 +853,6 @@ void GlobalHandles::TracedNode::Verify(GlobalHandles* global_handles,
 #ifdef DEBUG
   const TracedNode* node = FromLocation(*slot);
   DCHECK(node->IsInUse());
-  DCHECK_IMPLIES(!node->has_destructor(), nullptr == node->parameter());
-  DCHECK_IMPLIES(node->has_destructor() && !node->HasFinalizationCallback(),
-                 node->parameter());
   bool slot_on_stack = global_handles->on_stack_nodes_->IsOnStack(
       reinterpret_cast<uintptr_t>(slot));
   DCHECK_EQ(slot_on_stack, node->is_on_stack());
@@ -971,17 +919,16 @@ Handle<Object> GlobalHandles::Create(Address value) {
   return Create(Object(value));
 }
 
-Handle<Object> GlobalHandles::CreateTraced(
-    Object value, Address* slot, GlobalHandleDestructionMode destruction_mode,
-    GlobalHandleStoreMode store_mode) {
+Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot,
+                                           GlobalHandleStoreMode store_mode) {
   return CreateTraced(
-      value, slot, destruction_mode, store_mode,
+      value, slot, store_mode,
       on_stack_nodes_->IsOnStack(reinterpret_cast<uintptr_t>(slot)));
 }
 
-Handle<Object> GlobalHandles::CreateTraced(
-    Object value, Address* slot, GlobalHandleDestructionMode destruction_mode,
-    GlobalHandleStoreMode store_mode, bool is_on_stack) {
+Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot,
+                                           GlobalHandleStoreMode store_mode,
+                                           bool is_on_stack) {
   GlobalHandles::TracedNode* result;
   if (is_on_stack) {
     result = on_stack_nodes_->Acquire(value, reinterpret_cast<uintptr_t>(slot));
@@ -995,17 +942,13 @@ Handle<Object> GlobalHandles::CreateTraced(
       WriteBarrier::MarkingFromGlobalHandle(value);
     }
   }
-  const bool has_destructor =
-      destruction_mode == GlobalHandleDestructionMode::kWithDestructor;
-  result->set_has_destructor(has_destructor);
-  result->set_parameter(has_destructor ? slot : nullptr);
+  result->set_parameter(nullptr);
   return result->handle();
 }
 
-Handle<Object> GlobalHandles::CreateTraced(
-    Address value, Address* slot, GlobalHandleDestructionMode destruction_mode,
-    GlobalHandleStoreMode store_mode) {
-  return CreateTraced(Object(value), slot, destruction_mode, store_mode);
+Handle<Object> GlobalHandles::CreateTraced(Address value, Address* slot,
+                                           GlobalHandleStoreMode store_mode) {
+  return CreateTraced(Object(value), slot, store_mode);
 }
 
 Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
@@ -1028,23 +971,15 @@ void SetSlotThreadSafe(Address** slot, Address* val) {
 }  // namespace
 
 // static
-void GlobalHandles::CopyTracedGlobal(const Address* const* from, Address** to) {
+void GlobalHandles::CopyTracedReference(const Address* const* from,
+                                        Address** to) {
   DCHECK_NOT_NULL(*from);
   DCHECK_NULL(*to);
   const TracedNode* node = TracedNode::FromLocation(*from);
-  // Copying a traced handle with finalization callback is prohibited because
-  // the callback may require knowing about multiple copies of the traced
-  // handle.
-  CHECK_WITH_MSG(!node->HasFinalizationCallback(),
-                 "Copying of references is not supported when "
-                 "SetFinalizationCallback is set.");
-
   GlobalHandles* global_handles =
       GlobalHandles::From(const_cast<TracedNode*>(node));
   Handle<Object> o = global_handles->CreateTraced(
       node->object(), reinterpret_cast<Address*>(to),
-      node->has_destructor() ? GlobalHandleDestructionMode::kWithDestructor
-                             : GlobalHandleDestructionMode::kWithoutDestructor,
       GlobalHandleStoreMode::kAssigningStore);
   SetSlotThreadSafe(to, o.location());
   TracedNode::Verify(global_handles, from);
@@ -1070,10 +1005,10 @@ void GlobalHandles::MoveGlobal(Address** from, Address** to) {
   //   those the callers need to ensure consistency.
 }
 
-void GlobalHandles::MoveTracedGlobal(Address** from, Address** to) {
+void GlobalHandles::MoveTracedReference(Address** from, Address** to) {
   // Fast path for moving from an empty reference.
   if (!*from) {
-    DestroyTraced(*to);
+    DestroyTracedReference(*to);
     SetSlotThreadSafe(to, nullptr);
     return;
   }
@@ -1097,17 +1032,6 @@ void GlobalHandles::MoveTracedGlobal(Address** from, Address** to) {
     to_on_stack = to_node->is_on_stack();
   }
 
-  // Moving a traced handle with finalization callback is prohibited because
-  // the callback may require knowing about multiple copies of the traced
-  // handle.
-  CHECK_WITH_MSG(!from_node->HasFinalizationCallback(),
-                 "Moving of references is not supported when "
-                 "SetFinalizationCallback is set.");
-  // Types in v8.h ensure that we only copy/move handles that have the same
-  // destructor behavior.
-  DCHECK_IMPLIES(to_node,
-                 to_node->has_destructor() == from_node->has_destructor());
-
   // Moving.
   if (from_on_stack || to_on_stack) {
     // Move involving a stack slot.
@@ -1115,9 +1039,6 @@ void GlobalHandles::MoveTracedGlobal(Address** from, Address** to) {
       DCHECK(global_handles);
       Handle<Object> o = global_handles->CreateTraced(
           from_node->object(), reinterpret_cast<Address*>(to),
-          from_node->has_destructor()
-              ? GlobalHandleDestructionMode::kWithDestructor
-              : GlobalHandleDestructionMode::kWithoutDestructor,
           GlobalHandleStoreMode::kAssigningStore, to_on_stack);
       SetSlotThreadSafe(to, o.location());
       to_node = TracedNode::FromLocation(*to);
@@ -1135,20 +1056,16 @@ void GlobalHandles::MoveTracedGlobal(Address** from, Address** to) {
         WriteBarrier::MarkingFromGlobalHandle(to_node->object());
       }
     }
-    DestroyTraced(*from);
+    DestroyTracedReference(*from);
     SetSlotThreadSafe(from, nullptr);
   } else {
     // Pure heap move.
-    DestroyTraced(*to);
+    DestroyTracedReference(*to);
     SetSlotThreadSafe(to, *from);
     to_node = from_node;
     DCHECK_NOT_NULL(*from);
     DCHECK_NOT_NULL(*to);
     DCHECK_EQ(*from, *to);
-    // Fixup back reference for destructor.
-    if (to_node->has_destructor()) {
-      to_node->set_parameter(to);
-    }
     WriteBarrier::MarkingFromGlobalHandle(to_node->object());
     SetSlotThreadSafe(from, nullptr);
   }
@@ -1175,7 +1092,7 @@ void GlobalHandles::Destroy(Address* location) {
 }
 
 // static
-void GlobalHandles::DestroyTraced(Address* location) {
+void GlobalHandles::DestroyTracedReference(Address* location) {
   if (location != nullptr) {
     TracedNode* node = TracedNode::FromLocation(location);
     if (node->is_on_stack()) {
@@ -1209,18 +1126,7 @@ void GlobalHandles::DestroyTraced(Address* location) {
     // next cycle.
     node->clear_object();
     node->set_parameter(nullptr);
-    node->SetFinalizationCallback(nullptr, nullptr);
-    // The destructor setting is left untouched to avoid casting a
-    // v8::TracedGlobal to a v8::TracedReference for the EmbedderRootsHandler
-    // which would be UB.
   }
-}
-
-void GlobalHandles::SetFinalizationCallbackForTraced(
-    Address* location, void* parameter,
-    WeakCallbackInfo<void>::Callback callback) {
-  TracedNode::FromLocation(location)->SetFinalizationCallback(parameter,
-                                                              callback);
 }
 
 using GenericCallback = v8::WeakCallbackInfo<void>::Callback;
@@ -1269,7 +1175,7 @@ void GlobalHandles::IterateWeakRootsForPhantomHandles(
         should_reset_handle(isolate()->heap(), node->location())) {
       if (node->IsPhantomResetHandle()) {
         node->MarkPending();
-        node->ResetPhantomHandle(HandleHolder::kLive);
+        node->ResetPhantomHandle();
         ++number_of_phantom_handle_resets_;
       } else if (node->IsPhantomCallback()) {
         node->MarkPending();
@@ -1280,31 +1186,20 @@ void GlobalHandles::IterateWeakRootsForPhantomHandles(
   for (TracedNode* node : *traced_nodes_) {
     if (!node->IsInUse()) continue;
     // Detect unreachable nodes first.
-    if (!node->markbit() && node->IsPhantomResetHandle() &&
-        !node->has_destructor()) {
-      // The handle is unreachable and does not have a callback and a
-      // destructor associated with it. We can clear it even if the target V8
-      // object is alive. Note that the desctructor and the callback may
-      // access the handle, that is why we avoid clearing it.
-      node->ResetPhantomHandle(HandleHolder::kDead);
+    if (!node->markbit()) {
+      // The handle itself is unreachable. We can clear it even if the target V8
+      // object is alive.
+      node->ResetPhantomHandle();
       ++number_of_phantom_handle_resets_;
       continue;
-    } else if (node->markbit()) {
-      // Clear the markbit for the next GC.
-      node->clear_markbit();
     }
+    // Clear the markbit for the next GC.
+    node->clear_markbit();
     DCHECK(node->IsInUse());
     // Detect nodes with unreachable target objects.
     if (should_reset_handle(isolate()->heap(), node->location())) {
-      // If the node allows eager resetting, then reset it here. Otherwise,
-      // collect its callback that will reset it.
-      if (node->IsPhantomResetHandle()) {
-        node->ResetPhantomHandle(node->has_destructor() ? HandleHolder::kLive
-                                                        : HandleHolder::kDead);
-        ++number_of_phantom_handle_resets_;
-      } else {
-        node->CollectPhantomCallbackData(&traced_pending_phantom_callbacks_);
-      }
+      node->ResetPhantomHandle();
+      ++number_of_phantom_handle_resets_;
     }
   }
 }
@@ -1335,15 +1230,8 @@ void GlobalHandles::IdentifyWeakUnmodifiedObjects(
       DCHECK(node->is_root());
       if (is_unmodified(node->location())) {
         v8::Value* value = ToApi<v8::Value>(node->handle());
-        if (node->has_destructor()) {
-          START_ALLOW_USE_DEPRECATED()
-          node->set_root(handler->IsRoot(
-              *reinterpret_cast<v8::TracedGlobal<v8::Value>*>(&value)));
-          END_ALLOW_USE_DEPRECATED()
-        } else {
-          node->set_root(handler->IsRoot(
-              *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value)));
-        }
+        node->set_root(handler->IsRoot(
+            *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value)));
       }
     }
   }
@@ -1397,7 +1285,7 @@ void GlobalHandles::IterateYoungWeakObjectsForPhantomHandles(
         DCHECK(node->IsPhantomResetHandle() || node->IsPhantomCallback());
         if (node->IsPhantomResetHandle()) {
           node->MarkPending();
-          node->ResetPhantomHandle(HandleHolder::kLive);
+          node->ResetPhantomHandle();
           ++number_of_phantom_handle_resets_;
         } else if (node->IsPhantomCallback()) {
           node->MarkPending();
@@ -1422,25 +1310,13 @@ void GlobalHandles::IterateYoungWeakObjectsForPhantomHandles(
     DCHECK_IMPLIES(node->is_root(),
                    !should_reset_handle(isolate_->heap(), node->location()));
     if (should_reset_handle(isolate_->heap(), node->location())) {
-      if (node->IsPhantomResetHandle()) {
-        if (node->has_destructor()) {
-          // For handles with destructor it is guaranteed that the embedder
-          // memory is still alive as the destructor would have otherwise
-          // removed the memory.
-          node->ResetPhantomHandle(HandleHolder::kLive);
-        } else {
-          v8::Value* value = ToApi<v8::Value>(node->handle());
-          handler->ResetRoot(
-              *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
-          // We cannot check whether a node is in use here as the reset behavior
-          // depends on whether incremental marking is running when reclaiming
-          // young objects.
-        }
-
-        ++number_of_phantom_handle_resets_;
-      } else {
-        node->CollectPhantomCallbackData(&traced_pending_phantom_callbacks_);
-      }
+      v8::Value* value = ToApi<v8::Value>(node->handle());
+      handler->ResetRoot(
+          *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
+      // We cannot check whether a node is in use here as the reset behavior
+      // depends on whether incremental marking is running when reclaiming
+      // young objects.
+      ++number_of_phantom_handle_resets_;
     } else {
       if (!node->is_root()) {
         node->set_root(true);
@@ -1724,15 +1600,8 @@ void GlobalHandles::IterateTracedNodes(
   for (TracedNode* node : *traced_nodes_) {
     if (node->IsInUse()) {
       v8::Value* value = ToApi<v8::Value>(node->handle());
-      if (node->has_destructor()) {
-        START_ALLOW_USE_DEPRECATED()
-        visitor->VisitTracedGlobalHandle(
-            *reinterpret_cast<v8::TracedGlobal<v8::Value>*>(&value));
-        END_ALLOW_USE_DEPRECATED()
-      } else {
-        visitor->VisitTracedReference(
-            *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
-      }
+      visitor->VisitTracedReference(
+          *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
     }
   }
 }

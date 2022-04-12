@@ -8,10 +8,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "v8-internal.h"  // NOLINT(build/include_directory)
-#include "v8-isolate.h"   // NOLINT(build/include_directory)
-#include "v8-platform.h"  // NOLINT(build/include_directory)
-#include "v8config.h"     // NOLINT(build/include_directory)
+#include "v8-callbacks.h"  // NOLINT(build/include_directory)
+#include "v8-internal.h"   // NOLINT(build/include_directory)
+#include "v8-isolate.h"    // NOLINT(build/include_directory)
+#include "v8-platform.h"   // NOLINT(build/include_directory)
+#include "v8config.h"      // NOLINT(build/include_directory)
 
 // We reserve the V8_* prefix for macros defined in V8 public API and
 // assume there are no name conflicts with the embedder's code.
@@ -274,6 +275,14 @@ class V8_EXPORT V8 {
   static void SetUnhandledExceptionCallback(
       UnhandledExceptionCallback unhandled_exception_callback);
 #endif
+
+  /**
+   * Allows the host application to provide a callback that will be called when
+   * v8 has encountered a fatal failure to allocate memory and is about to
+   * terminate.
+   */
+
+  static void SetFatalMemoryErrorCallback(OOMErrorCallback oom_error_callback);
 
   /**
    * Get statistics about the shared memory usage.

@@ -43,18 +43,6 @@ constexpr auto WriteBarrierDescriptor::registers() {
 }
 
 // static
-constexpr auto DynamicCheckMapsDescriptor::registers() {
-  STATIC_ASSERT(kReturnRegister0 == x0);
-  return RegisterArray(x0, x1, x2, x3, cp);
-}
-
-// static
-constexpr auto DynamicCheckMapsWithFeedbackVectorDescriptor::registers() {
-  STATIC_ASSERT(kReturnRegister0 == x0);
-  return RegisterArray(x0, x1, x2, x3, cp);
-}
-
-// static
 constexpr Register LoadDescriptor::ReceiverRegister() { return x1; }
 // static
 constexpr Register LoadDescriptor::NameRegister() { return x2; }

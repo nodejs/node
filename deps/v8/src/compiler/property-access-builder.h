@@ -59,12 +59,6 @@ class PropertyAccessBuilder {
   base::Optional<Node*> FoldLoadDictPrototypeConstant(
       PropertyAccessInfo const& access_info);
 
-  // Builds the load for data-field access for minimorphic loads that use
-  // dynamic map checks. These cannot depend on any information from the maps.
-  Node* BuildMinimorphicLoadDataField(
-      NameRef const& name, MinimorphicLoadPropertyAccessInfo const& access_info,
-      Node* lookup_start_object, Node** effect, Node** control);
-
   static MachineRepresentation ConvertRepresentation(
       Representation representation);
 
