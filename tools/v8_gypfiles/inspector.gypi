@@ -95,6 +95,8 @@
       '<(V8_ROOT)/src/inspector/v8-stack-trace-impl.h',
       '<(V8_ROOT)/src/inspector/v8-value-utils.cc',
       '<(V8_ROOT)/src/inspector/v8-value-utils.h',
+      '<(V8_ROOT)/src/inspector/v8-webdriver-serializer.cc',
+      '<(V8_ROOT)/src/inspector/v8-webdriver-serializer.h',
       '<(V8_ROOT)/src/inspector/value-mirror.cc',
       '<(V8_ROOT)/src/inspector/value-mirror.h',
       # Flat merge `third_party/inspector_protocol:inspector_string_conversions`
