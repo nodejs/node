@@ -48,7 +48,7 @@ help define the security model in the context of each
 of these use cases.
 
 This section will be expanded as the use case/threat
-models are defined. The iniitial list includes:
+models are defined. The initial list includes:
 
 * Server
 * Desktop application
