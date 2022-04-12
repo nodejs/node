@@ -132,6 +132,9 @@
     'v8_enable_pointer_compression%': 0,
     'v8_enable_31bit_smis_on_64bit_arch%': 0,
 
+    # Sets -dV8_SHORT_BUILTIN_CALLS
+    'v8_enable_short_builtin_calls%': 0,
+
     # Sets -dOBJECT_PRINT.
     'v8_enable_object_print%': 0,
 
@@ -293,6 +296,9 @@
       }],
       ['v8_enable_pointer_compression==1 or v8_enable_31bit_smis_on_64bit_arch==1', {
         'defines': ['V8_31BIT_SMIS_ON_64BIT_ARCH',],
+      }],
+      ['v8_enable_short_builtin_calls==1', {
+        'defines': ['V8_SHORT_BUILTIN_CALLS',],
       }],
       ['v8_enable_zone_compression==1', {
         'defines': ['V8_COMPRESS_ZONES',],

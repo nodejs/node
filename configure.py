@@ -782,6 +782,13 @@ parser.add_argument('--v8-enable-hugepage',
     help='Enable V8 transparent hugepage support. This feature is only '+
          'available on Linux platform.')
 
+parser.add_argument('--v8-enable-short-builtin-calls',
+    action='store_true',
+    dest='v8_enable_short_builtin_calls',
+    default=None,
+    help='Enable V8 short builtin calls support. This feature is enabled '+
+         'on x86_64 platform by default.')
+
 parser.add_argument('--node-builtin-modules-path',
     action='store',
     dest='node_builtin_modules_path',
@@ -1464,6 +1471,8 @@ def configure_v8(o):
   if flavor != 'linux' and options.v8_enable_hugepage:
     raise Exception('--v8-enable-hugepage is supported only on linux.')
   o['variables']['v8_enable_hugepage'] = 1 if options.v8_enable_hugepage else 0
+  if options.v8_enable_short_builtin_calls or o['variables']['target_arch'] == 'x64':
+    o['variables']['v8_enable_short_builtin_calls'] = 1
 
 def configure_openssl(o):
   variables = o['variables']
