@@ -1271,6 +1271,62 @@ UNINITIALIZED_TEST(Regress10843) {
   isolate->Dispose();
 }
 
+size_t near_heap_limit_invocation_count = 0;
+size_t InvokeGCNearHeapLimitCallback(void* data, size_t current_heap_limit,
+                                     size_t initial_heap_limit) {
+  near_heap_limit_invocation_count++;
+  if (near_heap_limit_invocation_count > 1) {
+    // We are already in a GC triggered in this callback, raise the limit
+    // to avoid an OOM.
+    return current_heap_limit * 5;
+  }
+
+  DCHECK_EQ(near_heap_limit_invocation_count, 1);
+  // Operations that may cause GC (e.g. taking heap snapshots) in the
+  // near heap limit callback should not hit the AllowGarbageCollection
+  // assertion.
+  static_cast<v8::Isolate*>(data)->GetHeapProfiler()->TakeHeapSnapshot();
+  return current_heap_limit * 5;
+}
+
+UNINITIALIZED_TEST(Regress12777) {
+  v8::Isolate::CreateParams create_params;
+  create_params.constraints.set_max_old_generation_size_in_bytes(10 * i::MB);
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  isolate->AddNearHeapLimitCallback(InvokeGCNearHeapLimitCallback, isolate);
+
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+
+    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+    // Allocate data to trigger the NearHeapLimitCallback.
+    HandleScope scope(i_isolate);
+    int length = 2 * i::MB / i::kTaggedSize;
+    std::vector<Handle<FixedArray>> arrays;
+    for (int i = 0; i < 5; i++) {
+      arrays.push_back(i_isolate->factory()->NewFixedArray(length));
+    }
+    CcTest::CollectAllGarbage(i_isolate);
+    for (int i = 0; i < 5; i++) {
+      arrays.push_back(i_isolate->factory()->NewFixedArray(length));
+    }
+    CcTest::CollectAllGarbage(i_isolate);
+    for (int i = 0; i < 5; i++) {
+      arrays.push_back(i_isolate->factory()->NewFixedArray(length));
+    }
+
+    // The work done above should trigger the heap limit callback at least
+    // twice to prove that the callback can raise the limit in the second
+    // or later calls to avoid an OOM.
+    CHECK_GE(near_heap_limit_invocation_count, 2);
+  }
+
+  isolate->GetHeapProfiler()->DeleteAllHeapSnapshots();
+  isolate->Dispose();
+}
+
 #ifndef V8_LITE_MODE
 
 TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
