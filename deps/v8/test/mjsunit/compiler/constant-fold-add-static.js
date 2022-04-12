@@ -12,6 +12,6 @@ function foo(x) {
 %PrepareFunctionForOptimization(foo);
 foo(121);
 foo(122);
-%OptimizeFunctionForTopTier(foo);
+%OptimizeFunctionOnNextCall(foo);
 foo(123);
 })();

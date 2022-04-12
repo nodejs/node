@@ -28,10 +28,12 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   TNode<UintPtrT> CalculateExternalPointer(TNode<UintPtrT> backing_store,
                                            TNode<UintPtrT> byte_offset);
 
-  // Returns true if kind is either UINT8_ELEMENTS or UINT8_CLAMPED_ELEMENTS.
+  // Returns true if kind is either UINT8_ELEMENTS, UINT8_CLAMPED_ELEMENTS,
+  // RAB_GSAB_UINT8_ELEMENTS, or RAB_GSAB_UINT8_CLAMPED_ELEMENTS.
   TNode<BoolT> IsUint8ElementsKind(TNode<Int32T> kind);
 
-  // Returns true if kind is either BIGINT64_ELEMENTS or BIGUINT64_ELEMENTS.
+  // Returns true if kind is either BIGINT64_ELEMENTS, BIGUINT64_ELEMENTS,
+  // RAB_GSAB_BIGINT64_ELEMENTS, or RAB_GSAB_BIGUINT64_ELEMENTS.
   TNode<BoolT> IsBigInt64ElementsKind(TNode<Int32T> kind);
 
   // Returns the byte size of an element for a TypedArray elements kind.

@@ -24,8 +24,8 @@ void StaticCallInterfaceDescriptor<DerivedDescriptor>::
     VerifyArgumentRegisterCount(CallInterfaceDescriptorData* data,
                                 int nof_expected_args) {
   RegList allocatable_regs = data->allocatable_registers();
-  if (nof_expected_args >= 1) DCHECK(allocatable_regs | esi.bit());
-  if (nof_expected_args >= 2) DCHECK(allocatable_regs | edi.bit());
+  if (nof_expected_args >= 1) DCHECK(allocatable_regs.has(esi));
+  if (nof_expected_args >= 2) DCHECK(allocatable_regs.has(edi));
   // Additional arguments are passed on the stack.
 }
 #endif  // DEBUG
@@ -58,6 +58,36 @@ constexpr Register LoadDescriptor::SlotRegister() { return eax; }
 
 // static
 constexpr Register LoadWithVectorDescriptor::VectorRegister() { return no_reg; }
+
+// static
+constexpr Register KeyedLoadBaselineDescriptor::ReceiverRegister() {
+  return edx;
+}
+// static
+constexpr Register KeyedLoadBaselineDescriptor::NameRegister() {
+  return kInterpreterAccumulatorRegister;
+}
+// static
+constexpr Register KeyedLoadBaselineDescriptor::SlotRegister() { return ecx; }
+
+// static
+constexpr Register KeyedLoadWithVectorDescriptor::VectorRegister() {
+  return no_reg;
+}
+
+// static
+constexpr Register KeyedHasICBaselineDescriptor::ReceiverRegister() {
+  return kInterpreterAccumulatorRegister;
+}
+// static
+constexpr Register KeyedHasICBaselineDescriptor::NameRegister() { return edx; }
+// static
+constexpr Register KeyedHasICBaselineDescriptor::SlotRegister() { return ecx; }
+
+// static
+constexpr Register KeyedHasICWithVectorDescriptor::VectorRegister() {
+  return no_reg;
+}
 
 // static
 constexpr Register
@@ -105,13 +135,29 @@ constexpr Register BaselineLeaveFrameDescriptor::WeightRegister() {
 constexpr Register TypeConversionDescriptor::ArgumentRegister() { return eax; }
 
 // static
-constexpr auto TypeofDescriptor::registers() { return RegisterArray(ecx); }
+constexpr auto TypeofDescriptor::registers() { return RegisterArray(eax); }
 
 // static
 constexpr auto CallTrampolineDescriptor::registers() {
   // eax : number of arguments
   // edi : the target to call
   return RegisterArray(edi, eax);
+}
+
+// static
+constexpr auto CopyDataPropertiesWithExcludedPropertiesDescriptor::registers() {
+  // edi : the source
+  // eax : the excluded property count
+  return RegisterArray(edi, eax);
+}
+
+// static
+constexpr auto
+CopyDataPropertiesWithExcludedPropertiesOnStackDescriptor::registers() {
+  // edi : the source
+  // eax : the excluded property count
+  // ecx : the excluded property base
+  return RegisterArray(edi, eax, ecx);
 }
 
 // static
@@ -220,6 +266,11 @@ constexpr auto BinaryOpDescriptor::registers() {
 // static
 constexpr auto BinaryOp_BaselineDescriptor::registers() {
   return RegisterArray(edx, eax, ecx);
+}
+
+// static
+constexpr auto BinarySmiOp_BaselineDescriptor::registers() {
+  return RegisterArray(eax, edx, ecx);
 }
 
 // static

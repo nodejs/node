@@ -99,10 +99,11 @@ transitioning builtin CreateObjectWithoutProperties(implicit context: Context)(
       case (Null): {
         map = *NativeContextSlot(
             ContextSlot::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP);
-        if (kDictModePrototypes) {
+        @if(V8_ENABLE_SWISS_NAME_DICTIONARY) {
           properties =
               AllocateSwissNameDictionary(kSwissNameDictionaryInitialCapacity);
-        } else {
+        }
+        @ifnot(V8_ENABLE_SWISS_NAME_DICTIONARY) {
           properties = AllocateNameDictionary(kNameDictionaryInitialCapacity);
         }
       }

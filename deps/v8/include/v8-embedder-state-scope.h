@@ -19,9 +19,10 @@ class EmbedderState;
 
 // A StateTag represents a possible state of the embedder.
 enum class EmbedderStateTag : uint8_t {
+  // reserved
   EMPTY = 0,
-  // embedder can define any state in between
-  OTHER = UINT8_MAX,
+  OTHER = 1,
+  // embedder can define any state after
 };
 
 // A stack-allocated class that manages an embedder state on the isolate.

@@ -80,7 +80,7 @@ class AstRawString final : public ZoneObject {
   uint32_t Hash() const {
     // Hash field must be computed.
     DCHECK_EQ(raw_hash_field_ & Name::kHashNotComputedMask, 0);
-    return raw_hash_field_ >> Name::kHashShift;
+    return Name::HashBits::decode(raw_hash_field_);
   }
 
   // This function can be called after internalizing.
@@ -311,24 +311,40 @@ class AstValueFactory {
  public:
   AstValueFactory(Zone* zone, const AstStringConstants* string_constants,
                   uint64_t hash_seed)
+      : AstValueFactory(zone, zone, string_constants, hash_seed) {}
+
+  AstValueFactory(Zone* ast_raw_string_zone, Zone* single_parse_zone,
+                  const AstStringConstants* string_constants,
+                  uint64_t hash_seed)
       : string_table_(string_constants->string_table()),
         strings_(nullptr),
         strings_end_(&strings_),
         string_constants_(string_constants),
         empty_cons_string_(nullptr),
-        zone_(zone),
+        ast_raw_string_zone_(ast_raw_string_zone),
+        single_parse_zone_(single_parse_zone),
         hash_seed_(hash_seed) {
-    DCHECK_NOT_NULL(zone_);
+    DCHECK_NOT_NULL(ast_raw_string_zone_);
+    DCHECK_NOT_NULL(single_parse_zone_);
     DCHECK_EQ(hash_seed, string_constants->hash_seed());
     std::fill(one_character_strings_,
               one_character_strings_ + arraysize(one_character_strings_),
               nullptr);
-    empty_cons_string_ = NewConsString();
+
+    // Allocate the empty ConsString in the AstRawString Zone instead of the
+    // single parse Zone like other ConsStrings, because unlike those it can be
+    // reused across parses.
+    empty_cons_string_ = ast_raw_string_zone_->New<AstConsString>();
   }
 
-  Zone* zone() const {
-    DCHECK_NOT_NULL(zone_);
-    return zone_;
+  Zone* ast_raw_string_zone() const {
+    DCHECK_NOT_NULL(ast_raw_string_zone_);
+    return ast_raw_string_zone_;
+  }
+
+  Zone* single_parse_zone() const {
+    DCHECK_NOT_NULL(single_parse_zone_);
+    return single_parse_zone_;
   }
 
   const AstRawString* GetOneByteString(base::Vector<const uint8_t> literal) {
@@ -394,7 +410,8 @@ class AstValueFactory {
   static const int kMaxOneCharStringValue = 128;
   const AstRawString* one_character_strings_[kMaxOneCharStringValue];
 
-  Zone* zone_;
+  Zone* ast_raw_string_zone_;
+  Zone* single_parse_zone_;
 
   uint64_t hash_seed_;
 };

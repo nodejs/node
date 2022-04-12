@@ -13,7 +13,7 @@
 #error "only include this file if V8_ENABLE_SYSTEM_INSTRUMENTATION"
 #endif
 
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 #include <os/signpost.h>
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunguarded-availability"
@@ -47,7 +47,7 @@ class V8_PLATFORM_EXPORT Recorder {
   void AddEvent(TraceObject* trace_event);
 
  private:
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
   os_log_t v8Provider;
 #endif
 };
@@ -56,7 +56,7 @@ class V8_PLATFORM_EXPORT Recorder {
 }  // namespace platform
 }  // namespace v8
 
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 #pragma clang diagnostic pop
 #endif
 

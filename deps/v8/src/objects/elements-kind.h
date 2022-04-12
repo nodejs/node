@@ -220,6 +220,11 @@ inline bool IsBigIntTypedArrayElementsKind(ElementsKind kind) {
          kind == RAB_GSAB_BIGUINT64_ELEMENTS;
 }
 
+inline bool IsFloatTypedArrayElementsKind(ElementsKind kind) {
+  return kind == FLOAT32_ELEMENTS || kind == FLOAT64_ELEMENTS ||
+         kind == RAB_GSAB_FLOAT32_ELEMENTS || kind == RAB_GSAB_FLOAT64_ELEMENTS;
+}
+
 inline bool IsWasmArrayElementsKind(ElementsKind kind) {
   return kind == WASM_ARRAY_ELEMENTS;
 }

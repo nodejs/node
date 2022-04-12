@@ -406,6 +406,13 @@ MaybeHandle<OrderedHashMap> OrderedHashMap::Add(Isolate* isolate,
   return table;
 }
 
+void OrderedHashMap::SetEntry(InternalIndex entry, Object key, Object value) {
+  DisallowGarbageCollection no_gc;
+  int index = EntryToIndex(entry);
+  this->set(index, key);
+  this->set(index + kValueOffset, value);
+}
+
 template <typename IsolateT>
 InternalIndex OrderedNameDictionary::FindEntry(IsolateT* isolate, Object key) {
   DisallowGarbageCollection no_gc;

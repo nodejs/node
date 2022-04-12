@@ -278,7 +278,7 @@ static void PrintRelocInfo(std::ostringstream& out, Isolate* isolate,
     Address addr = relocinfo->target_address();
     DeoptimizeKind type;
     if (Deoptimizer::IsDeoptimizationEntry(isolate, addr, &type)) {
-      out << "    ;; " << Deoptimizer::MessageFor(type, false)
+      out << "    ;; " << Deoptimizer::MessageFor(type)
           << " deoptimization bailout";
     } else {
       out << "    ;; " << RelocInfo::RelocModeName(rmode);

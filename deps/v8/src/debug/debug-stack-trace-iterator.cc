@@ -101,10 +101,8 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
       return v8::MaybeLocal<v8::Value>();
     }
     DisallowGarbageCollection no_gc;
-    VariableLookupResult lookup_result;
-    int slot_index = ScopeInfo::ContextSlotIndex(
-        context->scope_info(), ReadOnlyRoots(isolate_->heap()).this_string(),
-        &lookup_result);
+    int slot_index = context->scope_info().ContextSlotIndex(
+        ReadOnlyRoots(isolate_).this_string_handle());
     if (slot_index < 0) return v8::MaybeLocal<v8::Value>();
     Handle<Object> value = handle(context->get(slot_index), isolate_);
     if (value->IsTheHole(isolate_)) return v8::MaybeLocal<v8::Value>();

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2013 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -26,12 +26,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# for py2/py3 compatibility
-from __future__ import print_function
-
 import argparse
 import datetime
-import httplib
+from distutils.version import LooseVersion
 import glob
 import imp
 import json
@@ -43,10 +40,13 @@ import sys
 import textwrap
 import time
 import urllib
-import urllib2
 
 from git_recipes import GitRecipesMixin
 from git_recipes import GitFailedException
+
+import http.client as httplib
+import urllib.request as urllib2
+
 
 DAY_IN_SECONDS = 24 * 60 * 60
 PUSH_MSG_GIT_RE = re.compile(r".* \(based on (?P<git_rev>[a-fA-F0-9]+)\)$")
@@ -92,16 +92,6 @@ def MSub(rexp, replacement, text):
   return re.sub(rexp, replacement, text, flags=re.MULTILINE)
 
 
-def SortingKey(version):
-  """Key for sorting version number strings: '3.11' > '3.2.1.1'"""
-  version_keys = map(int, version.split("."))
-  # Fill up to full version numbers to normalize comparison.
-  while len(version_keys) < 4:  # pragma: no cover
-    version_keys.append(0)
-  # Fill digits.
-  return ".".join(map("{0:04d}".format, version_keys))
-
-
 # Some commands don't like the pipe, e.g. calling vi from within the script or
 # from subscripts like git cl upload.
 def Command(cmd, args="", prefix="", pipe=True, cwd=None):
@@ -113,7 +103,7 @@ def Command(cmd, args="", prefix="", pipe=True, cwd=None):
   sys.stdout.flush()
   try:
     if pipe:
-      return subprocess.check_output(cmd_line, shell=True, cwd=cwd)
+      return subprocess.check_output(cmd_line, shell=True, cwd=cwd).decode('utf-8')
     else:
       return subprocess.check_call(cmd_line, shell=True, cwd=cwd)
   except subprocess.CalledProcessError:
@@ -256,7 +246,7 @@ class GitInterface(VCInterface):
         lambda s: re.match(r"^branch\-heads/\d+\.\d+$", s),
         self.step.GitRemotes())
     # Remove 'branch-heads/' prefix.
-    return map(lambda s: s[13:], branches)
+    return [b[13:] for b in branches]
 
   def MainBranch(self):
     return "main"
@@ -557,7 +547,7 @@ class Step(GitRecipesMixin):
                          int(time_now - max_age)).strip()
 
     # Filter out revisions who's tag is off by one or more commits.
-    return filter(lambda r: self.GetVersionTag(r), revisions.splitlines())
+    return list(filter(self.GetVersionTag, revisions.splitlines()))
 
   def GetLatestVersion(self):
     # Use cached version if available.
@@ -571,7 +561,7 @@ class Step(GitRecipesMixin):
     only_version_tags = NormalizeVersionTags(all_tags)
 
     version = sorted(only_version_tags,
-                     key=SortingKey, reverse=True)[0]
+                     key=LooseVersion, reverse=True)[0]
     self["latest_version"] = version
     return version
 

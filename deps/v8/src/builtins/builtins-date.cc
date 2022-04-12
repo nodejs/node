@@ -145,7 +145,7 @@ BUILTIN(DateConstructor) {
       time_val = Handle<JSDate>::cast(value)->value().Number();
     } else {
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
-                                         Object::ToPrimitive(value));
+                                         Object::ToPrimitive(isolate, value));
       if (value->IsString()) {
         time_val = ParseDateTimeString(isolate, Handle<String>::cast(value));
       } else {
@@ -910,7 +910,7 @@ BUILTIN(DatePrototypeToJson) {
   Handle<Object> primitive;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, primitive,
-      Object::ToPrimitive(receiver_obj, ToPrimitiveHint::kNumber));
+      Object::ToPrimitive(isolate, receiver_obj, ToPrimitiveHint::kNumber));
   if (primitive->IsNumber() && !std::isfinite(primitive->Number())) {
     return ReadOnlyRoots(isolate).null_value();
   } else {

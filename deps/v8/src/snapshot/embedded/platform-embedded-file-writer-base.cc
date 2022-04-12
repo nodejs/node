@@ -116,7 +116,7 @@ EmbeddedTargetArch ToEmbeddedTargetArch(const char* s) {
 EmbeddedTargetOs DefaultEmbeddedTargetOs() {
 #if defined(V8_OS_AIX)
   return EmbeddedTargetOs::kAIX;
-#elif defined(V8_OS_MACOSX)
+#elif defined(V8_OS_DARWIN)
   return EmbeddedTargetOs::kMac;
 #elif defined(V8_OS_WIN)
   return EmbeddedTargetOs::kWin;

@@ -48,6 +48,7 @@ class V8_EXPORT_PRIVATE Sweeper final {
   // Sweeper::Start assumes the heap holds no linear allocation buffers.
   void Start(SweepingConfig);
   void FinishIfRunning();
+  void FinishIfOutOfWork();
   void NotifyDoneIfNeeded();
   // SweepForAllocationIfRunning sweeps the given |space| until a slot that can
   // fit an allocation of size |size| is found. Returns true if a slot was

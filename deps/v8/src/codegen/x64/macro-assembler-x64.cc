@@ -27,7 +27,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
-#include "src/security/external-pointer.h"
+#include "src/sandbox/external-pointer.h"
 #include "src/snapshot/snapshot.h"
 
 // Satisfy cpplint check, but don't include platform-specific header. It is
@@ -376,40 +376,40 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   }
 }
 
-void TurboAssembler::EncodeCagedPointer(Register value) {
+void TurboAssembler::EncodeSandboxedPointer(Register value) {
   ASM_CODE_COMMENT(this);
-#ifdef V8_CAGED_POINTERS
+#ifdef V8_SANDBOXED_POINTERS
   subq(value, kPtrComprCageBaseRegister);
-  shlq(value, Immediate(kCagedPointerShift));
+  shlq(value, Immediate(kSandboxedPointerShift));
 #else
   UNREACHABLE();
 #endif
 }
 
-void TurboAssembler::DecodeCagedPointer(Register value) {
+void TurboAssembler::DecodeSandboxedPointer(Register value) {
   ASM_CODE_COMMENT(this);
-#ifdef V8_CAGED_POINTERS
-  shrq(value, Immediate(kCagedPointerShift));
+#ifdef V8_SANDBOXED_POINTERS
+  shrq(value, Immediate(kSandboxedPointerShift));
   addq(value, kPtrComprCageBaseRegister);
 #else
   UNREACHABLE();
 #endif
 }
 
-void TurboAssembler::LoadCagedPointerField(Register destination,
-                                           Operand field_operand) {
+void TurboAssembler::LoadSandboxedPointerField(Register destination,
+                                               Operand field_operand) {
   ASM_CODE_COMMENT(this);
   movq(destination, field_operand);
-  DecodeCagedPointer(destination);
+  DecodeSandboxedPointer(destination);
 }
 
-void TurboAssembler::StoreCagedPointerField(Operand dst_field_operand,
-                                            Register value) {
+void TurboAssembler::StoreSandboxedPointerField(Operand dst_field_operand,
+                                                Register value) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(value, kScratchRegister));
   DCHECK(!dst_field_operand.AddressUsesRegister(kScratchRegister));
   movq(kScratchRegister, value);
-  EncodeCagedPointer(kScratchRegister);
+  EncodeSandboxedPointer(kScratchRegister);
   movq(dst_field_operand, kScratchRegister);
 }
 
@@ -417,7 +417,8 @@ void TurboAssembler::LoadExternalPointerField(
     Register destination, Operand field_operand, ExternalPointerTag tag,
     Register scratch, IsolateRootLocation isolateRootLocation) {
   DCHECK(!AreAliased(destination, scratch));
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  DCHECK_NE(kExternalPointerNullTag, tag);
   DCHECK(!field_operand.AddressUsesRegister(scratch));
   if (isolateRootLocation == IsolateRootLocation::kInRootRegister) {
     DCHECK(root_array_available_);
@@ -431,33 +432,24 @@ void TurboAssembler::LoadExternalPointerField(
                               Internals::kExternalPointerTableBufferOffset));
   }
   movl(destination, field_operand);
+  shrq(destination, Immediate(kExternalPointerIndexShift));
   movq(destination, Operand(scratch, destination, times_8, 0));
-  if (tag != 0) {
-    movq(scratch, Immediate64(~tag));
-    andq(destination, scratch);
-  }
+  movq(scratch, Immediate64(~tag));
+  andq(destination, scratch);
 #else
   movq(destination, field_operand);
-#endif  // V8_HEAP_SANDBOX
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 }
 
 void TurboAssembler::MaybeSaveRegisters(RegList registers) {
-  if (registers == 0) return;
-  DCHECK_GT(NumRegs(registers), 0);
-  for (int i = 0; i < Register::kNumRegisters; ++i) {
-    if ((registers >> i) & 1u) {
-      pushq(Register::from_code(i));
-    }
+  for (Register reg : registers) {
+    pushq(reg);
   }
 }
 
 void TurboAssembler::MaybeRestoreRegisters(RegList registers) {
-  if (registers == 0) return;
-  DCHECK_GT(NumRegs(registers), 0);
-  for (int i = Register::kNumRegisters - 1; i >= 0; --i) {
-    if ((registers >> i) & 1u) {
-      popq(Register::from_code(i));
-    }
+  for (Register reg : base::Reversed(registers)) {
+    popq(reg);
   }
 }
 
@@ -524,7 +516,7 @@ void TurboAssembler::CallRecordWriteStub(
     if (options().inline_offheap_trampolines) {
       CallBuiltin(builtin);
     } else {
-      Handle<Code> code_target = isolate()->builtins()->code_handle(builtin);
+      Handle<CodeT> code_target = isolate()->builtins()->code_handle(builtin);
       Call(code_target, RelocInfo::CODE_TARGET);
     }
   }
@@ -552,7 +544,7 @@ void TurboAssembler::CallTSANStoreStub(Register address, Register value,
 
   if (isolate()) {
     Builtin builtin = CodeFactory::GetTSANStoreStub(fp_mode, size, order);
-    Handle<Code> code_target = isolate()->builtins()->code_handle(builtin);
+    Handle<CodeT> code_target = isolate()->builtins()->code_handle(builtin);
     Call(code_target, RelocInfo::CODE_TARGET);
   }
 #if V8_ENABLE_WEBASSEMBLY
@@ -593,7 +585,7 @@ void TurboAssembler::CallTSANRelaxedLoadStub(Register address,
 
   if (isolate()) {
     Builtin builtin = CodeFactory::GetTSANRelaxedLoadStub(fp_mode, size);
-    Handle<Code> code_target = isolate()->builtins()->code_handle(builtin);
+    Handle<CodeT> code_target = isolate()->builtins()->code_handle(builtin);
     Call(code_target, RelocInfo::CODE_TARGET);
   }
 #if V8_ENABLE_WEBASSEMBLY
@@ -757,7 +749,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
   // smarter.
   Move(rax, num_arguments);
   LoadAddress(rbx, ExternalReference::Create(f));
-  Handle<Code> code =
+  Handle<CodeT> code =
       CodeFactory::CEntry(isolate(), f->result_size, save_doubles);
   Call(code, RelocInfo::CODE_TARGET);
 }
@@ -786,8 +778,9 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
   ASM_CODE_COMMENT(this);
   // Set the entry point and jump to the C entry runtime stub.
   LoadAddress(rbx, ext);
-  Handle<Code> code = CodeFactory::CEntry(isolate(), 1, SaveFPRegsMode::kIgnore,
-                                          ArgvMode::kStack, builtin_exit_frame);
+  Handle<CodeT> code =
+      CodeFactory::CEntry(isolate(), 1, SaveFPRegsMode::kIgnore,
+                          ArgvMode::kStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET);
 }
 
@@ -1467,7 +1460,7 @@ void TurboAssembler::Move(Register dst, Smi source) {
   int value = source.value();
   if (value == 0) {
     xorl(dst, dst);
-  } else if (SmiValuesAre32Bits() || value < 0) {
+  } else if (SmiValuesAre32Bits()) {
     Move(dst, source.ptr(), RelocInfo::NO_INFO);
   } else {
     uint32_t uvalue = static_cast<uint32_t>(source.ptr());
@@ -1807,10 +1800,11 @@ void TurboAssembler::Jump(Address destination, RelocInfo::Mode rmode) {
   jmp(kScratchRegister);
 }
 
-void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
+void TurboAssembler::Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode,
                           Condition cc) {
-  DCHECK_IMPLIES(options().isolate_independent_code,
-                 Builtins::IsIsolateIndependentBuiltin(*code_object));
+  DCHECK_IMPLIES(
+      options().isolate_independent_code,
+      Builtins::IsIsolateIndependentBuiltin(FromCodeT(*code_object)));
   if (options().inline_offheap_trampolines) {
     Builtin builtin = Builtin::kNoBuiltinId;
     if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin)) {
@@ -1851,9 +1845,11 @@ void TurboAssembler::Call(Address destination, RelocInfo::Mode rmode) {
   call(kScratchRegister);
 }
 
-void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
-  DCHECK_IMPLIES(options().isolate_independent_code,
-                 Builtins::IsIsolateIndependentBuiltin(*code_object));
+void TurboAssembler::Call(Handle<CodeT> code_object, RelocInfo::Mode rmode) {
+  // TODO(v8:11880): avoid roundtrips between cdc and code.
+  DCHECK_IMPLIES(
+      options().isolate_independent_code,
+      Builtins::IsIsolateIndependentBuiltin(FromCodeT(*code_object)));
   if (options().inline_offheap_trampolines) {
     Builtin builtin = Builtin::kNoBuiltinId;
     if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin)) {
@@ -1915,6 +1911,14 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin) {
 void TurboAssembler::LoadCodeObjectEntry(Register destination,
                                          Register code_object) {
   ASM_CODE_COMMENT(this);
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    LoadExternalPointerField(
+        destination,
+        FieldOperand(code_object, CodeDataContainer::kCodeEntryPointOffset),
+        kCodeEntryPointTag, kScratchRegister);
+    return;
+  }
+
   // Code objects are called differently depending on whether we are generating
   // builtin code (which will later be embedded into the binary) or compiling
   // user JS code at runtime.
@@ -2275,6 +2279,23 @@ void TurboAssembler::Ret(int bytes_dropped, Register scratch) {
   }
 }
 
+void TurboAssembler::IncsspqIfSupported(Register number_of_words,
+                                        Register scratch) {
+  // Optimized code can validate at runtime whether the cpu supports the
+  // incsspq instruction, so it shouldn't use this method.
+  CHECK(isolate()->IsGeneratingEmbeddedBuiltins());
+  DCHECK_NE(number_of_words, scratch);
+  Label not_supported;
+  ExternalReference supports_cetss =
+      ExternalReference::supports_cetss_address();
+  Operand supports_cetss_operand =
+      ExternalReferenceAsOperand(supports_cetss, scratch);
+  cmpb(supports_cetss_operand, Immediate(0));
+  j(equal, &not_supported, Label::kNear);
+  incsspq(number_of_words);
+  bind(&not_supported);
+}
+
 void MacroAssembler::CmpObjectType(Register heap_object, InstanceType type,
                                    Register map) {
   LoadMap(map, heap_object);
@@ -2619,11 +2640,9 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
       leaq(kScratchRegister,
            Operand(expected_parameter_count, times_system_pointer_size, 0));
       AllocateStackSpace(kScratchRegister);
-      // Extra words are the receiver (if not already included in argc) and the
-      // return address (if a jump).
+      // Extra words are for the return address (if a jump).
       int extra_words =
           type == InvokeType::kCall ? 0 : kReturnAddressStackSlotCount;
-      if (!kJSArgcIncludesReceiver) extra_words++;
 
       leaq(num, Operand(rax, extra_words));  // Number of words to copy.
       Move(current, 0);
@@ -2736,7 +2755,7 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
   popq(rbp);
 }
 
-#if defined(V8_TARGET_OS_WIN) || defined(V8_TARGET_OS_MACOSX)
+#if defined(V8_TARGET_OS_WIN) || defined(V8_TARGET_OS_MACOS)
 void TurboAssembler::AllocateStackSpace(Register bytes_scratch) {
   ASM_CODE_COMMENT(this);
   // On Windows and on macOS, we cannot increment the stack size by more than

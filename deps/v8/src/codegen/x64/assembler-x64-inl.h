@@ -38,9 +38,9 @@ void Assembler::emitw(uint16_t x) {
 // TODO(ishell): Rename accordingly once RUNTIME_ENTRY is renamed.
 void Assembler::emit_runtime_entry(Address entry, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsRuntimeEntry(rmode));
-  DCHECK_NE(options().code_range_start, 0);
+  DCHECK_NE(options().code_range_base, 0);
   RecordRelocInfo(rmode);
-  uint32_t offset = static_cast<uint32_t>(entry - options().code_range_start);
+  uint32_t offset = static_cast<uint32_t>(entry - options().code_range_base);
   emitl(offset);
 }
 
@@ -264,7 +264,7 @@ int Assembler::deserialization_special_target_size(
   return kSpecialTargetSize;
 }
 
-Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
+Handle<CodeT> Assembler::code_target_object_handle_at(Address pc) {
   return GetCodeTarget(ReadUnalignedValue<int32_t>(pc));
 }
 
@@ -273,7 +273,7 @@ Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(Address pc) {
 }
 
 Address Assembler::runtime_entry_at(Address pc) {
-  return ReadUnalignedValue<int32_t>(pc) + options().code_range_start;
+  return ReadUnalignedValue<int32_t>(pc) + options().code_range_base;
 }
 
 // -----------------------------------------------------------------------------
@@ -322,7 +322,8 @@ HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
     Object obj(DecompressTaggedPointer(cage_base, compressed));
     // Embedding of compressed Code objects must not happen when external code
     // space is enabled, because CodeDataContainers must be used instead.
-    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !obj.IsCode(cage_base));
+    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
+                   !IsCodeSpaceObject(HeapObject::cast(obj)));
     return HeapObject::cast(obj);
   }
   DCHECK(IsFullEmbeddedObject(rmode_) || IsDataEmbeddedObject(rmode_));

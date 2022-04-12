@@ -28,6 +28,7 @@ class V8_EXPORT_PRIVATE BaseSpace {
 
   BaseSpace(const BaseSpace&) = delete;
   BaseSpace& operator=(const BaseSpace&) = delete;
+  virtual ~BaseSpace();
 
   iterator begin() { return pages_.begin(); }
   const_iterator begin() const { return pages_.begin(); }

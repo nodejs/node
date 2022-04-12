@@ -29,17 +29,17 @@ namespace compiler {
 
 class NodeOriginTable;
 class SourcePositionTable;
+struct WasmLoopInfo;
 
 // The WasmInliner provides the core graph inlining machinery for Webassembly
-// graphs. Note that this class only deals with the mechanics of how to inline
-// one graph into another; heuristics that decide what and how much to inline
-// are provided by {WasmInliningHeuristics}.
+// graphs.
 class WasmInliner final : public AdvancedReducer {
  public:
   WasmInliner(Editor* editor, wasm::CompilationEnv* env,
               uint32_t function_index, SourcePositionTable* source_positions,
               NodeOriginTable* node_origins, MachineGraph* mcgraph,
-              const wasm::WireBytesStorage* wire_bytes)
+              const wasm::WireBytesStorage* wire_bytes,
+              std::vector<WasmLoopInfo>* loop_infos)
       : AdvancedReducer(editor),
         env_(env),
         function_index_(function_index),
@@ -47,6 +47,7 @@ class WasmInliner final : public AdvancedReducer {
         node_origins_(node_origins),
         mcgraph_(mcgraph),
         wire_bytes_(wire_bytes),
+        loop_infos_(loop_infos),
         initial_graph_size_(mcgraph->graph()->NodeCount()),
         current_graph_size_(initial_graph_size_),
         inlining_candidates_() {}
@@ -143,6 +144,7 @@ class WasmInliner final : public AdvancedReducer {
   NodeOriginTable* const node_origins_;
   MachineGraph* const mcgraph_;
   const wasm::WireBytesStorage* const wire_bytes_;
+  std::vector<WasmLoopInfo>* const loop_infos_;
   const size_t initial_graph_size_;
   size_t current_graph_size_;
   std::priority_queue<CandidateInfo, std::vector<CandidateInfo>,

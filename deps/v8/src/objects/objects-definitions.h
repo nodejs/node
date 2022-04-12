@@ -140,9 +140,11 @@ namespace internal {
   V(_, BREAK_POINT_INFO_TYPE, BreakPointInfo, break_point_info)                \
   V(_, CACHED_TEMPLATE_OBJECT_TYPE, CachedTemplateObject,                      \
     cached_template_object)                                                    \
+  V(_, CALL_SITE_INFO_TYPE, CallSiteInfo, call_site_info)                      \
   V(_, CLASS_POSITIONS_TYPE, ClassPositions, class_positions)                  \
   V(_, DEBUG_INFO_TYPE, DebugInfo, debug_info)                                 \
   V(_, ENUM_CACHE_TYPE, EnumCache, enum_cache)                                 \
+  V(_, ERROR_STACK_DATA_TYPE, ErrorStackData, error_stack_data)                \
   V(_, FUNCTION_TEMPLATE_RARE_DATA_TYPE, FunctionTemplateRareData,             \
     function_template_rare_data)                                               \
   V(_, INTERCEPTOR_INFO_TYPE, InterceptorInfo, interceptor_info)               \

@@ -90,7 +90,7 @@ macro NumberToStringSmi(x: int32, radix: int32): String labels Slow {
 
   // Calculate length and pre-allocate the result string.
   let temp: int32 = n;
-  let length: int32 = isNegative ? 1 : 0;
+  let length: int32 = isNegative ? Convert<int32>(1) : Convert<int32>(0);
   while (temp > 0) {
     temp = temp / radix;
     length = length + 1;
@@ -241,7 +241,7 @@ transitioning javascript builtin NumberParseFloat(
   } label String(s: String) {
     // Check if the string is a cached array index.
     const hash: NameHash = s.raw_hash_field;
-    if (!hash.is_not_integer_index_mask &&
+    if (IsIntegerIndex(hash) &&
         hash.array_index_length < kMaxCachedArrayIndexLength) {
       const arrayIndex: uint32 = hash.array_index_value;
       return SmiFromUint32(arrayIndex);
@@ -277,7 +277,7 @@ transitioning builtin ParseInt(implicit context: Context)(
         // the runtime for the range [0,1[ because the result could be -0.
         const kMaxAbsValue: float64 = 2147483648.0;
         const absInput: float64 = math::Float64Abs(asFloat64);
-        if (absInput < kMaxAbsValue && absInput >= 1) goto Int32(asInt32);
+        if (absInput < kMaxAbsValue && absInput >= 1.0) goto Int32(asInt32);
         goto CallRuntime;
       }
       case (s: String): {
@@ -292,7 +292,7 @@ transitioning builtin ParseInt(implicit context: Context)(
   } label String(s: String) {
     // Check if the string is a cached array index.
     const hash: NameHash = s.raw_hash_field;
-    if (!hash.is_not_integer_index_mask &&
+    if (IsIntegerIndex(hash) &&
         hash.array_index_length < kMaxCachedArrayIndexLength) {
       const arrayIndex: uint32 = hash.array_index_value;
       return SmiFromUint32(arrayIndex);
@@ -690,7 +690,7 @@ builtin Negate(implicit context: Context)(value: JSAny): Numeric {
   } label Smi(s: Smi) {
     return SmiMul(s, -1);
   } label HeapNumber(h: HeapNumber) {
-    return AllocateHeapNumberWithValue(Convert<float64>(h) * -1);
+    return AllocateHeapNumberWithValue(Convert<float64>(h) * -1.0);
   } label BigInt(b: BigInt) {
     tail runtime::BigIntUnaryOp(
         context, b, SmiTag<Operation>(Operation::kNegate));

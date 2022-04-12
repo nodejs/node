@@ -46,8 +46,7 @@ Handle<T> GetLexical(const char* name) {
       isolate->native_context()->script_context_table(), isolate);
 
   VariableLookupResult lookup_result;
-  if (ScriptContextTable::Lookup(isolate, *script_contexts, *str_name,
-                                 &lookup_result)) {
+  if (script_contexts->Lookup(str_name, &lookup_result)) {
     Handle<Context> script_context = ScriptContextTable::GetContext(
         isolate, script_contexts, lookup_result.context_index);
 

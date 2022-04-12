@@ -201,6 +201,7 @@ TEST(Run_WasmModule_CompilationHintsNoTiering) {
 }
 
 TEST(Run_WasmModule_CompilationHintsTierUp) {
+  FlagScope<bool> no_wasm_dynamic_tiering(&FLAG_wasm_dynamic_tiering, false);
   if (!FLAG_wasm_tier_up || !FLAG_liftoff) return;
   {
     EXPERIMENTAL_FLAG_SCOPE(compilation_hints);
@@ -265,6 +266,7 @@ TEST(Run_WasmModule_CompilationHintsTierUp) {
 }
 
 TEST(Run_WasmModule_CompilationHintsLazyBaselineEagerTopTier) {
+  FlagScope<bool> no_wasm_dynamic_tiering(&FLAG_wasm_dynamic_tiering, false);
   if (!FLAG_wasm_tier_up || !FLAG_liftoff) return;
   {
     EXPERIMENTAL_FLAG_SCOPE(compilation_hints);

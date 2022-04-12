@@ -120,7 +120,7 @@ class BytecodeGraphTester {
         Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
     IsCompiledScope is_compiled_scope(
         function->shared().is_compiled_scope(isolate_));
-    JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+    JSFunction::EnsureFeedbackVector(isolate_, function, &is_compiled_scope);
     CHECK(function->shared().HasBytecodeArray());
 
     Zone zone(isolate_->allocator(), ZONE_NAME);

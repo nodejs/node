@@ -26,6 +26,7 @@
 #include <string>
 #include <vector>
 
+#include "include/v8-platform.h"
 #include "src/base/base-export.h"
 #include "src/base/build_config.h"
 #include "src/base/compiler-specific.h"
@@ -84,7 +85,7 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
         __readfsdword(kTibInlineTlsOffset + kSystemPointerSize * index));
   }
   intptr_t extra = static_cast<intptr_t>(__readfsdword(kTibExtraTlsOffset));
-  DCHECK_NE(extra, 0);
+  if (!extra) return 0;
   return *reinterpret_cast<intptr_t*>(extra + kSystemPointerSize *
                                                   (index - kMaxInlineSlots));
 }
@@ -144,10 +145,10 @@ class V8_BASE_EXPORT OS {
   // On Windows, ensure the newer memory API is loaded if available.  This
   // includes function like VirtualAlloc2 and MapViewOfFile3.
   // TODO(chromium:1218005) this should probably happen as part of Initialize,
-  // but that is currently invoked too late, after the virtual memory cage
-  // is initialized. However, eventually the virtual memory cage initialization
-  // will happen as part of V8::Initialize, at which point this function can
-  // probably be merged into OS::Initialize.
+  // but that is currently invoked too late, after the sandbox is initialized.
+  // However, eventually the sandbox initialization will probably happen as
+  // part of V8::Initialize, at which point this function can probably be
+  // merged into OS::Initialize.
   static void EnsureWin32MemoryAPILoaded();
 #endif
 
@@ -196,18 +197,22 @@ class V8_BASE_EXPORT OS {
   static PRINTF_FORMAT(1, 0) void VPrintError(const char* format, va_list args);
 
   // Memory permissions. These should be kept in sync with the ones in
-  // v8::PageAllocator.
+  // v8::PageAllocator and v8::PagePermissions.
   enum class MemoryPermission {
     kNoAccess,
     kRead,
     kReadWrite,
-    // TODO(hpayer): Remove this flag. Memory should never be rwx.
     kReadWriteExecute,
     kReadExecute,
     // TODO(jkummerow): Remove this when Wasm has a platform-independent
     // w^x implementation.
     kNoAccessWillJitLater
   };
+
+  // Helpers to create shared memory objects. Currently only used for testing.
+  static PlatformSharedMemoryHandle CreateSharedMemoryHandleForTesting(
+      size_t size);
+  static void DestroySharedMemoryHandle(PlatformSharedMemoryHandle handle);
 
   static bool HasLazyCommits();
 
@@ -336,9 +341,15 @@ class V8_BASE_EXPORT OS {
                                                  void* new_address,
                                                  size_t size);
 
-  V8_WARN_UNUSED_RESULT static bool Free(void* address, const size_t size);
+  static void Free(void* address, size_t size);
 
-  V8_WARN_UNUSED_RESULT static bool Release(void* address, size_t size);
+  V8_WARN_UNUSED_RESULT static void* AllocateShared(
+      void* address, size_t size, OS::MemoryPermission access,
+      PlatformSharedMemoryHandle handle, uint64_t offset);
+
+  static void FreeShared(void* address, size_t size);
+
+  static void Release(void* address, size_t size);
 
   V8_WARN_UNUSED_RESULT static bool SetPermissions(void* address, size_t size,
                                                    MemoryPermission access);
@@ -354,8 +365,7 @@ class V8_BASE_EXPORT OS {
   CreateAddressSpaceReservation(void* hint, size_t size, size_t alignment,
                                 MemoryPermission max_permission);
 
-  V8_WARN_UNUSED_RESULT static bool FreeAddressSpaceReservation(
-      AddressSpaceReservation reservation);
+  static void FreeAddressSpaceReservation(AddressSpaceReservation reservation);
 
   static const int msPerSecond = 1000;
 
@@ -383,6 +393,10 @@ inline void EnsureConsoleOutput() {
 //
 // This class provides the same memory management functions as OS but operates
 // inside a previously reserved contiguous region of virtual address space.
+//
+// Reserved address space in which no pages have been allocated is guaranteed
+// to be inaccessible and cause a fault on access. As such, creating guard
+// regions requires no further action.
 class V8_BASE_EXPORT AddressSpaceReservation {
  public:
   using Address = uintptr_t;
@@ -401,6 +415,13 @@ class V8_BASE_EXPORT AddressSpaceReservation {
                                       OS::MemoryPermission access);
 
   V8_WARN_UNUSED_RESULT bool Free(void* address, size_t size);
+
+  V8_WARN_UNUSED_RESULT bool AllocateShared(void* address, size_t size,
+                                            OS::MemoryPermission access,
+                                            PlatformSharedMemoryHandle handle,
+                                            uint64_t offset);
+
+  V8_WARN_UNUSED_RESULT bool FreeShared(void* address, size_t size);
 
   V8_WARN_UNUSED_RESULT bool SetPermissions(void* address, size_t size,
                                             OS::MemoryPermission access);

@@ -48,7 +48,7 @@ class DelegatingTracingController : public TracingController {
 };
 
 class TestWithPlatform : public ::testing::Test {
- protected:
+ public:
   static void SetUpTestSuite();
   static void TearDownTestSuite();
 
@@ -67,7 +67,7 @@ class TestWithPlatform : public ::testing::Test {
 };
 
 class TestWithHeap : public TestWithPlatform {
- protected:
+ public:
   TestWithHeap();
 
   void PreciseGC() {

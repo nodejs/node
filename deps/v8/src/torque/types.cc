@@ -850,7 +850,7 @@ void ClassType::GenerateSliceAccessor(size_t field_index) {
 
   if (field.offset.has_value()) {
     offset_expression =
-        MakeNode<NumberLiteralExpression>(static_cast<double>(*field.offset));
+        MakeNode<IntegerLiteralExpression>(IntegerLiteral(*field.offset));
   } else {
     const Field* previous = GetFieldPreceding(field_index);
     DCHECK_NOT_NULL(previous);
@@ -879,8 +879,8 @@ void ClassType::GenerateSliceAccessor(size_t field_index) {
     std::tie(previous_element_size, std::ignore) =
         *SizeOf(previous->name_and_type.type);
     Expression* previous_element_size_expression =
-        MakeNode<NumberLiteralExpression>(
-            static_cast<double>(previous_element_size));
+        MakeNode<IntegerLiteralExpression>(
+            IntegerLiteral(previous_element_size));
 
     // previous.length
     Expression* previous_length_expression = MakeFieldAccessExpression(

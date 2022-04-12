@@ -74,7 +74,7 @@ void ReadOnlySerializer::SerializeReadOnlyRoots() {
 
   ReadOnlyRoots(isolate()).Iterate(this);
 
-  if (reconstruct_read_only_object_cache_for_testing()) {
+  if (reconstruct_read_only_and_shared_object_caches_for_testing()) {
     ReconstructReadOnlyObjectCacheForTesting();
   }
 }

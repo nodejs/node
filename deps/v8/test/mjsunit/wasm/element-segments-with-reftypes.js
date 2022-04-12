@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-typed-funcref
+// Flags: --experimental-wasm-gc
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -96,4 +96,23 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(instance.exports.table.get(1)(10), 11);
   assertEquals(instance.exports.table.get(2)(10), 20);
   assertEquals(instance.exports.table.get(3)(10), 11);
+})();
+
+// Test that mutable globals cannot be used in element segments, even under
+// --experimental-wasm-gc.
+(function TestMutableGlobalInElementSegment() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let global = builder.addImportedGlobal("m", "g", kWasmFuncRef, true);
+  let table = builder.addTable(kWasmFuncRef, 10, 10);
+  builder.addActiveElementSegment(
+      table.index, WasmInitExpr.I32Const(0),
+      [WasmInitExpr.GlobalGet(global.index)], kWasmFuncRef);
+  builder.addExportOfKind("table", kExternalTable, table.index);
+
+  assertThrows(
+    () => builder.instantiate({m : {g :
+        new WebAssembly.Global({value: "anyfunc", mutable: true}, null)}}),
+    WebAssembly.CompileError,
+    /mutable globals cannot be used in initializer expressions/);
 })();

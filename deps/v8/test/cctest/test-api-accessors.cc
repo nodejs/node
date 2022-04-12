@@ -778,3 +778,42 @@ TEST(ObjectTemplateSetLazyPropertyHasNoSideEffect) {
                   ->Int32Value(env.local())
                   .FromJust());
 }
+
+namespace {
+void FunctionNativeGetter(v8::Local<v8::String> property,
+                          const v8::PropertyCallbackInfo<v8::Value>& info) {
+  info.GetIsolate()->ThrowError(v8_str("side effect in getter"));
+}
+}  // namespace
+
+TEST(BindFunctionTemplateSetNativeDataProperty) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  // Check that getter is called on Function.prototype.bind.
+  {
+    v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+    templ->SetNativeDataProperty(v8_str("name"), FunctionNativeGetter);
+    v8::Local<v8::Function> func =
+        templ->GetFunction(env.local()).ToLocalChecked();
+    CHECK(env->Global()->Set(env.local(), v8_str("func"), func).FromJust());
+
+    v8::TryCatch try_catch(isolate);
+    CHECK(CompileRun("func.bind()").IsEmpty());
+    CHECK(try_catch.HasCaught());
+  }
+
+  // Check that getter is called on Function.prototype.bind.
+  {
+    v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+    templ->SetNativeDataProperty(v8_str("length"), FunctionNativeGetter);
+    v8::Local<v8::Function> func =
+        templ->GetFunction(env.local()).ToLocalChecked();
+    CHECK(env->Global()->Set(env.local(), v8_str("func"), func).FromJust());
+
+    v8::TryCatch try_catch(isolate);
+    CHECK(CompileRun("func.bind()").IsEmpty());
+    CHECK(try_catch.HasCaught());
+  }
+}

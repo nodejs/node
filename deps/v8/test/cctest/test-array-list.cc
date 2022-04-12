@@ -15,8 +15,7 @@ TEST(ArrayList) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Handle<ArrayList> array(
-      ArrayList::cast(ReadOnlyRoots(isolate).empty_fixed_array()), isolate);
+  Handle<ArrayList> array = ReadOnlyRoots(isolate).empty_array_list_handle();
   CHECK_EQ(0, array->Length());
   array = ArrayList::Add(isolate, array, handle(Smi::FromInt(100), isolate));
   CHECK_EQ(1, array->Length());

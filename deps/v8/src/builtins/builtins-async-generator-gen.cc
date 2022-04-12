@@ -211,21 +211,40 @@ AsyncGeneratorBuiltinsAssembler::AllocateAsyncGeneratorRequest(
 void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwaitResumeClosure(
     TNode<Context> context, TNode<Object> value,
     JSAsyncGeneratorObject::ResumeMode resume_mode) {
-  const TNode<JSAsyncGeneratorObject> generator =
+  const TNode<JSAsyncGeneratorObject> async_generator_object =
       CAST(LoadContextElement(context, Context::EXTENSION_INDEX));
 
-  SetGeneratorNotAwaiting(generator);
+  SetGeneratorNotAwaiting(async_generator_object);
 
-  CSA_SLOW_DCHECK(this, IsGeneratorSuspended(generator));
+  CSA_SLOW_DCHECK(this, IsGeneratorSuspended(async_generator_object));
 
-  // Remember the {resume_mode} for the {generator}.
-  StoreObjectFieldNoWriteBarrier(generator,
+  // Remember the {resume_mode} for the {async_generator_object}.
+  StoreObjectFieldNoWriteBarrier(async_generator_object,
                                  JSGeneratorObject::kResumeModeOffset,
                                  SmiConstant(resume_mode));
 
-  CallStub(CodeFactory::ResumeGenerator(isolate()), context, value, generator);
+  // Push the promise for the {async_generator_object} back onto the catch
+  // prediction stack to handle exceptions thrown after resuming from the
+  // await properly.
+  Label if_instrumentation(this, Label::kDeferred),
+      if_instrumentation_done(this);
+  Branch(IsDebugActive(), &if_instrumentation, &if_instrumentation_done);
+  BIND(&if_instrumentation);
+  {
+    TNode<AsyncGeneratorRequest> request =
+        CAST(LoadFirstAsyncGeneratorRequestFromQueue(async_generator_object));
+    TNode<JSPromise> promise = LoadObjectField<JSPromise>(
+        request, AsyncGeneratorRequest::kPromiseOffset);
+    CallRuntime(Runtime::kDebugPushPromise, context, promise);
+    Goto(&if_instrumentation_done);
+  }
+  BIND(&if_instrumentation_done);
 
-  TailCallBuiltin(Builtin::kAsyncGeneratorResumeNext, context, generator);
+  CallStub(CodeFactory::ResumeGenerator(isolate()), context, value,
+           async_generator_object);
+
+  TailCallBuiltin(Builtin::kAsyncGeneratorResumeNext, context,
+                  async_generator_object);
 }
 
 template <typename Descriptor>

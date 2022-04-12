@@ -4,7 +4,7 @@
 
 let {session, contextGroup, Protocol} = InspectorTest.start('Checks stepping with blackboxed frames on stack');
 
-contextGroup.addScript(
+contextGroup.addInlineScript(
     `
 function frameworkCall(funcs) {
   for (var f of funcs) f();
@@ -13,11 +13,10 @@ function frameworkCall(funcs) {
 function frameworkBreakAndCall(funcs) {
   inspector.breakProgram('', '');
   for (var f of funcs) f();
-}
-//# sourceURL=framework.js`,
-    8, 4);
+}`,
+    'framework.js');
 
-contextGroup.addScript(
+contextGroup.addInlineScript(
     `
 function userFoo() {
   return 1;
@@ -33,9 +32,8 @@ function testStepFromUser() {
 
 function testStepFromFramework() {
   frameworkBreakAndCall([userFoo, userBoo]);
-}
-//# sourceURL=user.js`,
-    21, 4);
+}`,
+    'user.js');
 
 session.setupScriptMap();
 

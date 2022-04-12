@@ -5,9 +5,6 @@
 #ifndef V8_HEAP_LOCAL_FACTORY_H_
 #define V8_HEAP_LOCAL_FACTORY_H_
 
-#include <map>
-#include <vector>
-
 #include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
@@ -68,13 +65,13 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
   }
 
   // This is the real Isolate that will be used for allocating and accessing
-  // external pointer entries when V8_HEAP_SANDBOX is enabled.
-  Isolate* isolate_for_heap_sandbox() {
-#ifdef V8_HEAP_SANDBOX
-    return isolate_for_heap_sandbox_;
+  // external pointer entries when V8_SANDBOXED_EXTERNAL_POINTERS is enabled.
+  Isolate* isolate_for_sandbox() {
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+    return isolate_for_sandbox_;
 #else
     return nullptr;
-#endif  // V8_HEAP_SANDBOX
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
   }
 
   inline bool CanAllocateInReadOnlySpace() { return false; }
@@ -86,8 +83,8 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
   // ------
 
   ReadOnlyRoots roots_;
-#ifdef V8_HEAP_SANDBOX
-  Isolate* isolate_for_heap_sandbox_;
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  Isolate* isolate_for_sandbox_;
 #endif
 #ifdef DEBUG
   bool a_script_was_added_to_the_script_list_ = false;

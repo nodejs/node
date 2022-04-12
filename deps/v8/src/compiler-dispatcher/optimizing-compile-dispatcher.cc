@@ -58,18 +58,11 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
  private:
   // v8::Task overrides.
   void RunInternal() override {
-#ifdef V8_RUNTIME_CALL_STATS
-    WorkerThreadRuntimeCallStatsScope runtime_call_stats_scope(
-        worker_thread_runtime_call_stats_);
-    LocalIsolate local_isolate(isolate_, ThreadKind::kBackground,
-                               runtime_call_stats_scope.Get());
-#else   // V8_RUNTIME_CALL_STATS
     LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
-#endif  // V8_RUNTIME_CALL_STATS
     DCHECK(local_isolate.heap()->IsParked());
 
     {
-      RCS_SCOPE(runtime_call_stats_scope.Get(),
+      RCS_SCOPE(&local_isolate,
                 RuntimeCallCounterId::kOptimizeBackgroundDispatcherJob);
 
       TimerEventScope<TimerEventRecompileConcurrent> timer(isolate_);

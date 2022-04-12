@@ -1546,10 +1546,10 @@ TEST(LA11) {
   CHECK_EQ(static_cast<int64_t>(0x81a15c3000), t.result_bstrins_d_si2);
   CHECK_EQ(static_cast<int64_t>(0x1e), t.result_bstrpick_d_si1);
   CHECK_EQ(static_cast<int64_t>(0xfb80), t.result_bstrpick_d_si2);
-  CHECK_EQ(static_cast<int64_t>(0), t.result_maskeqz_si1);
-  CHECK_EQ(static_cast<int64_t>(0xFB8017FF781A15C3), t.result_maskeqz_si2);
-  CHECK_EQ(static_cast<int64_t>(0x10C021098B710CDE), t.result_masknez_si1);
-  CHECK_EQ(static_cast<int64_t>(0), t.result_masknez_si2);
+  CHECK_EQ(static_cast<int64_t>(0x10C021098B710CDE), t.result_maskeqz_si1);
+  CHECK_EQ(static_cast<int64_t>(0), t.result_maskeqz_si2);
+  CHECK_EQ(static_cast<int64_t>(0), t.result_masknez_si1);
+  CHECK_EQ(static_cast<int64_t>(0xFB8017FF781A15C3), t.result_masknez_si2);
 }
 
 uint64_t run_beq(int64_t value1, int64_t value2, int16_t offset) {

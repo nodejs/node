@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax
-// Files: tools/clusterfuzz/v8_mock.js
-// Files: tools/clusterfuzz/v8_mock_archs.js
+// Files: tools/clusterfuzz/foozzie/v8_mock.js
+// Files: tools/clusterfuzz/foozzie/v8_mock_archs.js
 
 // Test foozzie architecture-specific mocks for differential fuzzing.
 
