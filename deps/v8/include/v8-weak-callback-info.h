@@ -68,8 +68,8 @@ enum class WeakCallbackType {
    * before the object is actually reclaimed, allowing it to be resurrected. In
    * this case it is not possible to set a second-pass callback.
    */
-  kFinalizer V8_ENUM_DEPRECATE_SOON("Resurrecting finalizers are deprecated "
-                                    "and will not be supported going forward.")
+  kFinalizer V8_ENUM_DEPRECATED("Resurrecting finalizers are deprecated "
+                                "and will not be supported going forward.")
 };
 
 template <class T>

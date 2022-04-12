@@ -455,10 +455,6 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
                                FeedbackSource const& feedback);
   const Operator* DeoptimizeUnless(DeoptimizeKind kind, DeoptimizeReason reason,
                                    FeedbackSource const& feedback);
-  // DynamicCheckMapsWithDeoptUnless will call the dynamic map check builtin if
-  // the condition is false, which may then either deoptimize or resume
-  // execution.
-  const Operator* DynamicCheckMapsWithDeoptUnless(bool is_inlined_frame_state);
   const Operator* TrapIf(TrapId trap_id);
   const Operator* TrapUnless(TrapId trap_id);
   const Operator* Return(int value_input_count = 1);
@@ -721,27 +717,6 @@ class StartNode final : public CommonNodeWrapperBase {
     return node()->op()->ValueOutputCount() - 1;
   }
   int LastOutputIndex() const { return ContextOutputIndex(); }
-};
-
-class DynamicCheckMapsWithDeoptUnlessNode final : public CommonNodeWrapperBase {
- public:
-  explicit constexpr DynamicCheckMapsWithDeoptUnlessNode(Node* node)
-      : CommonNodeWrapperBase(node) {
-    DCHECK_EQ(IrOpcode::kDynamicCheckMapsWithDeoptUnless, node->opcode());
-  }
-
-#define INPUTS(V)                   \
-  V(Condition, condition, 0, BoolT) \
-  V(Slot, slot, 1, IntPtrT)         \
-  V(Map, map, 2, Map)               \
-  V(Handler, handler, 3, Object)    \
-  V(FeedbackVector, feedback_vector, 4, FeedbackVector)
-  INPUTS(DEFINE_INPUT_ACCESSORS)
-#undef INPUTS
-
-  FrameState frame_state() {
-    return FrameState{NodeProperties::GetValueInput(node(), 5)};
-  }
 };
 
 #undef DEFINE_INPUT_ACCESSORS

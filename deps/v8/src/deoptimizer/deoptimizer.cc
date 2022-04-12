@@ -468,10 +468,6 @@ const char* Deoptimizer::MessageFor(DeoptimizeKind kind) {
       return "deopt-soft";
     case DeoptimizeKind::kLazy:
       return "deopt-lazy";
-    case DeoptimizeKind::kBailout:
-      return "bailout";
-    case DeoptimizeKind::kEagerWithResume:
-      return "eager-with-resume";
   }
 }
 
@@ -541,21 +537,14 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
         DeoptimizationData::cast(compiled_code_.deoptimization_data());
     Address deopt_start = compiled_code_.raw_instruction_start() +
                           deopt_data.DeoptExitStart().value();
-    int eager_soft_and_bailout_deopt_count =
-        deopt_data.EagerSoftAndBailoutDeoptCount().value();
+    int non_lazy_deopt_count = deopt_data.NonLazyDeoptCount().value();
     Address lazy_deopt_start =
-        deopt_start +
-        eager_soft_and_bailout_deopt_count * kNonLazyDeoptExitSize;
-    int lazy_deopt_count = deopt_data.LazyDeoptCount().value();
-    Address eager_with_resume_deopt_start =
-        lazy_deopt_start + lazy_deopt_count * kLazyDeoptExitSize;
+        deopt_start + non_lazy_deopt_count * kNonLazyDeoptExitSize;
     // The deoptimization exits are sorted so that lazy deopt exits appear after
-    // eager deopts, and eager with resume deopts appear last.
-    static_assert(DeoptimizeKind::kEagerWithResume == kLastDeoptimizeKind,
-                  "eager with resume deopts are expected to be emitted last");
+    // eager deopts.
     static_assert(static_cast<int>(DeoptimizeKind::kLazy) ==
-                      static_cast<int>(kLastDeoptimizeKind) - 1,
-                  "lazy deopts are expected to be emitted second from last");
+                      static_cast<int>(kLastDeoptimizeKind),
+                  "lazy deopts are expected to be emitted last");
     // from_ is the value of the link register after the call to the
     // deoptimizer, so for the last lazy deopt, from_ points to the first
     // non-lazy deopt, so we use <=, similarly for the last non-lazy deopt and
@@ -565,19 +554,11 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
           static_cast<int>(from_ - kNonLazyDeoptExitSize - deopt_start);
       DCHECK_EQ(0, offset % kNonLazyDeoptExitSize);
       deopt_exit_index_ = offset / kNonLazyDeoptExitSize;
-    } else if (from_ <= eager_with_resume_deopt_start) {
+    } else {
       int offset =
           static_cast<int>(from_ - kLazyDeoptExitSize - lazy_deopt_start);
       DCHECK_EQ(0, offset % kLazyDeoptExitSize);
-      deopt_exit_index_ =
-          eager_soft_and_bailout_deopt_count + (offset / kLazyDeoptExitSize);
-    } else {
-      int offset = static_cast<int>(from_ - kNonLazyDeoptExitSize -
-                                    eager_with_resume_deopt_start);
-      DCHECK_EQ(0, offset % kEagerWithResumeDeoptExitSize);
-      deopt_exit_index_ = eager_soft_and_bailout_deopt_count +
-                          lazy_deopt_count +
-                          (offset / kEagerWithResumeDeoptExitSize);
+      deopt_exit_index_ = non_lazy_deopt_count + (offset / kLazyDeoptExitSize);
     }
   }
 }
@@ -617,32 +598,14 @@ void Deoptimizer::DeleteFrameDescriptions() {
 #endif  // DEBUG
 }
 
-Builtin Deoptimizer::GetDeoptWithResumeBuiltin(DeoptimizeReason reason) {
-  switch (reason) {
-    case DeoptimizeReason::kDynamicCheckMaps:
-      return Builtin::kDynamicCheckMapsTrampoline;
-    case DeoptimizeReason::kDynamicCheckMapsInlined:
-      return Builtin::kDynamicCheckMapsWithFeedbackVectorTrampoline;
-    default:
-      UNREACHABLE();
-  }
-}
-
 Builtin Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind kind) {
   switch (kind) {
     case DeoptimizeKind::kEager:
       return Builtin::kDeoptimizationEntry_Eager;
     case DeoptimizeKind::kSoft:
       return Builtin::kDeoptimizationEntry_Soft;
-    case DeoptimizeKind::kBailout:
-      return Builtin::kDeoptimizationEntry_Bailout;
     case DeoptimizeKind::kLazy:
       return Builtin::kDeoptimizationEntry_Lazy;
-    case DeoptimizeKind::kEagerWithResume:
-      // EagerWithResume deopts will call a special builtin (specified by
-      // GetDeoptWithResumeBuiltin) which will itself select the deoptimization
-      // entry builtin if it decides to deopt instead of resuming execution.
-      UNREACHABLE();
   }
 }
 
@@ -657,9 +620,6 @@ bool Deoptimizer::IsDeoptimizationEntry(Isolate* isolate, Address addr,
       return true;
     case Builtin::kDeoptimizationEntry_Soft:
       *type_out = DeoptimizeKind::kSoft;
-      return true;
-    case Builtin::kDeoptimizationEntry_Bailout:
-      *type_out = DeoptimizeKind::kBailout;
       return true;
     case Builtin::kDeoptimizationEntry_Lazy:
       *type_out = DeoptimizeKind::kLazy;

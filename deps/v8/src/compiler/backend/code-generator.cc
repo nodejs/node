@@ -151,58 +151,6 @@ uint32_t CodeGenerator::GetStackCheckOffset() {
   return std::max(frame_height_delta, max_pushed_argument_bytes);
 }
 
-void CodeGenerator::AssembleDeoptImmediateArgs(
-    const ZoneVector<ImmediateOperand*>* immediate_args, Label* deopt_exit) {
-  // EagerWithResume deopts should have immdiate args, and to ensure fixed
-  // deopt exit sizes, currently always have two immediate arguments in the
-  // deopt exit.
-  constexpr int kImmediateArgCount = 2;
-  DCHECK_NOT_NULL(immediate_args);
-  DCHECK_EQ(kImmediateArgCount, immediate_args->size());
-  const int expected_offsets[] = {
-      Deoptimizer::kEagerWithResumeImmedArgs1PcOffset,
-      Deoptimizer::kEagerWithResumeImmedArgs2PcOffset};
-  for (int i = 0; i < kImmediateArgCount; i++) {
-    ImmediateOperand* op = immediate_args->at(i);
-    Constant constant = instructions()->GetImmediate(op);
-
-    DCHECK_EQ(tasm()->SizeOfCodeGeneratedSince(deopt_exit),
-              expected_offsets[i] + Deoptimizer::kNonLazyDeoptExitSize);
-    USE(expected_offsets);
-
-    switch (constant.type()) {
-      case Constant::kInt32:
-        tasm()->dp(constant.ToInt32(), RelocInfo::LITERAL_CONSTANT);
-        break;
-#ifdef V8_TARGET_ARCH_64_BIT
-      case Constant::kInt64:
-        tasm()->dp(constant.ToInt64());
-        break;
-#endif
-      case Constant::kFloat64: {
-        int smi;
-        CHECK(DoubleToSmiInteger(constant.ToFloat64().value(), &smi));
-        tasm()->dp(Smi::FromInt(smi).ptr(), RelocInfo::LITERAL_CONSTANT);
-        break;
-      }
-      case Constant::kCompressedHeapObject:
-      case Constant::kHeapObject:
-        // Emit as a DATA_EMBEDDED_OBJECT to specify that this is a raw full
-        // pointer that is fixed size.
-        tasm()->dp(constant.ToHeapObject().address(),
-                   RelocInfo::DATA_EMBEDDED_OBJECT);
-        break;
-      default:
-        // Currently only Smis and Ints are supported, but other immediate
-        // constants can be added when required.
-        UNREACHABLE();
-    }
-  }
-
-  DCHECK_EQ(tasm()->SizeOfCodeGeneratedSince(deopt_exit),
-            Deoptimizer::kEagerWithResumeDeoptExitSize);
-}
-
 CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
     DeoptimizationExit* exit) {
   int deoptimization_id = exit->deoptimization_id();
@@ -212,15 +160,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
 
   DeoptimizeKind deopt_kind = exit->kind();
   DeoptimizeReason deoptimization_reason = exit->reason();
-  Label* jump_deoptimization_entry_label;
-  if (deopt_kind == DeoptimizeKind::kEagerWithResume) {
-    jump_deoptimization_entry_label =
-        &jump_deoptimization_or_resume_entry_labels_[static_cast<int>(
-            deoptimization_reason)];
-  } else {
-    jump_deoptimization_entry_label =
-        &jump_deoptimization_entry_labels_[static_cast<int>(deopt_kind)];
-  }
+  Label* jump_deoptimization_entry_label =
+      &jump_deoptimization_entry_labels_[static_cast<int>(deopt_kind)];
   if (info()->source_positions()) {
     tasm()->RecordDeoptReason(deoptimization_reason, exit->node_id(),
                               exit->pos(), deoptimization_id);
@@ -230,22 +171,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
     ++lazy_deopt_count_;
     tasm()->BindExceptionHandler(exit->label());
   } else {
-    if (deopt_kind != DeoptimizeKind::kEagerWithResume) {
-      ++eager_soft_and_bailout_deopt_count_;
-    }
+    ++non_lazy_deopt_count_;
     tasm()->bind(exit->label());
   }
-  Builtin target =
-      deopt_kind == DeoptimizeKind::kEagerWithResume
-          ? Deoptimizer::GetDeoptWithResumeBuiltin(deoptimization_reason)
-          : Deoptimizer::GetDeoptimizationEntry(deopt_kind);
+  Builtin target = Deoptimizer::GetDeoptimizationEntry(deopt_kind);
   tasm()->CallForDeoptimization(target, deoptimization_id, exit->label(),
                                 deopt_kind, exit->continue_label(),
                                 jump_deoptimization_entry_label);
 
-  if (deopt_kind == DeoptimizeKind::kEagerWithResume) {
-    AssembleDeoptImmediateArgs(exit->immediate_args(), exit->label());
-  }
   exit->set_emitted();
 
   return kSuccess;
@@ -407,12 +340,10 @@ void CodeGenerator::AssembleCode() {
   // lazy deopts and eagerwithresume might need additional instructions.
   auto cmp = [](const DeoptimizationExit* a, const DeoptimizationExit* b) {
     // The deoptimization exits are sorted so that lazy deopt exits appear after
-    // eager deopts, and eager with resume deopts appear last.
-    static_assert(DeoptimizeKind::kEagerWithResume == kLastDeoptimizeKind,
-                  "eager with resume deopts are expected to be emitted last");
+    // eager deopts.
     static_assert(static_cast<int>(DeoptimizeKind::kLazy) ==
-                      static_cast<int>(kLastDeoptimizeKind) - 1,
-                  "lazy deopts are expected to be emitted second from last");
+                      static_cast<int>(kLastDeoptimizeKind),
+                  "lazy deopts are expected to be emitted last");
     if (a->kind() != b->kind()) {
       return a->kind() < b->kind();
     }
@@ -975,8 +906,7 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   data->SetOptimizationId(Smi::FromInt(info->optimization_id()));
 
   data->SetDeoptExitStart(Smi::FromInt(deopt_exit_start_offset_));
-  data->SetEagerSoftAndBailoutDeoptCount(
-      Smi::FromInt(eager_soft_and_bailout_deopt_count_));
+  data->SetNonLazyDeoptCount(Smi::FromInt(non_lazy_deopt_count_));
   data->SetLazyDeoptCount(Smi::FromInt(lazy_deopt_count_));
 
   if (info->has_shared_info()) {

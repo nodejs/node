@@ -27,10 +27,6 @@ class V8_EXPORT_PRIVATE DefaultEmbedderRootsHandler final
  public:
   bool IsRoot(const v8::TracedReference<v8::Value>& handle) final;
 
-  START_ALLOW_USE_DEPRECATED()
-  bool IsRoot(const v8::TracedGlobal<v8::Value>& handle) final;
-  END_ALLOW_USE_DEPRECATED()
-
   void ResetRoot(const v8::TracedReference<v8::Value>& handle) final;
 
   void SetTracer(EmbedderHeapTracer* tracer) { tracer_ = tracer; }

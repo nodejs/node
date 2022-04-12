@@ -93,11 +93,6 @@ class Deoptimizer : public Malloced {
 
   static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 
-  // Returns the builtin that will perform a check and either eagerly deopt with
-  // |reason| or resume execution in the optimized code.
-  V8_EXPORT_PRIVATE static Builtin GetDeoptWithResumeBuiltin(
-      DeoptimizeReason reason);
-
   V8_EXPORT_PRIVATE static Builtin GetDeoptimizationEntry(DeoptimizeKind kind);
 
   // Returns true if {addr} is a deoptimization entry and stores its type in
@@ -139,10 +134,6 @@ class Deoptimizer : public Malloced {
   // kSupportsFixedDeoptExitSizes is true.
   V8_EXPORT_PRIVATE static const int kNonLazyDeoptExitSize;
   V8_EXPORT_PRIVATE static const int kLazyDeoptExitSize;
-  V8_EXPORT_PRIVATE static const int kEagerWithResumeBeforeArgsSize;
-  V8_EXPORT_PRIVATE static const int kEagerWithResumeDeoptExitSize;
-  V8_EXPORT_PRIVATE static const int kEagerWithResumeImmedArgs1PcOffset;
-  V8_EXPORT_PRIVATE static const int kEagerWithResumeImmedArgs2PcOffset;
 
   // Tracing.
   static void TraceMarkForDeoptimization(Code code, const char* reason);
