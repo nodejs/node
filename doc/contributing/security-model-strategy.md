@@ -56,7 +56,7 @@ models are defined. The initial list includes:
 * Single executable application
 * CI/CD pipeline components
 
-### Support experimentation on features like persmission and policies
+### Support experimentation on features like permissions and policies
 
 The project is not currently planning to provide supported
 sandbox functionality, but wants to support experimentation on
