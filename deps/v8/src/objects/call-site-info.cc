@@ -629,12 +629,6 @@ void AppendFileLocation(Isolate* isolate, Handle<CallSiteInfo> frame,
   }
 }
 
-int StringIndexOf(Isolate* isolate, Handle<String> subject,
-                  Handle<String> pattern) {
-  if (pattern->length() > subject->length()) return -1;
-  return String::IndexOf(isolate, subject, pattern, 0);
-}
-
 // Returns true iff
 // 1. the subject ends with '.' + pattern, or
 // 2. subject == pattern.
@@ -676,9 +670,8 @@ void AppendMethodCall(Isolate* isolate, Handle<CallSiteInfo> frame,
     Handle<String> function_string = Handle<String>::cast(function_name);
     if (IsNonEmptyString(type_name)) {
       Handle<String> type_string = Handle<String>::cast(type_name);
-      bool starts_with_type_name =
-          (StringIndexOf(isolate, function_string, type_string) == 0);
-      if (!starts_with_type_name) {
+      if (String::IsIdentifier(isolate, function_string) &&
+          !String::Equals(isolate, function_string, type_string)) {
         builder->AppendString(type_string);
         builder->AppendCharacter('.');
       }

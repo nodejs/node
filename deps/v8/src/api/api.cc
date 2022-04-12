@@ -2537,29 +2537,6 @@ MaybeLocal<Module> ScriptCompiler::CompileModule(
   return ToApiHandle<Module>(i_isolate->factory()->NewSourceTextModule(shared));
 }
 
-namespace {
-bool IsIdentifier(i::Isolate* isolate, i::Handle<i::String> string) {
-  string = i::String::Flatten(isolate, string);
-  const int length = string->length();
-  if (length == 0) return false;
-  if (!i::IsIdentifierStart(string->Get(0))) return false;
-  i::DisallowGarbageCollection no_gc;
-  i::String::FlatContent flat = string->GetFlatContent(no_gc);
-  if (flat.IsOneByte()) {
-    auto vector = flat.ToOneByteVector();
-    for (int i = 1; i < length; i++) {
-      if (!i::IsIdentifierPart(vector[i])) return false;
-    }
-  } else {
-    auto vector = flat.ToUC16Vector();
-    for (int i = 1; i < length; i++) {
-      if (!i::IsIdentifierPart(vector[i])) return false;
-    }
-  }
-  return true;
-}
-}  // namespace
-
 // static
 V8_WARN_UNUSED_RESULT MaybeLocal<Function> ScriptCompiler::CompileFunction(
     Local<Context> context, Source* source, size_t arguments_count,
@@ -2608,7 +2585,7 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInternal(
         isolate->factory()->NewFixedArray(static_cast<int>(arguments_count));
     for (int i = 0; i < static_cast<int>(arguments_count); i++) {
       i::Handle<i::String> argument = Utils::OpenHandle(*arguments[i]);
-      if (!IsIdentifier(isolate, argument)) return Local<Function>();
+      if (!i::String::IsIdentifier(isolate, argument)) return Local<Function>();
       arguments_list->set(i, *argument);
     }
 

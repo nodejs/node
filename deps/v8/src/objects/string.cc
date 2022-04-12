@@ -1559,6 +1559,35 @@ bool String::HasOneBytePrefix(base::Vector<const char> str) {
 namespace {
 
 template <typename Char>
+bool IsIdentifierVector(const base::Vector<Char>& vec) {
+  if (vec.empty()) {
+    return false;
+  }
+  if (!IsIdentifierStart(vec[0])) {
+    return false;
+  }
+  for (size_t i = 1; i < vec.size(); ++i) {
+    if (!IsIdentifierPart(vec[i])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace
+
+// static
+bool String::IsIdentifier(Isolate* isolate, Handle<String> str) {
+  str = String::Flatten(isolate, str);
+  DisallowGarbageCollection no_gc;
+  String::FlatContent flat = str->GetFlatContent(no_gc);
+  return flat.IsOneByte() ? IsIdentifierVector(flat.ToOneByteVector())
+                          : IsIdentifierVector(flat.ToUC16Vector());
+}
+
+namespace {
+
+template <typename Char>
 uint32_t HashString(String string, size_t start, int length, uint64_t seed,
                     PtrComprCageBase cage_base,
                     const SharedStringAccessGuardIfNeeded& access_guard) {
