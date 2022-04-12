@@ -1,0 +1,83 @@
+# Security Model Strategy
+
+A clear security model and features like permissions and policy enforcement
+has been identified as one of the
+[top technical priorities](https://github.com/nodejs/node/blob/master/doc/contributing/technical-priorities.md#permissionspoliciessecurity-model)
+for the future success of Node.js.
+
+This document provides an overview of our high-level strategy for
+making progress as well as information on our current implementations
+as a starting point for contributors.
+
+## High-level approach
+
+The high level approach is as follows:
+
+* Document the security model
+* Document threat models and current state of the art
+* Support experimentation on features like persmission and policies
+* Add security component in Node.js certification covering
+  Node.js security model
+
+### Document the security model
+
+The current security model for Node.js is not yet well documented.
+At a high level it is:
+
+* Node.js does not provide a sandbox, both the JavaScript and
+  and Native code which is run is trusted to not be malicious.
+* The projects works to help code running on top of Node.js to avoid
+  making mistakes, but not doing so is not considered a
+  vulnerability in Node.js. Just be because you can build something
+  vulnerable with the APIs does not mean there is a vulnerability
+  in Node.js itself.
+
+The project has a goal to better document the security model
+and this section will be expanded when that happens.
+
+Once the security model is documented the project will work
+to add a security component in Node.js certification covering
+the Node.js security model.
+
+### Document threat models and current state of the art
+
+Node.js is used in a number of different use cases and the
+threats may be different in each use case. The project
+should document the threat models and use that to
+help define the security model in the context of each
+of these use cases.
+
+This section will be expanded as the use case/threat
+models are defined. The iniitial list includes:
+
+* Server
+* Desktop application
+* cli
+* Single executable application
+* CI/CD pipeline components
+
+### Support experimentation on features like persmission and policies
+
+The project is not currently planning to provide supported
+sandbox functionality, but wants to support experimentation on
+related features like policies and permission enforcement.
+
+Features in this category should:
+
+* be opt-in, and additional overhead when not enabled must be low
+* limit change in core to just what is needed to enable experimentation
+
+## Current implementaion and assets
+
+Node.js has an experimental implementation of
+[policies](https://nodejs.org/docs/latest/api/policy.html#policies).
+
+The core implementation is in:
+
+* [lib/internal/process/policy.js](https://github.com/nodejs/node/blob/master/lib/internal/process/policy.js)
+* [lib/internal/policy](https://github.com/nodejs/node/tree/master/lib/internal/policy)
+
+along with integration into the CJS and ESM loaders in:
+
+* [internal/modules/esm](https://github.com/nodejs/node/tree/master/lib/internal/modules/esm)
+* [internal/modules/cjs](https://github.com/nodejs/node/tree/master/lib/internal/modules/cjs)
