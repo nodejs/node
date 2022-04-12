@@ -15,7 +15,7 @@ The high level approach is as follows:
 
 * Document the security model
 * Document threat models and current state of the art
-* Support experimentation on features like persmission and policies
+* Support experimentation on features like permissions and policies
 * Add security component in Node.js certification covering
   Node.js security model
 
