@@ -527,6 +527,7 @@
   F(HEAP_EPILOGUE_REDUCE_NEW_SPACE)                  \
   F(HEAP_EPILOGUE_SAFEPOINT)                         \
   F(HEAP_EXTERNAL_EPILOGUE)                          \
+  F(HEAP_EXTERNAL_NEAR_HEAP_LIMIT)                   \
   F(HEAP_EXTERNAL_PROLOGUE)                          \
   F(HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES)               \
   F(HEAP_PROLOGUE)                                   \
