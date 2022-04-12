@@ -2,6 +2,6 @@
   x = foo();
       ^
 ReferenceError: foo is not defined
-    at X.<instance_members_initializer> (*%(basename)s:6:7)
+    at <instance_members_initializer> (*%(basename)s:6:7)
     at new X (*%(basename)s:5:1)
     at *%(basename)s:9:1
