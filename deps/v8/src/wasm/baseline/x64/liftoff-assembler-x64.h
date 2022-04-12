@@ -53,14 +53,15 @@ inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
 constexpr Register kScratchRegister2 = r11;
 static_assert(kScratchRegister != kScratchRegister2, "collision");
 static_assert((kLiftoffAssemblerGpCacheRegs &
-               Register::ListOf(kScratchRegister, kScratchRegister2)) == 0,
+               RegList{kScratchRegister, kScratchRegister2})
+                  .is_empty(),
               "scratch registers must not be used as cache registers");
 
 constexpr DoubleRegister kScratchDoubleReg2 = xmm14;
 static_assert(kScratchDoubleReg != kScratchDoubleReg2, "collision");
 static_assert((kLiftoffAssemblerFpCacheRegs &
-               DoubleRegister::ListOf(kScratchDoubleReg, kScratchDoubleReg2)) ==
-                  0,
+               DoubleRegList{kScratchDoubleReg, kScratchDoubleReg2})
+                  .is_empty(),
               "scratch registers must not be used as cache registers");
 
 // rbp-8 holds the stack marker, rbp-16 is the instance parameter.
@@ -99,7 +100,6 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Operand src,
     case kOptRef:
     case kRef:
     case kRtt:
-    case kRttWithDepth:
       assm->movq(dst.gp(), src);
       break;
     case kF32:
@@ -128,7 +128,6 @@ inline void Store(LiftoffAssembler* assm, Operand dst, LiftoffRegister src,
     case kOptRef:
     case kRef:
     case kRtt:
-    case kRttWithDepth:
       assm->StoreTaggedField(dst, src.gp());
       break;
     case kF32:
@@ -375,10 +374,6 @@ void LiftoffAssembler::ResetOSRTarget() {
   movq(liftoff::GetOSRTargetSlot(), Immediate(0));
 }
 
-void LiftoffAssembler::FillInstanceInto(Register dst) {
-  movq(dst, liftoff::GetInstanceOperand());
-}
-
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
                                          int32_t offset_imm,
@@ -603,8 +598,10 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  DCHECK(!cache_state()->is_used(result));
-  if (cache_state()->is_used(value)) {
+  LiftoffRegList dont_overwrite = cache_state()->used_registers |
+                                  LiftoffRegList::ForRegs(dst_addr, offset_reg);
+  DCHECK(!dont_overwrite.has(result));
+  if (dont_overwrite.has(value)) {
     // We cannot overwrite {value}, but the {value} register is changed in the
     // code we generate. Therefore we copy {value} to {result} and use the
     // {result} register in the code below.
@@ -875,13 +872,26 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
   DCHECK_NE(dst_offset, src_offset);
   Operand dst = liftoff::GetStackSlot(dst_offset);
   Operand src = liftoff::GetStackSlot(src_offset);
-  if (element_size_log2(kind) == 2) {
-    movl(kScratchRegister, src);
-    movl(dst, kScratchRegister);
-  } else {
-    DCHECK_EQ(3, element_size_log2(kind));
-    movq(kScratchRegister, src);
-    movq(dst, kScratchRegister);
+  size_t size = element_size_log2(kind);
+  if (kind == kRef || kind == kOptRef || kind == kRtt) {
+    // Pointers are uncompressed on the stack!
+    size = kSystemPointerSizeLog2;
+  }
+  switch (size) {
+    case 2:
+      movl(kScratchRegister, src);
+      movl(dst, kScratchRegister);
+      break;
+    case 3:
+      movq(kScratchRegister, src);
+      movq(dst, kScratchRegister);
+      break;
+    case 4:
+      Movdqu(kScratchDoubleReg, src);
+      Movdqu(dst, kScratchDoubleReg);
+      break;
+    default:
+      UNREACHABLE();
   }
 }
 
@@ -919,7 +929,6 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
     case kOptRef:
     case kRef:
     case kRtt:
-    case kRttWithDepth:
       movq(dst, reg.gp());
       break;
     case kF32:
@@ -1466,7 +1475,7 @@ bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
   return true;
 }
 
-void LiftoffAssembler::emit_u32_to_intptr(Register dst, Register src) {
+void LiftoffAssembler::emit_u32_to_uintptr(Register dst, Register src) {
   movl(dst, src);
 }
 
@@ -2137,7 +2146,6 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
       case kRef:
       case kOptRef:
       case kRtt:
-      case kRttWithDepth:
         DCHECK(liftoff_cond == kEqual || liftoff_cond == kUnequal);
         V8_FALLTHROUGH;
       case kI64:
@@ -4051,15 +4059,14 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
   }
 }
 
-void LiftoffAssembler::RecordSpillsInSafepoint(Safepoint& safepoint,
-                                               LiftoffRegList all_spills,
-                                               LiftoffRegList ref_spills,
-                                               int spill_offset) {
+void LiftoffAssembler::RecordSpillsInSafepoint(
+    SafepointTableBuilder::Safepoint& safepoint, LiftoffRegList all_spills,
+    LiftoffRegList ref_spills, int spill_offset) {
   int spill_space_size = 0;
   while (!all_spills.is_empty()) {
     LiftoffRegister reg = all_spills.GetFirstRegSet();
     if (ref_spills.has(reg)) {
-      safepoint.DefinePointerSlot(spill_offset);
+      safepoint.DefineTaggedStackSlot(spill_offset);
     }
     all_spills.clear(reg);
     ++spill_offset;

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony_intl_enumeration
-
 // Test the return items of currency fit 'type'
 let regex = /^[A-Z]{3}$/;
 Intl.supportedValuesOf("currency").forEach(

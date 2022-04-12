@@ -7,27 +7,11 @@
 #ifndef {{"_".join(config.protocol.namespace)}}_BASE_STRING_ADAPTER_H
 #define {{"_".join(config.protocol.namespace)}}_BASE_STRING_ADAPTER_H
 
-#include <memory>
-#include <string>
-#include <vector>
-
-#include "base/logging.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted_memory.h"
-#include "{{config.crdtp.dir}}/serializable.h"
-#include "{{config.crdtp.dir}}/protocol_core.h"
+#include "{{config.crdtp.dir}}/chromium/protocol_traits.h"
 
 {% if config.lib.export_header %}
 #include "{{config.lib.export_header}}"
 {% endif %}
-
-namespace base {
-class Value;
-}
-
-namespace {{config.crdtp.namespace}} {
-class DeserializerState;
-}
 
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
@@ -36,6 +20,7 @@ namespace {{namespace}} {
 class Value;
 
 using String = std::string;
+using Binary = crdtp::Binary;
 
 class {{config.lib.export_macro}} StringUtil {
  public:
@@ -51,67 +36,13 @@ class {{config.lib.export_macro}} StringUtil {
   }
   static const uint16_t* CharactersUTF16(const String& s) { return nullptr; }
   static size_t CharacterCount(const String& s) { return s.size(); }
-
-  static bool ReadString({{config.crdtp.namespace}}::DeserializerState* state, String* str);
-  static void WriteString(const String& str, std::vector<uint8_t>* bytes);
 };
 
-// A read-only sequence of uninterpreted bytes with reference-counted storage.
-class {{config.lib.export_macro}} Binary : public {{config.crdtp.namespace}}::Serializable {
- public:
-  Binary(const Binary&);
-  Binary();
-  ~Binary();
+std::unique_ptr<Value> toProtocolValue(const base::Value& value, int depth);
+base::Value toBaseValue(Value* value, int depth);
 
-  // Implements Serializable.
-  void AppendSerialized(std::vector<uint8_t>* out) const override;
-
-  const uint8_t* data() const { return bytes_->front(); }
-  size_t size() const { return bytes_->size(); }
-  scoped_refptr<base::RefCountedMemory> bytes() const { return bytes_; }
-
-  String toBase64() const;
-
-  static Binary fromBase64(const String& base64, bool* success);
-  static Binary fromRefCounted(scoped_refptr<base::RefCountedMemory> memory);
-  static Binary fromVector(std::vector<uint8_t> data);
-  static Binary fromString(std::string data);
-  static Binary fromSpan(const uint8_t* data, size_t size);
-
- private:
-  explicit Binary(scoped_refptr<base::RefCountedMemory> bytes);
-  scoped_refptr<base::RefCountedMemory> bytes_;
-};
-
-std::unique_ptr<Value> toProtocolValue(const base::Value* value, int depth);
-std::unique_ptr<base::Value> toBaseValue(Value* value, int depth);
 {% for namespace in config.protocol.namespace %}
 } // namespace {{namespace}}
 {% endfor %}
-
-namespace {{config.crdtp.namespace}} {
-
-template <>
-struct ProtocolTypeTraits<{{"::".join(config.protocol.namespace)}}::String> {
-  static bool Deserialize(DeserializerState* state, {{"::".join(config.protocol.namespace)}}::String* value) {
-    return {{"::".join(config.protocol.namespace)}}::StringUtil::ReadString(state, value);
-  }
-  static void Serialize(const {{"::".join(config.protocol.namespace)}}::String& value, std::vector<uint8_t>* bytes) {
-    {{"::".join(config.protocol.namespace)}}::StringUtil::WriteString(value, bytes);
-  }
-};
-
-template <>
-struct ProtocolTypeTraits<{{"::".join(config.protocol.namespace)}}::Binary> {
-  static bool Deserialize(DeserializerState* state, {{"::".join(config.protocol.namespace)}}::Binary* value);
-  static void Serialize(const {{"::".join(config.protocol.namespace)}}::Binary& value, std::vector<uint8_t>* bytes);
-};
-
-template <>
-struct {{config.crdtp.namespace}}::detail::MaybeTypedef<{{"::".join(config.protocol.namespace)}}::Binary> {
-  typedef ValueMaybe<{{"::".join(config.protocol.namespace)}}::Binary> type;
-};
-
-}  // {{config.crdtp.namespace}}
 
 #endif // !defined({{"_".join(config.protocol.namespace)}}_BASE_STRING_ADAPTER_H)

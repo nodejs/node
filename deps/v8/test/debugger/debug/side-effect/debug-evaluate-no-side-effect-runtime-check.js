@@ -11,7 +11,7 @@ success(10, `(function(){
   return x;
 })()`);
 
-// StaNamedProperty
+// SetNamedProperty
 var a = {name: 'foo'};
 function set_name(a) {
   a.name = 'bar';
@@ -21,7 +21,7 @@ function set_name(a) {
 fail(`set_name(a)`);
 success('bar', `set_name({name: 'foo'})`);
 
-// StaNamedOwnProperty
+// DefineNamedOwnProperty
 var name_value = 'value';
 function create_object_literal() {
   var obj = {name: name_value};
@@ -30,7 +30,7 @@ function create_object_literal() {
 
 success('value', `create_object_literal()`);
 
-// StaKeyedProperty
+// SetKeyedProperty
 var arrayValue = 1;
 function create_array_literal() {
   return [arrayValue];
@@ -52,7 +52,7 @@ var array = [1,2,3];
 fail(`array.length = 2`);
 success(2, `[1,2,3].length = 2`);
 
-// StaDataPropertyInLiteral
+// DefineKeyedOwnPropertyInLiteral
 function return_literal_with_data_property(a) {
   return {[a] : 1};
 }

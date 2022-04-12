@@ -6,73 +6,61 @@
 // https://tc39.es/proposal-temporal/#sec-temporal.calendar.prototype.yearmonthfromfields
 let cal = new Temporal.Calendar("iso8601")
 
-let nonObjMsg =
-  "Temporal.Calendar.prototype.yearMonthFromFields called on non-object");
 // Check throw for first arg
 assertThrows(() => cal.yearMonthFromFields(),
-    TypeError, nonObjMsg);
+    TypeError);
 [undefined, true, false, 123, 456n, Symbol(), "string"].forEach(
     function(fields) {
-      assertThrows(() => cal.yearMonthFromFields(fields), TypeError, nonObjMsg);
-      assertThrows(() => cal.yearMonthFromFields(fields, undefined),
-          TypeError, nonObjMsg);
+      assertThrows(() => cal.yearMonthFromFields(fields), TypeError);
+      assertThrows(() => cal.yearMonthFromFields(fields, undefined), TypeError);
       assertThrows(() => cal.yearMonthFromFields(fields,
-            {overflow: "constrain"}), TypeError, nonObjMsg);
+            {overflow: "constrain"}), TypeError);
       assertThrows(() => cal.yearMonthFromFields(fields,
-            {overflow: "reject"}), TypeError, nonObjMsg);
+            {overflow: "reject"}), TypeError);
     });
 
-assertThrows(() => cal.yearMonthFromFields({month: 1}),
-    TypeError, "invalid_argument");
-assertThrows(() => cal.yearMonthFromFields({year: 2021}),
-    TypeError, "invalid_argument");
+assertThrows(() => cal.yearMonthFromFields({month: 1}), TypeError);
+assertThrows(() => cal.yearMonthFromFields({year: 2021}), TypeError);
 
 assertThrows(() => cal.yearMonthFromFields({year: 2021, monthCode: "m1"}),
-    RangeError, "monthCode value is out of range.");
+    RangeError);
 assertThrows(() => cal.yearMonthFromFields({year: 2021, monthCode: "M1"}),
-    RangeError, "monthCode value is out of range.");
+    RangeError);
 assertThrows(() => cal.yearMonthFromFields({year: 2021, monthCode: "m01"}),
-    RangeError, "monthCode value is out of range.");
+    RangeError);
 
 assertThrows(() => cal.yearMonthFromFields({year: 2021, month: 12,
-  monthCode: "M11"}),
-    RangeError, "monthCode value is out of range.");
+  monthCode: "M11"}), RangeError);
 assertThrows(() => cal.yearMonthFromFields({year: 2021, monthCode: "M00"}),
-    RangeError, "monthCode value is out of range.");
+    RangeError);
 assertThrows(() => cal.yearMonthFromFields({year: 2021, monthCode: "M19"}),
-    RangeError, "monthCode value is out of range.");
+    RangeError);
 assertThrows(() => cal.yearMonthFromFields({year: 2021, monthCode: "M99"}),
-    RangeError, "monthCode value is out of range.");
+    RangeError);
 assertThrows(() => cal.yearMonthFromFields({year: 2021, monthCode: "M13"}),
-    RangeError, "monthCode value is out of range.");
+    RangeError);
 
 assertThrows(() => cal.yearMonthFromFields({year: 2021, month: -1}),
-    RangeError, "Invalid time value");
+    RangeError);
 assertThrows(() => cal.yearMonthFromFields({year: 2021, month: -Infinity}),
-    RangeError, "Invalid time value");
+    RangeError);
 
 assertThrows(() => cal.yearMonthFromFields({year: 2021, month: 0, day: 5},
-      {overflow: "reject"}), RangeError, "Invalid time value");
+      {overflow: "reject"}), RangeError);
 assertThrows(() => cal.yearMonthFromFields({year: 2021, month: 13, day: 5},
-      {overflow: "reject"}), RangeError, "Invalid time value");
+      {overflow: "reject"}), RangeError);
 
 assertThrows(() => cal.yearMonthFromFields(
-    {year: 2021, monthCode: "M00"}, {overflow: "reject"}),
-    RangeError, "monthCode value is out of range.");
+    {year: 2021, monthCode: "M00"}, {overflow: "reject"}), RangeError);
 assertThrows(() => cal.yearMonthFromFields(
-    {year: 2021, monthCode: "M13"}, {overflow: "reject"}),
-    RangeError, "monthCode value is out of range.");
+    {year: 2021, monthCode: "M13"}, {overflow: "reject"}), RangeError);
 
 assertThrows(() => cal.yearMonthFromFields(
-    {year: 2021, month: 0}), RangeError, "Invalid time value");
+    {year: 2021, month: 0}), RangeError);
 
 // Check throw for the second arg
 assertThrows(() => cal.yearMonthFromFields(
-    {year: 2021, month: 7}, {overflow: "invalid"}),
-    RangeError,
-    "Value invalid out of range for " +
-    "Temporal.Calendar.prototype.yearMonthFromFields options property " +
-    "overflow");
+    {year: 2021, month: 7}, {overflow: "invalid"}), RangeError);
 
 assertEquals("2021-07",
     cal.yearMonthFromFields({year: 2021, month: 7}).toJSON());
@@ -137,8 +125,6 @@ assertEquals("2021-12",
     cal.yearMonthFromFields({year: 2021, monthCode: "M12"}).toJSON());
 
 assertThrows(() => cal.yearMonthFromFields(
-    {year: 2021, month: 13}, {overflow: "reject"}), RangeError,
-    "Invalid time value");
+    {year: 2021, month: 13}, {overflow: "reject"}), RangeError);
 assertThrows(() => cal.yearMonthFromFields(
-    {year: 2021, month: 9995}, {overflow: "reject"}), RangeError,
-    "Invalid time value");
+    {year: 2021, month: 9995}, {overflow: "reject"}), RangeError);

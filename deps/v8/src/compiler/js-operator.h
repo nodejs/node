@@ -394,10 +394,11 @@ class CreateFunctionContextParameters final {
 CreateFunctionContextParameters const& CreateFunctionContextParametersOf(
     Operator const*);
 
-// Defines parameters for JSStoreNamedOwn operator.
-class StoreNamedOwnParameters final {
+// Defines parameters for JSDefineNamedOwnProperty operator.
+class DefineNamedOwnPropertyParameters final {
  public:
-  StoreNamedOwnParameters(const NameRef& name, FeedbackSource const& feedback)
+  DefineNamedOwnPropertyParameters(const NameRef& name,
+                                   FeedbackSource const& feedback)
       : name_(name), feedback_(feedback) {}
 
   NameRef name(JSHeapBroker* broker) const { return name_.AsRef(broker); }
@@ -407,20 +408,21 @@ class StoreNamedOwnParameters final {
   const NameTinyRef name_;
   FeedbackSource const feedback_;
 
-  friend bool operator==(StoreNamedOwnParameters const&,
-                         StoreNamedOwnParameters const&);
-  friend bool operator!=(StoreNamedOwnParameters const&,
-                         StoreNamedOwnParameters const&);
-  friend size_t hash_value(StoreNamedOwnParameters const&);
+  friend bool operator==(DefineNamedOwnPropertyParameters const&,
+                         DefineNamedOwnPropertyParameters const&);
+  friend bool operator!=(DefineNamedOwnPropertyParameters const&,
+                         DefineNamedOwnPropertyParameters const&);
+  friend size_t hash_value(DefineNamedOwnPropertyParameters const&);
   friend std::ostream& operator<<(std::ostream&,
-                                  StoreNamedOwnParameters const&);
+                                  DefineNamedOwnPropertyParameters const&);
 };
 
-const StoreNamedOwnParameters& StoreNamedOwnParametersOf(const Operator* op);
+const DefineNamedOwnPropertyParameters& DefineNamedOwnPropertyParametersOf(
+    const Operator* op);
 
 // Defines the feedback, i.e., vector and index, for storing a data property in
 // an object literal. This is used as a parameter by JSCreateEmptyLiteralArray
-// and JSStoreDataPropertyInLiteral operators.
+// and JSDefineKeyedOwnPropertyInLiteral operators.
 class FeedbackParameter final {
  public:
   explicit FeedbackParameter(FeedbackSource const& feedback)
@@ -442,7 +444,7 @@ std::ostream& operator<<(std::ostream&, FeedbackParameter const&);
 const FeedbackParameter& FeedbackParameterOf(const Operator* op);
 
 // Defines the property of an object for a named access. This is
-// used as a parameter by the JSLoadNamed and JSStoreNamed operators.
+// used as a parameter by the JSLoadNamed and JSSetNamedProperty operators.
 class NamedAccess final {
  public:
   NamedAccess(LanguageMode language_mode, const NameRef& name,
@@ -529,9 +531,9 @@ class StoreGlobalParameters final {
 
 const StoreGlobalParameters& StoreGlobalParametersOf(const Operator* op);
 
-
 // Defines the property of an object for a keyed access. This is used
-// as a parameter by the JSLoadProperty and JSStoreProperty operators.
+// as a parameter by the JSLoadProperty and JSSetKeyedProperty
+// operators.
 class PropertyAccess final {
  public:
   PropertyAccess(LanguageMode language_mode, FeedbackSource const& feedback)
@@ -1020,16 +1022,18 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* LoadNamedFromSuper(const NameRef& name,
                                      FeedbackSource const& feedback);
 
-  const Operator* StoreProperty(LanguageMode language_mode,
-                                FeedbackSource const& feedback);
-  const Operator* DefineProperty(LanguageMode language_mode,
-                                 FeedbackSource const& feedback);
-  const Operator* StoreNamed(LanguageMode language_mode, const NameRef& name,
-                             FeedbackSource const& feedback);
+  const Operator* SetKeyedProperty(LanguageMode language_mode,
+                                   FeedbackSource const& feedback);
+  const Operator* DefineKeyedOwnProperty(LanguageMode language_mode,
+                                         FeedbackSource const& feedback);
+  const Operator* SetNamedProperty(LanguageMode language_mode,
+                                   const NameRef& name,
+                                   FeedbackSource const& feedback);
 
-  const Operator* StoreNamedOwn(const NameRef& name,
-                                FeedbackSource const& feedback);
-  const Operator* StoreDataPropertyInLiteral(const FeedbackSource& feedback);
+  const Operator* DefineNamedOwnProperty(const NameRef& name,
+                                         FeedbackSource const& feedback);
+  const Operator* DefineKeyedOwnPropertyInLiteral(
+      const FeedbackSource& feedback);
   const Operator* StoreInArrayLiteral(const FeedbackSource& feedback);
 
   const Operator* DeleteProperty();
@@ -1295,10 +1299,11 @@ class JSLoadPropertyNode final : public JSNodeWrapperBase {
 #undef INPUTS
 };
 
-class JSStorePropertyNode final : public JSNodeWrapperBase {
+class JSSetKeyedPropertyNode final : public JSNodeWrapperBase {
  public:
-  explicit constexpr JSStorePropertyNode(Node* node) : JSNodeWrapperBase(node) {
-    DCHECK_EQ(IrOpcode::kJSStoreProperty, node->opcode());
+  explicit constexpr JSSetKeyedPropertyNode(Node* node)
+      : JSNodeWrapperBase(node) {
+    DCHECK_EQ(IrOpcode::kJSSetKeyedProperty, node->opcode());
   }
 
   const PropertyAccess& Parameters() const {
@@ -1314,11 +1319,11 @@ class JSStorePropertyNode final : public JSNodeWrapperBase {
 #undef INPUTS
 };
 
-class JSDefinePropertyNode final : public JSNodeWrapperBase {
+class JSDefineKeyedOwnPropertyNode final : public JSNodeWrapperBase {
  public:
-  explicit constexpr JSDefinePropertyNode(Node* node)
+  explicit constexpr JSDefineKeyedOwnPropertyNode(Node* node)
       : JSNodeWrapperBase(node) {
-    DCHECK_EQ(IrOpcode::kJSDefineProperty, node->opcode());
+    DCHECK_EQ(IrOpcode::kJSDefineKeyedOwnProperty, node->opcode());
   }
 
   const PropertyAccess& Parameters() const {
@@ -1575,10 +1580,11 @@ class JSLoadNamedFromSuperNode final : public JSNodeWrapperBase {
 #undef INPUTS
 };
 
-class JSStoreNamedNode final : public JSNodeWrapperBase {
+class JSSetNamedPropertyNode final : public JSNodeWrapperBase {
  public:
-  explicit constexpr JSStoreNamedNode(Node* node) : JSNodeWrapperBase(node) {
-    DCHECK_EQ(IrOpcode::kJSStoreNamed, node->opcode());
+  explicit constexpr JSSetNamedPropertyNode(Node* node)
+      : JSNodeWrapperBase(node) {
+    DCHECK_EQ(IrOpcode::kJSSetNamedProperty, node->opcode());
   }
 
   const NamedAccess& Parameters() const { return NamedAccessOf(node()->op()); }
@@ -1591,14 +1597,15 @@ class JSStoreNamedNode final : public JSNodeWrapperBase {
 #undef INPUTS
 };
 
-class JSStoreNamedOwnNode final : public JSNodeWrapperBase {
+class JSDefineNamedOwnPropertyNode final : public JSNodeWrapperBase {
  public:
-  explicit constexpr JSStoreNamedOwnNode(Node* node) : JSNodeWrapperBase(node) {
-    DCHECK_EQ(IrOpcode::kJSStoreNamedOwn, node->opcode());
+  explicit constexpr JSDefineNamedOwnPropertyNode(Node* node)
+      : JSNodeWrapperBase(node) {
+    DCHECK_EQ(IrOpcode::kJSDefineNamedOwnProperty, node->opcode());
   }
 
-  const StoreNamedOwnParameters& Parameters() const {
-    return StoreNamedOwnParametersOf(node()->op());
+  const DefineNamedOwnPropertyParameters& Parameters() const {
+    return DefineNamedOwnPropertyParametersOf(node()->op());
   }
 
 #define INPUTS(V)              \
@@ -1657,11 +1664,11 @@ class JSCreateEmptyLiteralArrayNode final : public JSNodeWrapperBase {
 #undef INPUTS
 };
 
-class JSStoreDataPropertyInLiteralNode final : public JSNodeWrapperBase {
+class JSDefineKeyedOwnPropertyInLiteralNode final : public JSNodeWrapperBase {
  public:
-  explicit constexpr JSStoreDataPropertyInLiteralNode(Node* node)
+  explicit constexpr JSDefineKeyedOwnPropertyInLiteralNode(Node* node)
       : JSNodeWrapperBase(node) {
-    DCHECK_EQ(IrOpcode::kJSStoreDataPropertyInLiteral, node->opcode());
+    DCHECK_EQ(IrOpcode::kJSDefineKeyedOwnPropertyInLiteral, node->opcode());
   }
 
   const FeedbackParameter& Parameters() const {

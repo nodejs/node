@@ -37,6 +37,9 @@ class V8_EXPORT_PRIVATE Heap final : public HeapBase,
   void FinalizeIncrementalGarbageCollectionIfRunning(Config);
 
   size_t epoch() const final { return epoch_; }
+  const EmbedderStackState* override_stack_state() const final {
+    return HeapBase::override_stack_state();
+  }
 
   void DisableHeapGrowingForTesting();
 

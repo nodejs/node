@@ -688,8 +688,8 @@ bool Map::IsBooleanMap() const {
 }
 
 bool Map::IsNullOrUndefinedMap() const {
-  return *this == GetReadOnlyRoots().null_map() ||
-         *this == GetReadOnlyRoots().undefined_map();
+  auto roots = GetReadOnlyRoots();
+  return *this == roots.null_map() || *this == roots.undefined_map();
 }
 
 bool Map::IsPrimitiveMap() const {
@@ -768,8 +768,7 @@ void Map::SetBackPointer(HeapObject value, WriteBarrierMode mode) {
 
 // static
 Map Map::ElementsTransitionMap(Isolate* isolate, ConcurrencyMode cmode) {
-  DisallowGarbageCollection no_gc;
-  return TransitionsAccessor(isolate, *this, &no_gc,
+  return TransitionsAccessor(isolate, *this,
                              cmode == ConcurrencyMode::kConcurrent)
       .SearchSpecial(ReadOnlyRoots(isolate).elements_transition_symbol());
 }

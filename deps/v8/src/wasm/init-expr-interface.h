@@ -45,15 +45,11 @@ class InitExprInterface {
       WasmFullDecoder<validate, InitExprInterface, decoding_mode>;
 
   InitExprInterface(const WasmModule* module, Isolate* isolate,
-                    Handle<WasmInstanceObject> instance,
-                    Handle<FixedArray> tagged_globals,
-                    Handle<JSArrayBuffer> untagged_globals)
+                    Handle<WasmInstanceObject> instance)
       : module_(module),
         outer_module_(nullptr),
         isolate_(isolate),
-        instance_(instance),
-        tagged_globals_(tagged_globals),
-        untagged_globals_(untagged_globals) {
+        instance_(instance) {
     DCHECK_NOT_NULL(isolate);
   }
 
@@ -67,7 +63,7 @@ class InitExprInterface {
 #define UNREACHABLE_INTERFACE_FUNCTION(name, ...) \
   V8_INLINE void name(FullDecoder* decoder, ##__VA_ARGS__) { UNREACHABLE(); }
   INTERFACE_NON_CONSTANT_FUNCTIONS(UNREACHABLE_INTERFACE_FUNCTION)
-#undef EMPTY_INTERFACE_FUNCTION
+#undef UNREACHABLE_INTERFACE_FUNCTION
 
 #define DECLARE_INTERFACE_FUNCTION(name, ...) \
   void name(FullDecoder* decoder, ##__VA_ARGS__);
@@ -79,18 +75,18 @@ class InitExprInterface {
     return result_;
   }
   bool end_found() { return end_found_; }
+  bool runtime_error() { return error_ != nullptr; }
+  const char* runtime_error_msg() { return error_; }
 
  private:
-  byte* GetRawUntaggedGlobalPtr(const WasmGlobal& global);
-
+  bool generate_result() { return isolate_ != nullptr && !runtime_error(); }
   bool end_found_ = false;
+  const char* error_ = nullptr;
   WasmValue result_;
   const WasmModule* module_;
   WasmModule* outer_module_;
   Isolate* isolate_;
   Handle<WasmInstanceObject> instance_;
-  Handle<FixedArray> tagged_globals_;
-  Handle<JSArrayBuffer> untagged_globals_;
 };
 
 }  // namespace wasm

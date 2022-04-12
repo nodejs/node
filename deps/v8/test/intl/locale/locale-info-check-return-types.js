@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony_intl_locale_info
-
 function checkLocale(locale) {
   let l = new Intl.Locale(locale);
   assertTrue(Array.isArray(l.calendars));

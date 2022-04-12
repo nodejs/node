@@ -60,7 +60,8 @@
       "resources": [
         "filter.js", "map.js", "every.js", "join.js", "some.js", "reduce.js",
         "reduce-right.js", "to-string.js", "find.js", "find-index.js",
-        "from.js", "of.js", "for-each.js", "slice.js", "copy-within.js"
+        "from.js", "of.js", "for-each.js", "slice.js", "copy-within.js",
+        "index-of.js", "includes.js"
       ],
       "flags": [
         "--allow-natives-syntax"
@@ -181,7 +182,23 @@
         {"name": "SmiCopyWithin"},
         {"name": "StringCopyWithin"},
         {"name": "SparseSmiCopyWithin"},
-        {"name": "SparseStringCopyWithin"}
+        {"name": "SparseStringCopyWithin"},
+        {"name": "SmiIndexOf"},
+        {"name": "SparseSmiIndexOf"},
+        {"name": "DoubleIndexOf"},
+        {"name": "SparseDoubleIndexOf"},
+        {"name": "ObjectIndexOf"},
+        {"name": "SparseObjectIndexOf"},
+        {"name": "StringIndexOf"},
+        {"name": "SparseStringIncludes"},
+        {"name": "SmiIncludes"},
+        {"name": "SparseSmiIncludes"},
+        {"name": "DoubleIncludes"},
+        {"name": "SparseDoubleIncludes"},
+        {"name": "ObjectIncludes"},
+        {"name": "SparseObjectIncludes"},
+        {"name": "StringIncludes"},
+        {"name": "SparseStringIncludes"}
       ]
     }
   ]

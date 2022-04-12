@@ -19,7 +19,7 @@
 #include "src/base/virtual-address-space.h"
 #include "src/flags/flags.h"
 #include "src/init/v8.h"
-#include "src/security/vm-cage.h"
+#include "src/sandbox/sandbox.h"
 #include "src/utils/memcopy.h"
 
 #if V8_LIBC_BIONIC
@@ -96,15 +96,15 @@ v8::VirtualAddressSpace* GetPlatformVirtualAddressSpace() {
   return vas.get();
 }
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-v8::PageAllocator* GetVirtualMemoryCagePageAllocator() {
+#ifdef V8_SANDBOX
+v8::PageAllocator* GetSandboxPageAllocator() {
   // TODO(chromium:1218005) remove this code once the cage is no longer
   // optional.
-  if (GetProcessWideVirtualMemoryCage()->is_disabled()) {
+  if (GetProcessWideSandbox()->is_disabled()) {
     return GetPlatformPageAllocator();
   } else {
-    CHECK(GetProcessWideVirtualMemoryCage()->is_initialized());
-    return GetProcessWideVirtualMemoryCage()->page_allocator();
+    CHECK(GetProcessWideSandbox()->is_initialized());
+    return GetProcessWideSandbox()->page_allocator();
   }
 }
 #endif
@@ -213,19 +213,19 @@ void* AllocatePages(v8::PageAllocator* page_allocator, void* hint, size_t size,
   return result;
 }
 
-bool FreePages(v8::PageAllocator* page_allocator, void* address,
+void FreePages(v8::PageAllocator* page_allocator, void* address,
                const size_t size) {
   DCHECK_NOT_NULL(page_allocator);
   DCHECK(IsAligned(size, page_allocator->AllocatePageSize()));
-  return page_allocator->FreePages(address, size);
+  CHECK(page_allocator->FreePages(address, size));
 }
 
-bool ReleasePages(v8::PageAllocator* page_allocator, void* address, size_t size,
+void ReleasePages(v8::PageAllocator* page_allocator, void* address, size_t size,
                   size_t new_size) {
   DCHECK_NOT_NULL(page_allocator);
   DCHECK_LT(new_size, size);
   DCHECK(IsAligned(new_size, page_allocator->CommitPageSize()));
-  return page_allocator->ReleasePages(address, size, new_size);
+  CHECK(page_allocator->ReleasePages(address, size, new_size));
 }
 
 bool SetPermissions(v8::PageAllocator* page_allocator, void* address,
@@ -293,8 +293,8 @@ size_t VirtualMemory::Release(Address free_start) {
   const size_t free_size = old_size - (free_start - region_.begin());
   CHECK(InVM(free_start, free_size));
   region_.set_size(old_size - free_size);
-  CHECK(ReleasePages(page_allocator_, reinterpret_cast<void*>(region_.begin()),
-                     old_size, region_.size()));
+  ReleasePages(page_allocator_, reinterpret_cast<void*>(region_.begin()),
+               old_size, region_.size());
   return free_size;
 }
 
@@ -307,8 +307,8 @@ void VirtualMemory::Free() {
   Reset();
   // FreePages expects size to be aligned to allocation granularity however
   // ReleasePages may leave size at only commit granularity. Align it here.
-  CHECK(FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
-                  RoundUp(region.size(), page_allocator->AllocatePageSize())));
+  FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
+            RoundUp(region.size(), page_allocator->AllocatePageSize()));
 }
 
 void VirtualMemory::FreeReadOnly() {
@@ -320,8 +320,8 @@ void VirtualMemory::FreeReadOnly() {
 
   // FreePages expects size to be aligned to allocation granularity however
   // ReleasePages may leave size at only commit granularity. Align it here.
-  CHECK(FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
-                  RoundUp(region.size(), page_allocator->AllocatePageSize())));
+  FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
+            RoundUp(region.size(), page_allocator->AllocatePageSize()));
 }
 
 VirtualMemoryCage::VirtualMemoryCage() = default;
@@ -368,14 +368,17 @@ bool VirtualMemoryCage::InitReservation(
         VirtualMemory(params.page_allocator, existing_reservation.begin(),
                       existing_reservation.size());
     base_ = reservation_.address() + params.base_bias_size;
-  } else if (params.base_alignment == ReservationParams::kAnyBaseAlignment) {
-    // When the base doesn't need to be aligned, the virtual memory reservation
-    // fails only due to OOM.
+  } else if (params.base_alignment == ReservationParams::kAnyBaseAlignment ||
+             params.base_bias_size == 0) {
+    // When the base doesn't need to be aligned or when the requested
+    // base_bias_size is zero, the virtual memory reservation fails only
+    // due to OOM.
     Address hint =
         RoundDown(params.requested_start_hint,
                   RoundUp(params.base_alignment, allocate_page_size));
     VirtualMemory reservation(params.page_allocator, params.reservation_size,
-                              reinterpret_cast<void*>(hint));
+                              reinterpret_cast<void*>(hint),
+                              params.base_alignment);
     if (!reservation.IsReserved()) return false;
 
     reservation_ = std::move(reservation);
@@ -455,6 +458,7 @@ bool VirtualMemoryCage::InitReservation(
       RoundDown(params.reservation_size - (allocatable_base - base_) -
                     params.base_bias_size,
                 params.page_size);
+  size_ = allocatable_base + allocatable_size - base_;
   page_allocator_ = std::make_unique<base::BoundedPageAllocator>(
       params.page_allocator, allocatable_base, allocatable_size,
       params.page_size,
@@ -465,6 +469,7 @@ bool VirtualMemoryCage::InitReservation(
 void VirtualMemoryCage::Free() {
   if (IsReserved()) {
     base_ = kNullAddress;
+    size_ = 0;
     page_allocator_.reset();
     reservation_.Free();
   }

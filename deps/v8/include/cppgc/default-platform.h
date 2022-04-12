@@ -6,7 +6,6 @@
 #define INCLUDE_CPPGC_DEFAULT_PLATFORM_H_
 
 #include <memory>
-#include <vector>
 
 #include "cppgc/platform.h"
 #include "libplatform/libplatform.h"
@@ -63,6 +62,8 @@ class V8_EXPORT DefaultPlatform : public Platform {
   TracingController* GetTracingController() override {
     return v8_platform_->GetTracingController();
   }
+
+  v8::Platform* GetV8Platform() const { return v8_platform_.get(); }
 
  protected:
   static constexpr v8::Isolate* kNoIsolate = nullptr;

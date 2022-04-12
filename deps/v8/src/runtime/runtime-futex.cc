@@ -23,8 +23,8 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_AtomicsNumWaitersForTesting) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
-  CONVERT_SIZE_ARG_CHECKED(index, 1);
+  Handle<JSTypedArray> sta = args.at<JSTypedArray>(0);
+  size_t index = NumberToSize(args[1]);
   CHECK(!sta->WasDetached());
   CHECK(sta->GetBuffer()->is_shared());
   CHECK_LT(index, sta->length());
@@ -44,8 +44,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsNumAsyncWaitersForTesting) {
 RUNTIME_FUNCTION(Runtime_AtomicsNumUnresolvedAsyncPromisesForTesting) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
-  CONVERT_SIZE_ARG_CHECKED(index, 1);
+  Handle<JSTypedArray> sta = args.at<JSTypedArray>(0);
+  size_t index = NumberToSize(args[1]);
   CHECK(!sta->WasDetached());
   CHECK(sta->GetBuffer()->is_shared());
   CHECK_LT(index, sta->length());
@@ -61,7 +61,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsNumUnresolvedAsyncPromisesForTesting) {
 RUNTIME_FUNCTION(Runtime_SetAllowAtomicsWait) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_BOOLEAN_ARG_CHECKED(set, 0);
+  bool set = Oddball::cast(args[0]).ToBool(isolate);
 
   isolate->set_allow_atomics_wait(set);
   return ReadOnlyRoots(isolate).undefined_value();

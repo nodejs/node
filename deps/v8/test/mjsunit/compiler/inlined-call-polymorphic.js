@@ -19,7 +19,7 @@ inline_polymorphic(make_closure());
 // Compile using top tier since we need value numbering phase for the
 // TurbofanStaticAssert to deduce answer is 42 at compile time. In Turboprop
 // this phase is disabled.
-%OptimizeFunctionForTopTier(inline_polymorphic);
+%OptimizeFunctionOnNextCall(inline_polymorphic);
 inline_polymorphic(make_closure());
 
 try {

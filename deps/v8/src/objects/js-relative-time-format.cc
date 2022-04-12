@@ -343,9 +343,9 @@ template <typename T>
 MaybeHandle<T> FormatCommon(
     Isolate* isolate, Handle<JSRelativeTimeFormat> format,
     Handle<Object> value_obj, Handle<Object> unit_obj, const char* func_name,
-    const std::function<
-        MaybeHandle<T>(Isolate*, const icu::FormattedRelativeDateTime&,
-                       Handle<Object>, Handle<String>)>& formatToResult) {
+    MaybeHandle<T> (*formatToResult)(Isolate*,
+                                     const icu::FormattedRelativeDateTime&,
+                                     Handle<String>, bool)) {
   // 3. Let value be ? ToNumber(value).
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
@@ -382,13 +382,13 @@ MaybeHandle<T> FormatCommon(
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), T);
   }
-  return formatToResult(isolate, formatted, value,
-                        UnitAsString(isolate, unit_enum));
+  return formatToResult(isolate, formatted, UnitAsString(isolate, unit_enum),
+                        value->IsNaN());
 }
 
 MaybeHandle<String> FormatToString(
     Isolate* isolate, const icu::FormattedRelativeDateTime& formatted,
-    Handle<Object> value, Handle<String> unit) {
+    Handle<String> unit, bool is_nan) {
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString result = formatted.toString(status);
   if (U_FAILURE(status)) {
@@ -411,21 +411,22 @@ Maybe<bool> AddLiteral(Isolate* isolate, Handle<JSArray> array,
 
 Maybe<bool> AddUnit(Isolate* isolate, Handle<JSArray> array,
                     const icu::UnicodeString& string, int32_t index,
-                    int32_t start, int32_t limit, int32_t field_id,
-                    Handle<Object> value, Handle<String> unit) {
+                    const NumberFormatSpan& part, Handle<String> unit,
+                    bool is_nan) {
   Handle<String> substring;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, substring, Intl::ToString(isolate, string, start, limit),
+      isolate, substring,
+      Intl::ToString(isolate, string, part.begin_pos, part.end_pos),
       Nothing<bool>());
   Intl::AddElement(isolate, array, index,
-                   Intl::NumberFieldToType(isolate, value, field_id), substring,
-                   isolate->factory()->unit_string(), unit);
+                   Intl::NumberFieldToType(isolate, part, string, is_nan),
+                   substring, isolate->factory()->unit_string(), unit);
   return Just(true);
 }
 
 MaybeHandle<JSArray> FormatToJSArray(
     Isolate* isolate, const icu::FormattedRelativeDateTime& formatted,
-    Handle<Object> value, Handle<String> unit) {
+    Handle<String> unit, bool is_nan) {
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString string = formatted.toString(status);
 
@@ -457,19 +458,23 @@ MaybeHandle<JSArray> FormatToJSArray(
         for (auto start_limit : groups) {
           if (start_limit.first > start) {
             Maybe<bool> maybe_added =
-                AddUnit(isolate, array, string, index++, start,
-                        start_limit.first, field, value, unit);
+                AddUnit(isolate, array, string, index++,
+                        NumberFormatSpan(field, start, start_limit.first), unit,
+                        is_nan);
             MAYBE_RETURN(maybe_added, Handle<JSArray>());
-            maybe_added = AddUnit(isolate, array, string, index++,
-                                  start_limit.first, start_limit.second,
-                                  UNUM_GROUPING_SEPARATOR_FIELD, value, unit);
+            maybe_added =
+                AddUnit(isolate, array, string, index++,
+                        NumberFormatSpan(UNUM_GROUPING_SEPARATOR_FIELD,
+                                         start_limit.first, start_limit.second),
+                        unit, is_nan);
             MAYBE_RETURN(maybe_added, Handle<JSArray>());
             start = start_limit.second;
           }
         }
       }
-      Maybe<bool> maybe_added = AddUnit(isolate, array, string, index++, start,
-                                        limit, field, value, unit);
+      Maybe<bool> maybe_added =
+          AddUnit(isolate, array, string, index++,
+                  NumberFormatSpan(field, start, limit), unit, is_nan);
       MAYBE_RETURN(maybe_added, Handle<JSArray>());
       previous_end = limit;
     }

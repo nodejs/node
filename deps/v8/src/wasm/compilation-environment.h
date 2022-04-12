@@ -103,6 +103,9 @@ class WireBytesStorage {
  public:
   virtual ~WireBytesStorage() = default;
   virtual base::Vector<const uint8_t> GetCode(WireBytesRef) const = 0;
+  // Returns the ModuleWireBytes corresponding to the underlying module if
+  // available. Not supported if the wire bytes are owned by a StreamingDecoder.
+  virtual base::Optional<ModuleWireBytes> GetModuleBytes() const = 0;
 };
 
 // Callbacks will receive either {kFailedCompilation} or both
@@ -155,7 +158,8 @@ class V8_EXPORT_PRIVATE CompilationState {
   void AddCallback(std::unique_ptr<CompilationEventCallback> callback);
 
   void InitializeAfterDeserialization(
-      base::Vector<const int> missing_functions);
+      base::Vector<const int> lazy_functions,
+      base::Vector<const int> liftoff_functions);
 
   // Wait until top tier compilation finished, or compilation failed.
   void WaitForTopTierFinished();

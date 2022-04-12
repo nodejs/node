@@ -26,8 +26,10 @@ namespace U_ICU_NAMESPACE {
 class UnicodeString;
 namespace number {
 class LocalizedNumberFormatter;
-}  // namespace number
-}  // namespace U_ICU_NAMESPACE
+class UnlocalizedNumberFormatter;
+class LocalizedNumberRangeFormatter;
+}  //  namespace number
+}  //  namespace U_ICU_NAMESPACE
 
 namespace v8 {
 namespace internal {
@@ -54,6 +56,16 @@ class JSNumberFormat
       Isolate* isolate, Handle<JSNumberFormat> number_format,
       Handle<Object> numeric_obj);
 
+  // ecma402/#sec-formatnumericrange
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatNumericRange(
+      Isolate* isolate, Handle<JSNumberFormat> number_format, Handle<Object> x,
+      Handle<Object> y);
+
+  // ecma402/#sec-formatnumericrangetoparts
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatNumericRangeToParts(
+      Isolate* isolate, Handle<JSNumberFormat> number_format, Handle<Object> x,
+      Handle<Object> y);
+
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatNumeric(
       Isolate* isolate,
       const icu::number::LocalizedNumberFormatter& number_format,
@@ -68,30 +80,23 @@ class JSNumberFormat
                                          int32_t* minimum, int32_t* maximum);
   static bool SignificantDigitsFromSkeleton(const icu::UnicodeString& skeleton,
                                             int32_t* minimum, int32_t* maximum);
-  static icu::number::LocalizedNumberFormatter SetDigitOptionsToFormatter(
-      const icu::number::LocalizedNumberFormatter& icu_number_formatter,
-      const Intl::NumberFormatDigitOptions& digit_options);
+
+  enum class ShowTrailingZeros { kShow, kHide };
+
+  static icu::number::UnlocalizedNumberFormatter SetDigitOptionsToFormatter(
+      const icu::number::UnlocalizedNumberFormatter& settings,
+      const Intl::NumberFormatDigitOptions& digit_options,
+      int rounding_increment, ShowTrailingZeros show);
 
   DECL_PRINTER(JSNumberFormat)
 
   DECL_ACCESSORS(icu_number_formatter,
                  Managed<icu::number::LocalizedNumberFormatter>)
+  DECL_ACCESSORS(icu_number_range_formatter,
+                 Managed<icu::number::LocalizedNumberRangeFormatter>)
 
   TQ_OBJECT_CONSTRUCTORS(JSNumberFormat)
 };
-
-struct NumberFormatSpan {
-  int32_t field_id;
-  int32_t begin_pos;
-  int32_t end_pos;
-
-  NumberFormatSpan() = default;
-  NumberFormatSpan(int32_t field_id, int32_t begin_pos, int32_t end_pos)
-      : field_id(field_id), begin_pos(begin_pos), end_pos(end_pos) {}
-};
-
-V8_EXPORT_PRIVATE std::vector<NumberFormatSpan> FlattenRegionsToParts(
-    std::vector<NumberFormatSpan>* regions);
 
 }  // namespace internal
 }  // namespace v8

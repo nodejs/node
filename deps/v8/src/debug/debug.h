@@ -218,6 +218,7 @@ class V8_EXPORT_PRIVATE Debug {
   // Debug event triggers.
   void OnDebugBreak(Handle<FixedArray> break_points_hit, StepAction stepAction,
                     debug::BreakReasons break_reasons = {});
+  void OnInstrumentationBreak();
 
   base::Optional<Object> OnThrow(Handle<Object> exception)
       V8_WARN_UNUSED_RESULT;
@@ -236,6 +237,7 @@ class V8_EXPORT_PRIVATE Debug {
   Handle<FixedArray> GetLoadedScripts();
 
   // Break point handling.
+  enum BreakPointKind { kRegular, kInstrumentation };
   bool SetBreakpoint(Handle<SharedFunctionInfo> shared,
                      Handle<BreakPoint> break_point, int* source_position);
   void ClearBreakPoint(Handle<BreakPoint> break_point);
@@ -247,10 +249,12 @@ class V8_EXPORT_PRIVATE Debug {
   bool SetBreakPointForScript(Handle<Script> script, Handle<String> condition,
                               int* source_position, int* id);
   bool SetBreakpointForFunction(Handle<SharedFunctionInfo> shared,
-                                Handle<String> condition, int* id);
+                                Handle<String> condition, int* id,
+                                BreakPointKind kind = kRegular);
   void RemoveBreakpoint(int id);
 #if V8_ENABLE_WEBASSEMBLY
-  void SetOnEntryBreakpointForWasmScript(Handle<Script> script, int* id);
+  void SetInstrumentationBreakpointForWasmScript(Handle<Script> script,
+                                                 int* id);
   void RemoveBreakpointForWasmScript(Handle<Script> script, int id);
 
   void RecordWasmScriptWithBreakpoints(Handle<Script> script);
@@ -258,9 +262,11 @@ class V8_EXPORT_PRIVATE Debug {
 
   // Find breakpoints from the debug info and the break location and check
   // whether they are hit. Return an empty handle if not, or a FixedArray with
-  // hit BreakPoint objects.
+  // hit BreakPoint objects. has_break_points is set to true if position has
+  // any non-instrumentation breakpoint.
   MaybeHandle<FixedArray> GetHitBreakPoints(Handle<DebugInfo> debug_info,
-                                            int position);
+                                            int position,
+                                            bool* has_break_points);
 
   // Stepping handling.
   void PrepareStep(StepAction step_action);
@@ -395,6 +401,9 @@ class V8_EXPORT_PRIVATE Debug {
   // source position for break points.
   static const int kBreakAtEntryPosition = 0;
 
+  // Use -1 to encode instrumentation breakpoints.
+  static const int kInstrumentationId = -1;
+
   void RemoveBreakInfoAndMaybeFree(Handle<DebugInfo> debug_info);
 
   static char* Iterate(RootVisitor* v, char* thread_storage);
@@ -448,9 +457,15 @@ class V8_EXPORT_PRIVATE Debug {
   bool IsFrameBlackboxed(JavaScriptFrame* frame);
 
   void ActivateStepOut(StackFrame* frame);
+  bool IsBreakOnInstrumentation(Handle<DebugInfo> debug_info,
+                                const BreakLocation& location);
   MaybeHandle<FixedArray> CheckBreakPoints(Handle<DebugInfo> debug_info,
                                            BreakLocation* location,
-                                           bool* has_break_points = nullptr);
+                                           bool* has_break_points);
+  MaybeHandle<FixedArray> CheckBreakPointsForLocations(
+      Handle<DebugInfo> debug_info, std::vector<BreakLocation>& break_locations,
+      bool* has_break_points);
+
   MaybeHandle<FixedArray> GetHitBreakpointsAtCurrentStatement(
       JavaScriptFrame* frame, bool* hasBreakpoints);
 
@@ -474,6 +489,8 @@ class V8_EXPORT_PRIVATE Debug {
   void FindDebugInfo(Handle<DebugInfo> debug_info, DebugInfoListNode** prev,
                      DebugInfoListNode** curr);
   void FreeDebugInfoListNode(DebugInfoListNode* prev, DebugInfoListNode* node);
+
+  void ClearGlobalPromiseStack();
 
   void SetTemporaryObjectTrackingDisabled(bool disabled);
   bool GetTemporaryObjectTrackingDisabled() const;

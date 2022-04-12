@@ -68,10 +68,24 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 })();
 
 (function TestTableType() {
-  let table = new WebAssembly.Table({initial: 1, element: "anyfunc"});
+  let table = new WebAssembly.Table({initial: 1, element: "funcref"});
   let type = table.type();
   assertEquals(1, type.minimum);
-  assertEquals("anyfunc", type.element);
+  assertEquals("funcref", type.element);
+  assertEquals(undefined, type.maximum);
+  assertEquals(2, Object.getOwnPropertyNames(type).length);
+
+  table = new WebAssembly.Table({initial: 2, maximum: 15, element: "funcref"});
+  type = table.type();
+  assertEquals(2, type.minimum);
+  assertEquals(15, type.maximum);
+  assertEquals("funcref", type.element);
+  assertEquals(3, Object.getOwnPropertyNames(type).length);
+
+  table = new WebAssembly.Table({initial: 1, element: "anyfunc"});
+  type = table.type();
+  assertEquals(1, type.minimum);
+  assertEquals("funcref", type.element);
   assertEquals(undefined, type.maximum);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
@@ -79,7 +93,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   type = table.type();
   assertEquals(2, type.minimum);
   assertEquals(15, type.maximum);
-  assertEquals("anyfunc", type.element);
+  assertEquals("funcref", type.element);
   assertEquals(3, Object.getOwnPropertyNames(type).length);
 })();
 
@@ -91,7 +105,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   assertEquals("a", exports[0].name);
   assertTrue("type" in exports[0]);
-  assertEquals("anyfunc", exports[0].type.element);
+  assertEquals("funcref", exports[0].type.element);
   assertEquals(20, exports[0].type.minimum);
   assertFalse("maximum" in exports[0].type);
 
@@ -102,7 +116,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   assertEquals("b", exports[0].name);
   assertTrue("type" in exports[0]);
-  assertEquals("anyfunc", exports[0].type.element);
+  assertEquals("funcref", exports[0].type.element);
   assertEquals(15, exports[0].type.minimum);
   assertEquals(25, exports[0].type.maximum);
 })();
@@ -116,7 +130,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals("a", imports[0].name);
   assertEquals("m", imports[0].module);
   assertTrue("type" in imports[0]);
-  assertEquals("anyfunc", imports[0].type.element);
+  assertEquals("funcref", imports[0].type.element);
   assertEquals(20, imports[0].type.minimum);
   assertFalse("maximum" in imports[0].type);
 
@@ -128,7 +142,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals("b", imports[0].name);
   assertEquals("m", imports[0].module);
   assertTrue("type" in imports[0]);
-  assertEquals("anyfunc", imports[0].type.element);
+  assertEquals("funcref", imports[0].type.element);
   assertEquals(15, imports[0].type.minimum);
   assertEquals(25, imports[0].type.maximum);
 })();
@@ -238,28 +252,28 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 })();
 
 (function TestTableConstructorWithMinimum() {
-  let table = new WebAssembly.Table({minimum: 1, element: 'anyfunc'});
+  let table = new WebAssembly.Table({minimum: 1, element: 'funcref'});
   assertTrue(table instanceof WebAssembly.Table);
   let type = table.type();
   assertEquals(1, type.minimum);
-  assertEquals('anyfunc', type.element);
+  assertEquals('funcref', type.element);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 
-  table = new WebAssembly.Table({minimum: 1, element: 'anyfunc', maximum: 5});
+  table = new WebAssembly.Table({minimum: 1, element: 'funcref', maximum: 5});
   assertTrue(table instanceof WebAssembly.Table);
   type = table.type();
   assertEquals(1, type.minimum);
   assertEquals(5, type.maximum);
-  assertEquals('anyfunc', type.element);
+  assertEquals('funcref', type.element);
   assertEquals(3, Object.getOwnPropertyNames(type).length);
 
   assertThrows(
-      () => new WebAssembly.Table({minimum: 1, initial: 2, element: 'anyfunc'}),
+      () => new WebAssembly.Table({minimum: 1, initial: 2, element: 'funcref'}),
       TypeError,
       /The properties 'initial' and 'minimum' are not allowed at the same time/);
 
   assertThrows(
-      () => new WebAssembly.Table({minimum: 1, initial: 2, element: 'anyfunc',
+      () => new WebAssembly.Table({minimum: 1, initial: 2, element: 'funcref',
                                  maximum: 5}),
       TypeError,
       /The properties 'initial' and 'minimum' are not allowed at the same time/);
@@ -512,29 +526,6 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     assertArrayEquals(params.exp, params_after);
     assertEquals(result.exp, result_after);
   });
-})();
-
-(function TestFunctionTableSetAndCall() {
-  let builder = new WasmModuleBuilder();
-  let fun1 = new WebAssembly.Function({parameters:[], results:["i32"]}, _ => 7);
-  let fun2 = new WebAssembly.Function({parameters:[], results:["i32"]}, _ => 9);
-  let fun3 = new WebAssembly.Function({parameters:[], results:["f64"]}, _ => 0);
-  let table = new WebAssembly.Table({element: "anyfunc", initial: 2});
-  let table_index = builder.addImportedTable("m", "table", 2);
-  let sig_index = builder.addType(kSig_i_v);
-  table.set(0, fun1);
-  builder.addFunction('main', kSig_i_i)
-      .addBody([
-        kExprLocalGet, 0,
-        kExprCallIndirect, sig_index, table_index
-      ])
-      .exportFunc();
-  let instance = builder.instantiate({ m: { table: table }});
-  assertEquals(7, instance.exports.main(0));
-  table.set(1, fun2);
-  assertEquals(9, instance.exports.main(1));
-  table.set(1, fun3);
-  assertTraps(kTrapFuncSigMismatch, () => instance.exports.main(1));
 })();
 
 (function TestFunctionTableSetI64() {

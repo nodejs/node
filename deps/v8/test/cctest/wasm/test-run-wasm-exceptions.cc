@@ -565,7 +565,6 @@ WASM_EXEC_TEST(TryCatchTrapRemByZero) {
 }
 
 WASM_EXEC_TEST(TryCatchTrapTableFill) {
-  EXPERIMENTAL_FLAG_SCOPE(reftypes);
   int table_index = 0;
   int length = 10;  // OOB.
   int start = 10;   // OOB.

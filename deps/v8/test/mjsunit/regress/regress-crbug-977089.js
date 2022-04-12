@@ -28,7 +28,7 @@ var foo = function() {
   // transition with a different accessor.
   //
   // Note that the parent function `foo` can't be an IIFE, as then this callsite
-  // would use the NoFeedback version of the LdaNamedProperty bytecode, and this
+  // would use the NoFeedback version of the GetNamedProperty bytecode, and this
   // doesn't trigger the map update.
   v1.x;
 

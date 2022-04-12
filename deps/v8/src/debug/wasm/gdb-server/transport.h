@@ -6,7 +6,7 @@
 #define V8_DEBUG_WASM_GDB_SERVER_TRANSPORT_H_
 
 #include <sstream>
-#include <vector>
+
 #include "src/base/macros.h"
 #include "src/debug/wasm/gdb-server/gdb-remote-util.h"
 
@@ -31,7 +31,6 @@ typedef int socklen_t;
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <string>
 
 typedef int SocketHandle;
 

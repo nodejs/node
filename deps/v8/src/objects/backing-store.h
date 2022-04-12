@@ -122,7 +122,8 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   // Allocate a new, larger, backing store for this Wasm memory and copy the
   // contents of this backing store into it.
   std::unique_ptr<BackingStore> CopyWasmMemory(Isolate* isolate,
-                                               size_t new_pages);
+                                               size_t new_pages,
+                                               size_t max_pages);
 
   // Attach the given memory object to this backing store. The memory object
   // will be updated if this backing store is grown.

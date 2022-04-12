@@ -115,8 +115,8 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
                             kSystemPointerSize);
       }
 
-      const RegList kCalleeSaveRegisters = 0;
-      const RegList kCalleeSaveFPRegisters = 0;
+      const RegList kCalleeSaveRegisters;
+      const DoubleRegList kCalleeSaveFPRegisters;
 
       MachineType target_type = MachineType::Pointer();
       LinkageLocation target_loc = LinkageLocation::ForAnyRegister();

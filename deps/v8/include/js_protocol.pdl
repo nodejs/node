@@ -104,7 +104,9 @@ domain Debugger
       # Location in the source code.
       Location location
       # JavaScript script name or url.
-      string url
+      # Deprecated in favor of using the `location.scriptId` to resolve the URL via a previously
+      # sent `Debugger.scriptParsed` event.
+      deprecated string url
       # Scope chain for this call frame.
       array of Scope scopeChain
       # `this` object for this call frame.
@@ -1549,6 +1551,18 @@ domain Runtime
   experimental command removeBinding
     parameters
       string name
+
+  # This method tries to lookup and populate exception details for a
+  # JavaScript Error object.
+  # Note that the stackTrace portion of the resulting exceptionDetails will
+  # only be populated if the Runtime domain was enabled at the time when the
+  # Error was thrown.
+  experimental command getExceptionDetails
+    parameters
+      # The error object for which to resolve the exception details.
+      RemoteObjectId errorObjectId
+    returns
+      optional ExceptionDetails exceptionDetails
 
   # Notification is issued every time when binding is called.
   experimental event bindingCalled

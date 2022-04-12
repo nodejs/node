@@ -35,9 +35,9 @@ class ThreadLocalTop {
   // refactor this to really consist of just Addresses and 32-bit
   // integer fields.
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  static constexpr uint32_t kSizeInBytes = 26 * kSystemPointerSize;
+  static constexpr uint32_t kSizeInBytes = 27 * kSystemPointerSize;
 #else
-  static constexpr uint32_t kSizeInBytes = 25 * kSystemPointerSize;
+  static constexpr uint32_t kSizeInBytes = 26 * kSystemPointerSize;
 #endif
 
   // Does early low-level initialization that does not depend on the
@@ -118,6 +118,7 @@ class ThreadLocalTop {
   Address pending_handler_constant_pool_;
   Address pending_handler_fp_;
   Address pending_handler_sp_;
+  uintptr_t num_frames_above_pending_handler_;
 
   Address last_api_entry_;
 

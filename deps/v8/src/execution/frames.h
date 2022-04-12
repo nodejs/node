@@ -52,7 +52,6 @@ struct JumpBuffer;
 class StackMemory;
 }  // namespace wasm
 
-// Forward declarations.
 class AbstractCode;
 class Debug;
 class ExternalCallbackScope;
@@ -61,6 +60,7 @@ class Isolate;
 class ObjectVisitor;
 class Register;
 class RootVisitor;
+class StackFrameInfo;
 class StackFrameIteratorBase;
 class StringStream;
 class ThreadLocalTop;
@@ -102,7 +102,7 @@ class StackHandler {
   IF_WASM(V, WASM, WasmFrame)                                             \
   IF_WASM(V, WASM_TO_JS, WasmToJsFrame)                                   \
   IF_WASM(V, JS_TO_WASM, JsToWasmFrame)                                   \
-  IF_WASM(V, RETURN_PROMISE_ON_SUSPEND, ReturnPromiseOnSuspendFrame)      \
+  IF_WASM(V, STACK_SWITCH, StackSwitchFrame)                              \
   IF_WASM(V, WASM_DEBUG_BREAK, WasmDebugBreakFrame)                       \
   IF_WASM(V, C_WASM_ENTRY, CWasmEntryFrame)                               \
   IF_WASM(V, WASM_EXIT, WasmExitFrame)                                    \
@@ -394,6 +394,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
     int SourceStatementPosition() const;
     Handle<Object> script() const;
     Handle<Context> native_context() const;
+    Handle<StackFrameInfo> CreateStackFrameInfo() const;
 
    private:
     Handle<Object> receiver_;
@@ -423,6 +424,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
     Handle<WasmInstanceObject> wasm_instance() const { return wasm_instance_; }
     Handle<Context> native_context() const;
     bool at_to_number_conversion() const { return at_to_number_conversion_; }
+    Handle<StackFrameInfo> CreateStackFrameInfo() const;
 
    private:
     Handle<WasmInstanceObject> wasm_instance_;
@@ -456,6 +458,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
   int SourcePosition() const;
   int SourceStatementPosition() const;
   Handle<Context> native_context() const;
+  Handle<StackFrameInfo> CreateStackFrameInfo() const;
 
 #define FRAME_SUMMARY_CAST(kind_, type, field, desc)      \
   bool Is##desc() const { return base_.kind() == kind_; } \
@@ -756,32 +759,32 @@ class BuiltinExitFrame : public ExitFrame {
  public:
   Type type() const override { return BUILTIN_EXIT; }
 
-  static BuiltinExitFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_builtin_exit());
-    return static_cast<BuiltinExitFrame*>(frame);
-  }
-
   JSFunction function() const;
+
   Object receiver() const;
+  Object GetParameter(int i) const;
+  int ComputeParametersCount() const;
+  Handle<FixedArray> GetParameters() const;
+
+  // Check if this frame is a constructor frame invoked through 'new'.
   bool IsConstructor() const;
 
   void Print(StringStream* accumulator, PrintMode mode,
              int index) const override;
 
+  // Summarize Frame
+  void Summarize(std::vector<FrameSummary>* frames) const override;
+
  protected:
   inline explicit BuiltinExitFrame(StackFrameIteratorBase* iterator);
 
  private:
-  Object GetParameter(int i) const;
-  int ComputeParametersCount() const;
-
   inline Object receiver_slot_object() const;
   inline Object argc_slot_object() const;
   inline Object target_slot_object() const;
   inline Object new_target_slot_object() const;
 
   friend class StackFrameIteratorBase;
-  friend class StackTraceBuilder;
 };
 
 class StubFrame : public TypedFrame {
@@ -1049,14 +1052,14 @@ class JsToWasmFrame : public StubFrame {
   friend class StackFrameIteratorBase;
 };
 
-class ReturnPromiseOnSuspendFrame : public ExitFrame {
+class StackSwitchFrame : public ExitFrame {
  public:
-  Type type() const override { return RETURN_PROMISE_ON_SUSPEND; }
+  Type type() const override { return STACK_SWITCH; }
   void Iterate(RootVisitor* v) const override;
   static void GetStateForJumpBuffer(wasm::JumpBuffer* jmpbuf, State* state);
 
  protected:
-  inline explicit ReturnPromiseOnSuspendFrame(StackFrameIteratorBase* iterator);
+  inline explicit StackSwitchFrame(StackFrameIteratorBase* iterator);
 
  private:
   friend class StackFrameIteratorBase;

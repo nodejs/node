@@ -14,6 +14,7 @@ export class CppProcessor extends LogReader {
   constructor(cppEntriesProvider, timedRange, pairwiseTimedRange) {
     super({}, timedRange, pairwiseTimedRange);
     this.dispatchTable_ = {
+         __proto__: null,
         'shared-library': {
           parsers: [parseString, parseInt, parseInt, parseInt],
           processor: this.processSharedLibrary }

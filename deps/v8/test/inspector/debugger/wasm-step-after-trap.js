@@ -34,7 +34,8 @@ Protocol.Debugger.onPaused(async msg => {
   for (let [nr, frame] of msg.params.callFrames.entries()) {
     InspectorTest.log(`--- ${nr} ---`);
     await session.logSourceLocation(frame.location);
-    if (/^wasm/.test(frame.url)) await printLocalScope(frame);
+    if (/^wasm/.test(session.getCallFrameUrl(frame)))
+      await printLocalScope(frame);
   }
   InspectorTest.log('-------------');
   let action = actions.shift();

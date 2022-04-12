@@ -13,56 +13,99 @@ namespace v8 {
 namespace internal {
 namespace baseline {
 
+namespace detail {
+
+static constexpr Register kScratchRegisters[] = {r9, r10, ip};
+static constexpr int kNumScratchRegisters = arraysize(kScratchRegisters);
+
+#ifdef DEBUG
+inline bool Clobbers(Register target, MemOperand op) {
+  return op.rb() == target || op.rx() == target;
+}
+#endif
+}  // namespace detail
+
 class BaselineAssembler::ScratchRegisterScope {
  public:
   explicit ScratchRegisterScope(BaselineAssembler* assembler)
       : assembler_(assembler),
         prev_scope_(assembler->scratch_register_scope_),
-        wrapped_scope_(assembler->masm()) {
-    if (!assembler_->scratch_register_scope_) {
-      // If we haven't opened a scratch scope yet, for the first one add a
-      // couple of extra registers.
-      DCHECK(wrapped_scope_.CanAcquire());
-      wrapped_scope_.Include(r8, r9);
-      wrapped_scope_.Include(kInterpreterBytecodeOffsetRegister);
-    }
+        registers_used_(prev_scope_ == nullptr ? 0
+                                               : prev_scope_->registers_used_) {
     assembler_->scratch_register_scope_ = this;
   }
   ~ScratchRegisterScope() { assembler_->scratch_register_scope_ = prev_scope_; }
 
-  Register AcquireScratch() { return wrapped_scope_.Acquire(); }
+  Register AcquireScratch() {
+    DCHECK_LT(registers_used_, detail::kNumScratchRegisters);
+    return detail::kScratchRegisters[registers_used_++];
+  }
 
  private:
   BaselineAssembler* assembler_;
   ScratchRegisterScope* prev_scope_;
-  UseScratchRegisterScope wrapped_scope_;
+  int registers_used_;
 };
 
 // TODO(v8:11429,leszeks): Unify condition names in the MacroAssembler.
 enum class Condition : uint32_t {
-  kEqual = static_cast<uint32_t>(eq),
-  kNotEqual = static_cast<uint32_t>(ne),
+  kEqual,
+  kNotEqual,
 
-  kLessThan = static_cast<uint32_t>(lt),
-  kGreaterThan = static_cast<uint32_t>(gt),
-  kLessThanEqual = static_cast<uint32_t>(le),
-  kGreaterThanEqual = static_cast<uint32_t>(ge),
+  kLessThan,
+  kGreaterThan,
+  kLessThanEqual,
+  kGreaterThanEqual,
 
-  kUnsignedLessThan = static_cast<uint32_t>(lo),
-  kUnsignedGreaterThan = static_cast<uint32_t>(hi),
-  kUnsignedLessThanEqual = static_cast<uint32_t>(ls),
-  kUnsignedGreaterThanEqual = static_cast<uint32_t>(hs),
+  kUnsignedLessThan,
+  kUnsignedGreaterThan,
+  kUnsignedLessThanEqual,
+  kUnsignedGreaterThanEqual,
 
-  kOverflow = static_cast<uint32_t>(vs),
-  kNoOverflow = static_cast<uint32_t>(vc),
+  kOverflow,
+  kNoOverflow,
 
-  kZero = static_cast<uint32_t>(eq),
-  kNotZero = static_cast<uint32_t>(ne),
+  kZero,
+  kNotZero
 };
 
 inline internal::Condition AsMasmCondition(Condition cond) {
-  UNIMPLEMENTED();
-  return static_cast<internal::Condition>(cond);
+  STATIC_ASSERT(sizeof(internal::Condition) == sizeof(Condition));
+  switch (cond) {
+    case Condition::kEqual:
+      return eq;
+    case Condition::kNotEqual:
+      return ne;
+    case Condition::kLessThan:
+      return lt;
+    case Condition::kGreaterThan:
+      return gt;
+    case Condition::kLessThanEqual:
+      return le;
+    case Condition::kGreaterThanEqual:
+      return ge;
+
+    case Condition::kUnsignedLessThan:
+      return lt;
+    case Condition::kUnsignedGreaterThan:
+      return gt;
+    case Condition::kUnsignedLessThanEqual:
+      return le;
+    case Condition::kUnsignedGreaterThanEqual:
+      return ge;
+
+    case Condition::kOverflow:
+      return overflow;
+    case Condition::kNoOverflow:
+      return nooverflow;
+
+    case Condition::kZero:
+      return eq;
+    case Condition::kNotZero:
+      return ne;
+    default:
+      UNREACHABLE();
+  }
 }
 
 namespace detail {
@@ -82,6 +125,10 @@ MemOperand BaselineAssembler::RegisterFrameOperand(
     interpreter::Register interpreter_register) {
   UNIMPLEMENTED();
   return MemOperand(fp, interpreter_register.ToOperand() * kSystemPointerSize);
+}
+void BaselineAssembler::RegisterFrameAddress(
+    interpreter::Register interpreter_register, Register rscratch) {
+  UNIMPLEMENTED();
 }
 MemOperand BaselineAssembler::FeedbackVectorOperand() {
   UNIMPLEMENTED();

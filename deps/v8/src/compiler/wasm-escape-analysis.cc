@@ -29,8 +29,8 @@ Reduction WasmEscapeAnalysis::ReduceAllocateRaw(Node* node) {
   for (Edge edge : node->use_edges()) {
     if (NodeProperties::IsValueEdge(edge)) {
       if (edge.index() != 0 ||
-          edge.from()->opcode() != IrOpcode::kStoreToObject) {
-        // The allocated object is used for something other than storing into.
+          (edge.from()->opcode() != IrOpcode::kStoreToObject &&
+           edge.from()->opcode() != IrOpcode::kInitializeImmutableInObject)) {
         return NoChange();
       }
       value_edges.push_back(edge);
@@ -43,7 +43,8 @@ Reduction WasmEscapeAnalysis::ReduceAllocateRaw(Node* node) {
     DCHECK_EQ(edge.index(), 0);
     Node* use = edge.from();
     DCHECK(!use->IsDead());
-    DCHECK_EQ(use->opcode(), IrOpcode::kStoreToObject);
+    DCHECK(use->opcode() == IrOpcode::kStoreToObject ||
+           use->opcode() == IrOpcode::kInitializeImmutableInObject);
     // The value stored by this StoreToObject node might be another allocation
     // which has no more uses. Therefore we have to revisit it. Note that this
     // will not happen automatically: ReplaceWithValue does not trigger revisits

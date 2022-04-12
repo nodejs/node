@@ -65,6 +65,12 @@ class V8_EXPORT_PRIVATE WriteBarrier {
 
   static MarkingBarrier* CurrentMarkingBarrier(Heap* heap);
 
+#ifdef ENABLE_SLOW_DCHECKS
+  template <typename T>
+  static inline bool IsRequired(HeapObject host, T value);
+  static bool IsImmortalImmovableHeapObject(HeapObject object);
+#endif
+
  private:
   static inline base::Optional<Heap*> GetHeapIfMarking(HeapObject object);
 

@@ -116,135 +116,144 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(MemoryGrow, 0x40, i_i)
 
 // Expressions with signatures.
-#define FOREACH_SIMPLE_OPCODE(V)  \
-  V(I32Eqz, 0x45, i_i)            \
-  V(I32Eq, 0x46, i_ii)            \
-  V(I32Ne, 0x47, i_ii)            \
-  V(I32LtS, 0x48, i_ii)           \
-  V(I32LtU, 0x49, i_ii)           \
-  V(I32GtS, 0x4a, i_ii)           \
-  V(I32GtU, 0x4b, i_ii)           \
-  V(I32LeS, 0x4c, i_ii)           \
-  V(I32LeU, 0x4d, i_ii)           \
-  V(I32GeS, 0x4e, i_ii)           \
-  V(I32GeU, 0x4f, i_ii)           \
-  V(I64Eqz, 0x50, i_l)            \
-  V(I64Eq, 0x51, i_ll)            \
-  V(I64Ne, 0x52, i_ll)            \
-  V(I64LtS, 0x53, i_ll)           \
-  V(I64LtU, 0x54, i_ll)           \
-  V(I64GtS, 0x55, i_ll)           \
-  V(I64GtU, 0x56, i_ll)           \
-  V(I64LeS, 0x57, i_ll)           \
-  V(I64LeU, 0x58, i_ll)           \
-  V(I64GeS, 0x59, i_ll)           \
-  V(I64GeU, 0x5a, i_ll)           \
-  V(F32Eq, 0x5b, i_ff)            \
-  V(F32Ne, 0x5c, i_ff)            \
-  V(F32Lt, 0x5d, i_ff)            \
-  V(F32Gt, 0x5e, i_ff)            \
-  V(F32Le, 0x5f, i_ff)            \
-  V(F32Ge, 0x60, i_ff)            \
-  V(F64Eq, 0x61, i_dd)            \
-  V(F64Ne, 0x62, i_dd)            \
-  V(F64Lt, 0x63, i_dd)            \
-  V(F64Gt, 0x64, i_dd)            \
-  V(F64Le, 0x65, i_dd)            \
-  V(F64Ge, 0x66, i_dd)            \
-  V(I32Clz, 0x67, i_i)            \
-  V(I32Ctz, 0x68, i_i)            \
-  V(I32Popcnt, 0x69, i_i)         \
-  V(I32Add, 0x6a, i_ii)           \
-  V(I32Sub, 0x6b, i_ii)           \
-  V(I32Mul, 0x6c, i_ii)           \
-  V(I32DivS, 0x6d, i_ii)          \
-  V(I32DivU, 0x6e, i_ii)          \
-  V(I32RemS, 0x6f, i_ii)          \
-  V(I32RemU, 0x70, i_ii)          \
-  V(I32And, 0x71, i_ii)           \
-  V(I32Ior, 0x72, i_ii)           \
-  V(I32Xor, 0x73, i_ii)           \
-  V(I32Shl, 0x74, i_ii)           \
-  V(I32ShrS, 0x75, i_ii)          \
-  V(I32ShrU, 0x76, i_ii)          \
-  V(I32Rol, 0x77, i_ii)           \
-  V(I32Ror, 0x78, i_ii)           \
-  V(I64Clz, 0x79, l_l)            \
-  V(I64Ctz, 0x7a, l_l)            \
-  V(I64Popcnt, 0x7b, l_l)         \
-  V(I64Add, 0x7c, l_ll)           \
-  V(I64Sub, 0x7d, l_ll)           \
-  V(I64Mul, 0x7e, l_ll)           \
-  V(I64DivS, 0x7f, l_ll)          \
-  V(I64DivU, 0x80, l_ll)          \
-  V(I64RemS, 0x81, l_ll)          \
-  V(I64RemU, 0x82, l_ll)          \
-  V(I64And, 0x83, l_ll)           \
-  V(I64Ior, 0x84, l_ll)           \
-  V(I64Xor, 0x85, l_ll)           \
-  V(I64Shl, 0x86, l_ll)           \
-  V(I64ShrS, 0x87, l_ll)          \
-  V(I64ShrU, 0x88, l_ll)          \
-  V(I64Rol, 0x89, l_ll)           \
-  V(I64Ror, 0x8a, l_ll)           \
-  V(F32Abs, 0x8b, f_f)            \
-  V(F32Neg, 0x8c, f_f)            \
-  V(F32Ceil, 0x8d, f_f)           \
-  V(F32Floor, 0x8e, f_f)          \
-  V(F32Trunc, 0x8f, f_f)          \
-  V(F32NearestInt, 0x90, f_f)     \
-  V(F32Sqrt, 0x91, f_f)           \
-  V(F32Add, 0x92, f_ff)           \
-  V(F32Sub, 0x93, f_ff)           \
-  V(F32Mul, 0x94, f_ff)           \
-  V(F32Div, 0x95, f_ff)           \
-  V(F32Min, 0x96, f_ff)           \
-  V(F32Max, 0x97, f_ff)           \
-  V(F32CopySign, 0x98, f_ff)      \
-  V(F64Abs, 0x99, d_d)            \
-  V(F64Neg, 0x9a, d_d)            \
-  V(F64Ceil, 0x9b, d_d)           \
-  V(F64Floor, 0x9c, d_d)          \
-  V(F64Trunc, 0x9d, d_d)          \
-  V(F64NearestInt, 0x9e, d_d)     \
-  V(F64Sqrt, 0x9f, d_d)           \
-  V(F64Add, 0xa0, d_dd)           \
-  V(F64Sub, 0xa1, d_dd)           \
-  V(F64Mul, 0xa2, d_dd)           \
-  V(F64Div, 0xa3, d_dd)           \
-  V(F64Min, 0xa4, d_dd)           \
-  V(F64Max, 0xa5, d_dd)           \
-  V(F64CopySign, 0xa6, d_dd)      \
-  V(I32ConvertI64, 0xa7, i_l)     \
-  V(I32SConvertF32, 0xa8, i_f)    \
-  V(I32UConvertF32, 0xa9, i_f)    \
-  V(I32SConvertF64, 0xaa, i_d)    \
-  V(I32UConvertF64, 0xab, i_d)    \
-  V(I64SConvertI32, 0xac, l_i)    \
-  V(I64UConvertI32, 0xad, l_i)    \
-  V(I64SConvertF32, 0xae, l_f)    \
-  V(I64UConvertF32, 0xaf, l_f)    \
-  V(I64SConvertF64, 0xb0, l_d)    \
-  V(I64UConvertF64, 0xb1, l_d)    \
-  V(F32SConvertI32, 0xb2, f_i)    \
-  V(F32UConvertI32, 0xb3, f_i)    \
-  V(F32SConvertI64, 0xb4, f_l)    \
-  V(F32UConvertI64, 0xb5, f_l)    \
-  V(F32ConvertF64, 0xb6, f_d)     \
-  V(F64SConvertI32, 0xb7, d_i)    \
-  V(F64UConvertI32, 0xb8, d_i)    \
-  V(F64SConvertI64, 0xb9, d_l)    \
-  V(F64UConvertI64, 0xba, d_l)    \
-  V(F64ConvertF32, 0xbb, d_f)     \
-  V(I32ReinterpretF32, 0xbc, i_f) \
-  V(I64ReinterpretF64, 0xbd, l_d) \
-  V(F32ReinterpretI32, 0xbe, f_i) \
-  V(F64ReinterpretI64, 0xbf, d_l) \
-  V(I32SExtendI8, 0xc0, i_i)      \
-  V(I32SExtendI16, 0xc1, i_i)     \
-  V(I64SExtendI8, 0xc2, l_l)      \
-  V(I64SExtendI16, 0xc3, l_l)     \
+
+// The following opcodes can be used as constant expressions under
+// --experimental-wasm-extended-const.
+#define FOREACH_SIMPLE_EXTENDED_CONST_OPCODE(V) \
+  V(I32Add, 0x6a, i_ii)                         \
+  V(I32Sub, 0x6b, i_ii)                         \
+  V(I32Mul, 0x6c, i_ii)                         \
+  V(I64Add, 0x7c, l_ll)                         \
+  V(I64Sub, 0x7d, l_ll)                         \
+  V(I64Mul, 0x7e, l_ll)
+
+#define FOREACH_SIMPLE_NON_CONST_OPCODE(V) \
+  V(I32Eqz, 0x45, i_i)                     \
+  V(I32Eq, 0x46, i_ii)                     \
+  V(I32Ne, 0x47, i_ii)                     \
+  V(I32LtS, 0x48, i_ii)                    \
+  V(I32LtU, 0x49, i_ii)                    \
+  V(I32GtS, 0x4a, i_ii)                    \
+  V(I32GtU, 0x4b, i_ii)                    \
+  V(I32LeS, 0x4c, i_ii)                    \
+  V(I32LeU, 0x4d, i_ii)                    \
+  V(I32GeS, 0x4e, i_ii)                    \
+  V(I32GeU, 0x4f, i_ii)                    \
+  V(I64Eqz, 0x50, i_l)                     \
+  V(I64Eq, 0x51, i_ll)                     \
+  V(I64Ne, 0x52, i_ll)                     \
+  V(I64LtS, 0x53, i_ll)                    \
+  V(I64LtU, 0x54, i_ll)                    \
+  V(I64GtS, 0x55, i_ll)                    \
+  V(I64GtU, 0x56, i_ll)                    \
+  V(I64LeS, 0x57, i_ll)                    \
+  V(I64LeU, 0x58, i_ll)                    \
+  V(I64GeS, 0x59, i_ll)                    \
+  V(I64GeU, 0x5a, i_ll)                    \
+  V(F32Eq, 0x5b, i_ff)                     \
+  V(F32Ne, 0x5c, i_ff)                     \
+  V(F32Lt, 0x5d, i_ff)                     \
+  V(F32Gt, 0x5e, i_ff)                     \
+  V(F32Le, 0x5f, i_ff)                     \
+  V(F32Ge, 0x60, i_ff)                     \
+  V(F64Eq, 0x61, i_dd)                     \
+  V(F64Ne, 0x62, i_dd)                     \
+  V(F64Lt, 0x63, i_dd)                     \
+  V(F64Gt, 0x64, i_dd)                     \
+  V(F64Le, 0x65, i_dd)                     \
+  V(F64Ge, 0x66, i_dd)                     \
+  V(I32Clz, 0x67, i_i)                     \
+  V(I32Ctz, 0x68, i_i)                     \
+  V(I32Popcnt, 0x69, i_i)                  \
+  V(I32DivS, 0x6d, i_ii)                   \
+  V(I32DivU, 0x6e, i_ii)                   \
+  V(I32RemS, 0x6f, i_ii)                   \
+  V(I32RemU, 0x70, i_ii)                   \
+  V(I32And, 0x71, i_ii)                    \
+  V(I32Ior, 0x72, i_ii)                    \
+  V(I32Xor, 0x73, i_ii)                    \
+  V(I32Shl, 0x74, i_ii)                    \
+  V(I32ShrS, 0x75, i_ii)                   \
+  V(I32ShrU, 0x76, i_ii)                   \
+  V(I32Rol, 0x77, i_ii)                    \
+  V(I32Ror, 0x78, i_ii)                    \
+  V(I64Clz, 0x79, l_l)                     \
+  V(I64Ctz, 0x7a, l_l)                     \
+  V(I64Popcnt, 0x7b, l_l)                  \
+  V(I64DivS, 0x7f, l_ll)                   \
+  V(I64DivU, 0x80, l_ll)                   \
+  V(I64RemS, 0x81, l_ll)                   \
+  V(I64RemU, 0x82, l_ll)                   \
+  V(I64And, 0x83, l_ll)                    \
+  V(I64Ior, 0x84, l_ll)                    \
+  V(I64Xor, 0x85, l_ll)                    \
+  V(I64Shl, 0x86, l_ll)                    \
+  V(I64ShrS, 0x87, l_ll)                   \
+  V(I64ShrU, 0x88, l_ll)                   \
+  V(I64Rol, 0x89, l_ll)                    \
+  V(I64Ror, 0x8a, l_ll)                    \
+  V(F32Abs, 0x8b, f_f)                     \
+  V(F32Neg, 0x8c, f_f)                     \
+  V(F32Ceil, 0x8d, f_f)                    \
+  V(F32Floor, 0x8e, f_f)                   \
+  V(F32Trunc, 0x8f, f_f)                   \
+  V(F32NearestInt, 0x90, f_f)              \
+  V(F32Sqrt, 0x91, f_f)                    \
+  V(F32Add, 0x92, f_ff)                    \
+  V(F32Sub, 0x93, f_ff)                    \
+  V(F32Mul, 0x94, f_ff)                    \
+  V(F32Div, 0x95, f_ff)                    \
+  V(F32Min, 0x96, f_ff)                    \
+  V(F32Max, 0x97, f_ff)                    \
+  V(F32CopySign, 0x98, f_ff)               \
+  V(F64Abs, 0x99, d_d)                     \
+  V(F64Neg, 0x9a, d_d)                     \
+  V(F64Ceil, 0x9b, d_d)                    \
+  V(F64Floor, 0x9c, d_d)                   \
+  V(F64Trunc, 0x9d, d_d)                   \
+  V(F64NearestInt, 0x9e, d_d)              \
+  V(F64Sqrt, 0x9f, d_d)                    \
+  V(F64Add, 0xa0, d_dd)                    \
+  V(F64Sub, 0xa1, d_dd)                    \
+  V(F64Mul, 0xa2, d_dd)                    \
+  V(F64Div, 0xa3, d_dd)                    \
+  V(F64Min, 0xa4, d_dd)                    \
+  V(F64Max, 0xa5, d_dd)                    \
+  V(F64CopySign, 0xa6, d_dd)               \
+  V(I32ConvertI64, 0xa7, i_l)              \
+  V(I32SConvertF32, 0xa8, i_f)             \
+  V(I32UConvertF32, 0xa9, i_f)             \
+  V(I32SConvertF64, 0xaa, i_d)             \
+  V(I32UConvertF64, 0xab, i_d)             \
+  V(I64SConvertI32, 0xac, l_i)             \
+  V(I64UConvertI32, 0xad, l_i)             \
+  V(I64SConvertF32, 0xae, l_f)             \
+  V(I64UConvertF32, 0xaf, l_f)             \
+  V(I64SConvertF64, 0xb0, l_d)             \
+  V(I64UConvertF64, 0xb1, l_d)             \
+  V(F32SConvertI32, 0xb2, f_i)             \
+  V(F32UConvertI32, 0xb3, f_i)             \
+  V(F32SConvertI64, 0xb4, f_l)             \
+  V(F32UConvertI64, 0xb5, f_l)             \
+  V(F32ConvertF64, 0xb6, f_d)              \
+  V(F64SConvertI32, 0xb7, d_i)             \
+  V(F64UConvertI32, 0xb8, d_i)             \
+  V(F64SConvertI64, 0xb9, d_l)             \
+  V(F64UConvertI64, 0xba, d_l)             \
+  V(F64ConvertF32, 0xbb, d_f)              \
+  V(I32ReinterpretF32, 0xbc, i_f)          \
+  V(I64ReinterpretF64, 0xbd, l_d)          \
+  V(F32ReinterpretI32, 0xbe, f_i)          \
+  V(F64ReinterpretI64, 0xbf, d_l)          \
+  V(I32SExtendI8, 0xc0, i_i)               \
+  V(I32SExtendI16, 0xc1, i_i)              \
+  V(I64SExtendI8, 0xc2, l_l)               \
+  V(I64SExtendI16, 0xc3, l_l)              \
   V(I64SExtendI32, 0xc4, l_l)
+
+#define FOREACH_SIMPLE_OPCODE(V)          \
+  FOREACH_SIMPLE_EXTENDED_CONST_OPCODE(V) \
+  FOREACH_SIMPLE_NON_CONST_OPCODE(V)
 
 #define FOREACH_SIMPLE_PROTOTYPE_OPCODE(V) V(RefEq, 0xd5, i_qq)
 
@@ -569,29 +578,29 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   FOREACH_SIMD_MEM_1_OPERAND_OPCODE(V) \
   FOREACH_SIMD_CONST_OPCODE(V)
 
-#define FOREACH_NUMERIC_OPCODE(V)                         \
-  V(I32SConvertSatF32, 0xfc00, i_f)                       \
-  V(I32UConvertSatF32, 0xfc01, i_f)                       \
-  V(I32SConvertSatF64, 0xfc02, i_d)                       \
-  V(I32UConvertSatF64, 0xfc03, i_d)                       \
-  V(I64SConvertSatF32, 0xfc04, l_f)                       \
-  V(I64UConvertSatF32, 0xfc05, l_f)                       \
-  V(I64SConvertSatF64, 0xfc06, l_d)                       \
-  V(I64UConvertSatF64, 0xfc07, l_d)                       \
-  V(MemoryInit, 0xfc08, v_iii)                            \
-  V(DataDrop, 0xfc09, v_v)                                \
-  V(MemoryCopy, 0xfc0a, v_iii)                            \
-  V(MemoryFill, 0xfc0b, v_iii)                            \
-  V(TableInit, 0xfc0c, v_iii)                             \
-  V(ElemDrop, 0xfc0d, v_v)                                \
-  V(TableCopy, 0xfc0e, v_iii)                             \
+#define FOREACH_NUMERIC_OPCODE(V_SIG, V_VARIADIC)         \
+  V_SIG(I32SConvertSatF32, 0xfc00, i_f)                   \
+  V_SIG(I32UConvertSatF32, 0xfc01, i_f)                   \
+  V_SIG(I32SConvertSatF64, 0xfc02, i_d)                   \
+  V_SIG(I32UConvertSatF64, 0xfc03, i_d)                   \
+  V_SIG(I64SConvertSatF32, 0xfc04, l_f)                   \
+  V_SIG(I64UConvertSatF32, 0xfc05, l_f)                   \
+  V_SIG(I64SConvertSatF64, 0xfc06, l_d)                   \
+  V_SIG(I64UConvertSatF64, 0xfc07, l_d)                   \
+  V_VARIADIC(MemoryInit, 0xfc08)                          \
+  V_SIG(DataDrop, 0xfc09, v_v)                            \
+  V_VARIADIC(MemoryCopy, 0xfc0a)                          \
+  V_VARIADIC(MemoryFill, 0xfc0b)                          \
+  V_SIG(TableInit, 0xfc0c, v_iii)                         \
+  V_SIG(ElemDrop, 0xfc0d, v_v)                            \
+  V_SIG(TableCopy, 0xfc0e, v_iii)                         \
   /* TableGrow is polymorphic in the first parameter. */  \
   /* It's whatever the table type is. */                  \
-  V(TableGrow, 0xfc0f, i_ci)                              \
-  V(TableSize, 0xfc10, i_v)                               \
+  V_VARIADIC(TableGrow, 0xfc0f)                           \
+  V_SIG(TableSize, 0xfc10, i_v)                           \
   /* TableFill is polymorphic in the second parameter. */ \
   /* It's whatever the table type is. */                  \
-  V(TableFill, 0xfc11, v_iii)
+  V_VARIADIC(TableFill, 0xfc11)
 
 #define FOREACH_ATOMIC_OPCODE(V)                \
   V(AtomicNotify, 0xfe00, i_ii)                 \
@@ -661,57 +670,61 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I64AtomicCompareExchange16U, 0xfe4d, l_ill) \
   V(I64AtomicCompareExchange32U, 0xfe4e, l_ill)
 
-#define FOREACH_GC_OPCODE(V)                                         \
-  V(StructNewWithRtt, 0xfb01, _)                                     \
-  V(StructNewDefaultWithRtt, 0xfb02, _)                              \
-  V(StructGet, 0xfb03, _)                                            \
-  V(StructGetS, 0xfb04, _)                                           \
-  V(StructGetU, 0xfb05, _)                                           \
-  V(StructSet, 0xfb06, _)                                            \
-  V(StructNew, 0xfb07, _)                                            \
-  V(StructNewDefault, 0xfb08, _)                                     \
-  V(ArrayNewWithRtt, 0xfb11, _)                                      \
-  V(ArrayNewDefaultWithRtt, 0xfb12, _)                               \
-  V(ArrayGet, 0xfb13, _)                                             \
-  V(ArrayGetS, 0xfb14, _)                                            \
-  V(ArrayGetU, 0xfb15, _)                                            \
-  V(ArraySet, 0xfb16, _)                                             \
-  V(ArrayLen, 0xfb17, _)                                             \
-  V(ArrayCopy, 0xfb18, _) /* not standardized - V8 experimental */   \
-  V(ArrayInit, 0xfb19, _) /* not standardized - V8 experimental */   \
-  V(ArrayInitStatic, 0xfb1a, _)                                      \
-  V(ArrayNew, 0xfb1b, _)                                             \
-  V(ArrayNewDefault, 0xfb1c, _)                                      \
-  V(I31New, 0xfb20, _)                                               \
-  V(I31GetS, 0xfb21, _)                                              \
-  V(I31GetU, 0xfb22, _)                                              \
-  V(RttCanon, 0xfb30, _)                                             \
-  V(RttSub, 0xfb31, _)                                               \
-  V(RttFreshSub, 0xfb32, _) /* not standardized - V8 experimental */ \
-  V(RefTest, 0xfb40, _)                                              \
-  V(RefCast, 0xfb41, _)                                              \
-  V(BrOnCast, 0xfb42, _)                                             \
-  V(BrOnCastFail, 0xfb43, _)                                         \
-  V(RefTestStatic, 0xfb44, _)                                        \
-  V(RefCastStatic, 0xfb45, _)                                        \
-  V(BrOnCastStatic, 0xfb46, _)                                       \
-  V(BrOnCastStaticFail, 0xfb47, _)                                   \
-  V(RefIsFunc, 0xfb50, _)                                            \
-  V(RefIsData, 0xfb51, _)                                            \
-  V(RefIsI31, 0xfb52, _)                                             \
-  V(RefAsFunc, 0xfb58, _)                                            \
-  V(RefAsData, 0xfb59, _)                                            \
-  V(RefAsI31, 0xfb5a, _)                                             \
-  V(BrOnFunc, 0xfb60, _)                                             \
-  V(BrOnData, 0xfb61, _)                                             \
-  V(BrOnI31, 0xfb62, _)                                              \
-  V(BrOnNonFunc, 0xfb63, _)                                          \
-  V(BrOnNonData, 0xfb64, _)                                          \
-  V(BrOnNonI31, 0xfb65, _)
-
 #define FOREACH_ATOMIC_0_OPERAND_OPCODE(V)                      \
   /* AtomicFence does not target a particular linear memory. */ \
   V(AtomicFence, 0xfe03, v_v)
+
+#define FOREACH_GC_OPCODE(V) /*              Force 80 columns               */ \
+  V(StructNewWithRtt, 0xfb01, _)                                               \
+  V(StructNewDefaultWithRtt, 0xfb02, _)                                        \
+  V(StructGet, 0xfb03, _)                                                      \
+  V(StructGetS, 0xfb04, _)                                                     \
+  V(StructGetU, 0xfb05, _)                                                     \
+  V(StructSet, 0xfb06, _)                                                      \
+  V(StructNew, 0xfb07, _)                                                      \
+  V(StructNewDefault, 0xfb08, _)                                               \
+  V(ArrayNewWithRtt, 0xfb11, _)                                                \
+  V(ArrayNewDefaultWithRtt, 0xfb12, _)                                         \
+  V(ArrayGet, 0xfb13, _)                                                       \
+  V(ArrayGetS, 0xfb14, _)                                                      \
+  V(ArrayGetU, 0xfb15, _)                                                      \
+  V(ArraySet, 0xfb16, _)                                                       \
+  V(ArrayLen, 0xfb17, _)                                                       \
+  V(ArrayCopy, 0xfb18, _)       /* not standardized - V8 experimental */       \
+  V(ArrayInit, 0xfb19, _)       /* not standardized - V8 experimental */       \
+  V(ArrayInitStatic, 0xfb1a, _) /* not standardized - V8 experimental */       \
+  V(ArrayNew, 0xfb1b, _)                                                       \
+  V(ArrayNewDefault, 0xfb1c, _)                                                \
+  V(ArrayInitFromData, 0xfb1e, _)       /* not stand. - V8 experimental */     \
+  V(ArrayInitFromDataStatic, 0xfb1d, _) /* not stand. - V8 experimental */     \
+  V(I31New, 0xfb20, _)                                                         \
+  V(I31GetS, 0xfb21, _)                                                        \
+  V(I31GetU, 0xfb22, _)                                                        \
+  V(RttCanon, 0xfb30, _)                                                       \
+  V(RefTest, 0xfb40, _)                                                        \
+  V(RefCast, 0xfb41, _)                                                        \
+  V(BrOnCast, 0xfb42, _)                                                       \
+  V(BrOnCastFail, 0xfb43, _)                                                   \
+  V(RefTestStatic, 0xfb44, _)                                                  \
+  V(RefCastStatic, 0xfb45, _)                                                  \
+  V(BrOnCastStatic, 0xfb46, _)                                                 \
+  V(BrOnCastStaticFail, 0xfb47, _)                                             \
+  V(RefIsFunc, 0xfb50, _)                                                      \
+  V(RefIsData, 0xfb51, _)                                                      \
+  V(RefIsI31, 0xfb52, _)                                                       \
+  V(RefIsArray, 0xfb53, _)                                                     \
+  V(RefAsFunc, 0xfb58, _)                                                      \
+  V(RefAsData, 0xfb59, _)                                                      \
+  V(RefAsI31, 0xfb5a, _)                                                       \
+  V(RefAsArray, 0xfb5b, _)                                                     \
+  V(BrOnFunc, 0xfb60, _)                                                       \
+  V(BrOnData, 0xfb61, _)                                                       \
+  V(BrOnI31, 0xfb62, _)                                                        \
+  V(BrOnArray, 0xfb66, _)                                                      \
+  V(BrOnNonFunc, 0xfb63, _)                                                    \
+  V(BrOnNonData, 0xfb64, _)                                                    \
+  V(BrOnNonI31, 0xfb65, _)                                                     \
+  V(BrOnNonArray, 0xfb67, _)
 
 // All opcodes.
 #define FOREACH_OPCODE(V)            \
@@ -726,7 +739,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   FOREACH_SIMD_OPCODE(V)             \
   FOREACH_ATOMIC_OPCODE(V)           \
   FOREACH_ATOMIC_0_OPERAND_OPCODE(V) \
-  FOREACH_NUMERIC_OPCODE(V)          \
+  FOREACH_NUMERIC_OPCODE(V, V)       \
   FOREACH_GC_OPCODE(V)
 
 // All signatures.
@@ -770,7 +783,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(l_ill, kWasmI64, kWasmI32, kWasmI64, kWasmI64)  \
   V(i_iil, kWasmI32, kWasmI32, kWasmI32, kWasmI64)  \
   V(i_ill, kWasmI32, kWasmI32, kWasmI64, kWasmI64)  \
-  V(i_e, kWasmI32, kWasmExternRef)                  \
+  V(i_a, kWasmI32, kWasmAnyRef)                     \
   V(i_ci, kWasmI32, kWasmFuncRef, kWasmI32)         \
   V(i_qq, kWasmI32, kWasmEqRef, kWasmEqRef)
 
@@ -795,7 +808,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
 
 enum WasmOpcode {
 // Declare expression opcodes.
-#define DECLARE_NAMED_ENUM(name, opcode, sig) kExpr##name = opcode,
+#define DECLARE_NAMED_ENUM(name, opcode, ...) kExpr##name = opcode,
   FOREACH_OPCODE(DECLARE_NAMED_ENUM)
 #undef DECLARE_NAMED_ENUM
 #define DECLARE_PREFIX(name, opcode) k##name##Prefix = opcode,

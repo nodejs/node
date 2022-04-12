@@ -19,16 +19,16 @@ void CallInterfaceDescriptorData::InitializeRegisters(
 #ifdef DEBUG
   {
     // Make sure that the registers are all valid, and don't alias each other.
-    RegList reglist = 0;
+    RegList reglist;
     for (int i = 0; i < register_parameter_count; ++i) {
       Register reg = registers[i];
       DCHECK(reg.is_valid());
-      DCHECK_EQ(reglist & reg.bit(), 0);
+      DCHECK(!reglist.has(reg));
       DCHECK_NE(reg, kRootRegister);
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
       DCHECK_NE(reg, kPtrComprCageBaseRegister);
 #endif
-      reglist = CombineRegLists(reglist, reg.bit());
+      reglist.set(reg);
     }
   }
 #endif
@@ -145,8 +145,8 @@ void WriteBarrierDescriptor::Verify(CallInterfaceDescriptorData* data) {
   DCHECK_EQ(ObjectRegister(), kJSFunctionRegister);
   // We need a certain set of registers by default:
   RegList allocatable_regs = data->allocatable_registers();
-  DCHECK(allocatable_regs | kContextRegister.bit());
-  DCHECK(allocatable_regs | kReturnRegister0.bit());
+  DCHECK(allocatable_regs.has(kContextRegister));
+  DCHECK(allocatable_regs.has(kReturnRegister0));
   VerifyArgumentRegisterCount(data, 4);
 }
 #endif  // DEBUG

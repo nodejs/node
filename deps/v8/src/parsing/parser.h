@@ -12,6 +12,7 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/pointer-with-payload.h"
 #include "src/base/small-vector.h"
 #include "src/base/threaded-list.h"
 #include "src/common/globals.h"
@@ -20,7 +21,6 @@
 #include "src/parsing/parser-base.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/preparser.h"
-#include "src/utils/pointer-with-payload.h"
 #include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
@@ -51,7 +51,7 @@ struct ParserFormalParameters : FormalParametersBase {
           position(position),
           initializer_end_position(initializer_end_position) {}
 
-    PointerWithPayload<Expression, bool, 1> initializer_and_is_rest;
+    base::PointerWithPayload<Expression, bool, 1> initializer_and_is_rest;
 
     Expression* pattern;
     Expression* initializer() const {
@@ -238,13 +238,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                    const AstRawString* raw_name);
 
   FunctionLiteral* DoParseDeserializedFunction(
-      Isolate* isolate, Handle<SharedFunctionInfo> shared_info, ParseInfo* info,
-      int start_position, int end_position, int function_literal_id,
-      const AstRawString* raw_name);
+      Isolate* isolate, MaybeHandle<ScopeInfo> maybe_outer_scope_info,
+      ParseInfo* info, int start_position, int end_position,
+      int function_literal_id, const AstRawString* raw_name);
 
   FunctionLiteral* ParseClassForInstanceMemberInitialization(
-      Isolate* isolate, ClassScope* scope, int initializer_pos,
-      int initializer_id);
+      Isolate* isolate, MaybeHandle<ScopeInfo> maybe_class_scope_info,
+      int initializer_pos, int initializer_id, int initializer_end_pos);
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(Isolate* isolate, ParseInfo* info);
@@ -800,7 +800,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return factory()->NewThisExpression(pos);
   }
 
-  Expression* NewSuperPropertyReference(int pos);
+  Expression* NewSuperPropertyReference(Scope* home_object_scope, int pos);
   Expression* NewSuperCallReference(int pos);
   Expression* NewTargetExpression(int pos);
   Expression* ImportMetaExpression(int pos);

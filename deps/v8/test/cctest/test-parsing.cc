@@ -3657,7 +3657,6 @@ TEST(MaybeAssignedParameters) {
       base::ScopedVector<char> program(Utf8LengthHelper(source) +
                                        Utf8LengthHelper(suffix) + 1);
       base::SNPrintF(program, "%s%s", source, suffix);
-      std::unique_ptr<i::ParseInfo> info;
       printf("%s\n", program.begin());
       v8::Local<v8::Value> v = CompileRun(program.begin());
       i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
@@ -3668,16 +3667,15 @@ TEST(MaybeAssignedParameters) {
       i::UnoptimizedCompileFlags flags =
           i::UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared);
       flags.set_allow_lazy_parsing(allow_lazy);
-      info = std::make_unique<i::ParseInfo>(isolate, flags, &state,
-                                            &reusable_state);
-      CHECK_PARSE_FUNCTION(info.get(), shared, isolate);
+      i::ParseInfo info(isolate, flags, &state, &reusable_state);
+      CHECK_PARSE_FUNCTION(&info, shared, isolate);
 
-      i::Scope* scope = info->literal()->scope();
+      i::Scope* scope = info.literal()->scope();
       CHECK(!scope->AsDeclarationScope()->was_lazily_parsed());
       CHECK_NULL(scope->sibling());
       CHECK(scope->is_function_scope());
       const i::AstRawString* var_name =
-          info->ast_value_factory()->GetOneByteString("arg");
+          info.ast_value_factory()->GetOneByteString("arg");
       i::Variable* var = scope->LookupForTesting(var_name);
       CHECK(var->is_used() || !assigned);
       bool is_maybe_assigned = var->maybe_assigned() == i::kMaybeAssigned;
@@ -3708,12 +3706,11 @@ static void TestMaybeAssigned(Input input, const char* variable, bool module,
       i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
   flags.set_is_module(module);
   flags.set_allow_lazy_parsing(allow_lazy_parsing);
-  std::unique_ptr<i::ParseInfo> info =
-      std::make_unique<i::ParseInfo>(isolate, flags, &state, &reusable_state);
+  i::ParseInfo info(isolate, flags, &state, &reusable_state);
 
-  CHECK_PARSE_PROGRAM(info.get(), script, isolate);
+  CHECK_PARSE_PROGRAM(&info, script, isolate);
 
-  i::Scope* scope = info->literal()->scope();
+  i::Scope* scope = info.literal()->scope();
   CHECK(!scope->AsDeclarationScope()->was_lazily_parsed());
   CHECK_NULL(scope->sibling());
   CHECK(module ? scope->is_module_scope() : scope->is_script_scope());
@@ -3723,7 +3720,7 @@ static void TestMaybeAssigned(Input input, const char* variable, bool module,
     // Find the variable.
     scope = i::ScopeTestHelper::FindScope(scope, input.location);
     const i::AstRawString* var_name =
-        info->ast_value_factory()->GetOneByteString(variable);
+        info.ast_value_factory()->GetOneByteString(variable);
     var = scope->LookupForTesting(var_name);
   }
 

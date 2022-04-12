@@ -24,7 +24,7 @@ constexpr uint32_t kWasmVersion = 0x01;
 
 // Binary encoding of value and heap types.
 enum ValueTypeCode : uint8_t {
-  // Current wasm types
+  // Current value types
   kVoidCode = 0x40,
   kI32Code = 0x7f,
   kI64Code = 0x7e,
@@ -32,27 +32,35 @@ enum ValueTypeCode : uint8_t {
   kF64Code = 0x7c,
   // Simd proposal
   kS128Code = 0x7b,
-  // reftypes, typed-funcref, and GC proposals
+  // GC proposal packed types
   kI8Code = 0x7a,
   kI16Code = 0x79,
+  // Current reference types
   kFuncRefCode = 0x70,
-  kExternRefCode = 0x6f,
-  kAnyRefCode = 0x6e,
+  kAnyRefCode = 0x6f,  // aka externref
+  // typed-funcref and GC proposal types
+  // TODO(7748): For backwards compatibility only, remove when able.
+  kAnyRefCodeAlias = 0x6e,
   kEqRefCode = 0x6d,
   kOptRefCode = 0x6c,
   kRefCode = 0x6b,
   kI31RefCode = 0x6a,
+  // TODO(7748): Only here for backwards compatibility, remove when able.
   kRttWithDepthCode = 0x69,
   kRttCode = 0x68,
   kDataRefCode = 0x67,
+  kArrayRefCode = 0x66
 };
-// Binary encoding of other types.
+
+// Binary encoding of type definitions.
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
 constexpr uint8_t kWasmStructTypeCode = 0x5f;
 constexpr uint8_t kWasmArrayTypeCode = 0x5e;
-constexpr uint8_t kWasmFunctionSubtypeCode = 0x5d;
-constexpr uint8_t kWasmStructSubtypeCode = 0x5c;
-constexpr uint8_t kWasmArraySubtypeCode = 0x5b;
+constexpr uint8_t kWasmFunctionNominalCode = 0x5d;
+constexpr uint8_t kWasmStructNominalCode = 0x5c;
+constexpr uint8_t kWasmArrayNominalCode = 0x5b;
+constexpr uint8_t kWasmSubtypeCode = 0x50;
+constexpr uint8_t kWasmRecursiveTypeGroupCode = 0x4f;
 
 // Binary encoding of import/export kinds.
 enum ImportExportKindCode : uint8_t {
@@ -167,6 +175,9 @@ constexpr uint32_t kMinimumSupertypeArraySize = 3;
 #if V8_TARGET_ARCH_X64
 constexpr int32_t kOSRTargetOffset = 5 * kSystemPointerSize;
 #endif
+
+constexpr Tagged_t kArrayInitFromDataArrayTooLargeErrorCode = 0;
+constexpr Tagged_t kArrayInitFromDataSegmentOutOfBoundsErrorCode = 1;
 
 }  // namespace wasm
 }  // namespace internal

@@ -5,7 +5,6 @@
 #ifndef V8_HEAP_SWEEPER_H_
 #define V8_HEAP_SWEEPER_H_
 
-#include <deque>
 #include <map>
 #include <vector>
 
@@ -32,11 +31,11 @@ class Sweeper {
   using SweptList = std::vector<Page*>;
   using FreeRangesMap = std::map<uint32_t, uint32_t>;
 
-  // Pauses the sweeper tasks or completes sweeping.
-  class V8_NODISCARD PauseOrCompleteScope final {
+  // Pauses the sweeper tasks.
+  class V8_NODISCARD PauseScope final {
    public:
-    explicit PauseOrCompleteScope(Sweeper* sweeper);
-    ~PauseOrCompleteScope();
+    explicit PauseScope(Sweeper* sweeper);
+    ~PauseScope();
 
    private:
     Sweeper* const sweeper_;
@@ -48,8 +47,7 @@ class Sweeper {
   // after exiting this scope.
   class V8_NODISCARD FilterSweepingPagesScope final {
    public:
-    FilterSweepingPagesScope(
-        Sweeper* sweeper, const PauseOrCompleteScope& pause_or_complete_scope);
+    FilterSweepingPagesScope(Sweeper* sweeper, const PauseScope& pause_scope);
     ~FilterSweepingPagesScope();
 
     template <typename Callback>
@@ -70,7 +68,6 @@ class Sweeper {
    private:
     Sweeper* const sweeper_;
     SweepingList old_space_sweeping_list_;
-    const PauseOrCompleteScope& pause_or_complete_scope_;
     bool sweeping_in_progress_;
   };
 

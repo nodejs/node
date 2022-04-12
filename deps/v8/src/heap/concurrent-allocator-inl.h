@@ -24,7 +24,7 @@ AllocationResult ConcurrentAllocator::AllocateRaw(int object_size,
   DCHECK(!FLAG_enable_third_party_heap);
   // TODO(dinfuehr): Add support for allocation observers
 #ifdef DEBUG
-  local_heap_->VerifyCurrent();
+  if (local_heap_) local_heap_->VerifyCurrent();
 #endif
 
   if (object_size > kMaxLabObjectSize) {
@@ -37,11 +37,9 @@ AllocationResult ConcurrentAllocator::AllocateRaw(int object_size,
 AllocationResult ConcurrentAllocator::AllocateInLab(
     int object_size, AllocationAlignment alignment, AllocationOrigin origin) {
   AllocationResult allocation = lab_.AllocateRawAligned(object_size, alignment);
-  if (allocation.IsRetry()) {
-    return AllocateInLabSlow(object_size, alignment, origin);
-  } else {
-    return allocation;
-  }
+  return allocation.IsFailure()
+             ? AllocateInLabSlow(object_size, alignment, origin)
+             : allocation;
 }
 
 }  // namespace internal

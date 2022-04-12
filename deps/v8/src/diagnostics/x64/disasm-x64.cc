@@ -2001,6 +2001,10 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       current += 2;
     } else if (opcode == 0xE6) {
       current += PrintOperands("cvtdq2pd", XMMREG_XMMOPER_OP_ORDER, current);
+    } else if (opcode == 0xAE) {
+      // incssp[d|q]
+      AppendToBuffer("incssp%c ", operand_size_code());
+      current += PrintRightOperand(current);
     } else {
       UnimplementedInstruction();
     }

@@ -26,6 +26,7 @@ namespace U_ICU_NAMESPACE {
 class PluralRules;
 namespace number {
 class LocalizedNumberFormatter;
+class LocalizedNumberRangeFormatter;
 }  // namespace number
 }  // namespace U_ICU_NAMESPACE
 
@@ -46,6 +47,9 @@ class JSPluralRules
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ResolvePlural(
       Isolate* isolate, Handle<JSPluralRules> plural_rules, double number);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ResolvePluralRange(
+      Isolate* isolate, Handle<JSPluralRules> plural_rules, double x, double y);
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
@@ -68,6 +72,8 @@ class JSPluralRules
   DECL_ACCESSORS(icu_plural_rules, Managed<icu::PluralRules>)
   DECL_ACCESSORS(icu_number_formatter,
                  Managed<icu::number::LocalizedNumberFormatter>)
+  DECL_ACCESSORS(icu_number_range_formatter,
+                 Managed<icu::number::LocalizedNumberRangeFormatter>)
 
   TQ_OBJECT_CONSTRUCTORS(JSPluralRules)
 };

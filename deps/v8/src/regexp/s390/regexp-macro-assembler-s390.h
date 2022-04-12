@@ -215,8 +215,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerS390
 };
 
 // Set of non-volatile registers saved/restored by generated regexp code.
-const RegList kRegExpCalleeSaved =
-    1 << 6 | 1 << 7 | 1 << 8 | 1 << 9 | 1 << 10 | 1 << 11 | 1 << 13;
+const RegList kRegExpCalleeSaved = {r6, r7, r8, r9, r10, fp, r13};
 
 }  // namespace internal
 }  // namespace v8

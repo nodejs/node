@@ -65,6 +65,77 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOption(
   return Just(default_value);
 }
 
+// A helper template to get string from option into a enum.
+// The enum in the enum_values is the corresponding value to the strings
+// in the str_values. If the option does not contains name,
+// default_value will be return.
+template <typename T>
+V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOrBooleanOption(
+    Isolate* isolate, Handle<JSReceiver> options, const char* property,
+    const char* method, const std::vector<const char*>& str_values,
+    const std::vector<T>& enum_values, T true_value, T false_value,
+    T fallback_value) {
+  DCHECK_EQ(str_values.size(), enum_values.size());
+  Handle<String> property_str =
+      isolate->factory()->NewStringFromAsciiChecked(property);
+
+  // 1. Let value be ? Get(options, property).
+  Handle<Object> value;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value,
+      Object::GetPropertyOrElement(isolate, options, property_str),
+      Nothing<T>());
+  // 2. If value is undefined, then return fallback.
+  if (value->IsUndefined(isolate)) {
+    return Just(fallback_value);
+  }
+  // 3. If value is true, then return trueValue.
+  if (value->IsTrue(isolate)) {
+    return Just(true_value);
+  }
+  // 4. Let valueBoolean be ToBoolean(value).
+  bool valueBoolean = value->BooleanValue(isolate);
+  // 5. If valueBoolean is false, then return valueBoolean.
+  if (!valueBoolean) {
+    return Just(false_value);
+  }
+
+  Handle<String> value_str;
+  // 6. Let value be ? ToString(value).
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value_str, Object::ToString(isolate, value), Nothing<T>());
+  // 7. If values does not contain an element equal to value, throw a
+  // RangeError exception.
+  // 8. Return value.
+  value_str = String::Flatten(isolate, value_str);
+  {
+    DisallowGarbageCollection no_gc;
+    const String::FlatContent& flat = value_str->GetFlatContent(no_gc);
+    int32_t length = value_str->length();
+    for (size_t i = 0; i < str_values.size(); i++) {
+      if (static_cast<int32_t>(strlen(str_values.at(i))) == length) {
+        if (flat.IsOneByte()) {
+          if (CompareCharsEqual(str_values.at(i),
+                                flat.ToOneByteVector().begin(), length)) {
+            return Just(enum_values[i]);
+          }
+        } else {
+          if (CompareCharsEqual(str_values.at(i), flat.ToUC16Vector().begin(),
+                                length)) {
+            return Just(enum_values[i]);
+          }
+        }
+      }
+    }
+  }  // end of no_gc
+  THROW_NEW_ERROR_RETURN_VALUE(
+      isolate,
+      NewRangeError(MessageTemplate::kValueOutOfRange, value,
+                    isolate->factory()->NewStringFromAsciiChecked(method),
+                    property_str),
+      Nothing<T>());
+}
+
 // ECMA402 9.2.10. GetOption( options, property, type, values, fallback)
 // ecma402/#sec-getoption
 //

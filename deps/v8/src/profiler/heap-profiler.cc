@@ -264,9 +264,12 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
   heap()->CollectAllAvailableGarbage(GarbageCollectionReason::kHeapProfiler);
   CombinedHeapObjectIterator heap_iterator(
       heap(), HeapObjectIterator::kFilterUnreachable);
+  PtrComprCageBase cage_base(isolate());
   for (HeapObject heap_obj = heap_iterator.Next(); !heap_obj.is_null();
        heap_obj = heap_iterator.Next()) {
-    if (!heap_obj.IsJSObject() || heap_obj.IsExternal(isolate())) continue;
+    if (!heap_obj.IsJSObject(cage_base) ||
+        heap_obj.IsJSExternalObject(cage_base))
+      continue;
     v8::Local<v8::Object> v8_obj(
         Utils::ToLocal(handle(JSObject::cast(heap_obj), isolate())));
     if (!predicate->Filter(v8_obj)) continue;

@@ -708,13 +708,13 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
   FrameScope scope(masm_.get(), StackFrame::MANUAL);
 
   // Ensure register assigments are consistent with callee save mask
-  DCHECK(r6.bit() & kRegExpCalleeSaved);
-  DCHECK(code_pointer().bit() & kRegExpCalleeSaved);
-  DCHECK(current_input_offset().bit() & kRegExpCalleeSaved);
-  DCHECK(current_character().bit() & kRegExpCalleeSaved);
-  DCHECK(backtrack_stackpointer().bit() & kRegExpCalleeSaved);
-  DCHECK(end_of_input_address().bit() & kRegExpCalleeSaved);
-  DCHECK(frame_pointer().bit() & kRegExpCalleeSaved);
+  DCHECK(kRegExpCalleeSaved.has(r6));
+  DCHECK(kRegExpCalleeSaved.has(code_pointer()));
+  DCHECK(kRegExpCalleeSaved.has(current_input_offset()));
+  DCHECK(kRegExpCalleeSaved.has(current_character()));
+  DCHECK(kRegExpCalleeSaved.has(backtrack_stackpointer()));
+  DCHECK(kRegExpCalleeSaved.has(end_of_input_address()));
+  DCHECK(kRegExpCalleeSaved.has(frame_pointer()));
 
   // zLinux ABI
   //    Incoming parameters:

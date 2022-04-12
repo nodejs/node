@@ -1034,7 +1034,7 @@ MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
   if (obj->IsJSReceiver()) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, obj,
-        JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(obj),
+        JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(obj),
                                 ToPrimitiveHint::kNumber),
         BigInt);
   }

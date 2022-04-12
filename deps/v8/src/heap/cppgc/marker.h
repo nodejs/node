@@ -24,12 +24,10 @@ namespace cppgc {
 namespace internal {
 
 class HeapBase;
-class MarkerFactory;
 
 // Marking algorithm. Example for a valid call sequence creating the marking
 // phase:
-// 1. StartMarking() [Called implicitly when creating a Marker using
-//                    MarkerFactory]
+// 1. StartMarking()
 // 2. AdvanceMarkingWithLimits() [Optional, depending on environment.]
 // 3. EnterAtomicPause()
 // 4. AdvanceMarkingWithLimits()
@@ -87,6 +85,10 @@ class V8_EXPORT_PRIVATE MarkerBase {
   // objects to be marked and merely updates marking states if needed.
   void LeaveAtomicPause();
 
+  // Initialize marking according to the given config. This method will
+  // trigger incremental/concurrent marking if needed.
+  void StartMarking();
+
   // Combines:
   // - EnterAtomicPause()
   // - AdvanceMarkingWithLimits()
@@ -141,17 +143,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   static constexpr v8::base::TimeDelta kMaximumIncrementalStepDuration =
       v8::base::TimeDelta::FromMilliseconds(2);
 
-  class Key {
-   private:
-    Key() = default;
-    friend class MarkerFactory;
-  };
-
-  MarkerBase(Key, HeapBase&, cppgc::Platform*, MarkingConfig);
-
-  // Initialize marking according to the given config. This method will
-  // trigger incremental/concurrent marking if needed.
-  void StartMarking();
+  MarkerBase(HeapBase&, cppgc::Platform*, MarkingConfig);
 
   virtual cppgc::Visitor& visitor() = 0;
   virtual ConservativeTracingVisitor& conservative_visitor() = 0;
@@ -173,6 +165,8 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   bool CancelConcurrentMarkingIfNeeded();
 
+  void HandleNotFullyConstructedObjects();
+
   HeapBase& heap_;
   MarkingConfig config_ = MarkingConfig::Default();
 
@@ -193,27 +187,11 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   bool main_marking_disabled_for_testing_{false};
   bool visited_cross_thread_persistents_in_atomic_pause_{false};
-
-  friend class MarkerFactory;
-};
-
-class V8_EXPORT_PRIVATE MarkerFactory {
- public:
-  template <typename T, typename... Args>
-  static std::unique_ptr<T> CreateAndStartMarking(Args&&... args) {
-    static_assert(std::is_base_of<MarkerBase, T>::value,
-                  "MarkerFactory can only create subclasses of MarkerBase");
-    std::unique_ptr<T> marker =
-        std::make_unique<T>(MarkerBase::Key(), std::forward<Args>(args)...);
-    marker->StartMarking();
-    return marker;
-  }
 };
 
 class V8_EXPORT_PRIVATE Marker final : public MarkerBase {
  public:
-  Marker(Key, HeapBase&, cppgc::Platform*,
-         MarkingConfig = MarkingConfig::Default());
+  Marker(HeapBase&, cppgc::Platform*, MarkingConfig = MarkingConfig::Default());
 
  protected:
   cppgc::Visitor& visitor() final { return marking_visitor_; }

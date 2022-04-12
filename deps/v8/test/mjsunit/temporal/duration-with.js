@@ -32,26 +32,16 @@ assertDuration(d2.with(like1), 9, 8, 7, 6, 5, 4, 3, 2, 1, 10, 1, false);
 assertDuration(d2.with(like7), -9, -8, -7, -6, -5, -4, -3, -2, -1, -10, -1,
     false);
 // Different sign
-assertThrows(() => d2.with({years: -1}), RangeError,
-    "Invalid time value");
-assertThrows(() => d2.with({months: -2}), RangeError,
-    "Invalid time value");
-assertThrows(() => d2.with({weeks: -3}), RangeError,
-    "Invalid time value");
-assertThrows(() => d2.with({days: -4}), RangeError,
-    "Invalid time value");
-assertThrows(() => d2.with({hours: -5}), RangeError,
-    "Invalid time value");
-assertThrows(() => d2.with({minutes: -6}), RangeError,
-    "Invalid time value");
-assertThrows(() => d2.with({seconds: -7}), RangeError,
-    "Invalid time value");
-assertThrows(() => d2.with({milliseconds: -8}), RangeError,
-    "Invalid time value");
-assertThrows(() => d2.with({microseconds: -9}), RangeError,
-    "Invalid time value");
-assertThrows(() => d2.with({nanoseconds: -10}), RangeError,
-    "Invalid time value");
+assertThrows(() => d2.with({years: -1}), RangeError);
+assertThrows(() => d2.with({months: -2}), RangeError);
+assertThrows(() => d2.with({weeks: -3}), RangeError);
+assertThrows(() => d2.with({days: -4}), RangeError);
+assertThrows(() => d2.with({hours: -5}), RangeError);
+assertThrows(() => d2.with({minutes: -6}), RangeError);
+assertThrows(() => d2.with({seconds: -7}), RangeError);
+assertThrows(() => d2.with({milliseconds: -8}), RangeError);
+assertThrows(() => d2.with({microseconds: -9}), RangeError);
+assertThrows(() => d2.with({nanoseconds: -10}), RangeError);
 
 
 // Test large number
@@ -68,45 +58,25 @@ let d4 = new Temporal.Duration(-1, -2, -3, -4, -5, -6, -7, -8, -9, -10);
 assertDuration(d4, -1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -1, false);
 assertDuration(d4.with(like1), 9, 8, 7, 6, 5, 4, 3, 2, 1, 10, 1, false);
 // Throw when sign flip
-assertThrows(() => d4.with({years: 1}), RangeError,
-    "Invalid time value");
-assertThrows(() => d4.with({months: 2}), RangeError,
-    "Invalid time value");
-assertThrows(() => d4.with({weeks: 3}), RangeError,
-    "Invalid time value");
-assertThrows(() => d4.with({days: 4}), RangeError,
-    "Invalid time value");
-assertThrows(() => d4.with({hours: 5}), RangeError,
-    "Invalid time value");
-assertThrows(() => d4.with({minutes: 6}), RangeError,
-    "Invalid time value");
-assertThrows(() => d4.with({seconds: 7}), RangeError,
-    "Invalid time value");
-assertThrows(() => d4.with({milliseconds: 8}), RangeError,
-    "Invalid time value");
-assertThrows(() => d4.with({microseconds: 9}), RangeError,
-    "Invalid time value");
-assertThrows(() => d4.with({nanoseconds: 10}), RangeError,
-    "Invalid time value");
+assertThrows(() => d4.with({years: 1}), RangeError);
+assertThrows(() => d4.with({months: 2}), RangeError);
+assertThrows(() => d4.with({weeks: 3}), RangeError);
+assertThrows(() => d4.with({days: 4}), RangeError);
+assertThrows(() => d4.with({hours: 5}), RangeError);
+assertThrows(() => d4.with({minutes: 6}), RangeError);
+assertThrows(() => d4.with({seconds: 7}), RangeError);
+assertThrows(() => d4.with({milliseconds: 8}), RangeError);
+assertThrows(() => d4.with({microseconds: 9}), RangeError);
+assertThrows(() => d4.with({nanoseconds: 10}), RangeError);
 
 // singular throw
-assertThrows(() => d1.with({year:1}), TypeError,
-    "invalid_argument");
-assertThrows(() => d1.with({month:1}), TypeError,
-    "invalid_argument");
-assertThrows(() => d1.with({week:1}), TypeError,
-    "invalid_argument");
-assertThrows(() => d1.with({day:1}), TypeError,
-    "invalid_argument");
-assertThrows(() => d1.with({hour:1}), TypeError,
-    "invalid_argument");
-assertThrows(() => d1.with({minute:1}), TypeError,
-    "invalid_argument");
-assertThrows(() => d1.with({second:1}), TypeError,
-    "invalid_argument");
-assertThrows(() => d1.with({millisecond:1}), TypeError,
-    "invalid_argument");
-assertThrows(() => d1.with({microsecond:1}), TypeError,
-    "invalid_argument");
-assertThrows(() => d1.with({nanosecond:1}), TypeError,
-    "invalid_argument");
+assertThrows(() => d1.with({year:1}), TypeError);
+assertThrows(() => d1.with({month:1}), TypeError);
+assertThrows(() => d1.with({week:1}), TypeError);
+assertThrows(() => d1.with({day:1}), TypeError);
+assertThrows(() => d1.with({hour:1}), TypeError);
+assertThrows(() => d1.with({minute:1}), TypeError);
+assertThrows(() => d1.with({second:1}), TypeError);
+assertThrows(() => d1.with({millisecond:1}), TypeError);
+assertThrows(() => d1.with({microsecond:1}), TypeError);
+assertThrows(() => d1.with({nanosecond:1}), TypeError);

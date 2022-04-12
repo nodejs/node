@@ -184,6 +184,24 @@ TEST(TestFlushICacheOfWritableAndExecutable) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
 
+  struct V8_NODISCARD EnableWritePermissionsOnMacArm64Scope {
+#if defined(V8_OS_DARWIN) && defined(V8_HOST_ARCH_ARM64)
+// Ignoring this warning is considered better than relying on
+// __builtin_available.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability-new"
+    EnableWritePermissionsOnMacArm64Scope() { pthread_jit_write_protect_np(0); }
+    ~EnableWritePermissionsOnMacArm64Scope() {
+      pthread_jit_write_protect_np(1);
+    }
+#pragma clang diagnostic pop
+#else
+    EnableWritePermissionsOnMacArm64Scope() {
+      // Define a constructor to avoid unused variable warnings.
+    }
+#endif
+  };
+
   for (int i = 0; i < kNumIterations; ++i) {
     auto buffer = AllocateAssemblerBuffer(kBufferSize, nullptr,
                                           VirtualMemory::kMapAsJittable);
@@ -194,19 +212,13 @@ TEST(TestFlushICacheOfWritableAndExecutable) {
     CHECK(SetPermissions(GetPlatformPageAllocator(), buffer->start(),
                          buffer->size(), v8::PageAllocator::kReadWriteExecute));
     {
-#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
-      // Make sure to switch memory to writable on M1 hardware.
-      wasm::CodeSpaceWriteScope code_space_write_scope(nullptr);
-#endif
+      EnableWritePermissionsOnMacArm64Scope write_scope;
       FloodWithInc(isolate, buffer.get());
       FlushInstructionCache(buffer->start(), buffer->size());
     }
     CHECK_EQ(23 + kNumInstr, f.Call(23));  // Call into generated code.
     {
-#if defined(V8_OS_MACOSX) && defined(V8_HOST_ARCH_ARM64)
-      // Make sure to switch memory to writable on M1 hardware.
-      wasm::CodeSpaceWriteScope code_space_write_scope(nullptr);
-#endif
+      EnableWritePermissionsOnMacArm64Scope write_scope;
       FloodWithNop(isolate, buffer.get());
       FlushInstructionCache(buffer->start(), buffer->size());
     }

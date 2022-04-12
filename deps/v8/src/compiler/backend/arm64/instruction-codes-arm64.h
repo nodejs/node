@@ -201,8 +201,8 @@ namespace compiler {
   V(Arm64LdarDecompressAnyTagged)                    \
   V(Arm64StrCompressTagged)                          \
   V(Arm64StlrCompressTagged)                         \
-  V(Arm64LdrDecodeCagedPointer)                      \
-  V(Arm64StrEncodeCagedPointer)                      \
+  V(Arm64LdrDecodeSandboxedPointer)                  \
+  V(Arm64StrEncodeSandboxedPointer)                  \
   V(Arm64DmbIsh)                                     \
   V(Arm64DsbIsb)                                     \
   V(Arm64Sxtl)                                       \

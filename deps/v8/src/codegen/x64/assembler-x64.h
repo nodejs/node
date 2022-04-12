@@ -456,7 +456,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
-  inline Handle<Code> code_target_object_handle_at(Address pc);
+  inline Handle<CodeT> code_target_object_handle_at(Address pc);
   inline Handle<HeapObject> compressed_embedded_object_handle_at(Address pc);
   inline Address runtime_entry_at(Address pc);
 
@@ -543,6 +543,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void popq(Register dst);
   void popq(Operand dst);
+
+  void incsspq(Register number_of_words);
 
   void leave();
 
@@ -802,7 +804,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void near_call(intptr_t disp, RelocInfo::Mode rmode);
   void near_jmp(intptr_t disp, RelocInfo::Mode rmode);
 
-  void call(Handle<Code> target,
+  void call(Handle<CodeT> target,
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
 
   // Call near absolute indirect, address in register
@@ -813,7 +815,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Use a 32-bit signed displacement.
   // Unconditional jump to L
   void jmp(Label* L, Label::Distance distance = Label::kFar);
-  void jmp(Handle<Code> target, RelocInfo::Mode rmode);
+  void jmp(Handle<CodeT> target, RelocInfo::Mode rmode);
   void jmp(Address entry, RelocInfo::Mode rmode);
 
   // Jump near absolute indirect (r64)
@@ -827,7 +829,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Conditional jumps
   void j(Condition cc, Label* L, Label::Distance distance = Label::kFar);
   void j(Condition cc, Address entry, RelocInfo::Mode rmode);
-  void j(Condition cc, Handle<Code> target, RelocInfo::Mode rmode);
+  void j(Condition cc, Handle<CodeT> target, RelocInfo::Mode rmode);
 
   // Floating-point operations
   void fld(int i);
@@ -1594,6 +1596,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vshufps(XMMRegister dst, XMMRegister src1, XMMRegister src2, byte imm8) {
     vps(0xC6, dst, src1, src2, imm8);
   }
+  void vshufps(YMMRegister dst, YMMRegister src1, YMMRegister src2, byte imm8) {
+    vps(0xC6, dst, src1, src2, imm8);
+  }
 
   void vmovaps(XMMRegister dst, XMMRegister src) { vps(0x28, dst, xmm0, src); }
   void vmovaps(YMMRegister dst, YMMRegister src) { vps(0x28, dst, ymm0, src); }
@@ -1808,6 +1813,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vps(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
   void vps(byte op, YMMRegister dst, YMMRegister src1, Operand src2);
   void vps(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2,
+           byte imm8);
+  void vps(byte op, YMMRegister dst, YMMRegister src1, YMMRegister src2,
            byte imm8);
   void vpd(byte op, XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void vpd(byte op, YMMRegister dst, YMMRegister src1, YMMRegister src2);

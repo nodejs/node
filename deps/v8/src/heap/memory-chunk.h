@@ -10,6 +10,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
+#include "src/heap/base/active-system-pages.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap.h"
 #include "src/heap/invalidated-slots.h"
@@ -219,7 +220,7 @@ class MemoryChunk : public BasicMemoryChunk {
 
  protected:
   static MemoryChunk* Initialize(BasicMemoryChunk* basic_chunk, Heap* heap,
-                                 Executability executable);
+                                 Executability executable, PageSize page_size);
 
   // Release all memory allocated by the chunk. Should be called when memory
   // chunk is about to be freed.
@@ -290,6 +291,8 @@ class MemoryChunk : public BasicMemoryChunk {
   CodeObjectRegistry* code_object_registry_;
 
   PossiblyEmptyBuckets possibly_empty_buckets_;
+
+  ActiveSystemPages active_system_pages_;
 
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   ObjectStartBitmap object_start_bitmap_;

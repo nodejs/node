@@ -45,9 +45,9 @@ TEST_F(MarkingWorklistTest, PushPopEmbedder) {
   MarkingWorklists::Local worklists(&holder);
   HeapObject pushed_object =
       ReadOnlyRoots(i_isolate()->heap()).undefined_value();
-  worklists.PushEmbedder(pushed_object);
+  worklists.PushWrapper(pushed_object);
   HeapObject popped_object;
-  EXPECT_TRUE(worklists.PopEmbedder(&popped_object));
+  EXPECT_TRUE(worklists.PopWrapper(&popped_object));
   EXPECT_EQ(popped_object, pushed_object);
 }
 

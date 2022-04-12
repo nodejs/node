@@ -18,7 +18,7 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateSymbol) {
   DCHECK_GE(1, args.length());
   Handle<Symbol> symbol = isolate->factory()->NewPrivateSymbol();
   if (args.length() == 1) {
-    CONVERT_ARG_HANDLE_CHECKED(Object, description, 0);
+    Handle<Object> description = args.at(0);
     CHECK(description->IsString() || description->IsUndefined(isolate));
     if (description->IsString())
       symbol->set_description(String::cast(*description));
@@ -29,7 +29,7 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateSymbol) {
 RUNTIME_FUNCTION(Runtime_CreatePrivateBrandSymbol) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  Handle<String> name = args.at<String>(0);
   Handle<Symbol> symbol = isolate->factory()->NewPrivateNameSymbol(name);
   symbol->set_is_private_brand();
   return *symbol;
@@ -38,7 +38,7 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateBrandSymbol) {
 RUNTIME_FUNCTION(Runtime_CreatePrivateNameSymbol) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  Handle<String> name = args.at<String>(0);
   Handle<Symbol> symbol = isolate->factory()->NewPrivateNameSymbol(name);
   return *symbol;
 }
@@ -46,7 +46,7 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateNameSymbol) {
 RUNTIME_FUNCTION(Runtime_SymbolDescriptiveString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Symbol, symbol, 0);
+  Handle<Symbol> symbol = args.at<Symbol>(0);
   IncrementalStringBuilder builder(isolate);
   builder.AppendCStringLiteral("Symbol(");
   if (symbol->description().IsString()) {
@@ -60,7 +60,7 @@ RUNTIME_FUNCTION(Runtime_SymbolDescriptiveString) {
 RUNTIME_FUNCTION(Runtime_SymbolIsPrivate) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Symbol, symbol, 0);
+  auto symbol = Symbol::cast(args[0]);
   return isolate->heap()->ToBoolean(symbol.is_private());
 }
 }  // namespace internal

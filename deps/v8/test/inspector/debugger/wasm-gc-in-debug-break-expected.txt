@@ -4,7 +4,7 @@ Running test: test
 Script wasm://wasm/38e28046 byte offset 51: Wasm opcode 0x20 (kExprLocalGet)
 GC triggered
 Debugger.resume
-Hello World (v8://test/instantiate:11:36)
+log: Hello World (v8://test/instantiate:11:36)
     at bar (v8://test/instantiate:11:36)
     at $wasm_A (wasm://wasm/38e28046:1:54)
     at test (test.js:4:20)

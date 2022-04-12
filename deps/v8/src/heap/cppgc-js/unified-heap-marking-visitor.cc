@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 
 UnifiedHeapMarkingVisitorBase::UnifiedHeapMarkingVisitorBase(
-    HeapBase& heap, cppgc::internal::MarkingStateBase& marking_state,
+    HeapBase& heap, cppgc::internal::BasicMarkingState& marking_state,
     UnifiedHeapMarkingState& unified_heap_marking_state)
     : JSVisitor(cppgc::internal::VisitorFactory::CreateKey()),
       marking_state_(marking_state),

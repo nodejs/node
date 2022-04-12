@@ -48,6 +48,10 @@ class V8_EXPORT_PRIVATE SharedHeapSerializer : public RootsSerializer {
   static bool ShouldBeInSharedHeapObjectCache(HeapObject obj);
 
  private:
+  bool ShouldReconstructSharedHeapObjectCacheForTesting() const;
+
+  void ReconstructSharedHeapObjectCacheForTesting();
+
   void SerializeStringTable(StringTable* string_table);
 
   void SerializeObjectImpl(Handle<HeapObject> obj) override;

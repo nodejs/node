@@ -97,7 +97,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Condition cond = al) {
     if (src1.code() > src2.code()) {
-      stm(db_w, sp, src1.bit() | src2.bit(), cond);
+      stm(db_w, sp, {src1, src2}, cond);
     } else {
       str(src1, MemOperand(sp, 4, NegPreIndex), cond);
       str(src2, MemOperand(sp, 4, NegPreIndex), cond);
@@ -108,9 +108,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Push(Register src1, Register src2, Register src3, Condition cond = al) {
     if (src1.code() > src2.code()) {
       if (src2.code() > src3.code()) {
-        stm(db_w, sp, src1.bit() | src2.bit() | src3.bit(), cond);
+        stm(db_w, sp, {src1, src2, src3}, cond);
       } else {
-        stm(db_w, sp, src1.bit() | src2.bit(), cond);
+        stm(db_w, sp, {src1, src2}, cond);
         str(src3, MemOperand(sp, 4, NegPreIndex), cond);
       }
     } else {
@@ -125,14 +125,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     if (src1.code() > src2.code()) {
       if (src2.code() > src3.code()) {
         if (src3.code() > src4.code()) {
-          stm(db_w, sp, src1.bit() | src2.bit() | src3.bit() | src4.bit(),
-              cond);
+          stm(db_w, sp, {src1, src2, src3, src4}, cond);
         } else {
-          stm(db_w, sp, src1.bit() | src2.bit() | src3.bit(), cond);
+          stm(db_w, sp, {src1, src2, src3}, cond);
           str(src4, MemOperand(sp, 4, NegPreIndex), cond);
         }
       } else {
-        stm(db_w, sp, src1.bit() | src2.bit(), cond);
+        stm(db_w, sp, {src1, src2}, cond);
         Push(src3, src4, cond);
       }
     } else {
@@ -148,20 +147,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
       if (src2.code() > src3.code()) {
         if (src3.code() > src4.code()) {
           if (src4.code() > src5.code()) {
-            stm(db_w, sp,
-                src1.bit() | src2.bit() | src3.bit() | src4.bit() | src5.bit(),
-                cond);
+            stm(db_w, sp, {src1, src2, src3, src4, src5}, cond);
           } else {
-            stm(db_w, sp, src1.bit() | src2.bit() | src3.bit() | src4.bit(),
-                cond);
+            stm(db_w, sp, {src1, src2, src3, src4}, cond);
             str(src5, MemOperand(sp, 4, NegPreIndex), cond);
           }
         } else {
-          stm(db_w, sp, src1.bit() | src2.bit() | src3.bit(), cond);
+          stm(db_w, sp, {src1, src2, src3}, cond);
           Push(src4, src5, cond);
         }
       } else {
-        stm(db_w, sp, src1.bit() | src2.bit(), cond);
+        stm(db_w, sp, {src1, src2}, cond);
         Push(src3, src4, src5, cond);
       }
     } else {
@@ -182,7 +178,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Pop(Register src1, Register src2, Condition cond = al) {
     DCHECK(src1 != src2);
     if (src1.code() > src2.code()) {
-      ldm(ia_w, sp, src1.bit() | src2.bit(), cond);
+      ldm(ia_w, sp, {src1, src2}, cond);
     } else {
       ldr(src2, MemOperand(sp, 4, PostIndex), cond);
       ldr(src1, MemOperand(sp, 4, PostIndex), cond);
@@ -194,10 +190,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     DCHECK(!AreAliased(src1, src2, src3));
     if (src1.code() > src2.code()) {
       if (src2.code() > src3.code()) {
-        ldm(ia_w, sp, src1.bit() | src2.bit() | src3.bit(), cond);
+        ldm(ia_w, sp, {src1, src2, src3}, cond);
       } else {
         ldr(src3, MemOperand(sp, 4, PostIndex), cond);
-        ldm(ia_w, sp, src1.bit() | src2.bit(), cond);
+        ldm(ia_w, sp, {src1, src2}, cond);
       }
     } else {
       Pop(src2, src3, cond);
@@ -212,15 +208,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     if (src1.code() > src2.code()) {
       if (src2.code() > src3.code()) {
         if (src3.code() > src4.code()) {
-          ldm(ia_w, sp, src1.bit() | src2.bit() | src3.bit() | src4.bit(),
-              cond);
+          ldm(ia_w, sp, {src1, src2, src3, src4}, cond);
         } else {
           ldr(src4, MemOperand(sp, 4, PostIndex), cond);
-          ldm(ia_w, sp, src1.bit() | src2.bit() | src3.bit(), cond);
+          ldm(ia_w, sp, {src1, src2, src3}, cond);
         }
       } else {
         Pop(src3, src4, cond);
-        ldm(ia_w, sp, src1.bit() | src2.bit(), cond);
+        ldm(ia_w, sp, {src1, src2}, cond);
       }
     } else {
       Pop(src2, src3, src4, cond);

@@ -24,18 +24,27 @@ Arguments<T>::ChangeValueScope::ChangeValueScope(Isolate* isolate,
 }
 
 template <ArgumentsType T>
-int Arguments<T>::smi_at(int index) const {
-  return Smi::ToInt(Object(*address_of_arg_at(index)));
+int Arguments<T>::smi_value_at(int index) const {
+  Object obj = (*this)[index];
+  int value = Smi::ToInt(obj);
+  DCHECK_IMPLIES(obj.IsTaggedIndex(), value == tagged_index_value_at(index));
+  return value;
 }
 
 template <ArgumentsType T>
-int Arguments<T>::tagged_index_at(int index) const {
-  Address raw = *address_of_arg_at(index);
-  return static_cast<int>(TaggedIndex(raw).value());
+uint32_t Arguments<T>::positive_smi_value_at(int index) const {
+  int value = smi_value_at(index);
+  DCHECK_LE(0, value);
+  return value;
 }
 
 template <ArgumentsType T>
-double Arguments<T>::number_at(int index) const {
+int Arguments<T>::tagged_index_value_at(int index) const {
+  return static_cast<int>(TaggedIndex::cast((*this)[index]).value());
+}
+
+template <ArgumentsType T>
+double Arguments<T>::number_value_at(int index) const {
   return (*this)[index].Number();
 }
 

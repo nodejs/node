@@ -6,7 +6,6 @@
 #define V8_TORQUE_TYPES_H_
 
 #include <algorithm>
-#include <map>
 #include <set>
 #include <string>
 #include <vector>

@@ -82,6 +82,9 @@ HeapBase::HeapBase(
       weak_persistent_region_(*oom_handler_.get()),
       strong_cross_thread_persistent_region_(*oom_handler_.get()),
       weak_cross_thread_persistent_region_(*oom_handler_.get()),
+#if defined(CPPGC_YOUNG_GENERATION)
+      remembered_set_(*this),
+#endif  // defined(CPPGC_YOUNG_GENERATION)
       stack_support_(stack_support),
       marking_support_(marking_support),
       sweeping_support_(sweeping_support) {
@@ -136,7 +139,7 @@ void HeapBase::ResetRememberedSet() {
   };
   DCHECK(AllLABsAreEmpty(raw_heap()).value());
   caged_heap().local_data().age_table.Reset(&caged_heap().allocator());
-  remembered_slots().clear();
+  remembered_set_.Reset();
 }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 

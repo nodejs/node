@@ -13,5 +13,5 @@ function foo() { return %IsBeingInterpreted(); }
 
 assertTrue(bar());
 assertTrue(bar());
-%OptimizeFunctionForTopTier(bar);
+%OptimizeFunctionOnNextCall(bar);
 assertTrue(bar());

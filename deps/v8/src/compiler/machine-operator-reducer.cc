@@ -1348,13 +1348,33 @@ Reduction MachineOperatorReducer::ReduceProjection(size_t index, Node* node) {
   return NoChange();
 }
 
+namespace {
+
+// Returns true if "value << shift >> shift == value". This can be interpreted
+// as "left shifting |value| by |shift| doesn't shift away significant bits".
+// Or, equivalently, "left shifting |value| by |shift| doesn't have signed
+// overflow".
+bool CanRevertLeftShiftWithRightShift(int32_t value, int32_t shift) {
+  if (shift < 0 || shift >= 32) {
+    // This shift would be UB in C++
+    return false;
+  }
+  if (static_cast<int32_t>(static_cast<uint32_t>(value) << shift) >> shift !=
+      static_cast<int32_t>(value)) {
+    return false;
+  }
+  return true;
+}
+
+}  // namespace
+
 Reduction MachineOperatorReducer::ReduceWord32Comparisons(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kInt32LessThan ||
          node->opcode() == IrOpcode::kInt32LessThanOrEqual ||
          node->opcode() == IrOpcode::kUint32LessThan ||
          node->opcode() == IrOpcode::kUint32LessThanOrEqual);
   Int32BinopMatcher m(node);
-  // (x >>> K) < (y >>> K) => x < y   if only zeros shifted out
+  // (x >> K) < (y >> K) => x < y   if only zeros shifted out
   if (m.left().op() == machine()->Word32SarShiftOutZeros() &&
       m.right().op() == machine()->Word32SarShiftOutZeros()) {
     Int32BinopMatcher mleft(m.left().node());
@@ -1364,6 +1384,38 @@ Reduction MachineOperatorReducer::ReduceWord32Comparisons(Node* node) {
       node->ReplaceInput(0, mleft.left().node());
       node->ReplaceInput(1, mright.left().node());
       return Changed(node);
+    }
+  }
+  // Simplifying (x >> n) <= k into x <= (k << n), with "k << n" being
+  // computed here at compile time.
+  if (m.right().HasResolvedValue() &&
+      m.left().op() == machine()->Word32SarShiftOutZeros() &&
+      m.left().node()->UseCount() == 1) {
+    uint32_t right = m.right().ResolvedValue();
+    Int32BinopMatcher mleft(m.left().node());
+    if (mleft.right().HasResolvedValue()) {
+      auto shift = mleft.right().ResolvedValue();
+      if (CanRevertLeftShiftWithRightShift(right, shift)) {
+        node->ReplaceInput(0, mleft.left().node());
+        node->ReplaceInput(1, Int32Constant(right << shift));
+        return Changed(node);
+      }
+    }
+  }
+  // Simplifying k <= (x >> n) into (k << n) <= x, with "k << n" being
+  // computed here at compile time.
+  if (m.left().HasResolvedValue() &&
+      m.right().op() == machine()->Word32SarShiftOutZeros() &&
+      m.right().node()->UseCount() == 1) {
+    uint32_t left = m.left().ResolvedValue();
+    Int32BinopMatcher mright(m.right().node());
+    if (mright.right().HasResolvedValue()) {
+      auto shift = mright.right().ResolvedValue();
+      if (CanRevertLeftShiftWithRightShift(left, shift)) {
+        node->ReplaceInput(0, Int32Constant(left << shift));
+        node->ReplaceInput(1, mright.left().node());
+        return Changed(node);
+      }
     }
   }
   return NoChange();
@@ -1405,7 +1457,7 @@ Reduction MachineOperatorReducer::ReduceWord64Comparisons(Node* node) {
     return Changed(node).FollowedBy(Reduce(node));
   }
 
-  // (x >>> K) < (y >>> K) => x < y   if only zeros shifted out
+  // (x >> K) < (y >> K) => x < y   if only zeros shifted out
   // This is useful for Smi untagging, which results in such a shift.
   if (m.left().op() == machine()->Word64SarShiftOutZeros() &&
       m.right().op() == machine()->Word64SarShiftOutZeros()) {
@@ -2199,6 +2251,18 @@ MachineOperatorReducer::ReduceWord32EqualForConstantRhs(Node* lhs,
           }
           return std::make_pair(Word32And(new_input, new_mask), new_rhs);
         }
+      }
+    }
+  }
+  // Replaces (x >> n) == k with x == k << n, with "k << n" being computed
+  // here at compile time.
+  if (lhs->op() == machine()->Word32SarShiftOutZeros() &&
+      lhs->UseCount() == 1) {
+    typename WordNAdapter::UintNBinopMatcher mshift(lhs);
+    if (mshift.right().HasResolvedValue()) {
+      int32_t shift = static_cast<int32_t>(mshift.right().ResolvedValue());
+      if (CanRevertLeftShiftWithRightShift(rhs, shift)) {
+        return std::make_pair(mshift.left().node(), rhs << shift);
       }
     }
   }

@@ -242,7 +242,8 @@ class V8_EXPORT_PRIVATE PageBackend final {
 // Returns true if the provided allocator supports committing at the required
 // granularity.
 inline bool SupportsCommittingGuardPages(PageAllocator& allocator) {
-  return kGuardPageSize % allocator.CommitPageSize() == 0;
+  return kGuardPageSize != 0 &&
+         kGuardPageSize % allocator.CommitPageSize() == 0;
 }
 
 Address NormalPageMemoryRegion::Lookup(ConstAddress address) const {

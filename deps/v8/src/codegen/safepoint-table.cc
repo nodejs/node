@@ -109,10 +109,10 @@ void SafepointTable::Print(std::ostream& os) const {
   }
 }
 
-Safepoint SafepointTableBuilder::DefineSafepoint(Assembler* assembler) {
+SafepointTableBuilder::Safepoint SafepointTableBuilder::DefineSafepoint(
+    Assembler* assembler) {
   entries_.push_back(EntryBuilder(zone_, assembler->pc_offset_for_safepoint()));
-  EntryBuilder& new_entry = entries_.back();
-  return Safepoint(new_entry.stack_indexes, &new_entry.register_indexes);
+  return SafepointTableBuilder::Safepoint(&entries_.back(), this);
 }
 
 int SafepointTableBuilder::UpdateDeoptimizationInfo(int pc, int trampoline,
@@ -131,6 +131,8 @@ int SafepointTableBuilder::UpdateDeoptimizationInfo(int pc, int trampoline,
 }
 
 void SafepointTableBuilder::Emit(Assembler* assembler, int tagged_slots_size) {
+  DCHECK_LT(max_stack_index_, tagged_slots_size);
+
 #ifdef DEBUG
   int last_pc = -1;
   int last_trampoline = -1;
@@ -151,7 +153,10 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int tagged_slots_size) {
 #endif  // DEBUG
 
   RemoveDuplicates();
-  TrimEntries(&tagged_slots_size);
+
+  // The encoding is compacted by translating stack slot indices s.t. they
+  // start at 0. See also below.
+  tagged_slots_size -= min_stack_index();
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
   // We cannot emit a const pool within the safepoint table.
@@ -161,14 +166,14 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int tagged_slots_size) {
   // Make sure the safepoint table is properly aligned. Pad with nops.
   assembler->Align(Code::kMetadataAlignment);
   assembler->RecordComment(";;; Safepoint table.");
-  offset_ = assembler->pc_offset();
+  safepoint_table_offset_ = assembler->pc_offset();
 
   // Compute the required sizes of the fields.
   int used_register_indexes = 0;
   STATIC_ASSERT(SafepointEntry::kNoTrampolinePC == -1);
-  int max_pc = -1;
+  int max_pc = SafepointEntry::kNoTrampolinePC;
   STATIC_ASSERT(SafepointEntry::kNoDeoptIndex == -1);
-  int max_deopt_index = -1;
+  int max_deopt_index = SafepointEntry::kNoDeoptIndex;
   for (const EntryBuilder& entry : entries_) {
     used_register_indexes |= entry.register_indexes;
     max_pc = std::max(max_pc, std::max(entry.pc, entry.trampoline));
@@ -186,7 +191,10 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int tagged_slots_size) {
   };
   bool has_deopt_data = max_deopt_index != -1;
   int register_indexes_size = value_to_bytes(used_register_indexes);
-  // Add 1 so all values are non-negative.
+  // Add 1 so all values (including kNoDeoptIndex and kNoTrampolinePC) are
+  // non-negative.
+  STATIC_ASSERT(SafepointEntry::kNoDeoptIndex == -1);
+  STATIC_ASSERT(SafepointEntry::kNoTrampolinePC == -1);
   int pc_size = value_to_bytes(max_pc + 1);
   int deopt_index_size = value_to_bytes(max_deopt_index + 1);
   int tagged_slots_bytes =
@@ -224,22 +232,30 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int tagged_slots_size) {
   for (const EntryBuilder& entry : entries_) {
     emit_bytes(entry.pc, pc_size);
     if (has_deopt_data) {
-      // Add 1 so all values are non-negative.
+      // Add 1 so all values (including kNoDeoptIndex and kNoTrampolinePC) are
+      // non-negative.
+      STATIC_ASSERT(SafepointEntry::kNoDeoptIndex == -1);
+      STATIC_ASSERT(SafepointEntry::kNoTrampolinePC == -1);
       emit_bytes(entry.deopt_index + 1, deopt_index_size);
       emit_bytes(entry.trampoline + 1, pc_size);
     }
     emit_bytes(entry.register_indexes, register_indexes_size);
   }
 
-  // Emit bitmaps of tagged stack slots.
+  // Emit bitmaps of tagged stack slots. Note the slot list is reversed in the
+  // encoding.
+  // TODO(jgruber): Avoid building a reversed copy of the bit vector.
   ZoneVector<uint8_t> bits(tagged_slots_bytes, 0, zone_);
   for (const EntryBuilder& entry : entries_) {
     std::fill(bits.begin(), bits.end(), 0);
 
     // Run through the indexes and build a bitmap.
     for (int idx : *entry.stack_indexes) {
-      DCHECK_GT(tagged_slots_size, idx);
-      int index = tagged_slots_size - 1 - idx;
+      // The encoding is compacted by translating stack slot indices s.t. they
+      // start at 0. See also above.
+      const int adjusted_idx = idx - min_stack_index();
+      DCHECK_GT(tagged_slots_size, adjusted_idx);
+      int index = tagged_slots_size - 1 - adjusted_idx;
       int byte_index = index >> kBitsPerByteLog2;
       int bit_index = index & (kBitsPerByte - 1);
       bits[byte_index] |= (1u << bit_index);
@@ -261,17 +277,8 @@ void SafepointTableBuilder::RemoveDuplicates() {
                                        const EntryBuilder& entry2) {
     if (entry1.deopt_index != entry2.deopt_index) return false;
     DCHECK_EQ(entry1.trampoline, entry2.trampoline);
-
-    ZoneChunkList<int>* indexes1 = entry1.stack_indexes;
-    ZoneChunkList<int>* indexes2 = entry2.stack_indexes;
-    if (indexes1->size() != indexes2->size()) return false;
-    if (!std::equal(indexes1->begin(), indexes1->end(), indexes2->begin())) {
-      return false;
-    }
-
-    if (entry1.register_indexes != entry2.register_indexes) return false;
-
-    return true;
+    return entry1.register_indexes == entry2.register_indexes &&
+           entry1.stack_indexes->Equals(*entry2.stack_indexes);
   };
 
   auto remaining_it = entries_.begin();
@@ -287,28 +294,6 @@ void SafepointTableBuilder::RemoveDuplicates() {
   }
 
   entries_.Rewind(remaining);
-}
-
-void SafepointTableBuilder::TrimEntries(int* tagged_slots_size) {
-  int min_index = *tagged_slots_size;
-  if (min_index == 0) return;  // Early exit: nothing to trim.
-
-  for (auto& entry : entries_) {
-    for (int idx : *entry.stack_indexes) {
-      DCHECK_GT(*tagged_slots_size, idx);  // Validity check.
-      if (idx >= min_index) continue;
-      if (idx == 0) return;  // Early exit: nothing to trim.
-      min_index = idx;
-    }
-  }
-
-  DCHECK_LT(0, min_index);
-  *tagged_slots_size -= min_index;
-  for (auto& entry : entries_) {
-    for (int& idx : *entry.stack_indexes) {
-      idx -= min_index;
-    }
-  }
 }
 
 }  // namespace internal

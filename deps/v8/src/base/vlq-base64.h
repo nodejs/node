@@ -5,7 +5,8 @@
 #ifndef V8_BASE_VLQ_BASE64_H_
 #define V8_BASE_VLQ_BASE64_H_
 
-#include <string>
+#include <stddef.h>
+#include <stdint.h>
 
 #include "src/base/base-export.h"
 

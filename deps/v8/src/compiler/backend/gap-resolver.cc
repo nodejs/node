@@ -22,7 +22,7 @@ namespace {
 // aliasing, and makes swaps much easier to implement.
 MoveOperands* Split(MoveOperands* move, MachineRepresentation smaller_rep,
                     ParallelMove* moves) {
-  DCHECK(!kSimpleFPAliasing);
+  DCHECK(kFPAliasing == AliasingKind::kCombine);
   // Splitting is only possible when the slot size is the same as float size.
   DCHECK_EQ(kSystemPointerSize, kFloatSize);
   const LocationOperand& src_loc = LocationOperand::cast(move->source());
@@ -104,7 +104,8 @@ void GapResolver::Resolve(ParallelMove* moves) {
     i++;
     source_kinds.Add(GetKind(move->source()));
     destination_kinds.Add(GetKind(move->destination()));
-    if (!kSimpleFPAliasing && move->destination().IsFPRegister()) {
+    if (kFPAliasing == AliasingKind::kCombine &&
+        move->destination().IsFPRegister()) {
       fp_reps |= RepresentationBit(
           LocationOperand::cast(move->destination()).representation());
     }
@@ -119,7 +120,7 @@ void GapResolver::Resolve(ParallelMove* moves) {
     return;
   }
 
-  if (!kSimpleFPAliasing) {
+  if (kFPAliasing == AliasingKind::kCombine) {
     if (fp_reps && !base::bits::IsPowerOfTwo(fp_reps)) {
       // Start with the smallest FP moves, so we never encounter smaller moves
       // in the middle of a cycle of larger moves.
@@ -166,8 +167,8 @@ void GapResolver::PerformMove(ParallelMove* moves, MoveOperands* move) {
   move->SetPending();
 
   // We may need to split moves between FP locations differently.
-  const bool is_fp_loc_move =
-      !kSimpleFPAliasing && destination.IsFPLocationOperand();
+  const bool is_fp_loc_move = kFPAliasing == AliasingKind::kCombine &&
+                              destination.IsFPLocationOperand();
 
   // Perform a depth-first traversal of the move graph to resolve dependencies.
   // Any unperformed, unpending move with a source the same as this one's

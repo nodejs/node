@@ -1081,7 +1081,8 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       if (!js_function->is_compiled()) continue;
       IsCompiledScope is_compiled_scope(
           js_function->shared().is_compiled_scope(isolate));
-      JSFunction::EnsureFeedbackVector(js_function, &is_compiled_scope);
+      JSFunction::EnsureFeedbackVector(isolate, js_function,
+                                       &is_compiled_scope);
     }
 
     if (!sfi->HasBytecodeArray()) continue;
@@ -1124,7 +1125,8 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       if (!js_function->is_compiled()) continue;
       IsCompiledScope is_compiled_scope(
           js_function->shared().is_compiled_scope(isolate));
-      JSFunction::EnsureFeedbackVector(js_function, &is_compiled_scope);
+      JSFunction::EnsureFeedbackVector(isolate, js_function,
+                                       &is_compiled_scope);
     }
   }
   SharedFunctionInfo::ScriptIterator it(isolate, *new_script);

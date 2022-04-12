@@ -49,7 +49,7 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
     CheckNoArrayBufferBackingStores();
   }
 
-  if (FLAG_rehash_snapshot && can_rehash()) {
+  if (should_rehash()) {
     isolate()->heap()->InitializeHashSeed();
     Rehash();
   }

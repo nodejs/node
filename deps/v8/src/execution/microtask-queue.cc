@@ -4,8 +4,8 @@
 
 #include "src/execution/microtask-queue.h"
 
-#include <stddef.h>
 #include <algorithm>
+#include <cstddef>
 
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
@@ -187,7 +187,7 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
     size_ = 0;
     start_ = 0;
     DCHECK(isolate->has_scheduled_exception());
-    isolate->SetTerminationOnExternalTryCatch();
+    isolate->OnTerminationDuringRunMicrotasks();
     OnCompleted(isolate);
     return -1;
   }

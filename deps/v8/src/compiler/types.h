@@ -117,25 +117,23 @@ namespace compiler {
   V(OtherUndetectable,        uint64_t{1} << 17)  \
   V(CallableProxy,            uint64_t{1} << 18)  \
   V(OtherProxy,               uint64_t{1} << 19)  \
-  V(Function,                 uint64_t{1} << 20)  \
-  V(BoundFunction,            uint64_t{1} << 21)  \
-  V(Hole,                     uint64_t{1} << 22)  \
-  V(OtherInternal,            uint64_t{1} << 23)  \
-  V(ExternalPointer,          uint64_t{1} << 24)  \
-  V(Array,                    uint64_t{1} << 25)  \
-  V(UnsignedBigInt63,         uint64_t{1} << 26)  \
-  V(OtherUnsignedBigInt64,    uint64_t{1} << 27)  \
-  V(NegativeBigInt63,         uint64_t{1} << 28)  \
-  V(OtherBigInt,              uint64_t{1} << 29)  \
-  /* TODO(v8:10391): Remove this type once all ExternalPointer usages are */ \
-  /* sandbox-ready. */                     \
-  V(SandboxedExternalPointer, uint64_t{1} << 30)  \
-  V(CagedPointer,             uint64_t{1} << 31)
+  V(CallableFunction,         uint64_t{1} << 20)  \
+  V(ClassConstructor,         uint64_t{1} << 21)  \
+  V(BoundFunction,            uint64_t{1} << 22)  \
+  V(Hole,                     uint64_t{1} << 23)  \
+  V(OtherInternal,            uint64_t{1} << 24)  \
+  V(ExternalPointer,          uint64_t{1} << 25)  \
+  V(Array,                    uint64_t{1} << 26)  \
+  V(UnsignedBigInt63,         uint64_t{1} << 27)  \
+  V(OtherUnsignedBigInt64,    uint64_t{1} << 28)  \
+  V(NegativeBigInt63,         uint64_t{1} << 29)  \
+  V(OtherBigInt,              uint64_t{1} << 30)  \
+  V(WasmObject,               uint64_t{1} << 31)
 
 // We split the macro list into two parts because the Torque equivalent in
 // turbofan-types.tq uses two 32bit bitfield structs.
-#define PROPER_ATOMIC_BITSET_TYPE_HIGH_LIST(V)  \
-  V(WasmObject,               uint64_t{1} << 32)
+#define PROPER_ATOMIC_BITSET_TYPE_HIGH_LIST(V) \
+  V(SandboxedPointer,         uint64_t{1} << 32)
 
 #define PROPER_BITSET_TYPE_LIST(V) \
   V(None,                     uint64_t{0}) \
@@ -190,6 +188,7 @@ namespace compiler {
   V(Proxy,                        kCallableProxy | kOtherProxy) \
   V(ArrayOrOtherObject,           kArray | kOtherObject) \
   V(ArrayOrProxy,                 kArray | kProxy) \
+  V(Function,                     kCallableFunction | kClassConstructor) \
   V(DetectableCallable,           kFunction | kBoundFunction | \
                                   kOtherCallable | kCallableProxy) \
   V(Callable,                     kDetectableCallable | kOtherUndetectable) \
@@ -208,8 +207,7 @@ namespace compiler {
   V(Unique,                       kBoolean | kUniqueName | kNull | \
                                   kUndefined | kHole | kReceiver) \
   V(Internal,                     kHole | kExternalPointer | \
-                                  kSandboxedExternalPointer | kCagedPointer | \
-                                  kOtherInternal) \
+                                  kSandboxedPointer | kOtherInternal) \
   V(NonInternal,                  kPrimitive | kReceiver) \
   V(NonBigInt,                    kNonBigIntPrimitive | kReceiver) \
   V(NonNumber,                    kBigInt | kUnique | kString | kInternal) \

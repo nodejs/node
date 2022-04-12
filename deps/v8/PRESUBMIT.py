@@ -36,6 +36,9 @@ import os
 import re
 import sys
 
+# This line is 'magic' in that git-cl looks for it to decide whether to
+# use Python3 instead of Python2 when running the code in this file.
+USE_PYTHON3 = True
 
 _EXCLUDED_PATHS = (
     r"^test[\\\/].*",
@@ -223,7 +226,7 @@ def _CheckUnwantedDependencies(input_api, output_api):
   warning_descriptions = []
   for path, rule_type, rule_description in deps_checker.CheckAddedCppIncludes(
       added_includes):
-    description_with_path = '%s\n    %s' % (path, rule_description)
+    description_with_path = '{}\n    {}'.format(path, rule_description)
     if rule_type == Rule.DISALLOW:
       error_descriptions.append(description_with_path)
     else:
@@ -285,8 +288,8 @@ def _CheckHeadersHaveIncludeGuards(input_api, output_api):
         break
 
     if not file_omitted and not all(found_patterns):
-      problems.append(
-        '%s: Missing include guard \'%s\'' % (local_path, guard_macro))
+      problems.append('{}: Missing include guard \'{}\''.format(
+          local_path, guard_macro))
 
   if problems:
     return [output_api.PresubmitError(
@@ -320,8 +323,8 @@ def _CheckNoInlineHeaderIncludesInNormalHeaders(input_api, output_api):
     local_path = f.LocalPath()
     for line_number, line in f.ChangedContents():
       if (include_directive_pattern.search(line)):
-        problems.append(
-          '%s:%d\n    %s' % (local_path, line_number, line.strip()))
+        problems.append('{}:{}\n    {}'.format(local_path, line_number,
+                                               line.strip()))
 
   if problems:
     return [output_api.PresubmitError(include_error, problems)]
@@ -341,11 +344,13 @@ def _CheckNoProductionCodeUsingTestOnlyFunctions(input_api, output_api):
   file_inclusion_pattern = r'.+\.cc'
 
   base_function_pattern = r'[ :]test::[^\s]+|ForTest(ing)?|for_test(ing)?'
-  inclusion_pattern = input_api.re.compile(r'(%s)\s*\(' % base_function_pattern)
-  comment_pattern = input_api.re.compile(r'//.*(%s)' % base_function_pattern)
+  inclusion_pattern = input_api.re.compile(
+      r'({})\s*\('.format(base_function_pattern))
+  comment_pattern = input_api.re.compile(
+      r'//.*({})'.format(base_function_pattern))
   exclusion_pattern = input_api.re.compile(
-    r'::[A-Za-z0-9_]+(%s)|(%s)[^;]+\{' % (
-      base_function_pattern, base_function_pattern))
+      r'::[A-Za-z0-9_]+({})|({})[^;]+'.format(base_function_pattern,
+                                              base_function_pattern) + '\{')
 
   def FilterFile(affected_file):
     files_to_skip = (_EXCLUDED_PATHS +
@@ -363,8 +368,8 @@ def _CheckNoProductionCodeUsingTestOnlyFunctions(input_api, output_api):
       if (inclusion_pattern.search(line) and
           not comment_pattern.search(line) and
           not exclusion_pattern.search(line)):
-        problems.append(
-          '%s:%d\n    %s' % (local_path, line_number, line.strip()))
+        problems.append('{}:{}\n    {}'.format(local_path, line_number,
+                                               line.strip()))
 
   if problems:
     return [output_api.PresubmitPromptOrNotify(_TEST_ONLY_WARNING, problems)]
@@ -423,7 +428,7 @@ def _SkipTreeCheck(input_api, output_api):
 def _CheckCommitMessageBugEntry(input_api, output_api):
   """Check that bug entries are well-formed in commit message."""
   bogus_bug_msg = (
-      'Bogus BUG entry: %s. Please specify the issue tracker prefix and the '
+      'Bogus BUG entry: {}. Please specify the issue tracker prefix and the '
       'issue number, separated by a colon, e.g. v8:123 or chromium:12345.')
   results = []
   for bug in (input_api.change.BUG or '').split(','):
@@ -437,12 +442,13 @@ def _CheckCommitMessageBugEntry(input_api, output_api):
           prefix_guess = 'chromium'
         else:
           prefix_guess = 'v8'
-        results.append('BUG entry requires issue tracker prefix, e.g. %s:%s' %
-                       (prefix_guess, bug))
+        results.append(
+            'BUG entry requires issue tracker prefix, e.g. {}:{}'.format(
+                prefix_guess, bug))
       except ValueError:
-        results.append(bogus_bug_msg % bug)
+        results.append(bogus_bug_msg.format(bug))
     elif not re.match(r'\w+:\d+', bug):
-      results.append(bogus_bug_msg % bug)
+      results.append(bogus_bug_msg.format(bug))
   return [output_api.PresubmitError(r) for r in results]
 
 
@@ -459,8 +465,8 @@ def _CheckJSONFiles(input_api, output_api):
       try:
         json.load(j)
       except Exception as e:
-        results.append(
-            'JSON validation failed for %s. Error:\n%s' % (f.LocalPath(), e))
+        results.append('JSON validation failed for {}. Error:\n{}'.format(
+            f.LocalPath(), e))
 
   return [output_api.PresubmitError(r) for r in results]
 
@@ -509,8 +515,7 @@ def _CheckNoexceptAnnotations(input_api, output_api):
                                    include_deletes=False):
     with open(f.LocalPath()) as fh:
       for match in re.finditer(regexp, fh.read()):
-        errors.append('in {}: {}'.format(f.LocalPath(),
-                                         match.group().strip()))
+        errors.append(f'in {f.LocalPath()}: {match.group().strip()}')
 
   if errors:
     return [output_api.PresubmitPromptOrNotify(

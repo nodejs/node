@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax
-// Files: tools/clusterfuzz/v8_mock.js
-// Files: tools/clusterfuzz/v8_mock_webassembly.js
+// Files: tools/clusterfuzz/foozzie/v8_mock.js
+// Files: tools/clusterfuzz/foozzie/v8_mock_webassembly.js
 
 // Test foozzie webassembly-specfific mocks for differential fuzzing.
 

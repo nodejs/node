@@ -431,9 +431,15 @@ using Instr = uint32_t;
   /* signalling */                                                          \
   V(xscvspdpn, XSCVSPDPN, 0xF000052C)
 
-#define PPC_XX2_OPCODE_B_FORM_LIST(V) \
-  /* Vector Byte-Reverse Quadword */  \
-  V(xxbrq, XXBRQ, 0xF01F076C)
+#define PPC_XX2_OPCODE_B_FORM_LIST(V)  \
+  /* Vector Byte-Reverse Quadword */   \
+  V(xxbrq, XXBRQ, 0xF01F076C)          \
+  /* Vector Byte-Reverse Doubleword */ \
+  V(xxbrd, XXBRD, 0xF017076C)          \
+  /* Vector Byte-Reverse Word */       \
+  V(xxbrw, XXBRW, 0xF00F076C)          \
+  /* Vector Byte-Reverse Halfword */   \
+  V(xxbrh, XXBRH, 0xF007076C)
 
 #define PPC_XX2_OPCODE_UNUSED_LIST(V)                                        \
   /* VSX Scalar Square Root Double-Precision */                              \

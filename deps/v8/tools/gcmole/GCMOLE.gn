@@ -1,6 +1,0 @@
-action("gcmole") {
-  sources = [
-    ### gcmole(all) ###
-    "tools/gcmole/gcmole-test.cc",
-  ]
-}

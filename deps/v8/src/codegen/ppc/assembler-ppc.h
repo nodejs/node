@@ -43,7 +43,6 @@
 #include <stdio.h>
 
 #include <memory>
-#include <vector>
 
 #include "src/base/numbers/double.h"
 #include "src/codegen/assembler.h"
@@ -1514,7 +1513,9 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
   Register Acquire();
 
   // Check if we have registers available to acquire.
-  bool CanAcquire() const { return *assembler_->GetScratchRegisterList() != 0; }
+  bool CanAcquire() const {
+    return !assembler_->GetScratchRegisterList()->is_empty();
+  }
 
  private:
   friend class Assembler;

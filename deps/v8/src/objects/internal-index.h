@@ -58,6 +58,10 @@ class InternalIndex {
     return *this;
   }
 
+  bool operator<(const InternalIndex& other) const {
+    return entry_ < other.entry_;
+  }
+
   class Range {
    public:
     explicit Range(size_t max) : min_(0), max_(max) {}

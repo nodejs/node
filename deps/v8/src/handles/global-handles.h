@@ -45,6 +45,9 @@ enum WeaknessType {
 // callbacks and finalizers attached to them.
 class V8_EXPORT_PRIVATE GlobalHandles final {
  public:
+  static void EnableMarkingBarrier(Isolate*);
+  static void DisableMarkingBarrier(Isolate*);
+
   GlobalHandles(const GlobalHandles&) = delete;
   GlobalHandles& operator=(const GlobalHandles&) = delete;
 
@@ -236,6 +239,7 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
                                     Node* node);
 
   Isolate* const isolate_;
+  bool is_marking_ = false;
 
   std::unique_ptr<NodeSpace<Node>> regular_nodes_;
   // Contains all nodes holding young objects. Note: when the list

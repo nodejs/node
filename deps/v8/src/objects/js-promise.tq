@@ -10,7 +10,7 @@ bitfield struct JSPromiseFlags extends uint31 {
   async_task_id: int32: 22 bit;
 }
 
-extern class JSPromise extends JSObject {
+extern class JSPromise extends JSObjectWithEmbedderSlots {
   macro Status(): PromiseState {
     return this.flags.status;
   }

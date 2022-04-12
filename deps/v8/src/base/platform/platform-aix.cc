@@ -164,5 +164,43 @@ Stack::StackSlot Stack::GetStackStart() {
   return reinterpret_cast<void*>(buf.__pi_stackend);
 }
 
+// static
+bool OS::DecommitPages(void* address, size_t size) {
+  // The difference between this implementation and the alternative under
+  // platform-posix.cc is that on AIX, calling mmap on a pre-designated address
+  // with MAP_FIXED will fail and return -1 unless the application has requested
+  // SPEC1170 compliant behaviour:
+  // https://www.ibm.com/docs/en/aix/7.3?topic=m-mmap-mmap64-subroutine
+  // Therefore in case if failure we need to unmap the address before trying to
+  // map it again. The downside is another thread could place another mapping at
+  // the same address after the munmap but before the mmap, therefore a CHECK is
+  // also added to assure the address is mapped successfully. Refer to the
+  // comments under https://crrev.com/c/3010195 for more details.
+#define MMAP() \
+  mmap(address, size, PROT_NONE, MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0)
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  DCHECK_EQ(0, size % CommitPageSize());
+  void* ptr;
+  // Try without mapping first.
+  ptr = MMAP();
+  if (ptr != address) {
+    DCHECK_EQ(ptr, MAP_FAILED);
+    // Returns 0 when successful.
+    if (munmap(address, size)) {
+      return false;
+    }
+    // Try again after unmap.
+    ptr = MMAP();
+    // If this check fails it's most likely due to a racing condition where
+    // another thread has mapped the same address right before we do.
+    // Since this could cause hard-to-debug issues, potentially with security
+    // impact, and we can't recover from this, the best we can do is abort the
+    // process.
+    CHECK_EQ(ptr, address);
+  }
+#undef MMAP
+  return true;
+}
+
 }  // namespace base
 }  // namespace v8

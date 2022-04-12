@@ -193,7 +193,7 @@ static void VisitLoadCommon(InstructionSelector* selector, Node* node,
       break;
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:
-    case MachineRepresentation::kCagedPointer:  // Fall through.
+    case MachineRepresentation::kSandboxedPointer:  // Fall through.
 #ifdef V8_COMPRESS_POINTERS
       opcode = kPPC_LoadWordS32;
       mode = kInt16Imm_4ByteAligned;
@@ -339,7 +339,7 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
         break;
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:
-      case MachineRepresentation::kCagedPointer:  // Fall through.
+      case MachineRepresentation::kSandboxedPointer:  // Fall through.
 #ifdef V8_COMPRESS_POINTERS
         opcode = kPPC_StoreCompressTagged;
         break;

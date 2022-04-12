@@ -1038,8 +1038,7 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
   DCHECK(!module->HasPendingAsyncDependencies());
 
   // 9. Set module.[[AsyncParentModules]] to a new empty List.
-  Handle<ArrayList> async_parent_modules = ArrayList::New(isolate, 0);
-  module->set_async_parent_modules(*async_parent_modules);
+  module->set_async_parent_modules(ReadOnlyRoots(isolate).empty_array_list());
 
   // 10. Set index to index + 1.
   (*dfs_index)++;

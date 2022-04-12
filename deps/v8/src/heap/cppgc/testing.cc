@@ -54,5 +54,13 @@ void StandaloneTestingHeap::ForceCompactionForNextGarbageCollection() {
       .EnableForNextGCForTesting();
 }
 
+bool IsHeapObjectOld(void* object) {
+#if defined(CPPGC_YOUNG_GENERATION)
+  return internal::HeapObjectHeader::FromObject(object).IsMarked();
+#else
+  return true;
+#endif
+}
+
 }  // namespace testing
 }  // namespace cppgc

@@ -308,7 +308,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void MultiPush(RegList regs);
   void MultiPush(RegList regs1, RegList regs2);
   void MultiPush(RegList regs1, RegList regs2, RegList regs3);
-  void MultiPushFPU(RegList regs);
+  void MultiPushFPU(DoubleRegList regs);
 
   // Calculate how much stack space (in bytes) are required to store caller
   // registers excluding those specified in the arguments.
@@ -355,7 +355,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void MultiPop(RegList regs1, RegList regs2);
   void MultiPop(RegList regs1, RegList regs2, RegList regs3);
 
-  void MultiPopFPU(RegList regs);
+  void MultiPopFPU(DoubleRegList regs);
 
 #define DEFINE_INSTRUCTION(instr)                          \
   void instr(Register rd, Register rj, const Operand& rk); \
@@ -1055,8 +1055,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void InvokePrologue(Register expected_parameter_count,
                       Register actual_parameter_count, Label* done,
                       InvokeType type);
-
-  friend class CommonFrame;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };

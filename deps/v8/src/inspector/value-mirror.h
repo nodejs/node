@@ -81,7 +81,8 @@ class ValueMirror {
       v8::Local<v8::Context> context, v8::Local<v8::Object> object,
       std::vector<InternalPropertyMirror>* mirrors);
   static std::vector<PrivatePropertyMirror> getPrivateProperties(
-      v8::Local<v8::Context> context, v8::Local<v8::Object> object);
+      v8::Local<v8::Context> context, v8::Local<v8::Object> object,
+      bool accessorPropertiesOnly);
 };
 
 protocol::Response toProtocolValue(v8::Local<v8::Context> context,

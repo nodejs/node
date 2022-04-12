@@ -4,7 +4,8 @@
 
 let {session, contextGroup, Protocol} = InspectorTest.start('Checks that async stack contains setTimeout');
 
-contextGroup.addScript(`
+contextGroup.addInlineScript(
+    `
 var resolveCallback;
 function foo1() {
   function inner1() {
@@ -26,8 +27,8 @@ function foo3() {
   }
   inner3();
   return promise;
-}
-//# sourceURL=test.js`, 7, 26);
+}`,
+    'test.js');
 
 session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {

@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_FEEDBACK_CELL_INL_H_
 #define V8_OBJECTS_FEEDBACK_CELL_INL_H_
 
+#include "src/execution/tiering-manager.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/feedback-vector-inl.h"
@@ -48,11 +49,7 @@ void FeedbackCell::reset_feedback_vector(
 }
 
 void FeedbackCell::SetInitialInterruptBudget() {
-  if (FLAG_lazy_feedback_allocation) {
-    set_interrupt_budget(FLAG_budget_for_feedback_vector_allocation);
-  } else {
-    set_interrupt_budget(FLAG_interrupt_budget);
-  }
+  set_interrupt_budget(TieringManager::InitialInterruptBudget());
 }
 
 

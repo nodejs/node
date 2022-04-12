@@ -51,12 +51,9 @@ class MemoryProtectionTest : public TestWithNativeContext {
     mode_ = mode;
     bool enable_pku = mode == kPku || mode == kPkuWithMprotectFallback;
     FLAG_wasm_memory_protection_keys = enable_pku;
-    if (enable_pku) {
-      GetWasmCodeManager()->InitializeMemoryProtectionKeyForTesting();
-      // The key is initially write-protected.
-      CHECK_IMPLIES(GetWasmCodeManager()->HasMemoryProtectionKeySupport(),
-                    !GetWasmCodeManager()->MemoryProtectionKeyWritable());
-    }
+    // The key is initially write-protected.
+    CHECK_IMPLIES(GetWasmCodeManager()->HasMemoryProtectionKeySupport(),
+                  !GetWasmCodeManager()->MemoryProtectionKeyWritable());
 
     bool enable_mprotect =
         mode == kMprotect || mode == kPkuWithMprotectFallback;

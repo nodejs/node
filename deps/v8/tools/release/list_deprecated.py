@@ -30,13 +30,13 @@ class HeaderFile(object):
     self.blame_list = self.get_blame_list()
 
   @classmethod
-  def get_api_header_files(clazz, options):
+  def get_api_header_files(cls, options):
     files = subprocess.check_output(
         ['git', 'ls-tree', '--name-only', '-r', 'HEAD', options.include_dir],
         encoding='UTF-8')
-    files = filter(lambda l: l.endswith('.h'), files.splitlines())
+    files = map(Path, filter(lambda l: l.endswith('.h'), files.splitlines()))
     with Pool(processes=24) as pool:
-      return pool.map(HeaderFile, files)
+      return pool.map(cls, files)
 
   def extract_version(self, hash):
     if hash in VERSION_CACHE:
@@ -129,14 +129,22 @@ class HeaderFile(object):
         content = line[start:pos].strip().replace('""', '')
         deprecated.append((index + 1, commit_datetime, commit_hash, content))
       index = index + 1
-    if len(deprecated) == 0: return
     for linenumber, commit_datetime, commit_hash, content in deprecated:
-      commit_date = commit_datetime.date()
-      file_position = (f"{self.path}:{linenumber}").ljust(40)
-      v8_version = self.extract_version(commit_hash)
-      print(f"{file_position}  v{v8_version}  {commit_date}  {commit_hash[:8]}"
-            f"  {content}")
-    return len(deprecated)
+      self.print_details(linenumber, commit_datetime, commit_hash, content)
+
+  def print_details(self, linenumber, commit_datetime, commit_hash, content):
+    commit_date = commit_datetime.date()
+    file_position = (f"{self.path}:{linenumber}").ljust(40)
+    v8_version = f"v{self.extract_version(commit_hash)}".rjust(5)
+    print(f"{file_position}  {v8_version}  {commit_date}  {commit_hash[:8]}"
+          f"  {content}")
+
+  def print_v8_version(self, options):
+    commit_hash, commit_datetime = subprocess.check_output(
+        ['git', 'log', '-1', '--format=%H%n%ct', self.path],
+        encoding='UTF-8').splitlines()
+    commit_datetime = datetime.fromtimestamp(int(commit_datetime))
+    self.print_details(11, commit_datetime, commit_hash, content="")
 
 
 def parse_options(args):
@@ -163,10 +171,17 @@ def parse_options(args):
 
 def main(args):
   options = parse_options(args)
+
+  print("# CURRENT V8 VERSION:")
+  version = HeaderFile(Path(options.include_dir) / 'v8-version.h')
+  version.print_v8_version(options)
+
   header_files = HeaderFile.get_api_header_files(options)
+  print("\n")
   print("# V8_DEPRECATE_SOON:")
   for header in header_files:
     header.filter_and_print("V8_DEPRECATE_SOON", options)
+
   print("\n")
   print("# V8_DEPRECATED:")
   for header in header_files:

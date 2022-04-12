@@ -37,6 +37,9 @@ class FakeGarbageCollector : public GarbageCollector {
   }
 
   size_t epoch() const override { return callcount_; }
+  const EmbedderStackState* override_stack_state() const override {
+    return nullptr;
+  }
 
  private:
   StatsCollector* stats_collector_;
@@ -50,6 +53,8 @@ class MockGarbageCollector : public GarbageCollector {
   MOCK_METHOD(void, StartIncrementalGarbageCollection,
               (GarbageCollector::Config), (override));
   MOCK_METHOD(size_t, epoch, (), (const, override));
+  MOCK_METHOD(const EmbedderStackState*, override_stack_state, (),
+              (const, override));
 };
 
 void FakeAllocate(StatsCollector* stats_collector, size_t bytes) {

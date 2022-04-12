@@ -23,8 +23,7 @@ namespace internal {
 // C++ marking implementation.
 class MarkingStateBase {
  public:
-  inline MarkingStateBase(HeapBase& heap, MarkingWorklists&,
-                          CompactionWorklists*);
+  inline MarkingStateBase(HeapBase&, MarkingWorklists&);
 
   MarkingStateBase(const MarkingStateBase&) = delete;
   MarkingStateBase& operator=(const MarkingStateBase&) = delete;
@@ -33,6 +32,86 @@ class MarkingStateBase {
   inline void MarkAndPush(HeapObjectHeader&);
 
   inline void PushMarked(HeapObjectHeader&, TraceDescriptor desc);
+
+  void Publish() { marking_worklist_.Publish(); }
+
+  MarkingWorklists::MarkingWorklist::Local& marking_worklist() {
+    return marking_worklist_;
+  }
+  MarkingWorklists::NotFullyConstructedWorklist&
+  not_fully_constructed_worklist() {
+    return not_fully_constructed_worklist_;
+  }
+
+ protected:
+  inline void MarkAndPush(HeapObjectHeader&, TraceDescriptor);
+
+  inline bool MarkNoPush(HeapObjectHeader&);
+
+  HeapBase& heap_;
+
+  MarkingWorklists::MarkingWorklist::Local marking_worklist_;
+  MarkingWorklists::NotFullyConstructedWorklist&
+      not_fully_constructed_worklist_;
+};
+
+MarkingStateBase::MarkingStateBase(HeapBase& heap,
+                                   MarkingWorklists& marking_worklists)
+    : heap_(heap),
+      marking_worklist_(marking_worklists.marking_worklist()),
+      not_fully_constructed_worklist_(
+          *marking_worklists.not_fully_constructed_worklist()) {}
+
+void MarkingStateBase::MarkAndPush(const void* object, TraceDescriptor desc) {
+  DCHECK_NOT_NULL(object);
+  MarkAndPush(
+      HeapObjectHeader::FromObject(const_cast<void*>(desc.base_object_payload)),
+      desc);
+}
+
+void MarkingStateBase::MarkAndPush(HeapObjectHeader& header,
+                                   TraceDescriptor desc) {
+  DCHECK_NOT_NULL(desc.callback);
+
+  if (header.IsInConstruction<AccessMode::kAtomic>()) {
+    not_fully_constructed_worklist_.Push<AccessMode::kAtomic>(&header);
+  } else if (MarkNoPush(header)) {
+    PushMarked(header, desc);
+  }
+}
+
+bool MarkingStateBase::MarkNoPush(HeapObjectHeader& header) {
+  // A GC should only mark the objects that belong in its heap.
+  DCHECK_EQ(&heap_, &BasePage::FromPayload(&header)->heap());
+  // Never mark free space objects. This would e.g. hint to marking a promptly
+  // freed backing store.
+  DCHECK(!header.IsFree<AccessMode::kAtomic>());
+  return header.TryMarkAtomic();
+}
+
+void MarkingStateBase::MarkAndPush(HeapObjectHeader& header) {
+  MarkAndPush(
+      header,
+      {header.ObjectStart(),
+       GlobalGCInfoTable::GCInfoFromIndex(header.GetGCInfoIndex()).trace});
+}
+
+void MarkingStateBase::PushMarked(HeapObjectHeader& header,
+                                  TraceDescriptor desc) {
+  DCHECK(header.IsMarked<AccessMode::kAtomic>());
+  DCHECK(!header.IsInConstruction<AccessMode::kAtomic>());
+  DCHECK_NOT_NULL(desc.callback);
+
+  marking_worklist_.Push(desc);
+}
+
+class BasicMarkingState : public MarkingStateBase {
+ public:
+  inline BasicMarkingState(HeapBase& heap, MarkingWorklists&,
+                           CompactionWorklists*);
+
+  BasicMarkingState(const BasicMarkingState&) = delete;
+  BasicMarkingState& operator=(const BasicMarkingState&) = delete;
 
   inline void RegisterWeakReferenceIfNeeded(const void*, TraceDescriptor,
                                             WeakCallback, const void*);
@@ -58,7 +137,7 @@ class MarkingStateBase {
   size_t marked_bytes() const { return marked_bytes_; }
 
   void Publish() {
-    marking_worklist_.Publish();
+    MarkingStateBase::Publish();
     previously_not_fully_constructed_worklist_.Publish();
     weak_callback_worklist_.Publish();
     write_barrier_worklist_.Publish();
@@ -68,13 +147,6 @@ class MarkingStateBase {
     if (IsCompactionEnabled()) movable_slots_worklist_->Publish();
   }
 
-  MarkingWorklists::MarkingWorklist::Local& marking_worklist() {
-    return marking_worklist_;
-  }
-  MarkingWorklists::NotFullyConstructedWorklist&
-  not_fully_constructed_worklist() {
-    return not_fully_constructed_worklist_;
-  }
   MarkingWorklists::PreviouslyNotFullyConstructedWorklist::Local&
   previously_not_fully_constructed_worklist() {
     return previously_not_fully_constructed_worklist_;
@@ -121,21 +193,12 @@ class MarkingStateBase {
   void set_in_atomic_pause() { in_atomic_pause_ = true; }
 
  protected:
-  inline void MarkAndPush(HeapObjectHeader&, TraceDescriptor);
-
-  inline bool MarkNoPush(HeapObjectHeader&);
-
   inline void RegisterWeakContainer(HeapObjectHeader&);
 
   inline bool IsCompactionEnabled() const {
     return movable_slots_worklist_.get();
   }
 
-  HeapBase& heap_;
-
-  MarkingWorklists::MarkingWorklist::Local marking_worklist_;
-  MarkingWorklists::NotFullyConstructedWorklist&
-      not_fully_constructed_worklist_;
   MarkingWorklists::PreviouslyNotFullyConstructedWorklist::Local
       previously_not_fully_constructed_worklist_;
   MarkingWorklists::WeakCallbackWorklist::Local weak_callback_worklist_;
@@ -160,13 +223,10 @@ class MarkingStateBase {
   bool in_atomic_pause_ = false;
 };
 
-MarkingStateBase::MarkingStateBase(HeapBase& heap,
-                                   MarkingWorklists& marking_worklists,
-                                   CompactionWorklists* compaction_worklists)
-    : heap_(heap),
-      marking_worklist_(marking_worklists.marking_worklist()),
-      not_fully_constructed_worklist_(
-          *marking_worklists.not_fully_constructed_worklist()),
+BasicMarkingState::BasicMarkingState(HeapBase& heap,
+                                     MarkingWorklists& marking_worklists,
+                                     CompactionWorklists* compaction_worklists)
+    : MarkingStateBase(heap, marking_worklists),
       previously_not_fully_constructed_worklist_(
           marking_worklists.previously_not_fully_constructed_worklist()),
       weak_callback_worklist_(marking_worklists.weak_callback_worklist()),
@@ -187,53 +247,9 @@ MarkingStateBase::MarkingStateBase(HeapBase& heap,
   }
 }
 
-void MarkingStateBase::MarkAndPush(const void* object, TraceDescriptor desc) {
-  DCHECK_NOT_NULL(object);
-  MarkAndPush(
-      HeapObjectHeader::FromObject(const_cast<void*>(desc.base_object_payload)),
-      desc);
-}
-
-void MarkingStateBase::MarkAndPush(HeapObjectHeader& header,
-                                   TraceDescriptor desc) {
-  DCHECK_NOT_NULL(desc.callback);
-
-  if (header.IsInConstruction<AccessMode::kAtomic>()) {
-    not_fully_constructed_worklist_.Push<AccessMode::kAtomic>(&header);
-  } else if (MarkNoPush(header)) {
-    PushMarked(header, desc);
-  }
-}
-
-bool MarkingStateBase::MarkNoPush(HeapObjectHeader& header) {
-  // A GC should only mark the objects that belong in its heap.
-  DCHECK_EQ(&heap_, &BasePage::FromPayload(&header)->heap());
-  // Never mark free space objects. This would e.g. hint to marking a promptly
-  // freed backing store.
-  DCHECK(!header.IsFree<AccessMode::kAtomic>());
-  return header.TryMarkAtomic();
-}
-
-void MarkingStateBase::MarkAndPush(HeapObjectHeader& header) {
-  MarkAndPush(
-      header,
-      {header.ObjectStart(),
-       GlobalGCInfoTable::GCInfoFromIndex(header.GetGCInfoIndex()).trace});
-}
-
-void MarkingStateBase::PushMarked(HeapObjectHeader& header,
-                                  TraceDescriptor desc) {
-  DCHECK(header.IsMarked<AccessMode::kAtomic>());
-  DCHECK(!header.IsInConstruction<AccessMode::kAtomic>());
-  DCHECK_NOT_NULL(desc.callback);
-
-  marking_worklist_.Push(desc);
-}
-
-void MarkingStateBase::RegisterWeakReferenceIfNeeded(const void* object,
-                                                     TraceDescriptor desc,
-                                                     WeakCallback weak_callback,
-                                                     const void* parameter) {
+void BasicMarkingState::RegisterWeakReferenceIfNeeded(
+    const void* object, TraceDescriptor desc, WeakCallback weak_callback,
+    const void* parameter) {
   // Filter out already marked values. The write barrier for WeakMember
   // ensures that any newly set value after this point is kept alive and does
   // not require the callback.
@@ -245,20 +261,20 @@ void MarkingStateBase::RegisterWeakReferenceIfNeeded(const void* object,
   RegisterWeakCallback(weak_callback, parameter);
 }
 
-void MarkingStateBase::RegisterWeakCallback(WeakCallback callback,
-                                            const void* object) {
+void BasicMarkingState::RegisterWeakCallback(WeakCallback callback,
+                                             const void* object) {
   DCHECK_NOT_NULL(callback);
   weak_callback_worklist_.Push({callback, object});
 }
 
-void MarkingStateBase::RegisterWeakContainer(HeapObjectHeader& header) {
+void BasicMarkingState::RegisterWeakContainer(HeapObjectHeader& header) {
   weak_containers_worklist_.Push<AccessMode::kAtomic>(&header);
 }
 
-void MarkingStateBase::ProcessWeakContainer(const void* object,
-                                            TraceDescriptor desc,
-                                            WeakCallback callback,
-                                            const void* data) {
+void BasicMarkingState::ProcessWeakContainer(const void* object,
+                                             TraceDescriptor desc,
+                                             WeakCallback callback,
+                                             const void* data) {
   DCHECK_NOT_NULL(object);
 
   HeapObjectHeader& header =
@@ -291,9 +307,9 @@ void MarkingStateBase::ProcessWeakContainer(const void* object,
   }
 }
 
-void MarkingStateBase::ProcessEphemeron(const void* key, const void* value,
-                                        TraceDescriptor value_desc,
-                                        Visitor& visitor) {
+void BasicMarkingState::ProcessEphemeron(const void* key, const void* value,
+                                         TraceDescriptor value_desc,
+                                         Visitor& visitor) {
   // ProcessEphemeron is not expected to find new ephemerons recursively, which
   // would break the main marking loop.
   DCHECK(!in_ephemeron_processing_);
@@ -325,7 +341,7 @@ void MarkingStateBase::ProcessEphemeron(const void* key, const void* value,
   in_ephemeron_processing_ = false;
 }
 
-void MarkingStateBase::AccountMarkedBytes(const HeapObjectHeader& header) {
+void BasicMarkingState::AccountMarkedBytes(const HeapObjectHeader& header) {
   AccountMarkedBytes(
       header.IsLargeObject<AccessMode::kAtomic>()
           ? reinterpret_cast<const LargePage*>(BasePage::FromPayload(&header))
@@ -333,18 +349,18 @@ void MarkingStateBase::AccountMarkedBytes(const HeapObjectHeader& header) {
           : header.AllocatedSize<AccessMode::kAtomic>());
 }
 
-void MarkingStateBase::AccountMarkedBytes(size_t marked_bytes) {
+void BasicMarkingState::AccountMarkedBytes(size_t marked_bytes) {
   marked_bytes_ += marked_bytes;
 }
 
-class MutatorMarkingState : public MarkingStateBase {
+class MutatorMarkingState : public BasicMarkingState {
  public:
   MutatorMarkingState(HeapBase& heap, MarkingWorklists& marking_worklists,
                       CompactionWorklists* compaction_worklists)
-      : MarkingStateBase(heap, marking_worklists, compaction_worklists) {}
+      : BasicMarkingState(heap, marking_worklists, compaction_worklists) {}
 
   inline bool MarkNoPush(HeapObjectHeader& header) {
-    return MutatorMarkingState::MarkingStateBase::MarkNoPush(header);
+    return MutatorMarkingState::BasicMarkingState::MarkNoPush(header);
   }
 
   inline void ReTraceMarkedWeakContainer(cppgc::Visitor&, HeapObjectHeader&);
@@ -440,11 +456,11 @@ void MutatorMarkingState::RecentlyRetracedWeakContainers::Insert(
     recently_retraced_cache_[last_used_index_] = header;
 }
 
-class ConcurrentMarkingState : public MarkingStateBase {
+class ConcurrentMarkingState : public BasicMarkingState {
  public:
   ConcurrentMarkingState(HeapBase& heap, MarkingWorklists& marking_worklists,
                          CompactionWorklists* compaction_worklists)
-      : MarkingStateBase(heap, marking_worklists, compaction_worklists) {}
+      : BasicMarkingState(heap, marking_worklists, compaction_worklists) {}
 
   ~ConcurrentMarkingState() { DCHECK_EQ(last_marked_bytes_, marked_bytes_); }
 

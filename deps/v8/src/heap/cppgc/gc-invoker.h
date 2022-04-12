@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_CPPGC_GC_INVOKER_H_
 #define V8_HEAP_CPPGC_GC_INVOKER_H_
 
+#include "include/cppgc/common.h"
 #include "include/cppgc/heap.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/garbage-collector.h"
@@ -36,6 +37,7 @@ class V8_EXPORT_PRIVATE GCInvoker final : public GarbageCollector {
   void CollectGarbage(GarbageCollector::Config) final;
   void StartIncrementalGarbageCollection(GarbageCollector::Config) final;
   size_t epoch() const final;
+  const EmbedderStackState* override_stack_state() const final;
 
  private:
   class GCInvokerImpl;

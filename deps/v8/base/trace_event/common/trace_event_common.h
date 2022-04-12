@@ -259,10 +259,10 @@ template <>
 perfetto::ThreadTrack BASE_EXPORT
 ConvertThreadId(const ::base::PlatformThreadId& thread);
 
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 template <>
 perfetto::ThreadTrack BASE_EXPORT ConvertThreadId(const int& thread);
-#endif  // defined(OS_WIN)
+#endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace legacy
 

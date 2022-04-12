@@ -6,7 +6,7 @@
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/cpu-features.h"
-#include "src/codegen/register-arch.h"
+#include "src/codegen/register.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "src/codegen/ia32/register-ia32.h"

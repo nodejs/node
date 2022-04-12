@@ -13,6 +13,7 @@
 #include "src/handles/maybe-handles.h"
 #include "src/heap/local-factory.h"
 #include "src/heap/local-heap.h"
+#include "src/logging/runtime-call-stats.h"
 
 namespace v8 {
 
@@ -43,8 +44,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
  public:
   using HandleScopeType = LocalHandleScope;
 
-  explicit LocalIsolate(Isolate* isolate, ThreadKind kind,
-                        RuntimeCallStats* runtime_call_stats = nullptr);
+  explicit LocalIsolate(Isolate* isolate, ThreadKind kind);
   ~LocalIsolate();
 
   // Kinda sketchy.
@@ -110,7 +110,11 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   LocalLogger* logger() const { return logger_.get(); }
   ThreadId thread_id() const { return thread_id_; }
   Address stack_limit() const { return stack_limit_; }
+#ifdef V8_RUNTIME_CALL_STATS
   RuntimeCallStats* runtime_call_stats() const { return runtime_call_stats_; }
+#else
+  RuntimeCallStats* runtime_call_stats() const { return nullptr; }
+#endif
   bigint::Processor* bigint_processor() {
     if (!bigint_processor_) InitializeBigIntProcessor();
     return bigint_processor_;
@@ -155,8 +159,12 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   ThreadId const thread_id_;
   Address const stack_limit_;
 
-  RuntimeCallStats* runtime_call_stats_;
   bigint::Processor* bigint_processor_{nullptr};
+
+#ifdef V8_RUNTIME_CALL_STATS
+  base::Optional<WorkerThreadRuntimeCallStatsScope> rcs_scope_;
+  RuntimeCallStats* runtime_call_stats_;
+#endif
 #ifdef V8_INTL_SUPPORT
   std::string default_locale_;
 #endif

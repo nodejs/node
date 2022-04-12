@@ -55,5 +55,5 @@ var g = new G;
 foo();
 foo();
 expect_interpreted = false;
-%OptimizeFunctionForTopTier(foo);
+%OptimizeFunctionOnNextCall(foo);
 foo();

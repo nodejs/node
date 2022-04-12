@@ -54,12 +54,12 @@ inline bool CPURegister::IsSP() const {
 inline void CPURegList::Combine(const CPURegList& other) {
   DCHECK(other.type() == type_);
   DCHECK(other.RegisterSizeInBits() == size_);
-  list_ |= other.list();
+  list_ |= other.list_;
 }
 
 inline void CPURegList::Remove(const CPURegList& other) {
   if (other.type() == type_) {
-    list_ &= ~other.list();
+    list_ &= ~other.list_;
   }
 }
 
@@ -487,15 +487,15 @@ Tagged_t Assembler::target_compressed_address_at(Address pc,
   return Memory<Tagged_t>(target_pointer_address_at(pc));
 }
 
-Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
+Handle<CodeT> Assembler::code_target_object_handle_at(Address pc) {
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
   if (instr->IsLdrLiteralX()) {
-    return Handle<Code>(reinterpret_cast<Address*>(
+    return Handle<CodeT>(reinterpret_cast<Address*>(
         Assembler::target_address_at(pc, 0 /* unused */)));
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
     DCHECK_EQ(instr->ImmPCOffset() % kInstrSize, 0);
-    return Handle<Code>::cast(
+    return Handle<CodeT>::cast(
         GetEmbeddedObject(instr->ImmPCOffset() >> kInstrSizeLog2));
   }
 }
@@ -536,7 +536,7 @@ Address Assembler::runtime_entry_at(Address pc) {
     return Assembler::target_address_at(pc, 0 /* unused */);
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
-    return instr->ImmPCOffset() + options().code_range_start;
+    return instr->ImmPCOffset() + options().code_range_base;
   }
 }
 
@@ -666,7 +666,8 @@ HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
     Object obj(DecompressTaggedPointer(cage_base, compressed));
     // Embedding of compressed Code objects must not happen when external code
     // space is enabled, because CodeDataContainers must be used instead.
-    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !obj.IsCode(cage_base));
+    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
+                   !IsCodeSpaceObject(HeapObject::cast(obj)));
     return HeapObject::cast(obj);
   } else {
     return HeapObject::cast(

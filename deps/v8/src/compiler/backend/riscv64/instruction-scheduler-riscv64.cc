@@ -121,6 +121,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvF32x4Sqrt:
     case kRiscvF32x4RecipApprox:
     case kRiscvF32x4RecipSqrtApprox:
+    case kRiscvF64x2Qfma:
+    case kRiscvF64x2Qfms:
+    case kRiscvF32x4Qfma:
+    case kRiscvF32x4Qfms:
     case kRiscvF32x4ReplaceLane:
     case kRiscvF32x4SConvertI32x4:
     case kRiscvF32x4Splat:

@@ -21,6 +21,7 @@ class Isolate;
 namespace metrics {
 
 struct GarbageCollectionPhases {
+  int64_t total_wall_clock_duration_in_us = -1;
   int64_t compact_wall_clock_duration_in_us = -1;
   int64_t mark_wall_clock_duration_in_us = -1;
   int64_t sweep_wall_clock_duration_in_us = -1;
@@ -34,6 +35,7 @@ struct GarbageCollectionSizes {
 };
 
 struct GarbageCollectionFullCycle {
+  int reason = -1;
   GarbageCollectionPhases total;
   GarbageCollectionPhases total_cpp;
   GarbageCollectionPhases main_thread;
@@ -73,6 +75,7 @@ struct GarbageCollectionFullMainThreadBatchedIncrementalSweep {
 };
 
 struct GarbageCollectionYoungCycle {
+  int reason = -1;
   int64_t total_wall_clock_duration_in_us = -1;
   int64_t main_thread_wall_clock_duration_in_us = -1;
   double collection_rate_in_percent;
@@ -230,6 +233,8 @@ struct V8_EXPORT LongTaskStats {
   int64_t gc_full_atomic_wall_clock_duration_us = 0;
   int64_t gc_full_incremental_wall_clock_duration_us = 0;
   int64_t gc_young_wall_clock_duration_us = 0;
+  // Only collected with --slow-histograms
+  int64_t v8_execute_us = 0;
 };
 
 }  // namespace metrics

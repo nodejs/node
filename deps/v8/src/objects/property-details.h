@@ -32,6 +32,11 @@ enum PropertyAttributes {
   // a non-existent property.
 };
 
+V8_INLINE PropertyAttributes PropertyAttributesFromInt(int value) {
+  DCHECK_EQ(value & ~PropertyAttributes::ALL_ATTRIBUTES_MASK, 0);
+  return static_cast<PropertyAttributes>(value);
+}
+
 // Number of distinct bits in PropertyAttributes.
 static const int kPropertyAttributesBitsCount = 3;
 

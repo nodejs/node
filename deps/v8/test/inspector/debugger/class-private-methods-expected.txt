@@ -1,7 +1,7 @@
 Test private class methods
 
 Running test: testScopesPaused
-privateProperties on the base class instance
+private properties on the base class instance
 [
     [0] : {
         name : #inc
@@ -51,6 +51,42 @@ privateProperties on the base class instance
             description : 2
             type : number
             value : 2
+        }
+    }
+]
+private accessors properties on the base class instance
+[
+    [0] : {
+        name : #writeOnly
+        set : {
+            className : Function
+            description : set #writeOnly(val) { this.#field = val; }
+            objectId : <objectId>
+            type : function
+        }
+    }
+    [1] : {
+        get : {
+            className : Function
+            description : get #readOnly() { return this.#field; }
+            objectId : <objectId>
+            type : function
+        }
+        name : #readOnly
+    }
+    [2] : {
+        get : {
+            className : Function
+            description : get #accessor() { return this.#field; }
+            objectId : <objectId>
+            type : function
+        }
+        name : #accessor
+        set : {
+            className : Function
+            description : set #accessor(val) { this.#field = val; }
+            objectId : <objectId>
+            type : function
         }
     }
 ]

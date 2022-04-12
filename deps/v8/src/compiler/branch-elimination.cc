@@ -265,8 +265,10 @@ Reduction BranchElimination::ReduceTrapConditional(Node* node) {
       //      |                              |
       //   <subgraph1>                     <subgraph1>
       // (and symmetrically for TrapUnless.)
-      if ((control_input->opcode() == IrOpcode::kIfTrue ||
-           control_input->opcode() == IrOpcode::kIfFalse) &&
+      if (((trapping_condition &&
+            control_input->opcode() == IrOpcode::kIfTrue) ||
+           (!trapping_condition &&
+            control_input->opcode() == IrOpcode::kIfFalse)) &&
           control_input->UseCount() == 1) {
         Node* branch = NodeProperties::GetControlInput(control_input);
         DCHECK_EQ(branch->opcode(), IrOpcode::kBranch);

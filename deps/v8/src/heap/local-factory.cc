@@ -19,7 +19,12 @@
 namespace v8 {
 namespace internal {
 
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+LocalFactory::LocalFactory(Isolate* isolate)
+    : roots_(isolate), isolate_for_sandbox_(isolate) {}
+#else
 LocalFactory::LocalFactory(Isolate* isolate) : roots_(isolate) {}
+#endif
 
 void LocalFactory::AddToScriptList(Handle<Script> shared) {
 // TODO(leszeks): Actually add the script to the main Isolate's script list,

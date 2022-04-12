@@ -30,7 +30,7 @@
 
     %PrepareFunctionForOptimization(lit_const_smi);
     lit_const_smi(); lit_const_smi();
-    %OptimizeFunctionForTopTier(lit_const_smi); lit_const_smi();
+    %OptimizeFunctionOnNextCall(lit_const_smi); lit_const_smi();
 
 
     function lit_const_object() {
@@ -46,7 +46,7 @@
 
     %PrepareFunctionForOptimization(lit_const_object);
     lit_const_object(); lit_const_object();
-    %OptimizeFunctionForTopTier(lit_const_object); lit_const_object();
+    %OptimizeFunctionOnNextCall(lit_const_object); lit_const_object();
 
 
     function lit_computed_smi(k) {
@@ -62,11 +62,11 @@
 
     %PrepareFunctionForOptimization(lit_computed_smi);
     lit_computed_smi(1); lit_computed_smi(2);
-    %OptimizeFunctionForTopTier(lit_computed_smi); lit_computed_smi(3);
+    %OptimizeFunctionOnNextCall(lit_computed_smi); lit_computed_smi(3);
 
     // TODO(bmeurer): Fix const tracking for double fields in object literals
     // lit_computed_smi(1.1); lit_computed_smi(2.2);
-    // %OptimizeFunctionForTopTier(lit_computed_smi); lit_computed_smi(3.3);
+    // %OptimizeFunctionOnNextCall(lit_computed_smi); lit_computed_smi(3.3);
 
 
     function lit_param_object(k) {
@@ -81,7 +81,7 @@
 
     %PrepareFunctionForOptimization(lit_param_object);
     lit_param_object({x: 1}); lit_param_object({x: 2});
-    %OptimizeFunctionForTopTier(lit_param_object); lit_param_object({x: 3});
+    %OptimizeFunctionOnNextCall(lit_param_object); lit_param_object({x: 3});
 
 
     function nested_lit_param(k) {
@@ -96,11 +96,11 @@
 
     %PrepareFunctionForOptimization(nested_lit_param);
     nested_lit_param(1); nested_lit_param(2);
-    %OptimizeFunctionForTopTier(nested_lit_param); nested_lit_param(3);
+    %OptimizeFunctionOnNextCall(nested_lit_param); nested_lit_param(3);
 
     // TODO(bmeurer): Fix const tracking for double fields in object literals
     // nested_lit_param(1.1); nested_lit_param(2.2);
-    // %OptimizeFunctionForTopTier(nested_lit_param); nested_lit_param(3.3);
+    // %OptimizeFunctionOnNextCall(nested_lit_param); nested_lit_param(3.3);
 
 
     function nested_lit_param_object(k) {
@@ -115,7 +115,7 @@
 
     %PrepareFunctionForOptimization(nested_lit_param_object);
     nested_lit_param_object({x: 1}); nested_lit_param_object({x: 2});
-    %OptimizeFunctionForTopTier(nested_lit_param_object);
+    %OptimizeFunctionOnNextCall(nested_lit_param_object);
     nested_lit_param_object({x: 3});
 
 
@@ -138,16 +138,16 @@
 
     %PrepareFunctionForOptimization(inst_param);
     inst_param(1); inst_param(2);
-    %OptimizeFunctionForTopTier(inst_param); inst_param(3);
+    %OptimizeFunctionOnNextCall(inst_param); inst_param(3);
 
     // TODO(gsps): Reenable once we fully support const field information
     //   tracking in the presence of pointer compression.
     // inst_param(1.1); inst_param(2.2);
-    // %OptimizeFunctionForTopTier(inst_param); inst_param(3.3);
+    // %OptimizeFunctionOnNextCall(inst_param); inst_param(3.3);
 
     %PrepareFunctionForOptimization(inst_param);
     inst_param({x: 1}); inst_param({x: 2});
-    %OptimizeFunctionForTopTier(inst_param); inst_param({x: 3});
+    %OptimizeFunctionOnNextCall(inst_param); inst_param({x: 3});
 
 
     function inst_computed(k) {
@@ -168,9 +168,9 @@
 
     %PrepareFunctionForOptimization(inst_computed);
     inst_computed(1); inst_computed(2);
-    %OptimizeFunctionForTopTier(inst_computed); inst_computed(3);
+    %OptimizeFunctionOnNextCall(inst_computed); inst_computed(3);
 
     %PrepareFunctionForOptimization(inst_computed);
     inst_computed(1.1); inst_computed(2.2);
-    %OptimizeFunctionForTopTier(inst_computed); inst_computed(3.3);
+    %OptimizeFunctionOnNextCall(inst_computed); inst_computed(3.3);
 })();

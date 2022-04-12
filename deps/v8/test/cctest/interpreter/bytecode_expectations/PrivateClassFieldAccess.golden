@@ -23,7 +23,7 @@ frame size: 4
 parameter count: 1
 bytecode array length: 28
 bytecodes: [
-  /*   35 E> */ B(LdaNamedProperty), R(closure), U8(0), U8(0),
+  /*   35 E> */ B(GetNamedProperty), R(closure), U8(0), U8(0),
                 B(JumpIfUndefined), U8(10),
                 B(Star1),
                 B(CallProperty0), R(1), R(this), U8(2),
@@ -31,8 +31,8 @@ bytecodes: [
   /*   44 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star3),
                 B(LdaImmutableCurrentContextSlot), U8(3),
-  /*   59 E> */ B(LdaKeyedProperty), R(this), U8(4),
-  /*   52 E> */ B(StaKeyedProperty), R(this), R(3), U8(6),
+  /*   59 E> */ B(GetKeyedProperty), R(this), U8(4),
+  /*   52 E> */ B(SetKeyedProperty), R(this), R(3), U8(6),
                 B(LdaUndefined),
   /*   65 S> */ B(Return),
 ]
@@ -62,7 +62,7 @@ frame size: 4
 parameter count: 1
 bytecode array length: 28
 bytecodes: [
-  /*   35 E> */ B(LdaNamedProperty), R(closure), U8(0), U8(0),
+  /*   35 E> */ B(GetNamedProperty), R(closure), U8(0), U8(0),
                 B(JumpIfUndefined), U8(10),
                 B(Star1),
                 B(CallProperty0), R(1), R(this), U8(2),
@@ -70,8 +70,8 @@ bytecodes: [
   /*   44 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star3),
                 B(LdaImmutableCurrentContextSlot), U8(3),
-  /*   59 E> */ B(LdaKeyedProperty), R(this), U8(4),
-  /*   52 E> */ B(StaKeyedProperty), R(this), R(3), U8(6),
+  /*   59 E> */ B(GetKeyedProperty), R(this), U8(4),
+  /*   52 E> */ B(SetKeyedProperty), R(this), R(3), U8(6),
                 B(LdaUndefined),
   /*   65 S> */ B(Return),
 ]

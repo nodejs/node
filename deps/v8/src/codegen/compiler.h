@@ -77,6 +77,10 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static bool Compile(Isolate* isolate, Handle<JSFunction> function,
                       ClearExceptionFlag flag,
                       IsCompiledScope* is_compiled_scope);
+  static MaybeHandle<SharedFunctionInfo> CompileToplevel(
+      ParseInfo* parse_info, Handle<Script> script, Isolate* isolate,
+      IsCompiledScope* is_compiled_scope);
+
   static bool CompileSharedWithBaseline(Isolate* isolate,
                                         Handle<SharedFunctionInfo> shared,
                                         ClearExceptionFlag flag,
@@ -84,28 +88,23 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static bool CompileBaseline(Isolate* isolate, Handle<JSFunction> function,
                               ClearExceptionFlag flag,
                               IsCompiledScope* is_compiled_scope);
-  static bool CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
-                               ConcurrencyMode mode, CodeKind code_kind);
-  static MaybeHandle<SharedFunctionInfo> CompileToplevel(
-      ParseInfo* parse_info, Handle<Script> script, Isolate* isolate,
-      IsCompiledScope* is_compiled_scope);
 
-  static void LogFunctionCompilation(Isolate* isolate,
-                                     CodeEventListener::LogEventsAndTags tag,
-                                     Handle<Script> script,
-                                     Handle<SharedFunctionInfo> shared,
-                                     Handle<FeedbackVector> feedback_vector,
-                                     Handle<AbstractCode> abstract_code,
-                                     CodeKind kind, double time_taken_ms);
+  static bool CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
+                            ConcurrencyMode mode,
+                            IsCompiledScope* is_compiled_scope);
+
+  static void CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
+                               ConcurrencyMode mode, CodeKind code_kind);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
+  CompileForLiveEdit(ParseInfo* parse_info, Handle<Script> script,
+                     Isolate* isolate);
+
   // Collect source positions for a function that has already been compiled to
   // bytecode, but for which source positions were not collected (e.g. because
   // they were not immediately needed).
   static bool CollectSourcePositions(Isolate* isolate,
                                      Handle<SharedFunctionInfo> shared);
-
-  V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
-  CompileForLiveEdit(ParseInfo* parse_info, Handle<Script> script,
-                     Isolate* isolate);
 
   // Finalize and install code from previously run background compile task.
   static bool FinalizeBackgroundCompileTask(BackgroundCompileTask* task,
@@ -215,7 +214,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       const ScriptDetails& script_details, ScriptStreamingData* streaming_data);
 
   static Handle<SharedFunctionInfo> GetSharedFunctionInfoForWebSnapshot(
-      Isolate* isolate, Handle<String> source);
+      Isolate* isolate, Handle<String> source, MaybeHandle<Object> script_name);
 
   // Create a shared function info object for the given function literal
   // node (the code may be lazily compiled).
@@ -234,7 +233,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // instead of generating JIT code for a function at all.
 
   // Generate and return optimized code for OSR, or empty handle on failure.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Code> GetOptimizedCodeForOSR(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<CodeT> GetOptimizedCodeForOSR(
       Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
       JavaScriptFrame* osr_frame);
 };
@@ -517,6 +516,7 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
       TimedHistogram* timer, int max_stack_size);
 
   void Run();
+  void RunOnMainThread(Isolate* isolate);
   void Run(LocalIsolate* isolate,
            ReusableUnoptimizedCompileState* reusable_state);
 
@@ -529,7 +529,6 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   void AbortFunction();
 
   UnoptimizedCompileFlags flags() const { return flags_; }
-  LanguageMode language_mode() const { return language_mode_; }
 
  private:
   void ReportStatistics(Isolate* isolate);
@@ -561,8 +560,6 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   int start_position_;
   int end_position_;
   int function_literal_id_;
-
-  LanguageMode language_mode_;
 };
 
 // Contains all data which needs to be transmitted between threads for

@@ -68,7 +68,8 @@ TEST(UnusedLabImplicitClose) {
   std::vector<intptr_t> expected_sizes(expected_sizes_raw,
                                        expected_sizes_raw + 1);
   {
-    AllocationResult lab_backing_store(HeapObject::FromAddress(base));
+    AllocationResult lab_backing_store =
+        AllocationResult::FromObject(HeapObject::FromAddress(base));
     LocalAllocationBuffer lab =
         LocalAllocationBuffer::FromResult(heap, lab_backing_store, kLabSize);
     CHECK(lab.IsValid());
@@ -89,7 +90,8 @@ TEST(SimpleAllocate) {
   std::vector<intptr_t> expected_sizes(expected_sizes_raw,
                                        expected_sizes_raw + 2);
   {
-    AllocationResult lab_backing_store(HeapObject::FromAddress(base));
+    AllocationResult lab_backing_store =
+        AllocationResult::FromObject(HeapObject::FromAddress(base));
     LocalAllocationBuffer lab =
         LocalAllocationBuffer::FromResult(heap, lab_backing_store, kLabSize);
     CHECK(lab.IsValid());
@@ -115,7 +117,8 @@ TEST(AllocateUntilLabOOM) {
                                        expected_sizes_raw + 5);
   intptr_t sum = 0;
   {
-    AllocationResult lab_backing_store(HeapObject::FromAddress(base));
+    AllocationResult lab_backing_store =
+        AllocationResult::FromObject(HeapObject::FromAddress(base));
     LocalAllocationBuffer lab =
         LocalAllocationBuffer::FromResult(heap, lab_backing_store, kLabSize);
     CHECK(lab.IsValid());
@@ -142,7 +145,8 @@ TEST(AllocateExactlyUntilLimit) {
   std::vector<intptr_t> expected_sizes(expected_sizes_raw,
                                        expected_sizes_raw + 5);
   {
-    AllocationResult lab_backing_store(HeapObject::FromAddress(base));
+    AllocationResult lab_backing_store =
+        AllocationResult::FromObject(HeapObject::FromAddress(base));
     LocalAllocationBuffer lab =
         LocalAllocationBuffer::FromResult(heap, lab_backing_store, kLabSize);
     CHECK(lab.IsValid());
@@ -183,7 +187,8 @@ TEST(MergeSuccessful) {
                                         expected_sizes2_raw + 10);
 
   {
-    AllocationResult lab_backing_store1(HeapObject::FromAddress(base1));
+    AllocationResult lab_backing_store1 =
+        AllocationResult::FromObject(HeapObject::FromAddress(base1));
     LocalAllocationBuffer lab1 =
         LocalAllocationBuffer::FromResult(heap, lab_backing_store1, kLabSize);
     CHECK(lab1.IsValid());
@@ -196,7 +201,8 @@ TEST(MergeSuccessful) {
       }
     }
 
-    AllocationResult lab_backing_store2(HeapObject::FromAddress(base2));
+    AllocationResult lab_backing_store2 =
+        AllocationResult::FromObject(HeapObject::FromAddress(base2));
     LocalAllocationBuffer lab2 =
         LocalAllocationBuffer::FromResult(heap, lab_backing_store2, kLabSize);
     CHECK(lab2.IsValid());
@@ -225,17 +231,20 @@ TEST(MergeFailed) {
   Address base3 = base2 + kLabSize;
 
   {
-    AllocationResult lab_backing_store1(HeapObject::FromAddress(base1));
+    AllocationResult lab_backing_store1 =
+        AllocationResult::FromObject(HeapObject::FromAddress(base1));
     LocalAllocationBuffer lab1 =
         LocalAllocationBuffer::FromResult(heap, lab_backing_store1, kLabSize);
     CHECK(lab1.IsValid());
 
-    AllocationResult lab_backing_store2(HeapObject::FromAddress(base2));
+    AllocationResult lab_backing_store2 =
+        AllocationResult::FromObject(HeapObject::FromAddress(base2));
     LocalAllocationBuffer lab2 =
         LocalAllocationBuffer::FromResult(heap, lab_backing_store2, kLabSize);
     CHECK(lab2.IsValid());
 
-    AllocationResult lab_backing_store3(HeapObject::FromAddress(base3));
+    AllocationResult lab_backing_store3 =
+        AllocationResult::FromObject(HeapObject::FromAddress(base3));
     LocalAllocationBuffer lab3 =
         LocalAllocationBuffer::FromResult(heap, lab_backing_store3, kLabSize);
     CHECK(lab3.IsValid());
@@ -261,7 +270,8 @@ TEST(AllocateAligned) {
                                        expected_sizes_raw + 4);
 
   {
-    AllocationResult lab_backing_store(HeapObject::FromAddress(base));
+    AllocationResult lab_backing_store =
+        AllocationResult::FromObject(HeapObject::FromAddress(base));
     LocalAllocationBuffer lab =
         LocalAllocationBuffer::FromResult(heap, lab_backing_store, kLabSize);
     CHECK(lab.IsValid());

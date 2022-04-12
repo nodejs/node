@@ -1088,6 +1088,10 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchInternal(
 
   base::uc16 previous_char = '\n';
   String::FlatContent subject_content = subject_string.GetFlatContent(no_gc);
+  // Because interrupts can result in GC and string content relocation, the
+  // checksum verification in FlatContent may fail even though this code is
+  // safe. See (2) above.
+  subject_content.UnsafeDisableChecksumVerification();
   if (subject_content.IsOneByte()) {
     base::Vector<const uint8_t> subject_vector =
         subject_content.ToOneByteVector();

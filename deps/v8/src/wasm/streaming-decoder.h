@@ -10,7 +10,6 @@
 #define V8_WASM_STREAMING_DECODER_H_
 
 #include <memory>
-#include <vector>
 
 #include "src/base/macros.h"
 #include "src/base/vector.h"

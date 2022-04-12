@@ -98,6 +98,7 @@ TEST(ScriptContextTable_Extend) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
+  const bool kIgnoreDuplicateNames = true;
 
   Factory* factory = isolate->factory();
   Handle<NativeContext> native_context = factory->NewNativeContext();
@@ -116,8 +117,8 @@ TEST(ScriptContextTable_Extend) {
     Handle<Context> script_context =
         factory->NewScriptContext(native_context, scope_info);
 
-    script_context_table =
-        ScriptContextTable::Extend(script_context_table, script_context);
+    script_context_table = ScriptContextTable::Extend(
+        isolate, script_context_table, script_context, kIgnoreDuplicateNames);
   }
 
   std::unique_ptr<PersistentHandles> ph = isolate->NewPersistentHandles();
@@ -137,8 +138,8 @@ TEST(ScriptContextTable_Extend) {
   for (int i = 0; i < 100; ++i) {
     Handle<Context> context =
         factory->NewScriptContext(native_context, scope_info);
-    script_context_table =
-        ScriptContextTable::Extend(script_context_table, context);
+    script_context_table = ScriptContextTable::Extend(
+        isolate, script_context_table, context, kIgnoreDuplicateNames);
   }
 
   thread->Join();
@@ -164,7 +165,7 @@ TEST(ScriptContextTable_AccessScriptContextTable) {
   Handle<Context> context =
       factory->NewScriptContext(native_context, scope_info);
   script_context_table =
-      ScriptContextTable::Extend(script_context_table, context);
+      ScriptContextTable::Extend(isolate, script_context_table, context);
   int initialized_entries = 1;
   g_initialized_entries.store(initialized_entries, std::memory_order_release);
 
@@ -183,11 +184,12 @@ TEST(ScriptContextTable_AccessScriptContextTable) {
 
   sema_started.Wait();
 
+  const bool kIgnoreDuplicateNames = true;
   for (; initialized_entries < 1000; ++initialized_entries) {
     Handle<Context> new_context =
         factory->NewScriptContext(native_context, scope_info);
-    script_context_table =
-        ScriptContextTable::Extend(script_context_table, new_context);
+    script_context_table = ScriptContextTable::Extend(
+        isolate, script_context_table, new_context, kIgnoreDuplicateNames);
     native_context->synchronized_set_script_context_table(
         *script_context_table);
     // Update with relaxed semantics to not introduce ordering constraints.

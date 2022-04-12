@@ -12,11 +12,10 @@ namespace internal {
 
 class TestTransitionsAccessor : public TransitionsAccessor {
  public:
-  TestTransitionsAccessor(Isolate* isolate, Map map,
-                          DisallowGarbageCollection* no_gc)
-      : TransitionsAccessor(isolate, map, no_gc) {}
-  TestTransitionsAccessor(Isolate* isolate, Handle<Map> map)
+  TestTransitionsAccessor(Isolate* isolate, Map map)
       : TransitionsAccessor(isolate, map) {}
+  TestTransitionsAccessor(Isolate* isolate, Handle<Map> map)
+      : TransitionsAccessor(isolate, *map) {}
 
   // Expose internals for tests.
   bool IsUninitializedEncoding() { return encoding() == kUninitialized; }

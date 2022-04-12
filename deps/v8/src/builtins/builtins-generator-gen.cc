@@ -231,7 +231,7 @@ TF_BUILTIN(SuspendGeneratorBaseline, GeneratorBuiltinsAssembler) {
 
   // Copy over the function parameters
   auto parameter_base_index = IntPtrConstant(
-      interpreter::Register::FromParameterIndex(0, 1).ToOperand() + 1);
+      interpreter::Register::FromParameterIndex(0).ToOperand() + 1);
   CSA_CHECK(this, UintPtrLessThan(formal_parameter_count,
                                   parameters_and_registers_length));
   auto parent_frame_pointer = LoadParentFramePointer();

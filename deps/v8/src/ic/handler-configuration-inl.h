@@ -21,12 +21,7 @@ namespace v8 {
 namespace internal {
 
 inline Handle<Object> MakeCodeHandler(Isolate* isolate, Builtin builtin) {
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    Code code = isolate->builtins()->code(builtin);
-    return handle(code.code_data_container(kAcquireLoad), isolate);
-  } else {
-    return isolate->builtins()->code_handle(builtin);
-  }
+  return isolate->builtins()->code_handle(builtin);
 }
 
 OBJECT_CONSTRUCTORS_IMPL(LoadHandler, DataHandler)
@@ -230,7 +225,8 @@ Handle<Smi> StoreHandler::StoreField(Isolate* isolate, Kind kind,
                                      int descriptor, FieldIndex field_index,
                                      Representation representation) {
   DCHECK(!representation.IsNone());
-  DCHECK(kind == Kind::kField || kind == Kind::kConstField);
+  DCHECK(kind == Kind::kField || kind == Kind::kConstField ||
+         kind == Kind::kSharedStructField);
 
   int config = KindBits::encode(kind) |
                IsInobjectBits::encode(field_index.is_inobject()) |
@@ -247,6 +243,14 @@ Handle<Smi> StoreHandler::StoreField(Isolate* isolate, int descriptor,
   Kind kind = constness == PropertyConstness::kMutable ? Kind::kField
                                                        : Kind::kConstField;
   return StoreField(isolate, kind, descriptor, field_index, representation);
+}
+
+Handle<Smi> StoreHandler::StoreSharedStructField(
+    Isolate* isolate, int descriptor, FieldIndex field_index,
+    Representation representation) {
+  DCHECK(representation.Equals(Representation::Tagged()));
+  return StoreField(isolate, Kind::kSharedStructField, descriptor, field_index,
+                    representation);
 }
 
 Handle<Smi> StoreHandler::StoreNativeDataProperty(Isolate* isolate,

@@ -72,11 +72,13 @@ class TestCase(testcase.D8TestCase):
     return self._env
 
   def _get_files_params(self):
-    files = map(lambda f: os.path.join(self.suite.root, f), [
+    files = [
+      os.path.join(self.suite.root, f) for f in [
         'assert.js',
         'utils.js',
         self.path + self._get_suffix(),
-    ])
+      ]
+    ]
 
     if self._test_config.isolates:
       files += ['--isolate'] + files

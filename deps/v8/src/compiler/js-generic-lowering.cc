@@ -404,8 +404,8 @@ void JSGenericLowering::LowerJSGetIterator(Node* node) {
   ReplaceWithBuiltinCall(node, Builtin::kGetIteratorWithFeedback);
 }
 
-void JSGenericLowering::LowerJSStoreProperty(Node* node) {
-  JSStorePropertyNode n(node);
+void JSGenericLowering::LowerJSSetKeyedProperty(Node* node) {
+  JSSetKeyedPropertyNode n(node);
   const PropertyAccess& p = n.Parameters();
   FrameState frame_state = n.frame_state();
   Node* outer_state = frame_state.outer_frame_state();
@@ -414,6 +414,12 @@ void JSGenericLowering::LowerJSStoreProperty(Node* node) {
     n->RemoveInput(n.FeedbackVectorIndex());
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
+
+    // KeyedStoreIC is currently a base class for multiple keyed property store
+    // operations and contains mixed logic for set and define operations,
+    // the paths are controlled by feedback.
+    // TODO(v8:12548): refactor SetKeyedIC as a subclass of KeyedStoreIC, which
+    // can be called here.
     ReplaceWithBuiltinCall(node, Builtin::kKeyedStoreICTrampoline);
   } else {
     node->InsertInput(zone(), 3,
@@ -422,8 +428,8 @@ void JSGenericLowering::LowerJSStoreProperty(Node* node) {
   }
 }
 
-void JSGenericLowering::LowerJSDefineProperty(Node* node) {
-  JSDefinePropertyNode n(node);
+void JSGenericLowering::LowerJSDefineKeyedOwnProperty(Node* node) {
+  JSDefineKeyedOwnPropertyNode n(node);
   const PropertyAccess& p = n.Parameters();
   FrameState frame_state = n.frame_state();
   Node* outer_state = frame_state.outer_frame_state();
@@ -432,16 +438,16 @@ void JSGenericLowering::LowerJSDefineProperty(Node* node) {
     n->RemoveInput(n.FeedbackVectorIndex());
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    ReplaceWithBuiltinCall(node, Builtin::kKeyedDefineOwnICTrampoline);
+    ReplaceWithBuiltinCall(node, Builtin::kDefineKeyedOwnICTrampoline);
   } else {
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    ReplaceWithBuiltinCall(node, Builtin::kKeyedDefineOwnIC);
+    ReplaceWithBuiltinCall(node, Builtin::kDefineKeyedOwnIC);
   }
 }
 
-void JSGenericLowering::LowerJSStoreNamed(Node* node) {
-  JSStoreNamedNode n(node);
+void JSGenericLowering::LowerJSSetNamedProperty(Node* node) {
+  JSSetNamedPropertyNode n(node);
   NamedAccess const& p = n.Parameters();
   FrameState frame_state = n.frame_state();
   Node* outer_state = frame_state.outer_frame_state();
@@ -455,6 +461,11 @@ void JSGenericLowering::LowerJSStoreNamed(Node* node) {
     node->InsertInput(zone(), 1, jsgraph()->Constant(p.name(broker())));
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
+    // StoreIC is currently a base class for multiple property store operations
+    // and contains mixed logic for named and keyed, set and define operations,
+    // the paths are controlled by feedback.
+    // TODO(v8:12548): refactor SetNamedIC as a subclass of StoreIC, which can
+    // be called here.
     ReplaceWithBuiltinCall(node, Builtin::kStoreICTrampoline);
   } else {
     node->InsertInput(zone(), 1, jsgraph()->Constant(p.name(broker())));
@@ -464,10 +475,10 @@ void JSGenericLowering::LowerJSStoreNamed(Node* node) {
   }
 }
 
-void JSGenericLowering::LowerJSStoreNamedOwn(Node* node) {
+void JSGenericLowering::LowerJSDefineNamedOwnProperty(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-  JSStoreNamedOwnNode n(node);
-  StoreNamedOwnParameters const& p = n.Parameters();
+  JSDefineNamedOwnPropertyNode n(node);
+  DefineNamedOwnPropertyParameters const& p = n.Parameters();
   FrameState frame_state = n.frame_state();
   Node* outer_state = frame_state.outer_frame_state();
   STATIC_ASSERT(n.FeedbackVectorIndex() == 2);
@@ -476,13 +487,13 @@ void JSGenericLowering::LowerJSStoreNamedOwn(Node* node) {
     node->InsertInput(zone(), 1, jsgraph()->Constant(p.name(broker())));
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    Callable callable = CodeFactory::StoreOwnIC(isolate());
+    Callable callable = CodeFactory::DefineNamedOwnIC(isolate());
     ReplaceWithBuiltinCall(node, callable, flags);
   } else {
     node->InsertInput(zone(), 1, jsgraph()->Constant(p.name(broker())));
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    Callable callable = CodeFactory::StoreOwnICInOptimizedCode(isolate());
+    Callable callable = CodeFactory::DefineNamedOwnICInOptimizedCode(isolate());
     ReplaceWithBuiltinCall(node, callable, flags);
   }
 }
@@ -507,14 +518,14 @@ void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
   }
 }
 
-void JSGenericLowering::LowerJSStoreDataPropertyInLiteral(Node* node) {
-  JSStoreDataPropertyInLiteralNode n(node);
+void JSGenericLowering::LowerJSDefineKeyedOwnPropertyInLiteral(Node* node) {
+  JSDefineKeyedOwnPropertyInLiteralNode n(node);
   FeedbackParameter const& p = n.Parameters();
   STATIC_ASSERT(n.FeedbackVectorIndex() == 4);
   RelaxControls(node);
   node->InsertInput(zone(), 5,
                     jsgraph()->TaggedIndexConstant(p.feedback().index()));
-  ReplaceWithRuntimeCall(node, Runtime::kDefineDataPropertyInLiteral);
+  ReplaceWithRuntimeCall(node, Runtime::kDefineKeyedOwnPropertyInLiteral);
 }
 
 void JSGenericLowering::LowerJSStoreInArrayLiteral(Node* node) {

@@ -97,14 +97,14 @@ const DISALLOWED_FLAGS = [
     // stabilized yet and would cause too much noise when enabled.
     /^--experimental-.*/,
 
-    // Disallowed due to noise. We explicitly add --es-staging to job
+    // Disallowed due to noise. We explicitly add --harmony to job
     // definitions, and all of these features are staged before launch.
     /^--harmony-.*/,
 
     // Disallowed because they are passed explicitly on the command line.
     '--allow-natives-syntax',
     '--debug-code',
-    '--es-staging',
+    '--harmony',
     '--wasm-staging',
     '--expose-gc',
     '--expose_gc',

@@ -15,6 +15,14 @@ import sys
 import re
 from subprocess import Popen, PIPE
 
+PYTHON3 = sys.version_info >= (3, 0)
+
+def maybe_decode(arg, encoding="utf-8"):
+  return arg.decode(encoding) if PYTHON3 else arg
+
+def maybe_encode(arg, encoding="utf-8"):
+  return arg.encode(encoding) if PYTHON3 else arg
+
 kPercentEscape = r'α';  # Unicode alpha
 kDerefEscape = r'☆'; # Unicode star
 kAddressofEscape = r'⌂'; # Unicode house
@@ -103,8 +111,8 @@ def process(filename, lint, should_format):
     p = Popen(['clang-format', '-assume-filename=.ts'], stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True)
   else:
     p = Popen(['clang-format', '-assume-filename=.ts'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
-  output, err = p.communicate(preprocess(content))
-  output = postprocess(output)
+  output, err = p.communicate(maybe_encode(preprocess(content)))
+  output = postprocess(maybe_decode(output))
   rc = p.returncode
   if (rc != 0):
     print("error code " + str(rc) + " running clang-format. Exiting...")
@@ -116,7 +124,7 @@ def process(filename, lint, should_format):
 
     if should_format:
       output_file = open(filename, 'wb')
-      output_file.write(output);
+      output_file.write(maybe_encode(output))
       output_file.close()
 
 def print_usage():

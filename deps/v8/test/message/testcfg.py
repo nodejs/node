@@ -53,7 +53,8 @@ class TestCase(testcase.D8TestCase):
     self._base_path = os.path.join(self.suite.root, self.path)
     source = self.get_source()
     self._source_files = self._parse_source_files(source)
-    self._source_flags = self._parse_source_flags(source)
+    # Do not stress-opt message tests, since that changes the output.
+    self._source_flags = ['--no-stress-opt'] + self._parse_source_flags(source)
 
   def _parse_source_files(self, source):
     files = []

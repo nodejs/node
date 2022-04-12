@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-reftypes --trace-turbo-graph
+// Flags: --trace-turbo-graph
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 

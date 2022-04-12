@@ -38,6 +38,7 @@
 #include "src/base/strings.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/common/globals.h"
 #include "src/compiler/pipeline.h"
 #include "src/debug/debug.h"
 #include "src/flags/flags.h"
@@ -121,7 +122,7 @@ void CcTest::Run() {
   DCHECK_EQ(active_isolates, i::Isolate::non_disposed_isolates());
 #endif  // DEBUG
   if (initialize_) {
-    if (v8::Locker::WasEverUsed()) {
+    if (i_isolate()->was_locker_ever_used()) {
       v8::Locker locker(isolate_);
       EmptyMessageQueues(isolate_);
     } else {
@@ -278,14 +279,14 @@ i::Handle<i::JSFunction> Optimize(
   }
 
   CHECK(info.shared_info()->HasBytecodeArray());
-  i::JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+  i::JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
 
-  i::Handle<i::Code> code =
+  i::Handle<i::CodeT> code = i::ToCodeT(
       i::compiler::Pipeline::GenerateCodeForTesting(&info, isolate, out_broker)
-          .ToHandleChecked();
+          .ToHandleChecked(),
+      isolate);
   info.native_context().AddOptimizedCode(*code);
   function->set_code(*code, v8::kReleaseStore);
-
   return function;
 }
 
@@ -335,8 +336,8 @@ int main(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
   std::unique_ptr<v8::Platform> platform(v8::platform::NewDefaultPlatform());
   v8::V8::InitializePlatform(platform.get());
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  CHECK(v8::V8::InitializeVirtualMemoryCage());
+#ifdef V8_SANDBOX
+  CHECK(v8::V8::InitializeSandbox());
 #endif
   cppgc::InitializeProcess(platform->GetPageAllocator());
   using HelpOptions = v8::internal::FlagList::HelpOptions;
@@ -422,4 +423,38 @@ bool IsValidUnwrapObject(v8::Object* object) {
                               i::Internals::kLastJSApiObjectType) ||
           instance_type == i::Internals::kJSObjectType ||
           instance_type == i::Internals::kJSSpecialApiObjectType);
+}
+
+ManualGCScope::ManualGCScope(i::Isolate* isolate)
+    : flag_concurrent_marking_(i::FLAG_concurrent_marking),
+      flag_concurrent_sweeping_(i::FLAG_concurrent_sweeping),
+      flag_stress_concurrent_allocation_(i::FLAG_stress_concurrent_allocation),
+      flag_stress_incremental_marking_(i::FLAG_stress_incremental_marking),
+      flag_parallel_marking_(i::FLAG_parallel_marking),
+      flag_detect_ineffective_gcs_near_heap_limit_(
+          i::FLAG_detect_ineffective_gcs_near_heap_limit) {
+  // Some tests run threaded (back-to-back) and thus the GC may already be
+  // running by the time a ManualGCScope is created. Finalizing existing marking
+  // prevents any undefined/unexpected behavior.
+  if (isolate && isolate->heap()->incremental_marking()->IsMarking()) {
+    CcTest::CollectGarbage(i::OLD_SPACE, isolate);
+  }
+
+  i::FLAG_concurrent_marking = false;
+  i::FLAG_concurrent_sweeping = false;
+  i::FLAG_stress_incremental_marking = false;
+  i::FLAG_stress_concurrent_allocation = false;
+  // Parallel marking has a dependency on concurrent marking.
+  i::FLAG_parallel_marking = false;
+  i::FLAG_detect_ineffective_gcs_near_heap_limit = false;
+}
+
+ManualGCScope::~ManualGCScope() {
+  i::FLAG_concurrent_marking = flag_concurrent_marking_;
+  i::FLAG_concurrent_sweeping = flag_concurrent_sweeping_;
+  i::FLAG_stress_concurrent_allocation = flag_stress_concurrent_allocation_;
+  i::FLAG_stress_incremental_marking = flag_stress_incremental_marking_;
+  i::FLAG_parallel_marking = flag_parallel_marking_;
+  i::FLAG_detect_ineffective_gcs_near_heap_limit =
+      flag_detect_ineffective_gcs_near_heap_limit_;
 }

@@ -14,48 +14,84 @@
 namespace v8 {
 namespace internal {
 
-class AllocationObserver;
-
-class AllocationCounter {
+// Observer for allocations that is aware of LAB-based allocation.
+class AllocationObserver {
  public:
-  AllocationCounter()
-      : paused_(false),
-        current_counter_(0),
-        next_counter_(0),
-        step_in_progress_(false) {}
+  explicit AllocationObserver(intptr_t step_size) : step_size_(step_size) {
+    DCHECK_LE(kTaggedSize, step_size);
+  }
+  virtual ~AllocationObserver() = default;
+  AllocationObserver(const AllocationObserver&) = delete;
+  AllocationObserver& operator=(const AllocationObserver&) = delete;
+
+ protected:
+  // Called when at least `step_size_` bytes have been allocated. `soon_object`
+  // points to the uninitialized memory that has just been allocated and is the
+  // result for a request of `size` bytes.
+  //
+  // Some caveats:
+  // 1. `soon_object` will be nullptr in cases where the allocation returns a
+  //    filler object, which is e.g. needed at page boundaries.
+  // 2. `soon_object`  may actually be the first object in an
+  //    allocation-folding group. In such a case size is the size of the group
+  //    rather than the first object.
+  // 3. `size` is the requested size at the time of allocation. Right-trimming
+  //    may change the object size dynamically.
+  virtual void Step(int bytes_allocated, Address soon_object, size_t size) = 0;
+
+  // Subclasses can override this method to make step size dynamic.
+  virtual intptr_t GetNextStepSize() { return step_size_; }
+
+ private:
+  const intptr_t step_size_;
+
+  friend class AllocationCounter;
+};
+
+// A global allocation counter observers can be added to.
+class AllocationCounter final {
+ public:
+  AllocationCounter() = default;
+
+  // Adds an observer. May be called from `AllocationObserver::Step()`.
   V8_EXPORT_PRIVATE void AddAllocationObserver(AllocationObserver* observer);
+
+  // Removes an observer. May be called from `AllocationObserver::Step()`.
   V8_EXPORT_PRIVATE void RemoveAllocationObserver(AllocationObserver* observer);
 
-  bool IsActive() { return !IsPaused() && observers_.size() > 0; }
-
-  void Pause() {
-    DCHECK(!paused_);
-    DCHECK(!step_in_progress_);
-    paused_ = true;
-  }
-
-  void Resume() {
-    DCHECK(paused_);
-    DCHECK(!step_in_progress_);
-    paused_ = false;
-  }
-
+  // Advances forward by `allocated` bytes. Does not invoke any observers.
   V8_EXPORT_PRIVATE void AdvanceAllocationObservers(size_t allocated);
+
+  // Invokes observers via `AllocationObserver::Step()` and computes new step
+  // sizes. Does not advance the current allocation counter.
   V8_EXPORT_PRIVATE void InvokeAllocationObservers(Address soon_object,
                                                    size_t object_size,
                                                    size_t aligned_object_size);
 
-  size_t NextBytes() {
+  bool IsActive() const { return !IsPaused() && observers_.size() > 0; }
+
+  bool IsStepInProgress() const { return step_in_progress_; }
+
+  size_t NextBytes() const {
     DCHECK(IsActive());
     return next_counter_ - current_counter_;
   }
 
-  bool IsStepInProgress() { return step_in_progress_; }
+  void Pause() {
+    DCHECK(!step_in_progress_);
+    paused_++;
+  }
+
+  void Resume() {
+    DCHECK_NE(0, paused_);
+    DCHECK(!step_in_progress_);
+    paused_--;
+  }
 
  private:
-  bool IsPaused() { return paused_; }
+  bool IsPaused() const { return paused_; }
 
-  struct AllocationObserverCounter {
+  struct AllocationObserverCounter final {
     AllocationObserverCounter(AllocationObserver* observer, size_t prev_counter,
                               size_t next_counter)
         : observer_(observer),
@@ -71,47 +107,10 @@ class AllocationCounter {
   std::vector<AllocationObserverCounter> pending_added_;
   std::unordered_set<AllocationObserver*> pending_removed_;
 
-  bool paused_;
-
-  size_t current_counter_;
-  size_t next_counter_;
-
-  bool step_in_progress_;
-};
-
-// -----------------------------------------------------------------------------
-// Allows observation of allocations.
-class AllocationObserver {
- public:
-  explicit AllocationObserver(intptr_t step_size) : step_size_(step_size) {
-    DCHECK_LE(kTaggedSize, step_size);
-  }
-  virtual ~AllocationObserver() = default;
-  AllocationObserver(const AllocationObserver&) = delete;
-  AllocationObserver& operator=(const AllocationObserver&) = delete;
-
- protected:
-  // Pure virtual method provided by the subclasses that gets called when at
-  // least step_size bytes have been allocated. soon_object is the address just
-  // allocated (but not yet initialized.) size is the size of the object as
-  // requested (i.e. w/o the alignment fillers). Some complexities to be aware
-  // of:
-  // 1) soon_object will be nullptr in cases where we end up observing an
-  //    allocation that happens to be a filler space (e.g. page boundaries.)
-  // 2) size is the requested size at the time of allocation. Right-trimming
-  //    may change the object size dynamically.
-  // 3) soon_object may actually be the first object in an allocation-folding
-  //    group. In such a case size is the size of the group rather than the
-  //    first object.
-  virtual void Step(int bytes_allocated, Address soon_object, size_t size) = 0;
-
-  // Subclasses can override this method to make step size dynamic.
-  virtual intptr_t GetNextStepSize() { return step_size_; }
-
- private:
-  intptr_t step_size_;
-
-  friend class AllocationCounter;
+  size_t current_counter_ = 0;
+  size_t next_counter_ = 0;
+  bool step_in_progress_ = false;
+  int paused_ = 0;
 };
 
 class V8_EXPORT_PRIVATE V8_NODISCARD PauseAllocationObserversScope {

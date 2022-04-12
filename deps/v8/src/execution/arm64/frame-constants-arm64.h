@@ -7,7 +7,6 @@
 
 #include "src/base/bits.h"
 #include "src/base/macros.h"
-#include "src/codegen/arm64/register-arm64.h"
 #include "src/codegen/register.h"
 #include "src/codegen/reglist.h"
 #include "src/common/globals.h"
@@ -98,23 +97,21 @@ class WasmDebugBreakFrameConstants : public TypedFrameConstants {
  public:
   // x16: ip0, x17: ip1, x18: platform register, x26: root, x28: base, x29: fp,
   // x30: lr, x31: xzr.
-  static constexpr RegList kPushedGpRegs = CPURegister::ListOf(
-      x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x19,
-      x20, x21, x22, x23, x24, x25, x27);
+  static constexpr RegList kPushedGpRegs = {
+      x0,  x1,  x2,  x3,  x4,  x5,  x6,  x7,  x8,  x9,  x10, x11,
+      x12, x13, x14, x15, x19, x20, x21, x22, x23, x24, x25, x27};
 
   // We push FpRegs as 128-bit SIMD registers, so 16-byte frame alignment
   // is guaranteed regardless of register count.
-  static constexpr RegList kPushedFpRegs = CPURegister::ListOf(
-      d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d16, d17,
-      d18, d19, d20, d21, d22, d23, d24, d25, d26, d27, d28, d29);
+  static constexpr DoubleRegList kPushedFpRegs = {
+      d0,  d1,  d2,  d3,  d4,  d5,  d6,  d7,  d8,  d9,  d10, d11, d12, d13, d14,
+      d16, d17, d18, d19, d20, d21, d22, d23, d24, d25, d26, d27, d28, d29};
 
-  static constexpr int kNumPushedGpRegisters =
-      base::bits::CountPopulation(kPushedGpRegs);
+  static constexpr int kNumPushedGpRegisters = kPushedGpRegs.Count();
   static_assert(kNumPushedGpRegisters % 2 == 0,
                 "stack frames need to be 16-byte aligned");
 
-  static constexpr int kNumPushedFpRegisters =
-      base::bits::CountPopulation(kPushedFpRegs);
+  static constexpr int kNumPushedFpRegisters = kPushedFpRegs.Count();
 
   static constexpr int kLastPushedGpRegisterOffset =
       // Header is padded to 16 byte (see {MacroAssembler::EnterFrame}).
@@ -125,15 +122,17 @@ class WasmDebugBreakFrameConstants : public TypedFrameConstants {
 
   // Offsets are fp-relative.
   static int GetPushedGpRegisterOffset(int reg_code) {
-    DCHECK_NE(0, kPushedGpRegs & (1 << reg_code));
-    uint32_t lower_regs = kPushedGpRegs & ((uint32_t{1} << reg_code) - 1);
+    DCHECK_NE(0, kPushedGpRegs.bits() & (1 << reg_code));
+    uint32_t lower_regs =
+        kPushedGpRegs.bits() & ((uint32_t{1} << reg_code) - 1);
     return kLastPushedGpRegisterOffset +
            base::bits::CountPopulation(lower_regs) * kSystemPointerSize;
   }
 
   static int GetPushedFpRegisterOffset(int reg_code) {
-    DCHECK_NE(0, kPushedFpRegs & (1 << reg_code));
-    uint32_t lower_regs = kPushedFpRegs & ((uint32_t{1} << reg_code) - 1);
+    DCHECK_NE(0, kPushedFpRegs.bits() & (1 << reg_code));
+    uint32_t lower_regs =
+        kPushedFpRegs.bits() & ((uint32_t{1} << reg_code) - 1);
     return kLastPushedFpRegisterOffset +
            base::bits::CountPopulation(lower_regs) * kSimd128Size;
   }

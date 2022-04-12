@@ -34,7 +34,7 @@ void WriteToFile(const char* prefix, FILE* file, Isolate* isolate,
 }  // anonymous namespace
 
 D8Console::D8Console(Isolate* isolate) : isolate_(isolate) {
-  default_timer_ = base::TimeTicks::HighResolutionNow();
+  default_timer_ = base::TimeTicks::Now();
 }
 
 void D8Console::Assert(const debug::ConsoleCallArguments& args,
@@ -75,7 +75,7 @@ void D8Console::Time(const debug::ConsoleCallArguments& args,
                      const v8::debug::ConsoleContext&) {
   if (internal::FLAG_correctness_fuzzer_suppressions) return;
   if (args.Length() == 0) {
-    default_timer_ = base::TimeTicks::HighResolutionNow();
+    default_timer_ = base::TimeTicks::Now();
   } else {
     Local<Value> arg = args[0];
     Local<String> label;
@@ -85,10 +85,10 @@ void D8Console::Time(const debug::ConsoleCallArguments& args,
     std::string string(*utf8);
     auto find = timers_.find(string);
     if (find != timers_.end()) {
-      find->second = base::TimeTicks::HighResolutionNow();
+      find->second = base::TimeTicks::Now();
     } else {
       timers_.insert(std::pair<std::string, base::TimeTicks>(
-          string, base::TimeTicks::HighResolutionNow()));
+          string, base::TimeTicks::Now()));
     }
   }
 }
@@ -98,10 +98,10 @@ void D8Console::TimeEnd(const debug::ConsoleCallArguments& args,
   if (internal::FLAG_correctness_fuzzer_suppressions) return;
   base::TimeDelta delta;
   if (args.Length() == 0) {
-    delta = base::TimeTicks::HighResolutionNow() - default_timer_;
+    delta = base::TimeTicks::Now() - default_timer_;
     printf("console.timeEnd: default, %f\n", delta.InMillisecondsF());
   } else {
-    base::TimeTicks now = base::TimeTicks::HighResolutionNow();
+    base::TimeTicks now = base::TimeTicks::Now();
     Local<Value> arg = args[0];
     Local<String> label;
     v8::TryCatch try_catch(isolate_);
@@ -120,7 +120,7 @@ void D8Console::TimeEnd(const debug::ConsoleCallArguments& args,
 void D8Console::TimeStamp(const debug::ConsoleCallArguments& args,
                           const v8::debug::ConsoleContext&) {
   if (internal::FLAG_correctness_fuzzer_suppressions) return;
-  base::TimeDelta delta = base::TimeTicks::HighResolutionNow() - default_timer_;
+  base::TimeDelta delta = base::TimeTicks::Now() - default_timer_;
   if (args.Length() == 0) {
     printf("console.timeStamp: default, %f\n", delta.InMillisecondsF());
   } else {

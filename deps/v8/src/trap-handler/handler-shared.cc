@@ -43,7 +43,7 @@ MetadataLock::MetadataLock() {
     abort();
   }
 
-  while (spinlock_.test_and_set(std::memory_order::memory_order_acquire)) {
+  while (spinlock_.test_and_set(std::memory_order_acquire)) {
   }
 }
 
@@ -52,7 +52,7 @@ MetadataLock::~MetadataLock() {
     abort();
   }
 
-  spinlock_.clear(std::memory_order::memory_order_release);
+  spinlock_.clear(std::memory_order_release);
 }
 
 }  // namespace trap_handler

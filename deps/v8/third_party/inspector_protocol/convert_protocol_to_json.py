@@ -10,6 +10,13 @@ import sys
 
 import pdl
 
+def open_to_write(path):
+    if sys.version_info >= (3,0):
+        return open(path, 'w', encoding='utf-8')
+    else:
+        return open(path, 'wb')
+
+
 def main(argv):
     parser = argparse.ArgumentParser(description=(
         "Converts from .pdl to .json by invoking the pdl Python module."))
@@ -25,8 +32,7 @@ def main(argv):
     pdl_string = input_file.read()
     protocol = pdl.loads(pdl_string, file_name, args.map_binary_to_string)
     input_file.close()
-
-    output_file = open(os.path.normpath(args.json_file), 'wb')
+    output_file = open_to_write(os.path.normpath(args.json_file))
     json.dump(protocol, output_file, indent=4, separators=(',', ': '))
     output_file.close()
 

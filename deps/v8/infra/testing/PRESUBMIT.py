@@ -11,10 +11,9 @@ For simplicity, we check all pyl files on any changes in this folder.
 import ast
 import os
 
-try:
-  basestring       # Python 2
-except NameError:  # Python 3
-  basestring = str
+# This line is 'magic' in that git-cl looks for it to decide whether to
+# use Python3 instead of Python2 when running the code in this file.
+USE_PYTHON3 = True
 
 SUPPORTED_BUILDER_SPEC_KEYS = [
   'swarming_dimensions',
@@ -58,14 +57,14 @@ def check_keys(error_msg, src_dict, supported_keys):
   errors = []
   for key in src_dict.keys():
     if key not in supported_keys:
-      errors += error_msg('Key "%s" must be one of %s' % (key, supported_keys))
+      errors += error_msg(f'Key "{key}" must be one of {supported_keys}')
   return errors
 
 
 def _check_properties(error_msg, src_dict, prop_name, supported_keys):
   properties = src_dict.get(prop_name, {})
   if not isinstance(properties, dict):
-    return error_msg('Value for %s must be a dict' % prop_name)
+    return error_msg(f'Value for {prop_name} must be a dict')
   return check_keys(error_msg, properties, supported_keys)
 
 
@@ -77,11 +76,11 @@ def _check_int_range(error_msg, src_dict, prop_name, lower_bound=None,
   try:
     value = int(src_dict[prop_name])
   except ValueError:
-    return error_msg('If specified, %s must be an int' % prop_name)
+    return error_msg(f'If specified, {prop_name} must be an int')
   if lower_bound is not None and value < lower_bound:
-    return error_msg('If specified, %s must be >=%d' % (prop_name, lower_bound))
+    return error_msg(f'If specified, {prop_name} must be >={lower_bound}')
   if upper_bound is not None and value > upper_bound:
-    return error_msg('If specified, %s must be <=%d' % (prop_name, upper_bound))
+    return error_msg(f'If specified, {prop_name} must be <={upper_bound}')
   return []
 
 
@@ -120,7 +119,7 @@ def _check_test(error_msg, test):
   test_args = test.get('test_args', [])
   if not isinstance(test_args, list):
     errors += error_msg('If specified, test_args must be a list of arguments')
-  if not all(isinstance(x, basestring) for x in test_args):
+  if not all(isinstance(x, str) for x in test_args):
     errors += error_msg('If specified, all test_args must be strings')
 
   # Limit shards to 14 to avoid erroneous resource exhaustion.
@@ -128,7 +127,7 @@ def _check_test(error_msg, test):
       error_msg, test, 'shards', lower_bound=1, upper_bound=14)
 
   variant = test.get('variant', 'default')
-  if not variant or not isinstance(variant, basestring):
+  if not variant or not isinstance(variant, str):
     errors += error_msg('If specified, variant must be a non-empty string')
 
   return errors
@@ -136,23 +135,23 @@ def _check_test(error_msg, test):
 
 def _check_test_spec(file_path, raw_pyl):
   def error_msg(msg):
-    return ['Error in %s:\n%s' % (file_path, msg)]
+    return [f'Error in {file_path}:\n{msg}']
 
   try:
     # Eval python literal file.
     full_test_spec = ast.literal_eval(raw_pyl)
   except SyntaxError as e:
-    return error_msg('Pyl parsing failed with:\n%s' % e)
+    return error_msg(f'Pyl parsing failed with:\n{e}')
 
   if not isinstance(full_test_spec, dict):
     return error_msg('Test spec must be a dict')
 
   errors = []
-  for buildername, builder_spec in full_test_spec.iteritems():
+  for buildername, builder_spec in full_test_spec.items():
     def error_msg(msg):
-      return ['Error in %s for builder %s:\n%s' % (file_path, buildername, msg)]
+      return [f'Error in {file_path} for builder {buildername}:\n{msg}']
 
-    if not isinstance(buildername, basestring) or not buildername:
+    if not isinstance(buildername, str) or not buildername:
       errors += error_msg('Buildername must be a non-empty string')
 
     if not isinstance(builder_spec, dict) or not builder_spec:

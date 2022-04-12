@@ -14,7 +14,7 @@
   %PrepareFunctionForOptimization(foo);
   assertFalse(foo());
   assertFalse(foo());
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertFalse(foo());
 })();
 
@@ -28,7 +28,7 @@
   %PrepareFunctionForOptimization(foo);
   assertFalse(foo());
   assertFalse(foo());
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertFalse(foo());
 })();
 
@@ -42,7 +42,7 @@
   %PrepareFunctionForOptimization(foo);
   assertFalse(foo());
   assertFalse(foo());
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertFalse(foo());
 })();
 
@@ -56,7 +56,7 @@
   %PrepareFunctionForOptimization(foo);
   assertFalse(foo());
   assertFalse(foo());
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertFalse(foo());
 })();
 
@@ -70,7 +70,7 @@
   %PrepareFunctionForOptimization(foo);
   assertFalse(foo());
   assertFalse(foo());
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertFalse(foo());
 })();
 
@@ -86,7 +86,7 @@
   assertFalse(foo(a));
   assertTrue(foo(b));
   assertFalse(foo(a));
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertTrue(foo(b));
   assertFalse(foo(a));
 
@@ -107,7 +107,7 @@
   assertFalse(foo(a));
   assertTrue(foo(b));
   assertFalse(foo(a));
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertTrue(foo(b));
   assertFalse(foo(a));
 
@@ -128,7 +128,7 @@
   assertFalse(foo(a));
   assertTrue(foo(b));
   assertFalse(foo(a));
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertTrue(foo(b));
   assertFalse(foo(a));
 
@@ -149,7 +149,7 @@
   assertFalse(foo(a));
   assertTrue(foo(b));
   assertFalse(foo(a));
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertTrue(foo(b));
   assertFalse(foo(a));
   assertTrue(foo(null));
@@ -173,7 +173,7 @@
   assertFalse(foo(a));
   assertTrue(foo(b));
   assertFalse(foo(a));
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertTrue(foo(b));
   assertFalse(foo(a));
   assertTrue(foo(null));

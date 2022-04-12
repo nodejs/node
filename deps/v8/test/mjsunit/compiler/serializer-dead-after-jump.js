@@ -39,5 +39,5 @@ assertTrue(main(true, true));
 assertTrue(main(true, true));
 assertTrue(main(false, true));
 assertTrue(main(false, true));
-%OptimizeFunctionForTopTier(main);
+%OptimizeFunctionOnNextCall(main);
 assertFalse(main(false));

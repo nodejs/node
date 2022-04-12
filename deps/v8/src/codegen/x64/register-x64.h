@@ -5,8 +5,7 @@
 #ifndef V8_CODEGEN_X64_REGISTER_X64_H_
 #define V8_CODEGEN_X64_REGISTER_X64_H_
 
-#include "src/codegen/register.h"
-#include "src/codegen/reglist.h"
+#include "src/codegen/register-base.h"
 
 namespace v8 {
 namespace internal {
@@ -75,7 +74,7 @@ class Register : public RegisterBase<Register, kRegAfterLast> {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(Register);
-static_assert(sizeof(Register) == sizeof(int),
+static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
 
 #define DECLARE_REGISTER(R) \
@@ -85,23 +84,6 @@ GENERAL_REGISTERS(DECLARE_REGISTER)
 constexpr Register no_reg = Register::no_reg();
 
 constexpr int kNumRegs = 16;
-
-constexpr RegList kJSCallerSaved =
-    Register::ListOf(rax, rcx, rdx,
-                     rbx,  // used as a caller-saved register in JavaScript code
-                     rdi);  // callee function
-
-constexpr RegList kCallerSaved =
-#ifdef V8_TARGET_OS_WIN
-    Register::ListOf(rax, rcx, rdx, r8, r9, r10, r11);
-#else
-    Register::ListOf(rax, rcx, rdx, rdi, rsi, r8, r9, r10, r11);
-#endif  // V8_TARGET_OS_WIN
-
-constexpr int kNumJSCallerSaved = 5;
-
-// Number of registers for which space is reserved in safepoints.
-constexpr int kNumSafepointRegisters = 16;
 
 #ifdef V8_TARGET_OS_WIN
 // Windows calling convention
@@ -179,7 +161,7 @@ constexpr int ArgumentPaddingSlots(int argument_count) {
   return 0;
 }
 
-constexpr bool kSimpleFPAliasing = true;
+constexpr AliasingKind kFPAliasing = AliasingKind::kOverlap;
 constexpr bool kSimdMaskRegisters = false;
 
 enum DoubleRegisterCode {
@@ -215,7 +197,7 @@ class XMMRegister : public RegisterBase<XMMRegister, kDoubleAfterLast> {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(XMMRegister);
-static_assert(sizeof(XMMRegister) == sizeof(int),
+static_assert(sizeof(XMMRegister) <= sizeof(int),
               "XMMRegister can efficiently be passed by value");
 
 class YMMRegister : public XMMRegister {
@@ -231,7 +213,7 @@ class YMMRegister : public XMMRegister {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(YMMRegister);
-static_assert(sizeof(YMMRegister) == sizeof(int),
+static_assert(sizeof(YMMRegister) <= sizeof(int),
               "YMMRegister can efficiently be passed by value");
 
 using FloatRegister = XMMRegister;

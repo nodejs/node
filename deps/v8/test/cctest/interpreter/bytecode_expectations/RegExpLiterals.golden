@@ -49,7 +49,7 @@ bytecode array length: 19
 bytecodes: [
   /*   34 S> */ B(CreateRegExpLiteral), U8(0), U8(0), U8(0),
                 B(Star1),
-  /*   48 E> */ B(LdaNamedProperty), R(1), U8(1), U8(1),
+  /*   48 E> */ B(GetNamedProperty), R(1), U8(1), U8(1),
                 B(Star0),
                 B(LdaConstant), U8(2),
                 B(Star2),

@@ -4,6 +4,59 @@
 
 intrinsic %FromConstexpr<To: type, From: type>(b: From): To;
 macro FromConstexpr<To: type, From: type>(o: From): To;
+// Conversions for IntegerLiteral
+FromConstexpr<intptr, constexpr IntegerLiteral>(i: constexpr IntegerLiteral):
+    intptr {
+  return ConstexprIntegerLiteralToIntptr(i);
+}
+FromConstexpr<uintptr, constexpr IntegerLiteral>(i: constexpr IntegerLiteral):
+    uintptr {
+  return ConstexprIntegerLiteralToUintptr(i);
+}
+FromConstexpr<int32, constexpr IntegerLiteral>(i: constexpr IntegerLiteral):
+    int32 {
+  return ConstexprIntegerLiteralToInt32(i);
+}
+FromConstexpr<uint32, constexpr IntegerLiteral>(i: constexpr IntegerLiteral):
+    uint32 {
+  return ConstexprIntegerLiteralToUint32(i);
+}
+FromConstexpr<int31, constexpr IntegerLiteral>(i: constexpr IntegerLiteral):
+    int31 {
+  return ConstexprIntegerLiteralToInt31(i);
+}
+FromConstexpr<int8, constexpr IntegerLiteral>(i: constexpr IntegerLiteral):
+    int8 {
+  return ConstexprIntegerLiteralToInt8(i);
+}
+FromConstexpr<uint8, constexpr IntegerLiteral>(i: constexpr IntegerLiteral):
+    uint8 {
+  return ConstexprIntegerLiteralToUint8(i);
+}
+FromConstexpr<uint64, constexpr IntegerLiteral>(i: constexpr IntegerLiteral):
+    uint64 {
+  return ConstexprIntegerLiteralToUint64(i);
+}
+FromConstexpr<constexpr int31, constexpr IntegerLiteral>(
+    i: constexpr IntegerLiteral): constexpr int31 {
+  return ConstexprIntegerLiteralToInt31(i);
+}
+FromConstexpr<constexpr int32, constexpr IntegerLiteral>(
+    i: constexpr IntegerLiteral): constexpr int32 {
+  return ConstexprIntegerLiteralToInt32(i);
+}
+FromConstexpr<Number, constexpr IntegerLiteral>(i: constexpr IntegerLiteral):
+    Number {
+  return NumberConstant(ConstexprIntegerLiteralToFloat64(i));
+}
+FromConstexpr<Smi, constexpr IntegerLiteral>(i: constexpr IntegerLiteral): Smi {
+  return Convert<Smi>(ConstexprIntegerLiteralToInt31(i));
+}
+FromConstexpr<char8, constexpr IntegerLiteral>(i: constexpr IntegerLiteral):
+    char8 {
+  return %RawDownCast<char8>(FromConstexpr<uint8>(i));
+}
+
 FromConstexpr<int31, constexpr int31>(i: constexpr int31): int31 {
   return %FromConstexpr<int31>(i);
 }
@@ -324,6 +377,10 @@ Convert<intptr, Number>(n: Number): intptr {
 }
 Convert<bint, int32>(v: int32): bint {
   return IntPtrToBInt(Convert<intptr>(v));
+}
+FromConstexpr<float64, constexpr IntegerLiteral>(v: constexpr IntegerLiteral):
+    float64 {
+  return ConstexprIntegerLiteralToFloat64(v);
 }
 extern macro IntPtrToBInt(intptr): bint;
 Convert<bint, intptr>(v: intptr): bint {

@@ -76,7 +76,6 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
       !backing_store->is_wasm_memory() && !backing_store->is_resizable(),
       backing_store->byte_length() == backing_store->max_byte_length());
   DCHECK(!was_detached());
-  DCHECK(IsValidBackingStorePointer(backing_store->buffer_start()));
   Isolate* isolate = GetIsolate();
 
   if (backing_store->IsEmpty()) {
@@ -91,6 +90,7 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
     // invariant that their byte_length field is always 0.
     set_byte_length(0);
   } else {
+    CHECK_LE(backing_store->byte_length(), kMaxByteLength);
     set_byte_length(backing_store->byte_length());
   }
   set_max_byte_length(backing_store->max_byte_length());

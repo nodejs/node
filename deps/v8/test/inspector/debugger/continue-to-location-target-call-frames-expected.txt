@@ -8,9 +8,9 @@ asyncFact (test.js:9:2)
 
 asyncFact (test.js:11:2)
 -- await --
-asyncFact (test.js:3:20)
-asyncFact (test.js:3:20)
-asyncFact (test.js:3:20)
+asyncFact (test.js:10:20)
+asyncFact (test.js:10:20)
+asyncFact (test.js:10:20)
 (anonymous) (expr.js:0:0)
 
 

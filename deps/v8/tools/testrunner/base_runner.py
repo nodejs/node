@@ -192,7 +192,8 @@ class BuildConfig(object):
     self.lite_mode = build_config['v8_enable_lite_mode']
     self.pointer_compression = build_config['v8_enable_pointer_compression']
     self.pointer_compression_shared_cage = build_config['v8_enable_pointer_compression_shared_cage']
-    self.virtual_memory_cage = build_config['v8_enable_virtual_memory_cage']
+    self.shared_ro_heap = build_config['v8_enable_shared_ro_heap']
+    self.sandbox = build_config['v8_enable_sandbox']
     self.third_party_heap = build_config['v8_enable_third_party_heap']
     self.webassembly = build_config['v8_enable_webassembly']
     self.dict_property_const_tracking = build_config['v8_dict_property_const_tracking']
@@ -237,8 +238,8 @@ class BuildConfig(object):
       detected_options.append('pointer_compression')
     if self.pointer_compression_shared_cage:
       detected_options.append('pointer_compression_shared_cage')
-    if self.virtual_memory_cage:
-      detected_options.append('virtual_memory_cage')
+    if self.sandbox:
+      detected_options.append('sandbox')
     if self.third_party_heap:
       detected_options.append('third_party_heap')
     if self.webassembly:
@@ -386,9 +387,6 @@ class BaseTestRunner(object):
                       help="Path to a file for storing json results.")
     parser.add_option('--slow-tests-cutoff', type="int", default=100,
                       help='Collect N slowest tests')
-    parser.add_option("--junitout", help="File name of the JUnit output")
-    parser.add_option("--junittestsuite", default="v8tests",
-                      help="The testsuite name in the JUnit output file")
     parser.add_option("--exit-after-n-failures", type="int", default=100,
                       help="Exit after the first N failures instead of "
                            "running all tests. Pass 0 to disable this feature.")
@@ -671,7 +669,7 @@ class BaseTestRunner(object):
 
     no_simd_hardware = any(
         i in options.extra_flags for i in ['--noenable-sse3',
-                                           '--no-enable-sse3'
+                                           '--no-enable-sse3',
                                            '--noenable-ssse3',
                                            '--no-enable-ssse3',
                                            '--noenable-sse4-1',
@@ -695,10 +693,6 @@ class BaseTestRunner(object):
     if self.build_config.arch == 'ppc64' and \
        not self.build_config.simulator_run and \
        utils.GuessPowerProcessorVersion() < 9:
-       no_simd_hardware = True
-
-    # riscv64 do not support Simd instructions
-    if self.build_config.arch == 'riscv64':
        no_simd_hardware = True
 
     return {
@@ -739,7 +733,10 @@ class BaseTestRunner(object):
       "lite_mode": self.build_config.lite_mode,
       "pointer_compression": self.build_config.pointer_compression,
       "pointer_compression_shared_cage": self.build_config.pointer_compression_shared_cage,
-      "virtual_memory_cage": self.build_config.virtual_memory_cage,
+      "no_js_shared_memory": (not self.build_config.shared_ro_heap) or
+                             (self.build_config.pointer_compression and
+                              not self.build_config.pointer_compression_shared_cage),
+      "sandbox": self.build_config.sandbox,
       "dict_property_const_tracking": self.build_config.dict_property_const_tracking,
     }
 
@@ -837,9 +834,6 @@ class BaseTestRunner(object):
 
   def _create_progress_indicators(self, test_count, options):
     procs = [PROGRESS_INDICATORS[options.progress]()]
-    if options.junitout:
-      procs.append(progress.JUnitTestProgressIndicator(options.junitout,
-                                                       options.junittestsuite))
     if options.json_test_results:
       procs.append(progress.JsonTestProgressIndicator(self.framework_name))
 

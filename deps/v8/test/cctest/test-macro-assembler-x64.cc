@@ -102,7 +102,7 @@ static void TestMoveSmi(MacroAssembler* masm, Label* exit, int id, Smi value) {
   __ movl(rax, Immediate(id));
   __ Move(rcx, value);
   __ Move(rdx, static_cast<intptr_t>(value.ptr()));
-  __ cmpq(rcx, rdx);
+  __ cmp_tagged(rcx, rdx);
   __ j(not_equal, exit);
 }
 
@@ -487,9 +487,6 @@ TEST(EmbeddedObj) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsCompressedEmbeddedObject(mode)) {
       CHECK_EQ(*my_array, it.rinfo()->target_object(cage_base));
-      if (!V8_EXTERNAL_CODE_SPACE_BOOL) {
-        CHECK_EQ(*my_array, it.rinfo()->target_object(cage_base));
-      }
     } else {
       CHECK(RelocInfo::IsFullEmbeddedObject(mode));
       CHECK_EQ(*old_array, it.rinfo()->target_object(cage_base));

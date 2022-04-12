@@ -4,12 +4,12 @@ Tests url in Debugger.CallFrame.
         url : 
     }
     [1] : {
-        url : source-url.js
+        url : 
     }
     [2] : {
-        url : test.js
+        url : 
     }
     [3] : {
-        url : expr.js
+        url : 
     }
 ]

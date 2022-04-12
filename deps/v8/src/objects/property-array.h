@@ -31,8 +31,12 @@ class PropertyArray
 
   inline Object get(int index) const;
   inline Object get(PtrComprCageBase cage_base, int index) const;
+  inline Object get(int index, SeqCstAccessTag tag) const;
+  inline Object get(PtrComprCageBase cage_base, int index,
+                    SeqCstAccessTag tag) const;
 
   inline void set(int index, Object value);
+  inline void set(int index, Object value, SeqCstAccessTag tag);
   // Setter with explicit barrier mode.
   inline void set(int index, Object value, WriteBarrierMode mode);
 

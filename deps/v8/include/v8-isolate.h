@@ -10,7 +10,6 @@
 
 #include <memory>
 #include <utility>
-#include <vector>
 
 #include "cppgc/common.h"
 #include "v8-array-buffer.h"       // NOLINT(build/include_directory)
@@ -225,6 +224,7 @@ class V8_EXPORT Isolate {
 
     /**
      * Explicitly specify a startup snapshot blob. The embedder owns the blob.
+     * The embedder *must* ensure that the snapshot is from a trusted source.
      */
     StartupData* snapshot_blob = nullptr;
 
@@ -281,6 +281,12 @@ class V8_EXPORT Isolate {
      */
     int embedder_wrapper_type_index = -1;
     int embedder_wrapper_object_index = -1;
+
+    /**
+     * Callbacks to invoke in case of fatal or OOM errors.
+     */
+    FatalErrorCallback fatal_error_callback = nullptr;
+    OOMErrorCallback oom_error_callback = nullptr;
 
     /**
      * The following parameter is experimental and may change significantly.
@@ -523,6 +529,8 @@ class V8_EXPORT Isolate {
     kWasmMultiValue = 110,
     kWasmExceptionHandling = 111,
     kInvalidatedMegaDOMProtector = 112,
+    kFunctionPrototypeArguments = 113,
+    kFunctionPrototypeCaller = 114,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
@@ -628,7 +636,7 @@ class V8_EXPORT Isolate {
    * This specifies the callback called by the upcoming dynamic
    * import() language feature to load modules.
    */
-  V8_DEPRECATE_SOON("Use HostImportModuleDynamicallyCallback")
+  V8_DEPRECATED("Use HostImportModuleDynamicallyCallback")
   void SetHostImportModuleDynamicallyCallback(
       HostImportModuleDynamicallyWithImportAssertionsCallback callback);
   void SetHostImportModuleDynamicallyCallback(
@@ -640,6 +648,13 @@ class V8_EXPORT Isolate {
    */
   void SetHostInitializeImportMetaObjectCallback(
       HostInitializeImportMetaObjectCallback callback);
+
+  /**
+   * This specifies the callback called by the upcoming ShadowRealm
+   * construction language feature to retrieve host created globals.
+   */
+  void SetHostCreateShadowRealmContextCallback(
+      HostCreateShadowRealmContextCallback callback);
 
   /**
    * This specifies the callback called when the stack property of Error

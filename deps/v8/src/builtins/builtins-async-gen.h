@@ -48,26 +48,6 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
                                TNode<SharedFunctionInfo> shared_info);
   TNode<Context> AllocateAsyncIteratorValueUnwrapContext(
       TNode<NativeContext> native_context, TNode<Oddball> done);
-
-  TNode<Object> AwaitOld(TNode<Context> context,
-                         TNode<JSGeneratorObject> generator,
-                         TNode<Object> value, TNode<JSPromise> outer_promise,
-                         TNode<SharedFunctionInfo> on_resolve_sfi,
-                         TNode<SharedFunctionInfo> on_reject_sfi,
-                         TNode<Oddball> is_predicted_as_caught);
-  TNode<Object> AwaitOptimized(TNode<Context> context,
-                               TNode<JSGeneratorObject> generator,
-                               TNode<JSPromise> promise,
-                               TNode<JSPromise> outer_promise,
-                               TNode<SharedFunctionInfo> on_resolve_sfi,
-                               TNode<SharedFunctionInfo> on_reject_sfi,
-                               TNode<Oddball> is_predicted_as_caught);
-
-  void InitAwaitPromise(
-      Runtime::FunctionId id, TNode<Context> context, TNode<Object> value,
-      TNode<Object> promise, TNode<Object> outer_promise,
-      TNode<HeapObject> on_reject, TNode<Oddball> is_predicted_as_caught,
-      TVariable<HeapObject>* var_throwaway);
 };
 
 }  // namespace internal

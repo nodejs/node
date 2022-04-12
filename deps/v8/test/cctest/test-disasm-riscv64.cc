@@ -527,10 +527,11 @@ TEST(Previleged) {
   VERIFY_RUN();
 }
 */
-#ifdef CAN_USE_RVV_INSTRUCTIONS
+
 TEST(RVV) {
+  if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;
   SET_UP();
-  COMPARE(vsetvlmax(kScratchReg, E64, m1),
+  COMPARE(VU.set(kScratchReg, E64, m1),
           "018079d7       vsetvli   s3, zero_reg, E64, m1");
   COMPARE(vl(v2, a0, 0, VSew::E8), "02050107       vle8.v       v2, (a0)");
   COMPARE(vl(v2, a0, 0, VSew::E8), "02050107       vle8.v       v2, (a0)");
@@ -622,8 +623,51 @@ TEST(RVV) {
   COMPARE(vzext_vf2(v17, v14), "4ae328d7       vzext.vf2 v17, v14");
   COMPARE(vsext_vf2(v17, v14), "4ae3a8d7       vsext.vf2 v17, v14");
 
+  // Vector Mask Instructions
+  COMPARE(vfirst_m(a5, v17), "4318a7d7       vfirst.m  a5, v17");
+  COMPARE(vcpop_m(a5, v17), "431827d7       vcpop.m   a5, v17");
+
+  COMPARE(vfsqrt_v(v17, v28), "4fc018d7       vfsqrt.v  v17, v28")
+  COMPARE(vfrsqrt7_v(v17, v28), "4fc218d7       vfrsqrt7.v v17, v28")
+  COMPARE(vfrec7_v(v17, v28), "4fc298d7       vfrec7.v  v17, v28")
+  COMPARE(vfclass_v(v17, v28), "4fc818d7       vfclass.v  v17, v28")
+
+  // Vector Widening Floating-Point Add/Subtract Instructions
+  COMPARE(vfwadd_vv(v17, v14, v28), "c2ee18d7       vfwadd.vv v17, v14, v28");
+  COMPARE(vfwsub_vv(v17, v14, v28), "caee18d7       vfwsub.vv v17, v14, v28");
+  COMPARE(vfwadd_wv(v17, v14, v28), "d2ee18d7       vfwadd.wv v17, v14, v28");
+  COMPARE(vfwsub_wv(v17, v14, v28), "daee18d7       vfwsub.wv v17, v14, v28");
+  COMPARE(vfwadd_vf(v17, v28, fa5), "c3c7d8d7       vfwadd.vf v17, v28, fa5");
+  COMPARE(vfwsub_vf(v17, v28, fa5), "cbc7d8d7       vfwsub.vf v17, v28, fa5");
+  COMPARE(vfwadd_wf(v17, v28, fa5), "d3c7d8d7       vfwadd.wf v17, v28, fa5");
+  COMPARE(vfwsub_wf(v17, v28, fa5), "dbc7d8d7       vfwsub.wf v17, v28, fa5");
+
+  // Vector Widening Floating-Point Reduction Instructions
+  COMPARE(vfwredusum_vv(v17, v14, v28),
+          "c6ee18d7       vfwredusum.vs v17, v14, v28");
+  COMPARE(vfwredosum_vv(v17, v14, v28),
+          "ceee18d7       vfwredosum.vs v17, v14, v28");
+
+  // Vector Widening Floating-Point Multiply
+  COMPARE(vfwmul_vv(v17, v14, v28), "e2ee18d7       vfwmul.vv v17, v14, v28");
+  COMPARE(vfwmul_vf(v17, v28, fa5), "e3c7d8d7       vfwmul.vf v17, v28, fa5");
+
+  // Vector Widening Floating-Point Fused Multiply-Add Instructions
+  COMPARE(vfwmacc_vv(v17, v14, v28), "f3c718d7       vfwmacc.vv v17, v14, v28");
+  COMPARE(vfwnmacc_vv(v17, v14, v28),
+          "f7c718d7       vfwnmacc.vv v17, v14, v28");
+  COMPARE(vfwmsac_vv(v17, v14, v28), "fbc718d7       vfwmsac.vv v17, v14, v28");
+  COMPARE(vfwnmsac_vv(v17, v14, v28),
+          "ffc718d7       vfwnmsac.vv v17, v14, v28");
+  COMPARE(vfwmacc_vf(v17, fa5, v28), "f3c7d8d7       vfwmacc.vf v17, fa5, v28");
+  COMPARE(vfwnmacc_vf(v17, fa5, v28),
+          "f7c7d8d7       vfwnmacc.vf v17, fa5, v28");
+  COMPARE(vfwmsac_vf(v17, fa5, v28), "fbc7d8d7       vfwmsac.vf v17, fa5, v28");
+  COMPARE(vfwnmsac_vf(v17, fa5, v28),
+          "ffc7d8d7       vfwnmsac.vf v17, fa5, v28");
+
   VERIFY_RUN();
 }
-#endif
+
 }  // namespace internal
 }  // namespace v8

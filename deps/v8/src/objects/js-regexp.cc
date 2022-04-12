@@ -179,9 +179,10 @@ void JSRegExp::set_bytecode_and_trampoline(Isolate* isolate,
   SetDataAt(kIrregexpLatin1BytecodeIndex, *bytecode);
   SetDataAt(kIrregexpUC16BytecodeIndex, *bytecode);
 
-  Handle<Code> trampoline = BUILTIN_CODE(isolate, RegExpExperimentalTrampoline);
-  SetDataAt(JSRegExp::kIrregexpLatin1CodeIndex, ToCodeT(*trampoline));
-  SetDataAt(JSRegExp::kIrregexpUC16CodeIndex, ToCodeT(*trampoline));
+  Handle<CodeT> trampoline =
+      BUILTIN_CODE(isolate, RegExpExperimentalTrampoline);
+  SetDataAt(JSRegExp::kIrregexpLatin1CodeIndex, *trampoline);
+  SetDataAt(JSRegExp::kIrregexpUC16CodeIndex, *trampoline);
 }
 
 bool JSRegExp::ShouldProduceBytecode() {

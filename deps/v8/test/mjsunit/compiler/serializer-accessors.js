@@ -38,5 +38,5 @@ function foo() {
 foo();
 foo();
 expect_interpreted = false;
-%OptimizeFunctionForTopTier(foo);
+%OptimizeFunctionOnNextCall(foo);
 foo();

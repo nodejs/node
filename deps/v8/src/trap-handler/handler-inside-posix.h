@@ -15,7 +15,7 @@ namespace trap_handler {
 
 #if V8_OS_LINUX || V8_OS_FREEBSD
 constexpr int kOobSignal = SIGSEGV;
-#elif V8_OS_MACOSX
+#elif V8_OS_DARWIN
 constexpr int kOobSignal = SIGBUS;
 #else
 #error Posix trap handlers are only supported on Linux, MacOSX and FreeBSD.

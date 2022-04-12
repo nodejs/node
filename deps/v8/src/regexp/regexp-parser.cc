@@ -428,11 +428,6 @@ void RegExpParserImpl<CharT>::Advance() {
         FATAL("Aborting on stack overflow");
       }
       ReportError(RegExpError::kStackOverflow);
-    } else if (zone()->excess_allocation()) {
-      if (FLAG_correctness_fuzzer_suppressions) {
-        FATAL("Aborting on excess zone allocation");
-      }
-      ReportError(RegExpError::kTooLarge);
     } else {
       current_ = ReadNext<true>();
     }

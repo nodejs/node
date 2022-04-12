@@ -19,7 +19,8 @@ namespace {
 // ===========================================================================
 // == ia32 ===================================================================
 // ===========================================================================
-#define CALLEE_SAVE_REGISTERS esi.bit() | edi.bit() | ebx.bit()
+#define CALLEE_SAVE_REGISTERS esi, edi, ebx
+#define CALLEE_SAVE_FP_REGISTERS
 
 #elif V8_TARGET_ARCH_X64
 // ===========================================================================
@@ -32,21 +33,17 @@ namespace {
 #define PARAM_REGISTERS rcx, rdx, r8, r9
 #define FP_PARAM_REGISTERS xmm0, xmm1, xmm2, xmm3
 #define FP_RETURN_REGISTER xmm0
-#define CALLEE_SAVE_REGISTERS                                             \
-  rbx.bit() | rdi.bit() | rsi.bit() | r12.bit() | r13.bit() | r14.bit() | \
-      r15.bit()
-#define CALLEE_SAVE_FP_REGISTERS                                        \
-  (1 << xmm6.code()) | (1 << xmm7.code()) | (1 << xmm8.code()) |        \
-      (1 << xmm9.code()) | (1 << xmm10.code()) | (1 << xmm11.code()) |  \
-      (1 << xmm12.code()) | (1 << xmm13.code()) | (1 << xmm14.code()) | \
-      (1 << xmm15.code())
+#define CALLEE_SAVE_REGISTERS rbx, rdi, rsi, r12, r13, r14, r15
+#define CALLEE_SAVE_FP_REGISTERS \
+  xmm6, xmm7, xmm8, xmm9, xmm10, xmm11, xmm12, xmm13, xmm14, xmm15
+
 #else  // V8_TARGET_OS_WIN
 // == x64 other ==============================================================
 #define PARAM_REGISTERS rdi, rsi, rdx, rcx, r8, r9
 #define FP_PARAM_REGISTERS xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7
 #define FP_RETURN_REGISTER xmm0
-#define CALLEE_SAVE_REGISTERS \
-  rbx.bit() | r12.bit() | r13.bit() | r14.bit() | r15.bit()
+#define CALLEE_SAVE_REGISTERS rbx, r12, r13, r14, r15
+#define CALLEE_SAVE_FP_REGISTERS
 #endif  // V8_TARGET_OS_WIN
 
 #elif V8_TARGET_ARCH_ARM
@@ -54,12 +51,8 @@ namespace {
 // == arm ====================================================================
 // ===========================================================================
 #define PARAM_REGISTERS r0, r1, r2, r3
-#define CALLEE_SAVE_REGISTERS \
-  r4.bit() | r5.bit() | r6.bit() | r7.bit() | r8.bit() | r9.bit() | r10.bit()
-#define CALLEE_SAVE_FP_REGISTERS                                  \
-  (1 << d8.code()) | (1 << d9.code()) | (1 << d10.code()) |       \
-      (1 << d11.code()) | (1 << d12.code()) | (1 << d13.code()) | \
-      (1 << d14.code()) | (1 << d15.code())
+#define CALLEE_SAVE_REGISTERS r4, r5, r6, r7, r8, r9, r10
+#define CALLEE_SAVE_FP_REGISTERS d8, d9, d10, d11, d12, d13, d14, d15
 
 #elif V8_TARGET_ARCH_ARM64
 // ===========================================================================
@@ -68,16 +61,9 @@ namespace {
 #define PARAM_REGISTERS x0, x1, x2, x3, x4, x5, x6, x7
 #define FP_PARAM_REGISTERS d0, d1, d2, d3, d4, d5, d6, d7
 #define FP_RETURN_REGISTER d0
-#define CALLEE_SAVE_REGISTERS                                     \
-  (1 << x19.code()) | (1 << x20.code()) | (1 << x21.code()) |     \
-      (1 << x22.code()) | (1 << x23.code()) | (1 << x24.code()) | \
-      (1 << x25.code()) | (1 << x26.code()) | (1 << x27.code()) | \
-      (1 << x28.code())
+#define CALLEE_SAVE_REGISTERS x19, x20, x21, x22, x23, x24, x25, x26, x27, x28
 
-#define CALLEE_SAVE_FP_REGISTERS                                  \
-  (1 << d8.code()) | (1 << d9.code()) | (1 << d10.code()) |       \
-      (1 << d11.code()) | (1 << d12.code()) | (1 << d13.code()) | \
-      (1 << d14.code()) | (1 << d15.code())
+#define CALLEE_SAVE_FP_REGISTERS d8, d9, d10, d11, d12, d13, d14, d15
 
 #elif V8_TARGET_ARCH_MIPS
 // ===========================================================================
@@ -85,34 +71,24 @@ namespace {
 // ===========================================================================
 #define STACK_SHADOW_WORDS 4
 #define PARAM_REGISTERS a0, a1, a2, a3
-#define CALLEE_SAVE_REGISTERS                                                  \
-  s0.bit() | s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | \
-      s7.bit()
-#define CALLEE_SAVE_FP_REGISTERS \
-  f20.bit() | f22.bit() | f24.bit() | f26.bit() | f28.bit() | f30.bit()
+#define CALLEE_SAVE_REGISTERS s0, s1, s2, s3, s4, s5, s6, s7
+#define CALLEE_SAVE_FP_REGISTERS f20, f22, f24, f26, f28, f30
 
 #elif V8_TARGET_ARCH_MIPS64
 // ===========================================================================
 // == mips64 =================================================================
 // ===========================================================================
 #define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
-#define CALLEE_SAVE_REGISTERS                                                  \
-  s0.bit() | s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | \
-      s7.bit()
-#define CALLEE_SAVE_FP_REGISTERS \
-  f20.bit() | f22.bit() | f24.bit() | f26.bit() | f28.bit() | f30.bit()
+#define CALLEE_SAVE_REGISTERS s0, s1, s2, s3, s4, s5, s6, s7
+#define CALLEE_SAVE_FP_REGISTERS f20, f22, f24, f26, f28, f30
 
 #elif V8_TARGET_ARCH_LOONG64
 // ===========================================================================
 // == loong64 ================================================================
 // ===========================================================================
 #define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
-#define CALLEE_SAVE_REGISTERS                                                  \
-  s0.bit() | s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | \
-      s7.bit() | s8.bit() | fp.bit()
-#define CALLEE_SAVE_FP_REGISTERS                                          \
-  f24.bit() | f25.bit() | f26.bit() | f27.bit() | f28.bit() | f29.bit() | \
-      f30.bit() | f31.bit()
+#define CALLEE_SAVE_REGISTERS s0, s1, s2, s3, s4, s5, s6, s7, s8, fp
+#define CALLEE_SAVE_FP_REGISTERS f24, f25, f26, f27, f28, f29, f30, f31
 
 #elif V8_TARGET_ARCH_PPC64
 // ===========================================================================
@@ -124,14 +100,13 @@ namespace {
 #define STACK_SHADOW_WORDS 14
 #endif
 #define PARAM_REGISTERS r3, r4, r5, r6, r7, r8, r9, r10
-#define CALLEE_SAVE_REGISTERS                                                 \
-  r14.bit() | r15.bit() | r16.bit() | r17.bit() | r18.bit() | r19.bit() |     \
-      r20.bit() | r21.bit() | r22.bit() | r23.bit() | r24.bit() | r25.bit() | \
-      r26.bit() | r27.bit() | r28.bit() | r29.bit() | r30.bit()
-#define CALLEE_SAVE_FP_REGISTERS                                              \
-  d14.bit() | d15.bit() | d16.bit() | d17.bit() | d18.bit() | d19.bit() |     \
-      d20.bit() | d21.bit() | d22.bit() | d23.bit() | d24.bit() | d25.bit() | \
-      d26.bit() | d27.bit() | d28.bit() | d29.bit() | d30.bit() | d31.bit()
+#define CALLEE_SAVE_REGISTERS                                                \
+  r14, r15, r16, r17, r18, r19, r20, r21, r22, r23, r24, r25, r26, r27, r28, \
+      r29, r30
+
+#define CALLEE_SAVE_FP_REGISTERS                                             \
+  d14, d15, d16, d17, d18, d19, d20, d21, d22, d23, d24, d25, d26, d27, d28, \
+      d29, d30, d31
 
 #elif V8_TARGET_ARCH_S390X
 // ===========================================================================
@@ -139,11 +114,8 @@ namespace {
 // ===========================================================================
 #define STACK_SHADOW_WORDS 20
 #define PARAM_REGISTERS r2, r3, r4, r5, r6
-#define CALLEE_SAVE_REGISTERS \
-  r6.bit() | r7.bit() | r8.bit() | r9.bit() | r10.bit() | ip.bit() | r13.bit()
-#define CALLEE_SAVE_FP_REGISTERS                                        \
-  d8.bit() | d9.bit() | d10.bit() | d11.bit() | d12.bit() | d13.bit() | \
-      d14.bit() | d15.bit()
+#define CALLEE_SAVE_REGISTERS r6, r7, r8, r9, r10, ip, r13
+#define CALLEE_SAVE_FP_REGISTERS d8, d9, d10, d11, d12, d13, d14, d15
 
 #elif V8_TARGET_ARCH_RISCV64
 // ===========================================================================
@@ -152,12 +124,9 @@ namespace {
 #define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
 // fp is not part of CALLEE_SAVE_REGISTERS (similar to how MIPS64 or PPC defines
 // it)
-#define CALLEE_SAVE_REGISTERS                                                  \
-  s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | s7.bit() | \
-      s8.bit() | s9.bit() | s10.bit() | s11.bit()
-#define CALLEE_SAVE_FP_REGISTERS                                          \
-  fs0.bit() | fs1.bit() | fs2.bit() | fs3.bit() | fs4.bit() | fs5.bit() | \
-      fs6.bit() | fs7.bit() | fs8.bit() | fs9.bit() | fs10.bit() | fs11.bit()
+#define CALLEE_SAVE_REGISTERS s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11
+#define CALLEE_SAVE_FP_REGISTERS \
+  fs0, fs1, fs2, fs3, fs4, fs5, fs6, fs7, fs8, fs9, fs10, fs11
 #else
 // ===========================================================================
 // == unknown ================================================================
@@ -318,17 +287,8 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
   BuildParameterLocations(msig, kFPParamRegisterCount, kParamRegisterCount,
                           kFPParamRegisters, kParamRegisters, &locations);
 
-#ifdef CALLEE_SAVE_REGISTERS
-  const RegList kCalleeSaveRegisters = CALLEE_SAVE_REGISTERS;
-#else
-  const RegList kCalleeSaveRegisters = 0;
-#endif
-
-#ifdef CALLEE_SAVE_FP_REGISTERS
-  const RegList kCalleeSaveFPRegisters = CALLEE_SAVE_FP_REGISTERS;
-#else
-  const RegList kCalleeSaveFPRegisters = 0;
-#endif
+  const RegList kCalleeSaveRegisters = {CALLEE_SAVE_REGISTERS};
+  const DoubleRegList kCalleeSaveFPRegisters = {CALLEE_SAVE_FP_REGISTERS};
 
   // The target for C calls is always an address (i.e. machine pointer).
   MachineType target_type = MachineType::Pointer();

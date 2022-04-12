@@ -248,8 +248,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   void BuildLoadNamedProperty(const Expression* object_expr, Register object,
                               const AstRawString* name);
-  void BuildStoreNamedProperty(const Expression* object_expr, Register object,
-                               const AstRawString* name);
+  void BuildSetNamedProperty(const Expression* object_expr, Register object,
+                             const AstRawString* name);
   void BuildStoreGlobal(Variable* variable);
 
   void BuildVariableLoad(Variable* variable, HoleCheckMode hole_check_mode,
@@ -333,7 +333,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitClassLiteral(ClassLiteral* expr, Register name);
   void VisitNewTargetVariable(Variable* variable);
   void VisitThisFunctionVariable(Variable* variable);
-  void BuildPrivateBrandInitialization(Register receiver);
+  void BuildPrivateBrandInitialization(Register receiver, Variable* brand);
   void BuildInstanceMemberInitialization(Register constructor,
                                          Register instance);
   void BuildGeneratorObjectVariableInitialization();
@@ -519,8 +519,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   ZoneVector<std::pair<FunctionLiteral*, size_t>> function_literals_;
   ZoneVector<std::pair<NativeFunctionLiteral*, size_t>>
       native_function_literals_;
-  ZoneVector<std::pair<ObjectLiteral*, size_t>> object_literals_;
-  ZoneVector<std::pair<ArrayLiteral*, size_t>> array_literals_;
+  ZoneVector<std::pair<ObjectLiteralBoilerplateBuilder*, size_t>>
+      object_literals_;
+  ZoneVector<std::pair<ArrayLiteralBoilerplateBuilder*, size_t>>
+      array_literals_;
   ZoneVector<std::pair<ClassLiteral*, size_t>> class_literals_;
   ZoneVector<std::pair<GetTemplateObject*, size_t>> template_objects_;
 

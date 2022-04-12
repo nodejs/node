@@ -98,4 +98,4 @@ assertThrows(() => Temporal.PlainDateTime.from(
 
 assertThrows(() => Temporal.PlainDateTime.from(
       {year:9, month: 12, day:31, nanosecond: 1000}, {overflow: "reject"}),
-    RangeError
+    RangeError);

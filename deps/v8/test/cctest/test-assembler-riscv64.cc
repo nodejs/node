@@ -1977,38 +1977,29 @@ TEST(li_estimate) {
   }
 }
 
-#define UTEST_LOAD_STORE_RVV(ldname, stname, SEW, arg...)            \
-  TEST(RISCV_UTEST_##stname##ldname##SEW) {                          \
-    CcTest::InitializeVM();                                          \
-    Isolate* isolate = CcTest::i_isolate();                          \
-    HandleScope scope(isolate);                                      \
-    int8_t src[16] = {arg};                                          \
-    int8_t dst[16];                                                  \
-    auto fn = [](MacroAssembler& assm) {                             \
-      __ VU.set(t0, SEW, Vlmul::m1);                                 \
-      __ vl(v2, a0, 0, VSew::E8);                                    \
-      __ vs(v2, a1, 0, VSew::E8);                                    \
-    };                                                               \
-    GenAndRunTest<int32_t, int64_t>((int64_t)src, (int64_t)dst, fn); \
-    CHECK(!memcmp(src, dst, sizeof(src)));                           \
+#define UTEST_LOAD_STORE_RVV(ldname, stname, SEW, arry)                      \
+  TEST(RISCV_UTEST_##stname##ldname##SEW) {                                  \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                       \
+    CcTest::InitializeVM();                                                  \
+    Isolate* isolate = CcTest::i_isolate();                                  \
+    HandleScope scope(isolate);                                              \
+    int8_t src[16];                                                          \
+    for (size_t i = 0; i < sizeof(src); i++) src[i] = arry[i % arry.size()]; \
+    int8_t dst[16];                                                          \
+    auto fn = [](MacroAssembler& assm) {                                     \
+      __ VU.set(t0, SEW, Vlmul::m1);                                         \
+      __ vl(v2, a0, 0, SEW);                                                 \
+      __ vs(v2, a1, 0, SEW);                                                 \
+    };                                                                       \
+    GenAndRunTest<int32_t, int64_t>((int64_t)src, (int64_t)dst, fn);         \
+    CHECK(!memcmp(src, dst, sizeof(src)));                                   \
   }
 
-UTEST_LOAD_STORE_RVV(vl, vs, E8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-                     15, 16)
-// UTEST_LOAD_STORE_RVV(vl, vs, E8, 127, 127, 127, 127, 127, 127, 127)
-
-TEST(RVV_VSETIVLI) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-  auto fn = [](MacroAssembler& assm) {
-    __ VU.set(t0, VSew::E8, Vlmul::m1);
-    __ vsetivli(t0, 16, VSew::E64, Vlmul::m1);
-  };
-  GenAndRunTest(fn);
-}
+UTEST_LOAD_STORE_RVV(vl, vs, E8, compiler::ValueHelper::GetVector<int8_t>())
 
 TEST(RVV_VFMV) {
+  if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;
+
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -2036,18 +2027,22 @@ inline int32_t ToImm5(int32_t v) {
 // Tests for vector integer arithmetic instructions between vector and vector
 #define UTEST_RVV_VI_VV_FORM_WITH_RES(instr_name, width, array, expect_res) \
   TEST(RISCV_UTEST_##instr_name##_##width) {                                \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                      \
     CcTest::InitializeVM();                                                 \
-    auto fn = [](MacroAssembler& assm) {                                    \
+    int##width##_t result[kRvvVLEN / width] = {0};                          \
+    auto fn = [&result](MacroAssembler& assm) {                             \
       __ VU.set(t0, VSew::E##width, Vlmul::m1);                             \
       __ vmv_vx(v0, a0);                                                    \
       __ vmv_vx(v1, a1);                                                    \
       __ instr_name(v0, v0, v1);                                            \
-      __ vmv_xs(a0, v0);                                                    \
+      __ li(t1, int64_t(result));                                           \
+      __ vs(v0, t1, 0, VSew::E##width);                                     \
     };                                                                      \
     for (int##width##_t rs1_val : array) {                                  \
       for (int##width##_t rs2_val : array) {                                \
-        auto res = GenAndRunTest<int32_t, int32_t>(rs1_val, rs2_val, fn);   \
-        CHECK_EQ(static_cast<int##width##_t>(expect_res), res);             \
+        GenAndRunTest<int32_t, int32_t>(rs1_val, rs2_val, fn);              \
+        for (int i = 0; i < kRvvVLEN / width; i++)                          \
+          CHECK_EQ(static_cast<int##width##_t>(expect_res), result[i]);     \
       }                                                                     \
     }                                                                       \
   }
@@ -2055,17 +2050,21 @@ inline int32_t ToImm5(int32_t v) {
 // Tests for vector integer arithmetic instructions between vector and scalar
 #define UTEST_RVV_VI_VX_FORM_WITH_RES(instr_name, width, array, expect_res) \
   TEST(RISCV_UTEST_##instr_name##_##width) {                                \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                      \
     CcTest::InitializeVM();                                                 \
-    auto fn = [](MacroAssembler& assm) {                                    \
+    int##width##_t result[kRvvVLEN / width] = {0};                          \
+    auto fn = [&result](MacroAssembler& assm) {                             \
       __ VU.set(t0, VSew::E##width, Vlmul::m1);                             \
       __ vmv_vx(v0, a0);                                                    \
       __ instr_name(v0, v0, a1);                                            \
-      __ vmv_xs(a0, v0);                                                    \
+      __ li(t1, int64_t(result));                                           \
+      __ vs(v0, t1, 0, VSew::E##width);                                     \
     };                                                                      \
     for (int##width##_t rs1_val : array) {                                  \
       for (int##width##_t rs2_val : array) {                                \
-        auto res = GenAndRunTest<int32_t, int32_t>(rs1_val, rs2_val, fn);   \
-        CHECK_EQ(static_cast<int##width##_t>(expect_res), res);             \
+        GenAndRunTest<int32_t, int32_t>(rs1_val, rs2_val, fn);              \
+        for (int i = 0; i < kRvvVLEN / width; i++)                          \
+          CHECK_EQ(static_cast<int##width##_t>(expect_res), result[i]);     \
       }                                                                     \
     }                                                                       \
   }
@@ -2074,17 +2073,21 @@ inline int32_t ToImm5(int32_t v) {
 // immediate
 #define UTEST_RVV_VI_VI_FORM_WITH_RES(instr_name, width, array, expect_res) \
   TEST(RISCV_UTEST_##instr_name##_##width) {                                \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                      \
     CcTest::InitializeVM();                                                 \
+    int##width##_t result[kRvvVLEN / width] = {0};                          \
     for (int##width##_t rs1_val : array) {                                  \
       for (int##width##_t rs2_val : array) {                                \
-        auto fn = [rs2_val](MacroAssembler& assm) {                         \
+        auto fn = [rs2_val, &result](MacroAssembler& assm) {                \
           __ VU.set(t0, VSew::E##width, Vlmul::m1);                         \
           __ vmv_vx(v0, a0);                                                \
           __ instr_name(v0, v0, ToImm5(rs2_val));                           \
-          __ vmv_xs(a0, v0);                                                \
+          __ li(t1, int64_t(result));                                       \
+          __ vs(v0, t1, 0, VSew::E##width);                                 \
         };                                                                  \
-        auto res = GenAndRunTest<int32_t, int32_t>(rs1_val, fn);            \
-        CHECK_EQ(static_cast<int##width##_t>(expect_res), res);             \
+        GenAndRunTest<int32_t, int32_t>(rs1_val, fn);                       \
+        for (int i = 0; i < kRvvVLEN / width; i++)                          \
+          CHECK_EQ(static_cast<int##width##_t>(expect_res), result[i]);     \
       }                                                                     \
     }                                                                       \
   }
@@ -2181,28 +2184,59 @@ UTEST_RVV_VI_VX_FORM_WITH_FN(vminu_vx, 32, ARRAY_INT32, std::min<uint32_t>)
 
 // Tests for vector single-width floating-point arithmetic instructions between
 // vector and vector
-#define UTEST_RVV_VF_VV_FORM_WITH_RES(instr_name, array, expect_res)    \
-  TEST(RISCV_UTEST_##instr_name) {                                      \
-    CcTest::InitializeVM();                                             \
-    auto fn = [](MacroAssembler& assm) {                                \
-      __ VU.set(t0, VSew::E32, Vlmul::m1);                              \
-      __ vfmv_vf(v0, fa0);                                              \
-      __ vfmv_vf(v1, fa1);                                              \
-      __ instr_name(v0, v0, v1);                                        \
-      __ vfmv_fs(fa0, v0);                                              \
-    };                                                                  \
-    for (float rs1_fval : array) {                                      \
-      for (float rs2_fval : array) {                                    \
-        auto res = GenAndRunTest<float, float>(rs1_fval, rs2_fval, fn); \
-        CHECK_FLOAT_EQ(UseCanonicalNan<float>(expect_res), res);        \
-      }                                                                 \
-    }                                                                   \
+#define UTEST_RVV_VF_VV_FORM_WITH_RES(instr_name, expect_res)              \
+  TEST(RISCV_UTEST_FLOAT_##instr_name) {                                   \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                     \
+    CcTest::InitializeVM();                                                \
+    float result[4] = {0.0};                                               \
+    auto fn = [&result](MacroAssembler& assm) {                            \
+      __ VU.set(t0, VSew::E32, Vlmul::m1);                                 \
+      __ vfmv_vf(v0, fa0);                                                 \
+      __ vfmv_vf(v1, fa1);                                                 \
+      __ instr_name(v0, v0, v1);                                           \
+      __ vfmv_fs(fa0, v0);                                                 \
+      __ li(a3, Operand(int64_t(result)));                                 \
+      __ vs(v0, a3, 0, E32);                                               \
+    };                                                                     \
+    for (float rs1_fval : compiler::ValueHelper::GetVector<float>()) {     \
+      for (float rs2_fval : compiler::ValueHelper::GetVector<float>()) {   \
+        GenAndRunTest<float, float>(rs1_fval, rs2_fval, fn);               \
+        for (int i = 0; i < 4; i++) {                                      \
+          CHECK_FLOAT_EQ(UseCanonicalNan<float>(expect_res), result[i]);   \
+          result[i] = 0.0;                                                 \
+        }                                                                  \
+      }                                                                    \
+    }                                                                      \
+  }                                                                        \
+  TEST(RISCV_UTEST_DOUBLE_##instr_name) {                                  \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                     \
+    CcTest::InitializeVM();                                                \
+    double result[2] = {0.0};                                              \
+    auto fn = [&result](MacroAssembler& assm) {                            \
+      __ VU.set(t0, VSew::E64, Vlmul::m1);                                 \
+      __ vfmv_vf(v0, fa0);                                                 \
+      __ vfmv_vf(v1, fa1);                                                 \
+      __ instr_name(v0, v0, v1);                                           \
+      __ vfmv_fs(fa0, v0);                                                 \
+      __ li(a3, Operand(int64_t(result)));                                 \
+      __ vs(v0, a3, 0, E64);                                               \
+    };                                                                     \
+    for (double rs1_fval : compiler::ValueHelper::GetVector<double>()) {   \
+      for (double rs2_fval : compiler::ValueHelper::GetVector<double>()) { \
+        GenAndRunTest<double, double>(rs1_fval, rs2_fval, fn);             \
+        for (int i = 0; i < 2; i++) {                                      \
+          CHECK_DOUBLE_EQ(UseCanonicalNan<double>(expect_res), result[i]); \
+          result[i] = 0.0;                                                 \
+        }                                                                  \
+      }                                                                    \
+    }                                                                      \
   }
 
 // Tests for vector single-width floating-point arithmetic instructions between
 // vector and scalar
 #define UTEST_RVV_VF_VF_FORM_WITH_RES(instr_name, array, expect_res)    \
   TEST(RISCV_UTEST_##instr_name) {                                      \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                  \
     CcTest::InitializeVM();                                             \
     auto fn = [](MacroAssembler& assm) {                                \
       __ VU.set(t0, VSew::E32, Vlmul::m1);                              \
@@ -2218,35 +2252,226 @@ UTEST_RVV_VI_VX_FORM_WITH_FN(vminu_vx, 32, ARRAY_INT32, std::min<uint32_t>)
     }                                                                   \
   }
 
-#define UTEST_RVV_VF_VV_FORM_WITH_OP(instr_name, array, tested_op) \
-  UTEST_RVV_VF_VV_FORM_WITH_RES(instr_name, array,                 \
-                                ((rs1_fval)tested_op(rs2_fval)))
+#define UTEST_RVV_VF_VV_FORM_WITH_OP(instr_name, tested_op) \
+  UTEST_RVV_VF_VV_FORM_WITH_RES(instr_name, ((rs1_fval)tested_op(rs2_fval)))
 
-#define UTEST_RVV_VF_VF_FORM_WITH_OP(instr_name, array, tested_op) \
-  UTEST_RVV_VF_VF_FORM_WITH_RES(instr_name, array,                 \
-                                ((rs1_fval)tested_op(rs2_fval)))
+#define UTEST_RVV_VF_VF_FORM_WITH_OP(instr_name, tested_op) \
+  UTEST_RVV_VF_VF_FORM_WITH_RES(instr_name, ((rs1_fval)tested_op(rs2_fval)))
 
-#define ARRAY_FLOAT compiler::ValueHelper::GetVector<float>()
-
-UTEST_RVV_VF_VV_FORM_WITH_OP(vfadd_vv, ARRAY_FLOAT, +)
+UTEST_RVV_VF_VV_FORM_WITH_OP(vfadd_vv, +)
 // UTEST_RVV_VF_VF_FORM_WITH_OP(vfadd_vf, ARRAY_FLOAT, +)
-UTEST_RVV_VF_VV_FORM_WITH_OP(vfsub_vv, ARRAY_FLOAT, -)
+UTEST_RVV_VF_VV_FORM_WITH_OP(vfsub_vv, -)
 // UTEST_RVV_VF_VF_FORM_WITH_OP(vfsub_vf, ARRAY_FLOAT, -)
-UTEST_RVV_VF_VV_FORM_WITH_OP(vfmul_vv, ARRAY_FLOAT, *)
+UTEST_RVV_VF_VV_FORM_WITH_OP(vfmul_vv, *)
 // UTEST_RVV_VF_VF_FORM_WITH_OP(vfmul_vf, ARRAY_FLOAT, *)
-UTEST_RVV_VF_VV_FORM_WITH_OP(vfdiv_vv, ARRAY_FLOAT, /)
+UTEST_RVV_VF_VV_FORM_WITH_OP(vfdiv_vv, /)
 // UTEST_RVV_VF_VF_FORM_WITH_OP(vfdiv_vf, ARRAY_FLOAT, /)
 
 #undef ARRAY_FLOAT
 #undef UTEST_RVV_VF_VV_FORM_WITH_OP
 #undef UTEST_RVV_VF_VF_FORM_WITH_OP
-#undef UTEST_RVV_VF_VV_FORM
-#undef UTEST_RVV_VF_VF_FORM
+
+// Tests for vector widening floating-point arithmetic instructions between
+// vector and vector
+#define UTEST_RVV_VFW_VV_FORM_WITH_RES(instr_name, tested_op, is_first_double, \
+                                       check_fn)                               \
+  TEST(RISCV_UTEST_FLOAT_WIDENING_##instr_name) {                              \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                         \
+    CcTest::InitializeVM();                                                    \
+    constexpr size_t n = kRvvVLEN / 32;                                        \
+    double result[n] = {0.0};                                                  \
+    auto fn = [&result](MacroAssembler& assm) {                                \
+      if (is_first_double) {                                                   \
+        __ fcvt_d_s(fa0, fa0);                                                 \
+        __ VU.set(t0, VSew::E64, Vlmul::m2);                                   \
+        __ vfmv_vf(v2, fa0);                                                   \
+      }                                                                        \
+      __ VU.set(t0, VSew::E32, Vlmul::m1);                                     \
+      if (!is_first_double) {                                                  \
+        __ vfmv_vf(v2, fa0);                                                   \
+      }                                                                        \
+      __ vfmv_vf(v4, fa1);                                                     \
+      __ instr_name(v0, v2, v4);                                               \
+      __ li(t1, Operand(int64_t(result)));                                     \
+      __ vs(v0, t1, 0, VSew::E64);                                             \
+    };                                                                         \
+    for (float rs1_fval : compiler::ValueHelper::GetVector<float>()) {         \
+      for (float rs2_fval : compiler::ValueHelper::GetVector<float>()) {       \
+        GenAndRunTest<double, float>(rs1_fval, rs2_fval, fn);                  \
+        for (size_t i = 0; i < n; i++) {                                       \
+          CHECK_DOUBLE_EQ(                                                     \
+              check_fn(rs1_fval, rs2_fval)                                     \
+                  ? std::numeric_limits<double>::quiet_NaN()                   \
+                  : UseCanonicalNan<double>(static_cast<double>(               \
+                        rs1_fval) tested_op static_cast<double>(rs2_fval)),    \
+              result[i]);                                                      \
+          result[i] = 0.0;                                                     \
+        }                                                                      \
+      }                                                                        \
+    }                                                                          \
+  }
+
+// Tests for vector widening floating-point arithmetic instructions between
+// vector and scalar
+#define UTEST_RVV_VFW_VF_FORM_WITH_RES(instr_name, tested_op, is_first_double, \
+                                       check_fn)                               \
+  TEST(RISCV_UTEST_FLOAT_WIDENING_##instr_name) {                              \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                         \
+    CcTest::InitializeVM();                                                    \
+    constexpr size_t n = kRvvVLEN / 32;                                        \
+    double result[n] = {0.0};                                                  \
+    auto fn = [&result](MacroAssembler& assm) {                                \
+      __ VU.set(t0, VSew::E32, Vlmul::m1);                                     \
+      if (is_first_double) {                                                   \
+        __ fcvt_d_s(fa0, fa0);                                                 \
+        __ VU.set(t0, VSew::E64, Vlmul::m2);                                   \
+        __ vfmv_vf(v2, fa0);                                                   \
+      }                                                                        \
+      __ VU.set(t0, VSew::E32, Vlmul::m1);                                     \
+      if (!is_first_double) {                                                  \
+        __ vfmv_vf(v2, fa0);                                                   \
+      }                                                                        \
+      __ instr_name(v0, v2, fa1);                                              \
+      __ li(t1, Operand(int64_t(result)));                                     \
+      __ li(t2, Operand(int64_t(&result[n / 2])));                             \
+      __ vs(v0, t1, 0, VSew::E64);                                             \
+      __ vs(v1, t2, 0, VSew::E64);                                             \
+    };                                                                         \
+    for (float rs1_fval : compiler::ValueHelper::GetVector<float>()) {         \
+      for (float rs2_fval : compiler::ValueHelper::GetVector<float>()) {       \
+        GenAndRunTest<double, float>(rs1_fval, rs2_fval, fn);                  \
+        for (size_t i = 0; i < n; i++) {                                       \
+          CHECK_DOUBLE_EQ(                                                     \
+              check_fn(rs1_fval, rs2_fval)                                     \
+                  ? std::numeric_limits<double>::quiet_NaN()                   \
+                  : UseCanonicalNan<double>(static_cast<double>(               \
+                        rs1_fval) tested_op static_cast<double>(rs2_fval)),    \
+              result[i]);                                                      \
+          result[i] = 0.0;                                                     \
+        }                                                                      \
+      }                                                                        \
+    }                                                                          \
+  }
+
+#define UTEST_RVV_VFW_VV_FORM_WITH_OP(instr_name, tested_op, is_first_double, \
+                                      check_fn)                               \
+  UTEST_RVV_VFW_VV_FORM_WITH_RES(instr_name, tested_op, is_first_double,      \
+                                 check_fn)
+#define UTEST_RVV_VFW_VF_FORM_WITH_OP(instr_name, tested_op, is_first_double, \
+                                      check_fn)                               \
+  UTEST_RVV_VFW_VF_FORM_WITH_RES(instr_name, tested_op, is_first_double,      \
+                                 check_fn)
+
+template <typename T>
+static inline bool is_invalid_fmul(T src1, T src2) {
+  return (isinf(src1) && src2 == static_cast<T>(0.0)) ||
+         (src1 == static_cast<T>(0.0) && isinf(src2));
+}
+
+template <typename T>
+static inline bool is_invalid_fadd(T src1, T src2) {
+  return (isinf(src1) && isinf(src2) &&
+          std::signbit(src1) != std::signbit(src2));
+}
+
+template <typename T>
+static inline bool is_invalid_fsub(T src1, T src2) {
+  return (isinf(src1) && isinf(src2) &&
+          std::signbit(src1) == std::signbit(src2));
+}
+
+UTEST_RVV_VFW_VV_FORM_WITH_OP(vfwadd_vv, +, false, is_invalid_fadd)
+UTEST_RVV_VFW_VF_FORM_WITH_OP(vfwadd_vf, +, false, is_invalid_fadd)
+UTEST_RVV_VFW_VV_FORM_WITH_OP(vfwsub_vv, -, false, is_invalid_fsub)
+UTEST_RVV_VFW_VF_FORM_WITH_OP(vfwsub_vf, -, false, is_invalid_fsub)
+UTEST_RVV_VFW_VV_FORM_WITH_OP(vfwadd_wv, +, true, is_invalid_fadd)
+UTEST_RVV_VFW_VF_FORM_WITH_OP(vfwadd_wf, +, true, is_invalid_fadd)
+UTEST_RVV_VFW_VV_FORM_WITH_OP(vfwsub_wv, -, true, is_invalid_fsub)
+UTEST_RVV_VFW_VF_FORM_WITH_OP(vfwsub_wf, -, true, is_invalid_fsub)
+UTEST_RVV_VFW_VV_FORM_WITH_OP(vfwmul_vv, *, false, is_invalid_fmul)
+UTEST_RVV_VFW_VF_FORM_WITH_OP(vfwmul_vf, *, false, is_invalid_fmul)
+
+#undef UTEST_RVV_VF_VV_FORM_WITH_OP
+#undef UTEST_RVV_VF_VF_FORM_WITH_OP
+
+// Tests for vector widening floating-point fused multiply-add Instructions
+// between vectors
+#define UTEST_RVV_VFW_FMA_VV_FORM_WITH_RES(instr_name, array, expect_res)     \
+  TEST(RISCV_UTEST_FLOAT_WIDENING_##instr_name) {                             \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                        \
+    CcTest::InitializeVM();                                                   \
+    auto fn = [](MacroAssembler& assm) {                                      \
+      __ VU.set(t0, VSew::E32, Vlmul::m1);                                    \
+      __ vfmv_vf(v0, fa0);                                                    \
+      __ vfmv_vf(v2, fa1);                                                    \
+      __ vfmv_vf(v4, fa2);                                                    \
+      __ instr_name(v0, v2, v4);                                              \
+      __ VU.set(t0, VSew::E64, Vlmul::m1);                                    \
+      __ vfmv_fs(fa0, v0);                                                    \
+    };                                                                        \
+    for (float rs1_fval : array) {                                            \
+      for (float rs2_fval : array) {                                          \
+        for (float rs3_fval : array) {                                        \
+          double res =                                                        \
+              GenAndRunTest<double, float>(rs1_fval, rs2_fval, rs3_fval, fn); \
+          CHECK_DOUBLE_EQ((expect_res), res);                                 \
+        }                                                                     \
+      }                                                                       \
+    }                                                                         \
+  }
+
+// Tests for vector single-width floating-point fused multiply-add Instructions
+// between vectors and scalar
+#define UTEST_RVV_VFW_FMA_VF_FORM_WITH_RES(instr_name, array, expect_res)     \
+  TEST(RISCV_UTEST_FLOAT_WIDENING_##instr_name) {                             \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                        \
+    CcTest::InitializeVM();                                                   \
+    auto fn = [](MacroAssembler& assm) {                                      \
+      __ VU.set(t0, VSew::E32, Vlmul::m1);                                    \
+      __ vfmv_vf(v0, fa0);                                                    \
+      __ vfmv_vf(v2, fa2);                                                    \
+      __ instr_name(v0, fa1, v2);                                             \
+      __ VU.set(t0, VSew::E64, Vlmul::m1);                                    \
+      __ vfmv_fs(fa0, v0);                                                    \
+    };                                                                        \
+    for (float rs1_fval : array) {                                            \
+      for (float rs2_fval : array) {                                          \
+        for (float rs3_fval : array) {                                        \
+          double res =                                                        \
+              GenAndRunTest<double, float>(rs1_fval, rs2_fval, rs3_fval, fn); \
+          CHECK_DOUBLE_EQ((expect_res), res);                                 \
+        }                                                                     \
+      }                                                                       \
+    }                                                                         \
+  }
+
+#define ARRAY_FLOAT compiler::ValueHelper::GetVector<float>()
+UTEST_RVV_VFW_FMA_VV_FORM_WITH_RES(vfwmacc_vv, ARRAY_FLOAT,
+                                   std::fma(rs2_fval, rs3_fval, rs1_fval))
+UTEST_RVV_VFW_FMA_VF_FORM_WITH_RES(vfwmacc_vf, ARRAY_FLOAT,
+                                   std::fma(rs2_fval, rs3_fval, rs1_fval))
+UTEST_RVV_VFW_FMA_VV_FORM_WITH_RES(vfwnmacc_vv, ARRAY_FLOAT,
+                                   std::fma(rs2_fval, -rs3_fval, -rs1_fval))
+UTEST_RVV_VFW_FMA_VF_FORM_WITH_RES(vfwnmacc_vf, ARRAY_FLOAT,
+                                   std::fma(rs2_fval, -rs3_fval, -rs1_fval))
+UTEST_RVV_VFW_FMA_VV_FORM_WITH_RES(vfwmsac_vv, ARRAY_FLOAT,
+                                   std::fma(rs2_fval, rs3_fval, -rs1_fval))
+UTEST_RVV_VFW_FMA_VF_FORM_WITH_RES(vfwmsac_vf, ARRAY_FLOAT,
+                                   std::fma(rs2_fval, rs3_fval, -rs1_fval))
+UTEST_RVV_VFW_FMA_VV_FORM_WITH_RES(vfwnmsac_vv, ARRAY_FLOAT,
+                                   std::fma(rs2_fval, -rs3_fval, rs1_fval))
+UTEST_RVV_VFW_FMA_VF_FORM_WITH_RES(vfwnmsac_vf, ARRAY_FLOAT,
+                                   std::fma(rs2_fval, -rs3_fval, rs1_fval))
+
+#undef ARRAY_FLOAT
+#undef UTEST_RVV_VFW_FMA_VV_FORM_WITH_RES
+#undef UTEST_RVV_VFW_FMA_VF_FORM_WITH_RES
 
 // Tests for vector single-width floating-point fused multiply-add Instructions
 // between vectors
 #define UTEST_RVV_FMA_VV_FORM_WITH_RES(instr_name, array, expect_res)        \
   TEST(RISCV_UTEST_##instr_name) {                                           \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                       \
     CcTest::InitializeVM();                                                  \
     auto fn = [](MacroAssembler& assm) {                                     \
       __ VU.set(t0, VSew::E32, Vlmul::m1);                                   \
@@ -2271,6 +2496,7 @@ UTEST_RVV_VF_VV_FORM_WITH_OP(vfdiv_vv, ARRAY_FLOAT, /)
 // between vectors and scalar
 #define UTEST_RVV_FMA_VF_FORM_WITH_RES(instr_name, array, expect_res)        \
   TEST(RISCV_UTEST_##instr_name) {                                           \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                       \
     CcTest::InitializeVM();                                                  \
     auto fn = [](MacroAssembler& assm) {                                     \
       __ VU.set(t0, VSew::E32, Vlmul::m1);                                   \
@@ -2326,9 +2552,42 @@ UTEST_RVV_FMA_VF_FORM_WITH_RES(vfnmsac_vf, ARRAY_FLOAT,
                                std::fma(rs2_fval, -rs3_fval, rs1_fval))
 
 #undef ARRAY_FLOAT
-#undef UTEST_RVV_FMA_VV_FORM
-#undef UTEST_RVV_FMA_VF_FORM
+#undef UTEST_RVV_FMA_VV_FORM_WITH_RES
+#undef UTEST_RVV_FMA_VF_FORM_WITH_RES
 
+// Tests for vector Widening Floating-Point Reduction Instructions
+#define UTEST_RVV_VFW_REDSUM_VV_FORM_WITH_RES(instr_name)              \
+  TEST(RISCV_UTEST_FLOAT_WIDENING_##instr_name) {                      \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                 \
+    CcTest::InitializeVM();                                            \
+    auto fn = [](MacroAssembler& assm) {                               \
+      __ VU.set(t0, VSew::E32, Vlmul::m1);                             \
+      __ vfmv_vf(v2, fa0);                                             \
+      __ vfmv_vf(v4, fa0);                                             \
+      __ instr_name(v0, v2, v4);                                       \
+      __ VU.set(t0, VSew::E64, Vlmul::m1);                             \
+      __ vfmv_fs(fa0, v0);                                             \
+    };                                                                 \
+    for (float rs1_fval : compiler::ValueHelper::GetVector<float>()) { \
+      std::vector<double> temp_arr(kRvvVLEN / 32,                      \
+                                   static_cast<double>(rs1_fval));     \
+      double expect_res = rs1_fval;                                    \
+      for (double val : temp_arr) {                                    \
+        expect_res += val;                                             \
+        if (std::isnan(expect_res)) {                                  \
+          expect_res = std::numeric_limits<double>::quiet_NaN();       \
+          break;                                                       \
+        }                                                              \
+      }                                                                \
+      double res = GenAndRunTest<double, float>(rs1_fval, fn);         \
+      CHECK_DOUBLE_EQ(UseCanonicalNan<double>(expect_res), res);       \
+    }                                                                  \
+  }
+
+UTEST_RVV_VFW_REDSUM_VV_FORM_WITH_RES(vfwredusum_vv)
+UTEST_RVV_VFW_REDSUM_VV_FORM_WITH_RES(vfwredosum_vv)
+
+#undef UTEST_RVV_VFW_REDSUM_VV_FORM_WITH_RES
 // calculate the value of r used in rounding
 static inline uint8_t get_round(int vxrm, uint64_t v, uint8_t shift) {
   // uint8_t d = extract64(v, shift, 1);
@@ -2362,6 +2621,7 @@ static inline uint8_t get_round(int vxrm, uint64_t v, uint8_t shift) {
 
 #define UTEST_RVV_VNCLIP_E32M2_E16M1(instr_name, sign)                       \
   TEST(RISCV_UTEST_##instr_name##_E32M2_E16M1) {                             \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                       \
     constexpr RoundingMode vxrm = RNE;                                       \
     CcTest::InitializeVM();                                                  \
     Isolate* isolate = CcTest::i_isolate();                                  \
@@ -2370,9 +2630,9 @@ static inline uint8_t get_round(int vxrm, uint64_t v, uint8_t shift) {
       for (uint8_t shift = 0; shift < 32; shift++) {                         \
         auto fn = [shift](MacroAssembler& assm) {                            \
           __ VU.set(vxrm);                                                   \
-          __ vsetvli(t0, zero_reg, VSew::E32, Vlmul::m2);                    \
+          __ VU.set(t0, VSew::E32, Vlmul::m2);                               \
           __ vl(v2, a0, 0, VSew::E32);                                       \
-          __ vsetvli(t0, zero_reg, VSew::E16, Vlmul::m1);                    \
+          __ VU.set(t0, VSew::E16, Vlmul::m1);                               \
           __ instr_name(v4, v2, shift);                                      \
           __ vs(v4, a1, 0, VSew::E16);                                       \
         };                                                                   \
@@ -2401,8 +2661,8 @@ UTEST_RVV_VNCLIP_E32M2_E16M1(vnclip_vi, )
 #define UTEST_RVV_VI_VIE_FORM_WITH_RES(instr_name, type, width, frac_width, \
                                        array, expect_res)                   \
   TEST(RISCV_UTEST_##instr_name##_##width##_##frac_width) {                 \
-    constexpr uint32_t vlen = 128;                                          \
-    constexpr uint32_t n = vlen / width;                                    \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                      \
+    constexpr uint32_t n = kRvvVLEN / width;                                \
     CcTest::InitializeVM();                                                 \
     for (int##frac_width##_t x : array) {                                   \
       int##frac_width##_t src[n] = {0};                                     \
@@ -2456,8 +2716,8 @@ UTEST_RVV_VI_VIE_FORM_WITH_RES(vsext_vf2, int16_t, 16, 8, ARRAY(int8_t),
 #define UTEST_RVV_VP_VS_VI_FORM_WITH_RES(instr_name, type, width, array, \
                                          expect_res)                     \
   TEST(RISCV_UTEST_##instr_name##_##type) {                              \
-    constexpr uint32_t vlen = 128;                                       \
-    constexpr uint32_t n = vlen / width;                                 \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                   \
+    constexpr uint32_t n = kRvvVLEN / width;                             \
     CcTest::InitializeVM();                                              \
     for (type x : array) {                                               \
       for (uint32_t offset = 0; offset < n; offset++) {                  \
@@ -2494,8 +2754,76 @@ UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslidedown_vi, uint16_t, 16, ARRAY(uint16_t),
 UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslidedown_vi, uint8_t, 8, ARRAY(uint8_t),
                                  (i + offset) < n ? src[i + offset] : 0)
 
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslideup_vi, int64_t, 64, ARRAY(int64_t),
+                                 i < offset ? dst[i] : src[i - offset])
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslideup_vi, int32_t, 32, ARRAY(int32_t),
+                                 i < offset ? dst[i] : src[i - offset])
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslideup_vi, int16_t, 16, ARRAY(int16_t),
+                                 i < offset ? dst[i] : src[i - offset])
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslideup_vi, int8_t, 8, ARRAY(int8_t),
+                                 i < offset ? dst[i] : src[i - offset])
+
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslideup_vi, uint32_t, 32, ARRAY(uint32_t),
+                                 i < offset ? dst[i] : src[i - offset])
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslideup_vi, uint16_t, 16, ARRAY(uint16_t),
+                                 i < offset ? dst[i] : src[i - offset])
+UTEST_RVV_VP_VS_VI_FORM_WITH_RES(vslideup_vi, uint8_t, 8, ARRAY(uint8_t),
+                                 i < offset ? dst[i] : src[i - offset])
+
 #undef UTEST_RVV_VP_VS_VI_FORM_WITH_RES
 #undef ARRAY
+
+#define UTEST_VFIRST_M_WITH_WIDTH(width)                            \
+  TEST(RISCV_UTEST_vfirst_m_##width) {                              \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;              \
+    constexpr uint32_t vlen = 128;                                  \
+    constexpr uint32_t n = vlen / width;                            \
+    CcTest::InitializeVM();                                         \
+    for (uint32_t i = 0; i <= n; i++) {                             \
+      uint64_t src[2] = {0};                                        \
+      src[0] = 1 << i;                                              \
+      auto fn = [](MacroAssembler& assm) {                          \
+        __ VU.set(t0, VSew::E##width, Vlmul::m1);                   \
+        __ vl(v2, a0, 0, VSew::E##width);                           \
+        __ vfirst_m(a0, v2);                                        \
+      };                                                            \
+      auto res = GenAndRunTest<int64_t, int64_t>((int64_t)src, fn); \
+      CHECK_EQ(i < n ? i : (int64_t)-1, res);                       \
+    }                                                               \
+  }
+
+UTEST_VFIRST_M_WITH_WIDTH(64)
+UTEST_VFIRST_M_WITH_WIDTH(32)
+UTEST_VFIRST_M_WITH_WIDTH(16)
+UTEST_VFIRST_M_WITH_WIDTH(8)
+
+#undef UTEST_VFIRST_M_WITH_WIDTH
+
+#define UTEST_VCPOP_M_WITH_WIDTH(width)                               \
+  TEST(RISCV_UTEST_vcpop_m_##width) {                                 \
+    if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                \
+    uint32_t vlen = 128;                                              \
+    uint32_t n = vlen / width;                                        \
+    CcTest::InitializeVM();                                           \
+    for (uint16_t x : compiler::ValueHelper::GetVector<uint16_t>()) { \
+      uint64_t src[2] = {0};                                          \
+      src[0] = x >> (16 - n);                                         \
+      auto fn = [](MacroAssembler& assm) {                            \
+        __ VU.set(t0, VSew::E##width, Vlmul::m1);                     \
+        __ vl(v2, a0, 0, VSew::E##width);                             \
+        __ vcpop_m(a0, v2);                                           \
+      };                                                              \
+      auto res = GenAndRunTest<int64_t, int64_t>((int64_t)src, fn);   \
+      CHECK_EQ(std::__popcount(src[0]), res);                         \
+    }                                                                 \
+  }
+
+UTEST_VCPOP_M_WITH_WIDTH(64)
+UTEST_VCPOP_M_WITH_WIDTH(32)
+UTEST_VCPOP_M_WITH_WIDTH(16)
+UTEST_VCPOP_M_WITH_WIDTH(8)
+
+#undef UTEST_VCPOP_M_WITH_WIDTH
 
 #undef __
 

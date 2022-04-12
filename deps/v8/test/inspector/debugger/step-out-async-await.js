@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(kozyatinskiy): on StepOut and probably StepOver at return position
-// of async generator we should break at next instruction of resumed generator
-// instead of next scheduled microtask.
-
 let {session, contextGroup, Protocol} = InspectorTest.start('StepOut from return position of async function.');
 
 contextGroup.addScript(`
@@ -22,48 +18,90 @@ contextGroup.addScript(`
 `);
 
 session.setupScriptMap();
-Protocol.Debugger.enable();
+
 InspectorTest.runAsyncTestSuite([
-  async function testStepInto() {
-    Protocol.Runtime.evaluate({expression: 'testFunction()'});
+  async function testStepIntoAtReturnPosition() {
+    await Promise.all([
+      Protocol.Runtime.enable(),
+      Protocol.Debugger.enable(),
+    ]);
+    const evalPromise =
+        Protocol.Runtime.evaluate({expression: 'testFunction()'});
     await logPauseLocation(await Protocol.Debugger.oncePaused());
-    Protocol.Debugger.stepInto();
+    await Protocol.Debugger.stepInto();
     await logPauseLocation(await Protocol.Debugger.oncePaused());
-    Protocol.Debugger.stepInto();
+    await Protocol.Debugger.stepInto();
     await logPauseLocation(await Protocol.Debugger.oncePaused());
-    Protocol.Debugger.stepInto();
+    await Protocol.Debugger.stepInto();
     await logPauseLocation(await Protocol.Debugger.oncePaused());
-    Protocol.Debugger.resume();
+    await Promise.all([
+      Protocol.Debugger.resume(),
+      evalPromise,
+      Protocol.Debugger.disable(),
+      Protocol.Runtime.disable(),
+    ]);
   },
 
-  async function testStepOver() {
-    Protocol.Runtime.evaluate({expression: 'testFunction()'});
+  async function testStepOverAtReturnPosition() {
+    await Promise.all([
+      Protocol.Runtime.enable(),
+      Protocol.Debugger.enable(),
+    ]);
+    const evalPromise =
+        Protocol.Runtime.evaluate({expression: 'testFunction()'});
     await logPauseLocation(await Protocol.Debugger.oncePaused());
-    Protocol.Debugger.stepInto();
+    await Protocol.Debugger.stepInto();
     await logPauseLocation(await Protocol.Debugger.oncePaused());
-    Protocol.Debugger.stepInto();
+    await Protocol.Debugger.stepInto();
     await logPauseLocation(await Protocol.Debugger.oncePaused());
-    Protocol.Debugger.stepOver();
+    await Protocol.Debugger.stepOver();
     await logPauseLocation(await Protocol.Debugger.oncePaused());
-    Protocol.Debugger.stepOver();
+    await Promise.all([
+      Protocol.Debugger.resume(),
+      evalPromise,
+      Protocol.Debugger.disable(),
+      Protocol.Runtime.disable(),
+    ]);
+  },
+
+  async function testStepOutAtReturnPosition() {
+    await Promise.all([
+      Protocol.Runtime.enable(),
+      Protocol.Debugger.enable(),
+    ]);
+    const evalPromise =
+        Protocol.Runtime.evaluate({expression: 'testFunction()'});
     await logPauseLocation(await Protocol.Debugger.oncePaused());
-    Protocol.Debugger.stepOver();
+    await Protocol.Debugger.stepInto();
     await logPauseLocation(await Protocol.Debugger.oncePaused());
-    Protocol.Debugger.resume();
+    await Protocol.Debugger.stepInto();
+    await logPauseLocation(await Protocol.Debugger.oncePaused());
+    await Protocol.Debugger.stepOut();
+    await logPauseLocation(await Protocol.Debugger.oncePaused());
+    await Promise.all([
+      Protocol.Debugger.resume(),
+      evalPromise,
+      Protocol.Debugger.disable(),
+      Protocol.Runtime.disable(),
+    ]);
   },
 
   async function testStepOut() {
-    Protocol.Runtime.evaluate({expression: 'testFunction()'});
+    await Promise.all([
+      Protocol.Runtime.enable(),
+      Protocol.Debugger.enable(),
+    ]);
+    const evalPromise =
+        Protocol.Runtime.evaluate({expression: 'testFunction()'});
     await logPauseLocation(await Protocol.Debugger.oncePaused());
-    Protocol.Debugger.stepInto();
+    await Protocol.Debugger.stepOut();
     await logPauseLocation(await Protocol.Debugger.oncePaused());
-    Protocol.Debugger.stepInto();
-    await logPauseLocation(await Protocol.Debugger.oncePaused());
-    Protocol.Debugger.stepOut();
-    await logPauseLocation(await Protocol.Debugger.oncePaused());
-    Protocol.Debugger.stepOut();
-    await logPauseLocation(await Protocol.Debugger.oncePaused());
-    Protocol.Debugger.resume();
+    await Promise.all([
+      Protocol.Debugger.resume(),
+      evalPromise,
+      Protocol.Debugger.disable(),
+      Protocol.Runtime.disable(),
+    ]);
   },
 ]);
 

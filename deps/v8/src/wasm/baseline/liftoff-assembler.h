@@ -219,9 +219,10 @@ class LiftoffAssembler : public TurboAssembler {
                                   /*out*/ LiftoffRegList* spills,
                                   SpillLocation spill_location);
 
-    void DefineSafepoint(Safepoint& safepoint);
+    void DefineSafepoint(SafepointTableBuilder::Safepoint& safepoint);
 
-    void DefineSafepointWithCalleeSavedRegisters(Safepoint& safepoint);
+    void DefineSafepointWithCalleeSavedRegisters(
+        SafepointTableBuilder::Safepoint& safepoint);
 
     base::SmallVector<VarState, 8> stack_state;
     LiftoffRegList used_registers;
@@ -705,7 +706,6 @@ class LiftoffAssembler : public TurboAssembler {
                                   Register isolate_root);
   inline void SpillInstance(Register instance);
   inline void ResetOSRTarget();
-  inline void FillInstanceInto(Register dst);
   inline void LoadTaggedPointer(Register dst, Register src_addr,
                                 Register offset_reg, int32_t offset_imm,
                                 LiftoffRegList pinned);
@@ -886,7 +886,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i64_ctz(LiftoffRegister dst, LiftoffRegister src);
   inline bool emit_i64_popcnt(LiftoffRegister dst, LiftoffRegister src);
 
-  inline void emit_u32_to_intptr(Register dst, Register src);
+  inline void emit_u32_to_uintptr(Register dst, Register src);
 
   void emit_ptrsize_add(Register dst, Register lhs, Register rhs) {
     if (kSystemPointerSize == 8) {
@@ -1461,10 +1461,9 @@ class LiftoffAssembler : public TurboAssembler {
   inline void PushRegisters(LiftoffRegList);
   inline void PopRegisters(LiftoffRegList);
 
-  inline void RecordSpillsInSafepoint(Safepoint& safepoint,
-                                      LiftoffRegList all_spills,
-                                      LiftoffRegList ref_spills,
-                                      int spill_offset);
+  inline void RecordSpillsInSafepoint(
+      SafepointTableBuilder::Safepoint& safepoint, LiftoffRegList all_spills,
+      LiftoffRegList ref_spills, int spill_offset);
 
   inline void DropStackSlotsAndRet(uint32_t num_stack_slots);
 
@@ -1662,6 +1661,10 @@ void LiftoffAssembler::emit_i64_xori(LiftoffRegister dst, LiftoffRegister lhs,
                                      int32_t imm) {
   liftoff::EmitI64IndependentHalfOperationImm<&LiftoffAssembler::emit_i32_xori>(
       this, dst, lhs, imm);
+}
+
+void LiftoffAssembler::emit_u32_to_uintptr(Register dst, Register src) {
+  // This is a no-op on 32-bit systems.
 }
 
 #endif  // V8_TARGET_ARCH_32_BIT

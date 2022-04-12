@@ -73,7 +73,7 @@ constexpr unsigned CpuFeaturesFromCompiler() {
 
 constexpr unsigned CpuFeaturesFromTargetOS() {
   unsigned features = 0;
-#if defined(V8_TARGET_OS_MACOSX)
+#if defined(V8_TARGET_OS_MACOS)
   features |= 1u << JSCVT;
 #endif
   return features;
@@ -228,18 +228,18 @@ bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
   int number_of_valid_regs = 0;
   int number_of_valid_fpregs = 0;
 
-  RegList unique_regs = 0;
-  RegList unique_fpregs = 0;
+  uint64_t unique_regs = 0;
+  uint64_t unique_fpregs = 0;
 
   const CPURegister regs[] = {reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg8};
 
   for (unsigned i = 0; i < arraysize(regs); i++) {
     if (regs[i].IsRegister()) {
       number_of_valid_regs++;
-      unique_regs |= regs[i].bit();
+      unique_regs |= (uint64_t{1} << regs[i].code());
     } else if (regs[i].IsVRegister()) {
       number_of_valid_fpregs++;
-      unique_fpregs |= regs[i].bit();
+      unique_fpregs |= (uint64_t{1} << regs[i].code());
     } else {
       DCHECK(!regs[i].is_valid());
     }
@@ -420,7 +420,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
   const int safepoint_table_offset =
       (safepoint_table_builder == kNoSafepointTable)
           ? handler_table_offset2
-          : safepoint_table_builder->GetCodeOffset();
+          : safepoint_table_builder->safepoint_table_offset();
   const int reloc_info_offset =
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
@@ -3696,9 +3696,12 @@ void Assembler::EmitStringData(const char* string) {
 
 void Assembler::debug(const char* message, uint32_t code, Instr params) {
   if (options().enable_simulator_code) {
+    size_t size_of_debug_sequence =
+        4 * kInstrSize + RoundUp<kInstrSize>(strlen(message) + 1);
+
     // The arguments to the debug marker need to be contiguous in memory, so
     // make sure we don't try to emit pools.
-    BlockPoolsScope scope(this);
+    BlockPoolsScope scope(this, size_of_debug_sequence);
 
     Label start;
     bind(&start);
@@ -3713,6 +3716,7 @@ void Assembler::debug(const char* message, uint32_t code, Instr params) {
     DCHECK_EQ(SizeOfCodeGeneratedSince(&start), kDebugMessageOffset);
     EmitStringData(message);
     hlt(kImmExceptionIsUnreachable);
+    DCHECK_EQ(SizeOfCodeGeneratedSince(&start), size_of_debug_sequence);
 
     return;
   }
@@ -4390,7 +4394,7 @@ void Assembler::near_call(int offset, RelocInfo::Mode rmode) {
 void Assembler::near_call(HeapObjectRequest request) {
   BlockPoolsScope no_pool_before_bl_instr(this);
   RequestHeapObject(request);
-  EmbeddedObjectIndex index = AddEmbeddedObject(Handle<Code>());
+  EmbeddedObjectIndex index = AddEmbeddedObject(Handle<CodeT>());
   RecordRelocInfo(RelocInfo::CODE_TARGET, index, NO_POOL_ENTRY);
   DCHECK(is_int32(index));
   bl(static_cast<int>(index));

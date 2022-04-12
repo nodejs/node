@@ -248,7 +248,7 @@ class LargeObjectConcurrentAllocationThread final : public v8::base::Thread {
       AllocationResult result = local_heap.AllocateRaw(
           kLargeObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
           AllocationAlignment::kTaggedAligned);
-      if (result.IsRetry()) {
+      if (result.IsFailure()) {
         local_heap.TryPerformCollection();
       } else {
         Address address = result.ToAddress();

@@ -25,8 +25,6 @@ using Boolean = Oddball;
 
 namespace compiler {
 
-class Schedule;
-class BasicBlock;
 class Reducer;
 
 #define PURE_ASSEMBLER_MACH_UNOP_LIST(V) \
@@ -161,11 +159,9 @@ class GraphAssemblerLabel {
     return TNode<T>::UncheckedCast(PhiAt(index));
   }
 
-  GraphAssemblerLabel(GraphAssemblerLabelType type, BasicBlock* basic_block,
-                      int loop_nesting_level,
+  GraphAssemblerLabel(GraphAssemblerLabelType type, int loop_nesting_level,
                       const std::array<MachineRepresentation, VarCount>& reps)
       : type_(type),
-        basic_block_(basic_block),
         loop_nesting_level_(loop_nesting_level),
         representations_(reps) {}
 
@@ -183,11 +179,9 @@ class GraphAssemblerLabel {
     return type_ == GraphAssemblerLabelType::kDeferred;
   }
   bool IsLoop() const { return type_ == GraphAssemblerLabelType::kLoop; }
-  BasicBlock* basic_block() { return basic_block_; }
 
   bool is_bound_ = false;
   const GraphAssemblerLabelType type_;
-  BasicBlock* const basic_block_;
   const int loop_nesting_level_;
   size_t merged_count_ = 0;
   Node* effect_;
@@ -204,10 +198,10 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   GraphAssembler(
       MachineGraph* jsgraph, Zone* zone,
       base::Optional<NodeChangedCallback> node_changed_callback = base::nullopt,
-      Schedule* schedule = nullptr, bool mark_loop_exits = false);
+      bool mark_loop_exits = false);
   virtual ~GraphAssembler();
 
-  void Reset(BasicBlock* block);
+  void Reset();
   void InitializeEffectControl(Node* effect, Node* control);
 
   // Create label.
@@ -223,9 +217,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   GraphAssemblerLabel<VarCount> MakeLabel(
       std::array<MachineRepresentation, VarCount> reps_array,
       GraphAssemblerLabelType type) {
-    return GraphAssemblerLabel<VarCount>(
-        type, NewBasicBlock(type == GraphAssemblerLabelType::kDeferred),
-        loop_nesting_level_, reps_array);
+    return GraphAssemblerLabel<VarCount>(type, loop_nesting_level_, reps_array);
   }
 
   // Convenience wrapper for creating non-deferred labels.
@@ -432,10 +424,6 @@ class V8_EXPORT_PRIVATE GraphAssembler {
     return TNode<T>::UncheckedCast(AddNode(node));
   }
 
-  // Finalizes the {block} being processed by the assembler, returning the
-  // finalized block (which may be different from the original block).
-  BasicBlock* FinalizeCurrentBlock(BasicBlock* block);
-
   void ConnectUnreachableToEnd();
 
   // Add an inline reducers such that nodes added to the graph will be run
@@ -452,15 +440,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Effect effect() const { return Effect(effect_); }
 
  protected:
-  class BasicBlockUpdater;
-
   template <typename... Vars>
   void MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label, Vars... vars);
-  BasicBlock* NewBasicBlock(bool deferred);
-  void BindBasicBlock(BasicBlock* block);
-  void GotoBasicBlock(BasicBlock* block);
-  void GotoIfBasicBlock(BasicBlock* block, Node* branch,
-                        IrOpcode::Value goto_if);
 
   V8_INLINE Node* AddClonedNode(Node* node);
 
@@ -551,10 +532,6 @@ class V8_EXPORT_PRIVATE GraphAssembler {
                   GraphAssemblerLabel<sizeof...(Vars)>* if_true,
                   GraphAssemblerLabel<sizeof...(Vars)>* if_false,
                   BranchHint hint, Vars...);
-  void RecordBranchInBlockUpdater(Node* branch, Node* if_true_control,
-                                  Node* if_false_control,
-                                  BasicBlock* if_true_block,
-                                  BasicBlock* if_false_block);
 
   Zone* temp_zone_;
   MachineGraph* mcgraph_;
@@ -563,7 +540,6 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   // {node_changed_callback_} should be called when a node outside the
   // subgraph created by the graph assembler changes.
   base::Optional<NodeChangedCallback> node_changed_callback_;
-  std::unique_ptr<BasicBlockUpdater> block_updater_;
 
   // Inline reducers enable reductions to be performed to nodes as they are
   // added to the graph with the graph assembler.
@@ -708,7 +684,6 @@ void GraphAssembler::Bind(GraphAssemblerLabel<VarCount>* label) {
 
   control_ = label->control_;
   effect_ = label->effect_;
-  BindBasicBlock(label->basic_block());
 
   label->SetBound();
 
@@ -755,18 +730,11 @@ void GraphAssembler::BranchImpl(Node* condition,
 
   Node* branch = graph()->NewNode(common()->Branch(hint), condition, control());
 
-  Node* if_true_control = control_ =
-      graph()->NewNode(common()->IfTrue(), branch);
+  control_ = graph()->NewNode(common()->IfTrue(), branch);
   MergeState(if_true, vars...);
 
-  Node* if_false_control = control_ =
-      graph()->NewNode(common()->IfFalse(), branch);
+  control_ = graph()->NewNode(common()->IfFalse(), branch);
   MergeState(if_false, vars...);
-
-  if (block_updater_) {
-    RecordBranchInBlockUpdater(branch, if_true_control, if_false_control,
-                               if_true->basic_block(), if_false->basic_block());
-  }
 
   control_ = nullptr;
   effect_ = nullptr;
@@ -778,7 +746,6 @@ void GraphAssembler::Goto(GraphAssemblerLabel<sizeof...(Vars)>* label,
   DCHECK_NOT_NULL(control());
   DCHECK_NOT_NULL(effect());
   MergeState(label, vars...);
-  GotoBasicBlock(label->basic_block());
 
   control_ = nullptr;
   effect_ = nullptr;
@@ -793,7 +760,6 @@ void GraphAssembler::GotoIf(Node* condition,
   control_ = graph()->NewNode(common()->IfTrue(), branch);
   MergeState(label, vars...);
 
-  GotoIfBasicBlock(label->basic_block(), branch, IrOpcode::kIfTrue);
   control_ = AddNode(graph()->NewNode(common()->IfFalse(), branch));
 }
 
@@ -806,7 +772,6 @@ void GraphAssembler::GotoIfNot(Node* condition,
   control_ = graph()->NewNode(common()->IfFalse(), branch);
   MergeState(label, vars...);
 
-  GotoIfBasicBlock(label->basic_block(), branch, IrOpcode::kIfFalse);
   control_ = AddNode(graph()->NewNode(common()->IfTrue(), branch));
 }
 
@@ -850,9 +815,8 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   JSGraphAssembler(
       JSGraph* jsgraph, Zone* zone,
       base::Optional<NodeChangedCallback> node_changed_callback = base::nullopt,
-      Schedule* schedule = nullptr, bool mark_loop_exits = false)
-      : GraphAssembler(jsgraph, zone, node_changed_callback, schedule,
-                       mark_loop_exits),
+      bool mark_loop_exits = false)
+      : GraphAssembler(jsgraph, zone, node_changed_callback, mark_loop_exits),
         jsgraph_(jsgraph) {}
 
   Node* SmiConstant(int32_t value);

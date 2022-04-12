@@ -16,11 +16,11 @@
 
 #include <utility>
 
-#include "src/init/v8.h"
-
 #include "src/handles/global-handles.h"
+#include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/spaces.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -129,6 +129,9 @@ UNINITIALIZED_TEST(IncrementalMarkingUsingTasks) {
     marking->Stop();
     {
       SafepointScope scope(heap);
+      heap->tracer()->StartCycle(
+          GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
+          "collector cctest", GCTracer::MarkingType::kIncremental);
       marking->Start(i::GarbageCollectionReason::kTesting);
     }
     CHECK(platform.PendingTask());

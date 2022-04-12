@@ -422,10 +422,10 @@
           ]
         },
         {
-          "name": "LdaNamedProperty",
+          "name": "GetNamedProperty",
           "main": "run.js",
-          "resources": [ "LdaNamedProperty.js" ],
-          "test_flags": [ "LdaNamedProperty" ],
+          "resources": [ "GetNamedProperty.js" ],
+          "test_flags": [ "GetNamedProperty" ],
           "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
           "tests": [
             {"name": "Smi-Value"},
@@ -433,10 +433,10 @@
           ]
         },
         {
-          "name": "LdaKeyedProperty",
+          "name": "GetKeyedProperty",
           "main": "run.js",
-          "resources": [ "LdaKeyedProperty.js" ],
-          "test_flags": [ "LdaKeyedProperty" ],
+          "resources": [ "GetKeyedProperty.js" ],
+          "test_flags": [ "GetKeyedProperty" ],
           "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
           "tests": [
             {"name": "Object-Lookup-String-Constant"},

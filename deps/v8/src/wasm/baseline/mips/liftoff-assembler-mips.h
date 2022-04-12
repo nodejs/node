@@ -53,8 +53,8 @@ inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
 //   1   | return addr (ra)   |
 //   0   | previous frame (fp)|
 //  -----+--------------------+  <-- frame ptr (fp)
-//  -1   | 0xa: WASM          |
-//  -2   |     instance       |
+//  -1   | StackFrame::WASM   |
+//  -2   |    instance        |
 //  -3   |    feedback vector |
 //  -4   |    tiering budget  |
 //  -----+--------------------+---------------------------
@@ -95,7 +95,6 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
     case kRef:
     case kOptRef:
     case kRtt:
-    case kRttWithDepth:
       assm->lw(dst.gp(), src);
       break;
     case kI64:
@@ -123,7 +122,6 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
     case kOptRef:
     case kRef:
     case kRtt:
-    case kRttWithDepth:
       assm->Usw(src.gp(), dst);
       break;
     case kI64:
@@ -497,10 +495,6 @@ void LiftoffAssembler::SpillInstance(Register instance) {
 
 void LiftoffAssembler::ResetOSRTarget() {}
 
-void LiftoffAssembler::FillInstanceInto(Register dst) {
-  lw(dst, liftoff::GetInstanceOperand());
-}
-
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
                                          int32_t offset_imm,
@@ -819,7 +813,6 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
     case kRef:
     case kOptRef:
     case kRtt:
-    case kRttWithDepth:
       sw(reg.gp(), dst);
       break;
     case kI64:
@@ -1240,10 +1233,6 @@ bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
   addu(dst.low_gp(), dst.low_gp(), dst.high_gp());
   mov(dst.high_gp(), zero_reg);
   return true;
-}
-
-void LiftoffAssembler::emit_u32_to_intptr(Register dst, Register src) {
-  // This is a nop on mips32.
 }
 
 void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
@@ -2967,15 +2956,14 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
   addiu(sp, sp, gp_offset);
 }
 
-void LiftoffAssembler::RecordSpillsInSafepoint(Safepoint& safepoint,
-                                               LiftoffRegList all_spills,
-                                               LiftoffRegList ref_spills,
-                                               int spill_offset) {
+void LiftoffAssembler::RecordSpillsInSafepoint(
+    SafepointTableBuilder::Safepoint& safepoint, LiftoffRegList all_spills,
+    LiftoffRegList ref_spills, int spill_offset) {
   int spill_space_size = 0;
   while (!all_spills.is_empty()) {
     LiftoffRegister reg = all_spills.GetFirstRegSet();
     if (ref_spills.has(reg)) {
-      safepoint.DefinePointerSlot(spill_offset);
+      safepoint.DefineTaggedStackSlot(spill_offset);
     }
     all_spills.clear(reg);
     ++spill_offset;

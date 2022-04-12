@@ -5,21 +5,21 @@ Running test: testStepIntoFromUser
 
 Executing stepInto...
 Executing stepInto...
-userFoo (user.js:23:2)
-frameworkCall (framework.js:10:23)
-testStepFromUser (user.js:31:2)
+userFoo (user.js:21:2)
+frameworkCall (framework.js:9:23)
+testStepFromUser (user.js:29:2)
 (anonymous) (expr.js:0:0)
 
 Executing stepInto...
 Executing stepInto...
-userBoo (user.js:27:2)
-frameworkCall (framework.js:10:23)
-testStepFromUser (user.js:31:2)
+userBoo (user.js:25:2)
+frameworkCall (framework.js:9:23)
+testStepFromUser (user.js:29:2)
 (anonymous) (expr.js:0:0)
 
 Executing stepInto...
 Executing stepInto...
-testStepFromUser (user.js:32:0)
+testStepFromUser (user.js:30:0)
 (anonymous) (expr.js:0:0)
 
 Executing resume...
@@ -29,21 +29,21 @@ Running test: testStepOverFromUser
 
 Executing stepInto...
 Executing stepInto...
-userFoo (user.js:23:2)
-frameworkCall (framework.js:10:23)
-testStepFromUser (user.js:31:2)
+userFoo (user.js:21:2)
+frameworkCall (framework.js:9:23)
+testStepFromUser (user.js:29:2)
 (anonymous) (expr.js:0:0)
 
 Executing stepOver...
 Executing stepOver...
-userBoo (user.js:27:2)
-frameworkCall (framework.js:10:23)
-testStepFromUser (user.js:31:2)
+userBoo (user.js:25:2)
+frameworkCall (framework.js:9:23)
+testStepFromUser (user.js:29:2)
 (anonymous) (expr.js:0:0)
 
 Executing stepOver...
 Executing stepOver...
-testStepFromUser (user.js:32:0)
+testStepFromUser (user.js:30:0)
 (anonymous) (expr.js:0:0)
 
 Executing resume...
@@ -53,50 +53,50 @@ Running test: testStepOutFromUser
 
 Executing stepInto...
 Executing stepInto...
-userFoo (user.js:23:2)
-frameworkCall (framework.js:10:23)
-testStepFromUser (user.js:31:2)
+userFoo (user.js:21:2)
+frameworkCall (framework.js:9:23)
+testStepFromUser (user.js:29:2)
 (anonymous) (expr.js:0:0)
 
 Executing stepOut...
-userBoo (user.js:27:2)
-frameworkCall (framework.js:10:23)
-testStepFromUser (user.js:31:2)
+userBoo (user.js:25:2)
+frameworkCall (framework.js:9:23)
+testStepFromUser (user.js:29:2)
 (anonymous) (expr.js:0:0)
 
 Executing resume...
 
 Running test: testStepIntoFromFramework
-frameworkBreakAndCall (framework.js:14:12)
-testStepFromFramework (user.js:35:2)
+frameworkBreakAndCall (framework.js:13:12)
+testStepFromFramework (user.js:33:2)
 (anonymous) (expr.js:0:0)
 
 Executing stepInto...
-userFoo (user.js:23:2)
-frameworkBreakAndCall (framework.js:15:23)
-testStepFromFramework (user.js:35:2)
+userFoo (user.js:21:2)
+frameworkBreakAndCall (framework.js:14:23)
+testStepFromFramework (user.js:33:2)
 (anonymous) (expr.js:0:0)
 
 Executing resume...
 
 Running test: testStepOverFromFramework
-frameworkBreakAndCall (framework.js:14:12)
-testStepFromFramework (user.js:35:2)
+frameworkBreakAndCall (framework.js:13:12)
+testStepFromFramework (user.js:33:2)
 (anonymous) (expr.js:0:0)
 
 Executing stepOver...
-testStepFromFramework (user.js:36:0)
+testStepFromFramework (user.js:34:0)
 (anonymous) (expr.js:0:0)
 
 Executing resume...
 
 Running test: testStepOutFromFramework
-frameworkBreakAndCall (framework.js:14:12)
-testStepFromFramework (user.js:35:2)
+frameworkBreakAndCall (framework.js:13:12)
+testStepFromFramework (user.js:33:2)
 (anonymous) (expr.js:0:0)
 
 Executing stepOut...
-testStepFromFramework (user.js:36:0)
+testStepFromFramework (user.js:34:0)
 (anonymous) (expr.js:0:0)
 
 Executing resume...

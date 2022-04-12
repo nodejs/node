@@ -56,6 +56,11 @@ class V8Console : public v8::debug::ConsoleDelegate {
     v8::Local<v8::ArrayBuffer> m_thisReference;
   };
 
+  struct AsyncTaskInfo {
+    int* ptr;
+    bool recurring;
+  };
+
   explicit V8Console(V8InspectorImpl* inspector);
 
  private:
@@ -185,11 +190,11 @@ class V8Console : public v8::debug::ConsoleDelegate {
 
   // A map of unique pointers used for the scheduling and joining async stacks.
   // The async stack traces instrumentation is exposed on the console object,
-  // behind a --experimental-async-stack-tagging-api flag. For now, it serves as
-  // a prototype that aims to validate whether the debugging experience can be
-  // improved for userland code that uses custom schedulers.
+  // behind a --experimental-async-stack-tagging-api flag. For now, it serves
+  // as a prototype that aims to validate whether the debugging experience can
+  // be improved for userland code that uses custom schedulers.
   int64_t m_taskIdCounter = 0;
-  std::map<int64_t, int*> m_asyncTaskIds;
+  std::map<int64_t, AsyncTaskInfo> m_asyncTaskIds;
 };
 
 }  // namespace v8_inspector

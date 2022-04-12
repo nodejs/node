@@ -5,7 +5,7 @@
 // Flags: --sparkplug --no-always-sparkplug --sparkplug-filter="test*"
 // Flags: --allow-natives-syntax --expose-gc --no-always-opt
 // Flags: --baseline-batch-compilation --baseline-batch-compilation-threshold=200
-// Flags: --scale-factor-for-feedback-allocation=4
+// Flags: --interrupt-budget-factor-for-feedback-allocation=4
 // Flags: --no-concurrent-sparkplug
 
 // Flags to drive Fuzzers into the right direction

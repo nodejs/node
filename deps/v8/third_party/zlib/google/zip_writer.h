@@ -36,7 +36,7 @@ class ZipWriter {
 // Creates a writer that will write a ZIP file to |zip_file_fd| or |zip_file|
 // and which entries are relative to |file_accessor|'s source directory.
 // All file reads are performed using |file_accessor|.
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
   static std::unique_ptr<ZipWriter> CreateWithFd(int zip_file_fd,
                                                  FileAccessor* file_accessor);
 #endif

@@ -288,8 +288,10 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ leaq(scratch1_, operand_);
 
     RememberedSetAction const remembered_set_action =
-        mode_ > RecordWriteMode::kValueIsMap ? RememberedSetAction::kEmit
-                                             : RememberedSetAction::kOmit;
+        mode_ > RecordWriteMode::kValueIsMap ||
+                FLAG_use_full_record_write_builtin
+            ? RememberedSetAction::kEmit
+            : RememberedSetAction::kOmit;
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
@@ -344,8 +346,8 @@ void EmitStore(TurboAssembler* tasm, Operand operand, Register value,
       case MachineRepresentation::kTagged:
         tasm->StoreTaggedField(operand, value);
         break;
-      case MachineRepresentation::kCagedPointer:
-        tasm->StoreCagedPointerField(operand, value);
+      case MachineRepresentation::kSandboxedPointer:
+        tasm->StoreSandboxedPointerField(operand, value);
         break;
       default:
         UNREACHABLE();
@@ -514,11 +516,11 @@ template <std::memory_order order>
 Register GetTSANValueRegister(TurboAssembler* tasm, Register value,
                               X64OperandConverter& i,
                               MachineRepresentation rep) {
-  if (rep == MachineRepresentation::kCagedPointer) {
-    // CagedPointers need to be encoded.
+  if (rep == MachineRepresentation::kSandboxedPointer) {
+    // SandboxedPointers need to be encoded.
     Register value_reg = i.TempRegister(1);
     tasm->movq(value_reg, value);
-    tasm->EncodeCagedPointer(value_reg);
+    tasm->EncodeSandboxedPointer(value_reg);
     return value_reg;
   }
   return value;
@@ -535,9 +537,9 @@ Register GetTSANValueRegister<std::memory_order_relaxed>(
     MachineRepresentation rep) {
   Register value_reg = i.TempRegister(1);
   tasm->movq(value_reg, value);
-  if (rep == MachineRepresentation::kCagedPointer) {
-    // CagedPointers need to be encoded.
-    tasm->EncodeCagedPointer(value_reg);
+  if (rep == MachineRepresentation::kSandboxedPointer) {
+    // SandboxedPointers need to be encoded.
+    tasm->EncodeSandboxedPointer(value_reg);
   }
   return value_reg;
 }
@@ -1074,8 +1076,9 @@ void AdjustStackPointerForTailCall(Instruction* instr,
     // value before frame construction.
     // See also: AssembleConstructFrame.
     DCHECK(!info->is_osr());
-    DCHECK_EQ(linkage->GetIncomingDescriptor()->CalleeSavedRegisters(), 0);
-    DCHECK_EQ(linkage->GetIncomingDescriptor()->CalleeSavedFPRegisters(), 0);
+    DCHECK(linkage->GetIncomingDescriptor()->CalleeSavedRegisters().is_empty());
+    DCHECK(
+        linkage->GetIncomingDescriptor()->CalleeSavedFPRegisters().is_empty());
     DCHECK_EQ(state->frame()->GetReturnSlotCount(), 0);
     stack_slot_delta = (state->frame()->GetTotalFrameSlotCount() -
                         kReturnAddressStackSlotCount) *
@@ -1173,16 +1176,41 @@ void CodeGenerator::BailoutIfDeoptimized() {
           RelocInfo::CODE_TARGET, not_zero);
 }
 
+bool ShouldClearOutputRegisterBeforeInstruction(CodeGenerator* g,
+                                                Instruction* instr) {
+  X64OperandConverter i(g, instr);
+  FlagsMode mode = FlagsModeField::decode(instr->opcode());
+  if (mode == kFlags_set) {
+    FlagsCondition condition = FlagsConditionField::decode(instr->opcode());
+    if (condition != kUnorderedEqual && condition != kUnorderedNotEqual) {
+      Register reg = i.OutputRegister(instr->OutputCount() - 1);
+      // Do not clear output register when it is also input register.
+      for (size_t index = 0; index < instr->InputCount(); ++index) {
+        if (HasRegisterInput(instr, index) && reg == i.InputRegister(index))
+          return false;
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     Instruction* instr) {
   X64OperandConverter i(this, instr);
   InstructionCode opcode = instr->opcode();
   ArchOpcode arch_opcode = ArchOpcodeField::decode(opcode);
+  if (ShouldClearOutputRegisterBeforeInstruction(this, instr)) {
+    // Transform setcc + movzxbl into xorl + setcc to avoid register stall and
+    // encode one byte shorter.
+    Register reg = i.OutputRegister(instr->OutputCount() - 1);
+    __ xorl(reg, reg);
+  }
   switch (arch_opcode) {
     case kArchCallCodeObject: {
       if (HasImmediateInput(instr, 0)) {
-        Handle<Code> code = i.InputCode(0);
+        Handle<CodeT> code = i.InputCode(0);
         __ Call(code, RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
@@ -1242,7 +1270,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif  // V8_ENABLE_WEBASSEMBLY
     case kArchTailCallCodeObject: {
       if (HasImmediateInput(instr, 0)) {
-        Handle<Code> code = i.InputCode(0);
+        Handle<CodeT> code = i.InputCode(0);
         __ Jump(code, RelocInfo::CODE_TARGET);
       } else {
         Register reg = i.InputRegister(0);
@@ -1384,7 +1412,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
         FrameScope scope(tasm(), StackFrame::NO_FRAME_TYPE);
-        __ Call(isolate()->builtins()->code_handle(Builtin::kAbortCSADcheck),
+        __ Call(BUILTIN_CODE(isolate(), AbortCSADcheck),
                 RelocInfo::CODE_TARGET);
       }
       __ int3();
@@ -2386,18 +2414,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kX64MovqDecodeCagedPointer: {
+    case kX64MovqDecodeSandboxedPointer: {
       CHECK(instr->HasOutput());
       Operand address(i.MemoryOperand());
       Register dst = i.OutputRegister();
       __ movq(dst, address);
-      __ DecodeCagedPointer(dst);
+      __ DecodeSandboxedPointer(dst);
       EmitTSANRelaxedLoadOOLIfNeeded(zone(), this, tasm(), address, i,
                                      DetermineStubCallMode(),
                                      kSystemPointerSize);
       break;
     }
-    case kX64MovqEncodeCagedPointer: {
+    case kX64MovqEncodeSandboxedPointer: {
       CHECK(!instr->HasOutput());
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
@@ -2405,7 +2433,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value(i.InputRegister(index));
       EmitTSANAwareStore<std::memory_order_relaxed>(
           zone(), this, tasm(), operand, value, i, DetermineStubCallMode(),
-          MachineRepresentation::kCagedPointer);
+          MachineRepresentation::kSandboxedPointer);
       break;
     }
     case kX64Movq:
@@ -4428,8 +4456,9 @@ void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
   }
 }
 
-void CodeGenerator::AssembleArchJump(RpoNumber target) {
-  if (!IsNextInAssemblyOrder(target)) __ jmp(GetLabel(target));
+void CodeGenerator::AssembleArchJumpRegardlessOfAssemblyOrder(
+    RpoNumber target) {
+  __ jmp(GetLabel(target));
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -4470,7 +4499,9 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   }
   __ bind(&check);
   __ setcc(FlagsConditionToCondition(condition), reg);
-  __ movzxbl(reg, reg);
+  if (!ShouldClearOutputRegisterBeforeInstruction(this, instr)) {
+    __ movzxbl(reg, reg);
+  }
   __ bind(&done);
 }
 
@@ -4550,22 +4581,16 @@ static const int kQuadWordSize = 16;
 void CodeGenerator::FinishFrame(Frame* frame) {
   CallDescriptor* call_descriptor = linkage()->GetIncomingDescriptor();
 
-  const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
-  if (saves_fp != 0) {  // Save callee-saved XMM registers.
+  const DoubleRegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
+  if (!saves_fp.is_empty()) {  // Save callee-saved XMM registers.
     frame->AlignSavedCalleeRegisterSlots();
-    const uint32_t saves_fp_count = base::bits::CountPopulation(saves_fp);
+    const uint32_t saves_fp_count = saves_fp.Count();
     frame->AllocateSavedCalleeRegisterSlots(
         saves_fp_count * (kQuadWordSize / kSystemPointerSize));
   }
   const RegList saves = call_descriptor->CalleeSavedRegisters();
-  if (saves != 0) {  // Save callee-saved registers.
-    int count = 0;
-    for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
-      if (((1 << i) & saves)) {
-        ++count;
-      }
-    }
-    frame->AllocateSavedCalleeRegisterSlots(count);
+  if (!saves.is_empty()) {  // Save callee-saved registers.
+    frame->AllocateSavedCalleeRegisterSlots(saves.Count());
   }
 }
 
@@ -4624,7 +4649,7 @@ void CodeGenerator::AssembleConstructFrame() {
   }
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();
-  const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
+  const DoubleRegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
 
   if (required_slots > 0) {
     DCHECK(frame_access_state()->has_frame());
@@ -4662,34 +4687,30 @@ void CodeGenerator::AssembleConstructFrame() {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // Skip callee-saved and return slots, which are created below.
-    required_slots -= base::bits::CountPopulation(saves);
-    required_slots -= base::bits::CountPopulation(saves_fp) *
-                      (kQuadWordSize / kSystemPointerSize);
+    required_slots -= saves.Count();
+    required_slots -= saves_fp.Count() * (kQuadWordSize / kSystemPointerSize);
     required_slots -= frame()->GetReturnSlotCount();
     if (required_slots > 0) {
       __ AllocateStackSpace(required_slots * kSystemPointerSize);
     }
   }
 
-  if (saves_fp != 0) {  // Save callee-saved XMM registers.
-    const uint32_t saves_fp_count = base::bits::CountPopulation(saves_fp);
+  if (!saves_fp.is_empty()) {  // Save callee-saved XMM registers.
+    const uint32_t saves_fp_count = saves_fp.Count();
     const int stack_size = saves_fp_count * kQuadWordSize;
     // Adjust the stack pointer.
     __ AllocateStackSpace(stack_size);
     // Store the registers on the stack.
     int slot_idx = 0;
-    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
-      if (!((1 << i) & saves_fp)) continue;
-      __ Movdqu(Operand(rsp, kQuadWordSize * slot_idx),
-                XMMRegister::from_code(i));
+    for (XMMRegister reg : saves_fp) {
+      __ Movdqu(Operand(rsp, kQuadWordSize * slot_idx), reg);
       slot_idx++;
     }
   }
 
-  if (saves != 0) {  // Save callee-saved registers.
-    for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
-      if (!((1 << i) & saves)) continue;
-      __ pushq(Register::from_code(i));
+  if (!saves.is_empty()) {  // Save callee-saved registers.
+    for (Register reg : base::Reversed(saves)) {
+      __ pushq(reg);
     }
   }
 
@@ -4704,26 +4725,23 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
 
   // Restore registers.
   const RegList saves = call_descriptor->CalleeSavedRegisters();
-  if (saves != 0) {
+  if (!saves.is_empty()) {
     const int returns = frame()->GetReturnSlotCount();
     if (returns != 0) {
       __ addq(rsp, Immediate(returns * kSystemPointerSize));
     }
-    for (int i = 0; i < Register::kNumRegisters; i++) {
-      if (!((1 << i) & saves)) continue;
-      __ popq(Register::from_code(i));
+    for (Register reg : saves) {
+      __ popq(reg);
     }
   }
-  const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
-  if (saves_fp != 0) {
-    const uint32_t saves_fp_count = base::bits::CountPopulation(saves_fp);
+  const DoubleRegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
+  if (!saves_fp.is_empty()) {
+    const uint32_t saves_fp_count = saves_fp.Count();
     const int stack_size = saves_fp_count * kQuadWordSize;
     // Load the registers from the stack.
     int slot_idx = 0;
-    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
-      if (!((1 << i) & saves_fp)) continue;
-      __ Movdqu(XMMRegister::from_code(i),
-                Operand(rsp, kQuadWordSize * slot_idx));
+    for (XMMRegister reg : saves_fp) {
+      __ Movdqu(reg, Operand(rsp, kQuadWordSize * slot_idx));
       slot_idx++;
     }
     // Adjust the stack pointer.
@@ -4769,7 +4787,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     }
     if (drop_jsargs) {
       // Get the actual argument count.
-      DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & argc_reg.bit());
+      DCHECK(!call_descriptor->CalleeSavedRegisters().has(argc_reg));
       __ movq(argc_reg, Operand(rbp, StandardFrameConstants::kArgCOffset));
     }
     AssembleDeconstructFrame();
@@ -4783,26 +4801,19 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     Label mismatch_return;
     Register scratch_reg = r10;
     DCHECK_NE(argc_reg, scratch_reg);
-    DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & scratch_reg.bit());
-    DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & argc_reg.bit());
-    if (kJSArgcIncludesReceiver) {
-      __ cmpq(argc_reg, Immediate(parameter_slots));
-    } else {
-      int parameter_slots_without_receiver = parameter_slots - 1;
-      __ cmpq(argc_reg, Immediate(parameter_slots_without_receiver));
-    }
+    DCHECK(!call_descriptor->CalleeSavedRegisters().has(scratch_reg));
+    DCHECK(!call_descriptor->CalleeSavedRegisters().has(argc_reg));
+    __ cmpq(argc_reg, Immediate(parameter_slots));
     __ j(greater, &mismatch_return, Label::kNear);
     __ Ret(parameter_slots * kSystemPointerSize, scratch_reg);
     __ bind(&mismatch_return);
     __ DropArguments(argc_reg, scratch_reg, TurboAssembler::kCountIsInteger,
-                     kJSArgcIncludesReceiver
-                         ? TurboAssembler::kCountIncludesReceiver
-                         : TurboAssembler::kCountExcludesReceiver);
+                     TurboAssembler::kCountIncludesReceiver);
     // We use a return instead of a jump for better return address prediction.
     __ Ret();
   } else if (additional_pop_count->IsImmediate()) {
     Register scratch_reg = r10;
-    DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & scratch_reg.bit());
+    DCHECK(!call_descriptor->CalleeSavedRegisters().has(scratch_reg));
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
     size_t pop_size = (parameter_slots + additional_count) * kSystemPointerSize;
     CHECK_LE(pop_size, static_cast<size_t>(std::numeric_limits<int>::max()));
@@ -4810,8 +4821,8 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   } else {
     Register pop_reg = g.ToRegister(additional_pop_count);
     Register scratch_reg = pop_reg == r10 ? rcx : r10;
-    DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & scratch_reg.bit());
-    DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & pop_reg.bit());
+    DCHECK(!call_descriptor->CalleeSavedRegisters().has(scratch_reg));
+    DCHECK(!call_descriptor->CalleeSavedRegisters().has(pop_reg));
     int pop_size = static_cast<int>(parameter_slots * kSystemPointerSize);
     __ PopReturnAddressTo(scratch_reg);
     __ leaq(rsp, Operand(rsp, pop_reg, times_system_pointer_size,

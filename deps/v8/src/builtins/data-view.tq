@@ -84,11 +84,6 @@ javascript builtin DataViewPrototypeGetBuffer(
   return dataView.buffer;
 }
 
-extern macro IsJSArrayBufferViewDetachedOrOutOfBounds(JSArrayBufferView):
-    never labels DetachedOrOutOfBounds, NotDetachedNorOutOfBounds;
-extern macro LoadVariableLengthJSArrayBufferViewByteLength(
-    JSArrayBufferView, JSArrayBuffer): uintptr labels DetachedOrOutOfBounds;
-
 // ES6 section 24.2.4.2 get DataView.prototype.byteLength
 javascript builtin DataViewPrototypeGetByteLength(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): Number {
@@ -118,7 +113,7 @@ javascript builtin DataViewPrototypeGetByteOffset(
   const dataView: JSDataView =
       ValidateDataView(context, receiver, 'get DataView.prototype.byte_offset');
   try {
-    IsJSArrayBufferViewDetachedOrOutOfBounds(dataView)
+    typed_array::IsJSArrayBufferViewDetachedOrOutOfBounds(dataView)
         otherwise DetachedOrOutOfBounds, NotDetachedNorOutOfBounds;
   } label DetachedOrOutOfBounds {
     ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameByteOffset);
@@ -399,7 +394,7 @@ transitioning macro DataViewGet(
     // 7. If IsViewOutOfBounds(view, getBufferByteLength) is true, throw a
     // TypeError exception.
     try {
-      IsJSArrayBufferViewDetachedOrOutOfBounds(dataView)
+      typed_array::IsJSArrayBufferViewDetachedOrOutOfBounds(dataView)
           otherwise DetachedOrOutOfBounds, NotDetachedNorOutOfBounds;
     } label DetachedOrOutOfBounds {
       ThrowTypeError(
@@ -718,7 +713,7 @@ transitioning macro DataViewSet(
     // 10. If IsViewOutOfBounds(view, getBufferByteLength) is true, throw a
     // TypeError exception.
     try {
-      IsJSArrayBufferViewDetachedOrOutOfBounds(dataView)
+      typed_array::IsJSArrayBufferViewDetachedOrOutOfBounds(dataView)
           otherwise DetachedOrOutOfBounds, NotDetachedNorOutOfBounds;
     } label DetachedOrOutOfBounds {
       ThrowTypeError(

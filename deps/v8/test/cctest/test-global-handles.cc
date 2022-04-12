@@ -28,6 +28,7 @@
 #include "include/v8-function.h"
 #include "include/v8-locker.h"
 #include "src/api/api-inl.h"
+#include "src/common/allow-deprecated.h"
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
@@ -35,6 +36,8 @@
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
+
+START_ALLOW_USE_DEPRECATED()
 
 namespace v8 {
 namespace internal {
@@ -708,6 +711,7 @@ TEST(TotalSizeRegularNode) {
 }
 
 TEST(TotalSizeTracedNode) {
+  ManualGCScope manual_gc;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   Isolate* i_isolate = CcTest::i_isolate();
@@ -726,3 +730,5 @@ TEST(TotalSizeTracedNode) {
 
 }  // namespace internal
 }  // namespace v8
+
+END_ALLOW_USE_DEPRECATED()

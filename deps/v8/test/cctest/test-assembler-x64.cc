@@ -2681,6 +2681,7 @@ TEST(AssemblerX64FloatingPoint256bit) {
   __ vhaddps(ymm0, ymm1, Operand(rbx, rcx, times_4, 10000));
   __ vblendvps(ymm0, ymm3, ymm5, ymm9);
   __ vblendvpd(ymm7, ymm4, ymm3, ymm1);
+  __ vshufps(ymm3, ymm1, ymm2, 0x75);
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
@@ -2712,7 +2713,9 @@ TEST(AssemblerX64FloatingPoint256bit) {
                      // vblendvps ymm0, ymm3, ymm5, ymm9
                      0xC4, 0xE3, 0x65, 0x4A, 0xC5, 0x90,
                      // vblendvpd ymm7, ymm4, ymm3, ymm1
-                     0xC4, 0xE3, 0x5D, 0x4B, 0xFB, 0x10};
+                     0xC4, 0xE3, 0x5D, 0x4B, 0xFB, 0x10,
+                     // vshufps ymm3, ymm1, ymm2, 0x75
+                     0xC5, 0xF4, 0xC6, 0xDA, 0x75};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 

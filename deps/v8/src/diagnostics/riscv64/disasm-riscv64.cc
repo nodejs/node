@@ -2068,6 +2068,9 @@ void Decoder::DecodeRvvIVI(Instruction* instr) {
     case RO_V_VSLIDEDOWN_VI:
       Format(instr, "vslidedown.vi 'vd, 'vs2, 'uimm5'vm");
       break;
+    case RO_V_VSLIDEUP_VI:
+      Format(instr, "vslideup.vi   'vd, 'vs2, 'uimm5'vm");
+      break;
     case RO_V_VSRL_VI:
       Format(instr, "vsrl.vi   'vd, 'vs2, 'uimm5'vm");
       break;
@@ -2234,6 +2237,10 @@ void Decoder::DecodeRvvMVV(Instruction* instr) {
     case RO_V_VWXUNARY0:
       if (instr->Vs1Value() == 0x0) {
         Format(instr, "vmv.x.s   'rd, 'vs2");
+      } else if (instr->Vs1Value() == 0b10001) {
+        Format(instr, "vfirst.m  'rd, 'vs2");
+      } else if (instr->Vs1Value() == 0b10000) {
+        Format(instr, "vcpop.m   'rd, 'vs2");
       } else {
         UNSUPPORTED_RISCV();
       }
@@ -2397,6 +2404,12 @@ void Decoder::DecodeRvvFVV(Instruction* instr) {
         case VFSQRT_V:
           Format(instr, "vfsqrt.v  'vd, 'vs2'vm");
           break;
+        case VFRSQRT7_V:
+          Format(instr, "vfrsqrt7.v 'vd, 'vs2'vm");
+          break;
+        case VFREC7_V:
+          Format(instr, "vfrec7.v  'vd, 'vs2'vm");
+          break;
         default:
           break;
       }
@@ -2482,6 +2495,39 @@ void Decoder::DecodeRvvFVV(Instruction* instr) {
         UNSUPPORTED_RISCV();
       }
       break;
+    case RO_V_VFWADD_VV:
+      Format(instr, "vfwadd.vv 'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFWSUB_VV:
+      Format(instr, "vfwsub.vv 'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFWADD_W_VV:
+      Format(instr, "vfwadd.wv 'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFWSUB_W_VV:
+      Format(instr, "vfwsub.wv 'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFWREDUSUM_VV:
+      Format(instr, "vfwredusum.vs 'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFWREDOSUM_VV:
+      Format(instr, "vfwredosum.vs 'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFWMUL_VV:
+      Format(instr, "vfwmul.vv 'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VFWMACC_VV:
+      Format(instr, "vfwmacc.vv 'vd, 'vs1, 'vs2'vm");
+      break;
+    case RO_V_VFWNMACC_VV:
+      Format(instr, "vfwnmacc.vv 'vd, 'vs1, 'vs2'vm");
+      break;
+    case RO_V_VFWMSAC_VV:
+      Format(instr, "vfwmsac.vv 'vd, 'vs1, 'vs2'vm");
+      break;
+    case RO_V_VFWNMSAC_VV:
+      Format(instr, "vfwnmsac.vv 'vd, 'vs1, 'vs2'vm");
+      break;
     default:
       UNSUPPORTED_RISCV();
       break;
@@ -2526,6 +2572,33 @@ void Decoder::DecodeRvvFVF(Instruction* instr) {
       break;
     case RO_V_VFNMSAC_VF:
       Format(instr, "vfnmsac.vf 'vd, 'fs1, 'vs2'vm");
+      break;
+    case RO_V_VFWADD_VF:
+      Format(instr, "vfwadd.vf 'vd, 'vs2, 'fs1'vm");
+      break;
+    case RO_V_VFWSUB_VF:
+      Format(instr, "vfwsub.vf 'vd, 'vs2, 'fs1'vm");
+      break;
+    case RO_V_VFWADD_W_VF:
+      Format(instr, "vfwadd.wf 'vd, 'vs2, 'fs1'vm");
+      break;
+    case RO_V_VFWSUB_W_VF:
+      Format(instr, "vfwsub.wf 'vd, 'vs2, 'fs1'vm");
+      break;
+    case RO_V_VFWMUL_VF:
+      Format(instr, "vfwmul.vf 'vd, 'vs2, 'fs1'vm");
+      break;
+    case RO_V_VFWMACC_VF:
+      Format(instr, "vfwmacc.vf 'vd, 'fs1, 'vs2'vm");
+      break;
+    case RO_V_VFWNMACC_VF:
+      Format(instr, "vfwnmacc.vf 'vd, 'fs1, 'vs2'vm");
+      break;
+    case RO_V_VFWMSAC_VF:
+      Format(instr, "vfwmsac.vf 'vd, 'fs1, 'vs2'vm");
+      break;
+    case RO_V_VFWNMSAC_VF:
+      Format(instr, "vfwnmsac.vf 'vd, 'fs1, 'vs2'vm");
       break;
     default:
       UNSUPPORTED_RISCV();

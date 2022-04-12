@@ -5,8 +5,7 @@
 #ifndef V8_CODEGEN_PPC_REGISTER_PPC_H_
 #define V8_CODEGEN_PPC_REGISTER_PPC_H_
 
-#include "src/codegen/register.h"
-#include "src/codegen/reglist.h"
+#include "src/codegen/register-base.h"
 
 namespace v8 {
 namespace internal {
@@ -60,86 +59,6 @@ namespace internal {
   V(cr0)  V(cr1)  V(cr2)  V(cr3)  V(cr4)  V(cr5)  V(cr6)  V(cr7)  \
   V(cr8)  V(cr9)  V(cr10) V(cr11) V(cr12) V(cr15)
 // clang-format on
-
-// Register list in load/store instructions
-// Note that the bit values must match those used in actual instruction encoding
-
-// Caller-saved/arguments registers
-const RegList kJSCallerSaved = 1 << 3 |   // r3  a1
-                               1 << 4 |   // r4  a2
-                               1 << 5 |   // r5  a3
-                               1 << 6 |   // r6  a4
-                               1 << 7 |   // r7  a5
-                               1 << 8 |   // r8  a6
-                               1 << 9 |   // r9  a7
-                               1 << 10 |  // r10 a8
-                               1 << 11;
-
-const int kNumJSCallerSaved = 9;
-
-// Return the code of the n-th caller-saved register available to JavaScript
-// e.g. JSCallerSavedReg(0) returns r0.code() == 0
-int JSCallerSavedCode(int n);
-
-// Callee-saved registers preserved when switching from C to JavaScript
-const RegList kCalleeSaved = 1 << 14 |  // r14
-                             1 << 15 |  // r15
-                             1 << 16 |  // r16
-                             1 << 17 |  // r17
-                             1 << 18 |  // r18
-                             1 << 19 |  // r19
-                             1 << 20 |  // r20
-                             1 << 21 |  // r21
-                             1 << 22 |  // r22
-                             1 << 23 |  // r23
-                             1 << 24 |  // r24
-                             1 << 25 |  // r25
-                             1 << 26 |  // r26
-                             1 << 27 |  // r27
-                             1 << 28 |  // r28
-                             1 << 29 |  // r29
-                             1 << 30 |  // r20
-                             1 << 31;   // r31
-
-const int kNumCalleeSaved = 18;
-
-const RegList kCallerSavedDoubles = 1 << 0 |   // d0
-                                    1 << 1 |   // d1
-                                    1 << 2 |   // d2
-                                    1 << 3 |   // d3
-                                    1 << 4 |   // d4
-                                    1 << 5 |   // d5
-                                    1 << 6 |   // d6
-                                    1 << 7 |   // d7
-                                    1 << 8 |   // d8
-                                    1 << 9 |   // d9
-                                    1 << 10 |  // d10
-                                    1 << 11 |  // d11
-                                    1 << 12 |  // d12
-                                    1 << 13;   // d13
-
-const int kNumCallerSavedDoubles = 14;
-
-const RegList kCalleeSavedDoubles = 1 << 14 |  // d14
-                                    1 << 15 |  // d15
-                                    1 << 16 |  // d16
-                                    1 << 17 |  // d17
-                                    1 << 18 |  // d18
-                                    1 << 19 |  // d19
-                                    1 << 20 |  // d20
-                                    1 << 21 |  // d21
-                                    1 << 22 |  // d22
-                                    1 << 23 |  // d23
-                                    1 << 24 |  // d24
-                                    1 << 25 |  // d25
-                                    1 << 26 |  // d26
-                                    1 << 27 |  // d27
-                                    1 << 28 |  // d28
-                                    1 << 29 |  // d29
-                                    1 << 30 |  // d30
-                                    1 << 31;   // d31
-
-const int kNumCalleeSavedDoubles = 18;
 
 // The following constants describe the stack frame linkage area as
 // defined by the ABI.  Note that kNumRequiredStackFrameSlots must
@@ -199,7 +118,7 @@ class Register : public RegisterBase<Register, kRegAfterLast> {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(Register);
-static_assert(sizeof(Register) == sizeof(int),
+static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
 
 #define DEFINE_REGISTER(R) \
@@ -219,7 +138,7 @@ constexpr int ArgumentPaddingSlots(int argument_count) {
   return 0;
 }
 
-constexpr bool kSimpleFPAliasing = true;
+constexpr AliasingKind kFPAliasing = AliasingKind::kOverlap;
 constexpr bool kSimdMaskRegisters = false;
 
 enum DoubleRegisterCode {
@@ -249,7 +168,7 @@ class DoubleRegister : public RegisterBase<DoubleRegister, kDoubleAfterLast> {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(DoubleRegister);
-static_assert(sizeof(DoubleRegister) == sizeof(int),
+static_assert(sizeof(DoubleRegister) <= sizeof(int),
               "DoubleRegister can efficiently be passed by value");
 
 using FloatRegister = DoubleRegister;
@@ -292,7 +211,7 @@ class Simd128Register
   explicit constexpr Simd128Register(int code) : RegisterBase(code) {}
 };
 ASSERT_TRIVIALLY_COPYABLE(Simd128Register);
-static_assert(sizeof(Simd128Register) == sizeof(int),
+static_assert(sizeof(Simd128Register) <= sizeof(int),
               "Simd128Register can efficiently be passed by value");
 
 #define DECLARE_SIMD128_REGISTER(R) \

@@ -6,7 +6,6 @@
 #define V8_COMPILER_DISPATCHER_LAZY_COMPILE_DISPATCHER_H_
 
 #include <cstdint>
-#include <map>
 #include <memory>
 #include <unordered_set>
 #include <utility>
@@ -220,13 +219,16 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
   std::unordered_set<Job*> all_jobs_;
 #endif
 
+  // A queue of jobs to delete on the background thread(s). Jobs in this queue
+  // are considered dead as far as the rest of the system is concerned, so they
+  // won't be pointed to by any SharedFunctionInfo and won't be in the all_jobs
+  // set above.
+  std::vector<Job*> jobs_to_dispose_;
+
   // If not nullptr, then the main thread waits for the task processing
   // this job, and blocks on the ConditionVariable main_thread_blocking_signal_.
   Job* main_thread_blocking_on_job_;
   base::ConditionVariable main_thread_blocking_signal_;
-
-  mutable base::Mutex job_dispose_mutex_;
-  std::vector<Job*> jobs_to_dispose_;
 
   // Test support.
   base::AtomicValue<bool> block_for_testing_;

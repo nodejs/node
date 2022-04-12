@@ -1,0 +1,66 @@
+Test getting private class methods from an instance that calls nested super()
+
+Running test: testScopesPaused
+properties after super() is called in IIFE
+[
+    [0] : {
+        name : #b
+        value : {
+            className : Function
+            description : #b() {}
+            objectId : <objectId>
+            type : function
+        }
+    }
+]
+privateProperties after super() is called in arrow function
+[
+    [0] : {
+        name : #b
+        value : {
+            className : Function
+            description : #b() {}
+            objectId : <objectId>
+            type : function
+        }
+    }
+    [1] : {
+        get : {
+            className : Function
+            description : get #c() {}
+            objectId : <objectId>
+            type : function
+        }
+        name : #c
+    }
+]
+privateProperties after super() is called in eval()
+[
+    [0] : {
+        name : #b
+        value : {
+            className : Function
+            description : #b() {}
+            objectId : <objectId>
+            type : function
+        }
+    }
+    [1] : {
+        get : {
+            className : Function
+            description : get #c() {}
+            objectId : <objectId>
+            type : function
+        }
+        name : #c
+    }
+    [2] : {
+        name : #d
+        set : {
+            className : Function
+            description : set #d(val) {}
+            objectId : <objectId>
+            type : function
+        }
+    }
+]

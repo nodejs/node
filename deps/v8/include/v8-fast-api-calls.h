@@ -532,10 +532,6 @@ class V8_EXPORT CFunction {
   };
 };
 
-struct ApiObject {
-  uintptr_t address;
-};
-
 /**
  * A struct which may be passed to a fast call callback, like so:
  * \code
@@ -660,7 +656,6 @@ struct CTypeInfoTraits {};
   V(void, kVoid)                     \
   V(v8::Local<v8::Value>, kV8Value)  \
   V(v8::Local<v8::Object>, kV8Value) \
-  V(ApiObject, kApiObject)           \
   V(AnyCType, kAny)
 
 // ApiObject was a temporary solution to wrap the pointer to the v8::Value.

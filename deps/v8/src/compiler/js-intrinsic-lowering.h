@@ -40,6 +40,7 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
 
  private:
   Reduction ReduceCopyDataProperties(Node* node);
+  Reduction ReduceCopyDataPropertiesWithExcludedPropertiesOnStack(Node* node);
   Reduction ReduceCreateIterResultObject(Node* node);
   Reduction ReduceDeoptimizeNow(Node* node);
   Reduction ReduceCreateJSGeneratorObject(Node* node);

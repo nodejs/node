@@ -207,16 +207,18 @@ Object DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
       isolate, function,
       isolate->factory()->NewJSBoundFunction(target, this_arg, argv));
 
-  LookupIterator length_lookup(isolate, target,
-                               isolate->factory()->length_string(), target,
-                               LookupIterator::OWN);
   // Setup the "length" property based on the "length" of the {target}.
   // If the targets length is the default JSFunction accessor, we can keep the
   // accessor that's installed by default on the JSBoundFunction. It lazily
   // computes the value from the underlying internal length.
+  Handle<AccessorInfo> function_length_accessor =
+      isolate->factory()->function_length_accessor();
+  LookupIterator length_lookup(isolate, target,
+                               isolate->factory()->length_string(), target,
+                               LookupIterator::OWN);
   if (!target->IsJSFunction() ||
       length_lookup.state() != LookupIterator::ACCESSOR ||
-      !length_lookup.GetAccessors()->IsAccessorInfo()) {
+      !length_lookup.GetAccessors().is_identical_to(function_length_accessor)) {
     Handle<Object> length(Smi::zero(), isolate);
     Maybe<PropertyAttributes> attributes =
         JSReceiver::GetPropertyAttributes(&length_lookup);
@@ -242,11 +244,13 @@ Object DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
   // If the target's name is the default JSFunction accessor, we can keep the
   // accessor that's installed by default on the JSBoundFunction. It lazily
   // computes the value from the underlying internal name.
+  Handle<AccessorInfo> function_name_accessor =
+      isolate->factory()->function_name_accessor();
   LookupIterator name_lookup(isolate, target, isolate->factory()->name_string(),
                              target);
   if (!target->IsJSFunction() ||
       name_lookup.state() != LookupIterator::ACCESSOR ||
-      !name_lookup.GetAccessors()->IsAccessorInfo() ||
+      !name_lookup.GetAccessors().is_identical_to(function_name_accessor) ||
       (name_lookup.IsFound() && !name_lookup.HolderIsReceiver())) {
     Handle<Object> target_name;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, target_name,
@@ -257,8 +261,9 @@ Object DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
           isolate, name,
           Name::ToFunctionName(isolate, Handle<String>::cast(target_name)));
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, name, isolate->factory()->NewConsString(
-                             isolate->factory()->bound__string(), name));
+          isolate, name,
+          isolate->factory()->NewConsString(isolate->factory()->bound__string(),
+                                            name));
     } else {
       name = isolate->factory()->bound__string();
     }

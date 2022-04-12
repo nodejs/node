@@ -46,7 +46,7 @@ FunctionTester::FunctionTester(Handle<Code> code, int param_count)
       flags_(0) {
   CHECK(!code.is_null());
   Compile(function);
-  function->set_code(*code, kReleaseStore);
+  function->set_code(ToCodeT(*code), kReleaseStore);
 }
 
 FunctionTester::FunctionTester(Handle<Code> code) : FunctionTester(code, 0) {}

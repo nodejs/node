@@ -12,7 +12,7 @@
 #include "src/codegen/safepoint-table.h"
 #include "src/codegen/source-position.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/execution/isolate-utils.h"
+#include "src/execution/isolate-utils-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter.h"
@@ -123,8 +123,9 @@ void Code::RelocateFromDesc(ByteArray reloc_info, Heap* heap,
     } else if (RelocInfo::IsCodeTargetMode(mode)) {
       // Rewrite code handles to direct pointers to the first instruction in the
       // code object.
-      Handle<Object> p = it.rinfo()->target_object_handle(origin);
-      Code code = Code::cast(*p);
+      Handle<HeapObject> p = it.rinfo()->target_object_handle(origin);
+      DCHECK(p->IsCodeT(GetPtrComprCageBaseSlow(*p)));
+      Code code = FromCodeT(CodeT::cast(*p));
       it.rinfo()->set_target_address(code.raw_instruction_start(),
                                      UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
     } else if (RelocInfo::IsRuntimeEntry(mode)) {
@@ -584,7 +585,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   }
   os << "\n";
 
-  if (has_safepoint_info()) {
+  if (uses_safepoint_table()) {
     SafepointTable table(isolate, current_pc, *this);
     table.Print(os);
     os << "\n";
@@ -646,8 +647,7 @@ void BytecodeArray::Disassemble(std::ostream& os) {
     os << reinterpret_cast<const void*>(current_address) << " @ "
        << std::setw(4) << iterator.current_offset() << " : ";
     interpreter::BytecodeDecoder::Decode(
-        os, reinterpret_cast<byte*>(current_address),
-        static_cast<int>(parameter_count()));
+        os, reinterpret_cast<byte*>(current_address));
     if (interpreter::Bytecodes::IsJump(iterator.current_bytecode())) {
       Address jump_target = base_address + iterator.GetJumpTargetOffset();
       os << " (" << reinterpret_cast<void*>(jump_target) << " @ "

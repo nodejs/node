@@ -49,13 +49,11 @@ class Deoptimizer : public Malloced {
       Isolate* isolate, SharedFunctionInfo shared,
       BytecodeOffset bytecode_offset);
 
-  static const char* MessageFor(DeoptimizeKind kind, bool reuse_code);
+  static const char* MessageFor(DeoptimizeKind kind);
 
   Handle<JSFunction> function() const;
   Handle<Code> compiled_code() const;
   DeoptimizeKind deopt_kind() const { return deopt_kind_; }
-
-  bool should_reuse_code() const;
 
   static Deoptimizer* New(Address raw_function, DeoptimizeKind kind,
                           unsigned deopt_exit_index, Address from,

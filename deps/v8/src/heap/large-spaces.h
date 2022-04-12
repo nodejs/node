@@ -94,8 +94,8 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
   virtual void AddPage(LargePage* page, size_t object_size);
   virtual void RemovePage(LargePage* page, size_t object_size);
 
-  LargePage* first_page() {
-    return reinterpret_cast<LargePage*>(Space::first_page());
+  LargePage* first_page() override {
+    return reinterpret_cast<LargePage*>(memory_chunk_list_.front());
   }
 
   iterator begin() { return iterator(first_page()); }

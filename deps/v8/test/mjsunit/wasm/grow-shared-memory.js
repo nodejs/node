@@ -2,17 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-grow-shared-memory --experimental-wasm-threads
-
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
-
-(function TestGrowSharedMemoryWithoutPostMessage() {
-  print(arguments.callee.name);
-  let memory = new WebAssembly.Memory({initial: 1, maximum: 5, shared: true});
-  assertEquals(memory.buffer.byteLength, kPageSize);
-  assertEquals(1, memory.grow(1));
-  assertEquals(memory.buffer.byteLength, 2 * kPageSize);
-})();
 
 function assertIsWasmSharedMemory(memory) {
  assertTrue(memory instanceof Object,
@@ -33,6 +23,14 @@ function assertTrue(value, msg) {
 }
 
 let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
+
+(function TestGrowSharedMemoryWithoutPostMessage() {
+  print(arguments.callee.name);
+  let memory = new WebAssembly.Memory({initial: 1, maximum: 5, shared: true});
+  assertEquals(memory.buffer.byteLength, kPageSize);
+  assertEquals(1, memory.grow(1));
+  assertEquals(memory.buffer.byteLength, 2 * kPageSize);
+})();
 
 (function TestPostMessageWithGrow() {
   print(arguments.callee.name);
@@ -380,4 +378,76 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
   const memory = new WebAssembly.Memory({
     "initial": 1, "maximum": 2, "shared": true });
   assertEquals(memory.grow(0), 1);
+})();
+
+// Tests that a function receives the update of a shared memory's size if a
+// loop's stack guard gets invoked. This is not strictly required by spec, but
+// we implement it as an optimization.
+(function TestStackGuardUpdatesMemorySize() {
+  print(arguments.callee.name);
+
+  let initial_size = 1;
+  let final_size = 2;
+
+  let memory = new WebAssembly.Memory({initial: 1, maximum: 5, shared: true});
+
+  let sync_index = 64;
+  let sync_value = 42;
+
+  let builder = new WasmModuleBuilder();
+  builder.addImportedMemory("mod", "mem", 1, 5, true);
+  // int x;
+  // while (true) {
+  //   memory[sync_index] = sync_value;
+  //   x = memory_size();
+  //   if (x != 1) break;
+  // }
+  // return x;
+  builder.addFunction("main", kSig_i_v)
+    .addLocals(kWasmI32, 1)
+    .addBody([
+      kExprLoop, kWasmVoid,
+        ...wasmI32Const(sync_index),
+        ...wasmI32Const(sync_value),
+        kAtomicPrefix, kExprI32AtomicStore, 0, 0,
+        kExprMemorySize, 0, kExprLocalTee, 0,
+        kExprI32Const, initial_size,
+        kExprI32Eq,
+        kExprBrIf, 0,
+      kExprEnd,
+      kExprLocalGet, 0])
+    .exportFunc();
+
+  builder.addFunction("setter", kSig_v_ii)
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1,
+                kAtomicPrefix, kExprI32AtomicStore, 0, 0])
+      .exportFunc();
+
+  builder.addFunction("getter", kSig_i_i)
+      .addBody([kExprLocalGet, 0, kAtomicPrefix, kExprI32AtomicLoad, 0, 0])
+      .exportFunc();
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+
+  function workerCode() {
+    onmessage = function(obj) {
+      let instance = new WebAssembly.Instance(
+          obj.module, {mod: {mem: obj.memory}});
+      let res = instance.exports.main();
+      postMessage(res);
+    }
+  }
+
+  let worker = new Worker(workerCode,
+                          {type: 'function', arguments: []});
+  worker.postMessage({module: module, memory: memory});
+
+  let instance = new WebAssembly.Instance(module, {mod: {mem: memory}});
+
+  // Make sure the worker thread has entered the loop.
+  while (instance.exports.getter(sync_index) != sync_value) {}
+
+  memory.grow(final_size - initial_size);
+
+  assertEquals(final_size, worker.getMessage());
 })();

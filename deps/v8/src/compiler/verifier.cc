@@ -49,6 +49,9 @@ class Verifier::Visitor {
 
  private:
   void CheckNotTyped(Node* node) {
+    // Verification of simplified lowering sets types of many additional nodes.
+    if (FLAG_verify_simplified_lowering) return;
+
     if (NodeProperties::IsTyped(node)) {
       std::ostringstream str;
       str << "TypeError: node #" << node->id() << ":" << *node->op()
@@ -736,30 +739,31 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Any());
       CHECK(LoadGlobalParametersOf(node->op()).feedback().IsValid());
       break;
-    case IrOpcode::kJSStoreProperty:
+    case IrOpcode::kJSSetKeyedProperty:
       CheckNotTyped(node);
       CHECK(PropertyAccessOf(node->op()).feedback().IsValid());
       break;
-    case IrOpcode::kJSDefineProperty:
+    case IrOpcode::kJSDefineKeyedOwnProperty:
       CheckNotTyped(node);
       CHECK(PropertyAccessOf(node->op()).feedback().IsValid());
       break;
-    case IrOpcode::kJSStoreNamed:
+    case IrOpcode::kJSSetNamedProperty:
       CheckNotTyped(node);
       break;
     case IrOpcode::kJSStoreGlobal:
       CheckNotTyped(node);
       CHECK(StoreGlobalParametersOf(node->op()).feedback().IsValid());
       break;
-    case IrOpcode::kJSStoreNamedOwn:
+    case IrOpcode::kJSDefineNamedOwnProperty:
       CheckNotTyped(node);
-      CHECK(StoreNamedOwnParametersOf(node->op()).feedback().IsValid());
+      CHECK(
+          DefineNamedOwnPropertyParametersOf(node->op()).feedback().IsValid());
       break;
     case IrOpcode::kJSGetIterator:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Any());
       break;
-    case IrOpcode::kJSStoreDataPropertyInLiteral:
+    case IrOpcode::kJSDefineKeyedOwnPropertyInLiteral:
     case IrOpcode::kJSStoreInArrayLiteral:
       CheckNotTyped(node);
       CHECK(FeedbackParameterOf(node->op()).feedback().IsValid());
@@ -773,11 +777,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     case IrOpcode::kTypeOf:
       CheckTypeIs(node, Type::InternalizedString());
-      break;
-    case IrOpcode::kTierUpCheck:
-    case IrOpcode::kUpdateInterruptBudget:
-      CheckValueInputIs(node, 0, Type::Any());
-      CheckNotTyped(node);
       break;
     case IrOpcode::kJSGetSuperConstructor:
       // We don't check the input for Type::Function because this_function can
@@ -880,13 +879,11 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kJSAsyncFunctionReject:
       CheckValueInputIs(node, 0, Type::Any());
       CheckValueInputIs(node, 1, Type::Any());
-      CheckValueInputIs(node, 2, Type::Boolean());
       CheckTypeIs(node, Type::OtherObject());
       break;
     case IrOpcode::kJSAsyncFunctionResolve:
       CheckValueInputIs(node, 0, Type::Any());
       CheckValueInputIs(node, 1, Type::Any());
-      CheckValueInputIs(node, 2, Type::Boolean());
       CheckTypeIs(node, Type::OtherObject());
       break;
     case IrOpcode::kJSFulfillPromise:
@@ -1562,6 +1559,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // CheckTypeIs(node, ElementAccessOf(node->op()).type));
       break;
     case IrOpcode::kLoadFromObject:
+    case IrOpcode::kLoadImmutableFromObject:
       CheckValueInputIs(node, 0, Type::Receiver());
       break;
     case IrOpcode::kLoadTypedElement:
@@ -1584,6 +1582,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckNotTyped(node);
       break;
     case IrOpcode::kStoreToObject:
+    case IrOpcode::kInitializeImmutableInObject:
       // TODO(gsps): Can we check some types here?
       break;
     case IrOpcode::kTransitionAndStoreElement:
@@ -2080,9 +2079,8 @@ void ScheduleVerifier::Run(Schedule* schedule) {
       if (idom == nullptr) continue;
       BitVector* block_doms = dominators[block->id().ToSize()];
 
-      for (BitVector::Iterator it(block_doms); !it.Done(); it.Advance()) {
-        BasicBlock* dom =
-            schedule->GetBlockById(BasicBlock::Id::FromInt(it.Current()));
+      for (int id : *block_doms) {
+        BasicBlock* dom = schedule->GetBlockById(BasicBlock::Id::FromInt(id));
         if (dom != idom &&
             !dominators[idom->id().ToSize()]->Contains(dom->id().ToInt())) {
           FATAL("Block B%d is not immediately dominated by B%d",

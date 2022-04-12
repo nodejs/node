@@ -1365,13 +1365,11 @@ void WasmEngine::ReportLiveCodeForGC(Isolate* isolate,
   PotentiallyFinishCurrentGC();
 }
 
-void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
-  wasm::WasmCodeRefScope code_ref_scope;
-  std::unordered_set<wasm::WasmCode*> live_wasm_code;
-  for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
-    StackFrame* const frame = it.frame();
-    if (frame->type() != StackFrame::WASM) continue;
-    live_wasm_code.insert(WasmFrame::cast(frame)->wasm_code());
+namespace {
+void ReportLiveCodeFromFrameForGC(
+    StackFrame* frame, std::unordered_set<wasm::WasmCode*>& live_wasm_code) {
+  if (frame->type() != StackFrame::WASM) return;
+  live_wasm_code.insert(WasmFrame::cast(frame)->wasm_code());
 #if V8_TARGET_ARCH_X64
     if (WasmFrame::cast(frame)->wasm_code()->for_debugging()) {
       Address osr_target = base::Memory<Address>(WasmFrame::cast(frame)->fp() -
@@ -1383,6 +1381,32 @@ void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
       }
     }
 #endif
+}
+}  // namespace
+
+void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
+  wasm::WasmCodeRefScope code_ref_scope;
+  std::unordered_set<wasm::WasmCode*> live_wasm_code;
+  if (FLAG_experimental_wasm_stack_switching) {
+    wasm::StackMemory* current = isolate->wasm_stacks();
+    DCHECK_NOT_NULL(current);
+    do {
+      if (current->IsActive()) {
+        // The active stack's jump buffer does not match the current state, use
+        // the thread info below instead.
+        current = current->next();
+        continue;
+      }
+      for (StackFrameIterator it(isolate, current); !it.done(); it.Advance()) {
+        StackFrame* const frame = it.frame();
+        ReportLiveCodeFromFrameForGC(frame, live_wasm_code);
+      }
+      current = current->next();
+    } while (current != isolate->wasm_stacks());
+  }
+  for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
+    StackFrame* const frame = it.frame();
+    ReportLiveCodeFromFrameForGC(frame, live_wasm_code);
   }
 
   CheckNoArchivedThreads(isolate);
@@ -1630,6 +1654,7 @@ GlobalWasmState* global_wasm_state = nullptr;
 
 // static
 void WasmEngine::InitializeOncePerProcess() {
+  InitializeMemoryProtectionKeySupport();
   DCHECK_NULL(global_wasm_state);
   global_wasm_state = new GlobalWasmState();
 }
@@ -1655,6 +1680,9 @@ WasmCodeManager* GetWasmCodeManager() {
 
 // {max_mem_pages} is declared in wasm-limits.h.
 uint32_t max_mem_pages() {
+  static_assert(
+      kV8MaxWasmMemoryPages * kWasmPageSize <= JSArrayBuffer::kMaxByteLength,
+      "Wasm memories must not be bigger than JSArrayBuffers");
   STATIC_ASSERT(kV8MaxWasmMemoryPages <= kMaxUInt32);
   return std::min(uint32_t{kV8MaxWasmMemoryPages}, FLAG_wasm_max_mem_pages);
 }

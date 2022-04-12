@@ -19,8 +19,7 @@ void UnrollLoop(Node* loop_node, ZoneUnorderedSet<Node*>* loop, uint32_t depth,
                 SourcePositionTable* source_positions,
                 NodeOriginTable* node_origins) {
   DCHECK_EQ(loop_node->opcode(), IrOpcode::kLoop);
-
-  if (loop == nullptr) return;
+  DCHECK_NOT_NULL(loop);
   // No back-jump to the loop header means this is not really a loop.
   if (loop_node->InputCount() < 2) return;
 
@@ -40,6 +39,15 @@ void UnrollLoop(Node* loop_node, ZoneUnorderedSet<Node*>* loop, uint32_t depth,
                    base::make_iterator_range(loop->begin(), loop->end()),
                    source_positions, node_origins);
   source_positions->RemoveDecorator();
+
+  // The terminator nodes in the copies need to get connected to the graph's end
+  // node, except Terminate nodes which will be deleted anyway.
+  for (Node* node : copies) {
+    if (IrOpcode::IsGraphTerminator(node->opcode()) &&
+        node->opcode() != IrOpcode::kTerminate && node->UseCount() == 0) {
+      NodeProperties::MergeControlToEnd(graph, common, node);
+    }
+  }
 
 #define COPY(node, n) copier.map(node, n)
 #define FOREACH_COPY_INDEX(i) for (uint32_t i = 0; i < unrolling_count; i++)
@@ -69,19 +77,14 @@ void UnrollLoop(Node* loop_node, ZoneUnorderedSet<Node*>* loop, uint32_t depth,
             // ( LoadFromObject )
             //   |  |
             // {stack_check}
-            // |  *  |  *
-            // |  |  |  |
-            // |  ( Call )
-            // |   |    *
-            // |   |    |
+            // |   |
+            // |   *
+            // |
+            // | * *
+            // | | |
             // {use}: EffectPhi (stack check effect that we need to replace)
             DCHECK_EQ(use->opcode(), IrOpcode::kEffectPhi);
-            DCHECK_EQ(NodeProperties::GetEffectInput(use, 1)->opcode(),
-                      IrOpcode::kCall);
             DCHECK_EQ(NodeProperties::GetEffectInput(use), stack_check);
-            DCHECK_EQ(NodeProperties::GetEffectInput(
-                          NodeProperties::GetEffectInput(use, 1)),
-                      stack_check);
             DCHECK_EQ(NodeProperties::GetEffectInput(stack_check)->opcode(),
                       IrOpcode::kLoadFromObject);
             Node* replacing_effect = NodeProperties::GetEffectInput(
@@ -138,6 +141,13 @@ void UnrollLoop(Node* loop_node, ZoneUnorderedSet<Node*>* loop, uint32_t depth,
             }
           }
         }
+        break;
+      }
+
+      case IrOpcode::kTerminate: {
+        // We only need to keep the Terminate node for the loop header of the
+        // first iteration.
+        FOREACH_COPY_INDEX(i) { COPY(node, i)->Kill(); }
         break;
       }
 

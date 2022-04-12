@@ -32,8 +32,14 @@ class VirtualAddressSpaceBase
   // Called by a subspace during destruction. Responsible for freeing the
   // address space reservation and any other data associated with the subspace
   // in the parent space.
-  virtual bool FreeSubspace(VirtualAddressSubspace* subspace) = 0;
+  virtual void FreeSubspace(VirtualAddressSubspace* subspace) = 0;
 };
+
+/*
+ * Helper routine to determine whether one set of page permissions (the lhs) is
+ * a subset of another one (the rhs).
+ */
+V8_BASE_EXPORT bool IsSubset(PagePermissions lhs, PagePermissions rhs);
 
 /*
  * The virtual address space of the current process. Conceptionally, there
@@ -53,23 +59,34 @@ class V8_BASE_EXPORT VirtualAddressSpace : public VirtualAddressSpaceBase {
   Address AllocatePages(Address hint, size_t size, size_t alignment,
                         PagePermissions access) override;
 
-  bool FreePages(Address address, size_t size) override;
+  void FreePages(Address address, size_t size) override;
 
   bool SetPagePermissions(Address address, size_t size,
                           PagePermissions access) override;
+
+  bool AllocateGuardRegion(Address address, size_t size) override;
+
+  void FreeGuardRegion(Address address, size_t size) override;
+
+  Address AllocateSharedPages(Address hint, size_t size,
+                              PagePermissions permissions,
+                              PlatformSharedMemoryHandle handle,
+                              uint64_t offset) override;
+
+  void FreeSharedPages(Address address, size_t size) override;
 
   bool CanAllocateSubspaces() override;
 
   std::unique_ptr<v8::VirtualAddressSpace> AllocateSubspace(
       Address hint, size_t size, size_t alignment,
-      PagePermissions max_permissions) override;
+      PagePermissions max_page_permissions) override;
 
   bool DiscardSystemPages(Address address, size_t size) override;
 
   bool DecommitPages(Address address, size_t size) override;
 
  private:
-  bool FreeSubspace(VirtualAddressSubspace* subspace) override;
+  void FreeSubspace(VirtualAddressSubspace* subspace) override;
 };
 
 /*
@@ -87,16 +104,27 @@ class V8_BASE_EXPORT VirtualAddressSubspace : public VirtualAddressSpaceBase {
   Address AllocatePages(Address hint, size_t size, size_t alignment,
                         PagePermissions permissions) override;
 
-  bool FreePages(Address address, size_t size) override;
+  void FreePages(Address address, size_t size) override;
 
   bool SetPagePermissions(Address address, size_t size,
                           PagePermissions permissions) override;
+
+  bool AllocateGuardRegion(Address address, size_t size) override;
+
+  void FreeGuardRegion(Address address, size_t size) override;
+
+  Address AllocateSharedPages(Address hint, size_t size,
+                              PagePermissions permissions,
+                              PlatformSharedMemoryHandle handle,
+                              uint64_t offset) override;
+
+  void FreeSharedPages(Address address, size_t size) override;
 
   bool CanAllocateSubspaces() override { return true; }
 
   std::unique_ptr<v8::VirtualAddressSpace> AllocateSubspace(
       Address hint, size_t size, size_t alignment,
-      PagePermissions max_permissions) override;
+      PagePermissions max_page_permissions) override;
 
   bool DiscardSystemPages(Address address, size_t size) override;
 
@@ -107,10 +135,11 @@ class V8_BASE_EXPORT VirtualAddressSubspace : public VirtualAddressSpaceBase {
   // allocating sub spaces.
   friend class v8::base::VirtualAddressSpace;
 
-  bool FreeSubspace(VirtualAddressSubspace* subspace) override;
+  void FreeSubspace(VirtualAddressSubspace* subspace) override;
 
   VirtualAddressSubspace(AddressSpaceReservation reservation,
-                         VirtualAddressSpaceBase* parent_space);
+                         VirtualAddressSpaceBase* parent_space,
+                         PagePermissions max_page_permissions);
 
   // The address space reservation backing this subspace.
   AddressSpaceReservation reservation_;

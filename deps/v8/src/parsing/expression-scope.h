@@ -758,6 +758,8 @@ class ArrowHeadParsingScope : public ExpressionParsingScope<Types> {
            kind == FunctionKind::kArrowFunction);
     DCHECK(this->CanBeDeclaration());
     DCHECK(!this->IsCertainlyDeclaration());
+    // clear last next_arrow_function_info tracked strict parameters error.
+    parser->next_arrow_function_info_.ClearStrictParameterError();
   }
 
   ArrowHeadParsingScope(const ArrowHeadParsingScope&) = delete;

@@ -497,15 +497,17 @@ Token::Value Scanner::ScanPrivateName() {
   next().literal_chars.Start();
   DCHECK_EQ(c0_, '#');
   DCHECK(!IsIdentifierStart(kEndOfInput));
-  if (!IsIdentifierStart(Peek())) {
-    ReportScannerError(source_pos(),
-                       MessageTemplate::kInvalidOrUnexpectedToken);
-    return Token::ILLEGAL;
+  int pos = source_pos();
+  Advance();
+  if (IsIdentifierStart(c0_) ||
+      (CombineSurrogatePair() && IsIdentifierStart(c0_))) {
+    AddLiteralChar('#');
+    Token::Value token = ScanIdentifierOrKeywordInner();
+    return token == Token::ILLEGAL ? Token::ILLEGAL : Token::PRIVATE_NAME;
   }
 
-  AddLiteralCharAdvance();
-  Token::Value token = ScanIdentifierOrKeywordInner();
-  return token == Token::ILLEGAL ? Token::ILLEGAL : Token::PRIVATE_NAME;
+  ReportScannerError(pos, MessageTemplate::kInvalidOrUnexpectedToken);
+  return Token::ILLEGAL;
 }
 
 Token::Value Scanner::ScanTemplateSpan() {

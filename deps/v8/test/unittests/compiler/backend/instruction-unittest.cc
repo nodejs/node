@@ -85,7 +85,7 @@ TEST_F(InstructionTest, OperandInterference) {
     EXPECT_TRUE(Interfere(LocationOperand::STACK_SLOT, kDouble, i, kDouble, i));
   }
 
-  if (kSimpleFPAliasing) {
+  if (kFPAliasing != AliasingKind::kCombine) {
     // Simple FP aliasing: interfering registers of different reps have the same
     // index.
     for (int i = 0; i < RegisterConfiguration::kMaxFPRegisters; ++i) {
@@ -162,7 +162,7 @@ TEST_F(InstructionTest, PrepareInsertAfter) {
     CHECK(Contains(&to_eliminate, d2, d0));
   }
 
-  if (!kSimpleFPAliasing) {
+  if (kFPAliasing == AliasingKind::kCombine) {
     // Moves inserted after should cause all interfering moves to be eliminated.
     auto s0 = AllocatedOperand(LocationOperand::REGISTER,
                                MachineRepresentation::kFloat32, 0);

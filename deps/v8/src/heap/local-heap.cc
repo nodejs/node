@@ -398,7 +398,7 @@ Address LocalHeap::PerformCollectionAndAllocateAgain(
 
     AllocationResult result = AllocateRaw(object_size, type, origin, alignment);
 
-    if (!result.IsRetry()) {
+    if (!result.IsFailure()) {
       allocation_failed_ = false;
       main_thread_parked_ = false;
       return result.ToObjectChecked().address();

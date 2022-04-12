@@ -12,7 +12,7 @@
   %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo());
   assertEquals(1, foo());
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertEquals(1, foo());
   assertOptimized(foo);
   a.length = 1;
@@ -28,7 +28,7 @@
   %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo());
   assertEquals(1, foo());
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertEquals(1, foo());
   assertOptimized(foo);
   a[0] = 42;
@@ -44,7 +44,7 @@
   %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo());
   assertEquals(1, foo());
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertEquals(1, foo());
   assertOptimized(foo);
   a[0] = 42;
@@ -58,7 +58,7 @@
   %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo());
   assertEquals(1, foo());
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertEquals(1, foo());
   assertOptimized(foo);
   a[0] = 42;
@@ -72,7 +72,7 @@
   %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo());
   assertEquals(1, foo());
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertEquals(1, foo());
   assertOptimized(foo);
   a[0] = 42;
@@ -87,7 +87,7 @@
   %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo());
   assertEquals(1, foo());
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertEquals(1, foo());
   assertOptimized(foo);
   a[0] = 42;
@@ -101,7 +101,7 @@
   %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo());
   assertEquals(1, foo());
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertEquals(1, foo());
   assertOptimized(foo);
   a[0] = 42;
@@ -115,7 +115,7 @@
   %PrepareFunctionForOptimization(foo);
   assertEquals(1, foo());
   assertEquals(1, foo());
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertEquals(1, foo());
   assertOptimized(foo);
   a[0] = 42;

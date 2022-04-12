@@ -16,8 +16,11 @@ WasmFeatures WasmFeatures::FromFlags() {
   WasmFeatures features = WasmFeatures::None();
 #define FLAG_REF(feat, ...) \
   if (FLAG_experimental_wasm_##feat) features.Add(kFeature_##feat);
-  FOREACH_WASM_FEATURE(FLAG_REF)
+  FOREACH_WASM_FEATURE_FLAG(FLAG_REF)
 #undef FLAG_REF
+#define NON_FLAG_REF(feat, ...) features.Add(kFeature_##feat);
+  FOREACH_WASM_NON_FLAG_FEATURE(NON_FLAG_REF)
+#undef NON_FLAG_REF
   return features;
 }
 

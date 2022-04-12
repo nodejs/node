@@ -19,6 +19,7 @@ void ThreadLocalTop::Clear() {
   pending_handler_constant_pool_ = kNullAddress;
   pending_handler_fp_ = kNullAddress;
   pending_handler_sp_ = kNullAddress;
+  num_frames_above_pending_handler_ = 0;
   last_api_entry_ = kNullAddress;
   pending_message_ = Object();
   rethrowing_message_ = false;

@@ -114,8 +114,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   inline bool IsMarking() const { return state() >= MARKING; }
 
-  inline bool IsMarkingIncomplete() const { return state() == MARKING; }
-
   inline bool IsComplete() const { return state() == COMPLETE; }
 
   inline bool IsReadyToOverApproximateWeakClosure() const {
@@ -140,7 +138,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   void FinalizeIncrementally();
 
-  void UpdateMarkingWorklistAfterScavenge();
+  void UpdateMarkingWorklistAfterYoungGenGC();
   void UpdateMarkedBytesAfterScavenge(size_t dead_bytes_in_new_space);
 
   void Hurry();

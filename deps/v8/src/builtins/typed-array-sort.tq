@@ -16,14 +16,24 @@ transitioning macro CallCompare(
   const v: Number = ToNumber_Inline(Call(context, comparefn, Undefined, a, b));
 
   // b. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-  if (IsDetachedBuffer(array.buffer)) {
+  // c. Let getBufferByteLength be
+  //    MakeIdempotentArrayBufferByteLengthGetter(SeqCst).
+  // d. If IsIntegerIndexedObjectOutOfBounds(obj, getBufferByteLength) is true,
+  //    throw a TypeError exception.
+  // TODO(v8:11111): Update this, depending on how
+  // https://github.com/tc39/ecma262/pull/2646#issuecomment-1067456576 gets
+  // resolved.
+  try {
+    LoadJSTypedArrayLengthAndCheckDetached(array)
+        otherwise DetachedOrOutOfBounds;
+  } label DetachedOrOutOfBounds {
     ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameSort);
   }
 
-  // c. If v is NaN, return +0.
+  // e. If v is NaN, return +0.
   if (NumberIsNaN(v)) return 0;
 
-  // d. return v.
+  // f. return v.
   return v;
 }
 
@@ -99,12 +109,10 @@ transitioning javascript builtin TypedArrayPrototypeSort(
   const obj: JSAny = receiver;
 
   // 3. Let buffer be ? ValidateTypedArray(obj).
-  //    ValidateTypedArray currently returns the array, not the ViewBuffer.
-  const array: JSTypedArray =
-      ValidateTypedArray(context, obj, kBuiltinNameSort);
-
-  // 4. Let len be obj.[[ArrayLength]].
-  const len: uintptr = array.length;
+  // 4. Let len be IntegerIndexedObjectLength(obj).
+  let len: uintptr =
+      ValidateTypedArrayAndGetLength(context, obj, kBuiltinNameSort);
+  const array: JSTypedArray = UnsafeCast<JSTypedArray>(obj);
 
   // Arrays of length 1 or less are considered sorted.
   if (len < 2) return array;
@@ -140,6 +148,19 @@ transitioning javascript builtin TypedArrayPrototypeSort(
   }
 
   TypedArrayMergeSort(work2, 0, len, work1, array, comparefn);
+
+  // Reload the length; it's possible the backing ArrayBuffer has been resized.
+  // It cannot be OOB here though, since we've checked it as part of the
+  // comparison function.
+
+  // TODO(v8:11111): Update this, depending on how
+  // https://github.com/tc39/ecma262/pull/2646#issuecomment-1067456576 gets
+  // resolved.
+  const newLen =
+      LoadJSTypedArrayLengthAndCheckDetached(array) otherwise unreachable;
+  if (newLen < len) {
+    len = newLen;
+  }
 
   // work1 contains the sorted numbers. Write them back.
   for (let i: uintptr = 0; i < len; ++i) {

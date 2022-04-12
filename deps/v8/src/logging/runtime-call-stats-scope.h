@@ -30,11 +30,17 @@ RuntimeCallTimerScope::RuntimeCallTimerScope(Isolate* isolate,
   stats_->Enter(&timer_, counter_id);
 }
 
-RuntimeCallTimerScope::RuntimeCallTimerScope(LocalIsolate* isolate,
-                                             RuntimeCallCounterId counter_id) {
+RuntimeCallTimerScope::RuntimeCallTimerScope(
+    LocalIsolate* isolate, RuntimeCallCounterId counter_id,
+    RuntimeCallStats::CounterMode mode) {
   if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
   DCHECK_NOT_NULL(isolate->runtime_call_stats());
   stats_ = isolate->runtime_call_stats();
+  if (mode == RuntimeCallStats::CounterMode::kThreadSpecific) {
+    counter_id = stats_->CounterIdForThread(counter_id);
+  }
+
+  DCHECK(stats_->IsCounterAppropriateForThread(counter_id));
   stats_->Enter(&timer_, counter_id);
 }
 

@@ -10,9 +10,7 @@ let cal = new Temporal.Calendar("iso8601");
 [ "hour", "minute", "second", "millisecond", "microsecond", "nanosecond" ]
 .forEach(function(largestUnit) {
   assertThrows(() => cal.dateUntil("2021-07-16", "2021-07-17",
-        {largestUnit}), RangeError,
-      "Invalid unit argument for Temporal.Calendar.prototype.dateUntil() "+
-      "'largestUnit'");
+        {largestUnit}), RangeError);
 });
 
 assertEquals("PT0S", cal.dateUntil("2021-07-16", "2021-07-16").toJSON());

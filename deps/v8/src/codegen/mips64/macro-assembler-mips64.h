@@ -370,8 +370,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Registers are saved in numerical order, with higher numbered registers
   // saved in higher memory addresses.
   void MultiPush(RegList regs);
-  void MultiPushFPU(RegList regs);
-  void MultiPushMSA(RegList regs);
+  void MultiPushFPU(DoubleRegList regs);
+  void MultiPushMSA(DoubleRegList regs);
 
   // Calculate how much stack space (in bytes) are required to store caller
   // registers excluding those specified in the arguments.
@@ -418,8 +418,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Pops multiple values from the stack and load them in the
   // registers specified in regs. Pop order is the opposite as in MultiPush.
   void MultiPop(RegList regs);
-  void MultiPopFPU(RegList regs);
-  void MultiPopMSA(RegList regs);
+  void MultiPopFPU(DoubleRegList regs);
+  void MultiPopMSA(DoubleRegList regs);
 
 #define DEFINE_INSTRUCTION(instr)                          \
   void instr(Register rd, Register rs, const Operand& rt); \
@@ -1242,13 +1242,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void InvokePrologue(Register expected_parameter_count,
                       Register actual_parameter_count, Label* done,
                       InvokeType type);
-
-  // Compute memory operands for safepoint stack slots.
-  static int SafepointRegisterStackIndex(int reg_code);
-
-  // Needs access to SafepointRegisterStackIndex for compiled frame
-  // traversal.
-  friend class CommonFrame;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };

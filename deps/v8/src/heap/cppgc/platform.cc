@@ -16,7 +16,13 @@
 namespace cppgc {
 namespace internal {
 
-void Abort() { v8::base::OS::Abort(); }
+void Fatal(const std::string& reason, const SourceLocation& loc) {
+#ifdef DEBUG
+  V8_Fatal(loc.FileName(), static_cast<int>(loc.Line()), "%s", reason.c_str());
+#else   // !DEBUG
+  V8_Fatal("%s", reason.c_str());
+#endif  // !DEBUG
+}
 
 void FatalOutOfMemoryHandler::operator()(const std::string& reason,
                                          const SourceLocation& loc) const {

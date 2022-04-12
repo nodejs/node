@@ -24,8 +24,26 @@ void StatsTable::SetCounterFunction(CounterLookupCallback f) {
   lookup_function_ = f;
 }
 
-int* StatsCounter::FindLocationInStatsTable() const {
-  return counters_->FindLocation(name_);
+namespace {
+std::atomic<int> unused_counter_dump{0};
+}
+
+bool StatsCounter::Enabled() { return GetPtr() != &unused_counter_dump; }
+
+std::atomic<int>* StatsCounter::SetupPtrFromStatsTable() {
+  // {Init} must have been called.
+  DCHECK_NOT_NULL(counters_);
+  DCHECK_NOT_NULL(name_);
+  int* location = counters_->FindLocation(name_);
+  std::atomic<int>* ptr =
+      location ? base::AsAtomicPtr(location) : &unused_counter_dump;
+#ifdef DEBUG
+  std::atomic<int>* old_ptr = ptr_.exchange(ptr, std::memory_order_release);
+  DCHECK_IMPLIES(old_ptr, old_ptr == ptr);
+#else
+  ptr_.store(ptr, std::memory_order_release);
+#endif
+  return ptr;
 }
 
 void Histogram::AddSample(int sample) {

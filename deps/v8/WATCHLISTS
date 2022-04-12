@@ -48,12 +48,6 @@
                   '|include/js_protocol.pdl' \
                   '|include/v8-inspector*\.h',
     },
-    'interpreter': {
-      'filepath': 'src/interpreter/' \
-                  '|src/compiler/bytecode' \
-                  '|test/cctest/interpreter/' \
-                  '|test/unittests/interpreter/',
-    },
     'baseline': {
       'filepath': 'src/baseline/',
     },
@@ -66,10 +60,6 @@
     'arm': {
       'filepath': '/arm/',
     },
-    'csa': {
-      'filepath': 'src/codegen/code-stub-assembler\.(cc|h)$' \
-                  '|src/builtins/.*-gen.(cc|h)$',
-    },
     'merges': {
       'filepath': '.',
     },
@@ -80,12 +70,12 @@
     'value_serializer': {
       'filepath': 'src/value-serializer',
     },
+    'maglev': {
+      'filepath': 'src/maglev/',
+    },
     'parser': {
       'filepath': 'src/ast/' \
                   '|src/parsing/',
-    },
-    'torque': {
-      'filepath': '.*\.tq$',
     },
     'tracing': {
       'filepath': 'src/tracing/',
@@ -114,11 +104,10 @@
   },
 
   'WATCHLISTS': {
-    'csa': [
+    'maglev': [
       'jgruber+watch@chromium.org',
-    ],
-    'torque': [
-      'jgruber+watch@chromium.org',
+      'leszeks+watch@chromium.org',
+      'verwaest+watch@chromium.org',
     ],
     'snapshot': [
       'jgruber+watch@chromium.org',

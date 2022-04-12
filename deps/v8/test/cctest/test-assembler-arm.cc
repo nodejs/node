@@ -169,7 +169,7 @@ TEST(3) {
   Assembler assm(AssemblerOptions{});
 
   __ mov(ip, Operand(sp));
-  __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+  __ stm(db_w, sp, {r4, fp, lr});
   __ sub(fp, ip, Operand(4));
   __ mov(r4, Operand(r0));
   __ ldr(r0, MemOperand(r4, offsetof(T, i)));
@@ -183,7 +183,7 @@ TEST(3) {
   __ add(r0, r2, Operand(r0));
   __ mov(r2, Operand(r2, ASR, 3));
   __ strh(r2, MemOperand(r4, offsetof(T, s)));
-  __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+  __ ldm(ia_w, sp, {r4, fp, pc});
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
@@ -240,7 +240,7 @@ TEST(4) {
     CpuFeatureScope scope(&assm, VFPv3);
 
     __ mov(ip, Operand(sp));
-    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+    __ stm(db_w, sp, {r4, fp, lr});
     __ sub(fp, ip, Operand(4));
 
     __ mov(r4, Operand(r0));
@@ -313,7 +313,7 @@ TEST(4) {
     __ vmov(s0, Float32(-16.0f));
     __ vstr(s0, r4, offsetof(T, p));
 
-    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+    __ ldm(ia_w, sp, {r4, fp, pc});
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
@@ -636,7 +636,7 @@ TEST(8) {
   Assembler assm(AssemblerOptions{});
 
   __ mov(ip, Operand(sp));
-  __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+  __ stm(db_w, sp, {r4, fp, lr});
   __ sub(fp, ip, Operand(4));
 
   __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(D, a))));
@@ -655,7 +655,7 @@ TEST(8) {
   __ vstm(ia_w, r4, s6, s7);
   __ vstm(ia_w, r4, s0, s5);
 
-  __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+  __ ldm(ia_w, sp, {r4, fp, pc});
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
@@ -741,7 +741,7 @@ TEST(9) {
   Assembler assm(AssemblerOptions{});
 
   __ mov(ip, Operand(sp));
-  __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+  __ stm(db_w, sp, {r4, fp, lr});
   __ sub(fp, ip, Operand(4));
 
   __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(D, a))));
@@ -764,7 +764,7 @@ TEST(9) {
   __ add(r4, r4, Operand(2 * 4));
   __ vstm(ia, r4, s0, s5);
 
-  __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+  __ ldm(ia_w, sp, {r4, fp, pc});
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
@@ -850,7 +850,7 @@ TEST(10) {
   Assembler assm(AssemblerOptions{});
 
   __ mov(ip, Operand(sp));
-  __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+  __ stm(db_w, sp, {r4, fp, lr});
   __ sub(fp, ip, Operand(4));
 
   __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(D, h)) + 8));
@@ -869,7 +869,7 @@ TEST(10) {
   __ vstm(db_w, r4, s0, s5);
   __ vstm(db_w, r4, s6, s7);
 
-  __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+  __ ldm(ia_w, sp, {r4, fp, pc});
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
@@ -1030,7 +1030,7 @@ TEST(13) {
   if (CpuFeatures::IsSupported(VFPv3)) {
     CpuFeatureScope scope(&assm, VFPv3);
 
-    __ stm(db_w, sp, r4.bit() | lr.bit());
+    __ stm(db_w, sp, {r4, lr});
 
     // Load a, b, c into d16, d17, d18.
     __ mov(r4, Operand(r0));
@@ -1088,7 +1088,7 @@ TEST(13) {
     __ vmov(NeonS32, r4, d22, 1);
     __ str(r4, MemOperand(r0, offsetof(T, high)));
 
-    __ ldm(ia_w, sp, r4.bit() | pc.bit());
+    __ ldm(ia_w, sp, {r4, pc});
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
@@ -1329,7 +1329,7 @@ TEST(15) {
   if (CpuFeatures::IsSupported(NEON)) {
     CpuFeatureScope scope(&assm, NEON);
 
-    __ stm(db_w, sp, r4.bit() | r5.bit() | lr.bit());
+    __ stm(db_w, sp, {r4, r5, lr});
     // Move 32 bytes with neon.
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, src0))));
     __ vld1(Neon8, NeonListOperand(d0, 4), NeonMemOperand(r4));
@@ -2164,7 +2164,7 @@ TEST(15) {
     __ vstr(d2, r0, offsetof(T, vtbx));
 
     // Restore and return.
-    __ ldm(ia_w, sp, r4.bit() | r5.bit() | pc.bit());
+    __ ldm(ia_w, sp, {r4, r5, pc});
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
@@ -2446,7 +2446,7 @@ TEST(16) {
   // the doubles and floats.
   Assembler assm(AssemblerOptions{});
 
-  __ stm(db_w, sp, r4.bit() | lr.bit());
+  __ stm(db_w, sp, {r4, lr});
 
   __ mov(r4, Operand(r0));
   __ ldr(r0, MemOperand(r4, offsetof(T, src0)));
@@ -2468,7 +2468,7 @@ TEST(16) {
   __ uxtab(r2, r0, r1, 8);
   __ str(r2, MemOperand(r4, offsetof(T, dst4)));
 
-  __ ldm(ia_w, sp, r4.bit() | pc.bit());
+  __ ldm(ia_w, sp, {r4, pc});
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
@@ -2937,7 +2937,7 @@ TEST(code_relative_offset) {
 
   Label start, target_away, target_faraway;
 
-  __ stm(db_w, sp, r4.bit() | r5.bit() | lr.bit());
+  __ stm(db_w, sp, {r4, r5, lr});
 
   // r3 is used as the address zero, the test will crash when we load it.
   __ mov(r3, Operand::Zero());
@@ -2982,7 +2982,7 @@ TEST(code_relative_offset) {
   // r0 = r0 + 5 + 5 + 11
   __ add(r0, r0, Operand(11));
 
-  __ ldm(ia_w, sp, r4.bit() | r5.bit() | pc.bit());
+  __ ldm(ia_w, sp, {r4, r5, pc});
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
@@ -3090,7 +3090,7 @@ TEST(ARMv8_float32_vrintX) {
     CpuFeatureScope scope(&assm, ARMv8);
 
     __ mov(ip, Operand(sp));
-    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+    __ stm(db_w, sp, {r4, fp, lr});
 
     __ mov(r4, Operand(r0));
 
@@ -3119,7 +3119,7 @@ TEST(ARMv8_float32_vrintX) {
     __ vrintz(s5, s6);
     __ vstr(s5, r4, offsetof(T, zr));
 
-    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+    __ ldm(ia_w, sp, {r4, fp, pc});
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
@@ -3191,7 +3191,7 @@ TEST(ARMv8_vrintX) {
     CpuFeatureScope scope(&assm, ARMv8);
 
     __ mov(ip, Operand(sp));
-    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+    __ stm(db_w, sp, {r4, fp, lr});
 
     __ mov(r4, Operand(r0));
 
@@ -3220,7 +3220,7 @@ TEST(ARMv8_vrintX) {
     __ vrintz(d5, d6);
     __ vstr(d5, r4, offsetof(T, zr));
 
-    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+    __ ldm(ia_w, sp, {r4, fp, pc});
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
@@ -3930,7 +3930,7 @@ TEST(vswp) {
   };
   T t;
 
-  __ stm(db_w, sp, r4.bit() | r5.bit() | r6.bit() | r7.bit() | lr.bit());
+  __ stm(db_w, sp, {r4, r5, r6, r7, lr});
 
   uint64_t one = bit_cast<uint64_t>(1.0);
   __ mov(r5, Operand(one >> 32));
@@ -3966,7 +3966,7 @@ TEST(vswp) {
   __ add(r6, r0, Operand(static_cast<int32_t>(offsetof(T, vswp_q5))));
   __ vst1(Neon8, NeonListOperand(q5), NeonMemOperand(r6));
 
-  __ ldm(ia_w, sp, r4.bit() | r5.bit() | r6.bit() | r7.bit() | pc.bit());
+  __ ldm(ia_w, sp, {r4, r5, r6, r7, pc});
   __ bx(lr);
 
   CodeDesc desc;
@@ -4060,18 +4060,18 @@ TEST(use_scratch_register_scope) {
   Assembler assm(AssemblerOptions{});
 
   // The assembler should have ip as a scratch by default.
-  CHECK_EQ(*assm.GetScratchRegisterList(), ip.bit());
+  CHECK_EQ(*assm.GetScratchRegisterList(), RegList{ip});
 
   {
     UseScratchRegisterScope temps(&assm);
-    CHECK_EQ(*assm.GetScratchRegisterList(), ip.bit());
+    CHECK_EQ(*assm.GetScratchRegisterList(), RegList{ip});
 
     Register scratch = temps.Acquire();
     CHECK_EQ(scratch.code(), ip.code());
-    CHECK_EQ(*assm.GetScratchRegisterList(), 0);
+    CHECK_EQ(*assm.GetScratchRegisterList(), RegList{});
   }
 
-  CHECK_EQ(*assm.GetScratchRegisterList(), ip.bit());
+  CHECK_EQ(*assm.GetScratchRegisterList(), RegList{ip});
 }
 
 TEST(use_scratch_vfp_register_scope) {
@@ -4342,8 +4342,7 @@ TEST(move_pair) {
   HandleScope scope(isolate);
 
   auto f = AssembleCode<F_piiii>(isolate, [](MacroAssembler& assm) {
-    RegList used_callee_saved =
-        r4.bit() | r5.bit() | r6.bit() | r7.bit() | r8.bit();
+    RegList used_callee_saved = {r4, r5, r6, r7, r8};
     __ stm(db_w, sp, used_callee_saved);
 
     // Save output register bank pointer to r8.

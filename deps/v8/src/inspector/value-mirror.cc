@@ -152,7 +152,7 @@ Response toProtocolValue(v8::Local<v8::Context> context,
                          v8::Local<v8::Value> value,
                          std::unique_ptr<protocol::Value>* result) {
   if (value->IsUndefined()) return Response::Success();
-#if defined(V8_USE_ADDRESS_SANITIZER) && V8_OS_MACOSX
+#if defined(V8_USE_ADDRESS_SANITIZER) && V8_OS_DARWIN
   // For whatever reason, ASan on MacOS has bigger stack frames.
   static const int kMaxDepth = 900;
 #else
@@ -893,7 +893,8 @@ void getPrivatePropertiesForPreview(
     int* nameLimit, bool* overflow,
     protocol::Array<PropertyPreview>* privateProperties) {
   std::vector<PrivatePropertyMirror> mirrors =
-      ValueMirror::getPrivateProperties(context, object);
+      ValueMirror::getPrivateProperties(context, object,
+                                        /* accessPropertiesOnly */ false);
   for (auto& mirror : mirrors) {
     std::unique_ptr<PropertyPreview> propertyPreview;
     if (mirror.value) {
@@ -1429,7 +1430,8 @@ void ValueMirror::getInternalProperties(
 
 // static
 std::vector<PrivatePropertyMirror> ValueMirror::getPrivateProperties(
-    v8::Local<v8::Context> context, v8::Local<v8::Object> object) {
+    v8::Local<v8::Context> context, v8::Local<v8::Object> object,
+    bool accessorPropertiesOnly) {
   std::vector<PrivatePropertyMirror> mirrors;
   v8::Isolate* isolate = context->GetIsolate();
   v8::MicrotasksScope microtasksScope(isolate,
@@ -1462,6 +1464,8 @@ std::vector<PrivatePropertyMirror> ValueMirror::getPrivateProperties(
       if (!setter->IsNull()) {
         setterMirror = ValueMirror::create(context, setter);
       }
+    } else if (accessorPropertiesOnly) {
+      continue;
     } else {
       valueMirror = ValueMirror::create(context, value);
     }

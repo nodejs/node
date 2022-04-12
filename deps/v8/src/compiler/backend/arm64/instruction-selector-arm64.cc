@@ -839,8 +839,8 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kArm64Ldr;
       immediate_mode = kLoadStoreImm64;
       break;
-    case MachineRepresentation::kCagedPointer:
-      opcode = kArm64LdrDecodeCagedPointer;
+    case MachineRepresentation::kSandboxedPointer:
+      opcode = kArm64LdrDecodeSandboxedPointer;
       immediate_mode = kLoadStoreImm64;
       break;
     case MachineRepresentation::kSimd128:
@@ -943,8 +943,8 @@ void InstructionSelector::VisitStore(Node* node) {
         immediate_mode =
             COMPRESS_POINTERS_BOOL ? kLoadStoreImm32 : kLoadStoreImm64;
         break;
-      case MachineRepresentation::kCagedPointer:
-        opcode = kArm64StrEncodeCagedPointer;
+      case MachineRepresentation::kSandboxedPointer:
+        opcode = kArm64StrEncodeSandboxedPointer;
         immediate_mode = kLoadStoreImm64;
         break;
       case MachineRepresentation::kWord64:

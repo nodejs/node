@@ -8,7 +8,6 @@
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/execution/interrupts-scope.h"
 #include "src/execution/isolate.h"
-#include "src/execution/runtime-profiler.h"
 #include "src/execution/simulator.h"
 #include "src/logging/counters.h"
 #include "src/objects/backing-store.h"

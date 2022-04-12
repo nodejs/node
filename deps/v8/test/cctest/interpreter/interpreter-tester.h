@@ -164,7 +164,7 @@ class InterpreterTester {
       // overwriting existing metadata.
       function->shared().set_raw_outer_scope_info_or_feedback_metadata(
           *feedback_metadata_.ToHandleChecked());
-      JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+      JSFunction::EnsureFeedbackVector(isolate_, function, &is_compiled_scope);
     }
     return function;
   }

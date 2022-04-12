@@ -418,6 +418,33 @@ bool StrictAccessCheck(v8::Local<v8::Context> accessing_context,
   return accessing_context.IsEmpty();
 }
 
+class ConsoleExtension : public InspectorIsolateData::SetupGlobalTask {
+ public:
+  ~ConsoleExtension() override = default;
+  void Run(v8::Isolate* isolate,
+           v8::Local<v8::ObjectTemplate> global) override {
+    v8::Local<v8::String> name =
+        v8::String::NewFromUtf8Literal(isolate, "console");
+    global->SetAccessor(name, &ConsoleGetterCallback, nullptr, {}, v8::DEFAULT,
+                        v8::DontEnum);
+  }
+
+ private:
+  static void ConsoleGetterCallback(
+      v8::Local<v8::String>, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    v8::Isolate* isolate = info.GetIsolate();
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    v8::Local<v8::String> name =
+        v8::String::NewFromUtf8Literal(isolate, "console");
+    v8::Local<v8::Object> console = context->GetExtrasBindingObject()
+                                        ->Get(context, name)
+                                        .ToLocalChecked()
+                                        .As<v8::Object>();
+    info.GetReturnValue().Set(console);
+  }
+};
+
 class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
  public:
   ~InspectorExtension() override = default;
@@ -750,9 +777,9 @@ int InspectorTestMain(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
   std::unique_ptr<Platform> platform(platform::NewDefaultPlatform());
   v8::V8::InitializePlatform(platform.get());
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  if (!v8::V8::InitializeVirtualMemoryCage()) {
-    FATAL("Could not initialize the virtual memory cage");
+#ifdef V8_SANDBOX
+  if (!v8::V8::InitializeSandbox()) {
+    FATAL("Could not initialize the sandbox");
   }
 #endif
   FLAG_abort_on_contradictory_flags = true;
@@ -777,6 +804,7 @@ int InspectorTestMain(int argc, char* argv[]) {
   {
     InspectorIsolateData::SetupGlobalTasks frontend_extensions;
     frontend_extensions.emplace_back(new UtilsExtension());
+    frontend_extensions.emplace_back(new ConsoleExtension());
     TaskRunner frontend_runner(std::move(frontend_extensions),
                                kFailOnUncaughtExceptions, &ready_semaphore,
                                startup_data.data ? &startup_data : nullptr,
@@ -791,6 +819,7 @@ int InspectorTestMain(int argc, char* argv[]) {
 
     InspectorIsolateData::SetupGlobalTasks backend_extensions;
     backend_extensions.emplace_back(new SetTimeoutExtension());
+    backend_extensions.emplace_back(new ConsoleExtension());
     backend_extensions.emplace_back(new InspectorExtension());
     TaskRunner backend_runner(
         std::move(backend_extensions), kStandardPropagateUncaughtExceptions,

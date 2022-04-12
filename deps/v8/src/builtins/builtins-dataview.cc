@@ -88,7 +88,8 @@ BUILTIN(DataViewConstructor) {
                         MessageTemplate::kInvalidDataViewLength));
     if (view_byte_offset + byte_length->Number() > buffer_byte_length) {
       THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewRangeError(MessageTemplate::kInvalidDataViewLength));
+          isolate,
+          NewRangeError(MessageTemplate::kInvalidDataViewLength, byte_length));
     }
     view_byte_length = byte_length->Number();
   }

@@ -312,8 +312,7 @@ class JsonParser final {
 
   static const int kInitialSpecialStringLength = 32;
 
-  static void UpdatePointersCallback(v8::Isolate* v8_isolate, v8::GCType type,
-                                     v8::GCCallbackFlags flags, void* parser) {
+  static void UpdatePointersCallback(void* parser) {
     reinterpret_cast<JsonParser<Char>*>(parser)->UpdatePointers();
   }
 

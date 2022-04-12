@@ -187,7 +187,7 @@ int PopLowestIndexAsCode(CPURegList* list) {
   if (list->IsEmpty()) {
     return -1;
   }
-  RegList reg_list = list->list();
+  uint64_t reg_list = list->bits();
   int index = base::bits::CountTrailingZeros(reg_list);
   DCHECK((1LL << index) & reg_list);
   list->Remove(index);

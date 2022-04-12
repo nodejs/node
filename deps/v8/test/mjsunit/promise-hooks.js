@@ -37,6 +37,14 @@ function printLog(message) {
   }
 }
 
+let has_promise_hooks = false;
+try {
+  d8.promise.setHooks();
+  has_promise_hooks = true;
+} catch {
+  has_promise_hooks = false;
+}
+
 function assertNextEvent(type, args) {
   const [ promiseOrId, parentOrId ] = args;
   const nextEvent = log.shift();
@@ -212,72 +220,75 @@ function optimizerBailout(test, verify) {
   d8.promise.setHooks();
 }
 
-optimizerBailout(async () => {
-  await Promise.resolve();
-}, () => {
-  assertNextEvent('init', [ 1 ]);
-  assertNextEvent('init', [ 2 ]);
-  assertNextEvent('resolve', [ 2 ]);
-  assertNextEvent('init', [ 3, 2 ]);
-  assertNextEvent('before', [ 3 ]);
-  assertNextEvent('resolve', [ 1 ]);
-  assertNextEvent('resolve', [ 3 ]);
-  assertNextEvent('after', [ 3 ]);
-  assertEmptyLog();
-});
-optimizerBailout(async () => {
-  await { then (cb) { cb() } };
-}, () => {
-  assertNextEvent('init', [ 1 ]);
-  assertNextEvent('init', [ 2, 1 ]);
-  assertNextEvent('init', [ 3, 2 ]);
-  assertNextEvent('before', [ 2 ]);
-  assertNextEvent('resolve', [ 2 ]);
-  assertNextEvent('after', [ 2 ]);
-  assertNextEvent('before', [ 3 ]);
-  assertNextEvent('resolve', [ 1 ]);
-  assertNextEvent('resolve', [ 3 ]);
-  assertNextEvent('after', [ 3 ]);
-  assertEmptyLog();
-});
-basicTest();
-exceptions();
+if (has_promise_hooks) {
+  optimizerBailout(async () => {
+    await Promise.resolve();
+  }, () => {
+    assertNextEvent('init', [ 1 ]);
+    assertNextEvent('init', [ 2 ]);
+    assertNextEvent('resolve', [ 2 ]);
+    assertNextEvent('init', [ 3, 2 ]);
+    assertNextEvent('before', [ 3 ]);
+    assertNextEvent('resolve', [ 1 ]);
+    assertNextEvent('resolve', [ 3 ]);
+    assertNextEvent('after', [ 3 ]);
+    assertEmptyLog();
+  });
+  optimizerBailout(async () => {
+    await { then (cb) { cb() } };
+  }, () => {
+    assertNextEvent('init', [ 1 ]);
+    assertNextEvent('init', [ 2, 1 ]);
+    assertNextEvent('init', [ 3, 2 ]);
+    assertNextEvent('before', [ 2 ]);
+    assertNextEvent('resolve', [ 2 ]);
+    assertNextEvent('after', [ 2 ]);
+    assertNextEvent('before', [ 3 ]);
+    assertNextEvent('resolve', [ 1 ]);
+    assertNextEvent('resolve', [ 3 ]);
+    assertNextEvent('after', [ 3 ]);
+    assertEmptyLog();
+  });
+  basicTest();
+  exceptions();
 
-(function regress1126309() {
-  function __f_16(test) {
-    test();
-    d8.promise.setHooks(undefined, () => {});
+  (function regress1126309() {
+    function __f_16(test) {
+      test();
+      d8.promise.setHooks(undefined, () => {});
+      %PerformMicrotaskCheckpoint();
+      d8.promise.setHooks();
+    }
+    __f_16(async () => { await Promise.resolve()});
+  })();
+
+  (function boundFunction() {
+    function hook() {};
+    const bound = hook.bind(this);
+    d8.promise.setHooks(bound, bound, bound, bound);
+    Promise.resolve();
+    Promise.reject();
     %PerformMicrotaskCheckpoint();
     d8.promise.setHooks();
-  }
-  __f_16(async () => { await Promise.resolve()});
-})();
-
-(function boundFunction() {
-  function hook() {};
-  const bound = hook.bind(this);
-  d8.promise.setHooks(bound, bound, bound, bound);
-  Promise.resolve();
-  Promise.reject();
-  %PerformMicrotaskCheckpoint();
-  d8.promise.setHooks();
-})();
+  })();
 
 
-(function promiseAll() {
-  let initCount = 0;
-  d8.promise.setHooks(() => { initCount++});
-  Promise.all([Promise.resolve(1)]);
-  %PerformMicrotaskCheckpoint();
-  assertEquals(initCount, 3);
+  (function promiseAll() {
+    let initCount = 0;
+    d8.promise.setHooks(() => { initCount++});
+    Promise.all([Promise.resolve(1)]);
+    %PerformMicrotaskCheckpoint();
+    assertEquals(initCount, 3);
 
-  d8.promise.setHooks();
-})();
+    d8.promise.setHooks();
+  })();
 
-(function overflow(){
-  d8.promise.setHooks(() => { new Promise(()=>{}) });
-  // Trigger overflow from JS code:
-  Promise.all([Promise.resolve(1)]);
-  %PerformMicrotaskCheckpoint();
-  d8.promise.setHooks();
-});
+  (function overflow(){
+    d8.promise.setHooks(() => { new Promise(()=>{}) });
+    // Trigger overflow from JS code:
+    Promise.all([Promise.resolve(1)]);
+    %PerformMicrotaskCheckpoint();
+    d8.promise.setHooks();
+  });
+
+}

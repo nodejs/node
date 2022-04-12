@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --expose-gc
+// Flags: --expose-gc
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -899,4 +899,20 @@ function js_div(a, b) { return (a / b) | 0; }
   assertEquals(200, main(1));
   assertEquals(300, main(2));
   assertEquals(400, main(3));
+})();
+
+(function TestNonImportedGlobalInElementSegment() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let global = builder.addGlobal(kWasmFuncRef, false,
+                                 WasmInitExpr.RefNull(kWasmFuncRef));
+  let table = builder.addTable(kWasmFuncRef, 10, 10);
+  builder.addActiveElementSegment(
+      table.index, WasmInitExpr.I32Const(0),
+      [WasmInitExpr.GlobalGet(global.index)], kWasmFuncRef);
+  builder.addExportOfKind("table", kExternalTable, table.index);
+
+  assertThrows(
+    () => builder.instantiate(), WebAssembly.CompileError,
+    /non-imported globals cannot be used in initializer expressions/);
 })();

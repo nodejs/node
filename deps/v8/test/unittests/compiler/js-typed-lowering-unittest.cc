@@ -8,7 +8,6 @@
 #include "src/compiler/access-builder.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/js-heap-copy-reducer.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
@@ -46,8 +45,6 @@ class JSTypedLoweringTest : public TypedGraphTest {
 
  protected:
   Reduction Reduce(Node* node) {
-    JSHeapCopyReducer heap_copy_reducer(broker());
-    CHECK(!heap_copy_reducer.Reduce(node).Changed());
     MachineOperatorBuilder machine(zone());
     SimplifiedOperatorBuilder simplified(zone());
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), &simplified,

@@ -578,7 +578,7 @@ CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
     : title_(title),
       options_(options),
       delegate_(std::move(delegate)),
-      start_time_(base::TimeTicks::HighResolutionNow()),
+      start_time_(base::TimeTicks::Now()),
       top_down_(profiler->isolate(), profiler->code_entries()),
       profiler_(profiler),
       streaming_next_sample_(0),
@@ -750,7 +750,7 @@ void CpuProfile::StreamPendingTraceEvents() {
 }
 
 void CpuProfile::FinishProfile() {
-  end_time_ = base::TimeTicks::HighResolutionNow();
+  end_time_ = base::TimeTicks::Now();
   // Stop tracking context movements after profiling stops.
   context_filter_.set_native_context_address(kNullAddress);
   StreamPendingTraceEvents();
@@ -1005,6 +1005,13 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
     bool accepts_context = context_filter.Accept(native_context_address);
     bool accepts_embedder_context =
         context_filter.Accept(embedder_native_context_address);
+
+    // if FilterContext is set, do not propagate StateTag if not accepted.
+    // GC is exception because native context address is guaranteed to be empty.
+    DCHECK(state != StateTag::GC || native_context_address == kNullAddress);
+    if (!accepts_context && state != StateTag::GC) {
+      state = StateTag::IDLE;
+    }
     profile->AddPath(timestamp, accepts_context ? path : empty_path, src_line,
                      update_stats, sampling_interval, state,
                      accepts_embedder_context ? embedder_state_tag

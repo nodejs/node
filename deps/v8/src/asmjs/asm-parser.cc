@@ -760,7 +760,7 @@ void AsmJsParser::ValidateFunction() {
   ValidateFunctionParams(&params);
 
   // Check against limit on number of parameters.
-  if (params.size() >= kV8MaxWasmFunctionParams) {
+  if (params.size() > kV8MaxWasmFunctionParams) {
     FAIL("Number of parameters exceeds internal limit");
   }
 
@@ -2246,6 +2246,9 @@ AsmType* AsmJsParser::ValidateCall() {
   // also determined the complete function type and can perform checking against
   // the expected type or update the expected type in case of first occurrence.
   if (function_info->kind == VarKind::kImportedFunction) {
+    if (param_types.size() > kV8MaxWasmFunctionParams) {
+      FAILn("Number of parameters exceeds internal limit");
+    }
     for (auto t : param_specific_types) {
       if (!t->IsA(AsmType::Extern())) {
         FAILn("Imported function args must be type extern");

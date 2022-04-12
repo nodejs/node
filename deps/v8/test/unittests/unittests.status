@@ -79,6 +79,10 @@
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'MachineOperatorReducerTest.Word32EqualWithShiftedMaskedValueAndConstant': [PASS, HEAVY],
   'SequentialUnmapperTest.UnmapOnTeardown': [PASS, HEAVY],
+
+  #https://crbug.com/v8/12638
+  # Test seems super flaky, disabling for now
+  'SandboxTest.PartiallyReservedSandboxPageAllocation':[SKIP],
 }],  # tsan == True
 
 ##############################################################################

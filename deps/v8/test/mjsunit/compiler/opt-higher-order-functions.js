@@ -22,7 +22,7 @@ function TestFunctionPrototypeApply(x) {
 %PrepareFunctionForOptimization(TestFunctionPrototypeApply);
 assertEquals(TestFunctionPrototypeApply(-13), 13);
 assertEquals(TestFunctionPrototypeApply(42), 42);
-%OptimizeFunctionForTopTier(TestFunctionPrototypeApply);
+%OptimizeFunctionOnNextCall(TestFunctionPrototypeApply);
 assertEquals(TestFunctionPrototypeApply(-13), 13);
 assertOptimized(TestFunctionPrototypeApply);
 TestFunctionPrototypeApply("abc");
@@ -39,7 +39,7 @@ function TestFunctionPrototypeApplyReceiver(func, x, y) {
 %PrepareFunctionForOptimization(TestFunctionPrototypeApplyReceiver);
 assertEquals(-13, TestFunctionPrototypeApplyReceiver(MathMin, -13, 42));
 assertEquals(-4, TestFunctionPrototypeApplyReceiver(MathMin, 3, -4));
-%OptimizeFunctionForTopTier(TestFunctionPrototypeApplyReceiver);
+%OptimizeFunctionOnNextCall(TestFunctionPrototypeApplyReceiver);
 assertEquals(7, TestFunctionPrototypeApplyReceiver(MathMin, 7, 9));
 assertOptimized(TestFunctionPrototypeApplyReceiver);
 TestFunctionPrototypeApplyReceiver(MathMin, "abc");
@@ -60,14 +60,14 @@ assertUnoptimized(TestFunctionPrototypeApplyReceiver);
   %PrepareFunctionForOptimization(foo);
   %PrepareFunctionForOptimization(test);
   assertEquals(-13, test(-13, 42));
-  %OptimizeFunctionForTopTier(test);
+  %OptimizeFunctionOnNextCall(test);
   assertEquals(-13, test(-13, 42));
   assertOptimized(test);
   %PrepareFunctionForOptimization(test);
   F = Math.max;
   assertEquals(42, test(-13, 42));
   assertUnoptimized(test);
-  %OptimizeFunctionForTopTier(test);
+  %OptimizeFunctionOnNextCall(test);
   assertEquals(42, test(-13, 42));
   F = Math.min;
   assertEquals(-13, test(-13, 42));
@@ -82,7 +82,7 @@ function TestFunctionPrototypeCall(x) {
 %PrepareFunctionForOptimization(TestFunctionPrototypeCall);
 TestFunctionPrototypeCall(42);
 TestFunctionPrototypeCall(52);
-%OptimizeFunctionForTopTier(TestFunctionPrototypeCall);
+%OptimizeFunctionOnNextCall(TestFunctionPrototypeCall);
 TestFunctionPrototypeCall(12);
 assertOptimized(TestFunctionPrototypeCall);
 TestFunctionPrototypeCall("abc");
@@ -97,7 +97,7 @@ function TestArrayForEach(x) {
 %PrepareFunctionForOptimization(TestArrayForEach);
 TestArrayForEach([1, 3, -4]);
 TestArrayForEach([-9, 9, 0]);
-%OptimizeFunctionForTopTier(TestArrayForEach);
+%OptimizeFunctionOnNextCall(TestArrayForEach);
 TestArrayForEach([1, 3, -4]);
 assertOptimized(TestArrayForEach);
 TestArrayForEach(["abc", "xy"]);
@@ -112,7 +112,7 @@ function TestArrayReduce(x) {
 %PrepareFunctionForOptimization(TestArrayReduce);
 assertEquals(TestArrayReduce([1, 2, -3, 4]), -24);
 assertEquals(TestArrayReduce([3, 5, 7]), 105);
-%OptimizeFunctionForTopTier(TestArrayReduce);
+%OptimizeFunctionOnNextCall(TestArrayReduce);
 assertEquals(TestArrayReduce([1, 2, -3, 4]), -24);
 assertOptimized(TestArrayReduce);
 TestArrayReduce(["abc", "xy"]);
@@ -127,7 +127,7 @@ function TestArrayReduceRight(x) {
 %PrepareFunctionForOptimization(TestArrayReduceRight);
 assertEquals(TestArrayReduceRight([1, 2, -3, 4]), -24);
 assertEquals(TestArrayReduceRight([3, 5, 7]), 105);
-%OptimizeFunctionForTopTier(TestArrayReduceRight);
+%OptimizeFunctionOnNextCall(TestArrayReduceRight);
 assertEquals(TestArrayReduceRight([1, 2, -3, 4]), -24);
 assertOptimized(TestArrayReduceRight);
 TestArrayReduceRight(["abc", "xy"]);
@@ -142,7 +142,7 @@ function TestArrayMap(x) {
 %PrepareFunctionForOptimization(TestArrayMap);
 assertEquals(TestArrayMap([1, -2, -3, 4]), [1, 2, 3, 4]);
 assertEquals(TestArrayMap([5, -5, 5, -5]), [5, 5, 5, 5]);
-%OptimizeFunctionForTopTier(TestArrayMap);
+%OptimizeFunctionOnNextCall(TestArrayMap);
 assertEquals(TestArrayMap([1, -2, 3, -4]), [1, 2, 3, 4]);
 assertOptimized(TestArrayMap);
 TestArrayMap(["abc", "xy"]);
@@ -157,7 +157,7 @@ function TestArrayFilter(x) {
 %PrepareFunctionForOptimization(TestArrayFilter);
 assertEquals(TestArrayFilter([-2, 0, 3, -4]), [-2, 3, -4]);
 assertEquals(TestArrayFilter([0, 1, 1, 0]), [1, 1]);
-%OptimizeFunctionForTopTier(TestArrayFilter);
+%OptimizeFunctionOnNextCall(TestArrayFilter);
 assertEquals(TestArrayFilter([-2, 0, 3, -4]), [-2, 3, -4]);
 assertOptimized(TestArrayFilter);
 TestArrayFilter(["abc", "xy"]);
@@ -172,7 +172,7 @@ function TestArrayFind(x) {
 %PrepareFunctionForOptimization(TestArrayFind);
 assertEquals(TestArrayFind([0, 0, -3, 12]), -3);
 assertEquals(TestArrayFind([0, -18]), -18);
-%OptimizeFunctionForTopTier(TestArrayFind);
+%OptimizeFunctionOnNextCall(TestArrayFind);
 assertEquals(TestArrayFind([0, 0, -3, 12]), -3);
 assertOptimized(TestArrayFind);
 TestArrayFind(["", "abc", "xy"]);
@@ -187,7 +187,7 @@ function TestArrayFindIndex(x) {
 %PrepareFunctionForOptimization(TestArrayFindIndex);
 assertEquals(TestArrayFindIndex([0, 0, -3, 12]), 2);
 assertEquals(TestArrayFindIndex([0, -18]), 1);
-%OptimizeFunctionForTopTier(TestArrayFindIndex);
+%OptimizeFunctionOnNextCall(TestArrayFindIndex);
 assertEquals(TestArrayFindIndex([0, 0, -3, 12]), 2);
 assertOptimized(TestArrayFindIndex);
 TestArrayFindIndex(["", "abc", "xy"]);
@@ -202,7 +202,7 @@ function TestArrayEvery(x) {
 %PrepareFunctionForOptimization(TestArrayEvery);
 assertEquals(TestArrayEvery([3, 0, -9]), false);
 assertEquals(TestArrayEvery([2, 12, -1]), true);
-%OptimizeFunctionForTopTier(TestArrayEvery);
+%OptimizeFunctionOnNextCall(TestArrayEvery);
 assertEquals(TestArrayEvery([3, 0, -9]), false);
 assertOptimized(TestArrayEvery);
 TestArrayEvery(["abc", "xy"]);
@@ -217,7 +217,7 @@ function TestArraySome(x) {
 %PrepareFunctionForOptimization(TestArraySome);
 assertEquals(TestArraySome([3, 0, -9]), true);
 assertEquals(TestArraySome([0, 0]), false);
-%OptimizeFunctionForTopTier(TestArraySome);
+%OptimizeFunctionOnNextCall(TestArraySome);
 assertEquals(TestArraySome([3, 0, -9]), true);
 assertOptimized(TestArraySome);
 TestArraySome(["abc", "xy"]);
@@ -233,7 +233,7 @@ function TestJSCallWithJSFunction(x) {
 %PrepareFunctionForOptimization(TestJSCallWithJSFunction);
 assertEquals(TestJSCallWithJSFunction(-14), 42);
 assertEquals(TestJSCallWithJSFunction(14), -42);
-%OptimizeFunctionForTopTier(TestJSCallWithJSFunction);
+%OptimizeFunctionOnNextCall(TestJSCallWithJSFunction);
 assertEquals(TestJSCallWithJSFunction(-14), 42);
 assertOptimized(TestJSCallWithJSFunction);
 TestJSCallWithJSFunction("abc");
@@ -248,7 +248,7 @@ function TestJSCallWithJSBoundFunction(x) {
 %PrepareFunctionForOptimization(TestJSCallWithJSBoundFunction);
 assertEquals(TestJSCallWithJSBoundFunction(-14), 42);
 assertEquals(TestJSCallWithJSBoundFunction(14), -42);
-%OptimizeFunctionForTopTier(TestJSCallWithJSBoundFunction);
+%OptimizeFunctionOnNextCall(TestJSCallWithJSBoundFunction);
 assertEquals(TestJSCallWithJSBoundFunction(-14), 42);
 assertOptimized(TestJSCallWithJSBoundFunction);
 TestJSCallWithJSBoundFunction("abc");
@@ -268,7 +268,7 @@ function TestReflectApply(x) {
 %PrepareFunctionForOptimization(TestReflectApply);
 assertEquals(TestReflectApply(-9), 9);
 assertEquals(TestReflectApply(7), 7);
-%OptimizeFunctionForTopTier(TestReflectApply);
+%OptimizeFunctionOnNextCall(TestReflectApply);
 assertEquals(TestReflectApply(-9), 9);
 assertOptimized(TestReflectApply);
 TestReflectApply("abc");
@@ -288,7 +288,7 @@ function TestCallWithSpread(x) {
 %PrepareFunctionForOptimization(TestCallWithSpread);
 assertEquals(TestCallWithSpread(-13), 169);
 assertEquals(TestCallWithSpread(7), 49);
-%OptimizeFunctionForTopTier(TestCallWithSpread);
+%OptimizeFunctionOnNextCall(TestCallWithSpread);
 assertEquals(TestCallWithSpread(-13), 169);
 assertOptimized(TestCallWithSpread);
 TestCallWithSpread("abc");

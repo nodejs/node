@@ -6,8 +6,6 @@
 // https://tc39.es/proposal-temporal/#sec-temporal.calendar.from
 // 1. If NewTarget is undefined, then
 // a. Throw a TypeError exception.
-//assertThrows(() => Temporal.Calendar.from("invalid"), TypeError,
-//    "Constructor Temporal.Calendar requires 'new'");
 
 assertEquals("iso8601",
     (Temporal.Calendar.from("iso8601")).id);

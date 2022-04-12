@@ -1056,19 +1056,6 @@ std::ostream& operator<<(std::ostream& os, const MemoryAccessImm1& acc) {
   return os << acc.type;
 }
 
-struct MemoryAccessImm2 {
-  MachineType type;
-  ArchOpcode store_opcode;
-  ArchOpcode store_opcode_unaligned;
-  bool (InstructionSelectorTest::Stream::*val_predicate)(
-      const InstructionOperand*) const;
-  const int32_t immediates[40];
-};
-
-std::ostream& operator<<(std::ostream& os, const MemoryAccessImm2& acc) {
-  return os << acc.type;
-}
-
 // ----------------------------------------------------------------------------
 // Loads and stores immediate values
 // ----------------------------------------------------------------------------
@@ -1181,6 +1168,20 @@ const MemoryAccessImm1 kMemoryAccessImmMoreThan16bit[] = {
      &InstructionSelectorTest::Stream::IsInteger,
      {-65000, -55000, 32777, 55000, 65000}}};
 
+#ifdef RISCV_HAS_NO_UNALIGNED
+struct MemoryAccessImm2 {
+  MachineType type;
+  ArchOpcode store_opcode;
+  ArchOpcode store_opcode_unaligned;
+  bool (InstructionSelectorTest::Stream::*val_predicate)(
+      const InstructionOperand*) const;
+  const int32_t immediates[40];
+};
+
+std::ostream& operator<<(std::ostream& os, const MemoryAccessImm2& acc) {
+  return os << acc.type;
+}
+
 const MemoryAccessImm2 kMemoryAccessesImmUnaligned[] = {
     {MachineType::Int16(),
      kRiscvUsh,
@@ -1222,7 +1223,7 @@ const MemoryAccessImm2 kMemoryAccessesImmUnaligned[] = {
       -89,   -87,   -86,   -82,   -44,   -23,   -3,    0,    7,    10,
       39,    52,    69,    71,    91,    92,    107,   109,  115,  124,
       286,   655,   1362,  1569,  2587,  3067,  3096,  3462, 3510, 4095}}};
-
+#endif
 }  // namespace
 
 using InstructionSelectorMemoryAccessTest =
@@ -1327,6 +1328,7 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorMemoryAccessImmTest,
                          ::testing::ValuesIn(kMemoryAccessesImm));
 
+#ifdef RISCV_HAS_NO_UNALIGNED
 using InstructionSelectorMemoryAccessUnalignedImmTest =
     InstructionSelectorTestWithParam<MemoryAccessImm2>;
 
@@ -1358,7 +1360,7 @@ TEST_P(InstructionSelectorMemoryAccessUnalignedImmTest, StoreZero) {
 INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorMemoryAccessUnalignedImmTest,
                          ::testing::ValuesIn(kMemoryAccessesImmUnaligned));
-
+#endif
 // ----------------------------------------------------------------------------
 // Load/store offsets more than 16 bits.
 // ----------------------------------------------------------------------------
@@ -1599,6 +1601,45 @@ TEST_F(InstructionSelectorTest, Word64ReverseBytes) {
     EXPECT_EQ(1U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
+}
+
+TEST_F(InstructionSelectorTest, ExternalReferenceLoad1) {
+  // Test offsets we can use kMode_Root for.
+  const int64_t kOffsets[] = {0, 1, 4, INT32_MIN, INT32_MAX};
+  TRACED_FOREACH(int64_t, offset, kOffsets) {
+    StreamBuilder m(this, MachineType::Int64());
+    ExternalReference reference =
+        bit_cast<ExternalReference>(isolate()->isolate_root() + offset);
+    Node* const value =
+        m.Load(MachineType::Int64(), m.ExternalConstant(reference));
+    m.Return(value);
+
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kRiscvLd, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Root, s[0]->addressing_mode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(s.ToInt64(s[0]->InputAt(0)), offset);
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+TEST_F(InstructionSelectorTest, ExternalReferenceLoad2) {
+  // Offset too large, we cannot use kMode_Root.
+  StreamBuilder m(this, MachineType::Int64());
+  int64_t offset = 0x100000000;
+  ExternalReference reference =
+      bit_cast<ExternalReference>(isolate()->isolate_root() + offset);
+  Node* const value =
+      m.Load(MachineType::Int64(), m.ExternalConstant(reference));
+  m.Return(value);
+
+  Stream s = m.Build();
+
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kRiscvLd, s[0]->arch_opcode());
+  EXPECT_NE(kMode_Root, s[0]->addressing_mode());
 }
 
 }  // namespace compiler

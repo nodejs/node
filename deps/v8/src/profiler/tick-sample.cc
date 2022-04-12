@@ -200,7 +200,7 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
     tos = nullptr;
   }
   sampling_interval_ = sampling_interval;
-  timestamp = base::TimeTicks::HighResolutionNow();
+  timestamp = base::TimeTicks::Now();
 }
 
 bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
@@ -224,6 +224,13 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
     sample_info->embedder_context =
         reinterpret_cast<void*>(embedder_state->native_context_address());
     sample_info->embedder_state = embedder_state->GetState();
+  }
+
+  Context top_context = isolate->context();
+  if (top_context.ptr() != i::Context::kNoContext &&
+      top_context.ptr() != i::Context::kInvalidContext) {
+    NativeContext top_native_context = top_context.native_context();
+    sample_info->context = reinterpret_cast<void*>(top_native_context.ptr());
   }
 
   i::Address js_entry_sp = isolate->js_entry_sp();
@@ -292,13 +299,6 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
                                reinterpret_cast<i::Address>(regs->sp),
                                reinterpret_cast<i::Address>(regs->lr),
                                js_entry_sp);
-
-  Context top_context = isolate->context();
-  if (top_context.ptr() != i::Context::kNoContext &&
-      top_context.ptr() != i::Context::kInvalidContext) {
-    NativeContext top_native_context = top_context.native_context();
-    sample_info->context = reinterpret_cast<void*>(top_native_context.ptr());
-  }
 
   if (it.done()) return true;
 

@@ -12,7 +12,9 @@
 #include "src/api/api-inl.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/sanitizer/asan.h"
+#include "src/common/allow-deprecated.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/heap/base/stack.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -385,7 +387,7 @@ namespace {
 
 void ExtractInternalFields(JSObject jsobject, void** embedder_fields, int len) {
   int field_count = jsobject.GetEmbedderFieldCount();
-  Isolate* isolate = GetIsolateForHeapSandbox(jsobject);
+  Isolate* isolate = GetIsolateForSandbox(jsobject);
   for (int i = 0; i < len; ++i) {
     if (field_count == i) break;
     void* pointer;
@@ -515,9 +517,11 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
       case v8::WeakCallbackType::kInternalFields:
         set_weakness_type(PHANTOM_WEAK_2_EMBEDDER_FIELDS);
         break;
+        START_ALLOW_USE_DEPRECATED()
       case v8::WeakCallbackType::kFinalizer:
         set_weakness_type(FINALIZER_WEAK);
         break;
+        END_ALLOW_USE_DEPRECATED()
     }
     set_parameter(parameter);
     weak_callback_ = phantom_callback;
@@ -667,6 +671,8 @@ class GlobalHandles::TracedNode final
   bool is_on_stack() const { return IsOnStack::decode(flags_); }
   void set_is_on_stack(bool v) { flags_ = IsOnStack::update(flags_, v); }
 
+  void clear_object() { object_ = kNullAddress; }
+
   void SetFinalizationCallback(void* parameter,
                                WeakCallbackInfo<void>::Callback callback) {
     set_parameter(parameter);
@@ -697,7 +703,11 @@ class GlobalHandles::TracedNode final
 
   void ResetPhantomHandle(HandleHolder handle_holder) {
     DCHECK(IsInUse());
-    if (handle_holder == HandleHolder::kLive) {
+    // Even if the handle holder should be alive, the back reference may have
+    // been cleared which prevents the handle from being reclaimed at this
+    // point. This can happen for explicitly reset handles during incremental
+    // marking that then cannot be reclaimed during Scavenge.
+    if (handle_holder == HandleHolder::kLive && data_.parameter) {
       Address** handle = reinterpret_cast<Address**>(data_.parameter);
       *handle = nullptr;
     }
@@ -753,7 +763,7 @@ class GlobalHandles::OnStackTracedNodeSpace final {
 
   void SetStackStart(void* stack_start) {
     CHECK(on_stack_nodes_.empty());
-    stack_start_ = base::Stack::GetRealStackAddressForSlot(stack_start);
+    stack_.SetStackStart(base::Stack::GetRealStackAddressForSlot(stack_start));
   }
 
   V8_INLINE bool IsOnStack(uintptr_t slot) const;
@@ -789,28 +799,17 @@ class GlobalHandles::OnStackTracedNodeSpace final {
   std::map<uintptr_t, NodeEntry> on_stack_nodes_;
 #endif  // !V8_USE_ADDRESS_SANITIZER
 
-  uintptr_t stack_start_ = 0;
+  ::heap::base::Stack stack_;
   GlobalHandles* global_handles_ = nullptr;
   size_t acquire_count_ = 0;
 };
 
 bool GlobalHandles::OnStackTracedNodeSpace::IsOnStack(uintptr_t slot) const {
-#ifdef V8_USE_ADDRESS_SANITIZER
-  if (__asan_addr_is_in_fake_stack(__asan_get_current_fake_stack(),
-                                   reinterpret_cast<void*>(slot), nullptr,
-                                   nullptr)) {
-    return true;
-  }
-#endif  // V8_USE_ADDRESS_SANITIZER
-#if defined(__has_feature)
-#if __has_feature(safe_stack)
-  if (reinterpret_cast<uintptr_t>(__builtin___get_unsafe_stack_top()) >= slot &&
-      slot > reinterpret_cast<uintptr_t>(__builtin___get_unsafe_stack_ptr())) {
-    return true;
-  }
-#endif  // __has_feature(safe_stack)
-#endif  // defined(__has_feature)
-  return stack_start_ >= slot && slot > base::Stack::GetCurrentStackPosition();
+  // By the time this function is called, the stack start may not be set (i.e.
+  // SetStackStart() was not called). In that case, assume the slot is not on
+  // stack.
+  if (!stack_.stack_start()) return false;
+  return stack_.IsOnStack(reinterpret_cast<void*>(slot));
 }
 
 void GlobalHandles::OnStackTracedNodeSpace::NotifyEmptyEmbedderStack() {
@@ -877,9 +876,24 @@ GlobalHandles::TracedNode* GlobalHandles::OnStackTracedNodeSpace::Acquire(
 
 void GlobalHandles::OnStackTracedNodeSpace::CleanupBelowCurrentStackPosition() {
   if (on_stack_nodes_.empty()) return;
-  const auto it =
-      on_stack_nodes_.upper_bound(base::Stack::GetCurrentStackPosition());
+  const uintptr_t stack_ptr = reinterpret_cast<uintptr_t>(
+      ::heap::base::Stack::GetCurrentStackPointerForLocalVariables());
+  const auto it = on_stack_nodes_.upper_bound(stack_ptr);
   on_stack_nodes_.erase(on_stack_nodes_.begin(), it);
+}
+
+// static
+void GlobalHandles::EnableMarkingBarrier(Isolate* isolate) {
+  auto* global_handles = isolate->global_handles();
+  DCHECK(!global_handles->is_marking_);
+  global_handles->is_marking_ = true;
+}
+
+// static
+void GlobalHandles::DisableMarkingBarrier(Isolate* isolate) {
+  auto* global_handles = isolate->global_handles();
+  DCHECK(global_handles->is_marking_);
+  global_handles->is_marking_ = false;
 }
 
 // static
@@ -1160,14 +1174,45 @@ void GlobalHandles::Destroy(Address* location) {
   }
 }
 
+// static
 void GlobalHandles::DestroyTraced(Address* location) {
   if (location != nullptr) {
     TracedNode* node = TracedNode::FromLocation(location);
     if (node->is_on_stack()) {
       node->Release(nullptr);
-    } else {
-      NodeSpace<TracedNode>::Release(node);
+      return;
     }
+    DCHECK(!node->is_on_stack());
+
+    auto* global_handles = GlobalHandles::From(node);
+    // When marking is off the handle may be freed immediately. Note that this
+    // includes also the case when invoking the first pass callbacks during the
+    // atomic pause which requires releasing a node fully.
+    if (!global_handles->is_marking_) {
+      NodeSpace<TracedNode>::Release(node);
+      return;
+    }
+
+    // Incremental marking is on. This also covers the scavenge case which
+    // prohibits eagerly reclaiming nodes when marking is on during a scavenge.
+    //
+    // On-heap traced nodes are released in the atomic pause in
+    // `IterateWeakRootsForPhantomHandles()` when they are discovered as not
+    // marked.
+    //
+    // Eagerly clear out the object here to avoid needlessly marking it from
+    // this point on. Also clear out callback and backreference for the version
+    // with callbacks to avoid calling into possibly dead memory later.
+    //
+    // In the case this happens during incremental marking, the node may
+    // still be spuriously marked as live and is then only reclaimed on the
+    // next cycle.
+    node->clear_object();
+    node->set_parameter(nullptr);
+    node->SetFinalizationCallback(nullptr, nullptr);
+    // The destructor setting is left untouched to avoid casting a
+    // v8::TracedGlobal to a v8::TracedReference for the EmbedderRootsHandler
+    // which would be UB.
   }
 }
 
@@ -1291,8 +1336,10 @@ void GlobalHandles::IdentifyWeakUnmodifiedObjects(
       if (is_unmodified(node->location())) {
         v8::Value* value = ToApi<v8::Value>(node->handle());
         if (node->has_destructor()) {
+          START_ALLOW_USE_DEPRECATED()
           node->set_root(handler->IsRoot(
               *reinterpret_cast<v8::TracedGlobal<v8::Value>*>(&value)));
+          END_ALLOW_USE_DEPRECATED()
         } else {
           node->set_root(handler->IsRoot(
               *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value)));
@@ -1385,7 +1432,9 @@ void GlobalHandles::IterateYoungWeakObjectsForPhantomHandles(
           v8::Value* value = ToApi<v8::Value>(node->handle());
           handler->ResetRoot(
               *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
-          DCHECK(!node->IsInUse());
+          // We cannot check whether a node is in use here as the reset behavior
+          // depends on whether incremental marking is running when reclaiming
+          // young objects.
         }
 
         ++number_of_phantom_handle_resets_;
@@ -1676,8 +1725,10 @@ void GlobalHandles::IterateTracedNodes(
     if (node->IsInUse()) {
       v8::Value* value = ToApi<v8::Value>(node->handle());
       if (node->has_destructor()) {
+        START_ALLOW_USE_DEPRECATED()
         visitor->VisitTracedGlobalHandle(
             *reinterpret_cast<v8::TracedGlobal<v8::Value>*>(&value));
+        END_ALLOW_USE_DEPRECATED()
       } else {
         visitor->VisitTracedReference(
             *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));

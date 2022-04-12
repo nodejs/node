@@ -23,6 +23,10 @@ class Value;
 
 namespace v8_inspector {
 
+namespace internal {
+class V8DebuggerId;
+}  // namespace internal
+
 namespace protocol {
 namespace Debugger {
 namespace API {
@@ -104,6 +108,30 @@ class V8_EXPORT V8ContextInfo {
   void* operator new(size_t, void*) = delete;
   V8ContextInfo(const V8ContextInfo&) = delete;
   V8ContextInfo& operator=(const V8ContextInfo&) = delete;
+};
+
+// This debugger id tries to be unique by generating two random
+// numbers, which should most likely avoid collisions.
+// Debugger id has a 1:1 mapping to context group. It is used to
+// attribute stack traces to a particular debugging, when doing any
+// cross-debugger operations (e.g. async step in).
+// See also Runtime.UniqueDebuggerId in the protocol.
+class V8_EXPORT V8DebuggerId {
+ public:
+  V8DebuggerId() = default;
+  V8DebuggerId(const V8DebuggerId&) = default;
+  V8DebuggerId& operator=(const V8DebuggerId&) = default;
+
+  std::unique_ptr<StringBuffer> toString() const;
+  bool isValid() const;
+  std::pair<int64_t, int64_t> pair() const;
+
+ private:
+  friend class internal::V8DebuggerId;
+  explicit V8DebuggerId(std::pair<int64_t, int64_t>);
+
+  int64_t m_first = 0;
+  int64_t m_second = 0;
 };
 
 class V8_EXPORT V8StackTrace {
@@ -276,6 +304,7 @@ class V8_EXPORT V8Inspector {
   virtual void contextDestroyed(v8::Local<v8::Context>) = 0;
   virtual void resetContextGroup(int contextGroupId) = 0;
   virtual v8::MaybeLocal<v8::Context> contextById(int contextId) = 0;
+  virtual V8DebuggerId uniqueDebuggerId(int contextId) = 0;
 
   // Various instrumentation.
   virtual void idleStarted() = 0;

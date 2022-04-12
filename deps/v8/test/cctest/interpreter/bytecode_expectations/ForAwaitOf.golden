@@ -16,7 +16,7 @@ snippet: "
 "
 frame size: 19
 parameter count: 1
-bytecode array length: 272
+bytecode array length: 268
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
@@ -26,19 +26,19 @@ bytecodes: [
                 B(Mov), R(context), R(4),
   /*   43 S> */ B(CreateArrayLiteral), U8(2), U8(0), U8(37),
                 B(Star7),
-                B(LdaNamedProperty), R(7), U8(3), U8(1),
+                B(GetNamedProperty), R(7), U8(3), U8(1),
                 B(JumpIfUndefinedOrNull), U8(14),
                 B(Star8),
                 B(CallProperty0), R(8), R(7), U8(3),
                 B(JumpIfJSReceiver), U8(21),
                 B(CallRuntime), U16(Runtime::kThrowSymbolAsyncIteratorInvalid), R(0), U8(0),
-                B(LdaNamedProperty), R(7), U8(4), U8(5),
+                B(GetNamedProperty), R(7), U8(4), U8(5),
                 B(Star8),
                 B(CallProperty0), R(8), R(7), U8(7),
                 B(Star8),
                 B(InvokeIntrinsic), U8(Runtime::k_CreateAsyncFromSyncIterator), R(8), U8(1),
                 B(Star6),
-                B(LdaNamedProperty), R(6), U8(5), U8(9),
+                B(GetNamedProperty), R(6), U8(5), U8(9),
                 B(Star5),
                 B(LdaFalse),
                 B(Star7),
@@ -63,9 +63,9 @@ bytecodes: [
                 B(Mov), R(12), R(11),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(11), U8(1),
-                B(LdaNamedProperty), R(11), U8(6), U8(13),
+                B(GetNamedProperty), R(11), U8(6), U8(13),
                 B(JumpIfToBooleanTrue), U8(20),
-                B(LdaNamedProperty), R(11), U8(7), U8(15),
+                B(GetNamedProperty), R(11), U8(7), U8(15),
                 B(Star11),
                 B(LdaFalse),
                 B(Star7),
@@ -86,7 +86,7 @@ bytecodes: [
                 B(Ldar), R(7),
                 B(JumpIfToBooleanTrue), U8(72),
                 B(Mov), R(context), R(14),
-                B(LdaNamedProperty), R(6), U8(8), U8(17),
+                B(GetNamedProperty), R(6), U8(8), U8(17),
                 B(JumpIfUndefinedOrNull), U8(63),
                 B(Star15),
                 B(CallProperty0), R(15), R(6), U8(19),
@@ -123,10 +123,8 @@ bytecodes: [
                 B(ReThrow),
                 B(LdaUndefined),
                 B(Star6),
-                B(LdaTrue),
-                B(Star7),
                 B(Mov), R(0), R(5),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(5), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(5), U8(2),
   /*   57 S> */ B(Return),
                 B(Star5),
                 B(CreateCatchContext), R(5), U8(9),
@@ -137,10 +135,8 @@ bytecodes: [
                 B(PushContext), R(5),
                 B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star7),
-                B(LdaTrue),
-                B(Star8),
                 B(Mov), R(0), R(6),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(6), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(6), U8(2),
                 B(Return),
 ]
 constant pool: [
@@ -156,7 +152,7 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [18, 248, 248],
+  [18, 246, 246],
   [66, 139, 145],
   [158, 214, 216],
 ]
@@ -170,7 +166,7 @@ snippet: "
 "
 frame size: 19
 parameter count: 1
-bytecode array length: 292
+bytecode array length: 285
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
@@ -180,19 +176,19 @@ bytecodes: [
                 B(Mov), R(context), R(4),
   /*   43 S> */ B(CreateArrayLiteral), U8(2), U8(0), U8(37),
                 B(Star7),
-                B(LdaNamedProperty), R(7), U8(3), U8(1),
+                B(GetNamedProperty), R(7), U8(3), U8(1),
                 B(JumpIfUndefinedOrNull), U8(14),
                 B(Star8),
                 B(CallProperty0), R(8), R(7), U8(3),
                 B(JumpIfJSReceiver), U8(21),
                 B(CallRuntime), U16(Runtime::kThrowSymbolAsyncIteratorInvalid), R(0), U8(0),
-                B(LdaNamedProperty), R(7), U8(4), U8(5),
+                B(GetNamedProperty), R(7), U8(4), U8(5),
                 B(Star8),
                 B(CallProperty0), R(8), R(7), U8(7),
                 B(Star8),
                 B(InvokeIntrinsic), U8(Runtime::k_CreateAsyncFromSyncIterator), R(8), U8(1),
                 B(Star6),
-                B(LdaNamedProperty), R(6), U8(5), U8(9),
+                B(GetNamedProperty), R(6), U8(5), U8(9),
                 B(Star5),
                 B(LdaFalse),
                 B(Star7),
@@ -217,9 +213,9 @@ bytecodes: [
                 B(Mov), R(12), R(11),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(11), U8(1),
-                B(LdaNamedProperty), R(11), U8(6), U8(13),
+                B(GetNamedProperty), R(11), U8(6), U8(13),
                 B(JumpIfToBooleanTrue), U8(23),
-                B(LdaNamedProperty), R(11), U8(7), U8(15),
+                B(GetNamedProperty), R(11), U8(7), U8(15),
                 B(Star11),
                 B(LdaFalse),
                 B(Star7),
@@ -242,7 +238,7 @@ bytecodes: [
                 B(Ldar), R(7),
                 B(JumpIfToBooleanTrue), U8(72),
                 B(Mov), R(context), R(14),
-                B(LdaNamedProperty), R(6), U8(8), U8(17),
+                B(GetNamedProperty), R(6), U8(8), U8(17),
                 B(JumpIfUndefinedOrNull), U8(63),
                 B(Star15),
                 B(CallProperty0), R(15), R(6), U8(19),
@@ -274,21 +270,17 @@ bytecodes: [
                 B(SetPendingMessage),
                 B(Ldar), R(8),
                 B(SwitchOnSmiNoFeedback), U8(9), U8(2), I8(0),
-                B(Jump), U8(19),
+                B(Jump), U8(16),
                 B(Ldar), R(9),
                 B(ReThrow),
-                B(LdaTrue),
-                B(Star), R(16),
                 B(Mov), R(0), R(14),
                 B(Mov), R(9), R(15),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(14), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(14), U8(2),
                 B(Return),
                 B(LdaUndefined),
                 B(Star6),
-                B(LdaTrue),
-                B(Star7),
                 B(Mov), R(0), R(5),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(5), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(5), U8(2),
   /*   68 S> */ B(Return),
                 B(Star5),
                 B(CreateCatchContext), R(5), U8(11),
@@ -299,10 +291,8 @@ bytecodes: [
                 B(PushContext), R(5),
                 B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star7),
-                B(LdaTrue),
-                B(Star8),
                 B(Mov), R(0), R(6),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(6), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(6), U8(2),
                 B(Return),
 ]
 constant pool: [
@@ -320,7 +310,7 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [18, 268, 268],
+  [18, 263, 263],
   [66, 142, 148],
   [161, 217, 219],
 ]
@@ -337,7 +327,7 @@ snippet: "
 "
 frame size: 19
 parameter count: 1
-bytecode array length: 288
+bytecode array length: 284
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
@@ -347,19 +337,19 @@ bytecodes: [
                 B(Mov), R(context), R(4),
   /*   43 S> */ B(CreateArrayLiteral), U8(2), U8(0), U8(37),
                 B(Star7),
-                B(LdaNamedProperty), R(7), U8(3), U8(1),
+                B(GetNamedProperty), R(7), U8(3), U8(1),
                 B(JumpIfUndefinedOrNull), U8(14),
                 B(Star8),
                 B(CallProperty0), R(8), R(7), U8(3),
                 B(JumpIfJSReceiver), U8(21),
                 B(CallRuntime), U16(Runtime::kThrowSymbolAsyncIteratorInvalid), R(0), U8(0),
-                B(LdaNamedProperty), R(7), U8(4), U8(5),
+                B(GetNamedProperty), R(7), U8(4), U8(5),
                 B(Star8),
                 B(CallProperty0), R(8), R(7), U8(7),
                 B(Star8),
                 B(InvokeIntrinsic), U8(Runtime::k_CreateAsyncFromSyncIterator), R(8), U8(1),
                 B(Star6),
-                B(LdaNamedProperty), R(6), U8(5), U8(9),
+                B(GetNamedProperty), R(6), U8(5), U8(9),
                 B(Star5),
                 B(LdaFalse),
                 B(Star7),
@@ -384,9 +374,9 @@ bytecodes: [
                 B(Mov), R(12), R(11),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(11), U8(1),
-                B(LdaNamedProperty), R(11), U8(6), U8(13),
+                B(GetNamedProperty), R(11), U8(6), U8(13),
                 B(JumpIfToBooleanTrue), U8(36),
-                B(LdaNamedProperty), R(11), U8(7), U8(15),
+                B(GetNamedProperty), R(11), U8(7), U8(15),
                 B(Star11),
                 B(LdaFalse),
                 B(Star7),
@@ -414,7 +404,7 @@ bytecodes: [
                 B(Ldar), R(7),
                 B(JumpIfToBooleanTrue), U8(72),
                 B(Mov), R(context), R(14),
-                B(LdaNamedProperty), R(6), U8(8), U8(19),
+                B(GetNamedProperty), R(6), U8(8), U8(19),
                 B(JumpIfUndefinedOrNull), U8(63),
                 B(Star15),
                 B(CallProperty0), R(15), R(6), U8(21),
@@ -451,10 +441,8 @@ bytecodes: [
                 B(ReThrow),
                 B(LdaUndefined),
                 B(Star6),
-                B(LdaTrue),
-                B(Star7),
                 B(Mov), R(0), R(5),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(5), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(5), U8(2),
   /*  114 S> */ B(Return),
                 B(Star5),
                 B(CreateCatchContext), R(5), U8(9),
@@ -465,10 +453,8 @@ bytecodes: [
                 B(PushContext), R(5),
                 B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star7),
-                B(LdaTrue),
-                B(Star8),
                 B(Mov), R(0), R(6),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(6), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(6), U8(2),
                 B(Return),
 ]
 constant pool: [
@@ -484,7 +470,7 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [18, 264, 264],
+  [18, 262, 262],
   [66, 155, 161],
   [174, 230, 232],
 ]
@@ -499,7 +485,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 204
+bytecode array length: 198
 bytecodes: [
                 B(Mov), R(closure), R(2),
                 B(Mov), R(this), R(3),
@@ -514,7 +500,7 @@ bytecodes: [
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star4),
-                B(LdaNamedProperty), R(4), U8(2), U8(6),
+                B(GetNamedProperty), R(4), U8(2), U8(6),
                 B(Star3),
                 B(LdaFalse),
                 B(Star5),
@@ -525,15 +511,15 @@ bytecodes: [
                 B(Star9),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(9), U8(1),
-                B(LdaNamedProperty), R(9), U8(3), U8(10),
+                B(GetNamedProperty), R(9), U8(3), U8(10),
                 B(JumpIfToBooleanTrue), U8(28),
-                B(LdaNamedProperty), R(9), U8(4), U8(12),
+                B(GetNamedProperty), R(9), U8(4), U8(12),
                 B(Star9),
                 B(LdaFalse),
                 B(Star5),
                 B(Ldar), R(9),
-  /*   58 E> */ B(StaNamedProperty), R(1), U8(5), U8(14),
-  /*   87 S> */ B(LdaNamedProperty), R(1), U8(5), U8(16),
+  /*   58 E> */ B(SetNamedProperty), R(1), U8(5), U8(14),
+  /*   87 S> */ B(GetNamedProperty), R(1), U8(5), U8(16),
                 B(Star7),
                 B(LdaSmi), I8(1),
                 B(Star6),
@@ -552,7 +538,7 @@ bytecodes: [
                 B(Ldar), R(5),
                 B(JumpIfToBooleanTrue), U8(35),
                 B(Mov), R(context), R(11),
-                B(LdaNamedProperty), R(4), U8(6), U8(18),
+                B(GetNamedProperty), R(4), U8(6), U8(18),
                 B(JumpIfUndefinedOrNull), U8(26),
                 B(Star12),
                 B(CallProperty0), R(12), R(4), U8(20),
@@ -570,21 +556,17 @@ bytecodes: [
                 B(SetPendingMessage),
                 B(Ldar), R(6),
                 B(SwitchOnSmiNoFeedback), U8(7), U8(2), I8(0),
-                B(Jump), U8(18),
+                B(Jump), U8(16),
                 B(Ldar), R(7),
                 B(ReThrow),
-                B(LdaFalse),
-                B(Star13),
                 B(Mov), R(0), R(11),
                 B(Mov), R(7), R(12),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(11), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(11), U8(2),
                 B(Return),
                 B(LdaUndefined),
                 B(Star4),
-                B(LdaFalse),
-                B(Star5),
                 B(Mov), R(0), R(3),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(3), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(3), U8(2),
   /*   96 S> */ B(Return),
                 B(Star3),
                 B(CreateCatchContext), R(3), U8(9),
@@ -595,10 +577,8 @@ bytecodes: [
                 B(PushContext), R(3),
                 B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star5),
-                B(LdaFalse),
-                B(Star6),
                 B(Mov), R(0), R(4),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(4), U8(3),
+                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(4), U8(2),
                 B(Return),
 ]
 constant pool: [
@@ -614,7 +594,7 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [14, 180, 180],
+  [14, 176, 176],
   [46, 92, 98],
   [111, 130, 132],
 ]

@@ -55,7 +55,7 @@ inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
 //   1   | return addr (lr)   |
 //   0   | previous frame (fp)|
 //  -----+--------------------+  <-- frame ptr (fp)
-//  -1   | 0xa: WASM          |
+//  -1   | StackFrame::WASM   |
 //  -2   |    instance        |
 //  -3   |    feedback vector |
 //  -4   |    tiering budget  |
@@ -310,7 +310,6 @@ inline void Store(LiftoffAssembler* assm, LiftoffRegister src, MemOperand dst,
     case kOptRef:
     case kRef:
     case kRtt:
-    case kRttWithDepth:
       assm->str(src.gp(), dst);
       break;
     case kI64:
@@ -345,7 +344,6 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
     case kOptRef:
     case kRef:
     case kRtt:
-    case kRttWithDepth:
       assm->ldr(dst.gp(), src);
       break;
     case kI64:
@@ -638,10 +636,6 @@ void LiftoffAssembler::SpillInstance(Register instance) {
 
 void LiftoffAssembler::ResetOSRTarget() {}
 
-void LiftoffAssembler::FillInstanceInto(Register dst) {
-  ldr(dst, liftoff::GetInstanceOperand());
-}
-
 namespace liftoff {
 #define __ lasm->
 inline void LoadInternal(LiftoffAssembler* lasm, LiftoffRegister dst,
@@ -901,12 +895,9 @@ inline void AtomicOp32(
   // the same register.
   Register temp = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
 
-  // Make sure that {result} is unique.
-  Register result_reg = result.gp();
-  if (result_reg == value.gp() || result_reg == dst_addr ||
-      result_reg == offset_reg) {
-    result_reg = __ GetUnusedRegister(kGpReg, pinned).gp();
-  }
+  // {LiftoffCompiler::AtomicBinop} ensures that {result} is unique.
+  DCHECK(result.gp() != value.gp() && result.gp() != dst_addr &&
+         result.gp() != offset_reg);
 
   UseScratchRegisterScope temps(lasm);
   Register actual_addr = liftoff::CalculateActualAddress(
@@ -915,15 +906,12 @@ inline void AtomicOp32(
   __ dmb(ISH);
   Label retry;
   __ bind(&retry);
-  (lasm->*load)(result_reg, actual_addr, al);
-  op(lasm, temp, result_reg, value.gp());
+  (lasm->*load)(result.gp(), actual_addr, al);
+  op(lasm, temp, result.gp(), value.gp());
   (lasm->*store)(store_result, temp, actual_addr, al);
   __ cmp(store_result, Operand(0));
   __ b(ne, &retry);
   __ dmb(ISH);
-  if (result_reg != result.gp()) {
-    __ mov(result.gp(), result_reg);
-  }
 }
 
 inline void Add(LiftoffAssembler* lasm, Register dst, Register lhs,
@@ -1974,10 +1962,6 @@ void LiftoffAssembler::emit_f64_min(DoubleRegister dst, DoubleRegister lhs,
 void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
   liftoff::EmitFloatMinOrMax(this, dst, lhs, rhs, liftoff::MinOrMax::kMax);
-}
-
-void LiftoffAssembler::emit_u32_to_intptr(Register dst, Register src) {
-  // This is a nop on arm.
 }
 
 void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
@@ -3468,8 +3452,13 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
     // to q14 and q15, which will be unused since they are not allocatable in
     // Liftoff. If the operands are the same, then we build a smaller list
     // operand below.
-    static_assert(!(kLiftoffAssemblerFpCacheRegs &
-                    (d28.bit() | d29.bit() | d30.bit() | d31.bit())),
+    static_assert(!kLiftoffAssemblerFpCacheRegs.has(d28),
+                  "This only works if q14-q15 (d28-d31) are not used.");
+    static_assert(!kLiftoffAssemblerFpCacheRegs.has(d29),
+                  "This only works if q14-q15 (d28-d31) are not used.");
+    static_assert(!kLiftoffAssemblerFpCacheRegs.has(d30),
+                  "This only works if q14-q15 (d28-d31) are not used.");
+    static_assert(!kLiftoffAssemblerFpCacheRegs.has(d31),
                   "This only works if q14-q15 (d28-d31) are not used.");
     vmov(q14, src1);
     src1 = q14;
@@ -4081,7 +4070,7 @@ void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   RegList core_regs = regs.GetGpList();
-  if (core_regs != 0) {
+  if (!core_regs.is_empty()) {
     stm(db_w, sp, core_regs);
   }
   LiftoffRegList fp_regs = regs & kFpCacheRegList;
@@ -4120,20 +4109,19 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
     vldm(ia_w, sp, first, last);
   }
   RegList core_regs = regs.GetGpList();
-  if (core_regs != 0) {
+  if (!core_regs.is_empty()) {
     ldm(ia_w, sp, core_regs);
   }
 }
 
-void LiftoffAssembler::RecordSpillsInSafepoint(Safepoint& safepoint,
-                                               LiftoffRegList all_spills,
-                                               LiftoffRegList ref_spills,
-                                               int spill_offset) {
+void LiftoffAssembler::RecordSpillsInSafepoint(
+    SafepointTableBuilder::Safepoint& safepoint, LiftoffRegList all_spills,
+    LiftoffRegList ref_spills, int spill_offset) {
   int spill_space_size = 0;
   while (!all_spills.is_empty()) {
     LiftoffRegister reg = all_spills.GetLastRegSet();
     if (ref_spills.has(reg)) {
-      safepoint.DefinePointerSlot(spill_offset);
+      safepoint.DefineTaggedStackSlot(spill_offset);
     }
     all_spills.clear(reg);
     ++spill_offset;

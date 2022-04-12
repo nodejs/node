@@ -29,7 +29,7 @@ class RepresentationChangerTester : public HandleAndZoneScope,
         jsgraph_(main_isolate(), main_graph_, &main_common_, &javascript_,
                  &main_simplified_, &main_machine_),
         broker_(main_isolate(), main_zone()),
-        changer_(&jsgraph_, &broker_) {
+        changer_(&jsgraph_, &broker_, nullptr) {
     Node* s = graph()->NewNode(common()->Start(num_parameters));
     graph()->SetStart(s);
   }
@@ -264,7 +264,9 @@ TEST(ToInt32_constant) {
   RepresentationChangerTester r;
   {
     FOR_INT32_INPUTS(i) {
-      Node* n = r.jsgraph()->Constant(i);
+      const double value = static_cast<double>(i);
+      Node* n = r.jsgraph()->Constant(value);
+      NodeProperties::SetType(n, Type::Constant(value, r.zone()));
       Node* use = r.Return(n);
       Node* c = r.changer()->GetRepresentationFor(
           n, MachineRepresentation::kTagged, Type::Signed32(), use,
@@ -277,7 +279,9 @@ TEST(ToInt32_constant) {
 TEST(ToUint32_constant) {
   RepresentationChangerTester r;
   FOR_UINT32_INPUTS(i) {
-    Node* n = r.jsgraph()->Constant(static_cast<double>(i));
+    const double value = static_cast<double>(i);
+    Node* n = r.jsgraph()->Constant(value);
+    NodeProperties::SetType(n, Type::Constant(value, r.zone()));
     Node* use = r.Return(n);
     Node* c = r.changer()->GetRepresentationFor(
         n, MachineRepresentation::kTagged, Type::Unsigned32(), use,
@@ -289,7 +293,9 @@ TEST(ToUint32_constant) {
 TEST(ToInt64_constant) {
   RepresentationChangerTester r;
   FOR_INT32_INPUTS(i) {
-    Node* n = r.jsgraph()->Constant(i);
+    const double value = static_cast<double>(i);
+    Node* n = r.jsgraph()->Constant(value);
+    NodeProperties::SetType(n, Type::Constant(value, r.zone()));
     Node* use = r.Return(n);
     Node* c = r.changer()->GetRepresentationFor(
         n, MachineRepresentation::kTagged, TypeCache::Get()->kSafeInteger, use,

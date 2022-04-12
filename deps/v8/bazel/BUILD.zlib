@@ -9,6 +9,7 @@ cc_library(
         "chromeconf.h",
         "compress.c",
         "contrib/optimizations/insert_string.h",
+        "contrib/optimizations/slide_hash_neon.h",
         "cpu_features.c",
         "cpu_features.h",
         "crc32.c",
@@ -35,14 +36,10 @@ cc_library(
         "zlib.h",
         "zutil.c",
         "zutil.h",
-        "google/compression_utils_portable.h",
-        "google/compression_utils_portable.cc",
-        ],
+    ],
     hdrs = [
         "zlib.h",
-        "google/compression_utils_portable.h",
     ],
-    include_prefix = "third_party/zlib",
     defines = [
         "CHROMIUM_ZLIB_NO_CHROMECONF",
         "CPU_NO_SIMD",
@@ -52,5 +49,21 @@ cc_library(
             "HAVE_HIDDEN",
         ],
     }),
+    include_prefix = "third_party/zlib",
     visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "zlib_compression_utils",
+    srcs = [
+        "google/compression_utils_portable.cc",
+    ],
+    hdrs = [
+        "google/compression_utils_portable.h",
+    ],
+    include_prefix = "third_party/zlib",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:zlib",
+    ],
 )

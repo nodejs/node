@@ -68,8 +68,9 @@ class V8_NODISCARD CppgcTracingScopesTest : public testing::TestWithHeap {
     Config config = {Config::CollectionType::kMajor,
                      Config::StackState::kNoHeapPointers,
                      Config::MarkingType::kIncremental};
-    GetMarkerRef() = MarkerFactory::CreateAndStartMarking<Marker>(
+    GetMarkerRef() = std::make_unique<Marker>(
         Heap::From(GetHeap())->AsBase(), GetPlatformHandle().get(), config);
+    GetMarkerRef()->StartMarking();
     DelegatingTracingControllerImpl::check_expectations = true;
   }
 

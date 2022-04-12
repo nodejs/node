@@ -12,7 +12,7 @@ namespace cppgc {
 namespace internal {
 
 MarkingVisitorBase::MarkingVisitorBase(HeapBase& heap,
-                                       MarkingStateBase& marking_state)
+                                       BasicMarkingState& marking_state)
     : marking_state_(marking_state) {}
 
 void MarkingVisitorBase::Visit(const void* object, TraceDescriptor desc) {

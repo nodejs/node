@@ -22,7 +22,7 @@ TEST_F(WasmCallDescriptorTest, TestExternRefIsGrouped) {
   ValueType params[kMaxCount];
 
   for (size_t i = 0; i < kMaxCount; i += 2) {
-    params[i] = kWasmExternRef;
+    params[i] = kWasmAnyRef;
     EXPECT_TRUE(i + 1 < kMaxCount);
     params[i + 1] = kWasmI32;
   }

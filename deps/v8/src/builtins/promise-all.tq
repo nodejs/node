@@ -319,12 +319,12 @@ Reject(JSAny) {
 transitioning macro GeneratePromiseAll<F1: type, F2: type>(
     implicit context: Context)(
     receiver: JSAny, iterable: JSAny, createResolveElementFunctor: F1,
-    createRejectElementFunctor: F2): JSAny {
+    createRejectElementFunctor: F2, message: constexpr string): JSAny {
   const nativeContext = LoadNativeContext(context);
   // Let C be the this value.
   // If Type(C) is not Object, throw a TypeError exception.
   const receiver = Cast<JSReceiver>(receiver)
-      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'Promise.all');
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, message);
 
   // Let promiseCapability be ? NewPromiseCapability(C).
   // Don't fire debugEvent so that forwarding the rejection through all does
@@ -368,7 +368,7 @@ transitioning javascript builtin PromiseAll(
     js-implicit context: Context, receiver: JSAny)(iterable: JSAny): JSAny {
   return GeneratePromiseAll(
       receiver, iterable, PromiseAllResolveElementFunctor{},
-      PromiseAllRejectElementFunctor{});
+      PromiseAllRejectElementFunctor{}, 'Promise.all');
 }
 
 // ES#sec-promise.allsettled
@@ -377,7 +377,7 @@ transitioning javascript builtin PromiseAllSettled(
     js-implicit context: Context, receiver: JSAny)(iterable: JSAny): JSAny {
   return GeneratePromiseAll(
       receiver, iterable, PromiseAllSettledResolveElementFunctor{},
-      PromiseAllSettledRejectElementFunctor{});
+      PromiseAllSettledRejectElementFunctor{}, 'Promise.allSettled');
 }
 
 extern macro PromiseAllResolveElementSharedFunConstant(): SharedFunctionInfo;

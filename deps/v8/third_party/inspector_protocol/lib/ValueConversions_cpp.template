@@ -18,7 +18,7 @@ namespace {{namespace}} {
 {% endfor %}
 
 {% for namespace in config.protocol.namespace %}
-}  // namespce
+}  // namespace
 {% endfor %}
 
 

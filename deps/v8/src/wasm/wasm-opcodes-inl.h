@@ -414,12 +414,12 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(ArrayCopy, "array.copy")
     CASE_OP(ArrayInit, "array.init")
     CASE_OP(ArrayInitStatic, "array.init_static")
+    CASE_OP(ArrayInitFromData, "array.init_from_data")
+    CASE_OP(ArrayInitFromDataStatic, "array.init_from_data_static")
     CASE_OP(I31New, "i31.new")
     CASE_OP(I31GetS, "i31.get_s")
     CASE_OP(I31GetU, "i31.get_u")
     CASE_OP(RttCanon, "rtt.canon")
-    CASE_OP(RttSub, "rtt.sub")
-    CASE_OP(RttFreshSub, "rtt.fresh_sub")
     CASE_OP(RefTest, "ref.test")
     CASE_OP(RefTestStatic, "ref.test_static")
     CASE_OP(RefCast, "ref.cast")
@@ -431,15 +431,19 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(RefIsFunc, "ref.is_func")
     CASE_OP(RefIsData, "ref.is_data")
     CASE_OP(RefIsI31, "ref.is_i31")
+    CASE_OP(RefIsArray, "ref.is_array")
     CASE_OP(RefAsFunc, "ref.as_func")
     CASE_OP(RefAsData, "ref.as_data")
     CASE_OP(RefAsI31, "ref.as_i31")
+    CASE_OP(RefAsArray, "ref.as_array")
     CASE_OP(BrOnFunc, "br_on_func")
     CASE_OP(BrOnData, "br_on_data")
     CASE_OP(BrOnI31, "br_on_i31")
+    CASE_OP(BrOnArray, "br_on_array")
     CASE_OP(BrOnNonFunc, "br_on_non_func")
     CASE_OP(BrOnNonData, "br_on_non_data")
     CASE_OP(BrOnNonI31, "br_on_non_i31")
+    CASE_OP(BrOnNonArray, "br_on_non_array")
 
     case kNumericPrefix:
     case kSimdPrefix:
@@ -629,9 +633,11 @@ constexpr WasmOpcodeSig GetAtomicOpcodeSigIndex(byte opcode) {
 }
 
 constexpr WasmOpcodeSig GetNumericOpcodeSigIndex(byte opcode) {
-#define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
-  return FOREACH_NUMERIC_OPCODE(CASE) kSigEnum_None;
-#undef CASE
+#define CASE_SIG(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
+#define CASE_VARIADIC(name, opc)
+  return FOREACH_NUMERIC_OPCODE(CASE_SIG, CASE_VARIADIC) kSigEnum_None;
+#undef CASE_SIG
+#undef CASE_VARIADIC
 }
 
 constexpr std::array<WasmOpcodeSig, 256> kShortSigTable =

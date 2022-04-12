@@ -45,7 +45,7 @@ class NativeModule;
 // permissions for all code pages.
 class V8_NODISCARD CodeSpaceWriteScope final {
  public:
-  explicit V8_EXPORT_PRIVATE CodeSpaceWriteScope(NativeModule* native_module);
+  explicit V8_EXPORT_PRIVATE CodeSpaceWriteScope(NativeModule*);
   V8_EXPORT_PRIVATE ~CodeSpaceWriteScope();
 
   // Disable copy constructor and copy-assignment operator, since this manages
@@ -53,22 +53,27 @@ class V8_NODISCARD CodeSpaceWriteScope final {
   CodeSpaceWriteScope(const CodeSpaceWriteScope&) = delete;
   CodeSpaceWriteScope& operator=(const CodeSpaceWriteScope&) = delete;
 
+  static bool IsInScope() { return current_native_module_ != nullptr; }
+
  private:
-  static thread_local int code_space_write_nesting_level_;
-#if defined(DEBUG) && !V8_HAS_PTHREAD_JIT_WRITE_PROTECT
-  static thread_local NativeModule* current_native_module_;
-#endif
-
-  void SetWritable() const;
-  void SetExecutable() const;
-
   // The M1 implementation knows implicitly from the {MAP_JIT} flag during
   // allocation which region to switch permissions for. On non-M1 hardware
   // without memory protection key support, we need the code space from the
-  // {native_module_}.
-#if !V8_HAS_PTHREAD_JIT_WRITE_PROTECT
-  NativeModule* const native_module_;
-#endif
+  // {NativeModule}.
+  static thread_local NativeModule* current_native_module_;
+
+  // {SetWritable} and {SetExecutable} implicitly operate on
+  // {current_native_module_} (for mprotect-based protection).
+  static void SetWritable();
+  static void SetExecutable();
+
+  // Returns {true} if switching permissions happens on a per-module level, and
+  // not globally (like for MAP_JIT and PKU).
+  static bool SwitchingPerNativeModule();
+
+  // Save the previous module to put it back in {current_native_module_} when
+  // exiting this scope.
+  NativeModule* const previous_native_module_;
 };
 
 }  // namespace wasm

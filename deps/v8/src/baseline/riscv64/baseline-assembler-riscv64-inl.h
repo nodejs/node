@@ -76,6 +76,11 @@ MemOperand BaselineAssembler::RegisterFrameOperand(
     interpreter::Register interpreter_register) {
   return MemOperand(fp, interpreter_register.ToOperand() * kSystemPointerSize);
 }
+void BaselineAssembler::RegisterFrameAddress(
+    interpreter::Register interpreter_register, Register rscratch) {
+  return __ Add64(rscratch, fp,
+                  interpreter_register.ToOperand() * kSystemPointerSize);
+}
 MemOperand BaselineAssembler::FeedbackVectorOperand() {
   return MemOperand(fp, BaselineFrameConstants::kFeedbackVectorFromFp);
 }
@@ -478,7 +483,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
     __ LoadContext(kContextRegister);
     __ LoadFunction(kJSFunctionRegister);
     __ masm()->Push(kJSFunctionRegister);
-    __ CallRuntime(Runtime::kBytecodeBudgetInterruptFromBytecode, 1);
+    __ CallRuntime(Runtime::kBytecodeBudgetInterrupt, 1);
 
     __ masm()->Pop(params_size, kInterpreterAccumulatorRegister);
     __ masm()->SmiUntag(params_size);
@@ -505,9 +510,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
 
   // Drop receiver + arguments.
   __ masm()->DropArguments(params_size, MacroAssembler::kCountIsInteger,
-                           kJSArgcIncludesReceiver
-                               ? MacroAssembler::kCountIncludesReceiver
-                               : MacroAssembler::kCountExcludesReceiver);
+                           MacroAssembler::kCountIncludesReceiver);
   __ masm()->Ret();
 }
 

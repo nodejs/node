@@ -102,17 +102,14 @@ AllocationResult NewSpace::AllocateRaw(int size_in_bytes,
     result = AllocateFastUnaligned(size_in_bytes, origin);
   }
 
-  if (!result.IsRetry()) {
-    return result;
-  } else {
-    return AllocateRawSlow(size_in_bytes, alignment, origin);
-  }
+  return result.IsFailure() ? AllocateRawSlow(size_in_bytes, alignment, origin)
+                            : result;
 }
 
 AllocationResult NewSpace::AllocateFastUnaligned(int size_in_bytes,
                                                  AllocationOrigin origin) {
   if (!allocation_info_->CanIncrementTop(size_in_bytes)) {
-    return AllocationResult::Retry(NEW_SPACE);
+    return AllocationResult::Failure();
   }
   HeapObject obj =
       HeapObject::FromAddress(allocation_info_->IncrementTop(size_in_bytes));
@@ -124,7 +121,7 @@ AllocationResult NewSpace::AllocateFastUnaligned(int size_in_bytes,
     UpdateAllocationOrigins(origin);
   }
 
-  return obj;
+  return AllocationResult::FromObject(obj);
 }
 
 AllocationResult NewSpace::AllocateFastAligned(
@@ -135,7 +132,7 @@ AllocationResult NewSpace::AllocateFastAligned(
   int aligned_size_in_bytes = size_in_bytes + filler_size;
 
   if (!allocation_info_->CanIncrementTop(aligned_size_in_bytes)) {
-    return AllocationResult::Retry(NEW_SPACE);
+    return AllocationResult::Failure();
   }
   HeapObject obj = HeapObject::FromAddress(
       allocation_info_->IncrementTop(aligned_size_in_bytes));
@@ -153,7 +150,7 @@ AllocationResult NewSpace::AllocateFastAligned(
     UpdateAllocationOrigins(origin);
   }
 
-  return obj;
+  return AllocationResult::FromObject(obj);
 }
 
 V8_WARN_UNUSED_RESULT inline AllocationResult NewSpace::AllocateRawSynchronized(

@@ -549,28 +549,29 @@ void LiftoffAssembler::CacheState::GetTaggedSlotsForOOLCode(
   }
 }
 
-void LiftoffAssembler::CacheState::DefineSafepoint(Safepoint& safepoint) {
+void LiftoffAssembler::CacheState::DefineSafepoint(
+    SafepointTableBuilder::Safepoint& safepoint) {
   for (const auto& slot : stack_state) {
     if (is_reference(slot.kind())) {
       DCHECK(slot.is_stack());
-      safepoint.DefinePointerSlot(GetSafepointIndexForStackSlot(slot));
+      safepoint.DefineTaggedStackSlot(GetSafepointIndexForStackSlot(slot));
     }
   }
 }
 
 void LiftoffAssembler::CacheState::DefineSafepointWithCalleeSavedRegisters(
-    Safepoint& safepoint) {
+    SafepointTableBuilder::Safepoint& safepoint) {
   for (const auto& slot : stack_state) {
     if (!is_reference(slot.kind())) continue;
     if (slot.is_stack()) {
-      safepoint.DefinePointerSlot(GetSafepointIndexForStackSlot(slot));
+      safepoint.DefineTaggedStackSlot(GetSafepointIndexForStackSlot(slot));
     } else {
       DCHECK(slot.is_reg());
-      safepoint.DefineRegister(slot.reg().gp().code());
+      safepoint.DefineTaggedRegister(slot.reg().gp().code());
     }
   }
   if (cached_instance != no_reg) {
-    safepoint.DefineRegister(cached_instance.code());
+    safepoint.DefineTaggedRegister(cached_instance.code());
   }
 }
 
@@ -840,6 +841,9 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
         target.cached_mem_start, instance,
         ObjectAccess::ToTagged(WasmInstanceObject::kMemoryStartOffset),
         sizeof(size_t));
+#ifdef V8_SANDBOXED_POINTERS
+    DecodeSandboxedPointer(target.cached_mem_start);
+#endif
   }
 }
 
@@ -1056,7 +1060,7 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
 
   // Reload the instance from the stack.
   if (!target_instance) {
-    FillInstanceInto(instance_reg);
+    LoadInstanceFromFrame(instance_reg);
   }
 }
 
@@ -1157,6 +1161,12 @@ void LiftoffAssembler::MoveToReturnLocations(
   }
 
   // Slow path for multi-return.
+  // We sometimes allocate a register to perform stack-to-stack moves, which can
+  // cause a spill in the cache state. Conservatively save and restore the
+  // original state in case it is needed after the current instruction
+  // (conditional branch).
+  CacheState saved_state;
+  saved_state.Split(*cache_state());
   int call_desc_return_idx = 0;
   DCHECK_LE(sig->return_count(), cache_state_.stack_height());
   VarState* slots = cache_state_.stack_state.end() - sig->return_count();
@@ -1207,6 +1217,7 @@ void LiftoffAssembler::MoveToReturnLocations(
       }
     }
   }
+  cache_state()->Steal(saved_state);
 }
 
 #ifdef ENABLE_SLOW_DCHECKS

@@ -358,7 +358,8 @@ void* ExtractEmbedderDataBackref(Isolate* isolate,
   if (!v8_value->IsObject()) return nullptr;
 
   Handle<Object> v8_object = Utils::OpenHandle(*v8_value);
-  if (!v8_object->IsJSObject() || !JSObject::cast(*v8_object).IsApiWrapper())
+  if (!v8_object->IsJSObject() ||
+      !JSObject::cast(*v8_object).MayHaveEmbedderFields())
     return nullptr;
 
   JSObject js_object = JSObject::cast(*v8_object);

@@ -102,9 +102,9 @@ macro LocaleCompareFastPath<T1: type, T2: type>(
 transitioning builtin StringFastLocaleCompare(implicit context: Context)(
     localeCompareFn: JSFunction, left: JSAny, right: JSAny,
     locales: JSAny): JSAny {
-  if (TaggedEqual(left, right)) return SmiConstant(0);
   try {
     const left = Cast<String>(left) otherwise Bailout;
+    if (TaggedEqual(left, right)) return SmiConstant(0);
     StringToSlice(left) otherwise LeftOneByte, LeftTwoByte;
   } label LeftOneByte(leftSlice: ConstSlice<char8>) {
     try {

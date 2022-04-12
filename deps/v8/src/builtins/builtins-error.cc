@@ -44,10 +44,8 @@ BUILTIN(ErrorCaptureStackTrace) {
 
   // Collect the stack trace.
 
-  RETURN_FAILURE_ON_EXCEPTION(isolate,
-                              isolate->CaptureAndSetDetailedStackTrace(object));
   RETURN_FAILURE_ON_EXCEPTION(
-      isolate, isolate->CaptureAndSetSimpleStackTrace(object, mode, caller));
+      isolate, isolate->CaptureAndSetErrorStack(object, mode, caller));
 
   // Add the stack accessors.
 

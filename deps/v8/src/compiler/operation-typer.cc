@@ -1130,16 +1130,24 @@ SPECULATIVE_NUMBER_BINOP(NumberShiftRightLogical)
 #undef SPECULATIVE_NUMBER_BINOP
 
 Type OperationTyper::BigIntAdd(Type lhs, Type rhs) {
+  DCHECK(lhs.Is(Type::BigInt()));
+  DCHECK(rhs.Is(Type::BigInt()));
+
   if (lhs.IsNone() || rhs.IsNone()) return Type::None();
   return Type::BigInt();
 }
 
 Type OperationTyper::BigIntSubtract(Type lhs, Type rhs) {
+  DCHECK(lhs.Is(Type::BigInt()));
+  DCHECK(rhs.Is(Type::BigInt()));
+
   if (lhs.IsNone() || rhs.IsNone()) return Type::None();
   return Type::BigInt();
 }
 
 Type OperationTyper::BigIntNegate(Type type) {
+  DCHECK(type.Is(Type::BigInt()));
+
   if (type.IsNone()) return type;
   return Type::BigInt();
 }

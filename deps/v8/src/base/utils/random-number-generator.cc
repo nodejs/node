@@ -56,7 +56,7 @@ RandomNumberGenerator::RandomNumberGenerator() {
   DCHECK_EQ(0, result);
   USE(result);
   SetSeed((static_cast<int64_t>(first_half) << 32) + second_half);
-#elif V8_OS_MACOSX || V8_OS_FREEBSD || V8_OS_OPENBSD
+#elif V8_OS_DARWIN || V8_OS_FREEBSD || V8_OS_OPENBSD
   // Despite its prefix suggests it is not RC4 algorithm anymore.
   // It always succeeds while having decent performance and
   // no file descriptor involved.
@@ -87,8 +87,7 @@ RandomNumberGenerator::RandomNumberGenerator() {
   // which provides reasonable entropy, see:
   // https://code.google.com/p/v8/issues/detail?id=2905
   int64_t seed = Time::NowFromSystemTime().ToInternalValue() << 24;
-  seed ^= TimeTicks::HighResolutionNow().ToInternalValue() << 16;
-  seed ^= TimeTicks::Now().ToInternalValue() << 8;
+  seed ^= TimeTicks::Now().ToInternalValue();
   SetSeed(seed);
 #endif  // V8_OS_CYGWIN || V8_OS_WIN
 }

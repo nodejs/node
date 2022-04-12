@@ -5,8 +5,6 @@
 #ifndef V8_CODEGEN_EXTERNAL_REFERENCE_TABLE_H_
 #define V8_CODEGEN_EXTERNAL_REFERENCE_TABLE_H_
 
-#include <vector>
-
 #include "src/builtins/accessors.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/external-reference.h"

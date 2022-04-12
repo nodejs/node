@@ -51,19 +51,20 @@ TEST(WeakReferencesBasic) {
     assm.nop();  // supported on all architectures
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Handle<Code> code =
-        Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-    CHECK(code->IsCode());
+    Handle<CodeT> code = ToCodeT(
+        Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build(),
+        isolate);
+    CHECK(code->IsCodeT());
 
-    lh->set_data1(HeapObjectReference::Weak(ToCodeT(*code)));
+    lh->set_data1(HeapObjectReference::Weak(*code));
     HeapObject code_heap_object;
     CHECK(lh->data1()->GetHeapObjectIfWeak(&code_heap_object));
-    CHECK_EQ(ToCodeT(*code), code_heap_object);
+    CHECK_EQ(*code, code_heap_object);
 
     CcTest::CollectAllGarbage();
 
     CHECK(lh->data1()->GetHeapObjectIfWeak(&code_heap_object));
-    CHECK_EQ(ToCodeT(*code), code_heap_object);
+    CHECK_EQ(*code, code_heap_object);
   }  // code will go out of scope.
 
   CcTest::CollectAllGarbage();

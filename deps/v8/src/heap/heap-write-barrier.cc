@@ -7,6 +7,7 @@
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/marking-barrier.h"
+#include "src/objects/code-inl.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/maybe-object.h"
@@ -49,13 +50,10 @@ void WriteBarrier::MarkingSlowFromGlobalHandle(Heap* heap, HeapObject value) {
 
 // static
 void WriteBarrier::MarkingSlowFromInternalFields(Heap* heap, JSObject host) {
-  // We are not checking the mark bits of host here as (a) there's no
-  // synchronization with the marker and (b) we are writing into a live object
-  // (independent of the mark bits).
-  if (!heap->local_embedder_heap_tracer()->InUse()) return;
-  LocalEmbedderHeapTracer::ProcessingScope scope(
-      heap->local_embedder_heap_tracer());
-  scope.TracePossibleWrapper(host);
+  auto* local_embedder_heap_tracer = heap->local_embedder_heap_tracer();
+  if (!local_embedder_heap_tracer->InUse()) return;
+
+  local_embedder_heap_tracer->EmbedderWriteBarrier(heap, host);
 }
 
 void WriteBarrier::MarkingSlow(Heap* heap, Code host, RelocInfo* reloc_info,
@@ -98,6 +96,22 @@ int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
   // Called by WriteBarrierCodeStubAssembler, which doesnt accept void type
   return 0;
 }
+
+#ifdef ENABLE_SLOW_DCHECKS
+bool WriteBarrier::IsImmortalImmovableHeapObject(HeapObject object) {
+  BasicMemoryChunk* basic_chunk = BasicMemoryChunk::FromHeapObject(object);
+  // All objects in readonly space are immortal and immovable.
+  if (basic_chunk->InReadOnlySpace()) return true;
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+  // There are also objects in "regular" spaces which are immortal and
+  // immovable. Objects on a page that can get compacted are movable and can be
+  // filtered out.
+  if (!chunk->IsFlagSet(MemoryChunk::NEVER_EVACUATE)) return false;
+  // Now we know the object is immovable, check whether it is also immortal.
+  // Builtins are roots and therefore always kept alive by the GC.
+  return object.IsCode() && Code::cast(object).is_builtin();
+}
+#endif
 
 }  // namespace internal
 }  // namespace v8

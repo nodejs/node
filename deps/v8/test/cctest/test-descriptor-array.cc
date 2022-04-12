@@ -25,15 +25,10 @@ using TVariable = compiler::TypedCodeAssemblerVariable<T>;
 
 Handle<Name> NewNameWithHash(Isolate* isolate, const char* str, uint32_t hash,
                              bool is_integer) {
-  uint32_t hash_field = hash << Name::kHashShift;
+  uint32_t hash_field = Name::CreateHashFieldValue(
+      hash, is_integer ? Name::HashFieldType::kIntegerIndex
+                       : Name::HashFieldType::kHash);
 
-  static_assert(Name::kNofHashBitFields == 2, "This test needs updating");
-  static_assert(Name::kHashNotComputedMask == 1, "This test needs updating");
-  static_assert(Name::kIsNotIntegerIndexMask == 2, "This test needs updating");
-
-  if (!is_integer) {
-    hash_field |= Name::kIsNotIntegerIndexMask;
-  }
   Handle<Name> name = isolate->factory()->NewOneByteInternalizedString(
       base::OneByteVector(str), hash_field);
   name->set_raw_hash_field(hash_field);
@@ -223,13 +218,15 @@ TEST(DescriptorArrayHashCollisionMassive) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handle_scope(isolate);
 
-  static_assert(Name::kNofHashBitFields == 2, "This test needs updating");
+  static_assert(Name::HashFieldTypeBits::kSize == 2,
+                "This test might require updating if more HashFieldType values "
+                "are introduced");
 
   std::vector<Handle<Name>> names;
 
   // Use the same hash value for all names.
-  uint32_t hash =
-      static_cast<uint32_t>(isolate->GenerateIdentityHash(Name::kHashBitMask));
+  uint32_t hash = static_cast<uint32_t>(
+      isolate->GenerateIdentityHash(Name::HashBits::kMax));
 
   for (int i = 0; i < kMaxNumberOfDescriptors / 2; ++i) {
     // Add pairs of names having the same base hash value but having different
@@ -269,7 +266,9 @@ TEST(DescriptorArrayHashCollision) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handle_scope(isolate);
 
-  static_assert(Name::kNofHashBitFields == 2, "This test needs updating");
+  static_assert(Name::HashFieldTypeBits::kSize == 2,
+                "This test might require updating if more HashFieldType values "
+                "are introduced");
 
   std::vector<Handle<Name>> names;
   uint32_t hash = 0;
@@ -278,7 +277,7 @@ TEST(DescriptorArrayHashCollision) {
     if (i % 2 == 0) {
       // Change hash value for every pair of names.
       hash = static_cast<uint32_t>(
-          isolate->GenerateIdentityHash(Name::kHashBitMask));
+          isolate->GenerateIdentityHash(Name::HashBits::kMax));
     }
 
     // Add pairs of names having the same base hash value but having different
@@ -318,13 +317,15 @@ TEST(TransitionArrayHashCollisionMassive) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handle_scope(isolate);
 
-  static_assert(Name::kNofHashBitFields == 2, "This test needs updating");
+  static_assert(Name::HashFieldTypeBits::kSize == 2,
+                "This test might require updating if more HashFieldType values "
+                "are introduced");
 
   std::vector<Handle<Name>> names;
 
   // Use the same hash value for all names.
-  uint32_t hash =
-      static_cast<uint32_t>(isolate->GenerateIdentityHash(Name::kHashBitMask));
+  uint32_t hash = static_cast<uint32_t>(
+      isolate->GenerateIdentityHash(Name::HashBits::kMax));
 
   for (int i = 0; i < TransitionsAccessor::kMaxNumberOfTransitions / 2; ++i) {
     // Add pairs of names having the same base hash value but having different
@@ -369,19 +370,21 @@ TEST(TransitionArrayHashCollision) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handle_scope(isolate);
 
-  static_assert(Name::kNofHashBitFields == 2, "This test needs updating");
+  static_assert(Name::HashFieldTypeBits::kSize == 2,
+                "This test might require updating if more HashFieldType values "
+                "are introduced");
 
   std::vector<Handle<Name>> names;
 
   // Use the same hash value for all names.
-  uint32_t hash =
-      static_cast<uint32_t>(isolate->GenerateIdentityHash(Name::kHashBitMask));
+  uint32_t hash = static_cast<uint32_t>(
+      isolate->GenerateIdentityHash(Name::HashBits::kMax));
 
   for (int i = 0; i < TransitionsAccessor::kMaxNumberOfTransitions / 2; ++i) {
     if (i % 2 == 0) {
       // Change hash value for every pair of names.
       hash = static_cast<uint32_t>(
-          isolate->GenerateIdentityHash(Name::kHashBitMask));
+          isolate->GenerateIdentityHash(Name::HashBits::kMax));
     }
     // Add pairs of names having the same base hash value but having different
     // values of is_integer bit.

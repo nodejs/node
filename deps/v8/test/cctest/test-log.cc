@@ -1068,6 +1068,17 @@ UNINITIALIZED_TEST(ConsoleTimeEvents) {
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
     ScopedLoggerInitializer logger(isolate);
+    {
+      // setup console global.
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::String> name = v8::String::NewFromUtf8Literal(
+          isolate, "console", v8::NewStringType::kInternalized);
+      v8::Local<v8::Context> context = isolate->GetCurrentContext();
+      v8::Local<v8::Value> console = context->GetExtrasBindingObject()
+                                         ->Get(context, name)
+                                         .ToLocalChecked();
+      context->Global()->Set(context, name, console).FromJust();
+    }
     // Test that console time events are properly logged
     const char* source_text =
         "console.time();"
@@ -1129,10 +1140,7 @@ UNINITIALIZED_TEST(LogFunctionEvents) {
 
     logger.StopLogging();
 
-    // Ignore all the log entries that happened before warmup
-    size_t start = logger.IndexOfLine(
-        {"function,first-execution", "warmUpEndMarkerFunction"});
-    CHECK(start != std::string::npos);
+    // TODO(cbruni): Reimplement first-execution logging if needed.
     std::vector<std::vector<std::string>> lines = {
         // Create a new script
         {"script,create"},
@@ -1159,23 +1167,17 @@ UNINITIALIZED_TEST(LogFunctionEvents) {
         //         - execute eager functions.
         {"function,parse-function,", ",lazyFunction"},
         {"function,interpreter-lazy,", ",lazyFunction"},
-        {"function,first-execution,", ",lazyFunction"},
 
         {"function,parse-function,", ",lazyInnerFunction"},
         {"function,interpreter-lazy,", ",lazyInnerFunction"},
-        {"function,first-execution,", ",lazyInnerFunction"},
-
-        {"function,first-execution,", ",eagerFunction"},
 
         {"function,parse-function,", ",Foo"},
         {"function,interpreter-lazy,", ",Foo"},
-        {"function,first-execution,", ",Foo"},
 
         {"function,parse-function,", ",Foo.foo"},
         {"function,interpreter-lazy,", ",Foo.foo"},
-        {"function,first-execution,", ",Foo.foo"},
     };
-    CHECK(logger.ContainsLinesInOrder(lines, start));
+    CHECK(logger.ContainsLinesInOrder(lines));
   }
   i::FLAG_log_function_events = false;
   isolate->Dispose();
@@ -1193,8 +1195,10 @@ UNINITIALIZED_TEST(BuiltinsNotLoggedAsLazyCompile) {
     logger.LogCompiledFunctions();
     logger.StopLogging();
 
-    i::Handle<i::Code> builtin = logger.i_isolate()->builtins()->code_handle(
-        i::Builtin::kBooleanConstructor);
+    i::Isolate* i_isolate = logger.i_isolate();
+    i::Handle<i::Code> builtin = FromCodeT(
+        i_isolate->builtins()->code_handle(i::Builtin::kBooleanConstructor),
+        i_isolate);
     v8::base::EmbeddedVector<char, 100> buffer;
 
     // Should only be logged as "Builtin" with a name, never as "LazyCompile".

@@ -53,6 +53,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/strings.h"
 #include "src/codegen/compilation-cache.h"
+#include "src/compiler/globals.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments.h"
 #include "src/execution/execution.h"
@@ -60,9 +61,9 @@
 #include "src/execution/protectors-inl.h"
 #include "src/execution/vm-state.h"
 #include "src/handles/global-handles.h"
+#include "src/heap/evacuation-allocator.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
-#include "src/heap/local-allocator.h"
 #include "src/logging/metrics.h"
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/feedback-vector.h"
@@ -167,22 +168,6 @@ static void IncrementingSignatureCallback(
 
 static void Returns42(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(42);
-}
-
-// Tests that call v8::V8::Dispose() cannot be threaded.
-UNINITIALIZED_TEST(InitializeAndDisposeOnce) {
-  CHECK(v8::V8::Initialize());
-  CHECK(v8::V8::Dispose());
-}
-
-
-// Tests that call v8::V8::Dispose() cannot be threaded.
-UNINITIALIZED_TEST(InitializeAndDisposeMultiple) {
-  for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
-  for (int i = 0; i < 3; ++i) CHECK(v8::V8::Initialize());
-  for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
-  for (int i = 0; i < 3; ++i) CHECK(v8::V8::Initialize());
-  for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
 }
 
 THREADED_TEST(Handles) {
@@ -709,8 +694,9 @@ TEST(MakingExternalStringConditions) {
   CHECK(local_string->CanMakeExternal());
 
   // Tiny strings are not in-place externalizable when pointer compression is
-  // enabled.
-  CHECK_EQ(i::kTaggedSize == i::kSystemPointerSize,
+  // enabled, but they are if sandboxed external pointers are enabled.
+  CHECK_EQ(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL ||
+               i::kTaggedSize == i::kSystemPointerSize,
            tiny_local_string->CanMakeExternal());
 }
 
@@ -739,8 +725,9 @@ TEST(MakingExternalOneByteStringConditions) {
   CHECK(local_string->CanMakeExternal());
 
   // Tiny strings are not in-place externalizable when pointer compression is
-  // enabled.
-  CHECK_EQ(i::kTaggedSize == i::kSystemPointerSize,
+  // enabled, but they are if sandboxed external pointers are enabled.
+  CHECK_EQ(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL ||
+               i::kTaggedSize == i::kSystemPointerSize,
            tiny_local_string->CanMakeExternal());
 }
 
@@ -3066,7 +3053,7 @@ THREADED_TEST(InternalFieldsAlignedPointers) {
   CheckAlignedPointerInInternalField(obj, stack_allocated);
 
   // The aligned pointer must have the top bits be zero on 64-bit machines (at
-  // least if the heap sandbox is enabled).
+  // least if the sandboxed external pointers are enabled).
   void* huge = reinterpret_cast<void*>(0x0000fffffffffffe);
   CheckAlignedPointerInInternalField(obj, huge);
 
@@ -3144,7 +3131,7 @@ THREADED_TEST(EmbedderDataAlignedPointers) {
   CHECK_EQ(3, (*env)->GetNumberOfEmbedderDataFields());
 
   // The aligned pointer must have the top bits be zero on 64-bit machines (at
-  // least if the heap sandbox is enabled).
+  // least if the sandboxed external pointers are enabled).
   void* huge = reinterpret_cast<void*>(0x0000fffffffffffe);
   CheckAlignedPointerInEmbedderData(&env, 3, huge);
   CHECK_EQ(4, (*env)->GetNumberOfEmbedderDataFields());
@@ -7841,6 +7828,12 @@ void CheckInternalFields(
 }
 
 void InternalFieldCallback(bool global_gc) {
+  // Manual GC scope as --stress-incremental-marking starts marking early and
+  // setting internal pointer fields mark the object for a heap layout change,
+  // which prevents it from being reclaimed and the callbacks from being
+  // executed.
+  ManualGCScope manual_gc_scope;
+
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -16719,11 +16712,13 @@ TEST(TestIdleNotification) {
           i::GarbageCollectionReason::kTesting);
     }
     finished = env->GetIsolate()->IdleNotificationDeadline(
-        (v8::base::TimeTicks::HighResolutionNow().ToInternalValue() /
+        (v8::base::TimeTicks::Now().ToInternalValue() /
          static_cast<double>(v8::base::Time::kMicrosecondsPerSecond)) +
         IdlePauseInSeconds);
     if (CcTest::heap()->mark_compact_collector()->sweeping_in_progress()) {
-      CcTest::heap()->mark_compact_collector()->EnsureSweepingCompleted();
+      CcTest::heap()->mark_compact_collector()->EnsureSweepingCompleted(
+          v8::internal::MarkCompactCollector::SweepingForcedFinalizationMode::
+              kV8Only);
     }
   }
   intptr_t final_size = CcTest::heap()->SizeOfObjects();
@@ -23801,9 +23796,9 @@ void RunStreamingTest(const char** chunks, v8::ScriptType type,
   v8::ScriptCompiler::ScriptStreamingTask* task =
       v8::ScriptCompiler::StartStreaming(isolate, &source, type);
 
-  // TestSourceStream::GetMoreData won't block, so it's OK to just run the
-  // task here in the main thread.
-  task->Run();
+  // TestSourceStream::GetMoreData won't block, so it's OK to just join the
+  // background task.
+  StreamerThread::StartThreadForTaskAndJoin(task);
   delete task;
 
   // Possible errors are only produced while compiling.
@@ -24126,7 +24121,9 @@ TEST(StreamingWithDebuggingEnabledLate) {
   v8::ScriptCompiler::ScriptStreamingTask* task =
       v8::ScriptCompiler::StartStreaming(isolate, &source);
 
-  task->Run();
+  // TestSourceStream::GetMoreData won't block, so it's OK to just join the
+  // background task.
+  StreamerThread::StartThreadForTaskAndJoin(task);
   delete task;
 
   CHECK(!try_catch.HasCaught());
@@ -24236,7 +24233,10 @@ TEST(StreamingWithHarmonyScopes) {
       v8::ScriptCompiler::StreamedSource::ONE_BYTE);
   v8::ScriptCompiler::ScriptStreamingTask* task =
       v8::ScriptCompiler::StartStreaming(isolate, &source);
-  task->Run();
+
+  // TestSourceStream::GetMoreData won't block, so it's OK to just join the
+  // background task.
+  StreamerThread::StartThreadForTaskAndJoin(task);
   delete task;
 
   // Parsing should succeed (the script will be parsed and compiled in a context
@@ -24258,6 +24258,57 @@ TEST(StreamingWithHarmonyScopes) {
   delete[] full_source;
 }
 
+// Regression test for crbug.com/v8/12668. Verifies that after a streamed script
+// is inserted into the isolate script cache, a non-streamed script with
+// identical origin can reuse that data.
+TEST(StreamingWithIsolateScriptCache) {
+  const char* chunks[] = {"'use strict'; (function test() { return 13; })",
+                          nullptr};
+  const char* full_source = chunks[0];
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::ScriptOrigin origin(isolate, v8_str("http://foo.com"), 0, 0, false, -1,
+                          v8::Local<v8::Value>(), false, false, false);
+  i::Handle<i::JSFunction> first_function;
+  i::Handle<i::JSFunction> second_function;
+
+  // Run the script using streaming.
+  {
+    LocalContext env;
+
+    v8::ScriptCompiler::StreamedSource source(
+        std::make_unique<TestSourceStream>(chunks),
+        v8::ScriptCompiler::StreamedSource::ONE_BYTE);
+    v8::ScriptCompiler::ScriptStreamingTask* task =
+        v8::ScriptCompiler::StartStreaming(isolate, &source,
+                                           v8::ScriptType::kClassic);
+    StreamerThread::StartThreadForTaskAndJoin(task);
+    delete task;
+    v8::Local<Script> script =
+        v8::ScriptCompiler::Compile(env.local(), &source, v8_str(full_source),
+                                    origin)
+            .ToLocalChecked();
+    v8::Local<Value> result(script->Run(env.local()).ToLocalChecked());
+    first_function =
+        i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*result));
+  }
+
+  // Run the same script in another Context without streaming.
+  {
+    LocalContext env;
+    v8::ScriptCompiler::Source script_source(v8_str(full_source), origin);
+    Local<Script> script =
+        v8::ScriptCompiler::Compile(env.local(), &script_source)
+            .ToLocalChecked();
+    v8::Local<Value> result(script->Run(env.local()).ToLocalChecked());
+    second_function =
+        i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*result));
+  }
+
+  // The functions created by both copies of the script should refer to the same
+  // SharedFunctionInfo instance due to the isolate script cache.
+  CHECK_EQ(first_function->shared(), second_function->shared());
+}
 
 TEST(CodeCache) {
   v8::Isolate::CreateParams create_params;
@@ -26603,6 +26654,90 @@ TEST(ImportMetaThrowHandled) {
   CHECK(!try_catch.HasCaught());
 }
 
+v8::MaybeLocal<v8::Context> HostCreateShadowRealmContextCallbackStatic(
+    v8::Local<v8::Context> initiator_context) {
+  CHECK(!initiator_context.IsEmpty());
+  return v8::Context::New(initiator_context->GetIsolate());
+}
+
+TEST(CreateShadowRealmContextHostNotSupported) {
+  i::FLAG_harmony_shadow_realm = true;
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  Local<String> url = v8_str("www.google.com");
+  Local<String> source_text = v8_str("new ShadowRealm()");
+  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
+                          false, false, false);
+  v8::ScriptCompiler::Source source(source_text, origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(context.local(), &source).ToLocalChecked();
+
+  v8::TryCatch try_catch(isolate);
+  v8::MaybeLocal<v8::Value> result = script->Run(context.local());
+  CHECK(try_catch.HasCaught());
+  CHECK(result.IsEmpty());
+  CHECK(v8_str("Error: Not supported")
+            ->Equals(isolate->GetCurrentContext(),
+                     try_catch.Exception()
+                         ->ToString(isolate->GetCurrentContext())
+                         .ToLocalChecked())
+            .FromJust());
+}
+
+TEST(CreateShadowRealmContext) {
+  i::FLAG_harmony_shadow_realm = true;
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  isolate->SetHostCreateShadowRealmContextCallback(
+      HostCreateShadowRealmContextCallbackStatic);
+
+  Local<String> url = v8_str("www.google.com");
+  Local<String> source_text = v8_str("new ShadowRealm()");
+  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
+                          false, false, false);
+  v8::ScriptCompiler::Source source(source_text, origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(context.local(), &source).ToLocalChecked();
+
+  Local<Value> result = script->Run(context.local()).ToLocalChecked();
+  CHECK(result->IsObject());
+  i::Handle<i::Object> object = v8::Utils::OpenHandle(*result);
+  CHECK(object->IsJSShadowRealm());
+}
+
+v8::MaybeLocal<v8::Context> HostCreateShadowRealmContextCallbackThrow(
+    v8::Local<v8::Context> initiator_context) {
+  CcTest::isolate()->ThrowException(v8_num(42));
+  return v8::MaybeLocal<v8::Context>();
+}
+
+TEST(CreateShadowRealmContextThrow) {
+  i::FLAG_harmony_shadow_realm = true;
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  isolate->SetHostCreateShadowRealmContextCallback(
+      HostCreateShadowRealmContextCallbackThrow);
+
+  Local<String> url = v8_str("www.google.com");
+  Local<String> source_text = v8_str("new ShadowRealm()");
+  v8::ScriptOrigin origin(isolate, url, 0, 0, false, -1, Local<v8::Value>(),
+                          false, false, false);
+  v8::ScriptCompiler::Source source(source_text, origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(context.local(), &source).ToLocalChecked();
+
+  v8::TryCatch try_catch(isolate);
+  CHECK(script->Run(context.local()).IsEmpty());
+  CHECK(try_catch.HasCaught());
+  CHECK(try_catch.Exception()->StrictEquals(v8_num(42)));
+}
+
 TEST(GetModuleNamespace) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
@@ -27990,7 +28125,7 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>, void> {
                            v8::FastApiCallbackOptions& options) {
     v8::Object* receiver_obj = *receiver;
     if (!IsValidUnwrapObject(receiver_obj)) {
-      options.fallback = 1;
+      options.fallback = true;
       return;
     }
     ApiNumberChecker<T>* receiver_ptr =
@@ -28003,7 +28138,7 @@ struct ApiNumberChecker : BasicApiChecker<T, ApiNumberChecker<T>, void> {
       // against after loading it from a stack slot, as defined in
       // EffectControlLinearizer::LowerFastApiCall.
       CHECK_EQ(options.fallback, 0);
-      options.fallback = 1;
+      options.fallback = true;
     }
   }
 
@@ -28160,30 +28295,28 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
   return try_catch.HasCaught();
 }
 
-template <typename T>
-void CheckEqual(T actual, T expected) {
-  CHECK_EQ(actual, expected);
-}
-
-template <>
-void CheckEqual<float>(float actual, float expected) {
-  if (std::isnan(expected)) {
-    CHECK(std::isnan(actual));
-  } else {
-    // This differentiates between -0 and +0.
-    CHECK_EQ(std::signbit(actual), std::signbit(expected));
-    CHECK_EQ(actual, expected);
+template <typename I, std::enable_if_t<std::is_integral<I>::value, bool> = true>
+void CheckEqual(I actual, I expected, std::ostringstream& error_msg) {
+  if (actual != expected) {
+    error_msg << "Value mismatch (expected: " << expected
+              << ", actual: " << actual << ")";
   }
 }
 
-template <>
-void CheckEqual<double>(double actual, double expected) {
+template <typename F,
+          std::enable_if_t<std::is_floating_point<F>::value, bool> = true>
+void CheckEqual(F actual, F expected, std::ostringstream& error_msg) {
   if (std::isnan(expected)) {
-    CHECK(std::isnan(actual));
+    if (!std::isnan(actual)) {
+      error_msg << "Value mismatch (expected: " << expected
+                << ", actual: " << actual << ")";
+    }
   } else {
     // This differentiates between -0 and +0.
-    CHECK_EQ(std::signbit(actual), std::signbit(expected));
-    CHECK_EQ(actual, expected);
+    if (std::signbit(actual) != std::signbit(expected) || actual != expected) {
+      error_msg << "Value mismatch (expected: " << expected
+                << ", actual: " << actual << ")";
+    }
   }
 }
 
@@ -28214,20 +28347,45 @@ void CallAndCheck(
   }
 
   CHECK_EQ(expected_behavior == Behavior::kException, has_caught);
-  CHECK_EQ(expected_path == ApiCheckerResult::kSlowCalled,
-           !checker.DidCallFast());
-  CHECK_EQ(expected_path == ApiCheckerResult::kFastCalled,
-           !checker.DidCallSlow());
+
+  std::ostringstream error_msg;
+  if (expected_path == ApiCheckerResult::kSlowCalled) {
+    if (checker.DidCallFast()) {
+      error_msg << "Fast path was called when only the default was expected. ";
+    }
+  }
+  if (expected_path == ApiCheckerResult::kFastCalled) {
+    if (checker.DidCallSlow()) {
+      error_msg << "Default path was called when no fallback was expected. ";
+    }
+  }
+  if (error_msg.str().length() > 0) {
+    error_msg << "Expected value was: " << expected_value;
+    CHECK_WITH_MSG(false, error_msg.str().c_str());
+  }
 
   if (expected_path & ApiCheckerResult::kSlowCalled) {
-    CHECK(checker.DidCallSlow());
+    if (!checker.DidCallSlow()) {
+      error_msg << "Default path was expected, but wasn't called. ";
+    }
     if (expected_behavior != Behavior::kException) {
-      CheckEqual(checker.slow_value_.ToChecked(), expected_value);
+      CheckEqual(checker.slow_value_.ToChecked(), expected_value, error_msg);
+    }
+    if (error_msg.str().length() > 0) {
+      error_msg << " from default path. ";
     }
   }
   if (expected_path & ApiCheckerResult::kFastCalled) {
-    CHECK(checker.DidCallFast());
-    CheckEqual(checker.fast_value_, expected_value);
+    if (!checker.DidCallFast()) {
+      error_msg << "Fast path was expected, but wasn't called. ";
+    }
+    CheckEqual(checker.fast_value_, expected_value, error_msg);
+    if (error_msg.str().length() > 0) {
+      error_msg << " from fast path";
+    }
+  }
+  if (error_msg.str().length() > 0) {
+    CHECK_WITH_MSG(false, error_msg.str().c_str());
   }
 }
 
@@ -28995,13 +29153,13 @@ TEST(FastApiCalls) {
 
   // Fallback to slow call and don't throw an exception.
   CallAndCheck<int32_t>(
-      42, Behavior::kNoException,
-      ApiCheckerResult::kFastCalled | ApiCheckerResult::kSlowCalled, v8_num(42),
+      43, Behavior::kNoException,
+      ApiCheckerResult::kFastCalled | ApiCheckerResult::kSlowCalled, v8_num(43),
       Behavior::kNoException, FallbackPolicy::kRequestFallback);
 
   // Doesn't fallback to slow call, so don't throw an exception.
   CallAndCheck<int32_t>(
-      42, Behavior::kNoException, ApiCheckerResult::kFastCalled, v8_num(42),
+      44, Behavior::kNoException, ApiCheckerResult::kFastCalled, v8_num(44),
       Behavior::kNoException, FallbackPolicy::kDontRequestFallback);
 
   // Wrong number of arguments

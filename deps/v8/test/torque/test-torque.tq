@@ -196,8 +196,8 @@ macro TestFunctionPointers(implicit context: Context)(): Boolean {
 
 @export
 macro TestVariableRedeclaration(implicit context: Context)(): Boolean {
-  let _var1: int31 = FromConstexpr<bool>(42 == 0) ? 0 : 1;
-  let _var2: int31 = FromConstexpr<bool>(42 == 0) ? 1 : 0;
+  let _var1: int31 = FromConstexpr<bool>(42 == 0) ? FromConstexpr<int31>(0) : 1;
+  let _var2: int31 = FromConstexpr<bool>(42 == 0) ? FromConstexpr<int31>(1) : 0;
   return True;
 }
 
