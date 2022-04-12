@@ -17,8 +17,6 @@ namespace internal {
   V(CouldNotGrowElements, "failed to grow elements store")                     \
   V(DeoptimizeNow, "%_DeoptimizeNow")                                          \
   V(DivisionByZero, "division by zero")                                        \
-  V(DynamicCheckMaps, "dynamic check maps failed")                             \
-  V(DynamicCheckMapsInlined, "dynamic check maps failed")                      \
   V(Hole, "hole")                                                              \
   V(InstanceMigrationFailed, "instance migration failed")                      \
   V(InsufficientTypeFeedbackForCall, "Insufficient type feedback for call")    \

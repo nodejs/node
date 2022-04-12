@@ -303,10 +303,6 @@ class Builtins {
   static void Generate_InterpreterPushArgsThenConstructImpl(
       MacroAssembler* masm, InterpreterPushArgsMode mode);
 
-  template <class Descriptor>
-  static void Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm,
-                                                  Handle<CodeT> builtin_target);
-
 #define DECLARE_ASM(Name, ...) \
   static void Generate_##Name(MacroAssembler* masm);
 #define DECLARE_TF(Name, ...) \

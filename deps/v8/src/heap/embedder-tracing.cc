@@ -6,7 +6,6 @@
 
 #include "include/v8-cppgc.h"
 #include "src/base/logging.h"
-#include "src/common/allow-deprecated.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/embedder-tracing-inl.h"
 #include "src/heap/gc-tracer.h"
@@ -210,13 +209,6 @@ bool DefaultEmbedderRootsHandler::IsRoot(
     const v8::TracedReference<v8::Value>& handle) {
   return !tracer_ || tracer_->IsRootForNonTracingGC(handle);
 }
-
-START_ALLOW_USE_DEPRECATED()
-bool DefaultEmbedderRootsHandler::IsRoot(
-    const v8::TracedGlobal<v8::Value>& handle) {
-  return !tracer_ || tracer_->IsRootForNonTracingGC(handle);
-}
-END_ALLOW_USE_DEPRECATED()
 
 void DefaultEmbedderRootsHandler::ResetRoot(
     const v8::TracedReference<v8::Value>& handle) {

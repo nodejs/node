@@ -178,20 +178,6 @@ PropertyAccessInfo PropertyAccessInfo::DictionaryProtoAccessorConstant(
                             constant, property_name, {{receiver_map}, zone});
 }
 
-// static
-MinimorphicLoadPropertyAccessInfo MinimorphicLoadPropertyAccessInfo::DataField(
-    int offset, bool is_inobject, Representation field_representation,
-    Type field_type) {
-  return MinimorphicLoadPropertyAccessInfo(kDataField, offset, is_inobject,
-                                           field_representation, field_type);
-}
-
-// static
-MinimorphicLoadPropertyAccessInfo MinimorphicLoadPropertyAccessInfo::Invalid() {
-  return MinimorphicLoadPropertyAccessInfo(
-      kInvalid, -1, false, Representation::None(), Type::None());
-}
-
 PropertyAccessInfo::PropertyAccessInfo(Zone* zone)
     : kind_(kInvalid),
       lookup_start_object_maps_(zone),
@@ -261,15 +247,6 @@ PropertyAccessInfo::PropertyAccessInfo(
       field_type_(Type::Any()),
       dictionary_index_(dictionary_index),
       name_{name} {}
-
-MinimorphicLoadPropertyAccessInfo::MinimorphicLoadPropertyAccessInfo(
-    Kind kind, int offset, bool is_inobject,
-    Representation field_representation, Type field_type)
-    : kind_(kind),
-      is_inobject_(is_inobject),
-      offset_(offset),
-      field_representation_(field_representation),
-      field_type_(field_type) {}
 
 namespace {
 
@@ -680,20 +657,6 @@ PropertyAccessInfo AccessInfoFactory::ComputeDictionaryProtoAccessInfo(
   return AccessorAccessInfoHelper(isolate(), zone(), broker(), this,
                                   receiver_map, name, holder.map(), holder,
                                   access_mode, get_accessors);
-}
-
-MinimorphicLoadPropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
-    MinimorphicLoadPropertyAccessFeedback const& feedback) const {
-  DCHECK(feedback.handler()->IsSmi());
-  int handler = Smi::cast(*feedback.handler()).value();
-  bool is_inobject = LoadHandler::IsInobjectBits::decode(handler);
-  bool is_double = LoadHandler::IsDoubleBits::decode(handler);
-  int offset = LoadHandler::FieldIndexBits::decode(handler) * kTaggedSize;
-  Representation field_rep =
-      is_double ? Representation::Double() : Representation::Tagged();
-  Type field_type = is_double ? Type::Number() : Type::Any();
-  return MinimorphicLoadPropertyAccessInfo::DataField(offset, is_inobject,
-                                                      field_rep, field_type);
 }
 
 bool AccessInfoFactory::TryLoadPropertyDetails(

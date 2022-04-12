@@ -520,21 +520,13 @@ constexpr int kNoDeoptimizationId = -1;
 //   code is executed.
 // - Soft: similar to lazy deoptimization, but does not contribute to the
 //   total deopt count which can lead to disabling optimization for a function.
-// - Bailout: a check failed in the optimized code but we don't
-//   deoptimize the code, but try to heal the feedback and try to rerun
-//   the optimized code again.
-// - EagerWithResume: a check failed in the optimized code, but we can execute
-//   a more expensive check in a builtin that might either result in us resuming
-//   execution in the optimized code, or deoptimizing immediately.
 enum class DeoptimizeKind : uint8_t {
   kEager,
   kSoft,
-  kBailout,
   kLazy,
-  kEagerWithResume,
 };
 constexpr DeoptimizeKind kFirstDeoptimizeKind = DeoptimizeKind::kEager;
-constexpr DeoptimizeKind kLastDeoptimizeKind = DeoptimizeKind::kEagerWithResume;
+constexpr DeoptimizeKind kLastDeoptimizeKind = DeoptimizeKind::kLazy;
 STATIC_ASSERT(static_cast<int>(kFirstDeoptimizeKind) == 0);
 constexpr int kDeoptimizeKindCount = static_cast<int>(kLastDeoptimizeKind) + 1;
 inline size_t hash_value(DeoptimizeKind kind) {
@@ -548,10 +540,6 @@ inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
       return os << "Soft";
     case DeoptimizeKind::kLazy:
       return os << "Lazy";
-    case DeoptimizeKind::kBailout:
-      return os << "Bailout";
-    case DeoptimizeKind::kEagerWithResume:
-      return os << "EagerMaybeResume";
   }
 }
 
@@ -1817,12 +1805,6 @@ enum class TraceRetainingPathMode { kEnabled, kDisabled };
 // function expressions, and for the receiver. Must be declared here so that it
 // can be used in Torque.
 enum class VariableAllocationInfo { NONE, STACK, CONTEXT, UNUSED };
-
-enum class DynamicCheckMapsStatus : uint8_t {
-  kSuccess = 0,
-  kBailout = 1,
-  kDeopt = 2
-};
 
 #ifdef V8_COMPRESS_POINTERS
 class PtrComprCageBase {

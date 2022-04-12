@@ -439,41 +439,6 @@ std::ostream& operator<<(std::ostream&, CheckMapsParameters const&);
 CheckMapsParameters const& CheckMapsParametersOf(Operator const*)
     V8_WARN_UNUSED_RESULT;
 
-// A descriptor for dynamic map checks.
-class DynamicCheckMapsParameters final {
- public:
-  enum ICState { kMonomorphic, kPolymorphic };
-
-  DynamicCheckMapsParameters(CheckMapsFlags flags, Handle<Object> handler,
-                             ZoneHandleSet<Map> const& maps,
-                             const FeedbackSource& feedback)
-      : flags_(flags), handler_(handler), maps_(maps), feedback_(feedback) {}
-
-  CheckMapsFlags flags() const { return flags_; }
-  Handle<Object> handler() const { return handler_; }
-  ZoneHandleSet<Map> const& maps() const { return maps_; }
-  FeedbackSource const& feedback() const { return feedback_; }
-  ICState state() const {
-    return maps_.size() == 1 ? ICState::kMonomorphic : ICState::kPolymorphic;
-  }
-
- private:
-  CheckMapsFlags const flags_;
-  Handle<Object> const handler_;
-  ZoneHandleSet<Map> const maps_;
-  FeedbackSource const feedback_;
-};
-
-bool operator==(DynamicCheckMapsParameters const&,
-                DynamicCheckMapsParameters const&);
-
-size_t hash_value(DynamicCheckMapsParameters const&);
-
-std::ostream& operator<<(std::ostream&, DynamicCheckMapsParameters const&);
-
-DynamicCheckMapsParameters const& DynamicCheckMapsParametersOf(Operator const*)
-    V8_WARN_UNUSED_RESULT;
-
 ZoneHandleSet<Map> const& MapGuardMapsOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
 // Parameters for CompareMaps operator.
@@ -927,9 +892,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckInternalizedString();
   const Operator* CheckMaps(CheckMapsFlags, ZoneHandleSet<Map>,
                             const FeedbackSource& = FeedbackSource());
-  const Operator* DynamicCheckMaps(CheckMapsFlags flags, Handle<Object> handler,
-                                   ZoneHandleSet<Map> const& maps,
-                                   const FeedbackSource& feedback);
   const Operator* CheckNotTaggedHole();
   const Operator* CheckNumber(const FeedbackSource& feedback);
   const Operator* CheckReceiver();

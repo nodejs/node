@@ -1078,7 +1078,7 @@ class DeoptimizationData : public FixedArray {
   static const int kSharedFunctionInfoIndex = 6;
   static const int kInliningPositionsIndex = 7;
   static const int kDeoptExitStartIndex = 8;
-  static const int kEagerSoftAndBailoutDeoptCountIndex = 9;
+  static const int kNonLazyDeoptCountIndex = 9;
   static const int kLazyDeoptCountIndex = 10;
   static const int kFirstDeoptEntryIndex = 11;
 
@@ -1107,7 +1107,7 @@ class DeoptimizationData : public FixedArray {
   DECL_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
   DECL_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
   DECL_ELEMENT_ACCESSORS(DeoptExitStart, Smi)
-  DECL_ELEMENT_ACCESSORS(EagerSoftAndBailoutDeoptCount, Smi)
+  DECL_ELEMENT_ACCESSORS(NonLazyDeoptCount, Smi)
   DECL_ELEMENT_ACCESSORS(LazyDeoptCount, Smi)
 
 #undef DECL_ELEMENT_ACCESSORS

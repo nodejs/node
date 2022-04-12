@@ -80,7 +80,6 @@ class EffectControlLinearizer {
   Node* LowerChangeTaggedToTaggedSigned(Node* node);
   Node* LowerCheckInternalizedString(Node* node, Node* frame_state);
   void LowerCheckMaps(Node* node, Node* frame_state);
-  void LowerDynamicCheckMaps(Node* node, Node* frame_state);
   Node* LowerCompareMaps(Node* node);
   Node* LowerCheckNumber(Node* node, Node* frame_state);
   Node* LowerCheckClosure(Node* node, Node* frame_state);
@@ -979,9 +978,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kCheckMaps:
       LowerCheckMaps(node, frame_state);
-      break;
-    case IrOpcode::kDynamicCheckMaps:
-      LowerDynamicCheckMaps(node, frame_state);
       break;
     case IrOpcode::kCompareMaps:
       result = LowerCompareMaps(node);
@@ -1930,56 +1926,6 @@ void EffectControlLinearizer::TryMigrateInstance(Node* value, Node* value_map) {
           __ ExternalConstant(ExternalReference::Create(id)),
           __ Int32Constant(1), __ NoContextConstant());
   __ Goto(&done);
-  __ Bind(&done);
-}
-
-void EffectControlLinearizer::LowerDynamicCheckMaps(Node* node,
-                                                    Node* frame_state_node) {
-  DynamicCheckMapsParameters const& p =
-      DynamicCheckMapsParametersOf(node->op());
-  FrameState frame_state(frame_state_node);
-  Node* value = node->InputAt(0);
-
-  FeedbackSource const& feedback = p.feedback();
-  Node* feedback_vector = __ HeapConstant(feedback.vector);
-  Node* slot_index = __ IntPtrConstant(feedback.index());
-  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
-  Node* actual_handler =
-      p.handler()->IsSmi()
-          ? __ SmiConstant(Smi::ToInt(*p.handler()))
-          : __ HeapConstant(Handle<HeapObject>::cast(p.handler()));
-
-  auto done = __ MakeLabel();
-
-  ZoneHandleSet<Map> maps = p.maps();
-  size_t const map_count = maps.size();
-  for (size_t i = 0; i < map_count; ++i) {
-    Node* map = __ HeapConstant(maps[i]);
-    Node* check = __ TaggedEqual(value_map, map);
-    if (i == map_count - 1) {
-      if (p.flags() & CheckMapsFlag::kTryMigrateInstance) {
-        auto migrate = __ MakeDeferredLabel();
-        __ BranchWithCriticalSafetyCheck(check, &done, &migrate);
-
-        __ Bind(&migrate);
-        TryMigrateInstance(value, value_map);
-
-        // Reload the current map of the {value} before performing the dynanmic
-        // map check.
-        value_map = __ LoadField(AccessBuilder::ForMap(), value);
-      }
-
-      __ DynamicCheckMapsWithDeoptUnless(check, slot_index, value_map,
-                                         actual_handler, feedback_vector,
-                                         frame_state);
-      __ Goto(&done);
-    } else {
-      auto next_map = __ MakeLabel();
-      __ BranchWithCriticalSafetyCheck(check, &done, &next_map);
-      __ Bind(&next_map);
-    }
-  }
-
   __ Bind(&done);
 }
 
