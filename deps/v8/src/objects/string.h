@@ -391,6 +391,9 @@ class String : public TorqueGeneratedString<String, Name> {
   V8_EXPORT_PRIVATE bool HasOneBytePrefix(base::Vector<const char> str);
   V8_EXPORT_PRIVATE inline bool IsOneByteEqualTo(base::Vector<const char> str);
 
+  // Returns true if the |str| is a valid ECMAScript identifier.
+  static bool IsIdentifier(Isolate* isolate, Handle<String> str);
+
   // Return a UTF8 representation of the string.  The string is null
   // terminated but may optionally contain nulls.  Length is returned
   // in length_output if length_output is not a null pointer  The string
