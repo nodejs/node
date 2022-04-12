@@ -12,6 +12,17 @@
 namespace v8 {
 namespace internal {
 
+// This enum are states that how many OSR code caches belong to a SFI. Without
+// this enum, need to check all OSR code cache entries to know whether a
+// JSFunction's SFI has OSR code cache. The enum value kCachedMultiple is for
+// doing time-consuming loop check only when the very unlikely state change
+// kCachedMultiple -> { kCachedOnce | kCachedMultiple }.
+enum OSRCodeCacheStateOfSFI : uint8_t {
+  kNotCached,       // Likely state, no OSR code cache
+  kCachedOnce,      // Unlikely state, one OSR code cache
+  kCachedMultiple,  // Very unlikely state, multiple OSR code caches
+};
+
 class V8_EXPORT OSROptimizedCodeCache : public WeakFixedArray {
  public:
   DECL_CAST(OSROptimizedCodeCache)
@@ -32,7 +43,7 @@ class V8_EXPORT OSROptimizedCodeCache : public WeakFixedArray {
   // kOSRCodeCacheInitialLength entries.
   static void AddOptimizedCode(Handle<NativeContext> context,
                                Handle<SharedFunctionInfo> shared,
-                               Handle<Code> code, BytecodeOffset osr_offset);
+                               Handle<CodeT> code, BytecodeOffset osr_offset);
   // Reduces the size of the OSR code cache if the number of valid entries are
   // less than the current capacity of the cache.
   static void Compact(Handle<NativeContext> context);
@@ -42,11 +53,15 @@ class V8_EXPORT OSROptimizedCodeCache : public WeakFixedArray {
   // Returns the code corresponding to the shared function |shared| and
   // BytecodeOffset |offset| if an entry exists in the cache. Returns an empty
   // object otherwise.
-  Code GetOptimizedCode(Handle<SharedFunctionInfo> shared,
-                        BytecodeOffset osr_offset, Isolate* isolate);
+  CodeT GetOptimizedCode(Handle<SharedFunctionInfo> shared,
+                         BytecodeOffset osr_offset, Isolate* isolate);
 
   // Remove all code objects marked for deoptimization from OSR code cache.
   void EvictMarkedCode(Isolate* isolate);
+
+  // Returns vector of bytecode offsets corresponding to the shared function
+  // |shared|
+  std::vector<int> GetBytecodeOffsetsFromSFI(SharedFunctionInfo shared);
 
  private:
   // Functions that implement heuristics on when to grow / shrink the cache.
@@ -56,14 +71,14 @@ class V8_EXPORT OSROptimizedCodeCache : public WeakFixedArray {
                           Handle<OSROptimizedCodeCache>* osr_cache);
 
   // Helper functions to get individual items from an entry in the cache.
-  Code GetCodeFromEntry(int index);
+  CodeT GetCodeFromEntry(int index);
   SharedFunctionInfo GetSFIFromEntry(int index);
   BytecodeOffset GetBytecodeOffsetFromEntry(int index);
 
   inline int FindEntry(Handle<SharedFunctionInfo> shared,
                        BytecodeOffset osr_offset);
   inline void ClearEntry(int src, Isolate* isolate);
-  inline void InitializeEntry(int entry, SharedFunctionInfo shared, Code code,
+  inline void InitializeEntry(int entry, SharedFunctionInfo shared, CodeT code,
                               BytecodeOffset osr_offset);
   inline void MoveEntry(int src, int dst, Isolate* isolate);
 

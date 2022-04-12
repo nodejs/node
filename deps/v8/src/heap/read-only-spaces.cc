@@ -397,7 +397,7 @@ void ReadOnlySpace::Seal(SealMode ro_mode) {
     DetachFromHeap();
     for (ReadOnlyPage* p : pages_) {
       if (ro_mode == SealMode::kDetachFromHeapAndUnregisterMemory) {
-        memory_allocator->UnregisterMemory(p);
+        memory_allocator->UnregisterReadOnlyPage(p);
       }
       if (ReadOnlyHeap::IsReadOnlySpaceShared()) {
         p->MakeHeaderRelocatable();
@@ -533,6 +533,9 @@ void ReadOnlySpace::Verify(Isolate* isolate) {
       CHECK(!object.IsExternalString());
       CHECK(!object.IsJSArrayBuffer());
     }
+
+    CHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
+    CHECK(!page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
   }
   CHECK(allocation_pointer_found_in_space);
 
@@ -667,7 +670,7 @@ AllocationResult ReadOnlySpace::AllocateRawAligned(
   }
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(object.address(), size_in_bytes);
 
-  return object;
+  return AllocationResult::FromObject(object);
 }
 
 AllocationResult ReadOnlySpace::AllocateRawUnaligned(int size_in_bytes) {
@@ -687,7 +690,7 @@ AllocationResult ReadOnlySpace::AllocateRawUnaligned(int size_in_bytes) {
   accounting_stats_.IncreaseAllocatedBytes(size_in_bytes, chunk);
   chunk->IncreaseAllocatedBytes(size_in_bytes);
 
-  return object;
+  return AllocationResult::FromObject(object);
 }
 
 AllocationResult ReadOnlySpace::AllocateRaw(int size_in_bytes,
@@ -697,7 +700,7 @@ AllocationResult ReadOnlySpace::AllocateRaw(int size_in_bytes,
           ? AllocateRawAligned(size_in_bytes, alignment)
           : AllocateRawUnaligned(size_in_bytes);
   HeapObject heap_obj;
-  if (!result.IsRetry() && result.To(&heap_obj)) {
+  if (result.To(&heap_obj)) {
     DCHECK(heap()->incremental_marking()->marking_state()->IsBlack(heap_obj));
   }
   return result;

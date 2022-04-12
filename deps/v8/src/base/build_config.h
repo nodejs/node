@@ -154,8 +154,8 @@
 #error Target architecture ia32 is only supported on ia32 host
 #endif
 #if (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_64_BIT && \
-     !(V8_HOST_ARCH_X64 && V8_HOST_ARCH_64_BIT))
-#error Target architecture x64 is only supported on x64 host
+     !((V8_HOST_ARCH_X64 || V8_HOST_ARCH_ARM64) && V8_HOST_ARCH_64_BIT))
+#error Target architecture x64 is only supported on x64 and arm64 host
 #endif
 #if (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT && \
      !(V8_HOST_ARCH_X64 && V8_HOST_ARCH_32_BIT))
@@ -222,7 +222,7 @@
 #endif
 
 // pthread_jit_write_protect is only available on arm64 Mac.
-#if defined(V8_OS_MACOSX) && !defined(V8_OS_IOS) && defined(V8_HOST_ARCH_ARM64)
+#if defined(V8_OS_MACOS) && defined(V8_HOST_ARCH_ARM64)
 #define V8_HAS_PTHREAD_JIT_WRITE_PROTECT 1
 #else
 #define V8_HAS_PTHREAD_JIT_WRITE_PROTECT 0
@@ -237,8 +237,9 @@ constexpr int kReturnAddressStackSlotCount =
     V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0;
 
 // Number of bits to represent the page size for paged spaces.
-#if defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64)
-// PPC has large (64KB) physical pages.
+#if (defined(V8_HOST_ARCH_PPC) || defined(V8_HOST_ARCH_PPC64)) && !defined(_AIX)
+// Native PPC linux has large (64KB) physical pages.
+// Simulator (and Aix) need to use the same value as x64.
 const int kPageSizeBits = 19;
 #elif defined(ENABLE_HUGEPAGE)
 // When enabling huge pages, adjust V8 page size to take up exactly one huge

@@ -1,14 +1,22 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import {LinuxCppEntriesProvider} from '../../tickprocessor.mjs';
 import {SelectRelatedEvent} from './events.mjs';
 import {CollapsableElement, DOM, formatBytes, formatMicroSeconds} from './helper.mjs';
 
 const kRegisters = ['rsp', 'rbp', 'rax', 'rbx', 'rcx', 'rdx', 'rsi', 'rdi'];
-// Add Interpreter and x64 registers
-for (let i = 0; i < 14; i++) {
-  kRegisters.push(`r${i}`);
-}
+// Make sure we dont match register on bytecode: Star1 or Star2
+const kAvoidBytecodeOps = '(.*?[^a-zA-Z])'
+// Look for registers in strings like:  movl rbx,[rcx-0x30]
+const kRegisterRegexp = `(${kRegisters.join('|')}|r[0-9]+)`
+const kRegisterRegexpSplit =
+    new RegExp(`${kAvoidBytecodeOps}${kRegisterRegexp}`)
+const kIsRegisterRegexp = new RegExp(`^${kRegisterRegexp}$`);
+
+const kFullAddressRegexp = /(0x[0-9a-f]{8,})/;
+const kRelativeAddressRegexp = /([+-]0x[0-9a-f]+)/;
+const kAnyAddressRegexp = /([+-]?0x[0-9a-f]+)/;
 
 DOM.defineCustomElement('view/code-panel',
                         (templateText) =>
@@ -23,8 +31,7 @@ DOM.defineCustomElement('view/code-panel',
     this._codeSelectNode = this.$('#codeSelect');
     this._disassemblyNode = this.$('#disassembly');
     this._feedbackVectorNode = this.$('#feedbackVector');
-    this._sourceNode = this.$('#sourceCode');
-    this._registerSelector = new RegisterSelector(this._disassemblyNode);
+    this._selectionHandler = new SelectionHandler(this._disassemblyNode);
 
     this._codeSelectNode.onchange = this._handleSelectCode.bind(this);
     this.$('#selectedRelatedButton').onclick =
@@ -56,7 +63,8 @@ DOM.defineCustomElement('view/code-panel',
         script: entry.script,
         type: entry.type,
         kind: entry.kindName,
-        variants: entry.variants.length > 1 ? entry.variants : undefined,
+        variants: entry.variants.length > 1 ? [undefined, ...entry.variants] :
+                                              undefined,
       };
     }
     this.requestUpdate();
@@ -66,7 +74,6 @@ DOM.defineCustomElement('view/code-panel',
     this._updateSelect();
     this._updateDisassembly();
     this._updateFeedbackVector();
-    this._sourceNode.innerText = this._entry?.source ?? '';
   }
 
   _updateFeedbackVector() {
@@ -81,24 +88,14 @@ DOM.defineCustomElement('view/code-panel',
   }
 
   _updateDisassembly() {
-    if (!this._entry?.code) {
-      this._disassemblyNode.innerText = '';
-      return;
-    }
-    const rawCode = this._entry?.code;
+    this._disassemblyNode.innerText = '';
+    if (!this._entry?.code) return;
     try {
-      this._disassemblyNode.innerText = rawCode;
-      let formattedCode = this._disassemblyNode.innerHTML;
-      for (let register of kRegisters) {
-        const button = `<span class="register ${register}">${register}</span>`
-        formattedCode = formattedCode.replaceAll(register, button);
-      }
-      // Let's replace the base-address since it doesn't add any value.
-      // TODO
-      this._disassemblyNode.innerHTML = formattedCode;
+      this._disassemblyNode.appendChild(
+          new AssemblyFormatter(this._entry).fragment);
     } catch (e) {
       console.error(e);
-      this._disassemblyNode.innerText = rawCode;
+      this._disassemblyNode.innerText = this._entry.code;
     }
   }
 
@@ -135,34 +132,133 @@ DOM.defineCustomElement('view/code-panel',
   }
 });
 
-class RegisterSelector {
-  _currentRegister;
+class AssemblyFormatter {
+  constructor(codeLogEntry) {
+    this._fragment = new DocumentFragment();
+    this._entry = codeLogEntry;
+    codeLogEntry.code.split('\n').forEach(line => this._addLine(line));
+  }
+
+  get fragment() {
+    return this._fragment;
+  }
+
+  _addLine(line) {
+    const parts = line.split(' ');
+    let lineAddress = 0;
+    if (kFullAddressRegexp.test(parts[0])) {
+      lineAddress = parseInt(parts[0]);
+    }
+    const content = DOM.span({textContent: parts.join(' ') + '\n'});
+    let formattedCode = content.innerHTML.split(kRegisterRegexpSplit)
+                            .map(part => this._formatRegisterPart(part))
+                            .join('');
+    formattedCode = formattedCode.split(kAnyAddressRegexp)
+                        .map(
+                            (part, index) => this._formatAddressPart(
+                                part, index, lineAddress))
+                        .join('');
+    // Let's replace the base-address since it doesn't add any value.
+    // TODO
+    content.innerHTML = formattedCode;
+    this._fragment.appendChild(content);
+  }
+
+  _formatRegisterPart(part) {
+    if (!kIsRegisterRegexp.test(part)) return part;
+    return `<span class="reg ${part}">${part}</span>`
+  }
+
+  _formatAddressPart(part, index, lineAddress) {
+    if (kFullAddressRegexp.test(part)) {
+      // The first or second address must be the line address
+      if (index <= 1) {
+        return `<span class="addr line" data-addr="${part}">${part}</span>`;
+      }
+      return `<span class=addr data-addr="${part}">${part}</span>`;
+    } else if (kRelativeAddressRegexp.test(part)) {
+      const targetAddress = (lineAddress + parseInt(part)).toString(16);
+      return `<span class=addr data-addr="0x${targetAddress}">${part}</span>`;
+    } else {
+      return part;
+    }
+  }
+}
+
+class SelectionHandler {
+  _currentRegisterHovered;
+  _currentRegisterClicked;
+
   constructor(node) {
     this._node = node;
-    this._node.onmousemove = this._handleDisassemblyMouseMove.bind(this);
+    this._node.onmousemove = this._handleMouseMove.bind(this);
+    this._node.onclick = this._handleClick.bind(this);
   }
 
-  _handleDisassemblyMouseMove(event) {
+  $(query) {
+    return this._node.querySelectorAll(query);
+  }
+
+  _handleClick(event) {
     const target = event.target;
-    if (!target.classList.contains('register')) {
-      this._clear();
-      return;
-    };
-    this._select(target.innerText);
-  }
-
-  _clear() {
-    if (this._currentRegister == undefined) return;
-    for (let node of this._node.querySelectorAll('.register')) {
-      node.classList.remove('selected');
+    if (target.classList.contains('addr')) {
+      return this._handleClickAddress(target);
+    } else if (target.classList.contains('reg')) {
+      this._handleClickRegister(target);
+    } else {
+      this._clearRegisterSelection();
     }
   }
 
-  _select(register) {
-    if (register == this._currentRegister) return;
-    this._clear();
-    this._currentRegister = register;
-    for (let node of this._node.querySelectorAll(`.register.${register}`)) {
+  _handleClickAddress(target) {
+    let targetAddress = target.getAttribute('data-addr') ?? target.innerText;
+    // Clear any selection
+    for (let addrNode of this.$('.addr.selected')) {
+      addrNode.classList.remove('selected');
+    }
+    // Highlight all matching addresses
+    let lineAddrNode;
+    for (let addrNode of this.$(`.addr[data-addr="${targetAddress}"]`)) {
+      addrNode.classList.add('selected');
+      if (addrNode.classList.contains('line') && lineAddrNode == undefined) {
+        lineAddrNode = addrNode;
+      }
+    }
+    // Jump to potential target address.
+    if (lineAddrNode) {
+      lineAddrNode.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+    }
+  }
+
+  _handleClickRegister(target) {
+    this._setRegisterSelection(target.innerText);
+    this._currentRegisterClicked = this._currentRegisterHovered;
+  }
+
+  _handleMouseMove(event) {
+    if (this._currentRegisterClicked) return;
+    const target = event.target;
+    if (!target.classList.contains('reg')) {
+      this._clearRegisterSelection();
+    } else {
+      this._setRegisterSelection(target.innerText);
+    }
+  }
+
+  _clearRegisterSelection() {
+    if (!this._currentRegisterHovered) return;
+    for (let node of this.$('.reg.selected')) {
+      node.classList.remove('selected');
+    }
+    this._currentRegisterClicked = undefined;
+    this._currentRegisterHovered = undefined;
+  }
+
+  _setRegisterSelection(register) {
+    if (register == this._currentRegisterHovered) return;
+    this._clearRegisterSelection();
+    this._currentRegisterHovered = register;
+    for (let node of this.$(`.reg.${register}`)) {
       node.classList.add('selected');
     }
   }

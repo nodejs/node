@@ -30,20 +30,21 @@ uint32_t StringHasher::GetHashCore(uint32_t running_hash) {
   running_hash += (running_hash << 3);
   running_hash ^= (running_hash >> 11);
   running_hash += (running_hash << 15);
-  int32_t hash = static_cast<int32_t>(running_hash & String::kHashBitMask);
+  int32_t hash = static_cast<int32_t>(running_hash & String::HashBits::kMax);
+  // Ensure that the hash is kZeroHash, if the computed value is 0.
   int32_t mask = (hash - 1) >> 31;
-  return running_hash | (kZeroHash & mask);
+  running_hash |= (kZeroHash & mask);
+  return running_hash;
 }
 
 uint32_t StringHasher::GetTrivialHash(int length) {
   DCHECK_GT(length, String::kMaxHashCalcLength);
   // The hash of a large string is simply computed from the length.
-  // Ensure that the max length is small enough to be shifted without losing
+  // Ensure that the max length is small enough to be encoded without losing
   // information.
-  STATIC_ASSERT(base::bits::CountLeadingZeros32(String::kMaxLength) >=
-                String::kHashShift);
+  STATIC_ASSERT(String::kMaxLength <= String::HashBits::kMax);
   uint32_t hash = static_cast<uint32_t>(length);
-  return (hash << String::kHashShift) | String::kIsNotIntegerIndexMask;
+  return String::CreateHashFieldValue(hash, String::HashFieldType::kHash);
 }
 
 template <typename char_t>
@@ -79,19 +80,19 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
         // Not an array index, but it could still be an integer index.
         // Perform a regular hash computation, and additionally check
         // if there are non-digit characters.
-        uint32_t is_integer_index = 0;
+        String::HashFieldType type = String::HashFieldType::kIntegerIndex;
         uint32_t running_hash = static_cast<uint32_t>(seed);
         uint64_t index_big = 0;
         const uchar* end = &chars[length];
         while (chars != end) {
-          if (is_integer_index == 0 &&
+          if (type == String::HashFieldType::kIntegerIndex &&
               !TryAddIntegerIndexChar(&index_big, *chars)) {
-            is_integer_index = String::kIsNotIntegerIndexMask;
+            type = String::HashFieldType::kHash;
           }
           running_hash = AddCharacterCore(running_hash, *chars++);
         }
-        uint32_t hash = (GetHashCore(running_hash) << String::kHashShift) |
-                        is_integer_index;
+        uint32_t hash =
+            String::CreateHashFieldValue(GetHashCore(running_hash), type);
         if (Name::ContainsCachedArrayIndex(hash)) {
           // The hash accidentally looks like a cached index. Fix that by
           // setting a bit that looks like a longer-than-cacheable string
@@ -118,8 +119,8 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
     running_hash = AddCharacterCore(running_hash, *chars++);
   }
 
-  return (GetHashCore(running_hash) << String::kHashShift) |
-         String::kIsNotIntegerIndexMask;
+  return String::CreateHashFieldValue(GetHashCore(running_hash),
+                                      String::HashFieldType::kHash);
 }
 
 std::size_t SeededStringHasher::operator()(const char* name) const {

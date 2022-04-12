@@ -3,10 +3,11 @@
 // found in the LICENSE file.
 
 @abstract
-extern class JSFunctionOrBoundFunction extends JSObject {
+extern class JSFunctionOrBoundFunctionOrWrappedFunction extends JSObject {
 }
 
-extern class JSBoundFunction extends JSFunctionOrBoundFunction {
+extern class JSBoundFunction extends
+    JSFunctionOrBoundFunctionOrWrappedFunction {
   // The wrapped function object.
   bound_target_function: Callable;
   // The value that is always passed as the this value when calling the wrapped
@@ -17,10 +18,18 @@ extern class JSBoundFunction extends JSFunctionOrBoundFunction {
   bound_arguments: FixedArray;
 }
 
+extern class JSWrappedFunction extends
+    JSFunctionOrBoundFunctionOrWrappedFunction {
+  // The wrapped function object.
+  wrapped_target_function: Callable;
+  // The creation context.
+  context: NativeContext;
+}
+
 // This class does not use the generated verifier, so if you change anything
 // here, please also update JSFunctionVerify in objects-debug.cc.
 @highestInstanceTypeWithinParentClassRange
-extern class JSFunction extends JSFunctionOrBoundFunction {
+extern class JSFunction extends JSFunctionOrBoundFunctionOrWrappedFunction {
   shared_function_info: SharedFunctionInfo;
   context: Context;
   feedback_cell: FeedbackCell;

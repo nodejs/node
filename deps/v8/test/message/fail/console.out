@@ -6,11 +6,11 @@ log more
 console.warn: warn 2
 console.debug: debug
 console.info: info
-console.info: *%(basename)s:24: Error: exception
+console.info: *%(basename)s:22: Error: exception
 console.info({ toString: () => {throw new Error("exception");} })
                                 ^
 Error: exception
-    at Object.toString (*%(basename)s:24:39)
+    at Object.toString (*%(basename)s:22:39)
     at console.info (<anonymous>)
-    at *%(basename)s:24:9
+    at *%(basename)s:22:9
 

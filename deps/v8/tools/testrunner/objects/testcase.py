@@ -75,11 +75,11 @@ except NameError:
   def cmp(x, y):  # Python 3
     return (x > y) - (x < y)
 
-def read_file_utf8(file):
+def read_file(file):
   try:                # Python 3
-    with open(file, encoding='utf-8') as f:
+    with open(file, encoding='ISO-8859-1') as f:
       return f.read()
-  except TypeError:   # Python 2
+  except TypeError:   # Python 2 ..
     with open(file) as f:
       return f.read()
 
@@ -414,7 +414,7 @@ class TestCase(object):
     return self._get_source_path() is not None
 
   def get_source(self):
-    return read_file_utf8(self._get_source_path())
+    return read_file(self._get_source_path())
 
   def _get_source_path(self):
     return None
@@ -460,7 +460,7 @@ class D8TestCase(TestCase):
     """Returns for a given file a list of absolute paths of files needed by the
     given file.
     """
-    source = read_file_utf8(file)
+    source = read_file(file)
     result = []
     def add_path(path):
       result.append(os.path.abspath(path.replace('/', os.path.sep)))

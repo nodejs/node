@@ -5,7 +5,7 @@
 #ifndef V8_DEOPTIMIZER_TRANSLATION_ARRAY_H_
 #define V8_DEOPTIMIZER_TRANSLATION_ARRAY_H_
 
-#include "src/codegen/register-arch.h"
+#include "src/codegen/register.h"
 #include "src/deoptimizer/translation-opcode.h"
 #include "src/objects/fixed-array.h"
 #include "src/zone/zone-containers.h"

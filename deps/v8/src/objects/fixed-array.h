@@ -134,30 +134,20 @@ class FixedArray
   inline bool is_the_hole(Isolate* isolate, int index);
 
   // Setter that doesn't need write barrier.
-#if !defined(_WIN32) || (defined(_WIN64) && _MSC_VER < 1930 && __cplusplus < 201703L)
   inline void set(int index, Smi value);
-#else
-  inline void set(int index, Smi value) {
-#if !defined(_WIN32)
-    DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-#endif
-    DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-    DCHECK(Object(value).IsSmi());
-    int offset = OffsetOfElementAt(index);
-    RELAXED_WRITE_FIELD(*this, offset, value);
-  }
-#endif
-
   // Setter with explicit barrier mode.
   inline void set(int index, Object value, WriteBarrierMode mode);
 
   // Setters for frequently used oddballs located in old space.
   inline void set_undefined(int index);
   inline void set_undefined(Isolate* isolate, int index);
+  inline void set_undefined(ReadOnlyRoots ro_roots, int index);
   inline void set_null(int index);
   inline void set_null(Isolate* isolate, int index);
+  inline void set_null(ReadOnlyRoots ro_roots, int index);
   inline void set_the_hole(int index);
   inline void set_the_hole(Isolate* isolate, int index);
+  inline void set_the_hole(ReadOnlyRoots ro_roots, int index);
 
   inline ObjectSlot GetFirstElementAddress();
   inline bool ContainsOnlySmisOrHoles();
@@ -211,6 +201,7 @@ class FixedArray
 
   // Dispatched behavior.
   DECL_PRINTER(FixedArray)
+  DECL_VERIFIER(FixedArray)
 
   int AllocatedSize();
 
@@ -226,10 +217,6 @@ class FixedArray
 
  private:
   STATIC_ASSERT(kHeaderSize == Internals::kFixedArrayHeaderSize);
-
-  inline void set_undefined(ReadOnlyRoots ro_roots, int index);
-  inline void set_null(ReadOnlyRoots ro_roots, int index);
-  inline void set_the_hole(ReadOnlyRoots ro_roots, int index);
 
   TQ_OBJECT_CONSTRUCTORS(FixedArray)
 };
@@ -396,7 +383,7 @@ class WeakArrayList
   inline void CopyElements(Isolate* isolate, int dst_index, WeakArrayList src,
                            int src_index, int len, WriteBarrierMode mode);
 
-  V8_EXPORT_PRIVATE bool IsFull();
+  V8_EXPORT_PRIVATE bool IsFull() const;
 
   int AllocatedSize();
 
@@ -497,6 +484,8 @@ class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
   static const int kLengthIndex = 0;
   static const int kFirstIndex = 1;
   STATIC_ASSERT(kHeaderFields == kFirstIndex);
+
+  DECL_VERIFIER(ArrayList)
 
  private:
   static Handle<ArrayList> EnsureSpace(Isolate* isolate,
@@ -605,6 +594,13 @@ class PodArray : public ByteArray {
   bool matches(const T* buffer, int length) {
     DCHECK_LE(length, this->length());
     return memcmp(GetDataStartAddress(), buffer, length * sizeof(T)) == 0;
+  }
+
+  bool matches(int offset, const T* buffer, int length) {
+    DCHECK_LE(offset, this->length());
+    DCHECK_LE(offset + length, this->length());
+    return memcmp(GetDataStartAddress() + sizeof(T) * offset, buffer,
+                  length * sizeof(T)) == 0;
   }
 
   T get(int index) {

@@ -20,14 +20,14 @@ class BitVector;
 namespace compiler {
 
 class Graph;
+class BytecodeLivenessState;
 
 class V8_EXPORT_PRIVATE StateValuesCache {
  public:
   explicit StateValuesCache(JSGraph* js_graph);
 
   Node* GetNodeForValues(Node** values, size_t count,
-                         const BitVector* liveness = nullptr,
-                         int liveness_offset = 0);
+                         const BytecodeLivenessState* liveness = nullptr);
 
  private:
   static const size_t kMaxInputCount = 8;
@@ -57,15 +57,12 @@ class V8_EXPORT_PRIVATE StateValuesCache {
   // at {values_idx}, sparsely encoding according to {liveness}. {node_count} is
   // updated with the new number of inputs in {node_buffer}, and a bitmask of
   // the sparse encoding is returned.
-  SparseInputMask::BitMaskType FillBufferWithValues(WorkingBuffer* node_buffer,
-                                                    size_t* node_count,
-                                                    size_t* values_idx,
-                                                    Node** values, size_t count,
-                                                    const BitVector* liveness,
-                                                    int liveness_offset);
+  SparseInputMask::BitMaskType FillBufferWithValues(
+      WorkingBuffer* node_buffer, size_t* node_count, size_t* values_idx,
+      Node** values, size_t count, const BytecodeLivenessState* liveness);
 
   Node* BuildTree(size_t* values_idx, Node** values, size_t count,
-                  const BitVector* liveness, int liveness_offset, size_t level);
+                  const BytecodeLivenessState* liveness, size_t level);
 
   WorkingBuffer* GetWorkingSpace(size_t level);
   Node* GetEmptyStateValues();

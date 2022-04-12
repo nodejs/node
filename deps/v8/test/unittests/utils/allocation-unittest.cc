@@ -35,7 +35,7 @@ class MemoryAllocationPermissionsTest : public ::testing::Test {
   }
   struct sigaction old_action_;
 // On Mac, sometimes we get SIGBUS instead of SIGSEGV.
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
   struct sigaction old_bus_action_;
 #endif
 
@@ -46,7 +46,7 @@ class MemoryAllocationPermissionsTest : public ::testing::Test {
     sigemptyset(&action.sa_mask);
     action.sa_flags = SA_SIGINFO;
     sigaction(SIGSEGV, &action, &old_action_);
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
     sigaction(SIGBUS, &action, &old_bus_action_);
 #endif
   }
@@ -54,7 +54,7 @@ class MemoryAllocationPermissionsTest : public ::testing::Test {
   void TearDown() override {
     // Be a good citizen and restore the old signal handler.
     sigaction(SIGSEGV, &old_action_, nullptr);
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
     sigaction(SIGBUS, &old_bus_action_, nullptr);
 #endif
   }
@@ -102,7 +102,7 @@ class MemoryAllocationPermissionsTest : public ::testing::Test {
         page_allocator, nullptr, page_size, page_size, permission));
     ProbeMemory(buffer, MemoryAction::kRead, can_read);
     ProbeMemory(buffer, MemoryAction::kWrite, can_write);
-    CHECK(FreePages(page_allocator, buffer, page_size));
+    FreePages(page_allocator, buffer, page_size);
   }
 };
 
@@ -141,7 +141,7 @@ TEST(AllocationTest, AllocateAndFree) {
       page_allocator, page_allocator->GetRandomMmapAddr(), kAllocationSize,
       page_size, PageAllocator::Permission::kReadWrite);
   CHECK_NOT_NULL(mem_addr);
-  CHECK(v8::internal::FreePages(page_allocator, mem_addr, kAllocationSize));
+  v8::internal::FreePages(page_allocator, mem_addr, kAllocationSize);
 
   // A large allocation, aligned significantly beyond native granularity.
   const size_t kBigAlignment = 64 * v8::internal::MB;
@@ -151,8 +151,7 @@ TEST(AllocationTest, AllocateAndFree) {
       kAllocationSize, kBigAlignment, PageAllocator::Permission::kReadWrite);
   CHECK_NOT_NULL(aligned_mem_addr);
   CHECK_EQ(aligned_mem_addr, AlignedAddress(aligned_mem_addr, kBigAlignment));
-  CHECK(v8::internal::FreePages(page_allocator, aligned_mem_addr,
-                                kAllocationSize));
+  v8::internal::FreePages(page_allocator, aligned_mem_addr, kAllocationSize);
 }
 
 TEST(AllocationTest, ReserveMemory) {
@@ -172,7 +171,7 @@ TEST(AllocationTest, ReserveMemory) {
   addr[v8::internal::KB - 1] = 2;
   CHECK(v8::internal::SetPermissions(page_allocator, mem_addr, commit_size,
                                      PageAllocator::Permission::kNoAccess));
-  CHECK(v8::internal::FreePages(page_allocator, mem_addr, kAllocationSize));
+  v8::internal::FreePages(page_allocator, mem_addr, kAllocationSize);
 }
 
 }  // namespace internal

@@ -30,5 +30,5 @@ bar({aaaa:1});
 bar({aaaaa:1});
 foo();
 foo();
-%OptimizeFunctionForTopTier(foo);
+%OptimizeFunctionOnNextCall(foo);
 foo();

@@ -79,7 +79,7 @@ TEST_F(BackgroundCompileTaskTest, SyntaxError) {
   std::unique_ptr<BackgroundCompileTask> task(
       NewBackgroundCompileTask(isolate(), shared));
 
-  task->Run();
+  task->RunOnMainThread(isolate());
   ASSERT_FALSE(Compiler::FinalizeBackgroundCompileTask(
       task.get(), isolate(), Compiler::KEEP_EXCEPTION));
   ASSERT_TRUE(isolate()->has_pending_exception());
@@ -105,7 +105,7 @@ TEST_F(BackgroundCompileTaskTest, CompileAndRun) {
   std::unique_ptr<BackgroundCompileTask> task(
       NewBackgroundCompileTask(isolate(), shared));
 
-  task->Run();
+  task->RunOnMainThread(isolate());
   ASSERT_TRUE(Compiler::FinalizeBackgroundCompileTask(
       task.get(), isolate(), Compiler::KEEP_EXCEPTION));
   ASSERT_TRUE(shared->is_compiled());
@@ -131,7 +131,7 @@ TEST_F(BackgroundCompileTaskTest, CompileFailure) {
   std::unique_ptr<BackgroundCompileTask> task(
       NewBackgroundCompileTask(isolate(), shared, 100));
 
-  task->Run();
+  task->RunOnMainThread(isolate());
   ASSERT_FALSE(Compiler::FinalizeBackgroundCompileTask(
       task.get(), isolate(), Compiler::KEEP_EXCEPTION));
   ASSERT_TRUE(isolate()->has_pending_exception());
@@ -201,7 +201,7 @@ TEST_F(BackgroundCompileTaskTest, EagerInnerFunctions) {
   std::unique_ptr<BackgroundCompileTask> task(
       NewBackgroundCompileTask(isolate(), shared));
 
-  task->Run();
+  task->RunOnMainThread(isolate());
   ASSERT_TRUE(Compiler::FinalizeBackgroundCompileTask(
       task.get(), isolate(), Compiler::KEEP_EXCEPTION));
   ASSERT_TRUE(shared->is_compiled());
@@ -231,7 +231,7 @@ TEST_F(BackgroundCompileTaskTest, LazyInnerFunctions) {
 
   // There's already a task for this SFI.
 
-  task->Run();
+  task->RunOnMainThread(isolate());
   ASSERT_TRUE(Compiler::FinalizeBackgroundCompileTask(
       task.get(), isolate(), Compiler::KEEP_EXCEPTION));
   ASSERT_TRUE(shared->is_compiled());

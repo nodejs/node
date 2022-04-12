@@ -5,7 +5,6 @@
 #ifndef V8_HEAP_CODE_OBJECT_REGISTRY_H_
 #define V8_HEAP_CODE_OBJECT_REGISTRY_H_
 
-#include <set>
 #include <vector>
 
 #include "src/base/macros.h"

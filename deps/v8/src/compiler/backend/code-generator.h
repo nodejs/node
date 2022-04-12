@@ -165,8 +165,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   Zone* zone() const { return zone_; }
   TurboAssembler* tasm() { return &tasm_; }
   SafepointTableBuilder* safepoint_table_builder() { return &safepoints_; }
-  size_t GetSafepointTableOffset() const { return safepoints_.GetCodeOffset(); }
-  size_t GetHandlerTableOffset() const { return handler_table_offset_; }
+  size_t handler_table_offset() const { return handler_table_offset_; }
 
   const ZoneVector<int>& block_starts() const { return block_starts_; }
   const ZoneVector<TurbolizerInstructionStartInfo>& instr_starts() const {
@@ -246,6 +245,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
 
   CodeGenResult AssembleArchInstruction(Instruction* instr);
   void AssembleArchJump(RpoNumber target);
+  void AssembleArchJumpRegardlessOfAssemblyOrder(RpoNumber target);
   void AssembleArchBranch(Instruction* instr, BranchInfo* branch);
 
   // Generates special branch for deoptimization condition.

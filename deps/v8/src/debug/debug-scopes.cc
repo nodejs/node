@@ -565,7 +565,7 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
     if (value->IsTheHole(isolate_)) {
       // Reflect variables under TDZ as undefined in scope object.
       if (scope_type == ScopeTypeScript &&
-          JSReceiver::HasOwnProperty(scope, name).FromMaybe(true)) {
+          JSReceiver::HasOwnProperty(isolate_, scope, name).FromMaybe(true)) {
         // We also use the hole to represent overridden let-declarations via
         // REPL mode in a script context. Catch this case.
         return false;
@@ -780,10 +780,10 @@ bool ScopeIterator::VisitContextLocals(const Visitor& visitor,
                                        Handle<Context> context,
                                        ScopeType scope_type) const {
   // Fill all context locals to the context extension.
-  for (int i = 0; i < scope_info->ContextLocalCount(); ++i) {
-    Handle<String> name(scope_info->ContextLocalName(i), isolate_);
+  for (auto it : ScopeInfo::IterateLocalNames(scope_info)) {
+    Handle<String> name(it->name(), isolate_);
     if (ScopeInfo::VariableIsSynthetic(*name)) continue;
-    int context_index = scope_info->ContextHeaderLength() + i;
+    int context_index = scope_info->ContextHeaderLength() + it->index();
     Handle<Object> value(context->get(context_index), isolate_);
     if (visitor(name, value, scope_type)) return true;
   }
@@ -964,7 +964,8 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
       // Names of variables introduced by eval are strings.
       DCHECK(keys->get(i).IsString());
       Handle<String> key(String::cast(keys->get(i)), isolate_);
-      Handle<Object> value = JSReceiver::GetDataProperty(extension, key);
+      Handle<Object> value =
+          JSReceiver::GetDataProperty(isolate_, extension, key);
       if (visitor(key, value, scope_type)) return;
     }
   }
@@ -1062,11 +1063,8 @@ bool ScopeIterator::SetContextExtensionValue(Handle<String> variable_name,
 
 bool ScopeIterator::SetContextVariableValue(Handle<String> variable_name,
                                             Handle<Object> new_value) {
-  VariableLookupResult lookup_result;
-  int slot_index = ScopeInfo::ContextSlotIndex(context_->scope_info(),
-                                               *variable_name, &lookup_result);
+  int slot_index = context_->scope_info().ContextSlotIndex(variable_name);
   if (slot_index < 0) return false;
-
   context_->set(slot_index, *new_value);
   return true;
 }
@@ -1098,8 +1096,7 @@ bool ScopeIterator::SetScriptVariableValue(Handle<String> variable_name,
       context_->global_object().native_context().script_context_table(),
       isolate_);
   VariableLookupResult lookup_result;
-  if (ScriptContextTable::Lookup(isolate_, *script_contexts, *variable_name,
-                                 &lookup_result)) {
+  if (script_contexts->Lookup(variable_name, &lookup_result)) {
     Handle<Context> script_context = ScriptContextTable::GetContext(
         isolate_, script_contexts, lookup_result.context_index);
     script_context->set(lookup_result.slot_index, *new_value);

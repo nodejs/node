@@ -4,7 +4,6 @@
 
 #include "test/unittests/compiler/graph-unittest.h"
 
-#include "src/compiler/js-heap-copy-reducer.h"
 #include "src/compiler/node-properties.h"
 #include "src/heap/factory.h"
 #include "src/objects/objects-inl.h"  // TODO(everyone): Make typer.h IWYU compliant.

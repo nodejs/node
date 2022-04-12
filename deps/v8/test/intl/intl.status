@@ -28,8 +28,9 @@
 [
 ################################################################################
 [ALWAYS, {
-# TODO(jochen): The following test is flaky.
+# TODO(ftang,jshin): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
+  'number-format/rounding-increment-resolved-match-v3': [FAIL],
 }],  # ALWAYS
 
 ################################################################################

@@ -70,8 +70,9 @@ class EphemeronPairTest : public testing::TestWithHeap {
   }
 
   void InitializeMarker(HeapBase& heap, cppgc::Platform* platform) {
-    marker_ = MarkerFactory::CreateAndStartMarking<Marker>(
-        heap, platform, IncrementalPreciseMarkingConfig);
+    marker_ = std::make_unique<Marker>(heap, platform,
+                                       IncrementalPreciseMarkingConfig);
+    marker_->StartMarking();
   }
 
   Marker* marker() const { return marker_.get(); }

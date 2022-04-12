@@ -575,7 +575,7 @@ TF_BUILTIN(ObjectHasOwn, ObjectBuiltinsAssembler) {
 
   BIND(&not_undefined_nor_null);
   Return(CallBuiltin(Builtin::kObjectPrototypeHasOwnProperty, context, target,
-                     new_target, Int32Constant(2), object, key));
+                     new_target, JSParameterCount(1), object, key));
 }
 
 // ES #sec-object.getOwnPropertyNames

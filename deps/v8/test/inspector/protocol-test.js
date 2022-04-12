@@ -264,11 +264,15 @@ InspectorTest.Session = class {
     this._scriptMap = new Map();
   }
 
+  getCallFrameUrl(frame) {
+    const {scriptId} = frame.location ? frame.location : frame;
+    return (this._scriptMap.get(scriptId) ?? frame).url;
+  }
+
   logCallFrames(callFrames) {
     for (var frame of callFrames) {
       var functionName = frame.functionName || '(anonymous)';
-      var scriptId = frame.location ? frame.location.scriptId : frame.scriptId;
-      var url = frame.url ? frame.url : this._scriptMap.get(scriptId).url;
+      var url = this.getCallFrameUrl(frame);
       var lineNumber = frame.location ? frame.location.lineNumber : frame.lineNumber;
       var columnNumber = frame.location ? frame.location.columnNumber : frame.columnNumber;
       InspectorTest.log(`${functionName} (${url}:${lineNumber}:${columnNumber})`);

@@ -21,7 +21,8 @@ class ArrayBufferExtension;
 #include "torque-generated/src/objects/js-array-buffer-tq.inc"
 
 class JSArrayBuffer
-    : public TorqueGeneratedJSArrayBuffer<JSArrayBuffer, JSObject> {
+    : public TorqueGeneratedJSArrayBuffer<JSArrayBuffer,
+                                          JSObjectWithEmbedderSlots> {
  public:
 // The maximum length for JSArrayBuffer's supported by V8.
 // On 32-bit architectures we limit this to 2GiB, so that
@@ -231,7 +232,8 @@ class ArrayBufferExtension final : public Malloced {
 };
 
 class JSArrayBufferView
-    : public TorqueGeneratedJSArrayBufferView<JSArrayBufferView, JSObject> {
+    : public TorqueGeneratedJSArrayBufferView<JSArrayBufferView,
+                                              JSObjectWithEmbedderSlots> {
  public:
   // [byte_offset]: offset of typed array in bytes.
   DECL_PRIMITIVE_ACCESSORS(byte_offset, size_t)
@@ -296,6 +298,8 @@ class JSTypedArray
 
   inline size_t GetLengthOrOutOfBounds(bool& out_of_bounds) const;
   inline size_t GetLength() const;
+  inline size_t GetByteLength() const;
+  inline bool IsOutOfBounds() const;
 
   static size_t LengthTrackingGsabBackedTypedArrayLength(Isolate* isolate,
                                                          Address raw_array);

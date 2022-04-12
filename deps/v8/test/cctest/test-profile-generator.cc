@@ -477,7 +477,7 @@ TEST(SampleIds) {
   // (root)#1 -> aaa #2 -> bbb #4 -> ccc #5 - sample2
   //                    -> ccc #6 -> aaa #7 - sample3
   TickSample sample1;
-  sample1.timestamp = v8::base::TimeTicks::HighResolutionNow();
+  sample1.timestamp = v8::base::TimeTicks::Now();
   sample1.pc = ToPointer(0x1600);
   sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
@@ -487,7 +487,7 @@ TEST(SampleIds) {
       base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
 
   TickSample sample2;
-  sample2.timestamp = v8::base::TimeTicks::HighResolutionNow();
+  sample2.timestamp = v8::base::TimeTicks::Now();
   sample2.pc = ToPointer(0x1925);
   sample2.stack[0] = ToPointer(0x1780);
   sample2.stack[1] = ToPointer(0x10000);  // non-existent.
@@ -499,7 +499,7 @@ TEST(SampleIds) {
       base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
 
   TickSample sample3;
-  sample3.timestamp = v8::base::TimeTicks::HighResolutionNow();
+  sample3.timestamp = v8::base::TimeTicks::Now();
   sample3.pc = ToPointer(0x1510);
   sample3.stack[0] = ToPointer(0x1910);
   sample3.stack[1] = ToPointer(0x1610);
@@ -598,7 +598,7 @@ TEST(MaxSamplesCallback) {
   CodeMap code_map(storage);
   Symbolizer symbolizer(&code_map);
   TickSample sample1;
-  sample1.timestamp = v8::base::TimeTicks::HighResolutionNow();
+  sample1.timestamp = v8::base::TimeTicks::Now();
   sample1.pc = ToPointer(0x1600);
   sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
@@ -608,7 +608,7 @@ TEST(MaxSamplesCallback) {
       base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
   CHECK_EQ(0, mock_platform->posted_count());
   TickSample sample2;
-  sample2.timestamp = v8::base::TimeTicks::HighResolutionNow();
+  sample2.timestamp = v8::base::TimeTicks::Now();
   sample2.pc = ToPointer(0x1925);
   sample2.stack[0] = ToPointer(0x1780);
   sample2.frames_count = 2;
@@ -618,7 +618,7 @@ TEST(MaxSamplesCallback) {
       base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
   CHECK_EQ(1, mock_platform->posted_count());
   TickSample sample3;
-  sample3.timestamp = v8::base::TimeTicks::HighResolutionNow();
+  sample3.timestamp = v8::base::TimeTicks::Now();
   sample3.pc = ToPointer(0x1510);
   sample3.frames_count = 3;
   symbolized = symbolizer.SymbolizeTickSample(sample3);
@@ -652,10 +652,9 @@ TEST(NoSamples) {
   sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
   auto symbolized = symbolizer.SymbolizeTickSample(sample1);
-  profiles.AddPathToCurrentProfiles(v8::base::TimeTicks::HighResolutionNow(),
-                                    symbolized.stack_trace, symbolized.src_line,
-                                    true, base::TimeDelta(), StateTag::JS,
-                                    EmbedderStateTag::EMPTY);
+  profiles.AddPathToCurrentProfiles(
+      v8::base::TimeTicks::Now(), symbolized.stack_trace, symbolized.src_line,
+      true, base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
 
   CpuProfile* profile = profiles.StopProfiling("");
   unsigned nodeId = 1;

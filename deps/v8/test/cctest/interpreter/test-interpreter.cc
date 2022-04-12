@@ -1238,7 +1238,7 @@ TEST(InterpreterLoadKeyedProperty) {
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(789));
 }
 
-TEST(InterpreterStoreNamedProperty) {
+TEST(InterpreterSetNamedProperty) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
@@ -1256,8 +1256,8 @@ TEST(InterpreterStoreNamedProperty) {
   BytecodeArrayBuilder builder(zone, 1, 0, &feedback_spec);
 
   builder.LoadLiteral(Smi::FromInt(999))
-      .StoreNamedProperty(builder.Receiver(), name, GetIndex(slot),
-                          LanguageMode::kStrict)
+      .SetNamedProperty(builder.Receiver(), name, GetIndex(slot),
+                        LanguageMode::kStrict)
       .Return();
   ast_factory.Internalize(isolate);
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -1301,7 +1301,7 @@ TEST(InterpreterStoreNamedProperty) {
   CHECK_EQ(Smi::cast(*result), Smi::FromInt(999));
 }
 
-TEST(InterpreterStoreKeyedProperty) {
+TEST(InterpreterSetKeyedProperty) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
@@ -1321,8 +1321,8 @@ TEST(InterpreterStoreKeyedProperty) {
   builder.LoadLiteral(name)
       .StoreAccumulatorInRegister(Register(0))
       .LoadLiteral(Smi::FromInt(999))
-      .StoreKeyedProperty(builder.Receiver(), Register(0), GetIndex(slot),
-                          i::LanguageMode::kSloppy)
+      .SetKeyedProperty(builder.Receiver(), Register(0), GetIndex(slot),
+                        i::LanguageMode::kSloppy)
       .Return();
   ast_factory.Internalize(isolate);
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -5046,7 +5046,7 @@ TEST(InterpreterWithNativeStack) {
   CHECK(f->shared().HasBytecodeArray());
   i::CodeT code = f->shared().GetCode();
   i::Handle<i::CodeT> interpreter_entry_trampoline =
-      BUILTIN_CODET(isolate, InterpreterEntryTrampoline);
+      BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
 
   CHECK(code.IsCodeT());
   CHECK(code.is_interpreter_trampoline_builtin());
@@ -5060,24 +5060,24 @@ TEST(InterpreterGetBytecodeHandler) {
   Interpreter* interpreter = isolate->interpreter();
 
   // Test that single-width bytecode handlers deserializer correctly.
-  Code wide_handler =
+  CodeT wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kWide, OperandScale::kSingle);
 
   CHECK_EQ(wide_handler.builtin_id(), Builtin::kWideHandler);
 
-  Code add_handler =
+  CodeT add_handler =
       interpreter->GetBytecodeHandler(Bytecode::kAdd, OperandScale::kSingle);
 
   CHECK_EQ(add_handler.builtin_id(), Builtin::kAddHandler);
 
   // Test that double-width bytecode handlers deserializer correctly, including
   // an illegal bytecode handler since there is no Wide.Wide handler.
-  Code wide_wide_handler =
+  CodeT wide_wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kWide, OperandScale::kDouble);
 
   CHECK_EQ(wide_wide_handler.builtin_id(), Builtin::kIllegalHandler);
 
-  Code add_wide_handler =
+  CodeT add_wide_handler =
       interpreter->GetBytecodeHandler(Bytecode::kAdd, OperandScale::kDouble);
 
   CHECK_EQ(add_wide_handler.builtin_id(), Builtin::kAddWideHandler);
@@ -5280,16 +5280,16 @@ TEST(InterpreterCollectSourcePositions_GenerateStackTrace) {
 
 TEST(InterpreterLookupNameOfBytecodeHandler) {
   Interpreter* interpreter = CcTest::i_isolate()->interpreter();
-  Code ldaLookupSlot = interpreter->GetBytecodeHandler(Bytecode::kLdaLookupSlot,
-                                                       OperandScale::kSingle);
+  Code ldaLookupSlot = FromCodeT(interpreter->GetBytecodeHandler(
+      Bytecode::kLdaLookupSlot, OperandScale::kSingle));
   CheckStringEqual("LdaLookupSlotHandler",
                    interpreter->LookupNameOfBytecodeHandler(ldaLookupSlot));
-  Code wideLdaLookupSlot = interpreter->GetBytecodeHandler(
-      Bytecode::kLdaLookupSlot, OperandScale::kDouble);
+  Code wideLdaLookupSlot = FromCodeT(interpreter->GetBytecodeHandler(
+      Bytecode::kLdaLookupSlot, OperandScale::kDouble));
   CheckStringEqual("LdaLookupSlotWideHandler",
                    interpreter->LookupNameOfBytecodeHandler(wideLdaLookupSlot));
-  Code extraWideLdaLookupSlot = interpreter->GetBytecodeHandler(
-      Bytecode::kLdaLookupSlot, OperandScale::kQuadruple);
+  Code extraWideLdaLookupSlot = FromCodeT(interpreter->GetBytecodeHandler(
+      Bytecode::kLdaLookupSlot, OperandScale::kQuadruple));
   CheckStringEqual(
       "LdaLookupSlotExtraWideHandler",
       interpreter->LookupNameOfBytecodeHandler(extraWideLdaLookupSlot));

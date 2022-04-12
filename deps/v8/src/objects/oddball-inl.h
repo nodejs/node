@@ -40,6 +40,11 @@ DEF_GETTER(HeapObject, IsBoolean, bool) {
          ((Oddball::cast(*this).kind() & Oddball::kNotBooleanMask) == 0);
 }
 
+bool Oddball::ToBool(Isolate* isolate) const {
+  DCHECK(IsBoolean(isolate));
+  return IsTrue(isolate);
+}
+
 }  // namespace internal
 }  // namespace v8
 

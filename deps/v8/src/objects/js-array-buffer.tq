@@ -11,10 +11,11 @@ bitfield struct JSArrayBufferFlags extends uint32 {
   is_resizable: bool: 1 bit;
 }
 
-extern class JSArrayBuffer extends JSObject {
+extern class JSArrayBuffer extends JSObjectWithEmbedderSlots {
   byte_length: uintptr;
   max_byte_length: uintptr;
-  backing_store: ExternalPointer;
+  // A SandboxedPtr if the sandbox is enabled
+  backing_store: RawPtr;
   extension: RawPtr;
   bit_field: JSArrayBufferFlags;
   // Pads header size to be a multiple of kTaggedSize.
@@ -52,7 +53,7 @@ bitfield struct JSArrayBufferViewFlags extends uint32 {
 }
 
 @abstract
-extern class JSArrayBufferView extends JSObject {
+extern class JSArrayBufferView extends JSObjectWithEmbedderSlots {
   buffer: JSArrayBuffer;
   byte_offset: uintptr;
   byte_length: uintptr;
@@ -72,9 +73,24 @@ macro IsLengthTrackingJSArrayBufferView(array: JSArrayBufferView): bool {
   return array.bit_field.is_length_tracking;
 }
 
+extern macro LoadVariableLengthJSArrayBufferViewByteLength(
+    JSArrayBufferView, JSArrayBuffer): uintptr labels DetachedOrOutOfBounds;
+
+macro LoadJSArrayBufferViewByteLength(
+    view: JSArrayBufferView,
+    buffer: JSArrayBuffer): uintptr labels DetachedOrOutOfBounds {
+  if (IsVariableLengthJSArrayBufferView(view)) {
+    return LoadVariableLengthJSArrayBufferViewByteLength(view, buffer)
+        otherwise DetachedOrOutOfBounds;
+  }
+  if (IsDetachedBuffer(buffer)) goto DetachedOrOutOfBounds;
+  return view.byte_length;
+}
+
 extern class JSTypedArray extends JSArrayBufferView {
   length: uintptr;
-  external_pointer: ExternalPointer;
+  // A SandboxedPtr if the sandbox is enabled
+  external_pointer: RawPtr;
   base_pointer: ByteArray|Smi;
 }
 
@@ -85,7 +101,8 @@ macro IsOnHeapTypedArray(array: JSTypedArray): bool {
 }
 
 extern class JSDataView extends JSArrayBufferView {
-  data_pointer: ExternalPointer;
+  // A SandboxedPtr if the sandbox is enabled
+  data_pointer: RawPtr;
 }
 
 @abstract

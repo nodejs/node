@@ -64,7 +64,12 @@
   /* Stack Switching proposal. */                                              \
   /* https://github.com/WebAssembly/stack-switching */                         \
   /* V8 side owner: thibaudm, fgm */                                           \
-  V(stack_switching, "stack switching", false)
+  V(stack_switching, "stack switching", false)                                 \
+                                                                               \
+  /* Extended Constant Expressions Proposal. */                                \
+  /* https://github.com/WebAssembly/extended-const */                          \
+  /* V8 side owner: manoskouk */                                               \
+  V(extended_const, "extended constant expressions", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also
@@ -97,13 +102,6 @@
   /* Staged in v8.7 * */                                                       \
   /* Shipped in v9.1 * */                                                      \
   V(simd, "SIMD opcodes", true)                                                \
-                                                                               \
-  /* Reference Types, a.k.a. reftypes proposal. */                             \
-  /* https://github.com/WebAssembly/reference-types */                         \
-  /* V8 side owner: ahaas */                                                   \
-  /* Staged in v7.8. */                                                        \
-  /* Shipped in v9.6 * */                                                      \
-  V(reftypes, "reference type opcodes", true)                                  \
                                                                                \
   /* Threads proposal. */                                                      \
   /* https://github.com/webassembly/threads */                                 \

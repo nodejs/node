@@ -5,11 +5,21 @@
 const { session, contextGroup, Protocol } = InspectorTest.start(
     `Test that all 'other' reasons are explicitly encoded on a pause event if they overlap with another reason`);
 
-function resumeOnPause({params: {reason, data}}) {
-  InspectorTest.log(`Paused with reason: ${reason} and data: ${
-      data ? JSON.stringify(data) : '{}'}.`)
-  Protocol.Debugger.resume();
+function handlePause(
+    noInstrumentationStepAction, options,
+    {params: {reason, data, callFrames}}) {
+  const scriptId = callFrames[0].functionLocation.scriptId;
+  InspectorTest.log(`Paused with reason ${reason}, data ${
+      data ? JSON.stringify(data) : '{}'} and scriptId: ${scriptId}.`);
+
+  if (reason === 'instrumentation') {
+    Protocol.Debugger.resume();
+  } else {
+    Protocol.Debugger[noInstrumentationStepAction](options);
+  }
 }
+
+const resumeOnPause = handlePause.bind(null, 'resume', null);
 
 async function setUpEnvironment() {
   await Protocol.Debugger.enable();
@@ -53,17 +63,6 @@ InspectorTest.runAsyncTestSuite([
     await setUpEnvironment();
     await Protocol.Debugger.setInstrumentationBreakpoint(
         {instrumentation: 'beforeScriptExecution'});
-    const stepOnPause = (({params: {reason, data}}) => {
-      InspectorTest.log(`Paused with reason: ${reason} and data: ${
-          data ? JSON.stringify(data) : '{}'}.`);
-      if (reason === 'instrumentation') {
-        Protocol.Debugger.resume();
-      } else {
-        Protocol.Debugger.stepInto();
-      }
-    });
-    Protocol.Debugger.onPaused(stepOnPause);
-
     const {result: {scriptId}} = await Protocol.Runtime.compileScript({
       expression: `setTimeout('console.log(3);//# sourceURL=bar.js', 0);`,
       sourceURL: 'foo.js',
@@ -74,7 +73,17 @@ InspectorTest.runAsyncTestSuite([
       url: 'foo.js',
     });
 
-    await Protocol.Runtime.runScript({scriptId});
+    const runPromise = Protocol.Runtime.runScript({scriptId});
+    // Pausing 5 times:
+    // 2x instrumentation breaks,
+    // 1x breakpoint,
+    // 2x step ins: end of setTimeout function, start of inner script.
+    for (var i = 0; i < 5; ++i) {
+      const msg = await Protocol.Debugger.oncePaused();
+      handlePause('stepInto', null, msg);
+    }
+
+    await runPromise;
     await tearDownEnvironment();
   },
   async function testOnlyReportOtherWithEmptyDataOnce() {
@@ -110,17 +119,41 @@ InspectorTest.runAsyncTestSuite([
     await setUpEnvironment();
     await Protocol.Debugger.setInstrumentationBreakpoint(
         {instrumentation: 'beforeScriptExecution'});
-    const stepOnPause = (({params: {reason, data}}) => {
-      InspectorTest.log(`Paused with reason: ${reason} and data: ${
-          data ? JSON.stringify(data) : '{}'}.`);
-      Protocol.Debugger.stepInto({breakOnAsyncCall: true});
-    });
-    Protocol.Debugger.onPaused(stepOnPause);
     const expression =
         `debugger; setTimeout('console.log(3);//# sourceURL=bar.js', 0);`;
     const {result: {scriptId}} = await Protocol.Runtime.compileScript(
         {expression, sourceURL: 'foo.js', persistScript: true});
-    await Protocol.Runtime.runScript({scriptId});
+    const runPromise = Protocol.Runtime.runScript({scriptId});
+    // Pausing 6 times:
+    // 2x instrumentation breaks,
+    // 1x debugger statement,
+    // 3x steps in: start of setTimeout, start of inner script, end of inner script.
+    for (var i = 0; i < 6; ++i) {
+      const msg = await Protocol.Debugger.oncePaused();
+      handlePause('stepInto', {breakOnAsyncCall: true}, msg);
+    }
+    await runPromise;
+    await tearDownEnvironment();
+  },
+  async function testSteppingOutPauseReason() {
+    await setUpEnvironment();
+    await Protocol.Debugger.setInstrumentationBreakpoint(
+        {instrumentation: 'beforeScriptExecution'});
+    const expression = `
+    function test() {
+      debugger;
+      eval('console.log(3);//# sourceURL=bar.js');
+    }
+    test();
+    `
+    const {result: {scriptId}} = await Protocol.Runtime.compileScript(
+        {expression, sourceURL: 'foo.js', persistScript: true});
+
+    const runPromise = Protocol.Runtime.runScript({scriptId});
+    const stepOutOnPause = handlePause.bind(this, 'stepOut', null);
+    Protocol.Debugger.onPaused(stepOutOnPause);
+
+    await runPromise;
     await tearDownEnvironment();
   },
 ]);

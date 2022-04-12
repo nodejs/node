@@ -67,6 +67,23 @@ class V8_EXPORT ValueSerializer {
 
     virtual Maybe<uint32_t> GetWasmModuleTransferId(
         Isolate* isolate, Local<WasmModuleObject> module);
+
+    /**
+     * Returns whether shared values are supported. GetSharedValueId is only
+     * called if SupportsSharedValues() returns true.
+     */
+    virtual bool SupportsSharedValues() const;
+
+    /**
+     * Called when the ValueSerializer serializes a value that is shared across
+     * Isolates. The embedder must return an ID for the object. This function
+     * must be idempotent for the same object. When deserializing, the ID will
+     * be passed to ValueDeserializer::Delegate::GetSharedValueFromId as
+     * |shared_value_id|.
+     */
+    virtual Maybe<uint32_t> GetSharedValueId(Isolate* isolate,
+                                             Local<Value> shared_value);
+
     /**
      * Allocates memory for the buffer of at least the size provided. The actual
      * size (which may be greater or equal) is written to |actual_size|. If no
@@ -166,17 +183,30 @@ class V8_EXPORT ValueDeserializer {
 
     /**
      * Get a WasmModuleObject given a transfer_id previously provided
-     * by ValueSerializer::GetWasmModuleTransferId
+     * by ValueSerializer::Delegate::GetWasmModuleTransferId
      */
     virtual MaybeLocal<WasmModuleObject> GetWasmModuleFromId(
         Isolate* isolate, uint32_t transfer_id);
 
     /**
      * Get a SharedArrayBuffer given a clone_id previously provided
-     * by ValueSerializer::GetSharedArrayBufferId
+     * by ValueSerializer::Delegate::GetSharedArrayBufferId
      */
     virtual MaybeLocal<SharedArrayBuffer> GetSharedArrayBufferFromId(
         Isolate* isolate, uint32_t clone_id);
+
+    /**
+     * Returns whether shared values are supported. GetSharedValueFromId is only
+     * called if SupportsSharedValues() returns true.
+     */
+    virtual bool SupportsSharedValues() const;
+
+    /**
+     * Get a value shared across Isolates given a shared_value_id provided by
+     * ValueSerializer::Delegate::GetSharedValueId.
+     */
+    virtual MaybeLocal<Value> GetSharedValueFromId(Isolate* isolate,
+                                                   uint32_t shared_value_id);
   };
 
   ValueDeserializer(Isolate* isolate, const uint8_t* data, size_t size);

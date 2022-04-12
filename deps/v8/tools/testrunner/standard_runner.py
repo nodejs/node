@@ -46,7 +46,7 @@ VARIANT_ALIASES = {
   # Shortcut for the two above ('more' first - it has the longer running tests)
   'exhaustive': MORE_VARIANTS + VARIANTS,
   # Additional variants, run on a subset of bots.
-  'extra': ['nooptimization', 'future', 'no_wasm_traps', 'turboprop',
+  'extra': ['nooptimization', 'future', 'no_wasm_traps',
             'instruction_scheduling', 'always_sparkplug'],
 }
 

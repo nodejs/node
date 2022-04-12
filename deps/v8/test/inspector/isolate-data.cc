@@ -456,6 +456,25 @@ void InspectorIsolateData::consoleAPIMessage(
     const v8_inspector::StringView& url, unsigned lineNumber,
     unsigned columnNumber, v8_inspector::V8StackTrace* stack) {
   if (!log_console_api_message_calls_) return;
+  switch (level) {
+    case v8::Isolate::kMessageLog:
+      fprintf(stdout, "log: ");
+      break;
+    case v8::Isolate::kMessageDebug:
+      fprintf(stdout, "debug: ");
+      break;
+    case v8::Isolate::kMessageInfo:
+      fprintf(stdout, "info: ");
+      break;
+    case v8::Isolate::kMessageError:
+      fprintf(stdout, "error: ");
+      break;
+    case v8::Isolate::kMessageWarning:
+      fprintf(stdout, "warning: ");
+      break;
+    case v8::Isolate::kMessageAll:
+      break;
+  }
   Print(isolate_.get(), message);
   fprintf(stdout, " (");
   Print(isolate_.get(), url);

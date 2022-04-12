@@ -30,6 +30,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+Smi NumberConstantToSmi(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kNumberConstant);
+  const double d = OpParameter<double>(node->op());
+  Smi smi = Smi::FromInt(static_cast<int32_t>(d));
+  CHECK_EQ(smi.value(), d);
+  return smi;
+}
+
 InstructionSelector::InstructionSelector(
     Zone* zone, size_t node_count, Linkage* linkage,
     InstructionSequence* sequence, Schedule* schedule,
@@ -501,11 +509,17 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
   switch (input->opcode()) {
     case IrOpcode::kInt32Constant:
     case IrOpcode::kInt64Constant:
-    case IrOpcode::kNumberConstant:
     case IrOpcode::kFloat32Constant:
     case IrOpcode::kFloat64Constant:
     case IrOpcode::kDelayedStringConstant:
       return g->UseImmediate(input);
+    case IrOpcode::kNumberConstant:
+      if (rep == MachineRepresentation::kWord32) {
+        Smi smi = NumberConstantToSmi(input);
+        return g->UseImmediate(static_cast<int32_t>(smi.ptr()));
+      } else {
+        return g->UseImmediate(input);
+      }
     case IrOpcode::kCompressedHeapConstant:
     case IrOpcode::kHeapConstant: {
       if (!CanBeTaggedOrCompressedPointer(rep)) {
@@ -2785,16 +2799,18 @@ void InstructionSelector::VisitI64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM64
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
 
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
-#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_IA32
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64 && \
+    !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_RISCV64
 void InstructionSelector::VisitF64x2Qfma(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Qfms(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Qfma(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF32x4Qfms(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_IA32
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
+        // && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_IA32 &&
+        // !V8_TARGET_ARCH_RISCV64
 
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64 && \
+    !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_ARM
 void InstructionSelector::VisitI8x16RelaxedLaneSelect(Node* node) {
   UNIMPLEMENTED();
 }
@@ -2824,6 +2840,12 @@ void InstructionSelector::VisitI32x4RelaxedTruncF32x4U(Node* node) {
   UNIMPLEMENTED();
 }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
+        // && !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARM
+
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64 && \
+    !V8_TARGET_ARCH_RISCV64
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
+        // && !V8_TARGET_ARCH_RISCV64
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 

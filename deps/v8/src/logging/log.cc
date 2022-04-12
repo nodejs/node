@@ -21,7 +21,6 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/perf-jit.h"
 #include "src/execution/isolate.h"
-#include "src/execution/runtime-profiler.h"
 #include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"
@@ -85,11 +84,11 @@ static v8::CodeEventType GetCodeEventTypeForTag(
 
 static const char* ComputeMarker(SharedFunctionInfo shared, AbstractCode code) {
   CodeKind kind = code.kind();
-  // We record interpreter trampoline builting copies as having the
+  // We record interpreter trampoline builtin copies as having the
   // "interpreted" marker.
   if (FLAG_interpreted_frames_native_stack && kind == CodeKind::BUILTIN &&
       code.GetCode().is_interpreter_trampoline_builtin() &&
-      code.GetCode() !=
+      ToCodeT(code.GetCode()) !=
           *BUILTIN_CODE(shared.GetIsolate(), InterpreterEntryTrampoline)) {
     kind = CodeKind::INTERPRETED_FUNCTION;
   }
@@ -944,7 +943,7 @@ class Ticker : public sampler::Sampler {
   void SampleStack(const v8::RegisterState& state) override {
     if (!profiler_) return;
     Isolate* isolate = reinterpret_cast<Isolate*>(this->isolate());
-    if (v8::Locker::WasEverUsed() &&
+    if (isolate->was_locker_ever_used() &&
         (!isolate->thread_manager()->IsLockedByThread(
              perThreadData_->thread_id()) ||
          perThreadData_->thread_state() != nullptr))
@@ -1394,7 +1393,7 @@ void Logger::FeedbackVectorEvent(FeedbackVector vector, AbstractCode code) {
       << vector.length();
   msg << kNext << reinterpret_cast<void*>(code.InstructionStart());
   msg << kNext << vector.optimization_marker();
-  msg << kNext << vector.optimization_tier();
+  msg << kNext << vector.maybe_has_optimized_code();
   msg << kNext << vector.invocation_count();
   msg << kNext << vector.profiler_ticks() << kNext;
 
@@ -1540,11 +1539,10 @@ void Logger::ProcessDeoptEvent(Handle<Code> code, SourcePosition position,
 }
 
 void Logger::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                            int fp_to_sp_delta, bool reuse_code) {
+                            int fp_to_sp_delta) {
   if (!is_logging() || !FLAG_log_deopt) return;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);
-  ProcessDeoptEvent(code, info.position,
-                    Deoptimizer::MessageFor(kind, reuse_code),
+  ProcessDeoptEvent(code, info.position, Deoptimizer::MessageFor(kind),
                     DeoptimizeReasonToString(info.deopt_reason));
 }
 
@@ -1610,20 +1608,6 @@ void Logger::MoveEventInternal(LogEventsAndTags event, Address from,
   MSG_BUILDER();
   msg << kLogEventsNames[event] << kNext << reinterpret_cast<void*>(from)
       << kNext << reinterpret_cast<void*>(to);
-  msg.WriteToLogFile();
-}
-
-void Logger::ResourceEvent(const char* name, const char* tag) {
-  if (!FLAG_log) return;
-  MSG_BUILDER();
-  msg << name << kNext << tag << kNext;
-
-  uint32_t sec, usec;
-  if (base::OS::GetUserTime(&sec, &usec) != -1) {
-    msg << sec << kNext << usec << kNext;
-  }
-  msg.AppendFormatString("%.0f",
-                         V8::GetCurrentPlatform()->CurrentClockTimeMillis());
   msg.WriteToLogFile();
 }
 
@@ -1896,7 +1880,7 @@ EnumerateCompiledFunctions(Heap* heap) {
        obj = iterator.Next()) {
     if (obj.IsSharedFunctionInfo()) {
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
-      if (sfi.is_compiled() && !sfi.IsInterpreted()) {
+      if (sfi.is_compiled() && !sfi.HasBytecodeArray()) {
         compiled_funcs.emplace_back(
             handle(sfi, isolate),
             handle(AbstractCode::cast(sfi.abstract_code(isolate)), isolate));
@@ -1912,7 +1896,7 @@ EnumerateCompiledFunctions(Heap* heap) {
           Script::cast(function.shared().script()).HasValidSource()) {
         compiled_funcs.emplace_back(
             handle(function.shared(), isolate),
-            handle(AbstractCode::cast(function.code()), isolate));
+            handle(AbstractCode::cast(FromCodeT(function.code())), isolate));
       }
     }
   }
@@ -2168,7 +2152,7 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
     case CodeKind::INTERPRETED_FUNCTION:
     case CodeKind::TURBOFAN:
     case CodeKind::BASELINE:
-    case CodeKind::TURBOPROP:
+    case CodeKind::MAGLEV:
       return;  // We log this later using LogCompiledFunctions.
     case CodeKind::BYTECODE_HANDLER:
       return;  // We log it later by walking the dispatch table.
@@ -2182,7 +2166,7 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
       break;
     case CodeKind::BUILTIN:
       if (Code::cast(object).is_interpreter_trampoline_builtin() &&
-          Code::cast(object) !=
+          ToCodeT(Code::cast(object)) !=
               *BUILTIN_CODE(isolate_, InterpreterEntryTrampoline)) {
         return;
       }

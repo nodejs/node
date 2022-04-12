@@ -148,12 +148,6 @@ class Logger : public CodeEventListener {
   void NewEvent(const char* name, void* object, size_t size);
   void DeleteEvent(const char* name, void* object);
 
-  // Emits an event with a tag, and some resource usage information.
-  // -> (name, tag, <rusage information>).
-  // Currently, the resource usage information is a process time stamp
-  // and a real time timestamp.
-  void ResourceEvent(const char* name, const char* tag);
-
   // Emits an event that an undefined property was read from an
   // object.
   void SuspectReadEvent(Name name, Object obj);
@@ -229,7 +223,7 @@ class Logger : public CodeEventListener {
   void CodeDisableOptEvent(Handle<AbstractCode> code,
                            Handle<SharedFunctionInfo> shared) override;
   void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta, bool reuse_code) override;
+                      int fp_to_sp_delta) override;
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override;
@@ -277,14 +271,22 @@ class Logger : public CodeEventListener {
 
   static void DefaultEventLoggerSentinel(const char* name, int event) {}
 
-  static void CallEventLogger(Isolate* isolate, const char* name,
-                              v8::LogEventStatus se, bool expose_to_api) {
-    if (!isolate->event_logger()) return;
+  V8_INLINE static void CallEventLoggerInternal(Isolate* isolate,
+                                                const char* name,
+                                                v8::LogEventStatus se,
+                                                bool expose_to_api) {
     if (isolate->event_logger() == DefaultEventLoggerSentinel) {
       LOG(isolate, TimerEvent(se, name));
     } else if (expose_to_api) {
       isolate->event_logger()(name, static_cast<v8::LogEventStatus>(se));
     }
+  }
+
+  V8_INLINE static void CallEventLogger(Isolate* isolate, const char* name,
+                                        v8::LogEventStatus se,
+                                        bool expose_to_api) {
+    if (!isolate->event_logger()) return;
+    CallEventLoggerInternal(isolate, name, se, expose_to_api);
   }
 
   V8_EXPORT_PRIVATE bool is_logging();
@@ -450,7 +452,7 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public CodeEventListener {
   void NativeContextMoveEvent(Address from, Address to) override {}
   void CodeMovingGCEvent() override {}
   void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta, bool reuse_code) override {}
+                      int fp_to_sp_delta) override {}
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override {}
@@ -519,7 +521,7 @@ class ExternalCodeEventListener : public CodeEventListener {
                            Handle<SharedFunctionInfo> shared) override {}
   void CodeMovingGCEvent() override {}
   void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta, bool reuse_code) override {}
+                      int fp_to_sp_delta) override {}
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override {}

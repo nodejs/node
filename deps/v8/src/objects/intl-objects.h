@@ -28,11 +28,25 @@ class BreakIterator;
 class Collator;
 class FormattedValue;
 class StringEnumeration;
+class TimeZone;
 class UnicodeString;
 }  // namespace U_ICU_NAMESPACE
 
 namespace v8 {
 namespace internal {
+
+struct NumberFormatSpan {
+  int32_t field_id;
+  int32_t begin_pos;
+  int32_t end_pos;
+
+  NumberFormatSpan() = default;
+  NumberFormatSpan(int32_t field_id, int32_t begin_pos, int32_t end_pos)
+      : field_id(field_id), begin_pos(begin_pos), end_pos(end_pos) {}
+};
+
+V8_EXPORT_PRIVATE std::vector<NumberFormatSpan> FlattenRegionsToParts(
+    std::vector<NumberFormatSpan>* regions);
 
 template <typename T>
 class Handle;
@@ -44,6 +58,24 @@ class Intl {
     kBoundFunction = Context::MIN_CONTEXT_SLOTS,
     kLength
   };
+
+  enum class FormatRangeSource { kShared, kStartRange, kEndRange };
+
+  class FormatRangeSourceTracker {
+   public:
+    FormatRangeSourceTracker();
+    void Add(int32_t field, int32_t start, int32_t limit);
+    FormatRangeSource GetSource(int32_t start, int32_t limit) const;
+
+   private:
+    int32_t start_[2];
+    int32_t limit_[2];
+
+    bool FieldContains(int32_t field, int32_t start, int32_t limit) const;
+  };
+
+  static Handle<String> SourceString(Isolate* isolate,
+                                     FormatRangeSource source);
 
   // Build a set of ICU locales from a list of Locales. If there is a locale
   // with a script tag then the locales also include a locale without the
@@ -114,6 +146,21 @@ class Intl {
       Isolate* isolate, Handle<Object> num, Handle<Object> locales,
       Handle<Object> options, const char* method_name);
 
+  // [[RoundingPriority]] is one of the String values "auto", "morePrecision",
+  // or "lessPrecision", specifying the rounding priority for the number.
+  enum class RoundingPriority {
+    kAuto,
+    kMorePrecision,
+    kLessPrecision,
+  };
+
+  enum class RoundingType {
+    kFractionDigits,
+    kSignificantDigits,
+    kMorePrecision,
+    kLessPrecision,
+  };
+
   // ecma402/#sec-setnfdigitoptions
   struct NumberFormatDigitOptions {
     int minimum_integer_digits;
@@ -121,6 +168,8 @@ class Intl {
     int maximum_fraction_digits;
     int minimum_significant_digits;
     int maximum_significant_digits;
+    RoundingPriority rounding_priority;
+    RoundingType rounding_type;
   };
   V8_WARN_UNUSED_RESULT static Maybe<NumberFormatDigitOptions>
   SetNumberFormatDigitOptions(Isolate* isolate, Handle<JSReceiver> options,
@@ -142,8 +191,9 @@ class Intl {
 
   // Helper function to convert number field id to type string.
   static Handle<String> NumberFieldToType(Isolate* isolate,
-                                          Handle<Object> numeric_obj,
-                                          int32_t field_id);
+                                          const NumberFormatSpan& part,
+                                          const icu::UnicodeString& text,
+                                          bool is_nan);
 
   // A helper function to implement formatToParts which add element to array as
   // $array[$index] = { type: $field_type_string, value: $value }
@@ -295,6 +345,32 @@ class Intl {
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> AvailableCalendars(
       Isolate* isolate);
+
+  V8_WARN_UNUSED_RESULT static bool IsValidTimeZoneName(
+      const icu::TimeZone& tz);
+  V8_WARN_UNUSED_RESULT static bool IsValidTimeZoneName(Isolate* isolate,
+                                                        const std::string& id);
+  V8_WARN_UNUSED_RESULT static bool IsValidTimeZoneName(Isolate* isolate,
+                                                        Handle<String> id);
+
+  // Function to support Temporal
+  V8_WARN_UNUSED_RESULT static std::string TimeZoneIdFromIndex(int32_t index);
+
+  V8_WARN_UNUSED_RESULT static Maybe<bool> GetTimeZoneIndex(
+      Isolate* isolate, Handle<String> identifier, int32_t* index);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> CanonicalizeTimeZoneName(
+      Isolate* isolate, Handle<String> identifier);
+
+  // ecma402/#sec-coerceoptionstoobject
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> CoerceOptionsToObject(
+      Isolate* isolate, Handle<Object> options, const char* service);
+
+  // #sec-tointlmathematicalvalue
+  // The implementation preserve the Object in String, BigInt or Number
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
+  ToIntlMathematicalValueAsNumberBigIntOrString(Isolate* isolate,
+                                                Handle<Object> input);
 };
 
 }  // namespace internal

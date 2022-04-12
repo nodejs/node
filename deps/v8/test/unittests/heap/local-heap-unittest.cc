@@ -19,7 +19,7 @@ using LocalHeapTest = TestWithIsolate;
 
 TEST_F(LocalHeapTest, Initialize) {
   Heap* heap = i_isolate()->heap();
-  CHECK(heap->safepoint()->ContainsAnyLocalHeap());
+  heap->safepoint()->AssertMainThreadIsOnlyThread();
 }
 
 TEST_F(LocalHeapTest, Current) {
