@@ -4283,6 +4283,9 @@ void Heap::AutomaticallyRestoreInitialHeapLimit(double threshold_percent) {
 
 bool Heap::InvokeNearHeapLimitCallback() {
   if (near_heap_limit_callbacks_.size() > 0) {
+    AllowGarbageCollection allow_gc;
+    TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_NEAR_HEAP_LIMIT);
+    VMState<EXTERNAL> callback_state(isolate());
     HandleScope scope(isolate());
     v8::NearHeapLimitCallback callback =
         near_heap_limit_callbacks_.back().first;
