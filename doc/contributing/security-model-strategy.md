@@ -67,7 +67,7 @@ Features in this category should:
 * be opt-in, and additional overhead when not enabled must be low
 * limit change in core to just what is needed to enable experimentation
 
-## Current implementaion and assets
+## Current implementation and assets
 
 Node.js has an experimental implementation of
 [policies](https://nodejs.org/docs/latest/api/policy.html#policies).
