@@ -3,7 +3,7 @@
 A clear security model, with features like permissions and policy enforcement,
 is a
 [top technical priority](https://github.com/nodejs/node/blob/master/doc/contributing/technical-priorities.md#permissionspoliciessecurity-model)
-for the future success of Node.js.
+of Node.js.
 
 This document provides an overview of our high-level strategy for
 making progress as well as information on our current implementations
