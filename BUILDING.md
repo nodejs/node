@@ -99,46 +99,37 @@ Node.js does not support a platform version if a vendor has expired support
 for it. In other words, Node.js does not support running on End-of-Life (EoL)
 platforms. This is true regardless of entries in the table below.
 
-| Operating System | Architectures    | Versions                        | Support Type                                | Notes                                     |
-| ---------------- | ---------------- | ------------------------------- | ------------------------------------------- | ----------------------------------------- |
-| GNU/Linux        | x64              | kernel >= 3.10, glibc >= 2.17   | Tier 1                                      | e.g. Ubuntu 16.04[^1], Debian 9, EL 7[^2] |
-| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19  | Experimental                                | e.g. Alpine 3.8                           |
-| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17   | Experimental                                | Downgraded as of Node.js 10               |
-| GNU/Linux        | arm64            | kernel >= 4.5, glibc >= 2.17    | Tier 1                                      | e.g. Ubuntu 16.04, Debian 9, EL 7[^3]     |
-| GNU/Linux        | armv7            | kernel >= 4.14, glibc >= 2.24   | Tier 1                                      | e.g. Ubuntu 18.04, Debian 9               |
-| GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24   | Experimental                                | Downgraded as of Node.js 12               |
-| GNU/Linux        | ppc64le >=power8 | kernel >= 3.10.0, glibc >= 2.17 | Tier 2                                      | e.g. Ubuntu 16.04[^1], EL 7[^2]           |
-| GNU/Linux        | s390x            | kernel >= 3.10.0, glibc >= 2.17 | Tier 2                                      | e.g. EL 7[^2]                             |
-| Windows          | x64              | >= Windows 10/Server 2016       | Tier 1                                      | [^4],[^5]                                 |
-| Windows          | x86              | >= Windows 10/Server 2016       | Experimental                                | [^6]                                      |
-| Windows          | x64, x86         | Windows 8.1/Server 2012         | Experimental                                |                                           |
-| Windows          | arm64            | >= Windows 10                   | Tier 2 (compiling) / Experimental (running) |                                           |
-| macOS            | x64              | >= 10.15                        | Tier 1                                      | For notes about compilation see [^7]      |
-| macOS            | arm64            | >= 11                           | Tier 1                                      |                                           |
-| SmartOS          | x64              | >= 18                           | Tier 2                                      |                                           |
-| AIX              | ppc64be >=power8 | >= 7.2 TL04                     | Tier 2                                      |                                           |
-| FreeBSD          | x64              | >= 12.2                         | Experimental                                |                                           |
+| Operating System | Architectures    | Versions                          | Support Type                                | Notes                                |
+| ---------------- | ---------------- | --------------------------------- | ------------------------------------------- | ------------------------------------ |
+| GNU/Linux        | x64              | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1                                      | e.g. Ubuntu 20.04, Debian 10, RHEL 8 |
+| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19    | Experimental                                | e.g. Alpine 3.8                      |
+| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17     | Experimental                                | Downgraded as of Node.js 10          |
+| GNU/Linux        | arm64            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1                                      | e.g. Ubuntu 20.04, Debian 10, RHEL 8 |
+| GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1                                      | e.g. Ubuntu 20.04, Debian 10         |
+| GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24     | Experimental                                | Downgraded as of Node.js 12          |
+| GNU/Linux        | ppc64le >=power8 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2                                      | e.g. Ubuntu 20.04, RHEL 8            |
+| GNU/Linux        | s390x            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2                                      | e.g. RHEL 8                          |
+| Windows          | x64              | >= Windows 10/Server 2016         | Tier 1                                      | [^2],[^3]                            |
+| Windows          | x86              | >= Windows 10/Server 2016         | Experimental                                | [^4]                                 |
+| Windows          | x64, x86         | Windows 8.1/Server 2012           | Experimental                                |                                      |
+| Windows          | arm64            | >= Windows 10                     | Tier 2 (compiling) / Experimental (running) |                                      |
+| macOS            | x64              | >= 10.15                          | Tier 1                                      | For notes about compilation see [^5] |
+| macOS            | arm64            | >= 11                             | Tier 1                                      |                                      |
+| SmartOS          | x64              | >= 18                             | Tier 2                                      |                                      |
+| AIX              | ppc64be >=power8 | >= 7.2 TL04                       | Tier 2                                      |                                      |
+| FreeBSD          | x64              | >= 12.2                           | Experimental                                |                                      |
 
-[^1]: GCC 8 is not provided on the base platform. Users will
-    need the
-    [Toolchain test builds PPA](https://launchpad.net/\~ubuntu-toolchain-r/+archive/ubuntu/test?field.series_filter=xenial)
-    or similar to source a newer compiler.
+[^1]: Older kernel versions may work. However official Node.js release
+    binaries are [built on RHEL 8 systems](#official-binary-platforms-and-toolchains)
+    with kernel 4.18.
 
-[^2]: GCC 8 is not provided on the base platform. Users will
-    need the
-    [devtoolset-8](https://www.softwarecollections.org/en/scls/rhscl/devtoolset-8/)
-    or later to source a newer compiler.
-
-[^3]: Older kernel versions may work for ARM64. However the
-    Node.js test infrastructure only tests >= 4.5.
-
-[^4]: On Windows, running Node.js in Windows terminal emulators
+[^2]: On Windows, running Node.js in Windows terminal emulators
     like `mintty` requires the usage of [winpty](https://github.com/rprichard/winpty)
     for the tty channels to work (e.g. `winpty node.exe script.js`).
     In "Git bash" if you call the node shell alias (`node` without the `.exe`
     extension), `winpty` is used automatically.
 
-[^5]: The Windows Subsystem for Linux (WSL) is not
+[^3]: The Windows Subsystem for Linux (WSL) is not
     supported, but the GNU/Linux build process and binaries should work. The
     community will only address issues that reproduce on native GNU/Linux
     systems. Issues that only reproduce on WSL should be reported in the
@@ -146,11 +137,11 @@ platforms. This is true regardless of entries in the table below.
     Windows binary (`node.exe`) in WSL will not work without workarounds such as
     stdio redirection.
 
-[^6]: Compiling Node.js for x86 Windows is currently impossible due to
+[^4]: Compiling Node.js for x86 Windows is currently impossible due to
     issues with version 10.1 of the V8 engine. Support will come back to its
     previous status as soon as possible.
 
-[^7]: Our macOS x64 Binaries are compiled with 10.15 as a target. Xcode11 is
+[^5]: Our macOS x64 Binaries are compiled with 10.15 as a target. Xcode11 is
     required to compile.
 
 ### Supported toolchains
@@ -172,19 +163,17 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 8                                                                            |
 | darwin-x64              | macOS 10.15, Xcode Command Line Tools 11 with -mmacosx-version-min=10.15                                      |
 | darwin-arm64 (and .pkg) | macOS 11 (arm64), Xcode Command Line Tools 12 with -mmacosx-version-min=10.15                                 |
-| linux-arm64             | CentOS 7 with devtoolset-8 / GCC 8[^8]                                                                        |
+| linux-arm64             | RHEL 8 with GCC 8[^6]                                                                                         |
 | linux-armv7l            | Cross-compiled on Ubuntu 18.04 x64 with [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools) |
-| linux-ppc64le           | CentOS 7 with devtoolset-8 / GCC 8[^8]                                                                        |
-| linux-s390x             | RHEL 7 with devtoolset-8 / GCC 8[^8]                                                                          |
-| linux-x64               | CentOS 7 with devtoolset-8 / GCC 8[^8]                                                                        |
+| linux-ppc64le           | RHEL 8 with GCC 8[^6]                                                                                         |
+| linux-s390x             | RHEL 8 with GCC 8[^6]                                                                                         |
+| linux-x64               | RHEL 8 with GCC 8[^6]                                                                                         |
 | win-x64 and win-x86     | Windows 2012 R2 (x64) with Visual Studio 2019                                                                 |
 
-[^8]: The Enterprise Linux devtoolset-8 allows us to compile binaries with GCC 8
-    but linked to the glibc and libstdc++ versions of the host platforms
-    (CentOS 7 / RHEL 7). Therefore, binaries produced on these systems are
-    compatible with glibc >= 2.17 and libstdc++ >= 6.0.20 (`GLIBCXX_3.4.20`).
-    These are available on distributions natively supporting GCC 4.9, such as
-    Ubuntu 14.04 and Debian 8.
+[^6]: Binaries produced on these systems are compatible with glibc >= 2.28
+    and libstdc++ >= 6.0.25 (`GLIBCXX_3.4.25`). These are available on
+    distributions natively supporting GCC 8.1 or higher, such as Debian 10,
+    RHEL 8 and Ubuntu 20.04.
 
 #### OpenSSL asm support
 
