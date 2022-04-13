@@ -50,7 +50,7 @@ jobs:
       - name: Lint C/C++ files
         run: make lint-cpp
   format-cpp:
-    if: github.event.pull_request.draft == false
+    if: ${{ github.event.pull_request.draft == false && github.base_ref == 'master' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
