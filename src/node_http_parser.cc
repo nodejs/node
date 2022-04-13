@@ -190,7 +190,7 @@ struct StringPtr {
 
 class Parser;
 
-struct ParserComparer {
+struct ParserComparator {
   bool operator()(const Parser* lhs, const Parser* rhs) const;
 };
 
@@ -207,19 +207,19 @@ class ConnectionsList : public BaseObject {
     static void Expired(const FunctionCallbackInfo<Value>& args);
 
     void Push(Parser* parser) {
-      allConnections.insert(parser);
+      all_connections_.insert(parser);
     }
 
     void Pop(Parser* parser) {
-      allConnections.erase(parser);
+      all_connections_.erase(parser);
     }
 
     void PushActive(Parser* parser) {
-      activeConnections.insert(parser);
+      active_connections_.insert(parser);
     }
 
     void PopActive(Parser* parser) {
-      activeConnections.erase(parser);
+      active_connections_.erase(parser);
     }
 
     SET_NO_MEMORY_INFO()
@@ -227,18 +227,18 @@ class ConnectionsList : public BaseObject {
     SET_SELF_SIZE(ConnectionsList)
 
  private:
-    std::set<Parser*, ParserComparer> allConnections;
-    std::set<Parser*, ParserComparer> activeConnections;
-
     ConnectionsList(Environment* env, Local<Object> object)
       : BaseObject(env, object) {
         MakeWeak();
       }
+
+    std::set<Parser*, ParserComparator> all_connections_;
+    std::set<Parser*, ParserComparator> active_connections_;
 };
 
 class Parser : public AsyncWrap, public StreamListener {
   friend class ConnectionsList;
-  friend struct ParserComparer;
+  friend struct ParserComparator;
 
  public:
   Parser(BindingData* binding_data, Local<Object> wrap)
@@ -742,7 +742,7 @@ class Parser : public AsyncWrap, public StreamListener {
       return;
     }
 
-    double duration = (uv_hrtime() - parser->last_message_start_) / 1000000;
+    double duration = (uv_hrtime() - parser->last_message_start_) / 1e6;
     args.GetReturnValue().Set(duration);
   }
 
@@ -1043,7 +1043,7 @@ class Parser : public AsyncWrap, public StreamListener {
   static const llhttp_settings_t settings;
 };
 
-bool ParserComparer::operator()(const Parser* lhs, const Parser* rhs) const {
+bool ParserComparator::operator()(const Parser* lhs, const Parser* rhs) const {
   if (lhs->last_message_start_ == 0) {
     return false;
   } else if (rhs->last_message_start_ == 0) {
@@ -1070,7 +1070,7 @@ void ConnectionsList::All(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
 
   uint32_t i = 0;
-  for (auto parser : list->allConnections) {
+  for (auto parser : list->all_connections_) {
     if (all->Set(context, i++, parser->object()).IsNothing()) {
       return;
     }
@@ -1089,7 +1089,7 @@ void ConnectionsList::Idle(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
 
   uint32_t i = 0;
-  for (auto parser : list->allConnections) {
+  for (auto parser : list->all_connections_) {
     if (parser->last_message_start_ == 0) {
       if (idle->Set(context, i++, parser->object()).IsNothing()) {
         return;
@@ -1110,7 +1110,7 @@ void ConnectionsList::Active(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
 
   uint32_t i = 0;
-  for (auto parser : list->activeConnections) {
+  for (auto parser : list->active_connections_) {
     if (active->Set(context, i++, parser->object()).IsNothing()) {
       return;
     }
@@ -1130,9 +1130,9 @@ void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsNumber());
   CHECK(args[1]->IsNumber());
   uint64_t headers_timeout =
-    static_cast<uint64_t>(args[0].As<v8::Uint32>()->Value()) * 1000000;
+    static_cast<uint64_t>(args[0].As<Uint32>()->Value()) * 1000000;
   uint64_t request_timeout =
-    static_cast<uint64_t>(args[1].As<v8::Uint32>()->Value()) * 1000000;
+    static_cast<uint64_t>(args[1].As<Uint32>()->Value()) * 1000000;
 
   if (headers_timeout == 0 && request_timeout == 0) {
     return args.GetReturnValue().Set(expired);
@@ -1147,8 +1147,8 @@ void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
     request_timeout > 0 ? now - request_timeout : 0;
 
   uint32_t i = 0;
-  auto iter = list->activeConnections.begin();
-  auto end = list->activeConnections.end();
+  auto iter = list->active_connections_.begin();
+  auto end = list->active_connections_.end();
   while (iter != end) {
     Parser* parser = *iter;
     iter++;
@@ -1165,7 +1165,7 @@ void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
         return;
       }
 
-      list->activeConnections.erase(parser);
+      list->active_connections_.erase(parser);
     }
   }
 
