@@ -14,8 +14,8 @@ as a starting point for contributors.
 * Document the security model
 * Document threat models and current state of the art
 * Support experimentation on features like permissions and policies
-* Add security component in Node.js certification covering
-  Node.js security model
+* Add a security component in Node.js certification covering
+  the Node.js security model
 
 ### Document the security model
 
