@@ -6,9 +6,9 @@ const { createServer } = require('http');
 const { connect } = require('net');
 
 // This test validates that the server returns 408
-// after server.requestTimeout if the client
-// does not complete a request, and that keep alive
-// works properly.
+// after server.headersTimeout if the client
+// does not send headers before the timeout, and
+// that keep alive works properly.
 
 function performRequestWithDelay(client, firstDelay, secondDelay, closeAfter) {
   client.resume();
@@ -27,10 +27,10 @@ function performRequestWithDelay(client, firstDelay, secondDelay, closeAfter) {
   }, firstDelay + secondDelay).unref();
 }
 
-const requestTimeout = common.platformTimeout(1000);
+const headersTimeout = common.platformTimeout(1000);
 const server = createServer({
-  headersTimeout: 0,
-  requestTimeout,
+  headersTimeout,
+  requestTimeout: 0,
   keepAliveTimeout: 0,
   connectionsCheckingInterval: common.platformTimeout(250),
 }, common.mustCallAtLeast((req, res) => {
@@ -38,10 +38,12 @@ const server = createServer({
   res.end();
 }));
 
-assert.strictEqual(server.requestTimeout, requestTimeout);
+assert.strictEqual(server.headersTimeout, headersTimeout);
 
-// Make sure keepAliveTimeout is big enough for the requestTimeout.
-server.keepAliveTimeout = 0;
+// Check that timeout event is not triggered
+server.once('timeout', common.mustNotCall((socket) => {
+  socket.destroy();
+}));
 
 server.listen(0, common.mustCall(() => {
   const client = connect(server.address().port);
@@ -58,19 +60,19 @@ server.listen(0, common.mustCall(() => {
         'HTTP/1.1 200 OK'
       );
 
-      const defer = common.platformTimeout(requestTimeout * 1.5);
+      const defer = common.platformTimeout(headersTimeout * 1.5);
 
-      // Wait some time to make sure requestTimeout
+      // Wait some time to make sure headersTimeout
       // does not interfere with keep alive
       setTimeout(() => {
         response = '';
         second = true;
 
-        // Perform a second request expected to finish after requestTimeout
+        // Perform a second request expected to finish after headersTimeout
         performRequestWithDelay(
           client,
-          requestTimeout / 5,
-          requestTimeout,
+          headersTimeout / 5,
+          headersTimeout,
           true
         );
       }, defer).unref();
@@ -91,11 +93,11 @@ server.listen(0, common.mustCall(() => {
   client.on('error', errOrEnd);
   client.on('end', errOrEnd);
 
-  // Perform a second request expected to finish before requestTimeout
+  // Perform a second request expected to finish before headersTimeout
   performRequestWithDelay(
     client,
-    requestTimeout / 5,
-    requestTimeout / 5,
+    headersTimeout / 5,
+    headersTimeout / 5,
     false
   );
 }));

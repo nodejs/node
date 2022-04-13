@@ -9,13 +9,13 @@ const fixtures = require('../common/fixtures');
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 const server = createServer(options);
 
-// 300 seconds is the default
-assert.strictEqual(server.requestTimeout, 300000);
-const requestTimeout = common.platformTimeout(1000);
-server.requestTimeout = requestTimeout;
-assert.strictEqual(server.requestTimeout, requestTimeout);
+// 60000 seconds is the default
+assert.strictEqual(server.headersTimeout, 60000);
+const headersTimeout = common.platformTimeout(1000);
+server.headersTimeout = headersTimeout;
+assert.strictEqual(server.headersTimeout, headersTimeout);
