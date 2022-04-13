@@ -21,6 +21,10 @@ const hasFullICU = (() => {
 if (!hasFullICU)
   common.skip('small ICU');
 
+const icuVersionMajor = Number(process.config.variables.icu_ver_major ?? 0);
+if (icuVersionMajor < 71)
+  common.skip('ICU too old');
+
 
 function runEnvOutside(addEnv, code, ...args) {
   return execFileSync(
