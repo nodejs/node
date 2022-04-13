@@ -16,7 +16,7 @@ global.gc();
 const after = process.memoryUsage.rss();
 
 if (process.config.variables.asan) {
-  assert(before * 10 > after, `asan: before=${before} after=${after}`);
+  assert(after < before * 10, `asan: before=${before} after=${after}`);
 } else {
-  assert(after - before < 1024 * 1024 * 10, `before=${before} after=${after}`);
+  assert(after < before * 2, `before=${before} after=${after}`);
 }
