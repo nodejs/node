@@ -5,10 +5,6 @@ is a
 [top technical priority](https://github.com/nodejs/node/blob/master/doc/contributing/technical-priorities.md#permissionspoliciessecurity-model)
 of Node.js.
 
-This document provides an overview of our high-level strategy for
-making progress as well as information on our current implementations
-as a starting point for contributors.
-
 ## High-level approach
 
 * Document the security model
