@@ -1,0 +1,80 @@
+.TH "NPM\-INSTALL\-CI\-TEST" "1" "March 2022" "" ""
+.SH "NAME"
+\fBnpm-install-ci-test\fR \- Install a project with a clean slate and run tests
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm install\-ci\-test
+
+alias: cit
+.fi
+.RE
+.SS Description
+.P
+This command runs \fBnpm ci\fP followed immediately by \fBnpm test\fP\|\.
+.SS Configuration
+.SS \fBaudit\fP
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+When "true" submit audit reports alongside the current npm command to the
+default registry and all registries configured for scopes\. See the
+documentation for npm help \fBaudit\fP for details on what is
+submitted\.
+.SS \fBforeground\-scripts\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Run all build scripts (ie, \fBpreinstall\fP, \fBinstall\fP, and \fBpostinstall\fP)
+scripts for installed packages in the foreground process, sharing standard
+input, output, and error with the main npm process\.
+.P
+Note that this will generally make installs run slower, and be much noisier,
+but can be useful for debugging\.
+.SS \fBignore\-scripts\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If true, npm does not run scripts specified in package\.json files\.
+.P
+Note that commands explicitly intended to run a particular script, such as
+\fBnpm start\fP, \fBnpm stop\fP, \fBnpm restart\fP, \fBnpm test\fP, and \fBnpm run\-script\fP
+will still run their intended script if \fBignore\-scripts\fP is set, but they
+will \fInot\fR run any pre\- or post\-scripts\.
+.SS \fBscript\-shell\fP
+.RS 0
+.IP \(bu 2
+Default: '/bin/sh' on POSIX systems, 'cmd\.exe' on Windows
+.IP \(bu 2
+Type: null or String
+
+.RE
+.P
+The shell to use for scripts run with the \fBnpm exec\fP, \fBnpm run\fP and \fBnpm
+init <pkg>\fP commands\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help install\-test
+.IP \(bu 2
+npm help ci
+.IP \(bu 2
+npm help test
+
+.RE

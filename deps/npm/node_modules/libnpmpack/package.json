@@ -1,0 +1,55 @@
+{
+  "name": "libnpmpack",
+  "version": "4.0.2",
+  "description": "Programmatic API for the bits behind npm pack",
+  "author": "GitHub Inc.",
+  "main": "lib/index.js",
+  "contributors": [
+    "Claudia Hernández <claudia@npmjs.com>"
+  ],
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "license": "ISC",
+  "scripts": {
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "lint": "eslint \"**/*.js\"",
+    "test": "tap",
+    "posttest": "npm run lint",
+    "postlint": "template-oss-check",
+    "lintfix": "npm run lint -- --fix",
+    "snap": "tap",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "tap": {
+    "check-coverage": true
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^3.0.1",
+    "@npmcli/template-oss": "3.2.2",
+    "nock": "^13.0.7",
+    "tap": "^15.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/cli.git",
+    "directory": "workspaces/libnpmpack"
+  },
+  "bugs": "https://github.com/npm/libnpmpack/issues",
+  "homepage": "https://npmjs.com/package/libnpmpack",
+  "dependencies": {
+    "@npmcli/run-script": "^3.0.0",
+    "npm-package-arg": "^9.0.1",
+    "pacote": "^13.0.5"
+  },
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "3.2.2"
+  }
+}

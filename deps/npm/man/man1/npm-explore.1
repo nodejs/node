@@ -1,0 +1,54 @@
+.TH "NPM\-EXPLORE" "1" "March 2022" "" ""
+.SH "NAME"
+\fBnpm-explore\fR \- Browse an installed package
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm explore <pkg> [ \-\- <command>]
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces\.
+.SS Description
+.P
+Spawn a subshell in the directory of the installed package specified\.
+.P
+If a command is specified, then it is run in the subshell, which then
+immediately terminates\.
+.P
+This is particularly handy in the case of git submodules in the
+\fBnode_modules\fP folder:
+.P
+.RS 2
+.nf
+npm explore some\-dependency \-\- git pull origin master
+.fi
+.RE
+.P
+Note that the package is \fInot\fR automatically rebuilt afterwards, so be
+sure to use \fBnpm rebuild <pkg>\fP if you make any changes\.
+.SS Configuration
+.SS \fBshell\fP
+.RS 0
+.IP \(bu 2
+Default: SHELL environment variable, or "bash" on Posix, or "cmd\.exe" on
+Windows
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+The shell to run for the \fBnpm explore\fP command\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help folders
+.IP \(bu 2
+npm help edit
+.IP \(bu 2
+npm help rebuild
+.IP \(bu 2
+npm help install
+
+.RE

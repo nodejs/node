@@ -1,0 +1,20 @@
+{
+  "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me/)",
+  "name": "promzard",
+  "description": "prompting wizardly",
+  "version": "0.3.0",
+  "repository": {
+    "url": "git://github.com/isaacs/promzard"
+  },
+  "dependencies": {
+    "read": "1"
+  },
+  "devDependencies": {
+    "tap": "~0.2.5"
+  },
+  "main": "promzard.js",
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "license": "ISC"
+}

@@ -1,0 +1,17 @@
+Test collecting type profile data with Profiler.takeTypeProfile.
+
+function g(/*Object, number*/a, /*Array, number*/b, /*Dog, Object*/c) {
+  return 'bye';
+/*string*/};
+/*undefined*/class Tree {};
+/*Flower*/class Flower extends Tree{};
+var f = new Flower();
+// We store the type when a variable is used. If a toStringTag is
+// changes the type, we want to collect that changed feedback.
+// This tests ensures that we collect that information rather than
+// for example infer the types from the internal map, which wouldn't
+// know about a toStringTag.
+f[Symbol.toStringTag] = 'Dog';
+g({}, [], f);
+g(3, 2.3, {a: 42});
+/*string*/

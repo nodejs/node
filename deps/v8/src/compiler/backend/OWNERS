@@ -1,0 +1,8 @@
+bbudge@chromium.org
+gdeepti@chromium.org
+zhin@chromium.org
+
+# Plus src/compiler owners.
+
+per-file register-allocator*=thibaudm@chromium.org
+per-file spill-placer*=thibaudm@chromium.org

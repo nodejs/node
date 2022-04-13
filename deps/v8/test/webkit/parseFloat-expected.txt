@@ -1,0 +1,76 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Tests for the parseFloat function.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS parseFloat() is NaN
+PASS parseFloat('') is NaN
+PASS parseFloat(' ') is NaN
+PASS parseFloat(' 0') is 0
+PASS parseFloat('0 ') is 0
+PASS parseFloat('x0') is NaN
+PASS parseFloat('0x') is 0
+PASS parseFloat(' 1') is 1
+PASS parseFloat('1 ') is 1
+PASS parseFloat('x1') is NaN
+PASS parseFloat('1x') is 1
+PASS parseFloat(' 2.3') is 2.3
+PASS parseFloat('2.3 ') is 2.3
+PASS parseFloat('x2.3') is NaN
+PASS parseFloat('2.3x') is 2.3
+PASS parseFloat('0x2') is 0
+PASS parseFloat('1' + nonASCIINonSpaceCharacter) is 1
+PASS parseFloat(nonASCIINonSpaceCharacter + '1') is NaN
+PASS parseFloat('1' + illegalUTF16Sequence) is 1
+PASS parseFloat(illegalUTF16Sequence + '1') is NaN
+PASS parseFloat(tab + '1') is 1
+PASS parseFloat(nbsp + '1') is 1
+PASS parseFloat(ff + '1') is 1
+PASS parseFloat(vt + '1') is 1
+PASS parseFloat(cr + '1') is 1
+PASS parseFloat(lf + '1') is 1
+PASS parseFloat(ls + '1') is 1
+PASS parseFloat(ps + '1') is 1
+PASS parseFloat(oghamSpaceMark + '1') is 1
+PASS parseFloat(mongolianVowelSeparator + '1') is NaN
+PASS parseFloat(enQuad + '1') is 1
+PASS parseFloat(emQuad + '1') is 1
+PASS parseFloat(enSpace + '1') is 1
+PASS parseFloat(emSpace + '1') is 1
+PASS parseFloat(threePerEmSpace + '1') is 1
+PASS parseFloat(fourPerEmSpace + '1') is 1
+PASS parseFloat(sixPerEmSpace + '1') is 1
+PASS parseFloat(figureSpace + '1') is 1
+PASS parseFloat(punctuationSpace + '1') is 1
+PASS parseFloat(thinSpace + '1') is 1
+PASS parseFloat(hairSpace + '1') is 1
+PASS parseFloat(narrowNoBreakSpace + '1') is 1
+PASS parseFloat(mediumMathematicalSpace + '1') is 1
+PASS parseFloat(ideographicSpace + '1') is 1
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

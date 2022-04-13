@@ -1,0 +1,3 @@
+div.styled::before {
+  content:url(/common/security-features/subresource/image.py?id=%(id)s)
+}

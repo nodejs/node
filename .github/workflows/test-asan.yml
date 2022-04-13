@@ -1,0 +1,58 @@
+name: Test ASan
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - .mailmap
+      - '**.md'
+      - AUTHORS
+      - doc/**
+      - .github/**
+      - '!.github/workflows/test-asan.yml'
+  push:
+    branches:
+      - master
+      - main
+      - canary
+      - v[0-9]+.x-staging
+      - v[0-9]+.x
+    paths-ignore:
+      - .mailmap
+      - '**.md'
+      - AUTHORS
+      - doc/**
+      - .github/**
+      - '!.github/workflows/test-asan.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.10'
+  FLAKY_TESTS: dontcare
+
+jobs:
+  test-asan:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    env:
+      CC: clang
+      CXX: clang++
+      LINK: clang++
+      CONFIG_FLAGS: --enable-asan
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Environment Information
+        run: npx envinfo
+      - name: Build
+        run: make build-ci -j2 V=1
+      - name: Test
+        run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions -t 300"

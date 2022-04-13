@@ -1,0 +1,218 @@
+Tests that multiple sessions do not share command line api.
+Setting $0 in 1
+Evaluating $0 in 1
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}
+Evaluating $0 in 2
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+Setting $0 in 2
+Evaluating $0 in 1
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}
+Evaluating $0 in 2
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 17
+            type : number
+            value : 17
+        }
+    }
+}
+Setting $_ in 1
+Evaluating $_ in 1
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}
+Evaluating $_ in 2
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+Setting $_ in 2
+Evaluating $_ in 1
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}
+Evaluating $_ in 2
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 17
+            type : number
+            value : 17
+        }
+    }
+}
+Inspecting in 1
+inspectRequested from 1
+{
+    method : Runtime.inspectRequested
+    params : {
+        executionContextId : <executionContextId>
+        hints : {
+        }
+        object : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}
+Inspecting in 1 through variable
+inspectRequested from 1
+{
+    method : Runtime.inspectRequested
+    params : {
+        executionContextId : <executionContextId>
+        hints : {
+        }
+        object : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}
+Inspecting in 2
+inspectRequested from 2
+{
+    method : Runtime.inspectRequested
+    params : {
+        executionContextId : <executionContextId>
+        hints : {
+        }
+        object : {
+            description : 17
+            type : number
+            value : 17
+        }
+    }
+}
+Inspecting in 2 through variable
+inspectRequested from 2
+{
+    method : Runtime.inspectRequested
+    params : {
+        executionContextId : <executionContextId>
+        hints : {
+        }
+        object : {
+            description : 17
+            type : number
+            value : 17
+        }
+    }
+}
+Inspecting in 2 through variable from 1
+inspectRequested from 1
+{
+    method : Runtime.inspectRequested
+    params : {
+        executionContextId : <executionContextId>
+        hints : {
+        }
+        object : {
+            description : 42
+            type : number
+            value : 42
+        }
+    }
+}
+Disconnecting 1
+Evaluating $0 in 2
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 17
+            type : number
+            value : 17
+        }
+    }
+}
+Evaluating $_ in 2
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 17
+            type : number
+            value : 17
+        }
+    }
+}
+Inspecting in 2
+inspectRequested from 2
+{
+    method : Runtime.inspectRequested
+    params : {
+        executionContextId : <executionContextId>
+        hints : {
+        }
+        object : {
+            description : 17
+            type : number
+            value : 17
+        }
+    }
+}
+Inspecting in 2 through variable from 1
+Inspecting in 2 through variable
+inspectRequested from 2
+{
+    method : Runtime.inspectRequested
+    params : {
+        executionContextId : <executionContextId>
+        hints : {
+        }
+        object : {
+            description : 17
+            type : number
+            value : 17
+        }
+    }
+}

@@ -1,0 +1,196 @@
+.TH "NPM\-PRUNE" "1" "March 2022" "" ""
+.SH "NAME"
+\fBnpm-prune\fR \- Remove extraneous packages
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm prune [[<@scope>/]<pkg>\.\.\.]
+.fi
+.RE
+.SS Description
+.P
+This command removes "extraneous" packages\.  If a package name is provided,
+then only packages matching one of the supplied names are removed\.
+.P
+Extraneous packages are those present in the \fBnode_modules\fP folder that are
+not listed as any package's dependency list\.
+.P
+If the \fB\-\-production\fP flag is specified or the \fBNODE_ENV\fP environment
+variable is set to \fBproduction\fP, this command will remove the packages
+specified in your \fBdevDependencies\fP\|\. Setting \fB\-\-no\-production\fP will negate
+\fBNODE_ENV\fP being set to \fBproduction\fP\|\.
+.P
+If the \fB\-\-dry\-run\fP flag is used then no changes will actually be made\.
+.P
+If the \fB\-\-json\fP flag is used, then the changes \fBnpm prune\fP made (or would
+have made with \fB\-\-dry\-run\fP) are printed as a JSON object\.
+.P
+In normal operation, extraneous modules are pruned automatically, so you'll
+only need this command with the \fB\-\-production\fP flag\.  However, in the real
+world, operation is not always "normal"\.  When crashes or mistakes happen,
+this command can help clean up any resulting garbage\.
+.SS Configuration
+.SS \fBomit\fP
+.RS 0
+.IP \(bu 2
+Default: 'dev' if the \fBNODE_ENV\fP environment variable is set to
+\|'production', otherwise empty\.
+.IP \(bu 2
+Type: "dev", "optional", or "peer" (can be set multiple times)
+
+.RE
+.P
+Dependency types to omit from the installation tree on disk\.
+.P
+Note that these dependencies \fIare\fR still resolved and added to the
+\fBpackage\-lock\.json\fP or \fBnpm\-shrinkwrap\.json\fP file\. They are just not
+physically installed on disk\.
+.P
+If a package type appears in both the \fB\-\-include\fP and \fB\-\-omit\fP lists, then
+it will be included\.
+.P
+If the resulting omit list includes \fB\|'dev'\fP, then the \fBNODE_ENV\fP environment
+variable will be set to \fB\|'production'\fP for all lifecycle scripts\.
+.SS \fBdry\-run\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Indicates that you don't want npm to make any changes and that it should
+only report what it would have done\. This can be passed into any of the
+commands that modify your local installation, eg, \fBinstall\fP, \fBupdate\fP,
+\fBdedupe\fP, \fBuninstall\fP, as well as \fBpack\fP and \fBpublish\fP\|\.
+.P
+Note: This is NOT honored by other network related commands, eg \fBdist\-tags\fP,
+\fBowner\fP, etc\.
+.SS \fBjson\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Whether or not to output JSON data, rather than the normal output\.
+.RS 0
+.IP \(bu 2
+In \fBnpm pkg set\fP it enables parsing set values with JSON\.parse() before
+saving them to your \fBpackage\.json\fP\|\.
+
+.RE
+.P
+Not supported by all npm commands\.
+.SS \fBforeground\-scripts\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Run all build scripts (ie, \fBpreinstall\fP, \fBinstall\fP, and \fBpostinstall\fP)
+scripts for installed packages in the foreground process, sharing standard
+input, output, and error with the main npm process\.
+.P
+Note that this will generally make installs run slower, and be much noisier,
+but can be useful for debugging\.
+.SS \fBignore\-scripts\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If true, npm does not run scripts specified in package\.json files\.
+.P
+Note that commands explicitly intended to run a particular script, such as
+\fBnpm start\fP, \fBnpm stop\fP, \fBnpm restart\fP, \fBnpm test\fP, and \fBnpm run\-script\fP
+will still run their intended script if \fBignore\-scripts\fP is set, but they
+will \fInot\fR run any pre\- or post\-scripts\.
+.SS \fBworkspace\fP
+.RS 0
+.IP \(bu 2
+Default:
+.IP \(bu 2
+Type: String (can be set multiple times)
+
+.RE
+.P
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option\.
+.P
+Valid values for the \fBworkspace\fP config are either:
+.RS 0
+.IP \(bu 2
+Workspace names
+.IP \(bu 2
+Path to a workspace directory
+.IP \(bu 2
+Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)
+
+.RE
+.P
+When set for the \fBnpm init\fP command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project\.
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBworkspaces\fP
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: null or Boolean
+
+.RE
+.P
+Set to true to run the command in the context of \fBall\fR configured
+workspaces\.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fP to
+ignore workspaces altogether\. When not set explicitly:
+.RS 0
+.IP \(bu 2
+Commands that operate on the \fBnode_modules\fP tree (install, update, etc\.)
+will link workspaces into the \fBnode_modules\fP folder\. \- Commands that do
+other things (test, exec, publish, etc\.) will operate on the root project,
+\fIunless\fR one or more workspaces are specified in the \fBworkspace\fP config\.
+
+.RE
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBinclude\-workspace\-root\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Include the workspace root when workspaces are enabled for a command\.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fP config, or
+all workspaces via the \fBworkspaces\fP flag, will cause npm to operate only on
+the specified workspaces, and not on the root project\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help uninstall
+.IP \(bu 2
+npm help folders
+.IP \(bu 2
+npm help ls
+
+.RE

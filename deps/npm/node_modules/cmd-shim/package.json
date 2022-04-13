@@ -1,0 +1,36 @@
+{
+  "name": "cmd-shim",
+  "version": "4.1.0",
+  "description": "Used in npm for command line application support",
+  "scripts": {
+    "test": "tap",
+    "snap": "tap",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "postpublish": "git push origin --follow-tags"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/cmd-shim.git"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "mkdirp-infer-owner": "^2.0.0"
+  },
+  "devDependencies": {
+    "rimraf": "~2.2.8",
+    "tap": "^14.10.6"
+  },
+  "files": [
+    "index.js",
+    "lib"
+  ],
+  "tap": {
+    "before": "test/00-setup.js",
+    "after": "test/zz-cleanup.js",
+    "check-coverage": true
+  },
+  "engines": {
+    "node": ">=10"
+  }
+}

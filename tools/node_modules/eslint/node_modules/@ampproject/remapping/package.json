@@ -1,0 +1,62 @@
+{
+  "name": "@ampproject/remapping",
+  "version": "2.1.2",
+  "description": "Remap sequential sourcemaps through transformations to point at the original source code",
+  "keywords": [
+    "source",
+    "map",
+    "remap"
+  ],
+  "main": "dist/remapping.umd.js",
+  "module": "dist/remapping.mjs",
+  "typings": "dist/types/remapping.d.ts",
+  "files": [
+    "dist"
+  ],
+  "author": "Justin Ridgewell <jridgewell@google.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ampproject/remapping.git"
+  },
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=6.0.0"
+  },
+  "scripts": {
+    "build": "run-s -n build:*",
+    "build:rollup": "rollup -c rollup.config.js",
+    "build:ts": "tsc --project tsconfig.build.json",
+    "lint": "run-s -n lint:*",
+    "lint:prettier": "npm run test:lint:prettier -- --write",
+    "lint:ts": "npm run test:lint:ts -- --fix",
+    "prebuild": "rm -rf dist",
+    "prepublishOnly": "npm run preversion",
+    "preversion": "run-s test build",
+    "test": "run-s -n test:lint test:only",
+    "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand",
+    "test:lint": "run-s -n test:lint:*",
+    "test:lint:prettier": "prettier --check '{src,test}/**/*.ts'",
+    "test:lint:ts": "eslint '{src,test}/**/*.ts'",
+    "test:only": "jest --coverage",
+    "test:watch": "jest --coverage --watch"
+  },
+  "devDependencies": {
+    "@rollup/plugin-typescript": "8.3.0",
+    "@types/jest": "27.4.0",
+    "@typescript-eslint/eslint-plugin": "5.10.2",
+    "@typescript-eslint/parser": "5.10.2",
+    "eslint": "8.8.0",
+    "eslint-config-prettier": "8.3.0",
+    "jest": "27.4.7",
+    "jest-config": "27.4.7",
+    "npm-run-all": "4.1.5",
+    "prettier": "2.5.1",
+    "rollup": "2.67.0",
+    "ts-jest": "27.1.3",
+    "tslib": "2.3.1",
+    "typescript": "4.5.5"
+  },
+  "dependencies": {
+    "@jridgewell/trace-mapping": "^0.3.0"
+  }
+}

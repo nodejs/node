@@ -1,0 +1,4 @@
+*%(basename)s:5: SyntaxError: `...` must be followed by an identifier in declaration contexts
+let {...{}} = {};
+        ^^
+SyntaxError: `...` must be followed by an identifier in declaration contexts

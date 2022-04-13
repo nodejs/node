@@ -1,0 +1,41 @@
+name: Test and upload documentation to artifacts
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches:
+      - master
+      - main
+      - v[0-9]+.x-staging
+      - v[0-9]+.x
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: lts/*
+
+jobs:
+  build-docs:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Environment Information
+        run: npx envinfo
+      - name: Build
+        run: NODE=$(command -v node) make doc-only
+      - uses: actions/upload-artifact@v3
+        with:
+          name: docs
+          path: out/doc
+      - name: Test
+        run: NODE=$(command -v node) make test-doc-ci TEST_CI_ARGS="-p actions"

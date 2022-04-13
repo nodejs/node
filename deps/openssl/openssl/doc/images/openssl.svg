@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   version="1.1"
+   id="svg2"
+   viewBox="0 0 973.70528 248.96588"
+   height="70.263748mm"
+   width="274.80124mm">
+  <defs
+     id="defs4" />
+  <g
+     transform="translate(60.758696,-843.33549)"
+     id="layer1">
+    <text
+       id="text3336"
+       y="1012.3623"
+       x="3.8487569e-06"
+       style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       xml:space="preserve"><tspan
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:180px;line-height:1.25;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold'"
+         y="1012.3623"
+         x="3.8487569e-06"
+         id="tspan3338"><tspan
+   id="tspan3340"
+   style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:180px;font-family:sans-serif;-inkscape-font-specification:sans-serif;fill:#480e0c;fill-opacity:1">Open</tspan>SSL</tspan></text>
+    <text
+       id="text817"
+       y="1049.0681"
+       x="176.75166"
+       style="font-style:normal;font-weight:normal;font-size:17.49999619px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.93749976"
+       xml:space="preserve"><tspan
+         style="font-size:37.49998856px;stroke-width:0.93749976"
+         y="1049.0681"
+         x="176.75166"
+         id="tspan815">Cryptography and SSL/TLS Toolkit</tspan></text>
+  </g>
+</svg>

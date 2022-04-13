@@ -1,0 +1,6 @@
+*%(basename)s:7: ReferenceError: Cannot access 'a' before initialization
+(function(a=+a) { })();
+             ^
+ReferenceError: Cannot access 'a' before initialization
+    at *%(basename)s:7:14
+    at *%(basename)s:7:21

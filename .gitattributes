@@ -1,0 +1,3 @@
+test/fixtures/* -text
+vcbuild.bat text eol=crlf
+tools/msvs/find_python.cmd text eol=crlf

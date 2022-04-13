@@ -1,0 +1,83 @@
+.TH "NPM\-LOGOUT" "1" "March 2022" "" ""
+.SH "NAME"
+\fBnpm-logout\fR \- Log out of the registry
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm logout
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces\.
+.SS Description
+.P
+When logged into a registry that supports token\-based authentication, tell
+the server to end this token's session\. This will invalidate the token
+everywhere you're using it, not just for the current environment\.
+.P
+When logged into a legacy registry that uses username and password
+authentication, this will clear the credentials in your user configuration\.
+In this case, it will \fIonly\fR affect the current environment\.
+.P
+If \fB\-\-scope\fP is provided, this will find the credentials for the registry
+connected to that scope, if set\.
+.SS Configuration
+.SS \fBregistry\fP
+.RS 0
+.IP \(bu 2
+Default: "https://registry\.npmjs\.org/"
+.IP \(bu 2
+Type: URL
+
+.RE
+.P
+The base URL of the npm registry\.
+.SS \fBscope\fP
+.RS 0
+.IP \(bu 2
+Default: the scope of the current project, if any, or ""
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+Associate an operation with a scope for a scoped registry\.
+.P
+Useful when logging in to or out of a private registry:
+.P
+.RS 2
+.nf
+# log in, linking the scope to the custom registry
+npm login \-\-scope=@mycorp \-\-registry=https://registry\.mycorp\.com
+
+# log out, removing the link and the auth token
+npm logout \-\-scope=@mycorp
+.fi
+.RE
+.P
+This will cause \fB@mycorp\fP to be mapped to the registry for future
+installation of packages specified according to the pattern
+\fB@mycorp/package\fP\|\.
+.P
+This will also cause \fBnpm init\fP to create a scoped package\.
+.P
+.RS 2
+.nf
+# accept all defaults, and create a package named "@foo/whatever",
+# instead of just named "whatever"
+npm init \-\-scope=@foo \-\-yes
+.fi
+.RE
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help adduser
+.IP \(bu 2
+npm help registry
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help whoami
+
+.RE

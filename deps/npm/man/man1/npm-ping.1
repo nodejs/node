@@ -1,0 +1,54 @@
+.TH "NPM\-PING" "1" "March 2022" "" ""
+.SH "NAME"
+\fBnpm-ping\fR \- Ping npm registry
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm ping
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces\.
+.SS Description
+.P
+Ping the configured or given npm registry and verify authentication\.
+If it works it will output something like:
+.P
+.RS 2
+.nf
+npm notice PING https://registry\.npmjs\.org/
+npm notice PONG 255ms
+.fi
+.RE
+.P
+otherwise you will get an error:
+.P
+.RS 2
+.nf
+npm notice PING http://foo\.com/
+npm ERR! code E404
+npm ERR! 404 Not Found \- GET http://www\.foo\.com/\-/ping?write=true
+.fi
+.RE
+.SS Configuration
+.SS \fBregistry\fP
+.RS 0
+.IP \(bu 2
+Default: "https://registry\.npmjs\.org/"
+.IP \(bu 2
+Type: URL
+
+.RE
+.P
+The base URL of the npm registry\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help doctor
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help npmrc
+
+.RE

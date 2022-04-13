@@ -1,0 +1,12 @@
+Signed Certificate Timestamp:
+    Version   : v1 (0x0)
+    Log ID    : DF:1C:2E:C1:15:00:94:52:47:A9:61:68:32:5D:DC:5C:
+                79:59:E8:F7:C6:D3:88:FC:00:2E:0B:BD:3F:74:D7:64
+    Timestamp : Jan  1 00:00:00.000 2020 GMT
+    Extensions: none
+    Signature : ecdsa-with-SHA256
+                30:45:02:20:7C:33:E8:F1:10:2B:9B:FB:DC:48:46:7A:
+                D3:C4:35:BB:E5:D0:E7:94:01:BB:AE:D2:64:4B:99:C4:
+                BA:5B:50:CD:02:21:00:D1:B2:07:13:B9:DE:0F:0F:2F:
+                02:82:0F:A5:1D:E0:12:ED:4C:60:48:A0:5B:58:0C:E7:
+                60:EB:A8:AF:03:5E:C3

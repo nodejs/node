@@ -1,0 +1,469 @@
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+<title>npm-link</title>
+<style>
+body {
+    background-color: #ffffff;
+    color: #24292e;
+
+    margin: 0;
+
+    line-height: 1.5;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+#rainbar {
+    height: 10px;
+    background-image: linear-gradient(139deg, #fb8817, #ff4b01, #c12127, #e02aff);
+}
+
+a {
+    text-decoration: none;
+    color: #0366d6;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+pre {
+    margin: 1em 0px;
+    padding: 1em;
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+
+    display: block;
+    overflow: auto;
+
+    white-space: pre;
+
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+code {
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+pre > code {
+    padding: 0;
+    background-color: inherit;
+    color: inherit;
+}
+h1, h2, h3 {
+    font-weight: 600;
+}
+
+#logobar {
+    background-color: #333333;
+    margin: 0 auto;
+    padding: 1em 4em;
+}
+#logobar .logo {
+    float: left;
+}
+#logobar .title {
+    font-weight: 600;
+    color: #dddddd;
+    float: left;
+    margin: 5px 0 0 1em;
+}
+#logobar:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+#content {
+    margin: 0 auto;
+    padding: 0 4em;
+}
+
+#table_of_contents > h2 {
+    font-size: 1.17em;
+}
+#table_of_contents ul:first-child {
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+    padding: 1em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+#table_of_contents ul {
+    list-style-type: none;
+    padding-left: 1.5em;
+}
+#table_of_contents li {
+    font-size: 0.9em;
+}
+#table_of_contents li a {
+    color: #000000;
+}
+
+header.title {
+    border-bottom: solid 1px #e1e4e8;
+}
+header.title > h1 {
+    margin-bottom: 0.25em;
+}
+header.title > .description {
+    display: block;
+    margin-bottom: 0.5em;
+    line-height: 1;
+}
+
+footer#edit {
+    border-top: solid 1px #e1e4e8;
+    margin: 3em 0 4em 0;
+    padding-top: 2em;
+}
+</style>
+</head>
+<body>
+<div id="banner">
+<div id="rainbar"></div>
+<div id="logobar">
+<svg class="logo" role="img" height="32" width="32" viewBox="0 0 700 700">
+<polygon fill="#cb0000" points="0,700 700,700 700,0 0,0"></polygon>
+<polygon fill="#ffffff" points="150,550 350,550 350,250 450,250 450,550 550,550 550,150 150,150"></polygon>
+</svg>
+<div class="title">
+npm command-line interface
+</div>
+</div>
+</div>
+
+<section id="content">
+<header class="title">
+<h1 id="npm-link">npm-link</h1>
+<span class="description">Symlink a package folder</span>
+</header>
+
+<section id="table_of_contents">
+<h2 id="table-of-contents">Table of contents</h2>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#caveat">Caveat</a></li><li><a href="#workspace-usage">Workspace Usage</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#save"><code>save</code></a></li><li><a href="#save-exact"><code>save-exact</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+</section>
+
+<div id="_content"><h3 id="synopsis">Synopsis</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<pre lang="bash"><code>npm link (in package dir)
+npm link [&lt;@scope&gt;/]&lt;pkg&gt;[@&lt;version&gt;]
+
+alias: ln
+</code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h3 id="description">Description</h3>
+<p>This is handy for installing your own stuff, so that you can work on it and
+test iteratively without having to continually rebuild.</p>
+<p>Package linking is a two-step process.</p>
+<p>First, <code>npm link</code> in a package folder will create a symlink in the global
+folder <code>{prefix}/lib/node_modules/&lt;package&gt;</code> that links to the package
+where the <code>npm link</code> command was executed. It will also link any bins in
+the package to <code>{prefix}/bin/{name}</code>.  Note that <code>npm link</code> uses the global
+prefix (see <code>npm prefix -g</code> for its value).</p>
+<p>Next, in some other location, <code>npm link package-name</code> will create a
+symbolic link from globally-installed <code>package-name</code> to <code>node_modules/</code> of
+the current folder.</p>
+<p>Note that <code>package-name</code> is taken from <code>package.json</code>, <em>not</em> from the
+directory name.</p>
+<p>The package name can be optionally prefixed with a scope. See
+<a href="../using-npm/scope.html"><code>scope</code></a>.  The scope must be preceded by an @-symbol and
+followed by a slash.</p>
+<p>When creating tarballs for <code>npm publish</code>, the linked packages are
+"snapshotted" to their current state by resolving the symbolic links, if
+they are included in <code>bundleDependencies</code>.</p>
+<p>For example:</p>
+<pre lang="bash"><code>cd ~/projects/node-redis    # go into the package directory
+npm link                    # creates global link
+cd ~/projects/node-bloggy   # go into some other package directory.
+npm link redis              # link-install the package
+</code></pre>
+<p>Now, any changes to <code>~/projects/node-redis</code> will be reflected in
+<code>~/projects/node-bloggy/node_modules/node-redis/</code>. Note that the link
+should be to the package name, not the directory name for that package.</p>
+<p>You may also shortcut the two steps in one.  For example, to do the
+above use-case in a shorter way:</p>
+<pre lang="bash"><code>cd ~/projects/node-bloggy  # go into the dir of your main project
+npm link ../node-redis     # link the dir of your dependency
+</code></pre>
+<p>The second line is the equivalent of doing:</p>
+<pre lang="bash"><code>(cd ../node-redis; npm link)
+npm link redis
+</code></pre>
+<p>That is, it first creates a global link, and then links the global
+installation target into your project's <code>node_modules</code> folder.</p>
+<p>Note that in this case, you are referring to the directory name,
+<code>node-redis</code>, rather than the package name <code>redis</code>.</p>
+<p>If your linked package is scoped (see <a href="../using-npm/scope.html"><code>scope</code></a>) your
+link command must include that scope, e.g.</p>
+<pre lang="bash"><code>npm link @myorg/privatepackage
+</code></pre>
+<h3 id="caveat">Caveat</h3>
+<p>Note that package dependencies linked in this way are <em>not</em> saved to
+<code>package.json</code> by default, on the assumption that the intention is to have
+a link stand in for a regular non-link dependency.  Otherwise, for example,
+if you depend on <code>redis@^3.0.1</code>, and ran <code>npm link redis</code>, it would replace
+the <code>^3.0.1</code> dependency with <code>file:../path/to/node-redis</code>, which you
+probably don't want!  Additionally, other users or developers on your
+project would run into issues if they do not have their folders set up
+exactly the same as yours.</p>
+<p>If you are adding a <em>new</em> dependency as a link, you should add it to the
+relevant metadata by running <code>npm install &lt;dep&gt; --package-lock-only</code>.</p>
+<p>If you <em>want</em> to save the <code>file:</code> reference in your <code>package.json</code> and
+<code>package-lock.json</code> files, you can use <code>npm link &lt;dep&gt; --save</code> to do so.</p>
+<h3 id="workspace-usage">Workspace Usage</h3>
+<p><code>npm link &lt;pkg&gt; --workspace &lt;name&gt;</code> will link the relevant package as a
+dependency of the specified workspace(s).  Note that It may actually be
+linked into the parent project's <code>node_modules</code> folder, if there are no
+conflicting dependencies.</p>
+<p><code>npm link --workspace &lt;name&gt;</code> will create a global link to the specified
+workspace(s).</p>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="save"><code>save</code></h4>
+<ul>
+<li>Default: <code>true</code> unless when using <code>npm update</code> or <code>npm dedupe</code> where it
+defaults to <code>false</code></li>
+<li>Type: Boolean</li>
+</ul>
+<p>Save installed packages to a <code>package.json</code> file as dependencies.</p>
+<p>When used with the <code>npm rm</code> command, removes the dependency from
+<code>package.json</code>.</p>
+<p>Will also prevent writing to <code>package-lock.json</code> if set to <code>false</code>.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="save-exact"><code>save-exact</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Dependencies saved to package.json will be configured with an exact version
+rather than using npm's default semver range operator.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="global"><code>global</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Operates in "global" mode, so that packages are installed into the <code>prefix</code>
+folder instead of the current working directory. See
+<a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
+<ul>
+<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder, instead
+of the current working directory.</li>
+<li>bin files are linked to <code>{prefix}/bin</code></li>
+<li>man pages are linked to <code>{prefix}/share/man</code></li>
+</ul>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="global-style"><code>global-style</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Causes npm to install the package into your local <code>node_modules</code> folder with
+the same layout it uses with the global <code>node_modules</code> folder. Only your
+direct dependencies will show in <code>node_modules</code> and everything they depend
+on will be flattened in their <code>node_modules</code> folders. This obviously will
+eliminate some deduping. If used with <code>legacy-bundling</code>, <code>legacy-bundling</code>
+will be preferred.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="legacy-bundling"><code>legacy-bundling</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Causes npm to install the package such that versions of npm prior to 1.4,
+such as the one included with node 0.8, can install the package. This
+eliminates all automatic deduping. If used with <code>global-style</code> this option
+will be preferred.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="strict-peer-deps"><code>strict-peer-deps</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to <code>true</code>, and <code>--legacy-peer-deps</code> is not set, then <em>any</em>
+conflicting <code>peerDependencies</code> will be treated as an install failure, even
+if npm could reasonably guess the appropriate resolution based on non-peer
+dependency relationships.</p>
+<p>By default, conflicting <code>peerDependencies</code> deep in the dependency graph will
+be resolved using the nearest non-peer dependency specification, even if
+doing so will result in some packages receiving a peer dependency outside
+the range set in their package's <code>peerDependencies</code> object.</p>
+<p>When such and override is performed, a warning is printed, explaining the
+conflict and the packages involved. If <code>--strict-peer-deps</code> is set, then
+this warning is treated as a failure.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="package-lock"><code>package-lock</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to false, then ignore <code>package-lock.json</code> files when installing. This
+will also prevent <em>writing</em> <code>package-lock.json</code> if <code>save</code> is true.</p>
+<p>When package package-locks are disabled, automatic pruning of extraneous
+modules will also be disabled. To remove extraneous modules with
+package-locks disabled use <code>npm prune</code>.</p>
+<p>This configuration does not affect <code>npm ci</code>.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="omit"><code>omit</code></h4>
+<ul>
+<li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
+'production', otherwise empty.</li>
+<li>Type: "dev", "optional", or "peer" (can be set multiple times)</li>
+</ul>
+<p>Dependency types to omit from the installation tree on disk.</p>
+<p>Note that these dependencies <em>are</em> still resolved and added to the
+<code>package-lock.json</code> or <code>npm-shrinkwrap.json</code> file. They are just not
+physically installed on disk.</p>
+<p>If a package type appears in both the <code>--include</code> and <code>--omit</code> lists, then
+it will be included.</p>
+<p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code> environment
+variable will be set to <code>'production'</code> for all lifecycle scripts.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="ignore-scripts"><code>ignore-scripts</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, npm does not run scripts specified in package.json files.</p>
+<p>Note that commands explicitly intended to run a particular script, such as
+<code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run-script</code>
+will still run their intended script if <code>ignore-scripts</code> is set, but they
+will <em>not</em> run any pre- or post-scripts.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="audit"><code>audit</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>When "true" submit audit reports alongside the current npm command to the
+default registry and all registries configured for scopes. See the
+documentation for <a href="../commands/npm-audit.html"><code>npm audit</code></a> for details on what is
+submitted.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="bin-links"><code>bin-links</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Tells npm to create symlinks (or <code>.cmd</code> shims on Windows) for package
+executables.</p>
+<p>Set to false to have it not do this. This can be used to work around the
+fact that some file systems don't support symlinks, even on ostensibly Unix
+systems.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="fund"><code>fund</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>When "true" displays the message at the end of each <code>npm install</code>
+acknowledging the number of dependencies looking for funding. See <a href="../commands/npm-fund.html"><code>npm fund</code></a> for details.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="dry-run"><code>dry-run</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Indicates that you don't want npm to make any changes and that it should
+only report what it would have done. This can be passed into any of the
+commands that modify your local installation, eg, <code>install</code>, <code>update</code>,
+<code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and <code>publish</code>.</p>
+<p>Note: This is NOT honored by other network related commands, eg <code>dist-tags</code>,
+<code>owner</code>, etc.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="workspace"><code>workspace</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)</li>
+</ul>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="workspaces"><code>workspaces</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or Boolean</li>
+</ul>
+<p>Set to true to run the command in the context of <strong>all</strong> configured
+workspaces.</p>
+<p>Explicitly setting this to false will cause commands like <code>install</code> to
+ignore workspaces altogether. When not set explicitly:</p>
+<ul>
+<li>Commands that operate on the <code>node_modules</code> tree (install, update, etc.)
+will link workspaces into the <code>node_modules</code> folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+<em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
+</ul>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Include the workspace root when workspaces are enabled for a command.</p>
+<p>When false, specifying individual workspaces via the <code>workspace</code> config, or
+all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
+the specified workspaces, and not on the root project.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h3 id="see-also">See Also</h3>
+<ul>
+<li><a href="../using-npm/developers.html">npm developers</a></li>
+<li><a href="../configuring-npm/package-json.html">package.json</a></li>
+<li><a href="../commands/npm-install.html">npm install</a></li>
+<li><a href="../configuring-npm/folders.html">npm folders</a></li>
+<li><a href="../commands/npm-config.html">npm config</a></li>
+<li><a href="../configuring-npm/npmrc.html">npmrc</a></li>
+</ul>
+</div>
+
+<footer id="edit">
+<a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-link.md">
+<svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
+<path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
+</svg>
+Edit this page on GitHub
+</a>
+</footer>
+</section>
+
+
+
+</body></html>

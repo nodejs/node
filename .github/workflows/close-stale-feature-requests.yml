@@ -1,0 +1,48 @@
+name: Close stale feature requests
+on:
+  workflow_dispatch:
+  schedule:
+    # Run every day at 1:00 AM UTC.
+    - cron: 0 1 * * *
+
+# yamllint disable rule:empty-lines
+env:
+  CLOSE_MESSAGE: >
+    There has been no activity on this feature request
+    and it is being closed. If you feel closing this issue is not the
+    right thing to do, please leave a comment.
+
+
+    For more information on how the project manages
+    feature requests, please consult the
+    [feature request management document](https://github.com/nodejs/node/blob/HEAD/doc/contributing/feature-request-management.md).
+
+  WARN_MESSAGE: >
+    There has been no activity on this feature request for
+    5 months and it is unlikely to be implemented.
+    It will be closed 6 months after the last non-automated comment.
+
+
+    For more information on how the project manages
+    feature requests, please consult the
+    [feature request management document](https://github.com/nodejs/node/blob/HEAD/doc/contributing/feature-request-management.md).
+# yamllint enable
+
+jobs:
+  stale:
+    if: github.repository == 'nodejs/node'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v4
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          days-before-stale: 180
+          days-before-close: 30
+          stale-issue-label: stale
+          close-issue-message: ${{ env.CLOSE_MESSAGE }}
+          stale-issue-message: ${{ env.WARN_MESSAGE }}
+          only-labels: feature request
+          exempt-pr-labels: never-stale
+          # max requests it will send per run to the GitHub API before it deliberately exits to avoid hitting API rate limits
+          operations-per-run: 500
+          remove-stale-when-updated: true

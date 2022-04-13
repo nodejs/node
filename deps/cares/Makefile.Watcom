@@ -1,0 +1,164 @@
+#
+#  Watcom / OpenWatcom / Win32 makefile for cares.
+#  Quick hack by Guenter; comments to: /dev/nul
+#
+
+!ifndef %watcom
+!error WATCOM environment variable not set!
+!else
+SYS_INCL = -I$(%watcom)\h\nt -I$(%watcom)\h
+SYS_LIBS = $(%watcom)\lib386\nt;$(%watcom)\lib386
+!endif
+
+!ifdef %libname
+LIBNAME = $(%libname)
+!else
+LIBNAME	= cares
+!endif
+TARGETS = $(LIBNAME).dll $(LIBNAME)_imp.lib $(LIBNAME).lib
+DEMOS   = adig.exe ahost.exe acountry.exe
+
+CC = wcc386
+LD = wlink
+AR = wlib
+RC = wrc
+
+!ifdef __LOADDLL__
+!  loaddll wcc386  wccd386
+!  loaddll wpp386  wppd386
+!  loaddll wlib    wlibd
+!endif
+
+!if $(__VERSION__) < 1250
+RM = del /q /f 2>NUL
+!else
+RM = rm -f
+!endif
+MD = mkdir
+RD = rmdir /q /s 2>NUL
+CP = copy
+
+CFLAGS = -3r -mf -hc -zff -zgf -zq -zm -zc -s -fr=con -w2 -fpi -oilrtfm &
+         -wcd=201 -bt=nt -d+ -dWIN32 -dCARES_BUILDING_LIBRARY           &
+         -dNTDDI_VERSION=0x05010000 -I. $(SYS_INCL)
+
+LFLAGS = option quiet, map, caseexact, eliminate
+
+!ifdef %debug
+DEBUG  = -dDEBUG=1 -dDEBUGBUILD
+CFLAGS += -d3 $(DEBUG)
+LFLAGS += debug all
+!else
+CFLAGS += -d0
+!endif
+
+CFLAGS += -d_WIN32_WINNT=0x0600
+
+#
+# Change to suite.
+#
+!ifdef %use_watt32
+CFLAGS += -dWATT32 -I$(%watt_root)\inc
+!endif
+
+OBJ_BASE = WC_Win32.obj
+LINK_ARG = $(OBJ_BASE)\dyn\wlink.arg
+LIB_ARG  = $(OBJ_BASE)\stat\wlib.arg
+
+# In order to process Makefile.inc wmake must be called with -u switch!
+!ifneq __MAKEOPTS__ -u
+!error You MUST call wmake with the -u switch!
+!else
+!include Makefile.inc
+!endif
+
+OBJS = $(CSOURCES:.c=.obj)
+OBJS = $OBJ_DIR\$(OBJS: = $OBJ_DIR\)
+
+#
+# Use $(OBJS) as a template to generate $(OBJS_STAT) and $(OBJS_DYN).
+#
+OBJ_DIR    = $(OBJ_BASE)\stat
+OBJS_STAT  = $+ $(OBJS) $-
+
+OBJ_DIR    = $(OBJ_BASE)\dyn
+OBJS_DYN   = $+ $(OBJS) $-
+
+ARESBUILDH = ares_build.h
+RESOURCE   = $(OBJ_BASE)\dyn\cares.res
+
+all: $(ARESBUILDH) $(OBJ_BASE) $(TARGETS) $(DEMOS) .SYMBOLIC
+	@echo Welcome to cares
+
+$(OBJ_BASE):
+	-$(MD) $^@
+	-$(MD) $^@\stat
+	-$(MD) $^@\dyn
+	-$(MD) $^@\demos
+
+$(ARESBUILDH): .EXISTSONLY
+	$(CP) $^@.dist $^@
+
+$(LIBNAME).dll: $(OBJS_DYN) $(RESOURCE) $(LINK_ARG)
+	$(LD) name $^@ @$]@
+
+$(LIBNAME).lib: $(OBJS_STAT) $(LIB_ARG)
+	$(AR) -q -b -c $^@ @$]@
+
+adig.exe: $(OBJ_BASE)\demos\adig.obj $(OBJ_BASE)\demos\ares_getopt.obj $(LIBNAME).lib
+	$(LD) name $^@ system nt $(LFLAGS) file { $(OBJ_BASE)\demos\ares_getopt.obj $[@ } library $]@, ws2_32.lib
+
+ahost.exe: $(OBJ_BASE)\demos\ahost.obj $(OBJ_BASE)\demos\ares_getopt.obj $(LIBNAME).lib
+	$(LD) name $^@ system nt $(LFLAGS) file { $(OBJ_BASE)\demos\ares_getopt.obj $[@ } library $]@, ws2_32.lib
+
+acountry.exe: $(OBJ_BASE)\demos\acountry.obj $(OBJ_BASE)\demos\ares_getopt.obj $(LIBNAME).lib
+	$(LD) name $^@ system nt $(LFLAGS) file { $(OBJ_BASE)\demos\ares_getopt.obj $[@ } library $]@, ws2_32.lib
+
+clean: .SYMBOLIC
+	-$(RM) $(OBJS_STAT)
+	-$(RM) $(OBJS_DYN)
+	-$(RM) $(RESOURCE) $(LINK_ARG) $(LIB_ARG)
+
+vclean realclean: clean .SYMBOLIC
+	-$(RM) $(TARGETS) $(LIBNAME).map
+	-$(RM) $(DEMOS) $(DEMOS:.exe=.map)
+	-$(RD) $(OBJ_BASE)\stat
+	-$(RD) $(OBJ_BASE)\dyn
+	-$(RD) $(OBJ_BASE)\demos
+	-$(RD) $(OBJ_BASE)
+
+.ERASE
+$(RESOURCE): cares.rc .AUTODEPEND
+	$(RC) $(DEBUG) -q -r -zm -I..\include $(SYS_INCL) $[@ -fo=$^@
+
+.ERASE
+.c{$(OBJ_BASE)\dyn}.obj:
+	$(CC) $(CFLAGS) -bd $[@ -fo=$^@
+
+.ERASE
+.c{$(OBJ_BASE)\stat}.obj:
+	$(CC) $(CFLAGS) -DCARES_STATICLIB $[@ -fo=$^@
+
+.ERASE
+.c{$(OBJ_BASE)\demos}.obj:
+	$(CC) $(CFLAGS) -DCARES_STATICLIB $[@ -fo=$^@
+
+$(LINK_ARG): $(__MAKEFILES__)
+	%create $^@
+	@%append $^@ system nt dll
+	@%append $^@ file { $(OBJS_DYN) }
+	@%append $^@ option res=$(RESOURCE), implib=$(LIBNAME)_imp.lib 
+	@%append $^@ $(LFLAGS)
+	@%append $^@ libpath $(SYS_LIBS)
+#	@%append $^@ library clib3r.lib
+!ifdef %use_watt32
+	@%append $^@ library $(%watt_root)\lib\wattcpw_imp.lib
+!else
+	@%append $^@ library ws2_32.lib
+!endif
+
+$(LIB_ARG): $(__MAKEFILES__)
+	%create $^@
+	@for %f in ($(OBJS_STAT)) do @%append $^@ +- %f
+
+

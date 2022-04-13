@@ -1,0 +1,18 @@
+Tests that asm-js scripts produce correct stack
+Paused on 'debugger;'
+Number of frames: 5
+  - [0] {"functionName":"call_debugger","function_lineNumber":13,"function_columnNumber":24,"lineNumber":14,"columnNumber":4}
+  - [1] {"functionName":"callDebugger","lineNumber":5,"columnNumber":6}
+  - [2] {"functionName":"redirectFun","lineNumber":8,"columnNumber":6}
+  - [3] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":18,"columnNumber":2}
+  - [4] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
+Getting v8-generated stack trace...
+Result of evaluate (string):
+Error: getting stack trace
+    -- skipped --
+    at call_debugger (<anonymous>:15:5)
+    at callDebugger (<anonymous>:6:7)
+    at redirectFun (<anonymous>:9:7)
+    at testFunction (<anonymous>:19:3)
+    at <anonymous>:1:1
+Finished!

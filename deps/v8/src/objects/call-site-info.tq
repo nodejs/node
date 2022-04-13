@@ -1,0 +1,24 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+bitfield struct CallSiteInfoFlags extends uint31 {
+  is_wasm: bool: 1 bit;
+  is_asm_js_wasm: bool: 1 bit;  // Implies that is_wasm bit is set.
+  is_strict: bool: 1 bit;
+  is_constructor: bool: 1 bit;
+  is_asm_js_at_number_conversion: bool: 1 bit;
+  is_async: bool: 1 bit;
+
+  // whether offset_or_source_position contains the source position.
+  is_source_position_computed: bool: 1 bit;
+}
+
+extern class CallSiteInfo extends Struct {
+  receiver_or_instance: JSAny;
+  function: JSFunction|Smi;
+  code_object: HeapObject;
+  code_offset_or_source_position: Smi;
+  flags: SmiTagged<CallSiteInfoFlags>;
+  parameters: FixedArray;
+}

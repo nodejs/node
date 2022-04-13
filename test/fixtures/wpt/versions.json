@@ -1,0 +1,74 @@
+{
+  "common": {
+    "commit": "03c5072affa496c5fd2a506e5c40d23e36b5e3aa",
+    "path": "common"
+  },
+  "console": {
+    "commit": "3b1f72e99a91d31551edd2147dc7b564eaf25d72",
+    "path": "console"
+  },
+  "dom/abort": {
+    "commit": "c49cafb491d99d6318f8f24a26936cc66501f412",
+    "path": "dom/abort"
+  },
+  "encoding": {
+    "commit": "35f70910d3753c8b650fdfd4c716caedfefe88c9",
+    "path": "encoding"
+  },
+  "FileAPI": {
+    "commit": "3b279420d40afea32506e823f9ac005448f4f3d8",
+    "path": "FileAPI"
+  },
+  "hr-time": {
+    "commit": "9910784394858a8e34d9eb4e5d00788765abf837",
+    "path": "hr-time"
+  },
+  "html/webappapis/atob": {
+    "commit": "f267e1dca6f57a9f4d69f32a6920adfdb3268656",
+    "path": "html/webappapis/atob"
+  },
+  "html/webappapis/microtask-queuing": {
+    "commit": "2c5c3c4c27d27a419c1fdba3e9879c2d22037074",
+    "path": "html/webappapis/microtask-queuing"
+  },
+  "html/webappapis/structured-clone": {
+    "commit": "47d3fb280c9c632e684dee3b78ae1f4c5d5ba640",
+    "path": "html/webappapis/structured-clone"
+  },
+  "html/webappapis/timers": {
+    "commit": "5873f2d8f1f7bbb9c64689e52d04498614632906",
+    "path": "html/webappapis/timers"
+  },
+  "interfaces": {
+    "commit": "fc086c82d5a7e9b01a684a23336d6d1f9e79e303",
+    "path": "interfaces"
+  },
+  "performance-timeline": {
+    "commit": "17ebc3aea0d6321e69554067c39ab5855e6fb67e",
+    "path": "performance-timeline"
+  },
+  "resources": {
+    "commit": "fbee645164468c030072c46a934e2c876b143f8e",
+    "path": "resources"
+  },
+  "streams": {
+    "commit": "8f60d9443949c323522a2009518d54d5d6ab5541",
+    "path": "streams"
+  },
+  "url": {
+    "commit": "77d54aa9e0405f737987b59331f3584e3e1c26f9",
+    "path": "url"
+  },
+  "user-timing": {
+    "commit": "df24fb604e2d40528ac1d1b5dd970e32fc5c2978",
+    "path": "user-timing"
+  },
+  "WebCryptoAPI": {
+    "commit": "cdd0f03df41b222aed098fbbb11c6a3cc500a86b",
+    "path": "WebCryptoAPI"
+  },
+  "webidl/ecmascript-binding/es-exceptions": {
+    "commit": "a370aad338d6ed743abb4d2c6ae84a7f1058558c",
+    "path": "webidl/ecmascript-binding/es-exceptions"
+  }
+}

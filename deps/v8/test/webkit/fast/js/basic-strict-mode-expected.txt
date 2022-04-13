@@ -1,0 +1,238 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Test behaviour of strict mode
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS testThis.call(null) is null
+PASS testThis.call(1) is 1
+PASS testThis.call(true) is true
+PASS testThis.call(false) is false
+PASS testThis.call(undefined) is undefined
+PASS testLineContinuation.call(undefined) === undefined is false
+PASS testEscapeSequence.call(undefined) === undefined is false
+PASS testThis.call('a string') is 'a string'
+PASS testThisDotAccess.call('a string') is 'a string'.length
+PASS testThisDotAccess.call(null) threw exception TypeError: Cannot read properties of null (reading 'length').
+PASS testThisDotAccess.call(undefined) threw exception TypeError: Cannot read properties of undefined (reading 'length').
+PASS testThisDotAccess.call(true) is undefined.
+PASS testThisDotAccess.call(false) is undefined.
+PASS testThisDotAccess.call(1) is undefined.
+PASS testThisBracketAccess.call('a string', 'length') is 'a string'.length
+PASS testThisBracketAccess.call(null, 'length') threw exception TypeError: Cannot read properties of null (reading 'length').
+PASS testThisBracketAccess.call(undefined, 'length') threw exception TypeError: Cannot read properties of undefined (reading 'length').
+PASS testThisBracketAccess.call(true, 'length') is undefined.
+PASS testThisBracketAccess.call(false, 'length') is undefined.
+PASS testThisBracketAccess.call(1, 'length') is undefined.
+PASS Function('"use strict"; return this;')() is undefined.
+PASS Function('"use strict"; with({});') threw exception SyntaxError: Strict mode code may not include a with statement.
+PASS testGlobalAccess() is undefined
+PASS testThis.call() is undefined
+PASS testThis.apply() is undefined
+PASS testThis.call(undefined) is undefined
+PASS testThis.apply(undefined) is undefined
+PASS (function eval(){'use strict';}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){(function eval(){'use strict';})}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (eval){'use strict';}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){(function (eval){'use strict';})}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function arguments(){'use strict';}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){(function arguments(){'use strict';})}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (arguments){'use strict';}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){(function (arguments){'use strict';})}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){'use strict'; var eval;}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){(function (){'use strict'; var eval;})}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){'use strict'; var arguments;}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){(function (){'use strict'; var arguments;})}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){'use strict'; try{}catch(eval){}}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){(function (){'use strict'; try{}catch(eval){}})}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){'use strict'; try{}catch(arguments){}}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){(function (){'use strict'; try{}catch(arguments){}})}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (a, a){'use strict';}) threw exception SyntaxError: Duplicate parameter name not allowed in this context.
+PASS (function (){(function (a, a){'use strict';})}) threw exception SyntaxError: Duplicate parameter name not allowed in this context.
+PASS (function (a){'use strict'; delete a;})() threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
+PASS (function (){(function (a){'use strict'; delete a;})()}) threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
+PASS (function (){'use strict'; var a; delete a;})() threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
+PASS (function (){(function (){'use strict'; var a; delete a;})()}) threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
+PASS (function (){var a; function f() {'use strict'; delete a;} })() threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
+PASS (function (){(function (){var a; function f() {'use strict'; delete a;} })()}) threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
+PASS (function (){'use strict'; with(1){};}) threw exception SyntaxError: Strict mode code may not include a with statement.
+PASS (function (){(function (){'use strict'; with(1){};})}) threw exception SyntaxError: Strict mode code may not include a with statement.
+PASS (function (){'use strict'; arguments.callee; })() threw exception TypeError: 'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them.
+PASS (function (){'use strict'; arguments.caller; })() is undefined.
+PASS (function f(){'use strict'; f.arguments; })() threw exception TypeError: 'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them.
+PASS (function f(){'use strict'; f.caller; })() threw exception TypeError: 'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them.
+PASS (function f(){'use strict'; f.arguments=5; })() threw exception TypeError: 'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them.
+PASS (function f(){'use strict'; f.caller=5; })() threw exception TypeError: 'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them.
+PASS (function (arg){'use strict'; arguments.callee; })() threw exception TypeError: 'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them.
+PASS (function (arg){'use strict'; arguments.caller; })() is undefined.
+PASS (function f(arg){'use strict'; f.arguments; })() threw exception TypeError: 'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them.
+PASS (function f(arg){'use strict'; f.caller; })() threw exception TypeError: 'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them.
+PASS (function f(arg){'use strict'; f.arguments=5; })() threw exception TypeError: 'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them.
+PASS (function f(arg){'use strict'; f.caller=5; })() threw exception TypeError: 'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them.
+PASS "caller" in function(){"use strict"} is true
+PASS (function(){"use strict";}).hasOwnProperty("caller") is false
+PASS (function(){"use strict";}).__proto__.hasOwnProperty("caller") is true
+PASS "arguments" in function(){"use strict"} is true
+PASS (function(){"use strict";}).hasOwnProperty("arguments") is false
+PASS (function(){"use strict";}).__proto__.hasOwnProperty("arguments") is true
+PASS 'use strict'; (function (){with(1){};}) threw exception SyntaxError: Strict mode code may not include a with statement.
+PASS (function (){'use strict'; (function (){with(1){};})}) threw exception SyntaxError: Strict mode code may not include a with statement.
+PASS 'use strict'; (function (){var a; delete a;}) threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
+PASS (function (){'use strict'; (function (){var a; delete a;})}) threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
+PASS 'use strict'; var a; (function (){ delete a;}) threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
+PASS (function (){'use strict'; var a; (function (){ delete a;})}) threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
+PASS var a; (function (){ 'use strict'; delete a;}) threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
+PASS (function (){var a; (function (){ 'use strict'; delete a;})}) threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
+PASS 'misc directive'; 'use strict'; with({}){} threw exception SyntaxError: Strict mode code may not include a with statement.
+PASS (function (){'misc directive'; 'use strict'; with({}){}}) threw exception SyntaxError: Strict mode code may not include a with statement.
+PASS 'use strict'; return threw exception SyntaxError: Illegal return statement.
+PASS 'use strict'; break threw exception SyntaxError: Illegal break statement.
+PASS (function (){'use strict'; break}) threw exception SyntaxError: Illegal break statement.
+PASS 'use strict'; continue threw exception SyntaxError: Illegal continue statement: no surrounding iteration statement.
+PASS (function (){'use strict'; continue}) threw exception SyntaxError: Illegal continue statement: no surrounding iteration statement.
+PASS 'use strict'; for(;;)return threw exception SyntaxError: Illegal return statement.
+PASS 'use strict'; for(;;)break missingLabel threw exception SyntaxError: Undefined label 'missingLabel'.
+PASS (function (){'use strict'; for(;;)break missingLabel}) threw exception SyntaxError: Undefined label 'missingLabel'.
+PASS 'use strict'; for(;;)continue missingLabel threw exception SyntaxError: Undefined label 'missingLabel'.
+PASS (function (){'use strict'; for(;;)continue missingLabel}) threw exception SyntaxError: Undefined label 'missingLabel'.
+PASS 'use strict'; 007; threw exception SyntaxError: Octal literals are not allowed in strict mode..
+PASS (function (){'use strict'; 007;}) threw exception SyntaxError: Octal literals are not allowed in strict mode..
+PASS 'use strict'; '\007'; threw exception SyntaxError: Octal escape sequences are not allowed in strict mode..
+PASS (function (){'use strict'; '\007';}) threw exception SyntaxError: Octal escape sequences are not allowed in strict mode..
+PASS '\007'; 'use strict'; threw exception SyntaxError: Octal escape sequences are not allowed in strict mode..
+PASS (function (){'\007'; 'use strict';}) threw exception SyntaxError: Octal escape sequences are not allowed in strict mode..
+PASS 'use strict'; delete aDeletableProperty; threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
+PASS (function (){'use strict'; delete aDeletableProperty;}) threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
+PASS 'use strict'; (function (){ delete someDeclaredGlobal;}) threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
+PASS (function (){'use strict'; (function (){ delete someDeclaredGlobal;})}) threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
+PASS (function (){ 'use strict'; delete someDeclaredGlobal;}) threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
+PASS (function (){(function (){ 'use strict'; delete someDeclaredGlobal;})}) threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
+PASS 'use strict'; if (0) { someGlobal = 'Shouldn\'t be able to assign this.'; }; true; is true
+PASS 'use strict'; someGlobal = 'Shouldn\'t be able to assign this.';  threw exception ReferenceError: someGlobal is not defined.
+PASS 'use strict'; (function f(){ f = 'shouldn\'t be able to assign to function expression name'; })() threw exception TypeError: Assignment to constant variable..
+PASS 'use strict'; eval('var introducedVariable = "FAIL: variable introduced into containing scope";'); introducedVariable threw exception ReferenceError: introducedVariable is not defined.
+PASS 'use strict'; objectWithReadonlyProperty.prop = 'fail' threw exception TypeError: Cannot assign to read only property 'prop' of object '#<Object>'.
+PASS 'use strict'; delete objectWithReadonlyProperty.prop threw exception TypeError: Cannot delete property 'prop' of #<Object>.
+PASS 'use strict'; delete objectWithReadonlyProperty[readonlyPropName] threw exception TypeError: Cannot delete property 'prop' of #<Object>.
+PASS 'use strict'; ++eval threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){'use strict'; ++eval}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS 'use strict'; eval++ threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){'use strict'; eval++}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS 'use strict'; --eval threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){'use strict'; --eval}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS 'use strict'; eval-- threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){'use strict'; eval--}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS 'use strict'; function f() { ++arguments } threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){'use strict'; function f() { ++arguments }}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS 'use strict'; function f() { arguments++ } threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){'use strict'; function f() { arguments++ }}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS 'use strict'; function f() { --arguments } threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){'use strict'; function f() { --arguments }}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS 'use strict'; function f() { arguments-- } threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){'use strict'; function f() { arguments-- }}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS global.eval('"use strict"; if (0) ++arguments; true;') threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS 'use strict'; ++(1, eval) threw exception SyntaxError: Invalid left-hand side expression in prefix operation.
+PASS (function (){'use strict'; ++(1, eval)}) threw exception SyntaxError: Invalid left-hand side expression in prefix operation.
+PASS 'use strict'; (1, eval)++ threw exception SyntaxError: Invalid left-hand side expression in postfix operation.
+PASS (function (){'use strict'; (1, eval)++}) threw exception SyntaxError: Invalid left-hand side expression in postfix operation.
+PASS 'use strict'; --(1, eval) threw exception SyntaxError: Invalid left-hand side expression in prefix operation.
+PASS (function (){'use strict'; --(1, eval)}) threw exception SyntaxError: Invalid left-hand side expression in prefix operation.
+PASS 'use strict'; (1, eval)-- threw exception SyntaxError: Invalid left-hand side expression in postfix operation.
+PASS (function (){'use strict'; (1, eval)--}) threw exception SyntaxError: Invalid left-hand side expression in postfix operation.
+PASS 'use strict'; function f() { ++(1, arguments) } threw exception SyntaxError: Invalid left-hand side expression in prefix operation.
+PASS (function (){'use strict'; function f() { ++(1, arguments) }}) threw exception SyntaxError: Invalid left-hand side expression in prefix operation.
+PASS 'use strict'; function f() { (1, arguments)++ } threw exception SyntaxError: Invalid left-hand side expression in postfix operation.
+PASS (function (){'use strict'; function f() { (1, arguments)++ }}) threw exception SyntaxError: Invalid left-hand side expression in postfix operation.
+PASS 'use strict'; function f() { --(1, arguments) } threw exception SyntaxError: Invalid left-hand side expression in prefix operation.
+PASS (function (){'use strict'; function f() { --(1, arguments) }}) threw exception SyntaxError: Invalid left-hand side expression in prefix operation.
+PASS 'use strict'; function f() { (1, arguments)-- } threw exception SyntaxError: Invalid left-hand side expression in postfix operation.
+PASS (function (){'use strict'; function f() { (1, arguments)-- }}) threw exception SyntaxError: Invalid left-hand side expression in postfix operation.
+FAIL 'use strict'; undefined; if (0) delete +a.b should throw an exception. Was undefined.
+FAIL (function (){'use strict'; undefined; if (0) delete +a.b}) should throw an exception. Was function (){'use strict'; undefined; if (0) delete +a.b}.
+FAIL 'use strict'; undefined; if (0) delete ++a.b should throw an exception. Was undefined.
+FAIL (function (){'use strict'; undefined; if (0) delete ++a.b}) should throw an exception. Was function (){'use strict'; undefined; if (0) delete ++a.b}.
+FAIL 'use strict'; undefined; if (0) delete void a.b should throw an exception. Was undefined.
+FAIL (function (){'use strict'; undefined; if (0) delete void a.b}) should throw an exception. Was function (){'use strict'; undefined; if (0) delete void a.b}.
+PASS (function (a){'use strict'; a = false; return a !== arguments[0]; })(true) is true
+PASS (function (a){'use strict'; arguments[0] = false; return a !== arguments[0]; })(true) is true
+PASS (function (a){'use strict'; a=false; return arguments; })(true)[0] is true
+PASS (function (a){'use strict'; arguments[0]=false; return a; })(true) is true
+PASS (function (a){'use strict'; arguments[0]=true; return arguments; })(false)[0] is true
+PASS (function (){'use strict';  arguments[0]=true; return arguments; })(false)[0] is true
+PASS (function (a){'use strict'; arguments[0]=true; a=false; return arguments; })()[0] is true
+PASS (function (a){'use strict'; arguments[0]=false; a=true; return a; })() is true
+PASS (function (a){'use strict'; arguments[0]=true; return arguments; })()[0] is true
+PASS (function (){'use strict';  arguments[0]=true; return arguments; })()[0] is true
+PASS (function (a){'use strict'; var local; (function (){local;})(); a = false; return a !== arguments[0]; })(true) is true
+PASS (function (a){'use strict'; var local; (function (){local;})(); arguments[0] = false; return a !== arguments[0]; })(true) is true
+PASS (function (a){'use strict'; var local; (function (){local;})(); a=false; return arguments; })(true)[0] is true
+PASS (function (a){'use strict'; var local; (function (){local;})(); arguments[0]=false; return a; })(true) is true
+PASS (function (a){'use strict'; var local; (function (){local;})(); arguments[0]=true; return arguments; })(false)[0] is true
+PASS (function (){'use strict';  var local; (function (){local;})(); arguments[0]=true; return arguments; })(false)[0] is true
+PASS (function (a){'use strict'; var local; (function (){local;})(); arguments[0]=true; a=false; return arguments; })()[0] is true
+PASS (function (a){'use strict'; var local; (function (){local;})(); arguments[0]=true; return arguments; })()[0] is true
+PASS (function (a){'use strict'; var local; (function (){local;})(); arguments[0]=false; a=true; return a; })() is true
+PASS (function (){'use strict';  var local; (function (){local;})(); arguments[0]=true; return arguments; })()[0] is true
+PASS 'use strict'; (function (){var a = true; eval('var a = false'); return a; })() is true
+PASS (function (){var a = true; eval('"use strict"; var a = false'); return a; })() is true
+PASS (function f(arg){'use strict'; return Object.getOwnPropertyDescriptor(f.__proto__, 'arguments').value; })() is undefined.
+PASS (function f(arg){'use strict'; return Object.getOwnPropertyDescriptor(f.__proto__, 'caller').value; })() is undefined.
+PASS (function f(arg){'use strict'; return Object.getOwnPropertyDescriptor(arguments, 'callee').value; })() is undefined.
+PASS (function f(arg){'use strict'; return Object.getOwnPropertyDescriptor(arguments, 'caller'); })() is undefined.
+PASS (function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(arguments, 'callee'); return descriptor.get === descriptor.set; })() is true
+PASS (function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(f.__proto__, 'caller'); return descriptor.get === descriptor.set; })() is true
+PASS (function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(f.__proto__, 'arguments'); return descriptor.get === descriptor.set; })() is true
+PASS 'use strict'; (function f() { for(var i in this); })(); true; is true
+PASS 'use strict'̻ threw exception SyntaxError: Invalid or unexpected token.
+PASS (function (){'use strict'̻}) threw exception SyntaxError: Invalid or unexpected token.
+PASS 'use strict'5.f threw exception SyntaxError: Invalid or unexpected token.
+PASS (function (){'use strict'5.f}) threw exception SyntaxError: Invalid or unexpected token.
+PASS 'use strict';̻ threw exception SyntaxError: Invalid or unexpected token.
+PASS (function (){'use strict';̻}) threw exception SyntaxError: Invalid or unexpected token.
+PASS 'use strict';5.f threw exception SyntaxError: Invalid or unexpected token.
+PASS (function (){'use strict';5.f}) threw exception SyntaxError: Invalid or unexpected token.
+PASS 'use strict';1-(eval=1); threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){'use strict';1-(eval=1);}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS 'use strict';arguments=1; threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){'use strict';arguments=1;}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS 'use strict';1-(arguments=1); threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){'use strict';1-(arguments=1);}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS 'use strict';var a=(eval=1); threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){'use strict';var a=(eval=1);}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS 'use strict';var a=(arguments=1); threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS (function (){'use strict';var a=(arguments=1);}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
+PASS 'use strict'; try { throw 1; } catch (e) { aGlobal = true; } is true
+PASS 'use strict'; (function () { try { throw 1; } catch (e) { aGlobal = true; }})(); aGlobal; is true
+PASS (function () {'use strict';  try { throw 1; } catch (e) { aGlobal = true; }})(); aGlobal; is true
+PASS try { throw 1; } catch (e) { aGlobal = true; } is true
+PASS (function () { try { throw 1; } catch (e) { aGlobal = true; }})(); aGlobal; is true
+PASS (function () {try { throw 1; } catch (e) { aGlobal = true; }})(); aGlobal; is true
+FAIL String(Object.getOwnPropertyDescriptor((function() { "use strict"; }).__proto__, "caller").get) should be function () {
+    [native code]
+}. Was function () { [native code] }.
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

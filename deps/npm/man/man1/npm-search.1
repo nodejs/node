@@ -1,0 +1,177 @@
+.TH "NPM\-SEARCH" "1" "March 2022" "" ""
+.SH "NAME"
+\fBnpm-search\fR \- Search for packages
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm search [search terms \.\.\.]
+
+aliases: find, s, se
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces\.
+.SS Description
+.P
+Search the registry for packages matching the search terms\. \fBnpm search\fP
+performs a linear, incremental, lexically\-ordered search through package
+metadata for all files in the registry\. If your terminal has color
+support, it will further highlight the matches in the results\.  This can
+be disabled with the config item \fBcolor\fP
+.P
+Additionally, using the \fB\-\-searchopts\fP and \fB\-\-searchexclude\fP options
+paired with more search terms will include and exclude further patterns\.
+The main difference between \fB\-\-searchopts\fP and the standard search terms
+is that the former does not highlight results in the output and you can
+use them more fine\-grained filtering\. Additionally, you can add both of
+these to your config to change default search filtering behavior\.
+.P
+Search also allows targeting of maintainers in search results, by prefixing
+their npm username with \fB=\fP\|\.
+.P
+If a term starts with \fB/\fP, then it's interpreted as a regular expression
+and supports standard JavaScript RegExp syntax\. In this case search will
+ignore a trailing \fB/\fP \.  (Note you must escape or quote many regular
+expression characters in most shells\.)
+.SS Configuration
+.SS \fBlong\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Show extended information in \fBls\fP, \fBsearch\fP, and \fBhelp\-search\fP\|\.
+.SS \fBjson\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Whether or not to output JSON data, rather than the normal output\.
+.RS 0
+.IP \(bu 2
+In \fBnpm pkg set\fP it enables parsing set values with JSON\.parse() before
+saving them to your \fBpackage\.json\fP\|\.
+
+.RE
+.P
+Not supported by all npm commands\.
+.SS \fBcolor\fP
+.RS 0
+.IP \(bu 2
+Default: true unless the NO_COLOR environ is set to something other than '0'
+.IP \(bu 2
+Type: "always" or Boolean
+
+.RE
+.P
+If false, never shows colors\. If \fB"always"\fP then always shows colors\. If
+true, then only prints color codes for tty file descriptors\.
+.SS \fBparseable\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Output parseable results from commands that write to standard output\. For
+\fBnpm search\fP, this will be tab\-separated table format\.
+.SS \fBdescription\fP
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Show the description in \fBnpm search\fP
+.SS \fBsearchopts\fP
+.RS 0
+.IP \(bu 2
+Default: ""
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+Space\-separated options that are always passed to search\.
+.SS \fBsearchexclude\fP
+.RS 0
+.IP \(bu 2
+Default: ""
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+Space\-separated options that limit the results from search\.
+.SS \fBregistry\fP
+.RS 0
+.IP \(bu 2
+Default: "https://registry\.npmjs\.org/"
+.IP \(bu 2
+Type: URL
+
+.RE
+.P
+The base URL of the npm registry\.
+.SS \fBprefer\-online\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If true, staleness checks for cached data will be forced, making the CLI
+look for updates immediately even for fresh package data\.
+.SS \fBprefer\-offline\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If true, staleness checks for cached data will be bypassed, but missing data
+will be requested from the server\. To force full offline mode, use
+\fB\-\-offline\fP\|\.
+.SS \fBoffline\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Force offline mode: no network requests will be done during install\. To
+allow the CLI to fill in missing cache data, see \fB\-\-prefer\-offline\fP\|\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help registry
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help npmrc
+.IP \(bu 2
+npm help view
+.IP \(bu 2
+npm help cache
+.IP \(bu 2
+https://npm\.im/npm\-registry\-fetch
+
+.RE

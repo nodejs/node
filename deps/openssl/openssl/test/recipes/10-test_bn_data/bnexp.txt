@@ -1,0 +1,30 @@
+# Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+# Exp tests.
+#
+# These test vectors satisfy A ^ E = Exp.
+
+Exp = aa6d7ac431
+A = d0e07
+E = 2
+
+Exp = 12d416b110dbb4e467ff0c89a22122f4da8240
+A = 1a18cf6
+E = 6
+
+Exp = 49a3b33e23d84f1ce0d5d83f5dcb651d50cf3920f0143da2310d0512a90a06cd8f38977df8a756c30883de38df092000
+A = 2a3acbd2
+E = d
+
+Exp = 5b4a0d5a956f885f275712b194459980f24708bfb6393d71bd37dce852ce455724f5ee5030775fb86b4295edc98afaafc097e4d82a97c0078ec0eac763db16549c5145c4cf2d3124f88cf9a5c71da0625afb99b26801786fe49a778415dc025954021753d08691947a208b613f0be5c1
+A = 54b3ae461
+E = 1a
+
+Exp = a0ea5f6a4de49beb8fb7f0dab280d6a32c5a3814c9a5153a7944cec0a9028497846a8a89044348721a0bb5f0c3ded3e980574ea321b0cdb0ead4f4e93841ea7478a7f15d9729b646a8165813a0750e8124f5465dda9b105e1bbeff18fd09c09a2e26610d9176d253b877c3a8908a6be521cbe1e472a7a1b7820e4e890f8f28aacd34609c686e76e15b01bd9324a71290812724ea564d11c874a6765b262c3e57d479da0287a76026a1e8fe53da0b02405da1d379eaa30fc65f
+A = fccec0f6df
+E = 25

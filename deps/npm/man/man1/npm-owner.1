@@ -1,0 +1,76 @@
+.TH "NPM\-OWNER" "1" "March 2022" "" ""
+.SH "NAME"
+\fBnpm-owner\fR \- Manage package owners
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm owner add <user> [<@scope>/]<pkg>
+npm owner rm <user> [<@scope>/]<pkg>
+npm owner ls [<@scope>/]<pkg>
+
+alias: author
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces\.
+.SS Description
+.P
+Manage ownership of published packages\.
+.RS 0
+.IP \(bu 2
+ls: List all the users who have access to modify a package and push new
+versions\.  Handy when you need to know who to bug for help\.
+.IP \(bu 2
+add: Add a new user as a maintainer of a package\.  This user is enabled
+to modify metadata, publish new versions, and add other owners\.
+.IP \(bu 2
+rm: Remove a user from the package owner list\.  This immediately revokes
+their privileges\.
+
+.RE
+.P
+Note that there is only one level of access\.  Either you can modify a package,
+or you can't\.  Future versions may contain more fine\-grained access levels, but
+that is not implemented at this time\.
+.P
+If you have two\-factor authentication enabled with \fBauth\-and\-writes\fP (see
+npm help \fBnpm\-profile\fP) then you'll need to include an otp
+on the command line when changing ownership with \fB\-\-otp\fP\|\.
+.SS Configuration
+.SS \fBregistry\fP
+.RS 0
+.IP \(bu 2
+Default: "https://registry\.npmjs\.org/"
+.IP \(bu 2
+Type: URL
+
+.RE
+.P
+The base URL of the npm registry\.
+.SS \fBotp\fP
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: null or String
+
+.RE
+.P
+This is a one\-time password from a two\-factor authenticator\. It's needed
+when publishing or changing package permissions with \fBnpm access\fP\|\.
+.P
+If not set, and a registry response fails with a challenge for a one\-time
+password, npm will prompt on the command line for one\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help profile
+.IP \(bu 2
+npm help publish
+.IP \(bu 2
+npm help registry
+.IP \(bu 2
+npm help adduser
+
+.RE

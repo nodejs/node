@@ -1,0 +1,62 @@
+.TH "NPM\-BUGS" "1" "March 2022" "" ""
+.SH "NAME"
+\fBnpm-bugs\fR \- Report bugs for a package in a web browser
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm bugs [<pkgname>]
+
+alias: issues
+.fi
+.RE
+.SS Description
+.P
+This command tries to guess at the likely location of a package's bug
+tracker URL or the \fBmailto\fP URL of the support email, and then tries to
+open it using the \fB\-\-browser\fP config param\. If no package name is provided, it
+will search for a \fBpackage\.json\fP in the current folder and use the \fBname\fP property\.
+.SS Configuration
+.SS \fBbrowser\fP
+.RS 0
+.IP \(bu 2
+Default: OS X: \fB"open"\fP, Windows: \fB"start"\fP, Others: \fB"xdg\-open"\fP
+.IP \(bu 2
+Type: null, Boolean, or String
+
+.RE
+.P
+The browser that is called by npm commands to open websites\.
+.P
+Set to \fBfalse\fP to suppress browser behavior and instead print urls to
+terminal\.
+.P
+Set to \fBtrue\fP to use default system URL opener\.
+.SS \fBregistry\fP
+.RS 0
+.IP \(bu 2
+Default: "https://registry\.npmjs\.org/"
+.IP \(bu 2
+Type: URL
+
+.RE
+.P
+The base URL of the npm registry\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help docs
+.IP \(bu 2
+npm help view
+.IP \(bu 2
+npm help publish
+.IP \(bu 2
+npm help registry
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help npmrc
+.IP \(bu 2
+npm help package\.json
+
+.RE

@@ -1,0 +1,310 @@
+.TH "NPM\-LS" "1" "March 2022" "" ""
+.SH "NAME"
+\fBnpm-ls\fR \- List installed packages
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm ls [[<@scope>/]<pkg> \.\.\.]
+
+alias: list
+.fi
+.RE
+.SS Description
+.P
+This command will print to stdout all the versions of packages that are
+installed, as well as their dependencies when \fB\-\-all\fP is specified, in a
+tree structure\.
+.P
+Note: to get a "bottoms up" view of why a given package is included in the
+tree at all, use npm help \fBexplain\fP\|\.
+.P
+Positional arguments are \fBname@version\-range\fP identifiers, which will limit
+the results to only the paths to the packages named\.  Note that nested
+packages will \fIalso\fR show the paths to the specified packages\.  For
+example, running \fBnpm ls promzard\fP in npm's source tree will show:
+.P
+.RS 2
+.nf
+npm@8\.6\.0 /path/to/npm
+└─┬ init\-package\-json@0\.0\.4
+  └── promzard@0\.1\.5
+.fi
+.RE
+.P
+It will print out extraneous, missing, and invalid packages\.
+.P
+If a project specifies git urls for dependencies these are shown
+in parentheses after the name@version to make it easier for users to
+recognize potential forks of a project\.
+.P
+The tree shown is the logical dependency tree, based on package
+dependencies, not the physical layout of your \fBnode_modules\fP folder\.
+.P
+When run as \fBll\fP or \fBla\fP, it shows extended information by default\.
+.SS Note: Design Changes Pending
+.P
+The \fBnpm ls\fP command's output and behavior made a \fIton\fR of sense when npm
+created a \fBnode_modules\fP folder that naively nested every dependency\.  In
+such a case, the logical dependency graph and physical tree of packages on
+disk would be roughly identical\.
+.P
+With the advent of automatic install\-time deduplication of dependencies in
+npm v3, the \fBls\fP output was modified to display the logical dependency
+graph as a tree structure, since this was more useful to most users\.
+However, without using \fBnpm ls \-l\fP, it became impossible show \fIwhere\fR a
+package was actually installed much of the time!
+.P
+With the advent of automatic installation of \fBpeerDependencies\fP in npm v7,
+this gets even more curious, as \fBpeerDependencies\fP are logically
+"underneath" their dependents in the dependency graph, but are always
+physically at or above their location on disk\.
+.P
+Also, in the years since npm got an \fBls\fP command (in version 0\.0\.2!),
+dependency graphs have gotten much larger as a general rule\.  Therefore, in
+order to avoid dumping an excessive amount of content to the terminal, \fBnpm
+ls\fP now only shows the \fItop\fR level dependencies, unless \fB\-\-all\fP is
+provided\.
+.P
+A thorough re\-examination of the use cases, intention, behavior, and output
+of this command, is currently underway\.  Expect significant changes to at
+least the default human\-readable \fBnpm ls\fP output in npm v8\.
+.SS Configuration
+.SS \fBall\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+When running \fBnpm outdated\fP and \fBnpm ls\fP, setting \fB\-\-all\fP will show all
+outdated or installed packages, rather than only those directly depended
+upon by the current project\.
+.SS \fBjson\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Whether or not to output JSON data, rather than the normal output\.
+.RS 0
+.IP \(bu 2
+In \fBnpm pkg set\fP it enables parsing set values with JSON\.parse() before
+saving them to your \fBpackage\.json\fP\|\.
+
+.RE
+.P
+Not supported by all npm commands\.
+.SS \fBlong\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Show extended information in \fBls\fP, \fBsearch\fP, and \fBhelp\-search\fP\|\.
+.SS \fBparseable\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Output parseable results from commands that write to standard output\. For
+\fBnpm search\fP, this will be tab\-separated table format\.
+.SS \fBglobal\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Operates in "global" mode, so that packages are installed into the \fBprefix\fP
+folder instead of the current working directory\. See
+npm help folders for more on the differences in behavior\.
+.RS 0
+.IP \(bu 2
+packages are installed into the \fB{prefix}/lib/node_modules\fP folder, instead
+of the current working directory\.
+.IP \(bu 2
+bin files are linked to \fB{prefix}/bin\fP
+.IP \(bu 2
+man pages are linked to \fB{prefix}/share/man\fP
+
+.RE
+.SS \fBdepth\fP
+.RS 0
+.IP \(bu 2
+Default: \fBInfinity\fP if \fB\-\-all\fP is set, otherwise \fB1\fP
+.IP \(bu 2
+Type: null or Number
+
+.RE
+.P
+The depth to go when recursing packages for \fBnpm ls\fP\|\.
+.P
+If not set, \fBnpm ls\fP will show only the immediate dependencies of the root
+project\. If \fB\-\-all\fP is set, then npm will show all dependencies by default\.
+.SS \fBomit\fP
+.RS 0
+.IP \(bu 2
+Default: 'dev' if the \fBNODE_ENV\fP environment variable is set to
+\|'production', otherwise empty\.
+.IP \(bu 2
+Type: "dev", "optional", or "peer" (can be set multiple times)
+
+.RE
+.P
+Dependency types to omit from the installation tree on disk\.
+.P
+Note that these dependencies \fIare\fR still resolved and added to the
+\fBpackage\-lock\.json\fP or \fBnpm\-shrinkwrap\.json\fP file\. They are just not
+physically installed on disk\.
+.P
+If a package type appears in both the \fB\-\-include\fP and \fB\-\-omit\fP lists, then
+it will be included\.
+.P
+If the resulting omit list includes \fB\|'dev'\fP, then the \fBNODE_ENV\fP environment
+variable will be set to \fB\|'production'\fP for all lifecycle scripts\.
+.SS \fBlink\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Used with \fBnpm ls\fP, limiting output to only those packages that are linked\.
+.SS \fBpackage\-lock\-only\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If set to true, the current operation will only use the \fBpackage\-lock\.json\fP,
+ignoring \fBnode_modules\fP\|\.
+.P
+For \fBupdate\fP this means only the \fBpackage\-lock\.json\fP will be updated,
+instead of checking \fBnode_modules\fP and downloading dependencies\.
+.P
+For \fBlist\fP this means the output will be based on the tree described by the
+\fBpackage\-lock\.json\fP, rather than the contents of \fBnode_modules\fP\|\.
+.SS \fBunicode\fP
+.RS 0
+.IP \(bu 2
+Default: false on windows, true on mac/unix systems with a unicode locale,
+as defined by the \fBLC_ALL\fP, \fBLC_CTYPE\fP, or \fBLANG\fP environment variables\.
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+When set to true, npm uses unicode characters in the tree output\. When
+false, it uses ascii characters instead of unicode glyphs\.
+.SS \fBworkspace\fP
+.RS 0
+.IP \(bu 2
+Default:
+.IP \(bu 2
+Type: String (can be set multiple times)
+
+.RE
+.P
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option\.
+.P
+Valid values for the \fBworkspace\fP config are either:
+.RS 0
+.IP \(bu 2
+Workspace names
+.IP \(bu 2
+Path to a workspace directory
+.IP \(bu 2
+Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)
+
+.RE
+.P
+When set for the \fBnpm init\fP command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project\.
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBworkspaces\fP
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: null or Boolean
+
+.RE
+.P
+Set to true to run the command in the context of \fBall\fR configured
+workspaces\.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fP to
+ignore workspaces altogether\. When not set explicitly:
+.RS 0
+.IP \(bu 2
+Commands that operate on the \fBnode_modules\fP tree (install, update, etc\.)
+will link workspaces into the \fBnode_modules\fP folder\. \- Commands that do
+other things (test, exec, publish, etc\.) will operate on the root project,
+\fIunless\fR one or more workspaces are specified in the \fBworkspace\fP config\.
+
+.RE
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBinclude\-workspace\-root\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Include the workspace root when workspaces are enabled for a command\.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fP config, or
+all workspaces via the \fBworkspaces\fP flag, will cause npm to operate only on
+the specified workspaces, and not on the root project\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help explain
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help npmrc
+.IP \(bu 2
+npm help folders
+.IP \(bu 2
+npm help explain
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help link
+.IP \(bu 2
+npm help prune
+.IP \(bu 2
+npm help outdated
+.IP \(bu 2
+npm help update
+
+.RE

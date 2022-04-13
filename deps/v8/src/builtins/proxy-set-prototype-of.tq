@@ -1,0 +1,76 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-proxy-gen.h'
+
+namespace proxy {
+
+// ES #sec-proxy-object-internal-methods-and-internal-slots-setprototypeof-v
+// https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-setprototypeof-v
+transitioning builtin
+ProxySetPrototypeOf(implicit context: Context)(
+    proxy: JSProxy, proto: Null|JSReceiver, doThrow: Boolean): JSAny {
+  PerformStackCheck();
+  const kTrapName: constexpr string = 'setPrototypeOf';
+  try {
+    // 1. Assert: Either Type(V) is Object or Type(V) is Null.
+    dcheck(proto == Null || Is<JSReceiver>(proto));
+
+    // 2. Let handler be O.[[ProxyHandler]].
+    // 3. If handler is null, throw a TypeError exception.
+    // 4. Assert: Type(handler) is Object.
+    dcheck(proxy.handler == Null || Is<JSReceiver>(proxy.handler));
+    const handler =
+        Cast<JSReceiver>(proxy.handler) otherwise ThrowProxyHandlerRevoked;
+
+    // 5. Let target be O.[[ProxyTarget]].
+    const target = proxy.target;
+
+    // 6. Let trap be ? GetMethod(handler, "setPrototypeOf").
+    // 7. If trap is undefined, then (see 7.a below).
+    const trap: Callable = GetMethod(handler, kTrapName)
+        otherwise goto TrapUndefined(target, proto);
+
+    // 8. Let booleanTrapResult be ToBoolean(? Call(trap, handler, « target, V
+    // »)).
+    const trapResult = Call(context, trap, handler, target, proto);
+
+    // 9. If booleanTrapResult is false, return false.
+    if (!ToBoolean(trapResult)) {
+      if (doThrow == True) {
+        ThrowTypeError(
+            MessageTemplate::kProxyTrapReturnedFalsishFor, kTrapName);
+      }
+      return False;
+    }
+
+    // 10. Let extensibleTarget be ? IsExtensible(target).
+    // 11. If extensibleTarget is true, return true.
+    const extensibleTarget: Object = object::ObjectIsExtensibleImpl(target);
+    dcheck(extensibleTarget == True || extensibleTarget == False);
+    if (extensibleTarget == True) {
+      return True;
+    }
+
+    // 12. Let targetProto be ? target.[[GetPrototypeOf]]().
+    const targetProto = object::ObjectGetPrototypeOfImpl(target);
+
+    // 13. If SameValue(V, targetProto) is false, throw a TypeError
+    // exception.
+    // 14. Return true.
+    if (SameValue(proto, targetProto)) {
+      return True;
+    }
+    ThrowTypeError(MessageTemplate::kProxySetPrototypeOfNonExtensible);
+  } label TrapUndefined(target: JSAny, proto: JSReceiver|Null) {
+    // 7.a. Return ? target.[[SetPrototypeOf]]().
+    if (doThrow == True) {
+      return object::ObjectSetPrototypeOfThrow(target, proto);
+    }
+    return object::ObjectSetPrototypeOfDontThrow(target, proto);
+  } label ThrowProxyHandlerRevoked deferred {
+    ThrowTypeError(MessageTemplate::kProxyRevoked, kTrapName);
+  }
+}
+}

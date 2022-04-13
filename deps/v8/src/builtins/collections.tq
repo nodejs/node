@@ -1,0 +1,56 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-collections-gen.h'
+
+namespace collections {
+@export
+macro LoadKeyValuePairNoSideEffects(implicit context: Context)(o: JSAny):
+    KeyValuePair labels MayHaveSideEffects {
+  typeswitch (o) {
+    case (a: FastJSArray): {
+      const length: Smi = a.length;
+      typeswitch (a.elements) {
+        case (elements: FixedArray): {
+          return KeyValuePair{
+            key: length > 0 ? array::LoadElementOrUndefined(elements, 0) :
+                              Undefined,
+            value: length > 1 ? array::LoadElementOrUndefined(elements, 1) :
+                                Undefined
+          };
+        }
+        case (elements: FixedDoubleArray): {
+          return KeyValuePair{
+            key: length > 0 ? array::LoadElementOrUndefined(elements, 0) :
+                              Undefined,
+            value: length > 1 ? array::LoadElementOrUndefined(elements, 1) :
+                                Undefined
+          };
+        }
+        case (FixedArrayBase): deferred {
+          unreachable;
+        }
+      }
+    }
+    case (JSAny): {
+      goto MayHaveSideEffects;
+    }
+  }
+}
+
+@export
+transitioning macro LoadKeyValuePair(implicit context: Context)(o: JSAny):
+    KeyValuePair {
+  try {
+    return LoadKeyValuePairNoSideEffects(o) otherwise Generic;
+  } label Generic {
+    const o = Cast<JSReceiver>(o)
+        otherwise ThrowTypeError(MessageTemplate::kIteratorValueNotAnObject, o);
+    return KeyValuePair{
+      key: GetProperty(o, Convert<Smi>(0)),
+      value: GetProperty(o, Convert<Smi>(1))
+    };
+  }
+}
+}

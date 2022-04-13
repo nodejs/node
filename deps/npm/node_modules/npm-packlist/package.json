@@ -1,0 +1,64 @@
+{
+  "name": "npm-packlist",
+  "version": "4.0.0",
+  "description": "Get a list of the files to add from a folder into an npm package",
+  "directories": {
+    "test": "test"
+  },
+  "main": "lib",
+  "dependencies": {
+    "glob": "^7.2.0",
+    "ignore-walk": "^4.0.1",
+    "npm-bundled": "^1.1.2",
+    "npm-normalize-package-bin": "^1.0.1"
+  },
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "devDependencies": {
+    "@npmcli/template-oss": "^2.9.2",
+    "mutate-fs": "^2.1.1",
+    "tap": "^15.1.6"
+  },
+  "scripts": {
+    "test": "tap",
+    "posttest": "npm run lint",
+    "snap": "tap",
+    "postsnap": "npm run lintfix --",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "eslint": "eslint",
+    "lint": "eslint '**/*.js'",
+    "lintfix": "npm run lint -- --fix",
+    "npmclilint": "npmcli-lint",
+    "postlint": "npm-template-check",
+    "template-copy": "npm-template-copy --force"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/npm-packlist.git"
+  },
+  "tap": {
+    "test-env": [
+      "LC_ALL=sk"
+    ],
+    "check-coverage": true,
+    "nyc-arg": [
+      "--include=index.js",
+      "--include=bin/index.js"
+    ]
+  },
+  "bin": {
+    "npm-packlist": "bin/index.js"
+  },
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16"
+  },
+  "templateOSS": {
+    "version": "2.9.2"
+  }
+}

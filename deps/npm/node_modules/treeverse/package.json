@@ -1,0 +1,37 @@
+{
+  "name": "treeverse",
+  "version": "1.0.4",
+  "description": "Walk any kind of tree structure depth- or breadth-first. Supports promises and advanced map-reduce operations with a very small API.",
+  "author": "Isaac Z. Schlueter <i@izs.me> (https://izs.me)",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/treeverse.git"
+  },
+  "scripts": {
+    "test": "tap",
+    "snap": "tap",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "postpublish": "git push origin --follow-tags"
+  },
+  "tap": {
+    "100": true,
+    "coverage-map": "map.js"
+  },
+  "devDependencies": {
+    "tap": "^14.10.6",
+    "tcompare": "^2.3.0"
+  },
+  "files": [
+    "index.js",
+    "lib/"
+  ],
+  "main": "index.js",
+  "keywords": [
+    "tree",
+    "traversal",
+    "depth first search",
+    "breadth first search"
+  ]
+}

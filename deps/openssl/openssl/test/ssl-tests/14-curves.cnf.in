@@ -1,0 +1,93 @@
+# -*- mode: perl; -*-
+
+## SSL test configurations
+
+package ssltests;
+
+use strict;
+use warnings;
+
+use OpenSSL::Test;
+use OpenSSL::Test::Utils qw(anydisabled);
+
+our $fips_mode;
+
+my @curves = ("prime256v1", "secp384r1", "secp521r1", "X25519",
+              "X448");
+
+my @curves_tls_1_2 = ("sect233k1", "sect233r1",
+              "sect283k1", "sect283r1", "sect409k1", "sect409r1",
+              "sect571k1", "sect571r1", "secp224r1");
+
+my @curves_non_fips = ("sect163k1", "sect163r2", "prime192v1",
+                       "sect163r1", "sect193r1", "sect193r2", "sect239k1",
+                       "secp160k1", "secp160r1", "secp160r2", "secp192k1",
+                       "secp224k1",  "secp256k1", "brainpoolP256r1",
+                       "brainpoolP384r1", "brainpoolP512r1");
+
+push @curves_tls_1_2, @curves_non_fips if !$fips_mode;
+
+our @tests = ();
+
+sub generate_tests() {
+    foreach (0..$#curves) {
+        my $curve = $curves[$_];
+        push @tests, {
+            name => "curve-${curve}",
+            server => {
+                "Curves" => $curve,
+                "MaxProtocol" => "TLSv1.3"
+            },
+            client => {
+                "CipherString" => "ECDHE",
+                "MaxProtocol" => "TLSv1.3",
+                "Curves" => $curve
+            },
+            test   => {
+                "ExpectedTmpKeyType" => $curve,
+                "ExpectedProtocol" => "TLSv1.3",
+                "ExpectedResult" => "Success"
+            },
+        };
+    }
+    foreach (0..$#curves_tls_1_2) {
+        my $curve = $curves_tls_1_2[$_];
+        push @tests, {
+            name => "curve-${curve}",
+            server => {
+                "Curves" => $curve,
+                "MaxProtocol" => "TLSv1.3"
+            },
+            client => {
+                "CipherString" => "ECDHE",
+                "MaxProtocol" => "TLSv1.2",
+                "Curves" => $curve
+            },
+            test   => {
+                "ExpectedTmpKeyType" => $curve,
+                "ExpectedProtocol" => "TLSv1.2",
+                "ExpectedResult" => "Success"
+            },
+        };
+    }
+    foreach (0..$#curves_tls_1_2) {
+        my $curve = $curves_tls_1_2[$_];
+        push @tests, {
+            name => "curve-${curve}-tls13",
+            server => {
+                "Curves" => $curve,
+                "MaxProtocol" => "TLSv1.3"
+            },
+            client => {
+                "CipherString" => "ECDHE",
+                "MinProtocol" => "TLSv1.3",
+                "Curves" => $curve
+            },
+            test   => {
+                "ExpectedResult" => "ClientFail"
+            },
+        };
+    }
+}
+
+generate_tests();

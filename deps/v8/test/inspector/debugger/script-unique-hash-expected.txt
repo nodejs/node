@@ -1,0 +1,169 @@
+Checks hash in Debugger.scriptParsed event
+1
+2
+PASS
+1;
+2;
+PASS
+1 ;
+2 ;
+PASS
+ 1;
+ 2;
+PASS
+1  ;
+2  ;
+PASS
+ 1 ;
+ 2 ;
+PASS
+  1;
+  2;
+PASS
+1   ;
+2   ;
+PASS
+ 1  ;
+ 2  ;
+PASS
+  1 ;
+  2 ;
+PASS
+   1;
+   2;
+PASS
+1    ;
+2    ;
+PASS
+ 1   ;
+ 2   ;
+PASS
+  1  ;
+  2  ;
+PASS
+   1 ;
+   2 ;
+PASS
+    1;
+    2;
+PASS
+1     ;
+2     ;
+PASS
+ 1    ;
+ 2    ;
+PASS
+  1   ;
+  2   ;
+PASS
+   1  ;
+   2  ;
+PASS
+    1 ;
+    2 ;
+PASS
+     1;
+     2;
+PASS
+1      ;
+2      ;
+PASS
+ 1     ;
+ 2     ;
+PASS
+  1    ;
+  2    ;
+PASS
+   1   ;
+   2   ;
+PASS
+    1  ;
+    2  ;
+PASS
+     1 ;
+     2 ;
+PASS
+      1;
+      2;
+PASS
+1       ;
+2       ;
+PASS
+ 1      ;
+ 2      ;
+PASS
+  1     ;
+  2     ;
+PASS
+   1    ;
+   2    ;
+PASS
+    1   ;
+    2   ;
+PASS
+     1  ;
+     2  ;
+PASS
+      1 ;
+      2 ;
+PASS
+       1;
+       2;
+PASS
+1        ;
+2        ;
+PASS
+ 1       ;
+ 2       ;
+PASS
+  1      ;
+  2      ;
+PASS
+   1     ;
+   2     ;
+PASS
+    1    ;
+    2    ;
+PASS
+     1   ;
+     2   ;
+PASS
+      1  ;
+      2  ;
+PASS
+       1 ;
+       2 ;
+PASS
+        1;
+        2;
+PASS
+1         ;
+2         ;
+PASS
+ 1        ;
+ 2        ;
+PASS
+  1       ;
+  2       ;
+PASS
+   1      ;
+   2      ;
+PASS
+    1     ;
+    2     ;
+PASS
+     1    ;
+     2    ;
+PASS
+      1   ;
+      2   ;
+PASS
+       1  ;
+       2  ;
+PASS
+        1 ;
+        2 ;
+PASS
+         1;
+         2;
+PASS

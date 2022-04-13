@@ -1,0 +1,11 @@
+{
+  "case-sensitivity.any.js": {
+    "fail": "resource entry type not supported"
+  },
+  "idlharness.any.js": {
+    "skip": "idlharness cannot recognize Node.js environment"
+  },
+  "webtiming-resolution.any.js": {
+    "skip": "flaky"
+  }
+}

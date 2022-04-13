@@ -1,0 +1,4 @@
+*%(basename)s:9: SyntaxError: Private field '#foo' must be declared in an enclosing class
+        x = this.#foo;
+                ^
+SyntaxError: Private field '#foo' must be declared in an enclosing class

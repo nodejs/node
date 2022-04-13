@@ -1,0 +1,16 @@
+specific_include_rules = {
+  "jump-table-assembler\.(cc|h)": [
+    # The JumpTableAssembler should not depend on any wasm-specific headers.
+    # The only allowed include is 'src/codegen' for assembler headers.
+    "-src",
+    "+src/codegen",
+    "+src/wasm/jump-table-assembler.h",
+  ],
+  "c-api\.cc": [
+    "+include/libplatform/libplatform.h",
+    "+third_party/wasm-api/wasm.h",
+  ],
+  "c-api\.h": [
+    "+third_party/wasm-api/wasm.hh",
+  ],
+}

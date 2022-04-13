@@ -1,0 +1,189 @@
+utils2 = new Proxy(utils, {get: function(target, prop) { if (prop in target) return target[prop]; return i=>i;}});
+// Copyright 2016 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+InspectorTest = {};
+InspectorTest._dumpInspectorProtocolMessages = false;
+InspectorTest._commandsForLogging = new Set();
+InspectorTest._sessions = new Set();
+
+InspectorTest.log = utils2.print.bind(utils2);
+InspectorTest.quitImmediately = utils2.quit.bind(utils2);
+
+InspectorTest.logProtocolCommandCalls = function(command) {
+  InspectorTest._commandsForLogging.add(command);
+}
+
+InspectorTest.completeTest = function() {
+  var promises = [];
+  for (var session of InspectorTest._sessions)
+    promises.push(session.Protocol.Debugger.disable());
+  Promise.all(promises).then(() => utils2.quit());
+}
+
+InspectorTest.ContextGroup = class {
+  constructor() {
+    this.id = utils2.createContextGroup();
+  }
+
+  addScript(string, lineOffset, columnOffset, url) {
+    utils2.compileAndRunWithOrigin(this.id, string, url || '', lineOffset || 0, columnOffset || 0, false);
+  }
+
+  connect() {
+    return new InspectorTest.Session(this);
+  }
+
+  reset() {
+    utils2.resetContextGroup(this.id);
+  }
+};
+
+InspectorTest.Session = class {
+  constructor(contextGroup) {
+    this.contextGroup = contextGroup;
+    this._dispatchTable = new Map();
+    this._eventHandlers = new Map();
+    this._requestId = 0;
+    this.Protocol = this._setupProtocol();
+    InspectorTest._sessions.add(this);
+    this.id = utils2.connectSession(contextGroup.id, '', this._dispatchMessage.bind(this));
+  }
+
+  disconnect() {
+    InspectorTest._sessions.delete(this);
+    utils2.disconnectSession(this.id);
+  }
+
+  reconnect() {
+    var state = utils2.disconnectSession(this.id);
+    this.id = utils2.connectSession(this.contextGroup.id, state, this._dispatchMessage.bind(this));
+  }
+
+  async addInspectedObject(serializable) {
+    return this.Protocol.Runtime.evaluate({expression: `inspector.addInspectedObject(${this.id}, ${JSON.stringify(serializable)})`});
+  }
+
+  sendRawCommand(requestId, command, handler) {
+    if (InspectorTest._dumpInspectorProtocolMessages)
+      utils2.print("frontend: " + command);
+    this._dispatchTable.set(requestId, handler);
+    utils2.sendMessageToBackend(this.id, command);
+  }
+
+  _sendCommandPromise(method, params) {
+    if (typeof params !== 'object')
+      utils2.print(`WARNING: non-object params passed to invocation of method ${method}`);
+    if (InspectorTest._commandsForLogging.has(method))
+      utils2.print(method + ' called');
+    var requestId = ++this._requestId;
+    var messageObject = { "id": requestId, "method": method, "params": params };
+    return new Promise(fulfill => this.sendRawCommand(requestId, JSON.stringify(messageObject), fulfill));
+  }
+
+  _setupProtocol() {
+    return new Proxy({}, { get: (target, agentName, receiver) => new Proxy({}, {
+      get: (target, methodName, receiver) => {
+        const eventPattern = /^on(ce)?([A-Z][A-Za-z0-9]+)/;
+        var match = eventPattern.exec(methodName);
+        if (!match)
+          return args => this._sendCommandPromise(`${agentName}.${methodName}`, args || {});
+        var eventName = match[2];
+        eventName = eventName.charAt(0).toLowerCase() + eventName.slice(1);
+        if (match[1])
+          return numOfEvents => this._waitForEventPromise(
+                     `${agentName}.${eventName}`, numOfEvents || 1);
+        return listener => this._eventHandlers.set(`${agentName}.${eventName}`, listener);
+      }
+    })});
+  }
+
+  _dispatchMessage(messageString) {
+    var messageObject = JSON.parse(messageString);
+    if (InspectorTest._dumpInspectorProtocolMessages)
+      utils2.print("backend: " + JSON.stringify(messageObject));
+    const kMethodNotFound = -32601;
+    if (messageObject.error && messageObject.error.code === kMethodNotFound) {
+      InspectorTest.log(`Error: Called non-existent method. ${
+          messageObject.error.message} code: ${messagebOject.error.code}`);
+      InspectorTest.completeTest();
+    }
+    try {
+      var messageId = messageObject["id"];
+      if (typeof messageId === "number") {
+        var handler = this._dispatchTable.get(messageId);
+        if (handler) {
+          handler(messageObject);
+          this._dispatchTable.delete(messageId);
+        }
+      } else {
+        var eventName = messageObject["method"];
+        var eventHandler = this._eventHandlers.get(eventName0);
+        if (eventName === "Debugger.scriptParsed" && messageObject.params.url === "wait-for-pending-tasks.js")
+          return;
+        if (eventHandler)
+          eventHandler(messageObject);
+      }
+    } catch (e) {
+      InspectorTest.log("Exception when dispatching message: " + e + "\n" + e.stack + "\n message = " + JSON.stringify(messageObject, null, 2));
+      InspectorTest.completeTest();
+    }
+  };
+
+  _waitForEventPromise(eventName, numOfEvents) {
+    let events = [];
+    return new Promise(fulfill => {
+      this._eventHandlers.set(eventName, result => {
+        --numOfEvents;
+        events.push(result);
+        if (numOfEvents === 0) {
+          delete this._eventHandlers.delete(eventName);
+          fulfill(events.length > 1 ? events : events[0]);
+        }
+      });
+    });
+  }
+};
+
+InspectorTest.start = function(description) {
+  try {
+    InspectorTest.log(description);
+    var contextGroup = new InspectorTest.ContextGroup();
+    var session = contextGroup.connect();
+    return { session: session, contextGroup: contextGroup, Protocol: session.Protocol };
+  } catch (e) {
+    utils2.print(e.stack);
+  }
+}
+// Copyright 2017 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+let {session, contextGroup, Protocol} = InspectorTest.start('Checks stepping with blackboxed frames on stack');
+
+contextGroup.addScript(
+    `
+function userFoo() {
+  return 1;
+}
+
+function userBoo() {
+  return 2;
+}
+
+function testStepFromUser() {
+  frameworkCall([userFoo, userBoo])
+}
+
+function testStepFromFramework() {
+  frameworkBreakAndCall([userFoo, userBoo]);
+}
+//# sourceURL=user.js`,
+    21, 4);
+
+Protocol.Debugger.enable()
+    .then(
+        () => Protocol.Debugger.setBlackboxPatterns(
+            {patterns: ['framework\.js']}))
+    .then(() => InspectorTest.completeTest());

@@ -1,0 +1,327 @@
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+<title>npm-outdated</title>
+<style>
+body {
+    background-color: #ffffff;
+    color: #24292e;
+
+    margin: 0;
+
+    line-height: 1.5;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+#rainbar {
+    height: 10px;
+    background-image: linear-gradient(139deg, #fb8817, #ff4b01, #c12127, #e02aff);
+}
+
+a {
+    text-decoration: none;
+    color: #0366d6;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+pre {
+    margin: 1em 0px;
+    padding: 1em;
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+
+    display: block;
+    overflow: auto;
+
+    white-space: pre;
+
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+code {
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+pre > code {
+    padding: 0;
+    background-color: inherit;
+    color: inherit;
+}
+h1, h2, h3 {
+    font-weight: 600;
+}
+
+#logobar {
+    background-color: #333333;
+    margin: 0 auto;
+    padding: 1em 4em;
+}
+#logobar .logo {
+    float: left;
+}
+#logobar .title {
+    font-weight: 600;
+    color: #dddddd;
+    float: left;
+    margin: 5px 0 0 1em;
+}
+#logobar:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+#content {
+    margin: 0 auto;
+    padding: 0 4em;
+}
+
+#table_of_contents > h2 {
+    font-size: 1.17em;
+}
+#table_of_contents ul:first-child {
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+    padding: 1em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+#table_of_contents ul {
+    list-style-type: none;
+    padding-left: 1.5em;
+}
+#table_of_contents li {
+    font-size: 0.9em;
+}
+#table_of_contents li a {
+    color: #000000;
+}
+
+header.title {
+    border-bottom: solid 1px #e1e4e8;
+}
+header.title > h1 {
+    margin-bottom: 0.25em;
+}
+header.title > .description {
+    display: block;
+    margin-bottom: 0.5em;
+    line-height: 1;
+}
+
+footer#edit {
+    border-top: solid 1px #e1e4e8;
+    margin: 3em 0 4em 0;
+    padding-top: 2em;
+}
+</style>
+</head>
+<body>
+<div id="banner">
+<div id="rainbar"></div>
+<div id="logobar">
+<svg class="logo" role="img" height="32" width="32" viewBox="0 0 700 700">
+<polygon fill="#cb0000" points="0,700 700,700 700,0 0,0"></polygon>
+<polygon fill="#ffffff" points="150,550 350,550 350,250 450,250 450,550 550,550 550,150 150,150"></polygon>
+</svg>
+<div class="title">
+npm command-line interface
+</div>
+</div>
+</div>
+
+<section id="content">
+<header class="title">
+<h1 id="npm-outdated">npm-outdated</h1>
+<span class="description">Check for outdated packages</span>
+</header>
+
+<section id="table_of_contents">
+<h2 id="table-of-contents">Table of contents</h2>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#an-example">An example</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#all"><code>all</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#long"><code>long</code></a></li><li><a href="#parseable"><code>parseable</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#workspace"><code>workspace</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+</section>
+
+<div id="_content"><h3 id="synopsis">Synopsis</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<pre lang="bash"><code>npm outdated [[&lt;@scope&gt;/]&lt;pkg&gt; ...]
+</code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h3 id="description">Description</h3>
+<p>This command will check the registry to see if any (or, specific) installed
+packages are currently outdated.</p>
+<p>By default, only the direct dependencies of the root project and direct
+dependencies of your configured <em>workspaces</em> are shown.
+Use <code>--all</code> to find all outdated meta-dependencies as well.</p>
+<p>In the output:</p>
+<ul>
+<li><code>wanted</code> is the maximum version of the package that satisfies the semver
+range specified in <code>package.json</code>. If there's no available semver range
+(i.e.  you're running <code>npm outdated --global</code>, or the package isn't
+included in <code>package.json</code>), then <code>wanted</code> shows the currently-installed
+version.</li>
+<li><code>latest</code> is the version of the package tagged as latest in the registry.
+Running <code>npm publish</code> with no special configuration will publish the
+package with a dist-tag of <code>latest</code>. This may or may not be the maximum
+version of the package, or the most-recently published version of the
+package, depending on how the package's developer manages the latest
+<a href="../commands/npm-dist-tag.html">dist-tag</a>.</li>
+<li><code>location</code> is where in the physical tree the package is located.</li>
+<li><code>depended by</code> shows which package depends on the displayed dependency</li>
+<li><code>package type</code> (when using <code>--long</code> / <code>-l</code>) tells you whether this
+package is a <code>dependency</code> or a dev/peer/optional dependency. Packages not
+included in <code>package.json</code> are always marked <code>dependencies</code>.</li>
+<li><code>homepage</code> (when using <code>--long</code> / <code>-l</code>) is the <code>homepage</code> value contained
+in the package's packument</li>
+<li>Red means there's a newer version matching your semver requirements, so
+you should update now.</li>
+<li>Yellow indicates that there's a newer version <em>above</em> your semver
+requirements (usually new major, or new 0.x minor) so proceed with
+caution.</li>
+</ul>
+<h3 id="an-example">An example</h3>
+<pre lang="bash"><code>$ npm outdated
+Package      Current   Wanted   Latest  Location                  Depended by
+glob          5.0.15   5.0.15    6.0.1  node_modules/glob         dependent-package-name
+nothingness    0.0.3      git      git  node_modules/nothingness  dependent-package-name
+npm            3.5.1    3.5.2    3.5.1  node_modules/npm          dependent-package-name
+local-dev      0.0.3   linked   linked  local-dev                 dependent-package-name
+once           1.3.2    1.3.3    1.3.3  node_modules/once         dependent-package-name
+</code></pre>
+<p>With these <code>dependencies</code>:</p>
+<pre lang="json"><code>{
+  "glob": "^5.0.15",
+  "nothingness": "github:othiym23/nothingness#master",
+  "npm": "^3.5.1",
+  "once": "^1.3.1"
+}
+</code></pre>
+<p>A few things to note:</p>
+<ul>
+<li><code>glob</code> requires <code>^5</code>, which prevents npm from installing <code>glob@6</code>, which
+is outside the semver range.</li>
+<li>Git dependencies will always be reinstalled, because of how they're
+specified.  The installed committish might satisfy the dependency
+specifier (if it's something immutable, like a commit SHA), or it might
+not, so <code>npm outdated</code> and <code>npm update</code> have to fetch Git repos to check.
+This is why currently doing a reinstall of a Git dependency always forces
+a new clone and install.</li>
+<li><code>npm@3.5.2</code> is marked as "wanted", but "latest" is <code>npm@3.5.1</code> because
+npm uses dist-tags to manage its <code>latest</code> and <code>next</code> release channels.
+<code>npm update</code> will install the <em>newest</em> version, but <code>npm install npm</code>
+(with no semver range) will install whatever's tagged as <code>latest</code>.</li>
+<li><code>once</code> is just plain out of date. Reinstalling <code>node_modules</code> from
+scratch or running <code>npm update</code> will bring it up to spec.</li>
+</ul>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="all"><code>all</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>When running <code>npm outdated</code> and <code>npm ls</code>, setting <code>--all</code> will show all
+outdated or installed packages, rather than only those directly depended
+upon by the current project.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="json"><code>json</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Whether or not to output JSON data, rather than the normal output.</p>
+<ul>
+<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse() before
+saving them to your <code>package.json</code>.</li>
+</ul>
+<p>Not supported by all npm commands.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="long"><code>long</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Show extended information in <code>ls</code>, <code>search</code>, and <code>help-search</code>.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="parseable"><code>parseable</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Output parseable results from commands that write to standard output. For
+<code>npm search</code>, this will be tab-separated table format.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="global"><code>global</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Operates in "global" mode, so that packages are installed into the <code>prefix</code>
+folder instead of the current working directory. See
+<a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
+<ul>
+<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder, instead
+of the current working directory.</li>
+<li>bin files are linked to <code>{prefix}/bin</code></li>
+<li>man pages are linked to <code>{prefix}/share/man</code></li>
+</ul>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="workspace"><code>workspace</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)</li>
+</ul>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h3 id="see-also">See Also</h3>
+<ul>
+<li><a href="../commands/npm-update.html">npm update</a></li>
+<li><a href="../commands/npm-dist-tag.html">npm dist-tag</a></li>
+<li><a href="../using-npm/registry.html">npm registry</a></li>
+<li><a href="../configuring-npm/folders.html">npm folders</a></li>
+<li><a href="../using-npm/workspaces.html">npm workspaces</a></li>
+</ul>
+</div>
+
+<footer id="edit">
+<a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-outdated.md">
+<svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
+<path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
+</svg>
+Edit this page on GitHub
+</a>
+</footer>
+</section>
+
+
+
+</body></html>

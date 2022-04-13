@@ -1,0 +1,47 @@
+{
+  "name": "npm-profile",
+  "version": "6.0.2",
+  "description": "Library for updating an npmjs.com profile",
+  "keywords": [],
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "dependencies": {
+    "npm-registry-fetch": "^13.0.0",
+    "proc-log": "^2.0.0"
+  },
+  "main": "./lib/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/npm-profile.git"
+  },
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "devDependencies": {
+    "@npmcli/template-oss": "^2.7.1",
+    "nock": "^13.2.4",
+    "tap": "^15.1.6"
+  },
+  "scripts": {
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "posttest": "npm run lint",
+    "test": "tap",
+    "snap": "tap",
+    "lint": "eslint '**/*.js'",
+    "postlint": "npm-template-check",
+    "lintfix": "npm run lint -- --fix",
+    "template-copy": "npm-template-copy --force"
+  },
+  "tap": {
+    "check-coverage": true
+  },
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16"
+  },
+  "templateOSS": {
+    "version": "2.7.1"
+  }
+}

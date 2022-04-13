@@ -1,0 +1,54 @@
+{
+  "name": "@npmcli/map-workspaces",
+  "version": "2.0.2",
+  "main": "lib/index.js",
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16"
+  },
+  "description": "Retrieves a name:pathname Map for a given workspaces config",
+  "repository": "https://github.com/npm/map-workspaces",
+  "keywords": [
+    "npm",
+    "npmcli",
+    "libnpm",
+    "cli",
+    "workspaces",
+    "map-workspaces"
+  ],
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "scripts": {
+    "lint": "eslint '**/*.js'",
+    "pretest": "npm run lint",
+    "test": "tap",
+    "snap": "tap",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "postlint": "npm-template-check",
+    "lintfix": "npm run lint -- --fix",
+    "posttest": "npm run lint",
+    "template-copy": "npm-template-copy --force"
+  },
+  "tap": {
+    "check-coverage": true
+  },
+  "devDependencies": {
+    "@npmcli/template-oss": "^2.9.2",
+    "eslint": "^8.10.0",
+    "tap": "^15.1.6"
+  },
+  "dependencies": {
+    "@npmcli/name-from-folder": "^1.0.1",
+    "glob": "^7.2.0",
+    "minimatch": "^5.0.1",
+    "read-package-json-fast": "^2.0.3"
+  },
+  "templateOSS": {
+    "version": "2.9.2"
+  }
+}

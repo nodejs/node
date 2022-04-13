@@ -1,0 +1,72 @@
+{
+  "api-basics.any.js": {
+    "requires": ["small-icu"]
+  },
+  "api-invalid-label.any.js": {
+    "skip": "location is not defined"
+  },
+  "textdecoder-fatal-streaming.any.js": {
+    "requires": ["small-icu"]
+  },
+  "textdecoder-fatal.any.js": {
+    "requires": ["small-icu"]
+  },
+  "textdecoder-ignorebom.any.js": {
+    "requires": ["small-icu"]
+  },
+  "textdecoder-streaming.any.js": {
+    "requires": ["small-icu"],
+    "fail": "WebAssembly.Memory does not support shared:true"
+  },
+  "textdecoder-utf16-surrogates.any.js": {
+    "requires": ["small-icu"]
+  },
+  "iso-2022-jp-decoder.any.js": {
+    "requires": ["full-icu"],
+    "fail": "iso-2022-jp decoder state handling bug: https://encoding.spec.whatwg.org/#iso-2022-jp-decoder"
+  },
+  "textdecoder-byte-order-marks.any.js": {
+    "requires": ["small-icu"]
+  },
+  "textdecoder-fatal-single-byte.any.js": {
+    "requires": ["full-icu"],
+    "fail": "The iso-8859-16 encoding is not supported"
+  },
+  "textdecoder-labels.any.js": {
+    "requires": ["full-icu"],
+    "fail": "The iso-8859-16 encoding is not supported"
+  },
+  "textencoder-constructor-non-utf.any.js": {
+    "requires": ["full-icu"],
+    "fail": "The iso-8859-16 encoding is not supported"
+  },
+  "idlharness.any.js": {
+    "fail": "No implementation of TextDecoderStream and TextEncoderStream"
+  },
+  "replacement-encodings.any.js": {
+    "skip": "decoding-helpers.js needs XMLHttpRequest"
+  },
+  "unsupported-encodings.any.js": {
+    "skip": "decoding-helpers.js needs XMLHttpRequest"
+  },
+  "streams/*.js": {
+    "fail": "No implementation of TextDecoderStream and TextEncoderStream"
+  },
+  "encodeInto.any.js": {
+    "fail": "WebAssembly.Memory does not support shared:true"
+  },
+  "textdecoder-copy.any.js": {
+    "fail": "WebAssembly.Memory does not support shared:true"
+  },
+  "legacy-mb-schinese/gbk/gbk-decoder.any.js": {
+    "requires": ["full-icu"],
+    "skip": "The gbk encoding is not supported"
+  },
+  "legacy-mb-schinese/gb18030/gb18030-decoder.any.js": {
+    "requires": ["full-icu"],
+    "skip": "The gb18030 encoding is not supported"
+  },
+  "textdecoder-arguments.any.js": {
+    "fail": "Does not support flushing an incomplete sequence"
+  }
+}

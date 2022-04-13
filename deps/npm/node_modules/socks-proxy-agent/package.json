@@ -1,0 +1,64 @@
+{
+  "name": "socks-proxy-agent",
+  "version": "6.1.1",
+  "description": "A SOCKS proxy `http.Agent` implementation for HTTP and HTTPS",
+  "main": "dist/index",
+  "typings": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "prebuild": "rimraf dist",
+    "build": "tsc",
+    "test": "mocha --reporter spec",
+    "test-lint": "eslint src --ext .js,.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/TooTallNate/node-socks-proxy-agent.git"
+  },
+  "keywords": [
+    "socks",
+    "socks4",
+    "socks4a",
+    "socks5",
+    "socks5h",
+    "proxy",
+    "http",
+    "https",
+    "agent"
+  ],
+  "author": "Nathan Rajlich <nathan@tootallnate.net> (http://n8.io/)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/TooTallNate/node-socks-proxy-agent/issues"
+  },
+  "dependencies": {
+    "agent-base": "^6.0.2",
+    "debug": "^4.3.1",
+    "socks": "^2.6.1"
+  },
+  "devDependencies": {
+    "@types/debug": "latest",
+    "@types/node": "latest",
+    "@typescript-eslint/eslint-plugin": "latest",
+    "@typescript-eslint/parser": "latest",
+    "eslint": "latest",
+    "eslint-config-airbnb": "latest",
+    "eslint-config-prettier": "latest",
+    "eslint-import-resolver-typescript": "latest",
+    "eslint-plugin-import": "latest",
+    "eslint-plugin-jsx-a11y": "latest",
+    "eslint-plugin-react": "latest",
+    "mocha": "latest",
+    "proxy": "latest",
+    "raw-body": "latest",
+    "rimraf": "latest",
+    "socksv5": "TooTallNate/socksv5#fix/dstSock-close-event",
+    "typescript": "latest"
+  },
+  "engines": {
+    "node": ">= 10"
+  }
+}

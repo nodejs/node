@@ -1,0 +1,57 @@
+{
+  "name": "npm-package-arg",
+  "version": "9.0.2",
+  "description": "Parse the things that can be arguments to `npm install`",
+  "main": "./lib/npa.js",
+  "directories": {
+    "test": "test"
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "dependencies": {
+    "hosted-git-info": "^5.0.0",
+    "semver": "^7.3.5",
+    "validate-npm-package-name": "^4.0.0"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^3.0.1",
+    "@npmcli/template-oss": "3.2.1",
+    "tap": "^16.0.1"
+  },
+  "scripts": {
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "test": "tap",
+    "snap": "tap",
+    "npmclilint": "npmcli-lint",
+    "lint": "eslint \"**/*.js\"",
+    "lintfix": "npm run lint -- --fix",
+    "posttest": "npm run lint",
+    "postsnap": "npm run lintfix --",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/npm-package-arg.git"
+  },
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/npm/npm-package-arg/issues"
+  },
+  "homepage": "https://github.com/npm/npm-package-arg",
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16.0.0"
+  },
+  "tap": {
+    "branches": 97
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "3.2.1"
+  }
+}

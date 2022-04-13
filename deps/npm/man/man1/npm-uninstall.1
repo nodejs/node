@@ -1,0 +1,155 @@
+.TH "NPM\-UNINSTALL" "1" "March 2022" "" ""
+.SH "NAME"
+\fBnpm-uninstall\fR \- Remove a package
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm uninstall [<@scope>/]<pkg>\.\.\.
+
+aliases: unlink, remove, rm, r, un
+.fi
+.RE
+.SS Description
+.P
+This uninstalls a package, completely removing everything npm installed
+on its behalf\.
+.P
+It also removes the package from the \fBdependencies\fP, \fBdevDependencies\fP,
+\fBoptionalDependencies\fP, and \fBpeerDependencies\fP objects in your
+\fBpackage\.json\fP\|\.
+.P
+Futher, if you have an \fBnpm\-shrinkwrap\.json\fP or \fBpackage\-lock\.json\fP, npm
+will update those files as well\.
+.P
+\fB\-\-no\-save\fP will tell npm not to remove the package from your
+\fBpackage\.json\fP, \fBnpm\-shrinkwrap\.json\fP, or \fBpackage\-lock\.json\fP files\.
+.P
+\fB\-\-save\fP or \fB\-S\fP will tell npm to remove the package from your
+\fBpackage\.json\fP, \fBnpm\-shrinkwrap\.json\fP, and \fBpackage\-lock\.json\fP files\.
+This is the default, but you may need to use this if you have for
+instance \fBsave=false\fP in your \fBnpmrc\fP file
+.P
+In global mode (ie, with \fB\-g\fP or \fB\-\-global\fP appended to the command),
+it uninstalls the current package context as a global package\.
+\fB\-\-no\-save\fP is ignored in this case\.
+.P
+Scope is optional and follows the usual rules for npm help \fBscope\fP\|\.
+.SS Examples
+.P
+.RS 2
+.nf
+npm uninstall sax
+.fi
+.RE
+.P
+\fBsax\fP will no longer be in your \fBpackage\.json\fP, \fBnpm\-shrinkwrap\.json\fP, or
+\fBpackage\-lock\.json\fP files\.
+.P
+.RS 2
+.nf
+npm uninstall lodash \-\-no\-save
+.fi
+.RE
+.P
+\fBlodash\fP will not be removed from your \fBpackage\.json\fP,
+\fBnpm\-shrinkwrap\.json\fP, or \fBpackage\-lock\.json\fP files\.
+.SS Configuration
+.SS \fBsave\fP
+.RS 0
+.IP \(bu 2
+Default: \fBtrue\fP unless when using \fBnpm update\fP or \fBnpm dedupe\fP where it
+defaults to \fBfalse\fP
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Save installed packages to a \fBpackage\.json\fP file as dependencies\.
+.P
+When used with the \fBnpm rm\fP command, removes the dependency from
+\fBpackage\.json\fP\|\.
+.P
+Will also prevent writing to \fBpackage\-lock\.json\fP if set to \fBfalse\fP\|\.
+.SS \fBworkspace\fP
+.RS 0
+.IP \(bu 2
+Default:
+.IP \(bu 2
+Type: String (can be set multiple times)
+
+.RE
+.P
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option\.
+.P
+Valid values for the \fBworkspace\fP config are either:
+.RS 0
+.IP \(bu 2
+Workspace names
+.IP \(bu 2
+Path to a workspace directory
+.IP \(bu 2
+Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)
+
+.RE
+.P
+When set for the \fBnpm init\fP command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project\.
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBworkspaces\fP
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: null or Boolean
+
+.RE
+.P
+Set to true to run the command in the context of \fBall\fR configured
+workspaces\.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fP to
+ignore workspaces altogether\. When not set explicitly:
+.RS 0
+.IP \(bu 2
+Commands that operate on the \fBnode_modules\fP tree (install, update, etc\.)
+will link workspaces into the \fBnode_modules\fP folder\. \- Commands that do
+other things (test, exec, publish, etc\.) will operate on the root project,
+\fIunless\fR one or more workspaces are specified in the \fBworkspace\fP config\.
+
+.RE
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBinclude\-workspace\-root\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Include the workspace root when workspaces are enabled for a command\.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fP config, or
+all workspaces via the \fBworkspaces\fP flag, will cause npm to operate only on
+the specified workspaces, and not on the root project\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help prune
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help folders
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help npmrc
+
+.RE

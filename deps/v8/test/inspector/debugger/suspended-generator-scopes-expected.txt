@@ -1,0 +1,55 @@
+Tests that suspended generators produce scopes
+
+Running test: testScopesPaused
+[
+    [0] : {
+        configurable : true
+        enumerable : true
+        isOwn : true
+        name : a
+        value : {
+            description : 420
+            type : number
+            value : 420
+        }
+        writable : true
+    }
+    [1] : {
+        configurable : true
+        enumerable : true
+        isOwn : true
+        name : b
+        value : {
+            description : 42
+            type : number
+            value : 42
+        }
+        writable : true
+    }
+]
+
+Running test: testScopesNonPaused
+[
+    [0] : {
+        configurable : true
+        enumerable : true
+        isOwn : true
+        name : a
+        value : {
+            description : 430
+            type : number
+            value : 430
+        }
+        writable : true
+    }
+    [1] : {
+        configurable : true
+        enumerable : true
+        isOwn : true
+        name : b
+        value : {
+            type : undefined
+        }
+        writable : true
+    }
+]

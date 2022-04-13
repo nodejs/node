@@ -1,0 +1,52 @@
+{
+  "name": "@npmcli/config",
+  "version": "4.0.1",
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "main": "lib/index.js",
+  "description": "Configuration management for the npm cli",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/config"
+  },
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "scripts": {
+    "test": "tap",
+    "snap": "tap",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "lint": "eslint '**/*.js'",
+    "postlint": "npm-template-check",
+    "lintfix": "npm run lint -- --fix",
+    "posttest": "npm run lint",
+    "template-copy": "npm-template-copy --force"
+  },
+  "tap": {
+    "check-coverage": true,
+    "coverage-map": "map.js"
+  },
+  "devDependencies": {
+    "@npmcli/template-oss": "^2.8.1",
+    "tap": "^15.1.6"
+  },
+  "dependencies": {
+    "@npmcli/map-workspaces": "^2.0.1",
+    "ini": "^2.0.0",
+    "mkdirp-infer-owner": "^2.0.0",
+    "nopt": "^5.0.0",
+    "proc-log": "^2.0.0",
+    "read-package-json-fast": "^2.0.3",
+    "semver": "^7.3.5",
+    "walk-up-path": "^1.0.0"
+  },
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16"
+  },
+  "templateOSS": {
+    "version": "2.8.1"
+  }
+}

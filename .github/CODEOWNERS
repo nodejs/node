@@ -1,0 +1,123 @@
+# Node.js Project Codeowners
+
+# 1. Codeowners must always be teams, never individuals
+# 2. Each codeowner team should contain at least one TSC member
+# 3. PRs touching any code with a codeowner must be signed off by at least one
+#    person on the code owner team.
+
+# tsc
+
+/.github/CODEOWNERS @nodejs/tsc
+/GOVERNANCE.md @nodejs/tsc
+/onboarding.md @nodejs/tsc
+/CODE_OF_CONDUCT.md @nodejs/tsc
+/CONTRIBUTING.md @nodejs/tsc
+/LICENSE @nodejs/tsc
+/doc/contributing/*.md @nodejs/tsc
+
+# streams
+
+/lib/_stream* @nodejs/streams
+/lib/stream.js @nodejs/streams
+/lib/stream/* @nodejs/streams
+/lib/internal/streams/* @nodejs/streams
+
+# net
+
+/deps/cares @nodejs/net
+/doc/api/dns.md @nodejs/net
+/doc/api/dgram.md @nodejs/net
+/doc/api/net.md @nodejs/net
+/lib/dgram.js @nodejs/net
+/lib/dns.js @nodejs/net
+/lib/net.js @nodejs/net
+/lib/internal/dgram.js @nodejs/net
+/lib/internal/dns/* @nodejs/net
+/lib/internal/net.js @nodejs/net
+/lib/internal/socket_list.js @nodejs/net
+/lib/internal/js_stream_socket.js @nodejs/net
+/src/cares_wrap.cc @nodejs/net
+/src/connect_wrap.* @nodejs/net
+/src/connection_wrap.* @nodejs/net
+/src/node_sockaddr* @nodejs/net
+/src/tcp_wrap.* @nodejs/net
+/src/udp_wrap.* @nodejs/net
+
+# tls/crypto
+
+/lib/internal/crypto/* @nodejs/crypto
+/lib/internal/tls/* @nodejs/crypto @nodejs/net
+/lib/crypto.js @nodejs/crypto
+/lib/tls.js @nodejs/crypto @nodejs/net
+/src/node_crypto* @nodejs/crypto
+/src/crypto/* @nodejs/crypto
+
+# http
+
+/deps/llhttp/* @nodejs/http @nodejs/net
+/doc/api/http.md @nodejs/http @nodejs/net
+/lib/_http_* @nodejs/http @nodejs/net
+/lib/http.js @nodejs/http @nodejs/net
+/lib/https.js @nodejs/crypto @nodejs/net @nodejs/http
+/src/node_http_common* @nodejs/http @nodejs/http2 @nodejs/net
+/src/node_http_parser.cc @nodejs/http @nodejs/net
+
+# http2
+
+/deps/nghttp2/* @nodejs/http2 @nodejs/net
+/doc/api/http2.md @nodejs/http2 @nodejs/http @nodejs/net
+/lib/http2.js @nodejs/http2 @nodejs/net
+/lib/internal/http2/* @nodejs/http2 @nodejs/net
+/src/node_http2* @nodejs/http2 @nodejs/net
+/src/node_mem* @nodejs/http2
+
+# modules
+
+/doc/api/modules.md @nodejs/modules
+/doc/api/esm.md @nodejs/modules
+/doc/api/module.md @nodejs/modules
+/doc/api/packages.md @nodejs/modules
+/lib/module.js @nodejs/modules
+/lib/internal/modules/* @nodejs/modules
+/lib/internal/bootstrap/loaders.js @nodejs/modules
+/src/module_wrap* @nodejs/modules @nodejs/vm
+
+# Node-API
+
+/src/node_api* @nodejs/node-api
+/src/js_native_api* @nodejs/node-api
+/doc/contributing/adding-new-napi-api.md @nodejs/node-api
+/doc/api/n-api.md @nodejs/node-api
+
+# gyp
+
+*.gyp @nodejs/gyp
+*.gypi @nodejs/gyp
+/tools/gyp/**/* @nodejs/gyp
+
+# WASI
+/deps/uvwasi/ @nodejs/wasi
+/doc/api/wasi.md @nodejs/wasi
+/lib/wasi.js @nodejs/wasi
+/src/node_wasi* @nodejs/wasi
+/test/wasi/ @nodejs/wasi
+/test/fixtures/wasi/ @nodejs/wasi
+
+# Startup
+
+/benchmark/misc/startup.js @nodejs/startup
+/src/node.cc @nodejs/startup
+/src/node_code_cache_stub.cc @nodejs/startup
+/src/node_native_module* @nodejs/startup
+/lib/internal/bootstrap/* @nodejs/startup
+/tools/code_cache/* @nodejs/startup
+/tools/snapshot/* @nodejs/startup
+
+# V8
+/deps/v8/* @nodejs/v8-update
+/tools/v8_gypfiles/* @nodejs/v8-update
+
+# Actions
+
+/.github/workflows/* @nodejs/actions
+/tools/actions/* @nodejs/actions

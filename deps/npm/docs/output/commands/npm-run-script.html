@@ -1,0 +1,353 @@
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+<title>npm-run-script</title>
+<style>
+body {
+    background-color: #ffffff;
+    color: #24292e;
+
+    margin: 0;
+
+    line-height: 1.5;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+#rainbar {
+    height: 10px;
+    background-image: linear-gradient(139deg, #fb8817, #ff4b01, #c12127, #e02aff);
+}
+
+a {
+    text-decoration: none;
+    color: #0366d6;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+pre {
+    margin: 1em 0px;
+    padding: 1em;
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+
+    display: block;
+    overflow: auto;
+
+    white-space: pre;
+
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+code {
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+pre > code {
+    padding: 0;
+    background-color: inherit;
+    color: inherit;
+}
+h1, h2, h3 {
+    font-weight: 600;
+}
+
+#logobar {
+    background-color: #333333;
+    margin: 0 auto;
+    padding: 1em 4em;
+}
+#logobar .logo {
+    float: left;
+}
+#logobar .title {
+    font-weight: 600;
+    color: #dddddd;
+    float: left;
+    margin: 5px 0 0 1em;
+}
+#logobar:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+#content {
+    margin: 0 auto;
+    padding: 0 4em;
+}
+
+#table_of_contents > h2 {
+    font-size: 1.17em;
+}
+#table_of_contents ul:first-child {
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+    padding: 1em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+#table_of_contents ul {
+    list-style-type: none;
+    padding-left: 1.5em;
+}
+#table_of_contents li {
+    font-size: 0.9em;
+}
+#table_of_contents li a {
+    color: #000000;
+}
+
+header.title {
+    border-bottom: solid 1px #e1e4e8;
+}
+header.title > h1 {
+    margin-bottom: 0.25em;
+}
+header.title > .description {
+    display: block;
+    margin-bottom: 0.5em;
+    line-height: 1;
+}
+
+footer#edit {
+    border-top: solid 1px #e1e4e8;
+    margin: 3em 0 4em 0;
+    padding-top: 2em;
+}
+</style>
+</head>
+<body>
+<div id="banner">
+<div id="rainbar"></div>
+<div id="logobar">
+<svg class="logo" role="img" height="32" width="32" viewBox="0 0 700 700">
+<polygon fill="#cb0000" points="0,700 700,700 700,0 0,0"></polygon>
+<polygon fill="#ffffff" points="150,550 350,550 350,250 450,250 450,550 550,550 550,150 150,150"></polygon>
+</svg>
+<div class="title">
+npm command-line interface
+</div>
+</div>
+</div>
+
+<section id="content">
+<header class="title">
+<h1 id="npm-run-script">npm-run-script</h1>
+<span class="description">Run arbitrary package scripts</span>
+</header>
+
+<section id="table_of_contents">
+<h2 id="table-of-contents">Table of contents</h2>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#workspaces-support">Workspaces support</a></li><ul><li><a href="#filtering-workspaces">Filtering workspaces</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#if-present"><code>if-present</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#script-shell"><code>script-shell</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+</section>
+
+<div id="_content"><h3 id="synopsis">Synopsis</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<pre lang="bash"><code>npm run-script &lt;command&gt; [-- &lt;args&gt;]
+
+aliases: run, rum, urn
+</code></pre>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h3 id="description">Description</h3>
+<p>This runs an arbitrary command from a package's <code>"scripts"</code> object.  If no
+<code>"command"</code> is provided, it will list the available scripts.</p>
+<p><code>run[-script]</code> is used by the test, start, restart, and stop commands, but
+can be called directly, as well. When the scripts in the package are
+printed out, they're separated into lifecycle (test, start, restart) and
+directly-run scripts.</p>
+<p>Any positional arguments are passed to the specified script.  Use <code>--</code> to
+pass <code>-</code>-prefixed flags and options which would otherwise be parsed by npm.</p>
+<p>For example:</p>
+<pre lang="bash"><code>npm run test -- --grep="pattern"
+</code></pre>
+<p>The arguments will only be passed to the script specified after <code>npm run</code>
+and not to any <code>pre</code> or <code>post</code> script.</p>
+<p>The <code>env</code> script is a special built-in command that can be used to list
+environment variables that will be available to the script at runtime. If an
+"env" command is defined in your package, it will take precedence over the
+built-in.</p>
+<p>In addition to the shell's pre-existing <code>PATH</code>, <code>npm run</code> adds
+<code>node_modules/.bin</code> to the <code>PATH</code> provided to scripts. Any binaries
+provided by locally-installed dependencies can be used without the
+<code>node_modules/.bin</code> prefix. For example, if there is a <code>devDependency</code> on
+<code>tap</code> in your package, you should write:</p>
+<pre lang="bash"><code>"scripts": {"test": "tap test/*.js"}
+</code></pre>
+<p>instead of</p>
+<pre lang="bash"><code>"scripts": {"test": "node_modules/.bin/tap test/*.js"}
+</code></pre>
+<p>The actual shell your script is run within is platform dependent. By default,
+on Unix-like systems it is the <code>/bin/sh</code> command, on Windows it is
+<code>cmd.exe</code>.
+The actual shell referred to by <code>/bin/sh</code> also depends on the system.
+You can customize the shell with the <code>script-shell</code> configuration.</p>
+<p>Scripts are run from the root of the package folder, regardless of what the
+current working directory is when <code>npm run</code> is called. If you want your
+script to use different behavior based on what subdirectory you're in, you
+can use the <code>INIT_CWD</code> environment variable, which holds the full path you
+were in when you ran <code>npm run</code>.</p>
+<p><code>npm run</code> sets the <code>NODE</code> environment variable to the <code>node</code> executable
+with which <code>npm</code> is executed.</p>
+<p>If you try to run a script without having a <code>node_modules</code> directory and it
+fails, you will be given a warning to run <code>npm install</code>, just in case you've
+forgotten.</p>
+<h3 id="workspaces-support">Workspaces support</h3>
+<p>You may use the <code>workspace</code> or <code>workspaces</code> configs in order to run an
+arbitrary command from a package's <code>"scripts"</code> object in the context of the
+specified workspaces. If no <code>"command"</code> is provided, it will list the available
+scripts for each of these configured workspaces.</p>
+<p>Given a project with configured workspaces, e.g:</p>
+<pre><code>.
++-- package.json
+`-- packages
+   +-- a
+   |   `-- package.json
+   +-- b
+   |   `-- package.json
+   `-- c
+       `-- package.json
+</code></pre>
+<p>Assuming the workspace configuration is properly set up at the root level
+<code>package.json</code> file. e.g:</p>
+<pre><code>{
+    "workspaces": [ "./packages/*" ]
+}
+</code></pre>
+<p>And that each of the configured workspaces has a configured <code>test</code> script,
+we can run tests in all of them using the <code>workspaces</code> config:</p>
+<pre><code>npm test --workspaces
+</code></pre>
+<h4 id="filtering-workspaces">Filtering workspaces</h4>
+<p>It's also possible to run a script in a single workspace using the <code>workspace</code>
+config along with a name or directory path:</p>
+<pre><code>npm test --workspace=a
+</code></pre>
+<p>The <code>workspace</code> config can also be specified multiple times in order to run a
+specific script in the context of multiple workspaces. When defining values for
+the <code>workspace</code> config in the command line, it also possible to use <code>-w</code> as a
+shorthand, e.g:</p>
+<pre><code>npm test -w a -w b
+</code></pre>
+<p>This last command will run <code>test</code> in both <code>./packages/a</code> and <code>./packages/b</code>
+packages.</p>
+<h3 id="configuration">Configuration</h3>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="workspace"><code>workspace</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)</li>
+</ul>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="workspaces"><code>workspaces</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or Boolean</li>
+</ul>
+<p>Set to true to run the command in the context of <strong>all</strong> configured
+workspaces.</p>
+<p>Explicitly setting this to false will cause commands like <code>install</code> to
+ignore workspaces altogether. When not set explicitly:</p>
+<ul>
+<li>Commands that operate on the <code>node_modules</code> tree (install, update, etc.)
+will link workspaces into the <code>node_modules</code> folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+<em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
+</ul>
+<p>This value is not exported to the environment for child processes.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Include the workspace root when workspaces are enabled for a command.</p>
+<p>When false, specifying individual workspaces via the <code>workspace</code> config, or
+all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
+the specified workspaces, and not on the root project.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="if-present"><code>if-present</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, npm will not exit with an error code when <code>run-script</code> is invoked
+for a script that isn't defined in the <code>scripts</code> section of <code>package.json</code>.
+This option can be used when it's desirable to optionally run a script when
+it's present and fail if the script fails. This is useful, for example, when
+running scripts that may only apply for some builds in an otherwise generic
+CI setup.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="ignore-scripts"><code>ignore-scripts</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, npm does not run scripts specified in package.json files.</p>
+<p>Note that commands explicitly intended to run a particular script, such as
+<code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run-script</code>
+will still run their intended script if <code>ignore-scripts</code> is set, but they
+will <em>not</em> run any pre- or post-scripts.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h4 id="script-shell"><code>script-shell</code></h4>
+<ul>
+<li>Default: '/bin/sh' on POSIX systems, 'cmd.exe' on Windows</li>
+<li>Type: null or String</li>
+</ul>
+<p>The shell to use for scripts run with the <code>npm exec</code>, <code>npm run</code> and <code>npm init &lt;pkg&gt;</code> commands.</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<h3 id="see-also">See Also</h3>
+<ul>
+<li><a href="../using-npm/scripts.html">npm scripts</a></li>
+<li><a href="../commands/npm-test.html">npm test</a></li>
+<li><a href="../commands/npm-start.html">npm start</a></li>
+<li><a href="../commands/npm-restart.html">npm restart</a></li>
+<li><a href="../commands/npm-stop.html">npm stop</a></li>
+<li><a href="../commands/npm-config.html">npm config</a></li>
+<li><a href="../using-npm/workspaces.html">npm workspaces</a></li>
+</ul>
+</div>
+
+<footer id="edit">
+<a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-run-script.md">
+<svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
+<path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
+</svg>
+Edit this page on GitHub
+</a>
+</footer>
+</section>
+
+
+
+</body></html>

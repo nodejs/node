@@ -1,0 +1,177 @@
+.TH "NPM\-DIST\-TAG" "1" "March 2022" "" ""
+.SH "NAME"
+\fBnpm-dist-tag\fR \- Modify package distribution tags
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm dist\-tag add <pkg>@<version> [<tag>]
+npm dist\-tag rm <pkg> <tag>
+npm dist\-tag ls [<pkg>]
+
+alias: dist\-tags
+.fi
+.RE
+.SS Description
+.P
+Add, remove, and enumerate distribution tags on a package:
+.RS 0
+.IP \(bu 2
+add: Tags the specified version of the package with the specified tag, or
+the \fB\-\-tag\fP config if not specified\. If you have two\-factor
+authentication on auth\-and\-writes then you’ll need to include a one\-time
+password on the command line with \fB\-\-otp <one\-time password>\fP, or at the
+OTP prompt\.
+.IP \(bu 2
+rm: Clear a tag that is no longer in use from the package\. If you have
+two\-factor authentication on auth\-and\-writes then you’ll need to include
+a one\-time password on the command line with \fB\-\-otp <one\-time password>\fP,
+or at the OTP prompt\.
+.IP \(bu 2
+ls: Show all of the dist\-tags for a package, defaulting to the package in
+the current prefix\. This is the default action if none is specified\.
+
+.RE
+.P
+A tag can be used when installing packages as a reference to a version instead
+of using a specific version number:
+.P
+.RS 2
+.nf
+npm install <name>@<tag>
+.fi
+.RE
+.P
+When installing dependencies, a preferred tagged version may be specified:
+.P
+.RS 2
+.nf
+npm install \-\-tag <tag>
+.fi
+.RE
+.P
+(This also applies to any other commands that resolve and install
+dependencies, such as \fBnpm dedupe\fP, \fBnpm update\fP, and \fBnpm audit fix\fP\|\.)
+.P
+Publishing a package sets the \fBlatest\fP tag to the published version unless the
+\fB\-\-tag\fP option is used\. For example, \fBnpm publish \-\-tag=beta\fP\|\.
+.P
+By default, \fBnpm install <pkg>\fP (without any \fB@<version>\fP or \fB@<tag>\fP
+specifier) installs the \fBlatest\fP tag\.
+.SS Purpose
+.P
+Tags can be used to provide an alias instead of version numbers\.
+.P
+For example, a project might choose to have multiple streams of development
+and use a different tag for each stream, e\.g\., \fBstable\fP, \fBbeta\fP, \fBdev\fP,
+\fBcanary\fP\|\.
+.P
+By default, the \fBlatest\fP tag is used by npm to identify the current version
+of a package, and \fBnpm install <pkg>\fP (without any \fB@<version>\fP or \fB@<tag>\fP
+specifier) installs the \fBlatest\fP tag\. Typically, projects only use the
+\fBlatest\fP tag for stable release versions, and use other tags for unstable
+versions such as prereleases\.
+.P
+The \fBnext\fP tag is used by some projects to identify the upcoming version\.
+.P
+Other than \fBlatest\fP, no tag has any special significance to npm itself\.
+.SS Caveats
+.P
+This command used to be known as \fBnpm tag\fP, which only created new tags,
+and so had a different syntax\.
+.P
+Tags must share a namespace with version numbers, because they are
+specified in the same slot: \fBnpm install <pkg>@<version>\fP vs
+\fBnpm install <pkg>@<tag>\fP\|\.
+.P
+Tags that can be interpreted as valid semver ranges will be rejected\. For
+example, \fBv1\.4\fP cannot be used as a tag, because it is interpreted by
+semver as \fB>=1\.4\.0 <1\.5\.0\fP\|\.  See https://github\.com/npm/npm/issues/6082\|\.
+.P
+The simplest way to avoid semver problems with tags is to use tags that do
+not begin with a number or the letter \fBv\fP\|\.
+.SS Configuration
+.SS \fBworkspace\fP
+.RS 0
+.IP \(bu 2
+Default:
+.IP \(bu 2
+Type: String (can be set multiple times)
+
+.RE
+.P
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option\.
+.P
+Valid values for the \fBworkspace\fP config are either:
+.RS 0
+.IP \(bu 2
+Workspace names
+.IP \(bu 2
+Path to a workspace directory
+.IP \(bu 2
+Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)
+
+.RE
+.P
+When set for the \fBnpm init\fP command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project\.
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBworkspaces\fP
+.RS 0
+.IP \(bu 2
+Default: null
+.IP \(bu 2
+Type: null or Boolean
+
+.RE
+.P
+Set to true to run the command in the context of \fBall\fR configured
+workspaces\.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fP to
+ignore workspaces altogether\. When not set explicitly:
+.RS 0
+.IP \(bu 2
+Commands that operate on the \fBnode_modules\fP tree (install, update, etc\.)
+will link workspaces into the \fBnode_modules\fP folder\. \- Commands that do
+other things (test, exec, publish, etc\.) will operate on the root project,
+\fIunless\fR one or more workspaces are specified in the \fBworkspace\fP config\.
+
+.RE
+.P
+This value is not exported to the environment for child processes\.
+.SS \fBinclude\-workspace\-root\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Include the workspace root when workspaces are enabled for a command\.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fP config, or
+all workspaces via the \fBworkspaces\fP flag, will cause npm to operate only on
+the specified workspaces, and not on the root project\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help publish
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help dedupe
+.IP \(bu 2
+npm help registry
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help npmrc
+
+.RE

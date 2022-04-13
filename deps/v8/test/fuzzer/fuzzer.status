@@ -1,0 +1,32 @@
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+[
+
+##############################################################################
+# TODO(v8:7777): Change this once wasm is supported in jitless mode.
+['not has_webassembly or variant == jitless', {
+  'multi_return/*': [SKIP],
+  'wasm/*': [SKIP],
+  'wasm_async/*': [SKIP],
+  'wasm_code/*': [SKIP],
+  'wasm_compile/*': [SKIP],
+}], # not has_webassembly or variant == jitless
+
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
+################################################################################
+['third_party_heap', {
+  # Requires a second isolate
+  'inspector/empty': [SKIP],
+  'inspector/endless-loop': [SKIP],
+  'inspector/invalid': [SKIP],
+  'inspector/regress-1166549': [SKIP],
+  'inspector/regress-1297964': [SKIP],
+}], # third_party_heap
+
+]

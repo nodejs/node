@@ -1,0 +1,92 @@
+name: Tools and deps update
+on:
+  schedule:
+    # Run once a week at 00:05 AM UTC on Sunday.
+    - cron: 5 0 * * 0
+
+  workflow_dispatch:
+
+jobs:
+  tools-deps-update:
+    if: github.repository == 'nodejs/node'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false  # Prevent other jobs from aborting if one fails
+      matrix:
+        include:
+          - id: eslint
+            subsystem: tools
+            label: tools
+            run: |
+              cd tools
+              NEW_VERSION=$(npm view eslint dist-tags.latest)
+              CURRENT_VERSION=$(node -p "require('./node_modules/eslint/package.json').version")
+              if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
+                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+                ./update-eslint.sh
+              fi
+          - id: corepack
+            subsystem: deps
+            label: dependencies
+            run: |
+              make corepack-update
+              echo "NEW_VERSION=$(node deps/corepack/dist/corepack.js --version)" >> $GITHUB_ENV
+          - id: lint-md-dependencies
+            subsystem: tools
+            label: tools
+            run: |
+              cd tools/lint-md
+              npm ci
+              NEW_VERSION=$(npm outdated --parseable | cut -d: -f4 | xargs)
+              if [ "$NEW_VERSION" != "" ]; then
+                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+                rm -rf package-lock.json node_modules
+                # Include $NEW_VERSION to explicitly update the package.json
+                # entry for the dependency and also so that semver-major updates
+                # are not skipped.
+                npm install --ignore-scripts $NEW_VERSION
+                npm install --ignore-scripts
+                cd ../..
+                make lint-md-rollup
+              fi
+          - id: doc
+            subsystem: tools
+            label: tools
+            run: |
+              cd tools/doc
+              npm ci
+              NEW_VERSION=$(npm outdated --parseable | cut -d: -f4 | xargs)
+              if [ "$NEW_VERSION" != "" ]; then
+                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+                rm -rf package-lock.json node_modules
+                # Include $NEW_VERSION to explicitly update the package.json
+                # entry for the dependency and also so that semver-major updates
+                # are not skipped.
+                npm install --ignore-scripts $NEW_VERSION
+                npm install --ignore-scripts
+              fi
+          - id: undici
+            subsystem: deps
+            label: dependencies
+            run: |
+              NEW_VERSION=$(npm view undici dist-tags.latest)
+              CURRENT_VERSION=$(node -p "require('./deps/undici/src/package.json').version")
+              if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
+                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+                ./tools/update-undici.sh
+              fi
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - run: ${{ matrix.run }}
+      - uses: gr2m/create-or-update-pull-request-action@v1  # Create a PR or update the Action's existing PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+        with:
+          author: Node.js GitHub Bot <github-bot@iojs.org>
+          body: This is an automated update of ${{ matrix.id }} to ${{ env.NEW_VERSION }}.
+          branch: actions/tools-update-${{ matrix.id }}  # Custom branch *just* for this Action.
+          commit-message: '${{ matrix.subsystem }}: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}'
+          labels: ${{ matrix.label }}
+          title: '${{ matrix.subsystem }}: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}'

@@ -1,0 +1,74 @@
+Tests side-effect-free evaluation with i18n enabled
+
+Running test: testCollator
+Intl.Collator.supportedLocalesOf(["en-US"]) : ok
+new Intl.Collator("en-US") : ok
+someGlobalCollator.compare("foo", "bar") : ok
+someGlobalCollator.resolvedOptions() : ok
+
+Running test: testDateTimeFormat
+Intl.DateTimeFormat.supportedLocalesOf(["en-US"]) : ok
+new Intl.DateTimeFormat("en-US") : ok
+someGlobalDateTimeFormat.format(new Date(2021, 5)) : ok
+someGlobalDateTimeFormat.formatToParts(new Date(2021, 5)) : ok
+someGlobalDateTimeFormat.resolvedOptions() : ok
+someGlobalDateTimeFormat.formatRange(new Date(2021, 5), new Date(2022, 1)) : ok
+someGlobalDateTimeFormat.formatRangeToParts(new Date(2021, 5), new Date(2022, 1)) : ok
+
+Running test: testDisplayNames
+Intl.DisplayNames.supportedLocalesOf(["en-US"]) : ok
+new Intl.DisplayNames(["en-US"], {type: "region"}) : ok
+someGlobalDisplayNames.of("en") : ok
+someGlobalDisplayNames.resolvedOptions() : ok
+
+Running test: testIntl
+Intl.getCanonicalLocales("en-US") : ok
+
+Running test: testListFormat
+Intl.ListFormat.supportedLocalesOf(["en-US"]) : ok
+new Intl.ListFormat("en", { style: "long", type: "conjunction" }); : ok
+someGlobalListFormat.format(["a", "b"]) : ok
+someGlobalListFormat.formatToParts(["a", "b"]) : ok
+someGlobalListFormat.resolvedOptions() : ok
+
+Running test: testLocale
+new Intl.Locale("en-US") : ok
+someGlobalLocale.baseName : ok
+someGlobalLocale.calendar : ok
+someGlobalLocale.calendars : ok
+someGlobalLocale.caseFirst : ok
+someGlobalLocale.collation : ok
+someGlobalLocale.hourCycle : ok
+someGlobalLocale.hourCycles : ok
+someGlobalLocale.language : ok
+someGlobalLocale.numberingSystem : ok
+someGlobalLocale.numberingSystems : ok
+someGlobalLocale.numeric : ok
+someGlobalLocale.region : ok
+someGlobalLocale.script : ok
+someGlobalLocale.textInfo : ok
+someGlobalLocale.timeZones : ok
+someGlobalLocale.weekInfo : ok
+someGlobalLocale.maximize() : ok
+someGlobalLocale.minimize() : ok
+someGlobalLocale.toString() : ok
+
+Running test: testNumberFormat
+Intl.NumberFormat.supportedLocalesOf(["en-US"]) : ok
+new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }) : ok
+someGlobalNumberFormat.format(1) : ok
+someGlobalNumberFormat.formatToParts(1) : ok
+someGlobalNumberFormat.resolvedOptions() : ok
+
+Running test: testPluralRules
+Intl.PluralRules.supportedLocalesOf(["en-US"]) : ok
+new Intl.PluralRules("en-US") : ok
+someGlobalPluralRules.resolvedOptions() : ok
+someGlobalPluralRules.select(42) : ok
+
+Running test: testRelativeTimeFormat
+Intl.RelativeTimeFormat.supportedLocalesOf(["en-US"]) : ok
+new Intl.RelativeTimeFormat("en-US", {style: "narrow"}) : ok
+someGlobalRelativeTimeFormat.format(2, "day") : ok
+someGlobalRelativeTimeFormat.formatToParts(2, "day") : ok
+someGlobalRelativeTimeFormat.resolvedOptions() : ok

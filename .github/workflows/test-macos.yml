@@ -1,0 +1,61 @@
+name: Test macOS
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - .mailmap
+      - '**.md'
+      - AUTHORS
+      - doc/**
+      - .github/**
+      - '!.github/workflows/test-macos.yml'
+  push:
+    branches:
+      - master
+      - main
+      - canary
+      - v[0-9]+.x-staging
+      - v[0-9]+.x
+    paths-ignore:
+      - .mailmap
+      - '**.md'
+      - AUTHORS
+      - doc/**
+      - .github/**
+      - '!.github/workflows/test-macos.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.10'
+  FLAKY_TESTS: dontcare
+
+jobs:
+  test-macOS:
+    if: github.event.pull_request.draft == false
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Environment Information
+        run: npx envinfo
+      # The `npm ci` for this step fails a lot as part of the Test step. Run it
+      # now so that we don't have to wait 2 hours for the Build step to pass
+      # first before that failure happens. (And if there's something about
+      # `make run-ci -j2` that is causing the failure and the failure doesn't
+      # happen anymore running this step here first, that's also useful
+      # information.)
+      - name: tools/doc/node_modules workaround
+        run: make tools/doc/node_modules
+      - name: Build
+        run: make build-ci -j2 V=1 CONFIG_FLAGS="--error-on-warn"
+      - name: Test
+        run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions"

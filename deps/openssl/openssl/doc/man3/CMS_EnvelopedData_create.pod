@@ -1,0 +1,80 @@
+=pod
+
+=head1 NAME
+
+CMS_EnvelopedData_create_ex, CMS_EnvelopedData_create,
+CMS_AuthEnvelopedData_create, CMS_AuthEnvelopedData_create_ex
+- Create CMS envelope
+
+=head1 SYNOPSIS
+
+ #include <openssl/cms.h>
+
+ CMS_ContentInfo *
+ CMS_EnvelopedData_create_ex(const EVP_CIPHER *cipher, OSSL_LIB_CTX *libctx,
+                             const char *propq);
+ CMS_ContentInfo *CMS_EnvelopedData_create(const EVP_CIPHER *cipher);
+
+ CMS_ContentInfo *
+ CMS_AuthEnvelopedData_create_ex(const EVP_CIPHER *cipher, OSSL_LIB_CTX *libctx,
+                                 const char *propq);
+ CMS_ContentInfo *CMS_AuthEnvelopedData_create(const EVP_CIPHER *cipher);
+
+=head1 DESCRIPTION
+
+CMS_EnvelopedData_create_ex() creates a B<CMS_ContentInfo> structure
+with a type B<NID_pkcs7_enveloped>. I<cipher> is the symmetric cipher to use.
+The library context I<libctx> and the property query I<propq> are used when
+retrieving algorithms from providers.
+
+CMS_AuthEnvelopedData_create_ex() creates a B<CMS_ContentInfo>
+structure with a type B<NID_id_smime_ct_authEnvelopedData>. B<cipher> is the
+symmetric AEAD cipher to use. Currently only AES variants with GCM mode are
+supported. The library context I<libctx> and the property query I<propq> are
+used when retrieving algorithms from providers.
+
+The algorithm passed in the I<cipher> parameter must support ASN1 encoding of
+its parameters.
+
+The recipients can be added later using L<CMS_add1_recipient_cert(3)> or
+L<CMS_add0_recipient_key(3)>.
+
+The B<CMS_ContentInfo> structure needs to be finalized using L<CMS_final(3)>
+and then freed using L<CMS_ContentInfo_free(3)>.
+
+CMS_EnvelopedData_create() and  CMS_AuthEnvelopedData_create are similar to
+CMS_EnvelopedData_create_ex() and
+CMS_AuthEnvelopedData_create_ex() but use default values of NULL for
+the library context I<libctx> and the property query I<propq>.
+
+=head1 NOTES
+
+Although CMS_EnvelopedData_create() and CMS_AuthEnvelopedData_create() allocate
+a new B<CMS_ContentInfo> structure, they are not usually used in applications.
+The wrappers L<CMS_encrypt(3)> and L<CMS_decrypt(3)> are often used instead.
+
+=head1 RETURN VALUES
+
+If the allocation fails, CMS_EnvelopedData_create() and
+CMS_AuthEnvelopedData_create() return NULL and set an error code that can be
+obtained by L<ERR_get_error(3)>. Otherwise they return a pointer to the newly
+allocated structure.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>, L<CMS_encrypt(3)>, L<CMS_decrypt(3)>, L<CMS_final(3)>
+
+=head1 HISTORY
+
+The CMS_EnvelopedData_create_ex() method was added in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

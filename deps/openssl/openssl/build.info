@@ -1,0 +1,90 @@
+# Note that some of these directories are filtered in Configure.  Look for
+# %skipdir there for further explanations.
+
+SUBDIRS=crypto ssl apps util tools fuzz providers doc
+IF[{- !$disabled{tests} -}]
+  SUBDIRS=test
+ENDIF
+IF[{- !$disabled{'deprecated-3.0'} -}]
+  SUBDIRS=engines
+ENDIF
+
+LIBS=libcrypto libssl
+INCLUDE[libcrypto]=. include
+INCLUDE[libssl]=. include
+DEPEND[libssl]=libcrypto
+
+# Empty DEPEND "indices" means the dependencies are expected to be built
+# unconditionally before anything else.
+DEPEND[]=include/openssl/asn1.h \
+         include/openssl/asn1t.h \
+         include/openssl/bio.h \
+         include/openssl/cmp.h \
+         include/openssl/cms.h \
+         include/openssl/conf.h \
+         include/openssl/configuration.h \
+         include/openssl/crmf.h \
+         include/openssl/crypto.h \
+         include/openssl/ct.h \
+         include/openssl/err.h \
+         include/openssl/ess.h \
+         include/openssl/fipskey.h \
+         include/openssl/lhash.h \
+         include/openssl/opensslv.h \
+         include/openssl/ocsp.h \
+         include/openssl/pkcs12.h \
+         include/openssl/pkcs7.h \
+         include/openssl/safestack.h \
+         include/openssl/srp.h \
+         include/openssl/ssl.h \
+         include/openssl/ui.h \
+         include/openssl/x509.h \
+         include/openssl/x509v3.h \
+         include/openssl/x509_vfy.h \
+         include/crypto/bn_conf.h include/crypto/dso_conf.h
+
+GENERATE[include/openssl/asn1.h]=include/openssl/asn1.h.in
+GENERATE[include/openssl/asn1t.h]=include/openssl/asn1t.h.in
+GENERATE[include/openssl/bio.h]=include/openssl/bio.h.in
+GENERATE[include/openssl/cmp.h]=include/openssl/cmp.h.in
+GENERATE[include/openssl/cms.h]=include/openssl/cms.h.in
+GENERATE[include/openssl/conf.h]=include/openssl/conf.h.in
+GENERATE[include/openssl/configuration.h]=include/openssl/configuration.h.in
+GENERATE[include/openssl/crmf.h]=include/openssl/crmf.h.in
+GENERATE[include/openssl/crypto.h]=include/openssl/crypto.h.in
+GENERATE[include/openssl/ct.h]=include/openssl/ct.h.in
+GENERATE[include/openssl/err.h]=include/openssl/err.h.in
+GENERATE[include/openssl/ess.h]=include/openssl/ess.h.in
+GENERATE[include/openssl/fipskey.h]=include/openssl/fipskey.h.in
+GENERATE[include/openssl/lhash.h]=include/openssl/lhash.h.in
+GENERATE[include/openssl/ocsp.h]=include/openssl/ocsp.h.in
+GENERATE[include/openssl/opensslv.h]=include/openssl/opensslv.h.in
+GENERATE[include/openssl/pkcs12.h]=include/openssl/pkcs12.h.in
+GENERATE[include/openssl/pkcs7.h]=include/openssl/pkcs7.h.in
+GENERATE[include/openssl/safestack.h]=include/openssl/safestack.h.in
+GENERATE[include/openssl/srp.h]=include/openssl/srp.h.in
+GENERATE[include/openssl/ssl.h]=include/openssl/ssl.h.in
+GENERATE[include/openssl/ui.h]=include/openssl/ui.h.in
+GENERATE[include/openssl/x509.h]=include/openssl/x509.h.in
+GENERATE[include/openssl/x509v3.h]=include/openssl/x509v3.h.in
+GENERATE[include/openssl/x509_vfy.h]=include/openssl/x509_vfy.h.in
+GENERATE[include/crypto/bn_conf.h]=include/crypto/bn_conf.h.in
+GENERATE[include/crypto/dso_conf.h]=include/crypto/dso_conf.h.in
+
+IF[{- defined $target{shared_defflag} -}]
+  SHARED_SOURCE[libcrypto]=libcrypto.ld
+  SHARED_SOURCE[libssl]=libssl.ld
+
+  GENERATE[libcrypto.ld]=util/libcrypto.num libcrypto
+  GENERATE[libssl.ld]=util/libssl.num libssl
+  DEPEND[libcrypto.ld libssl.ld]=configdata.pm util/perl/OpenSSL/Ordinals.pm
+ENDIF
+
+IF[{- $config{target} =~ /^(?:Cygwin|mingw|VC-|BC-)/ -}]
+  GENERATE[libcrypto.rc]=util/mkrc.pl libcrypto
+  GENERATE[libssl.rc]=util/mkrc.pl libssl
+  DEPEND[libcrypto.rc libssl.rc]=configdata.pm
+
+  SHARED_SOURCE[libcrypto]=libcrypto.rc
+  SHARED_SOURCE[libssl]=libssl.rc
+ENDIF

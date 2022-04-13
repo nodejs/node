@@ -1,0 +1,35 @@
+# Copyright 2018 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+group("v8_mjsunit") {
+  testonly = true
+
+  data_deps = [
+    "../../:d8",
+    "../../tools/:v8_testrunner",
+  ]
+
+  data = [
+    "./",
+    "../../tools/arguments.mjs",
+    "../../tools/clusterfuzz/foozzie/v8_mock.js",
+    "../../tools/clusterfuzz/foozzie/v8_mock_archs.js",
+    "../../tools/clusterfuzz/foozzie/v8_mock_webassembly.js",
+    "../../tools/codemap.mjs",
+    "../../tools/sourcemap.mjs",
+    "../../tools/consarray.mjs",
+    "../../tools/csvparser.mjs",
+    "../../tools/dumpcpp.mjs",
+    "../../tools/js/helper.mjs",
+    "../../tools/logreader.mjs",
+    "../../tools/profile.mjs",
+    "../../tools/profile_view.mjs",
+    "../../tools/splaytree.mjs",
+    "../../tools/system-analyzer/log/",
+    "../../tools/system-analyzer/processor.mjs",
+    "../../tools/system-analyzer/timeline.mjs",
+    "../../tools/system-analyzer/helper.mjs",
+    "../../tools/tickprocessor.mjs",
+  ]
+}

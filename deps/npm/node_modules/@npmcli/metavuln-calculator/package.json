@@ -1,0 +1,48 @@
+{
+  "name": "@npmcli/metavuln-calculator",
+  "version": "3.0.1",
+  "main": "lib/index.js",
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "description": "Calculate meta-vulnerabilities from package security advisories",
+  "repository": "https://github.com/npm/metavuln-calculator",
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "scripts": {
+    "test": "tap",
+    "posttest": "npm run lint",
+    "snap": "tap",
+    "postsnap": "npm run lint",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "eslint": "eslint",
+    "lint": "eslint '**/*.js'",
+    "lintfix": "npm run lint -- --fix",
+    "postlint": "npm-template-check",
+    "template-copy": "npm-template-copy --force"
+  },
+  "tap": {
+    "check-coverage": true,
+    "coverage-map": "map.js"
+  },
+  "devDependencies": {
+    "@npmcli/template-oss": "^2.9.2",
+    "require-inject": "^1.4.4",
+    "tap": "^15.1.6"
+  },
+  "dependencies": {
+    "cacache": "^16.0.0",
+    "json-parse-even-better-errors": "^2.3.1",
+    "pacote": "^13.0.3",
+    "semver": "^7.3.5"
+  },
+  "engines": {
+    "node": "^12.13.0 || ^14.15.0 || >=16"
+  },
+  "templateOSS": {
+    "version": "2.9.2"
+  }
+}

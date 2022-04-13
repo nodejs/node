@@ -1,0 +1,33 @@
+{
+  "name": "npm-install-checks",
+  "version": "4.0.0",
+  "description": "Check the engines and platform fields in package.json",
+  "main": "index.js",
+  "dependencies": {
+    "semver": "^7.1.1"
+  },
+  "devDependencies": {
+    "tap": "^14.10.6"
+  },
+  "scripts": {
+    "test": "tap",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "postpublish": "git push origin --follow-tags"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/npm/npm-install-checks.git"
+  },
+  "keywords": [
+    "npm,",
+    "install"
+  ],
+  "license": "BSD-2-Clause",
+  "files": [
+    "index.js"
+  ],
+  "engines": {
+    "node": ">=10"
+  }
+}

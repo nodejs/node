@@ -1,0 +1,181 @@
+.TH "NPM\-CONFIG" "1" "March 2022" "" ""
+.SH "NAME"
+\fBnpm-config\fR \- Manage the npm configuration files
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm config set <key>=<value> [<key>=<value> \.\.\.]
+npm config get [<key> [<key> \.\.\.]]
+npm config delete <key> [<key> \.\.\.]
+npm config list [\-\-json]
+npm config edit
+
+alias: c
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces\.
+.SS Description
+.P
+npm gets its config settings from the command line, environment
+variables, \fBnpmrc\fP files, and in some cases, the \fBpackage\.json\fP file\.
+.P
+See npm help npmrc for more information about the npmrc
+files\.
+.P
+See npm help config(7) for a more thorough explanation of the
+mechanisms involved, and a full list of config options available\.
+.P
+The \fBnpm config\fP command can be used to update and edit the contents
+of the user and global npmrc files\.
+.SS Sub\-commands
+.P
+Config supports the following sub\-commands:
+.SS set
+.P
+.RS 2
+.nf
+npm config set key=value [key=value\.\.\.]
+npm set key=value [key=value\.\.\.]
+.fi
+.RE
+.P
+Sets each of the config keys to the value provided\.
+.P
+If value is omitted, then it sets it to an empty string\.
+.P
+Note: for backwards compatibility, \fBnpm config set key value\fP is supported
+as an alias for \fBnpm config set key=value\fP\|\.
+.SS get
+.P
+.RS 2
+.nf
+npm config get [key \.\.\.]
+npm get [key \.\.\.]
+.fi
+.RE
+.P
+Echo the config value(s) to stdout\.
+.P
+If multiple keys are provided, then the values will be prefixed with the
+key names\.
+.P
+If no keys are provided, then this command behaves the same as \fBnpm config
+list\fP\|\.
+.SS list
+.P
+.RS 2
+.nf
+npm config list
+.fi
+.RE
+.P
+Show all the config settings\. Use \fB\-l\fP to also show defaults\. Use \fB\-\-json\fP
+to show the settings in json format\.
+.SS delete
+.P
+.RS 2
+.nf
+npm config delete key [key \.\.\.]
+.fi
+.RE
+.P
+Deletes the specified keys from all configuration files\.
+.SS edit
+.P
+.RS 2
+.nf
+npm config edit
+.fi
+.RE
+.P
+Opens the config file in an editor\.  Use the \fB\-\-global\fP flag to edit the
+global config\.
+.SS Configuration
+.SS \fBjson\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Whether or not to output JSON data, rather than the normal output\.
+.RS 0
+.IP \(bu 2
+In \fBnpm pkg set\fP it enables parsing set values with JSON\.parse() before
+saving them to your \fBpackage\.json\fP\|\.
+
+.RE
+.P
+Not supported by all npm commands\.
+.SS \fBglobal\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Operates in "global" mode, so that packages are installed into the \fBprefix\fP
+folder instead of the current working directory\. See
+npm help folders for more on the differences in behavior\.
+.RS 0
+.IP \(bu 2
+packages are installed into the \fB{prefix}/lib/node_modules\fP folder, instead
+of the current working directory\.
+.IP \(bu 2
+bin files are linked to \fB{prefix}/bin\fP
+.IP \(bu 2
+man pages are linked to \fB{prefix}/share/man\fP
+
+.RE
+.SS \fBeditor\fP
+.RS 0
+.IP \(bu 2
+Default: The EDITOR or VISUAL environment variables, or 'notepad\.exe' on
+Windows, or 'vim' on Unix systems
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+The command to run for \fBnpm edit\fP and \fBnpm config edit\fP\|\.
+.SS \fBlocation\fP
+.RS 0
+.IP \(bu 2
+Default: "user" unless \fB\-\-global\fP is passed, which will also set this value
+to "global"
+.IP \(bu 2
+Type: "global", "user", or "project"
+
+.RE
+.P
+When passed to \fBnpm config\fP this refers to which config file to use\.
+.SS \fBlong\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Show extended information in \fBls\fP, \fBsearch\fP, and \fBhelp\-search\fP\|\.
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help folders
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help package\.json
+.IP \(bu 2
+npm help npmrc
+.IP \(bu 2
+npm help npm
+
+.RE

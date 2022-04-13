@@ -1,0 +1,106 @@
+.TH "LOGGING" "7" "March 2022" "" ""
+.SH "NAME"
+\fBLogging\fR \- Why, What & How We Log
+.SS Description
+.P
+The \fBnpm\fP CLI has various mechanisms for showing different levels of information back to end\-users for certain commands, configurations & environments\.
+.SS Setting Log File Location
+.P
+All logs are written to a debug log, with the path to that file printed if the execution of a command fails\.
+.P
+The default location of the logs directory is a directory named \fB_logs\fP inside the npm cache\. This can be changed
+with the \fBlogs\-dir\fP config option\.
+.P
+Log files will be removed from the \fBlogs\-dir\fP when the number of log files exceeds \fBlogs\-max\fP, with the oldest logs being deleted first\.
+.P
+To turn off logs completely set \fB\-\-logs\-max=0\fP\|\.
+.SS Setting Log Levels
+.SS \fBloglevel\fP
+.P
+\fBloglevel\fP is a global argument/config that can be set to determine the type of information to be displayed\.
+.P
+The default value of \fBloglevel\fP is \fB"notice"\fP but there are several levels/types of logs available, including:
+.RS 0
+.IP \(bu 2
+\fB"silent"\fP
+.IP \(bu 2
+\fB"error"\fP
+.IP \(bu 2
+\fB"warn"\fP
+.IP \(bu 2
+\fB"notice"\fP
+.IP \(bu 2
+\fB"http"\fP
+.IP \(bu 2
+\fB"timing"\fP
+.IP \(bu 2
+\fB"info"\fP
+.IP \(bu 2
+\fB"verbose"\fP
+.IP \(bu 2
+\fB"silly"\fP
+
+.RE
+.P
+All logs pertaining to a level proceeding the current setting will be shown\.
+.SS Aliases
+.P
+The log levels listed above have various corresponding aliases, including:
+.RS 0
+.IP \(bu 2
+\fB\-d\fP: \fB\-\-loglevel info\fP
+.IP \(bu 2
+\fB\-\-dd\fP: \fB\-\-loglevel verbose\fP
+.IP \(bu 2
+\fB\-\-verbose\fP: \fB\-\-loglevel verbose\fP
+.IP \(bu 2
+\fB\-\-ddd\fP: \fB\-\-loglevel silly\fP
+.IP \(bu 2
+\fB\-q\fP: \fB\-\-loglevel warn\fP
+.IP \(bu 2
+\fB\-\-quiet\fP: \fB\-\-loglevel warn\fP
+.IP \(bu 2
+\fB\-s\fP: \fB\-\-loglevel silent\fP
+.IP \(bu 2
+\fB\-\-silent\fP: \fB\-\-loglevel silent\fP
+
+.RE
+.SS \fBforeground\-scripts\fP
+.P
+The \fBnpm\fP CLI began hiding the output of lifecycle scripts for \fBnpm install\fP as of \fBv7\fP\|\. Notably, this means you will not see logs/output from packages that may be using "install scripts" to display information back to you or from your own project's scripts defined in \fBpackage\.json\fP\|\. If you'd like to change this behavior & log this output you can set \fBforeground\-scripts\fP to \fBtrue\fP\|\.
+.SS Timing Information
+.P
+The \fB\-\-timing\fP config can be set which does two things:
+.RS 0
+.IP 1. 3
+Always shows the full path to the debug log regardless of command exit status
+.IP 2. 3
+Write timing information to a timing file in the cache or \fBlogs\-dir\fP
+
+.RE
+.P
+This file is a newline delimited list of JSON  objects that can be inspected to see timing data for each task in a \fBnpm\fP CLI run\.
+.SS Registry Response Headers
+.SS \fBnpm\-notice\fP
+.P
+The \fBnpm\fP CLI reads from & logs any \fBnpm\-notice\fP headers that are returned from the configured registry\. This mechanism can be used by third\-party registries to provide useful information when network\-dependent requests occur\.
+.P
+This header is not cached, and will not be logged if the request is served from the cache\.
+.SS Logs and Sensitive Information
+.P
+The \fBnpm\fP CLI makes a best effort to redact the following from terminal output and log files:
+.RS 0
+.IP \(bu 2
+Passwords inside basic auth URLs
+.IP \(bu 2
+npm tokens
+
+.RE
+.P
+However, this behavior should not be relied on to keep all possible sensitive information redacted\. If you are concerned about secrets in your log file or terminal output, you can use \fB\-\-loglevel=silent\fP and \fB\-\-logs\-max=0\fP to ensure no logs are written to your terminal or filesystem\.
+.SS See also
+.RS 0
+.IP \(bu 2
+npm help config
+
+.RE

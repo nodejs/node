@@ -1,0 +1,290 @@
+Tests that Runtime.callFunctionOn works with awaitPromise flag.
+
+Running test: prepareTestSuite
+
+Running test: testArguments
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : undefined|NaN|[object Object]|[object Object]
+        }
+    }
+}
+
+Running test: testUnserializableArguments
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : true|true|true|true|bigint
+        }
+    }
+}
+
+Running test: testComplexArguments
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : bar
+        }
+    }
+}
+
+Running test: testSyntaxErrorInFunction
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 2
+            exception : {
+                className : SyntaxError
+                description : SyntaxError: Unexpected token '}'
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 1
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            className : SyntaxError
+            description : SyntaxError: Unexpected token '}'
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}
+
+Running test: testExceptionInFunctionExpression
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 15
+            exception : {
+                className : Error
+                description : Error     at <anonymous>:1:22     at <anonymous>:1:36
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            scriptId : <scriptId>
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 21
+                        functionName : 
+                        lineNumber : 0
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                    [1] : {
+                        columnNumber : 35
+                        functionName : 
+                        lineNumber : 0
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught
+        }
+        result : {
+            className : Error
+            description : Error     at <anonymous>:1:22     at <anonymous>:1:36
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}
+
+Running test: testFunctionReturnNotPromise
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 239
+            type : number
+            value : 239
+        }
+    }
+}
+
+Running test: testFunctionReturnResolvedPromiseReturnByValue
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : object
+            value : {
+                a : 3
+            }
+        }
+    }
+}
+
+Running test: testFunctionReturnResolvedPromiseWithPreview
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            preview : {
+                description : Object
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : a
+                        type : number
+                        value : 3
+                    }
+                ]
+                type : object
+            }
+            type : object
+        }
+    }
+}
+
+Running test: testFunctionReturnRejectedPromise
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 0
+            exception : {
+                className : Object
+                description : Object
+                objectId : <objectId>
+                preview : {
+                    description : Object
+                    overflow : false
+                    properties : [
+                        [0] : {
+                            name : a
+                            type : number
+                            value : 3
+                        }
+                    ]
+                    type : object
+                }
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            text : Uncaught (in promise)
+        }
+        result : {
+            type : object
+            value : {
+                a : 3
+            }
+        }
+    }
+}
+
+Running test: testEvaluateOnExecutionContext
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 70
+            type : number
+            value : 70
+        }
+    }
+}
+
+Running test: testPassingBothObjectIdAndExecutionContextId
+{
+    error : {
+        code : -32000
+        message : ObjectId must not be specified together with executionContextId
+    }
+    id : <messageId>
+}
+
+Running test: testThrowNumber
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 10
+            exception : {
+                description : 100500
+                type : number
+                value : 100500
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            scriptId : <scriptId>
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 10
+                        functionName : 
+                        lineNumber : 0
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught
+        }
+        result : {
+            description : 100500
+            type : number
+            value : 100500
+        }
+    }
+}
+
+Running test: testAsyncFunctionWithUnknownReferenceReturnByValue
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 30
+            exception : {
+                className : ReferenceError
+                description : ReferenceError: does_not_exist is not defined     at <anonymous>:1:30
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 1
+            scriptId : <scriptId>
+            stackTrace : {
+                callFrames : [
+                    [0] : {
+                        columnNumber : 29
+                        functionName : 
+                        lineNumber : 0
+                        scriptId : <scriptId>
+                        url : 
+                    }
+                ]
+            }
+            text : Uncaught (in promise) ReferenceError: does_not_exist is not defined
+        }
+        result : {
+            type : object
+            value : {
+            }
+        }
+    }
+}

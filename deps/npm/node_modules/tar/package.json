@@ -1,0 +1,59 @@
+{
+  "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me/)",
+  "name": "tar",
+  "description": "tar for node",
+  "version": "6.1.11",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/node-tar.git"
+  },
+  "scripts": {
+    "test:posix": "tap",
+    "test:win32": "tap --lines=98 --branches=98 --statements=98 --functions=98",
+    "test": "node test/fixtures/test.js",
+    "posttest": "npm run lint",
+    "eslint": "eslint",
+    "lint": "npm run eslint -- test lib",
+    "lintfix": "npm run lint -- --fix",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "genparse": "node scripts/generate-parse-fixtures.js",
+    "bench": "for i in benchmarks/*/*.js; do echo $i; for j in {1..5}; do node $i || break; done; done"
+  },
+  "dependencies": {
+    "chownr": "^2.0.0",
+    "fs-minipass": "^2.0.0",
+    "minipass": "^3.0.0",
+    "minizlib": "^2.1.1",
+    "mkdirp": "^1.0.3",
+    "yallist": "^4.0.0"
+  },
+  "devDependencies": {
+    "chmodr": "^1.2.0",
+    "end-of-stream": "^1.4.3",
+    "eslint": "^7.17.0",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-standard": "^5.0.0",
+    "events-to-array": "^1.1.2",
+    "mutate-fs": "^2.1.1",
+    "rimraf": "^2.7.1",
+    "tap": "^15.0.9",
+    "tar-fs": "^1.16.3",
+    "tar-stream": "^1.6.2"
+  },
+  "license": "ISC",
+  "engines": {
+    "node": ">= 10"
+  },
+  "files": [
+    "index.js",
+    "lib/*.js"
+  ],
+  "tap": {
+    "coverage-map": "map.js",
+    "check-coverage": true
+  }
+}

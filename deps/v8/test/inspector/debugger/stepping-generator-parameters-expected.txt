@@ -1,0 +1,32 @@
+Generator stepping with non-simple parameters
+
+Running test: testStepOverFromInitialYield
+Setting breakpoint on implicit initial yield
+Calling callGenerator()
+
+function* generator(a = (x => x)(42)) #{
+  yield a;
+
+Stepping over while paused on the initial yield
+function callGenerator() {
+  return generator(1);#
+}
+
+
+Running test: testStepIntoInitialYield
+Setting breakpoint on call to generator()
+Calling callGenerator()
+function callGenerator() {
+  #return generator(1);
+}
+
+Stepping into the generator()
+
+function* generator(a = (x => x)(42)) #{
+  yield a;
+
+Stepping into while paused on the initial yield
+function callGenerator() {
+  return generator(1);#
+}
+

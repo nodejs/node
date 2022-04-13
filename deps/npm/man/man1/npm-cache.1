@@ -1,0 +1,108 @@
+.TH "NPM\-CACHE" "1" "March 2022" "" ""
+.SH "NAME"
+\fBnpm-cache\fR \- Manipulates packages cache
+.SS Synopsis
+.P
+.RS 2
+.nf
+npm cache add <tarball file>
+npm cache add <folder>
+npm cache add <tarball url>
+npm cache add <git url>
+npm cache add <name>@<version>
+npm cache clean [<key>]
+npm cache ls [<name>@<version>]
+npm cache verify
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces\.
+.SS Description
+.P
+Used to add, list, or clean the npm cache folder\.
+.RS 0
+.IP \(bu 2
+add:
+Add the specified packages to the local cache\.  This command is primarily
+intended to be used internally by npm, but it can provide a way to
+add data to the local installation cache explicitly\.
+.IP \(bu 2
+clean:
+Delete all data out of the cache folder\.  Note that this is typically
+unnecessary, as npm's cache is self\-healing and resistant to data
+corruption issues\.
+.IP \(bu 2
+verify:
+Verify the contents of the cache folder, garbage collecting any unneeded
+data, and verifying the integrity of the cache index and all cached data\.
+
+.RE
+.SS Details
+.P
+npm stores cache data in an opaque directory within the configured \fBcache\fP,
+named \fB_cacache\fP\|\. This directory is a
+\fBcacache\fP \fIhttp://npm\.im/cacache\fR\-based content\-addressable cache that
+stores all http request data as well as other package\-related data\. This
+directory is primarily accessed through \fBpacote\fP, the library responsible
+for all package fetching as of npm@5\.
+.P
+All data that passes through the cache is fully verified for integrity on
+both insertion and extraction\. Cache corruption will either trigger an
+error, or signal to \fBpacote\fP that the data must be refetched, which it will
+do automatically\. For this reason, it should never be necessary to clear
+the cache for any reason other than reclaiming disk space, thus why \fBclean\fP
+now requires \fB\-\-force\fP to run\.
+.P
+There is currently no method exposed through npm to inspect or directly
+manage the contents of this cache\. In order to access it, \fBcacache\fP must be
+used directly\.
+.P
+npm will not remove data by itself: the cache will grow as new packages are
+installed\.
+.SS A note about the cache's design
+.P
+The npm cache is strictly a cache: it should not be relied upon as a
+persistent and reliable data store for package data\. npm makes no guarantee
+that a previously\-cached piece of data will be available later, and will
+automatically delete corrupted contents\. The primary guarantee that the
+cache makes is that, if it does return data, that data will be exactly the
+data that was inserted\.
+.P
+To run an offline verification of existing cache contents, use \fBnpm cache
+verify\fP\|\.
+.SS Configuration
+.SS \fBcache\fP
+.RS 0
+.IP \(bu 2
+Default: Windows: \fB%LocalAppData%\\npm\-cache\fP, Posix: \fB~/\.npm\fP
+.IP \(bu 2
+Type: Path
+
+.RE
+.P
+The location of npm's cache directory\. See npm help \fBnpm
+cache\fP
+.SS See Also
+.RS 0
+.IP \(bu 2
+npm help folders
+.IP \(bu 2
+npm help config
+.IP \(bu 2
+npm help npmrc
+.IP \(bu 2
+npm help install
+.IP \(bu 2
+npm help publish
+.IP \(bu 2
+npm help pack
+.IP \(bu 2
+https://npm\.im/cacache
+.IP \(bu 2
+https://npm\.im/pacote
+.IP \(bu 2
+https://npm\.im/@npmcli/arborist
+.IP \(bu 2
+https://npm\.im/make\-fetch\-happen
+
+.RE

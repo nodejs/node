@@ -1,0 +1,69 @@
+prefix parallel
+
+# To mark a test as flaky, list the test name in the appropriate section
+# below, without ".js", followed by ": PASS,FLAKY". Example:
+# sample-test                        : PASS,FLAKY
+
+[true] # This section applies to all platforms
+# https://github.com/nodejs/node/issues/41123
+test-repl-sigint-nested-eval: PASS, FLAKY
+
+[$system==win32]
+# https://github.com/nodejs/node/issues/24497
+test-timers-immediate-queue: PASS,FLAKY
+# https://github.com/nodejs/node/issues/41206
+test-crypto-keygen: PASS,FLAKY
+# https://github.com/nodejs/node/issues/41201
+test-fs-rmdir-recursive: PASS, FLAKY
+
+[$system==linux]
+# https://github.com/nodejs/node/issues/39368
+test-domain-error-types: PASS,FLAKY
+
+[$system==macos]
+
+[$arch==arm || $arch==arm64]
+# https://github.com/nodejs/node/pull/31178
+test-crypto-dh-stateless: SKIP
+test-crypto-keygen: SKIP
+
+[$system==solaris] # Also applies to SmartOS
+
+[$system==freebsd]
+# https://github.com/nodejs/node/issues/31727
+test-fs-stat-bigint: PASS,FLAKY
+# https://github.com/nodejs/node/issues/31280
+test-worker-message-port-message-before-close: PASS,FLAKY
+
+[$system==aix]
+
+[$system==ibmi]
+# https://github.com/nodejs/node/pull/30819
+test-child-process-fork-net-server: SKIP
+test-cli-node-options: SKIP
+test-cluster-shared-leak: SKIP
+test-http-writable-true-after-close: SKIP
+test-http2-connect-method: SKIP
+test-net-error-twice: SKIP
+# https://github.com/libuv/libuv/pull/2782
+test-net-allow-half-open: SKIP
+test-net-keepalive: SKIP
+test-net-persistent-keepalive: SKIP
+test-net-socket-close-after-end: SKIP
+test-net-socket-connect-without-cb: SKIP
+test-net-socket-connecting: SKIP
+test-net-socket-ready-without-cb: SKIP
+test-net-write-after-end-nt: SKIP
+test-tls-env-extra-ca: SKIP
+# https://github.com/nodejs/node/pull/34209
+test-dgram-error-message-address: SKIP
+# https://github.com/nodejs/node/issues/36929
+test-crypto-secure-heap: SKIP
+# https://github.com/nodejs/node/issues/39683
+test-dgram-connect: PASS, FLAKY
+test-http-client-parse-error: PASS, FLAKY
+test-http-multi-line-headers: PASS, FLAKY
+test-http-server-unconsume: PASS, FLAKY
+test-http-upgrade-advertise: PASS, FLAKY
+test-tls-client-mindhsize: PASS, FLAKY
+test-tls-write-error: PASS, FLAKY

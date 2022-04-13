@@ -1,0 +1,27 @@
+{
+  "name": "@npmcli/name-from-folder",
+  "version": "1.0.1",
+  "files": [
+    "index.js"
+  ],
+  "description": "Get the package name from a folder path",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/name-from-folder"
+  },
+  "author": "Isaac Z. Schlueter <i@izs.me> (https://izs.me)",
+  "license": "ISC",
+  "scripts": {
+    "test": "tap",
+    "snap": "tap",
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags"
+  },
+  "tap": {
+    "check-coverage": true
+  },
+  "devDependencies": {
+    "tap": "^14.10.7"
+  }
+}

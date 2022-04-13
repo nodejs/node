@@ -1,0 +1,49 @@
+// Copyright 2021 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-string-gen.h'
+
+namespace string {
+
+// https://tc39.es/ecma262/#sec-string.prototype.includes
+transitioning javascript builtin
+StringPrototypeIncludes(js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): Boolean {
+  const methodName: constexpr string = 'String.prototype.includes';
+  const searchString: JSAny = arguments[0];
+  const position: JSAny = arguments[1];
+
+  // 1. Let O be ? RequireObjectCoercible(this value).
+  // 2. Let S be ? ToString(O).
+  const s = ToThisString(receiver, methodName);
+
+  // 3. Let isRegExp be ? IsRegExp(searchString).
+  // 4. If isRegExp is true, throw a TypeError exception.
+  if (regexp::IsRegExp(searchString)) {
+    ThrowTypeError(MessageTemplate::kFirstArgumentNotRegExp, methodName);
+  }
+
+  // 5. Let searchStr be ? ToString(searchString).
+  const searchStr = ToString_Inline(searchString);
+
+  // 6. Let pos be ? ToIntegerOrInfinity(position).
+  // 7. Assert: If position is undefined, then pos is 0.
+  let start: Smi = 0;
+  if (position != Undefined) {
+    // 8. Let len be the length of S.
+    const len = s.length_uintptr;
+
+    // 9. Let start be the result of clamping pos between 0 and len.
+    StaticAssertStringLengthFitsSmi();
+    start = Convert<Smi>(Signed(ClampToIndexRange(position, len)));
+  }
+
+  // 10. Let index be ! StringIndexOf(S, searchStr, start).
+  const index = StringIndexOf(s, searchStr, start);
+
+  // 11. If index is not -1, return true.
+  // 12. Return false.
+  return index != -1 ? True : False;
+}
+}

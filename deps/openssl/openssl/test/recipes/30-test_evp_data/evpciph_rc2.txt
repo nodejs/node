@@ -1,0 +1,126 @@
+#
+# Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+# A valid set of RC2 test vectors could not be found for all RC2 modes - the
+# following values were generated using the deprecated cipher code, in order to
+# confirm that the new provider code is equivalent.
+Title = RC2 Test vectors
+
+Availablein = legacy
+Cipher = RC2-ECB
+Key = 0000000000000000
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Ciphertext = a4085a9f3e710563ae3b1e8c4339122b
+
+Availablein = legacy
+Cipher = RC2-ECB
+Key = 0000000000000000
+KeyBits = 63
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Ciphertext = b406b9037baf2d86982af542e6d70b13
+
+Availablein = legacy
+Cipher = RC2-CBC
+Key = 0000000000000000
+IV = 0000000000000000
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Ciphertext = a4085a9f3e710563d1091a1552ba8962
+
+Availablein = legacy
+Cipher = RC2-CBC
+Key = 0000000000000000
+KeyBits = 63
+IV = 0000000000000000
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Ciphertext = b406b9037baf2d866614ef5e55e95b8d
+NextIV = 6614ef5e55e95b8d
+
+Availablein = legacy
+Cipher = RC2-40-CBC
+Key = 0000000000
+IV = 0000000000000000
+Plaintext = 0102030405060708
+Ciphertext = 61ae28bcf59d1f6f
+NextIV = 61ae28bcf59d1f6f
+
+Availablein = legacy
+Cipher = RC2-40-CBC
+Key = 0000000000
+KeyBits = 63
+IV = 0000000000000000
+Plaintext = 0102030405060708
+Ciphertext = c1d8e65290b2f06d
+
+Availablein = legacy
+Cipher = RC2-40-CBC
+Key = 000000000001
+IV = 0000000000000000
+Plaintext = 0102030405060708
+Ciphertext = b3ddf36b5c81b0db
+
+Availablein = legacy
+Cipher = RC2-64-CBC
+Key = 0000000000000000
+IV = 0000000000000000
+Plaintext = 0102030405060708
+Ciphertext = 191d1abf767bfbe7
+
+Availablein = legacy
+Cipher = RC2-64-CBC
+Key = 0000000000000000
+KeyBits = 63
+IV = 0000000000000000
+Plaintext = 0102030405060708
+Ciphertext = 191d1abf767bfbe7
+
+Availablein = legacy
+Cipher = RC2-CFB
+Key = 0000000000000000
+IV = 0000000000000000
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Ciphertext = 81b5cc4d43119e987a2b526ea152f3fe
+
+Availablein = legacy
+Cipher = RC2-CFB
+Key = 0000000000000000
+KeyBits = 63
+IV = 0000000000000000
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Ciphertext = ebb671fa972288f87cb1810b91f2ae39
+NextIV = 7cb1810b91f2ae39
+
+Availablein = legacy
+Cipher = RC2-OFB
+Key = 0000000000000000
+IV = 0000000000000000
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Ciphertext = 81b5cc4d43119e9849bdb7ef7fb35eb7
+
+Availablein = legacy
+Cipher = RC2-OFB
+Key = 0000000000000000
+IV = 0000000000000000
+KeyBits = 63
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Ciphertext = ebb671fa972288f8f8587d8069d61d58
+NextIV = f051778b65db1357
+
+Availablein = legacy
+Cipher = RC2-OFB
+Key = 0000000000000000
+IV = 000000000000000000
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Result = INVALID_IV_LENGTH
+
+#Variable key length is allowed for RC2
+Availablein = legacy
+Cipher = RC2-OFB
+Key = 0000000000000000000000000000000000
+IV = 0000000000000000
+Plaintext = 000102030405060708090A0B0C0D0E0F
+Ciphertext = 1df8d70bb9c66ffc37869d8ed80d796b

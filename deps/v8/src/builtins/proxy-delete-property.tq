@@ -1,0 +1,69 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-proxy-gen.h'
+
+namespace proxy {
+
+// ES #sec-proxy-object-internal-methods-and-internal-slots-delete-p
+// https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-delete-p
+transitioning builtin
+ProxyDeleteProperty(implicit context: Context)(
+    proxy: JSProxy, name: PropertyKey, languageMode: LanguageModeSmi): JSAny {
+  const kTrapName: constexpr string = 'deleteProperty';
+  // Handle deeply nested proxy.
+  PerformStackCheck();
+  // 1. Assert: IsPropertyKey(P) is true.
+  dcheck(TaggedIsNotSmi(name));
+  dcheck(Is<Name>(name));
+  dcheck(!IsPrivateSymbol(name));
+
+  try {
+    // 2. Let handler be O.[[ProxyHandler]].
+    // 3. If handler is null, throw a TypeError exception.
+    // 4. Assert: Type(handler) is Object.
+    dcheck(proxy.handler == Null || Is<JSReceiver>(proxy.handler));
+    const handler =
+        Cast<JSReceiver>(proxy.handler) otherwise ThrowProxyHandlerRevoked;
+
+    // 5. Let target be O.[[ProxyTarget]].
+    const target = UnsafeCast<JSReceiver>(proxy.target);
+
+    // 6. Let trap be ? GetMethod(handler, "deleteProperty").
+    // 7. If trap is undefined, then (see 7.a below).
+    const trap: Callable = GetMethod(handler, kTrapName)
+        otherwise goto TrapUndefined(target);
+
+    // 8. Let booleanTrapResult be ToBoolean(? Call(trap, handler,
+    // « target, P »)).
+    const trapResult = Call(context, trap, handler, target, name);
+
+    // 9. If booleanTrapResult is false, return false.
+    if (!ToBoolean(trapResult)) {
+      const strictValue: LanguageModeSmi = LanguageMode::kStrict;
+      if (languageMode == strictValue) {
+        ThrowTypeError(
+            MessageTemplate::kProxyTrapReturnedFalsishFor, kTrapName, name);
+      }
+      return False;
+    }
+
+    // 10. Let targetDesc be ? target.[[GetOwnProperty]](P).
+    // 11. If targetDesc is undefined, return true.
+    // 12. If targetDesc.[[Configurable]] is false, throw a TypeError
+    // exception.
+    // 13. Let extensibleTarget be ? IsExtensible(target).
+    // 14. If extensibleTarget is false, throw a TypeError exception.
+    CheckDeleteTrapResult(target, proxy, name);
+
+    // 15. Return true.
+    return True;
+  } label TrapUndefined(target: JSAny) {
+    // 7.a. Return ? target.[[Delete]](P).
+    return DeleteProperty(target, name, languageMode);
+  } label ThrowProxyHandlerRevoked deferred {
+    ThrowTypeError(MessageTemplate::kProxyRevoked, kTrapName);
+  }
+}
+}

@@ -1,0 +1,27 @@
+getPossibleBreakpoints should not crash during lazy compilation (crbug.com/715334)
+{
+    method : Debugger.scriptFailedToParse
+    params : {
+        embedderName : 
+        endColumn : 23
+        endLine : 2
+        executionContextId : <executionContextId>
+        hasSourceURL : true
+        hash : 1bce5d0c4da4d13a3ea6e6f35ea0f34705c26ba4
+        isModule : false
+        length : 56
+        scriptId : <scriptId>
+        scriptLanguage : JavaScript
+        sourceMapURL : 
+        startColumn : 0
+        startLine : 0
+        url : test.js
+    }
+}
+{
+    id : <messageId>
+    result : {
+        locations : [
+        ]
+    }
+}
