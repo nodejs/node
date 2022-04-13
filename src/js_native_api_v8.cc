@@ -936,8 +936,8 @@ napi_status napi_get_all_property_names(napi_env env,
         filter | v8::PropertyFilter::ONLY_ENUMERABLE);
   }
   if (key_filter & napi_key_configurable) {
-    filter = static_cast<v8::PropertyFilter>(filter |
-                                             v8::PropertyFilter::ONLY_WRITABLE);
+    filter = static_cast<v8::PropertyFilter>(
+        filter | v8::PropertyFilter::ONLY_CONFIGURABLE);
   }
   if (key_filter & napi_key_skip_strings) {
     filter = static_cast<v8::PropertyFilter>(filter |
