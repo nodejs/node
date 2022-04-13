@@ -11,8 +11,6 @@ as a starting point for contributors.
 
 ## High-level approach
 
-The high level approach is as follows:
-
 * Document the security model
 * Document threat models and current state of the art
 * Support experimentation on features like permissions and policies
