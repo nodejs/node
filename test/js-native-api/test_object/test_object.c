@@ -106,6 +106,119 @@ static napi_value GetSymbolNames(napi_env env, napi_callback_info info) {
   return output;
 }
 
+static napi_value GetEnumerableWritableNames(napi_env env,
+                                             napi_callback_info info) {
+  size_t argc = 1;
+  napi_value args[1];
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+
+  NODE_API_ASSERT(env, argc >= 1, "Wrong number of arguments");
+
+  napi_valuetype value_type0;
+  NODE_API_CALL(env, napi_typeof(env, args[0], &value_type0));
+
+  NODE_API_ASSERT(
+      env,
+      value_type0 == napi_object,
+      "Wrong type of arguments. Expects an object as first argument.");
+
+  napi_value output;
+  NODE_API_CALL(
+      env,
+      napi_get_all_property_names(env,
+                                  args[0],
+                                  napi_key_include_prototypes,
+                                  napi_key_enumerable | napi_key_writable,
+                                  napi_key_numbers_to_strings,
+                                  &output));
+
+  return output;
+}
+
+static napi_value GetOwnWritableNames(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
+  napi_value args[1];
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+
+  NODE_API_ASSERT(env, argc >= 1, "Wrong number of arguments");
+
+  napi_valuetype value_type0;
+  NODE_API_CALL(env, napi_typeof(env, args[0], &value_type0));
+
+  NODE_API_ASSERT(
+      env,
+      value_type0 == napi_object,
+      "Wrong type of arguments. Expects an object as first argument.");
+
+  napi_value output;
+  NODE_API_CALL(env,
+                napi_get_all_property_names(env,
+                                            args[0],
+                                            napi_key_own_only,
+                                            napi_key_writable,
+                                            napi_key_numbers_to_strings,
+                                            &output));
+
+  return output;
+}
+
+static napi_value GetEnumerableConfigurableNames(napi_env env,
+                                                 napi_callback_info info) {
+  size_t argc = 1;
+  napi_value args[1];
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+
+  NODE_API_ASSERT(env, argc >= 1, "Wrong number of arguments");
+
+  napi_valuetype value_type0;
+  NODE_API_CALL(env, napi_typeof(env, args[0], &value_type0));
+
+  NODE_API_ASSERT(
+      env,
+      value_type0 == napi_object,
+      "Wrong type of arguments. Expects an object as first argument.");
+
+  napi_value output;
+  NODE_API_CALL(
+      env,
+      napi_get_all_property_names(env,
+                                  args[0],
+                                  napi_key_include_prototypes,
+                                  napi_key_enumerable | napi_key_configurable,
+                                  napi_key_numbers_to_strings,
+                                  &output));
+
+  return output;
+}
+
+static napi_value GetOwnConfigurableNames(napi_env env,
+                                          napi_callback_info info) {
+  size_t argc = 1;
+  napi_value args[1];
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+
+  NODE_API_ASSERT(env, argc >= 1, "Wrong number of arguments");
+
+  napi_valuetype value_type0;
+  NODE_API_CALL(env, napi_typeof(env, args[0], &value_type0));
+
+  NODE_API_ASSERT(
+      env,
+      value_type0 == napi_object,
+      "Wrong type of arguments. Expects an object as first argument.");
+
+  napi_value output;
+  NODE_API_CALL(env,
+                napi_get_all_property_names(env,
+                                            args[0],
+                                            napi_key_own_only,
+                                            napi_key_configurable,
+                                            napi_key_numbers_to_strings,
+                                            &output));
+
+  return output;
+}
+
 static napi_value Set(napi_env env, napi_callback_info info) {
   size_t argc = 3;
   napi_value args[3];
@@ -536,6 +649,10 @@ napi_value Init(napi_env env, napi_value exports) {
     DECLARE_NODE_API_PROPERTY("GetNamed", GetNamed),
     DECLARE_NODE_API_PROPERTY("GetPropertyNames", GetPropertyNames),
     DECLARE_NODE_API_PROPERTY("GetSymbolNames", GetSymbolNames),
+    DECLARE_NODE_API_PROPERTY("GetEnumerableWritableNames", GetEnumerableWritableNames),
+    DECLARE_NODE_API_PROPERTY("GetOwnWritableNames", GetOwnWritableNames),
+    DECLARE_NODE_API_PROPERTY("GetEnumerableConfigurableNames", GetEnumerableConfigurableNames),
+    DECLARE_NODE_API_PROPERTY("GetOwnConfigurableNames", GetOwnConfigurableNames),
     DECLARE_NODE_API_PROPERTY("Set", Set),
     DECLARE_NODE_API_PROPERTY("SetNamed", SetNamed),
     DECLARE_NODE_API_PROPERTY("Has", Has),
