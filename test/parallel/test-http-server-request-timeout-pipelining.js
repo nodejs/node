@@ -7,25 +7,7 @@ const { connect } = require('net');
 
 // This test validates that the server returns 408
 // after server.requestTimeout if the client
-// does not complete a request, and that keep alive
-// works properly.
-
-function performRequestWithDelay(client, firstDelay, secondDelay, closeAfter) {
-  client.resume();
-  client.write('GET / HTTP/1.1\r\n');
-
-  firstDelay = common.platformTimeout(firstDelay);
-  secondDelay = common.platformTimeout(secondDelay);
-
-  setTimeout(() => {
-    client.write('Connection: ');
-  }, firstDelay).unref();
-
-  // Complete the request
-  setTimeout(() => {
-    client.write(`${closeAfter ? 'close' : 'keep-alive'}\r\n\r\n`);
-  }, firstDelay + secondDelay).unref();
-}
+// does not complete a request when using pipelining.
 
 const requestTimeout = common.platformTimeout(1000);
 const server = createServer({
@@ -39,9 +21,6 @@ const server = createServer({
 }));
 
 assert.strictEqual(server.requestTimeout, requestTimeout);
-
-// Make sure keepAliveTimeout is big enough for the requestTimeout.
-server.keepAliveTimeout = 0;
 
 server.listen(0, common.mustCall(() => {
   const client = connect(server.address().port);
@@ -58,27 +37,16 @@ server.listen(0, common.mustCall(() => {
         'HTTP/1.1 200 OK'
       );
 
-      const defer = common.platformTimeout(requestTimeout * 1.5);
-
-      // Wait some time to make sure requestTimeout
-      // does not interfere with keep alive
-      setTimeout(() => {
-        response = '';
-        second = true;
-
-        // Perform a second request expected to finish after requestTimeout
-        performRequestWithDelay(
-          client,
-          requestTimeout / 5,
-          requestTimeout,
-          true
-        );
-      }, defer).unref();
+      response = '';
+      second = true;
     }
   }, 1));
 
   const errOrEnd = common.mustCall(function(err) {
-    assert.strictEqual(second, true);
+    if (!second) {
+      return;
+    }
+
     assert.strictEqual(
       response,
       // Empty because of https://github.com/nodejs/node/commit/e8d7fedf7cad6e612e4f2e0456e359af57608ac7
@@ -91,11 +59,12 @@ server.listen(0, common.mustCall(() => {
   client.on('error', errOrEnd);
   client.on('end', errOrEnd);
 
-  // Perform a second request expected to finish before requestTimeout
-  performRequestWithDelay(
-    client,
-    requestTimeout / 5,
-    requestTimeout / 5,
-    false
-  );
+  // Send two requests using pipelining. Delay before finishing the second one
+  client.resume();
+  client.write('GET / HTTP/1.1\r\nConnection: keep-alive\r\n\r\nGET / HTTP/1.1\r\nConnection: ');
+
+  // Complete the request
+  setTimeout(() => {
+    client.write('close\r\n\r\n');
+  }, requestTimeout * 1.5).unref();
 }));
