@@ -60,6 +60,7 @@ using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Number;
@@ -187,184 +188,58 @@ struct StringPtr {
   size_t size_;
 };
 
-class ConnectionsList;
+class Parser;
 
-class ExpirableParser {
-  friend class ConnectionsList;
-
- protected:
-    virtual Local<Object> AsJSObject() = 0;
-    uint64_t last_message_start_;
-    bool headers_completed_;
+struct ParserComparer {
+  bool operator()(const Parser* lhs, const Parser* rhs) const;
 };
 
-class ConnectionsList: public BaseObject {
+class ConnectionsList : public BaseObject {
  public:
-    static void New(const FunctionCallbackInfo<Value>& args) {
-      Local<Context> context = args.GetIsolate()->GetCurrentContext();
-      Environment* env = Environment::GetCurrent(context);
+    static void New(const FunctionCallbackInfo<Value>& args);
 
-      ConnectionsList* list = new ConnectionsList(env, args.This());
+    static void All(const FunctionCallbackInfo<Value>& args);
 
-      // This is needed due to the forward declaration of CompareParsers
-      std::set<ExpirableParser*, decltype(ConnectionsList::CompareParsers)*>
-        newAllConnections(ConnectionsList::CompareParsers);
-      std::set<ExpirableParser*, decltype(ConnectionsList::CompareParsers)*>
-        newActiveConnections(ConnectionsList::CompareParsers);
+    static void Idle(const FunctionCallbackInfo<Value>& args);
 
-      list->allConnections = newAllConnections;
-      list->activeConnections = newActiveConnections;
-    }
+    static void Active(const FunctionCallbackInfo<Value>& args);
 
-    static bool CompareParsers(
-      const ExpirableParser* lhs,
-      const ExpirableParser* rhs
-    ) {
-      if (lhs->last_message_start_ == 0) {
-        return false;
-      } else if (rhs->last_message_start_ == 0) {
-        return true;
-      }
+    static void Expired(const FunctionCallbackInfo<Value>& args);
 
-      return lhs->last_message_start_ < rhs->last_message_start_;
-    }
-
-    static void All(const FunctionCallbackInfo<Value>& args) {
-      v8::Isolate* isolate = args.GetIsolate();
-      Local<Context> context = isolate->GetCurrentContext();
-
-      Local<Array> expired = Array::New(isolate);
-      ConnectionsList* list;
-
-      ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
-
-      uint32_t i = 0;
-      for (auto parser : list->allConnections) {
-        expired->Set(context, i++, parser->AsJSObject()).Check();
-      }
-
-      return args.GetReturnValue().Set(expired);
-    }
-
-    static void Idle(const FunctionCallbackInfo<Value>& args) {
-      v8::Isolate* isolate = args.GetIsolate();
-      Local<Context> context = isolate->GetCurrentContext();
-
-      Local<Array> expired = Array::New(isolate);
-      ConnectionsList* list;
-
-      ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
-
-      uint32_t i = 0;
-      for (auto parser : list->allConnections) {
-        if (parser->last_message_start_ == 0) {
-          expired->Set(context, i++, parser->AsJSObject()).Check();
-        }
-      }
-
-      return args.GetReturnValue().Set(expired);
-    }
-
-    static void Active(const FunctionCallbackInfo<Value>& args) {
-      v8::Isolate* isolate = args.GetIsolate();
-      Local<Context> context = isolate->GetCurrentContext();
-
-      Local<Array> expired = Array::New(isolate);
-      ConnectionsList* list;
-
-      ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
-
-      uint32_t i = 0;
-      for (auto parser : list->activeConnections) {
-        expired->Set(context, i++, parser->AsJSObject()).Check();
-      }
-
-      return args.GetReturnValue().Set(expired);
-    }
-
-    static void Expired(const FunctionCallbackInfo<Value>& args) {
-      v8::Isolate* isolate = args.GetIsolate();
-      Local<Context> context = isolate->GetCurrentContext();
-
-      Local<Array> expired = Array::New(isolate);
-      ConnectionsList* list;
-
-      ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
-      CHECK(args[0]->IsNumber());
-      CHECK(args[1]->IsNumber());
-      uint64_t headers_timeout =
-        static_cast<uint64_t>(args[0].As<v8::Uint32>()->Value()) * 1000000;
-      uint64_t request_timeout =
-        static_cast<uint64_t>(args[1].As<v8::Uint32>()->Value()) * 1000000;
-
-      if (headers_timeout == 0 && request_timeout == 0) {
-        return args.GetReturnValue().Set(expired);
-      } else if (request_timeout > 0 && headers_timeout > request_timeout) {
-        std::swap(headers_timeout, request_timeout);
-      }
-
-      const uint64_t now = uv_hrtime();
-      const uint64_t headers_deadline =
-        headers_timeout > 0 ? now - headers_timeout : 0;
-      const uint64_t request_deadline =
-        request_timeout > 0 ? now - request_timeout : 0;
-
-      uint32_t i = 0;
-      auto iter = list->activeConnections.begin();
-      auto end = list->activeConnections.end();
-      while (iter != end) {
-        ExpirableParser* parser = *iter;
-        iter++;
-
-        // Check for expiration
-        if (
-          (!parser->headers_completed_ && headers_deadline > 0 &&
-            parser->last_message_start_ < headers_deadline) ||
-          (
-            request_deadline > 0 &&
-            parser->last_message_start_ < request_deadline)
-        ) {
-          expired->Set(context, i++, parser->AsJSObject()).Check();
-          list->activeConnections.erase(parser);
-        }
-      }
-
-      return args.GetReturnValue().Set(expired);
-    }
-
-    ConnectionsList(Environment* env, Local<Object> object)
-      : BaseObject(env, object) {}
-
-    void Push(ExpirableParser* parser) {
+    void Push(Parser* parser) {
       allConnections.insert(parser);
     }
 
-    void Pop(ExpirableParser* parser) {
+    void Pop(Parser* parser) {
       allConnections.erase(parser);
     }
 
-    void PushActive(ExpirableParser* parser) {
+    void PushActive(Parser* parser) {
       activeConnections.insert(parser);
     }
 
-    void PopActive(ExpirableParser* parser) {
+    void PopActive(Parser* parser) {
       activeConnections.erase(parser);
     }
 
     SET_NO_MEMORY_INFO()
     SET_MEMORY_INFO_NAME(ConnectionsList)
-    SET_SELF_SIZE(std::unordered_set<ExpirableParser*>)
+    SET_SELF_SIZE(ConnectionsList)
 
- protected:
-    std::set<
-      ExpirableParser*, bool(*)(const ExpirableParser*, const ExpirableParser*)
-    > allConnections;
-    std::set<
-      ExpirableParser*, bool(*)(const ExpirableParser*, const ExpirableParser*)
-    > activeConnections;
+ private:
+    std::set<Parser*, ParserComparer> allConnections;
+    std::set<Parser*, ParserComparer> activeConnections;
+
+    ConnectionsList(Environment* env, Local<Object> object)
+      : BaseObject(env, object) {
+        MakeWeak();
+      }
 };
 
-class Parser : public ExpirableParser, public AsyncWrap, public StreamListener {
+class Parser : public AsyncWrap, public StreamListener {
+  friend class ConnectionsList;
+  friend struct ParserComparer;
+
  public:
   Parser(BindingData* binding_data, Local<Object> wrap)
       : AsyncWrap(binding_data->env(), wrap),
@@ -382,10 +257,8 @@ class Parser : public ExpirableParser, public AsyncWrap, public StreamListener {
   SET_SELF_SIZE(Parser)
 
   int on_message_begin() {
-    /*
-      Important: Pop from the list BEFORE resetting the last_message_start_
-      otherwise std::set.erase will fail.
-    */
+    // Important: Pop from the list BEFORE resetting the last_message_start_
+    // otherwise std::set.erase will fail.
     if (connectionsList_ != nullptr) {
       connectionsList_->PopActive(this);
     }
@@ -619,10 +492,8 @@ class Parser : public ExpirableParser, public AsyncWrap, public StreamListener {
   int on_message_complete() {
     HandleScope scope(env()->isolate());
 
-    /*
-      Important: Pop from the list BEFORE resetting the last_message_start_
-      otherwise std::set.erase will fail.
-    */
+    // Important: Pop from the list BEFORE resetting the last_message_start_
+    // otherwise std::set.erase will fail.
     if (connectionsList_ != nullptr) {
       connectionsList_->PopActive(this);
     }
@@ -711,10 +582,6 @@ class Parser : public ExpirableParser, public AsyncWrap, public StreamListener {
     }
   }
 
-  Local<Object> AsJSObject() override {
-    return object();
-  }
-
   // var bytesParsed = parser->execute(buffer);
   static void Execute(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
@@ -801,11 +668,9 @@ class Parser : public ExpirableParser, public AsyncWrap, public StreamListener {
 
       parser->connectionsList_->Push(parser);
 
-      /*
-        This protects from DOS attack where an attacker establish 
-        the connection without sending any data on applications where
-        server.timeout is left to the default value of zero.
-      */
+      // This protects from a DoS attack where an attacker establishes
+      // the connection without sending any data on applications where
+      // server.timeout is left to the default value of zero.
       parser->last_message_start_ = uv_hrtime();
       parser->connectionsList_->PushActive(parser);
     } else {
@@ -877,8 +742,8 @@ class Parser : public ExpirableParser, public AsyncWrap, public StreamListener {
       return;
     }
 
-    uint64_t duration = (uv_hrtime() - parser->last_message_start_) / 1000000;
-    args.GetReturnValue().Set(static_cast<double>(duration));
+    double duration = (uv_hrtime() - parser->last_message_start_) / 1000000;
+    args.GetReturnValue().Set(duration);
   }
 
   static void HeadersCompleted(const FunctionCallbackInfo<Value>& args) {
@@ -1148,9 +1013,11 @@ class Parser : public ExpirableParser, public AsyncWrap, public StreamListener {
   size_t current_buffer_len_;
   const char* current_buffer_data_;
   unsigned int execute_depth_ = 0;
+  bool headers_completed_ = false;
   bool pending_pause_ = false;
   uint64_t header_nread_ = 0;
   uint64_t max_http_header_size_;
+  uint64_t last_message_start_;
   ConnectionsList* connectionsList_;
 
   BaseObjectPtr<BindingData> binding_data_;
@@ -1175,6 +1042,135 @@ class Parser : public ExpirableParser, public AsyncWrap, public StreamListener {
 
   static const llhttp_settings_t settings;
 };
+
+bool ParserComparer::operator()(const Parser* lhs, const Parser* rhs) const {
+  if (lhs->last_message_start_ == 0) {
+    return false;
+  } else if (rhs->last_message_start_ == 0) {
+    return true;
+  }
+
+  return lhs->last_message_start_ < rhs->last_message_start_;
+}
+
+void ConnectionsList::New(const FunctionCallbackInfo<Value>& args) {
+  Local<Context> context = args.GetIsolate()->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
+
+  new ConnectionsList(env, args.This());
+}
+
+void ConnectionsList::All(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  Local<Array> all = Array::New(isolate);
+  ConnectionsList* list;
+
+  ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
+
+  uint32_t i = 0;
+  for (auto parser : list->allConnections) {
+    if (all->Set(context, i++, parser->object()).IsNothing()) {
+      return;
+    }
+  }
+
+  return args.GetReturnValue().Set(all);
+}
+
+void ConnectionsList::Idle(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  Local<Array> idle = Array::New(isolate);
+  ConnectionsList* list;
+
+  ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
+
+  uint32_t i = 0;
+  for (auto parser : list->allConnections) {
+    if (parser->last_message_start_ == 0) {
+      if (idle->Set(context, i++, parser->object()).IsNothing()) {
+        return;
+      }
+    }
+  }
+
+  return args.GetReturnValue().Set(idle);
+}
+
+void ConnectionsList::Active(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  Local<Array> active = Array::New(isolate);
+  ConnectionsList* list;
+
+  ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
+
+  uint32_t i = 0;
+  for (auto parser : list->activeConnections) {
+    if (active->Set(context, i++, parser->object()).IsNothing()) {
+      return;
+    }
+  }
+
+  return args.GetReturnValue().Set(active);
+}
+
+void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  Local<Array> expired = Array::New(isolate);
+  ConnectionsList* list;
+
+  ASSIGN_OR_RETURN_UNWRAP(&list, args.Holder());
+  CHECK(args[0]->IsNumber());
+  CHECK(args[1]->IsNumber());
+  uint64_t headers_timeout =
+    static_cast<uint64_t>(args[0].As<v8::Uint32>()->Value()) * 1000000;
+  uint64_t request_timeout =
+    static_cast<uint64_t>(args[1].As<v8::Uint32>()->Value()) * 1000000;
+
+  if (headers_timeout == 0 && request_timeout == 0) {
+    return args.GetReturnValue().Set(expired);
+  } else if (request_timeout > 0 && headers_timeout > request_timeout) {
+    std::swap(headers_timeout, request_timeout);
+  }
+
+  const uint64_t now = uv_hrtime();
+  const uint64_t headers_deadline =
+    headers_timeout > 0 ? now - headers_timeout : 0;
+  const uint64_t request_deadline =
+    request_timeout > 0 ? now - request_timeout : 0;
+
+  uint32_t i = 0;
+  auto iter = list->activeConnections.begin();
+  auto end = list->activeConnections.end();
+  while (iter != end) {
+    Parser* parser = *iter;
+    iter++;
+
+    // Check for expiration.
+    if (
+      (!parser->headers_completed_ && headers_deadline > 0 &&
+        parser->last_message_start_ < headers_deadline) ||
+      (
+        request_deadline > 0 &&
+        parser->last_message_start_ < request_deadline)
+    ) {
+      if (expired->Set(context, i++, parser->object()).IsNothing()) {
+        return;
+      }
+
+      list->activeConnections.erase(parser);
+    }
+  }
+
+  return args.GetReturnValue().Set(expired);
+}
 
 const llhttp_settings_t Parser::settings = {
   Proxy<Call, &Parser::on_message_begin>::Raw,
