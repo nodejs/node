@@ -1,6 +1,6 @@
 # Security Model Strategy
 
-A clear security model and features like permissions and policy enforcement
+A clear security model, with features like permissions and policy enforcement,
 has been identified as one of the
 [top technical priorities](https://github.com/nodejs/node/blob/master/doc/contributing/technical-priorities.md#permissionspoliciessecurity-model)
 for the future success of Node.js.
