@@ -45,7 +45,6 @@ Here is a list of supported architectures for use of ASM in OpenSSL.
 
   | --dest-os | --dest-cpu | OpenSSL target arch  | CI  |
   | --------- | ---------- | -------------------- | --- |
-  | aix       | ppc        | aix-gcc              | o   |
   | aix       | ppc64      | aix64-gcc            | o   |
   | linux     | ia32       | linux-elf            | o   |
   | linux     | x32        | linux-x32            | -   |
