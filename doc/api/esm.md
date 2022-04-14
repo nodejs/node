@@ -183,7 +183,7 @@ added: v12.10.0
 [`data:` URLs][] are supported for importing with the following MIME types:
 
 * `text/javascript` for ES Modules
-* `application/json` for JSON
+* `application/json` for JSON (requires `--experimental-json-modules` flag)
 * `application/wasm` for Wasm
 
 `data:` URLs only resolve [_Bare specifiers_][Terminology] for builtin modules
