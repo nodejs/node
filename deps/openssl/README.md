@@ -75,6 +75,18 @@ little)
 These are listed in [config/Makefile](config/Makefile).
 Please refer [config/opensslconf_asm.h](config/opensslconf_asm.h) for details.
 
+To remove or add an architecture the templates need to be updated for which
+there are two:
+* include_asm.h.tmpl
+* include_no-asm.h.tmpl
+
+Remove the architecture in question from these files and then run:
+```console
+$ make generate-headers
+```
+Also remove the architecture from the list of supported ASM architectures in
+[README.md](../README.md#supported-architectures-for-use-of-asm)
+
 ### Upgrading OpenSSL
 
 Please refer to [maintaining-openssl](../../doc/contributing/maintaining-openssl.md).
