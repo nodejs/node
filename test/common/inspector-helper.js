@@ -5,8 +5,7 @@ const fs = require('fs');
 const http = require('http');
 const fixtures = require('../common/fixtures');
 const { spawn } = require('child_process');
-const { parse: parseURL } = require('url');
-const { pathToFileURL } = require('url');
+const { URL, pathToFileURL } = require('url');
 const { EventEmitter } = require('events');
 
 const _MAINSCRIPT = fixtures.path('loop.js');
@@ -418,7 +417,7 @@ class NodeInstance extends EventEmitter {
     return http.get({
       port,
       family: 4,
-      path: parseURL(devtoolsUrl).path,
+      path: new URL(devtoolsUrl).pathname,
       headers: {
         'Connection': 'Upgrade',
         'Upgrade': 'websocket',
