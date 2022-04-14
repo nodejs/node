@@ -15,16 +15,12 @@ assert.strictEqual(child.hasRef(), false);
 child.ref();
 assert.strictEqual(child.hasRef(), true);
 
-function mustHasRef() {
-  return common.mustCall(() => assert.strictEqual(child.hasRef(), true));
-}
+child.on(
+  'exit',
+  common.mustCall(() => assert.strictEqual(child.hasRef(), false)),
+);
 
-function mustHasNoRef() {
-  return common.mustCall(() => assert.strictEqual(child.hasRef(), false));
-}
-
-child.stdout.on('data', mustHasRef());
-child.stdout.on('end', mustHasRef());
-child.stdout.on('close', mustHasNoRef());
-child.on('exit', mustHasNoRef());
-child.on('close', mustHasNoRef());
+child.on(
+  'close',
+  common.mustCall(() => assert.strictEqual(child.hasRef(), false)),
+);
