@@ -180,8 +180,8 @@ added: v12.10.0
 [`data:` URLs][] are supported for importing with the following MIME types:
 
 * `text/javascript` for ES Modules
-* `application/json` for JSON
-* `application/wasm` for Wasm
+* `application/json` for JSON (requires [`--experimental-json-modules`](cli.md#cli_experimental_json_modules) flag)
+* `application/wasm` for Wasm (requires [`--experimental-wasm-modules`](cli.md#cli_experimental_wasm_modules) flag)
 
 `data:` URLs only resolve [_Bare specifiers_][Terminology] for builtin modules
 and [_Absolute specifiers_][Terminology]. Resolving
