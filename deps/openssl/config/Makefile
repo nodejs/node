@@ -9,7 +9,7 @@ endif
 PERL    = perl
 
 # Supported architecture list
-ASM_ARCHS = aix-gcc aix64-gcc-as BSD-x86 BSD-x86_64 \
+ASM_ARCHS = aix64-gcc-as BSD-x86 BSD-x86_64 \
 darwin64-x86_64-cc darwin-i386-cc darwin64-arm64-cc linux-aarch64 \
 linux-armv4 linux-elf linux-x86_64 linux-ppc \
 linux-ppc64 linux-ppc64le linux32-s390x linux64-s390x linux64-mips64\
