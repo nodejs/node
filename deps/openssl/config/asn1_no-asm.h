@@ -37,8 +37,6 @@
 # include "./archs/linux-ppc64le/no-asm/include/openssl/asn1.h"
 #elif defined(OPENSSL_LINUX) && defined(__PPC64__)
 # include "./archs/linux-ppc64/no-asm/include/openssl/asn1.h"
-#elif defined(OPENSSL_LINUX) && !defined(__PPC64__) && defined(__ppc__)
-# include "./archs/linux-ppc/no-asm/include/openssl/asn1.h"
 #elif defined(_AIX) && defined(_ARCH_PPC64)
 # include "./archs/aix64-gcc-as/no-asm/include/openssl/asn1.h"
 #elif defined(OPENSSL_LINUX) && defined(__s390x__)
