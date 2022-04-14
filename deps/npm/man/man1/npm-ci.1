@@ -1,4 +1,4 @@
-.TH "NPM\-CI" "1" "March 2022" "" ""
+.TH "NPM\-CI" "1" "April 2022" "" ""
 .SH "NAME"
 \fBnpm-ci\fR \- Install a project with a clean slate
 .SS Synopsis
@@ -45,6 +45,13 @@ It will never write to \fBpackage\.json\fP or any of the package\-locks:
 installs are essentially frozen\.
 
 .RE
+.P
+NOTE: If you create your \fBpackage\-lock\.json\fP file by running \fBnpm install\fP
+with flags that can affect the shape of your dependency tree, such as
+\fB\-\-legacy\-peer\-deps\fP, you \fImust\fR provide the same flags to \fBnpm ci\fP or you
+are likely to encounter errors\. An easy way to do this is to run
+\fBnpm config set legacy\-peer\-deps=true \-\-location=project\fP and commit the
+\fB\|\.npmrc\fP file to your repo\.
 .SS Example
 .P
 Make sure you have a package\-lock and an up\-to\-date install:

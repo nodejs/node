@@ -131,6 +131,7 @@ class Npm extends EventEmitter {
 
     const isGlobal = this.config.get('global')
     const workspacesEnabled = this.config.get('workspaces')
+    // if cwd is a workspace, the default is set to [that workspace]
     const implicitWorkspace = this.config.get('workspace', 'default').length > 0
     const workspacesFilters = this.config.get('workspace')
     const includeWorkspaceRoot = this.config.get('include-workspace-root')
@@ -138,6 +139,8 @@ class Npm extends EventEmitter {
     // or when it is implicit and not in our ignore list
     const hasWorkspaceFilters = workspacesFilters.length > 0
     const invalidWorkspaceConfig = workspacesEnabled === false && hasWorkspaceFilters
+
+    // (-ws || -w foo) && (cwd is not a workspace || command is not ignoring implicit workspaces)
     const filterByWorkspaces = (workspacesEnabled || hasWorkspaceFilters) &&
       (!implicitWorkspace || !command.ignoreImplicitWorkspace)
     // normally this would go in the constructor, but our tests don't

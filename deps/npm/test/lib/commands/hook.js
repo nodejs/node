@@ -63,7 +63,6 @@ const libnpmhook = {
 }
 
 const Hook = t.mock('../../../lib/commands/hook.js', {
-  '../../../lib/utils/otplease.js': async (opts, fn) => fn(opts),
   libnpmhook,
 })
 const hook = new Hook(npm)
