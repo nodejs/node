@@ -2874,6 +2874,38 @@ added: v17.0.0
   * `signal` {AbortSignal}
 * Returns: {stream.Duplex}
 
+```mjs
+import { Duplex } from 'stream';
+import {
+  ReadableStream,
+  WritableStream
+} from 'stream/web';
+
+const readable = new ReadableStream({
+  start(controller) {
+    controller.enqueue('world');
+  },
+});
+
+const writable = new WritableStream({
+  write(chunk) {
+    console.log('writable', chunk);
+  }
+});
+
+const pair = {
+  readable,
+  writable
+};
+const duplex = Duplex.fromWeb(pair, { encoding: 'utf8', objectMode: true });
+
+duplex.write('hello');
+
+for await (const chunk of duplex) {
+  console.log('readable', chunk);
+}
+```
+
 ### `stream.Duplex.toWeb(streamDuplex)`
 
 <!-- YAML
@@ -2886,6 +2918,28 @@ added: v17.0.0
 * Returns: {Object}
   * `readable` {ReadableStream}
   * `writable` {WritableStream}
+
+```mjs
+import { Duplex } from 'stream';
+
+const duplex = Duplex({
+  objectMode: true,
+  read() {
+    this.push('world');
+    this.push(null);
+  },
+  write: (chunk, encoding, callback) => {
+    console.log('writable', chunk);
+    callback();
+  }
+});
+
+const { readable, writable } = Duplex.toWeb(duplex);
+writable.getWriter().write('hello');
+
+const { value } = await readable.getReader().read();
+console.log('readable', value);
+```
 
 ### `stream.addAbortSignal(signal, stream)`
 
