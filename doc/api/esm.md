@@ -200,7 +200,7 @@ URLs being used is:
 
 ```js
 import 'data:text/javascript,console.log("hello!");';
-import _ from 'data:application/json,"world!"';
+import _ from 'data:application/json,"world!"' assert { type: 'json' };
 ```
 
 #### `node:` Imports
