@@ -2507,7 +2507,9 @@ Aliases of `outgoingMessage.socket`
 ### `outgoingMessage.cork()`
 
 <!-- YAML
-added: v14.0.0
+added:
+  - v13.2.0
+  - v12.16.0
 -->
 
 See [`writable.cork()`][].
@@ -2713,7 +2715,9 @@ After calling `outgoingMessage.end()`, this property will be nulled.
 ### `outgoingMessage.uncork()`
 
 <!-- YAML
-added: v14.0.0
+added:
+  - v13.2.0
+  - v12.16.0
 -->
 
 See [`writable.uncork()`][]
