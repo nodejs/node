@@ -438,6 +438,15 @@ deprecated:
 Emitted when the request has been aborted by the client. This event is only
 emitted on the first call to `abort()`.
 
+### Event: `'close'`
+
+<!-- YAML
+added: v0.5.4
+-->
+
+Indicates that the request is completed, or its underlying connection was
+terminated prematurely (before the response completion).
+
 ### Event: `'connect'`
 
 <!-- YAML
@@ -522,6 +531,17 @@ added: v0.3.2
 Emitted when the server sends a '100 Continue' HTTP response, usually because
 the request contained 'Expect: 100-continue'. This is an instruction that
 the client should send the request body.
+
+### Event: `'finish'`
+
+<!-- YAML
+added: v0.3.6
+-->
+
+Emitted when the request has been sent. More specifically, this event is emitted
+when the last segment of the response headers and body have been handed off to
+the operating system for transmission over the network. It does not imply that
+the server has received anything yet.
 
 ### Event: `'information'`
 
