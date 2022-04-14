@@ -1,139 +1,156 @@
 const t = require('tap')
-const { load: _loadMockNpm } = require('../../fixtures/mock-npm')
 
-t.test('should audit using Arborist', async t => {
-  let ARB_ARGS = null
-  let AUDIT_CALLED = false
-  let REIFY_FINISH_CALLED = false
-  let AUDIT_REPORT_CALLED = false
-  let ARB_OBJ = null
+const { load: loadMockNpm } = require('../../fixtures/mock-npm')
+const MockRegistry = require('../../fixtures/mock-registry.js')
+const util = require('util')
+const zlib = require('zlib')
+const gzip = util.promisify(zlib.gzip)
+const path = require('path')
+const fs = require('fs')
 
-  const loadMockNpm = (t) => _loadMockNpm(t, {
-    mocks: {
-      'npm-audit-report': () => {
-        AUDIT_REPORT_CALLED = true
-        return {
-          report: 'there are vulnerabilities',
-          exitCode: 0,
-        }
+t.cleanSnapshot = str => str.replace(/packages in [0-9]+[a-z]+/g, 'packages in xxx')
+
+const tree = {
+  'package.json': JSON.stringify({
+    name: 'test-dep',
+    version: '1.0.0',
+    dependencies: {
+      'test-dep-a': '*',
+    },
+  }),
+  'package-lock.json': JSON.stringify({
+    name: 'test-dep',
+    version: '1.0.0',
+    lockfileVersion: 2,
+    requires: true,
+    packages: {
+      '': {
+        xname: 'scratch',
+        version: '1.0.0',
+        dependencies: {
+          'test-dep-a': '*',
+        },
+        devDependencies: {},
       },
-      '@npmcli/arborist': function (args) {
-        ARB_ARGS = args
-        ARB_OBJ = this
-        this.audit = () => {
-          AUDIT_CALLED = true
-          this.auditReport = {}
-        }
-      },
-      '../../lib/utils/reify-finish.js': (npm, arb) => {
-        if (arb !== ARB_OBJ) {
-          throw new Error('got wrong object passed to reify-output')
-        }
-
-        REIFY_FINISH_CALLED = true
+      'node_modules/test-dep-a': {
+        name: 'test-dep-a',
+        version: '1.0.0',
       },
     },
+    dependencies: {
+      'test-dep-a': {
+        version: '1.0.0',
+      },
+    },
+  }),
+  'test-dep-a': {
+    'package.json': JSON.stringify({
+      name: 'test-dep-a',
+      version: '1.0.1',
+    }),
+    'fixed.txt': 'fixed test-dep-a',
+  },
+}
+
+t.test('normal audit', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    prefixDir: tree,
+  })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
   })
 
-  t.test('audit', async t => {
-    const { npm, outputs } = await loadMockNpm(t)
-    await npm.exec('audit', [])
-    t.match(ARB_ARGS, { audit: true, path: npm.prefix })
-    t.equal(AUDIT_CALLED, true, 'called audit')
-    t.equal(AUDIT_REPORT_CALLED, true, 'called audit report')
-    t.match(outputs, [['there are vulnerabilities']])
+  const manifest = registry.manifest({
+    name: 'test-dep-a',
+    packuments: [{ version: '1.0.0' }, { version: '1.0.1' }],
   })
+  await registry.package({ manifest })
+  const advisory = registry.advisory({ id: 100 })
+  const bulkBody = await gzip(JSON.stringify({ 'test-dep-a': ['1.0.0'] }))
+  registry.nock.post('/-/npm/v1/security/advisories/bulk', bulkBody)
+    .reply(200, {
+      'test-dep-a': [advisory],
+    })
 
-  t.test('audit fix', async t => {
-    const { npm } = await loadMockNpm(t)
-    await npm.exec('audit', ['fix'])
-    t.equal(REIFY_FINISH_CALLED, true, 'called reify output')
-  })
+  await npm.exec('audit', [])
+  t.ok(process.exitCode, 'would have exited uncleanly')
+  process.exitCode = 0
+  t.matchSnapshot(joinedOutput())
 })
 
-t.test('should audit - json', async t => {
-  t.plan(1)
-  const { npm } = await _loadMockNpm(t, {
-    mocks: {
-      'npm-audit-report': (_, opts) => {
-        t.match(opts.reporter, 'json')
-        return {
-          report: 'there are vulnerabilities',
-          exitCode: 0,
-        }
-      },
-      '@npmcli/arborist': function () {
-        this.audit = () => {
-          this.auditReport = {}
-        }
-      },
-      '../../lib/utils/reify-output.js': () => {},
-    },
+t.test('json audit', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    prefixDir: tree,
     config: {
       json: true,
     },
   })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+
+  const manifest = registry.manifest({
+    name: 'test-dep-a',
+    packuments: [{ version: '1.0.0' }, { version: '1.0.1' }],
+  })
+  await registry.package({ manifest })
+  const advisory = registry.advisory({ id: 100 })
+  const bulkBody = await gzip(JSON.stringify({ 'test-dep-a': ['1.0.0'] }))
+  registry.nock.post('/-/npm/v1/security/advisories/bulk', bulkBody)
+    .reply(200, {
+      'test-dep-a': [advisory],
+    })
+
   await npm.exec('audit', [])
+  t.ok(process.exitCode, 'would have exited uncleanly')
+  process.exitCode = 0
+  t.matchSnapshot(joinedOutput())
 })
 
-t.test('report endpoint error', async t => {
-  const loadMockNpm = (t, options) => _loadMockNpm(t, {
-    mocks: {
-      'npm-audit-report': () => {
-        throw new Error('should not call audit report when there are errors')
-      },
-      '@npmcli/arborist': function () {
-        this.audit = () => {
-          this.auditReport = {
-            error: {
-              message: 'hello, this didnt work',
-              method: 'POST',
-              uri: 'https://example.com/',
-              headers: {
-                head: ['ers'],
-              },
-              statusCode: 420,
-              body: 'this is a string',
-            },
-          }
-        }
-      },
-      '../../lib/utils/reify-output.js': () => {},
+t.test('audit fix', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    prefixDir: tree,
+  })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+  const manifest = registry.manifest({
+    name: 'test-dep-a',
+    packuments: [{ version: '1.0.0' }, { version: '1.0.1' }],
+  })
+  await registry.package({
+    manifest,
+    tarballs: {
+      '1.0.1': path.join(npm.prefix, 'test-dep-a'),
     },
-    ...options,
   })
-
-  t.test('json=false', async t => {
-    const { npm, outputs, logs } = await loadMockNpm(t, { config: { json: false } })
-    await t.rejects(npm.exec('audit', []), 'audit endpoint returned an error')
-    t.match(logs.warn, [['audit', 'hello, this didnt work']])
-    t.strictSame(outputs, [['this is a string']])
-  })
-
-  t.test('json=true', async t => {
-    const { npm, outputs, logs } = await loadMockNpm(t, { config: { json: true } })
-    await t.rejects(npm.exec('audit', []), 'audit endpoint returned an error')
-    t.match(logs.warn, [['audit', 'hello, this didnt work']])
-    t.strictSame(outputs, [[
-      '{\n' +
-      '  "message": "hello, this didnt work",\n' +
-      '  "method": "POST",\n' +
-      '  "uri": "https://example.com/",\n' +
-      '  "headers": {\n' +
-      '    "head": [\n' +
-      '      "ers"\n' +
-      '    ]\n' +
-      '  },\n' +
-      '  "statusCode": 420,\n' +
-      '  "body": "this is a string"\n' +
-      '}',
-    ],
-    ])
-  })
+  const advisory = registry.advisory({ id: 100, vulnerable_versions: '1.0.0' })
+  // Can't validate this request body because it changes with each node
+  // version/npm version and nock's body validation is not async, while
+  // zlib.gunzip is
+  registry.nock.post('/-/npm/v1/security/advisories/bulk')
+    .reply(200, { // first audit
+      'test-dep-a': [advisory],
+    })
+    .post('/-/npm/v1/security/advisories/bulk')
+    .reply(200, { // after fix
+      'test-dep-a': [advisory],
+    })
+  await npm.exec('audit', ['fix'])
+  t.matchSnapshot(joinedOutput())
+  const pkg = fs.readFileSync(path.join(npm.prefix, 'package-lock.json'), 'utf8')
+  t.matchSnapshot(pkg, 'lockfile has test-dep-a@1.0.1')
+  t.ok(
+    fs.existsSync(path.join(npm.prefix, 'node_modules', 'test-dep-a', 'fixed.txt')),
+    'has test-dep-a@1.0.1 on disk'
+  )
 })
 
 t.test('completion', async t => {
-  const { npm } = await _loadMockNpm(t)
+  const { npm } = await loadMockNpm(t)
   const audit = await npm.cmd('audit')
   t.test('fix', async t => {
     await t.resolveMatch(

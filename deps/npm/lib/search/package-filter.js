@@ -36,7 +36,7 @@ function filterWords (data, include, exclude, opts) {
 function match (words, pattern) {
   if (pattern.charAt(0) === '/') {
     pattern = pattern.replace(/\/$/, '')
-    pattern = new RegExp(pattern.substr(1, pattern.length - 1))
+    pattern = new RegExp(pattern.slice(1))
     return words.match(pattern)
   }
   return words.indexOf(pattern) !== -1

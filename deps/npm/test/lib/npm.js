@@ -609,16 +609,14 @@ t.test('implicit workspace rejection', async t => {
         workspaces: ['./packages/a'],
       }),
     },
-    globals: {
+    globals: ({ prefix }) => ({
+      'process.cwd': () => join(prefix, 'packages', 'a'),
       'process.argv': [
         process.execPath,
         process.argv[1],
         '--color', 'false',
         '--workspace', './packages/a',
       ],
-    },
-    config: ({ prefix }) => ({
-      workspace: { value: [join(prefix, 'packages', 'a')], where: 'default' },
     }),
   })
   await t.rejects(
@@ -646,15 +644,12 @@ t.test('implicit workspace accept', async t => {
       }),
     },
     globals: ({ prefix }) => ({
-      'process.cwd': () => prefix,
+      'process.cwd': () => join(prefix, 'packages', 'a'),
       'process.argv': [
         process.execPath,
         process.argv[1],
         '--color', 'false',
       ],
-    }),
-    config: ({ prefix }) => ({
-      workspace: { value: [join(prefix, 'packages', 'a')], where: 'default' },
     }),
   })
   await t.rejects(mock.npm.exec('org', []), /.*Usage/)

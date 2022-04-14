@@ -97,17 +97,17 @@ class Completion extends BaseCommand {
     const word = words[w]
     const line = COMP_LINE
     const point = +COMP_POINT
-    const partialLine = line.substr(0, point)
+    const partialLine = line.slice(0, point)
     const partialWords = words.slice(0, w)
 
     // figure out where in that last word the point is.
     const partialWordRaw = args[w]
     let i = partialWordRaw.length
-    while (partialWordRaw.substr(0, i) !== partialLine.substr(-1 * i) && i > 0) {
+    while (partialWordRaw.slice(0, i) !== partialLine.slice(-1 * i) && i > 0) {
       i--
     }
 
-    const partialWord = unescape(partialWordRaw.substr(0, i))
+    const partialWord = unescape(partialWordRaw.slice(0, i))
     partialWords.push(partialWord)
 
     const opts = {

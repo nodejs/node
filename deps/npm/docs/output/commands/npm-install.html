@@ -500,8 +500,7 @@ does.</p>
 <!-- raw HTML omitted -->
 <h4 id="save"><code>save</code></h4>
 <ul>
-<li>Default: <code>true</code> unless when using <code>npm update</code> or <code>npm dedupe</code> where it
-defaults to <code>false</code></li>
+<li>Default: <code>true</code> unless when using <code>npm update</code> where it defaults to <code>false</code></li>
 <li>Type: Boolean</li>
 </ul>
 <p>Save installed packages to a <code>package.json</code> file as dependencies.</p>
@@ -723,6 +722,7 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <p>When false, specifying individual workspaces via the <code>workspace</code> config, or
 all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.</p>
+<p>This value is not exported to the environment for child processes.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->

@@ -102,19 +102,24 @@ class Publish extends BaseCommand {
       logTar(pkgContents, { unicode })
     }
 
-    if (!dryRun) {
-      const resolved = npa.resolve(manifest.name, manifest.version)
-      const registry = npmFetch.pickRegistry(resolved, opts)
-      const creds = this.npm.config.getCredentialsByURI(registry)
-      const outputRegistry = replaceInfo(registry)
-      if (!creds.token && !creds.username) {
-        throw Object.assign(
-          new Error(`This command requires you to be logged in to ${outputRegistry}`), {
-            code: 'ENEEDAUTH',
-          }
-        )
+    const resolved = npa.resolve(manifest.name, manifest.version)
+    const registry = npmFetch.pickRegistry(resolved, opts)
+    const creds = this.npm.config.getCredentialsByURI(registry)
+    const noCreds = !creds.token && !creds.username
+    const outputRegistry = replaceInfo(registry)
+
+    if (noCreds) {
+      const msg = `This command requires you to be logged in to ${outputRegistry}`
+      if (dryRun) {
+        log.warn('', `${msg} (dry-run)`)
+      } else {
+        throw Object.assign(new Error(msg), { code: 'ENEEDAUTH' })
       }
-      log.notice('', `Publishing to ${outputRegistry}`)
+    }
+
+    log.notice('', `Publishing to ${outputRegistry}${dryRun ? ' (dry-run)' : ''}`)
+
+    if (!dryRun) {
       await otplease(opts, opts => libpub(manifest, tarballData, opts))
     }
 

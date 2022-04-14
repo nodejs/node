@@ -795,6 +795,8 @@ This option can be used when it's desirable to optionally run a script when
 it's present and fail if the script fails. This is useful, for example, when
 running scripts that may only apply for some builds in an otherwise generic
 CI setup.
+
+This value is not exported to the environment for child processes.
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for ignore-scripts 1`] = `
@@ -848,6 +850,8 @@ Include the workspace root when workspaces are enabled for a command.
 When false, specifying individual workspaces via the \`workspace\` config, or
 all workspaces via the \`workspaces\` flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.
+
+This value is not exported to the environment for child processes.
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for init-author-email 1`] = `
@@ -1424,8 +1428,7 @@ The base URL of the npm registry.
 exports[`test/lib/utils/config/definitions.js TAP > config description for save 1`] = `
 #### \`save\`
 
-* Default: \`true\` unless when using \`npm update\` or \`npm dedupe\` where it
-  defaults to \`false\`
+* Default: \`true\` unless when using \`npm update\` where it defaults to \`false\`
 * Type: Boolean
 
 Save installed packages to a \`package.json\` file as dependencies.
