@@ -28,8 +28,7 @@ if [ ! -f "${gon_exe}" ]; then
   (cd "${HOME}/.gon/" && rm -f gon && unzip "${gon_exe}.zip" && mv gon "${gon_exe}")
 fi
 
-cat tools/osx-gon-config.json.tmpl \
-  | sed -e "s/{{appleid}}/${NOTARIZATION_ID}/" -e "s/{{pkgid}}/${pkgid}/" \
+sed -e "s/{{appleid}}/${NOTARIZATION_ID}/" -e "s/{{pkgid}}/${pkgid}/" tools/osx-gon-config.json.tmpl \
   > gon-config.json
 
 "${gon_exe}" -log-level=info gon-config.json
