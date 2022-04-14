@@ -233,7 +233,7 @@ const wrapAll = s => {
         return (
           '* ' +
           block
-            .substr(1)
+            .slice(1)
             .trim()
             .split('\n* ')
             .map(li => {

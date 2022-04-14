@@ -53,7 +53,7 @@ const wrap = (arr) => {
       out[l] = c
     }
   }
-  return out.join('\n    ').substr(2)
+  return out.join('\n    ').slice(2)
 }
 
 const usages = async (npm) => {

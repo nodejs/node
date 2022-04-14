@@ -807,7 +807,7 @@ class Shrinkwrap {
       const pathFixed = !resolved ? null
         : !/^file:/.test(resolved) ? resolved
         // resolve onto the metadata path
-        : `file:${resolve(this.path, resolved.substr(5))}`
+        : `file:${resolve(this.path, resolved.slice(5))}`
 
       // if we have one, only set the other if it matches
       // otherwise it could be for a completely different thing.
@@ -1056,7 +1056,7 @@ class Shrinkwrap {
             // turn absolute file: paths into relative paths from the node
             // this especially shows up with workspace edges when the root
             // node is also a workspace in the set.
-            const p = resolve(node.realpath, spec.substr('file:'.length))
+            const p = resolve(node.realpath, spec.slice('file:'.length))
             set[k] = `file:${relpath(node.realpath, p)}`
           } else {
             set[k] = spec

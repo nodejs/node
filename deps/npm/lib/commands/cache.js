@@ -177,7 +177,7 @@ class Cache extends BaseCommand {
   async verify () {
     const cache = path.join(this.npm.cache, '_cacache')
     const prefix = cache.indexOf(process.env.HOME) === 0
-      ? `~${cache.substr(process.env.HOME.length)}`
+      ? `~${cache.slice(process.env.HOME.length)}`
       : cache
     const stats = await cacache.verify(cache)
     this.npm.output(`Cache verified and compressed (${prefix})`)

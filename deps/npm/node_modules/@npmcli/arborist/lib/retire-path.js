@@ -7,7 +7,7 @@ const pathSafeHash = s =>
     .update(s)
     .digest('base64')
     .replace(/[^a-zA-Z0-9]+/g, '')
-    .substr(0, 8)
+    .slice(0, 8)
 
 const retirePath = from => {
   const d = dirname(from)

@@ -10,9 +10,6 @@ const npm = {
 }
 
 const mockToken = (otherMocks) => t.mock('../../../lib/commands/token.js', {
-  '../../../lib/utils/otplease.js': (opts, fn) => {
-    return Promise.resolve().then(() => fn(opts))
-  },
   '../../../lib/utils/read-user-info.js': mocks.readUserInfo,
   'npm-profile': mocks.profile,
   ...otherMocks,

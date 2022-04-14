@@ -43,7 +43,6 @@ const libnpmorg = {
 }
 
 const Org = t.mock('../../../lib/commands/org.js', {
-  '../../../lib/utils/otplease.js': async (opts, fn) => fn(opts),
   libnpmorg,
 })
 const org = new Org(npm)

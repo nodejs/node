@@ -1,5 +1,9 @@
 # libnpmpublish
 
+[![npm version](https://img.shields.io/npm/v/libnpmpublish.svg)](https://npm.im/libnpmpublish)
+[![license](https://img.shields.io/npm/l/libnpmpublish.svg)](https://npm.im/libnpmpublish)
+[![CI - libnpmpublish](https://github.com/npm/cli/actions/workflows/ci-libnpmpublish.yml/badge.svg)](https://github.com/npm/cli/actions/workflows/ci-libnpmpublish.yml)
+
 [`libnpmpublish`](https://github.com/npm/libnpmpublish) is a Node.js
 library for programmatically publishing and unpublishing npm packages. Give
 it a manifest as an object and a tarball as a Buffer, and it'll put them on

@@ -163,9 +163,9 @@ t.test('if loglevel=info and json, should not output package contents', async t 
 
 t.test(
   /* eslint-disable-next-line max-len */
-  'if loglevel=silent and dry-run, should not output package contents or publish or validate credentials, should log tarball contents',
+  'if loglevel=silent and dry-run, should not output package contents or publish, should log tarball contents',
   async t => {
-    t.plan(1)
+    t.plan(2)
 
     const testDir = t.testdir({
       'package.json': JSON.stringify(
@@ -199,8 +199,9 @@ t.test(
         throw new Error('should not output in dry run mode')
       },
     }, t)
-    npm.config.getCredentialsByURI = () => {
-      throw new Error('should not call getCredentialsByURI in dry run')
+    npm.config.getCredentialsByURI = uri => {
+      t.same(uri, npm.config.get('registry'), 'gets credentials for expected registry')
+      return { token: 'some.registry.token' }
     }
 
     const publish = new Publish(npm)
@@ -213,7 +214,7 @@ t.test(
   /* eslint-disable-next-line max-len */
   'if loglevel=info and dry-run, should not publish, should log package contents and log tarball contents',
   async t => {
-    t.plan(2)
+    t.plan(3)
 
     const testDir = t.testdir({
       'package.json': JSON.stringify(
@@ -226,6 +227,18 @@ t.test(
       ),
     })
 
+    const npm = mockNpm({
+      config: { 'dry-run': true, loglevel: 'info' },
+      output: () => {
+        t.pass('output fn is called')
+      },
+    }, t)
+    const registry = npm.config.get('registry')
+    npm.config.getCredentialsByURI = uri => {
+      t.same(uri, registry, 'gets credentials for expected registry')
+      return { /* no token will call log.warn */ }
+    }
+
     const Publish = t.mock('../../../lib/commands/publish.js', {
       '../../../lib/utils/tar.js': {
         getContents: () => ({
@@ -234,6 +247,12 @@ t.test(
         logTar: () => {
           t.pass('logTar is called')
         },
+        'proc-log': {
+          warn (_, msg) {
+            t.match(msg,
+              `This command requires you to be logged in to ${registry} (dry-run)`)
+          },
+        },
       },
       libnpmpublish: {
         publish: () => {
@@ -241,15 +260,7 @@ t.test(
         },
       },
     })
-    const npm = mockNpm({
-      config: { 'dry-run': true, loglevel: 'info' },
-      output: () => {
-        t.pass('output fn is called')
-      },
-    }, t)
-    npm.config.getCredentialsByURI = () => {
-      throw new Error('should not call getCredentialsByURI in dry run')
-    }
+
     const publish = new Publish(npm)
 
     await publish.exec([testDir])

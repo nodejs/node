@@ -359,8 +359,10 @@ t.test('incorrect owner', async t => {
         ...fs,
         lstat: (p, cb) => {
           const stat = fs.lstatSync(p)
-          stat.uid += 1
-          stat.gid += 1
+          if (p.endsWith('_cacache')) {
+            stat.uid += 1
+            stat.gid += 1
+          }
           return cb(null, stat)
         },
       },

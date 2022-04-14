@@ -13,7 +13,7 @@ cmd.add = (name, endpoint, secret, opts = {}) => {
   }
   if (name[0] === '~') {
     type = 'owner'
-    name = name.substr(1)
+    name = name.slice(1)
   }
   return fetch.json('/-/npm/v1/hooks/hook', {
     ...opts,

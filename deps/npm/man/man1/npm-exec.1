@@ -1,4 +1,4 @@
-.TH "NPM\-EXEC" "1" "March 2022" "" ""
+.TH "NPM\-EXEC" "1" "April 2022" "" ""
 .SH "NAME"
 \fBnpm-exec\fR \- Run a command from a local or remote npm package
 .SS Synopsis
@@ -215,6 +215,8 @@ Include the workspace root when workspaces are enabled for a command\.
 When false, specifying individual workspaces via the \fBworkspace\fP config, or
 all workspaces via the \fBworkspaces\fP flag, will cause npm to operate only on
 the specified workspaces, and not on the root project\.
+.P
+This value is not exported to the environment for child processes\.
 .SS Examples
 .P
 Run the version of \fBtap\fP in the local dependencies, with the provided

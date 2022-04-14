@@ -1,6 +1,6 @@
 const fs = require('fs')
 const path = require('path')
-const color = require('ansicolors')
+const chalk = require('chalk')
 const { promisify } = require('util')
 const glob = promisify(require('glob'))
 const readFile = promisify(fs.readFile)
@@ -171,9 +171,9 @@ class HelpSearch extends BaseCommand {
           const finder = line.toLowerCase().split(arg.toLowerCase())
           let p = 0
           for (const f of finder) {
-            hilitLine.push(line.substr(p, f.length))
-            const word = line.substr(p + f.length, arg.length)
-            const hilit = color.bgBlack(color.red(word))
+            hilitLine.push(line.slice(p, p + f.length))
+            const word = line.slice(p + f.length, p + f.length + arg.length)
+            const hilit = chalk.bgBlack.red(word)
             hilitLine.push(hilit)
             p += f.length + arg.length
           }

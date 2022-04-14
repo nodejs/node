@@ -1,4 +1,4 @@
-.TH "NPM\-INSTALL" "1" "March 2022" "" ""
+.TH "NPM\-INSTALL" "1" "April 2022" "" ""
 .SH "NAME"
 \fBnpm-install\fR \- Install a package
 .SS Synopsis
@@ -438,8 +438,7 @@ These are some of the most common options related to installation\.
 .SS \fBsave\fP
 .RS 0
 .IP \(bu 2
-Default: \fBtrue\fP unless when using \fBnpm update\fP or \fBnpm dedupe\fP where it
-defaults to \fBfalse\fP
+Default: \fBtrue\fP unless when using \fBnpm update\fP where it defaults to \fBfalse\fP
 .IP \(bu 2
 Type: Boolean
 
@@ -726,6 +725,8 @@ Include the workspace root when workspaces are enabled for a command\.
 When false, specifying individual workspaces via the \fBworkspace\fP config, or
 all workspaces via the \fBworkspaces\fP flag, will cause npm to operate only on
 the specified workspaces, and not on the root project\.
+.P
+This value is not exported to the environment for child processes\.
 .SS Algorithm
 .P
 Given a \fBpackage{dep}\fP structure: \fBA{B,C}, B{C}, C{D}\fP,

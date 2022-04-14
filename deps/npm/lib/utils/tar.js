@@ -48,9 +48,9 @@ const logTar = (tarball, opts = {}) => {
         {
           name: 'integrity:',
           value:
-            tarball.integrity.toString().substr(0, 20) +
+            tarball.integrity.toString().slice(0, 20) +
             '[...]' +
-            tarball.integrity.toString().substr(80),
+            tarball.integrity.toString().slice(80),
         },
         tarball.bundled.length && { name: 'bundled deps:', value: tarball.bundled.length },
         tarball.bundled.length && {

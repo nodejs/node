@@ -1,5 +1,9 @@
 # @npmcli/arborist
 
+[![npm version](https://img.shields.io/npm/v/@npmcli/arborist.svg)](https://npm.im/@npmcli/arborist)
+[![license](https://img.shields.io/npm/l/@npmcli/arborist.svg)](https://npm.im/@npmcli/arborist)
+[![CI - @npmcli/arborist](https://github.com/npm/cli/actions/workflows/ci-npmcli-arborist.yml/badge.svg)](https://github.com/npm/cli/actions/workflows/ci-npmcli-arborist.yml)
+
 Inspect and manage `node_modules` trees.
 
 ![a tree with the word ARBORIST superimposed on it](https://raw.githubusercontent.com/npm/arborist/main/docs/logo.svg?sanitize=true)

@@ -47,56 +47,56 @@ github	https://github.com/npm
 `
 
 exports[`test/lib/commands/profile.js TAP profile get no args default output > should output table with contents 1`] = `
-name: foo
-email: foo@github.com (verified)
-two-factor auth: auth-and-writes
-fullname: Foo Bar
-homepage: https://github.com
-freenode: foobar
-twitter: https://twitter.com/npmjs
-github: https://github.com/npm
-created: 2015-02-26T01:26:37.384Z
-updated: 2020-08-12T16:19:35.326Z
+[1mname[22m: foo
+[1memail[22m: foo@github.com (verified)
+[1mtwo-factor auth[22m: auth-and-writes
+[1mfullname[22m: Foo Bar
+[1mhomepage[22m: https://github.com
+[1mfreenode[22m: foobar
+[1mtwitter[22m: https://twitter.com/npmjs
+[1mgithub[22m: https://github.com/npm
+[1mcreated[22m: 2015-02-26T01:26:37.384Z
+[1mupdated[22m: 2020-08-12T16:19:35.326Z
 `
 
 exports[`test/lib/commands/profile.js TAP profile get no args no tfa enabled > should output expected profile values 1`] = `
-name: foo
-email: foo@github.com (verified)
-two-factor auth: disabled
-fullname: Foo Bar
-homepage: https://github.com
-freenode: foobar
-twitter: https://twitter.com/npmjs
-github: https://github.com/npm
-created: 2015-02-26T01:26:37.384Z
-updated: 2020-08-12T16:19:35.326Z
+[1mname[22m: foo
+[1memail[22m: foo@github.com (verified)
+[1mtwo-factor auth[22m: disabled
+[1mfullname[22m: Foo Bar
+[1mhomepage[22m: https://github.com
+[1mfreenode[22m: foobar
+[1mtwitter[22m: https://twitter.com/npmjs
+[1mgithub[22m: https://github.com/npm
+[1mcreated[22m: 2015-02-26T01:26:37.384Z
+[1mupdated[22m: 2020-08-12T16:19:35.326Z
 `
 
 exports[`test/lib/commands/profile.js TAP profile get no args profile has cidr_whitelist item > should output table with contents 1`] = `
-name: foo
-email: foo@github.com (verified)
-two-factor auth: auth-and-writes
-fullname: Foo Bar
-homepage: https://github.com
-freenode: foobar
-twitter: https://twitter.com/npmjs
-github: https://github.com/npm
-created: 2015-02-26T01:26:37.384Z
-updated: 2020-08-12T16:19:35.326Z
-cidr_whitelist: 192.168.1.1
+[1mname[22m: foo
+[1memail[22m: foo@github.com (verified)
+[1mtwo-factor auth[22m: auth-and-writes
+[1mfullname[22m: Foo Bar
+[1mhomepage[22m: https://github.com
+[1mfreenode[22m: foobar
+[1mtwitter[22m: https://twitter.com/npmjs
+[1mgithub[22m: https://github.com/npm
+[1mcreated[22m: 2015-02-26T01:26:37.384Z
+[1mupdated[22m: 2020-08-12T16:19:35.326Z
+[1mcidr_whitelist[22m: 192.168.1.1
 `
 
 exports[`test/lib/commands/profile.js TAP profile get no args unverified email > should output table with contents 1`] = `
-name: foo
-email: foo@github.com(unverified)
-two-factor auth: auth-and-writes
-fullname: Foo Bar
-homepage: https://github.com
-freenode: foobar
-twitter: https://twitter.com/npmjs
-github: https://github.com/npm
-created: 2015-02-26T01:26:37.384Z
-updated: 2020-08-12T16:19:35.326Z
+[1mname[22m: foo
+[1memail[22m: foo@github.com(unverified)
+[1mtwo-factor auth[22m: auth-and-writes
+[1mfullname[22m: Foo Bar
+[1mhomepage[22m: https://github.com
+[1mfreenode[22m: foobar
+[1mtwitter[22m: https://twitter.com/npmjs
+[1mgithub[22m: https://github.com/npm
+[1mcreated[22m: 2015-02-26T01:26:37.384Z
+[1mupdated[22m: 2020-08-12T16:19:35.326Z
 `
 
 exports[`test/lib/commands/profile.js TAP profile set <key> <value> writable key --parseable > should output parseable set key success msg 1`] = `

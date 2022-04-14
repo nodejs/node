@@ -12,7 +12,6 @@ class Dedupe extends ArboristWorkspaceCmd {
     'legacy-bundling',
     'strict-peer-deps',
     'package-lock',
-    'save',
     'omit',
     'ignore-scripts',
     'audit',
@@ -29,19 +28,17 @@ class Dedupe extends ArboristWorkspaceCmd {
       throw er
     }
 
-    // In the context of `npm dedupe` the save
-    // config value should default to `false`
-    const save = this.npm.config.isDefault('save')
-      ? false
-      : this.npm.config.get('save')
-
     const dryRun = this.npm.config.get('dry-run')
     const where = this.npm.prefix
     const opts = {
       ...this.npm.flatOptions,
       path: where,
       dryRun,
-      save,
+      // Saving during dedupe would only update if one of your direct
+      // dependencies was also duplicated somewhere in your tree. It would be
+      // confusing if running this were to also update your package.json.  In
+      // order to reduce potential confusion we set this to false.
+      save: false,
       workspaces: this.workspaceNames,
     }
     const arb = new Arborist(opts)

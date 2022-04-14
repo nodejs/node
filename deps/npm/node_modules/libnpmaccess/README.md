@@ -2,8 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/libnpmaccess.svg)](https://npm.im/libnpmaccess)
 [![license](https://img.shields.io/npm/l/libnpmaccess.svg)](https://npm.im/libnpmaccess)
-[![GitHub Actions](https://github.com/npm/libnpmaccess/workflows/Node%20CI/badge.svg)](https://github.com/npm/libnpmaccess/actions?query=workflow%3A%22Node+CI%22)
-[![Coverage Status](https://coveralls.io/repos/github/npm/libnpmaccess/badge.svg?branch=latest)](https://coveralls.io/github/npm/libnpmaccess?branch=latest)
+[![CI - libnpmaccess](https://github.com/npm/cli/actions/workflows/ci-libnpmaccess.yml/badge.svg)](https://github.com/npm/cli/actions/workflows/ci-libnpmaccess.yml)
 
 [`libnpmaccess`](https://github.com/npm/libnpmaccess) is a Node.js
 library that provides programmatic access to the guts of the npm CLI's `npm

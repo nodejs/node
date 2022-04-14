@@ -215,6 +215,11 @@ class Edge {
 
   reload (hard = false) {
     this[_explanation] = null
+    if (this[_from].overrides) {
+      this.overrides = this[_from].overrides.getEdgeRule(this)
+    } else {
+      delete this.overrides
+    }
     const newTo = this[_from].resolve(this.name)
     if (newTo !== this[_to]) {
       if (this[_to]) {

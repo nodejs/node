@@ -127,7 +127,7 @@ green is a very important color
 
 [1m[31mDEPRECATED[39m[22m!! - true
 
-keywords:[33mcolors[39m, [33mgreen[39m, [33mcrayola[39m
+keywords:[33mcolors, green, crayola[39m
 
 bin:[33mgreen[39m
 
@@ -209,7 +209,7 @@ green is a very important color
 
 [1m[31mDEPRECATED[39m[22m!! - true
 
-keywords:[33mcolors[39m, [33mgreen[39m, [33mcrayola[39m
+keywords:[33mcolors, green, crayola[39m
 
 bin:[33mgreen[39m
 
@@ -440,7 +440,7 @@ green is a very important color
 
 [1m[31mDEPRECATED[39m[22m!! - true
 
-keywords:[33mcolors[39m, [33mgreen[39m, [33mcrayola[39m
+keywords:[33mcolors, green, crayola[39m
 
 bin:[33mgreen[39m
 
@@ -508,7 +508,7 @@ green is a very important color
 
 [1m[31mDEPRECATED[39m[22m!! - true
 
-keywords:[33mcolors[39m, [33mgreen[39m, [33mcrayola[39m
+keywords:[33mcolors, green, crayola[39m
 
 bin:[33mgreen[39m
 

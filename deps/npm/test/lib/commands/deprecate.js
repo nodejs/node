@@ -19,7 +19,6 @@ npmFetch.json = async (uri, opts) => {
 
 const Deprecate = t.mock('../../../lib/commands/deprecate.js', {
   '../../../lib/utils/get-identity.js': async () => getIdentityImpl(),
-  '../../../lib/utils/otplease.js': async (opts, fn) => fn(opts),
   libnpmaccess: {
     lsPackages: async () => ({ foo: 'write', bar: 'write', baz: 'write', buzz: 'read' }),
   },

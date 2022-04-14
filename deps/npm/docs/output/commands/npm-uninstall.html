@@ -162,7 +162,7 @@ on its behalf.</p>
 <p>It also removes the package from the <code>dependencies</code>, <code>devDependencies</code>,
 <code>optionalDependencies</code>, and <code>peerDependencies</code> objects in your
 <code>package.json</code>.</p>
-<p>Futher, if you have an <code>npm-shrinkwrap.json</code> or <code>package-lock.json</code>, npm
+<p>Further, if you have an <code>npm-shrinkwrap.json</code> or <code>package-lock.json</code>, npm
 will update those files as well.</p>
 <p><code>--no-save</code> will tell npm not to remove the package from your
 <code>package.json</code>, <code>npm-shrinkwrap.json</code>, or <code>package-lock.json</code> files.</p>
@@ -189,8 +189,7 @@ it uninstalls the current package context as a global package.
 <!-- raw HTML omitted -->
 <h4 id="save"><code>save</code></h4>
 <ul>
-<li>Default: <code>true</code> unless when using <code>npm update</code> or <code>npm dedupe</code> where it
-defaults to <code>false</code></li>
+<li>Default: <code>true</code> unless when using <code>npm update</code> where it defaults to <code>false</code></li>
 <li>Type: Boolean</li>
 </ul>
 <p>Save installed packages to a <code>package.json</code> file as dependencies.</p>
@@ -247,6 +246,7 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <p>When false, specifying individual workspaces via the <code>workspace</code> config, or
 all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.</p>
+<p>This value is not exported to the environment for child processes.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->

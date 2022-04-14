@@ -82,7 +82,7 @@ const unpublish = async (spec, opts) => {
         ...opts,
         query: { write: true },
       })
-      const tarballUrl = new URL(dist.tarball).pathname.substr(1)
+      const tarballUrl = new URL(dist.tarball).pathname.slice(1)
       await npmFetch(`${tarballUrl}/-rev/${_rev}`, {
         ...opts,
         method: 'DELETE',

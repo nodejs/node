@@ -1,6 +1,6 @@
 const SemVer = require('../classes/semver')
 const Comparator = require('../classes/comparator')
-const {ANY} = Comparator
+const { ANY } = Comparator
 const Range = require('../classes/range')
 const satisfies = require('../functions/satisfies')
 const gt = require('../functions/gt')

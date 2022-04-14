@@ -1,6 +1,9 @@
-[![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/npm/cli/Node%20CI/latest)](https://github.com/npm/cli/actions?query=workflow%3A%22Node+CI%22+branch%3Alatest) [![Coveralls github branch](https://img.shields.io/coveralls/github/npm/cli/latest)](https://coveralls.io/github/npm/cli?branch=latest)
-
 # npm - a JavaScript package manager
+
+[![npm version](https://img.shields.io/npm/v/npm.svg)](https://npm.im/npm)
+[![license](https://img.shields.io/npm/l/npm.svg)](https://npm.im/npm)
+[![CI - cli](https://github.com/npm/cli/actions/workflows/ci.yml/badge.svg)](https://github.com/npm/cli/actions/workflows/ci.yml)
+[![Benchmark Suite](https://github.com/npm/cli/actions/workflows/benchmark.yml/badge.svg)](https://github.com/npm/cli/actions/workflows/benchmark.yml)
 
 ### Requirements
 

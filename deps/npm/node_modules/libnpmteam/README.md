@@ -2,8 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/libnpmteam.svg)](https://npm.im/libnpmteam)
 [![license](https://img.shields.io/npm/l/libnpmteam.svg)](https://npm.im/libnpmteam)
-[![GitHub Actions](https://github.com/npm/libnpmteam/workflows/Node%20CI/badge.svg)](https://github.com/npm/libnpmteam/workflows/Node%20CI/badge.svg)
-[![Coverage Status](https://coveralls.io/repos/github/npm/libnpmteam/badge.svg?branch=latest)](https://coveralls.io/github/npm/libnpmteam?branch=latest)
+[![CI - libnpmteam](https://github.com/npm/cli/actions/workflows/ci-libnpmteam.yml/badge.svg)](https://github.com/npm/cli/actions/workflows/ci-libnpmteam.yml)
 
 [`libnpmteam`](https://github.com/npm/libnpmteam) is a Node.js
 library that provides programmatic access to the guts of the npm CLI's `npm

@@ -1,8 +1,8 @@
 const util = require('util')
 const fs = require('fs')
-const {stat} = fs.promises || { stat: util.promisify(fs.stat) };
+const { stat } = fs.promises || { stat: util.promisify(fs.stat) }
 
-async function isNodeGypPackage(path) {
+async function isNodeGypPackage (path) {
   return await stat(`${path}/binding.gyp`)
     .then(st => st.isFile())
     .catch(() => false)
@@ -10,5 +10,5 @@ async function isNodeGypPackage(path) {
 
 module.exports = {
   isNodeGypPackage,
-  defaultGypInstallScript: 'node-gyp rebuild'
+  defaultGypInstallScript: 'node-gyp rebuild',
 }

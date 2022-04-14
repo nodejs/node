@@ -1,7 +1,7 @@
 const t = require('tap')
 const { join } = require('path')
 const { fake: mockNpm } = require('../../fixtures/mock-npm')
-const ansicolors = require('ansicolors')
+const chalk = require('chalk')
 
 const OUTPUT = []
 const output = msg => {
@@ -106,7 +106,7 @@ t.test('npm help-search long output with color', async t => {
 
   await helpSearch.exec(['help-search'])
 
-  const highlightedText = ansicolors.bgBlack(ansicolors.red('help-search'))
+  const highlightedText = chalk.bgBlack.red('help-search')
   t.equal(
     OUTPUT.some(line => line.includes(highlightedText)),
     true,

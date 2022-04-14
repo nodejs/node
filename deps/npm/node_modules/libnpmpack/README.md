@@ -2,8 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/libnpmpack.svg)](https://npm.im/libnpmpack)
 [![license](https://img.shields.io/npm/l/libnpmpack.svg)](https://npm.im/libnpmpack)
-[![GitHub Actions](https://github.com/npm/libnpmpack/workflows/Node%20CI/badge.svg)](https://github.com/npm/libnpmpack/actions?query=workflow%3A%22Node+CI%22)
-[![Coverage Status](https://coveralls.io/repos/github/npm/libnpmpack/badge.svg?branch=latest)](https://coveralls.io/github/npm/libnpmpack?branch=latest)
+[![CI - libnpmpack](https://github.com/npm/cli/actions/workflows/ci-libnpmpack.yml/badge.svg)](https://github.com/npm/cli/actions/workflows/ci-libnpmpack.yml)
 
 [`libnpmpack`](https://github.com/npm/libnpmpack) is a Node.js library for
 programmatically packing tarballs from a local directory or from a registry or github spec. If packing from a local source, `libnpmpack` will also run the `prepack` and `postpack` lifecycles.

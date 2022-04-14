@@ -22,7 +22,6 @@ const npm = mockNpm({
 const mocks = {
   libnpmteam,
   'cli-columns': a => a.join(' '),
-  '../../../lib/utils/otplease.js': async (opts, fn) => fn(opts),
 }
 
 t.afterEach(() => {
