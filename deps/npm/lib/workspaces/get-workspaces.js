@@ -1,7 +1,10 @@
-const { resolve } = require('path')
+const { resolve, relative } = require('path')
 const mapWorkspaces = require('@npmcli/map-workspaces')
 const minimatch = require('minimatch')
 const rpj = require('read-package-json-fast')
+
+// minimatch wants forward slashes only for glob patterns
+const globify = pattern => pattern.split('\\').join('/')
 
 // Returns an Map of paths to workspaces indexed by workspace name
 // { foo => '/path/to/foo' }
@@ -20,9 +23,16 @@ const getWorkspaces = async (filters, { path, includeWorkspaceRoot, relativeFrom
 
   for (const filterArg of filters) {
     for (const [workspaceName, workspacePath] of workspaces.entries()) {
+      let relativePath = relative(relativeFrom, workspacePath)
+      if (filterArg.startsWith('./')) {
+        relativePath = `./${relativePath}`
+      }
+      const relativeFilter = relative(path, filterArg)
       if (filterArg === workspaceName
-        || resolve(relativeFrom || path, filterArg) === workspacePath
-        || minimatch(workspacePath, `${resolve(relativeFrom || path, filterArg)}/*`)) {
+        || resolve(relativeFrom, filterArg) === workspacePath
+        || minimatch(relativePath, `${globify(relativeFilter)}/*`)
+        || minimatch(relativePath, `${globify(filterArg)}/*`)
+      ) {
         res.set(workspaceName, workspacePath)
       }
     }

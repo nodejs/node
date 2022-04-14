@@ -12,7 +12,7 @@ t.test('with args, dev=true', async t => {
   let REIFY_CALLED = false
   let ARB_OBJ = null
 
-  const { npm, logs } = await loadMockNpm(t, {
+  const { npm } = await loadMockNpm(t, {
     '@npmcli/run-script': ({ event }) => {
       SCRIPTS.push(event)
     },
@@ -41,10 +41,7 @@ t.test('with args, dev=true', async t => {
   npm.prefix = path.resolve(t.testdir({}))
 
   await npm.exec('install', ['fizzbuzz'])
-  t.match(
-    logs.warn,
-    [['install', 'Usage of the `--dev` option is deprecated. Use `--include=dev` instead.']]
-  )
+
   t.match(
     ARB_ARGS,
     { global: false, path: npm.prefix, auditLevel: null },

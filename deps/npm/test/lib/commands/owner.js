@@ -21,7 +21,6 @@ const mocks = {
   'proc-log': log,
   'npm-registry-fetch': npmFetch,
   pacote,
-  '../../../lib/utils/otplease.js': async (opts, fn) => fn({ otp: '123456', opts }),
   '../../../lib/utils/read-package-name.js': async (prefix) => {
     readPackageNamePrefix = prefix
     return readPackageNameResponse
@@ -193,7 +192,6 @@ t.test('owner add <user> <pkg>', async t => {
           _rev: '1-foobaaa1',
           maintainers: npmcliMaintainers,
         },
-        otp: '123456',
         spec: {
           name: '@npmcli/map-workspaces',
         },
@@ -507,7 +505,6 @@ t.test('owner rm <user> <pkg>', async t => {
         body: {
           _rev: '1-foobaaa1',
         },
-        otp: '123456',
         spec: {
           name: '@npmcli/map-workspaces',
         },

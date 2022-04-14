@@ -1,6 +1,9 @@
 const t = require('tap')
 
 const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
+const MockRegistry = require('../../fixtures/mock-registry.js')
+
+const auth = { '//registry.npmjs.org/:_authToken': 'test-auth-token' }
 
 t.test('completion', async t => {
   const { npm } = await loadMockNpm(t)
@@ -75,27 +78,23 @@ t.test('access public on unscoped package', async t => {
 })
 
 t.test('access public on scoped package', async t => {
-  t.plan(2)
   const name = '@scoped/npm-access-public-pkg'
-  const { npm } = await loadMockNpm(t, {
-    mocks: {
-      libnpmaccess: {
-        public: (pkg, { registry }) => {
-          t.equal(pkg, name, 'should use pkg name ref')
-          t.equal(
-            registry,
-            'https://registry.npmjs.org/',
-            'should forward correct options'
-          )
-          return true
-        },
-      },
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: {
+      ...auth,
     },
     prefixDir: {
       'package.json': JSON.stringify({ name }),
     },
   })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  registry.access({ spec: name, access: 'public' })
   await npm.exec('access', ['public'])
+  t.equal(joinedOutput(), '')
 })
 
 t.test('access public on missing package.json', async t => {
@@ -137,27 +136,23 @@ t.test('access restricted on unscoped package', async t => {
 })
 
 t.test('access restricted on scoped package', async t => {
-  t.plan(2)
   const name = '@scoped/npm-access-restricted-pkg'
-  const { npm } = await loadMockNpm(t, {
-    mocks: {
-      libnpmaccess: {
-        restricted: (pkg, { registry }) => {
-          t.equal(pkg, name, 'should use pkg name ref')
-          t.equal(
-            registry,
-            'https://registry.npmjs.org/',
-            'should forward correct options'
-          )
-          return true
-        },
-      },
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: {
+      ...auth,
     },
     prefixDir: {
       'package.json': JSON.stringify({ name }),
     },
   })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  registry.access({ spec: name, access: 'restricted' })
   await npm.exec('access', ['restricted'])
+  t.equal(joinedOutput(), '')
 })
 
 t.test('access restricted on missing package.json', async t => {
@@ -184,61 +179,41 @@ t.test('access restricted on invalid package.json', async t => {
 })
 
 t.test('access grant read-only', async t => {
-  t.plan(3)
-  const { npm } = await loadMockNpm(t, {
-    mocks: {
-      libnpmaccess: {
-        grant: (spec, team, permissions) => {
-          t.equal(spec, '@scoped/another', 'should use expected spec')
-          t.equal(team, 'myorg:myteam', 'should use expected team')
-          t.equal(permissions, 'read-only', 'should forward permissions')
-          return true
-        },
-      },
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: {
+      ...auth,
     },
   })
-  await npm.exec('access', [
-    'grant',
-    'read-only',
-    'myorg:myteam',
-    '@scoped/another',
-  ])
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  registry.grant({ spec: '@scoped/another', team: 'myorg:myteam', permissions: 'read-only' })
+  await npm.exec('access', ['grant', 'read-only', 'myorg:myteam', '@scoped/another'])
+  t.equal(joinedOutput(), '')
 })
 
 t.test('access grant read-write', async t => {
-  t.plan(3)
-  const { npm } = await loadMockNpm(t, {
-    mocks: {
-      libnpmaccess: {
-        grant: (spec, team, permissions) => {
-          t.equal(spec, '@scoped/another', 'should use expected spec')
-          t.equal(team, 'myorg:myteam', 'should use expected team')
-          t.equal(permissions, 'read-write', 'should forward permissions')
-          return true
-        },
-      },
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: {
+      ...auth,
     },
   })
-  await npm.exec('access', [
-    'grant',
-    'read-write',
-    'myorg:myteam',
-    '@scoped/another',
-  ])
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  registry.grant({ spec: '@scoped/another', team: 'myorg:myteam', permissions: 'read-write' })
+  await npm.exec('access', ['grant', 'read-write', 'myorg:myteam', '@scoped/another'])
+  t.equal(joinedOutput(), '')
 })
 
 t.test('access grant current cwd', async t => {
-  t.plan(3)
-  const { npm } = await loadMockNpm(t, {
-    mocks: {
-      libnpmaccess: {
-        grant: (spec, team, permissions) => {
-          t.equal(spec, 'yargs', 'should use expected spec')
-          t.equal(team, 'myorg:myteam', 'should use expected team')
-          t.equal(permissions, 'read-write', 'should forward permissions')
-          return true
-        },
-      },
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: {
+      ...auth,
     },
     prefixDir: {
       'package.json': JSON.stringify({
@@ -246,11 +221,14 @@ t.test('access grant current cwd', async t => {
       }),
     },
   })
-  await npm.exec('access', [
-    'grant',
-    'read-write',
-    'myorg:myteam',
-  ])
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  registry.grant({ spec: 'yargs', team: 'myorg:myteam', permissions: 'read-write' })
+  await npm.exec('access', ['grant', 'read-write', 'myorg:myteam'])
+  t.equal(joinedOutput(), '')
 })
 
 t.test('access grant others', async t => {
@@ -295,44 +273,52 @@ t.test('access grant malformed team arg', async t => {
   )
 })
 
-t.test('access 2fa-required/2fa-not-required', async t => {
-  t.plan(2)
-  const { npm } = await loadMockNpm(t, {
-    mocks: {
-      libnpmaccess: {
-        tfaRequired: (spec) => {
-          t.equal(spec, '@scope/pkg', 'should use expected spec')
-          return true
-        },
-        tfaNotRequired: (spec) => {
-          t.equal(spec, 'unscoped-pkg', 'should use expected spec')
-          return true
-        },
-      },
+t.test('access 2fa-required', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: {
+      ...auth,
     },
   })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  registry.access({ spec: '@scope/pkg', publishRequires2fa: true })
   await npm.exec('access', ['2fa-required', '@scope/pkg'])
-  await npm.exec('access', ['2fa-not-required', 'unscoped-pkg'])
+  t.equal(joinedOutput(), '')
+})
+
+t.test('access 2fa-not-required', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: {
+      ...auth,
+    },
+  })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  registry.access({ spec: '@scope/pkg', publishRequires2fa: false })
+  await npm.exec('access', ['2fa-not-required', '@scope/pkg'])
+  t.equal(joinedOutput(), '')
 })
 
 t.test('access revoke', async t => {
-  t.plan(2)
-  const { npm } = await loadMockNpm(t, {
-    mocks: {
-      libnpmaccess: {
-        revoke: (spec, team) => {
-          t.equal(spec, '@scoped/another', 'should use expected spec')
-          t.equal(team, 'myorg:myteam', 'should use expected team')
-          return true
-        },
-      },
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: {
+      ...auth,
     },
   })
-  await npm.exec('access', [
-    'revoke',
-    'myorg:myteam',
-    '@scoped/another',
-  ])
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  registry.revoke({ spec: '@scoped/another', team: 'myorg:myteam' })
+  await npm.exec('access', ['revoke', 'myorg:myteam', '@scoped/another'])
+  t.equal(joinedOutput(), '')
 })
 
 t.test('access revoke missing team args', async t => {
@@ -362,49 +348,46 @@ t.test('access revoke malformed team arg', async t => {
 })
 
 t.test('npm access ls-packages with no team', async t => {
-  t.plan(1)
-  const { npm } = await loadMockNpm(t, {
-    mocks: {
-      libnpmaccess: {
-        lsPackages: (entity) => {
-          t.equal(entity, 'foo', 'should use expected entity')
-          return {}
-        },
-      },
-      '../../lib/utils/get-identity.js': () => Promise.resolve('foo'),
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: {
+      ...auth,
     },
   })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const team = 'foo'
+  const packages = { 'test-package': 'read-write' }
+  registry.whoami({ username: team })
+  registry.lsPackages({ team, packages })
   await npm.exec('access', ['ls-packages'])
+  t.match(JSON.parse(joinedOutput()), packages)
 })
 
 t.test('access ls-packages on team', async t => {
-  t.plan(1)
-  const { npm } = await loadMockNpm(t, {
-    mocks: {
-      libnpmaccess: {
-        lsPackages: (entity) => {
-          t.equal(entity, 'myorg:myteam', 'should use expected entity')
-          return {}
-        },
-      },
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: {
+      ...auth,
     },
   })
-  await npm.exec('access', [
-    'ls-packages',
-    'myorg:myteam',
-  ])
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const team = 'myorg:myteam'
+  const packages = { 'test-package': 'read-write' }
+  registry.lsPackages({ team, packages })
+  await npm.exec('access', ['ls-packages', 'myorg:myteam'])
+  t.match(JSON.parse(joinedOutput()), packages)
 })
 
 t.test('access ls-collaborators on current', async t => {
-  t.plan(1)
-  const { npm } = await loadMockNpm(t, {
-    mocks: {
-      libnpmaccess: {
-        lsCollaborators: (spec) => {
-          t.equal(spec, 'yargs', 'should use expected spec')
-          return {}
-        },
-      },
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: {
+      ...auth,
     },
     prefixDir: {
       'package.json': JSON.stringify({
@@ -412,23 +395,30 @@ t.test('access ls-collaborators on current', async t => {
       }),
     },
   })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const collaborators = { 'test-user': 'read-write' }
+  registry.lsCollaborators({ spec: 'yargs', collaborators })
   await npm.exec('access', ['ls-collaborators'])
+  t.match(JSON.parse(joinedOutput()), collaborators)
 })
 
 t.test('access ls-collaborators on spec', async t => {
-  t.plan(1)
-  const { npm } = await loadMockNpm(t, {
-    mocks: {
-      libnpmaccess: {
-        lsCollaborators: (spec) => {
-          t.equal(spec, 'yargs', 'should use expected spec')
-          return {}
-        },
-      },
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: {
+      ...auth,
     },
   })
-  await npm.exec('access', [
-    'ls-collaborators',
-    'yargs',
-  ])
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const collaborators = { 'test-user': 'read-write' }
+  registry.lsCollaborators({ spec: 'yargs', collaborators })
+  await npm.exec('access', ['ls-collaborators', 'yargs'])
+  t.match(JSON.parse(joinedOutput()), collaborators)
 })

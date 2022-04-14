@@ -16,7 +16,7 @@ module.exports = (name, tgz) => {
     // basename checking.  Note that registries can
     // be mounted below the root url, so /a/b/-/x/y/foo/-/foo-1.2.3.tgz
     // is a potential option.
-    const tfsplit = u.path.substr(1).split('/-/')
+    const tfsplit = u.path.slice(1).split('/-/')
     if (tfsplit.length > 1) {
       const afterTF = tfsplit.pop()
       if (afterTF === base) {
