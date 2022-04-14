@@ -293,7 +293,6 @@ All commands:
                     
                     Options:
                     [--global-style] [--legacy-bundling] [--strict-peer-deps] [--no-package-lock]
-                    [-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
                     [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]] [--ignore-scripts]
                     [--no-audit] [--no-bin-links] [--no-fund] [--dry-run]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]

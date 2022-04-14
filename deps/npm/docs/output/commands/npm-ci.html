@@ -179,6 +179,12 @@ before <code>npm ci</code> begins its install.</li>
 <li>It will never write to <code>package.json</code> or any of the package-locks:
 installs are essentially frozen.</li>
 </ul>
+<p>NOTE: If you create your <code>package-lock.json</code> file by running <code>npm install</code>
+with flags that can affect the shape of your dependency tree, such as
+<code>--legacy-peer-deps</code>, you <em>must</em> provide the same flags to <code>npm ci</code> or you
+are likely to encounter errors. An easy way to do this is to run
+<code>npm config set legacy-peer-deps=true --location=project</code> and commit the
+<code>.npmrc</code> file to your repo.</p>
 <h3 id="example">Example</h3>
 <p>Make sure you have a package-lock and an up-to-date install:</p>
 <pre lang="bash"><code>$ cd ./my/npm/project

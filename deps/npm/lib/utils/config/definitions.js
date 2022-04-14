@@ -880,6 +880,7 @@ define('https-proxy', {
 define('if-present', {
   default: false,
   type: Boolean,
+  envExport: false,
   description: `
     If true, npm will not exit with an error code when \`run-script\` is
     invoked for a script that isn't defined in the \`scripts\` section of
@@ -938,6 +939,7 @@ define('include-staged', {
 define('include-workspace-root', {
   default: false,
   type: Boolean,
+  envExport: false,
   description: `
     Include the workspace root when workspaces are enabled for a command.
 
@@ -1605,8 +1607,8 @@ define('registry', {
 
 define('save', {
   default: true,
-  defaultDescription: `\`true\` unless when using \`npm update\` or
-  \`npm dedupe\` where it defaults to \`false\``,
+  defaultDescription: `\`true\` unless when using \`npm update\` where it
+  defaults to \`false\``,
   usage: '-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle',
   type: Boolean,
   short: 'S',
