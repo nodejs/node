@@ -145,7 +145,7 @@ class Doctor extends BaseCommand {
       return ''
     } catch (er) {
       if (/^E\d{3}$/.test(er.code || '')) {
-        throw er.code.substr(1) + ' ' + er.message
+        throw er.code.slice(1) + ' ' + er.message
       } else {
         throw er.message
       }
@@ -211,7 +211,7 @@ class Doctor extends BaseCommand {
       const gid = process.getgid()
       const files = new Set([root])
       for (const f of files) {
-        tracker.silly('checkFilesPermission', f.substr(root.length + 1))
+        tracker.silly('checkFilesPermission', f.slice(root.length + 1))
         const st = await lstat(f).catch(er => {
           // if it can't be missing, or if it can and the error wasn't that it was missing
           if (!missingOk || er.code !== 'ENOENT') {

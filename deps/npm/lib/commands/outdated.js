@@ -2,8 +2,7 @@ const os = require('os')
 const path = require('path')
 const pacote = require('pacote')
 const table = require('text-table')
-const color = require('chalk')
-const styles = require('ansistyles')
+const chalk = require('chalk')
 const npa = require('npm-package-arg')
 const pickManifest = require('npm-pick-manifest')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
@@ -106,7 +105,7 @@ class Outdated extends ArboristWorkspaceCmd {
       const outTable = [outHead].concat(outList)
 
       if (this.npm.color) {
-        outTable[0] = outTable[0].map(heading => styles.underline(heading))
+        outTable[0] = outTable[0].map(heading => chalk.underline(heading))
       }
 
       const tableOpts = {
@@ -208,7 +207,7 @@ class Outdated extends ArboristWorkspaceCmd {
       : edge.dev ? 'devDependencies'
       : 'dependencies'
 
-    for (const omitType of this.npm.config.get('omit')) {
+    for (const omitType of this.npm.flatOptions.omit) {
       if (node[omitType]) {
         return
       }
@@ -282,7 +281,7 @@ class Outdated extends ArboristWorkspaceCmd {
         : node.name
 
     return this.npm.color && humanOutput
-      ? color.green(workspaceName)
+      ? chalk.green(workspaceName)
       : workspaceName
   }
 
@@ -307,9 +306,9 @@ class Outdated extends ArboristWorkspaceCmd {
     }
 
     if (this.npm.color) {
-      columns[0] = color[current === wanted ? 'yellow' : 'red'](columns[0]) // current
-      columns[2] = color.green(columns[2]) // wanted
-      columns[3] = color.magenta(columns[3]) // latest
+      columns[0] = chalk[current === wanted ? 'yellow' : 'red'](columns[0]) // current
+      columns[2] = chalk.green(columns[2]) // wanted
+      columns[3] = chalk.magenta(columns[3]) // latest
     }
 
     return columns

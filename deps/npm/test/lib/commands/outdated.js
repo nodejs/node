@@ -84,10 +84,6 @@ const globalDir = t.testdir({
   },
 })
 
-const flatOptions = {
-  workspacesEnabled: true,
-}
-
 const outdated = (dir, opts) => {
   logs = ''
   const Outdated = t.mock('../../../lib/commands/outdated.js', {
@@ -95,11 +91,22 @@ const outdated = (dir, opts) => {
       packument,
     },
   })
+  if (opts.config && opts.config.omit) {
+    opts.flatOptions = {
+      omit: opts.config.omit,
+      ...opts.flatOptions,
+    }
+    delete opts.config.omit
+  }
   const npm = mockNpm({
     ...opts,
     localPrefix: dir,
     prefix: dir,
-    flatOptions,
+    flatOptions: {
+      workspacesEnabled: true,
+      omit: [],
+      ...opts.flatOptions,
+    },
     globalDir: `${globalDir}/node_modules`,
     output,
   })
@@ -529,14 +536,16 @@ t.test('workspaces', async t => {
   t.matchSnapshot(logs, 'should display ws outdated deps human output')
   t.equal(process.exitCode, 1)
 
-  flatOptions.workspacesEnabled = false
-  await outdated(testDir, {}).exec([])
+  await outdated(testDir, {
+    flatOptions: {
+      workspacesEnabled: false,
+    },
+  }).exec([])
 
   // TODO: This should display dog, but doesn't because arborist filters
   // workspace deps even if they're also root deps
   // This will be fixed in a future arborist version
   t.matchSnapshot(logs, 'should display only root outdated when ws disabled')
-  flatOptions.workspacesEnabled = true
 
   await outdated(testDir, {
     config: {

@@ -266,6 +266,9 @@ ${defData}
     if (!long) {
       msg.push(
         `; node bin location = ${process.execPath}`,
+        `; node version = ${process.version}`,
+        `; npm local prefix = ${this.npm.localPrefix}`,
+        `; npm version = ${this.npm.version}`,
         `; cwd = ${process.cwd()}`,
         `; HOME = ${process.env.HOME}`,
         '; Run `npm config ls -l` to show all defaults.'
