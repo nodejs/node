@@ -93,15 +93,11 @@ const SnapshotData* SnapshotBuilder::GetEmbeddedSnapshotData() {
   return ss.str();
 }
 
-std::unique_ptr<ExternalReferenceRegistry> SnapshotBuilder::registry_ = nullptr;
 Mutex SnapshotBuilder::snapshot_data_mutex_;
 
 const std::vector<intptr_t>& SnapshotBuilder::CollectExternalReferences() {
-  Mutex::ScopedLock lock(snapshot_data_mutex_);
-  if (registry_ == nullptr) {
-    registry_.reset(new ExternalReferenceRegistry());
-  }
-  return registry_->external_references();
+  static auto registry = std::make_unique<ExternalReferenceRegistry>();
+  return registry->external_references();
 }
 
 void SnapshotBuilder::InitializeIsolateParams(const SnapshotData* data,
