@@ -2721,7 +2721,9 @@ See [`writable.uncork()`][]
 ### `outgoingMessage.writableCorked`
 
 <!-- YAML
-added: v14.0.0
+added:
+  - v13.2.0
+  - v12.16.0
 -->
 
 * {number}
@@ -2732,7 +2734,7 @@ This `outgoingMessage.writableCorked` will return the time how many
 ### `outgoingMessage.writableEnded`
 
 <!-- YAML
-added: v13.0.0
+added: v12.9.0
 -->
 
 * {boolean}
@@ -2744,7 +2746,7 @@ purpose, use `message.writableFinished` instead.
 ### `outgoingMessage.writableFinished`
 
 <!-- YAML
-added: v13.0.0
+added: v12.7.0
 -->
 
 * {boolean}
@@ -2754,7 +2756,7 @@ Readonly. `true` if all data has been flushed to the underlying system.
 ### `outgoingMessage.writableHighWaterMark`
 
 <!-- YAML
-added: v13.0.0
+added: v12.9.0
 -->
 
 * {number}
@@ -2769,7 +2771,7 @@ buffered by the socket.
 ### `outgoingMessage.writableLength`
 
 <!-- YAML
-added: v13.0.0
+added: v12.9.0
 -->
 
 * {number}
@@ -2780,7 +2782,7 @@ bytes (or objects) in the buffer ready to send.
 ### `outgoingMessage.writableObjectMode`
 
 <!-- YAML
-added: v13.0.0
+added: v12.9.0
 -->
 
 * {boolean}
