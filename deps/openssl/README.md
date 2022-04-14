@@ -51,7 +51,6 @@ Here is a list of supported architectures for use of ASM in OpenSSL.
   | linux     | x64        | linux-x86_64         | o   |
   | linux     | arm        | linux-armv4          | o   |
   | linux     | arm64      | linux-aarch64        | o   |
-  | linux     | ppc        | linux-ppc            | o   |
   | linux     | ppc64      | linux-ppc64          | o   |
   | linux     | ppc64(*1)  | linux-ppc64le        | o   |
   | linux     | s390       | linux32-s390x        | o   |
