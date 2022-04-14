@@ -342,6 +342,9 @@ prefix = "{LOCALPREFIX}"
 userconfig = "{HOME}/.npmrc"
 
 ; node bin location = {EXECPATH}
+; node version = {NODE-VERSION}
+; npm local prefix = {LOCALPREFIX}
+; npm version = {NPM-VERSION}
 ; cwd = {NPMDIR}
 ; HOME = {HOME}
 ; Run \`npm config ls -l\` to show all defaults.
@@ -355,6 +358,9 @@ prefix = "{LOCALPREFIX}"
 userconfig = "{HOME}/.npmrc"
 
 ; node bin location = {EXECPATH}
+; node version = {NODE-VERSION}
+; npm local prefix = {LOCALPREFIX}
+; npm version = {NPM-VERSION}
 ; cwd = {NPMDIR}
 ; HOME = {HOME}
 ; Run \`npm config ls -l\` to show all defaults.
@@ -383,6 +389,9 @@ prefix = "{LOCALPREFIX}"
 userconfig = "{HOME}/.npmrc"
 
 ; node bin location = {EXECPATH}
+; node version = {NODE-VERSION}
+; npm local prefix = {LOCALPREFIX}
+; npm version = {NPM-VERSION}
 ; cwd = {NPMDIR}
 ; HOME = {HOME}
 ; Run \`npm config ls -l\` to show all defaults.

@@ -28,8 +28,9 @@ const updateDependencies = ({ content, originalContent }) => {
   // optionalDependencies don't need to be repeated in two places
   if (pkg.dependencies) {
     if (pkg.optionalDependencies) {
-      for (const name of Object.keys(pkg.optionalDependencies))
+      for (const name of Object.keys(pkg.optionalDependencies)) {
         delete pkg.dependencies[name]
+      }
     }
   }
 
@@ -37,16 +38,18 @@ const updateDependencies = ({ content, originalContent }) => {
 
   // loop through all types of dependencies and update package json pkg
   for (const type of depTypes) {
-    if (pkg[type])
+    if (pkg[type]) {
       result[type] = pkg[type]
+    }
 
     // prune empty type props from resulting object
     const emptyDepType =
       pkg[type]
       && typeof pkg === 'object'
       && Object.keys(pkg[type]).length === 0
-    if (emptyDepType)
+    if (emptyDepType) {
       delete result[type]
+    }
   }
 
   // if original package.json had dep in peerDeps AND deps, preserve that.

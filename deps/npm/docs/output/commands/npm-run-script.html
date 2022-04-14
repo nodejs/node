@@ -290,6 +290,7 @@ other things (test, exec, publish, etc.) will operate on the root project,
 <p>When false, specifying individual workspaces via the <code>workspace</code> config, or
 all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.</p>
+<p>This value is not exported to the environment for child processes.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="if-present"><code>if-present</code></h4>
@@ -303,6 +304,7 @@ This option can be used when it's desirable to optionally run a script when
 it's present and fail if the script fails. This is useful, for example, when
 running scripts that may only apply for some builds in an otherwise generic
 CI setup.</p>
+<p>This value is not exported to the environment for child processes.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="ignore-scripts"><code>ignore-scripts</code></h4>

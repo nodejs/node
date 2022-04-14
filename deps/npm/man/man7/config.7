@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "March 2022" "" ""
+.TH "CONFIG" "7" "April 2022" "" ""
 .SH "NAME"
 \fBconfig\fR \- More than you probably want to know about npm configuration
 .SS Description
@@ -821,6 +821,8 @@ This option can be used when it's desirable to optionally run a script when
 it's present and fail if the script fails\. This is useful, for example, when
 running scripts that may only apply for some builds in an otherwise generic
 CI setup\.
+.P
+This value is not exported to the environment for child processes\.
 .SS \fBignore\-scripts\fP
 .RS 0
 .IP \(bu 2
@@ -878,6 +880,8 @@ Include the workspace root when workspaces are enabled for a command\.
 When false, specifying individual workspaces via the \fBworkspace\fP config, or
 all workspaces via the \fBworkspaces\fP flag, will cause npm to operate only on
 the specified workspaces, and not on the root project\.
+.P
+This value is not exported to the environment for child processes\.
 .SS \fBinit\-author\-email\fP
 .RS 0
 .IP \(bu 2
@@ -1405,8 +1409,7 @@ The base URL of the npm registry\.
 .SS \fBsave\fP
 .RS 0
 .IP \(bu 2
-Default: \fBtrue\fP unless when using \fBnpm update\fP or \fBnpm dedupe\fP where it
-defaults to \fBfalse\fP
+Default: \fBtrue\fP unless when using \fBnpm update\fP where it defaults to \fBfalse\fP
 .IP \(bu 2
 Type: Boolean
 

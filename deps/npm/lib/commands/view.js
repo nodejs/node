@@ -3,7 +3,7 @@
 
 // npm view [pkg [pkg ...]]
 
-const color = require('ansicolors')
+const chalk = require('chalk')
 const columns = require('cli-columns')
 const fs = require('fs')
 const jsonParse = require('json-parse-even-better-errors')
@@ -13,7 +13,6 @@ const { resolve } = require('path')
 const formatBytes = require('../utils/format-bytes.js')
 const relativeDate = require('tiny-relative-date')
 const semver = require('semver')
-const style = require('ansistyles')
 const { inspect, promisify } = require('util')
 const { packument } = require('pacote')
 
@@ -318,34 +317,34 @@ class View extends BaseCommand {
 
     Object.keys(packument['dist-tags']).forEach((t) => {
       const version = packument['dist-tags'][t]
-      tags.push(`${style.bright(color.green(t))}: ${version}`)
+      tags.push(`${chalk.bold.green(t)}: ${version}`)
     })
     const unpackedSize = manifest.dist.unpackedSize &&
       formatBytes(manifest.dist.unpackedSize, true)
     const licenseField = manifest.license || 'Proprietary'
     const info = {
-      name: color.green(manifest.name),
-      version: color.green(manifest.version),
-      bins: Object.keys(manifest.bin || {}).map(color.yellow),
-      versions: color.yellow(packument.versions.length + ''),
+      name: chalk.green(manifest.name),
+      version: chalk.green(manifest.version),
+      bins: Object.keys(manifest.bin || {}),
+      versions: chalk.yellow(packument.versions.length + ''),
       description: manifest.description,
       deprecated: manifest.deprecated,
-      keywords: (packument.keywords || []).map(color.yellow),
+      keywords: packument.keywords || [],
       license: typeof licenseField === 'string'
         ? licenseField
         : (licenseField.type || 'Proprietary'),
       deps: Object.keys(manifest.dependencies || {}).map((dep) => {
-        return `${color.yellow(dep)}: ${manifest.dependencies[dep]}`
+        return `${chalk.yellow(dep)}: ${manifest.dependencies[dep]}`
       }),
       publisher: manifest._npmUser && unparsePerson({
-        name: color.yellow(manifest._npmUser.name),
-        email: color.cyan(manifest._npmUser.email),
+        name: chalk.yellow(manifest._npmUser.name),
+        email: chalk.cyan(manifest._npmUser.email),
       }),
       modified: !packument.time ? undefined
-      : color.yellow(relativeDate(packument.time[manifest.version])),
+      : chalk.yellow(relativeDate(packument.time[manifest.version])),
       maintainers: (packument.maintainers || []).map((u) => unparsePerson({
-        name: color.yellow(u.name),
-        email: color.cyan(u.email),
+        name: chalk.yellow(u.name),
+        email: chalk.cyan(u.email),
       })),
       repo: (
         manifest.bugs && (manifest.bugs.url || manifest.bugs)
@@ -356,47 +355,47 @@ class View extends BaseCommand {
         manifest.homepage && (manifest.homepage.url || manifest.homepage)
       ),
       tags,
-      tarball: color.cyan(manifest.dist.tarball),
-      shasum: color.yellow(manifest.dist.shasum),
+      tarball: chalk.cyan(manifest.dist.tarball),
+      shasum: chalk.yellow(manifest.dist.shasum),
       integrity:
-        manifest.dist.integrity && color.yellow(manifest.dist.integrity),
+        manifest.dist.integrity && chalk.yellow(manifest.dist.integrity),
       fileCount:
-        manifest.dist.fileCount && color.yellow(manifest.dist.fileCount),
-      unpackedSize: unpackedSize && color.yellow(unpackedSize),
+        manifest.dist.fileCount && chalk.yellow(manifest.dist.fileCount),
+      unpackedSize: unpackedSize && chalk.yellow(unpackedSize),
     }
     if (info.license.toLowerCase().trim() === 'proprietary') {
-      info.license = style.bright(color.red(info.license))
+      info.license = chalk.bold.red(info.license)
     } else {
-      info.license = color.green(info.license)
+      info.license = chalk.green(info.license)
     }
 
     console.log('')
     console.log(
-      style.underline(style.bright(`${info.name}@${info.version}`)) +
+      chalk.underline.bold(`${info.name}@${info.version}`) +
       ' | ' + info.license +
-      ' | deps: ' + (info.deps.length ? color.cyan(info.deps.length) : color.green('none')) +
+      ' | deps: ' + (info.deps.length ? chalk.cyan(info.deps.length) : chalk.green('none')) +
       ' | versions: ' + info.versions
     )
     info.description && console.log(info.description)
     if (info.repo || info.site) {
-      info.site && console.log(color.cyan(info.site))
+      info.site && console.log(chalk.cyan(info.site))
     }
 
     const warningSign = unicode ? ' ⚠️ ' : '!!'
     info.deprecated && console.log(
-      `\n${style.bright(color.red('DEPRECATED'))}${
+      `\n${chalk.bold.red('DEPRECATED')}${
       warningSign
     } - ${info.deprecated}`
     )
 
     if (info.keywords.length) {
       console.log('')
-      console.log('keywords:', info.keywords.join(', '))
+      console.log('keywords:', chalk.yellow(info.keywords.join(', ')))
     }
 
     if (info.bins.length) {
       console.log('')
-      console.log('bin:', info.bins.join(', '))
+      console.log('bin:', chalk.yellow(info.bins.join(', ')))
     }
 
     console.log('')

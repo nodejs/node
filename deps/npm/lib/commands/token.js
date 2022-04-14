@@ -1,5 +1,5 @@
 const Table = require('cli-table3')
-const ansistyles = require('ansistyles')
+const chalk = require('chalk')
 const { v4: isCidrV4, v6: isCidrV6 } = require('is-cidr')
 const log = require('../utils/log-shim.js')
 const profile = require('npm-profile')
@@ -161,7 +161,7 @@ class Token extends BaseCommand {
         } else {
           const table = new Table()
           for (const k of Object.keys(result)) {
-            table.push({ [ansistyles.bright(k)]: String(result[k]) })
+            table.push({ [chalk.bold(k)]: String(result[k]) })
           }
           this.npm.output(table.toString())
         }

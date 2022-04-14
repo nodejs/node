@@ -8,17 +8,21 @@ const lte = require('./lte')
 const cmp = (a, op, b, loose) => {
   switch (op) {
     case '===':
-      if (typeof a === 'object')
+      if (typeof a === 'object') {
         a = a.version
-      if (typeof b === 'object')
+      }
+      if (typeof b === 'object') {
         b = b.version
+      }
       return a === b
 
     case '!==':
-      if (typeof a === 'object')
+      if (typeof a === 'object') {
         a = a.version
-      if (typeof b === 'object')
+      }
+      if (typeof b === 'object') {
         b = b.version
+      }
       return a !== b
 
     case '':
