@@ -33,8 +33,6 @@
 # include "./archs/solaris64-x86_64-gcc/asm/include/crypto/dso_conf.h"
 #elif defined(OPENSSL_LINUX) && defined(__PPC64__)  && defined(L_ENDIAN)
 # include "./archs/linux-ppc64le/asm/include/crypto/dso_conf.h"
-#elif defined(OPENSSL_LINUX) && defined(__PPC64__)
-# include "./archs/linux-ppc64/asm/include/crypto/dso_conf.h"
 #elif defined(_AIX) && defined(_ARCH_PPC64)
 # include "./archs/aix64-gcc-as/asm/include/crypto/dso_conf.h"
 #elif defined(OPENSSL_LINUX) && defined(__s390x__)
