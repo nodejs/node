@@ -31,7 +31,7 @@ for (const options of [
   { length: expected.length, position: 0 },
   { offset: 0, length: expected.length, position: 0 },
 
-  { offset: null },
+  { offset: false },
   { position: null },
   { position: -1 },
   { position: 0n },
@@ -39,18 +39,8 @@ for (const options of [
   // Test default params
   {},
   null,
-  undefined,
-
-  // Test if bad params are interpreted as default (not mandatory)
-  false,
-  true,
-  Infinity,
-  42n,
-  Symbol(),
 
   // Test even more malicious corner cases
-  '4'.repeat(expected.length),
-  new String('4444'),
   [4, 4, 4, 4],
 ]) {
   runTest(Buffer.allocUnsafe(expected.length), options);
