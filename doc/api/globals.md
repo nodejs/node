@@ -348,7 +348,7 @@ added: v17.6.0
 
 A browser-compatible implementation of {Crypto}. This global is available
 only if the Node.js binary was compiled with including support for the
-`crypto` module.
+`node:crypto` module.
 
 ## `crypto`
 
@@ -372,7 +372,7 @@ added: v17.6.0
 
 A browser-compatible implementation of {CryptoKey}. This global is available
 only if the Node.js binary was compiled with including support for the
-`crypto` module.
+`node:crypto` module.
 
 ## Class: `DecompressionStream`
 
@@ -693,7 +693,7 @@ added: v17.6.0
 
 A browser-compatible implementation of {SubtleCrypto}. This global is available
 only if the Node.js binary was compiled with including support for the
-`crypto` module.
+`node:crypto` module.
 
 ## `DOMException`
 

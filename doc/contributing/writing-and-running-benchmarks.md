@@ -479,7 +479,7 @@ the code inside the `main` function if it's more than just declaration.
 ```js
 'use strict';
 const common = require('../common.js');
-const { SlowBuffer } = require('buffer');
+const { SlowBuffer } = require('node:buffer');
 
 const configs = {
   // Number of operations, specified here so they show up in the report.
@@ -539,7 +539,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  const http = require('http');
+  const http = require('node:http');
   const len = conf.kb * 1024;
   const chunk = Buffer.alloc(len, 'x');
   const server = http.createServer((req, res) => {
