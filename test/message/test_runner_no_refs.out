@@ -3,8 +3,8 @@ TAP version 13
       ---
       duration_ms: *
       failureType: 'cancelledByParent'
-      error: "'test did not finish before its parent and was cancelled'"
-      code: ERR_TEST_FAILURE
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
       stack: |-
         *
       ...
@@ -13,8 +13,8 @@ not ok 1 - does not keep event loop alive
   ---
   duration_ms: *
   failureType: 'cancelledByParent'
-  error: "'test did not finish before its parent and was cancelled'"
-  code: ERR_TEST_FAILURE
+  error: 'test did not finish before its parent and was cancelled'
+  code: 'ERR_TEST_FAILURE'
   stack: |-
     *
   ...
