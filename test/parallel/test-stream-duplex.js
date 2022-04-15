@@ -60,7 +60,7 @@ process.on('exit', () => {
   const dataToRead = Buffer.from('hello');
   const dataToWrite = Buffer.from('world');
 
-  const stream = new ReadableStream({
+  const readable = new ReadableStream({
     start(controller) {
       controller.enqueue(dataToRead);
     },
@@ -72,7 +72,7 @@ process.on('exit', () => {
     })
   });
 
-  const pair = { readable: stream, writable: writable };
+  const pair = { readable, writable };
   const duplex = Duplex.fromWeb(pair);
 
   duplex.write(dataToWrite);
@@ -86,7 +86,7 @@ process.on('exit', () => {
   const dataToRead = 'hello';
   const dataToWrite = 'world';
 
-  const stream = new ReadableStream({
+  const readable = new ReadableStream({
     start(controller) {
       controller.enqueue(dataToRead);
     },
@@ -99,8 +99,8 @@ process.on('exit', () => {
   });
 
   const pair = {
-    readable: stream,
-    writable: writable
+    readable,
+    writable
   };
   const duplex = Duplex.fromWeb(pair, { encoding: 'utf8', objectMode: true });
 
@@ -124,10 +124,10 @@ process.on('exit', () => {
     })
   });
 
-  const webDuplex = Duplex.toWeb(duplex);
-  webDuplex.writable.getWriter().write(dataToWrite);
+  const { writable, readable } = Duplex.toWeb(duplex);
+  writable.getWriter().write(dataToWrite);
 
-  webDuplex.readable.getReader().read().then(common.mustCall((result) => {
+  readable.getReader().read().then(common.mustCall((result) => {
     assert.deepStrictEqual(Buffer.from(result.value), dataToRead);
   }));
 }

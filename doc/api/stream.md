@@ -2928,7 +2928,7 @@ const duplex = Duplex({
     this.push('world');
     this.push(null);
   },
-  write: (chunk, encoding, callback) => {
+  write(chunk, encoding, callback) {
     console.log('writable', chunk);
     callback();
   }
