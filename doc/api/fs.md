@@ -6771,7 +6771,11 @@ operations.
 
 The following constants are exported by `fs.constants`.
 
-Not every constant will be available on every operating system.
+Not every constant will be available on every operating system;
+this is especially important for Windows, where many of the POSIX specific
+definitions are not available.
+For portable applications it is recommended to check for their presence
+before use.
 
 To use more than one constant, use the bitwise OR `|` operator.
 
@@ -6824,6 +6828,8 @@ The following constants are meant for use as the `mode` parameter passed to
   </tr>
 </table>
 
+The definitions are also available on Windows.
+
 ##### File copy constants
 
 The following constants are meant for use with [`fs.copyFile()`][].
@@ -6851,6 +6857,8 @@ The following constants are meant for use with [`fs.copyFile()`][].
     copy-on-write, then the operation will fail with an error.</td>
   </tr>
 </table>
+
+The definitions are also available on Windows.
 
 ##### File open constants
 
@@ -6946,6 +6954,9 @@ The following constants are meant for use with `fs.open()`.
   </tr>
 </table>
 
+On Windows, only `O_APPEND`, `O_CREAT`, `O_EXCL`, `O_RDONLY`, `O_RDWR`,
+`O_TRUNC`, `O_WRONLY` and `UV_FS_O_FILEMAP` are available.
+
 ##### File type constants
 
 The following constants are meant for use with the {fs.Stats} object's
@@ -6989,6 +7000,9 @@ The following constants are meant for use with the {fs.Stats} object's
     <td>File type constant for a socket.</td>
   </tr>
 </table>
+
+On Windows, only `S_IFCHR`, `S_IFDIR`, `S_IFLNK`, `S_IFMT`, and `S_IFREG`,
+are available.
 
 ##### File mode constants
 
@@ -7049,6 +7063,8 @@ The following constants are meant for use with the {fs.Stats} object's
     <td>File mode indicating executable by others.</td>
   </tr>
 </table>
+
+On Windows, only `S_IRUSR` and `S_IWUSR` are available.
 
 ## Notes
 
