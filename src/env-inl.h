@@ -250,10 +250,9 @@ inline void AsyncHooks::AddContext(v8::Local<v8::Context> ctx) {
 inline void AsyncHooks::RemoveContext(v8::Local<v8::Context> ctx) {
   v8::Isolate* isolate = env()->isolate();
   v8::HandleScope handle_scope(isolate);
-  contexts_.erase(std::remove_if(contexts_.begin(), contexts_.end(),
-                                [&](auto&& el) {
-                                   return el.IsEmpty();
-                                }),
+  contexts_.erase(std::remove_if(contexts_.begin(),
+                                 contexts_.end(),
+                                 [&](auto&& el) { return el.IsEmpty(); }),
                   contexts_.end());
   for (auto it = contexts_.begin(); it != contexts_.end(); it++) {
     v8::Local<v8::Context> saved_context =
