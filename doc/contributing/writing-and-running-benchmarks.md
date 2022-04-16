@@ -254,7 +254,7 @@ run `node benchmark/compare.js`.
 As an example on how to check for a possible performance improvement, the
 [#5134](https://github.com/nodejs/node/pull/5134) pull request will be used as
 an example. This pull request _claims_ to improve the performance of the
-`string_decoder` module.
+`node:string_decoder` module.
 
 First build two versions of Node.js, one from the master branch (here called
 `./node-master`) and another with the pull request applied (here called
