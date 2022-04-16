@@ -1448,7 +1448,7 @@ Indicates whether a `subprocess` is "ref'ed" by the parent process's event
 loop. If `true`, the parent waits for the child to exit before exiting itself.
 
 ```js
-const { spawn } = require('child_process');
+const { spawn } = require('node:child_process');
 
 const subprocess = spawn(process.argv[0], ['child_program.js'], {
   detached: true,
