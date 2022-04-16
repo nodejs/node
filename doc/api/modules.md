@@ -340,7 +340,7 @@ by that name.
 
 Some core modules are always preferentially loaded if their identifier is
 passed to `require()`. For instance, `require('http')` will always
-return the built in HTTP module, even if there is a file by that name. The list
+return the built-in HTTP module, even if there is a file by that name. The list
 of core modules that can be loaded without using the `node:` prefix is exposed
 as [`module.builtinModules`][].
 
