@@ -1440,6 +1440,8 @@ grep.stdin.end();
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 * Returns: {boolean}
 
 Indicates whether a `subprocess` is "ref'ed" by the parent process's event
