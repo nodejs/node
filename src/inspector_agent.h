@@ -47,6 +47,7 @@ class Agent {
 
   // Create client_, may create io_ if option enabled
   bool Start(const std::string& path,
+             const std::string& script_path,
              const DebugOptions& options,
              std::shared_ptr<ExclusiveAccess<HostPort>> host_port,
              bool is_main);
@@ -126,6 +127,7 @@ class Agent {
   std::unique_ptr<InspectorIo> io_;
   std::unique_ptr<ParentInspectorHandle> parent_handle_;
   std::string path_;
+  std::string script_path_;
 
   // This is a copy of the debug options parsed from CLI in the Environment.
   // Do not use the host_port in that, instead manipulate the shared host_port_
