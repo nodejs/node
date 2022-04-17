@@ -39,7 +39,7 @@ let filehandle = null;
 (async () => {
   filehandle = await fsPromises.open(filepath, 'r');
   assert.rejects(
-    async () => await filehandle.read(buf, { offset: null }),
+    async () => filehandle.read(buf, { offset: null }),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
