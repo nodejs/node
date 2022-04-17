@@ -70,8 +70,12 @@ jobs:
       - name: Format C/C++ files
         run: |
           make format-cpp-build
+          # The `make format-cpp` error code is intentionally ignored here
+          # because it is irrelevant. We already check if the formatter produced
+          # a diff in the next line.
+          # Refs: https://github.com/nodejs/node/pull/42764
           CLANG_FORMAT_START="$(git merge-base HEAD refs/remotes/origin/$GITHUB_BASE_REF)" \
-            make format-cpp
+            make format-cpp || true
           git --no-pager diff --exit-code && EXIT_CODE="$?" || EXIT_CODE="$?"
           if [ "$EXIT_CODE" != "0" ]
           then
