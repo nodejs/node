@@ -283,7 +283,7 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
     NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
     bs = ArrayBuffer::NewBackingStore(env->isolate(), BN_num_bytes(b));
   }
-  CHECK_EQ(bs->ByteLength(),
+  CHECK_EQ(static_cast<int>(bs->ByteLength()),
            BN_bn2binpad(
                b, static_cast<unsigned char*>(bs->Data()), bs->ByteLength()));
 
