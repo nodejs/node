@@ -6130,6 +6130,18 @@ added: v0.5.8
 Emitted when an error occurs while watching the file. The errored
 {fs.FSWatcher} object is no longer usable in the event handler.
 
+#### Event: `'rename'`
+
+<!-- YAML
+added: v0.5.8
+-->
+
+* `eventType` {string} The type of rename event that has occurred
+* `filename` {string|Buffer} The filename that renamed (if relevant/available)
+
+Emitted when a filename appears or disappears in a watched directory on most
+platforms. See more details in [`fs.watch()`][].
+
 #### `watcher.close()`
 
 <!-- YAML
