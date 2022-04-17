@@ -68,6 +68,11 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif  // ifndef _GNU_SOURCE
+#include <sys/prctl.h>
+#if !defined(PR_SET_VMA)
+#define PR_SET_VMA 0x53564d41
+#define PR_SET_VMA_ANON_NAME 0
+#endif
 #elif defined(__FreeBSD__)
 #include "uv.h"  // uv_exepath
 #endif  // defined(__linux__)
@@ -312,6 +317,21 @@ class MemoryMapPointer {
     mem_ = nullptr;
     size_ = 0;
   }
+  static void SetName(void* mem, size_t size, const char* name) {
+#if defined(__linux__)
+    // Available since the 5.17 kernel release and if the
+    // CONFIG_ANON_VMA_NAME option, we can set an identifier
+    // to an anonymous mapped region. However if the kernel
+    // option is not present or it s an older kernel, it is a no-op.
+    if (mem != MAP_FAILED && mem != nullptr)
+        prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME,
+            reinterpret_cast<uintptr_t>(mem),
+            size,
+            reinterpret_cast<uintptr_t>(name));
+#else
+    (void)name;
+#endif
+  }
   FORCE_INLINE ~MemoryMapPointer() {
     if (mem_ == nullptr) return;
     if (mem_ == MAP_FAILED) return;
@@ -382,6 +402,7 @@ MoveTextRegionToLargePages(const text_region& r) {
 #endif
 
   if (mprotect(start, size, PROT_READ | PROT_EXEC) == -1) goto fail;
+  MemoryMapPointer::SetName(start, size, "nodejs Large Page");
 
   // We need not `munmap(tmem, size)` on success.
   tmem.Reset();
