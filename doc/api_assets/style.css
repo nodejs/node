@@ -40,6 +40,17 @@
   --color-text-secondary: var(--green2);
 }
 
+h4 :target,
+h5 :target {
+  scroll-margin-top: 55px;
+}
+
+@supports not (content-visibility: auto) {
+  h3 :target {
+    scroll-margin-top: 55px;
+  }
+}
+
 .dark-mode {
   --background-color-highlight: var(--black2);
   --color-critical: var(--red4);
