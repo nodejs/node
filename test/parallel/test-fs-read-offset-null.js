@@ -15,28 +15,53 @@ const buf = Buffer.alloc(1);
 // Reading only one character, hence buffer of one byte is enough.
 
 // Test for callback API.
-fs.open(filepath, 'r', common.mustSucceed((fd) => {
-  fs.read(fd, { offset: null, buffer: buf },
-          common.mustSucceed((bytesRead, buffer) => {
-            // Test is done by making sure the first letter in buffer is
-            // same as first letter in file.
-            // 120 is the hex for ascii code of letter x.
-            assert.strictEqual(buffer[0], 120);
-            fs.close(fd, common.mustSucceed(() => {}));
-          }));
-}));
+fs.open(filepath, 'r', (_, fd) => {
+  assert.throws(
+    () => fs.read(fd, { offset: null, buffer: buf }, () => {}),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+    }
+  );
+  assert.throws(
+    () => fs.read(fd, buf, { offset: null }, () => {}),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+    }
+  );
+  fs.close(fd, common.mustSucceed(() => {}));
+});
 
 let filehandle = null;
 
 // Test for promise api
 (async () => {
   filehandle = await fsPromises.open(filepath, 'r');
-  const readObject = await filehandle.read(buf, null, buf.length);
+  assert.rejects(
+    async () => await filehandle.read(buf, { offset: null }),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+    }
+  );
+})()
+.then(common.mustCall())
+.finally(async () => {
+  if (filehandle)
+    await filehandle.close();
+});
+
+(async () => {
+  filehandle = await fsPromises.open(filepath, 'r');
+
+  // In this test, null is interpreted as default options, not null offset.
+  // 120 is the ascii code of letter x.
+  const readObject = await filehandle.read(buf, null);
   assert.strictEqual(readObject.buffer[0], 120);
 })()
 .then(common.mustCall())
 .finally(async () => {
-// Close the file handle if it is opened
   if (filehandle)
     await filehandle.close();
 });
