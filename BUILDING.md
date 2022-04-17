@@ -659,7 +659,7 @@ To test if Node.js was built correctly:
 
 #### Building a debug build
 
-In order to debug Node.js you can build debug binary:
+To build a debug binary:
 
 ```console
 > .\vcbuild debug
