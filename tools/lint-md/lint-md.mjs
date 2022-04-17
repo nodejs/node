@@ -19297,13 +19297,13 @@ var jsYaml = {
 const SEMVER_SPEC_VERSION = '2.0.0';
 const MAX_LENGTH$2 = 256;
 const MAX_SAFE_INTEGER$1 = Number.MAX_SAFE_INTEGER ||
-   9007199254740991;
+ 9007199254740991;
 const MAX_SAFE_COMPONENT_LENGTH = 16;
 var constants = {
   SEMVER_SPEC_VERSION,
   MAX_LENGTH: MAX_LENGTH$2,
   MAX_SAFE_INTEGER: MAX_SAFE_INTEGER$1,
-  MAX_SAFE_COMPONENT_LENGTH
+  MAX_SAFE_COMPONENT_LENGTH,
 };
 
 var re$2 = {exports: {}};
@@ -19327,7 +19327,7 @@ const t = exports.t = {};
 let R = 0;
 const createToken = (name, value, isGlobal) => {
   const index = R++;
-  debug(index, value);
+  debug(name, index, value);
   t[name] = index;
   src[index] = value;
   re[index] = new RegExp(value, isGlobal ? 'g' : undefined);
@@ -19407,17 +19407,17 @@ createToken('HYPHENRANGELOOSE', `^\\s*(${src[t.XRANGEPLAINLOOSE]})` +
                         `(${src[t.XRANGEPLAINLOOSE]})` +
                         `\\s*$`);
 createToken('STAR', '(<|>)?=?\\s*\\*');
-createToken('GTE0', '^\\s*>=\\s*0\.0\.0\\s*$');
-createToken('GTE0PRE', '^\\s*>=\\s*0\.0\.0-0\\s*$');
+createToken('GTE0', '^\\s*>=\\s*0\\.0\\.0\\s*$');
+createToken('GTE0PRE', '^\\s*>=\\s*0\\.0\\.0-0\\s*$');
 }(re$2, re$2.exports));
 
 const opts = ['includePrerelease', 'loose', 'rtl'];
 const parseOptions$2 = options =>
   !options ? {}
   : typeof options !== 'object' ? { loose: true }
-  : opts.filter(k => options[k]).reduce((options, k) => {
-    options[k] = true;
-    return options
+  : opts.filter(k => options[k]).reduce((o, k) => {
+    o[k] = true;
+    return o
   }, {});
 var parseOptions_1 = parseOptions$2;
 
@@ -19438,7 +19438,7 @@ const compareIdentifiers$1 = (a, b) => {
 const rcompareIdentifiers = (a, b) => compareIdentifiers$1(b, a);
 var identifiers = {
   compareIdentifiers: compareIdentifiers$1,
-  rcompareIdentifiers
+  rcompareIdentifiers,
 };
 
 const debug = debug_1;
@@ -19652,7 +19652,7 @@ class SemVer$2 {
           }
         }
         if (identifier) {
-          if (this.prerelease[0] === identifier) {
+          if (compareIdentifiers(this.prerelease[0], identifier) === 0) {
             if (isNaN(this.prerelease[1])) {
               this.prerelease = [identifier, 0];
             }
@@ -19671,7 +19671,7 @@ class SemVer$2 {
 }
 var semver = SemVer$2;
 
-const {MAX_LENGTH} = constants;
+const { MAX_LENGTH } = constants;
 const { re, t } = re$2.exports;
 const SemVer$1 = semver;
 const parseOptions = parseOptions_1;
