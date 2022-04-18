@@ -14,7 +14,6 @@ function testValid(message, ...options) {
   const paramsMsg = `${message} (as params)`;
   const paramsFilehandle = fs.openSync(filepath, 'r');
   fs.read(paramsFilehandle, ...options, common.mustCall((err, bytesRead, buffer) => {
-    if (err) throw err;
     assert.strictEqual(bytesRead, expected.byteLength, paramsMsg);
     assert.deepStrictEqual(defaultBufferAsync.byteLength, buffer.byteLength, paramsMsg);
     fs.closeSync(paramsFilehandle);
@@ -23,7 +22,6 @@ function testValid(message, ...options) {
   const optionsMsg = `${message} (as options)`;
   const optionsFilehandle = fs.openSync(filepath, 'r');
   fs.read(optionsFilehandle, bufferAsOption, ...options, common.mustCall((err, bytesRead, buffer) => {
-    if (err) throw err;
     assert.strictEqual(bytesRead, expected.byteLength, optionsMsg);
     assert.deepStrictEqual(bufferAsOption.byteLength, buffer.byteLength, optionsMsg);
     fs.closeSync(optionsFilehandle);
