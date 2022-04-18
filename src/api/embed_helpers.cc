@@ -3,6 +3,7 @@
 #include "debug_utils-inl.h"
 
 using v8::Context;
+using v8::Function;
 using v8::Global;
 using v8::HandleScope;
 using v8::Isolate;
@@ -44,6 +45,13 @@ Maybe<int> SpinEventLoop(Environment* env) {
       if (EmitProcessBeforeExit(env).IsNothing())
         break;
 
+      {
+        HandleScope handle_scope(isolate);
+        if (env->RunSnapshotSerializeCallback().IsEmpty()) {
+          break;
+        }
+      }
+
       // Emit `beforeExit` if the loop became alive either after emitting
       // event, or after running some callbacks.
       more = uv_loop_alive(env->event_loop());
@@ -54,6 +62,11 @@ Maybe<int> SpinEventLoop(Environment* env) {
   if (env->is_stopping()) return Nothing<int>();
 
   env->set_trace_sync_io(false);
+  // Clear the serialize callback even though the JS-land queue should
+  // be empty this point so that the deserialized instance won't
+  // attempt to call into JS again.
+  env->set_snapshot_serialize_callback(Local<Function>());
+
   env->PrintInfoForSnapshotIfDebug();
   env->VerifyNoStrongBaseObjects();
   return EmitProcessExit(env);
