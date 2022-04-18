@@ -47,10 +47,7 @@ let filehandle = null;
   );
 })()
 .then(common.mustCall())
-.finally(async () => {
-  if (filehandle)
-    await filehandle.close();
-});
+.finally(() => filehandle?.close());
 
 (async () => {
   filehandle = await fsPromises.open(filepath, 'r');
@@ -61,7 +58,4 @@ let filehandle = null;
   assert.strictEqual(readObject.buffer[0], 120);
 })()
 .then(common.mustCall())
-.finally(async () => {
-  if (filehandle)
-    await filehandle.close();
-});
+.finally(() => filehandle?.close());
