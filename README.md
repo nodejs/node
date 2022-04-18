@@ -262,8 +262,6 @@ For information about the governance of the Node.js project, see
   **Anna Henningsen** <<anna@addaleax.net>> (she/her)
 * [aduh95](https://github.com/aduh95) -
   **Antoine du Hamel** <<duhamelantoine1995@gmail.com>> (he/him)
-* [ak239](https://github.com/ak239) -
-  **Aleksei Koziatinskii** <<ak239spb@gmail.com>>
 * [antsmartian](https://github.com/antsmartian) -
   **Anto Aravinth** <<anto.aravinth.cse@gmail.com>> (he/him)
 * [apapirovski](https://github.com/apapirovski) -
@@ -458,6 +456,8 @@ For information about the governance of the Node.js project, see
 
 ### Collaborator emeriti
 
+* [ak239](https://github.com/ak239) -
+  **Aleksei Koziatinskii** <<ak239spb@gmail.com>>
 * [andrasq](https://github.com/andrasq) -
   **Andras** <<andras@kinvey.com>>
 * [AnnaMag](https://github.com/AnnaMag) -
