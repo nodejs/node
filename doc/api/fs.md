@@ -3301,6 +3301,10 @@ If `options.withFileTypes` is set to `true`, the `files` array will contain
 added: v0.1.29
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41647
+    description: Add the `chunkSize` option that can Set `kReadFileBufferLength`
+                 manually.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -3338,6 +3342,8 @@ changes:
 
 * `path` {string|Buffer|URL|integer} filename or file descriptor
 * `options` {Object|string}
+  * `chunkSize` {integer} The number of bytes per read. Use `-1` for no limit.
+    **Default:** `512 * 1024`
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
   * `signal` {AbortSignal} allows aborting an in-progress readFile
@@ -3432,6 +3438,11 @@ on the type of file being read. If the file type is not a regular file (a pipe
 for instance) and Node.js is unable to determine an actual file size, each read
 operation will load on 64 KB of data. For regular files, each read will process
 512 KB of data.
+
+Use up to 512kb per read otherwise to partition reading big files to prevent
+blocking other threads in case the available threads are all in use. If you use
+`options.chunkSize` make sure the value is equal to the nth power of 2 for best
+performance.
 
 For applications that require as-fast-as-possible reading of file contents, it
 is better to use `fs.read()` directly and for application code to manage

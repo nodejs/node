@@ -15,15 +15,15 @@ tmpdir.refresh();
 
 const fileInfo = [
   { name: path.join(tmpdir.path, `${prefix}-1K.txt`),
-    len: 1024 },
+    len: 1024, chunkSize: 2048 },
   { name: path.join(tmpdir.path, `${prefix}-64K.txt`),
-    len: 64 * 1024 },
+    len: 64 * 1024, chunkSize: 1024 },
   { name: path.join(tmpdir.path, `${prefix}-64KLessOne.txt`),
     len: (64 * 1024) - 1 },
   { name: path.join(tmpdir.path, `${prefix}-1M.txt`),
-    len: 1 * 1024 * 1024 },
+    len: 1 * 1024 * 1024, chunkSize: 0 },
   { name: path.join(tmpdir.path, `${prefix}-1MPlusOne.txt`),
-    len: (1 * 1024 * 1024) + 1 },
+    len: (1 * 1024 * 1024) + 1, chunkSize: -1 },
 ];
 
 // Populate each fileInfo (and file) with unique fill.
@@ -46,7 +46,7 @@ for (const e of fileInfo) {
 
 // Test readFile on each size.
 for (const e of fileInfo) {
-  fs.readFile(e.name, common.mustCall((err, buf) => {
+  fs.readFile(e.name, { chunkSize: e.chunkSize }, common.mustCall((err, buf) => {
     console.log(`Validating readFile on file ${e.name} of length ${e.len}`);
     assert.ifError(err);
     assert.deepStrictEqual(buf, e.contents);
@@ -92,4 +92,23 @@ for (const e of fileInfo) {
     const callback = common.mustNotCall(() => {});
     fs.readFile(fileInfo[0].name, { signal: 'hello' }, callback);
   }, { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' });
+}
+{
+  // Test chunkSize option
+  [Symbol(), 1n].forEach((chunkSize) => {
+    assert.throws(
+      () => fs.readFile(fileInfo[0].name, { chunkSize }, common.mustNotCall()),
+      { name: 'TypeError' });
+  });
+  ['', () => {}, true, false, [], {}].forEach((chunkSize) => {
+    assert.throws(
+      () => fs.readFile(fileInfo[0].name, { chunkSize }, common.mustNotCall()),
+      { code: 'ERR_INVALID_ARG_TYPE' });
+  });
+  [-2, 2.5, -Infinity, Infinity, NaN].forEach((chunkSize) => {
+    assert.throws(
+      () => fs.readFile(fileInfo[0].name, { chunkSize }, common.mustNotCall()),
+      { code: 'ERR_OUT_OF_RANGE' }
+    );
+  });
 }
