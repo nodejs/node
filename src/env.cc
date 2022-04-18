@@ -671,6 +671,36 @@ void Environment::PrintSyncTrace() const {
                       isolate(), stack_trace_limit(), StackTrace::kDetailed));
 }
 
+MaybeLocal<Value> Environment::RunSnapshotSerializeCallback() const {
+  if (!snapshot_serialize_callback().IsEmpty()) {
+    HandleScope handle_scope(isolate());
+    Context::Scope context_scope(context());
+    return snapshot_serialize_callback()->Call(
+        context(), v8::Undefined(isolate()), 0, nullptr);
+  }
+  return Undefined(isolate());
+}
+
+MaybeLocal<Value> Environment::RunSnapshotDeserializeCallback() const {
+  if (!snapshot_serialize_callback().IsEmpty()) {
+    HandleScope handle_scope(isolate());
+    Context::Scope context_scope(context());
+    return snapshot_serialize_callback()->Call(
+        context(), v8::Undefined(isolate()), 0, nullptr);
+  }
+  return Undefined(isolate());
+}
+
+MaybeLocal<Value> Environment::RunSnapshotDeserializeMain() const {
+  if (!snapshot_deserialize_main().IsEmpty()) {
+    HandleScope handle_scope(isolate());
+    Context::Scope context_scope(context());
+    return snapshot_deserialize_main()->Call(
+        context(), v8::Undefined(isolate()), 0, nullptr);
+  }
+  return Undefined(isolate());
+}
+
 void Environment::RunCleanup() {
   started_cleanup_ = true;
   TRACE_EVENT0(TRACING_CATEGORY_NODE1(environment), "RunCleanup");

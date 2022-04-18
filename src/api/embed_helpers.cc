@@ -44,6 +44,10 @@ Maybe<int> SpinEventLoop(Environment* env) {
       if (EmitProcessBeforeExit(env).IsNothing())
         break;
 
+      if (env->RunSnapshotSerializeCallback().IsEmpty()) {
+        break;
+      }
+
       // Emit `beforeExit` if the loop became alive either after emitting
       // event, or after running some callbacks.
       more = uv_loop_alive(env->event_loop());
