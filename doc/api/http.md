@@ -729,6 +729,16 @@ deprecated: v13.0.0
 
 See [`request.socket`][].
 
+### `request.cork()`
+
+<!-- YAML
+added:
+ - v13.2.0
+ - v12.16.0
+-->
+
+See [`writable.cork()`][].
+
 ### `request.end([data[, encoding]][, callback])`
 
 <!-- YAML
@@ -846,6 +856,52 @@ const cookie = request.getHeader('Cookie');
 // 'cookie' is of type string[]
 ```
 
+### `request.getHeaderNames()`
+
+<!-- YAML
+added: v7.7.0
+-->
+
+* Returns: {string\[]}
+
+Returns an array containing the unique names of the current outgoing headers.
+All header names are lowercase.
+
+```js
+request.setHeader('Foo', 'bar');
+request.setHeader('Cookie', ['foo=bar', 'bar=baz']);
+
+const headerNames = request.getHeaderNames();
+// headerNames === ['foo', 'Cookie']
+```
+
+### `request.getHeaders()`
+
+<!-- YAML
+added: v7.7.0
+-->
+
+* Returns: {Object}
+
+Returns a shallow copy of the current outgoing headers. Since a shallow copy
+is used, array values may be mutated without additional calls to various
+header-related http module methods. The keys of the returned object are the
+header names and the values are the respective header values. All header names
+are lowercase.
+
+The object returned by the `response.getHeaders()` method _does not_
+prototypically inherit from the JavaScript `Object`. This means that typical
+`Object` methods such as `obj.toString()`, `obj.hasOwnProperty()`, and others
+are not defined and _will not work_.
+
+```js
+request.setHeader('Foo', 'bar');
+request.setHeader('Cookie', ['foo=bar', 'bar=baz']);
+
+const headers = response.getHeaders();
+// headers === { foo: 'bar', 'cookie': ['foo=bar', 'bar=baz'] }
+```
+
 ### `request.getRawHeaderNames()`
 
 <!-- YAML
@@ -865,6 +921,22 @@ request.setHeader('Set-Cookie', ['foo=bar', 'bar=baz']);
 
 const headerNames = request.getRawHeaderNames();
 // headerNames === ['Foo', 'Set-Cookie']
+```
+
+### `request.hasHeader(name)`
+
+<!-- YAML
+added: v7.7.0
+-->
+
+* `name` {string}
+* Returns: {boolean}
+
+Returns `true` if the header identified by `name` is currently set in the
+outgoing headers. The header name matching is case-insensitive.
+
+```js
+const hasContentType = request.hasHeader('content-type');
 ```
 
 ### `request.maxHeadersCount`
@@ -1089,6 +1161,16 @@ req.once('response', (res) => {
 This property is guaranteed to be an instance of the {net.Socket} class,
 a subclass of {stream.Duplex}, unless the user specified a socket
 type other than {net.Socket}.
+
+### `request.uncork()`
+
+<!-- YAML
+added:
+ - v13.2.0
+ - v12.16.0
+-->
+
+See [`writable.uncork()`][].
 
 ### `request.writableEnded`
 
