@@ -153,11 +153,21 @@ async function executeOnHandle(dest, func) {
       });
     }
 
-    // Use fallback buffer allocation when input not buffer
+    // Use fallback buffer allocation when first argument is null
     {
       await executeOnHandle(dest, async (handle) => {
-        const ret = await handle.read(0, 0, 0, 0);
+        const ret = await handle.read(null, 0, 0, 0);
         assert.strictEqual(ret.buffer.length, 16384);
+      });
+    }
+
+    // TypeError if buffer is not ArrayBufferView or nullable object
+    {
+      await executeOnHandle(dest, async (handle) => {
+        await assert.rejects(
+          async () => handle.read(0, 0, 0, 0),
+          { code: 'ERR_INVALID_ARG_TYPE' }
+        );
       });
     }
 
