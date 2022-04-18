@@ -2,7 +2,7 @@
 // NODE_WANT_INTERNALS, so we define it here manually.
 #define NODE_WANT_INTERNALS 1
 
-#include "node_snapshotable.h"
+#include "node_snapshot_builder.h"
 
 namespace node {
 

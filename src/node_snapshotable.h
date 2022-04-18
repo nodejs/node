@@ -5,7 +5,6 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "base_object.h"
-#include "node_mutex.h"
 #include "util.h"
 
 namespace node {
@@ -124,30 +123,6 @@ void SerializeBindingData(Environment* env,
                           EnvSerializeInfo* info);
 
 bool IsSnapshotableType(FastStringKey key);
-
-class SnapshotBuilder {
- public:
-  static std::string Generate(const std::vector<std::string> args,
-                              const std::vector<std::string> exec_args);
-
-  // Generate the snapshot into out.
-  static void Generate(SnapshotData* out,
-                       const std::vector<std::string> args,
-                       const std::vector<std::string> exec_args);
-
-  // If nullptr is returned, the binary is not built with embedded
-  // snapshot.
-  static const SnapshotData* GetEmbeddedSnapshotData();
-  static void InitializeIsolateParams(const SnapshotData* data,
-                                      v8::Isolate::CreateParams* params);
-
- private:
-  static const std::vector<intptr_t>& CollectExternalReferences();
-
-  // Used to synchronize access to the snapshot data
-  static Mutex snapshot_data_mutex_;
-  static std::unique_ptr<ExternalReferenceRegistry> registry_;
-};
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
