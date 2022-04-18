@@ -11,6 +11,14 @@
 typedef uint16_t char16_t;
 #endif
 
+#ifndef NAPI_CDECL
+#ifdef _WIN32
+#define NAPI_CDECL __cdecl
+#else
+#define NAPI_CDECL
+#endif
+#endif
+
 // JSVM API types are all opaque pointers for ABI stability
 // typedef undefined structs instead of void* for compile time type safety
 typedef struct napi_env__* napi_env;
@@ -100,10 +108,11 @@ typedef enum {
 //   * the definition of `napi_status` in doc/api/n-api.md to reflect the newly
 //     added value(s).
 
-typedef napi_value (*napi_callback)(napi_env env, napi_callback_info info);
-typedef void (*napi_finalize)(napi_env env,
-                              void* finalize_data,
-                              void* finalize_hint);
+typedef napi_value(NAPI_CDECL* napi_callback)(napi_env env,
+                                              napi_callback_info info);
+typedef void(NAPI_CDECL* napi_finalize)(napi_env env,
+                                        void* finalize_data,
+                                        void* finalize_hint);
 
 typedef struct {
   // One of utf8name or name should be NULL.
