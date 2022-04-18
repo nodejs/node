@@ -2906,6 +2906,35 @@ for await (const chunk of duplex) {
 }
 ```
 
+```cjs
+const { Duplex } = require('stream');
+const {
+  ReadableStream,
+  WritableStream
+} = require('stream/web');
+
+const readable = new ReadableStream({
+  start(controller) {
+    controller.enqueue('world');
+  },
+});
+
+const writable = new WritableStream({
+  write(chunk) {
+    console.log('writable', chunk);
+  }
+});
+
+const pair = {
+  readable,
+  writable
+};
+const duplex = Duplex.fromWeb(pair, { encoding: 'utf8', objectMode: true });
+
+duplex.write('hello');
+duplex.once('readable', () => console.log('readable', duplex.read()));
+```
+
 ### `stream.Duplex.toWeb(streamDuplex)`
 
 <!-- YAML
@@ -2939,6 +2968,29 @@ writable.getWriter().write('hello');
 
 const { value } = await readable.getReader().read();
 console.log('readable', value);
+```
+
+```cjs
+const { Duplex } = require('stream');
+
+const duplex = Duplex({
+  objectMode: true,
+  read() {
+    this.push('world');
+    this.push(null);
+  },
+  write(chunk, encoding, callback) {
+    console.log('writable', chunk);
+    callback();
+  }
+});
+
+const { readable, writable } = Duplex.toWeb(duplex);
+writable.getWriter().write('hello');
+
+readable.getReader().read().then((result) => {
+  console.log('readable', result.value);
+});
 ```
 
 ### `stream.addAbortSignal(signal, stream)`
