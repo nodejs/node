@@ -558,6 +558,9 @@ class NoArrayBufferZeroFillScope {
   V(promise_hook_handler, v8::Function)                                        \
   V(promise_reject_callback, v8::Function)                                     \
   V(script_data_constructor_function, v8::Function)                            \
+  V(snapshot_serialize_callback, v8::Function)                                 \
+  V(snapshot_deserialize_callback, v8::Function)                               \
+  V(snapshot_deserialize_main, v8::Function)                                   \
   V(source_map_cache_getter, v8::Function)                                     \
   V(tick_callback_function, v8::Function)                                      \
   V(timers_callback_function, v8::Function)                                    \
@@ -1332,6 +1335,10 @@ class Environment : public MemoryRetainer {
   void RunAtExitCallbacks();
 
   void RunWeakRefCleanup();
+
+  v8::MaybeLocal<v8::Value> RunSnapshotSerializeCallback() const;
+  v8::MaybeLocal<v8::Value> RunSnapshotDeserializeCallback() const;
+  v8::MaybeLocal<v8::Value> RunSnapshotDeserializeMain() const;
 
   // Strings and private symbols are shared across shared contexts
   // The getters simply proxy to the per-isolate primitive.
