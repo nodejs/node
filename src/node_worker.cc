@@ -7,6 +7,7 @@
 #include "node_buffer.h"
 #include "node_options-inl.h"
 #include "node_perf.h"
+#include "node_snapshot_builder.h"
 #include "util-inl.h"
 #include "async_wrap-inl.h"
 
