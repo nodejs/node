@@ -34,6 +34,21 @@ assert(TextDecoder);
   });
 }
 
+// Test TextDecoder, UTF-16LE, fatal: false, ignoreBOM: false
+{
+  ['utf-16', 'utf-16le'].forEach((i) => {
+    // This is a utf16le buffer with a utf8 BOM,
+    // which should not be removed
+    const buf = Buffer.from([0xef, 0xbb, 0xbf, 0x74, 0x00, 0x65,
+                            0x00, 0x73, 0x00, 0x74, 0x00, 0xac,
+                            0x20])
+    const dec = new TextDecoder(i);
+    assert.strictEqual(dec.encoding, 'utf-16-le');
+    const res = dec.decode(buf);
+    assert.strictEqual(res, '\ufefftest€');
+  });
+}
+
 // Test TextDecoder, UTF-8, fatal: false, ignoreBOM: true
 {
   ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
