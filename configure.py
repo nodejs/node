@@ -782,11 +782,25 @@ parser.add_argument('--v8-enable-hugepage',
     help='Enable V8 transparent hugepage support. This feature is only '+
          'available on Linux platform.')
 
+parser.add_argument('--v8-enable-short-builtin-calls',
+    action='store_true',
+    dest='v8_enable_short_builtin_calls',
+    default=None,
+    help='Enable V8 short builtin calls support. This feature is enabled '+
+         'on x86_64 platform by default.')
+
 parser.add_argument('--node-builtin-modules-path',
     action='store',
     dest='node_builtin_modules_path',
     default=False,
     help='node will load builtin modules from disk instead of from binary')
+
+parser.add_argument('--node-snapshot-main',
+    action='store',
+    dest='node_snapshot_main',
+    default=None,
+    help='Run a file when building the embedded snapshot. Currently ' +
+         'experimental.')
 
 # Create compile_commands.json in out/Debug and out/Release.
 parser.add_argument('-C',
@@ -1115,6 +1129,7 @@ def host_arch_win():
     'x86'    : 'ia32',
     'arm'    : 'arm',
     'mips'   : 'mips',
+    'ARM64'  : 'arm64'
   }
 
   return matchup.get(arch, 'ia32')
@@ -1215,6 +1230,18 @@ def configure_node(o):
     warn('building --without-snapshot is no longer possible')
 
   o['variables']['want_separate_host_toolset'] = int(cross_compiling)
+
+  if options.node_snapshot_main is not None:
+    if options.shared:
+      # This should be possible to fix, but we will need to refactor the
+      # libnode target to avoid building it twice.
+      error('--node-snapshot-main is incompatible with --shared')
+    if options.without_node_snapshot:
+      error('--node-snapshot-main is incompatible with ' +
+            '--without-node-snapshot')
+    if cross_compiling:
+      error('--node-snapshot-main is incompatible with cross compilation')
+    o['variables']['node_snapshot_main'] = options.node_snapshot_main
 
   if options.without_node_snapshot or options.node_builtin_modules_path:
     o['variables']['node_use_node_snapshot'] = 'false'
@@ -1419,6 +1446,7 @@ def configure_library(lib, output, pkgname=None):
 
 def configure_v8(o):
   o['variables']['v8_enable_webassembly'] = 1
+  o['variables']['v8_enable_javascript_promise_hooks'] = 1
   o['variables']['v8_enable_lite_mode'] = 1 if options.v8_lite_mode else 0
   o['variables']['v8_enable_gdbjit'] = 1 if options.gdb else 0
   o['variables']['v8_no_strict_aliasing'] = 1  # Work around compiler bugs.
@@ -1444,6 +1472,8 @@ def configure_v8(o):
   if flavor != 'linux' and options.v8_enable_hugepage:
     raise Exception('--v8-enable-hugepage is supported only on linux.')
   o['variables']['v8_enable_hugepage'] = 1 if options.v8_enable_hugepage else 0
+  if options.v8_enable_short_builtin_calls or o['variables']['target_arch'] == 'x64':
+    o['variables']['v8_enable_short_builtin_calls'] = 1
 
 def configure_openssl(o):
   variables = o['variables']
@@ -1604,7 +1634,7 @@ def configure_intl(o):
 
   # write an empty file to start with
   write(icu_config_name, do_not_edit +
-        pprint.pformat(icu_config, indent=2) + '\n')
+        pprint.pformat(icu_config, indent=2, width=1024) + '\n')
 
   # always set icu_small, node.gyp depends on it being defined.
   o['variables']['icu_small'] = b(False)
@@ -1856,7 +1886,7 @@ def configure_intl(o):
 
   # write updated icu_config.gypi with a bunch of paths
   write(icu_config_name, do_not_edit +
-        pprint.pformat(icu_config, indent=2) + '\n')
+        pprint.pformat(icu_config, indent=2, width=1024) + '\n')
   return  # end of configure_intl
 
 def configure_inspector(o):
@@ -1985,7 +2015,7 @@ if make_global_settings:
 print_verbose(output)
 
 write('config.gypi', do_not_edit +
-      pprint.pformat(output, indent=2) + '\n')
+      pprint.pformat(output, indent=2, width=1024) + '\n')
 
 write('config.status', '#!/bin/sh\nset -x\nexec ./configure ' +
       ' '.join([pipes.quote(arg) for arg in original_argv]) + '\n')

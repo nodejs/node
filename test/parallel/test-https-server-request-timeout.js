@@ -14,8 +14,8 @@ const options = {
 
 const server = createServer(options);
 
-// 0 seconds is the default
-assert.strictEqual(server.requestTimeout, 0);
+// 300 seconds is the default
+assert.strictEqual(server.requestTimeout, 300000);
 const requestTimeout = common.platformTimeout(1000);
 server.requestTimeout = requestTimeout;
 assert.strictEqual(server.requestTimeout, requestTimeout);

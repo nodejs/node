@@ -222,7 +222,7 @@ bool RecursiveMutex::TryLock() {
   return true;
 }
 
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 
 SharedMutex::SharedMutex() { InitializeNativeHandle(&native_handle_); }
 
@@ -251,7 +251,7 @@ bool SharedMutex::TryLockExclusive() {
   return true;
 }
 
-#else  // !V8_OS_MACOSX
+#else  // !V8_OS_DARWIN
 
 SharedMutex::SharedMutex() { pthread_rwlock_init(&native_handle_, nullptr); }
 
@@ -301,7 +301,7 @@ bool SharedMutex::TryLockExclusive() {
   return result;
 }
 
-#endif  // !V8_OS_MACOSX
+#endif  // !V8_OS_DARWIN
 
 #elif V8_OS_WIN
 

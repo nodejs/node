@@ -41,8 +41,8 @@
   assertTrue(log_got_interpreted);
 
   // Compile foo.
-  %OptimizeFunctionForTopTier(log);
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(log);
+  %OptimizeFunctionOnNextCall(foo);
   assertEquals(1, foo());
   // The call with spread should have been inlined.
   assertFalse(log_got_interpreted);
@@ -63,7 +63,7 @@
 
   // Recompile 'foo'.
   %PrepareFunctionForOptimization(foo);
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(foo);
   assertEquals(42, foo());
   // The call with spread will not be inlined because we have redefined the
   // array iterator.

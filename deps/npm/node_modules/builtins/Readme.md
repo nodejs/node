@@ -1,18 +1,39 @@
-
 # builtins
 
-  List of node.js [builtin modules](http://nodejs.org/api/).
+[![CI](https://github.com/juliangruber/builtins/actions/workflows/ci.yml/badge.svg)](https://github.com/juliangruber/builtins/actions/workflows/ci.yml)
 
-  [![build status](https://secure.travis-ci.org/juliangruber/builtins.svg)](http://travis-ci.org/juliangruber/builtins)
+List of node.js [builtin modules](http://nodejs.org/api/).
 
-## Example
+## Usage
 
 ```js
-var builtins = require('builtins');
+const builtins = require('builtins')
+```
 
-assert(builtins.indexOf('http') > -1);
+Get list of core modules for current Node.js version:
+
+```js
+assert(builtins().includes('http'))
+```
+
+Get list of core modules for specific Node.js version:
+
+```js
+assert(builtins({ version: '6.0.0' }).includes('http'))
+```
+
+Get list of core modules present in one or mode Node.js versions:
+
+```js
+assert(builtins({ version: '*' }).includes('worker_threads'))
+```
+
+Add experimental modules to the list:
+
+```js
+assert(builtins({ experimental: true }).includes('wasi'))
 ```
 
 ## License
 
-  MIT
+MIT

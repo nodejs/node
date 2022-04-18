@@ -90,7 +90,7 @@ def count_braces(line):
   """
     open_braces = ["[", "(", "{"]
     close_braces = ["]", ")", "}"]
-    closing_prefix_re = re.compile(r"(.*?[^\s\]\}\)]+.*?)([\]\}\)],?)\s*$")
+    closing_prefix_re = re.compile(r"[^\s\]\}\)]\s*[\]\}\)]+,?\s*$")
     cnt = 0
     stripline = COMMENT_RE.sub(r"", line)
     stripline = QUOTE_RE.sub(r"''", stripline)

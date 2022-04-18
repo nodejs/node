@@ -556,7 +556,8 @@ class CompilationStateImpl {
   // Initialize the compilation progress after deserialization. This is needed
   // for recompilation (e.g. for tier down) to work later.
   void InitializeCompilationProgressAfterDeserialization(
-      base::Vector<const int> missing_functions);
+      base::Vector<const int> lazy_functions,
+      base::Vector<const int> liftoff_functions);
 
   // Initializes compilation units based on the information encoded in the
   // {compilation_progress_}.
@@ -666,7 +667,7 @@ class CompilationStateImpl {
 
  private:
   uint8_t SetupCompilationProgressForFunction(
-      bool lazy_module, NativeModule* module,
+      bool lazy_function, NativeModule* module,
       const WasmFeatures& enabled_features, int func_index);
 
   // Returns the potentially-updated {function_progress}.
@@ -849,9 +850,10 @@ void CompilationState::WaitForTopTierFinished() {
 void CompilationState::SetHighPriority() { Impl(this)->SetHighPriority(); }
 
 void CompilationState::InitializeAfterDeserialization(
-    base::Vector<const int> missing_functions) {
+    base::Vector<const int> lazy_functions,
+    base::Vector<const int> liftoff_functions) {
   Impl(this)->InitializeCompilationProgressAfterDeserialization(
-      missing_functions);
+      lazy_functions, liftoff_functions);
 }
 
 bool CompilationState::failed() const { return Impl(this)->failed(); }
@@ -1599,7 +1601,7 @@ int AddImportWrapperUnits(NativeModule* native_module,
     }
     WasmImportWrapperCache::CacheKey key(
         compiler::kDefaultImportCallKind, sig,
-        static_cast<int>(sig->parameter_count()));
+        static_cast<int>(sig->parameter_count()), kNoSuspend);
     auto it = keys.insert(key);
     if (it.second) {
       // Ensure that all keys exist in the cache, so that we can populate the
@@ -1879,10 +1881,13 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   }
 
   // Create a new {NativeModule} first.
-  const bool uses_liftoff = module->origin == kWasmOrigin && FLAG_liftoff;
+  const bool include_liftoff = module->origin == kWasmOrigin && FLAG_liftoff;
+  DynamicTiering dynamic_tiering = isolate->IsWasmDynamicTieringEnabled()
+                                       ? DynamicTiering::kEnabled
+                                       : DynamicTiering::kDisabled;
   size_t code_size_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get(),
-                                                          uses_liftoff);
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
+          module.get(), include_liftoff, dynamic_tiering);
   native_module =
       engine->NewNativeModule(isolate, enabled, module, code_size_estimate);
   native_module->SetWireBytes(std::move(wire_bytes_copy));
@@ -1953,6 +1958,9 @@ AsyncCompileJob::AsyncCompileJob(
     : isolate_(isolate),
       api_method_name_(api_method_name),
       enabled_features_(enabled),
+      dynamic_tiering_(isolate_->IsWasmDynamicTieringEnabled()
+                           ? DynamicTiering::kEnabled
+                           : DynamicTiering::kDisabled),
       wasm_lazy_compilation_(FLAG_wasm_lazy_compilation),
       start_time_(base::TimeTicks::Now()),
       bytes_copy_(std::move(bytes_copy)),
@@ -2485,10 +2493,10 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
     } else {
       // Decode passed.
       std::shared_ptr<WasmModule> module = std::move(result).value();
-      const bool kUsesLiftoff = false;
+      const bool include_liftoff = FLAG_liftoff;
       size_t code_size_estimate =
-          wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get(),
-                                                              kUsesLiftoff);
+          wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
+              module.get(), include_liftoff, job->dynamic_tiering_);
       job->DoSync<PrepareAndStartCompile>(std::move(module), true,
                                           code_size_estimate);
     }
@@ -2528,10 +2536,6 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
         code_size_estimate_(code_size_estimate) {}
 
  private:
-  const std::shared_ptr<const WasmModule> module_;
-  const bool start_compilation_;
-  const size_t code_size_estimate_;
-
   void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(2) Prepare and start compile...\n");
 
@@ -2575,6 +2579,10 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       }
     }
   }
+
+  const std::shared_ptr<const WasmModule> module_;
+  const bool start_compilation_;
+  const size_t code_size_estimate_;
 };
 
 //==========================================================================
@@ -2785,11 +2793,11 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
   int num_imported_functions =
       static_cast<int>(decoder_.module()->num_imported_functions);
   DCHECK_EQ(kWasmOrigin, decoder_.module()->origin);
-  const bool uses_liftoff = FLAG_liftoff;
+  const bool include_liftoff = FLAG_liftoff;
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
           num_functions, num_imported_functions, code_section_length,
-          uses_liftoff);
+          include_liftoff, job_->dynamic_tiering_);
   job_->DoImmediately<AsyncCompileJob::PrepareAndStartCompile>(
       decoder_.shared_module(), false, code_size_estimate);
 
@@ -2889,9 +2897,10 @@ void AsyncStreamingProcessor::OnFinishedStream(
   if (prefix_cache_hit_) {
     // Restart as an asynchronous, non-streaming compilation. Most likely
     // {PrepareAndStartCompile} will get the native module from the cache.
+    const bool include_liftoff = FLAG_liftoff;
     size_t code_size_estimate =
         wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-            result.value().get(), FLAG_liftoff);
+            result.value().get(), include_liftoff, job_->dynamic_tiering_);
     job_->DoSync<AsyncCompileJob::PrepareAndStartCompile>(
         std::move(result).value(), true, code_size_estimate);
     return;
@@ -2948,30 +2957,13 @@ void AsyncStreamingProcessor::OnAbort() {
   job_->Abort();
 }
 
-namespace {
-class DeserializationTimeScope {
- public:
-  explicit DeserializationTimeScope(TimedHistogram* counter)
-      : counter_(counter), start_(base::TimeTicks::Now()) {}
-
-  ~DeserializationTimeScope() {
-    base::TimeDelta duration = base::TimeTicks::Now() - start_;
-    int duration_usecs = static_cast<int>(duration.InMilliseconds());
-    counter_->AddSample(duration_usecs);
-  }
-
- private:
-  TimedHistogram* counter_;
-  base::TimeTicks start_;
-};
-}  // namespace
-
 bool AsyncStreamingProcessor::Deserialize(
     base::Vector<const uint8_t> module_bytes,
     base::Vector<const uint8_t> wire_bytes) {
   TRACE_EVENT0("v8.wasm", "wasm.Deserialize");
-  DeserializationTimeScope time_scope(
-      job_->isolate()->counters()->wasm_deserialization_time());
+  TimedHistogramScope time_scope(
+      job_->isolate()->counters()->wasm_deserialization_time(),
+      job_->isolate());
   // DeserializeNativeModule and FinishCompile assume that they are executed in
   // a HandleScope, and that a context is set on the isolate.
   HandleScope scope(job_->isolate_);
@@ -3030,12 +3022,12 @@ bool CompilationStateImpl::cancelled() const {
 }
 
 uint8_t CompilationStateImpl::SetupCompilationProgressForFunction(
-    bool lazy_module, NativeModule* native_module,
+    bool lazy_function, NativeModule* native_module,
     const WasmFeatures& enabled_features, int func_index) {
   ExecutionTierPair requested_tiers =
       GetRequestedExecutionTiers(native_module, enabled_features, func_index);
   CompileStrategy strategy = GetCompileStrategy(
-      native_module->module(), enabled_features, func_index, lazy_module);
+      native_module->module(), enabled_features, func_index, lazy_function);
 
   bool required_for_baseline = strategy == CompileStrategy::kEager;
   bool required_for_top_tier = strategy != CompileStrategy::kLazy;
@@ -3199,33 +3191,62 @@ void CompilationStateImpl::AddCompilationUnit(CompilationUnitBuilder* builder,
 }
 
 void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
-    base::Vector<const int> missing_functions) {
-  TRACE_EVENT1("v8.wasm", "wasm.CompilationAfterDeserialization",
-               "num_missing_functions", missing_functions.size());
+    base::Vector<const int> lazy_functions,
+    base::Vector<const int> liftoff_functions) {
+  TRACE_EVENT2("v8.wasm", "wasm.CompilationAfterDeserialization",
+               "num_lazy_functions", lazy_functions.size(),
+               "num_liftoff_functions", liftoff_functions.size());
   TimedHistogramScope lazy_compile_time_scope(
       counters()->wasm_compile_after_deserialize());
 
   auto* module = native_module_->module();
   auto enabled_features = native_module_->enabled_features();
   const bool lazy_module = IsLazyModule(module);
+  base::Optional<CodeSpaceWriteScope> lazy_code_space_write_scope;
+  if (lazy_module || !lazy_functions.empty()) {
+    lazy_code_space_write_scope.emplace(native_module_);
+  }
   {
     base::MutexGuard guard(&callbacks_mutex_);
     DCHECK(compilation_progress_.empty());
-    constexpr uint8_t kProgressAfterDeserialization =
+    constexpr uint8_t kProgressAfterTurbofanDeserialization =
         RequiredBaselineTierField::encode(ExecutionTier::kTurbofan) |
         RequiredTopTierField::encode(ExecutionTier::kTurbofan) |
         ReachedTierField::encode(ExecutionTier::kTurbofan);
     finished_events_.Add(CompilationEvent::kFinishedExportWrappers);
-    if (missing_functions.empty() || FLAG_wasm_lazy_compilation) {
+    if (liftoff_functions.empty() || lazy_module) {
+      // We have to trigger the compilation events to finish compilation.
+      // Typically the events get triggered when a CompilationUnit finishes, but
+      // with lazy compilation there are no compilation units.
+      // The {kFinishedBaselineCompilation} event is needed for module
+      // compilation to finish.
       finished_events_.Add(CompilationEvent::kFinishedBaselineCompilation);
-      finished_events_.Add(CompilationEvent::kFinishedTopTierCompilation);
+      if (liftoff_functions.empty() && lazy_functions.empty()) {
+        // All functions exist now as TurboFan functions, so we can trigger the
+        // {kFinishedTopTierCompilation} event.
+        // The {kFinishedTopTierCompilation} event is needed for the C-API so
+        // that {serialize()} works after {deserialize()}.
+        finished_events_.Add(CompilationEvent::kFinishedTopTierCompilation);
+      }
     }
     compilation_progress_.assign(module->num_declared_functions,
-                                 kProgressAfterDeserialization);
-    for (auto func_index : missing_functions) {
-      if (FLAG_wasm_lazy_compilation) {
+                                 kProgressAfterTurbofanDeserialization);
+    for (auto func_index : lazy_functions) {
+      native_module_->UseLazyStub(func_index);
+
+      compilation_progress_[declared_function_index(module, func_index)] =
+          SetupCompilationProgressForFunction(/*lazy_function =*/true,
+                                              native_module_, enabled_features,
+                                              func_index);
+    }
+    for (auto func_index : liftoff_functions) {
+      if (lazy_module) {
         native_module_->UseLazyStub(func_index);
       }
+      // Check that {func_index} is not contained in {lazy_functions}.
+      DCHECK_EQ(
+          compilation_progress_[declared_function_index(module, func_index)],
+          kProgressAfterTurbofanDeserialization);
       compilation_progress_[declared_function_index(module, func_index)] =
           SetupCompilationProgressForFunction(lazy_module, native_module_,
                                               enabled_features, func_index);
@@ -3634,7 +3655,7 @@ void CompilationStateImpl::PublishCompilationResults(
           native_module_->module()->functions[func_index].sig;
       WasmImportWrapperCache::CacheKey key(
           compiler::kDefaultImportCallKind, sig,
-          static_cast<int>(sig->parameter_count()));
+          static_cast<int>(sig->parameter_count()), kNoSuspend);
       // If two imported functions have the same key, only one of them should
       // have been added as a compilation unit. So it is always the first time
       // we compile a wrapper for this key here.
@@ -3673,6 +3694,7 @@ void CompilationStateImpl::SchedulePublishCompilationResults(
     }
     publisher_running_ = true;
   }
+  CodeSpaceWriteScope code_space_write_scope(native_module_);
   while (true) {
     PublishCompilationResults(std::move(unpublished_code));
     unpublished_code.clear();
@@ -3874,19 +3896,19 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
 WasmCode* CompileImportWrapper(
     NativeModule* native_module, Counters* counters,
     compiler::WasmImportCallKind kind, const FunctionSig* sig,
-    int expected_arity,
+    int expected_arity, Suspend suspend,
     WasmImportWrapperCache::ModificationScope* cache_scope) {
   // Entry should exist, so that we don't insert a new one and invalidate
   // other threads' iterators/references, but it should not have been compiled
   // yet.
-  WasmImportWrapperCache::CacheKey key(kind, sig, expected_arity);
+  WasmImportWrapperCache::CacheKey key(kind, sig, expected_arity, suspend);
   DCHECK_NULL((*cache_scope)[key]);
   bool source_positions = is_asmjs_module(native_module->module());
   // Keep the {WasmCode} alive until we explicitly call {IncRef}.
   WasmCodeRefScope code_ref_scope;
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-      &env, kind, sig, source_positions, expected_arity);
+      &env, kind, sig, source_positions, expected_arity, suspend);
   WasmCode* published_code;
   {
     CodeSpaceWriteScope code_space_write_scope(native_module);

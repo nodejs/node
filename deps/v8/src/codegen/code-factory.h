@@ -26,9 +26,9 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   // stack and the arguments count is passed via register) which currently
   // can't be expressed in CallInterfaceDescriptor. Therefore only the code
   // is exported here.
-  static Handle<Code> RuntimeCEntry(Isolate* isolate, int result_size = 1);
+  static Handle<CodeT> RuntimeCEntry(Isolate* isolate, int result_size = 1);
 
-  static Handle<Code> CEntry(
+  static Handle<CodeT> CEntry(
       Isolate* isolate, int result_size = 1,
       SaveFPRegsMode save_doubles = SaveFPRegsMode::kIgnore,
       ArgvMode argv_mode = ArgvMode::kStack, bool builtin_exit_frame = false);
@@ -37,8 +37,8 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode);
   static Callable LoadGlobalICInOptimizedCode(Isolate* isolate,
                                               TypeofMode typeof_mode);
-  static Callable StoreOwnIC(Isolate* isolate);
-  static Callable StoreOwnICInOptimizedCode(Isolate* isolate);
+  static Callable DefineNamedOwnIC(Isolate* isolate);
+  static Callable DefineNamedOwnICInOptimizedCode(Isolate* isolate);
 
   static Callable ResumeGenerator(Isolate* isolate);
 

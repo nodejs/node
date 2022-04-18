@@ -8,16 +8,18 @@ const { connect } = require('net');
 // This test validates that the requestTimeoout
 // is disabled after the connection is upgraded.
 let sendDelayedRequestHeaders;
-const server = createServer(common.mustNotCall());
+const requestTimeout = common.platformTimeout(1000);
+const server = createServer({
+  headersTimeout: 0,
+  requestTimeout,
+  keepAliveTimeout: 0,
+  connectionsCheckingInterval: common.platformTimeout(250),
+}, common.mustNotCall());
 server.on('connection', common.mustCall(() => {
   assert.strictEqual(typeof sendDelayedRequestHeaders, 'function');
   sendDelayedRequestHeaders();
 }));
 
-// 0 seconds is the default
-assert.strictEqual(server.requestTimeout, 0);
-const requestTimeout = common.platformTimeout(1000);
-server.requestTimeout = requestTimeout;
 assert.strictEqual(server.requestTimeout, requestTimeout);
 
 server.on('upgrade', common.mustCall((req, socket, head) => {

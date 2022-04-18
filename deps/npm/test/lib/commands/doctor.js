@@ -52,17 +52,7 @@ const dirs = {
   },
 }
 
-let consoleError = false
-t.afterEach(() => {
-  consoleError = false
-})
-
 const globals = {
-  console: {
-    error: () => {
-      consoleError = true
-    },
-  },
   process: {
     platform: 'test-not-windows',
     version: 'v1.0.0',
@@ -104,7 +94,6 @@ t.test('all clear', async t => {
     .get('/dist/index.json').reply(200, nodeVersions)
   await npm.exec('doctor', [])
   t.matchSnapshot(joinedOutput(), 'output')
-  t.notOk(consoleError, 'console.error not called')
   t.matchSnapshot({ info: logs.info, warn: logs.warn, error: logs.error }, 'logs')
 })
 
@@ -122,7 +111,6 @@ t.test('all clear in color', async t => {
   npm.config.set('color', 'always')
   await npm.exec('doctor', [])
   t.matchSnapshot(joinedOutput(), 'everything is ok in color')
-  t.notOk(consoleError, 'console.error not called')
   t.matchSnapshot({ info: logs.info, warn: logs.warn, error: logs.error }, 'logs')
 })
 
@@ -142,7 +130,6 @@ t.test('silent', async t => {
     .get('/dist/index.json').reply(200, nodeVersions)
   await npm.exec('doctor', [])
   t.matchSnapshot(joinedOutput(), 'output')
-  t.notOk(consoleError, 'console.error not called')
   t.matchSnapshot({ info: logs.info, warn: logs.warn, error: logs.error }, 'logs')
 })
 
@@ -159,7 +146,6 @@ t.test('ping 404', async t => {
     .get('/dist/index.json').reply(200, nodeVersions)
   await t.rejects(npm.exec('doctor', []))
   t.matchSnapshot(joinedOutput(), 'ping 404')
-  t.ok(consoleError, 'console.error called')
   t.matchSnapshot({ info: logs.info, warn: logs.warn, error: logs.error }, 'logs')
 })
 
@@ -373,8 +359,10 @@ t.test('incorrect owner', async t => {
         ...fs,
         lstat: (p, cb) => {
           const stat = fs.lstatSync(p)
-          stat.uid += 1
-          stat.gid += 1
+          if (p.endsWith('_cacache')) {
+            stat.uid += 1
+            stat.gid += 1
+          }
           return cb(null, stat)
         },
       },

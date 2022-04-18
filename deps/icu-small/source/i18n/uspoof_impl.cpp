@@ -945,7 +945,7 @@ uspoof_swap(const UDataSwapper *ds, const void *inData, int32_t length, void *ou
     uint32_t magic = ds->readUInt32(spoofDH->fMagic);
     ds->writeUInt32((uint32_t *)&outputDH->fMagic, magic);
 
-    if (outputDH->fFormatVersion != spoofDH->fFormatVersion) {
+    if (inBytes != outBytes) {
         uprv_memcpy(outputDH->fFormatVersion, spoofDH->fFormatVersion, sizeof(spoofDH->fFormatVersion));
     }
     // swap starting at fLength

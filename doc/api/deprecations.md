@@ -2040,9 +2040,9 @@ changes:
 
 Type: End-of-Life
 
-Using the `noAssert` argument has no functionality anymore. All input is going
-to be verified, no matter if it is set to true or not. Skipping the verification
-could lead to hard to find errors and crashes.
+Using the `noAssert` argument has no functionality anymore. All input is
+verified regardless of the value of `noAssert`. Skipping the verification
+could lead to hard-to-find errors and crashes.
 
 ### DEP0103: `process.binding('util').is[...]` typechecks
 
@@ -2943,6 +2943,9 @@ deprecated and should no longer be used.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/41431
+    description: End-of-Life.
   - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/39793
     description: Runtime deprecation.
@@ -2951,12 +2954,13 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Using a non-nullish non-integer value for `family` option, a non-nullish
 non-number value for `hints` option, a non-nullish non-boolean value for `all`
 option, or a non-nullish non-boolean value for `verbatim` option in
-[`dns.lookup()`][] and [`dnsPromises.lookup()`][] is deprecated.
+[`dns.lookup()`][] and [`dnsPromises.lookup()`][] throws an
+`ERR_INVALID_ARG_TYPE` error.
 
 ### DEP0154: RSA-PSS generate key pair options
 
@@ -3019,6 +3023,9 @@ it was an aborted or graceful destroy.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/40773
+    description: End-of-life.
   - version:
       - v17.2.0
       - v16.14.0
@@ -3026,7 +3033,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: End-of-Life
 
 An undocumented feature of Node.js streams was to support thenables in
 implementation methods. This is now deprecated, use callbacks instead and avoid
@@ -3114,12 +3121,15 @@ resources and not the actual references.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42607
+    description: Runtime deprecation.
   - version: v17.8.0
     pr-url: https://github.com/nodejs/node/pull/42149
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 Implicit coercion of objects with own `toString` property, passed as second
 parameter in [`fs.write()`][], [`fs.writeFile()`][], [`fs.appendFile()`][],

@@ -47,7 +47,7 @@ Reduction SelectLowering::LowerSelect(Node* node) {
   __ Bind(&done);
 
   if (reset_gasm) {
-    gasm()->Reset(nullptr);
+    gasm()->Reset();
   }
 
   return Changed(done.PhiAt(0));

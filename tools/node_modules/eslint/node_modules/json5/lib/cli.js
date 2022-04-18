@@ -2,37 +2,17 @@
 
 const fs = require('fs')
 const path = require('path')
-const minimist = require('minimist')
 const pkg = require('../package.json')
 const JSON5 = require('./')
 
-const argv = minimist(process.argv.slice(2), {
-    alias: {
-        'convert': 'c',
-        'space': 's',
-        'validate': 'v',
-        'out-file': 'o',
-        'version': 'V',
-        'help': 'h',
-    },
-    boolean: [
-        'convert',
-        'validate',
-        'version',
-        'help',
-    ],
-    string: [
-        'space',
-        'out-file',
-    ],
-})
+const argv = parseArgs()
 
 if (argv.version) {
     version()
 } else if (argv.help) {
     usage()
 } else {
-    const inFilename = argv._[0]
+    const inFilename = argv.defaults[0]
 
     let readStream
     if (inFilename) {
@@ -65,7 +45,7 @@ if (argv.version) {
                 // --convert is for backward compatibility with v0.5.1. If
                 // specified with <file> and not --out-file, then a file with
                 // the same name but with a .json extension will be written.
-                if (argv.convert && inFilename && !argv.o) {
+                if (argv.convert && inFilename && !argv.outFile) {
                     const parsedFilename = path.parse(inFilename)
                     const outFilename = path.format(
                         Object.assign(
@@ -75,8 +55,8 @@ if (argv.version) {
                     )
 
                     writeStream = fs.createWriteStream(outFilename)
-                } else if (argv.o) {
-                    writeStream = fs.createWriteStream(argv.o)
+                } else if (argv.outFile) {
+                    writeStream = fs.createWriteStream(argv.outFile)
                 } else {
                     writeStream = process.stdout
                 }
@@ -88,6 +68,66 @@ if (argv.version) {
             process.exit(1)
         }
     })
+}
+
+function parseArgs () {
+    let convert
+    let space
+    let validate
+    let outFile
+    let version
+    let help
+    const defaults = []
+
+    const args = process.argv.slice(2)
+    for (let i = 0; i < args.length; i++) {
+        const arg = args[i]
+        switch (arg) {
+        case '--convert':
+        case '-c':
+            convert = true
+            break
+
+        case '--space':
+        case '-s':
+            space = args[++i]
+            break
+
+        case '--validate':
+        case '-v':
+            validate = true
+            break
+
+        case '--out-file':
+        case '-o':
+            outFile = args[++i]
+            break
+
+        case '--version':
+        case '-V':
+            version = true
+            break
+
+        case '--help':
+        case '-h':
+            help = true
+            break
+
+        default:
+            defaults.push(arg)
+            break
+        }
+    }
+
+    return {
+        convert,
+        space,
+        validate,
+        outFile,
+        version,
+        help,
+        defaults,
+    }
 }
 
 function version () {

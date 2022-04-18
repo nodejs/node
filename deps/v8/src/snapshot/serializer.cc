@@ -559,13 +559,13 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
   if (serializer_->external_reference_encoder_.TryEncode(resource).To(
           &reference)) {
     DCHECK(reference.is_from_api());
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
     uint32_t external_pointer_entry =
         string->GetResourceRefForDeserialization();
 #endif
     string->SetResourceRefForSerialization(reference.index());
     SerializeObject();
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
     string->SetResourceRefForSerialization(external_pointer_entry);
 #else
     string->set_address_as_resource(isolate(), resource);
@@ -919,10 +919,10 @@ void Serializer::ObjectSerializer::VisitCodePointer(HeapObject host,
   bytes_processed_so_far_ += kTaggedSize;
 }
 
-void Serializer::ObjectSerializer::OutputExternalReference(Address target,
-                                                           int target_size,
-                                                           bool sandboxify) {
+void Serializer::ObjectSerializer::OutputExternalReference(
+    Address target, int target_size, bool sandboxify, ExternalPointerTag tag) {
   DCHECK_LE(target_size, sizeof(target));  // Must fit in Address.
+  DCHECK_IMPLIES(sandboxify, tag != kExternalPointerNullTag);
   ExternalReferenceEncoder::Value encoded_reference;
   bool encoded_successfully;
 
@@ -946,26 +946,31 @@ void Serializer::ObjectSerializer::OutputExternalReference(Address target,
     sink_->Put(FixedRawDataWithSize::Encode(size_in_tagged), "FixedRawData");
     sink_->PutRaw(reinterpret_cast<byte*>(&target), target_size, "Bytes");
   } else if (encoded_reference.is_from_api()) {
-    if (V8_HEAP_SANDBOX_BOOL && sandboxify) {
+    if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL && sandboxify) {
       sink_->Put(kSandboxedApiReference, "SandboxedApiRef");
     } else {
       sink_->Put(kApiReference, "ApiRef");
     }
     sink_->PutInt(encoded_reference.index(), "reference index");
   } else {
-    if (V8_HEAP_SANDBOX_BOOL && sandboxify) {
+    if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL && sandboxify) {
       sink_->Put(kSandboxedExternalReference, "SandboxedExternalRef");
     } else {
       sink_->Put(kExternalReference, "ExternalRef");
     }
     sink_->PutInt(encoded_reference.index(), "reference index");
   }
+  if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL && sandboxify) {
+    sink_->PutInt(static_cast<uint32_t>(tag >> kExternalPointerTagShift),
+                  "external pointer tag");
+  }
 }
 
 void Serializer::ObjectSerializer::VisitExternalReference(Foreign host,
                                                           Address* p) {
   // "Sandboxify" external reference.
-  OutputExternalReference(host.foreign_address(), kExternalPointerSize, true);
+  OutputExternalReference(host.foreign_address(), kSystemPointerSize, true,
+                          kForeignForeignAddressTag);
   bytes_processed_so_far_ += kExternalPointerSize;
 }
 
@@ -1019,7 +1024,33 @@ void Serializer::ObjectSerializer::VisitExternalReference(Code host,
   DCHECK_IMPLIES(serializer_->EncodeExternalReference(target).is_from_api(),
                  !rinfo->IsCodedSpecially());
   // Don't "sandboxify" external references embedded in the code.
-  OutputExternalReference(target, rinfo->target_address_size(), false);
+  OutputExternalReference(target, rinfo->target_address_size(), false,
+                          kExternalPointerNullTag);
+}
+
+void Serializer::ObjectSerializer::VisitExternalPointer(HeapObject host,
+                                                        ExternalPointer_t ptr) {
+  // TODO(v8:12700) handle other external references here as well. This should
+  // allow removing some of the other Visit* methods, should unify the sandbox
+  // vs no-sandbox implementation, and should allow removing various
+  // XYZForSerialization methods throughout the codebase.
+  if (host.IsJSExternalObject()) {
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+    // TODO(saelo) maybe add a helper method for this conversion if also needed
+    // in other places? This might require a ExternalPointerTable::Get variant
+    // that drops the pointer tag completely.
+    uint32_t index = ptr >> kExternalPointerIndexShift;
+    Address value =
+        isolate()->external_pointer_table().Get(index, kExternalObjectValueTag);
+#else
+    Address value = ptr;
+#endif
+    // TODO(v8:12700) should we specify here whether we expect the references to
+    // be internal or external (or either)?
+    OutputExternalReference(value, kSystemPointerSize, true,
+                            kExternalObjectValueTag);
+    bytes_processed_so_far_ += kExternalPointerSize;
+  }
 }
 
 void Serializer::ObjectSerializer::VisitInternalReference(Code host,
@@ -1133,13 +1164,16 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
           sizeof(field_value), field_value);
     } else if (V8_EXTERNAL_CODE_SPACE_BOOL &&
                object_->IsCodeDataContainer(cage_base)) {
-      // The CodeEntryPoint field is just a cached value which will be
-      // recomputed after deserialization, so write zeros to keep the snapshot
-      // deterministic.
-      static byte field_value[kExternalPointerSize] = {0};
-      OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
-                               CodeDataContainer::kCodeEntryPointOffset,
-                               sizeof(field_value), field_value);
+      // code_cage_base and code_entry_point fields contain raw values that
+      // will be recomputed after deserialization, so write zeros to keep the
+      // snapshot deterministic.
+      CHECK_EQ(CodeDataContainer::kCodeCageBaseUpper32BitsOffset + kTaggedSize,
+               CodeDataContainer::kCodeEntryPointOffset);
+      static byte field_value[kTaggedSize + kExternalPointerSize] = {0};
+      OutputRawWithCustomField(
+          sink_, object_start, base, bytes_to_output,
+          CodeDataContainer::kCodeCageBaseUpper32BitsOffset,
+          sizeof(field_value), field_value);
     } else {
       sink_->PutRaw(reinterpret_cast<byte*>(object_start + base),
                     bytes_to_output, "Bytes");
@@ -1250,6 +1284,22 @@ Serializer::HotObjectsList::HotObjectsList(Heap* heap) : heap_(heap) {
 }
 Serializer::HotObjectsList::~HotObjectsList() {
   heap_->UnregisterStrongRoots(strong_roots_entry_);
+}
+
+Handle<FixedArray> ObjectCacheIndexMap::Values(Isolate* isolate) {
+  if (size() == 0) {
+    return isolate->factory()->empty_fixed_array();
+  }
+  Handle<FixedArray> externals = isolate->factory()->NewFixedArray(size());
+  DisallowGarbageCollection no_gc;
+  FixedArray raw = *externals;
+  IdentityMap<int, base::DefaultAllocationPolicy>::IteratableScope it_scope(
+      &map_);
+  for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
+    raw.set(*it.entry(), it.key());
+  }
+
+  return externals;
 }
 
 }  // namespace internal

@@ -19,6 +19,7 @@ from ..local.android import (
 from ..local import utils
 from ..objects import output
 
+PYTHON3 = sys.version_info >= (3, 0)
 
 BASE_DIR = os.path.normpath(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), '..' , '..', '..'))
@@ -114,11 +115,17 @@ class BaseCommand(object):
 
       timer.cancel()
 
+    def convert(stream):
+      if PYTHON3:
+        return stream.decode('utf-8', 'replace')
+      else:
+        return stream.decode('utf-8', 'replace').encode('utf-8')
+
     return output.Output(
       process.returncode,
       timeout_occured[0],
-      stdout.decode('utf-8', 'replace').encode('utf-8'),
-      stderr.decode('utf-8', 'replace').encode('utf-8'),
+      convert(stdout),
+      convert(stderr),
       process.pid,
       duration
     )

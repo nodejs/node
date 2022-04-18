@@ -7,7 +7,7 @@ const { version: npmVersion } = require('../../../package.json')
 const ciDetect = require('@npmcli/ci-detect')
 const ciName = ciDetect()
 const querystring = require('querystring')
-const isWindows = require('../is-windows.js')
+const { isWindows } = require('../is-windows.js')
 const { join } = require('path')
 
 // used by cafile flattening to flatOptions.ca
@@ -880,6 +880,7 @@ define('https-proxy', {
 define('if-present', {
   default: false,
   type: Boolean,
+  envExport: false,
   description: `
     If true, npm will not exit with an error code when \`run-script\` is
     invoked for a script that isn't defined in the \`scripts\` section of
@@ -938,6 +939,7 @@ define('include-staged', {
 define('include-workspace-root', {
   default: false,
   type: Boolean,
+  envExport: false,
   description: `
     Include the workspace root when workspaces are enabled for a command.
 
@@ -1229,11 +1231,25 @@ define('loglevel', {
   },
 })
 
+define('logs-dir', {
+  default: null,
+  type: [null, path],
+  defaultDescription: `
+    A directory named \`_logs\` inside the cache
+`,
+  description: `
+    The location of npm's log directory.  See [\`npm
+    logging\`](/using-npm/logging) for more information.
+  `,
+})
+
 define('logs-max', {
   default: 10,
   type: Number,
   description: `
     The maximum number of log files to store.
+
+    If set to 0, no log files will be written for the current run.
   `,
 })
 
@@ -1591,8 +1607,8 @@ define('registry', {
 
 define('save', {
   default: true,
-  defaultDescription: `\`true\` unless when using \`npm update\` or
-  \`npm dedupe\` where it defaults to \`false\``,
+  defaultDescription: `\`true\` unless when using \`npm update\` where it
+  defaults to \`false\``,
   usage: '-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle',
   type: Boolean,
   short: 'S',
@@ -2025,8 +2041,8 @@ define('timing', {
   default: false,
   type: Boolean,
   description: `
-    If true, writes an \`npm-debug\` log to \`_logs\` and timing information
-    to \`_timing.json\`, both in your cache, even if the command completes
+    If true, writes a debug log to \`logs-dir\` and timing information
+    to \`_timing.json\` in the cache, even if the command completes
     successfully.  \`_timing.json\` is a newline delimited list of JSON
     objects.
 
@@ -2268,6 +2284,16 @@ define('workspaces', {
     // configuration, so we need an option specifically to disable workspaces
     flatOptions.workspacesEnabled = obj[key] !== false
   },
+})
+
+define('workspaces-update', {
+  default: true,
+  type: Boolean,
+  description: `
+    If set to true, the npm cli will run an update after operations that may
+    possibly change the workspaces installed to the \`node_modules\` folder.
+  `,
+  flatten,
 })
 
 define('yes', {

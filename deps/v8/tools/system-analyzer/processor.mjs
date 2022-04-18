@@ -59,6 +59,7 @@ export class Processor extends LogReader {
   _formatPCRegexp = /(.*):[0-9]+:[0-9]+$/;
   _lastTimestamp = 0;
   _lastCodeLogEntry;
+  _lastTickLogEntry;
   _chunkRemainder = '';
   MAJOR_VERSION = 7;
   MINOR_VERSION = 6;
@@ -248,6 +249,9 @@ export class Processor extends LogReader {
 
   async finalize() {
     await this._chunkConsumer.consumeAll();
+    if (this._profile.warnings.size > 0) {
+      console.warn('Found profiler warnings:', this._profile.warnings);
+    }
     // TODO(cbruni): print stats;
     this._mapTimeline.transitions = new Map();
     let id = 0;
@@ -387,7 +391,12 @@ export class Processor extends LogReader {
     const entryStack = this._profile.recordTick(
         time_ns, vmState,
         this.processStack(pc, tos_or_external_callback, stack));
-    this._tickTimeline.push(new TickLogEntry(time_ns, vmState, entryStack))
+    const newEntry = new TickLogEntry(time_ns, vmState, entryStack);
+    this._tickTimeline.push(newEntry);
+    if (this._lastTickLogEntry !== undefined) {
+      this._lastTickLogEntry.end(time_ns);
+    }
+    this._lastTickLogEntry = newEntry;
   }
 
   processCodeSourceInfo(

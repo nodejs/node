@@ -5,9 +5,9 @@ Error: an error!
     at functionA (*enclosing-call-site-min.js:1:26)
     at Object.<anonymous> (*enclosing-call-site-min.js:1:199)
     at Module._compile (node:internal/modules/cjs/loader:*)
-    at Object.Module._extensions..js (node:internal/modules/cjs/loader:*)
+    at Module._extensions..js (node:internal/modules/cjs/loader:*)
     at Module.load (node:internal/modules/cjs/loader:*)
-    at Function.Module._load (node:internal/modules/cjs/loader:*)
+    at Module._load (node:internal/modules/cjs/loader:*)
     at Module.require (node:internal/modules/cjs/loader:*)
 *enclosing-call-site.js:16
       throw new Error('an error!')
@@ -20,9 +20,9 @@ Error: an error!
     at functionA (*enclosing-call-site.js:2:3)
     at Object.<anonymous> (*enclosing-call-site.js:24:3)
     at Module._compile (node:internal/modules/cjs/loader:*)
-    at Object.Module._extensions..js (node:internal/modules/cjs/loader:*)
+    at Module._extensions..js (node:internal/modules/cjs/loader:*)
     at Module.load (node:internal/modules/cjs/loader:*)
-    at Function.Module._load (node:internal/modules/cjs/loader:*)
+    at Module._load (node:internal/modules/cjs/loader:*)
     at Module.require (node:internal/modules/cjs/loader:*)
 
 Node.js *

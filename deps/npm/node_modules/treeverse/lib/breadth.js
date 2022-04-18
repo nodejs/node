@@ -28,27 +28,28 @@ const breadth = ({
     return seen.get(tree)
   }
 
-  const visitNode = (tree) => {
-    if (seen.has(tree))
-      return seen.get(tree)
+  const visitNode = (visitTree) => {
+    if (seen.has(visitTree)) {
+      return seen.get(visitTree)
+    }
 
-    seen.set(tree, null)
-    const res = visit ? visit(tree) : tree
+    seen.set(visitTree, null)
+    const res = visit ? visit(visitTree) : visitTree
     if (isPromise(res)) {
-      const fullResult = res.then(res => {
-        seen.set(tree, res)
-        return kidNodes(tree)
+      const fullResult = res.then(resThen => {
+        seen.set(visitTree, resThen)
+        return kidNodes(visitTree)
       })
-      seen.set(tree, fullResult)
+      seen.set(visitTree, fullResult)
       return fullResult
     } else {
-      seen.set(tree, res)
-      return kidNodes(tree)
+      seen.set(visitTree, res)
+      return kidNodes(visitTree)
     }
   }
 
-  const kidNodes = (tree) => {
-    const kids = getChildren(tree, seen.get(tree))
+  const kidNodes = (kidTree) => {
+    const kids = getChildren(kidTree, seen.get(kidTree))
     return isPromise(kids) ? kids.then(processKids) : processKids(kids)
   }
 

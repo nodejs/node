@@ -125,7 +125,6 @@ The tools are currently assigned to Tiers as follows:
 | Tool Type | Tool/API Name             | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
 | --------- | ------------------------- | ----------------------------- | ----------------------- | ----------- |
 | FFDC      | node-report               | No                            | No                      | 1           |
-| Memory    | mdb\_V8                   | No                            | No                      | 4           |
 | Memory    | node-heapdump             | No                            | No                      | 2           |
 | Memory    | V8 heap profiler          | No                            | Yes                     | 1           |
 | Memory    | V8 sampling heap profiler | No                            | Yes                     | 1           |
@@ -134,7 +133,6 @@ The tools are currently assigned to Tiers as follows:
 | Debugger  | Command line Debug Client | ?                             | Yes                     | 1           |
 | Debugger  | llnode                    | ?                             | No                      | 2           |
 | Debugger  | Chrome Dev tools          | ?                             | No                      | 3           |
-| Debugger  | Chakracore - time-travel  | No                            | Data source only        | too early   |
 | Tracing   | trace\_events (API)       | No                            | Yes                     | 1           |
 | Tracing   | trace\_gc                 | No                            | Yes                     | 1           |
 | Tracing   | DTrace                    | No                            | Partial                 | 3           |

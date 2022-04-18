@@ -18,6 +18,8 @@
 #include "src/compiler/schedule.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
+#include "src/execution/isolate-utils-inl.h"
+#include "src/objects/instance-type-inl.h"
 #include "src/utils/ostreams.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -79,13 +81,13 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
 }
 
 bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
-  const bool kComplexFPAliasing = !kSimpleFPAliasing &&
+  const bool kCombineFPAliasing = kFPAliasing == AliasingKind::kCombine &&
                                   this->IsFPLocationOperand() &&
                                   other.IsFPLocationOperand();
   const bool kComplexS128SlotAliasing =
       (this->IsSimd128StackSlot() && other.IsAnyStackSlot()) ||
       (other.IsSimd128StackSlot() && this->IsAnyStackSlot());
-  if (!kComplexFPAliasing && !kComplexS128SlotAliasing) {
+  if (!kCombineFPAliasing && !kComplexS128SlotAliasing) {
     return EqualsCanonicalized(other);
   }
   const LocationOperand& loc = *LocationOperand::cast(this);
@@ -96,7 +98,7 @@ bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
   MachineRepresentation rep = loc.representation();
   MachineRepresentation other_rep = other_loc.representation();
 
-  if (kComplexFPAliasing && !kComplexS128SlotAliasing) {
+  if (kCombineFPAliasing && !kComplexS128SlotAliasing) {
     if (rep == other_rep) return EqualsCanonicalized(other);
     if (kind == LocationOperand::REGISTER) {
       // FP register-register interference.
@@ -124,7 +126,7 @@ bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
 bool LocationOperand::IsCompatible(LocationOperand* op) {
   if (IsRegister() || IsStackSlot()) {
     return op->IsRegister() || op->IsStackSlot();
-  } else if (kSimpleFPAliasing) {
+  } else if (kFPAliasing != AliasingKind::kCombine) {
     // A backend may choose to generate the same instruction sequence regardless
     // of the FP representation. As a result, we can relax the compatibility and
     // allow a Double to be moved in a Float for example. However, this is only
@@ -160,8 +162,11 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
                     << ")";
         case UnallocatedOperand::FIXED_FP_REGISTER:
           return os << "(="
-                    << DoubleRegister::from_code(
-                           unalloc->fixed_register_index())
+                    << (unalloc->IsSimd128Register()
+                            ? i::RegisterName((Simd128Register::from_code(
+                                  unalloc->fixed_register_index())))
+                            : i::RegisterName(DoubleRegister::from_code(
+                                  unalloc->fixed_register_index())))
                     << ")";
         case UnallocatedOperand::MUST_HAVE_REGISTER:
           return os << "(R)";
@@ -176,7 +181,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
       }
     }
     case InstructionOperand::CONSTANT:
-      return os << "[constant:" << ConstantOperand::cast(op).virtual_register()
+      return os << "[constant:v" << ConstantOperand::cast(op).virtual_register()
                 << "]";
     case InstructionOperand::IMMEDIATE: {
       ImmediateOperand imm = ImmediateOperand::cast(op);
@@ -259,8 +264,8 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
         case MachineRepresentation::kCompressed:
           os << "|c";
           break;
-        case MachineRepresentation::kCagedPointer:
-          os << "|cg";
+        case MachineRepresentation::kSandboxedPointer:
+          os << "|sb";
           break;
         case MachineRepresentation::kMapWord:
           UNREACHABLE();
@@ -282,7 +287,7 @@ std::ostream& operator<<(std::ostream& os, const MoveOperands& mo) {
   if (!mo.source().Equals(mo.destination())) {
     os << " = " << mo.source();
   }
-  return os << ";";
+  return os;
 }
 
 bool ParallelMove::IsRedundant() const {
@@ -294,8 +299,8 @@ bool ParallelMove::IsRedundant() const {
 
 void ParallelMove::PrepareInsertAfter(
     MoveOperands* move, ZoneVector<MoveOperands*>* to_eliminate) const {
-  bool no_aliasing =
-      kSimpleFPAliasing || !move->destination().IsFPLocationOperand();
+  bool no_aliasing = kFPAliasing != AliasingKind::kCombine ||
+                     !move->destination().IsFPLocationOperand();
   MoveOperands* replacement = nullptr;
   MoveOperands* eliminated = nullptr;
   for (MoveOperands* curr : *this) {
@@ -371,11 +376,11 @@ bool Instruction::AreMovesRedundant() const {
 void Instruction::Print() const { StdoutStream{} << *this << std::endl; }
 
 std::ostream& operator<<(std::ostream& os, const ParallelMove& pm) {
-  const char* space = "";
+  const char* delimiter = "";
   for (MoveOperands* move : pm) {
     if (move->IsEliminated()) continue;
-    os << space << *move;
-    space = " ";
+    os << delimiter << *move;
+    delimiter = "; ";
   }
   return os;
 }
@@ -551,9 +556,11 @@ Handle<HeapObject> Constant::ToHeapObject() const {
   return value;
 }
 
-Handle<Code> Constant::ToCode() const {
+Handle<CodeT> Constant::ToCode() const {
   DCHECK_EQ(kHeapObject, type());
-  Handle<Code> value(reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
+  Handle<CodeT> value(
+      reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
+  DCHECK(value->IsCodeT(GetPtrComprCageBaseSlow(*value)));
   return value;
 }
 
@@ -931,7 +938,7 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kSimd128:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
-    case MachineRepresentation::kCagedPointer:
+    case MachineRepresentation::kSandboxedPointer:
       return rep;
     case MachineRepresentation::kNone:
     case MachineRepresentation::kMapWord:

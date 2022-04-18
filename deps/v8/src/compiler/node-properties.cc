@@ -620,7 +620,7 @@ bool NodeProperties::IsFreshObject(Node* node) {
       Builtin callee = static_cast<Builtin>(matcher.ResolvedValue());
       // Note: Make sure to only add builtins which are guaranteed to return a
       // fresh object. E.g. kWasmAllocateFixedArray may return the canonical
-      // empty array, and kWasmAllocateRtt may return a cached rtt.
+      // empty array.
       return callee == Builtin::kWasmAllocateArray_Uninitialized ||
              callee == Builtin::kWasmAllocateArray_InitNull ||
              callee == Builtin::kWasmAllocateArray_InitZero ||

@@ -60,6 +60,13 @@ class TaggedField : public AllStatic {
   static inline void Release_Store(HeapObject host, T value);
   static inline void Release_Store(HeapObject host, int offset, T value);
 
+  static inline T SeqCst_Load(HeapObject host, int offset = 0);
+  static inline T SeqCst_Load(PtrComprCageBase cage_base, HeapObject host,
+                              int offset = 0);
+
+  static inline void SeqCst_Store(HeapObject host, T value);
+  static inline void SeqCst_Store(HeapObject host, int offset, T value);
+
   static inline Tagged_t Release_CompareAndSwap(HeapObject host, T old,
                                                 T value);
 

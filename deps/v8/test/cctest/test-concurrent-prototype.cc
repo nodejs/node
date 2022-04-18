@@ -188,8 +188,9 @@ TEST(ProtoWalkBackground_PrototypeChainWrite) {
   sema_started.Wait();
 
   for (int i = 0; i < 20; ++i) {
-    CHECK(JSReceiver::SetPrototype(
-              js_object, i % 2 == 0 ? new_proto : old_proto, false, kDontThrow)
+    CHECK(JSReceiver::SetPrototype(isolate, js_object,
+                                   i % 2 == 0 ? new_proto : old_proto, false,
+                                   kDontThrow)
               .FromJust());
   }
 

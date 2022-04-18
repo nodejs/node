@@ -330,6 +330,8 @@ The `callback` function passed to `rl.question()` does not follow the typical
 pattern of accepting an `Error` object or `null` as the first argument.
 The `callback` is called with the provided answer as the only argument.
 
+An error will be thrown if calling `rl.question()` after `rl.close()`.
+
 Example usage:
 
 ```js
@@ -353,25 +355,6 @@ signal.addEventListener('abort', () => {
 }, { once: true });
 
 setTimeout(() => ac.abort(), 10000);
-```
-
-If this method is invoked as it's util.promisify()ed version, it returns a
-Promise that fulfills with the answer. If the question is canceled using
-an `AbortController` it will reject with an `AbortError`.
-
-```js
-const util = require('util');
-const question = util.promisify(rl.question).bind(rl);
-
-async function questionExample() {
-  try {
-    const answer = await question('What is you favorite food? ');
-    console.log(`Oh, so your favorite food is ${answer}`);
-  } catch (err) {
-    console.error('Question rejected', err);
-  }
-}
-questionExample();
 ```
 
 ### `rl.resume()`
@@ -591,7 +574,7 @@ added: v17.0.0
   prompt.
 * `options` {Object}
   * `signal` {AbortSignal} Optionally allows the `question()` to be canceled
-    using an `AbortController`.
+    using an `AbortSignal`.
 * Returns: {Promise} A promise that is fulfilled with the user's
   input in response to the `query`.
 
@@ -605,6 +588,8 @@ paused.
 If the `readlinePromises.Interface` was created with `output` set to `null` or
 `undefined` the `query` is not written.
 
+If the question is called after `rl.close()`, it returns a rejected promise.
+
 Example usage:
 
 ```mjs
@@ -612,20 +597,17 @@ const answer = await rl.question('What is your favorite food? ');
 console.log(`Oh, so your favorite food is ${answer}`);
 ```
 
-Using an `AbortController` to cancel a question.
+Using an `AbortSignal` to cancel a question.
 
 ```mjs
-const ac = new AbortController();
-const signal = ac.signal;
-
-const answer = await rl.question('What is your favorite food? ', { signal });
-console.log(`Oh, so your favorite food is ${answer}`);
+const signal = AbortSignal.timeout(10_000);
 
 signal.addEventListener('abort', () => {
   console.log('The food question timed out');
 }, { once: true });
 
-setTimeout(() => ac.abort(), 10000);
+const answer = await rl.question('What is your favorite food? ', { signal });
+console.log(`Oh, so your favorite food is ${answer}`);
 ```
 
 ### Class: `readlinePromises.Readline`
@@ -877,6 +859,8 @@ The `callback` function passed to `rl.question()` does not follow the typical
 pattern of accepting an `Error` object or `null` as the first argument.
 The `callback` is called with the provided answer as the only argument.
 
+An error will be thrown if calling `rl.question()` after `rl.close()`.
+
 Example usage:
 
 ```js
@@ -900,25 +884,6 @@ signal.addEventListener('abort', () => {
 }, { once: true });
 
 setTimeout(() => ac.abort(), 10000);
-```
-
-If this method is invoked as it's util.promisify()ed version, it returns a
-Promise that fulfills with the answer. If the question is canceled using
-an `AbortController` it will reject with an `AbortError`.
-
-```js
-const util = require('util');
-const question = util.promisify(rl.question).bind(rl);
-
-async function questionExample() {
-  try {
-    const answer = await question('What is you favorite food? ');
-    console.log(`Oh, so your favorite food is ${answer}`);
-  } catch (err) {
-    console.error('Question rejected', err);
-  }
-}
-questionExample();
 ```
 
 ### `readline.clearLine(stream, dir[, callback])`

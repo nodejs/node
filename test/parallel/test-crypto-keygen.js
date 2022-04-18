@@ -117,7 +117,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 
 {
   // Test sync key generation with key objects with a non-standard
-  // publicExpononent
+  // publicExponent
   const { publicKey, privateKey } = generateKeyPairSync('rsa', {
     publicExponent: 3,
     modulusLength: 512
@@ -1122,57 +1122,189 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }
 }
 
+function addNumericalSeparator(val) {
+  val = String(val);
+  let res = '';
+  let i = val.length;
+  const start = val[0] === '-' ? 1 : 0;
+  for (; i >= start + 4; i -= 3) {
+    res = `_${val.slice(i - 3, i)}${res}`;
+  }
+  return `${val.slice(0, i)}${res}`;
+}
+
+
 // Test RSA parameters.
 {
-  // Test invalid modulus lengths.
-  for (const modulusLength of [undefined, null, 'a', true, {}, [], 512.1, -1]) {
+  // Test invalid modulus lengths. (non-number)
+  for (const modulusLength of [undefined, null, 'a', true, {}, []]) {
     assert.throws(() => generateKeyPair('rsa', {
       modulusLength
     }, common.mustNotCall()), {
       name: 'TypeError',
-      code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.modulusLength' is invalid. " +
+      code: 'ERR_INVALID_ARG_TYPE',
+      message:
+        'The "options.modulusLength" property must be of type number.' +
+        common.invalidArgTypeHelper(modulusLength)
+    });
+  }
+
+  // Test invalid modulus lengths. (non-integer)
+  for (const modulusLength of [512.1, 1.3, 1.1, 5000.9, 100.5]) {
+    assert.throws(() => generateKeyPair('rsa', {
+      modulusLength
+    }, common.mustNotCall()), {
+      name: 'RangeError',
+      code: 'ERR_OUT_OF_RANGE',
+      message:
+        'The value of "options.modulusLength" is out of range. ' +
+        'It must be an integer. ' +
         `Received ${inspect(modulusLength)}`
     });
   }
 
-  // Test invalid exponents.
-  for (const publicExponent of ['a', true, {}, [], 3.5, -1]) {
+  // Test invalid modulus lengths. (out of range)
+  for (const modulusLength of [-1, -9, 4294967297]) {
+    assert.throws(() => generateKeyPair('rsa', {
+      modulusLength
+    }, common.mustNotCall()), {
+      name: 'RangeError',
+      code: 'ERR_OUT_OF_RANGE',
+      message:
+        'The value of "options.modulusLength" is out of range. ' +
+        'It must be >= 0 && < 4294967296. ' +
+        `Received ${addNumericalSeparator(modulusLength)}`
+    });
+  }
+
+  // Test invalid exponents. (non-number)
+  for (const publicExponent of ['a', true, {}, []]) {
     assert.throws(() => generateKeyPair('rsa', {
       modulusLength: 4096,
       publicExponent
     }, common.mustNotCall()), {
       name: 'TypeError',
-      code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.publicExponent' is invalid. " +
+      code: 'ERR_INVALID_ARG_TYPE',
+      message:
+        'The "options.publicExponent" property must be of type number.' +
+        common.invalidArgTypeHelper(publicExponent)
+    });
+  }
+
+  // Test invalid exponents. (non-integer)
+  for (const publicExponent of [3.5, 1.1, 50.5, 510.5]) {
+    assert.throws(() => generateKeyPair('rsa', {
+      modulusLength: 4096,
+      publicExponent
+    }, common.mustNotCall()), {
+      name: 'RangeError',
+      code: 'ERR_OUT_OF_RANGE',
+      message:
+        'The value of "options.publicExponent" is out of range. ' +
+        'It must be an integer. ' +
         `Received ${inspect(publicExponent)}`
+    });
+  }
+
+  // Test invalid exponents. (out of range)
+  for (const publicExponent of [-5, -3, 4294967297]) {
+    assert.throws(() => generateKeyPair('rsa', {
+      modulusLength: 4096,
+      publicExponent
+    }, common.mustNotCall()), {
+      name: 'RangeError',
+      code: 'ERR_OUT_OF_RANGE',
+      message:
+        'The value of "options.publicExponent" is out of range. ' +
+        'It must be >= 0 && < 4294967296. ' +
+        `Received ${addNumericalSeparator(publicExponent)}`
     });
   }
 }
 
 // Test DSA parameters.
 {
-  // Test invalid modulus lengths.
-  for (const modulusLength of [undefined, null, 'a', true, {}, [], 4096.1]) {
+  // Test invalid modulus lengths. (non-number)
+  for (const modulusLength of [undefined, null, 'a', true, {}, []]) {
     assert.throws(() => generateKeyPair('dsa', {
       modulusLength
     }, common.mustNotCall()), {
       name: 'TypeError',
-      code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.modulusLength' is invalid. " +
+      code: 'ERR_INVALID_ARG_TYPE',
+      message:
+        'The "options.modulusLength" property must be of type number.' +
+        common.invalidArgTypeHelper(modulusLength)
+    });
+  }
+
+  // Test invalid modulus lengths. (non-integer)
+  for (const modulusLength of [512.1, 1.3, 1.1, 5000.9, 100.5]) {
+    assert.throws(() => generateKeyPair('dsa', {
+      modulusLength
+    }, common.mustNotCall()), {
+      name: 'RangeError',
+      code: 'ERR_OUT_OF_RANGE',
+      message:
+        'The value of "options.modulusLength" is out of range. ' +
+        'It must be an integer. ' +
         `Received ${inspect(modulusLength)}`
     });
   }
 
-  // Test invalid divisor lengths.
-  for (const divisorLength of ['a', true, {}, [], 4096.1, 2147483648, -1]) {
+  // Test invalid modulus lengths. (out of range)
+  for (const modulusLength of [-1, -9, 4294967297]) {
+    assert.throws(() => generateKeyPair('dsa', {
+      modulusLength
+    }, common.mustNotCall()), {
+      name: 'RangeError',
+      code: 'ERR_OUT_OF_RANGE',
+      message:
+        'The value of "options.modulusLength" is out of range. ' +
+        'It must be >= 0 && < 4294967296. ' +
+        `Received ${addNumericalSeparator(modulusLength)}`
+    });
+  }
+
+  // Test invalid divisor lengths. (non-number)
+  for (const divisorLength of ['a', true, {}, []]) {
     assert.throws(() => generateKeyPair('dsa', {
       modulusLength: 2048,
       divisorLength
     }, common.mustNotCall()), {
       name: 'TypeError',
-      code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.divisorLength' is invalid. " +
+      code: 'ERR_INVALID_ARG_TYPE',
+      message:
+        'The "options.divisorLength" property must be of type number.' +
+        common.invalidArgTypeHelper(divisorLength)
+    });
+  }
+
+  // Test invalid divisor lengths. (non-integer)
+  for (const divisorLength of [4096.1, 5.1, 6.9, 9.5]) {
+    assert.throws(() => generateKeyPair('dsa', {
+      modulusLength: 2048,
+      divisorLength
+    }, common.mustNotCall()), {
+      name: 'RangeError',
+      code: 'ERR_OUT_OF_RANGE',
+      message:
+        'The value of "options.divisorLength" is out of range. ' +
+        'It must be an integer. ' +
+        `Received ${inspect(divisorLength)}`
+    });
+  }
+
+  // Test invalid divisor lengths. (out of range)
+  for (const divisorLength of [-6, -9, 2147483648]) {
+    assert.throws(() => generateKeyPair('dsa', {
+      modulusLength: 2048,
+      divisorLength
+    }, common.mustNotCall()), {
+      name: 'RangeError',
+      code: 'ERR_OUT_OF_RANGE',
+      message:
+        'The value of "options.divisorLength" is out of range. ' +
+        'It must be >= 0 && <= 2147483647. ' +
         `Received ${inspect(divisorLength)}`
     });
   }
@@ -1202,9 +1334,10 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       });
     }, {
       name: 'TypeError',
-      code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.namedCurve' is invalid. " +
-        `Received ${inspect(namedCurve)}`
+      code: 'ERR_INVALID_ARG_TYPE',
+      message:
+        'The "options.namedCurve" property must be of type string.' +
+        common.invalidArgTypeHelper(namedCurve)
     });
   }
 
@@ -1293,9 +1426,10 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       primeLength: 2147483648
     }, common.mustNotCall());
   }, {
-    name: 'TypeError',
-    code: 'ERR_INVALID_ARG_VALUE',
-    message: "The property 'options.primeLength' is invalid. " +
+    name: 'RangeError',
+    code: 'ERR_OUT_OF_RANGE',
+    message: 'The value of "options.primeLength" is out of range. ' +
+             'It must be >= 0 && <= 2147483647. ' +
              'Received 2147483648',
   });
 
@@ -1304,9 +1438,10 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       primeLength: -1
     }, common.mustNotCall());
   }, {
-    name: 'TypeError',
-    code: 'ERR_INVALID_ARG_VALUE',
-    message: "The property 'options.primeLength' is invalid. " +
+    name: 'RangeError',
+    code: 'ERR_OUT_OF_RANGE',
+    message: 'The value of "options.primeLength" is out of range. ' +
+             'It must be >= 0 && <= 2147483647. ' +
              'Received -1',
   });
 
@@ -1316,9 +1451,10 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       generator: 2147483648,
     }, common.mustNotCall());
   }, {
-    name: 'TypeError',
-    code: 'ERR_INVALID_ARG_VALUE',
-    message: "The property 'options.generator' is invalid. " +
+    name: 'RangeError',
+    code: 'ERR_OUT_OF_RANGE',
+    message: 'The value of "options.generator" is out of range. ' +
+             'It must be >= 0 && <= 2147483647. ' +
              'Received 2147483648',
   });
 
@@ -1328,9 +1464,10 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       generator: -1,
     }, common.mustNotCall());
   }, {
-    name: 'TypeError',
-    code: 'ERR_INVALID_ARG_VALUE',
-    message: "The property 'options.generator' is invalid. " +
+    name: 'RangeError',
+    code: 'ERR_OUT_OF_RANGE',
+    message: 'The value of "options.generator" is out of range. ' +
+             'It must be >= 0 && <= 2147483647. ' +
              'Received -1',
   });
 
@@ -1389,9 +1526,10 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       });
     }, {
       name: 'TypeError',
-      code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.hashAlgorithm' is invalid. " +
-        `Received ${inspect(hashValue)}`
+      code: 'ERR_INVALID_ARG_TYPE',
+      message:
+      'The "options.hashAlgorithm" property must be of type string.' +
+        common.invalidArgTypeHelper(hashValue)
     });
   }
 
@@ -1404,9 +1542,10 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       mgf1HashAlgorithm: 'sha256'
     }, common.mustNotCall());
   }, {
-    name: 'TypeError',
-    code: 'ERR_INVALID_ARG_VALUE',
-    message: "The property 'options.saltLength' is invalid. " +
+    name: 'RangeError',
+    code: 'ERR_OUT_OF_RANGE',
+    message: 'The value of "options.saltLength" is out of range. ' +
+             'It must be >= 0 && <= 2147483647. ' +
              'Received 2147483648'
   });
 
@@ -1418,9 +1557,10 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       mgf1HashAlgorithm: 'sha256'
     }, common.mustNotCall());
   }, {
-    name: 'TypeError',
-    code: 'ERR_INVALID_ARG_VALUE',
-    message: "The property 'options.saltLength' is invalid. " +
+    name: 'RangeError',
+    code: 'ERR_OUT_OF_RANGE',
+    message: 'The value of "options.saltLength" is out of range. ' +
+             'It must be >= 0 && <= 2147483647. ' +
              'Received -1'
   });
 
@@ -1534,9 +1674,10 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       },
       {
         name: 'TypeError',
-        code: 'ERR_INVALID_ARG_VALUE',
-        message: "The property 'options.mgf1HashAlgorithm' is invalid. " +
-          `Received ${inspect(mgf1HashAlgorithm)}`
+        code: 'ERR_INVALID_ARG_TYPE',
+        message:
+          'The "options.mgf1HashAlgorithm" property must be of type string.' +
+          common.invalidArgTypeHelper(mgf1HashAlgorithm)
 
       }
     );

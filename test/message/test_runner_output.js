@@ -3,6 +3,7 @@
 require('../common');
 const assert = require('node:assert');
 const test = require('node:test');
+const util = require('util');
 
 test('sync pass todo', (t) => {
   t.todo();
@@ -285,4 +286,36 @@ test('callback async throw after done', (t, done) => {
   });
 
   done();
+});
+
+test('only is set but not in only mode', { only: true }, async (t) => {
+  // All of these subtests should run.
+  await t.test('running subtest 1');
+  t.runOnly(true);
+  await t.test('running subtest 2');
+  await t.test('running subtest 3', { only: true });
+  t.runOnly(false);
+  await t.test('running subtest 4');
+});
+
+test('custom inspect symbol fail', () => {
+  const obj = {
+    [util.inspect.custom]() {
+      return 'customized';
+    },
+    foo: 1
+  };
+
+  throw obj;
+});
+
+test('custom inspect symbol that throws fail', () => {
+  const obj = {
+    [util.inspect.custom]() {
+      throw new Error('bad-inspect');
+    },
+    foo: 1
+  };
+
+  throw obj;
 });

@@ -1,262 +1,211 @@
 const t = require('tap')
-const { fake: mockNpm } = require('../../fixtures/mock-npm')
+const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 
-let result = ''
-const noop = () => null
-const versions = async () => {
-  return {
-    versions: {
-      '1.0.0': {},
-      '1.0.1': {},
+const MockRegistry = require('../../fixtures/mock-registry.js')
+const user = 'test-user'
+const pkg = 'test-package'
+const auth = { '//registry.npmjs.org/:_authToken': 'test-auth-token' }
+
+t.test('no args --force success', async t => {
+  const { joinedOutput, npm } = await loadMockNpm(t, {
+    config: {
+      force: true,
+      ...auth,
     },
-  }
-}
-
-const singleVersion = async () => {
-  return {
-    versions: {
-      '1.0.0': {},
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: pkg,
+        version: '1.0.0',
+      }, null, 2),
     },
-  }
-}
-
-const config = {
-  force: false,
-}
-
-const testDir = t.testdir({
-  'package.json': JSON.stringify({
-    name: 'pkg',
-    version: '1.0.0',
-  }, null, 2),
-})
-
-const npm = mockNpm({
-  localPrefix: testDir,
-  config,
-  output: (...msg) => {
-    result += msg.join('\n')
-  },
-})
-
-const mocks = {
-  libnpmaccess: { lsPackages: noop },
-  libnpmpublish: { unpublish: noop },
-  'npm-registry-fetch': { json: versions },
-  '../../../lib/utils/otplease.js': async (opts, fn) => fn(opts),
-  '../../../lib/utils/get-identity.js': async () => 'foo',
-  'proc-log': { silly () {}, verbose () {} },
-}
-
-t.afterEach(() => {
-  npm.localPrefix = testDir
-  result = ''
-  config['dry-run'] = false
-  config.force = false
-  npm.config.set('loglevel', 'info')
-})
-
-t.test('no args --force', async t => {
-  config.force = true
-
-  const log = {
-    silly (title) {
-      t.equal(title, 'unpublish', 'should silly log args')
-    },
-    verbose (title, msg) {
-      t.equal(title, 'unpublish', 'should have expected title')
-      t.match(
-        msg,
-        { name: 'pkg', version: '1.0.0' },
-        'should have msg printing package.json contents'
-      )
-    },
-  }
-
-  const libnpmpublish = {
-    unpublish (spec, opts) {
-      t.equal(spec.raw, 'pkg@1.0.0', 'should unpublish expected spec')
-      t.match(
-        opts,
-        {
-          publishConfig: undefined,
-        },
-        'should unpublish with expected opts'
-      )
-    },
-  }
-
-  const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-    ...mocks,
-    libnpmpublish,
-    'proc-log': log,
   })
 
-  const unpublish = new Unpublish(npm)
-
-  await unpublish.exec([])
-
-  t.equal(
-    result,
-    '- pkg@1.0.0',
-    'should output removed pkg@version on success'
-  )
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const manifest = registry.manifest({ name: pkg })
+  await registry.package({ manifest, query: { write: true } })
+  registry.nock.delete(`/${pkg}/-rev/${manifest._rev}`).reply(201)
+  await npm.exec('unpublish', [])
+  t.equal(joinedOutput(), '- test-package@1.0.0')
 })
 
 t.test('no args --force missing package.json', async t => {
-  config.force = true
-
-  const testDir = t.testdir({})
-  npm.localPrefix = testDir
-  const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-    ...mocks,
+  const { npm } = await loadMockNpm(t, {
+    config: {
+      force: true,
+    },
   })
-  const unpublish = new Unpublish(npm)
 
   await t.rejects(
-    unpublish.exec([]),
-    /Usage: npm unpublish/,
+    npm.exec('unpublish', []),
+    { code: 'EUSAGE' },
     'should throw usage instructions on missing package.json'
   )
 })
 
-t.test('no args --force unknown error reading package.json', async t => {
-  config.force = true
-
-  const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-    ...mocks,
-    'read-package-json': (path, cb) => cb(new Error('ERR')),
+t.test('no args --force error reading package.json', async t => {
+  const { npm } = await loadMockNpm(t, {
+    config: {
+      force: true,
+    },
+    prefixDir: {
+      'package.json': '{ not valid json ]',
+    },
   })
-  const unpublish = new Unpublish(npm)
 
   await t.rejects(
-    unpublish.exec([]),
-    /ERR/,
-    'should throw unknown error from reading package.json'
+    npm.exec('unpublish', []),
+    /Failed to parse json/,
+    'should throw error from reading package.json'
   )
 })
 
-t.test('no args', async t => {
-  const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-    ...mocks,
-  })
-  const unpublish = new Unpublish(npm)
+t.test('no args entire project', async t => {
+  const { npm } = await loadMockNpm(t)
 
   await t.rejects(
-    unpublish.exec([]),
-    /Refusing to delete entire project/,
-    'should throw --force required error on no args'
+    npm.exec('unpublish', []),
+    /Refusing to delete entire project/
   )
 })
 
 t.test('too many args', async t => {
-  const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-    ...mocks,
-  })
-  const unpublish = new Unpublish(npm)
+  const { npm } = await loadMockNpm(t)
 
   await t.rejects(
-    unpublish.exec(['a', 'b']),
-    /Usage: npm unpublish/,
+    npm.exec('unpublish', ['a', 'b']),
+    { code: 'EUSAGE' },
     'should throw usage instructions if too many args'
   )
 })
 
-t.test('unpublish <pkg>@version', async t => {
-  const log = {
-    silly (title, key, value) {
-      t.equal(title, 'unpublish', 'should silly log args')
-      if (key === 'spec') {
-        t.match(value, { name: 'pkg', rawSpec: '1.0.0' })
-      } else {
-        t.equal(value, 'pkg@1.0.0', 'should log originally passed arg')
-      }
+t.test('unpublish <pkg>@version not the last version', async t => {
+  const { joinedOutput, npm } = await loadMockNpm(t, {
+    config: {
+      force: true,
+      ...auth,
     },
-  }
-
-  const libnpmpublish = {
-    unpublish (spec, opts) {
-      t.equal(spec.raw, 'pkg@1.0.0', 'should unpublish expected parsed spec')
-    },
-  }
-
-  const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-    ...mocks,
-    libnpmpublish,
-    'proc-log': log,
   })
-  const unpublish = new Unpublish(npm)
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const manifest = registry.manifest({
+    name: pkg,
+    packuments: ['1.0.0', '1.0.1'],
+  })
+  await registry.package({ manifest, query: { write: true }, times: 3 })
+  registry.nock.put(`/${pkg}/-rev/${manifest._rev}`, body => {
+    // sets latest and deletes version 1.0.1
+    return body['dist-tags'].latest === '1.0.0' && body.versions['1.0.1'] === undefined
+  }).reply(201)
+    .intercept(`/${pkg}/-/${pkg}-1.0.1.tgz/-rev/${manifest._rev}`, 'DELETE').reply(201)
 
-  await unpublish.exec(['pkg@1.0.0'])
+  await npm.exec('unpublish', ['test-package@1.0.1'])
+  t.equal(joinedOutput(), '- test-package@1.0.1')
+})
 
-  t.equal(
-    result,
-    '- pkg@1.0.0',
-    'should output removed pkg@version on success'
+t.test('unpublish <pkg>@version last version', async t => {
+  const { npm } = await loadMockNpm(t, {
+    config: {
+      ...auth,
+    },
+  })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const manifest = registry.manifest({ name: pkg })
+  await registry.package({ manifest, query: { write: true } })
+
+  await t.rejects(
+    npm.exec('unpublish', ['test-package@1.0.0']),
+    /Refusing to delete the last version of the package/
   )
 })
 
 t.test('no version found in package.json', async t => {
-  config.force = true
-
-  const testDir = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'pkg',
-    }, null, 2),
+  const { joinedOutput, npm } = await loadMockNpm(t, {
+    config: {
+      force: true,
+      ...auth,
+    },
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: pkg,
+      }, null, 2),
+    },
   })
-  npm.localPrefix = testDir
-
-  const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-    ...mocks,
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
   })
-  const unpublish = new Unpublish(npm)
+  const manifest = registry.manifest({ name: pkg })
+  await registry.package({ manifest, query: { write: true } })
+  registry.nock.delete(`/${pkg}/-rev/${manifest._rev}`).reply(201)
 
-  await unpublish.exec([])
-  t.equal(
-    result,
-    '- pkg',
-    'should output removed pkg on success'
-  )
+  await npm.exec('unpublish', [])
+  t.equal(joinedOutput(), '- test-package')
 })
 
 t.test('unpublish <pkg> --force no version set', async t => {
-  config.force = true
-
-  const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-    ...mocks,
+  const { joinedOutput, npm } = await loadMockNpm(t, {
+    config: {
+      force: true,
+      ...auth,
+    },
   })
-  const unpublish = new Unpublish(npm)
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const manifest = registry.manifest({ name: pkg })
+  await registry.package({ manifest, query: { write: true }, times: 2 })
+  registry.nock.delete(`/${pkg}/-rev/${manifest._rev}`).reply(201)
 
-  await unpublish.exec(['pkg'])
-
-  t.equal(
-    result,
-    '- pkg',
-    'should output pkg removed'
-  )
+  await npm.exec('unpublish', ['test-package'])
+  t.equal(joinedOutput(), '- test-package')
 })
 
 t.test('silent', async t => {
-  npm.config.set('loglevel', 'silent')
-
-  const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-    ...mocks,
+  const { joinedOutput, npm } = await loadMockNpm(t, {
+    config: {
+      force: true,
+      loglevel: 'silent',
+      ...auth,
+    },
   })
-  const unpublish = new Unpublish(npm)
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const manifest = registry.manifest({
+    name: pkg,
+    packuments: ['1.0.0', '1.0.1'],
+  })
+  await registry.package({ manifest, query: { write: true }, times: 3 })
+  registry.nock.put(`/${pkg}/-rev/${manifest._rev}`, body => {
+    // sets latest and deletes version 1.0.1
+    return body['dist-tags'].latest === '1.0.0' && body.versions['1.0.1'] === undefined
+  }).reply(201)
+    .delete(`/${pkg}/-/${pkg}-1.0.1.tgz/-rev/${manifest._rev}`).reply(201)
 
-  await unpublish.exec(['pkg@1.0.0'])
-
-  t.equal(
-    result,
-    '',
-    'should have no output'
-  )
+  await npm.exec('unpublish', ['test-package@1.0.1'])
+  t.equal(joinedOutput(), '')
 })
 
 t.test('workspaces', async t => {
-  const testDir = t.testdir({
+  const prefixDir = {
     'package.json': JSON.stringify({
-      name: 'my-cool-pkg',
+      name: pkg,
       version: '1.0.0',
       workspaces: ['workspace-a', 'workspace-b', 'workspace-c'],
     }, null, 2),
@@ -280,75 +229,183 @@ t.test('workspaces', async t => {
         version: '1.2.3-n',
       }),
     },
-  })
-  const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-    ...mocks,
-  })
-  const unpublish = new Unpublish(npm)
+  }
 
   t.test('no force', async t => {
-    npm.localPrefix = testDir
+    const { npm } = await loadMockNpm(t, {
+      config: {
+        workspaces: true,
+      },
+      prefixDir,
+    })
     await t.rejects(
-      unpublish.execWorkspaces([], []),
-      /--force/,
-      'should require force'
+      npm.exec('unpublish', []),
+      /Refusing to delete entire project/
     )
   })
 
   t.test('all workspaces --force', async t => {
-    npm.localPrefix = testDir
-    config.force = true
-    await unpublish.execWorkspaces([], [])
-    t.matchSnapshot(result, 'should output all workspaces')
+    const { joinedOutput, npm } = await loadMockNpm(t, {
+      config: {
+        workspaces: true,
+        force: true,
+        ...auth,
+      },
+      prefixDir,
+    })
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+      authorization: 'test-auth-token',
+    })
+    const manifestA = registry.manifest({ name: 'workspace-a' })
+    const manifestB = registry.manifest({ name: 'workspace-b' })
+    const manifestN = registry.manifest({ name: 'workspace-n' })
+    await registry.package({ manifest: manifestA, query: { write: true }, times: 2 })
+    await registry.package({ manifest: manifestB, query: { write: true }, times: 2 })
+    await registry.package({ manifest: manifestN, query: { write: true }, times: 2 })
+    registry.nock.delete(`/workspace-a/-rev/${manifestA._rev}`).reply(201)
+      .delete(`/workspace-b/-rev/${manifestB._rev}`).reply(201)
+      .delete(`/workspace-n/-rev/${manifestN._rev}`).reply(201)
+
+    await npm.exec('unpublish', [])
+    t.equal(joinedOutput(), '- workspace-a\n- workspace-b\n- workspace-n')
   })
 
   t.test('one workspace --force', async t => {
-    npm.localPrefix = testDir
-    config.force = true
-    await unpublish.execWorkspaces([], ['workspace-a'])
-    t.matchSnapshot(result, 'should output one workspaces')
+    const { joinedOutput, npm } = await loadMockNpm(t, {
+      config: {
+        workspace: ['workspace-a'],
+        force: true,
+        ...auth,
+      },
+      prefixDir,
+    })
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+      authorization: 'test-auth-token',
+    })
+    const manifestA = registry.manifest({ name: 'workspace-a' })
+    await registry.package({ manifest: manifestA, query: { write: true }, times: 2 })
+    registry.nock.delete(`/workspace-a/-rev/${manifestA._rev}`).reply(201)
+
+    await npm.exec('unpublish', [])
+    t.equal(joinedOutput(), '- workspace-a')
   })
 })
 
 t.test('dryRun with spec', async t => {
-  config['dry-run'] = true
-  const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-    ...mocks,
-    libnpmpublish: { unpublish: () => {
-      throw new Error('should not be called')
-    } },
+  const { joinedOutput, npm } = await loadMockNpm(t, {
+    config: {
+      'dry-run': true,
+      ...auth,
+    },
   })
-  const unpublish = new Unpublish(npm)
-  await unpublish.exec(['pkg@1.0.0'])
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const manifest = registry.manifest({
+    name: pkg,
+    packuments: ['1.0.0', '1.0.1'],
+  })
+  await registry.package({ manifest, query: { write: true } })
 
-  t.equal(
-    result,
-    '- pkg@1.0.0',
-    'should output removed pkg@version on success'
-  )
+  await npm.exec('unpublish', ['test-package@1.0.1'])
+  t.equal(joinedOutput(), '- test-package@1.0.1')
 })
 
-t.test('dryRun with local package', async t => {
-  config['dry-run'] = true
-  config.force = true
-  const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-    ...mocks,
-    libnpmpublish: { unpublish: () => {
-      throw new Error('should not be called')
-    } },
+t.test('dryRun with no args', async t => {
+  const { joinedOutput, npm } = await loadMockNpm(t, {
+    config: {
+      force: true,
+      'dry-run': true,
+      ...auth,
+    },
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: pkg,
+        version: '1.0.0',
+      }, null, 2),
+    },
   })
-  const unpublish = new Unpublish(npm)
-  await unpublish.exec([])
-  t.equal(
-    result,
-    '- pkg@1.0.0',
-    'should output removed pkg@1.0.0 on success'
-  )
+
+  await npm.exec('unpublish', [])
+  t.equal(joinedOutput(), '- test-package@1.0.0')
+})
+
+t.test('publishConfig no spec', async t => {
+  const alternateRegistry = 'https://other.registry.npmjs.org'
+  const { joinedOutput, npm } = await loadMockNpm(t, {
+    config: {
+      force: true,
+      '//other.registry.npmjs.org/:_authToken': 'test-other-token',
+    },
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: pkg,
+        version: '1.0.0',
+        publishConfig: {
+          registry: alternateRegistry,
+        },
+      }, null, 2),
+    },
+  })
+
+  const registry = new MockRegistry({
+    tap: t,
+    registry: alternateRegistry,
+    authorization: 'test-other-token',
+  })
+  const manifest = registry.manifest({ name: pkg })
+  await registry.package({ manifest, query: { write: true } })
+  registry.nock.delete(`/${pkg}/-rev/${manifest._rev}`).reply(201)
+  await npm.exec('unpublish', [])
+  t.equal(joinedOutput(), '- test-package@1.0.0')
+})
+
+t.test('publishConfig with spec', async t => {
+  const alternateRegistry = 'https://other.registry.npmjs.org'
+  const { joinedOutput, npm } = await loadMockNpm(t, {
+    config: {
+      force: true,
+      '//other.registry.npmjs.org/:_authToken': 'test-other-token',
+    },
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: pkg,
+        version: '1.0.0',
+        publishConfig: {
+          registry: alternateRegistry,
+        },
+      }, null, 2),
+    },
+  })
+
+  const registry = new MockRegistry({
+    tap: t,
+    registry: alternateRegistry,
+    authorization: 'test-other-token',
+  })
+  const manifest = registry.manifest({ name: pkg })
+  await registry.package({ manifest, query: { write: true }, times: 2 })
+  registry.nock.delete(`/${pkg}/-rev/${manifest._rev}`).reply(201)
+  await npm.exec('unpublish', ['test-package'])
+  t.equal(joinedOutput(), '- test-package')
 })
 
 t.test('completion', async t => {
+  const { npm } = await loadMockNpm(t, {
+    config: {
+      ...auth,
+    },
+  })
+
+  const unpublish = await npm.cmd('unpublish')
   const testComp =
-    async (t, { unpublish, argv, partialWord, expect, title }) => {
+    async (t, { argv, partialWord, expect, title }) => {
       const res = await unpublish.completion(
         { conf: { argv: { remain: argv } }, partialWord }
       )
@@ -356,114 +413,85 @@ t.test('completion', async t => {
     }
 
   t.test('completing with multiple versions from the registry', async t => {
-    const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-      ...mocks,
-      libnpmaccess: {
-        async lsPackages () {
-          return {
-            pkg: 'write',
-            bar: 'write',
-          }
-        },
-      },
-      'npm-registry-fetch': {
-        async json () {
-          return {
-            versions: {
-              '1.0.0': {},
-              '1.0.1': {},
-              '2.0.0': {},
-            },
-          }
-        },
-      },
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+      authorization: 'test-auth-token',
     })
-    const unpublish = new Unpublish(npm)
+    const manifest = registry.manifest({
+      name: pkg,
+      packuments: ['1.0.0', '1.0.1'],
+    })
+    await registry.package({ manifest, query: { write: true } })
+    registry.nock.get('/-/whoami').reply(200, { username: user })
+      .get('/-/org/test-user/package?format=cli').reply(200, { [pkg]: 'write' })
 
     await testComp(t, {
-      unpublish,
       argv: ['npm', 'unpublish'],
-      partialWord: 'pkg',
+      partialWord: 'test-package',
       expect: [
-        'pkg@1.0.0',
-        'pkg@1.0.1',
-        'pkg@2.0.0',
+        'test-package@1.0.0',
+        'test-package@1.0.1',
       ],
     })
   })
 
   t.test('no versions retrieved', async t => {
-    const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-      ...mocks,
-      libnpmaccess: {
-        async lsPackages () {
-          return {
-            pkg: 'write',
-            bar: 'write',
-          }
-        },
-      },
-      'npm-registry-fetch': {
-        async json () {
-          return {
-            versions: {},
-          }
-        },
-      },
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+      authorization: 'test-auth-token',
     })
-    const unpublish = new Unpublish(npm)
+    const manifest = registry.manifest({ name: pkg })
+    manifest.versions = {}
+    await registry.package({ manifest, query: { write: true } })
+    registry.nock.get('/-/whoami').reply(200, { username: user })
+      .get('/-/org/test-user/package?format=cli').reply(200, { [pkg]: 'write' })
 
     await testComp(t, {
-      unpublish,
       argv: ['npm', 'unpublish'],
-      partialWord: 'pkg',
+      partialWord: pkg,
       expect: [
-        'pkg',
+        pkg,
       ],
       title: 'should autocomplete package name only',
     })
   })
 
   t.test('packages starting with same letters', async t => {
-    const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-      ...mocks,
-      libnpmaccess: {
-        async lsPackages () {
-          return {
-            pkg: 'write',
-            pkga: 'write',
-            pkgb: 'write',
-          }
-        },
-      },
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+      authorization: 'test-auth-token',
     })
-    const unpublish = new Unpublish(npm)
+    registry.nock.get('/-/whoami').reply(200, { username: user })
+      .get('/-/org/test-user/package?format=cli').reply(200, {
+        [pkg]: 'write',
+        [`${pkg}a`]: 'write',
+        [`${pkg}b`]: 'write',
+      })
 
     await testComp(t, {
-      unpublish,
       argv: ['npm', 'unpublish'],
-      partialWord: 'pkg',
+      partialWord: pkg,
       expect: [
-        'pkg',
-        'pkga',
-        'pkgb',
+        pkg,
+        `${pkg}a`,
+        `${pkg}b`,
       ],
     })
   })
 
   t.test('no packages retrieved', async t => {
-    const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-      ...mocks,
-      libnpmaccess: {
-        async lsPackages () {
-          return {}
-        },
-      },
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+      authorization: 'test-auth-token',
     })
-    const unpublish = new Unpublish(npm)
+    registry.nock.get('/-/whoami').reply(200, { username: user })
+    registry.nock.get('/-/org/test-user/package?format=cli').reply(200, {})
 
     await testComp(t, {
-      unpublish,
       argv: ['npm', 'unpublish'],
       partialWord: 'pkg',
       expect: [],
@@ -472,101 +500,62 @@ t.test('completion', async t => {
   })
 
   t.test('no pkg name to complete', async t => {
-    const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-      ...mocks,
-      libnpmaccess: {
-        async lsPackages () {
-          return {
-            pkg: {},
-            bar: {},
-          }
-        },
-      },
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+      authorization: 'test-auth-token',
     })
-    const unpublish = new Unpublish(npm)
+    registry.nock.get('/-/whoami').reply(200, { username: user })
+      .get('/-/org/test-user/package?format=cli').reply(200, {
+        [pkg]: 'write',
+        [`${pkg}a`]: 'write',
+      })
 
     await testComp(t, {
-      unpublish,
       argv: ['npm', 'unpublish'],
       partialWord: undefined,
-      expect: ['pkg', 'bar'],
+      expect: [pkg, `${pkg}a`],
       title: 'should autocomplete with available package names from user',
     })
   })
 
   t.test('no pkg names retrieved from user account', async t => {
-    const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-      ...mocks,
-      libnpmaccess: {
-        async lsPackages () {
-          return null
-        },
-      },
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+      authorization: 'test-auth-token',
     })
-    const unpublish = new Unpublish(npm)
+    registry.nock.get('/-/whoami').reply(200, { username: user })
+      .get('/-/org/test-user/package?format=cli').reply(200, null)
 
     await testComp(t, {
-      unpublish,
       argv: ['npm', 'unpublish'],
-      partialWord: 'pkg',
+      partialWord: pkg,
       expect: [],
       title: 'should have no autocomplete',
     })
   })
 
   t.test('logged out user', async t => {
-    const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-      ...mocks,
-      '../../../lib/utils/get-identity.js': () => Promise.reject(new Error('ERR')),
+    const registry = new MockRegistry({
+      tap: t,
+      registry: npm.config.get('registry'),
+      authorization: 'test-auth-token',
     })
-    const unpublish = new Unpublish(npm)
+    registry.nock.get('/-/whoami').reply(404)
 
     await testComp(t, {
-      unpublish,
       argv: ['npm', 'unpublish'],
-      partialWord: 'pkg',
+      partialWord: pkg,
       expect: [],
     })
   })
 
   t.test('too many args', async t => {
-    const Unpublish = t.mock('../../../lib/commands/unpublish.js', mocks)
-    const unpublish = new Unpublish(npm)
-
     await testComp(t, {
-      unpublish,
       argv: ['npm', 'unpublish', 'foo'],
       partialWord: undefined,
       expect: [],
     })
   })
-})
-
-t.test('show error on unpublish <pkg>@version with package.json and the last version', async t => {
-  const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-    ...mocks,
-    'npm-registry-fetch': { json: singleVersion },
-    path: { resolve: () => testDir, join: () => testDir + '/package.json' },
-  })
-  const unpublish = new Unpublish(npm)
-  await t.rejects(
-    unpublish.exec(['pkg@1.0.0']),
-    'Refusing to delete the last version of the package. ' +
-      'It will block from republishing a new version for 24 hours.\n' +
-      'Run with --force to do this.'
-  )
-})
-
-t.test('show error on unpublish <pkg>@version when the last version', async t => {
-  const Unpublish = t.mock('../../../lib/commands/unpublish.js', {
-    ...mocks,
-    'npm-registry-fetch': { json: singleVersion },
-  })
-  const unpublish = new Unpublish(npm)
-  await t.rejects(
-    unpublish.exec(['pkg@1.0.0']),
-    'Refusing to delete the last version of the package. ' +
-      'It will block from republishing a new version for 24 hours.\n' +
-      'Run with --force to do this.'
-  )
 })

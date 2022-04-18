@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "March 2022" "" ""
+.TH "CONFIG" "7" "April 2022" "" ""
 .SH "NAME"
 \fBconfig\fR \- More than you probably want to know about npm configuration
 .SS Description
@@ -821,6 +821,8 @@ This option can be used when it's desirable to optionally run a script when
 it's present and fail if the script fails\. This is useful, for example, when
 running scripts that may only apply for some builds in an otherwise generic
 CI setup\.
+.P
+This value is not exported to the environment for child processes\.
 .SS \fBignore\-scripts\fP
 .RS 0
 .IP \(bu 2
@@ -878,6 +880,8 @@ Include the workspace root when workspaces are enabled for a command\.
 When false, specifying individual workspaces via the \fBworkspace\fP config, or
 all workspaces via the \fBworkspaces\fP flag, will cause npm to operate only on
 the specified workspaces, and not on the root project\.
+.P
+This value is not exported to the environment for child processes\.
 .SS \fBinit\-author\-email\fP
 .RS 0
 .IP \(bu 2
@@ -1088,6 +1092,17 @@ Any logs of a higher level than the setting are shown\. The default is
 "notice"\.
 .P
 See also the \fBforeground\-scripts\fP config\.
+.SS \fBlogs\-dir\fP
+.RS 0
+.IP \(bu 2
+Default: A directory named \fB_logs\fP inside the cache
+.IP \(bu 2
+Type: null or Path
+
+.RE
+.P
+The location of npm's log directory\. See npm help \fBlogging\fP
+for more information\.
 .SS \fBlogs\-max\fP
 .RS 0
 .IP \(bu 2
@@ -1098,6 +1113,8 @@ Type: Number
 .RE
 .P
 The maximum number of log files to store\.
+.P
+If set to 0, no log files will be written for the current run\.
 .SS \fBlong\fP
 .RS 0
 .IP \(bu 2
@@ -1392,8 +1409,7 @@ The base URL of the npm registry\.
 .SS \fBsave\fP
 .RS 0
 .IP \(bu 2
-Default: \fBtrue\fP unless when using \fBnpm update\fP or \fBnpm dedupe\fP where it
-defaults to \fBfalse\fP
+Default: \fBtrue\fP unless when using \fBnpm update\fP where it defaults to \fBfalse\fP
 .IP \(bu 2
 Type: Boolean
 
@@ -1696,9 +1712,9 @@ Type: Boolean
 
 .RE
 .P
-If true, writes an \fBnpm\-debug\fP log to \fB_logs\fP and timing information to
-\fB_timing\.json\fP, both in your cache, even if the command completes
-successfully\. \fB_timing\.json\fP is a newline delimited list of JSON objects\.
+If true, writes a debug log to \fBlogs\-dir\fP and timing information to
+\fB_timing\.json\fP in the cache, even if the command completes successfully\.
+\fB_timing\.json\fP is a newline delimited list of JSON objects\.
 .P
 You can quickly view it with this json \fIhttps://npm\.im/json\fR command line:
 \fBnpm exec \-\- json \-g < ~/\.npm/_timing\.json\fP\|\.
@@ -1903,6 +1919,17 @@ other things (test, exec, publish, etc\.) will operate on the root project,
 .RE
 .P
 This value is not exported to the environment for child processes\.
+.SS \fBworkspaces\-update\fP
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If set to true, the npm cli will run an update after operations that may
+possibly change the workspaces installed to the \fBnode_modules\fP folder\.
 .SS \fByes\fP
 .RS 0
 .IP \(bu 2

@@ -321,10 +321,7 @@ void ProfilerListener::CodeDisableOptEvent(Handle<AbstractCode> code,
 }
 
 void ProfilerListener::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind,
-                                      Address pc, int fp_to_sp_delta,
-                                      bool reuse_code) {
-  // When reuse_code is true it is just a bailout and not an actual deopt.
-  if (reuse_code) return;
+                                      Address pc, int fp_to_sp_delta) {
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeDeopt);
   CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);

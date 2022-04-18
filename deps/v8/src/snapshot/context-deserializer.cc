@@ -51,7 +51,7 @@ MaybeHandle<Object> ContextDeserializer::Deserialize(
     WeakenDescriptorArrays();
   }
 
-  if (FLAG_rehash_snapshot && can_rehash()) Rehash();
+  if (should_rehash()) Rehash();
   SetupOffHeapArrayBufferBackingStores();
 
   return result;

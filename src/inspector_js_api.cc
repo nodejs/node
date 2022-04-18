@@ -75,10 +75,10 @@ class JSBindingsConnection : public AsyncWrap {
       Isolate* isolate = env_->isolate();
       HandleScope handle_scope(isolate);
       Context::Scope context_scope(env_->context());
-      MaybeLocal<String> v8string =
-          String::NewFromTwoByte(isolate, message.characters16(),
-                                 NewStringType::kNormal, message.length());
-      Local<Value> argument = v8string.ToLocalChecked().As<Value>();
+      Local<Value> argument;
+      if (!String::NewFromTwoByte(isolate, message.characters16(),
+                                  NewStringType::kNormal,
+                                  message.length()).ToLocal(&argument)) return;
       connection_->OnMessage(argument);
     }
 
@@ -215,10 +215,10 @@ void InspectorConsoleCall(const FunctionCallbackInfo<Value>& info) {
 
   Local<Value> node_method = info[1];
   CHECK(node_method->IsFunction());
-  node_method.As<Function>()->Call(context,
+  USE(node_method.As<Function>()->Call(context,
                                    info.Holder(),
                                    call_args.length(),
-                                   call_args.out()).FromMaybe(Local<Value>());
+                                   call_args.out()));
 }
 
 static void* GetAsyncTask(int64_t asyncId) {

@@ -7,9 +7,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <iterator>
 #include <string>
 
-#include "base/cxx17_backports.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace compression {
@@ -33,24 +33,24 @@ const uint8_t kCompressedData[] = {
 }  // namespace
 
 TEST(CompressionUtilsTest, GzipCompression) {
-  std::string data(reinterpret_cast<const char*>(kData), base::size(kData));
+  std::string data(reinterpret_cast<const char*>(kData), std::size(kData));
   std::string compressed_data;
   EXPECT_TRUE(GzipCompress(data, &compressed_data));
   std::string golden_compressed_data(
       reinterpret_cast<const char*>(kCompressedData),
-      base::size(kCompressedData));
+      std::size(kCompressedData));
   EXPECT_EQ(golden_compressed_data, compressed_data);
 }
 
 TEST(CompressionUtilsTest, GzipUncompression) {
   std::string compressed_data(reinterpret_cast<const char*>(kCompressedData),
-                              base::size(kCompressedData));
+                              std::size(kCompressedData));
 
   std::string uncompressed_data;
   EXPECT_TRUE(GzipUncompress(compressed_data, &uncompressed_data));
 
   std::string golden_data(reinterpret_cast<const char*>(kData),
-                          base::size(kData));
+                          std::size(kData));
   EXPECT_EQ(golden_data, uncompressed_data);
 }
 
@@ -59,7 +59,7 @@ TEST(CompressionUtilsTest, GzipUncompressionFromSpanToString) {
   EXPECT_TRUE(GzipUncompress(kCompressedData, &uncompressed_data));
 
   std::string golden_data(reinterpret_cast<const char*>(kData),
-                          base::size(kData));
+                          std::size(kData));
   EXPECT_EQ(golden_data, uncompressed_data);
 }
 
@@ -84,10 +84,10 @@ TEST(CompressionUtilsTest, LargeInput) {
 
 TEST(CompressionUtilsTest, InPlace) {
   const std::string original_data(reinterpret_cast<const char*>(kData),
-                                  base::size(kData));
+                                  std::size(kData));
   const std::string golden_compressed_data(
       reinterpret_cast<const char*>(kCompressedData),
-      base::size(kCompressedData));
+      std::size(kCompressedData));
 
   std::string data(original_data);
   EXPECT_TRUE(GzipCompress(data, &data));

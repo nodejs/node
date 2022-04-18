@@ -636,6 +636,8 @@ it's present and fail if the script fails. This is useful, for example, when
 running scripts that may only apply for some builds in an otherwise generic
 CI setup.
 
+This value is not exported to the environment for child processes.
+
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
 
@@ -692,6 +694,8 @@ Include the workspace root when workspaces are enabled for a command.
 When false, specifying individual workspaces via the \`workspace\` config, or
 all workspaces via the \`workspaces\` flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.
+
+This value is not exported to the environment for child processes.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
@@ -901,12 +905,25 @@ See also the \`foreground-scripts\` config.
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
 
+#### \`logs-dir\`
+
+* Default: A directory named \`_logs\` inside the cache
+* Type: null or Path
+
+The location of npm's log directory. See [\`npm logging\`](/using-npm/logging)
+for more information.
+
+<!-- automatically generated, do not edit manually -->
+<!-- see lib/utils/config/definitions.js -->
+
 #### \`logs-max\`
 
 * Default: 10
 * Type: Number
 
 The maximum number of log files to store.
+
+If set to 0, no log files will be written for the current run.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
@@ -1204,8 +1221,7 @@ The base URL of the npm registry.
 
 #### \`save\`
 
-* Default: \`true\` unless when using \`npm update\` or \`npm dedupe\` where it
-  defaults to \`false\`
+* Default: \`true\` unless when using \`npm update\` where it defaults to \`false\`
 * Type: Boolean
 
 Save installed packages to a \`package.json\` file as dependencies.
@@ -1502,9 +1518,9 @@ particular, use care when overriding this setting for public packages.
 * Default: false
 * Type: Boolean
 
-If true, writes an \`npm-debug\` log to \`_logs\` and timing information to
-\`_timing.json\`, both in your cache, even if the command completes
-successfully. \`_timing.json\` is a newline delimited list of JSON objects.
+If true, writes a debug log to \`logs-dir\` and timing information to
+\`_timing.json\` in the cache, even if the command completes successfully.
+\`_timing.json\` is a newline delimited list of JSON objects.
 
 You can quickly view it with this [json](https://npm.im/json) command line:
 \`npm exec -- json -g < ~/.npm/_timing.json\`.
@@ -1693,6 +1709,17 @@ other things (test, exec, publish, etc.) will operate on the root project,
 _unless_ one or more workspaces are specified in the \`workspace\` config.
 
 This value is not exported to the environment for child processes.
+
+<!-- automatically generated, do not edit manually -->
+<!-- see lib/utils/config/definitions.js -->
+
+#### \`workspaces-update\`
+
+* Default: true
+* Type: Boolean
+
+If set to true, the npm cli will run an update after operations that may
+possibly change the workspaces installed to the \`node_modules\` folder.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->

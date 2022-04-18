@@ -87,8 +87,7 @@ std::ostream& operator<<(std::ostream& os, DeoptimizeParameters p) {
 DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const op) {
   DCHECK(op->opcode() == IrOpcode::kDeoptimize ||
          op->opcode() == IrOpcode::kDeoptimizeIf ||
-         op->opcode() == IrOpcode::kDeoptimizeUnless ||
-         op->opcode() == IrOpcode::kDynamicCheckMapsWithDeoptUnless);
+         op->opcode() == IrOpcode::kDeoptimizeUnless);
   return OpParameter<DeoptimizeParameters>(op);
 }
 
@@ -501,10 +500,6 @@ IfValueParameters const& IfValueParametersOf(const Operator* op) {
   V(Eager, WrongInstanceType)            \
   V(Eager, WrongMap)
 
-#define CACHED_DYNAMIC_CHECK_MAPS_LIST(V) \
-  V(DynamicCheckMaps)                     \
-  V(DynamicCheckMapsInlined)
-
 #define CACHED_TRAP_IF_LIST(V) \
   V(TrapDivUnrepresentable)    \
   V(TrapFloatUnrepresentable)
@@ -734,22 +729,6 @@ struct CommonOperatorGlobalCache final {
       kDeoptimizeUnless##Kind##Reason##Operator;
   CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
 #undef CACHED_DEOPTIMIZE_UNLESS
-
-  template <DeoptimizeReason kReason>
-  struct DynamicMapCheckOperator final : Operator1<DeoptimizeParameters> {
-    DynamicMapCheckOperator()
-        : Operator1<DeoptimizeParameters>(                 // --
-              IrOpcode::kDynamicCheckMapsWithDeoptUnless,  // opcode
-              Operator::kFoldable | Operator::kNoThrow,    // properties
-              "DynamicCheckMapsWithDeoptUnless",           // name
-              6, 1, 1, 0, 1, 1,                            // counts
-              DeoptimizeParameters(DeoptimizeKind::kEagerWithResume, kReason,
-                                   FeedbackSource())) {}
-  };
-#define CACHED_DYNAMIC_CHECK_MAPS(Reason) \
-  DynamicMapCheckOperator<DeoptimizeReason::k##Reason> k##Reason##Operator;
-  CACHED_DYNAMIC_CHECK_MAPS_LIST(CACHED_DYNAMIC_CHECK_MAPS)
-#undef CACHED_DYNAMIC_CHECK_MAPS
 
   template <TrapId trap_id>
   struct TrapIfOperator final : public Operator1<TrapId> {
@@ -981,15 +960,6 @@ const Operator* CommonOperatorBuilder::DeoptimizeUnless(
       "DeoptimizeUnless",                               // name
       2, 1, 1, 0, 1, 1,                                 // counts
       parameter);                                       // parameter
-}
-
-const Operator* CommonOperatorBuilder::DynamicCheckMapsWithDeoptUnless(
-    bool is_inlined_frame_state) {
-  if (is_inlined_frame_state) {
-    return &cache_.kDynamicCheckMapsInlinedOperator;
-  } else {
-    return &cache_.kDynamicCheckMapsOperator;
-  }
 }
 
 const Operator* CommonOperatorBuilder::TrapIf(TrapId trap_id) {

@@ -155,15 +155,17 @@ transitioning macro ConstructByArrayLike(implicit context: Context)(
 
     try {
       const src: JSTypedArray = Cast<JSTypedArray>(arrayLike) otherwise IfSlow;
-
-      if (IsDetachedBuffer(src.buffer)) {
+      let byteLength: uintptr;
+      try {
+        byteLength = LoadJSArrayBufferViewByteLength(src, src.buffer)
+            otherwise DetachedOrOutOfBounds;
+      } label DetachedOrOutOfBounds deferred {
         ThrowTypeError(MessageTemplate::kDetachedOperation, 'Construct');
-
-      } else if (src.elements_kind != elementsInfo.kind) {
+      }
+      if (src.elements_kind != elementsInfo.kind) {
         goto IfElementsKindMismatch(src.elements_kind);
 
       } else if (length > 0) {
-        const byteLength = typedArray.byte_length;
         dcheck(byteLength <= kArrayBufferMaxByteLength);
         if (IsSharedArrayBuffer(src.buffer)) {
           typed_array::CallCRelaxedMemcpy(
@@ -211,16 +213,27 @@ transitioning macro ConstructByTypedArray(implicit context: Context)(
     labels IfConstructByArrayLike(JSTypedArray, uintptr, JSReceiver) {
   let bufferConstructor: JSReceiver = GetArrayBufferFunction();
   const srcBuffer: JSArrayBuffer = srcTypedArray.buffer;
-  // TODO(petermarshall): Throw on detached typedArray.
-  let length: uintptr = IsDetachedBuffer(srcBuffer) ? 0 : srcTypedArray.length;
+  let length: uintptr;
+  try {
+    // TODO(petermarshall): Throw on detached typedArray.
+    length = LoadJSTypedArrayLengthAndCheckDetached(srcTypedArray)
+        otherwise DetachedOrOutOfBounds;
+  } label DetachedOrOutOfBounds {
+    length = 0;
+  }
 
   // The spec requires that constructing a typed array using a SAB-backed
   // typed array use the ArrayBuffer constructor, not the species constructor.
   // See https://tc39.github.io/ecma262/#sec-typedarray-typedarray.
   if (!IsSharedArrayBuffer(srcBuffer)) {
     bufferConstructor = SpeciesConstructor(srcBuffer, bufferConstructor);
-    // TODO(petermarshall): Throw on detached typedArray.
-    if (IsDetachedBuffer(srcBuffer)) length = 0;
+    try {
+      // TODO(petermarshall): Throw on detached typedArray.
+      length = LoadJSTypedArrayLengthAndCheckDetached(srcTypedArray)
+          otherwise DetachedOrOutOfBounds;
+    } label DetachedOrOutOfBounds {
+      length = 0;
+    }
   }
   goto IfConstructByArrayLike(srcTypedArray, length, bufferConstructor);
 }
@@ -292,7 +305,7 @@ transitioning macro ConstructByArrayBuffer(implicit context: Context)(
       // in the step 12 branch.
       newByteLength = bufferByteLength - offset;
       newLength = elementsInfo.CalculateLength(newByteLength)
-          otherwise IfInvalidOffset;
+          otherwise IfInvalidLength;
 
       // 12. Else,
     } else {
@@ -397,7 +410,6 @@ transitioning builtin CreateTypedArray(
         return ConstructByArrayBuffer(target, newTarget, buffer, arg2, arg3);
       }
       case (typedArray: JSTypedArray): {
-        // TODO(v8:11111): Support RAB / GSAB.
         ConstructByTypedArray(typedArray) otherwise IfConstructByArrayLike;
       }
       case (obj: JSReceiver): {

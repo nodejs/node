@@ -31,6 +31,8 @@ class Oddball : public TorqueGeneratedOddball<Oddball, PrimitiveHeapObject> {
   V8_WARN_UNUSED_RESULT static inline Handle<Object> ToNumber(
       Isolate* isolate, Handle<Oddball> input);
 
+  V8_INLINE bool ToBool(Isolate* isolate) const;
+
   // Initialize the fields.
   static void Initialize(Isolate* isolate, Handle<Oddball> oddball,
                          const char* to_string, Handle<Object> to_number,

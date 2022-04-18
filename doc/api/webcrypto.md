@@ -393,7 +393,7 @@ added: v15.0.0
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* Type: {AesKeyGenParams|RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams|NodeDsaKeyGenParams|NodeDhKeyGenParams}
+* Type: {AesKeyGenParams|RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams|NodeDsaKeyGenParams|NodeDhKeyGenParams|NodeEdKeyGenParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -845,10 +845,10 @@ promise is resolved with a {CryptoKey} object.
 The wrapping algorithms currently supported include:
 
 * `'RSA-OAEP'`
-* `'AES-CTR'`[^1]
-* `'AES-CBC'`[^1]
-* `'AES-GCM'`[^1]
-* `'AES-KW'`[^1]
+* `'AES-CTR'`
+* `'AES-CBC'`
+* `'AES-GCM'`
+* `'AES-KW'`
 
 The unwrapped key algorithms supported include:
 
@@ -1019,9 +1019,14 @@ added: v15.0.0
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer}
 
-The initialization vector must be unique for every encryption operation
-using a given key. It is recommended by the AES-GCM specification that
-this contain at least 12 random bytes.
+The initialization vector must be unique for every encryption operation using a
+given key.
+
+Ideally, this is a deterministic 12-byte value that is computed in such a way
+that it is guaranteed to be unique across all invocations that use the same key.
+Alternatively, the initialization vector may consist of at least 12
+cryptographically random bytes. For more information on constructing
+initialization vectors for AES-GCM, refer to Section 8 of [NIST SP 800-38D][].
 
 #### `aesGcmParams.name`
 
@@ -1923,5 +1928,6 @@ added: v15.0.0
 
 [JSON Web Key]: https://tools.ietf.org/html/rfc7517
 [Key usages]: #cryptokeyusages
+[NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 4122]: https://www.rfc-editor.org/rfc/rfc4122.txt
 [Web Crypto API]: https://www.w3.org/TR/WebCryptoAPI/

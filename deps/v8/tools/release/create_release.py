@@ -1,18 +1,17 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2015 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-
-# for py2/py3 compatibility
-from __future__ import print_function
 
 import argparse
 import os
 import sys
 import tempfile
-import urllib2
 
 from common_includes import *
+
+import urllib.request as urllib2
+
 
 class Preparation(Step):
   MESSAGE = "Preparation."
@@ -48,7 +47,7 @@ class IncrementVersion(Step):
     # Use the highest version from main or from tags to determine the new
     # version.
     authoritative_version = sorted(
-        [main_version, latest_version], key=SortingKey)[1]
+        [main_version, latest_version], key=LooseVersion)[1]
     self.StoreVersion(authoritative_version, "authoritative_")
 
     # Variables prefixed with 'new_' contain the new version numbers for the

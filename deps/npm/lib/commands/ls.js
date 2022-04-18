@@ -52,16 +52,12 @@ class LS extends ArboristWorkspaceCmd {
     const all = this.npm.config.get('all')
     const color = this.npm.color
     const depth = this.npm.config.get('depth')
-    const dev = this.npm.config.get('dev')
-    const development = this.npm.config.get('development')
     const global = this.npm.config.get('global')
     const json = this.npm.config.get('json')
     const link = this.npm.config.get('link')
     const long = this.npm.config.get('long')
-    const only = this.npm.config.get('only')
+    const omit = this.npm.flatOptions.omit
     const parseable = this.npm.config.get('parseable')
-    const prod = this.npm.config.get('prod')
-    const production = this.npm.config.get('production')
     const unicode = this.npm.config.get('unicode')
     const packageLockOnly = this.npm.config.get('package-lock-only')
     const workspacesEnabled = this.npm.flatOptions.workspacesEnabled
@@ -138,15 +134,10 @@ class LS extends ArboristWorkspaceCmd {
           ? []
           : [...(node.target).edgesOut.values()]
             .filter(filterBySelectedWorkspaces)
-            .filter(filterByEdgesTypes({
-              currentDepth,
-              dev,
-              development,
+            .filter(currentDepth === 0 ? filterByEdgesTypes({
               link,
-              prod,
-              production,
-              only,
-            }))
+              omit,
+            }) : () => true)
             .map(mapEdgesToNodes({ seenPaths }))
             .concat(appendExtraneousChildren({ node, seenPaths }))
             .sort(sortAlphabetically)
@@ -399,27 +390,13 @@ const getJsonOutputItem = (node, { global, long }) => {
   return augmentItemWithIncludeMetadata(node, item)
 }
 
-const filterByEdgesTypes = ({
-  currentDepth,
-  dev,
-  development,
-  link,
-  prod,
-  production,
-  only,
-}) => {
-  // filter deps by type, allows for: `npm ls --dev`, `npm ls --prod`,
-  // `npm ls --link`, `npm ls --only=dev`, etc
-  const filterDev = currentDepth === 0 &&
-    (dev || development || /^dev(elopment)?$/.test(only))
-  const filterProd = currentDepth === 0 &&
-    (prod || production || /^prod(uction)?$/.test(only))
-  const filterLink = currentDepth === 0 && link
-
-  return (edge) =>
-    (filterDev ? edge.dev : true) &&
-    (filterProd ? (!edge.dev && !edge.peer && !edge.peerOptional) : true) &&
-    (filterLink ? (edge.to && edge.to.isLink) : true)
+const filterByEdgesTypes = ({ link, omit = [] }) => (edge) => {
+  for (const omitType of omit) {
+    if (edge[omitType]) {
+      return false
+    }
+  }
+  return link ? edge.to && edge.to.isLink : true
 }
 
 const appendExtraneousChildren = ({ node, seenPaths }) =>

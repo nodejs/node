@@ -40,7 +40,7 @@ class CpuSampler : public sampler::Sampler {
 
   void SampleStack(const v8::RegisterState& regs) override {
     Isolate* isolate = reinterpret_cast<Isolate*>(this->isolate());
-    if (v8::Locker::WasEverUsed() &&
+    if (isolate->was_locker_ever_used() &&
         (!isolate->thread_manager()->IsLockedByThread(
              perThreadData_->thread_id()) ||
          perThreadData_->thread_state() != nullptr)) {
@@ -268,8 +268,7 @@ SamplingEventsProcessor::ProcessOneSample() {
 void SamplingEventsProcessor::Run() {
   base::MutexGuard guard(&running_mutex_);
   while (running_.load(std::memory_order_relaxed)) {
-    base::TimeTicks nextSampleTime =
-        base::TimeTicks::HighResolutionNow() + period_;
+    base::TimeTicks nextSampleTime = base::TimeTicks::Now() + period_;
     base::TimeTicks now;
     SampleProcessingResult result;
     // Keep processing existing events until we need to do next sample
@@ -281,7 +280,7 @@ void SamplingEventsProcessor::Run() {
         // processed, proceed to the next code event.
         ProcessCodeEvent();
       }
-      now = base::TimeTicks::HighResolutionNow();
+      now = base::TimeTicks::Now();
     } while (result != NoSamplesInQueue && now < nextSampleTime);
 
     if (nextSampleTime > now) {
@@ -290,7 +289,7 @@ void SamplingEventsProcessor::Run() {
           nextSampleTime - now < base::TimeDelta::FromMilliseconds(100)) {
         // Do not use Sleep on Windows as it is very imprecise, with up to 16ms
         // jitter, which is unacceptable for short profile intervals.
-        while (base::TimeTicks::HighResolutionNow() < nextSampleTime) {
+        while (base::TimeTicks::Now() < nextSampleTime) {
         }
       } else  // NOLINT
 #else
@@ -307,7 +306,7 @@ void SamplingEventsProcessor::Run() {
           if (!running_.load(std::memory_order_relaxed)) {
             break;
           }
-          now = base::TimeTicks::HighResolutionNow();
+          now = base::TimeTicks::Now();
         }
       }
     }
@@ -413,7 +412,7 @@ void ProfilerCodeObserver::LogBuiltins() {
        ++builtin) {
     CodeEventsContainer evt_rec(CodeEventRecord::Type::kReportBuiltin);
     ReportBuiltinEventRecord* rec = &evt_rec.ReportBuiltinEventRecord_;
-    Code code = builtins->code(builtin);
+    Code code = FromCodeT(builtins->code(builtin));
     rec->instruction_start = code.InstructionStart();
     rec->instruction_size = code.InstructionSize();
     rec->builtin = builtin;
@@ -600,25 +599,31 @@ size_t CpuProfiler::GetEstimatedMemoryUsage() const {
   return code_observer_->GetEstimatedMemoryUsage();
 }
 
-CpuProfilingStatus CpuProfiler::StartProfiling(
+CpuProfilingResult CpuProfiler::StartProfiling(
+    CpuProfilingOptions options,
+    std::unique_ptr<DiscardedSamplesDelegate> delegate) {
+  return StartProfiling(nullptr, options, std::move(delegate));
+}
+
+CpuProfilingResult CpuProfiler::StartProfiling(
     const char* title, CpuProfilingOptions options,
     std::unique_ptr<DiscardedSamplesDelegate> delegate) {
-  StartProfilingStatus status =
+  CpuProfilingResult result =
       profiles_->StartProfiling(title, options, std::move(delegate));
 
   // TODO(nicodubus): Revisit logic for if we want to do anything different for
   // kAlreadyStarted
-  if (status == CpuProfilingStatus::kStarted ||
-      status == CpuProfilingStatus::kAlreadyStarted) {
+  if (result.status == CpuProfilingStatus::kStarted ||
+      result.status == CpuProfilingStatus::kAlreadyStarted) {
     TRACE_EVENT0("v8", "CpuProfiler::StartProfiling");
     AdjustSamplingInterval();
     StartProcessorIfNotStarted();
   }
 
-  return status;
+  return result;
 }
 
-CpuProfilingStatus CpuProfiler::StartProfiling(
+CpuProfilingResult CpuProfiler::StartProfiling(
     String title, CpuProfilingOptions options,
     std::unique_ptr<DiscardedSamplesDelegate> delegate) {
   return StartProfiling(profiles_->GetName(title), options,
@@ -652,10 +657,19 @@ void CpuProfiler::StartProcessorIfNotStarted() {
 }
 
 CpuProfile* CpuProfiler::StopProfiling(const char* title) {
+  CpuProfile* profile = profiles_->Lookup(title);
+  if (profile) {
+    return StopProfiling(profile->id());
+  }
+  return nullptr;
+}
+
+CpuProfile* CpuProfiler::StopProfiling(ProfilerId id) {
   if (!is_profiling_) return nullptr;
-  const bool last_profile = profiles_->IsLastProfile(title);
+  const bool last_profile = profiles_->IsLastProfileLeft(id);
   if (last_profile) StopProcessor();
-  CpuProfile* result = profiles_->StopProfiling(title);
+
+  CpuProfile* profile = profiles_->StopProfiling(id);
 
   AdjustSamplingInterval();
 
@@ -664,7 +678,7 @@ CpuProfile* CpuProfiler::StopProfiling(const char* title) {
     DisableLogging();
   }
 
-  return result;
+  return profile;
 }
 
 CpuProfile* CpuProfiler::StopProfiling(String title) {

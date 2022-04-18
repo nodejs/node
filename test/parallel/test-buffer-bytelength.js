@@ -23,8 +23,6 @@ const vm = require('vm');
   );
 });
 
-assert.strictEqual(Buffer.byteLength('', undefined, true), -1);
-
 assert(ArrayBuffer.isView(new Buffer(10)));
 assert(ArrayBuffer.isView(new SlowBuffer(10)));
 assert(ArrayBuffer.isView(Buffer.alloc(10)));

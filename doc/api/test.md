@@ -148,6 +148,42 @@ test('skip() method with message', (t) => {
 });
 ```
 
+### `only` tests
+
+If Node.js is started with the [`--test-only`][] command-line option, it is
+possible to skip all top level tests except for a selected subset by passing
+the `only` option to the tests that should be run. When a test with the `only`
+option set is run, all subtests are also run. The test context's `runOnly()`
+method can be used to implement the same behavior at the subtest level.
+
+```js
+// Assume Node.js is run with the --test-only command-line option.
+// The 'only' option is set, so this test is run.
+test('this test is run', { only: true }, async (t) => {
+  // Within this test, all subtests are run by default.
+  await t.test('running subtest');
+
+  // The test context can be updated to run subtests with the 'only' option.
+  t.runOnly(true);
+  await t.test('this subtest is now skipped');
+  await t.test('this subtest is run', { only: true });
+
+  // Switch the context back to execute all tests.
+  t.runOnly(false);
+  await t.test('this subtest is now run');
+
+  // Explicitly do not run these tests.
+  await t.test('skipped subtest 3', { only: false });
+  await t.test('skipped subtest 4', { skip: true });
+});
+
+// The 'only' option is not set, so this test is skipped.
+test('this test is not run', () => {
+  // This code is not run.
+  throw new Error('fail');
+});
+```
+
 ## Extraneous asynchronous activity
 
 Once a test function finishes executing, the TAP results are output as quickly
@@ -183,6 +219,67 @@ test('a test that creates asynchronous activity', (t) => {
 });
 ```
 
+## Running tests from the command line
+
+The Node.js test runner can be invoked from the command line by passing the
+[`--test`][] flag:
+
+```bash
+node --test
+```
+
+By default, Node.js will recursively search the current directory for
+JavaScript source files matching a specific naming convention. Matching files
+are executed as test files. More information on the expected test file naming
+convention and behavior can be found in the [test runner execution model][]
+section.
+
+Alternatively, one or more paths can be provided as the final argument(s) to
+the Node.js command, as shown below.
+
+```bash
+node --test test1.js test2.mjs custom_test_dir/
+```
+
+In this example, the test runner will execute the files `test1.js` and
+`test2.mjs`. The test runner will also recursively search the
+`custom_test_dir/` directory for test files to execute.
+
+### Test runner execution model
+
+When searching for test files to execute, the test runner behaves as follows:
+
+* Any files explicitly provided by the user are executed.
+* If the user did not explicitly specify any paths, the current working
+  directory is recursively searched for files as specified in the following
+  steps.
+* `node_modules` directories are skipped unless explicitly provided by the
+  user.
+* If a directory named `test` is encountered, the test runner will search it
+  recursively for all all `.js`, `.cjs`, and `.mjs` files. All of these files
+  are treated as test files, and do not need to match the specific naming
+  convention detailed below. This is to accommodate projects that place all of
+  their tests in a single `test` directory.
+* In all other directories, `.js`, `.cjs`, and `.mjs` files matching the
+  following patterns are treated as test files:
+  * `^test$` - Files whose basename is the string `'test'`. Examples:
+    `test.js`, `test.cjs`, `test.mjs`.
+  * `^test-.+` - Files whose basename starts with the string `'test-'`
+    followed by one or more characters. Examples: `test-example.js`,
+    `test-another-example.mjs`.
+  * `.+[\.\-\_]test$` - Files whose basename ends with `.test`, `-test`, or
+    `_test`, preceded by one or more characters. Examples: `example.test.js`,
+    `example-test.cjs`, `example_test.mjs`.
+  * Other file types understood by Node.js such as `.node` and `.json` are not
+    automatically executed by the test runner, but are supported if explicitly
+    provided on the command line.
+
+Each matching test file is executed in a separate child process. If the child
+process finishes with an exit code of 0, the test is considered passing.
+Otherwise, the test is considered to be a failure. Test files must be
+executable by Node.js, but are not required to use the `node:test` module
+internally.
+
 ## `test([name][, options][, fn])`
 
 <!-- YAML
@@ -197,6 +294,9 @@ added: REPLACEME
   * `concurrency` {number} The number of tests that can be run at the same time.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `1`.
+  * `only` {boolean} If truthy, and the test context is configured to run
+    `only` tests, then this test will be run. Otherwise, the test is skipped.
+    **Default:** `false`.
   * `skip` {boolean|string} If truthy, the test is skipped. If a string is
     provided, that string is displayed in the test results as the reason for
     skipping the test. **Default:** `false`.
@@ -257,6 +357,19 @@ This function is used to write TAP diagnostics to the output. Any diagnostic
 information is included at the end of the test's results. This function does
 not return a value.
 
+### `context.runOnly(shouldRunOnlyTests)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `shouldRunOnlyTests` {boolean} Whether or not to run `only` tests.
+
+If `shouldRunOnlyTests` is truthy, the test context will only run tests that
+have the `only` option set. Otherwise, all tests are run. If Node.js was not
+started with the [`--test-only`][] command-line option, this function is a
+no-op.
+
 ### `context.skip([message])`
 
 <!-- YAML
@@ -296,6 +409,9 @@ added: REPLACEME
   * `concurrency` {number} The number of tests that can be run at the same time.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `1`.
+  * `only` {boolean} If truthy, and the test context is configured to run
+    `only` tests, then this test will be run. Otherwise, the test is skipped.
+    **Default:** `false`.
   * `skip` {boolean|string} If truthy, the test is skipped. If a string is
     provided, that string is displayed in the test results as the reason for
     skipping the test. **Default:** `false`.
@@ -312,5 +428,8 @@ This function is used to create subtests under the current test. This function
 behaves in the same fashion as the top level [`test()`][] function.
 
 [TAP]: https://testanything.org/
+[`--test-only`]: cli.md#--test-only
+[`--test`]: cli.md#--test
 [`TestContext`]: #class-testcontext
 [`test()`]: #testname-options-fn
+[test runner execution model]: #test-runner-execution-model

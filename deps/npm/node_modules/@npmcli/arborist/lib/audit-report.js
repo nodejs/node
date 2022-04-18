@@ -134,16 +134,7 @@ class AuditReport extends Map {
     const seen = new Set()
     for (const advisory of advisories) {
       const { name, range } = advisory
-
-      // don't flag the exact same name/range more than once
-      // adding multiple advisories with the same range is fine, but no
-      // need to search for nodes we already would have added.
       const k = `${name}@${range}`
-      if (seen.has(k)) {
-        continue
-      }
-
-      seen.add(k)
 
       const vuln = this.get(name) || new Vuln({ name, advisory })
       if (this.has(name)) {
@@ -151,44 +142,50 @@ class AuditReport extends Map {
       }
       super.set(name, vuln)
 
-      const p = []
-      for (const node of this.tree.inventory.query('packageName', name)) {
-        if (!shouldAudit(node, this[_omit], this.filterSet)) {
-          continue
-        }
+      // don't flag the exact same name/range more than once
+      // adding multiple advisories with the same range is fine, but no
+      // need to search for nodes we already would have added.
+      if (!seen.has(k)) {
+        const p = []
+        for (const node of this.tree.inventory.query('packageName', name)) {
+          if (!shouldAudit(node, this[_omit], this.filterSet)) {
+            continue
+          }
 
-        // if not vulnerable by this advisory, keep searching
-        if (!advisory.testVersion(node.version)) {
-          continue
-        }
+          // if not vulnerable by this advisory, keep searching
+          if (!advisory.testVersion(node.version)) {
+            continue
+          }
 
-        // we will have loaded the source already if this is a metavuln
-        if (advisory.type === 'metavuln') {
-          vuln.addVia(this.get(advisory.dependency))
-        }
+          // we will have loaded the source already if this is a metavuln
+          if (advisory.type === 'metavuln') {
+            vuln.addVia(this.get(advisory.dependency))
+          }
 
-        // already marked this one, no need to do it again
-        if (vuln.nodes.has(node)) {
-          continue
-        }
+          // already marked this one, no need to do it again
+          if (vuln.nodes.has(node)) {
+            continue
+          }
 
-        // haven't marked this one yet.  get its dependents.
-        vuln.nodes.add(node)
-        for (const { from: dep, spec } of node.edgesIn) {
-          if (dep.isTop && !vuln.topNodes.has(dep)) {
-            this[_checkTopNode](dep, vuln, spec)
-          } else {
+          // haven't marked this one yet.  get its dependents.
+          vuln.nodes.add(node)
+          for (const { from: dep, spec } of node.edgesIn) {
+            if (dep.isTop && !vuln.topNodes.has(dep)) {
+              this[_checkTopNode](dep, vuln, spec)
+            } else {
             // calculate a metavuln, if necessary
-            const calc = this.calculator.calculate(dep.packageName, advisory)
-            p.push(calc.then(meta => {
-              if (meta.testVersion(dep.version, spec)) {
-                advisories.add(meta)
-              }
-            }))
+              const calc = this.calculator.calculate(dep.packageName, advisory)
+              p.push(calc.then(meta => {
+                if (meta.testVersion(dep.version, spec)) {
+                  advisories.add(meta)
+                }
+              }))
+            }
           }
         }
+        await Promise.all(p)
+        seen.add(k)
       }
-      await Promise.all(p)
 
       // make sure we actually got something.  if not, remove it
       // this can happen if you are loading from a lockfile created by

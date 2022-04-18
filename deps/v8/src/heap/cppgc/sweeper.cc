@@ -737,8 +737,6 @@ class Sweeper::SweeperImpl final {
     if (config.sweeping_type == SweepingConfig::SweepingType::kAtomic) {
       Finish();
     } else {
-      DCHECK_EQ(SweepingConfig::SweepingType::kIncrementalAndConcurrent,
-                config.sweeping_type);
       ScheduleIncrementalSweeping();
       ScheduleConcurrentSweeping();
     }
@@ -811,10 +809,25 @@ class Sweeper::SweeperImpl final {
     NotifyDone();
   }
 
+  void FinishIfOutOfWork() {
+    if (is_in_progress_ && !is_sweeping_on_mutator_thread_ &&
+        concurrent_sweeper_handle_ && concurrent_sweeper_handle_->IsValid() &&
+        !concurrent_sweeper_handle_->IsActive()) {
+      // At this point we know that the concurrent sweeping task has run
+      // out-of-work: all pages are swept. The main thread still needs to finish
+      // sweeping though.
+      DCHECK(std::all_of(space_states_.begin(), space_states_.end(),
+                         [](const SpaceState& state) {
+                           return state.unswept_pages.IsEmpty();
+                         }));
+      FinishIfRunning();
+    }
+  }
+
   void Finish() {
     DCHECK(is_in_progress_);
 
-    MutatorThreadSweepingScope sweeping_in_progresss(*this);
+    MutatorThreadSweepingScope sweeping_in_progress(*this);
 
     // First, call finalizers on the mutator thread.
     SweepFinalizer finalizer(platform_, config_.free_memory_handling);
@@ -953,6 +966,10 @@ class Sweeper::SweeperImpl final {
   void ScheduleConcurrentSweeping() {
     DCHECK(platform_);
 
+    if (config_.sweeping_type !=
+        SweepingConfig::SweepingType::kIncrementalAndConcurrent)
+      return;
+
     concurrent_sweeper_handle_ =
         platform_->PostJob(cppgc::TaskPriority::kUserVisible,
                            std::make_unique<ConcurrentSweepTask>(
@@ -999,6 +1016,7 @@ void Sweeper::Start(SweepingConfig config) {
   impl_->Start(config, heap_.platform());
 }
 void Sweeper::FinishIfRunning() { impl_->FinishIfRunning(); }
+void Sweeper::FinishIfOutOfWork() { impl_->FinishIfOutOfWork(); }
 void Sweeper::WaitForConcurrentSweepingForTesting() {
   impl_->WaitForConcurrentSweepingForTesting();
 }

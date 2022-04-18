@@ -72,11 +72,7 @@ const mockAgent = new MockAgent()
 setGlobalDispatcher(mockAgent)
 
 const mockPool = mockAgent.get('http://localhost:3000')
-
-mockPool.intercept({
-  path: '/foo',
-  method: 'GET'
-}).reply(200, 'foo')
+mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
 
 const { statusCode, body } = await request('http://localhost:3000/foo')
 
@@ -95,11 +91,7 @@ import { MockAgent, request } from 'undici'
 const mockAgent = new MockAgent()
 
 const mockPool = mockAgent.get('http://localhost:3000')
-
-mockPool.intercept({
-  path: '/foo',
-  method: 'GET'
-}).reply(200, 'foo')
+mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
 
 const {
   statusCode,
@@ -121,11 +113,7 @@ import { MockAgent, request } from 'undici'
 const mockAgent = new MockAgent()
 
 const mockPool = mockAgent.get('http://localhost:3000')
-
-mockPool.intercept({
-  path: '/foo',
-  method: 'GET'
-}).reply(200, 'foo')
+mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
 
 const {
   statusCode,
@@ -147,11 +135,7 @@ import { MockAgent, request } from 'undici'
 const mockAgent = new MockAgent({ connections: 1 })
 
 const mockClient = mockAgent.get('http://localhost:3000')
-
-mockClient.intercept({
-  path: '/foo',
-  method: 'GET'
-}).reply(200, 'foo')
+mockClient.intercept({ path: '/foo' }).reply(200, 'foo')
 
 const {
   statusCode,
@@ -174,16 +158,8 @@ const mockAgent = new MockAgent()
 setGlobalDispatcher(mockAgent)
 
 const mockPool = mockAgent.get('http://localhost:3000')
-
-mockPool.intercept({
-  path: '/foo',
-  method: 'GET'
-}).reply(200, 'foo')
-
-mockPool.intercept({
-  path: '/hello',
-  method: 'GET'
-}).reply(200, 'hello')
+mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
+mockPool.intercept({ path: '/hello'}).reply(200, 'hello')
 
 const result1 = await request('http://localhost:3000/foo')
 
@@ -250,11 +226,7 @@ const mockAgent = new MockAgent()
 setGlobalDispatcher(mockAgent)
 
 const mockPool = mockAgent.get(new RegExp('http://localhost:3000'))
-
-mockPool.intercept({
-  path: '/foo',
-  method: 'GET',
-}).reply(200, 'foo')
+mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
 
 const {
   statusCode,
@@ -277,11 +249,7 @@ const mockAgent = new MockAgent()
 setGlobalDispatcher(mockAgent)
 
 const mockPool = mockAgent.get((origin) => origin === 'http://localhost:3000')
-
-mockPool.intercept({
-  path: '/foo',
-  method: 'GET'
-}).reply(200, 'foo')
+mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
 
 const {
   statusCode,
@@ -328,11 +296,7 @@ import { MockAgent } from 'undici'
 const mockAgent = new MockAgent()
 
 const mockPool = mockAgent.get('http://localhost:3000')
-
-mockPool.intercept({
-  path: '/foo',
-  method: 'GET'
-}).reply(200, 'foo')
+mockPool.intercept({ path: '/foo' }).reply(200, 'foo')
 
 const {
   statusCode,

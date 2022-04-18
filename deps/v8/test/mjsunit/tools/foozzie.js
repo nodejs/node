@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --correctness-fuzzer-suppressions
-// Files: tools/clusterfuzz/v8_mock.js
+// Files: tools/clusterfuzz/foozzie/v8_mock.js
 
 // Test foozzie mocks for differential fuzzing.
 

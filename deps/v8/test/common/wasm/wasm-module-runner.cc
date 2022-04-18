@@ -73,7 +73,6 @@ base::OwnedVector<WasmValue> MakeDefaultInterpreterArguments(
         break;
       case kRef:
       case kRtt:
-      case kRttWithDepth:
       case kI8:
       case kI16:
       case kVoid:
@@ -108,7 +107,6 @@ base::OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
         break;
       case kRef:
       case kRtt:
-      case kRttWithDepth:
       case kI8:
       case kI16:
       case kVoid:

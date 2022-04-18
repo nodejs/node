@@ -160,6 +160,15 @@ class ThreadedListBase final : public BaseClass {
       return *this;
     }
 
+    bool is_null() { return entry_ == nullptr; }
+
+    void InsertBefore(T* value) {
+      T* old_entry_value = *entry_;
+      *entry_ = value;
+      entry_ = TLTraits::next(value);
+      *entry_ = old_entry_value;
+    }
+
     Iterator() : entry_(nullptr) {}
 
    private:
@@ -177,6 +186,10 @@ class ThreadedListBase final : public BaseClass {
     using value_type = T*;
     using reference = const value_type;
     using pointer = const value_type*;
+
+    // Allow implicit conversion to const iterator.
+    // NOLINTNEXTLINE
+    ConstIterator(Iterator& iterator) : entry_(iterator.entry_) {}
 
    public:
     ConstIterator& operator++() {

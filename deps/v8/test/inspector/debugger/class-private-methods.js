@@ -56,7 +56,15 @@ InspectorTest.runAsyncTestSuite([
       objectId: frame.this.objectId
     });
 
-    InspectorTest.log('privateProperties on the base class instance');
+    InspectorTest.log('private properties on the base class instance');
+    InspectorTest.logMessage(result.privateProperties);
+
+    ({ result } = await Protocol.Runtime.getProperties({
+      objectId: frame.this.objectId,
+      accessorPropertiesOnly: true,
+    }));
+
+    InspectorTest.log('private accessors properties on the base class instance');
     InspectorTest.logMessage(result.privateProperties);
 
     ({ result } = await Protocol.Debugger.evaluateOnCallFrame({

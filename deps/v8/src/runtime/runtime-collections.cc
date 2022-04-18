@@ -23,7 +23,7 @@ RUNTIME_FUNCTION(Runtime_TheHole) {
 RUNTIME_FUNCTION(Runtime_SetGrow) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
+  Handle<JSSet> holder = args.at<JSSet>(0);
   Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()), isolate);
   MaybeHandle<OrderedHashSet> table_candidate =
       OrderedHashSet::EnsureGrowable(isolate, table);
@@ -40,7 +40,7 @@ RUNTIME_FUNCTION(Runtime_SetGrow) {
 RUNTIME_FUNCTION(Runtime_SetShrink) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
+  Handle<JSSet> holder = args.at<JSSet>(0);
   Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()), isolate);
   table = OrderedHashSet::Shrink(isolate, table);
   holder->set_table(*table);
@@ -50,7 +50,7 @@ RUNTIME_FUNCTION(Runtime_SetShrink) {
 RUNTIME_FUNCTION(Runtime_MapShrink) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
+  Handle<JSMap> holder = args.at<JSMap>(0);
   Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()), isolate);
   table = OrderedHashMap::Shrink(isolate, table);
   holder->set_table(*table);
@@ -60,7 +60,7 @@ RUNTIME_FUNCTION(Runtime_MapShrink) {
 RUNTIME_FUNCTION(Runtime_MapGrow) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
+  Handle<JSMap> holder = args.at<JSMap>(0);
   Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()), isolate);
   MaybeHandle<OrderedHashMap> table_candidate =
       OrderedHashMap::EnsureGrowable(isolate, table);
@@ -77,9 +77,9 @@ RUNTIME_FUNCTION(Runtime_MapGrow) {
 RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  CONVERT_SMI_ARG_CHECKED(hash, 2)
+  Handle<JSWeakCollection> weak_collection = args.at<JSWeakCollection>(0);
+  Handle<Object> key = args.at(1);
+  int hash = args.smi_value_at(2);
 
 #ifdef DEBUG
   DCHECK(key->IsJSReceiver());
@@ -99,10 +99,10 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
 RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  CONVERT_SMI_ARG_CHECKED(hash, 3)
+  Handle<JSWeakCollection> weak_collection = args.at<JSWeakCollection>(0);
+  Handle<Object> key = args.at(1);
+  Handle<Object> value = args.at(2);
+  int hash = args.smi_value_at(3);
 
 #ifdef DEBUG
   DCHECK(key->IsJSReceiver());

@@ -1921,6 +1921,13 @@ valid.
 The imported module string is an invalid URL, package name, or package subpath
 specifier.
 
+<a id="ERR_INVALID_OBJECT_DEFINE_PROPERTY"></a>
+
+### `ERR_INVALID_OBJECT_DEFINE_PROPERTY`
+
+An error occurred while setting an invalid attribute on the property of
+an object.
+
 <a id="ERR_INVALID_PACKAGE_CONFIG"></a>
 
 ### `ERR_INVALID_PACKAGE_CONFIG`
@@ -2794,6 +2801,14 @@ import 'package-name'; // supported
 ### `ERR_UNSUPPORTED_ESM_URL_SCHEME`
 
 `import` with URL schemes other than `file` and `data` is unsupported.
+
+<a id="ERR_USE_AFTER_CLOSE"></a>
+
+### `ERR_USE_AFTER_CLOSE`
+
+> Stability: 1 - Experimental
+
+An attempt was made to use something that was already closed.
 
 <a id="ERR_VALID_PERFORMANCE_ENTRY_TYPE"></a>
 

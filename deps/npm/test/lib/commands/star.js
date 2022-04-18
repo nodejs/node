@@ -20,7 +20,6 @@ const mocks = {
   'proc-log': log,
   'npm-registry-fetch': npmFetch,
   '../../../lib/utils/get-identity.js': async () => 'foo',
-  '../../../lib/utils/usage.js': () => 'usage instructions',
 }
 
 const Star = t.mock('../../../lib/commands/star.js', mocks)
@@ -36,8 +35,8 @@ t.afterEach(() => {
 t.test('no args', async t => {
   await t.rejects(
     star.exec([]),
-    /usage instructions/,
-    'should throw usage instructions'
+    { code: 'EUSAGE' },
+    'should throw usage error'
   )
 })
 

@@ -13,7 +13,9 @@ class RemoteFetcher extends Fetcher {
   constructor (spec, opts) {
     super(spec, opts)
     this.resolved = this.spec.fetchSpec
-    if (magic.test(this.resolved) && !magic.test(this.registry + '/')) {
+    if (this.replaceRegistryHost === 'npmjs'
+      && magic.test(this.resolved)
+      && !magic.test(this.registry + '/')) {
       this.resolved = this.resolved.replace(magic, this.registry + '/')
     }
 

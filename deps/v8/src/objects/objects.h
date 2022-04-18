@@ -19,6 +19,8 @@
 #include "src/common/assert-scope.h"
 #include "src/common/checks.h"
 #include "src/common/message-template.h"
+#include "src/common/operation.h"
+#include "src/common/ptr-compr.h"
 #include "src/flags/flags.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/field-index.h"
@@ -56,14 +58,17 @@
 //             - JSModuleNamespace
 //           - JSPrimitiveWrapper
 //         - JSDate
-//         - JSFunctionOrBoundFunction
+//         - JSFunctionOrBoundFunctionOrWrappedFunction
 //           - JSBoundFunction
 //           - JSFunction
+//           - JSWrappedFunction
 //         - JSGeneratorObject
 //         - JSMapIterator
 //         - JSMessageObject
 //         - JSRegExp
 //         - JSSetIterator
+//         - JSShadowRealm
+//         - JSSharedStruct
 //         - JSStringIterator
 //         - JSTemporalCalendar
 //         - JSTemporalDuration
@@ -175,7 +180,7 @@
 //       - BreakPoint
 //       - BreakPointInfo
 //       - CachedTemplateObject
-//       - StackFrameInfo
+//       - CallSiteInfo
 //       - CodeCache
 //       - PropertyDescriptorObject
 //       - PrototypeInfo
@@ -190,6 +195,7 @@
 //         - SourceTextModule
 //         - SyntheticModule
 //       - SourceTextModuleInfoEntry
+//       - StackFrameInfo
 //     - FeedbackCell
 //     - FeedbackVector
 //     - PreparseData
@@ -405,7 +411,8 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
   // ES6 section 7.1.1 ToPrimitive
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> ToPrimitive(
-      Handle<Object> input, ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
+      Isolate* isolate, Handle<Object> input,
+      ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
 
   // ES6 section 7.1.3 ToNumber
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> ToNumber(
@@ -667,18 +674,14 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
                                                  std::is_enum<T>::value,
                                              int>::type = 0>
   inline T ReadField(size_t offset) const {
-    // Pointer compression causes types larger than kTaggedSize to be unaligned.
-#ifdef V8_COMPRESS_POINTERS
-    constexpr bool v8_pointer_compression_unaligned = sizeof(T) > kTaggedSize;
-#else
-    constexpr bool v8_pointer_compression_unaligned = false;
-#endif
-    if (std::is_same<T, double>::value || v8_pointer_compression_unaligned) {
-      // Bug(v8:8875) Double fields may be unaligned.
-      return base::ReadUnalignedValue<T>(field_address(offset));
-    } else {
-      return base::Memory<T>(field_address(offset));
-    }
+    return ReadMaybeUnalignedValue<T>(field_address(offset));
+  }
+
+  template <class T, typename std::enable_if<std::is_arithmetic<T>::value ||
+                                                 std::is_enum<T>::value,
+                                             int>::type = 0>
+  inline void WriteField(size_t offset, T value) const {
+    return WriteMaybeUnalignedValue<T>(field_address(offset), value);
   }
 
   // Atomically reads a field using relaxed memory ordering. Can only be used
@@ -690,38 +693,31 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
                                     int>::type = 0>
   inline T Relaxed_ReadField(size_t offset) const;
 
-  template <class T, typename std::enable_if<std::is_arithmetic<T>::value ||
-                                                 std::is_enum<T>::value,
-                                             int>::type = 0>
-  inline void WriteField(size_t offset, T value) const {
-    // Pointer compression causes types larger than kTaggedSize to be unaligned.
-#ifdef V8_COMPRESS_POINTERS
-    constexpr bool v8_pointer_compression_unaligned = sizeof(T) > kTaggedSize;
-#else
-    constexpr bool v8_pointer_compression_unaligned = false;
-#endif
-    if (std::is_same<T, double>::value || v8_pointer_compression_unaligned) {
-      // Bug(v8:8875) Double fields may be unaligned.
-      base::WriteUnalignedValue<T>(field_address(offset), value);
-    } else {
-      base::Memory<T>(field_address(offset)) = value;
-    }
-  }
+  // Atomically writes a field using relaxed memory ordering. Can only be used
+  // with integral types whose size is <= kTaggedSize (to guarantee alignment).
+  template <class T,
+            typename std::enable_if<(std::is_arithmetic<T>::value ||
+                                     std::is_enum<T>::value) &&
+                                        !std::is_floating_point<T>::value,
+                                    int>::type = 0>
+  inline void Relaxed_WriteField(size_t offset, T value);
 
   //
-  // CagedPointer_t field accessors.
+  // SandboxedPointer_t field accessors.
   //
-  inline Address ReadCagedPointerField(size_t offset,
-                                       PtrComprCageBase cage_base) const;
-  inline void WriteCagedPointerField(size_t offset, PtrComprCageBase cage_base,
-                                     Address value);
-  inline void WriteCagedPointerField(size_t offset, Isolate* isolate,
-                                     Address value);
+  inline Address ReadSandboxedPointerField(size_t offset,
+                                           PtrComprCageBase cage_base) const;
+  inline void WriteSandboxedPointerField(size_t offset,
+                                         PtrComprCageBase cage_base,
+                                         Address value);
+  inline void WriteSandboxedPointerField(size_t offset, Isolate* isolate,
+                                         Address value);
 
   //
   // ExternalPointer_t field accessors.
   //
-  inline void InitExternalPointerField(size_t offset, Isolate* isolate);
+  inline void InitExternalPointerField(size_t offset, Isolate* isolate,
+                                       ExternalPointerTag tag);
   inline void InitExternalPointerField(size_t offset, Isolate* isolate,
                                        Address value, ExternalPointerTag tag);
   inline Address ReadExternalPointerField(size_t offset, Isolate* isolate,
@@ -735,6 +731,27 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // Returns false if the exception was thrown, otherwise true.
   static bool CheckContextualStoreToJSGlobalObject(
       LookupIterator* it, Maybe<ShouldThrow> should_throw);
+
+  // Returns whether the object is safe to share across Isolates.
+  //
+  // Currently, the following kinds of values can be safely shared across
+  // Isolates:
+  // - Smis
+  // - Objects in RO space when the RO space is shared
+  // - HeapNumbers in the shared old space
+  // - Strings for which String::IsShared() is true
+  // - JSSharedStructs
+  inline bool IsShared() const;
+
+  // Returns an equivalent value that's safe to share across Isolates if
+  // possible. Acts as the identity function when value->IsShared().
+  static inline MaybeHandle<Object> Share(
+      Isolate* isolate, Handle<Object> value,
+      ShouldThrow throw_if_cannot_be_shared);
+
+  static MaybeHandle<Object> ShareSlow(Isolate* isolate,
+                                       Handle<HeapObject> value,
+                                       ShouldThrow throw_if_cannot_be_shared);
 
  protected:
   inline Address field_address(size_t offset) const {

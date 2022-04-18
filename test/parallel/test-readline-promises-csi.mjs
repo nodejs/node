@@ -4,6 +4,7 @@
 import '../common/index.mjs';
 import assert from 'assert';
 import { Readline } from 'readline/promises';
+import { setImmediate } from 'timers/promises';
 import { Writable } from 'stream';
 
 import utils from 'internal/readline/utils';
@@ -160,4 +161,66 @@ class TestWritable extends Writable {
   const readline = new Readline(writable);
 
   await assert.rejects(readline.cursorTo(1).commit(), error);
+}
+
+{
+  const writable = new TestWritable();
+  const readline = new Readline(writable, { autoCommit: true });
+
+  await readline.clearScreenDown();
+  await setImmediate(); // Wait for next tick as auto commit is asynchronous.
+  assert.deepStrictEqual(writable.data, CSI.kClearScreenDown);
+}
+
+{
+  const writable = new TestWritable();
+  const readline = new Readline(writable, { autoCommit: true });
+  for (const [dir, data] of
+    [
+      [-1, CSI.kClearToLineBeginning],
+      [1, CSI.kClearToLineEnd],
+      [0, CSI.kClearLine],
+    ]) {
+    writable.data = '';
+    readline.clearLine(dir);
+    await setImmediate(); // Wait for next tick as auto commit is asynchronous.
+    assert.deepStrictEqual(writable.data, data);
+  }
+}
+
+{
+  const writable = new TestWritable();
+  const readline = new Readline(writable, { autoCommit: true });
+  for (const [x, y, data] of
+    [
+      [0, 0, ''],
+      [1, 0, '\x1b[1C'],
+      [-1, 0, '\x1b[1D'],
+      [0, 1, '\x1b[1B'],
+      [0, -1, '\x1b[1A'],
+      [1, 1, '\x1b[1C\x1b[1B'],
+      [-1, 1, '\x1b[1D\x1b[1B'],
+      [-1, -1, '\x1b[1D\x1b[1A'],
+      [1, -1, '\x1b[1C\x1b[1A'],
+    ]) {
+    writable.data = '';
+    readline.moveCursor(x, y);
+    await setImmediate(); // Wait for next tick as auto commit is asynchronous.
+    assert.deepStrictEqual(writable.data, data);
+  }
+}
+
+{
+  const writable = new TestWritable();
+  const readline = new Readline(writable, { autoCommit: true });
+  for (const [x, y, data] of
+    [
+      [1, undefined, '\x1b[2G'],
+      [1, 2, '\x1b[3;2H'],
+    ]) {
+    writable.data = '';
+    readline.cursorTo(x, y);
+    await setImmediate(); // Wait for next tick as auto commit is asynchronous.
+    assert.deepStrictEqual(writable.data, data);
+  }
 }

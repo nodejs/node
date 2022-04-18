@@ -14,6 +14,7 @@ PACKAGE_DIR="${THIS_DIR}/gcmole-tools"
 PACKAGE_FILE="${THIS_DIR}/gcmole-tools.tar.gz"
 PACKAGE_SUM="${THIS_DIR}/gcmole-tools.tar.gz.sha1"
 BUILD_DIR="${THIS_DIR}/bootstrap/build"
+V8_ROOT_DIR= `realpath "${THIS_DIR}/../.."`
 
 # Echo all commands
 set -x
@@ -72,5 +73,8 @@ echo "sudo chroot \$CHROOT_DIR bash -c 'PATH=/docs/depot_tools:\$PATH; /docs/v8/
 echo
 echo You can now run gcmole using this command:
 echo
-echo CLANG_BIN=\"tools/gcmole/gcmole-tools/bin\" python tools/gcmole/gcmole.py
+echo 'tools/gcmole/gcmole.py \'
+echo '   --clang-bin-dir="tools/gcmole/gcmole-tools/bin" \'
+echo '   --clang-plugins-dir="tools/gcmole/gcmole-tools" \'
+echo '   --v8-target-cpu=$CPU'
 echo

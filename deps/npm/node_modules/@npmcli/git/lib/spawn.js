@@ -17,16 +17,16 @@ module.exports = (gitArgs, opts = {}) => {
     ? gitArgs
     : ['--no-replace-objects', ...gitArgs]
 
-  let retry = opts.retry
-  if (retry === null || retry === undefined) {
-    retry = {
+  let retryOpts = opts.retry
+  if (retryOpts === null || retryOpts === undefined) {
+    retryOpts = {
       retries: opts.fetchRetries || 2,
       factor: opts.fetchRetryFactor || 10,
       maxTimeout: opts.fetchRetryMaxtimeout || 60000,
       minTimeout: opts.fetchRetryMintimeout || 1000,
     }
   }
-  return promiseRetry((retry, number) => {
+  return promiseRetry((retryFn, number) => {
     if (number !== 1) {
       log.silly('git', `Retrying git command: ${
         args.join(' ')} attempt # ${number}`)
@@ -38,7 +38,7 @@ module.exports = (gitArgs, opts = {}) => {
         if (!gitError.shouldRetry(number)) {
           throw gitError
         }
-        retry(gitError)
+        retryFn(gitError)
       })
-  }, retry)
+  }, retryOpts)
 }

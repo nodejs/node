@@ -62,6 +62,9 @@
 #define DECLARE_NODE_API_GETTER(name, func)                              \
   { (name), NULL, NULL, (func), NULL, NULL, napi_default, NULL }
 
+#define DECLARE_NODE_API_PROPERTY_VALUE(name, value)                     \
+  { (name), NULL, NULL, NULL, NULL, (value), napi_default, NULL }
+
 void add_returned_status(napi_env env,
                          const char* key,
                          napi_value object,

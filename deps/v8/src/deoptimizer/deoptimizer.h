@@ -49,13 +49,11 @@ class Deoptimizer : public Malloced {
       Isolate* isolate, SharedFunctionInfo shared,
       BytecodeOffset bytecode_offset);
 
-  static const char* MessageFor(DeoptimizeKind kind, bool reuse_code);
+  static const char* MessageFor(DeoptimizeKind kind);
 
   Handle<JSFunction> function() const;
   Handle<Code> compiled_code() const;
   DeoptimizeKind deopt_kind() const { return deopt_kind_; }
-
-  bool should_reuse_code() const;
 
   static Deoptimizer* New(Address raw_function, DeoptimizeKind kind,
                           unsigned deopt_exit_index, Address from,
@@ -94,11 +92,6 @@ class Deoptimizer : public Malloced {
   void MaterializeHeapObjects();
 
   static void ComputeOutputFrames(Deoptimizer* deoptimizer);
-
-  // Returns the builtin that will perform a check and either eagerly deopt with
-  // |reason| or resume execution in the optimized code.
-  V8_EXPORT_PRIVATE static Builtin GetDeoptWithResumeBuiltin(
-      DeoptimizeReason reason);
 
   V8_EXPORT_PRIVATE static Builtin GetDeoptimizationEntry(DeoptimizeKind kind);
 
@@ -141,10 +134,6 @@ class Deoptimizer : public Malloced {
   // kSupportsFixedDeoptExitSizes is true.
   V8_EXPORT_PRIVATE static const int kNonLazyDeoptExitSize;
   V8_EXPORT_PRIVATE static const int kLazyDeoptExitSize;
-  V8_EXPORT_PRIVATE static const int kEagerWithResumeBeforeArgsSize;
-  V8_EXPORT_PRIVATE static const int kEagerWithResumeDeoptExitSize;
-  V8_EXPORT_PRIVATE static const int kEagerWithResumeImmedArgs1PcOffset;
-  V8_EXPORT_PRIVATE static const int kEagerWithResumeImmedArgs2PcOffset;
 
   // Tracing.
   static void TraceMarkForDeoptimization(Code code, const char* reason);

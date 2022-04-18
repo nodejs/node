@@ -389,21 +389,21 @@ bool WasmModuleDebug::GetWasmValue(const wasm::WasmValue& wasm_value,
                                    uint8_t* buffer, uint32_t buffer_size,
                                    uint32_t* size) {
   switch (wasm_value.type().kind()) {
-    case wasm::kWasmI32.kind():
+    case wasm::kI32:
       return StoreValue(wasm_value.to_i32(), buffer, buffer_size, size);
-    case wasm::kWasmI64.kind():
+    case wasm::kI64:
       return StoreValue(wasm_value.to_i64(), buffer, buffer_size, size);
-    case wasm::kWasmF32.kind():
+    case wasm::kF32:
       return StoreValue(wasm_value.to_f32(), buffer, buffer_size, size);
-    case wasm::kWasmF64.kind():
+    case wasm::kF64:
       return StoreValue(wasm_value.to_f64(), buffer, buffer_size, size);
-    case wasm::kWasmS128.kind():
+    case wasm::kS128:
       return StoreValue(wasm_value.to_s128(), buffer, buffer_size, size);
-
-    case wasm::kWasmVoid.kind():
-    case wasm::kWasmExternRef.kind():
-    case wasm::kWasmBottom.kind():
-    default:
+    case wasm::kRef:
+    case wasm::kOptRef:
+    case wasm::kRtt:
+    case wasm::kVoid:
+    case wasm::kBottom:
       // Not supported
       return false;
   }

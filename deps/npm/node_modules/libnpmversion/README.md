@@ -1,5 +1,9 @@
 # libnpmversion
 
+[![npm version](https://img.shields.io/npm/v/libnpmversion.svg)](https://npm.im/libnpmversion)
+[![license](https://img.shields.io/npm/l/libnpmversion.svg)](https://npm.im/libnpmversion)
+[![CI - libnpmversion](https://github.com/npm/cli/actions/workflows/ci-libnpmversion.yml/badge.svg)](https://github.com/npm/cli/actions/workflows/ci-libnpmversion.yml)
+
 Library to do the things that 'npm version' does.
 
 ## USAGE

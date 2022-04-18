@@ -34,7 +34,7 @@ server.on('stream', common.mustCall((stream) => {
       name: 'Error'
     }
   );
-  // When session is detroyed all streams are destroyed and no further
+  // When session is destroyed all streams are destroyed and no further
   // error should be emitted.
   stream.on('error', common.mustNotCall());
   assert.strictEqual(stream.write('data', common.expectsError({

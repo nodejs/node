@@ -182,6 +182,8 @@ extern macro TypedArrayBuiltinsAssembler::SetJSTypedArrayOffHeapDataPtr(
     JSTypedArray, RawPtr, uintptr): void;
 extern macro IsJSArrayBufferViewDetachedOrOutOfBounds(JSArrayBufferView):
     never labels DetachedOrOutOfBounds, NotDetachedNorOutOfBounds;
+extern macro IsJSArrayBufferViewDetachedOrOutOfBoundsBoolean(JSArrayBufferView):
+    bool;
 
 // AttachedJSTypedArray guards that the array's buffer is not detached.
 transient type AttachedJSTypedArray extends JSTypedArray;

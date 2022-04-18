@@ -59,7 +59,7 @@ a preload module).
 
 When using ESM, if there is a chance that the code may be run on a build
 of Node.js where crypto support is not enabled, consider using the
-`import()` function instead of the lexical `import` keyword:
+[`import()`][] function instead of the lexical `import` keyword:
 
 ```mjs
 let crypto;
@@ -2627,6 +2627,10 @@ added: v15.6.0
 
 The SHA-1 fingerprint of this certificate.
 
+Because SHA-1 is cryptographically broken and because the security of SHA-1 is
+significantly worse than that of algorithms that are commonly used to sign
+certificates, consider using [`x509.fingerprint256`][] instead.
+
 ### `x509.fingerprint256`
 
 <!-- YAML
@@ -2648,6 +2652,12 @@ added:
 * Type: {string}
 
 The SHA-512 fingerprint of this certificate.
+
+Because computing the SHA-256 fingerprint is usually faster and because it is
+only half the size of the SHA-512 fingerprint, [`x509.fingerprint256`][] may be
+a better choice. While SHA-512 presumably provides a higher level of security in
+general, the security of SHA-256 matches that of most algorithms that are
+commonly used to sign certificates.
 
 ### `x509.infoAccess`
 
@@ -2737,6 +2747,10 @@ added: v15.6.0
 * Type: {string}
 
 The serial number of this certificate.
+
+Serial numbers are assigned by certificate authorities and do not uniquely
+identify certificates. Consider using [`x509.fingerprint256`][] as a unique
+identifier instead.
 
 ### `x509.subject`
 
@@ -2948,6 +2962,10 @@ Checks the primality of the `candidate`.
 added: v0.1.94
 deprecated: v10.0.0
 changes:
+  - version: v17.9.0
+    pr-url: https://github.com/nodejs/node/pull/42427
+    description: The `authTagLength` option is now optional when using the
+                 `chacha20-poly1305` cipher and defaults to 16 bytes.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The password argument can be an ArrayBuffer and is limited to
@@ -2972,12 +2990,12 @@ Creates and returns a `Cipher` object that uses the given `algorithm` and
 `password`.
 
 The `options` argument controls stream behavior and is optional except when a
-cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) or `chacha20-poly1305` is used.
-In that case, the
+cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) is used. In that case, the
 `authTagLength` option is required and specifies the length of the
 authentication tag in bytes, see [CCM mode][]. In GCM mode, the `authTagLength`
 option is not required but can be used to set the length of the authentication
 tag that will be returned by `getAuthTag()` and defaults to 16 bytes.
+For `chacha20-poly1305`, the `authTagLength` option defaults to 16 bytes.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list -cipher-algorithms` will
@@ -3008,6 +3026,10 @@ Adversaries][] for details.
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: v17.9.0
+    pr-url: https://github.com/nodejs/node/pull/42427
+    description: The `authTagLength` option is now optional when using the
+                 `chacha20-poly1305` cipher and defaults to 16 bytes.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: The password and iv arguments can be an ArrayBuffer and are
@@ -3044,12 +3066,12 @@ Creates and returns a `Cipher` object, with the given `algorithm`, `key` and
 initialization vector (`iv`).
 
 The `options` argument controls stream behavior and is optional except when a
-cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) or `chacha20-poly1305` is used.
-In that case, the
+cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) is used. In that case, the
 `authTagLength` option is required and specifies the length of the
 authentication tag in bytes, see [CCM mode][]. In GCM mode, the `authTagLength`
 option is not required but can be used to set the length of the authentication
 tag that will be returned by `getAuthTag()` and defaults to 16 bytes.
+For `chacha20-poly1305`, the `authTagLength` option defaults to 16 bytes.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list -cipher-algorithms` will
@@ -3077,6 +3099,10 @@ given IV will be.
 added: v0.1.94
 deprecated: v10.0.0
 changes:
+  - version: v17.9.0
+    pr-url: https://github.com/nodejs/node/pull/42427
+    description: The `authTagLength` option is now optional when using the
+                 `chacha20-poly1305` cipher and defaults to 16 bytes.
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/21447
     description: Ciphers in OCB mode are now supported.
@@ -3093,10 +3119,10 @@ Creates and returns a `Decipher` object that uses the given `algorithm` and
 `password` (key).
 
 The `options` argument controls stream behavior and is optional except when a
-cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) or `chacha20-poly1305` is used.
-In that case, the
+cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) is used. In that case, the
 `authTagLength` option is required and specifies the length of the
 authentication tag in bytes, see [CCM mode][].
+For `chacha20-poly1305`, the `authTagLength` option defaults to 16 bytes.
 
 The implementation of `crypto.createDecipher()` derives keys using the OpenSSL
 function [`EVP_BytesToKey`][] with the digest algorithm set to MD5, one
@@ -3115,6 +3141,10 @@ to create the `Decipher` object.
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: v17.9.0
+    pr-url: https://github.com/nodejs/node/pull/42427
+    description: The `authTagLength` option is now optional when using the
+                 `chacha20-poly1305` cipher and defaults to 16 bytes.
   - version: v11.6.0
     pr-url: https://github.com/nodejs/node/pull/24234
     description: The `key` argument can now be a `KeyObject`.
@@ -3147,12 +3177,12 @@ Creates and returns a `Decipher` object that uses the given `algorithm`, `key`
 and initialization vector (`iv`).
 
 The `options` argument controls stream behavior and is optional except when a
-cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) or `chacha20-poly1305` is used.
-In that case, the
+cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) is used. In that case, the
 `authTagLength` option is required and specifies the length of the
 authentication tag in bytes, see [CCM mode][]. In GCM mode, the `authTagLength`
 option is not required but can be used to restrict accepted authentication tags
 to those with the specified length.
+For `chacha20-poly1305`, the `authTagLength` option defaults to 16 bytes.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list -cipher-algorithms` will
@@ -6112,6 +6142,7 @@ See the [list of SSL OP Flags][] for details.
 [`hash.update()`]: #hashupdatedata-inputencoding
 [`hmac.digest()`]: #hmacdigestencoding
 [`hmac.update()`]: #hmacupdatedata-inputencoding
+[`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
 [`keyObject.export()`]: #keyobjectexportoptions
 [`postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
 [`sign.sign()`]: #signsignprivatekey-outputencoding
@@ -6121,6 +6152,7 @@ See the [list of SSL OP Flags][] for details.
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [`verify.update()`]: #verifyupdatedata-inputencoding
 [`verify.verify()`]: #verifyverifyobject-signature-signatureencoding
+[`x509.fingerprint256`]: #x509fingerprint256
 [caveats when using strings as inputs to cryptographic APIs]: #using-strings-as-inputs-to-cryptographic-apis
 [certificate object]: tls.md#certificate-object
 [encoding]: buffer.md#buffers-and-character-encodings

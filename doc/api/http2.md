@@ -54,7 +54,7 @@ a preload module).
 
 When using ESM, if there is a chance that the code may be run on a build
 of Node.js where crypto support is not enabled, consider using the
-`import()` function instead of the lexical `import` keyword:
+[`import()`][] function instead of the lexical `import` keyword:
 
 ```mjs
 let http2;
@@ -1031,10 +1031,9 @@ All `Http2Stream` instances are [`Duplex`][] streams. The `Writable` side of the
 `Duplex` is used to send data to the connected peer, while the `Readable` side
 is used to receive data sent by the connected peer.
 
-The default text character encoding for all `Http2Stream`s is UTF-8. As a best
-practice, it is recommended that when using an `Http2Stream` to send text,
-the `'content-type'` header should be set and should identify the character
-encoding used.
+The default text character encoding for an `Http2Stream` is UTF-8. When using an
+`Http2Stream` to send text, use the `'content-type'` header to set the character
+encoding.
 
 ```js
 stream.respond({
@@ -4144,6 +4143,7 @@ you need to implement any fall-back behavior yourself.
 [`http2.createServer()`]: #http2createserveroptions-onrequesthandler
 [`http2session.close()`]: #http2sessionclosecallback
 [`http2stream.pushStream()`]: #http2streampushstreamheaders-options-callback
+[`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
 [`net.Server.close()`]: net.md#serverclosecallback
 [`net.Socket.bufferSize`]: net.md#socketbuffersize
 [`net.Socket.prototype.ref()`]: net.md#socketref

@@ -6,7 +6,6 @@
 #define V8_PROFILER_PROFILER_LISTENER_H_
 
 #include <memory>
-#include <vector>
 
 #include "include/v8-profiler.h"
 #include "src/logging/code-events.h"
@@ -64,7 +63,7 @@ class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener,
   void CodeDisableOptEvent(Handle<AbstractCode> code,
                            Handle<SharedFunctionInfo> shared) override;
   void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta, bool reuse_code) override;
+                      int fp_to_sp_delta) override;
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override {}

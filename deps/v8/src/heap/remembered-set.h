@@ -391,19 +391,6 @@ class RememberedSetSweeping {
   }
 };
 
-inline SlotType SlotTypeForRelocInfoMode(RelocInfo::Mode rmode) {
-  if (RelocInfo::IsCodeTargetMode(rmode)) {
-    return CODE_TARGET_SLOT;
-  } else if (RelocInfo::IsFullEmbeddedObject(rmode)) {
-    return FULL_EMBEDDED_OBJECT_SLOT;
-  } else if (RelocInfo::IsCompressedEmbeddedObject(rmode)) {
-    return COMPRESSED_EMBEDDED_OBJECT_SLOT;
-  } else if (RelocInfo::IsDataEmbeddedObject(rmode)) {
-    return DATA_EMBEDDED_OBJECT_SLOT;
-  }
-  UNREACHABLE();
-}
-
 }  // namespace internal
 }  // namespace v8
 
