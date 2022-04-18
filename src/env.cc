@@ -34,6 +34,7 @@ using v8::Array;
 using v8::Boolean;
 using v8::Context;
 using v8::EmbedderGraph;
+using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -669,6 +670,26 @@ void Environment::PrintSyncTrace() const {
   PrintStackTrace(isolate(),
                   StackTrace::CurrentStackTrace(
                       isolate(), stack_trace_limit(), StackTrace::kDetailed));
+}
+
+MaybeLocal<Value> Environment::RunSnapshotSerializeCallback() const {
+  EscapableHandleScope handle_scope(isolate());
+  if (!snapshot_serialize_callback().IsEmpty()) {
+    Context::Scope context_scope(context());
+    return handle_scope.EscapeMaybe(snapshot_serialize_callback()->Call(
+        context(), v8::Undefined(isolate()), 0, nullptr));
+  }
+  return handle_scope.Escape(Undefined(isolate()));
+}
+
+MaybeLocal<Value> Environment::RunSnapshotDeserializeMain() const {
+  EscapableHandleScope handle_scope(isolate());
+  if (!snapshot_deserialize_main().IsEmpty()) {
+    Context::Scope context_scope(context());
+    return handle_scope.EscapeMaybe(snapshot_deserialize_main()->Call(
+        context(), v8::Undefined(isolate()), 0, nullptr));
+  }
+  return handle_scope.Escape(Undefined(isolate()));
 }
 
 void Environment::RunCleanup() {

@@ -485,6 +485,14 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     return scope.EscapeMaybe(cb(info));
   }
 
+  // TODO(joyeecheung): move these conditions into JS land and let the
+  // deserialize main function take precedence. For workers, we need to
+  // move the pre-execution part into a different file that can be
+  // reused when dealing with user-defined main functions.
+  if (!env->snapshot_deserialize_main().IsEmpty()) {
+    return env->RunSnapshotDeserializeMain();
+  }
+
   if (env->worker_context() != nullptr) {
     return StartExecution(env, "internal/main/worker_thread");
   }

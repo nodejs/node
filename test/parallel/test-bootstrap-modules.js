@@ -21,6 +21,7 @@ const expectedModules = new Set([
   'Internal Binding fs_event_wrap',
   'Internal Binding fs',
   'Internal Binding heap_utils',
+  'Internal Binding mksnapshot',
   'Internal Binding messaging',
   'Internal Binding module_wrap',
   'Internal Binding native_module',
@@ -167,6 +168,7 @@ const expectedModules = new Set([
   'NativeModule url',
   'NativeModule util',
   'NativeModule v8',
+  'NativeModule internal/v8/startup_snapshot',
   'NativeModule vm',
 ]);
 
