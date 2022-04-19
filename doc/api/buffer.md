@@ -833,7 +833,7 @@ _may contain sensitive data_. Use [`buf.fill(0)`][`buf.fill()`] to initialize
 such `Buffer` instances with zeroes.
 
 When using [`Buffer.allocUnsafe()`][] to allocate new `Buffer` instances,
-allocations under 4 KB are sliced from a single pre-allocated `Buffer`. This
+allocations under 4 KiB are sliced from a single pre-allocated `Buffer`. This
 allows applications to avoid the garbage collection overhead of creating many
 individually allocated `Buffer` instances. This approach improves both
 performance and memory usage by eliminating the need to track and clean up as
@@ -5204,9 +5204,9 @@ changes:
 * {integer} The largest size allowed for a single `Buffer` instance.
 
 On 32-bit architectures, this value currently is 2<sup>30</sup> - 1 (about 1
-GB).
+GiB).
 
-On 64-bit architectures, this value currently is 2<sup>32</sup> (about 4 GB).
+On 64-bit architectures, this value currently is 2<sup>32</sup> (about 4 GiB).
 
 It reflects [`v8::TypedArray::kMaxLength`][] under the hood.
 
