@@ -1,4 +1,4 @@
-# Modules: `module` API
+# Modules: `node:module` API
 
 <!--introduced_in=v12.20.0-->
 
