@@ -61,6 +61,7 @@ class Worker : public AsyncWrap {
   static void SetEnvVars(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StartThread(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StopThread(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void HasRef(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Ref(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Unref(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetResourceLimits(
