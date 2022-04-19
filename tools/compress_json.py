@@ -21,7 +21,7 @@ if __name__ == '__main__':
 
   # To make decompression a little easier, we prepend the compressed data
   # with the size of the uncompressed data as a 24 bits BE unsigned integer.
-  assert len(text) < 1 << 24, 'Uncompressed JSON must be < 16 MB.'
+  assert len(text) < 1 << 24, 'Uncompressed JSON must be < 16 MiB.'
   data = struct.pack('>I', len(text))[1:4] + data
 
   step = 20

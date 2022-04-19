@@ -20,9 +20,9 @@ setImmediate(() => {
   global.gc();
   const after = process.memoryUsage().external;
 
-  // It's not an exact science but a SecurePair grows .external by about 45 kB.
+  // It's not an exact science but a SecurePair grows .external by about 45 KiB.
   // Unless AdjustAmountOfExternalAllocatedMemory() is called on destruction,
-  // 10,000 instances make it grow by well over 400 MB.  Allow for some slop
+  // 10,000 instances make it grow by well over 400 MiB.  Allow for some slop
   // because objects like buffers also affect the external limit.
   assert(after - before < 25 << 20);
 });

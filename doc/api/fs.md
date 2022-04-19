@@ -262,8 +262,8 @@ added: v16.11.0
   * `highWaterMark` {integer} **Default:** `64 * 1024`
 * Returns: {fs.ReadStream}
 
-Unlike the 16 kb default `highWaterMark` for a {stream.Readable}, the stream
-returned by this method has a default `highWaterMark` of 64 kb.
+Unlike the 16 KiB default `highWaterMark` for a {stream.Readable}, the stream
+returned by this method has a default `highWaterMark` of 64 KiB.
 
 `options` can include `start` and `end` values to read a range of bytes from
 the file instead of the entire file. Both `start` and `end` are inclusive and
@@ -2186,8 +2186,8 @@ changes:
   * `fs` {Object|null} **Default:** `null`
 * Returns: {fs.ReadStream}
 
-Unlike the 16 kb default `highWaterMark` for a {stream.Readable}, the stream
-returned by this method has a default `highWaterMark` of 64 kb.
+Unlike the 16 KiB default `highWaterMark` for a {stream.Readable}, the stream
+returned by this method has a default `highWaterMark` of 64 KiB.
 
 `options` can include `start` and `end` values to read a range of bytes from
 the file instead of the entire file. Both `start` and `end` are inclusive and
@@ -3430,8 +3430,8 @@ to read a complete file into memory.
 The additional read overhead can vary broadly on different systems and depends
 on the type of file being read. If the file type is not a regular file (a pipe
 for instance) and Node.js is unable to determine an actual file size, each read
-operation will load on 64 KB of data. For regular files, each read will process
-512 KB of data.
+operation will load on 64 KiB of data. For regular files, each read will process
+512 KiB of data.
 
 For applications that require as-fast-as-possible reading of file contents, it
 is better to use `fs.read()` directly and for application code to manage
