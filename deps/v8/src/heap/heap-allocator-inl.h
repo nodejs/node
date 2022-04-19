@@ -30,9 +30,7 @@ OldLargeObjectSpace* HeapAllocator::lo_space() const {
   return static_cast<OldLargeObjectSpace*>(spaces_[LO_SPACE]);
 }
 
-PagedSpace* HeapAllocator::map_space() const {
-  return static_cast<PagedSpace*>(spaces_[MAP_SPACE]);
-}
+PagedSpace* HeapAllocator::space_for_maps() const { return space_for_maps_; }
 
 NewSpace* HeapAllocator::new_space() const {
   return static_cast<NewSpace*>(spaces_[NEW_SPACE]);
@@ -111,7 +109,7 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
           break;
         case AllocationType::kMap:
           DCHECK_EQ(alignment, AllocationAlignment::kTaggedAligned);
-          allocation = map_space()->AllocateRawUnaligned(size_in_bytes);
+          allocation = space_for_maps()->AllocateRawUnaligned(size_in_bytes);
           break;
         case AllocationType::kReadOnly:
           DCHECK(read_only_space()->writable());

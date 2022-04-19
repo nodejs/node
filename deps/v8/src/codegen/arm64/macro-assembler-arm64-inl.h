@@ -1041,13 +1041,13 @@ void TurboAssembler::InitializeRootRegister() {
 #endif
 }
 
-void MacroAssembler::SmiTag(Register dst, Register src) {
+void TurboAssembler::SmiTag(Register dst, Register src) {
   DCHECK(dst.Is64Bits() && src.Is64Bits());
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
   Lsl(dst, src, kSmiShift);
 }
 
-void MacroAssembler::SmiTag(Register smi) { SmiTag(smi, smi); }
+void TurboAssembler::SmiTag(Register smi) { SmiTag(smi, smi); }
 
 void TurboAssembler::SmiUntag(Register dst, Register src) {
   DCHECK(dst.Is64Bits() && src.Is64Bits());
@@ -1236,58 +1236,6 @@ void TurboAssembler::Peek(const CPURegister& dst, const Operand& offset) {
   DCHECK_IMPLIES((lr_mode == kDontLoadLR), (dst != lr));
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   if (lr_mode == kAuthLR) {
-    Autibsp();
-  }
-#endif
-}
-
-template <TurboAssembler::StoreLRMode lr_mode>
-void TurboAssembler::PushCPURegList(CPURegList registers) {
-  DCHECK_IMPLIES((lr_mode == kDontStoreLR), !registers.IncludesAliasOf(lr));
-#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  if (lr_mode == kSignLR && registers.IncludesAliasOf(lr)) {
-    Pacibsp();
-  }
-#endif
-
-  int size = registers.RegisterSizeInBytes();
-  DCHECK_EQ(0, (size * registers.Count()) % 16);
-
-  // Push up to four registers at a time.
-  while (!registers.IsEmpty()) {
-    int count_before = registers.Count();
-    const CPURegister& src0 = registers.PopHighestIndex();
-    const CPURegister& src1 = registers.PopHighestIndex();
-    const CPURegister& src2 = registers.PopHighestIndex();
-    const CPURegister& src3 = registers.PopHighestIndex();
-    int count = count_before - registers.Count();
-    PushHelper(count, size, src0, src1, src2, src3);
-  }
-}
-
-template <TurboAssembler::LoadLRMode lr_mode>
-void TurboAssembler::PopCPURegList(CPURegList registers) {
-  int size = registers.RegisterSizeInBytes();
-  DCHECK_EQ(0, (size * registers.Count()) % 16);
-
-#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  bool contains_lr = registers.IncludesAliasOf(lr);
-  DCHECK_IMPLIES((lr_mode == kDontLoadLR), !contains_lr);
-#endif
-
-  // Pop up to four registers at a time.
-  while (!registers.IsEmpty()) {
-    int count_before = registers.Count();
-    const CPURegister& dst0 = registers.PopLowestIndex();
-    const CPURegister& dst1 = registers.PopLowestIndex();
-    const CPURegister& dst2 = registers.PopLowestIndex();
-    const CPURegister& dst3 = registers.PopLowestIndex();
-    int count = count_before - registers.Count();
-    PopHelper(count, size, dst0, dst1, dst2, dst3);
-  }
-
-#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  if (lr_mode == kAuthLR && contains_lr) {
     Autibsp();
   }
 #endif

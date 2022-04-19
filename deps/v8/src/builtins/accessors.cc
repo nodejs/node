@@ -764,6 +764,57 @@ Handle<AccessorInfo> Accessors::MakeBoundFunctionNameInfo(Isolate* isolate) {
 }
 
 //
+// Accessors::WrappedFunctionLength
+//
+
+void Accessors::WrappedFunctionLengthGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kBoundFunctionLengthGetter);
+  HandleScope scope(isolate);
+  Handle<JSWrappedFunction> function =
+      Handle<JSWrappedFunction>::cast(Utils::OpenHandle(*info.Holder()));
+
+  int length = 0;
+  if (!JSWrappedFunction::GetLength(isolate, function).To(&length)) {
+    isolate->OptionalRescheduleException(false);
+    return;
+  }
+  Handle<Object> result(Smi::FromInt(length), isolate);
+  info.GetReturnValue().Set(Utils::ToLocal(result));
+}
+
+Handle<AccessorInfo> Accessors::MakeWrappedFunctionLengthInfo(
+    Isolate* isolate) {
+  return MakeAccessor(isolate, isolate->factory()->length_string(),
+                      &WrappedFunctionLengthGetter, &ReconfigureToDataProperty);
+}
+
+//
+// Accessors::WrappedFunctionName
+//
+
+void Accessors::WrappedFunctionNameGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kWrappedFunctionNameGetter);
+  HandleScope scope(isolate);
+  Handle<JSWrappedFunction> function =
+      Handle<JSWrappedFunction>::cast(Utils::OpenHandle(*info.Holder()));
+  Handle<Object> result;
+  if (!JSWrappedFunction::GetName(isolate, function).ToHandle(&result)) {
+    isolate->OptionalRescheduleException(false);
+    return;
+  }
+  info.GetReturnValue().Set(Utils::ToLocal(result));
+}
+
+Handle<AccessorInfo> Accessors::MakeWrappedFunctionNameInfo(Isolate* isolate) {
+  return MakeAccessor(isolate, isolate->factory()->name_string(),
+                      &WrappedFunctionNameGetter, &ReconfigureToDataProperty);
+}
+
+//
 // Accessors::ErrorStack
 //
 

@@ -26,6 +26,12 @@ class JSFunctionOrBoundFunctionOrWrappedFunction
   static const int kLengthDescriptorIndex = 0;
   static const int kNameDescriptorIndex = 1;
 
+  // https://tc39.es/proposal-shadowrealm/#sec-copynameandlength
+  static Maybe<bool> CopyNameAndLength(
+      Isolate* isolate,
+      Handle<JSFunctionOrBoundFunctionOrWrappedFunction> function,
+      Handle<JSReceiver> target, Handle<String> prefix, int arg_count);
+
   STATIC_ASSERT(kHeaderSize == JSObject::kHeaderSize);
   TQ_OBJECT_CONSTRUCTORS(JSFunctionOrBoundFunctionOrWrappedFunction)
 };
@@ -56,6 +62,15 @@ class JSWrappedFunction
     : public TorqueGeneratedJSWrappedFunction<
           JSWrappedFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
  public:
+  static MaybeHandle<String> GetName(Isolate* isolate,
+                                     Handle<JSWrappedFunction> function);
+  static Maybe<int> GetLength(Isolate* isolate,
+                              Handle<JSWrappedFunction> function);
+  // https://tc39.es/proposal-shadowrealm/#sec-wrappedfunctioncreate
+  static MaybeHandle<Object> Create(Isolate* isolate,
+                                    Handle<NativeContext> creation_context,
+                                    Handle<JSReceiver> value);
+
   // Dispatched behavior.
   DECL_PRINTER(JSWrappedFunction)
   DECL_VERIFIER(JSWrappedFunction)
@@ -80,7 +95,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   DECL_RELAXED_GETTER(shared, SharedFunctionInfo)
 
   // Fast binding requires length and name accessors.
-  static const int kMinDescriptorsForFastBind = 2;
+  static const int kMinDescriptorsForFastBindAndWrap = 2;
 
   // [context]: The context for this function.
   inline Context context();
@@ -90,7 +105,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   inline NativeContext native_context();
   inline int length();
 
-  static Handle<Object> GetName(Isolate* isolate, Handle<JSFunction> function);
+  static Handle<String> GetName(Isolate* isolate, Handle<JSFunction> function);
 
   // [code]: The generated code object for this function.  Executed
   // when the function is invoked, e.g. foo() or new foo(). See
@@ -152,30 +167,21 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // CompileLazy.
   bool CanDiscardCompiled() const;
 
-  // Tells whether or not this function checks its optimization marker in its
-  // feedback vector.
-  inline bool ChecksOptimizationMarker();
+  // Tells whether function's code object checks its tiering state (some code
+  // kinds, e.g. TURBOFAN, ignore the tiering state).
+  inline bool ChecksTieringState();
 
-  // Tells whether or not this function has a (non-zero) optimization marker.
-  inline bool HasOptimizationMarker();
+  inline TieringState tiering_state() const;
+  inline void set_tiering_state(TieringState state);
+  inline void reset_tiering_state();
 
   // Mark this function for lazy recompilation. The function will be recompiled
   // the next time it is executed.
   void MarkForOptimization(Isolate* isolate, CodeKind target_kind,
                            ConcurrencyMode mode);
 
-  // Tells whether or not the function is already marked for lazy recompilation.
-  inline bool IsMarkedForOptimization();
-  inline bool IsMarkedForConcurrentOptimization();
-
-  // Tells whether or not the function is on the concurrent recompilation queue.
-  inline bool IsInOptimizationQueue();
-
-  // Sets the optimization marker in the function's feedback vector.
-  inline void SetOptimizationMarker(OptimizationMarker marker);
-
-  // Clears the optimization marker in the function's feedback vector.
-  inline void ClearOptimizationMarker();
+  inline TieringState osr_tiering_state();
+  inline void set_osr_tiering_state(TieringState marker);
 
   // Sets the interrupt budget based on whether the function has a feedback
   // vector and any optimized code.
@@ -294,7 +300,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
                                        : JSFunction::kSizeWithoutPrototype;
   }
 
-  // Prints the name of the function using PrintF.
+  std::unique_ptr<char[]> DebugNameCStr();
   void PrintName(FILE* out = stdout);
 
   // Calculate the instance size and in-object properties count.

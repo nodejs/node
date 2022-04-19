@@ -465,7 +465,7 @@ TEST(HeapSnapshotCodeObjects) {
   for (int i = 0, count = compiled_sfi->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = compiled_sfi->GetChild(i);
     const v8::HeapGraphNode* node = prop->GetToNode();
-    if (node->GetType() == v8::HeapGraphNode::kHidden &&
+    if (node->GetType() == v8::HeapGraphNode::kCode &&
         !strcmp("system / ScopeInfo", GetName(node))) {
       if (HasString(env->GetIsolate(), node, "x")) {
         compiled_references_x = true;
@@ -476,7 +476,7 @@ TEST(HeapSnapshotCodeObjects) {
   for (int i = 0, count = lazy_sfi->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = lazy_sfi->GetChild(i);
     const v8::HeapGraphNode* node = prop->GetToNode();
-    if (node->GetType() == v8::HeapGraphNode::kHidden &&
+    if (node->GetType() == v8::HeapGraphNode::kCode &&
         !strcmp("system / ScopeInfo", GetName(node))) {
       if (HasString(env->GetIsolate(), node, "x")) {
         lazy_references_x = true;
@@ -2680,7 +2680,7 @@ TEST(AllocationSitesAreVisible) {
   CHECK(feedback_cell);
   const v8::HeapGraphNode* vector = GetProperty(
       env->GetIsolate(), feedback_cell, v8::HeapGraphEdge::kInternal, "value");
-  CHECK_EQ(v8::HeapGraphNode::kHidden, vector->GetType());
+  CHECK_EQ(v8::HeapGraphNode::kCode, vector->GetType());
   CHECK_EQ(4, vector->GetChildrenCount());
 
   // The last value in the feedback vector should be the boilerplate,
@@ -2698,7 +2698,7 @@ TEST(AllocationSitesAreVisible) {
       GetProperty(env->GetIsolate(), transition_info,
                   v8::HeapGraphEdge::kInternal, "elements");
   CHECK(elements);
-  CHECK_EQ(v8::HeapGraphNode::kArray, elements->GetType());
+  CHECK_EQ(v8::HeapGraphNode::kCode, elements->GetType());
   CHECK_EQ(v8::internal::FixedArray::SizeFor(3),
            static_cast<int>(elements->GetShallowSize()));
 
@@ -4139,9 +4139,9 @@ TEST(WeakReference) {
   // to the FOR_TESTING code kind).
   fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(ToCodeT(*code)),
                                v8::kReleaseStore);
-  fv->set_flags(i::FeedbackVector::MaybeHasOptimizedCodeBit::encode(true) |
-                i::FeedbackVector::OptimizationMarkerBits::encode(
-                    i::OptimizationMarker::kNone));
+  fv->set_flags(
+      i::FeedbackVector::MaybeHasOptimizedCodeBit::encode(true) |
+      i::FeedbackVector::TieringStateBits::encode(i::TieringState::kNone));
 
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();

@@ -359,6 +359,22 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   void SetMaxMemorySize(uint32_t value);
   void SetHasSharedMemory();
 
+  void StartRecursiveTypeGroup() {
+    DCHECK_EQ(current_recursive_group_start_, -1);
+    current_recursive_group_start_ = static_cast<int>(types_.size());
+  }
+
+  void EndRecursiveTypeGroup() {
+    // Make sure we are in a recursive group.
+    DCHECK_NE(current_recursive_group_start_, -1);
+    // Make sure the current recursive group has at least one element.
+    DCHECK_GT(static_cast<int>(types_.size()), current_recursive_group_start_);
+    recursive_groups_.emplace(
+        current_recursive_group_start_,
+        static_cast<uint32_t>(types_.size()) - current_recursive_group_start_);
+    current_recursive_group_start_ = -1;
+  }
+
   // Writing methods.
   void WriteTo(ZoneBuffer* buffer) const;
   void WriteAsmJsOffsetTable(ZoneBuffer* buffer) const;
@@ -455,6 +471,9 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   ZoneVector<WasmGlobal> globals_;
   ZoneVector<int> exceptions_;
   ZoneUnorderedMap<FunctionSig, uint32_t> signature_map_;
+  int current_recursive_group_start_;
+  // first index -> size
+  ZoneUnorderedMap<uint32_t, uint32_t> recursive_groups_;
   int start_function_index_;
   uint32_t min_memory_size_;
   uint32_t max_memory_size_;

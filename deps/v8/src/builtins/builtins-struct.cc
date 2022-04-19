@@ -109,7 +109,7 @@ BUILTIN(SharedStructConstructor) {
   Handle<Map> instance_map(instance->map(), isolate);
   if (instance_map->HasOutOfObjectProperties()) {
     int num_oob_fields =
-        instance_map->NumberOfFields(ConcurrencyMode::kNotConcurrent) -
+        instance_map->NumberOfFields(ConcurrencyMode::kSynchronous) -
         instance_map->GetInObjectProperties();
     Handle<PropertyArray> property_array =
         factory->NewPropertyArray(num_oob_fields, AllocationType::kSharedOld);

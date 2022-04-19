@@ -6,8 +6,8 @@
 #define V8_COMPILER_RAW_MACHINE_ASSEMBLER_H_
 
 #include <initializer_list>
+#include <type_traits>
 
-#include "src/base/type-traits.h"
 #include "src/codegen/assembler.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
@@ -969,9 +969,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   template <class... CArgs>
   Node* CallCFunction(Node* function, base::Optional<MachineType> return_type,
                       CArgs... cargs) {
-    static_assert(v8::internal::conjunction<
-                      std::is_convertible<CArgs, CFunctionArg>...>::value,
-                  "invalid argument types");
+    static_assert(
+        std::conjunction_v<std::is_convertible<CArgs, CFunctionArg>...>,
+        "invalid argument types");
     return CallCFunction(function, return_type, {cargs...});
   }
 
@@ -983,9 +983,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* CallCFunctionWithoutFunctionDescriptor(Node* function,
                                                MachineType return_type,
                                                CArgs... cargs) {
-    static_assert(v8::internal::conjunction<
-                      std::is_convertible<CArgs, CFunctionArg>...>::value,
-                  "invalid argument types");
+    static_assert(
+        std::conjunction_v<std::is_convertible<CArgs, CFunctionArg>...>,
+        "invalid argument types");
     return CallCFunctionWithoutFunctionDescriptor(function, return_type,
                                                   {cargs...});
   }
@@ -1000,9 +1000,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
                                               MachineType return_type,
                                               SaveFPRegsMode mode,
                                               CArgs... cargs) {
-    static_assert(v8::internal::conjunction<
-                      std::is_convertible<CArgs, CFunctionArg>...>::value,
-                  "invalid argument types");
+    static_assert(
+        std::conjunction_v<std::is_convertible<CArgs, CFunctionArg>...>,
+        "invalid argument types");
     return CallCFunctionWithCallerSavedRegisters(function, return_type, mode,
                                                  {cargs...});
   }

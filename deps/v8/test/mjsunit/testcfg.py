@@ -35,10 +35,6 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 from testrunner.outproc import base as outproc
 
-try:
-  basestring       # Python 2
-except NameError:  # Python 3
-  basestring = str
 
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 ENV_PATTERN = re.compile(r"//\s+Environment Variables:(.*)")
@@ -249,7 +245,7 @@ class CombinedTest(testcase.D8TestCase):
 
   def _is_flag_blocked(self, flag):
     for item in MISBEHAVING_COMBINED_TESTS_FLAGS:
-      if isinstance(item, basestring):
+      if isinstance(item, str):
         if item == flag:
           return True
       elif item.match(flag):

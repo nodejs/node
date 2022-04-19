@@ -135,17 +135,13 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool WasActivated();
 
   void Start(GarbageCollectionReason gc_reason);
+  // Returns true if incremental marking was running and false otherwise.
+  bool Stop();
 
   void FinalizeIncrementally();
 
   void UpdateMarkingWorklistAfterYoungGenGC();
   void UpdateMarkedBytesAfterScavenge(size_t dead_bytes_in_new_space);
-
-  void Hurry();
-
-  void Finalize();
-
-  void Stop();
 
   void FinalizeMarking(CompletionAction action);
 
@@ -175,9 +171,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // Returns true if the function succeeds in transitioning the object
   // from white to grey.
   V8_INLINE bool WhiteToGreyAndPush(HeapObject obj);
-
-  // Marks object referenced from roots.
-  V8_INLINE void MarkRootObject(Root root, HeapObject obj);
 
   // This function is used to color the object black before it undergoes an
   // unsafe layout change. This is a part of synchronization protocol with
@@ -221,6 +214,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
     background_live_bytes_[chunk] += by;
   }
 
+  void MarkRootsForTesting();
+
  private:
   class Observer : public AllocationObserver {
    public:
@@ -240,7 +235,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   void PauseBlackAllocation();
   void FinishBlackAllocation();
 
-  void MarkRoots();
   bool ShouldRetainMap(Map map, int age);
   // Retain dying maps for <FLAG_retain_maps_for_n_gc> garbage collections to
   // increase chances of reusing of map transition tree in future.

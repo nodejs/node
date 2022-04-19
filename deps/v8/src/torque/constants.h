@@ -111,6 +111,8 @@ static const char* const ANNOTATION_EXPORT = "@export";
 static const char* const ANNOTATION_DO_NOT_GENERATE_CAST = "@doNotGenerateCast";
 static const char* const ANNOTATION_USE_PARENT_TYPE_CHECKER =
     "@useParentTypeChecker";
+static const char* const ANNOTATION_CPP_OBJECT_DEFINITION =
+    "@cppObjectDefinition";
 // Generate C++ accessors with relaxed store semantics.
 // Weak<T> and MaybeObject fields always use relaxed store.
 static const char* const ANNOTATION_CPP_RELAXED_STORE = "@cppRelaxedStore";
@@ -162,6 +164,7 @@ enum class ClassFlag {
   kDoNotGenerateCast = 1 << 11,
   kGenerateUniqueMap = 1 << 12,
   kGenerateFactoryFunction = 1 << 13,
+  kCppObjectDefinition = 1 << 14,
 };
 using ClassFlags = base::Flags<ClassFlag>;
 

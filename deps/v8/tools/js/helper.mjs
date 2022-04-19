@@ -8,7 +8,7 @@ export const GB = MB * KB;
 export const kMillis2Seconds = 1 / 1000;
 export const kMicro2Milli = 1 / 1000;
 
-export function formatBytes(bytes) {
+export function formatBytes(bytes, digits = 2) {
   const units = ['B', 'KiB', 'MiB', 'GiB'];
   const divisor = 1024;
   let index = 0;
@@ -16,7 +16,7 @@ export function formatBytes(bytes) {
     index++;
     bytes /= divisor;
   }
-  return bytes.toFixed(2) + units[index];
+  return bytes.toFixed(digits) + units[index];
 }
 
 export function formatMicroSeconds(micro) {
@@ -50,4 +50,19 @@ export function calcOffsetInVMCage(address) {
   let mask = (1n << 32n) - 1n;
   let ret = Number(address & mask);
   return ret;
+}
+
+export function delay(time) {
+  return new Promise(resolver => setTimeout(resolver, time));
+}
+
+export function defer() {
+  let resolve_func, reject_func;
+  const p = new Promise((resolve, reject) => {
+    resolve_func = resolve;
+    reject_func = resolve;
+  });
+  p.resolve = resolve_func;
+  p.reject = reject_func;
+  return p;
 }

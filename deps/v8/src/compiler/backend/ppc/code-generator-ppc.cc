@@ -97,7 +97,7 @@ class PPCOperandConverter final : public InstructionOperandConverter {
         break;
       case kMode_MRI:
         *first_index += 2;
-        return MemOperand(InputRegister(index + 0), InputInt32(index + 1));
+        return MemOperand(InputRegister(index + 0), InputInt64(index + 1));
       case kMode_MRR:
         *first_index += 2;
         return MemOperand(InputRegister(index + 0), InputRegister(index + 1));
@@ -454,34 +454,42 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                                       \
   } while (0)
 
-#define ASSEMBLE_LOAD_FLOAT(asm_instr, asm_instrx)    \
-  do {                                                \
-    DoubleRegister result = i.OutputDoubleRegister(); \
-    AddressingMode mode = kMode_None;                 \
-    MemOperand operand = i.MemoryOperand(&mode);      \
-    bool is_atomic = i.InputInt32(2);                 \
-    if (mode == kMode_MRI) {                          \
-      __ asm_instr(result, operand);                  \
-    } else {                                          \
-      __ asm_instrx(result, operand);                 \
-    }                                                 \
-    if (is_atomic) __ lwsync();                       \
-    DCHECK_EQ(LeaveRC, i.OutputRCBit());              \
+#define ASSEMBLE_LOAD_FLOAT(asm_instr, asm_instrp, asm_instrx) \
+  do {                                                         \
+    DoubleRegister result = i.OutputDoubleRegister();          \
+    AddressingMode mode = kMode_None;                          \
+    MemOperand operand = i.MemoryOperand(&mode);               \
+    bool is_atomic = i.InputInt32(2);                          \
+    if (mode == kMode_MRI) {                                   \
+      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {             \
+        __ asm_instrp(result, operand);                        \
+      } else {                                                 \
+        __ asm_instr(result, operand);                         \
+      }                                                        \
+    } else {                                                   \
+      __ asm_instrx(result, operand);                          \
+    }                                                          \
+    if (is_atomic) __ lwsync();                                \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                       \
   } while (0)
 
-#define ASSEMBLE_LOAD_INTEGER(asm_instr, asm_instrx) \
-  do {                                               \
-    Register result = i.OutputRegister();            \
-    AddressingMode mode = kMode_None;                \
-    MemOperand operand = i.MemoryOperand(&mode);     \
-    bool is_atomic = i.InputInt32(2);                \
-    if (mode == kMode_MRI) {                         \
-      __ asm_instr(result, operand);                 \
-    } else {                                         \
-      __ asm_instrx(result, operand);                \
-    }                                                \
-    if (is_atomic) __ lwsync();                      \
-    DCHECK_EQ(LeaveRC, i.OutputRCBit());             \
+#define ASSEMBLE_LOAD_INTEGER(asm_instr, asm_instrp, asm_instrx) \
+  do {                                                           \
+    Register result = i.OutputRegister();                        \
+    AddressingMode mode = kMode_None;                            \
+    MemOperand operand = i.MemoryOperand(&mode);                 \
+    bool is_atomic = i.InputInt32(2);                            \
+    if (mode == kMode_MRI) {                                     \
+      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {               \
+        __ asm_instrp(result, operand);                          \
+      } else {                                                   \
+        __ asm_instr(result, operand);                           \
+      }                                                          \
+    } else {                                                     \
+      __ asm_instrx(result, operand);                            \
+    }                                                            \
+    if (is_atomic) __ lwsync();                                  \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                         \
   } while (0)
 
 #define ASSEMBLE_LOAD_INTEGER_RR(asm_instr)      \
@@ -1111,6 +1119,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
       OutOfLineRecordWrite* ool;
+
+      if (FLAG_debug_code) {
+        // Checking that |value| is not a cleared weakref: our write barrier
+        // does not support that for now.
+        __ CmpS64(value, Operand(kClearedWeakHeapObjectLower32), kScratchReg);
+        __ Check(ne, AbortReason::kOperandIsCleared);
+      }
 
       AddressingMode addressing_mode =
           AddressingModeField::decode(instr->opcode());
@@ -1944,34 +1959,34 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #endif
     case kPPC_LoadWordU8:
-      ASSEMBLE_LOAD_INTEGER(lbz, lbzx);
+      ASSEMBLE_LOAD_INTEGER(lbz, plbz, lbzx);
       break;
     case kPPC_LoadWordS8:
-      ASSEMBLE_LOAD_INTEGER(lbz, lbzx);
+      ASSEMBLE_LOAD_INTEGER(lbz, plbz, lbzx);
       __ extsb(i.OutputRegister(), i.OutputRegister());
       break;
     case kPPC_LoadWordU16:
-      ASSEMBLE_LOAD_INTEGER(lhz, lhzx);
+      ASSEMBLE_LOAD_INTEGER(lhz, plhz, lhzx);
       break;
     case kPPC_LoadWordS16:
-      ASSEMBLE_LOAD_INTEGER(lha, lhax);
+      ASSEMBLE_LOAD_INTEGER(lha, plha, lhax);
       break;
     case kPPC_LoadWordU32:
-      ASSEMBLE_LOAD_INTEGER(lwz, lwzx);
+      ASSEMBLE_LOAD_INTEGER(lwz, plwz, lwzx);
       break;
     case kPPC_LoadWordS32:
-      ASSEMBLE_LOAD_INTEGER(lwa, lwax);
+      ASSEMBLE_LOAD_INTEGER(lwa, plwa, lwax);
       break;
 #if V8_TARGET_ARCH_PPC64
     case kPPC_LoadWord64:
-      ASSEMBLE_LOAD_INTEGER(ld, ldx);
+      ASSEMBLE_LOAD_INTEGER(ld, pld, ldx);
       break;
 #endif
     case kPPC_LoadFloat32:
-      ASSEMBLE_LOAD_FLOAT(lfs, lfsx);
+      ASSEMBLE_LOAD_FLOAT(lfs, plfs, lfsx);
       break;
     case kPPC_LoadDouble:
-      ASSEMBLE_LOAD_FLOAT(lfd, lfdx);
+      ASSEMBLE_LOAD_FLOAT(lfd, plfd, lfdx);
       break;
     case kPPC_LoadSimd128: {
       Simd128Register result = i.OutputSimd128Register();
@@ -3767,18 +3782,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kPPC_LoadDecompressTaggedSigned: {
       CHECK(instr->HasOutput());
-      ASSEMBLE_LOAD_INTEGER(lwz, lwzx);
+      ASSEMBLE_LOAD_INTEGER(lwz, plwz, lwzx);
       break;
     }
     case kPPC_LoadDecompressTaggedPointer: {
       CHECK(instr->HasOutput());
-      ASSEMBLE_LOAD_INTEGER(lwz, lwzx);
+      ASSEMBLE_LOAD_INTEGER(lwz, plwz, lwzx);
       __ add(i.OutputRegister(), i.OutputRegister(), kRootRegister);
       break;
     }
     case kPPC_LoadDecompressAnyTagged: {
       CHECK(instr->HasOutput());
-      ASSEMBLE_LOAD_INTEGER(lwz, lwzx);
+      ASSEMBLE_LOAD_INTEGER(lwz, plwz, lwzx);
       __ add(i.OutputRegister(), i.OutputRegister(), kRootRegister);
       break;
     }
@@ -4035,7 +4050,7 @@ void CodeGenerator::AssembleConstructFrame() {
     } else {
       StackFrame::Type type = info()->GetOutputStackFrameType();
       // TODO(mbrandy): Detect cases where ip is the entrypoint (for
-      // efficient intialization of the constant pool pointer register).
+      // efficient initialization of the constant pool pointer register).
       __ StubPrologue(type);
 #if V8_ENABLE_WEBASSEMBLY
       if (call_descriptor->IsWasmFunctionCall() ||
@@ -4243,11 +4258,10 @@ void CodeGenerator::PrepareForDeoptimizationExits(
   for (DeoptimizationExit* exit : deoptimization_exits_) {
     total_size += (exit->kind() == DeoptimizeKind::kLazy)
                       ? Deoptimizer::kLazyDeoptExitSize
-                      : Deoptimizer::kNonLazyDeoptExitSize;
+                      : Deoptimizer::kEagerDeoptExitSize;
   }
 
   __ CheckTrampolinePoolQuick(total_size);
-  DCHECK(Deoptimizer::kSupportsFixedDeoptExitSizes);
 }
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,

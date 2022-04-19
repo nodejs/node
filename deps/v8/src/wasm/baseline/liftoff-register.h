@@ -347,6 +347,17 @@ class LiftoffRegList {
 
   constexpr LiftoffRegList() = default;
 
+  // Allow to construct LiftoffRegList from a number of
+  // {Register|DoubleRegister|LiftoffRegister}.
+  template <
+      typename... Regs,
+      typename = std::enable_if_t<std::conjunction_v<std::disjunction<
+          std::is_same<Register, Regs>, std::is_same<DoubleRegister, Regs>,
+          std::is_same<LiftoffRegister, Regs>>...>>>
+  constexpr LiftoffRegList(Regs... regs) {
+    (..., set(regs));
+  }
+
   constexpr Register set(Register reg) {
     return set(LiftoffRegister(reg)).gp();
   }
@@ -459,13 +470,6 @@ class LiftoffRegList {
   static constexpr LiftoffRegList FromBits() {
     static_assert(bits == (bits & (kGpMask | kFpMask)), "illegal reg list");
     return LiftoffRegList(bits);
-  }
-
-  template <typename... Regs>
-  static LiftoffRegList ForRegs(Regs... regs) {
-    LiftoffRegList list;
-    for (LiftoffRegister reg : {LiftoffRegister(regs)...}) list.set(reg);
-    return list;
   }
 
  private:

@@ -784,7 +784,21 @@ void InstructionSelector::VisitWord32And(Node* node) {
 }
 
 void InstructionSelector::VisitWord64And(Node* node) {
-  VisitBinop(this, node, kX64And);
+  X64OperandGenerator g(this);
+  Uint64BinopMatcher m(node);
+  if (m.right().Is(0xFF)) {
+    Emit(kX64Movzxbq, g.DefineAsRegister(node), g.Use(m.left().node()));
+  } else if (m.right().Is(0xFFFF)) {
+    Emit(kX64Movzxwq, g.DefineAsRegister(node), g.Use(m.left().node()));
+  } else if (m.right().Is(0xFFFFFFFF)) {
+    Emit(kX64Movl, g.DefineAsRegister(node), g.Use(m.left().node()));
+  } else if (m.right().IsInRange(std::numeric_limits<uint32_t>::min(),
+                                 std::numeric_limits<uint32_t>::max())) {
+    Emit(kX64And32, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
+         g.UseImmediate(static_cast<int32_t>(m.right().ResolvedValue())));
+  } else {
+    VisitBinop(this, node, kX64And);
+  }
 }
 
 void InstructionSelector::VisitWord32Or(Node* node) {
@@ -1431,30 +1445,36 @@ void InstructionSelector::VisitTryTruncateFloat32ToInt64(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
   InstructionOperand outputs[2];
+  InstructionOperand temps[1];
   size_t output_count = 0;
+  size_t temp_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
 
   Node* success_output = NodeProperties::FindProjection(node, 1);
   if (success_output) {
     outputs[output_count++] = g.DefineAsRegister(success_output);
+    temps[temp_count++] = g.TempSimd128Register();
   }
 
-  Emit(kSSEFloat32ToInt64, output_count, outputs, 1, inputs);
+  Emit(kSSEFloat32ToInt64, output_count, outputs, 1, inputs, temp_count, temps);
 }
 
 void InstructionSelector::VisitTryTruncateFloat64ToInt64(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
   InstructionOperand outputs[2];
+  InstructionOperand temps[1];
   size_t output_count = 0;
+  size_t temp_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
 
   Node* success_output = NodeProperties::FindProjection(node, 1);
   if (success_output) {
     outputs[output_count++] = g.DefineAsRegister(success_output);
+    temps[temp_count++] = g.TempSimd128Register();
   }
 
-  Emit(kSSEFloat64ToInt64, output_count, outputs, 1, inputs);
+  Emit(kSSEFloat64ToInt64, output_count, outputs, 1, inputs, temp_count, temps);
 }
 
 void InstructionSelector::VisitTryTruncateFloat32ToUint64(Node* node) {

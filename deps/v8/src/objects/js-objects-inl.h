@@ -477,6 +477,23 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
   }
 }
 
+Object JSObject::RawFastPropertyAtSwap(FieldIndex index, Object value,
+                                       SeqCstAccessTag tag) {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return RawFastPropertyAtSwap(cage_base, index, value, tag);
+}
+
+Object JSObject::RawFastPropertyAtSwap(PtrComprCageBase cage_base,
+                                       FieldIndex index, Object value,
+                                       SeqCstAccessTag tag) {
+  if (index.is_inobject()) {
+    return TaggedField<Object>::SeqCst_Swap(cage_base, *this, index.offset(),
+                                            value);
+  }
+  return property_array().Swap(cage_base, index.outobject_array_index(), value,
+                               tag);
+}
+
 int JSObject::GetInObjectPropertyOffset(int index) {
   return map().GetInObjectPropertyOffset(index);
 }
@@ -706,11 +723,6 @@ DEF_GETTER(JSObject, HasFastStringWrapperElements, bool) {
 
 DEF_GETTER(JSObject, HasSlowStringWrapperElements, bool) {
   return GetElementsKind(cage_base) == SLOW_STRING_WRAPPER_ELEMENTS;
-}
-
-DEF_GETTER(JSObject, HasTypedArrayElements, bool) {
-  DCHECK(!elements(cage_base).is_null());
-  return map(cage_base).has_typed_array_elements();
 }
 
 DEF_GETTER(JSObject, HasTypedArrayOrRabGsabTypedArrayElements, bool) {

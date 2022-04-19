@@ -5,6 +5,7 @@
 #include "src/wasm/wasm-subtyping.h"
 
 #include "src/base/platform/mutex.h"
+#include "src/wasm/canonical-types.h"
 #include "src/wasm/wasm-module.h"
 #include "src/zone/zone-containers.h"
 
@@ -18,17 +19,15 @@ V8_INLINE bool EquivalentIndices(uint32_t index1, uint32_t index2,
                                  const WasmModule* module1,
                                  const WasmModule* module2) {
   DCHECK(index1 != index2 || module1 != module2);
-  // TODO(7748): Canonicalize types.
-  return false;
+  if (!FLAG_wasm_type_canonicalization) return false;
+  return module1->isorecursive_canonical_type_ids[index1] ==
+         module2->isorecursive_canonical_type_ids[index2];
 }
 
 bool ValidStructSubtypeDefinition(uint32_t subtype_index,
                                   uint32_t supertype_index,
                                   const WasmModule* sub_module,
                                   const WasmModule* super_module) {
-  // TODO(7748): Figure out the cross-module story.
-  if (sub_module != super_module) return false;
-
   const StructType* sub_struct = sub_module->types[subtype_index].struct_type;
   const StructType* super_struct =
       super_module->types[supertype_index].struct_type;
@@ -56,9 +55,6 @@ bool ValidArraySubtypeDefinition(uint32_t subtype_index,
                                  uint32_t supertype_index,
                                  const WasmModule* sub_module,
                                  const WasmModule* super_module) {
-  // TODO(7748): Figure out the cross-module story.
-  if (sub_module != super_module) return false;
-
   const ArrayType* sub_array = sub_module->types[subtype_index].array_type;
   const ArrayType* super_array =
       super_module->types[supertype_index].array_type;
@@ -78,9 +74,6 @@ bool ValidFunctionSubtypeDefinition(uint32_t subtype_index,
                                     uint32_t supertype_index,
                                     const WasmModule* sub_module,
                                     const WasmModule* super_module) {
-  // TODO(7748): Figure out the cross-module story.
-  if (sub_module != super_module) return false;
-
   const FunctionSig* sub_func = sub_module->types[subtype_index].function_sig;
   const FunctionSig* super_func =
       super_module->types[supertype_index].function_sig;
@@ -219,15 +212,17 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
   // equality; here we catch (ref $x) being a subtype of (ref null $x).
   if (sub_module == super_module && sub_index == super_index) return true;
 
-  // TODO(7748): Figure out cross-module story.
-  if (sub_module != super_module) return false;
-
-  uint32_t explicit_super = sub_module->supertype(sub_index);
-  while (true) {
-    if (explicit_super == super_index) return true;
-    // Reached the end of the explicitly defined inheritance chain.
-    if (explicit_super == kNoSuperType) return false;
-    explicit_super = sub_module->supertype(explicit_super);
+  if (FLAG_wasm_type_canonicalization) {
+    return GetTypeCanonicalizer()->IsCanonicalSubtype(sub_index, super_index,
+                                                      sub_module, super_module);
+  } else {
+    uint32_t explicit_super = sub_module->supertype(sub_index);
+    while (true) {
+      if (explicit_super == super_index) return true;
+      // Reached the end of the explicitly defined inheritance chain.
+      if (explicit_super == kNoSuperType) return false;
+      explicit_super = sub_module->supertype(explicit_super);
+    }
   }
 }
 

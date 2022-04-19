@@ -228,7 +228,7 @@ constexpr int LiftoffAssembler::StaticStackFrameSize() {
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
   switch (kind) {
     case kS128:
-      return element_size_bytes(kind);
+      return value_kind_size(kind);
     default:
       return kStackSlotSize;
   }
@@ -1142,7 +1142,7 @@ UNOP_LIST(EMIT_UNOP_FUNCTION)
 // return_val, return_type)
 #define BINOP_LIST(V)                                                          \
   V(f32_copysign, CopySignF64, DoubleRegister, DoubleRegister, DoubleRegister, \
-    , , , ROUND_F64_TO_F32, , void)                                            \
+    , , , USE, , void)                                                         \
   V(f64_copysign, CopySignF64, DoubleRegister, DoubleRegister, DoubleRegister, \
     , , , USE, , void)                                                         \
   V(f32_min, MinF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,     \
@@ -1253,6 +1253,23 @@ bool LiftoffAssembler::emit_f32_nearest_int(DoubleRegister dst,
 bool LiftoffAssembler::emit_f64_nearest_int(DoubleRegister dst,
                                             DoubleRegister src) {
   return false;
+}
+
+void LiftoffAssembler::IncrementSmi(LiftoffRegister dst, int offset) {
+  UseScratchRegisterScope temps(this);
+  if (COMPRESS_POINTERS_BOOL) {
+    DCHECK(SmiValuesAre31Bits());
+    Register scratch = temps.Acquire();
+    LoadS32(scratch, MemOperand(dst.gp(), offset), r0);
+    AddS64(scratch, scratch, Operand(Smi::FromInt(1)));
+    StoreU32(scratch, MemOperand(dst.gp(), offset), r0);
+  } else {
+    Register scratch = temps.Acquire();
+    SmiUntag(scratch, MemOperand(dst.gp(), offset), LeaveRC, r0);
+    AddS64(scratch, scratch, Operand(1));
+    SmiTag(scratch);
+    StoreU64(scratch, MemOperand(dst.gp(), offset), r0);
+  }
 }
 
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
@@ -2953,7 +2970,7 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
         UNREACHABLE();
     }
     args++;
-    arg_bytes += element_size_bytes(param_kind);
+    arg_bytes += value_kind_size(param_kind);
   }
 
   DCHECK_LE(arg_bytes, stack_bytes);

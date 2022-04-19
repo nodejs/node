@@ -131,6 +131,12 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   template <typename WordNAdapter>
   Reduction ReduceWordNXor(Node* node);
 
+  // Tries to simplify "if(x == 0)" by removing the "== 0" and inverting
+  // branches.
+  Reduction SimplifyBranch(Node* node);
+  // Helper for SimplifyBranch; swaps the if/else of a branch.
+  void SwapBranches(Node* node);
+
   // Helper for ReduceConditional. Does not perform the actual reduction; just
   // returns a new Node that could be used as the input to the condition.
   template <typename WordNAdapter>

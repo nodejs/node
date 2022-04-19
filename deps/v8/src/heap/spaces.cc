@@ -16,7 +16,6 @@
 #include "src/heap/base/active-system-pages.h"
 #include "src/heap/combined-heap.h"
 #include "src/heap/concurrent-marking.h"
-#include "src/heap/gc-tracer.h"
 #include "src/heap/heap-controller.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
@@ -49,6 +48,12 @@ STATIC_ASSERT(kClearedWeakHeapObjectLower32 < Page::kHeaderSize);
 
 // static
 constexpr Page::MainThreadFlags Page::kCopyOnFlipFlagsMask;
+
+Page::Page(Heap* heap, BaseSpace* space, size_t size, Address area_start,
+           Address area_end, VirtualMemory reservation,
+           Executability executable)
+    : MemoryChunk(heap, space, size, area_start, area_end,
+                  std::move(reservation), executable, PageSize::kRegular) {}
 
 void Page::AllocateFreeListCategories() {
   DCHECK_NULL(categories_);
@@ -91,33 +96,6 @@ Page* Page::ConvertNewToOld(Page* old_page) {
   Page* new_page = old_space->InitializePage(old_page);
   old_space->AddPage(new_page);
   return new_page;
-}
-
-void Page::MoveOldToNewRememberedSetForSweeping() {
-  CHECK_NULL(sweeping_slot_set_);
-  sweeping_slot_set_ = slot_set_[OLD_TO_NEW];
-  slot_set_[OLD_TO_NEW] = nullptr;
-}
-
-void Page::MergeOldToNewRememberedSets() {
-  if (sweeping_slot_set_ == nullptr) return;
-
-  if (slot_set_[OLD_TO_NEW]) {
-    RememberedSet<OLD_TO_NEW>::Iterate(
-        this,
-        [this](MaybeObjectSlot slot) {
-          Address address = slot.address();
-          RememberedSetSweeping::Insert<AccessMode::NON_ATOMIC>(this, address);
-          return KEEP_SLOT;
-        },
-        SlotSet::KEEP_EMPTY_BUCKETS);
-
-    ReleaseSlotSet<OLD_TO_NEW>();
-  }
-
-  CHECK_NULL(slot_set_[OLD_TO_NEW]);
-  slot_set_[OLD_TO_NEW] = sweeping_slot_set_;
-  sweeping_slot_set_ = nullptr;
 }
 
 size_t Page::AvailableInFreeList() {
@@ -166,7 +144,6 @@ size_t Page::ShrinkToHighWaterMark() {
   // area would not be freed when deallocating this page.
   DCHECK_NULL(slot_set<OLD_TO_NEW>());
   DCHECK_NULL(slot_set<OLD_TO_OLD>());
-  DCHECK_NULL(sweeping_slot_set());
 
   size_t unused = RoundDown(static_cast<size_t>(area_end() - filler.address()),
                             MemoryAllocator::GetCommitPageSize());
@@ -258,7 +235,7 @@ void Space::PauseAllocationObservers() { allocation_counter_.Pause(); }
 void Space::ResumeAllocationObservers() { allocation_counter_.Resume(); }
 
 Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
-                                          size_t min_size) {
+                                          size_t min_size) const {
   DCHECK_GE(end - start, min_size);
 
   if (!use_lab_) {
@@ -310,7 +287,7 @@ void SpaceWithLinearArea::UpdateAllocationOrigins(AllocationOrigin origin) {
   allocations_origins_[static_cast<int>(origin)]++;
 }
 
-void SpaceWithLinearArea::PrintAllocationsOrigins() {
+void SpaceWithLinearArea::PrintAllocationsOrigins() const {
   PrintIsolate(
       heap()->isolate(),
       "Allocations Origins for %s: GeneratedCode:%zu - Runtime:%zu - GC:%zu\n",
@@ -464,6 +441,14 @@ void SpaceWithLinearArea::InvokeAllocationObservers(
                  (allocation_info_->limit() - allocation_info_->start()) <
                      allocation_counter_.NextBytes());
 }
+
+#if DEBUG
+void SpaceWithLinearArea::VerifyTop() const {
+  // Ensure validity of LAB: start <= top <= limit
+  DCHECK_LE(allocation_info_->start(), allocation_info_->top());
+  DCHECK_LE(allocation_info_->top(), allocation_info_->limit());
+}
+#endif  // DEBUG
 
 int MemoryChunk::FreeListsLength() {
   int length = 0;

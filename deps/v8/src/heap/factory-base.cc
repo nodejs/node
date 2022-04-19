@@ -144,6 +144,24 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
 }
 
 template <typename Impl>
+Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
+    int length, AllocationType allocation) {
+  DCHECK_LE(0, length);
+  if (length == 0) return impl()->empty_fixed_array();
+  if (length > FixedArray::kMaxLength) {
+    FATAL("Invalid FixedArray size %d", length);
+  }
+  HeapObject result = AllocateRawFixedArray(length, allocation);
+  DisallowGarbageCollection no_gc;
+  result.set_map_after_allocation(read_only_roots().fixed_array_map(),
+                                  SKIP_WRITE_BARRIER);
+  FixedArray array = FixedArray::cast(result);
+  array.set_length(length);
+  MemsetTagged(array.data_start(), Smi::zero(), length);
+  return handle(array, isolate());
+}
+
+template <typename Impl>
 Handle<FixedArrayBase> FactoryBase<Impl>::NewFixedDoubleArray(
     int length, AllocationType allocation) {
   if (length == 0) return impl()->empty_fixed_array();
@@ -229,7 +247,7 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
   instance.set_parameter_count(parameter_count);
   instance.set_incoming_new_target_or_generator_register(
       interpreter::Register::invalid_value());
-  instance.set_osr_loop_nesting_level(0);
+  instance.reset_osr_urgency_and_install_target();
   instance.set_bytecode_age(BytecodeArray::kNoAgeBytecodeAge);
   instance.set_constant_pool(*constant_pool);
   instance.set_handler_table(read_only_roots().empty_byte_array(),

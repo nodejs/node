@@ -6,6 +6,8 @@
 #define INCLUDE_CPPGC_INTERNAL_CAGED_HEAP_LOCAL_DATA_H_
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 
 #include "cppgc/internal/api-constants.h"
 #include "cppgc/internal/logging.h"
@@ -19,32 +21,41 @@ class HeapBase;
 
 #if defined(CPPGC_YOUNG_GENERATION)
 
-// AgeTable contains entries that correspond to 4KB memory regions. Each entry
-// can be in one of three states: kOld, kYoung or kUnknown.
+// AgeTable is the bytemap needed for the fast generation check in the write
+// barrier. AgeTable contains entries that correspond to 512 bytes memory
+// regions (cards). Each entry in the table represents generation of the objects
+// that reside on the corresponding card (young, old or mixed).
 class AgeTable final {
-  static constexpr size_t kGranularityBits = 12;  // 4KiB per byte.
+  static constexpr size_t kRequiredSize = 1 * api_constants::kMB;
+  static constexpr size_t kAllocationGranularity =
+      api_constants::kAllocationGranularity;
 
  public:
-  enum class Age : uint8_t { kOld, kYoung, kUnknown };
+  enum class Age : uint8_t { kOld, kYoung, kMixed };
 
-  static constexpr size_t kEntrySizeInBytes = 1 << kGranularityBits;
+  static constexpr size_t kCardSizeInBytes =
+      (api_constants::kCagedHeapReservationSize / kAllocationGranularity) /
+      kRequiredSize;
 
-  Age& operator[](uintptr_t offset) { return table_[entry(offset)]; }
-  Age operator[](uintptr_t offset) const { return table_[entry(offset)]; }
+  void SetAge(uintptr_t cage_offset, Age age) {
+    table_[card(cage_offset)] = age;
+  }
+  V8_INLINE Age GetAge(uintptr_t cage_offset) const {
+    return table_[card(cage_offset)];
+  }
 
   void Reset(PageAllocator* allocator);
 
  private:
-  static constexpr size_t kAgeTableSize =
-      api_constants::kCagedHeapReservationSize >> kGranularityBits;
-
-  size_t entry(uintptr_t offset) const {
+  V8_INLINE size_t card(uintptr_t offset) const {
+    constexpr size_t kGranularityBits =
+        __builtin_ctz(static_cast<uint32_t>(kCardSizeInBytes));
     const size_t entry = offset >> kGranularityBits;
     CPPGC_DCHECK(table_.size() > entry);
     return entry;
   }
 
-  std::array<Age, kAgeTableSize> table_;
+  std::array<Age, kRequiredSize> table_;
 };
 
 static_assert(sizeof(AgeTable) == 1 * api_constants::kMB,

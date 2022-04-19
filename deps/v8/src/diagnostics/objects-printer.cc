@@ -1204,7 +1204,7 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {
   } else {
     os << "\n - no optimized code";
   }
-  os << "\n - optimization marker: " << optimization_marker();
+  os << "\n - tiering state: " << tiering_state();
   os << "\n - maybe has optimized code: " << maybe_has_optimized_code();
   os << "\n - invocation count: " << invocation_count();
   os << "\n - profiler ticks: " << profiler_ticks();

@@ -20,18 +20,14 @@ snippet: "
     test();
   })();
 "
-frame size: 5
+frame size: 1
 parameter count: 1
-bytecode array length: 24
+bytecode array length: 16
 bytecodes: [
   /*  104 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
-                B(Star3),
-                B(LdaConstant), U8(0),
-                B(Star4),
-                B(Mov), R(this), R(2),
-  /*  117 E> */ B(CallRuntime), U16(Runtime::kLoadFromSuper), R(2), U8(3),
+  /*  117 E> */ B(GetNamedPropertyFromSuper), R(this), U8(0), U8(1),
                 B(Star0),
-  /*  117 E> */ B(CallAnyReceiver), R(0), R(this), U8(1), U8(1),
+  /*  117 E> */ B(CallAnyReceiver), R(0), R(this), U8(1), U8(3),
   /*  126 E> */ B(AddSmi), I8(1), U8(0),
   /*  130 S> */ B(Return),
 ]
@@ -58,7 +54,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 32
+bytecode array length: 24
 bytecodes: [
   /*  130 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star1),
@@ -69,11 +65,7 @@ bytecodes: [
                 B(Mov), R(this), R(0),
   /*  138 E> */ B(CallRuntime), U16(Runtime::kStoreToSuper), R(0), U8(4),
   /*  143 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
-                B(Star1),
-                B(LdaConstant), U8(0),
-                B(Star2),
-                B(Mov), R(this), R(0),
-  /*  156 E> */ B(CallRuntime), U16(Runtime::kLoadFromSuper), R(0), U8(3),
+  /*  156 E> */ B(GetNamedPropertyFromSuper), R(this), U8(0), U8(0),
   /*  158 S> */ B(Return),
 ]
 constant pool: [

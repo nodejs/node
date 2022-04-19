@@ -77,12 +77,15 @@ void LoopBuilder::JumpToHeader(int loop_depth, LoopBuilder* const parent_loop) {
     // they are a nested inner loop too, a Jump to its parent's JumpToHeader.
     parent_loop->JumpToLoopEnd();
   } else {
-    // Pass the proper loop nesting level to the backwards branch, to trigger
-    // on-stack replacement when armed for the given loop nesting depth.
-    int level = std::min(loop_depth, AbstractCode::kMaxLoopNestingMarker - 1);
-    // Loop must have closed form, i.e. all loop elements are within the loop,
-    // the loop header precedes the body and next elements in the loop.
-    builder()->JumpLoop(&loop_header_, level, source_position_);
+    // Pass the proper loop depth to the backwards branch for triggering OSR.
+    // For purposes of OSR, the loop depth is capped at `kMaxOsrUrgency - 1`.
+    // Once that urgency is reached, all loops become OSR candidates.
+    //
+    // The loop must have closed form, i.e. all loop elements are within the
+    // loop, the loop header precedes the body and next elements in the loop.
+    builder()->JumpLoop(&loop_header_,
+                        std::min(loop_depth, BytecodeArray::kMaxOsrUrgency - 1),
+                        source_position_);
   }
 }
 

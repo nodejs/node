@@ -26,9 +26,6 @@ class ProcessingState;
 
 class MaglevPrintingVisitor {
  public:
-  // Could be interesting to print checkpoints too.
-  static constexpr bool kNeedsCheckpointStates = false;
-
   explicit MaglevPrintingVisitor(std::ostream& os);
 
   void PreProcessGraph(MaglevCompilationUnit*, Graph* graph);
@@ -43,8 +40,8 @@ class MaglevPrintingVisitor {
  private:
   std::ostream& os_;
   std::unique_ptr<std::ostream> os_for_additional_info_;
-  std::set<BasicBlock*> loop_headers;
-  std::vector<BasicBlock*> targets;
+  std::set<BasicBlock*> loop_headers_;
+  std::vector<BasicBlock*> targets_;
 };
 
 void PrintGraph(std::ostream& os, MaglevCompilationUnit* compilation_unit,

@@ -155,7 +155,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(8, instance.exports.main(10, 0));
 })();
 
-/* TODO(7748): Implement cross-module subtyping.
 (function CallRefImportedFunction() {
   print(arguments.callee.name);
 
@@ -196,7 +195,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   // The function f1 defined in another module should not be inlined.
   assertEquals(1, instance2.exports.main(0, instance1.exports.f1));
 })();
-*/
 
 // Check that we handle WasmJSFunctions properly and do not inline them, both
 // in the monomorphic and polymorphic case.

@@ -43,8 +43,11 @@ void ScavengeJob::ScheduleTaskIfNeeded(Heap* heap) {
     v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap->isolate());
     auto taskrunner =
         V8::GetCurrentPlatform()->GetForegroundTaskRunner(isolate);
-    taskrunner->PostTask(std::make_unique<Task>(heap->isolate(), this));
-    task_pending_ = true;
+    if (taskrunner->NonNestableTasksEnabled()) {
+      taskrunner->PostNonNestableTask(
+          std::make_unique<Task>(heap->isolate(), this));
+      task_pending_ = true;
+    }
   }
 }
 

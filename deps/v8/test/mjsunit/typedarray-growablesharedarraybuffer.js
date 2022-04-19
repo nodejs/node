@@ -3565,3 +3565,120 @@ function TestIterationAndGrow(ta, expected, gsab, grow_after,
     assertEquals([7, 8, 9, 10, 0, 0], ToNumbers(taFull));
   }
 })();
+
+(function ObjectDefinePropertyDefineProperties() {
+  for (let helper of
+      [ObjectDefinePropertyHelper, ObjectDefinePropertiesHelper]) {
+    for (let ctor of ctors) {
+      const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                   8 * ctor.BYTES_PER_ELEMENT);
+      const fixedLength = new ctor(gsab, 0, 4);
+      const fixedLengthWithOffset = new ctor(
+          gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+      const lengthTracking = new ctor(gsab, 0);
+      const lengthTrackingWithOffset = new ctor(
+          gsab, 2 * ctor.BYTES_PER_ELEMENT);
+      const taFull = new ctor(gsab, 0);
+
+      // Orig. array: [0, 0, 0, 0]
+      //              [0, 0, 0, 0] << fixedLength
+      //                    [0, 0] << fixedLengthWithOffset
+      //              [0, 0, 0, 0, ...] << lengthTracking
+      //                    [0, 0, ...] << lengthTrackingWithOffset
+
+      helper(fixedLength, 0, 1);
+      assertEquals([1, 0, 0, 0], ToNumbers(taFull));
+      helper(fixedLengthWithOffset, 0, 2);
+      assertEquals([1, 0, 2, 0], ToNumbers(taFull));
+      helper(lengthTracking, 1, 3);
+      assertEquals([1, 3, 2, 0], ToNumbers(taFull));
+      helper(lengthTrackingWithOffset, 1, 4);
+      assertEquals([1, 3, 2, 4], ToNumbers(taFull));
+
+      assertThrows(() => { helper(fixedLength, 4, 8); }, TypeError);
+      assertThrows(() => { helper(fixedLengthWithOffset, 2, 8); }, TypeError);
+      assertThrows(() => { helper(lengthTracking, 4, 8); }, TypeError);
+      assertThrows(() => { helper(lengthTrackingWithOffset, 2, 8); },
+                   TypeError);
+
+      // Grow.
+      gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+
+      helper(fixedLength, 0, 9);
+      assertEquals([9, 3, 2, 4, 0, 0], ToNumbers(taFull));
+      helper(fixedLengthWithOffset, 0, 10);
+      assertEquals([9, 3, 10, 4, 0, 0], ToNumbers(taFull));
+      helper(lengthTracking, 1, 11);
+      assertEquals([9, 11, 10, 4, 0, 0], ToNumbers(taFull));
+      helper(lengthTrackingWithOffset, 2, 12);
+      assertEquals([9, 11, 10, 4, 12, 0], ToNumbers(taFull));
+
+      // Trying to define properties out of the fixed-length bounds throws.
+      assertThrows(() => { helper(fixedLength, 5, 13); }, TypeError);
+      assertThrows(() => { helper(fixedLengthWithOffset, 3, 13); }, TypeError);
+      assertEquals([9, 11, 10, 4, 12, 0], ToNumbers(taFull));
+
+      helper(lengthTracking, 4, 14);
+      assertEquals([9, 11, 10, 4, 14, 0], ToNumbers(taFull));
+      helper(lengthTrackingWithOffset, 3, 15);
+      assertEquals([9, 11, 10, 4, 14, 15], ToNumbers(taFull));
+
+      assertThrows(() => { helper(fixedLength, 6, 8); }, TypeError);
+      assertThrows(() => { helper(fixedLengthWithOffset, 4, 8); }, TypeError);
+      assertThrows(() => { helper(lengthTracking, 6, 8); }, TypeError);
+      assertThrows(() => { helper(lengthTrackingWithOffset, 4, 8); },
+                   TypeError);
+
+    }
+  }
+})();
+
+(function ObjectDefinePropertyParameterConversionGrows() {
+  const helper = ObjectDefinePropertyHelper;
+  // Length tracking.
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(gsab, 0);
+    const evil = {toString: () => {
+        gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+        return 4;  // Index valid after resize.
+    }};
+    helper(lengthTracking, evil, 8);
+    assertEquals([0, 0, 0, 0, 8, 0], ToNumbers(lengthTracking));
+  }
+})();
+
+(function ObjectFreeze() {
+  // Freezing non-OOB non-zero-length TAs throws.
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(gsab, 0, 4);
+    const fixedLengthWithOffset = new ctor(
+        gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(gsab, 0);
+    const lengthTrackingWithOffset = new ctor(
+        gsab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    assertThrows(() => { Object.freeze(fixedLength); }, TypeError);
+    assertThrows(() => { Object.freeze(fixedLengthWithOffset); }, TypeError);
+    assertThrows(() => { Object.freeze(lengthTracking); }, TypeError);
+    assertThrows(() => { Object.freeze(lengthTrackingWithOffset); }, TypeError);
+  }
+  // Freezing zero-length TAs doesn't throw.
+  for (let ctor of ctors) {
+    const gsab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(gsab, 0, 0);
+    const fixedLengthWithOffset = new ctor(
+        gsab, 2 * ctor.BYTES_PER_ELEMENT, 0);
+    // Zero-length because the offset is at the end:
+    const lengthTrackingWithOffset = new ctor(
+        gsab, 4 * ctor.BYTES_PER_ELEMENT);
+
+    Object.freeze(fixedLength);
+    Object.freeze(fixedLengthWithOffset);
+    Object.freeze(lengthTrackingWithOffset);
+  }
+})();

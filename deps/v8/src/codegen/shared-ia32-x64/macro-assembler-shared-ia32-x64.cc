@@ -67,7 +67,11 @@ void SharedTurboAssembler::And(Register dst, Immediate src) {
 #if V8_TARGET_ARCH_IA32
   and_(dst, src);
 #elif V8_TARGET_ARCH_X64
-  andq(dst, src);
+  if (is_uint32(src.value())) {
+    andl(dst, src);
+  } else {
+    andq(dst, src);
+  }
 #else
 #error Unsupported target architecture.
 #endif

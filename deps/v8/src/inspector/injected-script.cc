@@ -249,6 +249,8 @@ class InjectedScript::ProtocolPromiseHandler {
     // we try to capture a fresh stack trace.
     if (maybeMessage.ToLocal(&message)) {
       v8::Local<v8::Value> exception = result;
+      session->inspector()->client()->dispatchError(scope.context(), message,
+                                                    exception);
       protocol::PtrMaybe<protocol::Runtime::ExceptionDetails> exceptionDetails;
       response = scope.injectedScript()->createExceptionDetails(
           message, exception, m_objectGroup, &exceptionDetails);
@@ -572,6 +574,14 @@ Response InjectedScript::wrapObjectMirror(
                           &customPreview);
     if (customPreview) (*result)->setCustomPreview(std::move(customPreview));
   }
+  if (wrapMode == WrapMode::kGenerateWebDriverValue) {
+    int maxDepth = 1;
+    std::unique_ptr<protocol::Runtime::WebDriverValue> webDriverValue;
+    response = mirror.buildWebDriverValue(context, maxDepth, &webDriverValue);
+    if (!response.IsSuccess()) return response;
+    (*result)->setWebDriverValue(std::move(webDriverValue));
+  }
+
   return Response::Success();
 }
 
@@ -848,6 +858,8 @@ Response InjectedScript::wrapEvaluateResult(
       return Response::ServerError("Execution was terminated");
     }
     v8::Local<v8::Value> exception = tryCatch.Exception();
+    m_context->inspector()->client()->dispatchError(
+        m_context->context(), tryCatch.Message(), exception);
     Response response =
         wrapObject(exception, objectGroup,
                    exception->IsNativeError() ? WrapMode::kNoPreview

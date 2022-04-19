@@ -573,7 +573,7 @@ void array_copy_wrapper(Address raw_instance, Address raw_dst_array,
                                  UPDATE_WRITE_BARRIER);
     }
   } else {
-    int element_size_bytes = element_type.element_size_bytes();
+    int element_size_bytes = element_type.value_kind_size();
     void* dst = ArrayElementAddress(dst_array, dst_index, element_size_bytes);
     void* src = ArrayElementAddress(src_array, src_index, element_size_bytes);
     size_t copy_size = length * element_size_bytes;

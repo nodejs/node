@@ -9,6 +9,8 @@ namespace runtime {
 extern transitioning runtime
 AllowDynamicFunction(implicit context: Context)(JSAny): JSAny;
 
+extern transitioning runtime ThrowNoAccess(implicit context: Context)(): never;
+
 extern transitioning runtime
 ReportMessageFromMicrotask(implicit context: Context)(JSAny): JSAny;
 }

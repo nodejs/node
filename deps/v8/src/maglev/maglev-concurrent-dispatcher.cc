@@ -4,6 +4,7 @@
 
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 
+#include "src/codegen/compiler.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/execution/isolate.h"
@@ -85,10 +86,8 @@ std::unique_ptr<MaglevCompilationJob> MaglevCompilationJob::New(
 
 MaglevCompilationJob::MaglevCompilationJob(
     std::unique_ptr<MaglevCompilationInfo>&& info)
-    : OptimizedCompilationJob(nullptr, kMaglevCompilerName),
+    : OptimizedCompilationJob(kMaglevCompilerName, State::kReadyToPrepare),
       info_(std::move(info)) {
-  // TODO(jgruber, v8:7700): Remove the OptimizedCompilationInfo (which should
-  // be renamed to TurbofanCompilationInfo) from OptimizedCompilationJob.
   DCHECK(FLAG_maglev);
 }
 
@@ -102,16 +101,24 @@ CompilationJob::Status MaglevCompilationJob::PrepareJobImpl(Isolate* isolate) {
 CompilationJob::Status MaglevCompilationJob::ExecuteJobImpl(
     RuntimeCallStats* stats, LocalIsolate* local_isolate) {
   LocalIsolateScope scope{info(), local_isolate};
-  maglev::MaglevCompiler::Compile(info()->toplevel_compilation_unit());
+  maglev::MaglevCompiler::Compile(local_isolate,
+                                  info()->toplevel_compilation_unit());
   // TODO(v8:7700): Actual return codes.
   return CompilationJob::SUCCEEDED;
 }
 
 CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
-  info()->set_codet(maglev::MaglevCompiler::GenerateCode(
-      info()->toplevel_compilation_unit()));
-  // TODO(v8:7700): Actual return codes.
+  Handle<CodeT> codet;
+  if (!maglev::MaglevCompiler::GenerateCode(info()->toplevel_compilation_unit())
+           .ToHandle(&codet)) {
+    return CompilationJob::FAILED;
+  }
+  info()->function()->set_code(*codet);
   return CompilationJob::SUCCEEDED;
+}
+
+Handle<JSFunction> MaglevCompilationJob::function() const {
+  return info_->function();
 }
 
 // The JobTask is posted to V8::GetCurrentPlatform(). It's responsible for
@@ -134,8 +141,7 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
       CHECK_EQ(status, CompilationJob::SUCCEEDED);
       outgoing_queue()->Enqueue(std::move(job));
     }
-    // TODO(v8:7700):
-    // isolate_->stack_guard()->RequestInstallMaglevCode();
+    isolate()->stack_guard()->RequestInstallMaglevCode();
   }
 
   size_t GetMaxConcurrency(size_t) const override {
@@ -180,12 +186,16 @@ void MaglevConcurrentDispatcher::EnqueueJob(
 }
 
 void MaglevConcurrentDispatcher::FinalizeFinishedJobs() {
+  HandleScope handle_scope(isolate_);
   while (!outgoing_queue_.IsEmpty()) {
     std::unique_ptr<MaglevCompilationJob> job;
     outgoing_queue_.Dequeue(&job);
     CompilationJob::Status status = job->FinalizeJob(isolate_);
-    // TODO(v8:7700): Use the result.
-    CHECK_EQ(status, CompilationJob::SUCCEEDED);
+    // TODO(v8:7700): Use the result and check if job succeed
+    // when all the bytecodes are implemented.
+    if (status == CompilationJob::SUCCEEDED) {
+      Compiler::FinalizeMaglevCompilationJob(job.get(), isolate_);
+    }
   }
 }
 

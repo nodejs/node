@@ -40,10 +40,10 @@ vars = {
   'reclient_version': 're_client_version:0.40.0.40ff5a5',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:bd99dbf98cbdefe18a4128189665c5761263bcfb',
+  'gn_version': 'git_revision:ae110f8b525009255ba1f9ae96982176d3bfad3d',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:cb424e70e75136736a86359ef070aa96425fe7a3',
+  'luci_go': 'git_revision:6da0608e4fa8a3c6d1fa4f855485c0038b05bf72',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -83,9 +83,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'd115b033c4e53666b535cbd1985ffe60badad082',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '3d9590754d5d23e62d15472c5baf6777ca59df20',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b37c340767cf9e7777d4ca5a588c34c5744df9b2',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '113dd1badbcbffea108a8c95ac7c89c22bfd25f3',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'c2e4795660817c2776dbabd778b92ed58c074032',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + 'e435ad79c17b1888b34df88d6a30a094936e3836',
   'buildtools/linux64': {
@@ -111,9 +111,9 @@ deps = {
   'buildtools/third_party/libc++/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '79a2e924d96e2fc1e4b937c42efd08898fa472d7',
   'buildtools/third_party/libc++abi/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'a897d0f3f8e8c28ac2abf848f3b695b724409298',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'e025ba5dc85202540099d7cd8e72eae2d4ee9e33',
   'buildtools/third_party/libunwind/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd1c7f92b8b0bff8d9f710ca40e44563a63db376e',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'c39fea88739be63a2d5590a938ce19d762b915fc',
   'buildtools/win': {
     'packages': [
       {
@@ -139,7 +139,7 @@ deps = {
   'test/mozilla/data':
     Var('chromium_url') + '/v8/deps/third_party/mozilla-tests.git' + '@' + 'f6c578a10ea707b1a8ab0b88943fe5115ce2b9be',
   'test/test262/data':
-    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + 'f7fb969cc4934bbc5aa29a378d59325eaa84f475',
+    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + 'd7c0a2076c2b0c1531aef7069d4abe70eec44ee3',
   'third_party/aemu-linux-x64': {
       'packages': [
           {
@@ -161,11 +161,11 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/android_ndk': {
-    'url': Var('chromium_url') + '/android_ndk.git' + '@' + '9644104c8cf85bf1bdce5b1c0691e9778572c3f8',
+    'url': Var('chromium_url') + '/android_ndk.git' + '@' + '8388a2be5421311dc75c5f937aae13d821a27f3d',
     'condition': 'checkout_android',
   },
   'third_party/android_platform': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/android_platform.git' + '@' + '87b4b48de3c8204224d63612c287eb5a447a562d',
+    'url': Var('chromium_url') + '/chromium/src/third_party/android_platform.git' + '@' + '2760db43ffc8b074cb7960c90b5254f74a5c299a',
     'condition': 'checkout_android',
   },
   'third_party/android_sdk/public': {
@@ -207,7 +207,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'b3fe2c177912640bc676b332a2f41dc812ea5843',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '3a1ae18f882d024686144edbec3050aae055f146',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -215,18 +215,18 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'b199f549263a02900faef8c8c3d581c580e837c3',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '3b97fa826eee4bd1978c4c049038b1e4f201e8f2',
   'third_party/fuchsia-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '7c9c220d13ab367d49420144a257886ebfbce278',
     'condition': 'checkout_fuchsia',
   },
   'third_party/google_benchmark/src': {
-    'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '5704cd4c8cea889d68f9ae29ca5aaee97ef91816',
+    'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + 'dc901ff9090e2b931433790cc44afc3af3b09ab2',
   },
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'ae5e06dd35c6137d335331b0815cf1f60fd7e3c5',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'af29db7ec28d6df1c7f0f745186884091e602e07',
   'third_party/icu':
-    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '8a5b728e4f43b0eabdb9ea450f956d67cfb22719',
+    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '1fd0dbea04448c3f73fe5cb7599f9472f0f107f1',
   'third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'e09c4b66b6e87116eb190651421f1a6e2f3b9c52',
   'third_party/ittapi': {
@@ -272,19 +272,9 @@ deps = {
       'condition': 'checkout_android',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'b0676a1f52484bf53a1a49d0e48ff8abc430fafe',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'a6d209ab932df0f1c9d5b7dc67cfa74e8a3272c0',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'b60d34c100e5a8f4b01d838527f000faab673da3',
-  'tools/clang/dsymutil': {
-    'packages': [
-      {
-        'package': 'chromium/llvm-build-tools/dsymutil',
-        'version': 'M56jPzDv1620Rnm__jTMYS62Zi8rxHVq7yw0qeBFEgkC',
-      }
-    ],
-    'condition': 'checkout_mac',
-    'dep_type': 'cipd',
-  },
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'b5e2f7c16bbf3aefc9354e8fbad3de0a543f2193',
   'tools/luci-go': {
       'packages': [
         {
@@ -355,11 +345,39 @@ hooks = [
     'name': 'bazel',
     'pattern': '.',
     'condition': 'download_prebuilt_bazel',
-    'action': [ 'download_from_google_storage',
+    'action': [ 'python3',
+                'third_party/depot_tools/download_from_google_storage.py',
                 '--bucket', 'chromium-v8-prebuilt-bazel/linux',
                 '--no_resume',
                 '-s', 'tools/bazel/bazel.sha1',
                 '--platform=linux*',
+    ],
+  },
+  # Pull dsymutil binaries using checked-in hashes.
+  {
+    'name': 'dsymutil_mac_arm64',
+    'pattern': '.',
+    'condition': 'host_os == "mac" and host_cpu == "arm64"',
+    'action': [ 'python3',
+                'third_party/depot_tools/download_from_google_storage.py',
+                '--no_resume',
+                '--no_auth',
+                '--bucket', 'chromium-browser-clang',
+                '-s', 'tools/clang/dsymutil/bin/dsymutil.arm64.sha1',
+                '-o', 'tools/clang/dsymutil/bin/dsymutil',
+    ],
+  },
+  {
+    'name': 'dsymutil_mac_x64',
+    'pattern': '.',
+    'condition': 'host_os == "mac" and host_cpu == "x64"',
+    'action': [ 'python3',
+                'third_party/depot_tools/download_from_google_storage.py',
+                '--no_resume',
+                '--no_auth',
+                '--bucket', 'chromium-browser-clang',
+                '-s', 'tools/clang/dsymutil/bin/dsymutil.x64.sha1',
+                '-o', 'tools/clang/dsymutil/bin/dsymutil',
     ],
   },
   # Pull clang-format binaries using checked-in hashes.
@@ -367,33 +385,47 @@ hooks = [
     'name': 'clang_format_win',
     'pattern': '.',
     'condition': 'host_os == "win"',
-    'action': [ 'download_from_google_storage',
+    'action': [ 'python3',
+                'third_party/depot_tools/download_from_google_storage.py',
                 '--no_resume',
-                '--platform=win32',
                 '--no_auth',
                 '--bucket', 'chromium-clang-format',
                 '-s', 'buildtools/win/clang-format.exe.sha1',
     ],
   },
   {
-    'name': 'clang_format_mac',
+    'name': 'clang_format_mac_x64',
     'pattern': '.',
-    'condition': 'host_os == "mac"',
-    'action': [ 'download_from_google_storage',
+    'condition': 'host_os == "mac" and host_cpu == "x64"',
+    'action': [ 'python3',
+                'third_party/depot_tools/download_from_google_storage.py',
                 '--no_resume',
-                '--platform=darwin',
                 '--no_auth',
                 '--bucket', 'chromium-clang-format',
-                '-s', 'buildtools/mac/clang-format.sha1',
+                '-s', 'buildtools/mac/clang-format.x64.sha1',
+                '-o', 'buildtools/mac/clang-format',
+    ],
+  },
+  {
+    'name': 'clang_format_mac_arm64',
+    'pattern': '.',
+    'condition': 'host_os == "mac" and host_cpu == "arm64"',
+    'action': [ 'python3',
+                'third_party/depot_tools/download_from_google_storage.py',
+                '--no_resume',
+                '--no_auth',
+                '--bucket', 'chromium-clang-format',
+                '-s', 'buildtools/mac/clang-format.arm64.sha1',
+                '-o', 'buildtools/mac/clang-format',
     ],
   },
   {
     'name': 'clang_format_linux',
     'pattern': '.',
     'condition': 'host_os == "linux"',
-    'action': [ 'download_from_google_storage',
+    'action': [ 'python3',
+                'third_party/depot_tools/download_from_google_storage.py',
                 '--no_resume',
-                '--platform=linux*',
                 '--no_auth',
                 '--bucket', 'chromium-clang-format',
                 '-s', 'buildtools/linux64/clang-format.sha1',
@@ -403,7 +435,8 @@ hooks = [
     'name': 'gcmole',
     'pattern': '.',
     'condition': 'download_gcmole',
-    'action': [ 'download_from_google_storage',
+    'action': [ 'python3',
+                'third_party/depot_tools/download_from_google_storage.py',
                 '--bucket', 'chrome-v8-gcmole',
                 '-u', '--no_resume',
                 '-s', 'tools/gcmole/gcmole-tools.tar.gz.sha1',
@@ -414,7 +447,8 @@ hooks = [
     'name': 'jsfunfuzz',
     'pattern': '.',
     'condition': 'download_jsfunfuzz',
-    'action': [ 'download_from_google_storage',
+    'action': [ 'python3',
+                'third_party/depot_tools/download_from_google_storage.py',
                 '--bucket', 'chrome-v8-jsfunfuzz',
                 '-u', '--no_resume',
                 '-s', 'tools/jsfunfuzz/jsfunfuzz.tar.gz.sha1',
@@ -424,7 +458,8 @@ hooks = [
   {
     'name': 'wasm_spec_tests',
     'pattern': '.',
-    'action': [ 'download_from_google_storage',
+    'action': [ 'python3',
+                'third_party/depot_tools/download_from_google_storage.py',
                 '--no_resume',
                 '--no_auth',
                 '-u',
@@ -435,7 +470,8 @@ hooks = [
   {
     'name': 'wasm_js',
     'pattern': '.',
-    'action': [ 'download_from_google_storage',
+    'action': [ 'python3',
+                'third_party/depot_tools/download_from_google_storage.py',
                 '--no_resume',
                 '--no_auth',
                 '-u',
@@ -475,7 +511,8 @@ hooks = [
     'name': 'msan_chained_origins',
     'pattern': '.',
     'condition': 'checkout_instrumented_libraries',
-    'action': [ 'download_from_google_storage',
+    'action': [ 'python3',
+                'third_party/depot_tools/download_from_google_storage.py',
                 '--no_resume',
                 '--no_auth',
                 '--bucket', 'chromium-instrumented-libraries',
@@ -486,7 +523,8 @@ hooks = [
     'name': 'msan_no_origins',
     'pattern': '.',
     'condition': 'checkout_instrumented_libraries',
-    'action': [ 'download_from_google_storage',
+    'action': [ 'python3',
+                'third_party/depot_tools/download_from_google_storage.py',
                 '--no_resume',
                 '--no_auth',
                 '--bucket', 'chromium-instrumented-libraries',
@@ -498,7 +536,8 @@ hooks = [
     'name': 'ciopfs_linux',
     'pattern': '.',
     'condition': 'checkout_win and host_os == "linux"',
-    'action': [ 'download_from_google_storage',
+    'action': [ 'python3',
+                'third_party/depot_tools/download_from_google_storage.py',
                 '--no_resume',
                 '--no_auth',
                 '--bucket', 'chromium-browser-clang/ciopfs',

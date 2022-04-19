@@ -5,6 +5,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
+#include "src/objects/descriptor-array.h"
 
 namespace v8 {
 namespace internal {
@@ -15,25 +16,44 @@ class ShadowRealmBuiltinsAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
  protected:
-  TNode<JSObject> AllocateJSWrappedFunction(TNode<Context> context);
+  TNode<JSObject> AllocateJSWrappedFunction(TNode<Context> context,
+                                            TNode<Object> target);
+  void CheckAccessor(TNode<DescriptorArray> array, TNode<IntPtrT> index,
+                     TNode<Name> name, Label* bailout);
 };
 
 TNode<JSObject> ShadowRealmBuiltinsAssembler::AllocateJSWrappedFunction(
-    TNode<Context> context) {
+    TNode<Context> context, TNode<Object> target) {
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> map = CAST(
       LoadContextElement(native_context, Context::WRAPPED_FUNCTION_MAP_INDEX));
-  return AllocateJSObjectFromMap(map);
+  TNode<JSObject> wrapped = AllocateJSObjectFromMap(map);
+  StoreObjectFieldNoWriteBarrier(
+      wrapped, JSWrappedFunction::kWrappedTargetFunctionOffset, target);
+  StoreObjectFieldNoWriteBarrier(wrapped, JSWrappedFunction::kContextOffset,
+                                 context);
+  return wrapped;
+}
+
+void ShadowRealmBuiltinsAssembler::CheckAccessor(TNode<DescriptorArray> array,
+                                                 TNode<IntPtrT> index,
+                                                 TNode<Name> name,
+                                                 Label* bailout) {
+  TNode<Name> key = LoadKeyByDescriptorEntry(array, index);
+  GotoIfNot(TaggedEqual(key, name), bailout);
+  TNode<Object> value = LoadValueByDescriptorEntry(array, index);
+  GotoIfNot(IsAccessorInfo(CAST(value)), bailout);
 }
 
 // https://tc39.es/proposal-shadowrealm/#sec-getwrappedvalue
 TF_BUILTIN(ShadowRealmGetWrappedValue, ShadowRealmBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto creation_context = Parameter<Context>(Descriptor::kCreationContext);
+  auto target_context = Parameter<Context>(Descriptor::kTargetContext);
   auto value = Parameter<Object>(Descriptor::kValue);
 
   Label if_primitive(this), if_callable(this), unwrap(this), wrap(this),
-      bailout(this, Label::kDeferred);
+      slow_wrap(this, Label::kDeferred), bailout(this, Label::kDeferred);
 
   // 2. Return value.
   GotoIf(TaggedIsSmi(value), &if_primitive);
@@ -64,27 +84,67 @@ TF_BUILTIN(ShadowRealmGetWrappedValue, ShadowRealmBuiltinsAssembler) {
   Goto(&wrap);
 
   BIND(&wrap);
+  // Disallow wrapping of slow-mode functions. We need to figure out
+  // whether the length and name property are in the original state.
+  TNode<Map> map = LoadMap(CAST(target.value()));
+  GotoIf(IsDictionaryMap(map), &slow_wrap);
+
+  // Check whether the length and name properties are still present as
+  // AccessorInfo objects. If so, their value can be recomputed even if
+  // the actual value on the object changes.
+  TNode<Uint32T> bit_field3 = LoadMapBitField3(map);
+  TNode<IntPtrT> number_of_own_descriptors = Signed(
+      DecodeWordFromWord32<Map::Bits3::NumberOfOwnDescriptorsBits>(bit_field3));
+  GotoIf(IntPtrLessThan(
+             number_of_own_descriptors,
+             IntPtrConstant(JSFunction::kMinDescriptorsForFastBindAndWrap)),
+         &slow_wrap);
+
+  // We don't need to check the exact accessor here because the only case
+  // custom accessor arise is with function templates via API, and in that
+  // case the object is in dictionary mode
+  TNode<DescriptorArray> descriptors = LoadMapInstanceDescriptors(map);
+  CheckAccessor(
+      descriptors,
+      IntPtrConstant(
+          JSFunctionOrBoundFunctionOrWrappedFunction::kLengthDescriptorIndex),
+      LengthStringConstant(), &slow_wrap);
+  CheckAccessor(
+      descriptors,
+      IntPtrConstant(
+          JSFunctionOrBoundFunctionOrWrappedFunction::kNameDescriptorIndex),
+      NameStringConstant(), &slow_wrap);
+
+  // Verify that prototype matches the function prototype of the target
+  // context.
+  TNode<Object> prototype = LoadMapPrototype(map);
+  TNode<Object> function_map =
+      LoadContextElement(target_context, Context::WRAPPED_FUNCTION_MAP_INDEX);
+  TNode<Object> function_prototype = LoadMapPrototype(CAST(function_map));
+  GotoIf(TaggedNotEqual(prototype, function_prototype), &slow_wrap);
+
   // 1. Let internalSlotsList be the internal slots listed in Table 2, plus
   // [[Prototype]] and [[Extensible]].
   // 2. Let wrapped be ! MakeBasicObject(internalSlotsList).
   // 3. Set wrapped.[[Prototype]] to
   // callerRealm.[[Intrinsics]].[[%Function.prototype%]].
   // 4. Set wrapped.[[Call]] as described in 2.1.
-  TNode<JSObject> wrapped = AllocateJSWrappedFunction(creation_context);
-
   // 5. Set wrapped.[[WrappedTargetFunction]] to Target.
-  StoreObjectFieldNoWriteBarrier(
-      wrapped, JSWrappedFunction::kWrappedTargetFunctionOffset, target.value());
   // 6. Set wrapped.[[Realm]] to callerRealm.
-  StoreObjectFieldNoWriteBarrier(wrapped, JSWrappedFunction::kContextOffset,
-                                 creation_context);
-
   // 7. Let result be CopyNameAndLength(wrapped, Target, "wrapped").
   // 8. If result is an Abrupt Completion, throw a TypeError exception.
-  // TODO(v8:11989): https://github.com/tc39/proposal-shadowrealm/pull/348
+  // Installed with default accessors.
+  TNode<JSObject> wrapped =
+      AllocateJSWrappedFunction(creation_context, target.value());
 
   // 9. Return wrapped.
   Return(wrapped);
+
+  BIND(&slow_wrap);
+  {
+    Return(CallRuntime(Runtime::kShadowRealmWrappedFunctionCreate, context,
+                       creation_context, target.value()));
+  }
 
   BIND(&bailout);
   ThrowTypeError(context, MessageTemplate::kNotCallable, value);
@@ -132,7 +192,7 @@ TF_BUILTIN(CallWrappedFunction, ShadowRealmBuiltinsAssembler) {
   // Create wrapped value in the target realm.
   TNode<Object> wrapped_receiver =
       CallBuiltin(Builtin::kShadowRealmGetWrappedValue, caller_context,
-                  target_context, receiver);
+                  target_context, caller_context, receiver);
   StoreFixedArrayElement(wrapped_args, 0, wrapped_receiver);
   // 7. For each element arg of argumentsList, do
   BuildFastLoop<IntPtrT>(
@@ -142,7 +202,7 @@ TF_BUILTIN(CallWrappedFunction, ShadowRealmBuiltinsAssembler) {
         // Create wrapped value in the target realm.
         TNode<Object> wrapped_value =
             CallBuiltin(Builtin::kShadowRealmGetWrappedValue, caller_context,
-                        target_context, args.AtIndex(index));
+                        target_context, caller_context, args.AtIndex(index));
         // 7b. Append wrappedValue to wrappedArgs.
         StoreFixedArrayElement(
             wrapped_args, IntPtrAdd(index, IntPtrConstant(1)), wrapped_value);
@@ -167,13 +227,15 @@ TF_BUILTIN(CallWrappedFunction, ShadowRealmBuiltinsAssembler) {
   // 10a. Return ? GetWrappedValue(callerRealm, result.[[Value]]).
   TNode<Object> wrapped_result =
       CallBuiltin(Builtin::kShadowRealmGetWrappedValue, caller_context,
-                  caller_context, result);
+                  caller_context, target_context, result);
   args.PopAndReturn(wrapped_result);
 
   // 11. Else,
   BIND(&call_exception);
   // 11a. Throw a TypeError exception.
-  // TODO(v8:11989): provide a non-observable inspection.
+  // TODO(v8:11989): provide a non-observable inspection on the
+  // pending_exception to the newly created TypeError.
+  // https://github.com/tc39/proposal-shadowrealm/issues/353
   ThrowTypeError(context, MessageTemplate::kCallShadowRealmFunctionThrown,
                  var_exception.value());
 

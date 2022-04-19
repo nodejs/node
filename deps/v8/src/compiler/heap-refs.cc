@@ -1300,20 +1300,22 @@ base::Optional<int> StringRef::length() const {
   }
 }
 
-base::Optional<uint16_t> StringRef::GetFirstChar() {
+base::Optional<uint16_t> StringRef::GetFirstChar() const { return GetChar(0); }
+
+base::Optional<uint16_t> StringRef::GetChar(int index) const {
   if (data_->kind() == kNeverSerializedHeapObject && !SupportedStringKind()) {
     TRACE_BROKER_MISSING(
         broker(),
-        "first char for kNeverSerialized unsupported string kind " << *this);
+        "get char for kNeverSerialized unsupported string kind " << *this);
     return base::nullopt;
   }
 
   if (!broker()->IsMainThread()) {
-    return object()->Get(0, broker()->local_isolate());
+    return object()->Get(index, broker()->local_isolate());
   } else {
     // TODO(solanes, v8:7790): Remove this case once the inlining phase is
     // done concurrently all the time.
-    return object()->Get(0);
+    return object()->Get(index);
   }
 }
 

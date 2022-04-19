@@ -162,6 +162,7 @@ class EffectControlLinearizer {
   Node* LowerStringConcat(Node* node);
   Node* LowerStringToNumber(Node* node);
   Node* LowerStringCharCodeAt(Node* node);
+  Node* StringCharCodeAt(Node* receiver, Node* position);
   Node* LowerStringCodePointAt(Node* node);
   Node* LowerStringToLowerCaseIntl(Node* node);
   Node* LowerStringToUpperCaseIntl(Node* node);
@@ -3828,10 +3829,8 @@ Node* EffectControlLinearizer::LowerStringToNumber(Node* node) {
                  __ NoContextConstant());
 }
 
-Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
-  Node* receiver = node->InputAt(0);
-  Node* position = node->InputAt(1);
-
+Node* EffectControlLinearizer::StringCharCodeAt(Node* receiver,
+                                                Node* position) {
   // We need a loop here to properly deal with indirect strings
   // (SlicedString, ConsString and ThinString).
   auto loop = __ MakeLoopLabel(MachineRepresentation::kTagged,
@@ -3977,19 +3976,41 @@ Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
   return loop_done.PhiAt(0);
 }
 
+Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
+  Node* receiver = node->InputAt(0);
+  Node* position = node->InputAt(1);
+  return StringCharCodeAt(receiver, position);
+}
+
 Node* EffectControlLinearizer::LowerStringCodePointAt(Node* node) {
   Node* receiver = node->InputAt(0);
   Node* position = node->InputAt(1);
 
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtin::kStringCodePointAt);
-  Operator::Properties properties = Operator::kNoThrow | Operator::kNoWrite;
-  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(),
-      callable.descriptor().GetStackParameterCount(), flags, properties);
-  return __ Call(call_descriptor, __ HeapConstant(callable.code()), receiver,
-                 position, __ NoContextConstant());
+  auto return_result = __ MakeLabel(MachineRepresentation::kWord32);
+  Node* first_code_unit = StringCharCodeAt(receiver, position);
+
+  __ GotoIfNot(
+      __ Word32Equal(__ Word32And(first_code_unit, __ Int32Constant(0xFC00)),
+                     __ Int32Constant(0xD800)),
+      &return_result, BranchHint::kFalse, first_code_unit);
+
+  auto length = __ LoadField(AccessBuilder::ForStringLength(), receiver);
+  auto next_index = __ IntAdd(position, __ IntPtrConstant(1));
+  __ GotoIfNot(__ IntLessThan(next_index, length), &return_result,
+               first_code_unit);
+  Node* second_code_unit = StringCharCodeAt(receiver, next_index);
+  __ GotoIfNot(
+      __ Word32Equal(__ Word32And(second_code_unit, __ Int32Constant(0xFC00)),
+                     __ Int32Constant(0xDC00)),
+      &return_result, first_code_unit);
+
+  auto surrogate_offset = __ Int32Constant(0x10000 - (0xD800 << 10) - 0xDC00);
+  auto result = __ Int32Add(__ Word32Shl(first_code_unit, __ Int32Constant(10)),
+                            __ Int32Add(second_code_unit, surrogate_offset));
+  __ Goto(&return_result, result);
+
+  __ Bind(&return_result);
+  return return_result.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LoadFromSeqString(Node* receiver, Node* position,

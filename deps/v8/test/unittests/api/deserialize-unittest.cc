@@ -15,7 +15,7 @@
 
 namespace v8 {
 
-class DeserializeTest : public testing::Test {
+class DeserializeTest : public TestWithPlatform {
  public:
   class IsolateAndContextScope {
    public:
