@@ -18,17 +18,11 @@ const buf = Buffer.alloc(1);
 fs.open(filepath, 'r', (_, fd) => {
   assert.throws(
     () => fs.read(fd, { offset: null, buffer: buf }, () => {}),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError',
-    }
+    { code: 'ERR_INVALID_ARG_TYPE' }
   );
   assert.throws(
     () => fs.read(fd, buf, { offset: null }, () => {}),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError',
-    }
+    { code: 'ERR_INVALID_ARG_TYPE' }
   );
   fs.close(fd, common.mustSucceed(() => {}));
 });
@@ -40,10 +34,7 @@ let filehandle = null;
   filehandle = await fsPromises.open(filepath, 'r');
   assert.rejects(
     async () => filehandle.read(buf, { offset: null }),
-    {
-      code: 'ERR_INVALID_ARG_TYPE',
-      name: 'TypeError',
-    }
+    { code: 'ERR_INVALID_ARG_TYPE' }
   );
 })()
 .then(common.mustCall())
