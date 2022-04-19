@@ -78,7 +78,7 @@ jobs:
             echo
             echo 'ERROR: Please run:'
             echo
-            echo '  CLANG_FORMAT_START="$(git merge-base HEAD <target-branch-name>)" make format-cpp'
+            echo "  CLANG_FORMAT_START="$\(git merge-base HEAD ${GITHUB_BASE_REF}\)" make format-cpp"
             echo
             echo 'to format the commits in your branch.'
             exit "$EXIT_CODE"
