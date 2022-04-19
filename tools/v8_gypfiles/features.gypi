@@ -253,7 +253,7 @@
     # will fail.
     'v8_enable_webassembly%': 1,
 
-    # Enable advanced BigInt algorithms, costing about 10-30 KB binary size
+    # Enable advanced BigInt algorithms, costing about 10-30 KiB binary size
     # depending on platform.
     'v8_advanced_bigint_algorithms%': 1
   },
