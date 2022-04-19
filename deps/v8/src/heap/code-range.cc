@@ -191,6 +191,7 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
   }
 
   const size_t kAllocatePageSize = page_allocator()->AllocatePageSize();
+  const size_t kCommitPageSize = page_allocator()->CommitPageSize();
   size_t allocate_code_size =
       RoundUp(embedded_blob_code_size, kAllocatePageSize);
 
@@ -207,8 +208,31 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
         isolate, "Can't allocate space for re-embedded builtins");
   }
 
-  size_t code_size =
-      RoundUp(embedded_blob_code_size, page_allocator()->CommitPageSize());
+  size_t code_size = RoundUp(embedded_blob_code_size, kCommitPageSize);
+  if constexpr (base::OS::IsRemapPageSupported()) {
+    // By default, the embedded builtins are not remapped, but copied. This
+    // costs memory, since builtins become private dirty anonymous memory,
+    // rather than shared, clean, file-backed memory for the embedded version.
+    // If the OS supports it, we can remap the builtins *on top* of the space
+    // allocated in the code range, making the "copy" shared, clean, file-backed
+    // memory, and thus saving sizeof(builtins).
+    //
+    // Builtins should start at a page boundary, see
+    // platform-embedded-file-writer-mac.cc. If it's not the case (e.g. if the
+    // embedded builtins are not coming from the binary), fall back to copying.
+    if (IsAligned(reinterpret_cast<uintptr_t>(embedded_blob_code),
+                  kCommitPageSize)) {
+      bool ok = base::OS::RemapPages(embedded_blob_code, code_size,
+                                     embedded_blob_code_copy,
+                                     base::OS::MemoryPermission::kReadExecute);
+
+      if (ok) {
+        embedded_blob_code_copy_.store(embedded_blob_code_copy,
+                                       std::memory_order_release);
+        return embedded_blob_code_copy;
+      }
+    }
+  }
 
   if (!page_allocator()->SetPermissions(embedded_blob_code_copy, code_size,
                                         PageAllocator::kReadWrite)) {

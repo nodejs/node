@@ -6,6 +6,7 @@
 
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
+#include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
@@ -13,7 +14,9 @@ namespace internal {
 
 const size_t kItemCount = size_t(1) << 10;
 
-TEST(ZoneChunkList, ForwardIterationTest) {
+class ZoneChunkListTest : public TestWithPlatform {};
+
+TEST_F(ZoneChunkListTest, ForwardIterationTest) {
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 
@@ -33,7 +36,7 @@ TEST(ZoneChunkList, ForwardIterationTest) {
   EXPECT_EQ(count, kItemCount);
 }
 
-TEST(ZoneChunkList, ReverseIterationTest) {
+TEST_F(ZoneChunkListTest, ReverseIterationTest) {
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 
@@ -53,7 +56,7 @@ TEST(ZoneChunkList, ReverseIterationTest) {
   EXPECT_EQ(count, kItemCount);
 }
 
-TEST(ZoneChunkList, PushFrontTest) {
+TEST_F(ZoneChunkListTest, PushFrontTest) {
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 
@@ -73,7 +76,7 @@ TEST(ZoneChunkList, PushFrontTest) {
   EXPECT_EQ(count, kItemCount);
 }
 
-TEST(ZoneChunkList, RewindTest) {
+TEST_F(ZoneChunkListTest, RewindTest) {
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 
@@ -120,7 +123,7 @@ TEST(ZoneChunkList, RewindTest) {
   EXPECT_EQ(count, zone_chunk_list.size());
 }
 
-TEST(ZoneChunkList, FindTest) {
+TEST_F(ZoneChunkListTest, FindTest) {
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 
@@ -139,7 +142,7 @@ TEST(ZoneChunkList, FindTest) {
   EXPECT_EQ(*zone_chunk_list.Find(index), 42u);
 }
 
-TEST(ZoneChunkList, CopyToTest) {
+TEST_F(ZoneChunkListTest, CopyToTest) {
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 
@@ -158,7 +161,7 @@ TEST(ZoneChunkList, CopyToTest) {
   }
 }
 
-TEST(ZoneChunkList, SmallCopyToTest) {
+TEST_F(ZoneChunkListTest, SmallCopyToTest) {
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 
@@ -182,7 +185,7 @@ struct Fubar {
   size_t b_;
 };
 
-TEST(ZoneChunkList, BigCopyToTest) {
+TEST_F(ZoneChunkListTest, BigCopyToTest) {
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 
@@ -214,7 +217,7 @@ void TestForwardIterationOfConstList(
   EXPECT_EQ(count, kItemCount);
 }
 
-TEST(ZoneChunkList, ConstForwardIterationTest) {
+TEST_F(ZoneChunkListTest, ConstForwardIterationTest) {
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 
@@ -227,7 +230,7 @@ TEST(ZoneChunkList, ConstForwardIterationTest) {
   TestForwardIterationOfConstList(zone_chunk_list);
 }
 
-TEST(ZoneChunkList, RewindAndIterate) {
+TEST_F(ZoneChunkListTest, RewindAndIterate) {
   // Regression test for https://bugs.chromium.org/p/v8/issues/detail?id=7478
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
@@ -267,7 +270,7 @@ TEST(ZoneChunkList, RewindAndIterate) {
   }
 }
 
-TEST(ZoneChunkList, PushBackPopBackSize) {
+TEST_F(ZoneChunkListTest, PushBackPopBackSize) {
   // Regression test for https://bugs.chromium.org/p/v8/issues/detail?id=7489
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
@@ -280,7 +283,7 @@ TEST(ZoneChunkList, PushBackPopBackSize) {
   CHECK_EQ(size_t(0), zone_chunk_list.size());
 }
 
-TEST(ZoneChunkList, AdvanceZeroTest) {
+TEST_F(ZoneChunkListTest, AdvanceZeroTest) {
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 
@@ -297,7 +300,7 @@ TEST(ZoneChunkList, AdvanceZeroTest) {
   CHECK_EQ(iterator_advance, zone_chunk_list.begin());
 }
 
-TEST(ZoneChunkList, AdvancePartwayTest) {
+TEST_F(ZoneChunkListTest, AdvancePartwayTest) {
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 
@@ -318,7 +321,7 @@ TEST(ZoneChunkList, AdvancePartwayTest) {
   CHECK_EQ(iterator_advance, iterator_one_by_one);
 }
 
-TEST(ZoneChunkList, AdvanceEndTest) {
+TEST_F(ZoneChunkListTest, AdvanceEndTest) {
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 
@@ -335,7 +338,7 @@ TEST(ZoneChunkList, AdvanceEndTest) {
   CHECK_EQ(iterator_advance, zone_chunk_list.end());
 }
 
-TEST(ZoneChunkList, FindOverChunkBoundary) {
+TEST_F(ZoneChunkListTest, FindOverChunkBoundary) {
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 

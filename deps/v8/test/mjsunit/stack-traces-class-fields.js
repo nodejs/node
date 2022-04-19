@@ -183,13 +183,13 @@ function testStaticClassFieldCall() {
 }
 
 // ReferenceError: FAIL is not defined
-//     at Function.thrower [as x]
+//     at X.thrower [as x]
 //     at testStaticClassFieldCall
 //     at testTrace
 testTrace(
   "during static class field call",
   testStaticClassFieldCall,
-  ["Function.thrower"],
+  ["X.thrower"],
   ["anonymous"]
 );
 
@@ -226,12 +226,12 @@ function testStaticClassFieldCallWithFNI() {
 }
 
 // ReferenceError: FAIL is not defined
-//     at Function.x
+//     at X.x
 //     at testStaticClassFieldCallWithFNI
 //     at testTrace
 testTrace(
   "during static class field call with FNI",
   testStaticClassFieldCallWithFNI,
-  ["Function.x"],
+  ["X.x"],
   ["anonymous"]
 );

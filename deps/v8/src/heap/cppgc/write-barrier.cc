@@ -135,7 +135,7 @@ void WriteBarrier::GenerationalBarrierSlow(const CagedHeapLocalData& local_data,
   // results in applying the generational barrier.
   if (local_data.heap_base.in_atomic_pause()) return;
 
-  if (value_offset > 0 && age_table[value_offset] == AgeTable::Age::kOld)
+  if (value_offset > 0 && age_table.GetAge(value_offset) == AgeTable::Age::kOld)
     return;
 
   // Record slot.
@@ -149,7 +149,7 @@ void WriteBarrier::GenerationalBarrierForSourceObjectSlow(
 
   auto& object_header =
       BasePage::FromInnerAddress(&local_data.heap_base, inner_pointer)
-          ->ObjectHeaderFromInnerAddress(inner_pointer);
+          ->ObjectHeaderFromInnerAddress<AccessMode::kAtomic>(inner_pointer);
 
   // Record the source object.
   local_data.heap_base.remembered_set().AddSourceObject(

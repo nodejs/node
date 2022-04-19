@@ -8296,6 +8296,13 @@ TNode<Uint32T> CodeStubAssembler::LoadDetailsByDescriptorEntry(
 }
 
 TNode<Object> CodeStubAssembler::LoadValueByDescriptorEntry(
+    TNode<DescriptorArray> container, TNode<IntPtrT> descriptor_entry) {
+  return LoadDescriptorArrayElement<Object>(
+      container, DescriptorEntryToIndex(descriptor_entry),
+      DescriptorArray::ToValueIndex(0) * kTaggedSize);
+}
+
+TNode<Object> CodeStubAssembler::LoadValueByDescriptorEntry(
     TNode<DescriptorArray> container, int descriptor_entry) {
   return LoadDescriptorArrayElement<Object>(
       container, IntPtrConstant(0),

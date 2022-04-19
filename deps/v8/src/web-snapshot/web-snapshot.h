@@ -278,7 +278,8 @@ class V8_EXPORT WebSnapshotDeserializer
                           size_t buffer_size);
   WebSnapshotDeserializer(Isolate* isolate, Handle<Script> snapshot_as_script);
   ~WebSnapshotDeserializer();
-  bool Deserialize(MaybeHandle<FixedArray> external_references = {});
+  bool Deserialize(MaybeHandle<FixedArray> external_references = {},
+                   bool skip_exports = false);
 
   // For inspecting the state after deserializing a snapshot.
   uint32_t string_count() const { return string_count_; }
@@ -304,7 +305,7 @@ class V8_EXPORT WebSnapshotDeserializer
                           base::Vector<const uint8_t> buffer);
   base::Vector<const uint8_t> ExtractScriptBuffer(
       Isolate* isolate, Handle<Script> snapshot_as_script);
-  bool DeserializeSnapshot();
+  bool DeserializeSnapshot(bool skip_exports);
   bool DeserializeScript();
 
   WebSnapshotDeserializer(const WebSnapshotDeserializer&) = delete;
@@ -323,7 +324,7 @@ class V8_EXPORT WebSnapshotDeserializer
   void DeserializeClasses();
   void DeserializeArrays();
   void DeserializeObjects();
-  void DeserializeExports();
+  void DeserializeExports(bool skip_exports);
 
   Object ReadValue(
       Handle<HeapObject> object_for_deferred_reference = Handle<HeapObject>(),

@@ -40,7 +40,9 @@ namespace internal {
   V(JSWeakRef)                          \
   V(Map)                                \
   V(NativeContext)                      \
+  V(Oddball)                            \
   V(PreparseData)                       \
+  V(PromiseOnStack)                     \
   V(PropertyArray)                      \
   V(PropertyCell)                       \
   V(PrototypeInfo)                      \

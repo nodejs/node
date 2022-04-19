@@ -158,6 +158,8 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
   BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX: Slot<NativeContext, Map>,
   BOUND_FUNCTION_WITHOUT_CONSTRUCTOR_MAP_INDEX: Slot<NativeContext, Map>,
 
+  WRAPPED_FUNCTION_MAP_INDEX: Slot<NativeContext, Map>,
+
   MIN_CONTEXT_SLOTS,
   ...
 }

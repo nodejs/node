@@ -43,12 +43,6 @@ bool JSArray::SetLengthWouldNormalize(Heap* heap, uint32_t new_length) {
   return new_length > kMaxFastArrayLength;
 }
 
-bool JSArray::AllowsSetLength() {
-  bool result = elements().IsFixedArray() || elements().IsFixedDoubleArray();
-  DCHECK(result == !HasTypedArrayElements());
-  return result;
-}
-
 void JSArray::SetContent(Handle<JSArray> array,
                          Handle<FixedArrayBase> storage) {
   EnsureCanContainElements(array, storage, storage->length(),

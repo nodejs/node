@@ -377,6 +377,12 @@ TNode<FixedArrayBase> JSGraphAssembler::MaybeGrowFastElements(
       new_length, old_length, effect(), control()));
 }
 
+Node* JSGraphAssembler::StringCharCodeAt(TNode<String> string,
+                                         TNode<Number> position) {
+  return AddNode(graph()->NewNode(simplified()->StringCharCodeAt(), string,
+                                  position, effect(), control()));
+}
+
 Node* GraphAssembler::TypeGuard(Type type, Node* value) {
   return AddNode(
       graph()->NewNode(common()->TypeGuard(type), value, effect(), control()));
@@ -506,33 +512,15 @@ Node* GraphAssembler::BitcastMaybeObjectToWord(Node* value) {
 Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason,
                                    FeedbackSource const& feedback,
                                    Node* condition, Node* frame_state) {
-  return AddNode(graph()->NewNode(
-      common()->DeoptimizeIf(DeoptimizeKind::kEager, reason, feedback),
-      condition, frame_state, effect(), control()));
-}
-
-Node* GraphAssembler::DeoptimizeIf(DeoptimizeKind kind, DeoptimizeReason reason,
-                                   FeedbackSource const& feedback,
-                                   Node* condition, Node* frame_state) {
-  return AddNode(
-      graph()->NewNode(common()->DeoptimizeIf(kind, reason, feedback),
-                       condition, frame_state, effect(), control()));
-}
-
-Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeKind kind,
-                                      DeoptimizeReason reason,
-                                      FeedbackSource const& feedback,
-                                      Node* condition, Node* frame_state) {
-  return AddNode(
-      graph()->NewNode(common()->DeoptimizeUnless(kind, reason, feedback),
-                       condition, frame_state, effect(), control()));
+  return AddNode(graph()->NewNode(common()->DeoptimizeIf(reason, feedback),
+                                  condition, frame_state, effect(), control()));
 }
 
 Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason,
                                       FeedbackSource const& feedback,
                                       Node* condition, Node* frame_state) {
-  return DeoptimizeIfNot(DeoptimizeKind::kEager, reason, feedback, condition,
-                         frame_state);
+  return AddNode(graph()->NewNode(common()->DeoptimizeUnless(reason, feedback),
+                                  condition, frame_state, effect(), control()));
 }
 
 TNode<Object> GraphAssembler::Call(const CallDescriptor* call_descriptor,

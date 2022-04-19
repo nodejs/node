@@ -785,7 +785,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   const bool is_shared_heap_;
 
-  bool was_marked_incrementally_ = false;
   bool evacuation_ = false;
   // True if we are collecting slots to perform evacuation from evacuation
   // candidates.

@@ -513,7 +513,6 @@ UNINITIALIZED_TEST(LogAll) {
   SETUP_FLAGS();
   i::FLAG_log_all = true;
   i::FLAG_log_deopt = true;
-  i::FLAG_log_api = true;
   i::FLAG_turbo_inlining = false;
   i::FLAG_log_internal_timer_events = true;
   i::FLAG_allow_natives_syntax = true;
@@ -551,11 +550,9 @@ UNINITIALIZED_TEST(LogAll) {
     logger.StopLogging();
 
     // We should find at least one code-creation even for testAddFn();
-    CHECK(logger.ContainsLine({"api,v8::Context::New"}));
     CHECK(logger.ContainsLine({"timer-event-start", "V8.CompileCode"}));
     CHECK(logger.ContainsLine({"timer-event-end", "V8.CompileCode"}));
     CHECK(logger.ContainsLine({"code-creation,Script", ":1:1"}));
-    CHECK(logger.ContainsLine({"api,v8::Script::Run"}));
     CHECK(logger.ContainsLine({"code-creation,LazyCompile,", "testAddFn"}));
 
     if (i::FLAG_opt && !i::FLAG_always_opt) {

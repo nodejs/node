@@ -296,8 +296,9 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
   return bytes;
 }
 
-int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
-                                    Register exclusion2, Register exclusion3) {
+int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register scratch,
+                                    Register exclusion1, Register exclusion2,
+                                    Register exclusion3) {
   int bytes = 0;
 
   RegList exclusions = {exclusion1, exclusion2, exclusion3};
@@ -306,18 +307,19 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   bytes += list.Count() * kSystemPointerSize;
 
   if (fp_mode == SaveFPRegsMode::kSave) {
-    MultiPushF64OrV128(kCallerSavedDoubles);
+    MultiPushF64OrV128(kCallerSavedDoubles, scratch);
     bytes += kStackSavedSavedFPSizeInBytes;
   }
 
   return bytes;
 }
 
-int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
-                                   Register exclusion2, Register exclusion3) {
+int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register scratch,
+                                   Register exclusion1, Register exclusion2,
+                                   Register exclusion3) {
   int bytes = 0;
   if (fp_mode == SaveFPRegsMode::kSave) {
-    MultiPopF64OrV128(kCallerSavedDoubles);
+    MultiPopF64OrV128(kCallerSavedDoubles, scratch);
     bytes += kStackSavedSavedFPSizeInBytes;
   }
 
@@ -667,7 +669,8 @@ void TurboAssembler::MultiPushDoubles(DoubleRegList dregs, Register location) {
   }
 }
 
-void TurboAssembler::MultiPushV128(DoubleRegList dregs, Register location) {
+void TurboAssembler::MultiPushV128(DoubleRegList dregs, Register scratch,
+                                   Register location) {
   int16_t num_to_push = dregs.Count();
   int16_t stack_offset = num_to_push * kSimd128Size;
 
@@ -676,7 +679,7 @@ void TurboAssembler::MultiPushV128(DoubleRegList dregs, Register location) {
     if ((dregs.bits() & (1 << i)) != 0) {
       Simd128Register dreg = Simd128Register::from_code(i);
       stack_offset -= kSimd128Size;
-      StoreV128(dreg, MemOperand(location, stack_offset), r0);
+      StoreV128(dreg, MemOperand(location, stack_offset), scratch);
     }
   }
 }
@@ -694,20 +697,21 @@ void TurboAssembler::MultiPopDoubles(DoubleRegList dregs, Register location) {
   AddS64(location, location, Operand(stack_offset));
 }
 
-void TurboAssembler::MultiPopV128(DoubleRegList dregs, Register location) {
+void TurboAssembler::MultiPopV128(DoubleRegList dregs, Register scratch,
+                                  Register location) {
   int16_t stack_offset = 0;
 
   for (int16_t i = 0; i < Simd128Register::kNumRegisters; i++) {
     if ((dregs.bits() & (1 << i)) != 0) {
       Simd128Register dreg = Simd128Register::from_code(i);
-      LoadV128(dreg, MemOperand(location, stack_offset), r0);
+      LoadV128(dreg, MemOperand(location, stack_offset), scratch);
       stack_offset += kSimd128Size;
     }
   }
   AddS64(location, location, Operand(stack_offset));
 }
 
-void TurboAssembler::MultiPushF64OrV128(DoubleRegList dregs,
+void TurboAssembler::MultiPushF64OrV128(DoubleRegList dregs, Register scratch,
                                         Register location) {
 #if V8_ENABLE_WEBASSEMBLY
   bool generating_bultins =
@@ -719,7 +723,7 @@ void TurboAssembler::MultiPushF64OrV128(DoubleRegList dregs,
     LoadAndTestP(r1, r1);  // If > 0 then simd is available.
     ble(&push_doubles, Label::kNear);
     // Save vector registers, don't save double registers anymore.
-    MultiPushV128(dregs);
+    MultiPushV128(dregs, scratch);
     b(&simd_pushed);
     bind(&push_doubles);
     // Simd not supported, only save double registers.
@@ -730,7 +734,7 @@ void TurboAssembler::MultiPushF64OrV128(DoubleRegList dregs,
     bind(&simd_pushed);
   } else {
     if (CpuFeatures::SupportsWasmSimd128()) {
-      MultiPushV128(dregs);
+      MultiPushV128(dregs, scratch);
     } else {
       MultiPushDoubles(dregs);
       lay(sp, MemOperand(sp, -(dregs.Count() * kDoubleSize)));
@@ -741,7 +745,8 @@ void TurboAssembler::MultiPushF64OrV128(DoubleRegList dregs,
 #endif
 }
 
-void TurboAssembler::MultiPopF64OrV128(DoubleRegList dregs, Register location) {
+void TurboAssembler::MultiPopF64OrV128(DoubleRegList dregs, Register scratch,
+                                       Register location) {
 #if V8_ENABLE_WEBASSEMBLY
   bool generating_bultins =
       isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
@@ -752,7 +757,7 @@ void TurboAssembler::MultiPopF64OrV128(DoubleRegList dregs, Register location) {
     LoadAndTestP(r1, r1);  // If > 0 then simd is available.
     ble(&pop_doubles, Label::kNear);
     // Pop vector registers, don't pop double registers anymore.
-    MultiPopV128(dregs);
+    MultiPopV128(dregs, scratch);
     b(&simd_popped);
     bind(&pop_doubles);
     // Simd not supported, only pop double registers.
@@ -761,7 +766,7 @@ void TurboAssembler::MultiPopF64OrV128(DoubleRegList dregs, Register location) {
     bind(&simd_popped);
   } else {
     if (CpuFeatures::SupportsWasmSimd128()) {
-      MultiPopV128(dregs);
+      MultiPopV128(dregs, scratch);
     } else {
       lay(sp, MemOperand(sp, dregs.Count() * kDoubleSize));
       MultiPopDoubles(dregs);
@@ -3771,6 +3776,7 @@ void TurboAssembler::LoadU32(Register dst, const MemOperand& mem,
 }
 
 void TurboAssembler::LoadU16(Register dst, const MemOperand& mem) {
+  // TODO(s390x): Add scratch reg
 #if V8_TARGET_ARCH_S390X
   llgh(dst, mem);
 #else
@@ -3787,6 +3793,7 @@ void TurboAssembler::LoadU16(Register dst, Register src) {
 }
 
 void TurboAssembler::LoadS8(Register dst, const MemOperand& mem) {
+  // TODO(s390x): Add scratch reg
 #if V8_TARGET_ARCH_S390X
   lgb(dst, mem);
 #else
@@ -3803,6 +3810,7 @@ void TurboAssembler::LoadS8(Register dst, Register src) {
 }
 
 void TurboAssembler::LoadU8(Register dst, const MemOperand& mem) {
+  // TODO(s390x): Add scratch reg
 #if V8_TARGET_ARCH_S390X
   llgc(dst, mem);
 #else
@@ -4073,6 +4081,7 @@ void TurboAssembler::LoadF32(DoubleRegister dst, const MemOperand& mem) {
 
 void TurboAssembler::LoadV128(Simd128Register dst, const MemOperand& mem,
                               Register scratch) {
+  DCHECK(scratch != r0);
   if (is_uint12(mem.offset())) {
     vl(dst, mem, Condition(0));
   } else {
@@ -4102,6 +4111,7 @@ void TurboAssembler::StoreF32(DoubleRegister src, const MemOperand& mem) {
 
 void TurboAssembler::StoreV128(Simd128Register src, const MemOperand& mem,
                                Register scratch) {
+  DCHECK(scratch != r0);
   if (is_uint12(mem.offset())) {
     vst(src, mem, Condition(0));
   } else {
@@ -4826,9 +4836,8 @@ void TurboAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
                          IsolateData::BuiltinEntrySlotOffset(target)));
   Call(ip);
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
-            (kind == DeoptimizeKind::kLazy)
-                ? Deoptimizer::kLazyDeoptExitSize
-                : Deoptimizer::kNonLazyDeoptExitSize);
+            (kind == DeoptimizeKind::kLazy) ? Deoptimizer::kLazyDeoptExitSize
+                                            : Deoptimizer::kEagerDeoptExitSize);
 }
 
 void TurboAssembler::Trap() { stop(); }

@@ -180,9 +180,9 @@ void Heap::FinalizeGarbageCollection(Config::StackState stack_state) {
   const size_t bytes_allocated_in_prefinalizers = ExecutePreFinalizers();
 #if CPPGC_VERIFY_HEAP
   MarkingVerifier verifier(*this, config_.collection_type);
-  verifier.Run(
-      config_.stack_state, stack_end_of_current_gc(),
-      stats_collector()->marked_bytes() + bytes_allocated_in_prefinalizers);
+  verifier.Run(config_.stack_state, stack_end_of_current_gc(),
+               stats_collector()->marked_bytes_on_current_cycle() +
+                   bytes_allocated_in_prefinalizers);
 #endif  // CPPGC_VERIFY_HEAP
 #ifndef CPPGC_ALLOW_ALLOCATIONS_IN_PREFINALIZERS
   DCHECK_EQ(0u, bytes_allocated_in_prefinalizers);

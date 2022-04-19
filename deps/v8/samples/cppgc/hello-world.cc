@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
 #endif  // !CPPGC_IS_STANDALONE
   // Initialize the process. This must happen before any cppgc::Heap::Create()
   // calls.
-  cppgc::DefaultPlatform::InitializeProcess(cppgc_platform.get());
+  cppgc::InitializeProcess(cppgc_platform->GetPageAllocator());
   {
     // Create a managed heap.
     std::unique_ptr<cppgc::Heap> heap = cppgc::Heap::Create(cppgc_platform);

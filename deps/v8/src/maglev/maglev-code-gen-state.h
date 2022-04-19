@@ -19,16 +19,18 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
+class InterpreterFrameState;
+
+class DeferredCodeInfo {
+ public:
+  virtual void Generate(MaglevCodeGenState* code_gen_state,
+                        Label* return_label) = 0;
+  Label deferred_code_label;
+  Label return_label;
+};
+
 class MaglevCodeGenState {
  public:
-  class DeferredCodeInfo {
-   public:
-    virtual void Generate(MaglevCodeGenState* code_gen_state,
-                          Label* return_label) = 0;
-    Label deferred_code_label;
-    Label return_label;
-  };
-
   MaglevCodeGenState(MaglevCompilationUnit* compilation_unit,
                      SafepointTableBuilder* safepoint_table_builder)
       : compilation_unit_(compilation_unit),
@@ -40,14 +42,19 @@ class MaglevCodeGenState {
   void PushDeferredCode(DeferredCodeInfo* deferred_code) {
     deferred_code_.push_back(deferred_code);
   }
-  void EmitDeferredCode() {
-    for (auto& deferred_code : deferred_code_) {
-      masm()->RecordComment("-- Deferred block");
-      masm()->bind(&deferred_code->deferred_code_label);
-      deferred_code->Generate(this, &deferred_code->return_label);
-      masm()->int3();
-    }
+  const std::vector<DeferredCodeInfo*>& deferred_code() const {
+    return deferred_code_;
   }
+  void PushEagerDeopt(EagerDeoptInfo* info) { eager_deopts_.push_back(info); }
+  void PushLazyDeopt(LazyDeoptInfo* info) { lazy_deopts_.push_back(info); }
+  const std::vector<EagerDeoptInfo*>& eager_deopts() const {
+    return eager_deopts_;
+  }
+  const std::vector<LazyDeoptInfo*>& lazy_deopts() const {
+    return lazy_deopts_;
+  }
+  inline void DefineSafepointStackSlots(
+      SafepointTableBuilder::Safepoint& safepoint) const;
 
   compiler::NativeContextRef native_context() const {
     return broker()->target_native_context();
@@ -86,6 +93,8 @@ class MaglevCodeGenState {
 
   MacroAssembler masm_;
   std::vector<DeferredCodeInfo*> deferred_code_;
+  std::vector<EagerDeoptInfo*> eager_deopts_;
+  std::vector<LazyDeoptInfo*> lazy_deopts_;
   int vreg_slots_ = 0;
 
   // Allow marking some codegen paths as unsupported, so that we can test maglev
@@ -97,9 +106,24 @@ class MaglevCodeGenState {
 // Some helpers for codegen.
 // TODO(leszeks): consider moving this to a separate header.
 
+inline constexpr int GetFramePointerOffsetForStackSlot(int index) {
+  return StandardFrameConstants::kExpressionsOffset -
+         index * kSystemPointerSize;
+}
+
+inline int GetFramePointerOffsetForStackSlot(
+    const compiler::AllocatedOperand& operand) {
+  return GetFramePointerOffsetForStackSlot(operand.index());
+}
+
+inline int GetSafepointIndexForStackSlot(int i) {
+  // Safepoint tables also contain slots for all fixed frame slots (both
+  // above and below the fp).
+  return StandardFrameConstants::kFixedSlotCount + i;
+}
+
 inline MemOperand GetStackSlot(int index) {
-  return MemOperand(rbp, StandardFrameConstants::kExpressionsOffset -
-                             index * kSystemPointerSize);
+  return MemOperand(rbp, GetFramePointerOffsetForStackSlot(index));
 }
 
 inline MemOperand GetStackSlot(const compiler::AllocatedOperand& operand) {
@@ -122,10 +146,17 @@ inline MemOperand ToMemOperand(const ValueLocation& location) {
   return ToMemOperand(location.operand());
 }
 
-inline int GetSafepointIndexForStackSlot(int i) {
-  // Safepoint tables also contain slots for all fixed frame slots (both
-  // above and below the fp).
-  return StandardFrameConstants::kFixedSlotCount + i;
+inline void MaglevCodeGenState::DefineSafepointStackSlots(
+    SafepointTableBuilder::Safepoint& safepoint) const {
+  DCHECK_EQ(compilation_unit()->stack_value_repr().size(), vreg_slots());
+  int stack_slot = 0;
+  for (ValueRepresentation repr : compilation_unit()->stack_value_repr()) {
+    if (repr == ValueRepresentation::kTagged) {
+      safepoint.DefineTaggedStackSlot(
+          GetSafepointIndexForStackSlot(stack_slot));
+    }
+    stack_slot++;
+  }
 }
 
 }  // namespace maglev

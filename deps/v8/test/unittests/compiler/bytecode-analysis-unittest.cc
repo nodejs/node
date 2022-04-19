@@ -28,17 +28,17 @@ class BytecodeAnalysisTest : public TestWithIsolateAndZone {
   BytecodeAnalysisTest(const BytecodeAnalysisTest&) = delete;
   BytecodeAnalysisTest& operator=(const BytecodeAnalysisTest&) = delete;
 
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
     i::FLAG_ignition_elide_noneffectful_bytecodes = false;
     i::FLAG_ignition_reo = false;
 
-    TestWithIsolateAndZone::SetUpTestCase();
+    TestWithIsolateAndZone::SetUpTestSuite();
   }
 
-  static void TearDownTestCase() {
-    TestWithIsolateAndZone::TearDownTestCase();
+  static void TearDownTestSuite() {
+    TestWithIsolateAndZone::TearDownTestSuite();
     delete save_flags_;
     save_flags_ = nullptr;
   }

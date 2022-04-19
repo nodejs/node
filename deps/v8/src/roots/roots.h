@@ -323,7 +323,8 @@ class Symbol;
   V(ArrayList, basic_block_profiling_data, BasicBlockProfilingData)         \
   V(WeakArrayList, shared_wasm_memories, SharedWasmMemories)                \
   IF_WASM(V, HeapObject, active_continuation, ActiveContinuation)           \
-  IF_WASM(V, HeapObject, active_suspender, ActiveSuspender)
+  IF_WASM(V, HeapObject, active_suspender, ActiveSuspender)                 \
+  IF_WASM(V, WeakArrayList, wasm_canonical_rtts, WasmCanonicalRtts)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                       \

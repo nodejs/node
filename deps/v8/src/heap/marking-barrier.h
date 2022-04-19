@@ -30,7 +30,7 @@ class MarkingBarrier {
 
   static void ActivateAll(Heap* heap, bool is_compacting);
   static void DeactivateAll(Heap* heap);
-  static void PublishAll(Heap* heap);
+  V8_EXPORT_PRIVATE static void PublishAll(Heap* heap);
 
   void Write(HeapObject host, HeapObjectSlot, HeapObject value);
   void Write(Code host, RelocInfo*, HeapObject value);

@@ -118,7 +118,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceElementAccessOnString(Node* node, Node* index, Node* value,
                                         KeyedAccessMode const& keyed_mode);
 
-  Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
+  Reduction ReduceEagerDeoptimize(Node* node, DeoptimizeReason reason);
   Reduction ReduceJSToString(Node* node);
 
   Reduction ReduceJSLoadPropertyWithEnumeratedKey(Node* node);
@@ -170,8 +170,9 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   // Helpers for accessor inlining.
   Node* InlinePropertyGetterCall(Node* receiver,
                                  ConvertReceiverMode receiver_mode,
-                                 Node* context, Node* frame_state,
-                                 Node** effect, Node** control,
+                                 Node* lookup_start_object, Node* context,
+                                 Node* frame_state, Node** effect,
+                                 Node** control,
                                  ZoneVector<Node*>* if_exceptions,
                                  PropertyAccessInfo const& access_info);
   void InlinePropertySetterCall(Node* receiver, Node* value, Node* context,

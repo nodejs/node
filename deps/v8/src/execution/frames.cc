@@ -23,7 +23,7 @@
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/visitors.h"
-#include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/strings/string-stream.h"
 #include "src/zone/zone-containers.h"
 
@@ -1608,7 +1608,7 @@ Handle<Object> FrameSummary::JavaScriptFrameSummary::script() const {
 }
 
 Handle<Context> FrameSummary::JavaScriptFrameSummary::native_context() const {
-  return handle(function_->context().native_context(), isolate());
+  return handle(function_->native_context(), isolate());
 }
 
 Handle<StackFrameInfo>

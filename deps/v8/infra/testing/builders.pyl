@@ -280,11 +280,11 @@
       'os': 'Ubuntu-18.04',
     },
     'tests': [
-      {'name': 'mjsunit_sp_frame_access'},
-      {'name': 'mozilla'},
+      {'name': 'mjsunit_sp_frame_access', 'shards': 3},
+      {'name': 'mozilla', 'shards': 3},
       {'name': 'test262', 'variant': 'default', 'shards': 2},
-      {'name': 'v8testing', 'shards': 7},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 7},
+      {'name': 'v8testing', 'shards': 10},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 10},
     ],
   },
   'v8_linux_arm_lite_rel_ng_triggered': {
@@ -347,15 +347,15 @@
       'os': 'Ubuntu-18.04',
     },
     'tests': [
-      {'name': 'benchmarks'},
+      {'name': 'benchmarks', 'shards': 2},
       {'name': 'benchmarks', 'variant': 'extra'},
-      {'name': 'mjsunit_sp_frame_access'},
+      {'name': 'mjsunit_sp_frame_access', 'shards': 2},
       {'name': 'mozilla'},
       {'name': 'mozilla', 'variant': 'extra'},
-      {'name': 'test262', 'variant': 'default'},
-      {'name': 'test262', 'variant': 'extra', 'shards': 5},
-      {'name': 'v8testing', 'shards': 3},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
+      {'name': 'test262', 'variant': 'default', 'shards': 2},
+      {'name': 'test262', 'variant': 'extra', 'shards': 9},
+      {'name': 'v8testing', 'shards': 5},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 5},
       {'name': 'v8testing', 'variant': 'minor_mc'},
       {'name': 'v8testing', 'variant': 'no_lfa'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
@@ -491,15 +491,6 @@
       {'name': 'v8testing', 'shards': 3},
     ],
   },
-  'v8_linux64_python3_rel_ng_triggered': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 2},
-      {'name': 'gcmole'},
-    ],
-  },
   'v8_linux64_single_generation_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-18.04',
@@ -592,7 +583,7 @@
       'os': 'Ubuntu-18.04',
     },
     'tests': [
-      {'name': 'mjsunit_sp_frame_access'},
+      {'name': 'mjsunit_sp_frame_access', 'shards': 2},
       {'name': 'mozilla', 'shards': 4},
       {'name': 'test262', 'variant': 'default', 'shards': 4},
       {'name': 'v8testing', 'shards': 14},
@@ -1369,15 +1360,6 @@
       {'name': 'v8testing', 'shards': 2},
     ],
   },
-  'V8 Linux64 - python3': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 2},
-      {'name': 'gcmole'},
-    ],
-  },
   'V8 Linux64 - shared': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-18.04',
@@ -1813,8 +1795,8 @@
       'os': 'Ubuntu-18.04',
     },
     'tests': [
-      {'name': 'mjsunit_sp_frame_access', 'shards': 6},
-      {'name': 'mozilla', 'shards': 6},
+      {'name': 'mjsunit_sp_frame_access', 'shards': 3},
+      {'name': 'mozilla', 'shards': 3},
       {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 10},

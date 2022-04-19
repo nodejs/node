@@ -178,6 +178,15 @@ selects.config_setting_group(
 )
 
 selects.config_setting_group(
+    name = "is_not_android",
+    match_any = [
+        ":is_windows",
+        ":is_linux",
+        ":is_macos",
+    ]
+)
+
+selects.config_setting_group(
     name = "is_non_android_posix",
     match_any = [
         ":is_linux",

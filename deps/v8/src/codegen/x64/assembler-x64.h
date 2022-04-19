@@ -1288,6 +1288,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void haddps(XMMRegister dst, XMMRegister src);
   void haddps(XMMRegister dst, Operand src);
 
+  void cmpeqsd(XMMRegister dst, XMMRegister src);
+  void cmpeqss(XMMRegister dst, XMMRegister src);
   void cmpltsd(XMMRegister dst, XMMRegister src);
 
   void movmskpd(Register dst, XMMRegister src);
@@ -1309,7 +1311,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void pinsrq(XMMRegister dst, Operand src, uint8_t imm8);
 
   void roundss(XMMRegister dst, XMMRegister src, RoundingMode mode);
+  void roundss(XMMRegister dst, Operand src, RoundingMode mode);
   void roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
+  void roundsd(XMMRegister dst, Operand src, RoundingMode mode);
   void roundps(XMMRegister dst, XMMRegister src, RoundingMode mode);
   void roundpd(XMMRegister dst, XMMRegister src, RoundingMode mode);
 
@@ -1556,7 +1560,17 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x0a, dst, src1, src2, k66, k0F3A, kWIG);
     emit(static_cast<byte>(mode) | 0x8);  // Mask precision exception.
   }
+  void vroundss(XMMRegister dst, XMMRegister src1, Operand src2,
+                RoundingMode mode) {
+    vinstr(0x0a, dst, src1, src2, k66, k0F3A, kWIG);
+    emit(static_cast<byte>(mode) | 0x8);  // Mask precision exception.
+  }
   void vroundsd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                RoundingMode mode) {
+    vinstr(0x0b, dst, src1, src2, k66, k0F3A, kWIG);
+    emit(static_cast<byte>(mode) | 0x8);  // Mask precision exception.
+  }
+  void vroundsd(XMMRegister dst, XMMRegister src1, Operand src2,
                 RoundingMode mode) {
     vinstr(0x0b, dst, src1, src2, k66, k0F3A, kWIG);
     emit(static_cast<byte>(mode) | 0x8);  // Mask precision exception.
@@ -1625,7 +1639,19 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vpd(0x50, idst, xmm0, src);
   }
   void vpmovmskb(Register dst, XMMRegister src);
+  void vcmpeqss(XMMRegister dst, XMMRegister src) {
+    vss(0xC2, dst, dst, src);
+    emit(0x00);  // EQ == 0
+  }
+  void vcmpeqsd(XMMRegister dst, XMMRegister src) {
+    vsd(0xC2, dst, dst, src);
+    emit(0x00);  // EQ == 0
+  }
   void vcmpps(XMMRegister dst, XMMRegister src1, XMMRegister src2, int8_t cmp) {
+    vps(0xC2, dst, src1, src2);
+    emit(cmp);
+  }
+  void vcmpps(YMMRegister dst, YMMRegister src1, YMMRegister src2, int8_t cmp) {
     vps(0xC2, dst, src1, src2);
     emit(cmp);
   }
@@ -1633,7 +1659,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vps(0xC2, dst, src1, src2);
     emit(cmp);
   }
+  void vcmpps(YMMRegister dst, YMMRegister src1, Operand src2, int8_t cmp) {
+    vps(0xC2, dst, src1, src2);
+    emit(cmp);
+  }
   void vcmppd(XMMRegister dst, XMMRegister src1, XMMRegister src2, int8_t cmp) {
+    vpd(0xC2, dst, src1, src2);
+    emit(cmp);
+  }
+  void vcmppd(YMMRegister dst, YMMRegister src1, YMMRegister src2, int8_t cmp) {
     vpd(0xC2, dst, src1, src2);
     emit(cmp);
   }
@@ -1641,29 +1675,40 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vpd(0xC2, dst, src1, src2);
     emit(cmp);
   }
-
-#define AVX_CMP_P(instr, imm8)                                          \
-  void instr##ps(XMMRegister dst, XMMRegister src1, XMMRegister src2) { \
-    vcmpps(dst, src1, src2, imm8);                                      \
-  }                                                                     \
-  void instr##ps(XMMRegister dst, XMMRegister src1, Operand src2) {     \
-    vcmpps(dst, src1, src2, imm8);                                      \
-  }                                                                     \
-  void instr##pd(XMMRegister dst, XMMRegister src1, XMMRegister src2) { \
-    vcmppd(dst, src1, src2, imm8);                                      \
-  }                                                                     \
-  void instr##pd(XMMRegister dst, XMMRegister src1, Operand src2) {     \
-    vcmppd(dst, src1, src2, imm8);                                      \
+  void vcmppd(YMMRegister dst, YMMRegister src1, Operand src2, int8_t cmp) {
+    vpd(0xC2, dst, src1, src2);
+    emit(cmp);
+  }
+#define AVX_CMP_P(instr, imm8, SIMDRegister)                               \
+  void instr##ps(SIMDRegister dst, SIMDRegister src1, SIMDRegister src2) { \
+    vcmpps(dst, src1, src2, imm8);                                         \
+  }                                                                        \
+  void instr##ps(SIMDRegister dst, SIMDRegister src1, Operand src2) {      \
+    vcmpps(dst, src1, src2, imm8);                                         \
+  }                                                                        \
+  void instr##pd(SIMDRegister dst, SIMDRegister src1, SIMDRegister src2) { \
+    vcmppd(dst, src1, src2, imm8);                                         \
+  }                                                                        \
+  void instr##pd(SIMDRegister dst, SIMDRegister src1, Operand src2) {      \
+    vcmppd(dst, src1, src2, imm8);                                         \
   }
 
-  AVX_CMP_P(vcmpeq, 0x0)
-  AVX_CMP_P(vcmplt, 0x1)
-  AVX_CMP_P(vcmple, 0x2)
-  AVX_CMP_P(vcmpunord, 0x3)
-  AVX_CMP_P(vcmpneq, 0x4)
-  AVX_CMP_P(vcmpnlt, 0x5)
-  AVX_CMP_P(vcmpnle, 0x6)
-  AVX_CMP_P(vcmpge, 0xd)
+  AVX_CMP_P(vcmpeq, 0x0, XMMRegister)
+  AVX_CMP_P(vcmpeq, 0x0, YMMRegister)
+  AVX_CMP_P(vcmplt, 0x1, XMMRegister)
+  AVX_CMP_P(vcmplt, 0x1, YMMRegister)
+  AVX_CMP_P(vcmple, 0x2, XMMRegister)
+  AVX_CMP_P(vcmple, 0x2, YMMRegister)
+  AVX_CMP_P(vcmpunord, 0x3, XMMRegister)
+  AVX_CMP_P(vcmpunord, 0x3, YMMRegister)
+  AVX_CMP_P(vcmpneq, 0x4, XMMRegister)
+  AVX_CMP_P(vcmpneq, 0x4, YMMRegister)
+  AVX_CMP_P(vcmpnlt, 0x5, XMMRegister)
+  AVX_CMP_P(vcmpnlt, 0x5, YMMRegister)
+  AVX_CMP_P(vcmpnle, 0x6, XMMRegister)
+  AVX_CMP_P(vcmpnle, 0x6, YMMRegister)
+  AVX_CMP_P(vcmpge, 0xd, XMMRegister)
+  AVX_CMP_P(vcmpge, 0xd, YMMRegister)
 
 #undef AVX_CMP_P
 

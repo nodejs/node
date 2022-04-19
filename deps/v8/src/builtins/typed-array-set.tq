@@ -114,18 +114,16 @@ TypedArrayPrototypeSetArray(implicit context: Context, receiver: JSAny)(
     target: JSTypedArray, targetLength: uintptr, arrayArg: JSAny,
     targetOffset: uintptr,
     targetOffsetOverflowed: bool): void labels IfOffsetOutOfBounds {
-  // Steps 3-7 are not observable, do them later.
-
-  // 8. Let src be ? ToObject(source).
+  // 4. Let src be ? ToObject(source).
   const src: JSReceiver = ToObject_Inline(context, arrayArg);
 
-  // 9. Let srcLength be ? LengthOfArrayLike(src).
+  // 5. Let srcLength be ? LengthOfArrayLike(src).
   const srcLengthNum: Number = GetLengthProperty(src);
 
-  // 10. If targetOffset is +∞, throw a RangeError exception.
+  // 6. If targetOffset is +∞, throw a RangeError exception.
   if (targetOffsetOverflowed) goto IfOffsetOutOfBounds;
 
-  // 11. If srcLength + targetOffset > targetLength, throw a RangeError
+  // 7. If srcLength + targetOffset > targetLength, throw a RangeError
   //   exception.
   const srcLength = ChangeSafeIntegerNumberToUintPtr(srcLengthNum)
       otherwise IfOffsetOutOfBounds;
@@ -135,12 +133,6 @@ TypedArrayPrototypeSetArray(implicit context: Context, receiver: JSAny)(
   // All the obvervable side effects are executed, so there's nothing else
   // to do with the empty source array.
   if (srcLength == 0) return;
-
-  // 4. Let targetName be the String value of target.[[TypedArrayName]].
-  // 5. Let targetElementSize be the Element Size value specified in
-  //   Table 69 for targetName.
-  // 6. Let targetType be the Element Type value in Table 69 for
-  //   targetName.
 
   try {
     // BigInt typed arrays are not handled by

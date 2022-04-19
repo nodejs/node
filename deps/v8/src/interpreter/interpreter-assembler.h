@@ -234,8 +234,8 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Updates the profiler interrupt budget for a return.
   void UpdateInterruptBudgetOnReturn();
 
-  // Returns the OSR nesting level from the bytecode header.
-  TNode<Int8T> LoadOsrNestingLevel();
+  // Returns the OSR urgency and install target from the bytecode header.
+  TNode<Int16T> LoadOsrUrgencyAndInstallTarget();
 
   // Dispatch to the bytecode.
   void Dispatch();
@@ -265,6 +265,12 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   // Perform OnStackReplacement.
   void OnStackReplacement(TNode<Context> context, TNode<IntPtrT> relative_jump);
+
+  // The BytecodeOffset() is the offset from the ByteCodeArray pointer; to
+  // translate into runtime `BytecodeOffset` (defined in utils.h as the offset
+  // from the start of the bytecode section), this constant has to be applied.
+  static constexpr int kFirstBytecodeOffset =
+      BytecodeArray::kHeaderSize - kHeapObjectTag;
 
   // Returns the offset from the BytecodeArrayPointer of the current bytecode.
   TNode<IntPtrT> BytecodeOffset();

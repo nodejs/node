@@ -31,7 +31,12 @@ class V8RuntimeAgentImpl;
 class V8StackTraceImpl;
 struct V8StackTraceId;
 
-enum class WrapMode { kForceValue, kNoPreview, kWithPreview };
+enum class WrapMode {
+  kForceValue,
+  kNoPreview,
+  kWithPreview,
+  kGenerateWebDriverValue
+};
 
 using protocol::Response;
 using TerminateExecutionCallback =

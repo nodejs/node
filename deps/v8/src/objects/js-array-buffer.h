@@ -114,6 +114,11 @@ class JSArrayBuffer
 
   static size_t GsabByteLength(Isolate* isolate, Address raw_array_buffer);
 
+  static Maybe<bool> GetResizableBackingStorePageConfiguration(
+      Isolate* isolate, size_t byte_length, size_t max_byte_length,
+      ShouldThrow should_throw, size_t* page_size, size_t* initial_pages,
+      size_t* max_pages);
+
   // Allocates an ArrayBufferExtension for this array buffer, unless it is
   // already associated with an extension.
   ArrayBufferExtension* EnsureExtension();
@@ -296,10 +301,14 @@ class JSTypedArray
   inline bool is_on_heap() const;
   inline bool is_on_heap(AcquireLoadTag tag) const;
 
+  // Only valid to call when IsVariableLength() is true.
+  size_t GetVariableLengthOrOutOfBounds(bool& out_of_bounds) const;
+
   inline size_t GetLengthOrOutOfBounds(bool& out_of_bounds) const;
   inline size_t GetLength() const;
   inline size_t GetByteLength() const;
   inline bool IsOutOfBounds() const;
+  inline bool IsDetachedOrOutOfBounds() const;
 
   static size_t LengthTrackingGsabBackedTypedArrayLength(Isolate* isolate,
                                                          Address raw_array);

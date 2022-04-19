@@ -557,6 +557,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void SmiUntag(Register dst, const MemOperand& src);
   inline void SmiUntag(Register smi);
 
+  inline void SmiTag(Register dst, Register src);
+  inline void SmiTag(Register smi);
+
   inline void SmiToInt32(Register smi);
 
   // Calls Abort(msg) if the condition cond is not satisfied.
@@ -862,15 +865,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // kSRegSizeInBits are supported.
   //
   // Otherwise, (Push|Pop)(CPU|X|W|D|S)RegList is preferred.
-  //
-  // The methods take an optional LoadLRMode or StoreLRMode template argument.
-  // When control flow integrity measures are enabled and the link register is
-  // included in 'registers', passing kSignLR to PushCPURegList will sign the
-  // link register before pushing the list, and passing kAuthLR to
-  // PopCPURegList will authenticate it after popping the list.
-  template <StoreLRMode lr_mode = kDontStoreLR>
   void PushCPURegList(CPURegList registers);
-  template <LoadLRMode lr_mode = kDontLoadLR>
   void PopCPURegList(CPURegList registers);
 
   // Calculate how much stack space (in bytes) are required to store caller
@@ -1752,31 +1747,23 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     tbx(vd, vn, vn2, vn3, vn4, vm);
   }
 
-  // For the 'lr_mode' template argument of the following methods, see
-  // PushCPURegList/PopCPURegList.
-  template <StoreLRMode lr_mode = kDontStoreLR>
   inline void PushSizeRegList(RegList registers, unsigned reg_size) {
-    PushCPURegList<lr_mode>(CPURegList(reg_size, registers));
+    PushCPURegList(CPURegList(reg_size, registers));
   }
-  template <StoreLRMode lr_mode = kDontStoreLR>
   inline void PushSizeRegList(DoubleRegList registers, unsigned reg_size) {
-    PushCPURegList<lr_mode>(CPURegList(reg_size, registers));
+    PushCPURegList(CPURegList(reg_size, registers));
   }
-  template <LoadLRMode lr_mode = kDontLoadLR>
   inline void PopSizeRegList(RegList registers, unsigned reg_size) {
-    PopCPURegList<lr_mode>(CPURegList(reg_size, registers));
+    PopCPURegList(CPURegList(reg_size, registers));
   }
-  template <LoadLRMode lr_mode = kDontLoadLR>
   inline void PopSizeRegList(DoubleRegList registers, unsigned reg_size) {
-    PopCPURegList<lr_mode>(CPURegList(reg_size, registers));
+    PopCPURegList(CPURegList(reg_size, registers));
   }
-  template <StoreLRMode lr_mode = kDontStoreLR>
   inline void PushXRegList(RegList regs) {
-    PushSizeRegList<lr_mode>(regs, kXRegSizeInBits);
+    PushSizeRegList(regs, kXRegSizeInBits);
   }
-  template <LoadLRMode lr_mode = kDontLoadLR>
   inline void PopXRegList(RegList regs) {
-    PopSizeRegList<lr_mode>(regs, kXRegSizeInBits);
+    PopSizeRegList(regs, kXRegSizeInBits);
   }
   inline void PushWRegList(RegList regs) {
     PushSizeRegList(regs, kWRegSizeInBits);
@@ -1854,9 +1841,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   Operand ReceiverOperand(const Register arg_count);
 
   // ---- SMI and Number Utilities ----
-
-  inline void SmiTag(Register dst, Register src);
-  inline void SmiTag(Register smi);
 
   inline void JumpIfNotSmi(Register value, Label* not_smi_label);
 

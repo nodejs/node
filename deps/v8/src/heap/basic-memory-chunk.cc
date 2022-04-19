@@ -9,6 +9,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/objects/heap-object.h"
+#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {
@@ -49,32 +50,19 @@ constexpr BasicMemoryChunk::MainThreadFlags BasicMemoryChunk::kIsLargePageMask;
 constexpr BasicMemoryChunk::MainThreadFlags
     BasicMemoryChunk::kSkipEvacuationSlotsRecordingMask;
 
-BasicMemoryChunk::BasicMemoryChunk(size_t size, Address area_start,
-                                   Address area_end) {
-  size_ = size;
-  area_start_ = area_start;
-  area_end_ = area_end;
-}
-
-// static
-BasicMemoryChunk* BasicMemoryChunk::Initialize(Heap* heap, Address base,
-                                               size_t size, Address area_start,
-                                               Address area_end,
-                                               BaseSpace* owner,
-                                               VirtualMemory reservation) {
-  BasicMemoryChunk* chunk = FromAddress(base);
-  DCHECK_EQ(base, chunk->address());
-  new (chunk) BasicMemoryChunk(size, area_start, area_end);
-
-  chunk->heap_ = heap;
-  chunk->set_owner(owner);
-  chunk->reservation_ = std::move(reservation);
-  chunk->high_water_mark_ = static_cast<intptr_t>(area_start - base);
-  chunk->allocated_bytes_ = chunk->area_size();
-  chunk->wasted_memory_ = 0;
-  chunk->marking_bitmap<AccessMode::NON_ATOMIC>()->Clear();
-
-  return chunk;
+BasicMemoryChunk::BasicMemoryChunk(Heap* heap, BaseSpace* space,
+                                   size_t chunk_size, Address area_start,
+                                   Address area_end, VirtualMemory reservation)
+    : size_(chunk_size),
+      heap_(heap),
+      area_start_(area_start),
+      area_end_(area_end),
+      allocated_bytes_(area_end - area_start),
+      wasted_memory_(0),
+      high_water_mark_(area_start - reinterpret_cast<Address>(this)),
+      owner_(space),
+      reservation_(std::move(reservation)) {
+  marking_bitmap<AccessMode::NON_ATOMIC>()->Clear();
 }
 
 bool BasicMemoryChunk::InOldSpace() const {

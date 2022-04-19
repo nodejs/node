@@ -15,8 +15,10 @@ ALL_VARIANT_FLAGS = {
   "experimental_regexp":  [["--default-to-experimental-regexp-engine"]],
   "jitless": [["--jitless"]],
   "sparkplug": [["--sparkplug"]],
+  # TODO(v8:v8:7700): Support concurrent compilation and remove flag.
+  "maglev": [["--maglev", "--no-concurrent-recompilation"]],
   "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
-  "always_sparkplug": [[ "--always-sparkplug", "--sparkplug"]],
+  "always_sparkplug": [["--always-sparkplug", "--sparkplug"]],
   "minor_mc": [["--minor-mc"]],
   "no_lfa": [["--no-lazy-feedback-allocation"]],
   # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
@@ -52,7 +54,7 @@ ALL_VARIANT_FLAGS = {
 INCOMPATIBLE_FLAGS_PER_VARIANT = {
     "jitless": [
         "--opt", "--always-opt", "--liftoff", "--track-field-types",
-        "--validate-asm", "--sparkplug", "--concurrent-sparkplug",
+        "--validate-asm", "--sparkplug", "--concurrent-sparkplug", "--maglev",
         "--always-sparkplug", "--regexp-tier-up", "--no-regexp-interpret-all",
         "--maglev"
     ],
@@ -76,6 +78,11 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     ],
     "sparkplug": ["--jitless"],
     "concurrent_sparkplug": ["--jitless"],
+    # TODO(v8:v8:7700): Support concurrent compilation and remove incompatible flags.
+    "maglev": [
+        "--jitless", "--concurrent-recompilation",
+        "--stress-concurrent-inlining"
+    ],
     "always_sparkplug": ["--jitless"],
     "code_serializer": [
         "--cache=after-execute", "--cache=full-code-cache", "--cache=none"

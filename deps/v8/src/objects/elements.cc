@@ -3144,7 +3144,7 @@ class TypedElementsAccessor
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(holder);
     Isolate* isolate = typed_array->GetIsolate();
     DCHECK_LT(entry.raw_value(), typed_array->GetLength());
-    DCHECK(!typed_array->WasDetached());
+    DCHECK(!typed_array->IsDetachedOrOutOfBounds());
     auto* element_ptr =
         static_cast<ElementType*>(typed_array->DataPtr()) + entry.raw_value();
     auto is_shared = typed_array->buffer().is_shared() ? kShared : kUnshared;
@@ -3300,7 +3300,7 @@ class TypedElementsAccessor
                                       Handle<Object> value, size_t start,
                                       size_t end) {
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(receiver);
-    DCHECK(!typed_array->WasDetached());
+    DCHECK(!typed_array->IsDetachedOrOutOfBounds());
     DCHECK_LE(start, end);
     DCHECK_LE(end, typed_array->GetLength());
     DisallowGarbageCollection no_gc;
@@ -3470,8 +3470,7 @@ class TypedElementsAccessor
     DisallowGarbageCollection no_gc;
     JSTypedArray typed_array = JSTypedArray::cast(*receiver);
 
-    DCHECK(!typed_array.WasDetached());
-    DCHECK(!typed_array.IsOutOfBounds());
+    DCHECK(!typed_array.IsDetachedOrOutOfBounds());
 
     ElementType typed_search_value;
 
@@ -3525,7 +3524,7 @@ class TypedElementsAccessor
     DisallowGarbageCollection no_gc;
     JSTypedArray typed_array = JSTypedArray::cast(receiver);
 
-    DCHECK(!typed_array.WasDetached());
+    DCHECK(!typed_array.IsDetachedOrOutOfBounds());
 
     size_t len = typed_array.GetLength();
     if (len == 0) return;
@@ -3570,8 +3569,8 @@ class TypedElementsAccessor
                                               size_t start, size_t end) {
     DisallowGarbageCollection no_gc;
     DCHECK_EQ(destination.GetElementsKind(), AccessorClass::kind());
-    CHECK(!source.WasDetached());
-    CHECK(!destination.WasDetached());
+    CHECK(!source.IsDetachedOrOutOfBounds());
+    CHECK(!destination.IsDetachedOrOutOfBounds());
     DCHECK_LE(start, end);
     DCHECK_LE(end, source.GetLength());
     size_t count = end - start;
@@ -3636,8 +3635,8 @@ class TypedElementsAccessor
     // side-effects, as the source elements will always be a number.
     DisallowGarbageCollection no_gc;
 
-    CHECK(!source.WasDetached());
-    CHECK(!destination.WasDetached());
+    CHECK(!source.IsDetachedOrOutOfBounds());
+    CHECK(!destination.IsDetachedOrOutOfBounds());
 
     DCHECK_LE(offset, destination.GetLength());
     DCHECK_LE(length, destination.GetLength() - offset);
@@ -3744,7 +3743,7 @@ class TypedElementsAccessor
 
     CHECK(!destination.WasDetached());
     bool out_of_bounds = false;
-    CHECK(destination.GetLengthOrOutOfBounds(out_of_bounds) >= length);
+    CHECK_GE(destination.GetLengthOrOutOfBounds(out_of_bounds), length);
     CHECK(!out_of_bounds);
 
     size_t current_length;
@@ -3822,42 +3821,52 @@ class TypedElementsAccessor
     return false;
   }
 
+  // ES#sec-settypedarrayfromarraylike
   static Object CopyElementsHandleSlow(Handle<Object> source,
                                        Handle<JSTypedArray> destination,
                                        size_t length, size_t offset) {
     Isolate* isolate = destination->GetIsolate();
+    // 8. Let k be 0.
+    // 9. Repeat, while k < srcLength,
     for (size_t i = 0; i < length; i++) {
       Handle<Object> elem;
+      // a. Let Pk be ! ToString(𝔽(k)).
+      // b. Let value be ? Get(src, Pk).
       LookupIterator it(isolate, source, i);
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, elem,
                                          Object::GetProperty(&it));
+      // c. Let targetIndex be 𝔽(targetOffset + k).
+      // d. Perform ? IntegerIndexedElementSet(target, targetIndex, value).
+      //
+      // Rest of loop body inlines ES#IntegerIndexedElementSet
       if (IsBigIntTypedArrayElementsKind(Kind)) {
+        // 1. If O.[[ContentType]] is BigInt, let numValue be ? ToBigInt(value).
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, elem,
                                            BigInt::FromObject(isolate, elem));
       } else {
+        // 2. Otherwise, let numValue be ? ToNumber(value).
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, elem,
                                            Object::ToNumber(isolate, elem));
       }
+      // 3. If IsValidIntegerIndex(O, index) is true, then
+      //   a. Let offset be O.[[ByteOffset]].
+      //   b. Let elementSize be TypedArrayElementSize(O).
+      //   c. Let indexedPosition be (ℝ(index) × elementSize) + offset.
+      //   d. Let elementType be TypedArrayElementType(O).
+      //   e. Perform SetValueInBuffer(O.[[ViewedArrayBuffer]],
+      //      indexedPosition, elementType, numValue, true, Unordered).
       bool out_of_bounds = false;
       size_t new_length = destination->GetLengthOrOutOfBounds(out_of_bounds);
-      if (V8_UNLIKELY(out_of_bounds || destination->WasDetached())) {
-        const char* op = "set";
-        const MessageTemplate message = MessageTemplate::kDetachedOperation;
-        Handle<String> operation =
-            isolate->factory()->NewStringFromAsciiChecked(op);
-        THROW_NEW_ERROR_RETURN_FAILURE(isolate,
-                                       NewTypeError(message, operation));
-      }
-      if (V8_UNLIKELY(new_length <= offset + i)) {
+      if (V8_UNLIKELY(out_of_bounds || destination->WasDetached() ||
+                      new_length <= offset + i)) {
         // Proceed with the loop so that we call get getters for the source even
         // though we don't set the values in the target.
-        // TODO(v8:11111): Maybe change this, depending on how
-        // https://github.com/tc39/proposal-resizablearraybuffer/issues/86 is
-        // resolved.
         continue;
       }
       SetImpl(destination, InternalIndex(offset + i), *elem);
+      // e. Set k to k + 1.
     }
+    // 10. Return unused.
     return *isolate->factory()->undefined_value();
   }
 

@@ -126,7 +126,7 @@ void CheckCalleeSavedRegisters(const RegisterState& register_state) {
 static const void* fake_stack_base = nullptr;
 
 TEST(Unwind_BadState_Fail_CodePagesAPI) {
-  JSEntryStubs entry_stubs;  // Fields are intialized to nullptr.
+  JSEntryStubs entry_stubs;  // Fields are initialized to nullptr.
   RegisterState register_state;
   size_t pages_length = 0;
   MemoryRange* code_pages = nullptr;

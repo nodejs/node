@@ -434,6 +434,13 @@ F FUNCTION_CAST(Address addr) {
 #define USES_FUNCTION_DESCRIPTORS 0
 #endif
 
+constexpr bool StaticStringsEqual(const char* s1, const char* s2) {
+  for (;; ++s1, ++s2) {
+    if (*s1 != *s2) return false;
+    if (*s1 == '\0') return true;
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Declarations for use in both the preparser and the rest of V8.
 
@@ -518,11 +525,8 @@ constexpr int kNoDeoptimizationId = -1;
 // - Lazy: the code has been marked as dependent on some assumption which
 //   is checked elsewhere and can trigger deoptimization the next time the
 //   code is executed.
-// - Soft: similar to lazy deoptimization, but does not contribute to the
-//   total deopt count which can lead to disabling optimization for a function.
 enum class DeoptimizeKind : uint8_t {
   kEager,
-  kSoft,
   kLazy,
 };
 constexpr DeoptimizeKind kFirstDeoptimizeKind = DeoptimizeKind::kEager;
@@ -532,15 +536,16 @@ constexpr int kDeoptimizeKindCount = static_cast<int>(kLastDeoptimizeKind) + 1;
 inline size_t hash_value(DeoptimizeKind kind) {
   return static_cast<size_t>(kind);
 }
-inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
+constexpr const char* ToString(DeoptimizeKind kind) {
   switch (kind) {
     case DeoptimizeKind::kEager:
-      return os << "Eager";
-    case DeoptimizeKind::kSoft:
-      return os << "Soft";
+      return "Eager";
     case DeoptimizeKind::kLazy:
-      return os << "Lazy";
+      return "Lazy";
   }
+}
+inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
+  return os << ToString(kind);
 }
 
 // Indicates whether the lookup is related to sloppy-mode block-scoped
@@ -596,6 +601,10 @@ constexpr intptr_t kDoubleAlignmentMask = kDoubleAlignment - 1;
 // loop header alignment) and 32 bytes (to improve cache line utilization) on
 // other architectures.
 #if V8_TARGET_ARCH_X64
+constexpr int kCodeAlignmentBits = 6;
+#elif V8_TARGET_ARCH_PPC64
+// 64 byte alignment is needed on ppc64 to make sure p10 prefixed instructions
+// don't cross 64-byte boundaries.
 constexpr int kCodeAlignmentBits = 6;
 #else
 constexpr int kCodeAlignmentBits = 5;
@@ -906,7 +915,7 @@ enum class CompactionSpaceKind {
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
-enum PageSize { kRegular, kLarge };
+enum class PageSize { kRegular, kLarge };
 
 enum class CodeFlushMode {
   kFlushBytecode,
@@ -1611,44 +1620,51 @@ inline std::ostream& operator<<(std::ostream& os,
 
 using FileAndLine = std::pair<const char*, int>;
 
-enum class OptimizationMarker : int32_t {
-  // These values are set so that it is easy to check if there is a marker where
-  // some processing needs to be done.
-  kNone = 0b000,
-  kInOptimizationQueue = 0b001,
-  kCompileMaglev_NotConcurrent = 0b010,
-  kCompileMaglev_Concurrent = 0b011,
-  kCompileTurbofan_NotConcurrent = 0b100,
-  kCompileTurbofan_Concurrent = 0b101,
-  kLastOptimizationMarker = kCompileTurbofan_Concurrent,
-};
-// For kNone or kInOptimizationQueue we don't need any special processing.
-// To check both cases using a single mask, we expect the kNone to be 0 and
-// kInOptimizationQueue to be 1 so that we can mask off the lsb for checking.
-STATIC_ASSERT(static_cast<int>(OptimizationMarker::kNone) == 0b00 &&
-              static_cast<int>(OptimizationMarker::kInOptimizationQueue) ==
-                  0b01);
-STATIC_ASSERT(static_cast<int>(OptimizationMarker::kLastOptimizationMarker) <=
-              0b111);
-static constexpr uint32_t kNoneOrInOptimizationQueueMask = 0b110;
+#define TIERING_STATE_LIST(V)           \
+  V(None, 0b000)                        \
+  V(InProgress, 0b001)                  \
+  V(RequestMaglev_Synchronous, 0b010)   \
+  V(RequestMaglev_Concurrent, 0b011)    \
+  V(RequestTurbofan_Synchronous, 0b100) \
+  V(RequestTurbofan_Concurrent, 0b101)
 
-inline std::ostream& operator<<(std::ostream& os,
-                                const OptimizationMarker& marker) {
+enum class TieringState : int32_t {
+#define V(Name, Value) k##Name = Value,
+  TIERING_STATE_LIST(V)
+#undef V
+      kLastTieringState = kRequestTurbofan_Concurrent,
+};
+
+// To efficiently check whether a marker is kNone or kInProgress using a single
+// mask, we expect the kNone to be 0 and kInProgress to be 1 so that we can
+// mask off the lsb for checking.
+STATIC_ASSERT(static_cast<int>(TieringState::kNone) == 0b00 &&
+              static_cast<int>(TieringState::kInProgress) == 0b01);
+STATIC_ASSERT(static_cast<int>(TieringState::kLastTieringState) <= 0b111);
+static constexpr uint32_t kNoneOrInProgressMask = 0b110;
+
+#define V(Name, Value)                          \
+  constexpr bool Is##Name(TieringState state) { \
+    return state == TieringState::k##Name;      \
+  }
+TIERING_STATE_LIST(V)
+#undef V
+
+constexpr const char* ToString(TieringState marker) {
   switch (marker) {
-    case OptimizationMarker::kNone:
-      return os << "OptimizationMarker::kNone";
-    case OptimizationMarker::kCompileMaglev_NotConcurrent:
-      return os << "OptimizationMarker::kCompileMaglev_NotConcurrent";
-    case OptimizationMarker::kCompileMaglev_Concurrent:
-      return os << "OptimizationMarker::kCompileMaglev_Concurrent";
-    case OptimizationMarker::kCompileTurbofan_NotConcurrent:
-      return os << "OptimizationMarker::kCompileTurbofan_NotConcurrent";
-    case OptimizationMarker::kCompileTurbofan_Concurrent:
-      return os << "OptimizationMarker::kCompileTurbofan_Concurrent";
-    case OptimizationMarker::kInOptimizationQueue:
-      return os << "OptimizationMarker::kInOptimizationQueue";
+#define V(Name, Value)        \
+  case TieringState::k##Name: \
+    return "TieringState::k" #Name;
+    TIERING_STATE_LIST(V)
+#undef V
   }
 }
+
+inline std::ostream& operator<<(std::ostream& os, TieringState marker) {
+  return os << ToString(marker);
+}
+
+#undef TIERING_STATE_LIST
 
 enum class SpeculationMode { kAllowSpeculation, kDisallowSpeculation };
 enum class CallFeedbackContent { kTarget, kReceiver };
@@ -1665,12 +1681,19 @@ inline std::ostream& operator<<(std::ostream& os,
 
 enum class BlockingBehavior { kBlock, kDontBlock };
 
-enum class ConcurrencyMode : uint8_t { kNotConcurrent, kConcurrent };
+enum class ConcurrencyMode : uint8_t { kSynchronous, kConcurrent };
 
-inline const char* ToString(ConcurrencyMode mode) {
+constexpr bool IsSynchronous(ConcurrencyMode mode) {
+  return mode == ConcurrencyMode::kSynchronous;
+}
+constexpr bool IsConcurrent(ConcurrencyMode mode) {
+  return mode == ConcurrencyMode::kConcurrent;
+}
+
+constexpr const char* ToString(ConcurrencyMode mode) {
   switch (mode) {
-    case ConcurrencyMode::kNotConcurrent:
-      return "ConcurrencyMode::kNotConcurrent";
+    case ConcurrencyMode::kSynchronous:
+      return "ConcurrencyMode::kSynchronous";
     case ConcurrencyMode::kConcurrent:
       return "ConcurrencyMode::kConcurrent";
   }

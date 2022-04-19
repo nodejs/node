@@ -9,7 +9,6 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
-#include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"

@@ -251,12 +251,6 @@ struct Use {
     (void)unused_tmp_array_for_use_macro;                          \
   } while (false)
 
-// Evaluate the instantiations of an expression with parameter packs.
-// Since USE has left-to-right evaluation order of it's arguments,
-// the parameter pack is iterated from left to right and side effects
-// have defined behavior.
-#define ITERATE_PACK(...) USE(0, ((__VA_ARGS__), 0)...)
-
 }  // namespace base
 }  // namespace v8
 

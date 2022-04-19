@@ -6,6 +6,7 @@
 
 #include "src/codegen/compiler.h"
 #include "src/diagnostics/code-tracer.h"
+#include "src/execution/isolate.h"
 #include "src/execution/tiering-manager.h"
 #include "src/heap/heap-inl.h"
 #include "src/ic/ic.h"
@@ -162,16 +163,15 @@ bool JSFunction::CanDiscardCompiled() const {
 
 namespace {
 
-constexpr OptimizationMarker OptimizationMarkerFor(CodeKind target_kind,
-                                                   ConcurrencyMode mode) {
+constexpr TieringState TieringStateFor(CodeKind target_kind,
+                                       ConcurrencyMode mode) {
   DCHECK(target_kind == CodeKind::MAGLEV || target_kind == CodeKind::TURBOFAN);
   return target_kind == CodeKind::MAGLEV
-             ? (mode == ConcurrencyMode::kConcurrent
-                    ? OptimizationMarker::kCompileMaglev_Concurrent
-                    : OptimizationMarker::kCompileMaglev_NotConcurrent)
-             : (mode == ConcurrencyMode::kConcurrent
-                    ? OptimizationMarker::kCompileTurbofan_Concurrent
-                    : OptimizationMarker::kCompileTurbofan_NotConcurrent);
+             ? (IsConcurrent(mode) ? TieringState::kRequestMaglev_Concurrent
+                                   : TieringState::kRequestMaglev_Synchronous)
+             : (IsConcurrent(mode)
+                    ? TieringState::kRequestTurbofan_Concurrent
+                    : TieringState::kRequestTurbofan_Synchronous);
 }
 
 }  // namespace
@@ -180,7 +180,7 @@ void JSFunction::MarkForOptimization(Isolate* isolate, CodeKind target_kind,
                                      ConcurrencyMode mode) {
   if (!isolate->concurrent_recompilation_enabled() ||
       isolate->bootstrapper()->IsActive()) {
-    mode = ConcurrencyMode::kNotConcurrent;
+    mode = ConcurrencyMode::kSynchronous;
   }
 
   DCHECK(CodeKindIsOptimizedJSFunction(target_kind));
@@ -191,8 +191,8 @@ void JSFunction::MarkForOptimization(Isolate* isolate, CodeKind target_kind,
   DCHECK(shared().allows_lazy_compilation() ||
          !shared().optimization_disabled());
 
-  if (mode == ConcurrencyMode::kConcurrent) {
-    if (IsInOptimizationQueue()) {
+  if (IsConcurrent(mode)) {
+    if (IsInProgress(tiering_state())) {
       if (FLAG_trace_concurrent_recompilation) {
         PrintF("  ** Not marking ");
         ShortPrint();
@@ -208,12 +208,97 @@ void JSFunction::MarkForOptimization(Isolate* isolate, CodeKind target_kind,
     }
   }
 
-  SetOptimizationMarker(OptimizationMarkerFor(target_kind, mode));
+  set_tiering_state(TieringStateFor(target_kind, mode));
 }
 
 void JSFunction::SetInterruptBudget(Isolate* isolate) {
   raw_feedback_cell().set_interrupt_budget(
       TieringManager::InterruptBudgetFor(isolate, *this));
+}
+
+// static
+Maybe<bool> JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
+    Isolate* isolate,
+    Handle<JSFunctionOrBoundFunctionOrWrappedFunction> function,
+    Handle<JSReceiver> target, Handle<String> prefix, int arg_count) {
+  // Setup the "length" property based on the "length" of the {target}.
+  // If the targets length is the default JSFunction accessor, we can keep the
+  // accessor that's installed by default on the
+  // JSBoundFunction/JSWrappedFunction. It lazily computes the value from the
+  // underlying internal length.
+  Handle<AccessorInfo> function_length_accessor =
+      isolate->factory()->function_length_accessor();
+  LookupIterator length_lookup(isolate, target,
+                               isolate->factory()->length_string(), target,
+                               LookupIterator::OWN);
+  if (!target->IsJSFunction() ||
+      length_lookup.state() != LookupIterator::ACCESSOR ||
+      !length_lookup.GetAccessors().is_identical_to(function_length_accessor)) {
+    Handle<Object> length(Smi::zero(), isolate);
+    Maybe<PropertyAttributes> attributes =
+        JSReceiver::GetPropertyAttributes(&length_lookup);
+    if (attributes.IsNothing()) return Nothing<bool>();
+    if (attributes.FromJust() != ABSENT) {
+      Handle<Object> target_length;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, target_length,
+                                       Object::GetProperty(&length_lookup),
+                                       Nothing<bool>());
+      if (target_length->IsNumber()) {
+        length = isolate->factory()->NewNumber(std::max(
+            0.0, DoubleToInteger(target_length->Number()) - arg_count));
+      }
+    }
+    LookupIterator it(isolate, function, isolate->factory()->length_string(),
+                      function);
+    DCHECK_EQ(LookupIterator::ACCESSOR, it.state());
+    RETURN_ON_EXCEPTION_VALUE(isolate,
+                              JSObject::DefineOwnPropertyIgnoreAttributes(
+                                  &it, length, it.property_attributes()),
+                              Nothing<bool>());
+  }
+
+  // Setup the "name" property based on the "name" of the {target}.
+  // If the target's name is the default JSFunction accessor, we can keep the
+  // accessor that's installed by default on the
+  // JSBoundFunction/JSWrappedFunction. It lazily computes the value from the
+  // underlying internal name.
+  Handle<AccessorInfo> function_name_accessor =
+      isolate->factory()->function_name_accessor();
+  LookupIterator name_lookup(isolate, target, isolate->factory()->name_string(),
+                             target);
+  if (!target->IsJSFunction() ||
+      name_lookup.state() != LookupIterator::ACCESSOR ||
+      !name_lookup.GetAccessors().is_identical_to(function_name_accessor) ||
+      (name_lookup.IsFound() && !name_lookup.HolderIsReceiver())) {
+    Handle<Object> target_name;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, target_name,
+                                     Object::GetProperty(&name_lookup),
+                                     Nothing<bool>());
+    Handle<String> name;
+    if (target_name->IsString()) {
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, name,
+          Name::ToFunctionName(isolate, Handle<String>::cast(target_name)),
+          Nothing<bool>());
+      if (!prefix.is_null()) {
+        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            isolate, name, isolate->factory()->NewConsString(prefix, name),
+            Nothing<bool>());
+      }
+    } else if (prefix.is_null()) {
+      name = isolate->factory()->empty_string();
+    } else {
+      name = prefix;
+    }
+    LookupIterator it(isolate, function, isolate->factory()->name_string());
+    DCHECK_EQ(LookupIterator::ACCESSOR, it.state());
+    RETURN_ON_EXCEPTION_VALUE(isolate,
+                              JSObject::DefineOwnPropertyIgnoreAttributes(
+                                  &it, name, it.property_attributes()),
+                              Nothing<bool>());
+  }
+
+  return Just(true);
 }
 
 // static
@@ -230,12 +315,19 @@ MaybeHandle<String> JSBoundFunction::GetName(Isolate* isolate,
     function = handle(JSBoundFunction::cast(function->bound_target_function()),
                       isolate);
   }
+  if (function->bound_target_function().IsJSWrappedFunction()) {
+    Handle<JSWrappedFunction> target(
+        JSWrappedFunction::cast(function->bound_target_function()), isolate);
+    Handle<String> name;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, name, JSWrappedFunction::GetName(isolate, target), String);
+    return factory->NewConsString(target_name, name);
+  }
   if (function->bound_target_function().IsJSFunction()) {
     Handle<JSFunction> target(
         JSFunction::cast(function->bound_target_function()), isolate);
-    Handle<Object> name = JSFunction::GetName(isolate, target);
-    if (!name->IsString()) return target_name;
-    return factory->NewConsString(target_name, Handle<String>::cast(name));
+    Handle<String> name = JSFunction::GetName(isolate, target);
+    return factory->NewConsString(target_name, name);
   }
   // This will omit the proper target name for bound JSProxies.
   return target_name;
@@ -258,6 +350,16 @@ Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
       nof_bound_arguments = Smi::kMaxValue;
     }
   }
+  if (function->bound_target_function().IsJSWrappedFunction()) {
+    Handle<JSWrappedFunction> target(
+        JSWrappedFunction::cast(function->bound_target_function()), isolate);
+    int target_length = 0;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, target_length, JSWrappedFunction::GetLength(isolate, target),
+        Nothing<int>());
+    int length = std::max(0, target_length - nof_bound_arguments);
+    return Just(length);
+  }
   // All non JSFunction targets get a direct property and don't use this
   // accessor.
   Handle<JSFunction> target(JSFunction::cast(function->bound_target_function()),
@@ -275,13 +377,107 @@ Handle<String> JSBoundFunction::ToString(Handle<JSBoundFunction> function) {
 }
 
 // static
+MaybeHandle<String> JSWrappedFunction::GetName(
+    Isolate* isolate, Handle<JSWrappedFunction> function) {
+  STACK_CHECK(isolate, MaybeHandle<String>());
+  Factory* factory = isolate->factory();
+  Handle<String> target_name = factory->empty_string();
+  Handle<JSReceiver> target =
+      handle(function->wrapped_target_function(), isolate);
+  if (target->IsJSBoundFunction()) {
+    return JSBoundFunction::GetName(
+        isolate,
+        handle(JSBoundFunction::cast(function->wrapped_target_function()),
+               isolate));
+  } else if (target->IsJSFunction()) {
+    return JSFunction::GetName(
+        isolate,
+        handle(JSFunction::cast(function->wrapped_target_function()), isolate));
+  }
+  // This will omit the proper target name for bound JSProxies.
+  return target_name;
+}
+
+// static
+Maybe<int> JSWrappedFunction::GetLength(Isolate* isolate,
+                                        Handle<JSWrappedFunction> function) {
+  STACK_CHECK(isolate, Nothing<int>());
+  Handle<JSReceiver> target =
+      handle(function->wrapped_target_function(), isolate);
+  if (target->IsJSBoundFunction()) {
+    return JSBoundFunction::GetLength(
+        isolate,
+        handle(JSBoundFunction::cast(function->wrapped_target_function()),
+               isolate));
+  }
+  // All non JSFunction targets get a direct property and don't use this
+  // accessor.
+  return Just(Handle<JSFunction>::cast(target)->length());
+}
+
+// static
 Handle<String> JSWrappedFunction::ToString(Handle<JSWrappedFunction> function) {
   Isolate* const isolate = function->GetIsolate();
   return isolate->factory()->function_native_code_string();
 }
 
 // static
-Handle<Object> JSFunction::GetName(Isolate* isolate,
+MaybeHandle<Object> JSWrappedFunction::Create(
+    Isolate* isolate, Handle<NativeContext> creation_context,
+    Handle<JSReceiver> value) {
+  // The value must be a callable according to the specification.
+  DCHECK(value->IsCallable());
+  // The intermediate wrapped functions are not user-visible. And calling a
+  // wrapped function won't cause a side effect in the creation realm.
+  // Unwrap here to avoid nested unwrapping at the call site.
+  if (value->IsJSWrappedFunction()) {
+    Handle<JSWrappedFunction> target_wrapped =
+        Handle<JSWrappedFunction>::cast(value);
+    value =
+        Handle<JSReceiver>(target_wrapped->wrapped_target_function(), isolate);
+  }
+
+  // 1. Let internalSlotsList be the internal slots listed in Table 2, plus
+  // [[Prototype]] and [[Extensible]].
+  // 2. Let wrapped be ! MakeBasicObject(internalSlotsList).
+  // 3. Set wrapped.[[Prototype]] to
+  // callerRealm.[[Intrinsics]].[[%Function.prototype%]].
+  // 4. Set wrapped.[[Call]] as described in 2.1.
+  // 5. Set wrapped.[[WrappedTargetFunction]] to Target.
+  // 6. Set wrapped.[[Realm]] to callerRealm.
+  Handle<JSWrappedFunction> wrapped =
+      isolate->factory()->NewJSWrappedFunction(creation_context, value);
+
+  // 7. Let result be CopyNameAndLength(wrapped, Target, "wrapped").
+  Maybe<bool> is_abrupt =
+      JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
+          isolate, wrapped, value, Handle<String>(), 0);
+
+  // 8. If result is an Abrupt Completion, throw a TypeError exception.
+  if (is_abrupt.IsNothing()) {
+    DCHECK(isolate->has_pending_exception());
+    isolate->clear_pending_exception();
+    // TODO(v8:11989): provide a non-observable inspection on the
+    // pending_exception to the newly created TypeError.
+    // https://github.com/tc39/proposal-shadowrealm/issues/353
+
+    // The TypeError thrown is created with creation Realm's TypeError
+    // constructor instead of the executing Realm's.
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewError(Handle<JSFunction>(creation_context->type_error_function(),
+                                    isolate),
+                 MessageTemplate::kCannotWrap),
+        {});
+  }
+  DCHECK(is_abrupt.FromJust());
+
+  // 9. Return wrapped.
+  return wrapped;
+}
+
+// static
+Handle<String> JSFunction::GetName(Isolate* isolate,
                                    Handle<JSFunction> function) {
   if (function->shared().name_should_print_as_anonymous()) {
     return isolate->factory()->anonymous_string();
@@ -446,17 +642,8 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
       Handle<Map> new_map =
           Map::Copy(isolate, initial_map, "SetInstancePrototype");
       JSFunction::SetInitialMap(isolate, function, new_map, value);
-
-      // If the function is used as the global Array function, cache the
-      // updated initial maps (and transitioned versions) in the native context.
-      Handle<Context> native_context(function->context().native_context(),
-                                     isolate);
-      Handle<Object> array_function(
-          native_context->get(Context::ARRAY_FUNCTION_INDEX), isolate);
-      if (array_function->IsJSFunction() &&
-          *function == JSFunction::cast(*array_function)) {
-        CacheInitialJSArrayMaps(isolate, native_context, new_map);
-      }
+      DCHECK_IMPLIES(!isolate->bootstrapper()->IsActive(),
+                     *function != function->native_context().array_function());
     }
 
     // Deoptimize all code that embeds the previous initial map.
@@ -499,8 +686,7 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
     JSObject::MigrateToMap(isolate, function, new_map);
 
     FunctionKind kind = function->shared().kind();
-    Handle<Context> native_context(function->context().native_context(),
-                                   isolate);
+    Handle<Context> native_context(function->native_context(), isolate);
 
     construct_prototype = Handle<JSReceiver>(
         IsGeneratorFunction(kind)
@@ -916,15 +1102,20 @@ int JSFunction::ComputeInstanceSizeWithMinSlack(Isolate* isolate) {
   return initial_map().instance_size();
 }
 
+std::unique_ptr<char[]> JSFunction::DebugNameCStr() {
+  return shared().DebugNameCStr();
+}
+
 void JSFunction::PrintName(FILE* out) {
-  PrintF(out, "%s", shared().DebugNameCStr().get());
+  PrintF(out, "%s", DebugNameCStr().get());
 }
 
 namespace {
 
 bool UseFastFunctionNameLookup(Isolate* isolate, Map map) {
   DCHECK(map.IsJSFunctionMap());
-  if (map.NumberOfOwnDescriptors() < JSFunction::kMinDescriptorsForFastBind) {
+  if (map.NumberOfOwnDescriptors() <
+      JSFunction::kMinDescriptorsForFastBindAndWrap) {
     return false;
   }
   DCHECK(!map.is_dictionary_map());

@@ -606,6 +606,25 @@ class PreparseData::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class PromiseOnStack::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
+    return offset >= HeapObject::kHeaderSize;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointers(obj, Struct::kHeaderSize, kPromiseOffset, v);
+    IterateMaybeWeakPointer(obj, kPromiseOffset, v);
+    STATIC_ASSERT(kPromiseOffset + kTaggedSize == kHeaderSize);
+  }
+
+  static inline int SizeOf(Map map, HeapObject obj) {
+    return obj.SizeFromMap(map);
+  }
+};
+
 class PrototypeInfo::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
@@ -1264,11 +1283,13 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case HEAP_NUMBER_TYPE:
       return CALL_APPLY(HeapNumber);
     case BYTE_ARRAY_TYPE:
-      return CALL_APPLY(BigInt);
+      return CALL_APPLY(ByteArray);
     case BIGINT_TYPE:
       return CALL_APPLY(BigInt);
     case ALLOCATION_SITE_TYPE:
       return CALL_APPLY(AllocationSite);
+    case ODDBALL_TYPE:
+      return CALL_APPLY(Oddball);
 
 #define MAKE_STRUCT_CASE(TYPE, Name, name) \
   case TYPE:                               \
