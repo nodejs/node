@@ -59,7 +59,7 @@ On non-Windows platforms, this always returns `true`.
 
 ### `createZeroFilledFile(filename)`
 
-Creates a 10 MB file of all null characters.
+Creates a 10 MiB file of all null characters.
 
 ### `enoughTestMem`
 
