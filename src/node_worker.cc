@@ -680,6 +680,12 @@ void Worker::Ref(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void Worker::HasRef(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+  args.GetReturnValue().Set(w->has_ref_);
+}
+
 void Worker::Unref(const FunctionCallbackInfo<Value>& args) {
   Worker* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
@@ -842,6 +848,7 @@ void InitWorker(Local<Object> target,
 
     env->SetProtoMethod(w, "startThread", Worker::StartThread);
     env->SetProtoMethod(w, "stopThread", Worker::StopThread);
+    env->SetProtoMethod(w, "hasRef", Worker::HasRef);
     env->SetProtoMethod(w, "ref", Worker::Ref);
     env->SetProtoMethod(w, "unref", Worker::Unref);
     env->SetProtoMethod(w, "getResourceLimits", Worker::GetResourceLimits);
@@ -905,6 +912,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Worker::New);
   registry->Register(Worker::StartThread);
   registry->Register(Worker::StopThread);
+  registry->Register(Worker::HasRef);
   registry->Register(Worker::Ref);
   registry->Register(Worker::Unref);
   registry->Register(Worker::GetResourceLimits);
