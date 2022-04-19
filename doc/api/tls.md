@@ -955,13 +955,17 @@ tlsSocket.once('session', (session) => {
 
 <!-- YAML
 added: v0.11.4
+changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41431
+    description: The `family` property now returns a number instead of a string.
 -->
 
 * Returns: {Object}
 
 Returns the bound `address`, the address `family` name, and `port` of the
 underlying socket as reported by the operating system:
-`{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`.
+`{ port: 12346, family: 4, address: '127.0.0.1' }`.
 
 ### `tlsSocket.authorizationError`
 
