@@ -97,11 +97,11 @@ static int StartDebugSignalHandler() {
   pthread_attr_t attr;
   CHECK_EQ(0, pthread_attr_init(&attr));
 #if defined(PTHREAD_STACK_MIN) && !defined(__FreeBSD__)
-  // PTHREAD_STACK_MIN is 2 KB with musl libc, which is too small to safely
-  // receive signals. PTHREAD_STACK_MIN + MINSIGSTKSZ is 8 KB on arm64, which
+  // PTHREAD_STACK_MIN is 2 KiB with musl libc, which is too small to safely
+  // receive signals. PTHREAD_STACK_MIN + MINSIGSTKSZ is 8 KiB on arm64, which
   // is the musl architecture with the biggest MINSIGSTKSZ so let's use that
   // as a lower bound and let's quadruple it just in case. The goal is to avoid
-  // creating a big 2 or 4 MB address space gap (problematic on 32 bits
+  // creating a big 2 or 4 MiB address space gap (problematic on 32 bits
   // because of fragmentation), not squeeze out every last byte.
   // Omitted on FreeBSD because it doesn't seem to like small stacks.
   const size_t stack_size = std::max(static_cast<size_t>(4 * 8192),

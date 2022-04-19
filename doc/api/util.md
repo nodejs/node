@@ -536,7 +536,7 @@ changes:
     description: The `depth` default changed to `20`.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22756
-    description: The inspection output is now limited to about 128 MB. Data
+    description: The inspection output is now limited to about 128 MiB. Data
                  above that size will not be fully inspected.
   - version: v10.12.0
     pr-url: https://github.com/nodejs/node/pull/22788
@@ -778,7 +778,7 @@ console.log(thousand, million, bigNumber, bigDecimal);
 ```
 
 `util.inspect()` is a synchronous method intended for debugging. Its maximum
-output length is approximately 128 MB. Inputs that result in longer output will
+output length is approximately 128 MiB. Inputs that result in longer output will
 be truncated.
 
 ### Customizing `util.inspect` colors
