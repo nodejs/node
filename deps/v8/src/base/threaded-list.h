@@ -266,6 +266,17 @@ class ThreadedListBase final : public BaseClass {
     return true;
   }
 
+  void RevalidateTail() {
+    T* last = *tail_;
+    if (last != nullptr) {
+      while (*TLTraits::next(last) != nullptr) {
+        last = *TLTraits::next(last);
+      }
+      tail_ = TLTraits::next(last);
+    }
+    SLOW_DCHECK(Verify());
+  }
+
  private:
   T* head_;
   T** tail_;

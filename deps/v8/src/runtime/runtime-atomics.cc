@@ -640,9 +640,34 @@ RUNTIME_FUNCTION(Runtime_AtomicsStoreSharedStructField) {
   }
   // Shared structs are non-extensible. Instead of duplicating logic, call
   // Object::AddDataProperty to handle the error case.
-  CHECK(Object::AddDataProperty(&it, shared_value, NONE, Nothing<ShouldThrow>(),
-                                StoreOrigin::kMaybeKeyed)
-            .IsNothing());
+  Maybe<bool> result =
+      Object::AddDataProperty(&it, shared_value, NONE, Nothing<ShouldThrow>(),
+                              StoreOrigin::kMaybeKeyed);
+  DCHECK(result.IsNothing());
+  USE(result);
+  return ReadOnlyRoots(isolate).exception();
+}
+
+RUNTIME_FUNCTION(Runtime_AtomicsExchangeSharedStructField) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  Handle<JSSharedStruct> shared_struct = args.at<JSSharedStruct>(0);
+  Handle<Name> field_name;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
+                                     Object::ToName(isolate, args.at(1)));
+  Handle<Object> shared_value;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, shared_value, Object::Share(isolate, args.at(2), kThrowOnError));
+  // Shared structs are prototypeless.
+  LookupIterator it(isolate, shared_struct, field_name, LookupIterator::OWN);
+  if (it.IsFound()) return *it.SwapDataValue(shared_value, kSeqCstAccess);
+  // Shared structs are non-extensible. Instead of duplicating logic, call
+  // Object::AddDataProperty to handle the error case.
+  Maybe<bool> result =
+      Object::AddDataProperty(&it, shared_value, NONE, Nothing<ShouldThrow>(),
+                              StoreOrigin::kMaybeKeyed);
+  DCHECK(result.IsNothing());
+  USE(result);
   return ReadOnlyRoots(isolate).exception();
 }
 

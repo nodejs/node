@@ -175,18 +175,19 @@ var V8OptimizationStatus = {
   kAlwaysOptimize: 1 << 2,
   kMaybeDeopted: 1 << 3,
   kOptimized: 1 << 4,
-  kTurboFanned: 1 << 5,
-  kInterpreted: 1 << 6,
-  kMarkedForOptimization: 1 << 7,
-  kMarkedForConcurrentOptimization: 1 << 8,
-  kOptimizingConcurrently: 1 << 9,
-  kIsExecuting: 1 << 10,
-  kTopmostFrameIsTurboFanned: 1 << 11,
-  kLiteMode: 1 << 12,
-  kMarkedForDeoptimization: 1 << 13,
-  kBaseline: 1 << 14,
-  kTopmostFrameIsInterpreted: 1 << 15,
-  kTopmostFrameIsBaseline: 1 << 16,
+  kMaglevved: 1 << 5,
+  kTurboFanned: 1 << 6,
+  kInterpreted: 1 << 7,
+  kMarkedForOptimization: 1 << 8,
+  kMarkedForConcurrentOptimization: 1 << 9,
+  kOptimizingConcurrently: 1 << 10,
+  kIsExecuting: 1 << 11,
+  kTopmostFrameIsTurboFanned: 1 << 12,
+  kLiteMode: 1 << 13,
+  kMarkedForDeoptimization: 1 << 14,
+  kBaseline: 1 << 15,
+  kTopmostFrameIsInterpreted: 1 << 16,
+  kTopmostFrameIsBaseline: 1 << 17,
 };
 
 // Returns true if --lite-mode is on and we can't ever turn on optimization.
@@ -209,6 +210,9 @@ var isUnoptimized;
 
 // Returns true if given function is optimized.
 var isOptimized;
+
+// Returns true if given function is compiled by Maglev.
+var isMaglevved;
 
 // Returns true if given function is compiled by TurboFan.
 var isTurboFanned;
@@ -779,6 +783,14 @@ var prettyPrinted;
     assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
                "not a function");
     return (opt_status & V8OptimizationStatus.kOptimized) !== 0;
+  }
+
+  isMaglevved = function isMaglevved(fun) {
+    var opt_status = OptimizationStatus(fun, "");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kOptimized) !== 0 &&
+           (opt_status & V8OptimizationStatus.kMaglevved) !== 0;
   }
 
   isTurboFanned = function isTurboFanned(fun) {

@@ -53,7 +53,7 @@ class IC {
     return IsLoadIC() || IsLoadGlobalIC() || IsKeyedLoadIC();
   }
   bool IsAnyStore() const {
-    return IsStoreIC() || IsDefineNamedOwnIC() || IsStoreGlobalIC() ||
+    return IsSetNamedIC() || IsDefineNamedOwnIC() || IsStoreGlobalIC() ||
            IsKeyedStoreIC() || IsStoreInArrayLiteralICKind(kind()) ||
            IsDefineKeyedOwnIC();
   }
@@ -121,7 +121,7 @@ class IC {
   bool IsLoadGlobalIC() const { return IsLoadGlobalICKind(kind_); }
   bool IsKeyedLoadIC() const { return IsKeyedLoadICKind(kind_); }
   bool IsStoreGlobalIC() const { return IsStoreGlobalICKind(kind_); }
-  bool IsStoreIC() const { return IsStoreICKind(kind_); }
+  bool IsSetNamedIC() const { return IsSetNamedICKind(kind_); }
   bool IsDefineNamedOwnIC() const { return IsDefineNamedOwnICKind(kind_); }
   bool IsStoreInArrayLiteralIC() const {
     return IsStoreInArrayLiteralICKind(kind_);

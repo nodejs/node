@@ -390,6 +390,7 @@ void Debug::ThreadInit() {
                       static_cast<base::AtomicWord>(0));
   thread_local_.break_on_next_function_call_ = false;
   UpdateHookOnFunctionCall();
+  thread_local_.promise_stack_ = Smi::zero();
 }
 
 char* Debug::ArchiveDebug(char* storage) {
@@ -448,6 +449,8 @@ void Debug::Iterate(RootVisitor* v, ThreadLocal* thread_local_data) {
   v->VisitRootPointer(
       Root::kDebug, nullptr,
       FullObjectSlot(&thread_local_data->ignore_step_into_function_));
+  v->VisitRootPointer(Root::kDebug, nullptr,
+                      FullObjectSlot(&thread_local_data->promise_stack_));
 }
 
 DebugInfoListNode::DebugInfoListNode(Isolate* isolate, DebugInfo debug_info)
@@ -469,7 +472,6 @@ void Debug::Unload() {
   ClearStepping();
   RemoveAllCoverageInfos();
   ClearAllDebuggerHints();
-  ClearGlobalPromiseStack();
   debug_delegate_ = nullptr;
 }
 
@@ -2065,11 +2067,6 @@ void Debug::FreeDebugInfoListNode(DebugInfoListNode* prev,
                                                 kReleaseStore);
 
   delete node;
-}
-
-void Debug::ClearGlobalPromiseStack() {
-  while (isolate_->PopPromise()) {
-  }
 }
 
 bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {

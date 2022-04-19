@@ -27,7 +27,7 @@
 namespace v8 {
 namespace internal {
 struct AssemblerOptions;
-class OptimizedCompilationJob;
+class TurbofanCompilationJob;
 
 namespace compiler {
 // Forward declarations for some compiler data structures.
@@ -138,8 +138,8 @@ wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule*,
                                              const wasm::FunctionSig*,
                                              Handle<JSFunction> target);
 
-// Returns an OptimizedCompilationJob object for a JS to Wasm wrapper.
-std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
+// Returns an TurbofanCompilationJob object for a JS to Wasm wrapper.
+std::unique_ptr<TurbofanCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, const wasm::FunctionSig* sig,
     const wasm::WasmModule* module, bool is_import,
     const wasm::WasmFeatures& enabled_features);
@@ -223,13 +223,8 @@ class WasmGraphBuilder {
     kWasmApiFunctionRefMode,
     kNoSpecialParameterMode
   };
-  enum ReferenceKind : bool {  // --
-    kArrayOrStruct = true,
-    kFunction = false
-  };
   struct ObjectReferenceKnowledge {
     bool object_can_be_null;
-    ReferenceKind reference_kind;
     uint8_t rtt_depth;
   };
   enum EnforceBoundsCheck : bool {  // --

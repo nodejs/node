@@ -57,7 +57,7 @@ static unsigned CpuFeaturesImpliedByCompiler() {
   answer |= 1u << FPU;
 #endif  // def CAN_USE_FPU_INSTRUCTIONS
 
-#if (defined CAN_USE_RVV_INSTRUCTIONS) || (defined USE_SIMULATOR)
+#if (defined CAN_USE_RVV_INSTRUCTIONS)
   answer |= 1u << RISCV_SIMD;
 #endif  // def CAN_USE_RVV_INSTRUCTIONS || USE_SIMULATOR
   return answer;

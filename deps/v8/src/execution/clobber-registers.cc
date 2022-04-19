@@ -13,6 +13,12 @@
 #include "src/codegen/ia32/register-ia32.h"
 #elif V8_HOST_ARCH_X64
 #include "src/codegen/x64/register-x64.h"
+#elif V8_HOST_ARCH_LOONG64
+#include "src/codegen/loong64/register-loong64.h"
+#elif V8_HOST_ARCH_MIPS
+#include "src/codegen/mips/register-mips.h"
+#elif V8_HOST_ARCH_MIPS64
+#include "src/codegen/mips64/register-mips64.h"
 #endif
 
 namespace v8 {
@@ -39,16 +45,31 @@ namespace internal {
 #elif V8_HOST_ARCH_ARM64
 #define CLOBBER_REGISTER(R) __asm__ volatile("fmov " #R ",xzr" :::);
 
-#endif  // V8_HOST_ARCH_X64 || V8_HOST_ARCH_IA32 || V8_HOST_ARCH_ARM64
+#elif V8_HOST_ARCH_LOONG64
+#define CLOBBER_REGISTER(R) __asm__ volatile("movgr2fr.d $" #R ",$zero" :::);
+
+#elif V8_HOST_ARCH_MIPS
+#define CLOBBER_USE_REGISTER(R) __asm__ volatile("mtc1 $zero,$" #R :::);
+
+#elif V8_HOST_ARCH_MIPS64
+#define CLOBBER_USE_REGISTER(R) __asm__ volatile("dmtc1 $zero,$" #R :::);
+
+#endif  // V8_HOST_ARCH_X64 || V8_HOST_ARCH_IA32 || V8_HOST_ARCH_ARM64 ||
+        // V8_HOST_ARCH_LOONG64 || V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
 
 #endif  // V8_CC_MSVC
 
 double ClobberDoubleRegisters(double x1, double x2, double x3, double x4) {
   // clobber all double registers
 
-#ifdef CLOBBER_REGISTER
+#if defined(CLOBBER_REGISTER)
   DOUBLE_REGISTERS(CLOBBER_REGISTER)
 #undef CLOBBER_REGISTER
+  return 0;
+
+#elif defined(CLOBBER_USE_REGISTER)
+  DOUBLE_USE_REGISTERS(CLOBBER_USE_REGISTER)
+#undef CLOBBER_USE_REGISTER
   return 0;
 
 #else

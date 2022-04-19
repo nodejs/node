@@ -952,6 +952,37 @@ domain Runtime
   # Unique script identifier.
   type ScriptId extends string
 
+  # Represents the value serialiazed by the WebDriver BiDi specification
+  # https://w3c.github.io/webdriver-bidi.
+  type WebDriverValue extends object
+    properties
+      enum type
+        undefined
+        null
+        string
+        number
+        boolean
+        bigint
+        regexp
+        date
+        symbol
+        array
+        object
+        function
+        map
+        set
+        weakmap
+        weakset
+        error
+        proxy
+        promise
+        typedarray
+        arraybuffer
+        node
+        window
+      optional any value
+      optional string objectId
+
   # Unique object identifier.
   type RemoteObjectId extends string
 
@@ -1004,6 +1035,8 @@ domain Runtime
       optional UnserializableValue unserializableValue
       # String representation of the object.
       optional string description
+      # WebDriver BiDi representation of the value.
+      experimental optional WebDriverValue webDriverValue
       # Unique object identifier (for non-primitive values).
       optional RemoteObjectId objectId
       # Preview containing abbreviated property values. Specified for `object` type values only.
@@ -1309,6 +1342,8 @@ domain Runtime
       optional string objectGroup
       # Whether to throw an exception if side effect cannot be ruled out during evaluation.
       experimental optional boolean throwOnSideEffect
+      # Whether the result should be serialized according to https://w3c.github.io/webdriver-bidi.
+      experimental optional boolean generateWebDriverValue
     returns
       # Call result.
       RemoteObject result
@@ -1394,6 +1429,8 @@ domain Runtime
       # boundaries).
       # This is mutually exclusive with `contextId`.
       experimental optional string uniqueContextId
+      # Whether the result should be serialized according to https://w3c.github.io/webdriver-bidi.
+      experimental optional boolean generateWebDriverValue
     returns
       # Evaluation result.
       RemoteObject result

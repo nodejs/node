@@ -206,72 +206,13 @@ Object DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, function,
       isolate->factory()->NewJSBoundFunction(target, this_arg, argv));
-
-  // Setup the "length" property based on the "length" of the {target}.
-  // If the targets length is the default JSFunction accessor, we can keep the
-  // accessor that's installed by default on the JSBoundFunction. It lazily
-  // computes the value from the underlying internal length.
-  Handle<AccessorInfo> function_length_accessor =
-      isolate->factory()->function_length_accessor();
-  LookupIterator length_lookup(isolate, target,
-                               isolate->factory()->length_string(), target,
-                               LookupIterator::OWN);
-  if (!target->IsJSFunction() ||
-      length_lookup.state() != LookupIterator::ACCESSOR ||
-      !length_lookup.GetAccessors().is_identical_to(function_length_accessor)) {
-    Handle<Object> length(Smi::zero(), isolate);
-    Maybe<PropertyAttributes> attributes =
-        JSReceiver::GetPropertyAttributes(&length_lookup);
-    if (attributes.IsNothing()) return ReadOnlyRoots(isolate).exception();
-    if (attributes.FromJust() != ABSENT) {
-      Handle<Object> target_length;
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, target_length,
-                                         Object::GetProperty(&length_lookup));
-      if (target_length->IsNumber()) {
-        length = isolate->factory()->NewNumber(std::max(
-            0.0, DoubleToInteger(target_length->Number()) - argv.length()));
-      }
-    }
-    LookupIterator it(isolate, function, isolate->factory()->length_string(),
-                      function);
-    DCHECK_EQ(LookupIterator::ACCESSOR, it.state());
-    RETURN_FAILURE_ON_EXCEPTION(isolate,
-                                JSObject::DefineOwnPropertyIgnoreAttributes(
-                                    &it, length, it.property_attributes()));
-  }
-
-  // Setup the "name" property based on the "name" of the {target}.
-  // If the target's name is the default JSFunction accessor, we can keep the
-  // accessor that's installed by default on the JSBoundFunction. It lazily
-  // computes the value from the underlying internal name.
-  Handle<AccessorInfo> function_name_accessor =
-      isolate->factory()->function_name_accessor();
-  LookupIterator name_lookup(isolate, target, isolate->factory()->name_string(),
-                             target);
-  if (!target->IsJSFunction() ||
-      name_lookup.state() != LookupIterator::ACCESSOR ||
-      !name_lookup.GetAccessors().is_identical_to(function_name_accessor) ||
-      (name_lookup.IsFound() && !name_lookup.HolderIsReceiver())) {
-    Handle<Object> target_name;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, target_name,
-                                       Object::GetProperty(&name_lookup));
-    Handle<String> name;
-    if (target_name->IsString()) {
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, name,
-          Name::ToFunctionName(isolate, Handle<String>::cast(target_name)));
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, name,
-          isolate->factory()->NewConsString(isolate->factory()->bound__string(),
-                                            name));
-    } else {
-      name = isolate->factory()->bound__string();
-    }
-    LookupIterator it(isolate, function, isolate->factory()->name_string());
-    DCHECK_EQ(LookupIterator::ACCESSOR, it.state());
-    RETURN_FAILURE_ON_EXCEPTION(isolate,
-                                JSObject::DefineOwnPropertyIgnoreAttributes(
-                                    &it, name, it.property_attributes()));
+  Maybe<bool> result =
+      JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
+          isolate, function, target, isolate->factory()->bound__string(),
+          argv.length());
+  if (result.IsNothing()) {
+    DCHECK(isolate->has_pending_exception());
+    return ReadOnlyRoots(isolate).exception();
   }
   return *function;
 }

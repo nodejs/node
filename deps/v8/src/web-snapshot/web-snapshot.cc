@@ -1345,7 +1345,7 @@ void WebSnapshotDeserializer::Throw(const char* message) {
 }
 
 bool WebSnapshotDeserializer::Deserialize(
-    MaybeHandle<FixedArray> external_references) {
+    MaybeHandle<FixedArray> external_references, bool skip_exports) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize);
   if (external_references.ToHandle(&external_references_handle_)) {
     external_references_ = *external_references_handle_;
@@ -1364,7 +1364,7 @@ bool WebSnapshotDeserializer::Deserialize(
   if (FLAG_trace_web_snapshot) {
     timer.Start();
   }
-  if (!DeserializeSnapshot()) {
+  if (!DeserializeSnapshot(skip_exports)) {
     return false;
   }
   if (!DeserializeScript()) {
@@ -1379,7 +1379,7 @@ bool WebSnapshotDeserializer::Deserialize(
   return true;
 }
 
-bool WebSnapshotDeserializer::DeserializeSnapshot() {
+bool WebSnapshotDeserializer::DeserializeSnapshot(bool skip_exports) {
   deferred_references_ = ArrayList::New(isolate_, 30);
 
   const void* magic_bytes;
@@ -1397,7 +1397,7 @@ bool WebSnapshotDeserializer::DeserializeSnapshot() {
   DeserializeObjects();
   DeserializeClasses();
   ProcessDeferredReferences();
-  DeserializeExports();
+  DeserializeExports(skip_exports);
   DCHECK_EQ(0, deferred_references_->Length());
 
   return !has_error();
@@ -2041,13 +2041,29 @@ void WebSnapshotDeserializer::DeserializeArrays() {
   }
 }
 
-void WebSnapshotDeserializer::DeserializeExports() {
+void WebSnapshotDeserializer::DeserializeExports(bool skip_exports) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Exports);
   uint32_t count;
   if (!deserializer_.ReadUint32(&count) || count > kMaxItemCount) {
     Throw("Malformed export table");
     return;
   }
+
+  if (skip_exports) {
+    // In the skip_exports mode, we read the exports but don't do anything about
+    // them. This is useful for stress testing; otherwise the GlobalDictionary
+    // handling below dominates.
+    for (uint32_t i = 0; i < count; ++i) {
+      Handle<String> export_name(ReadString(true), isolate_);
+      // No deferred references should occur at this point, since all objects
+      // have been deserialized.
+      Object export_value = ReadValue();
+      USE(export_name);
+      USE(export_value);
+    }
+    return;
+  }
+
   // Pre-reserve the space for the properties we're going to add to the global
   // object.
   Handle<JSGlobalObject> global = isolate_->global_object();

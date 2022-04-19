@@ -925,7 +925,8 @@ TEST(JSWeakRefScavengedInWorklist) {
 }
 
 TEST(JSWeakRefTenuredInWorklist) {
-  if (!FLAG_incremental_marking || FLAG_single_generation) {
+  if (!FLAG_incremental_marking || FLAG_single_generation ||
+      FLAG_separate_gc_phases) {
     return;
   }
 

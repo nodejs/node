@@ -972,6 +972,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(index);
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
+
+      if (FLAG_debug_code) {
+        // Checking that |value| is not a cleared weakref: our write barrier
+        // does not support that for now.
+        __ cmp(value, Immediate(kClearedWeakHeapObjectLower32));
+        __ Check(not_equal, AbortReason::kOperandIsCleared);
+      }
+
       auto ool = zone()->New<OutOfLineRecordWrite>(this, object, operand, value,
                                                    scratch0, scratch1, mode,
                                                    DetermineStubCallMode());

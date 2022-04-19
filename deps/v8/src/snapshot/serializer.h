@@ -233,8 +233,7 @@ class Serializer : public SerializerDeserializer {
 
   void PutRoot(RootIndex root_index);
   void PutSmiRoot(FullObjectSlot slot);
-  void PutBackReference(Handle<HeapObject> object,
-                        SerializerReference reference);
+  void PutBackReference(HeapObject object, SerializerReference reference);
   void PutAttachedReference(SerializerReference reference);
   void PutNextChunk(SnapshotSpace space);
   void PutRepeat(int repeat_count);
@@ -247,19 +246,19 @@ class Serializer : public SerializerDeserializer {
   void ResolvePendingForwardReference(int obj);
 
   // Returns true if the object was successfully serialized as a root.
-  bool SerializeRoot(Handle<HeapObject> obj);
+  bool SerializeRoot(HeapObject obj);
 
   // Returns true if the object was successfully serialized as hot object.
-  bool SerializeHotObject(Handle<HeapObject> obj);
+  bool SerializeHotObject(HeapObject obj);
 
   // Returns true if the object was successfully serialized as back reference.
-  bool SerializeBackReference(Handle<HeapObject> obj);
+  bool SerializeBackReference(HeapObject obj);
 
   // Returns true if the object was successfully serialized as pending object.
-  bool SerializePendingObject(Handle<HeapObject> obj);
+  bool SerializePendingObject(HeapObject obj);
 
   // Returns true if the given heap object is a bytecode handler code object.
-  bool ObjectIsBytecodeHandler(Handle<HeapObject> obj) const;
+  bool ObjectIsBytecodeHandler(HeapObject obj) const;
 
   ExternalReferenceEncoder::Value EncodeExternalReference(Address addr);
 
@@ -278,18 +277,18 @@ class Serializer : public SerializerDeserializer {
 
   Code CopyCode(Code code);
 
-  void QueueDeferredObject(Handle<HeapObject> obj) {
+  void QueueDeferredObject(HeapObject obj) {
     DCHECK_NULL(reference_map_.LookupReference(obj));
-    deferred_objects_.Push(*obj);
+    deferred_objects_.Push(obj);
   }
 
   // Register that the the given object shouldn't be immediately serialized, but
   // will be serialized later and any references to it should be pending forward
   // references.
-  void RegisterObjectIsPending(Handle<HeapObject> obj);
+  void RegisterObjectIsPending(HeapObject obj);
 
   // Resolve the given pending object reference with the current object.
-  void ResolvePendingObject(Handle<HeapObject> obj);
+  void ResolvePendingObject(HeapObject obj);
 
   void OutputStatistics(const char* name);
 
@@ -470,7 +469,8 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
                                ExternalPointerTag tag);
   void OutputRawData(Address up_to);
   void SerializeCode(Map map, int size);
-  uint32_t SerializeBackingStore(void* backing_store, int32_t byte_length);
+  uint32_t SerializeBackingStore(void* backing_store, int32_t byte_length,
+                                 Maybe<int32_t> max_byte_length);
   void SerializeJSTypedArray();
   void SerializeJSArrayBuffer();
   void SerializeExternalString();

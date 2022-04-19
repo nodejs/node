@@ -69,12 +69,19 @@ found in the LICENSE file. -->
     height: calc(var(--view-height) + 12px);
     overflow-y: scroll;
     margin-right: -10px;
-    padding-right: 2px;
+    padding: 0 2px 0 2px;
+    width: 400px;
+    border-left: 1px solid var(--border-color);
   }
 
   #legendTable {
-    width: 280px;
+    width: 100%;
     border-collapse: collapse;
+  }
+
+  thead {
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
   }
 
   th,
@@ -84,23 +91,19 @@ found in the LICENSE file. -->
 
   #legendTable td {
     padding-top: 3px;
+    text-align: right;
   }
   /* Center colors */
-  #legendTable td:nth-of-type(4n+1) {
+  #legendTable .color {
     text-align: center;
   }
   /* Left align text*/
-  #legendTable td:nth-of-type(4n+2) {
+  #legendTable .text {
     text-align: left;
     width: 100%;
     max-width: 200px;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-  /* right align numbers */
-  #legendTable td:nth-of-type(4n+3),
-  #legendTable td:nth-of-type(4n+4) {
-    text-align: right;
   }
 
   .timeline {
@@ -130,7 +133,15 @@ found in the LICENSE file. -->
     border-right: 1px solid var(--on-surface-color);
     margin-left: -5px;
   }
-
+  #selectionForeground{
+    z-index: 2;
+    cursor: grab;
+    height: 100%;
+    position: absolute;
+  }
+  #selectionForeground:active {
+    cursor: grabbing;
+  }
   #selectionBackground {
     background-color: rgba(133, 68, 163, 0.5);
     height: 100%;
@@ -155,11 +166,14 @@ found in the LICENSE file. -->
   .legend {
     flex: initial;
   }
+  .colorbox.empty {
+    opacity: 0.5;
+  }
 </style>
 <style>
   /* SVG styles */
   .txt {
-    font: 8px monospace;
+    font: 8px var(--code-font);
     transform: var(--txt-scale);
   }
   .annotationLabel {
@@ -184,10 +198,10 @@ found in the LICENSE file. -->
     dominant-baseline: hanging;
     font-size: 9px;
   }
-  .flame {
+  .flame, .f {
     stroke-width: 0;
   }
-  .flameSelected {
+  .flameSelected, .fs {
     fill: var(--on-background-color);
     fill-opacity: 0.1;
     stroke: var(--on-background-color);
@@ -208,6 +222,7 @@ found in the LICENSE file. -->
   <div id="timeline">
     <div id="selection" class="dataSized">
       <div id="leftHandle"></div>
+      <div id="selectionForeground"></div>
       <div id="selectionBackground"></div>
       <div id="rightHandle"></div>
     </div>
@@ -226,7 +241,7 @@ found in the LICENSE file. -->
       <thead>
         <tr>
           <td></td>
-          <td>Type</td>
+          <td class="text">Type</td>
           <td>Count</td>
           <td></td>
         </tr>

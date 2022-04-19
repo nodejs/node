@@ -475,7 +475,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
 
   Handle<JSObject> holder_obj = Handle<JSObject>::cast(holder);
   if (IsElement(*holder)) {
-    DCHECK(!holder_obj->HasTypedArrayElements(isolate_));
+    DCHECK(!holder_obj->HasTypedArrayOrRabGsabTypedArrayElements(isolate_));
     DCHECK(attributes != NONE || !holder_obj->HasFastElements(isolate_));
     Handle<FixedArrayBase> elements(holder_obj->elements(isolate_), isolate());
     holder_obj->GetElementsAccessor(isolate_)->Reconfigure(
@@ -559,13 +559,15 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
 #endif
 }
 
-// Can only be called when the receiver is a JSObject. JSProxy has to be handled
-// via a trap. Adding properties to primitive values is not observable.
+// Can only be called when the receiver is a JSObject, or when the name is a
+// private field, otherwise JSProxy has to be handled via a trap.
+// Adding properties to primitive values is not observable.
 void LookupIterator::PrepareTransitionToDataProperty(
     Handle<JSReceiver> receiver, Handle<Object> value,
     PropertyAttributes attributes, StoreOrigin store_origin) {
   DCHECK_IMPLIES(receiver->IsJSProxy(isolate_), name()->IsPrivate(isolate_));
-  DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
+  DCHECK_IMPLIES(!receiver.is_identical_to(GetStoreTarget<JSReceiver>()),
+                 name()->IsPrivateName());
   if (state_ == TRANSITION) return;
 
   if (!IsElement() && name()->IsPrivate(isolate_)) {
@@ -624,7 +626,8 @@ void LookupIterator::ApplyTransitionToDataProperty(
     Handle<JSReceiver> receiver) {
   DCHECK_EQ(TRANSITION, state_);
 
-  DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
+  DCHECK_IMPLIES(!receiver.is_identical_to(GetStoreTarget<JSReceiver>()),
+                 name()->IsPrivateName());
   holder_ = receiver;
   if (receiver->IsJSGlobalObject(isolate_)) {
     JSObject::InvalidatePrototypeChains(receiver->map(isolate_));
@@ -1137,6 +1140,20 @@ void LookupIterator::WriteDataValue(Handle<Object> value, SeqCstAccessTag tag) {
   holder->FastPropertyAtPut(field_index, *value, tag);
 }
 
+Handle<Object> LookupIterator::SwapDataValue(Handle<Object> value,
+                                             SeqCstAccessTag tag) {
+  DCHECK_EQ(DATA, state_);
+  DCHECK_EQ(PropertyLocation::kField, property_details_.location());
+  DCHECK_EQ(PropertyKind::kData, property_details_.kind());
+  // Currently only shared structs support sequentially consistent access.
+  Handle<JSSharedStruct> holder = GetHolder<JSSharedStruct>();
+  DisallowGarbageCollection no_gc;
+  FieldIndex field_index =
+      FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
+  return handle(holder->RawFastPropertyAtSwap(field_index, *value, tag),
+                isolate_);
+}
+
 #if V8_ENABLE_WEBASSEMBLY
 
 wasm::ValueType LookupIterator::wasm_value_type() const {
@@ -1221,7 +1238,7 @@ bool HasInterceptor(Map map, size_t index) {
     if (index > JSObject::kMaxElementIndex) {
       // There is currently no way to install interceptors on an object with
       // typed array elements.
-      DCHECK(!map.has_typed_array_elements());
+      DCHECK(!map.has_typed_array_or_rab_gsab_typed_array_elements());
       return map.has_named_interceptor();
     }
     return map.has_indexed_interceptor();
@@ -1371,7 +1388,7 @@ Handle<InterceptorInfo> LookupIterator::GetInterceptorForFailedAccessCheck()
   if (!access_check_info.is_null()) {
     // There is currently no way to create objects with typed array elements
     // and access checks.
-    DCHECK(!holder_->map().has_typed_array_elements());
+    DCHECK(!holder_->map().has_typed_array_or_rab_gsab_typed_array_elements());
     Object interceptor = is_js_array_element(IsElement())
                              ? access_check_info.indexed_interceptor()
                              : access_check_info.named_interceptor();

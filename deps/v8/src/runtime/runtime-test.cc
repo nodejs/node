@@ -262,7 +262,7 @@ bool CanOptimizeFunction<CodeKind::TURBOFAN>(
   if (function->HasAvailableOptimizedCode() ||
       function->HasAvailableCodeKind(kind)) {
     DCHECK(function->HasAttachedOptimizedCode() ||
-           function->ChecksOptimizationMarker());
+           function->ChecksTieringState());
     if (FLAG_testing_d8_test_runner) {
       PendingOptimizationTable::FunctionWasOptimized(isolate, function);
     }
@@ -305,7 +305,7 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  ConcurrencyMode concurrency_mode = ConcurrencyMode::kNotConcurrent;
+  ConcurrencyMode concurrency_mode = ConcurrencyMode::kSynchronous;
   if (args.length() == 2) {
     Handle<Object> type = args.at(1);
     if (!type->IsString()) return CrashUnlessFuzzing(isolate);
@@ -450,7 +450,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeMaglevOnNextCall) {
   DCHECK(function->is_compiled());
 
   // TODO(v8:7700): Support concurrent compiles.
-  const ConcurrencyMode concurrency_mode = ConcurrencyMode::kNotConcurrent;
+  const ConcurrencyMode concurrency_mode = ConcurrencyMode::kSynchronous;
 
   TraceManualRecompile(*function, kCodeKind, concurrency_mode);
   JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
@@ -521,6 +521,47 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+namespace {
+
+void FinalizeOptimization(Isolate* isolate) {
+  DCHECK(isolate->concurrent_recompilation_enabled());
+  isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
+  isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
+  isolate->optimizing_compile_dispatcher()->set_finalize(true);
+}
+
+BytecodeOffset OffsetOfNextJumpLoop(Isolate* isolate, UnoptimizedFrame* frame) {
+  Handle<BytecodeArray> bytecode_array(frame->GetBytecodeArray(), isolate);
+  const int current_offset = frame->GetBytecodeOffset();
+
+  interpreter::BytecodeArrayIterator it(bytecode_array, current_offset);
+
+  // First, look for a loop that contains the current bytecode offset.
+  for (; !it.done(); it.Advance()) {
+    if (it.current_bytecode() != interpreter::Bytecode::kJumpLoop) {
+      continue;
+    }
+    if (!base::IsInRange(current_offset, it.GetJumpTargetOffset(),
+                         it.current_offset())) {
+      continue;
+    }
+
+    return BytecodeOffset(it.current_offset());
+  }
+
+  // Fall back to any loop after the current offset.
+  it.SetOffset(current_offset);
+  for (; !it.done(); it.Advance()) {
+    if (it.current_bytecode() == interpreter::Bytecode::kJumpLoop) {
+      return BytecodeOffset(it.current_offset());
+    }
+  }
+
+  return BytecodeOffset::None();
+}
+
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   HandleScope handle_scope(isolate);
   DCHECK(args.length() == 0 || args.length() == 1);
@@ -540,7 +581,9 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   if (!it.done()) function = handle(it.frame()->function(), isolate);
   if (function.is_null()) return CrashUnlessFuzzing(isolate);
 
-  if (!FLAG_opt) return ReadOnlyRoots(isolate).undefined_value();
+  if (V8_UNLIKELY(!FLAG_opt) || V8_UNLIKELY(!FLAG_use_osr)) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
 
   if (!function->shared().allows_lazy_compilation()) {
     return CrashUnlessFuzzing(isolate);
@@ -558,12 +601,17 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
 
   if (function->HasAvailableOptimizedCode()) {
     DCHECK(function->HasAttachedOptimizedCode() ||
-           function->ChecksOptimizationMarker());
+           function->ChecksTieringState());
     // If function is already optimized, remove the bytecode array from the
     // pending optimize for test table and return.
     if (FLAG_testing_d8_test_runner) {
       PendingOptimizationTable::FunctionWasOptimized(isolate, function);
     }
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  if (!it.frame()->is_unoptimized()) {
+    // Nothing to be done.
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -579,13 +627,42 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
       function->shared().is_compiled_scope(isolate));
   JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
   function->MarkForOptimization(isolate, CodeKind::TURBOFAN,
-                                ConcurrencyMode::kNotConcurrent);
+                                ConcurrencyMode::kSynchronous);
 
-  // Make the profiler arm all back edges in unoptimized code.
-  if (it.frame()->is_unoptimized()) {
-    isolate->tiering_manager()->AttemptOnStackReplacement(
-        UnoptimizedFrame::cast(it.frame()),
-        AbstractCode::kMaxLoopNestingMarker);
+  isolate->tiering_manager()->RequestOsrAtNextOpportunity(*function);
+
+  // If concurrent OSR is enabled, the testing workflow is a bit tricky. We
+  // must guarantee that the next JumpLoop installs the finished OSR'd code
+  // object, but we still want to exercise concurrent code paths. To do so,
+  // we attempt to find the next JumpLoop, start an OSR job for it now, and
+  // immediately force finalization.
+  // If this succeeds and we correctly match up the next JumpLoop, once we
+  // reach the JumpLoop we'll hit the OSR cache and install the generated code.
+  // If not (e.g. because we enter a nested loop first), the next JumpLoop will
+  // see the cached OSR code with a mismatched offset, and trigger
+  // non-concurrent OSR compilation and installation.
+  if (isolate->concurrent_recompilation_enabled() && FLAG_concurrent_osr) {
+    const BytecodeOffset osr_offset =
+        OffsetOfNextJumpLoop(isolate, UnoptimizedFrame::cast(it.frame()));
+    if (osr_offset.IsNone()) {
+      // The loop may have been elided by bytecode generation (e.g. for
+      // patterns such as `do { ... } while (false);`.
+      return ReadOnlyRoots(isolate).undefined_value();
+    }
+
+    // Finalize first to ensure all pending tasks are done (since we can't
+    // queue more than one OSR job for each function).
+    FinalizeOptimization(isolate);
+
+    // Queue the job.
+    auto unused_result = Compiler::CompileOptimizedOSR(
+        isolate, function, osr_offset, UnoptimizedFrame::cast(it.frame()),
+        ConcurrencyMode::kConcurrent);
+    USE(unused_result);
+
+    // Finalize again to finish the queued job. The next call into
+    // Runtime::kCompileOptimizedOSR will pick up the cached Code object.
+    FinalizeOptimization(isolate);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -640,6 +717,7 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
 RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
+
   int status = 0;
   if (FLAG_lite_mode || FLAG_jitless) {
     // Both jitless and lite modes cannot optimize. Unit tests should handle
@@ -659,16 +737,26 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   Handle<Object> function_object = args.at(0);
   if (function_object->IsUndefined()) return Smi::FromInt(status);
   if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
+
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
   status |= static_cast<int>(OptimizationStatus::kIsFunction);
 
-  if (function->IsMarkedForOptimization()) {
-    status |= static_cast<int>(OptimizationStatus::kMarkedForOptimization);
-  } else if (function->IsMarkedForConcurrentOptimization()) {
-    status |=
-        static_cast<int>(OptimizationStatus::kMarkedForConcurrentOptimization);
-  } else if (function->IsInOptimizationQueue()) {
-    status |= static_cast<int>(OptimizationStatus::kOptimizingConcurrently);
+  switch (function->tiering_state()) {
+    case TieringState::kRequestTurbofan_Synchronous:
+      status |= static_cast<int>(OptimizationStatus::kMarkedForOptimization);
+      break;
+    case TieringState::kRequestTurbofan_Concurrent:
+      status |= static_cast<int>(
+          OptimizationStatus::kMarkedForConcurrentOptimization);
+      break;
+    case TieringState::kInProgress:
+      status |= static_cast<int>(OptimizationStatus::kOptimizingConcurrently);
+      break;
+    case TieringState::kNone:
+    case TieringState::kRequestMaglev_Synchronous:
+    case TieringState::kRequestMaglev_Concurrent:
+      // TODO(v8:7700): Maglev support.
+      break;
   }
 
   if (function->HasAttachedOptimizedCode()) {
@@ -678,7 +766,9 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
     } else {
       status |= static_cast<int>(OptimizationStatus::kOptimized);
     }
-    if (code.is_turbofanned()) {
+    if (code.is_maglevved()) {
+      status |= static_cast<int>(OptimizationStatus::kMaglevved);
+    } else if (code.is_turbofanned()) {
       status |= static_cast<int>(OptimizationStatus::kTurboFanned);
     }
   }
@@ -738,9 +828,7 @@ RUNTIME_FUNCTION(Runtime_WaitForBackgroundOptimization) {
 RUNTIME_FUNCTION(Runtime_FinalizeOptimization) {
   DCHECK_EQ(0, args.length());
   if (isolate->concurrent_recompilation_enabled()) {
-    isolate->optimizing_compile_dispatcher()->AwaitCompileTasks();
-    isolate->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
-    isolate->optimizing_compile_dispatcher()->set_finalize(true);
+    FinalizeOptimization(isolate);
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -1106,6 +1194,9 @@ RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
   // Get the function and make sure it is compiled.
   Handle<JSFunction> func = args.at<JSFunction>(0);
   IsCompiledScope is_compiled_scope;
+  if (!func->is_compiled() && func->HasAvailableOptimizedCode()) {
+    func->set_code(func->feedback_vector().optimized_code());
+  }
   CHECK(func->is_compiled() ||
         Compiler::Compile(isolate, func, Compiler::KEEP_EXCEPTION,
                           &is_compiled_scope));

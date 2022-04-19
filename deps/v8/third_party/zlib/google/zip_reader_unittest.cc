@@ -308,19 +308,18 @@ TEST_F(ZipReaderTest, DotDotFile) {
   ZipReader reader;
   ASSERT_TRUE(reader.Open(data_dir_.AppendASCII("evil.zip")));
   base::FilePath target_path(FILE_PATH_LITERAL(
-      "../levilevilevilevilevilevilevilevilevilevilevilevil"));
+      "UP/levilevilevilevilevilevilevilevilevilevilevilevil"));
   const ZipReader::Entry* entry = LocateAndOpenEntry(&reader, target_path);
   ASSERT_TRUE(entry);
   EXPECT_EQ(target_path, entry->path);
-  // This file is unsafe because of ".." in the file name.
-  EXPECT_TRUE(entry->is_unsafe);
+  EXPECT_FALSE(entry->is_unsafe);
   EXPECT_FALSE(entry->is_directory);
 }
 
 TEST_F(ZipReaderTest, InvalidUTF8File) {
   ZipReader reader;
   ASSERT_TRUE(reader.Open(data_dir_.AppendASCII("evil_via_invalid_utf8.zip")));
-  base::FilePath target_path = base::FilePath::FromUTF8Unsafe(".�.\\evil.txt");
+  base::FilePath target_path = base::FilePath::FromUTF8Unsafe(".�.�evil.txt");
   const ZipReader::Entry* entry = LocateAndOpenEntry(&reader, target_path);
   ASSERT_TRUE(entry);
   EXPECT_EQ(target_path, entry->path);
@@ -337,7 +336,7 @@ TEST_F(ZipReaderTest, EncodingSjisAsUtf8) {
   EXPECT_THAT(
       GetPaths(data_dir_.AppendASCII("SJIS Bug 846195.zip")),
       ElementsAre(
-          base::FilePath::FromUTF8Unsafe("�V�����t�H���_/SJIS_835C_�\\.txt"),
+          base::FilePath::FromUTF8Unsafe("�V�����t�H���_/SJIS_835C_��.txt"),
           base::FilePath::FromUTF8Unsafe(
               "�V�����t�H���_/�V�����e�L�X�g �h�L�������g.txt")));
 }
@@ -349,7 +348,7 @@ TEST_F(ZipReaderTest, EncodingSjisAs1252) {
   EXPECT_THAT(
       GetPaths(data_dir_.AppendASCII("SJIS Bug 846195.zip"), "windows-1252"),
       ElementsAre(base::FilePath::FromUTF8Unsafe(
-                      "\u0090V‚µ‚¢ƒtƒHƒ‹ƒ_/SJIS_835C_ƒ\\.txt"),
+                      "\u0090V‚µ‚¢ƒtƒHƒ‹ƒ_/SJIS_835C_ƒ�.txt"),
                   base::FilePath::FromUTF8Unsafe(
                       "\u0090V‚µ‚¢ƒtƒHƒ‹ƒ_/\u0090V‚µ‚¢ƒeƒLƒXƒg "
                       "ƒhƒLƒ…ƒ\u0081ƒ“ƒg.txt")));
@@ -361,7 +360,7 @@ TEST_F(ZipReaderTest, EncodingSjisAsIbm866) {
   EXPECT_THAT(
       GetPaths(data_dir_.AppendASCII("SJIS Bug 846195.zip"), "IBM866"),
       ElementsAre(
-          base::FilePath::FromUTF8Unsafe("РVВ╡ВвГtГHГЛГ_/SJIS_835C_Г\\.txt"),
+          base::FilePath::FromUTF8Unsafe("РVВ╡ВвГtГHГЛГ_/SJIS_835C_Г�.txt"),
           base::FilePath::FromUTF8Unsafe(
               "РVВ╡ВвГtГHГЛГ_/РVВ╡ВвГeГLГXГg ГhГLГЕГБГУГg.txt")));
 }
@@ -380,12 +379,11 @@ TEST_F(ZipReaderTest, AbsoluteFile) {
   ZipReader reader;
   ASSERT_TRUE(
       reader.Open(data_dir_.AppendASCII("evil_via_absolute_file_name.zip")));
-  base::FilePath target_path(FILE_PATH_LITERAL("/evil.txt"));
+  base::FilePath target_path(FILE_PATH_LITERAL("ROOT/evil.txt"));
   const ZipReader::Entry* entry = LocateAndOpenEntry(&reader, target_path);
   ASSERT_TRUE(entry);
   EXPECT_EQ(target_path, entry->path);
-  // This file is unsafe because of the absolute file name.
-  EXPECT_TRUE(entry->is_unsafe);
+  EXPECT_FALSE(entry->is_unsafe);
   EXPECT_FALSE(entry->is_directory);
 }
 

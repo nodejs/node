@@ -128,7 +128,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
       return object_;
     }
     Register key() const {
-      DCHECK(assign_type_ == KEYED_PROPERTY ||
+      DCHECK(assign_type_ == KEYED_PROPERTY || assign_type_ == PRIVATE_METHOD ||
+             assign_type_ == PRIVATE_GETTER_ONLY ||
              assign_type_ == PRIVATE_SETTER_ONLY ||
              assign_type_ == PRIVATE_GETTER_AND_SETTER);
       return key_;
@@ -262,6 +263,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
       LookupHoistingMode lookup_hoisting_mode = LookupHoistingMode::kNormal);
   void BuildLiteralCompareNil(Token::Value compare_op,
                               BytecodeArrayBuilder::NilValue nil);
+  void BuildLiteralStrictCompareBoolean(Literal* literal);
   void BuildReturn(int source_position);
   void BuildAsyncReturn(int source_position);
   void BuildAsyncGeneratorReturn();

@@ -4,6 +4,7 @@
 
 #include <memory>
 
+#include "src/api/api-inl.h"
 #include "src/api/api.h"
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/prettyprinter.h"
@@ -294,6 +295,19 @@ RUNTIME_FUNCTION(Runtime_ThrowSymbolIteratorInvalid) {
   DCHECK_EQ(0, args.length());
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kSymbolIteratorInvalid));
+}
+
+RUNTIME_FUNCTION(Runtime_ThrowNoAccess) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+
+  // TODO(verwaest): We would like to throw using the calling context instead
+  // of the entered context but we don't currently have access to that.
+  HandleScopeImplementer* impl = isolate->handle_scope_implementer();
+  SaveAndSwitchContext save(
+      isolate, impl->LastEnteredOrMicrotaskContext()->native_context());
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
+                                 NewTypeError(MessageTemplate::kNoAccess));
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowNotConstructor) {

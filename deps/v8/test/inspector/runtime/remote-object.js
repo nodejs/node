@@ -198,6 +198,19 @@ InspectorTest.runAsyncTestSuite([
       expression: '-5n',
       generatePreview: true
     })).result);
+    let result = (await evaluate({
+      expression: '1n << 9_999_999n'
+    })).result;
+    if (result.result.unserializableValue === '0x8' + '0'.repeat(2_499_999) + 'n')
+      result.result.unserializableValue = '<expected unserializableValue>';
+    InspectorTest.logMessage(result);
+    result = (await evaluate({
+      expression: '-1n << 9_999_999n'
+    })).result;
+    InspectorTest.logMessage(result.result.description.length);
+    if (result.result.unserializableValue === '-0x8' + '0'.repeat(2_499_998) + 'n')
+      result.result.unserializableValue = '<expected unserializableValue>';
+    InspectorTest.logMessage(result);
   },
   async function testRegExp() {
     InspectorTest.logMessage((await evaluate({
@@ -273,6 +286,29 @@ InspectorTest.runAsyncTestSuite([
       expression: `a = new Date(2018, 9, 31); a.b = 2; a`,
       generatePreview: true
     })).result;
+    if (result.result.description === new Date(2018, 9, 31) + '')
+      result.result.description = '<expected description>';
+    if (result.result.preview.description === new Date(2018, 9, 31) + '')
+      result.result.preview.description = '<expected description>';
+    InspectorTest.logMessage(result);
+
+    result = (await evaluate({
+               expression:
+                   `a = new Date(2018, 9, 31); a.toString = date => 'bar'; a`,
+               generatePreview: true
+             })).result;
+    if (result.result.description === new Date(2018, 9, 31) + '')
+      result.result.description = '<expected description>';
+    if (result.result.preview.description === new Date(2018, 9, 31) + '')
+      result.result.preview.description = '<expected description>';
+    InspectorTest.logMessage(result);
+
+    result =
+        (await evaluate({
+          expression:
+              `a = new Date(2018, 9, 31); a[Symbol.toPrimitive] = date => 'bar'; a`,
+          generatePreview: true
+        })).result;
     if (result.result.description === new Date(2018, 9, 31) + '')
       result.result.description = '<expected description>';
     if (result.result.preview.description === new Date(2018, 9, 31) + '')

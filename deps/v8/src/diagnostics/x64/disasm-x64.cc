@@ -1158,6 +1158,13 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         AppendToBuffer("vcvtdq2pd %s,", NameOfAVXRegister(regop));
         current += PrintRightAVXOperand(current);
         break;
+      case 0xC2:
+        AppendToBuffer("vcmpss %s,%s,", NameOfAVXRegister(regop),
+                       NameOfAVXRegister(vvvv));
+        current += PrintRightAVXOperand(current);
+        AppendToBuffer(", (%s)", cmp_pseudo_op[*current]);
+        current += 1;
+        break;
       default:
         UnimplementedInstruction();
     }
@@ -1212,6 +1219,13 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         AppendToBuffer("vhaddps %s,%s,", NameOfAVXRegister(regop),
                        NameOfAVXRegister(vvvv));
         current += PrintRightAVXOperand(current);
+        break;
+      case 0xC2:
+        AppendToBuffer("vcmpsd %s,%s,", NameOfAVXRegister(regop),
+                       NameOfAVXRegister(vvvv));
+        current += PrintRightAVXOperand(current);
+        AppendToBuffer(", (%s)", cmp_pseudo_op[*current]);
+        current += 1;
         break;
 #define DISASM_SSE2_INSTRUCTION_LIST_SD(instruction, _1, _2, opcode)     \
   case 0x##opcode:                                                       \
@@ -2296,6 +2310,8 @@ const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
       return "movsxb";
     case 0xBF:
       return "movsxw";
+    case 0xC2:
+      return "cmpss";
     default:
       return nullptr;
   }

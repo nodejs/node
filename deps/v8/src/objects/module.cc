@@ -376,8 +376,16 @@ MaybeHandle<Object> JSModuleNamespace::GetExport(Isolate* isolate,
 
   Handle<Object> value(Cell::cast(*object).value(), isolate);
   if (value->IsTheHole(isolate)) {
-    THROW_NEW_ERROR(
-        isolate, NewReferenceError(MessageTemplate::kNotDefined, name), Object);
+    // According to https://tc39.es/ecma262/#sec-InnerModuleLinking
+    // step 10 and
+    // https://tc39.es/ecma262/#sec-source-text-module-record-initialize-environment
+    // step 8-25, variables must be declared in Link. And according to
+    // https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-get-p-receiver,
+    // here accessing uninitialized variable error should be throwed.
+    THROW_NEW_ERROR(isolate,
+                    NewReferenceError(
+                        MessageTemplate::kAccessedUninitializedVariable, name),
+                    Object);
   }
 
   return value;

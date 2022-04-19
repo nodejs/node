@@ -26,12 +26,8 @@ class V8_EXPORT_PRIVATE CPURegList {
  public:
   template <typename... CPURegisters>
   explicit CPURegList(CPURegister reg0, CPURegisters... regs)
-      : list_(base::fold(
-            [](uint64_t acc, CPURegister v) {
-              if (!v.is_valid()) return acc;
-              return acc | (uint64_t{1} << v.code());
-            },
-            0, reg0, regs...)),
+      : list_(((uint64_t{1} << reg0.code()) | ... |
+               (regs.is_valid() ? uint64_t{1} << regs.code() : 0))),
         size_(reg0.SizeInBits()),
         type_(reg0.type()) {
     DCHECK(AreSameSizeAndType(reg0, regs...));

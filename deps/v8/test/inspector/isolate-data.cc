@@ -339,10 +339,16 @@ void InspectorIsolateData::PromiseRejectHandler(v8::PromiseRejectMessage data) {
   int exception_id = HandleMessage(
       v8::Exception::CreateMessage(isolate, exception), exception);
   if (exception_id) {
-    promise
-        ->SetPrivate(isolate->GetCurrentContext(), id_private,
-                     v8::Int32::New(isolate, exception_id))
-        .ToChecked();
+    if (promise
+            ->SetPrivate(isolate->GetCurrentContext(), id_private,
+                         v8::Int32::New(isolate, exception_id))
+            .IsNothing()) {
+      // Handling the |message| above calls back into JavaScript (by reporting
+      // it via CDP) in case of `inspector-test`, and can lead to terminating
+      // execution on the |isolate|, in which case the API call above will
+      // return immediately.
+      DCHECK(isolate->IsExecutionTerminating());
+    }
   }
 }
 

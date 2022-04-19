@@ -10,7 +10,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate-data.h"
 #include "src/execution/isolate-inl.h"
-#include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 
 namespace v8 {
 namespace internal {

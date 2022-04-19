@@ -15,7 +15,6 @@
 #include "src/objects/function-kind.h"
 #include "src/objects/function-syntax-kind.h"
 #include "src/objects/objects.h"
-#include "src/objects/osr-optimized-code-cache.h"
 #include "src/objects/script.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
@@ -41,6 +40,8 @@ class Signature;
 class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 class WasmJSFunctionData;
+
+enum OSRCodeCacheStateOfSFI : uint8_t;
 
 namespace wasm {
 struct WasmModule;
@@ -445,6 +446,8 @@ class SharedFunctionInfo
   // private instance methdos.
   DECL_BOOLEAN_ACCESSORS(class_scope_has_private_brand)
   DECL_BOOLEAN_ACCESSORS(has_static_private_methods_or_accessors)
+
+  DECL_BOOLEAN_ACCESSORS(maglev_compilation_failed)
 
   // Is this function a top-level function (scripts, evals).
   DECL_BOOLEAN_ACCESSORS(is_toplevel)

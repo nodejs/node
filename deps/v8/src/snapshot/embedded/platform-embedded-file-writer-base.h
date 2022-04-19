@@ -58,6 +58,7 @@ class PlatformEmbeddedFileWriterBase {
   virtual void SectionRoData() = 0;
 
   virtual void AlignToCodeAlignment() = 0;
+  virtual void PaddingAfterCode() {}
   virtual void AlignToDataAlignment() = 0;
 
   virtual void DeclareUint32(const char* name, uint32_t value) = 0;

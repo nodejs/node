@@ -200,34 +200,10 @@ bool JSArrayBufferView::IsVariableLength() const {
 size_t JSTypedArray::GetLengthOrOutOfBounds(bool& out_of_bounds) const {
   DCHECK(!out_of_bounds);
   if (WasDetached()) return 0;
-  if (is_length_tracking()) {
-    if (is_backed_by_rab()) {
-      if (byte_offset() > buffer().byte_length()) {
-        out_of_bounds = true;
-        return 0;
-      }
-      return (buffer().byte_length() - byte_offset()) / element_size();
-    }
-    if (byte_offset() >
-        buffer().GetBackingStore()->byte_length(std::memory_order_seq_cst)) {
-      out_of_bounds = true;
-      return 0;
-    }
-    return (buffer().GetBackingStore()->byte_length(std::memory_order_seq_cst) -
-            byte_offset()) /
-           element_size();
+  if (IsVariableLength()) {
+    return GetVariableLengthOrOutOfBounds(out_of_bounds);
   }
-  size_t array_length = LengthUnchecked();
-  if (is_backed_by_rab()) {
-    // The sum can't overflow, since we have managed to allocate the
-    // JSTypedArray.
-    if (byte_offset() + array_length * element_size() >
-        buffer().byte_length()) {
-      out_of_bounds = true;
-      return 0;
-    }
-  }
-  return array_length;
+  return LengthUnchecked();
 }
 
 size_t JSTypedArray::GetLength() const {
@@ -240,6 +216,15 @@ size_t JSTypedArray::GetByteLength() const {
 }
 
 bool JSTypedArray::IsOutOfBounds() const {
+  bool out_of_bounds = false;
+  GetLengthOrOutOfBounds(out_of_bounds);
+  return out_of_bounds;
+}
+
+bool JSTypedArray::IsDetachedOrOutOfBounds() const {
+  if (WasDetached()) {
+    return true;
+  }
   bool out_of_bounds = false;
   GetLengthOrOutOfBounds(out_of_bounds);
   return out_of_bounds;

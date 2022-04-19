@@ -23,7 +23,7 @@
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
-#include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/compilation-environment.h"
@@ -388,7 +388,6 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
   os << "Body (size = " << instructions().size() << " = "
      << unpadded_binary_size_ << " + " << padding << " padding)\n";
 
-#ifdef ENABLE_DISASSEMBLER
   int instruction_size = unpadded_binary_size_;
   if (constant_pool_offset_ < instruction_size) {
     instruction_size = constant_pool_offset_;
@@ -400,6 +399,8 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
     instruction_size = handler_table_offset_;
   }
   DCHECK_LT(0, instruction_size);
+
+#ifdef ENABLE_DISASSEMBLER
   os << "Instructions (size = " << instruction_size << ")\n";
   Disassembler::Decode(nullptr, os, instructions().begin(),
                        instructions().begin() + instruction_size,
@@ -446,7 +447,11 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
     it.rinfo()->Print(nullptr, os);
   }
   os << "\n";
-#endif  // ENABLE_DISASSEMBLER
+#else   // !ENABLE_DISASSEMBLER
+  os << "Instructions (size = " << instruction_size << ", "
+     << static_cast<void*>(instructions().begin()) << "-"
+     << static_cast<void*>(instructions().begin() + instruction_size) << ")\n";
+#endif  // !ENABLE_DISASSEMBLER
 }
 
 const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {

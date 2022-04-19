@@ -256,6 +256,7 @@ void V8RuntimeAgentImpl::evaluate(
     Maybe<bool> maybeAwaitPromise, Maybe<bool> throwOnSideEffect,
     Maybe<double> timeout, Maybe<bool> disableBreaks, Maybe<bool> maybeReplMode,
     Maybe<bool> allowUnsafeEvalBlockedByCSP, Maybe<String16> uniqueContextId,
+    Maybe<bool> generateWebDriverValue,
     std::unique_ptr<EvaluateCallback> callback) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("devtools.timeline"),
                "EvaluateScript");
@@ -319,20 +320,23 @@ void V8RuntimeAgentImpl::evaluate(
     return;
   }
 
-  WrapMode mode = generatePreview.fromMaybe(false) ? WrapMode::kWithPreview
-                                                   : WrapMode::kNoPreview;
-  if (returnByValue.fromMaybe(false)) mode = WrapMode::kForceValue;
+  WrapMode wrap_mode = generatePreview.fromMaybe(false) ? WrapMode::kWithPreview
+                                                        : WrapMode::kNoPreview;
+  if (returnByValue.fromMaybe(false)) wrap_mode = WrapMode::kForceValue;
+  if (generateWebDriverValue.fromMaybe(false))
+    wrap_mode = WrapMode::kGenerateWebDriverValue;
 
   // REPL mode always returns a promise that must be awaited.
   const bool await = replMode || maybeAwaitPromise.fromMaybe(false);
   if (!await || scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
-                            scope.tryCatch(), objectGroup.fromMaybe(""), mode,
-                            callback.get());
+                            scope.tryCatch(), objectGroup.fromMaybe(""),
+                            wrap_mode, callback.get());
     return;
   }
   scope.injectedScript()->addPromiseCallback(
-      m_session, maybeResultValue, objectGroup.fromMaybe(""), mode, replMode,
+      m_session, maybeResultValue, objectGroup.fromMaybe(""), wrap_mode,
+      replMode,
       EvaluateCallbackWrapper<EvaluateCallback>::wrap(std::move(callback)));
 }
 
@@ -366,7 +370,7 @@ void V8RuntimeAgentImpl::callFunctionOn(
     Maybe<bool> silent, Maybe<bool> returnByValue, Maybe<bool> generatePreview,
     Maybe<bool> userGesture, Maybe<bool> awaitPromise,
     Maybe<int> executionContextId, Maybe<String16> objectGroup,
-    Maybe<bool> throwOnSideEffect,
+    Maybe<bool> throwOnSideEffect, Maybe<bool> generateWebDriverValue,
     std::unique_ptr<CallFunctionOnCallback> callback) {
   if (objectId.isJust() && executionContextId.isJust()) {
     callback->sendFailure(Response::ServerError(
@@ -378,9 +382,11 @@ void V8RuntimeAgentImpl::callFunctionOn(
         "Either ObjectId or executionContextId must be specified"));
     return;
   }
-  WrapMode mode = generatePreview.fromMaybe(false) ? WrapMode::kWithPreview
-                                                   : WrapMode::kNoPreview;
-  if (returnByValue.fromMaybe(false)) mode = WrapMode::kForceValue;
+  WrapMode wrap_mode = generatePreview.fromMaybe(false) ? WrapMode::kWithPreview
+                                                        : WrapMode::kNoPreview;
+  if (returnByValue.fromMaybe(false)) wrap_mode = WrapMode::kForceValue;
+  if (generateWebDriverValue.fromMaybe(false))
+    wrap_mode = WrapMode::kGenerateWebDriverValue;
   if (objectId.isJust()) {
     InjectedScript::ObjectScope scope(m_session, objectId.fromJust());
     Response response = scope.initialize();
@@ -390,7 +396,7 @@ void V8RuntimeAgentImpl::callFunctionOn(
     }
     innerCallFunctionOn(
         m_session, scope, scope.object(), expression,
-        std::move(optionalArguments), silent.fromMaybe(false), mode,
+        std::move(optionalArguments), silent.fromMaybe(false), wrap_mode,
         userGesture.fromMaybe(false), awaitPromise.fromMaybe(false),
         objectGroup.isJust() ? objectGroup.fromMaybe(String16())
                              : scope.objectGroupName(),
@@ -412,7 +418,7 @@ void V8RuntimeAgentImpl::callFunctionOn(
     }
     innerCallFunctionOn(
         m_session, scope, scope.context()->Global(), expression,
-        std::move(optionalArguments), silent.fromMaybe(false), mode,
+        std::move(optionalArguments), silent.fromMaybe(false), wrap_mode,
         userGesture.fromMaybe(false), awaitPromise.fromMaybe(false),
         objectGroup.fromMaybe(""), throwOnSideEffect.fromMaybe(false),
         std::move(callback));

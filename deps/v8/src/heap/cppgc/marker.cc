@@ -87,6 +87,23 @@ size_t GetNextIncrementalStepDuration(IncrementalMarkingSchedule& schedule,
 
 constexpr v8::base::TimeDelta MarkerBase::kMaximumIncrementalStepDuration;
 
+class MarkerBase::IncrementalMarkingTask final : public cppgc::Task {
+ public:
+  using Handle = SingleThreadedHandle;
+
+  IncrementalMarkingTask(MarkerBase*, MarkingConfig::StackState);
+
+  static Handle Post(cppgc::TaskRunner*, MarkerBase*);
+
+ private:
+  void Run() final;
+
+  MarkerBase* const marker_;
+  MarkingConfig::StackState stack_state_;
+  // TODO(chromium:1056170): Change to CancelableTask.
+  Handle handle_;
+};
+
 MarkerBase::IncrementalMarkingTask::IncrementalMarkingTask(
     MarkerBase* marker, MarkingConfig::StackState stack_state)
     : marker_(marker),
@@ -218,7 +235,6 @@ void MarkerBase::StartMarking() {
         MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
       mutator_marking_state_.Publish();
       concurrent_marker_->Start();
-      concurrent_marking_active_ = true;
     }
     incremental_marking_allocation_observer_ =
         std::make_unique<IncrementalMarkingAllocationObserver>(*this);
@@ -226,6 +242,7 @@ void MarkerBase::StartMarking() {
         incremental_marking_allocation_observer_.get());
   }
 }
+
 void MarkerBase::HandleNotFullyConstructedObjects() {
   if (config_.stack_state == MarkingConfig::StackState::kNoHeapPointers) {
     mutator_marking_state_.FlushNotFullyConstructedObjects();
@@ -262,11 +279,10 @@ void MarkerBase::EnterAtomicPause(MarkingConfig::StackState stack_state) {
       MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
     // Start parallel marking.
     mutator_marking_state_.Publish();
-    if (concurrent_marking_active_) {
+    if (concurrent_marker_->IsActive()) {
       concurrent_marker_->NotifyIncrementalMutatorStepCompleted();
     } else {
       concurrent_marker_->Start();
-      concurrent_marking_active_ = true;
     }
   }
 }
@@ -301,6 +317,9 @@ void MarkerBase::FinishMarking(MarkingConfig::StackState stack_state) {
     StatsCollector::EnabledScope stats_scope(heap().stats_collector(),
                                              StatsCollector::kAtomicMark);
     CHECK(AdvanceMarkingWithLimits(v8::base::TimeDelta::Max(), SIZE_MAX));
+    if (JoinConcurrentMarkingIfNeeded()) {
+      CHECK(AdvanceMarkingWithLimits(v8::base::TimeDelta::Max(), SIZE_MAX));
+    }
     mutator_marking_state_.Publish();
   }
   LeaveAtomicPause();
@@ -431,13 +450,11 @@ void MarkerBase::AdvanceMarkingOnAllocation() {
   }
 }
 
-bool MarkerBase::CancelConcurrentMarkingIfNeeded() {
+bool MarkerBase::JoinConcurrentMarkingIfNeeded() {
   if (config_.marking_type != MarkingConfig::MarkingType::kAtomic ||
-      !concurrent_marking_active_)
+      !concurrent_marker_->Join())
     return false;
 
-  concurrent_marker_->Cancel();
-  concurrent_marking_active_ = false;
   // Concurrent markers may have pushed some "leftover" in-construction objects
   // after flushing in EnterAtomicPause.
   HandleNotFullyConstructedObjects();
@@ -462,9 +479,6 @@ bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
     if (is_done && VisitCrossThreadPersistentsIfNeeded()) {
       // Both limits are absolute and hence can be passed along without further
       // adjustment.
-      is_done = ProcessWorklistsWithDeadline(marked_bytes_limit, deadline);
-    }
-    if (is_done && CancelConcurrentMarkingIfNeeded()) {
       is_done = ProcessWorklistsWithDeadline(marked_bytes_limit, deadline);
     }
     schedule_.UpdateMutatorThreadMarkedBytes(
@@ -623,7 +637,17 @@ void MarkerBase::SetMainThreadMarkingDisabledForTesting(bool value) {
 }
 
 void MarkerBase::WaitForConcurrentMarkingForTesting() {
-  concurrent_marker_->JoinForTesting();
+  concurrent_marker_->Join();
+}
+
+MarkerBase::PauseConcurrentMarkingScope::PauseConcurrentMarkingScope(
+    MarkerBase& marker)
+    : marker_(marker), resume_on_exit_(marker_.concurrent_marker_->Cancel()) {}
+
+MarkerBase::PauseConcurrentMarkingScope::~PauseConcurrentMarkingScope() {
+  if (resume_on_exit_) {
+    marker_.concurrent_marker_->Start();
+  }
 }
 
 Marker::Marker(HeapBase& heap, cppgc::Platform* platform, MarkingConfig config)

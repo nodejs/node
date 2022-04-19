@@ -640,12 +640,20 @@ class WasmGraphBuildingInterface {
   void CallDirect(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[], Value returns[]) {
+    if (FLAG_wasm_speculative_inlining && type_feedback_.size() > 0) {
+      DCHECK_LT(feedback_instruction_index_, type_feedback_.size());
+      feedback_instruction_index_++;
+    }
     DoCall(decoder, CallInfo::CallDirect(imm.index), imm.sig, args, returns);
   }
 
   void ReturnCall(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[]) {
+    if (FLAG_wasm_speculative_inlining && type_feedback_.size() > 0) {
+      DCHECK_LT(feedback_instruction_index_, type_feedback_.size());
+      feedback_instruction_index_++;
+    }
     DoReturnCall(decoder, CallInfo::CallDirect(imm.index), imm.sig, args);
   }
 
@@ -671,8 +679,6 @@ class WasmGraphBuildingInterface {
                const FunctionSig* sig, uint32_t sig_index, const Value args[],
                Value returns[]) {
     int maybe_feedback = -1;
-    // TODO(jkummerow): The way we currently prepare type feedback means that
-    // we won't have any for inlined functions. Figure out how to change that.
     if (FLAG_wasm_speculative_inlining && type_feedback_.size() > 0) {
       DCHECK_LT(feedback_instruction_index_, type_feedback_.size());
       maybe_feedback =
@@ -1155,10 +1161,6 @@ class WasmGraphBuildingInterface {
     result.object_can_be_null = object_type.is_nullable();
     DCHECK(object_type.is_object_reference());  // Checked by validation.
     // In the bottom case, the result is irrelevant.
-    result.reference_kind =
-        !rtt_type.is_bottom() && module->has_signature(rtt_type.ref_index())
-            ? compiler::WasmGraphBuilder::kFunction
-            : compiler::WasmGraphBuilder::kArrayOrStruct;
     result.rtt_depth = rtt_type.is_bottom()
                            ? 0 /* unused */
                            : static_cast<uint8_t>(GetSubtypingDepth(

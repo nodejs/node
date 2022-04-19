@@ -77,9 +77,6 @@ struct WrapperDescriptor final {
 };
 
 struct V8_EXPORT CppHeapCreateParams {
-  CppHeapCreateParams(const CppHeapCreateParams&) = delete;
-  CppHeapCreateParams& operator=(const CppHeapCreateParams&) = delete;
-
   std::vector<std::unique_ptr<cppgc::CustomSpaceBase>> custom_spaces;
   WrapperDescriptor wrapper_descriptor;
 };
@@ -164,6 +161,7 @@ class V8_EXPORT CppHeap {
 class JSVisitor : public cppgc::Visitor {
  public:
   explicit JSVisitor(cppgc::Visitor::Key key) : cppgc::Visitor(key) {}
+  ~JSVisitor() override = default;
 
   void Trace(const TracedReferenceBase& ref) {
     if (ref.IsEmptyThreadSafe()) return;

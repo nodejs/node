@@ -10,6 +10,7 @@
 #include "base/bind.h"
 #include "base/check.h"
 #include "base/files/file.h"
+#include "base/files/file_util.h"
 #include "base/i18n/icu_string_conversions.h"
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
@@ -56,6 +57,26 @@ std::ostream& operator<<(std::ostream& out, UnzipError error) {
       return out << "UNZ" << static_cast<int>(error);
   }
 #undef SWITCH_ERR
+}
+
+bool IsValidFileNameCharacterOnWindows(char16_t c) {
+  if (c < 32)
+    return false;
+
+  switch (c) {
+    case '<':   // Less than
+    case '>':   // Greater than
+    case ':':   // Colon
+    case '"':   // Double quote
+    case '|':   // Vertical bar or pipe
+    case '?':   // Question mark
+    case '*':   // Asterisk
+    case '/':   // Forward slash
+    case '\\':  // Backslash
+      return false;
+  }
+
+  return true;
 }
 
 // A writer delegate that writes to a given string.
@@ -145,8 +166,8 @@ bool ZipReader::OpenFromString(const std::string& data) {
 
 void ZipReader::Close() {
   if (zip_file_) {
-    if (const int err = unzClose(zip_file_); err != UNZ_OK) {
-      LOG(ERROR) << "Error while closing ZIP archive: " << UnzipError(err);
+    if (const UnzipError err{unzClose(zip_file_)}; err != UNZ_OK) {
+      LOG(ERROR) << "Error while closing ZIP archive: " << err;
     }
   }
   Reset();
@@ -162,10 +183,10 @@ const ZipReader::Entry* ZipReader::Next() {
 
   // Move to the next entry if we're not trying to open the first entry.
   if (next_index_ > 0) {
-    if (const int err = unzGoToNextFile(zip_file_); err != UNZ_OK) {
+    if (const UnzipError err{unzGoToNextFile(zip_file_)}; err != UNZ_OK) {
       reached_end_ = true;
       if (err != UNZ_END_OF_LIST_OF_FILE) {
-        LOG(ERROR) << "Cannot go to next entry in ZIP: " << UnzipError(err);
+        LOG(ERROR) << "Cannot go to next entry in ZIP: " << err;
         ok_ = false;
       }
       return nullptr;
@@ -189,11 +210,11 @@ bool ZipReader::OpenEntry() {
   // Get entry info.
   unz_file_info64 info = {};
   char path_in_zip[internal::kZipMaxPath] = {};
-  if (const int err = unzGetCurrentFileInfo64(zip_file_, &info, path_in_zip,
-                                              sizeof(path_in_zip) - 1, nullptr,
-                                              0, nullptr, 0);
+  if (const UnzipError err{unzGetCurrentFileInfo64(
+          zip_file_, &info, path_in_zip, sizeof(path_in_zip) - 1, nullptr, 0,
+          nullptr, 0)};
       err != UNZ_OK) {
-    LOG(ERROR) << "Cannot get entry from ZIP: " << UnzipError(err);
+    LOG(ERROR) << "Cannot get entry from ZIP: " << err;
     return false;
   }
 
@@ -209,18 +230,10 @@ bool ZipReader::OpenEntry() {
     return false;
   }
 
-  entry_.path = base::FilePath::FromUTF16Unsafe(path_in_utf16);
+  // Normalize path.
+  Normalize(path_in_utf16);
+
   entry_.original_size = info.uncompressed_size;
-
-  // Directory entries in ZIP have a path ending with "/".
-  entry_.is_directory = base::EndsWith(path_in_utf16, u"/");
-
-  // Check the entry path for directory traversal issues. We consider entry
-  // paths unsafe if they are absolute or if they contain "..". On Windows,
-  // IsAbsolute() returns false for paths starting with "/".
-  entry_.is_unsafe = entry_.path.ReferencesParent() ||
-                     entry_.path.IsAbsolute() ||
-                     base::StartsWith(path_in_utf16, u"/");
 
   // The file content of this entry is encrypted if flag bit 0 is set.
   entry_.is_encrypted = info.flag & 1;
@@ -248,6 +261,73 @@ bool ZipReader::OpenEntry() {
   return true;
 }
 
+void ZipReader::Normalize(base::StringPiece16 in) {
+  entry_.is_unsafe = true;
+
+  // Directory entries in ZIP have a path ending with "/".
+  entry_.is_directory = base::EndsWith(in, u"/");
+
+  std::u16string normalized_path;
+  if (base::StartsWith(in, u"/")) {
+    normalized_path = u"ROOT";
+    entry_.is_unsafe = false;
+  }
+
+  for (;;) {
+    // Consume initial path separators.
+    const base::StringPiece16::size_type i = in.find_first_not_of(u'/');
+    if (i == base::StringPiece16::npos)
+      break;
+
+    in.remove_prefix(i);
+    DCHECK(!in.empty());
+
+    // Isolate next path component.
+    const base::StringPiece16 part = in.substr(0, in.find_first_of(u'/'));
+    DCHECK(!part.empty());
+
+    in.remove_prefix(part.size());
+
+    if (!normalized_path.empty())
+      normalized_path += u'/';
+
+    if (part == u".") {
+      normalized_path += u"DOT";
+      entry_.is_unsafe = true;
+      continue;
+    }
+
+    if (part == u"..") {
+      normalized_path += u"UP";
+      entry_.is_unsafe = true;
+      continue;
+    }
+
+    // Windows has more restrictions than other systems when it comes to valid
+    // file paths. Replace Windows-invalid characters on all systems for
+    // consistency. In particular, this prevents a path component containing
+    // colon and backslash from being misinterpreted as an absolute path on
+    // Windows.
+    for (const char16_t c : part) {
+      normalized_path += IsValidFileNameCharacterOnWindows(c) ? c : 0xFFFD;
+    }
+
+    entry_.is_unsafe = false;
+  }
+
+  // If the entry is a directory, add the final path separator to the entry
+  // path.
+  if (entry_.is_directory && !normalized_path.empty()) {
+    normalized_path += u'/';
+    entry_.is_unsafe = false;
+  }
+
+  entry_.path = base::FilePath::FromUTF16Unsafe(normalized_path);
+
+  // By construction, we should always get a relative path.
+  DCHECK(!entry_.path.IsAbsolute()) << entry_.path;
+}
+
 bool ZipReader::ExtractCurrentEntry(WriterDelegate* delegate,
                                     uint64_t num_bytes_to_extract) const {
   DCHECK(zip_file_);
@@ -259,10 +339,10 @@ bool ZipReader::ExtractCurrentEntry(WriterDelegate* delegate,
   // is needed, and must be nullptr.
   const char* const password =
       entry_.is_encrypted ? password_.c_str() : nullptr;
-  if (const int err = unzOpenCurrentFilePassword(zip_file_, password);
+  if (const UnzipError err{unzOpenCurrentFilePassword(zip_file_, password)};
       err != UNZ_OK) {
     LOG(ERROR) << "Cannot open file " << Redact(entry_.path)
-               << " from ZIP: " << UnzipError(err);
+               << " from ZIP: " << err;
     return false;
   }
 
@@ -309,9 +389,9 @@ bool ZipReader::ExtractCurrentEntry(WriterDelegate* delegate,
     remaining_capacity -= num_bytes_to_write;
   }
 
-  if (const int err = unzCloseCurrentFile(zip_file_); err != UNZ_OK) {
+  if (const UnzipError err{unzCloseCurrentFile(zip_file_)}; err != UNZ_OK) {
     LOG(ERROR) << "Cannot extract file " << Redact(entry_.path)
-               << " from ZIP: " << UnzipError(err);
+               << " from ZIP: " << err;
     entire_file_extracted = false;
   }
 
@@ -354,10 +434,10 @@ void ZipReader::ExtractCurrentEntryToFilePathAsync(
   // is needed, and must be nullptr.
   const char* const password =
       entry_.is_encrypted ? password_.c_str() : nullptr;
-  if (const int err = unzOpenCurrentFilePassword(zip_file_, password);
+  if (const UnzipError err{unzOpenCurrentFilePassword(zip_file_, password)};
       err != UNZ_OK) {
     LOG(ERROR) << "Cannot open file " << Redact(entry_.path)
-               << " from ZIP: " << UnzipError(err);
+               << " from ZIP: " << err;
     base::SequencedTaskRunnerHandle::Get()->PostTask(
         FROM_HERE, std::move(failure_callback));
     return;
@@ -420,8 +500,9 @@ bool ZipReader::OpenInternal() {
   DCHECK(zip_file_);
 
   unz_global_info zip_info = {};  // Zero-clear.
-  if (const int err = unzGetGlobalInfo(zip_file_, &zip_info); err != UNZ_OK) {
-    LOG(ERROR) << "Cannot get ZIP info: " << UnzipError(err);
+  if (const UnzipError err{unzGetGlobalInfo(zip_file_, &zip_info)};
+      err != UNZ_OK) {
+    LOG(ERROR) << "Cannot get ZIP info: " << err;
     return false;
   }
 
@@ -451,9 +532,9 @@ void ZipReader::ExtractChunk(base::File output_file,
       unzReadCurrentFile(zip_file_, buffer, internal::kZipBufSize);
 
   if (num_bytes_read == 0) {
-    if (const int err = unzCloseCurrentFile(zip_file_); err != UNZ_OK) {
+    if (const UnzipError err{unzCloseCurrentFile(zip_file_)}; err != UNZ_OK) {
       LOG(ERROR) << "Cannot extract file " << Redact(entry_.path)
-                 << " from ZIP: " << UnzipError(err);
+                 << " from ZIP: " << err;
       std::move(failure_callback).Run();
       return;
     }
@@ -502,12 +583,26 @@ FileWriterDelegate::~FileWriterDelegate() {}
 
 bool FileWriterDelegate::PrepareOutput() {
   DCHECK(file_);
-  const bool ok = file_->IsValid();
-  if (ok) {
-    DCHECK_EQ(file_->GetLength(), 0)
-        << " The output file should be initially empty";
+
+  if (!file_->IsValid()) {
+    LOG(ERROR) << "File is not valid";
+    return false;
   }
-  return ok;
+
+  const int64_t length = file_->GetLength();
+  if (length < 0) {
+    PLOG(ERROR) << "Cannot get length of file handle "
+                << file_->GetPlatformFile();
+    return false;
+  }
+
+  // Just log a warning if the file is not empty.
+  // See crbug.com/1309879 and crbug.com/774762.
+  LOG_IF(WARNING, length > 0)
+      << "File handle " << file_->GetPlatformFile()
+      << " is not empty: Its length is " << length << " bytes";
+
+  return true;
 }
 
 bool FileWriterDelegate::WriteBytes(const char* data, int num_bytes) {
@@ -543,12 +638,33 @@ FilePathWriterDelegate::~FilePathWriterDelegate() {}
 bool FilePathWriterDelegate::PrepareOutput() {
   // We can't rely on parent directory entries being specified in the
   // zip, so we make sure they are created.
-  if (!base::CreateDirectory(output_file_path_.DirName()))
+  if (const base::FilePath dir = output_file_path_.DirName();
+      !base::CreateDirectory(dir)) {
+    PLOG(ERROR) << "Cannot create directory " << Redact(dir);
     return false;
+  }
 
-  owned_file_.Initialize(output_file_path_, base::File::FLAG_CREATE_ALWAYS |
-                                                base::File::FLAG_WRITE);
-  return FileWriterDelegate::PrepareOutput();
+  owned_file_.Initialize(output_file_path_,
+                         base::File::FLAG_CREATE | base::File::FLAG_WRITE);
+  if (!owned_file_.IsValid()) {
+    PLOG(ERROR) << "Cannot create file " << Redact(output_file_path_) << ": "
+                << base::File::ErrorToString(owned_file_.error_details());
+    return false;
+  }
+
+  const int64_t length = owned_file_.GetLength();
+  if (length < 0) {
+    PLOG(ERROR) << "Cannot get length of file " << Redact(output_file_path_);
+    return false;
+  }
+
+  if (length > 0) {
+    LOG(ERROR) << "File " << Redact(output_file_path_)
+               << " is not empty: Its length is " << length << " bytes";
+    return false;
+  }
+
+  return true;
 }
 
 void FilePathWriterDelegate::OnError() {

@@ -60,9 +60,7 @@ ControlNode* NearestPostDominatingHole(ControlNode* node) {
 
 bool IsLiveAtTarget(ValueNode* node, ControlNode* source, BasicBlock* target) {
   DCHECK_NOT_NULL(node);
-
-  // TODO(leszeks): We shouldn't have any dead nodes passed into here.
-  if (node->is_dead()) return false;
+  DCHECK(!node->is_dead());
 
   // If we're looping, a value can only be live if it was live before the loop.
   if (target->control_node()->id() <= source->id()) {
@@ -177,7 +175,8 @@ void StraightForwardRegisterAllocator::ComputePostDominatingHoles(
         // If the first branch returns or jumps back, we've found highest
         // reachable control-node of the longest branch (the second control
         // node).
-        if (first->Is<Return>() || first->Is<JumpLoop>()) {
+        if (first->Is<Return>() || first->Is<Deopt>() ||
+            first->Is<JumpLoop>()) {
           control->set_next_post_dominating_hole(second);
           break;
         }
@@ -242,6 +241,9 @@ void StraightForwardRegisterAllocator::AllocateRegisters(Graph* graph) {
           } else if (control->Is<Return>()) {
             printing_visitor_->os() << " " << control->id() << ".";
             break;
+          } else if (control->Is<Deopt>()) {
+            printing_visitor_->os() << " " << control->id() << "✖️";
+            break;
           } else if (control->Is<JumpLoop>()) {
             printing_visitor_->os() << " " << control->id() << "↰";
             break;
@@ -270,8 +272,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters(Graph* graph) {
               compiler::AllocatedOperand::cast(allocation));
           if (FLAG_trace_maglev_regalloc) {
             printing_visitor_->Process(
-                phi, ProcessingState(compilation_unit_, block_it_, nullptr,
-                                     nullptr, nullptr));
+                phi, ProcessingState(compilation_unit_, block_it_));
             printing_visitor_->os()
                 << "phi (new reg) " << phi->result().operand() << std::endl;
           }
@@ -285,8 +286,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters(Graph* graph) {
         phi->result().SetAllocated(phi->spill_slot());
         if (FLAG_trace_maglev_regalloc) {
           printing_visitor_->Process(
-              phi, ProcessingState(compilation_unit_, block_it_, nullptr,
-                                   nullptr, nullptr));
+              phi, ProcessingState(compilation_unit_, block_it_));
           printing_visitor_->os()
               << "phi (stack) " << phi->result().operand() << std::endl;
         }
@@ -307,45 +307,68 @@ void StraightForwardRegisterAllocator::AllocateRegisters(Graph* graph) {
   }
 }
 
-void StraightForwardRegisterAllocator::UpdateInputUse(uint32_t use,
-                                                      const Input& input) {
-  ValueNode* node = input.node();
-
-  // The value was already cleared through a previous input.
-  if (node->is_dead()) return;
+void StraightForwardRegisterAllocator::UpdateUse(
+    ValueNode* node, InputLocation* input_location) {
+  DCHECK(!node->is_dead());
 
   // Update the next use.
-  node->set_next_use(input.next_use_id());
+  node->set_next_use(input_location->next_use_id());
+
+  if (!node->is_dead()) return;
 
   // If a value is dead, make sure it's cleared.
-  if (node->is_dead()) {
-    FreeRegisters(node);
+  FreeRegisters(node);
+}
 
-    // If the stack slot is a local slot, free it so it can be reused.
-    if (node->is_spilled()) {
-      compiler::AllocatedOperand slot = node->spill_slot();
-      if (slot.index() > 0) free_slots_.push_back(slot.index());
-    }
-    return;
-  }
+void StraightForwardRegisterAllocator::UpdateUse(
+    const EagerDeoptInfo& deopt_info) {
+  const CompactInterpreterFrameState* checkpoint_state =
+      deopt_info.state.register_frame;
+  int index = 0;
+  checkpoint_state->ForEachValue(
+      *compilation_unit_, [&](ValueNode* node, interpreter::Register reg) {
+        InputLocation* input = &deopt_info.input_locations[index++];
+        input->InjectAllocated(node->allocation());
+        UpdateUse(node, input);
+      });
+}
+
+void StraightForwardRegisterAllocator::UpdateUse(
+    const LazyDeoptInfo& deopt_info) {
+  const CompactInterpreterFrameState* checkpoint_state =
+      deopt_info.state.register_frame;
+  int index = 0;
+  checkpoint_state->ForEachValue(
+      *compilation_unit_, [&](ValueNode* node, interpreter::Register reg) {
+        // Skip over the result location.
+        if (reg == deopt_info.result_location) return;
+        InputLocation* input = &deopt_info.input_locations[index++];
+        input->InjectAllocated(node->allocation());
+        UpdateUse(node, input);
+      });
 }
 
 void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
   for (Input& input : *node) AssignInput(input);
   AssignTemporaries(node);
-  for (Input& input : *node) UpdateInputUse(node->id(), input);
+  if (node->properties().can_eager_deopt()) {
+    UpdateUse(*node->eager_deopt_info());
+  }
+  for (Input& input : *node) UpdateUse(&input);
 
   if (node->properties().is_call()) SpillAndClearRegisters();
-  // TODO(verwaest): This isn't a good idea :)
-  if (node->properties().can_deopt()) SpillRegisters();
 
   // Allocate node output.
   if (node->Is<ValueNode>()) AllocateNodeResult(node->Cast<ValueNode>());
 
+  // Lazy deopts are semantically after the node, so update them last.
+  if (node->properties().can_lazy_deopt()) {
+    UpdateUse(*node->lazy_deopt_info());
+  }
+
   if (FLAG_trace_maglev_regalloc) {
-    printing_visitor_->Process(
-        node, ProcessingState(compilation_unit_, block_it_, nullptr, nullptr,
-                              nullptr));
+    printing_visitor_->Process(node,
+                               ProcessingState(compilation_unit_, block_it_));
     printing_visitor_->os() << "live regs: ";
     PrintLiveRegs();
     printing_visitor_->os() << "\n";
@@ -477,7 +500,10 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
                                                            BasicBlock* block) {
   for (Input& input : *node) AssignInput(input);
   AssignTemporaries(node);
-  for (Input& input : *node) UpdateInputUse(node->id(), input);
+  if (node->properties().can_eager_deopt()) {
+    UpdateUse(*node->eager_deopt_info());
+  }
+  for (Input& input : *node) UpdateUse(&input);
 
   if (node->properties().is_call()) SpillAndClearRegisters();
 
@@ -490,14 +516,12 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
         Input& input = phi->input(block->predecessor_id());
         input.InjectAllocated(input.node()->allocation());
       }
-      for (Phi* phi : *phis) {
-        UpdateInputUse(phi->id(), phi->input(block->predecessor_id()));
-      }
+      for (Phi* phi : *phis) UpdateUse(&phi->input(block->predecessor_id()));
     }
   }
 
   // TODO(verwaest): This isn't a good idea :)
-  if (node->properties().can_deopt()) SpillRegisters();
+  if (node->properties().can_eager_deopt()) SpillRegisters();
 
   // Merge register values. Values only flowing into phis and not being
   // independently live will be killed as part of the merge.
@@ -513,9 +537,8 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
   }
 
   if (FLAG_trace_maglev_regalloc) {
-    printing_visitor_->Process(
-        node, ProcessingState(compilation_unit_, block_it_, nullptr, nullptr,
-                              nullptr));
+    printing_visitor_->Process(node,
+                               ProcessingState(compilation_unit_, block_it_));
   }
 }
 
@@ -528,8 +551,7 @@ void StraightForwardRegisterAllocator::TryAllocateToInput(Phi* phi) {
         phi->result().SetAllocated(ForceAllocate(reg, phi));
         if (FLAG_trace_maglev_regalloc) {
           printing_visitor_->Process(
-              phi, ProcessingState(compilation_unit_, block_it_, nullptr,
-                                   nullptr, nullptr));
+              phi, ProcessingState(compilation_unit_, block_it_));
           printing_visitor_->os()
               << "phi (reuse) " << input.operand() << std::endl;
         }
@@ -629,13 +651,8 @@ void StraightForwardRegisterAllocator::SpillAndClearRegisters() {
 
 void StraightForwardRegisterAllocator::AllocateSpillSlot(ValueNode* node) {
   DCHECK(!node->is_spilled());
-  uint32_t free_slot;
-  if (free_slots_.empty()) {
-    free_slot = top_of_stack_++;
-  } else {
-    free_slot = free_slots_.back();
-    free_slots_.pop_back();
-  }
+  uint32_t free_slot = top_of_stack_++;
+  compilation_unit_->push_stack_value_repr(node->value_representation());
   node->Spill(compiler::AllocatedOperand(compiler::AllocatedOperand::STACK_SLOT,
                                          MachineRepresentation::kTagged,
                                          free_slot));
@@ -659,6 +676,7 @@ void StraightForwardRegisterAllocator::FreeSomeRegister() {
     }
   }
   DCHECK(best.is_valid());
+  DropRegisterValue(best);
   FreeRegister(best);
 }
 

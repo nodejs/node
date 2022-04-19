@@ -55,6 +55,7 @@ template <typename THeapObjectSlot>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::ProcessWeakHeapObject(
     HeapObject host, THeapObjectSlot slot, HeapObject heap_object) {
   concrete_visitor()->SynchronizePageAccess(heap_object);
+  if (!is_shared_heap_ && heap_object.InSharedHeap()) return;
   if (concrete_visitor()->marking_state()->IsBlackOrGrey(heap_object)) {
     // Weak references with live values are directly processed here to
     // reduce the processing time of weak cells during the main GC

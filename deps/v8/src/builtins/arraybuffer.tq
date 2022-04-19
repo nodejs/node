@@ -47,8 +47,11 @@ transitioning javascript builtin ArrayBufferPrototypeGetMaxByteLength(
   // 6. Else,
   //   a. Let length be O.[[ArrayBufferByteLength]].
   // 7. Return F(length);
-  dcheck(IsResizableArrayBuffer(o) || o.max_byte_length == o.byte_length);
-  return Convert<Number>(o.max_byte_length);
+
+  if (IsResizableArrayBuffer(o)) {
+    return Convert<Number>(o.max_byte_length);
+  }
+  return Convert<Number>(o.byte_length);
 }
 
 // #sec-get-arraybuffer.prototype.resizable

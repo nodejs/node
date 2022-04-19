@@ -428,7 +428,7 @@ constexpr int LiftoffAssembler::StaticStackFrameSize() {
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
   switch (kind) {
     case kS128:
-      return element_size_bytes(kind);
+      return value_kind_size(kind);
     default:
       return kStackSlotSize;
   }
@@ -658,7 +658,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 
 #if defined(V8_TARGET_BIG_ENDIAN)
   if (is_store_mem) {
-    pinned = pinned | LiftoffRegList::ForRegs(dst_op.rm(), src);
+    pinned = pinned | LiftoffRegList{dst_op.rm(), src};
     LiftoffRegister tmp = GetUnusedRegister(src.reg_class(), pinned);
     // Save original value.
     Move(tmp, src, type.value_type());
@@ -1023,7 +1023,7 @@ I32_SHIFTOP_I(shr, srl)
 void LiftoffAssembler::emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
                                      int64_t imm) {
   LiftoffRegister imm_reg =
-    GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dst, lhs));
+      GetUnusedRegister(kGpRegPair, LiftoffRegList{dst, lhs});
   int32_t imm_low_word = static_cast<int32_t>(imm);
   int32_t imm_high_word = static_cast<int32_t>(imm >> 32);
   TurboAssembler::li(imm_reg.low_gp(), imm_low_word);
@@ -1092,7 +1092,7 @@ inline void Emit64BitShiftOperation(
     void (TurboAssembler::*emit_shift)(Register, Register, Register, Register,
                                        Register, Register, Register)) {
   Label move, done;
-  LiftoffRegList pinned = LiftoffRegList::ForRegs(dst, src, amount);
+  LiftoffRegList pinned = {dst, src, amount};
 
   // If some of destination registers are in use, get another, unused pair.
   // That way we prevent overwriting some input registers while shifting.
@@ -1233,6 +1233,14 @@ bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
   addu(dst.low_gp(), dst.low_gp(), dst.high_gp());
   mov(dst.high_gp(), zero_reg);
   return true;
+}
+
+void LiftoffAssembler::IncrementSmi(LiftoffRegister dst, int offset) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  lw(scratch, MemOperand(dst.gp(), offset));
+  Addu(scratch, scratch, Operand(Smi::FromInt(1)));
+  sw(scratch, MemOperand(dst.gp(), offset));
 }
 
 void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
@@ -1377,10 +1385,9 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       TurboAssembler::Move(dst.gp(), src.low_gp());
       return true;
     case kExprI32SConvertF32: {
-      LiftoffRegister rounded =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
+      LiftoffRegister rounded = GetUnusedRegister(kFpReg, LiftoffRegList{src});
       LiftoffRegister converted_back =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
+          GetUnusedRegister(kFpReg, LiftoffRegList{src, rounded});
 
       // Real conversion.
       TurboAssembler::Trunc_s_s(rounded.fp(), src.fp());
@@ -1400,10 +1407,9 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       return true;
     }
     case kExprI32UConvertF32: {
-      LiftoffRegister rounded =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
+      LiftoffRegister rounded = GetUnusedRegister(kFpReg, LiftoffRegList{src});
       LiftoffRegister converted_back =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
+          GetUnusedRegister(kFpReg, LiftoffRegList{src, rounded});
 
       // Real conversion.
       TurboAssembler::Trunc_s_s(rounded.fp(), src.fp());
@@ -1422,8 +1428,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       return true;
     }
     case kExprI32SConvertF64: {
-      LiftoffRegister scratch =
-          GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(dst));
+      LiftoffRegister scratch = GetUnusedRegister(kGpReg, LiftoffRegList{dst});
 
       // Try a conversion to a signed integer.
       trunc_w_d(kScratchDoubleReg, src.fp());
@@ -1442,9 +1447,9 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
           IsFp64Mode()) {
         LiftoffRegister rounded =
-            GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src));
+            GetUnusedRegister(kFpReg, LiftoffRegList{src});
         LiftoffRegister converted_back =
-            GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(src, rounded));
+            GetUnusedRegister(kFpReg, LiftoffRegList{src, rounded});
 
         // Real conversion.
         TurboAssembler::Trunc_d_d(rounded.fp(), src.fp());
@@ -1501,15 +1506,13 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       TurboAssembler::Mfhc1(dst.high_gp(), src.fp());
       return true;
     case kExprF32SConvertI32: {
-      LiftoffRegister scratch =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dst));
+      LiftoffRegister scratch = GetUnusedRegister(kFpReg, LiftoffRegList{dst});
       mtc1(src.gp(), scratch.fp());
       cvt_s_w(dst.fp(), scratch.fp());
       return true;
     }
     case kExprF32UConvertI32: {
-      LiftoffRegister scratch =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dst));
+      LiftoffRegister scratch = GetUnusedRegister(kFpReg, LiftoffRegList{dst});
       TurboAssembler::Cvt_d_uw(dst.fp(), src.gp(), scratch.fp());
       cvt_s_d(dst.fp(), dst.fp());
       return true;
@@ -1521,15 +1524,13 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       TurboAssembler::FmoveLow(dst.fp(), src.gp());
       return true;
     case kExprF64SConvertI32: {
-      LiftoffRegister scratch =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dst));
+      LiftoffRegister scratch = GetUnusedRegister(kFpReg, LiftoffRegList{dst});
       mtc1(src.gp(), scratch.fp());
       cvt_d_w(dst.fp(), scratch.fp());
       return true;
     }
     case kExprF64UConvertI32: {
-      LiftoffRegister scratch =
-          GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(dst));
+      LiftoffRegister scratch = GetUnusedRegister(kFpReg, LiftoffRegList{dst});
       TurboAssembler::Cvt_d_uw(dst.fp(), src.gp(), scratch.fp());
       return true;
     }
@@ -1614,7 +1615,7 @@ void LiftoffAssembler::emit_i32_set_cond(LiftoffCondition liftoff_cond,
   Condition cond = liftoff::ToCondition(liftoff_cond);
   Register tmp = dst;
   if (dst == lhs || dst == rhs) {
-    tmp = GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(lhs, rhs)).gp();
+    tmp = GetUnusedRegister(kGpReg, LiftoffRegList{lhs, rhs}).gp();
   }
   // Write 1 as result.
   TurboAssembler::li(tmp, 1);
@@ -1628,8 +1629,7 @@ void LiftoffAssembler::emit_i32_set_cond(LiftoffCondition liftoff_cond,
 }
 
 void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
-  Register tmp =
-      GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(src, dst)).gp();
+  Register tmp = GetUnusedRegister(kGpReg, LiftoffRegList{src, dst}).gp();
   sltiu(tmp, src.low_gp(), 1);
   sltiu(dst, src.high_gp(), 1);
   and_(dst, dst, tmp);
@@ -1666,8 +1666,7 @@ void LiftoffAssembler::emit_i64_set_cond(LiftoffCondition liftoff_cond,
 
   Register tmp = dst;
   if (liftoff::IsRegInRegPair(lhs, dst) || liftoff::IsRegInRegPair(rhs, dst)) {
-    tmp =
-        GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(dst, lhs, rhs)).gp();
+    tmp = GetUnusedRegister(kGpReg, LiftoffRegList{dst, lhs, rhs}).gp();
   }
 
   // Write 1 initially in tmp register.
@@ -2989,7 +2988,7 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
   int arg_bytes = 0;
   for (ValueKind param_kind : sig->parameters()) {
     liftoff::Store(this, sp, arg_bytes, *args++, param_kind);
-    arg_bytes += element_size_bytes(param_kind);
+    arg_bytes += value_kind_size(param_kind);
   }
   DCHECK_LE(arg_bytes, stack_bytes);
 

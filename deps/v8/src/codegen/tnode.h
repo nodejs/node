@@ -185,7 +185,7 @@ struct MachineRepresentationOf {
 // If T defines kMachineType, then we take the machine representation from
 // there.
 template <class T>
-struct MachineRepresentationOf<T, base::void_t<decltype(T::kMachineType)>> {
+struct MachineRepresentationOf<T, std::void_t<decltype(T::kMachineType)>> {
   static const MachineRepresentation value = T::kMachineType.representation();
 };
 template <class T>

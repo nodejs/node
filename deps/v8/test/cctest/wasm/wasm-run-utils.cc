@@ -348,7 +348,7 @@ CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
-  byte size = type.element_size_bytes();
+  byte size = type.value_kind_size();
   global_offset = (global_offset + size - 1) & ~(size - 1);  // align
   test_module_->globals.push_back(
       {type, true, {}, {global_offset}, false, false});

@@ -413,14 +413,14 @@ class GraphReducerTest : public TestWithZone {
  public:
   GraphReducerTest() : TestWithZone(kCompressGraphZone), graph_(zone()) {}
 
-  static void SetUpTestCase() {
-    TestWithZone::SetUpTestCase();
+  static void SetUpTestSuite() {
+    TestWithZone::SetUpTestSuite();
     DefaultValue<Reduction>::Set(Reducer::NoChange());
   }
 
-  static void TearDownTestCase() {
+  static void TearDownTestSuite() {
     DefaultValue<Reduction>::Clear();
-    TestWithZone::TearDownTestCase();
+    TestWithZone::TearDownTestSuite();
   }
 
  protected:

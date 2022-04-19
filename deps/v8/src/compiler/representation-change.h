@@ -405,7 +405,7 @@ class V8_EXPORT_PRIVATE RepresentationChanger final {
   Node* InsertTruncateInt64ToInt32(Node* node);
   Node* InsertUnconditionalDeopt(Node* node, DeoptimizeReason reason,
                                  const FeedbackSource& feedback = {});
-  Node* InsertTypeGuardForVerifier(const Type& type, Node* node);
+  Node* InsertTypeOverrideForVerifier(const Type& type, Node* node);
 
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;

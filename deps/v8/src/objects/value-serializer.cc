@@ -907,10 +907,6 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
     WriteVarint(index.FromJust());
     return ThrowIfOutOfMemory();
   }
-  if (!array_buffer->is_detachable()) {
-    return ThrowDataCloneError(
-        MessageTemplate::kDataCloneErrorNonDetachableArrayBuffer);
-  }
 
   uint32_t* transfer_entry = array_buffer_transfer_map_.Find(array_buffer);
   if (transfer_entry) {
@@ -1375,6 +1371,32 @@ void ValueDeserializer::TransferArrayBuffer(
   }
 }
 
+MaybeHandle<Object> ValueDeserializer::ReadObjectWrapper() {
+  // We had a bug which produced invalid version 13 data (see
+  // crbug.com/1284506). This compatibility mode tries to first read the data
+  // normally, and if it fails, and the version is 13, tries to read the broken
+  // format.
+  const uint8_t* original_position = position_;
+  suppress_deserialization_errors_ = true;
+  MaybeHandle<Object> result = ReadObject();
+
+  // The deserialization code doesn't throw errors for invalid data. It throws
+  // errors for stack overflows, though, and in that case we won't retry.
+  if (result.is_null() && version_ == 13 &&
+      !isolate_->has_pending_exception()) {
+    version_13_broken_data_mode_ = true;
+    position_ = original_position;
+    result = ReadObject();
+  }
+
+  if (result.is_null() && !isolate_->has_pending_exception()) {
+    isolate_->Throw(*isolate_->factory()->NewError(
+        MessageTemplate::kDataCloneDeserializationError));
+  }
+
+  return result;
+}
+
 MaybeHandle<Object> ValueDeserializer::ReadObject() {
   DisallowJavascriptExecution no_js(isolate_);
   // If we are at the end of the stack, abort. This function may recurse.
@@ -1392,7 +1414,8 @@ MaybeHandle<Object> ValueDeserializer::ReadObject() {
     result = ReadJSArrayBufferView(Handle<JSArrayBuffer>::cast(object));
   }
 
-  if (result.is_null() && !isolate_->has_pending_exception()) {
+  if (result.is_null() && !suppress_deserialization_errors_ &&
+      !isolate_->has_pending_exception()) {
     isolate_->Throw(*isolate_->factory()->NewError(
         MessageTemplate::kDataCloneDeserializationError));
   }
@@ -1968,7 +1991,8 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
       byte_length > buffer_byte_length - byte_offset) {
     return MaybeHandle<JSArrayBufferView>();
   }
-  if (version_ >= 14 && !ReadVarint<uint32_t>().To(&flags)) {
+  const bool should_read_flags = version_ >= 14 || version_13_broken_data_mode_;
+  if (should_read_flags && !ReadVarint<uint32_t>().To(&flags)) {
     return MaybeHandle<JSArrayBufferView>();
   }
   uint32_t id = next_id_++;

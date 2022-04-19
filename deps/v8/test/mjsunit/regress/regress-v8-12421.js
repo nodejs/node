@@ -63,6 +63,21 @@
 }
 
 {
+  class X {
+    field = Object.defineProperty(
+      this,
+      "field2",
+      { writable: true, configurable: false, value: 1}
+    );
+    field2 = true;
+  }
+
+  assertThrows(() => {
+    new X();
+  }, TypeError, /Cannot redefine property: field2/);
+}
+
+{
   let setterCalled = false;
   class X {
     field = Object.defineProperty(
@@ -79,6 +94,34 @@
   }
 
   let x = new X();
+  assertFalse(setterCalled);
+  assertEquals({
+    "value": 2,
+    "writable": true,
+    "enumerable": true,
+    "configurable": true
+  }, Object.getOwnPropertyDescriptor(x, 'field2'));
+}
+
+{
+  let setterCalled = false;
+  class X {
+    field = Object.defineProperty(
+      this,
+      "field2",
+      {
+        configurable: false,
+        set(val) {
+          setterCalled = true;
+        }
+      }
+    );
+    field2 = 2;
+  }
+
+  assertThrows(() => {
+    new X();
+  }, TypeError, /Cannot redefine property: field2/);
   assertFalse(setterCalled);
 }
 
@@ -153,7 +196,7 @@
   class ClassNonExtensible extends Base {
     field = (() => {
       Object.preventExtensions(this);
-      return 1;
+      return 'defined';
     })();
     nonExtensible = 4;
     constructor(arg) {
@@ -162,74 +205,103 @@
   }
 
   // Test dictionary objects.
-  {
-    let dict = Object.create(null);
+  function testObject(getObject) {
+    let obj = getObject();
 
-    new ClassWithNormalField(dict);
-    assertEquals(1, dict.field);
-    assertEquals("written", dict.normalField);
+    new ClassWithNormalField(obj);
+    assertEquals(1, obj.field);
+    assertEquals("written", obj.normalField);
 
-    new ClassWithSetterField(dict);
+    obj = getObject();
+    new ClassWithSetterField(obj);
+    assertEquals(1, obj.field);
     assertFalse(setterCalled);
 
-    new ClassWithReadOnlyField(dict);
-    assertEquals("written", dict.readOnlyField);
+    obj = getObject();
+    new ClassWithReadOnlyField(obj);
+    assertEquals(1, obj.field);
+    assertEquals("written", obj.readOnlyField);
 
+    obj = getObject();
     assertThrows(() => {
-      new ClassWithNonConfigurableField(dict);
+      new ClassWithNonConfigurableField(obj);
     }, TypeError, /Cannot redefine property: nonConfigurableField/);
-    assertEquals("initial", dict.nonConfigurableField);
+    assertEquals("initial", obj.nonConfigurableField);
+    assertEquals(1, obj.field);
 
-    assertThrows(() => {
-      new ClassNonExtensible(dict);
-    }, TypeError, /Cannot define property nonExtensible, object is not extensible/);
-    assertEquals(undefined, dict.nonExtensible);
+    obj = getObject();
+    if (Object.hasOwn(obj, 'field')) {
+      assertThrows(() => {
+        new ClassNonExtensible(obj);
+      }, TypeError, /Cannot define property nonExtensible, object is not extensible/);
+      assertEquals({
+        "value": 'defined',
+        "writable": true,
+        "enumerable": true,
+        "configurable": true
+      }, Object.getOwnPropertyDescriptor(obj, 'field'));
+    } else {
+      assertThrows(() => {
+        new ClassNonExtensible(obj);
+      }, TypeError, /Cannot define property field, object is not extensible/);
+      assertFalse(Object.hasOwn(obj, 'field'));
+    }
+    assertFalse(Object.hasOwn(obj, 'nonExtensible'));
+
+    return obj;
   }
+  testObject(() => Object.create(null));
+  testObject( () => { return {field: 1000 } });
 
   // Test proxies.
   {
     let trapCalls = [];
-    let target = {};
-    let proxy = new Proxy(target, {
-      get(oTarget, sKey) {
-        return oTarget[sKey];
-      },
-      defineProperty(oTarget, sKey, oDesc) {
-        trapCalls.push(sKey);
-        Object.defineProperty(oTarget, sKey, oDesc);
-        return oTarget;
-      }
-    });
+    function getProxy() {
+      trapCalls = [];
+      let target = {};
+      return new Proxy(target, {
+        get(oTarget, sKey) {
+          return oTarget[sKey];
+        },
+        defineProperty(oTarget, sKey, oDesc) {
+          trapCalls.push(sKey);
+          Object.defineProperty(oTarget, sKey, oDesc);
+          return oTarget;
+        }
+      });
+    }
 
+    let proxy = getProxy();
     new ClassWithNormalField(proxy);
     assertEquals(1, proxy.field);
     assertEquals("written", proxy.normalField);
     assertEquals(["normalField", "field", "normalField"], trapCalls);
 
-    trapCalls = [];
+    proxy = getProxy();
     new ClassWithSetterField(proxy);
     assertFalse(setterCalled);
     assertEquals("written", proxy.setterField);
     assertEquals(["setterField", "field", "setterField"], trapCalls);
 
-    trapCalls = [];
+    proxy = getProxy();
     new ClassWithReadOnlyField(proxy);
     assertEquals("written", proxy.readOnlyField);
     assertEquals(["readOnlyField", "field", "readOnlyField"], trapCalls);
 
-    trapCalls = [];
+    proxy = getProxy();
     assertThrows(() => {
       new ClassWithNonConfigurableField(proxy);
     }, TypeError, /Cannot redefine property: nonConfigurableField/);
     assertEquals("initial", proxy.nonConfigurableField);
     assertEquals(["nonConfigurableField", "field", "nonConfigurableField"], trapCalls);
 
-    trapCalls = [];
+    proxy = getProxy();
     assertThrows(() => {
       new ClassNonExtensible(proxy);
-    }, TypeError, /Cannot define property nonExtensible, object is not extensible/);
-    assertEquals(undefined, proxy.nonExtensible);
-    assertEquals(["field", "nonExtensible"], trapCalls);
+    }, TypeError, /Cannot define property field, object is not extensible/);
+    assertFalse(Object.hasOwn(proxy, 'field'));
+    assertFalse(Object.hasOwn(proxy, 'nonExtensible'));
+    assertEquals(["field"], trapCalls);
   }
 
   // Test globalThis.
@@ -252,7 +324,7 @@
 
     assertThrows(() => {
       new ClassNonExtensible(globalThis);
-    }, TypeError, /Cannot add property nonExtensible, object is not extensible/);
+    }, TypeError, /Cannot define property nonExtensible, object is not extensible/);
     assertEquals("undefined", typeof nonExtensible);
   }
 }

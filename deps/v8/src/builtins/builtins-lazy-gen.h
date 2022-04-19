@@ -21,10 +21,10 @@ class LazyBuiltinsAssembler : public CodeStubAssembler {
 
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id,
                                       TNode<JSFunction> function);
-  void TailCallRuntimeIfMarkerEquals(TNode<Uint32T> marker,
-                                     OptimizationMarker expected_marker,
-                                     Runtime::FunctionId function_id,
-                                     TNode<JSFunction> function);
+  void TailCallRuntimeIfStateEquals(TNode<Uint32T> state,
+                                    TieringState expected_state,
+                                    Runtime::FunctionId function_id,
+                                    TNode<JSFunction> function);
 
   void MaybeTailCallOptimizedCodeSlot(TNode<JSFunction> function,
                                       TNode<FeedbackVector> feedback_vector);

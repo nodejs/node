@@ -44,7 +44,6 @@ load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression
 # v8_enable_builtins_profiling
 # v8_enable_builtins_profiling_verbose
 # v8_builtins_profiling_log_file
-# v8_enable_short_builtin_calls
 # v8_enable_external_code_space
 # v8_postmortem_support
 # v8_use_siphash
@@ -231,6 +230,62 @@ selects.config_setting_group(
     ],
 )
 
+# We use a string flag to create a 3 value-logic.
+# If no explicit value for v8_enable_short_builtin_calls, we set it to 'none'.
+v8_string(
+    name = "v8_enable_short_builtin_calls",
+    default = "none",
+)
+
+# Default setting for v8_enable_pointer_compression.
+config_setting(
+    name = "v8_enable_short_builtin_calls_is_none",
+    flag_values = {
+        ":v8_enable_short_builtin_calls": "none",
+    },
+)
+
+# Explicity defined v8_enable_pointer_compression.
+config_setting(
+    name = "v8_enable_short_builtin_calls_is_true",
+    flag_values = {
+        ":v8_enable_short_builtin_calls": "True",
+    },
+)
+
+# Default setting for v8_enable_short_builtin_calls when target is x64.
+# Disable short calls when pointer compression is not enabled.
+selects.config_setting_group(
+    name = "v8_target_x64_default_short_builtin_calls",
+    match_all = [
+        ":v8_enable_short_builtin_calls_is_none",
+        "@v8//bazel/config:v8_target_x64",
+        ":is_v8_enable_pointer_compression",
+    ],
+)
+
+# Default setting for v8_enable_short_builtin_calls when target is arm64, but not Android.
+selects.config_setting_group(
+    name = "v8_target_arm64_default_short_builtin_calls",
+    match_all = [
+        ":v8_enable_short_builtin_calls_is_none",
+        "@v8//bazel/config:v8_target_arm64",
+        "@v8//bazel/config:is_not_android",
+    ],
+)
+
+# v8_enable_short_builtin_calls is valid whenever it is explicitly defined
+# or we have the default settings for targets x64 and arm64.
+# TODO(victorgomes): v8_enable_short_builtin_calls should not be enabled when CFI is enabled.
+selects.config_setting_group(
+    name = "is_v8_enable_short_builtin_calls",
+    match_any = [
+        ":v8_enable_short_builtin_calls_is_true",
+        ":v8_target_x64_default_short_builtin_calls",
+        ":v8_target_arm64_default_short_builtin_calls",
+    ],
+)
+
 # Enable -rdynamic.
 selects.config_setting_group(
     name = "should_add_rdynamic",
@@ -337,6 +392,11 @@ v8_config(
         ],
         ":enable_pointer_compression_isolated_cage": [
             "V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        ":is_v8_enable_short_builtin_calls": [
+            "V8_SHORT_BUILTIN_CALLS",
         ],
         "//conditions:default": [],
     }) + select({
@@ -606,7 +666,6 @@ filegroup(
         "src/base/template-utils.h",
         "src/base/timezone-cache.h",
         "src/base/threaded-list.h",
-        "src/base/type-traits.h",
         "src/base/utils/random-number-generator.cc",
         "src/base/utils/random-number-generator.h",
         "src/base/vector.h",
@@ -1305,7 +1364,6 @@ filegroup(
         "src/heap/allocation-stats.h",
         "src/heap/array-buffer-sweeper.cc",
         "src/heap/array-buffer-sweeper.h",
-        "src/heap/barrier.h",
         "src/heap/base-space.cc",
         "src/heap/base-space.h",
         "src/heap/basic-memory-chunk.cc",
@@ -1331,7 +1389,9 @@ filegroup(
         "src/heap/cppgc-js/cpp-marking-state-inl.h",
         "src/heap/cppgc-js/cpp-snapshot.cc",
         "src/heap/cppgc-js/cpp-snapshot.h",
+        "src/heap/cppgc-js/unified-heap-marking-state.cc",
         "src/heap/cppgc-js/unified-heap-marking-state.h",
+        "src/heap/cppgc-js/unified-heap-marking-state-inl.h",
         "src/heap/cppgc-js/unified-heap-marking-verifier.cc",
         "src/heap/cppgc-js/unified-heap-marking-verifier.h",
         "src/heap/cppgc-js/unified-heap-marking-visitor.cc",
@@ -1353,6 +1413,7 @@ filegroup(
         "src/heap/gc-idle-time-handler.cc",
         "src/heap/gc-idle-time-handler.h",
         "src/heap/gc-tracer.cc",
+        "src/heap/gc-tracer-inl.h",
         "src/heap/gc-tracer.h",
         "src/heap/heap-allocator-inl.h",
         "src/heap/heap-allocator.cc",
@@ -1930,6 +1991,7 @@ filegroup(
         "src/runtime/runtime-proxy.cc",
         "src/runtime/runtime-regexp.cc",
         "src/runtime/runtime-scopes.cc",
+        "src/runtime/runtime-shadow-realm.cc",
         "src/runtime/runtime-strings.cc",
         "src/runtime/runtime-symbol.cc",
         "src/runtime/runtime-test.cc",
@@ -1964,6 +2026,7 @@ filegroup(
         "src/snapshot/deserializer.cc",
         "src/snapshot/deserializer.h",
         "src/snapshot/embedded/embedded-data.cc",
+        "src/snapshot/embedded/embedded-data-inl.h",
         "src/snapshot/embedded/embedded-data.h",
         "src/snapshot/embedded/embedded-file-writer-interface.h",
         "src/snapshot/object-deserializer.cc",
@@ -2374,6 +2437,8 @@ filegroup(
             "src/wasm/baseline/liftoff-compiler.h",
             "src/wasm/baseline/liftoff-register.h",
             "src/wasm/branch-hint-map.h",
+            "src/wasm/canonical-types.cc",
+            "src/wasm/canonical-types.h",
             "src/wasm/code-space-access.cc",
             "src/wasm/code-space-access.h",
             "src/wasm/compilation-environment.h",
@@ -2550,6 +2615,8 @@ filegroup(
         "src/compiler/backend/unwinding-info-writer.h",
         "src/compiler/basic-block-instrumentor.cc",
         "src/compiler/basic-block-instrumentor.h",
+        "src/compiler/branch-condition-duplicator.cc",
+        "src/compiler/branch-condition-duplicator.h",
         "src/compiler/branch-elimination.cc",
         "src/compiler/branch-elimination.h",
         "src/compiler/bytecode-analysis.cc",
@@ -2857,7 +2924,6 @@ filegroup(
         "src/heap/cppgc/compactor.h",
         "src/heap/cppgc/concurrent-marker.cc",
         "src/heap/cppgc/concurrent-marker.h",
-        "src/heap/cppgc/default-platform.cc",
         "src/heap/cppgc/explicit-management.cc",
         "src/heap/cppgc/free-list.cc",
         "src/heap/cppgc/free-list.h",

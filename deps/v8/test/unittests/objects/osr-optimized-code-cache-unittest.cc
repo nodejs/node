@@ -52,23 +52,24 @@ TEST_F(TestWithNativeContext, AddCodeToEmptyCache) {
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   Handle<CodeT> code(function->code(), isolate);
   BytecodeOffset bailout_id(1);
-  OSROptimizedCodeCache::AddOptimizedCode(native_context, shared, code,
-                                          bailout_id);
+  OSROptimizedCodeCache::Insert(isolate, native_context, shared, code,
+                                bailout_id);
 
-  Handle<OSROptimizedCodeCache> osr_cache(
-      native_context->GetOSROptimizedCodeCache(), isolate);
+  Handle<OSROptimizedCodeCache> osr_cache(native_context->osr_code_cache(),
+                                          isolate);
   EXPECT_EQ(osr_cache->length(), kInitialLength);
 
   HeapObject sfi_entry;
-  osr_cache->Get(OSROptimizedCodeCache::kSharedOffset)
+  osr_cache->RawGetForTesting(OSROptimizedCodeCache::kSharedOffset)
       ->GetHeapObject(&sfi_entry);
   EXPECT_EQ(sfi_entry, *shared);
   HeapObject code_entry;
-  osr_cache->Get(OSROptimizedCodeCache::kCachedCodeOffset)
+  osr_cache->RawGetForTesting(OSROptimizedCodeCache::kCachedCodeOffset)
       ->GetHeapObject(&code_entry);
   EXPECT_EQ(code_entry, *code);
   Smi osr_offset_entry;
-  osr_cache->Get(OSROptimizedCodeCache::kOsrIdOffset)->ToSmi(&osr_offset_entry);
+  osr_cache->RawGetForTesting(OSROptimizedCodeCache::kOsrIdOffset)
+      ->ToSmi(&osr_offset_entry);
   EXPECT_EQ(osr_offset_entry.value(), bailout_id.ToInt());
 }
 
@@ -87,30 +88,30 @@ TEST_F(TestWithNativeContext, GrowCodeCache) {
 
   int bailout_id = 0;
   for (bailout_id = 0; bailout_id < kInitialEntries; bailout_id++) {
-    OSROptimizedCodeCache::AddOptimizedCode(native_context, shared, code,
-                                            BytecodeOffset(bailout_id));
+    OSROptimizedCodeCache::Insert(isolate, native_context, shared, code,
+                                  BytecodeOffset(bailout_id));
   }
-  Handle<OSROptimizedCodeCache> osr_cache(
-      native_context->GetOSROptimizedCodeCache(), isolate);
+  Handle<OSROptimizedCodeCache> osr_cache(native_context->osr_code_cache(),
+                                          isolate);
   EXPECT_EQ(osr_cache->length(), kInitialLength);
 
-  OSROptimizedCodeCache::AddOptimizedCode(native_context, shared, code,
-                                          BytecodeOffset(bailout_id));
-  osr_cache = Handle<OSROptimizedCodeCache>(
-      native_context->GetOSROptimizedCodeCache(), isolate);
+  OSROptimizedCodeCache::Insert(isolate, native_context, shared, code,
+                                BytecodeOffset(bailout_id));
+  osr_cache =
+      Handle<OSROptimizedCodeCache>(native_context->osr_code_cache(), isolate);
   EXPECT_EQ(osr_cache->length(), kInitialLength * 2);
 
   int index = kInitialLength;
   HeapObject sfi_entry;
-  osr_cache->Get(index + OSROptimizedCodeCache::kSharedOffset)
+  osr_cache->RawGetForTesting(index + OSROptimizedCodeCache::kSharedOffset)
       ->GetHeapObject(&sfi_entry);
   EXPECT_EQ(sfi_entry, *shared);
   HeapObject code_entry;
-  osr_cache->Get(index + OSROptimizedCodeCache::kCachedCodeOffset)
+  osr_cache->RawGetForTesting(index + OSROptimizedCodeCache::kCachedCodeOffset)
       ->GetHeapObject(&code_entry);
   EXPECT_EQ(code_entry, *code);
   Smi osr_offset_entry;
-  osr_cache->Get(index + OSROptimizedCodeCache::kOsrIdOffset)
+  osr_cache->RawGetForTesting(index + OSROptimizedCodeCache::kOsrIdOffset)
       ->ToSmi(&osr_offset_entry);
   EXPECT_EQ(osr_offset_entry.value(), bailout_id);
 }
@@ -130,8 +131,8 @@ TEST_F(TestWithNativeContext, FindCachedEntry) {
 
   int bailout_id = 0;
   for (bailout_id = 0; bailout_id < kInitialEntries; bailout_id++) {
-    OSROptimizedCodeCache::AddOptimizedCode(native_context, shared, code,
-                                            BytecodeOffset(bailout_id));
+    OSROptimizedCodeCache::Insert(isolate, native_context, shared, code,
+                                  BytecodeOffset(bailout_id));
   }
 
   base::ScopedVector<char> source1(1024);
@@ -139,26 +140,22 @@ TEST_F(TestWithNativeContext, FindCachedEntry) {
   Handle<JSFunction> function1 = RunJS<JSFunction>(source1.begin());
   Handle<SharedFunctionInfo> shared1(function1->shared(), isolate);
   Handle<CodeT> code1(function1->code(), isolate);
-  OSROptimizedCodeCache::AddOptimizedCode(native_context, shared1, code1,
-                                          BytecodeOffset(bailout_id));
+  OSROptimizedCodeCache::Insert(isolate, native_context, shared1, code1,
+                                BytecodeOffset(bailout_id));
 
-  Handle<OSROptimizedCodeCache> osr_cache(
-      native_context->GetOSROptimizedCodeCache(), isolate);
-  EXPECT_EQ(osr_cache->GetOptimizedCode(shared, BytecodeOffset(0), isolate),
-            *code);
-  EXPECT_EQ(
-      osr_cache->GetOptimizedCode(shared1, BytecodeOffset(bailout_id), isolate),
-      *code1);
+  Handle<OSROptimizedCodeCache> osr_cache(native_context->osr_code_cache(),
+                                          isolate);
+  EXPECT_EQ(osr_cache->TryGet(*shared, BytecodeOffset(0), isolate), *code);
+  EXPECT_EQ(osr_cache->TryGet(*shared1, BytecodeOffset(bailout_id), isolate),
+            *code1);
 
   RunJS("%DeoptimizeFunction(f1)");
-  EXPECT_TRUE(
-      osr_cache->GetOptimizedCode(shared1, BytecodeOffset(bailout_id), isolate)
-          .is_null());
-
-  osr_cache->Set(OSROptimizedCodeCache::kCachedCodeOffset,
-                 HeapObjectReference::ClearedValue(isolate));
-  EXPECT_TRUE(osr_cache->GetOptimizedCode(shared, BytecodeOffset(0), isolate)
+  EXPECT_TRUE(osr_cache->TryGet(*shared1, BytecodeOffset(bailout_id), isolate)
                   .is_null());
+
+  osr_cache->RawSetForTesting(OSROptimizedCodeCache::kCachedCodeOffset,
+                              HeapObjectReference::ClearedValue(isolate));
+  EXPECT_TRUE(osr_cache->TryGet(*shared, BytecodeOffset(0), isolate).is_null());
 }
 
 TEST_F(TestWithNativeContext, MaxCapacityCache) {
@@ -177,11 +174,11 @@ TEST_F(TestWithNativeContext, MaxCapacityCache) {
   int bailout_id = 0;
   // Add max_capacity - 1 entries.
   for (bailout_id = 0; bailout_id < kMaxEntries - 1; bailout_id++) {
-    OSROptimizedCodeCache::AddOptimizedCode(native_context, shared, code,
-                                            BytecodeOffset(bailout_id));
+    OSROptimizedCodeCache::Insert(isolate, native_context, shared, code,
+                                  BytecodeOffset(bailout_id));
   }
-  Handle<OSROptimizedCodeCache> osr_cache(
-      native_context->GetOSROptimizedCodeCache(), isolate);
+  Handle<OSROptimizedCodeCache> osr_cache(native_context->osr_code_cache(),
+                                          isolate);
   EXPECT_EQ(osr_cache->length(), kMaxLength);
 
   // Add an entry to reach max capacity.
@@ -190,22 +187,23 @@ TEST_F(TestWithNativeContext, MaxCapacityCache) {
   Handle<JSFunction> function1 = RunJS<JSFunction>(source1.begin());
   Handle<SharedFunctionInfo> shared1(function1->shared(), isolate);
   Handle<CodeT> code1(function1->code(), isolate);
-  OSROptimizedCodeCache::AddOptimizedCode(native_context, shared1, code1,
-                                          BytecodeOffset(bailout_id));
-  osr_cache = Handle<OSROptimizedCodeCache>(
-      native_context->GetOSROptimizedCodeCache(), isolate);
+  OSROptimizedCodeCache::Insert(isolate, native_context, shared1, code1,
+                                BytecodeOffset(bailout_id));
+  osr_cache =
+      Handle<OSROptimizedCodeCache>(native_context->osr_code_cache(), isolate);
   EXPECT_EQ(osr_cache->length(), kMaxLength);
 
   int index = (kMaxEntries - 1) * OSROptimizedCodeCache::kEntryLength;
   HeapObject object;
   Smi smi;
-  osr_cache->Get(index + OSROptimizedCodeCache::kSharedOffset)
+  osr_cache->RawGetForTesting(index + OSROptimizedCodeCache::kSharedOffset)
       ->GetHeapObject(&object);
   EXPECT_EQ(object, *shared1);
-  osr_cache->Get(index + OSROptimizedCodeCache::kCachedCodeOffset)
+  osr_cache->RawGetForTesting(index + OSROptimizedCodeCache::kCachedCodeOffset)
       ->GetHeapObject(&object);
   EXPECT_EQ(object, *code1);
-  osr_cache->Get(index + OSROptimizedCodeCache::kOsrIdOffset)->ToSmi(&smi);
+  osr_cache->RawGetForTesting(index + OSROptimizedCodeCache::kOsrIdOffset)
+      ->ToSmi(&smi);
   EXPECT_EQ(smi.value(), bailout_id);
 
   // Add an entry beyond max capacity.
@@ -215,20 +213,21 @@ TEST_F(TestWithNativeContext, MaxCapacityCache) {
   Handle<SharedFunctionInfo> shared2(function2->shared(), isolate);
   Handle<CodeT> code2(function2->code(), isolate);
   bailout_id++;
-  OSROptimizedCodeCache::AddOptimizedCode(native_context, shared2, code2,
-                                          BytecodeOffset(bailout_id));
-  osr_cache = Handle<OSROptimizedCodeCache>(
-      native_context->GetOSROptimizedCodeCache(), isolate);
+  OSROptimizedCodeCache::Insert(isolate, native_context, shared2, code2,
+                                BytecodeOffset(bailout_id));
+  osr_cache =
+      Handle<OSROptimizedCodeCache>(native_context->osr_code_cache(), isolate);
   EXPECT_EQ(osr_cache->length(), kMaxLength);
 
   index = 0;
-  osr_cache->Get(index + OSROptimizedCodeCache::kSharedOffset)
+  osr_cache->RawGetForTesting(index + OSROptimizedCodeCache::kSharedOffset)
       ->GetHeapObject(&object);
   EXPECT_EQ(object, *shared2);
-  osr_cache->Get(index + OSROptimizedCodeCache::kCachedCodeOffset)
+  osr_cache->RawGetForTesting(index + OSROptimizedCodeCache::kCachedCodeOffset)
       ->GetHeapObject(&object);
   EXPECT_EQ(object, *code2);
-  osr_cache->Get(index + OSROptimizedCodeCache::kOsrIdOffset)->ToSmi(&smi);
+  osr_cache->RawGetForTesting(index + OSROptimizedCodeCache::kOsrIdOffset)
+      ->ToSmi(&smi);
   EXPECT_EQ(smi.value(), bailout_id);
 }
 
@@ -249,41 +248,44 @@ TEST_F(TestWithNativeContext, ReuseClearedEntry) {
   int expected_length = kInitialLength * 2;
   int bailout_id = 0;
   for (bailout_id = 0; bailout_id < num_entries; bailout_id++) {
-    OSROptimizedCodeCache::AddOptimizedCode(native_context, shared, code,
-                                            BytecodeOffset(bailout_id));
+    OSROptimizedCodeCache::Insert(isolate, native_context, shared, code,
+                                  BytecodeOffset(bailout_id));
   }
-  Handle<OSROptimizedCodeCache> osr_cache(
-      native_context->GetOSROptimizedCodeCache(), isolate);
+  Handle<OSROptimizedCodeCache> osr_cache(native_context->osr_code_cache(),
+                                          isolate);
   EXPECT_EQ(osr_cache->length(), expected_length);
 
   int clear_index1 = 0;
   int clear_index2 = (num_entries - 1) * OSROptimizedCodeCache::kEntryLength;
-  osr_cache->Set(clear_index1 + OSROptimizedCodeCache::kSharedOffset,
-                 HeapObjectReference::ClearedValue(isolate));
-  osr_cache->Set(clear_index2 + OSROptimizedCodeCache::kCachedCodeOffset,
-                 HeapObjectReference::ClearedValue(isolate));
+  osr_cache->RawSetForTesting(
+      clear_index1 + OSROptimizedCodeCache::kSharedOffset,
+      HeapObjectReference::ClearedValue(isolate));
+  osr_cache->RawSetForTesting(
+      clear_index2 + OSROptimizedCodeCache::kCachedCodeOffset,
+      HeapObjectReference::ClearedValue(isolate));
 
   base::ScopedVector<char> source1(1024);
   GetSource(&source1, 1);
   Handle<JSFunction> function1 = RunJS<JSFunction>(source1.begin());
   Handle<SharedFunctionInfo> shared1(function1->shared(), isolate);
   Handle<CodeT> code1(function1->code(), isolate);
-  OSROptimizedCodeCache::AddOptimizedCode(native_context, shared1, code1,
-                                          BytecodeOffset(bailout_id));
-  osr_cache = Handle<OSROptimizedCodeCache>(
-      native_context->GetOSROptimizedCodeCache(), isolate);
+  OSROptimizedCodeCache::Insert(isolate, native_context, shared1, code1,
+                                BytecodeOffset(bailout_id));
+  osr_cache =
+      Handle<OSROptimizedCodeCache>(native_context->osr_code_cache(), isolate);
   EXPECT_EQ(osr_cache->length(), expected_length);
 
   int index = clear_index1;
   HeapObject object;
   Smi smi;
-  osr_cache->Get(index + OSROptimizedCodeCache::kSharedOffset)
+  osr_cache->RawGetForTesting(index + OSROptimizedCodeCache::kSharedOffset)
       ->GetHeapObject(&object);
   EXPECT_EQ(object, *shared1);
-  osr_cache->Get(index + OSROptimizedCodeCache::kCachedCodeOffset)
+  osr_cache->RawGetForTesting(index + OSROptimizedCodeCache::kCachedCodeOffset)
       ->GetHeapObject(&object);
   EXPECT_EQ(object, *code1);
-  osr_cache->Get(index + OSROptimizedCodeCache::kOsrIdOffset)->ToSmi(&smi);
+  osr_cache->RawGetForTesting(index + OSROptimizedCodeCache::kOsrIdOffset)
+      ->ToSmi(&smi);
   EXPECT_EQ(smi.value(), bailout_id);
 
   base::ScopedVector<char> source2(1024);
@@ -292,20 +294,21 @@ TEST_F(TestWithNativeContext, ReuseClearedEntry) {
   Handle<SharedFunctionInfo> shared2(function2->shared(), isolate);
   Handle<CodeT> code2(function2->code(), isolate);
   bailout_id++;
-  OSROptimizedCodeCache::AddOptimizedCode(native_context, shared2, code2,
-                                          BytecodeOffset(bailout_id));
-  osr_cache = Handle<OSROptimizedCodeCache>(
-      native_context->GetOSROptimizedCodeCache(), isolate);
+  OSROptimizedCodeCache::Insert(isolate, native_context, shared2, code2,
+                                BytecodeOffset(bailout_id));
+  osr_cache =
+      Handle<OSROptimizedCodeCache>(native_context->osr_code_cache(), isolate);
   EXPECT_EQ(osr_cache->length(), expected_length);
 
   index = clear_index2;
-  osr_cache->Get(index + OSROptimizedCodeCache::kSharedOffset)
+  osr_cache->RawGetForTesting(index + OSROptimizedCodeCache::kSharedOffset)
       ->GetHeapObject(&object);
   EXPECT_EQ(object, *shared2);
-  osr_cache->Get(index + OSROptimizedCodeCache::kCachedCodeOffset)
+  osr_cache->RawGetForTesting(index + OSROptimizedCodeCache::kCachedCodeOffset)
       ->GetHeapObject(&object);
   EXPECT_EQ(object, *code2);
-  osr_cache->Get(index + OSROptimizedCodeCache::kOsrIdOffset)->ToSmi(&smi);
+  osr_cache->RawGetForTesting(index + OSROptimizedCodeCache::kOsrIdOffset)
+      ->ToSmi(&smi);
   EXPECT_EQ(smi.value(), bailout_id);
 }
 
@@ -335,37 +338,45 @@ TEST_F(TestWithNativeContext, EvictDeoptedEntriesNoCompact) {
   int bailout_id = 0;
   for (bailout_id = 0; bailout_id < num_entries; bailout_id++) {
     if (bailout_id == deopt_id1 || bailout_id == deopt_id2) {
-      OSROptimizedCodeCache::AddOptimizedCode(
-          native_context, deopt_shared, deopt_code, BytecodeOffset(bailout_id));
+      OSROptimizedCodeCache::Insert(isolate, native_context, deopt_shared,
+                                    deopt_code, BytecodeOffset(bailout_id));
     } else {
-      OSROptimizedCodeCache::AddOptimizedCode(native_context, shared, code,
-                                              BytecodeOffset(bailout_id));
+      OSROptimizedCodeCache::Insert(isolate, native_context, shared, code,
+                                    BytecodeOffset(bailout_id));
     }
   }
-  Handle<OSROptimizedCodeCache> osr_cache(
-      native_context->GetOSROptimizedCodeCache(), isolate);
+  Handle<OSROptimizedCodeCache> osr_cache(native_context->osr_code_cache(),
+                                          isolate);
   EXPECT_EQ(osr_cache->length(), expected_length);
 
   RunJS("%DeoptimizeFunction(f1)");
-  osr_cache = Handle<OSROptimizedCodeCache>(
-      native_context->GetOSROptimizedCodeCache(), isolate);
+  osr_cache =
+      Handle<OSROptimizedCodeCache>(native_context->osr_code_cache(), isolate);
   EXPECT_EQ(osr_cache->length(), expected_length);
 
   int index = (num_entries - 2) * OSROptimizedCodeCache::kEntryLength;
-  EXPECT_TRUE(osr_cache->Get(index + OSROptimizedCodeCache::kSharedOffset)
-                  ->IsCleared());
-  EXPECT_TRUE(osr_cache->Get(index + OSROptimizedCodeCache::kCachedCodeOffset)
-                  ->IsCleared());
   EXPECT_TRUE(
-      osr_cache->Get(index + OSROptimizedCodeCache::kOsrIdOffset)->IsCleared());
+      osr_cache->RawGetForTesting(index + OSROptimizedCodeCache::kSharedOffset)
+          ->IsCleared());
+  EXPECT_TRUE(
+      osr_cache
+          ->RawGetForTesting(index + OSROptimizedCodeCache::kCachedCodeOffset)
+          ->IsCleared());
+  EXPECT_TRUE(
+      osr_cache->RawGetForTesting(index + OSROptimizedCodeCache::kOsrIdOffset)
+          ->IsCleared());
 
   index = (num_entries - 1) * OSROptimizedCodeCache::kEntryLength;
-  EXPECT_TRUE(osr_cache->Get(index + OSROptimizedCodeCache::kSharedOffset)
-                  ->IsCleared());
-  EXPECT_TRUE(osr_cache->Get(index + OSROptimizedCodeCache::kCachedCodeOffset)
-                  ->IsCleared());
   EXPECT_TRUE(
-      osr_cache->Get(index + OSROptimizedCodeCache::kOsrIdOffset)->IsCleared());
+      osr_cache->RawGetForTesting(index + OSROptimizedCodeCache::kSharedOffset)
+          ->IsCleared());
+  EXPECT_TRUE(
+      osr_cache
+          ->RawGetForTesting(index + OSROptimizedCodeCache::kCachedCodeOffset)
+          ->IsCleared());
+  EXPECT_TRUE(
+      osr_cache->RawGetForTesting(index + OSROptimizedCodeCache::kOsrIdOffset)
+          ->IsCleared());
 }
 
 TEST_F(TestWithNativeContext, EvictDeoptedEntriesCompact) {
@@ -392,20 +403,20 @@ TEST_F(TestWithNativeContext, EvictDeoptedEntriesCompact) {
   int bailout_id = 0;
   for (bailout_id = 0; bailout_id < num_entries; bailout_id++) {
     if (bailout_id % 2 == 0) {
-      OSROptimizedCodeCache::AddOptimizedCode(
-          native_context, deopt_shared, deopt_code, BytecodeOffset(bailout_id));
+      OSROptimizedCodeCache::Insert(isolate, native_context, deopt_shared,
+                                    deopt_code, BytecodeOffset(bailout_id));
     } else {
-      OSROptimizedCodeCache::AddOptimizedCode(native_context, shared, code,
-                                              BytecodeOffset(bailout_id));
+      OSROptimizedCodeCache::Insert(isolate, native_context, shared, code,
+                                    BytecodeOffset(bailout_id));
     }
   }
-  Handle<OSROptimizedCodeCache> osr_cache(
-      native_context->GetOSROptimizedCodeCache(), isolate);
+  Handle<OSROptimizedCodeCache> osr_cache(native_context->osr_code_cache(),
+                                          isolate);
   EXPECT_EQ(osr_cache->length(), expected_length);
 
   RunJS("%DeoptimizeFunction(f1)");
-  osr_cache = Handle<OSROptimizedCodeCache>(
-      native_context->GetOSROptimizedCodeCache(), isolate);
+  osr_cache =
+      Handle<OSROptimizedCodeCache>(native_context->osr_code_cache(), isolate);
   EXPECT_EQ(osr_cache->length(), kInitialLength);
 }
 

@@ -18,8 +18,7 @@ def _CommonChecks(input_api, output_api):
   # Run the MB unittests.
   results.extend(
       input_api.canned_checks.RunUnitTestsInDirectory(input_api, output_api,
-                                                      '.',
-                                                      [r'^.+_unittest\.py$']))
+                                                      '.', [r'^.+_test\.py$']))
 
   # Validate the format of the mb_config.pyl file.
   cmd = [input_api.python_executable, 'mb.py', 'validate']

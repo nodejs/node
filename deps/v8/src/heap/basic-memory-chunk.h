@@ -129,14 +129,18 @@ class BasicMemoryChunk {
 
   static const intptr_t kAlignmentMask = kAlignment - 1;
 
-  BasicMemoryChunk(size_t size, Address area_start, Address area_end);
+  BasicMemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
+                   Address area_start, Address area_end,
+                   VirtualMemory reservation);
 
   static Address BaseAddress(Address a) { return a & ~kAlignmentMask; }
 
   Address address() const { return reinterpret_cast<Address>(this); }
 
   // Returns the offset of a given address to this page.
-  inline size_t Offset(Address a) { return static_cast<size_t>(a - address()); }
+  inline size_t Offset(Address a) const {
+    return static_cast<size_t>(a - address());
+  }
 
   // Some callers rely on the fact that this can operate on both
   // tagged and aligned object addresses.
@@ -178,7 +182,7 @@ class BasicMemoryChunk {
   void ClearFlags(MainThreadFlags flags) { main_thread_flags_ &= ~flags; }
   // Set or clear multiple flags at a time. `mask` indicates which flags are
   // should be replaced with new `flags`.
-  void SetFlags(MainThreadFlags flags, MainThreadFlags mask) {
+  void SetFlags(MainThreadFlags flags, MainThreadFlags mask = kAllFlagsMask) {
     main_thread_flags_ = (main_thread_flags_ & ~mask) | (flags & mask);
   }
 
@@ -198,11 +202,11 @@ class BasicMemoryChunk {
     return IsFlagSet(READ_ONLY_HEAP);
   }
 
-  bool NeverEvacuate() { return IsFlagSet(NEVER_EVACUATE); }
+  bool NeverEvacuate() const { return IsFlagSet(NEVER_EVACUATE); }
 
   void MarkNeverEvacuate() { SetFlag(NEVER_EVACUATE); }
 
-  bool CanAllocate() {
+  bool CanAllocate() const {
     return !IsEvacuationCandidate() && !IsFlagSet(NEVER_ALLOCATE_ON_PAGE);
   }
 
@@ -217,7 +221,7 @@ class BasicMemoryChunk {
            ((flags & COMPACTION_WAS_ABORTED) == 0);
   }
 
-  Executability executable() {
+  Executability executable() const {
     return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
   }
 
@@ -254,11 +258,6 @@ class BasicMemoryChunk {
     return addr >= area_start() && addr <= area_end();
   }
 
-  static BasicMemoryChunk* Initialize(Heap* heap, Address base, size_t size,
-                                      Address area_start, Address area_end,
-                                      BaseSpace* owner,
-                                      VirtualMemory reservation);
-
   size_t wasted_memory() const { return wasted_memory_; }
   void add_wasted_memory(size_t waste) { wasted_memory_ += waste; }
   size_t allocated_bytes() const { return allocated_bytes_; }
@@ -291,7 +290,7 @@ class BasicMemoryChunk {
         Bitmap::FromAddress(address() + kMarkingBitmapOffset));
   }
 
-  Address HighWaterMark() { return address() + high_water_mark_; }
+  Address HighWaterMark() const { return address() + high_water_mark_; }
 
   static inline void UpdateHighWaterMark(Address mark) {
     if (mark == kNullAddress) return;

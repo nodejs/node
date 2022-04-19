@@ -787,3 +787,26 @@ let kSig_f_iiliiiffddlifffdi = makeSig([kWasmI32, kWasmI32, kWasmI64, kWasmI32,
   }
   caller();
 })();
+
+(function testGenericWrapper6Ref7F64Param() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig_r_ddrrrrrrddddd = builder.addType(makeSig(
+      [kWasmF64, kWasmF64, kWasmExternRef, kWasmExternRef, kWasmExternRef,
+       kWasmExternRef, kWasmExternRef, kWasmExternRef, kWasmF64, kWasmF64,
+       kWasmF64, kWasmF64, kWasmF64],
+       [kWasmExternRef]));
+
+
+  builder.addFunction("func0", sig_r_ddrrrrrrddddd)
+    .addBody([
+      kExprLocalGet, 7,
+      ])
+    .exportAs("func0");
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module);
+  let res = instance.exports.func0(1, 2, "3", "4", "5", "6", "7",
+                                   "8", 9, 10, 11, 12, 13);
+  assertEquals("8", res);
+})();

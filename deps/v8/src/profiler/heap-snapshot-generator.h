@@ -402,6 +402,7 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
                       const char* name);
 
   const char* GetSystemEntryName(HeapObject object);
+  HeapEntry::Type GetSystemEntryType(HeapObject object);
 
   void ExtractLocation(HeapEntry* entry, HeapObject object);
   void ExtractLocationForJSFunction(HeapEntry* entry, JSFunction func);
@@ -433,12 +434,16 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractAllocationSiteReferences(HeapEntry* entry, AllocationSite site);
   void ExtractArrayBoilerplateDescriptionReferences(
       HeapEntry* entry, ArrayBoilerplateDescription value);
+  void ExtractRegExpBoilerplateDescriptionReferences(
+      HeapEntry* entry, RegExpBoilerplateDescription value);
   void ExtractJSArrayBufferReferences(HeapEntry* entry, JSArrayBuffer buffer);
   void ExtractJSPromiseReferences(HeapEntry* entry, JSPromise promise);
   void ExtractJSGeneratorObjectReferences(HeapEntry* entry,
                                           JSGeneratorObject generator);
   void ExtractFixedArrayReferences(HeapEntry* entry, FixedArray array);
   void ExtractNumberReference(HeapEntry* entry, Object number);
+  void ExtractBytecodeArrayReferences(HeapEntry* entry, BytecodeArray bytecode);
+  void ExtractScopeInfoReferences(HeapEntry* entry, ScopeInfo info);
   void ExtractFeedbackVectorReferences(HeapEntry* entry,
                                        FeedbackVector feedback_vector);
   void ExtractDescriptorArrayReferences(HeapEntry* entry,
@@ -486,7 +491,10 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   void SetGcSubrootReference(Root root, const char* description, bool is_weak,
                              Object child);
   const char* GetStrongGcSubrootName(Object object);
-  void TagObject(Object obj, const char* tag);
+  void TagObject(Object obj, const char* tag,
+                 base::Optional<HeapEntry::Type> type = {});
+  void RecursivelyTagConstantPool(Object obj, const char* tag,
+                                  HeapEntry::Type type, int recursion_limit);
 
   HeapEntry* GetEntry(Object obj);
 

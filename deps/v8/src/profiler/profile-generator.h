@@ -544,6 +544,8 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
       const char* title = nullptr, CpuProfilingOptions options = {},
       std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
 
+  // This Method is only visible for testing
+  CpuProfilingResult StartProfilingForTesting(ProfilerId id);
   CpuProfile* StopProfiling(ProfilerId id);
   bool IsLastProfileLeft(ProfilerId id);
   CpuProfile* Lookup(const char* title);
@@ -574,6 +576,10 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
   static const int kMaxSimultaneousProfiles = 100;
 
  private:
+  CpuProfilingResult StartProfiling(
+      ProfilerId id, const char* title = nullptr,
+      CpuProfilingOptions options = {},
+      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
   StringsStorage resource_names_;
   std::vector<std::unique_ptr<CpuProfile>> finished_profiles_;
   CpuProfiler* profiler_;

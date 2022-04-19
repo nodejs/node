@@ -24,7 +24,7 @@ namespace v8 {
 namespace internal {
 
 class Counters;
-class OptimizedCompilationJob;
+class TurbofanCompilationJob;
 
 namespace wasm {
 
@@ -138,7 +138,7 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   bool is_import_;
   const FunctionSig* sig_;
   bool use_generic_wrapper_;
-  std::unique_ptr<OptimizedCompilationJob> job_;
+  std::unique_ptr<TurbofanCompilationJob> job_;
 };
 
 }  // namespace wasm

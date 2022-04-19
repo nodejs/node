@@ -234,3 +234,21 @@ function assertAllDataViewMethodsThrow(view, index, errorType) {
     assertThrows(() => { getter.call(view, index); }, errorType);
   }
 }
+
+function ObjectDefinePropertyHelper(ta, index, value) {
+  if (ta instanceof BigInt64Array || ta instanceof BigUint64Array) {
+    Object.defineProperty(ta, index, {value: BigInt(value)});
+  } else {
+    Object.defineProperty(ta, index, {value: value});
+  }
+}
+
+function ObjectDefinePropertiesHelper(ta, index, value) {
+  const values = {};
+  if (ta instanceof BigInt64Array || ta instanceof BigUint64Array) {
+    values[index] = {value: BigInt(value)};
+  } else {
+    values[index] = {value: value};
+  }
+  Object.defineProperties(ta, values);
+}

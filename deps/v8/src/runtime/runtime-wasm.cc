@@ -676,7 +676,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
                                  UPDATE_WRITE_BARRIER);
     }
   } else {
-    int element_size_bytes = element_type.element_size_bytes();
+    int element_size_bytes = element_type.value_kind_size();
     void* dst = ArrayElementAddress(dst_array, dst_index, element_size_bytes);
     void* src = ArrayElementAddress(src_array, src_index, element_size_bytes);
     size_t copy_size = length * element_size_bytes;
@@ -791,25 +791,7 @@ RUNTIME_FUNCTION(Runtime_WasmCreateResumePromise) {
   Handle<Object> promise = args.at(0);
   Handle<WasmSuspenderObject> suspender = args.at<WasmSuspenderObject>(1);
 
-  // Instantiate onFulfilled callback.
-  Handle<WasmOnFulfilledData> function_data =
-      isolate->factory()->NewWasmOnFulfilledData(suspender);
-  Handle<SharedFunctionInfo> shared =
-      isolate->factory()->NewSharedFunctionInfoForWasmOnFulfilled(
-          function_data);
-  Handle<WasmInstanceObject> instance(
-      GetWasmInstanceOnStackTop(isolate,
-                                {StackFrame::EXIT, StackFrame::WASM_TO_JS}),
-      isolate);
-  isolate->set_context(instance->native_context());
-  Handle<Context> context(isolate->native_context());
-  Handle<Map> function_map = isolate->strict_function_map();
-  Handle<JSObject> on_fulfilled =
-      Factory::JSFunctionBuilder{isolate, shared, context}
-          .set_map(function_map)
-          .Build();
-
-  i::Handle<i::Object> argv[] = {on_fulfilled};
+  i::Handle<i::Object> argv[] = {handle(suspender->resume(), isolate)};
   i::Handle<i::Object> result;
   bool has_pending_exception =
       !i::Execution::CallBuiltin(isolate, isolate->promise_then(), promise,

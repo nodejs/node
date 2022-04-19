@@ -114,7 +114,6 @@ namespace internal {
   V(StoreGlobalWithVector)                           \
   V(StoreTransition)                                 \
   V(StoreWithVector)                                 \
-  V(StringAt)                                        \
   V(StringAtAsString)                                \
   V(StringSubstring)                                 \
   IF_TSAN(V, TSANStore)                              \
@@ -1551,19 +1550,6 @@ class BinarySmiOp_BaselineDescriptor
   DECLARE_DESCRIPTOR(BinarySmiOp_BaselineDescriptor)
 
   static constexpr inline auto registers();
-};
-
-// This desciptor is shared among String.p.charAt/charCodeAt/codePointAt
-// as they all have the same interface.
-class StringAtDescriptor final
-    : public StaticCallInterfaceDescriptor<StringAtDescriptor> {
- public:
-  DEFINE_PARAMETERS(kReceiver, kPosition)
-  // TODO(turbofan): Return untagged value here.
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedSigned(),  // result 1
-                                    MachineType::AnyTagged(),     // kReceiver
-                                    MachineType::IntPtr())        // kPosition
-  DECLARE_DESCRIPTOR(StringAtDescriptor)
 };
 
 class StringAtAsStringDescriptor final

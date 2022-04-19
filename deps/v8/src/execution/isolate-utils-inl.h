@@ -42,7 +42,8 @@ V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
 
 #if defined V8_ENABLE_THIRD_PARTY_HEAP
   return Heap::GetIsolateFromWritableObject(object)->heap();
-#elif defined V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+#elif defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE) && \
+    !defined(V8_EXTERNAL_CODE_SPACE)
   Isolate* isolate =
       Isolate::FromRootAddress(GetIsolateRootAddress(object.ptr()));
   DCHECK_NOT_NULL(isolate);
@@ -57,7 +58,8 @@ V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
 V8_INLINE Isolate* GetIsolateFromWritableObject(HeapObject object) {
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
   return Heap::GetIsolateFromWritableObject(object);
-#elif defined V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+#elif defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE) && \
+    !defined(V8_EXTERNAL_CODE_SPACE)
   Isolate* isolate =
       Isolate::FromRootAddress(GetIsolateRootAddress(object.ptr()));
   DCHECK_NOT_NULL(isolate);

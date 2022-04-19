@@ -22,8 +22,15 @@ void HeapAllocator::Setup() {
   for (int i = FIRST_SPACE; i <= LAST_SPACE; ++i) {
     spaces_[i] = heap_->space(i);
   }
+
+  space_for_maps_ = spaces_[MAP_SPACE]
+                        ? static_cast<PagedSpace*>(spaces_[MAP_SPACE])
+                        : static_cast<PagedSpace*>(spaces_[OLD_SPACE]);
+
   shared_old_allocator_ = heap_->shared_old_allocator_.get();
-  shared_map_allocator_ = heap_->shared_map_allocator_.get();
+  shared_map_allocator_ = heap_->shared_map_allocator_
+                              ? heap_->shared_map_allocator_.get()
+                              : shared_old_allocator_;
 }
 
 void HeapAllocator::SetReadOnlySpace(ReadOnlySpace* read_only_space) {

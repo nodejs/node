@@ -19,6 +19,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tasks/operations-barrier.h"
+#include "src/wasm/canonical-types.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-tier.h"
 #include "src/zone/accounting-allocator.h"
@@ -357,6 +358,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
   void SampleRethrowEvent(Isolate*);
   void SampleCatchEvent(Isolate*);
 
+  TypeCanonicalizer* type_canonicalizer() { return &type_canonicalizer_; }
+
   // Call on process start and exit.
   static void InitializeOncePerProcess();
   static void GlobalTearDown();
@@ -391,6 +394,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
 #endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 
   std::atomic<int> next_compilation_id_{0};
+
+  TypeCanonicalizer type_canonicalizer_;
 
   // This mutex protects all information which is mutated concurrently or
   // fields that are initialized lazily on the first access.

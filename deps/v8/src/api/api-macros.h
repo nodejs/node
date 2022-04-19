@@ -35,10 +35,9 @@
  * TODO(verwaest): Remove calls form API methods to DO_NOT_USE macros.
  */
 
-#define LOG_API(isolate, class_name, function_name)                        \
-  RCS_SCOPE(isolate,                                                       \
-            i::RuntimeCallCounterId::kAPI_##class_name##_##function_name); \
-  LOG(isolate, ApiEntryCall("v8::" #class_name "::" #function_name))
+#define API_RCS_SCOPE(isolate, class_name, function_name) \
+  RCS_SCOPE(isolate,                                      \
+            i::RuntimeCallCounterId::kAPI_##class_name##_##function_name);
 
 #define ENTER_V8_DO_NOT_USE(isolate) i::VMState<v8::OTHER> __state__((isolate))
 
@@ -50,7 +49,7 @@
   }                                                               \
   HandleScopeClass handle_scope(isolate);                         \
   CallDepthScope<do_callback> call_depth_scope(isolate, context); \
-  LOG_API(isolate, class_name, function_name);                    \
+  API_RCS_SCOPE(isolate, class_name, function_name);              \
   i::VMState<v8::OTHER> __state__((isolate));                     \
   bool has_pending_exception = false
 

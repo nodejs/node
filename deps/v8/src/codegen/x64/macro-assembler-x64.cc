@@ -1215,6 +1215,23 @@ void TurboAssembler::Cvttss2uiq(Register dst, XMMRegister src, Label* fail) {
   ConvertFloatToUint64<XMMRegister, false>(this, dst, src, fail);
 }
 
+void TurboAssembler::Cmpeqss(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vcmpeqss(dst, src);
+  } else {
+    cmpeqss(dst, src);
+  }
+}
+
+void TurboAssembler::Cmpeqsd(XMMRegister dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope avx_scope(this, AVX);
+    vcmpeqsd(dst, src);
+  } else {
+    cmpeqsd(dst, src);
+  }
+}
 
 // ----------------------------------------------------------------------------
 // Smi tagging, untagging and tag detection.
@@ -3099,6 +3116,23 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
   leaq(dst, Operand(&current, -pc));
 }
 
+// Check if the code object is marked for deoptimization. If it is, then it
+// jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
+// to:
+//    1. read from memory the word that contains that bit, which can be found in
+//       the flags in the referenced {CodeDataContainer} object;
+//    2. test kMarkedForDeoptimizationBit in those flags; and
+//    3. if it is not zero then it jumps to the builtin.
+void TurboAssembler::BailoutIfDeoptimized(Register scratch) {
+  int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
+  LoadTaggedPointerField(scratch,
+                         Operand(kJavaScriptCallCodeStartRegister, offset));
+  testl(FieldOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset),
+        Immediate(1 << Code::kMarkedForDeoptimizationBit));
+  Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
+       RelocInfo::CODE_TARGET, not_zero);
+}
+
 void TurboAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
                                            DeoptimizeKind kind, Label* ret,
                                            Label*) {
@@ -3108,9 +3142,8 @@ void TurboAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
   // performance tuning which emits a different instruction sequence.
   call(EntryFromBuiltinAsOperand(target));
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
-            (kind == DeoptimizeKind::kLazy)
-                ? Deoptimizer::kLazyDeoptExitSize
-                : Deoptimizer::kNonLazyDeoptExitSize);
+            (kind == DeoptimizeKind::kLazy) ? Deoptimizer::kLazyDeoptExitSize
+                                            : Deoptimizer::kEagerDeoptExitSize);
 }
 
 void TurboAssembler::Trap() { int3(); }

@@ -33,6 +33,8 @@
 #include <memory>
 #include <string>
 
+#include "test/cctest/cctest.h"
+
 #if V8_OS_POSIX
 #include <unistd.h>
 #endif
@@ -7895,6 +7897,7 @@ static void ResetUseValueAndSetFlag(
 }
 
 void v8::internal::heap::HeapTester::ResetWeakHandle(bool global_gc) {
+  if (FLAG_stress_incremental_marking) return;
   using v8::Context;
   using v8::Local;
   using v8::Object;
@@ -23102,14 +23105,8 @@ TEST(ThrowOnJavascriptExecution) {
 
 namespace {
 
-class MockPlatform : public TestPlatform {
+class MockPlatform final : public TestPlatform {
  public:
-  MockPlatform() : old_platform_(i::V8::GetCurrentPlatform()) {
-    // Now that it's completely constructed, make this the current platform.
-    i::V8::SetPlatformForTesting(this);
-  }
-  ~MockPlatform() override { i::V8::SetPlatformForTesting(old_platform_); }
-
   bool dump_without_crashing_called() const {
     return dump_without_crashing_called_;
   }
@@ -23117,15 +23114,12 @@ class MockPlatform : public TestPlatform {
   void DumpWithoutCrashing() override { dump_without_crashing_called_ = true; }
 
  private:
-  v8::Platform* old_platform_;
   bool dump_without_crashing_called_ = false;
 };
 
 }  // namespace
 
-TEST(DumpOnJavascriptExecution) {
-  MockPlatform platform;
-
+TEST_WITH_PLATFORM(DumpOnJavascriptExecution, MockPlatform) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -29496,38 +29490,6 @@ TEST(CodeLikeFunction) {
       });
   CHECK(CompileRun("new Function(new Other())()").IsEmpty());
   ExpectInt32("new Function(new CodeLike())()", 7);
-}
-
-UNINITIALIZED_TEST(SingleThreadedDefaultPlatform) {
-  v8::V8::SetFlagsFromString("--single-threaded");
-  auto old_platform = i::V8::GetCurrentPlatform();
-  std::unique_ptr<v8::Platform> new_platform(
-      v8::platform::NewSingleThreadedDefaultPlatform());
-  i::V8::SetPlatformForTesting(new_platform.get());
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-  isolate->Enter();
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  {
-    i::HandleScope scope(i_isolate);
-    v8::Local<Context> env = Context::New(isolate);
-    env->Enter();
-
-    CompileRunChecked(isolate,
-                      "function f() {"
-                      "  for (let i = 0; i < 10; i++)"
-                      "    (new Array(10)).fill(0);"
-                      "  return 0;"
-                      "}"
-                      "f();");
-    env->Exit();
-  }
-  CcTest::CollectGarbage(i::NEW_SPACE, i_isolate);
-  CcTest::CollectAllAvailableGarbage(i_isolate);
-  isolate->Exit();
-  isolate->Dispose();
-  i::V8::SetPlatformForTesting(old_platform);
 }
 
 THREADED_TEST(MicrotaskQueueOfContext) {

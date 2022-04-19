@@ -899,8 +899,19 @@ CpuProfilesCollection::CpuProfilesCollection(Isolate* isolate)
   USE(isolate_);
 }
 
+CpuProfilingResult CpuProfilesCollection::StartProfilingForTesting(
+    ProfilerId id) {
+  return StartProfiling(id);
+}
+
 CpuProfilingResult CpuProfilesCollection::StartProfiling(
     const char* title, CpuProfilingOptions options,
+    std::unique_ptr<DiscardedSamplesDelegate> delegate) {
+  return StartProfiling(++last_id_, title, options, std::move(delegate));
+}
+
+CpuProfilingResult CpuProfilesCollection::StartProfiling(
+    ProfilerId id, const char* title, CpuProfilingOptions options,
     std::unique_ptr<DiscardedSamplesDelegate> delegate) {
   current_profiles_semaphore_.Wait();
 
@@ -912,22 +923,22 @@ CpuProfilingResult CpuProfilesCollection::StartProfiling(
     };
   }
 
-  if (title != nullptr) {
-    for (const std::unique_ptr<CpuProfile>& profile : current_profiles_) {
-      if (profile->title() != nullptr && strcmp(profile->title(), title) == 0) {
-        // Ignore attempts to start profile with the same title...
-        current_profiles_semaphore_.Signal();
-        // ... though return kAlreadyStarted to force it collect a sample.
-        return {
-            profile->id(),
-            CpuProfilingStatus::kAlreadyStarted,
-        };
-      }
+  for (const std::unique_ptr<CpuProfile>& profile : current_profiles_) {
+    if ((profile->title() != nullptr && title != nullptr &&
+         strcmp(profile->title(), title) == 0) ||
+        profile->id() == id) {
+      // Ignore attempts to start profile with the same title or id
+      current_profiles_semaphore_.Signal();
+      // ... though return kAlreadyStarted to force it collect a sample.
+      return {
+          profile->id(),
+          CpuProfilingStatus::kAlreadyStarted,
+      };
     }
   }
 
-  CpuProfile* profile = new CpuProfile(profiler_, ++last_id_, title, options,
-                                       std::move(delegate));
+  CpuProfile* profile =
+      new CpuProfile(profiler_, id, title, options, std::move(delegate));
   current_profiles_.emplace_back(profile);
   current_profiles_semaphore_.Signal();
 

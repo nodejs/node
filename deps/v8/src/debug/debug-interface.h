@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "include/v8-callbacks.h"
+#include "include/v8-date.h"
 #include "include/v8-debug.h"
 #include "include/v8-embedder-heap.h"
 #include "include/v8-local-handle.h"
@@ -48,6 +49,12 @@ int GetContextId(Local<Context> context);
 
 void SetInspector(Isolate* isolate, v8_inspector::V8Inspector*);
 v8_inspector::V8Inspector* GetInspector(Isolate* isolate);
+
+// Returns a debug string representation of the bigint.
+Local<String> GetBigIntDescription(Isolate* isolate, Local<BigInt> bigint);
+
+// Returns a debug string representation of the date.
+Local<String> GetDateDescription(Local<Date> date);
 
 // Returns a debug string representation of the function.
 Local<String> GetFunctionDescription(Local<Function> function);

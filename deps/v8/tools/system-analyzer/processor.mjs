@@ -6,7 +6,6 @@ import {LogReader, parseString, parseVarArgs} from '../logreader.mjs';
 import {Profile} from '../profile.mjs';
 import {RemoteLinuxCppEntriesProvider, RemoteMacOSCppEntriesProvider} from '../tickprocessor.mjs'
 
-import {ApiLogEntry} from './log/api.mjs';
 import {CodeLogEntry, DeoptLogEntry, FeedbackVectorEntry, SharedLibLogEntry} from './log/code.mjs';
 import {IcLogEntry} from './log/ic.mjs';
 import {Edge, MapLogEntry} from './log/map.mjs';
@@ -49,7 +48,6 @@ class AsyncConsumer {
 
 export class Processor extends LogReader {
   _profile = new Profile();
-  _apiTimeline = new Timeline();
   _codeTimeline = new Timeline();
   _deoptTimeline = new Timeline();
   _icTimeline = new Timeline();
@@ -61,6 +59,11 @@ export class Processor extends LogReader {
   _lastCodeLogEntry;
   _lastTickLogEntry;
   _chunkRemainder = '';
+
+  _totalInputBytes = 0;
+  _processedInputChars = 0;
+  _progressCallback;
+
   MAJOR_VERSION = 7;
   MINOR_VERSION = 6;
   constructor() {
@@ -71,18 +74,19 @@ export class Processor extends LogReader {
       parseInt, parseInt, parseInt, parseInt, parseString, parseString,
       parseString, parseString, parseString, parseString
     ];
-    this.dispatchTable_ = {
+    this.setDispatchTable({
       __proto__: null,
       'v8-version': {
         parsers: [
           parseInt,
           parseInt,
         ],
-        processor: this.processV8Version
+        processor: this.processV8Version,
       },
       'shared-library': {
         parsers: [parseString, parseInt, parseInt, parseInt],
-        processor: this.processSharedLibrary
+        processor: this.processSharedLibrary.bind(this),
+        isAsync: true,
       },
       'code-creation': {
         parsers: [
@@ -190,7 +194,7 @@ export class Processor extends LogReader {
         parsers: [parseString, parseVarArgs],
         processor: this.processApiEvent
       },
-    };
+    });
     // TODO(cbruni): Choose correct cpp entries provider
     this._cppEntriesProvider = new RemoteLinuxCppEntriesProvider();
   }
@@ -204,11 +208,27 @@ export class Processor extends LogReader {
     this._chunkConsumer.push(chunk)
   }
 
+  setProgressCallback(totalSize, callback) {
+    this._totalInputBytes = totalSize;
+    this._progressCallback = callback;
+  }
+
+  async _updateProgress() {
+    if (!this._progressCallback) return;
+    // We use chars and bytes interchangeably for simplicity. This causes us to
+    // slightly underestimate progress.
+    this._progressCallback(
+        this._processedInputChars / this._totalInputBytes,
+        this._processedInputChars);
+  }
+
   async _processChunk(chunk) {
+    const prevProcessedInputChars = this._processedInputChars;
     let end = chunk.length;
     let current = 0;
     let next = 0;
     let line;
+    let lineNumber = 1;
     try {
       while (current < end) {
         next = chunk.indexOf('\n', current);
@@ -222,10 +242,14 @@ export class Processor extends LogReader {
           this._chunkRemainder = '';
         }
         current = next + 1;
+        lineNumber++;
         await this.processLogLine(line);
+        this._processedInputChars = prevProcessedInputChars + current;
       }
+      this._updateProgress();
     } catch (e) {
-      console.error(`Error occurred during parsing, trying to continue: ${e}`);
+      console.error(
+          `Could not parse log line ${lineNumber}, trying to continue: ${e}`);
     }
   }
 
@@ -314,12 +338,13 @@ export class Processor extends LogReader {
       timestamp, codeSize, instructionStart, inliningId, scriptOffset,
       deoptKind, deoptLocation, deoptReason) {
     this._lastTimestamp = timestamp;
-    const codeEntry = this._profile.findEntry(instructionStart);
+    const profCodeEntry = this._profile.findEntry(instructionStart);
     const logEntry = new DeoptLogEntry(
-        deoptKind, timestamp, codeEntry, deoptReason, deoptLocation,
+        deoptKind, timestamp, profCodeEntry, deoptReason, deoptLocation,
         scriptOffset, instructionStart, codeSize, inliningId);
+    profCodeEntry.logEntry.add(logEntry);
     this._deoptTimeline.push(logEntry);
-    this.addSourcePosition(codeEntry, logEntry);
+    this.addSourcePosition(profCodeEntry, logEntry);
     logEntry.functionSourcePosition = logEntry.sourcePosition;
     // custom parse deopt location
     if (deoptLocation === '<unknown>') return;
@@ -328,7 +353,7 @@ export class Processor extends LogReader {
     if (inlinedPos > 0) {
       deoptLocation = deoptLocation.substring(0, inlinedPos)
     }
-    const script = this.getProfileEntryScript(codeEntry);
+    const script = this.getProfileEntryScript(profCodeEntry);
     if (!script) return;
     const colSeparator = deoptLocation.lastIndexOf(':');
     const rowSeparator = deoptLocation.lastIndexOf(':', colSeparator - 1);
@@ -342,16 +367,16 @@ export class Processor extends LogReader {
   processFeedbackVector(
       timestamp, fbv_address, fbv_length, instructionStart, optimization_marker,
       optimization_tier, invocation_count, profiler_ticks, fbv_string) {
-    const codeEntry = this._profile.findEntry(instructionStart);
-    if (!codeEntry) {
+    const profCodeEntry = this._profile.findEntry(instructionStart);
+    if (!profCodeEntry) {
       console.warn('Didn\'t find code for FBV', {fbv, instructionStart});
       return;
     }
     const fbv = new FeedbackVectorEntry(
-        timestamp, codeEntry.logEntry, fbv_address, fbv_length,
+        timestamp, profCodeEntry.logEntry, fbv_address, fbv_length,
         optimization_marker, optimization_tier, invocation_count,
         profiler_ticks, fbv_string);
-    codeEntry.logEntry.setFeedbackVector(fbv);
+    profCodeEntry.logEntry.setFeedbackVector(fbv);
   }
 
   processScriptSource(scriptId, url, source) {
@@ -488,14 +513,18 @@ export class Processor extends LogReader {
         return;
       }
     }
-    // TODO: use SourcePosition directly.
-    let edge = new Edge(type, name, reason, time, from_, to_);
-    const codeEntry = this._profile.findEntry(pc)
-    to_.entry = codeEntry;
-    let script = this.getProfileEntryScript(codeEntry);
-    if (script) {
-      to_.sourcePosition = script.addSourcePosition(line, column, to_)
+    if (pc) {
+      const profCodeEntry = this._profile.findEntry(pc);
+      if (profCodeEntry) {
+        to_.entry = profCodeEntry;
+        profCodeEntry.logEntry.add(to_);
+        let script = this.getProfileEntryScript(profCodeEntry);
+        if (script) {
+          to_.sourcePosition = script.addSourcePosition(line, column, to_);
+        }
+      }
     }
+    let edge = new Edge(type, name, reason, time, from_, to_);
     if (to_.parent !== undefined && to_.parent === from_) {
       // Fix bug where we double log transitions.
       console.warn('Fixing up double transition');
@@ -549,19 +578,7 @@ export class Processor extends LogReader {
   }
 
   processApiEvent(type, varArgs) {
-    let name, arg1;
-    if (varArgs.length == 0) {
-      const index = type.indexOf(':');
-      if (index > 0) {
-        name = type;
-        type = type.substr(0, index);
-      }
-    } else {
-      name = varArgs[0];
-      arg1 = varArgs[1];
-    }
-    this._apiTimeline.push(
-        new ApiLogEntry(type, this._lastTimestamp, name, arg1));
+    // legacy events that are no longer supported
   }
 
   processTimerEventStart(type, time) {
@@ -596,10 +613,6 @@ export class Processor extends LogReader {
 
   get codeTimeline() {
     return this._codeTimeline;
-  }
-
-  get apiTimeline() {
-    return this._apiTimeline;
   }
 
   get tickTimeline() {

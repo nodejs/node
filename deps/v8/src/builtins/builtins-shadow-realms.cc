@@ -59,9 +59,9 @@ BUILTIN(ShadowRealmConstructor) {
 namespace {
 
 // https://tc39.es/proposal-shadowrealm/#sec-getwrappedvalue
-MaybeHandle<Object> GetWrappedValue(Isolate* isolate, Handle<Object> value,
+MaybeHandle<Object> GetWrappedValue(Isolate* isolate,
                                     Handle<NativeContext> creation_context,
-                                    Handle<NativeContext> target_context) {
+                                    Handle<Object> value) {
   // 1. If Type(value) is Object, then
   if (!value->IsJSReceiver()) {
     // 2. Return value.
@@ -69,6 +69,8 @@ MaybeHandle<Object> GetWrappedValue(Isolate* isolate, Handle<Object> value,
   }
   // 1a. If IsCallable(value) is false, throw a TypeError exception.
   if (!value->IsCallable()) {
+    // The TypeError thrown is created with creation Realm's TypeError
+    // constructor instead of the executing Realm's.
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewError(Handle<JSFunction>(creation_context->type_error_function(),
@@ -77,34 +79,8 @@ MaybeHandle<Object> GetWrappedValue(Isolate* isolate, Handle<Object> value,
         {});
   }
   // 1b. Return ? WrappedFunctionCreate(callerRealm, value).
-
-  // WrappedFunctionCreate
-  // https://tc39.es/proposal-shadowrealm/#sec-wrappedfunctioncreate
-
-  // The intermediate wrapped functions are not user-visible. And calling a
-  // wrapped function won't cause a side effect in the creation realm.
-  // Unwrap here to avoid nested unwrapping at the call site.
-  if (value->IsJSWrappedFunction()) {
-    Handle<JSWrappedFunction> target_wrapped =
-        Handle<JSWrappedFunction>::cast(value);
-    value = Handle<Object>(target_wrapped->wrapped_target_function(), isolate);
-  }
-
-  // 1. Let internalSlotsList be the internal slots listed in Table 2, plus
-  // [[Prototype]] and [[Extensible]].
-  // 2. Let wrapped be ! MakeBasicObject(internalSlotsList).
-  // 3. Set wrapped.[[Prototype]] to
-  // callerRealm.[[Intrinsics]].[[%Function.prototype%]].
-  // 4. Set wrapped.[[Call]] as described in 2.1.
-  // 5. Set wrapped.[[WrappedTargetFunction]] to Target.
-  // 6. Set wrapped.[[Realm]] to callerRealm.
-  // 7. Let result be CopyNameAndLength(wrapped, Target, "wrapped").
-  // 8. If result is an Abrupt Completion, throw a TypeError exception.
-  Handle<JSWrappedFunction> wrapped =
-      isolate->factory()->NewJSWrappedFunction(creation_context, value);
-
-  // 9. Return wrapped.
-  return wrapped;
+  return JSWrappedFunction::Create(isolate, creation_context,
+                                   Handle<JSReceiver>::cast(value));
 }
 
 }  // namespace
@@ -213,6 +189,7 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
   }
 
   if (result.is_null()) {
+    DCHECK(isolate->has_pending_exception());
     Handle<Object> pending_exception =
         Handle<Object>(isolate->pending_exception(), isolate);
     isolate->clear_pending_exception();
@@ -225,7 +202,9 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
           *factory->NewError(isolate->syntax_error_function(), message));
     }
     // 21. If result.[[Type]] is not normal, throw a TypeError exception.
-    // TODO(v8:11989): provide a non-observable inspection.
+    // TODO(v8:11989): provide a non-observable inspection on the
+    // pending_exception to the newly created TypeError.
+    // https://github.com/tc39/proposal-shadowrealm/issues/353
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCallShadowRealmFunctionThrown));
   }
@@ -233,8 +212,7 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
   Handle<Object> wrapped_result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, wrapped_result,
-      GetWrappedValue(isolate, result.ToHandleChecked(), caller_context,
-                      eval_context));
+      GetWrappedValue(isolate, caller_context, result.ToHandleChecked()));
   return *wrapped_result;
 }
 

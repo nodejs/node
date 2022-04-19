@@ -6,7 +6,6 @@
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
-/* TODO(7748): Implement cross-module subtyping.
 (function TestReferenceGlobals() {
   print(arguments.callee.name);
 
@@ -106,7 +105,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   // The correct function reference has been passed.
   assertEquals(66, instance.exports.test_import(42, 24));
 })();
-*/
 
 (function TestStructInitExpr() {
   print(arguments.callee.name);

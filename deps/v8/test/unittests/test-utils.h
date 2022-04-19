@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "include/libplatform/libplatform.h"
 #include "include/v8-array-buffer.h"
 #include "include/v8-context.h"
 #include "include/v8-local-handle.h"
@@ -25,6 +26,32 @@
 namespace v8 {
 
 class ArrayBufferAllocator;
+
+template <typename TMixin>
+class WithDefaultPlatformMixin : public TMixin {
+ public:
+  WithDefaultPlatformMixin() {
+    platform_ = v8::platform::NewDefaultPlatform(
+        0, v8::platform::IdleTaskSupport::kEnabled);
+    CHECK_NOT_NULL(platform_.get());
+    v8::V8::InitializePlatform(platform_.get());
+#ifdef V8_SANDBOX
+    CHECK(v8::V8::InitializeSandbox());
+#endif  // V8_SANDBOX
+    v8::V8::Initialize();
+  }
+
+  ~WithDefaultPlatformMixin() {
+    CHECK_NOT_NULL(platform_.get());
+    v8::V8::Dispose();
+    v8::V8::DisposePlatform();
+  }
+
+  v8::Platform* platform() const { return platform_.get(); }
+
+ private:
+  std::unique_ptr<v8::Platform> platform_;
+};
 
 using CounterMap = std::map<std::string, int>;
 
@@ -74,7 +101,48 @@ class WithIsolateScopeMixin : public TMixin {
     return reinterpret_cast<v8::internal::Isolate*>(this->v8_isolate());
   }
 
+  Local<Value> RunJS(const char* source) {
+    return RunJS(
+        v8::String::NewFromUtf8(this->v8_isolate(), source).ToLocalChecked());
+  }
+
+  Local<Value> RunJS(v8::String::ExternalOneByteStringResource* source) {
+    return RunJS(v8::String::NewExternalOneByte(this->v8_isolate(), source)
+                     .ToLocalChecked());
+  }
+
+  void CollectGarbage(i::AllocationSpace space) {
+    i_isolate()->heap()->CollectGarbage(space,
+                                        i::GarbageCollectionReason::kTesting);
+  }
+
+  void CollectAllGarbage() {
+    i_isolate()->heap()->CollectAllGarbage(
+        i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting);
+  }
+
+  void CollectAllAvailableGarbage() {
+    i_isolate()->heap()->CollectAllAvailableGarbage(
+        i::GarbageCollectionReason::kTesting);
+  }
+
+  void PreciseCollectAllGarbage() {
+    i_isolate()->heap()->PreciseCollectAllGarbage(
+        i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting);
+  }
+
+  v8::Local<v8::String> NewString(const char* string) {
+    return v8::String::NewFromUtf8(this->v8_isolate(), string).ToLocalChecked();
+  }
+
  private:
+  Local<Value> RunJS(Local<String> source) {
+    auto context = this->v8_isolate()->GetCurrentContext();
+    Local<Script> script =
+        v8::Script::Compile(context, source).ToLocalChecked();
+    return script->Run(context).ToLocalChecked();
+  }
+
   v8::Isolate::Scope isolate_scope_;
   v8::HandleScope handle_scope_;
 };
@@ -90,53 +158,38 @@ class WithContextMixin : public TMixin {
   const Local<Context>& context() const { return v8_context(); }
   const Local<Context>& v8_context() const { return context_; }
 
-  Local<Value> RunJS(const char* source) {
-    return RunJS(
-        v8::String::NewFromUtf8(this->v8_isolate(), source).ToLocalChecked());
-  }
-
-  Local<Value> RunJS(v8::String::ExternalOneByteStringResource* source) {
-    return RunJS(v8::String::NewExternalOneByte(this->v8_isolate(), source)
-                     .ToLocalChecked());
-  }
-
-  v8::Local<v8::String> NewString(const char* string) {
-    return v8::String::NewFromUtf8(this->v8_isolate(), string).ToLocalChecked();
-  }
-
   void SetGlobalProperty(const char* name, v8::Local<v8::Value> value) {
     CHECK(v8_context()
               ->Global()
-              ->Set(v8_context(), NewString(name), value)
+              ->Set(v8_context(), TMixin::NewString(name), value)
               .FromJust());
   }
 
  private:
-  Local<Value> RunJS(Local<String> source) {
-    auto context = this->v8_isolate()->GetCurrentContext();
-    Local<Script> script =
-        v8::Script::Compile(context, source).ToLocalChecked();
-    return script->Run(context).ToLocalChecked();
-  }
-
   v8::Local<v8::Context> context_;
   v8::Context::Scope context_scope_;
 };
 
+using TestWithPlatform =       //
+    WithDefaultPlatformMixin<  //
+        ::testing::Test>;
+
 // Use v8::internal::TestWithIsolate if you are testing internals,
 // aka. directly work with Handles.
-using TestWithIsolate =     //
-    WithIsolateScopeMixin<  //
-        WithIsolateMixin<   //
-            ::testing::Test>>;
+using TestWithIsolate =                //
+    WithIsolateScopeMixin<             //
+        WithIsolateMixin<              //
+            WithDefaultPlatformMixin<  //
+                ::testing::Test>>>;
 
 // Use v8::internal::TestWithNativeContext if you are testing internals,
 // aka. directly work with Handles.
-using TestWithContext =         //
-    WithContextMixin<           //
-        WithIsolateScopeMixin<  //
-            WithIsolateMixin<   //
-                ::testing::Test>>>;
+using TestWithContext =                    //
+    WithContextMixin<                      //
+        WithIsolateScopeMixin<             //
+            WithIsolateMixin<              //
+                WithDefaultPlatformMixin<  //
+                    ::testing::Test>>>>;
 
 namespace internal {
 
@@ -196,42 +249,49 @@ class WithZoneMixin : public TMixin {
   Zone zone_;
 };
 
-using TestWithIsolate =         //
-    WithInternalIsolateMixin<   //
-        WithIsolateScopeMixin<  //
-            WithIsolateMixin<   //
-                ::testing::Test>>>;
-
-using TestWithZone = WithZoneMixin<::testing::Test>;
-
-using TestWithIsolateAndZone =      //
-    WithZoneMixin<                  //
-        WithInternalIsolateMixin<   //
-            WithIsolateScopeMixin<  //
-                WithIsolateMixin<   //
+using TestWithIsolate =                    //
+    WithInternalIsolateMixin<              //
+        WithIsolateScopeMixin<             //
+            WithIsolateMixin<              //
+                WithDefaultPlatformMixin<  //
                     ::testing::Test>>>>;
 
-using TestWithNativeContext =       //
-    WithInternalIsolateMixin<       //
-        WithContextMixin<           //
-            WithIsolateScopeMixin<  //
-                WithIsolateMixin<   //
-                    ::testing::Test>>>>;
+using TestWithZone = WithZoneMixin<WithDefaultPlatformMixin<  //
+    ::testing::Test>>;
 
-using TestWithNativeContextAndCounters =  //
-    WithInternalIsolateMixin<             //
-        WithContextMixin<                 //
-            WithIsolateScopeMixin<        //
-                WithIsolateMixin<         //
-                    ::testing::Test, kEnableCounters>>>>;
-
-using TestWithNativeContextAndZone =    //
-    WithZoneMixin<                      //
-        WithInternalIsolateMixin<       //
-            WithContextMixin<           //
-                WithIsolateScopeMixin<  //
-                    WithIsolateMixin<   //
+using TestWithIsolateAndZone =                 //
+    WithZoneMixin<                             //
+        WithInternalIsolateMixin<              //
+            WithIsolateScopeMixin<             //
+                WithIsolateMixin<              //
+                    WithDefaultPlatformMixin<  //
                         ::testing::Test>>>>>;
+
+using TestWithNativeContext =                  //
+    WithInternalIsolateMixin<                  //
+        WithContextMixin<                      //
+            WithIsolateScopeMixin<             //
+                WithIsolateMixin<              //
+                    WithDefaultPlatformMixin<  //
+                        ::testing::Test>>>>>;
+
+using TestWithNativeContextAndCounters =       //
+    WithInternalIsolateMixin<                  //
+        WithContextMixin<                      //
+            WithIsolateScopeMixin<             //
+                WithIsolateMixin<              //
+                    WithDefaultPlatformMixin<  //
+                        ::testing::Test>,
+                    kEnableCounters>>>>;
+
+using TestWithNativeContextAndZone =               //
+    WithZoneMixin<                                 //
+        WithInternalIsolateMixin<                  //
+            WithContextMixin<                      //
+                WithIsolateScopeMixin<             //
+                    WithIsolateMixin<              //
+                        WithDefaultPlatformMixin<  //
+                            ::testing::Test>>>>>>;
 
 class V8_NODISCARD SaveFlags {
  public:
@@ -253,6 +313,16 @@ inline void PrintTo(Object o, ::std::ostream* os) {
 inline void PrintTo(Smi o, ::std::ostream* os) {
   *os << reinterpret_cast<void*>(o.ptr());
 }
+
+// ManualGCScope allows for disabling GC heuristics. This is useful for tests
+// that want to check specific corner cases around GC.
+//
+// The scope will finalize any ongoing GC on the provided Isolate.
+class V8_NODISCARD ManualGCScope final : private SaveFlags {
+ public:
+  explicit ManualGCScope(i::Isolate* isolate);
+  ~ManualGCScope() = default;
+};
 
 }  // namespace internal
 }  // namespace v8

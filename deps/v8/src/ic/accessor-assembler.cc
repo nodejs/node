@@ -751,9 +751,15 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
 
   BIND(&api_getter);
   {
-    GotoIf(IsSideEffectFreeDebuggingActive(), &slow);
-    HandleLoadAccessor(p, CAST(holder), handler_word, CAST(handler),
-                       handler_kind, exit_point);
+    if (p->receiver() != p->lookup_start_object()) {
+      // Force super ICs using API getters into the slow path, so that we get
+      // the correct receiver checks.
+      Goto(&slow);
+    } else {
+      GotoIf(IsSideEffectFreeDebuggingActive(), &slow);
+      HandleLoadAccessor(p, CAST(holder), handler_word, CAST(handler),
+                         handler_kind, exit_point);
+    }
   }
 
   BIND(&proxy);
@@ -1260,44 +1266,47 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index);
     NameDictionaryLookup<PropertyDictionary>(
-        properties, CAST(p->name()), &dictionary_found, &var_name_index, miss);
-    BIND(&dictionary_found);
-    {
-      if (p->IsDefineKeyedOwn()) {
-        // Take slow path to throw if a private name already exists.
-        GotoIf(IsPrivateSymbol(CAST(p->name())), &if_slow);
-      }
-      Label if_constant(this), done(this);
-      TNode<Uint32T> details =
-          LoadDetailsByKeyIndex(properties, var_name_index.value());
-      // Check that the property is a writable data property (no accessor).
-      const int kTypeAndReadOnlyMask = PropertyDetails::KindField::kMask |
-                                       PropertyDetails::kAttributesReadOnlyMask;
-      STATIC_ASSERT(static_cast<int>(PropertyKind::kData) == 0);
-      GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
+        properties, CAST(p->name()),
+        p->IsAnyDefineOwn() ? &if_slow : &dictionary_found, &var_name_index,
+        miss);
 
-      if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
-        GotoIf(IsPropertyDetailsConst(details), &if_constant);
-      }
+    // When dealing with class fields defined with DefineKeyedOwnIC or
+    // DefineNamedOwnIC, use the slow path to check the existing property.
+    if (!p->IsAnyDefineOwn()) {
+      BIND(&dictionary_found);
+      {
+        Label if_constant(this), done(this);
+        TNode<Uint32T> details =
+            LoadDetailsByKeyIndex(properties, var_name_index.value());
+        // Check that the property is a writable data property (no accessor).
+        const int kTypeAndReadOnlyMask =
+            PropertyDetails::KindField::kMask |
+            PropertyDetails::kAttributesReadOnlyMask;
+        STATIC_ASSERT(static_cast<int>(PropertyKind::kData) == 0);
+        GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
 
-      StoreValueByKeyIndex<PropertyDictionary>(
-          properties, var_name_index.value(), p->value());
-      Return(p->value());
-
-      if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
-        BIND(&if_constant);
-        {
-          TNode<Object> prev_value =
-              LoadValueByKeyIndex(properties, var_name_index.value());
-          BranchIfSameValue(prev_value, p->value(), &done, miss,
-                            SameValueMode::kNumbersOnly);
+        if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
+          GotoIf(IsPropertyDetailsConst(details), &if_constant);
         }
 
-        BIND(&done);
+        StoreValueByKeyIndex<PropertyDictionary>(
+            properties, var_name_index.value(), p->value());
         Return(p->value());
+
+        if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
+          BIND(&if_constant);
+          {
+            TNode<Object> prev_value =
+                LoadValueByKeyIndex(properties, var_name_index.value());
+            BranchIfSameValue(prev_value, p->value(), &done, miss,
+                              SameValueMode::kNumbersOnly);
+          }
+
+          BIND(&done);
+          Return(p->value());
+        }
       }
     }
-
     BIND(&if_fast_smi);
     {
       Label data(this), accessor(this), shared_struct_field(this),
@@ -4125,7 +4134,7 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
   BIND(&no_feedback);
   {
     Comment("StoreInArrayLiteralIC_NoFeedback");
-    TailCallBuiltin(Builtin::kSetPropertyInLiteral, p->context(), p->receiver(),
+    TailCallBuiltin(Builtin::kCreateDataProperty, p->context(), p->receiver(),
                     p->name(), p->value());
   }
 
@@ -4773,7 +4782,7 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
   ForEachEnumerableOwnProperty(
       context, source_map, CAST(source), kPropertyAdditionOrder,
       [=](TNode<Name> key, TNode<Object> value) {
-        SetPropertyInLiteral(context, result, key, value);
+        CreateDataProperty(context, result, key, value);
       },
       &call_runtime);
   Goto(&done);

@@ -39,16 +39,16 @@ class WithFinalizationRegistryMixin : public TMixin {
   WithFinalizationRegistryMixin& operator=(
       const WithFinalizationRegistryMixin&) = delete;
 
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
     FLAG_expose_gc = true;
     FLAG_allow_natives_syntax = true;
-    TMixin::SetUpTestCase();
+    TMixin::SetUpTestSuite();
   }
 
-  static void TearDownTestCase() {
-    TMixin::TearDownTestCase();
+  static void TearDownTestSuite() {
+    TMixin::TearDownTestSuite();
     CHECK_NOT_NULL(save_flags_);
     delete save_flags_;
     save_flags_ = nullptr;
@@ -67,7 +67,8 @@ using TestWithNativeContextAndFinalizationRegistry =  //
             WithFinalizationRegistryMixin<            //
                 WithIsolateScopeMixin<                //
                     WithIsolateMixin<                 //
-                        ::testing::Test>>>>>;
+                        WithDefaultPlatformMixin<     //
+                            ::testing::Test>>>>>>;
 
 namespace {
 

@@ -5,6 +5,7 @@
 #ifndef V8_DATE_DATE_H_
 #define V8_DATE_DATE_H_
 
+#include "src/base/small-vector.h"
 #include "src/base/timezone-cache.h"
 #include "src/common/globals.h"
 #include "src/objects/smi.h"
@@ -246,6 +247,19 @@ double MakeDay(double year, double month, double date);
 
 // ES6 section 20.3.1.12 MakeTime (hour, min, sec, ms)
 double MakeTime(double hour, double min, double sec, double ms);
+
+using DateBuffer = base::SmallVector<char, 128>;
+
+enum class ToDateStringMode {
+  kLocalDate,
+  kLocalTime,
+  kLocalDateAndTime,
+  kUTCDateAndTime,
+};
+
+// ES6 section 20.3.4.41.1 ToDateString(tv)
+DateBuffer ToDateString(double time_val, DateCache* date_cache,
+                        ToDateStringMode mode);
 
 }  // namespace internal
 }  // namespace v8

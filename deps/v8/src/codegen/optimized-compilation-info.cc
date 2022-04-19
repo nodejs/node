@@ -73,9 +73,6 @@ void OptimizedCompilationInfo::ConfigureFlags() {
       if (FLAG_analyze_environment_liveness) {
         set_analyze_environment_liveness();
       }
-      if (FLAG_function_context_specialization) {
-        set_function_context_specializing();
-      }
       if (FLAG_turbo_splitting) set_splitting();
       break;
     case CodeKind::BYTECODE_HANDLER:

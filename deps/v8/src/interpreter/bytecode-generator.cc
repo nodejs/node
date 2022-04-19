@@ -3952,10 +3952,7 @@ BytecodeGenerator::AssignmentLhsData BytecodeGenerator::PrepareAssignmentLhs(
       DCHECK(!property->IsSuperAccess());
       AccumulatorPreservingScope scope(this, accumulator_preserving_mode);
       Register object = VisitForRegisterValue(property->obj());
-      Register key =
-          assign_type == PRIVATE_GETTER_ONLY || assign_type == PRIVATE_METHOD
-              ? Register()
-              : VisitForRegisterValue(property->key());
+      Register key = VisitForRegisterValue(property->key());
       return AssignmentLhsData::PrivateMethodOrAccessor(assign_type, property,
                                                         object, key);
     }
@@ -4588,23 +4585,21 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
                              lhs_data.super_property_args().Truncate(3));
       break;
     }
+    // BuildAssignment() will throw an error about the private method being
+    // read-only.
     case PRIVATE_METHOD: {
-      // The property access is invalid, but if the brand check fails too, we
-      // need to return the error from the brand check.
       Property* property = lhs_data.expr()->AsProperty();
       BuildPrivateBrandCheck(property, lhs_data.object());
-      BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateMethodWrite,
-                                 lhs_data.expr()->AsProperty());
+      builder()->LoadAccumulatorWithRegister(lhs_data.key());
       break;
     }
-    case PRIVATE_GETTER_ONLY: {
-      // The property access is invalid, but if the brand check fails too, we
-      // need to return the error from the brand check.
+    // For read-only properties, BuildAssignment() will throw an error about
+    // the missing setter.
+    case PRIVATE_GETTER_ONLY:
+    case PRIVATE_GETTER_AND_SETTER: {
       Property* property = lhs_data.expr()->AsProperty();
       BuildPrivateBrandCheck(property, lhs_data.object());
-      BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateSetterAccess,
-                                 lhs_data.expr()->AsProperty());
-
+      BuildPrivateGetterAccess(lhs_data.object(), lhs_data.key());
       break;
     }
     case PRIVATE_SETTER_ONLY: {
@@ -4614,12 +4609,6 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
       BuildPrivateBrandCheck(property, lhs_data.object());
       BuildInvalidPropertyAccess(MessageTemplate::kInvalidPrivateGetterAccess,
                                  lhs_data.expr()->AsProperty());
-      break;
-    }
-    case PRIVATE_GETTER_AND_SETTER: {
-      Property* property = lhs_data.expr()->AsProperty();
-      BuildPrivateBrandCheck(property, lhs_data.object());
-      BuildPrivateGetterAccess(lhs_data.object(), lhs_data.key());
       break;
     }
   }
@@ -4651,6 +4640,7 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
     builder()->BinaryOperation(binop->op(), old_value, feedback_index(slot));
   }
   builder()->SetExpressionPosition(expr);
+
   BuildAssignment(lhs_data, expr->op(), expr->lookup_hoisting_mode());
   builder()->Bind(&short_circuit);
 }
@@ -6167,6 +6157,29 @@ void BytecodeGenerator::BuildLiteralCompareNil(
   }
 }
 
+void BytecodeGenerator::BuildLiteralStrictCompareBoolean(Literal* literal) {
+  DCHECK(literal->IsBooleanLiteral());
+  if (execution_result()->IsTest()) {
+    TestResultScope* test_result = execution_result()->AsTest();
+    if (literal->AsBooleanLiteral()) {
+      builder()->JumpIfTrue(ToBooleanMode::kAlreadyBoolean,
+                            test_result->NewThenLabel());
+    } else {
+      builder()->JumpIfFalse(ToBooleanMode::kAlreadyBoolean,
+                             test_result->NewThenLabel());
+    }
+    if (test_result->fallthrough() != TestFallthrough::kElse) {
+      builder()->Jump(test_result->NewElseLabel());
+    }
+    test_result->SetResultConsumedByTest();
+  } else {
+    Register result = register_allocator()->NewRegister();
+    builder()->StoreAccumulatorInRegister(result);
+    builder()->LoadBoolean(literal->AsBooleanLiteral());
+    builder()->CompareReference(result);
+  }
+}
+
 void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Expression* sub_expr;
   Literal* literal;
@@ -6182,6 +6195,11 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     } else {
       builder()->CompareTypeOf(literal_flag);
     }
+  } else if (expr->IsLiteralStrictCompareBoolean(&sub_expr, &literal)) {
+    DCHECK(expr->op() == Token::EQ_STRICT);
+    VisitForAccumulatorValue(sub_expr);
+    builder()->SetExpressionPosition(expr);
+    BuildLiteralStrictCompareBoolean(literal);
   } else if (expr->IsLiteralCompareUndefined(&sub_expr)) {
     VisitForAccumulatorValue(sub_expr);
     builder()->SetExpressionPosition(expr);

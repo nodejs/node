@@ -16,6 +16,8 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/diamond.h"
+#include "src/compiler/graph-visualizer.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-observer.h"
@@ -222,6 +224,23 @@ bool IsSomePositiveOrderedNumber(Type type) {
   return type.Is(Type::OrderedNumber()) && (type.IsNone() || type.Min() > 0);
 }
 
+class JSONGraphWriterWithVerifierTypes : public JSONGraphWriter {
+ public:
+  JSONGraphWriterWithVerifierTypes(std::ostream& os, const Graph* graph,
+                                   const SourcePositionTable* positions,
+                                   const NodeOriginTable* origins,
+                                   SimplifiedLoweringVerifier* verifier)
+      : JSONGraphWriter(os, graph, positions, origins), verifier_(verifier) {}
+
+ protected:
+  base::Optional<Type> GetType(Node* node) override {
+    return verifier_->GetType(node);
+  }
+
+ private:
+  SimplifiedLoweringVerifier* verifier_;
+};
+
 }  // namespace
 
 #ifdef DEBUG
@@ -316,6 +335,7 @@ class RepresentationSelector {
                          ObserveNodeManager* observe_node_manager,
                          SimplifiedLoweringVerifier* verifier)
       : jsgraph_(jsgraph),
+        broker_(broker),
         zone_(zone),
         might_need_revisit_(zone),
         count_(jsgraph->graph()->NodeCount()),
@@ -721,7 +741,7 @@ class RepresentationSelector {
     }
   }
 
-  void RunVerifyPhase() {
+  void RunVerifyPhase(OptimizedCompilationInfo* info) {
     DCHECK_NOT_NULL(verifier_);
 
     TRACE("--{Verify Phase}--\n");
@@ -741,12 +761,20 @@ class RepresentationSelector {
     // Verify all nodes.
     for (Node* node : traversal_nodes_) verifier_->VisitNode(node, op_typer_);
 
-    // Eliminate all introduced TypeGuard nodes.
-    for (Node* node : verifier_->recorded_type_guards()) {
+    // Print graph.
+    if (info != nullptr && info->trace_turbo_json()) {
+      UnparkedScopeIfNeeded scope(broker_);
+      AllowHandleDereference allow_deref;
+
+      TurboJsonFile json_of(info, std::ios_base::app);
+      JSONGraphWriterWithVerifierTypes writer(
+          json_of, graph(), source_positions_, node_origins_, verifier_);
+      writer.PrintPhase("V8.TFSimplifiedLoweringVerifier");
+    }
+
+    // Eliminate all introduced hints.
+    for (Node* node : verifier_->inserted_hints()) {
       Node* input = node->InputAt(0);
-      DCHECK_EQ(node->InputAt(1), graph()->start());
-      DCHECK_EQ(node->InputAt(2), graph()->start());
-      DisconnectFromEffectAndControl(node);
       node->ReplaceUses(input);
       node->Kill();
     }
@@ -759,7 +787,7 @@ class RepresentationSelector {
     RunLowerPhase(lowering);
 
     if (verification_enabled()) {
-      RunVerifyPhase();
+      RunVerifyPhase(lowering->info_);
     }
   }
 
@@ -2106,7 +2134,7 @@ class RepresentationSelector {
           VisitLeaf<T>(node, MachineRepresentation::kTaggedSigned);
           if (lower<T>()) {
             intptr_t smi = bit_cast<intptr_t>(Smi::FromInt(value_as_int));
-            Node* constant = InsertTypeGuardForVerifier(
+            Node* constant = InsertTypeOverrideForVerifier(
                 NodeProperties::GetType(node),
                 lowering->jsgraph()->IntPtrConstant(smi));
             DeferReplacement(node, constant);
@@ -2934,7 +2962,9 @@ class RepresentationSelector {
             is_asuintn ? Type::UnsignedBigInt64() : Type::SignedBigInt64());
         if (lower<T>()) {
           if (p.bits() == 0) {
-            DeferReplacement(node, jsgraph_->ZeroConstant());
+            DeferReplacement(
+                node, InsertTypeOverrideForVerifier(Type::UnsignedBigInt63(),
+                                                    jsgraph_->ZeroConstant()));
           } else if (p.bits() == 64) {
             DeferReplacement(node, node->InputAt(0));
           } else {
@@ -3214,7 +3244,7 @@ class RepresentationSelector {
       }
       case IrOpcode::kStringCodePointAt: {
         return VisitBinop<T>(node, UseInfo::AnyTagged(), UseInfo::Word(),
-                             MachineRepresentation::kTaggedSigned);
+                             MachineRepresentation::kWord32);
       }
       case IrOpcode::kStringFromSingleCharCode: {
         VisitUnop<T>(node, UseInfo::TruncatingWord32(),
@@ -3549,7 +3579,9 @@ class RepresentationSelector {
       case IrOpcode::kPlainPrimitiveToNumber: {
         if (InputIs(node, Type::Boolean())) {
           VisitUnop<T>(node, UseInfo::Bool(), MachineRepresentation::kWord32);
-          if (lower<T>()) DeferReplacement(node, node->InputAt(0));
+          if (lower<T>()) {
+            ChangeToSemanticsHintForVerifier(node, node->op());
+          }
         } else if (InputIs(node, Type::String())) {
           VisitUnop<T>(node, UseInfo::AnyTagged(),
                        MachineRepresentation::kTagged);
@@ -3560,7 +3592,9 @@ class RepresentationSelector {
           if (InputIs(node, Type::NumberOrOddball())) {
             VisitUnop<T>(node, UseInfo::TruncatingWord32(),
                          MachineRepresentation::kWord32);
-            if (lower<T>()) DeferReplacement(node, node->InputAt(0));
+            if (lower<T>()) {
+              ChangeToSemanticsHintForVerifier(node, node->op());
+            }
           } else {
             VisitUnop<T>(node, UseInfo::AnyTagged(),
                          MachineRepresentation::kWord32);
@@ -3572,7 +3606,9 @@ class RepresentationSelector {
           if (InputIs(node, Type::NumberOrOddball())) {
             VisitUnop<T>(node, UseInfo::TruncatingFloat64(),
                          MachineRepresentation::kFloat64);
-            if (lower<T>()) DeferReplacement(node, node->InputAt(0));
+            if (lower<T>()) {
+              ChangeToSemanticsHintForVerifier(node, node->op());
+            }
           } else {
             VisitUnop<T>(node, UseInfo::AnyTagged(),
                          MachineRepresentation::kFloat64);
@@ -4025,7 +4061,8 @@ class RepresentationSelector {
         ProcessInput<T>(node, 0, UseInfo::Any());
         return SetOutput<T>(node, MachineRepresentation::kNone);
       case IrOpcode::kStaticAssert:
-        return VisitUnop<T>(node, UseInfo::Any(),
+        DCHECK(TypeOf(node->InputAt(0)).Is(Type::Boolean()));
+        return VisitUnop<T>(node, UseInfo::Bool(),
                             MachineRepresentation::kTagged);
       case IrOpcode::kAssertType:
         return VisitUnop<T>(node, UseInfo::AnyTagged(),
@@ -4085,14 +4122,25 @@ class RepresentationSelector {
     NotifyNodeReplaced(node, replacement);
   }
 
-  Node* InsertTypeGuardForVerifier(const Type& type, Node* node) {
+  Node* InsertTypeOverrideForVerifier(const Type& type, Node* node) {
     if (verification_enabled()) {
       DCHECK(!type.IsInvalid());
-      node = graph()->NewNode(common()->TypeGuard(type), node, graph()->start(),
-                              graph()->start());
-      verifier_->RecordTypeGuard(node);
+      node = graph()->NewNode(common()->SLVerifierHint(nullptr, type), node);
+      verifier_->RecordHint(node);
     }
     return node;
+  }
+
+  void ChangeToSemanticsHintForVerifier(Node* node, const Operator* semantics) {
+    DCHECK_EQ(node->op()->ValueInputCount(), 1);
+    DCHECK_EQ(node->op()->EffectInputCount(), 0);
+    DCHECK_EQ(node->op()->ControlInputCount(), 0);
+    if (verification_enabled()) {
+      ChangeOp(node, common()->SLVerifierHint(semantics, base::nullopt));
+      verifier_->RecordHint(node);
+    } else {
+      DeferReplacement(node, node->InputAt(0));
+    }
   }
 
  private:
@@ -4111,6 +4159,7 @@ class RepresentationSelector {
   }
 
   JSGraph* jsgraph_;
+  JSHeapBroker* broker_;
   Zone* zone_;                      // Temporary zone.
   // Map from node to its uses that might need to be revisited.
   ZoneMap<Node*, ZoneVector<Node*>> might_need_revisit_;
@@ -4306,13 +4355,11 @@ void RepresentationSelector::InsertUnreachableIfNecessary<LOWER>(Node* node) {
   }
 }
 
-SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, JSHeapBroker* broker,
-                                       Zone* zone,
-                                       SourcePositionTable* source_positions,
-                                       NodeOriginTable* node_origins,
-                                       TickCounter* tick_counter,
-                                       Linkage* linkage,
-                                       ObserveNodeManager* observe_node_manager)
+SimplifiedLowering::SimplifiedLowering(
+    JSGraph* jsgraph, JSHeapBroker* broker, Zone* zone,
+    SourcePositionTable* source_positions, NodeOriginTable* node_origins,
+    TickCounter* tick_counter, Linkage* linkage, OptimizedCompilationInfo* info,
+    ObserveNodeManager* observe_node_manager)
     : jsgraph_(jsgraph),
       broker_(broker),
       zone_(zone),
@@ -4321,6 +4368,7 @@ SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, JSHeapBroker* broker,
       node_origins_(node_origins),
       tick_counter_(tick_counter),
       linkage_(linkage),
+      info_(info),
       observe_node_manager_(observe_node_manager) {}
 
 void SimplifiedLowering::LowerAllNodes() {

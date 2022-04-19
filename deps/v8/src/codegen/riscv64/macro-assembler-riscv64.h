@@ -862,6 +862,24 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                VRegister v_scratch);
   void Round_d(VRegister dst, VRegister src, Register scratch,
                VRegister v_scratch);
+
+  // -------------------------------------------------------------------------
+  // Smi utilities.
+
+  void SmiTag(Register dst, Register src) {
+    STATIC_ASSERT(kSmiTag == 0);
+    if (SmiValuesAre32Bits()) {
+      // Smi goes to upper 32
+      slli(dst, src, 32);
+    } else {
+      DCHECK(SmiValuesAre31Bits());
+      // Smi is shifted left by 1
+      Add32(dst, src, src);
+    }
+  }
+
+  void SmiTag(Register reg) { SmiTag(reg, reg); }
+
   // Jump the register contains a smi.
   void JumpIfSmi(Register value, Label* smi_label);
 
@@ -1230,23 +1248,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void StackOverflowCheck(Register num_args, Register scratch1,
                           Register scratch2, Label* stack_overflow,
                           Label* done = nullptr);
-
-  // -------------------------------------------------------------------------
-  // Smi utilities.
-
-  void SmiTag(Register dst, Register src) {
-    STATIC_ASSERT(kSmiTag == 0);
-    if (SmiValuesAre32Bits()) {
-      // Smi goes to upper 32
-      slli(dst, src, 32);
-    } else {
-      DCHECK(SmiValuesAre31Bits());
-      // Smi is shifted left by 1
-      Add32(dst, src, src);
-    }
-  }
-
-  void SmiTag(Register reg) { SmiTag(reg, reg); }
 
   // Left-shifted from int32 equivalent of Smi.
   void SmiScale(Register dst, Register src, int scale) {

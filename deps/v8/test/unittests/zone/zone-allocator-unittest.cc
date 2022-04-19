@@ -3,12 +3,16 @@
 // found in the LICENSE file.
 
 #include "src/zone/zone-allocator.h"
+
+#include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
 
-TEST(RecyclingZoneAllocator, ReuseSameSize) {
+class RecyclingZoneAllocatorTest : public TestWithPlatform {};
+
+TEST_F(RecyclingZoneAllocatorTest, ReuseSameSize) {
   AccountingAllocator accounting_allocator;
   Zone zone(&accounting_allocator, ZONE_NAME);
   RecyclingZoneAllocator<int> zone_allocator(&zone);
@@ -18,7 +22,7 @@ TEST(RecyclingZoneAllocator, ReuseSameSize) {
   CHECK_EQ(zone_allocator.allocate(10), allocated);
 }
 
-TEST(RecyclingZoneAllocator, ReuseSmallerSize) {
+TEST_F(RecyclingZoneAllocatorTest, ReuseSmallerSize) {
   AccountingAllocator accounting_allocator;
   Zone zone(&accounting_allocator, ZONE_NAME);
   RecyclingZoneAllocator<int> zone_allocator(&zone);
@@ -28,7 +32,7 @@ TEST(RecyclingZoneAllocator, ReuseSmallerSize) {
   CHECK_EQ(zone_allocator.allocate(10), allocated);
 }
 
-TEST(RecyclingZoneAllocator, DontReuseTooSmallSize) {
+TEST_F(RecyclingZoneAllocatorTest, DontReuseTooSmallSize) {
   AccountingAllocator accounting_allocator;
   Zone zone(&accounting_allocator, ZONE_NAME);
   RecyclingZoneAllocator<int> zone_allocator(&zone);
@@ -40,7 +44,7 @@ TEST(RecyclingZoneAllocator, DontReuseTooSmallSize) {
   CHECK_NE(zone_allocator.allocate(1), allocated);
 }
 
-TEST(RecyclingZoneAllocator, ReuseMultipleSize) {
+TEST_F(RecyclingZoneAllocatorTest, ReuseMultipleSize) {
   AccountingAllocator accounting_allocator;
   Zone zone(&accounting_allocator, ZONE_NAME);
   RecyclingZoneAllocator<int> zone_allocator(&zone);
@@ -56,7 +60,7 @@ TEST(RecyclingZoneAllocator, ReuseMultipleSize) {
   CHECK_EQ(zone_allocator.allocate(10), allocated1);
 }
 
-TEST(RecyclingZoneAllocator, DontChainSmallerSizes) {
+TEST_F(RecyclingZoneAllocatorTest, DontChainSmallerSizes) {
   AccountingAllocator accounting_allocator;
   Zone zone(&accounting_allocator, ZONE_NAME);
   RecyclingZoneAllocator<int> zone_allocator(&zone);

@@ -48,25 +48,14 @@
   'temporal/calendar-date-from-fields': [FAIL],
   'temporal/calendar-date-until': [FAIL],
   'temporal/calendar-day': [FAIL],
-  'temporal/calendar-day-of-week': [FAIL],
-  'temporal/calendar-day-of-year': [FAIL],
-  'temporal/calendar-days-in-month': [FAIL],
-  'temporal/calendar-days-in-week': [FAIL],
-  'temporal/calendar-days-in-year': [FAIL],
   'temporal/calendar-fields': [FAIL],
-  'temporal/calendar-in-leap-year': [FAIL],
-  'temporal/calendar-merge-fields': [FAIL],
   'temporal/calendar-month': [FAIL],
   'temporal/calendar-month-code': [FAIL],
   'temporal/calendar-month-day-from-fields': [FAIL],
-  'temporal/calendar-months-in-year': [FAIL],
   'temporal/calendar-week-of-year': [FAIL],
-  'temporal/calendar-year': [FAIL],
   'temporal/calendar-year-month-from-fields': [FAIL],
-  'temporal/duration-abs': [FAIL],
   'temporal/duration-add': [FAIL],
   'temporal/duration-from': [FAIL],
-  'temporal/duration-negated': [FAIL],
   'temporal/duration-to-json': [FAIL],
   'temporal/duration-with': [FAIL],
   'temporal/instant-add': [FAIL],
@@ -143,9 +132,12 @@
   # https://crbug.com/v8/10948
   'wasm/atomics': [PASS, ['arch == arm and not simulator_run', SKIP]],
 
-  # crbug.com/v8/12472 Stack overflow during regexp node generation.
+  # https://crbug.com/v8/12472 Stack overflow during regexp node generation.
   'regress/regress-crbug-595657': [SKIP],
   'regress/regress-475705': [SKIP],
+
+  # https://crbug.com/v8/12697
+  'math-abs': [SKIP],
 
   ##############################################################################
   # Tests where variants make no sense.
@@ -274,9 +266,9 @@
   # TODO(v8:10915): Fails with --future.
   'harmony/weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
 
-  # BUG(v8:12645)
-  'shared-memory/shared-struct-workers': [SKIP],
-  'shared-memory/shared-struct-atomics-workers': [SKIP],
+  # Needs deterministic test helpers for concurrent maglev tiering.
+  # TODO(jgruber,v8:7700): Implement ASAP.
+  'maglev/18': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
@@ -366,7 +358,6 @@
   'compiler/array-multiple-receiver-maps': [SKIP],
   # Tests taking too long
   'regress/regress-1122': [SKIP],
-  'regress/regress-331444': [SKIP],
   'regress/regress-353551': [SKIP],
   'regress/regress-crbug-119926': [SKIP],
   'regress/short-circuit': [SKIP],
@@ -526,7 +517,6 @@
 ['is_full_debug', {
   # Tests too slow in non-optimized debug mode.
   'regress/regress-2790': [SKIP],
-  'regress/regress-331444': [SKIP],
   'regress/regress-740784': [SKIP],
   'regress/regress-992389': [SKIP],
 }],  # 'is_full_debug'
@@ -601,7 +591,6 @@
   'math-floor-of-div-nosudiv': [PASS, SLOW],
   'messages': [PASS, SLOW],
   'regress/regress-2790': [PASS, SLOW],
-  'regress/regress-331444': [PASS, SLOW],
   'regress/regress-490': [PASS, SLOW],
   'regress/regress-crbug-217858': [PASS, SLOW],
   'regress/regress-create-exception': [PASS, SLOW],
@@ -1217,7 +1206,6 @@
   'regress/regress-crbug-482998': [SKIP],
   'regress/regress-91008': [PASS, SLOW],
   'regress/regress-779407': [PASS, SLOW],
-  'regress/regress-331444': [PASS, SLOW],
   'harmony/regexp-property-lu-ui': [PASS, SLOW],
   'whitespaces': [PASS, SLOW],
   'generated-transition-stub': [PASS, SLOW],
@@ -1507,6 +1495,14 @@
 }],  # variant == stress_concurrent_allocation
 
 ##############################################################################
+['variant == maglev', {
+  # TODO(v8:7700): These tests assume that optimization always succeed.
+  # Change this when maglev support all bytecodes.
+  'interrupt-budget-override': [SKIP],
+  'never-optimize': [SKIP],
+}],  # variant == maglev
+
+##############################################################################
 ['no_simd_hardware == True', {
   'wasm/exceptions-simd': [SKIP],
   'wasm/liftoff-simd-params': [SKIP],
@@ -1544,6 +1540,7 @@
   'regress/wasm/regress-1283395': [SKIP],
   'regress/wasm/regress-1289678': [SKIP],
   'regress/wasm/regress-1290079': [SKIP],
+  'regress/wasm/regress-1299183': [SKIP],
 }],  # no_simd_hardware == True
 
 ##############################################################################
@@ -1553,7 +1550,7 @@
 
 ##############################################################################
 # TODO(v8:11421): Port baseline compiler to other architectures.
-['arch not in (x64, arm64, ia32, arm, mips64el, mipsel, riscv64, loong64, s390x)', {
+['arch not in (x64, arm64, ia32, arm, mips64el, mipsel, riscv64, loong64, s390x) or (arch == s390x and pointer_compression)', {
   'baseline/*': [SKIP],
   'regress/regress-1242306': [SKIP],
 }],
@@ -1693,7 +1690,6 @@
   'wasm/memory_2gb_oob': [SKIP],
   'wasm/memory_1gb_oob': [SKIP],
   'wasm/memory_4gb_oob': [SKIP],
-  'regress/regress-331444': [SKIP],
   'regress/regress-708247': [SKIP],
   # Performs GC
   'code-coverage-precise': [SKIP],

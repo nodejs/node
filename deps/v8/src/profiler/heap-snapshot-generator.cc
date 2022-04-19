@@ -850,13 +850,11 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
     return AddEntry(object, HeapEntry::kHidden, "system / NativeContext");
   } else if (object.IsContext()) {
     return AddEntry(object, HeapEntry::kObject, "system / Context");
-  } else if (object.IsFixedArray() || object.IsFixedDoubleArray() ||
-             object.IsByteArray()) {
-    return AddEntry(object, HeapEntry::kArray, "");
   } else if (object.IsHeapNumber()) {
     return AddEntry(object, HeapEntry::kHeapNumber, "heap number");
   }
-  return AddEntry(object, HeapEntry::kHidden, GetSystemEntryName(object));
+  return AddEntry(object, GetSystemEntryType(object),
+                  GetSystemEntryName(object));
 }
 
 HeapEntry* V8HeapExplorer::AddEntry(HeapObject object, HeapEntry::Type type,
@@ -894,7 +892,17 @@ const char* V8HeapExplorer::GetSystemEntryName(HeapObject object) {
     }
   }
 
-  switch (object.map().instance_type()) {
+  InstanceType type = object.map().instance_type();
+
+  // Empty string names are special: TagObject can overwrite them, and devtools
+  // will report them as "(internal array)".
+  if (InstanceTypeChecker::IsFixedArray(type) ||
+      InstanceTypeChecker::IsFixedDoubleArray(type) ||
+      InstanceTypeChecker::IsByteArray(type)) {
+    return "";
+  }
+
+  switch (type) {
 #define MAKE_TORQUE_CASE(Name, TYPE) \
   case TYPE:                         \
     return "system / " #Name;
@@ -914,6 +922,40 @@ const char* V8HeapExplorer::GetSystemEntryName(HeapObject object) {
     STRING_TYPE_LIST(MAKE_STRING_CASE)
 #undef MAKE_STRING_CASE
   }
+}
+
+HeapEntry::Type V8HeapExplorer::GetSystemEntryType(HeapObject object) {
+  InstanceType type = object.map().instance_type();
+  if (InstanceTypeChecker::IsAllocationSite(type) ||
+      InstanceTypeChecker::IsArrayBoilerplateDescription(type) ||
+      InstanceTypeChecker::IsBytecodeArray(type) ||
+      InstanceTypeChecker::IsClosureFeedbackCellArray(type) ||
+      InstanceTypeChecker::IsCodeDataContainer(type) ||
+      InstanceTypeChecker::IsFeedbackCell(type) ||
+      InstanceTypeChecker::IsFeedbackMetadata(type) ||
+      InstanceTypeChecker::IsFeedbackVector(type) ||
+      InstanceTypeChecker::IsInterpreterData(type) ||
+      InstanceTypeChecker::IsLoadHandler(type) ||
+      InstanceTypeChecker::IsObjectBoilerplateDescription(type) ||
+      InstanceTypeChecker::IsPreparseData(type) ||
+      InstanceTypeChecker::IsRegExpBoilerplateDescription(type) ||
+      InstanceTypeChecker::IsScopeInfo(type) ||
+      InstanceTypeChecker::IsStoreHandler(type) ||
+      InstanceTypeChecker::IsTemplateObjectDescription(type) ||
+      InstanceTypeChecker::IsTurbofanType(type) ||
+      InstanceTypeChecker::IsUncompiledData(type)) {
+    return HeapEntry::kCode;
+  }
+
+  // This check must come second, because some subtypes of FixedArray are
+  // determined above to represent code content.
+  if (InstanceTypeChecker::IsFixedArray(type) ||
+      InstanceTypeChecker::IsFixedDoubleArray(type) ||
+      InstanceTypeChecker::IsByteArray(type)) {
+    return HeapEntry::kArray;
+  }
+
+  return HeapEntry::kHidden;
 }
 
 uint32_t V8HeapExplorer::EstimateObjectsCount() {
@@ -1061,6 +1103,9 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry, HeapObject obj) {
   } else if (obj.IsArrayBoilerplateDescription()) {
     ExtractArrayBoilerplateDescriptionReferences(
         entry, ArrayBoilerplateDescription::cast(obj));
+  } else if (obj.IsRegExpBoilerplateDescription()) {
+    ExtractRegExpBoilerplateDescriptionReferences(
+        entry, RegExpBoilerplateDescription::cast(obj));
   } else if (obj.IsFeedbackVector()) {
     ExtractFeedbackVectorReferences(entry, FeedbackVector::cast(obj));
   } else if (obj.IsDescriptorArray()) {
@@ -1083,6 +1128,10 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry, HeapObject obj) {
     if (snapshot_->capture_numeric_value()) {
       ExtractNumberReference(entry, obj);
     }
+  } else if (obj.IsBytecodeArray()) {
+    ExtractBytecodeArrayReferences(entry, BytecodeArray::cast(obj));
+  } else if (obj.IsScopeInfo()) {
+    ExtractScopeInfoReferences(entry, ScopeInfo::cast(obj));
   }
 }
 
@@ -1400,9 +1449,13 @@ void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry, Script script) {
   SetInternalReference(entry, "name", script.name(), Script::kNameOffset);
   SetInternalReference(entry, "context_data", script.context_data(),
                        Script::kContextDataOffset);
-  TagObject(script.line_ends(), "(script line ends)");
+  TagObject(script.line_ends(), "(script line ends)", HeapEntry::kCode);
   SetInternalReference(entry, "line_ends", script.line_ends(),
                        Script::kLineEndsOffset);
+  TagObject(script.shared_function_infos(), "(shared function infos)",
+            HeapEntry::kCode);
+  TagObject(script.host_defined_options(), "(host-defined options)",
+            HeapEntry::kCode);
 }
 
 void V8HeapExplorer::ExtractAccessorInfoReferences(HeapEntry* entry,
@@ -1447,7 +1500,7 @@ void V8HeapExplorer::TagBuiltinCodeObject(CodeT code, const char* name) {
 }
 
 void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code code) {
-  TagObject(code.relocation_info(), "(code relocation info)");
+  TagObject(code.relocation_info(), "(code relocation info)", HeapEntry::kCode);
   SetInternalReference(entry, "relocation_info", code.relocation_info(),
                        Code::kRelocationInfoOffset);
 
@@ -1456,16 +1509,27 @@ void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code code) {
     SetInternalReference(entry, "interpreter_data",
                          code.bytecode_or_interpreter_data(),
                          Code::kDeoptimizationDataOrInterpreterDataOffset);
-    TagObject(code.bytecode_offset_table(), "(bytecode offset table)");
+    TagObject(code.bytecode_offset_table(), "(bytecode offset table)",
+              HeapEntry::kCode);
     SetInternalReference(entry, "bytecode_offset_table",
                          code.bytecode_offset_table(),
                          Code::kPositionTableOffset);
   } else {
-    TagObject(code.deoptimization_data(), "(code deopt data)");
-    SetInternalReference(entry, "deoptimization_data",
-                         code.deoptimization_data(),
+    DeoptimizationData deoptimization_data =
+        DeoptimizationData::cast(code.deoptimization_data());
+    TagObject(deoptimization_data, "(code deopt data)", HeapEntry::kCode);
+    SetInternalReference(entry, "deoptimization_data", deoptimization_data,
                          Code::kDeoptimizationDataOrInterpreterDataOffset);
-    TagObject(code.source_position_table(), "(source position table)");
+    if (deoptimization_data.length() > 0) {
+      TagObject(deoptimization_data.TranslationByteArray(), "(code deopt data)",
+                HeapEntry::kCode);
+      TagObject(deoptimization_data.LiteralArray(), "(code deopt data)",
+                HeapEntry::kCode);
+      TagObject(deoptimization_data.InliningPositions(), "(code deopt data)",
+                HeapEntry::kCode);
+    }
+    TagObject(code.source_position_table(), "(source position table)",
+              HeapEntry::kCode);
     SetInternalReference(entry, "source_position_table",
                          code.source_position_table(),
                          Code::kPositionTableOffset);
@@ -1499,15 +1563,22 @@ void V8HeapExplorer::ExtractAllocationSiteReferences(HeapEntry* entry,
                        AllocationSite::kTransitionInfoOrBoilerplateOffset);
   SetInternalReference(entry, "nested_site", site.nested_site(),
                        AllocationSite::kNestedSiteOffset);
-  TagObject(site.dependent_code(), "(dependent code)");
+  TagObject(site.dependent_code(), "(dependent code)", HeapEntry::kCode);
   SetInternalReference(entry, "dependent_code", site.dependent_code(),
                        AllocationSite::kDependentCodeOffset);
 }
 
 void V8HeapExplorer::ExtractArrayBoilerplateDescriptionReferences(
     HeapEntry* entry, ArrayBoilerplateDescription value) {
-  SetInternalReference(entry, "constant_elements", value.constant_elements(),
+  FixedArrayBase constant_elements = value.constant_elements();
+  SetInternalReference(entry, "constant_elements", constant_elements,
                        ArrayBoilerplateDescription::kConstantElementsOffset);
+  TagObject(constant_elements, "(constant elements)", HeapEntry::kCode);
+}
+
+void V8HeapExplorer::ExtractRegExpBoilerplateDescriptionReferences(
+    HeapEntry* entry, RegExpBoilerplateDescription value) {
+  TagObject(value.data(), "(RegExp data)", HeapEntry::kCode);
 }
 
 class JSArrayBufferDataEntryAllocator : public HeapEntriesAllocator {
@@ -1596,6 +1667,23 @@ void V8HeapExplorer::ExtractNumberReference(HeapEntry* entry, Object number) {
                            generator_);
 }
 
+void V8HeapExplorer::ExtractBytecodeArrayReferences(HeapEntry* entry,
+                                                    BytecodeArray bytecode) {
+  RecursivelyTagConstantPool(bytecode.constant_pool(), "(constant pool)",
+                             HeapEntry::kCode, 3);
+  TagObject(bytecode.handler_table(), "(handler table)", HeapEntry::kCode);
+  TagObject(bytecode.source_position_table(kAcquireLoad),
+            "(source position table)", HeapEntry::kCode);
+}
+
+void V8HeapExplorer::ExtractScopeInfoReferences(HeapEntry* entry,
+                                                ScopeInfo info) {
+  if (!info.HasInlinedLocalNames()) {
+    TagObject(info.context_local_names_hashtable(), "(context local names)",
+              HeapEntry::kCode);
+  }
+}
+
 void V8HeapExplorer::ExtractFeedbackVectorReferences(
     HeapEntry* entry, FeedbackVector feedback_vector) {
   MaybeObject code = feedback_vector.maybe_optimized_code();
@@ -1603,6 +1691,15 @@ void V8HeapExplorer::ExtractFeedbackVectorReferences(
   if (code->GetHeapObjectIfWeak(&code_heap_object)) {
     SetWeakReference(entry, "optimized code", code_heap_object,
                      FeedbackVector::kMaybeOptimizedCodeOffset);
+  }
+  for (int i = 0; i < feedback_vector.length(); ++i) {
+    MaybeObject maybe_entry = *(feedback_vector.slots_start() + i);
+    HeapObject entry;
+    if (maybe_entry.GetHeapObjectIfStrong(&entry) &&
+        (entry.map(isolate()).instance_type() == WEAK_FIXED_ARRAY_TYPE ||
+         entry.IsFixedArrayExact())) {
+      TagObject(entry, "(feedback)", HeapEntry::kCode);
+    }
   }
 }
 
@@ -2180,12 +2277,33 @@ const char* V8HeapExplorer::GetStrongGcSubrootName(Object object) {
   return it != strong_gc_subroot_names_.end() ? it->second : nullptr;
 }
 
-void V8HeapExplorer::TagObject(Object obj, const char* tag) {
+void V8HeapExplorer::TagObject(Object obj, const char* tag,
+                               base::Optional<HeapEntry::Type> type) {
   if (IsEssentialObject(obj)) {
     HeapEntry* entry = GetEntry(obj);
     if (entry->name()[0] == '\0') {
       entry->set_name(tag);
     }
+    if (type.has_value()) {
+      entry->set_type(*type);
+    }
+  }
+}
+
+void V8HeapExplorer::RecursivelyTagConstantPool(Object obj, const char* tag,
+                                                HeapEntry::Type type,
+                                                int recursion_limit) {
+  --recursion_limit;
+  if (obj.IsFixedArrayExact(isolate())) {
+    FixedArray arr = FixedArray::cast(obj);
+    TagObject(arr, tag, type);
+    if (recursion_limit <= 0) return;
+    for (int i = 0; i < arr.length(); ++i) {
+      RecursivelyTagConstantPool(arr.get(i), tag, type, recursion_limit);
+    }
+  } else if (obj.IsNameDictionary(isolate()) ||
+             obj.IsNumberDictionary(isolate())) {
+    TagObject(obj, tag, type);
   }
 }
 

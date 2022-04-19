@@ -1,11 +1,10 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import {arrayEquals, defer, groupBy} from '../helper.mjs';
 import {App} from '../index.mjs'
 
 import {SelectionEvent, SelectRelatedEvent, ToolTipEvent} from './events.mjs';
-import {CollapsableElement, CSSColor, delay, DOM, formatBytes, gradientStopsFromGroups, LazyTable} from './helper.mjs';
+import {arrayEquals, CollapsableElement, CSSColor, defer, delay, DOM, formatBytes, gradientStopsFromGroups, groupBy, LazyTable} from './helper.mjs';
 
 // A source mapping proxy for source maps that don't have CORS headers.
 // TODO(leszeks): Make this configurable.

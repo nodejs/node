@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "src/base/vector.h"
+#include "src/codegen/signature.h"
 #include "src/utils/utils.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/struct-types.h"
@@ -39,6 +40,11 @@ class WasmGCTester {
                      execution_tier == TestExecutionTier::kLiftoff),
         flag_liftoff_only(&v8::internal::FLAG_liftoff_only,
                           execution_tier == TestExecutionTier::kLiftoff),
+        flag_wasm_dynamic_tiering(&v8::internal::FLAG_wasm_dynamic_tiering,
+                                  v8::internal::FLAG_liftoff_only != true),
+        // Test both setups with canonicalization and without.
+        flag_canonicalization(&v8::internal::FLAG_wasm_type_canonicalization,
+                              execution_tier == TestExecutionTier::kTurbofan),
         flag_tierup(&v8::internal::FLAG_wasm_tier_up, false),
         zone_(&allocator, ZONE_NAME),
         builder_(&zone_),
@@ -169,6 +175,19 @@ class WasmGCTester {
     CheckHasThrownImpl(function_index, sig, &packer, expected);
   }
 
+  bool HasSimdSupport(TestExecutionTier tier) const {
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+    // Liftoff does not have a fallback for executing SIMD instructions if
+    // SSE4_1 is not available.
+    if (tier == TestExecutionTier::kLiftoff &&
+        !CpuFeatures::IsSupported(SSE4_1)) {
+      return false;
+    }
+#endif
+    USE(tier);
+    return true;
+  }
+
   Handle<WasmInstanceObject> instance() { return instance_; }
   Isolate* isolate() { return isolate_; }
   WasmModuleBuilder* builder() { return &builder_; }
@@ -181,6 +200,8 @@ class WasmGCTester {
   const FlagScope<bool> flag_typedfuns;
   const FlagScope<bool> flag_liftoff;
   const FlagScope<bool> flag_liftoff_only;
+  const FlagScope<bool> flag_wasm_dynamic_tiering;
+  const FlagScope<bool> flag_canonicalization;
   const FlagScope<bool> flag_tierup;
 
   byte DefineFunctionImpl(WasmFunctionBuilder* fun,
@@ -474,6 +495,28 @@ WASM_COMPILED_EXEC_TEST(RefCast) {
       {F(kWasmI32, true), F(kWasmF32, false)}, supertype_index);
   const byte subtype2_index = tester.DefineStruct(
       {F(kWasmI32, true), F(kWasmI64, false)}, supertype_index);
+  auto super_sig = FixedSizeSignature<ValueType>::Params(
+                       ValueType::Ref(subtype1_index, kNullable))
+                       .Returns(ValueType::Ref(supertype_index, kNullable));
+  auto sub_sig1 = FixedSizeSignature<ValueType>::Params(
+                      ValueType::Ref(supertype_index, kNullable))
+                      .Returns(ValueType::Ref(subtype1_index, kNullable));
+  auto sub_sig2 = FixedSizeSignature<ValueType>::Params(
+                      ValueType::Ref(supertype_index, kNullable))
+                      .Returns(ValueType::Ref(subtype2_index, kNullable));
+  const byte function_type_index = tester.DefineSignature(&super_sig);
+  const byte function_subtype1_index =
+      tester.DefineSignature(&sub_sig1, function_type_index);
+  const byte function_subtype2_index =
+      tester.DefineSignature(&sub_sig2, function_type_index);
+  const byte function_index = tester.DefineFunction(
+      function_subtype1_index, {},
+      {WASM_STRUCT_NEW_DEFAULT_WITH_RTT(subtype1_index,
+                                        WASM_RTT_CANON(subtype1_index)),
+       WASM_END});
+  // Just so this function counts as "declared".
+  tester.AddGlobal(ValueType::Ref(function_type_index, kNullable), false,
+                   WasmInitExpr::RefFuncConst(function_index));
 
   const byte kTestSuccessful = tester.DefineFunction(
       tester.sigs.i_v(), {ValueType::Ref(supertype_index, kNullable)},
@@ -493,9 +536,32 @@ WASM_COMPILED_EXEC_TEST(RefCast) {
            WASM_REF_CAST(WASM_LOCAL_GET(0), WASM_RTT_CANON(subtype2_index))),
        WASM_END});
 
+  const byte kFuncTestSuccessfulSuper = tester.DefineFunction(
+      tester.sigs.i_v(), {ValueType::Ref(function_type_index, kNullable)},
+      {WASM_LOCAL_SET(0, WASM_REF_FUNC(function_index)),
+       WASM_REF_CAST(WASM_LOCAL_GET(0), WASM_RTT_CANON(function_type_index)),
+       WASM_DROP, WASM_I32V(0), WASM_END});
+
+  const byte kFuncTestSuccessfulSub = tester.DefineFunction(
+      tester.sigs.i_v(), {ValueType::Ref(function_type_index, kNullable)},
+      {WASM_LOCAL_SET(0, WASM_REF_FUNC(function_index)),
+       WASM_REF_CAST(WASM_LOCAL_GET(0),
+                     WASM_RTT_CANON(function_subtype1_index)),
+       WASM_DROP, WASM_I32V(0), WASM_END});
+
+  const byte kFuncTestFailed = tester.DefineFunction(
+      tester.sigs.i_v(), {ValueType::Ref(function_type_index, kNullable)},
+      {WASM_LOCAL_SET(0, WASM_REF_FUNC(function_index)),
+       WASM_REF_CAST(WASM_LOCAL_GET(0),
+                     WASM_RTT_CANON(function_subtype2_index)),
+       WASM_DROP, WASM_I32V(1), WASM_END});
+
   tester.CompileModule();
   tester.CheckResult(kTestSuccessful, 0);
   tester.CheckHasThrown(kTestFailed);
+  tester.CheckResult(kFuncTestSuccessfulSuper, 0);
+  tester.CheckResult(kFuncTestSuccessfulSub, 0);
+  tester.CheckHasThrown(kFuncTestFailed);
 }
 
 WASM_COMPILED_EXEC_TEST(RefCastStatic) {
@@ -916,6 +982,7 @@ TEST(WasmLetInstruction) {
 
 WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
   WasmGCTester tester(execution_tier);
+  if (!tester.HasSimdSupport(execution_tier)) return;
 
   const byte type_index = tester.DefineArray(wasm::kWasmI32, true);
   const byte fp_type_index = tester.DefineArray(wasm::kWasmF64, true);
@@ -1304,11 +1371,15 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
   tester.CheckResult(kZeroLength, 0);  // Does not throw.
 }
 
-/* TODO(7748): This test requires for recursive groups.
 WASM_COMPILED_EXEC_TEST(NewDefault) {
   WasmGCTester tester(execution_tier);
+  if (!tester.HasSimdSupport(execution_tier)) return;
+
+  tester.builder()->StartRecursiveTypeGroup();
   const byte struct_type = tester.DefineStruct(
       {F(wasm::kWasmI32, true), F(wasm::kWasmF64, true), F(optref(0), true)});
+  tester.builder()->EndRecursiveTypeGroup();
+
   const byte array_type = tester.DefineArray(wasm::kWasmI32, true);
   // Returns: struct[0] + f64_to_i32(struct[1]) + (struct[2].is_null ^ 1) == 0.
   const byte allocate_struct = tester.DefineFunction(
@@ -1338,7 +1409,6 @@ WASM_COMPILED_EXEC_TEST(NewDefault) {
   tester.CheckResult(allocate_struct, 0);
   tester.CheckResult(allocate_array, 0);
 }
-*/
 
 WASM_COMPILED_EXEC_TEST(BasicRtt) {
   WasmGCTester tester(execution_tier);

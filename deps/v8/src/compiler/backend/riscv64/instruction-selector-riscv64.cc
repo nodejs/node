@@ -1361,6 +1361,59 @@ void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
        g.UseRegister(node->InputAt(0)));
 }
 
+void EmitSignExtendWord(InstructionSelector* selector, Node* node) {
+  RiscvOperandGenerator g(selector);
+  Node* value = node->InputAt(0);
+  IrOpcode::Value lastOpCode = value->opcode();
+  if (lastOpCode == IrOpcode::kInt32Add || lastOpCode == IrOpcode::kInt32Sub ||
+      lastOpCode == IrOpcode::kWord32And || lastOpCode == IrOpcode::kWord32Or ||
+      lastOpCode == IrOpcode::kWord32Xor ||
+      lastOpCode == IrOpcode::kWord32Shl ||
+      lastOpCode == IrOpcode::kWord32Shr ||
+      lastOpCode == IrOpcode::kWord32Sar ||
+      lastOpCode == IrOpcode::kUint32Mod) {
+    selector->Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+    return;
+  }
+  if (lastOpCode == IrOpcode::kInt32Mul) {
+    Node* left = value->InputAt(0);
+    Node* right = value->InputAt(1);
+    if (selector->CanCover(value, left) && selector->CanCover(value, right)) {
+      if (left->opcode() == IrOpcode::kWord64Sar &&
+          right->opcode() == IrOpcode::kWord64Sar) {
+        Int64BinopMatcher leftInput(left), rightInput(right);
+        if (leftInput.right().Is(32) && rightInput.right().Is(32)) {
+          selector->Emit(kRiscvSignExtendWord, g.DefineAsRegister(node),
+                         g.UseRegister(value));
+          return;
+        }
+      }
+    }
+    selector->Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+    return;
+  }
+  if (lastOpCode == IrOpcode::kInt32Mod) {
+    Node* left = value->InputAt(0);
+    Node* right = value->InputAt(1);
+    if (selector->CanCover(value, left) && selector->CanCover(value, right)) {
+      if (left->opcode() == IrOpcode::kWord64Sar &&
+          right->opcode() == IrOpcode::kWord64Sar) {
+        Int64BinopMatcher rightInput(right), leftInput(left);
+        if (rightInput.right().Is(32) && leftInput.right().Is(32)) {
+          // Combine both shifted operands with Dmod.
+          selector->Emit(kRiscvSignExtendWord, g.DefineAsRegister(node),
+                         g.UseRegister(value));
+          return;
+        }
+      }
+    }
+    selector->Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+    return;
+  }
+  selector->Emit(kRiscvSignExtendWord, g.DefineAsRegister(node),
+                 g.UseRegister(value));
+}
+
 void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   Node* value = node->InputAt(0);
   if ((value->opcode() == IrOpcode::kLoad ||
@@ -1385,9 +1438,7 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
     }
     EmitLoad(this, value, opcode, node);
   } else {
-    RiscvOperandGenerator g(this);
-    Emit(kRiscvShl32, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
-         g.TempImmediate(0));
+    EmitSignExtendWord(this, node);
   }
 }
 
@@ -1452,8 +1503,7 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   // truncated value; arm treats it as nop thus the upper 32-bit as undefined;
   // Riscv emits ext instruction which zero-extend the 32-bit value; for riscv,
   // we do sign-extension of the truncated value
-  Emit(kRiscvSignExtendWord, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+  EmitSignExtendWord(this, node);
 }
 
 void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
@@ -3236,9 +3286,7 @@ void InstructionSelector::VisitSignExtendWord16ToInt64(Node* node) {
 }
 
 void InstructionSelector::VisitSignExtendWord32ToInt64(Node* node) {
-  RiscvOperandGenerator g(this);
-  Emit(kRiscvShl32, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
-       g.TempImmediate(0));
+  EmitSignExtendWord(this, node);
 }
 
 void InstructionSelector::VisitF32x4Pmin(Node* node) {

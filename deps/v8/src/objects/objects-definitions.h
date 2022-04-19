@@ -151,6 +151,7 @@ namespace internal {
   V(_, INTERPRETER_DATA_TYPE, InterpreterData, interpreter_data)               \
   V(_, MODULE_REQUEST_TYPE, ModuleRequest, module_request)                     \
   V(_, PROMISE_CAPABILITY_TYPE, PromiseCapability, promise_capability)         \
+  V(_, PROMISE_ON_STACK_TYPE, PromiseOnStack, promise_on_stack)                \
   V(_, PROMISE_REACTION_TYPE, PromiseReaction, promise_reaction)               \
   V(_, PROPERTY_DESCRIPTOR_OBJECT_TYPE, PropertyDescriptorObject,              \
     property_descriptor_object)                                                \

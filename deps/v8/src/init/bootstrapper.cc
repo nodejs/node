@@ -1185,6 +1185,37 @@ void ReplaceAccessors(Isolate* isolate, Handle<Map> map, Handle<String> name,
   Descriptor d = Descriptor::AccessorConstant(name, accessor_pair, attributes);
   descriptors.Replace(entry, &d);
 }
+
+void InitializeJSArrayMaps(Isolate* isolate, Handle<Context> native_context,
+                           Handle<Map> initial_map) {
+  // Replace all of the cached initial array maps in the native context with
+  // the appropriate transitioned elements kind maps.
+  Handle<Map> current_map = initial_map;
+  ElementsKind kind = current_map->elements_kind();
+  DCHECK_EQ(GetInitialFastElementsKind(), kind);
+  DCHECK_EQ(PACKED_SMI_ELEMENTS, kind);
+  DCHECK_EQ(Context::ArrayMapIndex(kind),
+            Context::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX);
+  native_context->set(Context::ArrayMapIndex(kind), *current_map,
+                      UPDATE_WRITE_BARRIER, kReleaseStore);
+  for (int i = GetSequenceIndexFromFastElementsKind(kind) + 1;
+       i < kFastElementsKindCount; ++i) {
+    Handle<Map> new_map;
+    ElementsKind next_kind = GetFastElementsKindFromSequenceIndex(i);
+    Map maybe_elements_transition = current_map->ElementsTransitionMap(
+        isolate, ConcurrencyMode::kSynchronous);
+    if (!maybe_elements_transition.is_null()) {
+      new_map = handle(maybe_elements_transition, isolate);
+    } else {
+      new_map = Map::CopyAsElementsKind(isolate, current_map, next_kind,
+                                        INSERT_TRANSITION);
+    }
+    DCHECK_EQ(next_kind, new_map->elements_kind());
+    native_context->set(Context::ArrayMapIndex(next_kind), *new_map,
+                        UPDATE_WRITE_BARRIER, kReleaseStore);
+    current_map = new_map;
+  }
+}
 }  // namespace
 
 void Genesis::AddRestrictedFunctionProperties(Handle<JSFunction> empty) {
@@ -1710,8 +1741,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                      Context::ARRAY_FUNCTION_INDEX);
     InstallSpeciesGetter(isolate_, array_function);
 
-    // Cache the array maps, needed by ArrayConstructorStub
-    CacheInitialJSArrayMaps(isolate_, native_context(), initial_map);
+    // Create the initial array map for Array.prototype which is required by
+    // the used ArrayConstructorStub.
+    // This is repeated after properly instantiating the Array.prototype.
+    InitializeJSArrayMaps(isolate_, native_context(), initial_map);
 
     // Set up %ArrayPrototype%.
     // The %ArrayPrototype% has TERMINAL_FAST_ELEMENTS_KIND in order to ensure
@@ -1721,6 +1754,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                                 AllocationType::kOld);
     JSFunction::SetPrototype(array_function, proto);
     native_context()->set_initial_array_prototype(*proto);
+
+    InitializeJSArrayMaps(isolate_, native_context(),
+
+                          handle(array_function->initial_map(), isolate_));
 
     SimpleInstallFunction(isolate_, array_function, "isArray",
                           Builtin::kArrayIsArray, 1, true);
@@ -2387,8 +2424,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate_, promise_fun, "all", Builtin::kPromiseAll, 1, true);
     native_context()->set_promise_all(*promise_all);
 
-    InstallFunctionWithBuiltinId(isolate_, promise_fun, "allSettled",
-                                 Builtin::kPromiseAllSettled, 1, true);
+    Handle<JSFunction> promise_all_settled =
+        InstallFunctionWithBuiltinId(isolate_, promise_fun, "allSettled",
+                                     Builtin::kPromiseAllSettled, 1, true);
+    native_context()->set_promise_all_settled(*promise_all_settled);
 
     Handle<JSFunction> promise_any = InstallFunctionWithBuiltinId(
         isolate_, promise_fun, "any", Builtin::kPromiseAny, 1, true);
@@ -4058,6 +4097,8 @@ Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
   Handle<Map> rab_gsab_initial_map = factory()->NewMap(
       JS_TYPED_ARRAY_TYPE, JSTypedArray::kSizeWithEmbedderFields,
       GetCorrespondingRabGsabElementsKind(elements_kind), 0);
+  rab_gsab_initial_map->SetConstructor(*result);
+
   native_context()->set(rab_gsab_initial_map_index, *rab_gsab_initial_map,
                         UPDATE_WRITE_BARRIER, kReleaseStore);
   Map::SetPrototype(isolate(), rab_gsab_initial_map, prototype);
@@ -4453,13 +4494,14 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
 
 void Genesis::InitializeGlobal_harmony_shadow_realm() {
   if (!FLAG_harmony_shadow_realm) return;
+  Factory* factory = isolate()->factory();
   // -- S h a d o w R e a l m
   // #sec-shadowrealm-objects
   Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
-  Handle<JSFunction> shadow_realm_fun = InstallFunction(
-      isolate_, global, "ShadowRealm", JS_SHADOW_REALM_TYPE,
-      JSShadowRealm::kHeaderSize, 0, factory()->the_hole_value(),
-      Builtin::kShadowRealmConstructor);
+  Handle<JSFunction> shadow_realm_fun =
+      InstallFunction(isolate_, global, "ShadowRealm", JS_SHADOW_REALM_TYPE,
+                      JSShadowRealm::kHeaderSize, 0, factory->the_hole_value(),
+                      Builtin::kShadowRealmConstructor);
   shadow_realm_fun->shared().set_length(0);
   shadow_realm_fun->shared().DontAdaptArguments();
 
@@ -4467,7 +4509,7 @@ void Genesis::InitializeGlobal_harmony_shadow_realm() {
   Handle<JSObject> prototype(
       JSObject::cast(shadow_realm_fun->instance_prototype()), isolate());
 
-  InstallToStringTag(isolate_, prototype, factory()->ShadowRealm_string());
+  InstallToStringTag(isolate_, prototype, factory->ShadowRealm_string());
 
   SimpleInstallFunction(isolate_, prototype, "evaluate",
                         Builtin::kShadowRealmPrototypeEvaluate, 1, true);
@@ -4475,14 +4517,37 @@ void Genesis::InitializeGlobal_harmony_shadow_realm() {
                         Builtin::kShadowRealmPrototypeImportValue, 2, true);
 
   {  // --- W r a p p e d F u n c t i o n
-    Handle<Map> map = factory()->NewMap(JS_WRAPPED_FUNCTION_TYPE,
-                                        JSWrappedFunction::kHeaderSize,
-                                        TERMINAL_FAST_ELEMENTS_KIND, 0);
+    Handle<Map> map = factory->NewMap(JS_WRAPPED_FUNCTION_TYPE,
+                                      JSWrappedFunction::kHeaderSize,
+                                      TERMINAL_FAST_ELEMENTS_KIND, 0);
     map->SetConstructor(native_context()->object_function());
     map->set_is_callable(true);
     Handle<JSObject> empty_function(native_context()->function_prototype(),
                                     isolate());
     Map::SetPrototype(isolate(), map, empty_function);
+
+    PropertyAttributes roc_attribs =
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
+    Map::EnsureDescriptorSlack(isolate_, map, 2);
+    {  // length
+      STATIC_ASSERT(
+          JSFunctionOrBoundFunctionOrWrappedFunction::kLengthDescriptorIndex ==
+          0);
+      Descriptor d = Descriptor::AccessorConstant(
+          factory->length_string(), factory->wrapped_function_length_accessor(),
+          roc_attribs);
+      map->AppendDescriptor(isolate(), &d);
+    }
+
+    {  // name
+      STATIC_ASSERT(
+          JSFunctionOrBoundFunctionOrWrappedFunction::kNameDescriptorIndex ==
+          1);
+      Descriptor d = Descriptor::AccessorConstant(
+          factory->name_string(), factory->wrapped_function_name_accessor(),
+          roc_attribs);
+      map->AppendDescriptor(isolate(), &d);
+    }
 
     native_context()->set_wrapped_function_map(*map);
   }
@@ -5954,24 +6019,29 @@ bool Genesis::InstallExtension(Isolate* isolate,
       return false;
     }
   }
-  bool result = CompileExtension(isolate, extension);
-  if (!result) {
+  if (!CompileExtension(isolate, extension)) {
     // If this failed, it either threw an exception, or the isolate is
     // terminating.
     DCHECK(isolate->has_pending_exception() ||
            (isolate->has_scheduled_exception() &&
             isolate->scheduled_exception() ==
                 ReadOnlyRoots(isolate).termination_exception()));
-    // We print out the name of the extension that fail to install.
-    // When an error is thrown during bootstrapping we automatically print
-    // the line number at which this happened to the console in the isolate
-    // error throwing functionality.
-    base::OS::PrintError("Error installing extension '%s'.\n",
-                         current->extension()->name());
-    isolate->clear_pending_exception();
+    if (isolate->has_pending_exception()) {
+      // We print out the name of the extension that fail to install.
+      // When an error is thrown during bootstrapping we automatically print
+      // the line number at which this happened to the console in the isolate
+      // error throwing functionality.
+      base::OS::PrintError("Error installing extension '%s'.\n",
+                           current->extension()->name());
+      isolate->clear_pending_exception();
+    }
+    return false;
   }
+
+  DCHECK(!isolate->has_pending_exception() &&
+         !isolate->has_scheduled_exception());
   extension_states->set_state(current, INSTALLED);
-  return result;
+  return true;
 }
 
 bool Genesis::ConfigureGlobalObject(

@@ -13,9 +13,9 @@ namespace internal {
 namespace {
 class MetricRecorderImpl final : public MetricRecorder {
  public:
-  void AddMainThreadEvent(const FullCycle& event) final {
-    FullCycle_event = event;
-    FullCycle_callcount++;
+  void AddMainThreadEvent(const GCCycle& event) final {
+    GCCycle_event = event;
+    GCCycle_callcount++;
   }
   void AddMainThreadEvent(const MainThreadIncrementalMark& event) final {
     MainThreadIncrementalMark_event = event;
@@ -26,8 +26,8 @@ class MetricRecorderImpl final : public MetricRecorder {
     MainThreadIncrementalSweep_callcount++;
   }
 
-  static size_t FullCycle_callcount;
-  static FullCycle FullCycle_event;
+  static size_t GCCycle_callcount;
+  static GCCycle GCCycle_event;
   static size_t MainThreadIncrementalMark_callcount;
   static MainThreadIncrementalMark MainThreadIncrementalMark_event;
   static size_t MainThreadIncrementalSweep_callcount;
@@ -35,8 +35,8 @@ class MetricRecorderImpl final : public MetricRecorder {
 };
 
 // static
-size_t MetricRecorderImpl::FullCycle_callcount = 0u;
-MetricRecorderImpl::FullCycle MetricRecorderImpl::FullCycle_event;
+size_t MetricRecorderImpl::GCCycle_callcount = 0u;
+MetricRecorderImpl::GCCycle MetricRecorderImpl::GCCycle_event;
 size_t MetricRecorderImpl::MainThreadIncrementalMark_callcount = 0u;
 MetricRecorderImpl::MainThreadIncrementalMark
     MetricRecorderImpl::MainThreadIncrementalMark_event;
@@ -65,7 +65,7 @@ class MetricRecorderTest : public testing::TestWithHeap {
 }  // namespace
 
 TEST_F(MetricRecorderTest, IncrementalScopesReportedImmediately) {
-  MetricRecorderImpl::FullCycle_callcount = 0u;
+  MetricRecorderImpl::GCCycle_callcount = 0u;
   MetricRecorderImpl::MainThreadIncrementalMark_callcount = 0u;
   MetricRecorderImpl::MainThreadIncrementalSweep_callcount = 0u;
   StartGC();
@@ -95,12 +95,12 @@ TEST_F(MetricRecorderTest, IncrementalScopesReportedImmediately) {
     EXPECT_LT(0u,
               MetricRecorderImpl::MainThreadIncrementalSweep_event.duration_us);
   }
-  EXPECT_EQ(0u, MetricRecorderImpl::FullCycle_callcount);
+  EXPECT_EQ(0u, MetricRecorderImpl::GCCycle_callcount);
   EndGC(0);
 }
 
 TEST_F(MetricRecorderTest, NonIncrementlaScopesNotReportedImmediately) {
-  MetricRecorderImpl::FullCycle_callcount = 0u;
+  MetricRecorderImpl::GCCycle_callcount = 0u;
   MetricRecorderImpl::MainThreadIncrementalMark_callcount = 0u;
   MetricRecorderImpl::MainThreadIncrementalSweep_callcount = 0u;
   StartGC();
@@ -132,19 +132,19 @@ TEST_F(MetricRecorderTest, NonIncrementlaScopesNotReportedImmediately) {
   }
   EXPECT_EQ(0u, MetricRecorderImpl::MainThreadIncrementalMark_callcount);
   EXPECT_EQ(0u, MetricRecorderImpl::MainThreadIncrementalSweep_callcount);
-  EXPECT_EQ(0u, MetricRecorderImpl::FullCycle_callcount);
+  EXPECT_EQ(0u, MetricRecorderImpl::GCCycle_callcount);
   EndGC(0);
 }
 
 TEST_F(MetricRecorderTest, CycleEndMetricsReportedOnGcEnd) {
-  MetricRecorderImpl::FullCycle_callcount = 0u;
+  MetricRecorderImpl::GCCycle_callcount = 0u;
   MetricRecorderImpl::MainThreadIncrementalMark_callcount = 0u;
   MetricRecorderImpl::MainThreadIncrementalSweep_callcount = 0u;
   StartGC();
   EndGC(0);
   EXPECT_EQ(0u, MetricRecorderImpl::MainThreadIncrementalMark_callcount);
   EXPECT_EQ(0u, MetricRecorderImpl::MainThreadIncrementalSweep_callcount);
-  EXPECT_EQ(1u, MetricRecorderImpl::FullCycle_callcount);
+  EXPECT_EQ(1u, MetricRecorderImpl::GCCycle_callcount);
 }
 
 TEST_F(MetricRecorderTest, CycleEndHistogramReportsCorrectValues) {
@@ -210,75 +210,69 @@ TEST_F(MetricRecorderTest, CycleEndHistogramReportsCorrectValues) {
   EndGC(300);
   // Check durations.
   static constexpr int64_t kDurationComparisonTolerance = 5000;
-  EXPECT_LT(std::abs(MetricRecorderImpl::FullCycle_event.main_thread_incremental
+  EXPECT_LT(std::abs(MetricRecorderImpl::GCCycle_event.main_thread_incremental
                          .mark_duration_us -
                      10000),
             kDurationComparisonTolerance);
-  EXPECT_LT(std::abs(MetricRecorderImpl::FullCycle_event.main_thread_incremental
+  EXPECT_LT(std::abs(MetricRecorderImpl::GCCycle_event.main_thread_incremental
                          .sweep_duration_us -
                      20000),
             kDurationComparisonTolerance);
-  EXPECT_LT(std::abs(MetricRecorderImpl::FullCycle_event.main_thread_atomic
+  EXPECT_LT(std::abs(MetricRecorderImpl::GCCycle_event.main_thread_atomic
                          .mark_duration_us -
                      30000),
             kDurationComparisonTolerance);
-  EXPECT_LT(std::abs(MetricRecorderImpl::FullCycle_event.main_thread_atomic
+  EXPECT_LT(std::abs(MetricRecorderImpl::GCCycle_event.main_thread_atomic
                          .weak_duration_us -
                      50000),
             kDurationComparisonTolerance);
-  EXPECT_LT(std::abs(MetricRecorderImpl::FullCycle_event.main_thread_atomic
+  EXPECT_LT(std::abs(MetricRecorderImpl::GCCycle_event.main_thread_atomic
                          .compact_duration_us -
                      60000),
             kDurationComparisonTolerance);
-  EXPECT_LT(std::abs(MetricRecorderImpl::FullCycle_event.main_thread_atomic
+  EXPECT_LT(std::abs(MetricRecorderImpl::GCCycle_event.main_thread_atomic
                          .sweep_duration_us -
                      70000),
             kDurationComparisonTolerance);
   EXPECT_LT(
-      std::abs(
-          MetricRecorderImpl::FullCycle_event.main_thread.mark_duration_us -
-          40000),
+      std::abs(MetricRecorderImpl::GCCycle_event.main_thread.mark_duration_us -
+               40000),
       kDurationComparisonTolerance);
   EXPECT_LT(
-      std::abs(
-          MetricRecorderImpl::FullCycle_event.main_thread.weak_duration_us -
-          50000),
-      kDurationComparisonTolerance);
-  EXPECT_LT(
-      std::abs(
-          MetricRecorderImpl::FullCycle_event.main_thread.compact_duration_us -
-          60000),
-      kDurationComparisonTolerance);
-  EXPECT_LT(
-      std::abs(
-          MetricRecorderImpl::FullCycle_event.main_thread.sweep_duration_us -
-          90000),
-      kDurationComparisonTolerance);
-  EXPECT_LT(
-      std::abs(MetricRecorderImpl::FullCycle_event.total.mark_duration_us -
-               120000),
-      kDurationComparisonTolerance);
-  EXPECT_LT(
-      std::abs(MetricRecorderImpl::FullCycle_event.total.weak_duration_us -
+      std::abs(MetricRecorderImpl::GCCycle_event.main_thread.weak_duration_us -
                50000),
       kDurationComparisonTolerance);
   EXPECT_LT(
-      std::abs(MetricRecorderImpl::FullCycle_event.total.compact_duration_us -
+      std::abs(
+          MetricRecorderImpl::GCCycle_event.main_thread.compact_duration_us -
+          60000),
+      kDurationComparisonTolerance);
+  EXPECT_LT(
+      std::abs(MetricRecorderImpl::GCCycle_event.main_thread.sweep_duration_us -
+               90000),
+      kDurationComparisonTolerance);
+  EXPECT_LT(std::abs(MetricRecorderImpl::GCCycle_event.total.mark_duration_us -
+                     120000),
+            kDurationComparisonTolerance);
+  EXPECT_LT(std::abs(MetricRecorderImpl::GCCycle_event.total.weak_duration_us -
+                     50000),
+            kDurationComparisonTolerance);
+  EXPECT_LT(
+      std::abs(MetricRecorderImpl::GCCycle_event.total.compact_duration_us -
                60000),
       kDurationComparisonTolerance);
-  EXPECT_LT(
-      std::abs(MetricRecorderImpl::FullCycle_event.total.sweep_duration_us -
-               190000),
-      kDurationComparisonTolerance);
+  EXPECT_LT(std::abs(MetricRecorderImpl::GCCycle_event.total.sweep_duration_us -
+                     190000),
+            kDurationComparisonTolerance);
   // Check collection rate and efficiency.
   EXPECT_DOUBLE_EQ(
-      0.3, MetricRecorderImpl::FullCycle_event.collection_rate_in_percent);
+      0.3, MetricRecorderImpl::GCCycle_event.collection_rate_in_percent);
   static constexpr double kEfficiencyComparisonTolerance = 0.0005;
   EXPECT_LT(
-      std::abs(MetricRecorderImpl::FullCycle_event.efficiency_in_bytes_per_us -
+      std::abs(MetricRecorderImpl::GCCycle_event.efficiency_in_bytes_per_us -
                (700.0 / (120000 + 50000 + 60000 + 190000))),
       kEfficiencyComparisonTolerance);
-  EXPECT_LT(std::abs(MetricRecorderImpl::FullCycle_event
+  EXPECT_LT(std::abs(MetricRecorderImpl::GCCycle_event
                          .main_thread_efficiency_in_bytes_per_us -
                      (700.0 / (40000 + 50000 + 60000 + 90000))),
             kEfficiencyComparisonTolerance);
@@ -291,12 +285,12 @@ TEST_F(MetricRecorderTest, ObjectSizeMetricsNoAllocations) {
   // Populate current event.
   StartGC();
   EndGC(800);
-  EXPECT_EQ(1000u, MetricRecorderImpl::FullCycle_event.objects.before_bytes);
-  EXPECT_EQ(800u, MetricRecorderImpl::FullCycle_event.objects.after_bytes);
-  EXPECT_EQ(200u, MetricRecorderImpl::FullCycle_event.objects.freed_bytes);
-  EXPECT_EQ(0u, MetricRecorderImpl::FullCycle_event.memory.before_bytes);
-  EXPECT_EQ(0u, MetricRecorderImpl::FullCycle_event.memory.after_bytes);
-  EXPECT_EQ(0u, MetricRecorderImpl::FullCycle_event.memory.freed_bytes);
+  EXPECT_EQ(1000u, MetricRecorderImpl::GCCycle_event.objects.before_bytes);
+  EXPECT_EQ(800u, MetricRecorderImpl::GCCycle_event.objects.after_bytes);
+  EXPECT_EQ(200u, MetricRecorderImpl::GCCycle_event.objects.freed_bytes);
+  EXPECT_EQ(0u, MetricRecorderImpl::GCCycle_event.memory.before_bytes);
+  EXPECT_EQ(0u, MetricRecorderImpl::GCCycle_event.memory.after_bytes);
+  EXPECT_EQ(0u, MetricRecorderImpl::GCCycle_event.memory.freed_bytes);
 }
 
 TEST_F(MetricRecorderTest, ObjectSizeMetricsWithAllocations) {
@@ -313,12 +307,12 @@ TEST_F(MetricRecorderTest, ObjectSizeMetricsWithAllocations) {
   stats->NotifyAllocatedMemory(1000);
   stats->NotifyFreedMemory(400);
   stats->NotifySweepingCompleted();
-  EXPECT_EQ(1300u, MetricRecorderImpl::FullCycle_event.objects.before_bytes);
-  EXPECT_EQ(800, MetricRecorderImpl::FullCycle_event.objects.after_bytes);
-  EXPECT_EQ(500u, MetricRecorderImpl::FullCycle_event.objects.freed_bytes);
-  EXPECT_EQ(700u, MetricRecorderImpl::FullCycle_event.memory.before_bytes);
-  EXPECT_EQ(300u, MetricRecorderImpl::FullCycle_event.memory.after_bytes);
-  EXPECT_EQ(400u, MetricRecorderImpl::FullCycle_event.memory.freed_bytes);
+  EXPECT_EQ(1300u, MetricRecorderImpl::GCCycle_event.objects.before_bytes);
+  EXPECT_EQ(800, MetricRecorderImpl::GCCycle_event.objects.after_bytes);
+  EXPECT_EQ(500u, MetricRecorderImpl::GCCycle_event.objects.freed_bytes);
+  EXPECT_EQ(700u, MetricRecorderImpl::GCCycle_event.memory.before_bytes);
+  EXPECT_EQ(300u, MetricRecorderImpl::GCCycle_event.memory.after_bytes);
+  EXPECT_EQ(400u, MetricRecorderImpl::GCCycle_event.memory.freed_bytes);
 }
 
 }  // namespace internal

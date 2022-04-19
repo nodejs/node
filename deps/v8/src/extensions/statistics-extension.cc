@@ -99,11 +99,21 @@ void StatisticsExtension::GetCounters(
     const char* name;
   };
 
+  size_t new_space_size = 0;
+  size_t new_space_available = 0;
+  size_t new_space_committed_memory = 0;
+
+  if (heap->new_space()) {
+    new_space_size = heap->new_space()->Size();
+    new_space_available = heap->new_space()->Available();
+    new_space_committed_memory = heap->new_space()->CommittedMemory();
+  }
+
   const StatisticNumber numbers[] = {
       {heap->memory_allocator()->Size(), "total_committed_bytes"},
-      {heap->new_space()->Size(), "new_space_live_bytes"},
-      {heap->new_space()->Available(), "new_space_available_bytes"},
-      {heap->new_space()->CommittedMemory(), "new_space_commited_bytes"},
+      {new_space_size, "new_space_live_bytes"},
+      {new_space_available, "new_space_available_bytes"},
+      {new_space_committed_memory, "new_space_commited_bytes"},
       {heap->old_space()->Size(), "old_space_live_bytes"},
       {heap->old_space()->Available(), "old_space_available_bytes"},
       {heap->old_space()->CommittedMemory(), "old_space_commited_bytes"},

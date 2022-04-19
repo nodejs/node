@@ -50,7 +50,8 @@ class SimplifiedLoweringTest : public GraphTest {
     Linkage* linkage = zone()->New<Linkage>(Linkage::GetJSCallDescriptor(
         zone(), false, num_parameters_ + 1, CallDescriptor::kCanUseRoots));
     SimplifiedLowering lowering(jsgraph(), broker(), zone(), source_positions(),
-                                node_origins(), tick_counter(), linkage);
+                                node_origins(), tick_counter(), linkage,
+                                nullptr);
     lowering.LowerAllNodes();
   }
 

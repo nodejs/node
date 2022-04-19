@@ -3995,6 +3995,7 @@ class CppClassGenerator {
   }
 
   void GenerateClass();
+  void GenerateCppObjectDefinitionAsserts();
 
  private:
   SourcePosition Position();
@@ -4124,8 +4125,6 @@ void CppClassGenerator::GenerateClass() {
           << "::cast(*this), "
              "isolate);\n";
     impl_ << "}\n\n";
-  }
-  if (type_->ShouldGenerateVerify()) {
     impl_ << "\n";
   }
 
@@ -4239,6 +4238,36 @@ void CppClassGenerator::GenerateClass() {
 
     GenerateClassExport(type_, hdr_, inl_);
   }
+}
+
+void CppClassGenerator::GenerateCppObjectDefinitionAsserts() {
+  hdr_ << "// Definition " << Position() << "\n"
+       << template_decl() << "\n"
+       << "class " << gen_name_ << "Asserts {\n";
+
+  ClassFieldOffsetGenerator g(hdr_, inl_, type_, gen_name_,
+                              type_->GetSuperClass());
+  for (auto f : type_->fields()) {
+    CurrentSourcePosition::Scope scope(f.pos);
+    g.RecordOffsetFor(f);
+  }
+  g.Finish();
+  hdr_ << "\n";
+
+  for (auto f : type_->fields()) {
+    std::string field = "k" + CamelifyString(f.name_and_type.name) + "Offset";
+    std::string type = f.name_and_type.type->SimpleName();
+    hdr_ << "  static_assert(" << field << " == D::" << field << ",\n"
+         << "                \"Values of " << name_ << "::" << field
+         << " defined in Torque and C++ do not match\");\n"
+         << "  static_assert(StaticStringsEqual(\"" << type << "\", D::k"
+         << CamelifyString(f.name_and_type.name) << "TqFieldType),\n"
+         << "                \"Types of " << name_ << "::" << field
+         << " specified in Torque and C++ do not match\");\n";
+  }
+  hdr_ << "  static_assert(kSize == D::kSize);\n";
+
+  hdr_ << "};\n\n";
 }
 
 void CppClassGenerator::GenerateClassCasts() {
@@ -4704,7 +4733,9 @@ void ImplementationVisitor::GenerateClassDefinitions(
       std::string name = type->ShouldGenerateCppClassDefinitions()
                              ? type->name()
                              : type->GetGeneratedTNodeTypeName();
-      header << "class " << name << ";\n";
+      if (type->ShouldGenerateCppClassDefinitions()) {
+        header << "class " << name << ";\n";
+      }
       forward_declarations << "class " << name << ";\n";
     }
 
@@ -4718,6 +4749,9 @@ void ImplementationVisitor::GenerateClassDefinitions(
       if (type->ShouldGenerateCppClassDefinitions()) {
         CppClassGenerator g(type, header, inline_header, implementation);
         g.GenerateClass();
+      } else if (type->ShouldGenerateCppObjectDefinitionAsserts()) {
+        CppClassGenerator g(type, header, inline_header, implementation);
+        g.GenerateCppObjectDefinitionAsserts();
       }
       for (const Field& f : type->fields()) {
         const Type* field_type = f.name_and_type.type;

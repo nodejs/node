@@ -17,7 +17,7 @@ namespace internal {
 namespace {
 
 // Visit remembered set that was recorded in the generational barrier.
-void VisitRememberedSlots(std::set<void*> slots, const HeapBase& heap,
+void VisitRememberedSlots(const std::set<void*>& slots, const HeapBase& heap,
                           MutatorMarkingState& mutator_marking_state) {
   for (void* slot : slots) {
     // Slot must always point to a valid, not freed object.
@@ -51,7 +51,8 @@ void VisitRememberedSlots(std::set<void*> slots, const HeapBase& heap,
 // Visits source objects that were recorded in the generational barrier for
 // slots.
 void VisitRememberedSourceObjects(
-    std::set<HeapObjectHeader*> remembered_source_objects, Visitor& visitor) {
+    const std::set<HeapObjectHeader*>& remembered_source_objects,
+    Visitor& visitor) {
   for (HeapObjectHeader* source_hoh : remembered_source_objects) {
     DCHECK(source_hoh);
     // The age checking in the generational barrier is imprecise, since a card

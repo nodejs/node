@@ -6,6 +6,7 @@
 // Flags: --no-stress-flush-code
 // Flags: --no-stress-incremental-marking
 // Flags: --no-concurrent-recompilation
+// Flags: --no-maglev
 
 var source =
 `

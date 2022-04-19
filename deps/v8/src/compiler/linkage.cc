@@ -470,6 +470,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       num_returns++;
     }
   }
+  USE(num_fp_returns);
 
   // Add parameters in registers and on the stack.
   for (int i = 0; i < js_parameter_count; i++) {

@@ -10,6 +10,7 @@
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
 #endif
+#include "src/strings/string-stream.h"
 
 namespace v8 {
 namespace internal {
@@ -531,6 +532,66 @@ double MakeTime(double hour, double min, double sec, double ms) {
     return h * kMsPerHour + m * kMsPerMinute + s * kMsPerSecond + milli;
   }
   return std::numeric_limits<double>::quiet_NaN();
+}
+
+namespace {
+
+const char* kShortWeekDays[] = {"Sun", "Mon", "Tue", "Wed",
+                                "Thu", "Fri", "Sat"};
+const char* kShortMonths[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+
+template <class... Args>
+DateBuffer FormatDate(const char* format, Args... args) {
+  DateBuffer buffer;
+  SmallStringOptimizedAllocator<DateBuffer::kInlineSize> allocator(&buffer);
+  StringStream sstream(&allocator);
+  sstream.Add(format, args...);
+  buffer.resize_no_init(sstream.length());
+  return buffer;
+}
+
+}  // namespace
+
+DateBuffer ToDateString(double time_val, DateCache* date_cache,
+                        ToDateStringMode mode) {
+  if (std::isnan(time_val)) {
+    return FormatDate("Invalid Date");
+  }
+  int64_t time_ms = static_cast<int64_t>(time_val);
+  int64_t local_time_ms = mode != ToDateStringMode::kUTCDateAndTime
+                              ? date_cache->ToLocal(time_ms)
+                              : time_ms;
+  int year, month, day, weekday, hour, min, sec, ms;
+  date_cache->BreakDownTime(local_time_ms, &year, &month, &day, &weekday, &hour,
+                            &min, &sec, &ms);
+  int timezone_offset = -date_cache->TimezoneOffset(time_ms);
+  int timezone_hour = std::abs(timezone_offset) / 60;
+  int timezone_min = std::abs(timezone_offset) % 60;
+  const char* local_timezone = date_cache->LocalTimezone(time_ms);
+  switch (mode) {
+    case ToDateStringMode::kLocalDate:
+      return FormatDate((year < 0) ? "%s %s %02d %05d" : "%s %s %02d %04d",
+                        kShortWeekDays[weekday], kShortMonths[month], day,
+                        year);
+    case ToDateStringMode::kLocalTime:
+      return FormatDate("%02d:%02d:%02d GMT%c%02d%02d (%s)", hour, min, sec,
+                        (timezone_offset < 0) ? '-' : '+', timezone_hour,
+                        timezone_min, local_timezone);
+    case ToDateStringMode::kLocalDateAndTime:
+      return FormatDate(
+          (year < 0) ? "%s %s %02d %05d %02d:%02d:%02d GMT%c%02d%02d (%s)"
+                     : "%s %s %02d %04d %02d:%02d:%02d GMT%c%02d%02d (%s)",
+          kShortWeekDays[weekday], kShortMonths[month], day, year, hour, min,
+          sec, (timezone_offset < 0) ? '-' : '+', timezone_hour, timezone_min,
+          local_timezone);
+    case ToDateStringMode::kUTCDateAndTime:
+      return FormatDate((year < 0) ? "%s, %02d %s %05d %02d:%02d:%02d GMT"
+                                   : "%s, %02d %s %04d %02d:%02d:%02d GMT",
+                        kShortWeekDays[weekday], day, kShortMonths[month], year,
+                        hour, min, sec);
+  }
+  UNREACHABLE();
 }
 
 }  // namespace internal

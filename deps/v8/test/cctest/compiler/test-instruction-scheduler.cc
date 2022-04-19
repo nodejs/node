@@ -72,13 +72,10 @@ TEST(DeoptInMiddleOfBasicBlock) {
 
   tester.StartBlock();
   InstructionCode jmp_opcode = kArchJmp;
-  // Dummy node for FlagsContinuation::ForDeoptimize (which won't accept
-  // nullptr).
-  Node* node = Node::New(zone, 0, nullptr, 0, nullptr, false);
-  FeedbackSource feedback;
-  FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kEqual, DeoptimizeKind::kEager, DeoptimizeReason::kUnknown, node->id(),
-      feedback, node);
+  Node* dummy_frame_state = Node::New(zone, 0, nullptr, 0, nullptr, false);
+  FlagsContinuation cont = FlagsContinuation::ForDeoptimizeForTesting(
+      kEqual, DeoptimizeReason::kUnknown, dummy_frame_state->id(),
+      FeedbackSource{}, dummy_frame_state);
   jmp_opcode = cont.Encode(jmp_opcode);
   Instruction* jmp_inst = Instruction::New(zone, jmp_opcode);
   tester.CheckIsDeopt(jmp_inst);

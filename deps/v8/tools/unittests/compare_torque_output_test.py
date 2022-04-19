@@ -14,11 +14,6 @@ TOOLS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COMPARE_SCRIPT = os.path.join(TOOLS_DIR, 'compare_torque_output.py')
 TEST_DATA = os.path.join(TOOLS_DIR, 'unittests', 'testdata', 'compare_torque')
 
-_PY3 = sys.version_info[0] == 3
-PYTHON_EXECUTABLE = "python%s" % sys.version_info[0]
-
-def maybe_bytes(value):
-  return value.decode("utf-8") if _PY3 else value
 
 class PredictableTest(unittest.TestCase):
   def setUp(self):
@@ -29,7 +24,7 @@ class PredictableTest(unittest.TestCase):
     file1 = os.path.join(TEST_DATA, test_folder, 'f1')
     file2 = os.path.join(TEST_DATA, test_folder, 'f2')
     proc = subprocess.Popen([
-          PYTHON_EXECUTABLE, '-u',
+          sys.executable, '-u',
           COMPARE_SCRIPT, file1, file2, self.tmp_file
         ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     _, err = proc.communicate()
@@ -39,7 +34,7 @@ class PredictableTest(unittest.TestCase):
     exitcode, output = self._compare_from('test1')
     self.assertEqual(1, exitcode)
     full_match = r'^Found.*-line 2\+line 2 with diff.*\+line 3\n\n$'
-    self.assertRegexpMatches(maybe_bytes(output), re.compile(full_match, re.M | re.S))
+    self.assertRegex(output.decode('utf-8'), re.compile(full_match, re.M | re.S))
 
   def test_no_diff(self):
     exitcode, output = self._compare_from('test2')
@@ -49,12 +44,12 @@ class PredictableTest(unittest.TestCase):
   def test_right_only(self):
     exitcode, output = self._compare_from('test3')
     self.assertEqual(1, exitcode)
-    self.assertRegexpMatches(maybe_bytes(output), r'Some files exist only in.*f2\nfile3')
+    self.assertRegex(output.decode('utf-8'), r'Some files exist only in.*f2\nfile3')
 
   def test_left_only(self):
     exitcode, output = self._compare_from('test4')
     self.assertEqual(1, exitcode)
-    self.assertRegexpMatches(maybe_bytes(output), r'Some files exist only in.*f1\nfile4')
+    self.assertRegex(output.decode('utf-8'), r'Some files exist only in.*f1\nfile4')
 
   def tearDown(self):
     os.unlink(self.tmp_file)

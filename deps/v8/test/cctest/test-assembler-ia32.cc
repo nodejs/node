@@ -1522,8 +1522,6 @@ TEST(Regress621926) {
 }
 
 TEST(DeoptExitSizeIsFixed) {
-  CHECK(Deoptimizer::kSupportsFixedDeoptExitSizes);
-
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   v8::internal::byte buffer[256];
@@ -1539,9 +1537,8 @@ TEST(DeoptExitSizeIsFixed) {
     masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
                                nullptr);
     CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
-             kind == DeoptimizeKind::kLazy
-                 ? Deoptimizer::kLazyDeoptExitSize
-                 : Deoptimizer::kNonLazyDeoptExitSize);
+             kind == DeoptimizeKind::kLazy ? Deoptimizer::kLazyDeoptExitSize
+                                           : Deoptimizer::kEagerDeoptExitSize);
   }
 }
 

@@ -17,6 +17,8 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
+#include "src/common/globals.h"
+#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/code-range.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/spaces.h"
@@ -44,15 +46,15 @@ class MemoryAllocator {
 
     Unmapper(Heap* heap, MemoryAllocator* allocator)
         : heap_(heap), allocator_(allocator) {
-      chunks_[kRegular].reserve(kReservedQueueingSlots);
-      chunks_[kPooled].reserve(kReservedQueueingSlots);
+      chunks_[ChunkQueueType::kRegular].reserve(kReservedQueueingSlots);
+      chunks_[ChunkQueueType::kPooled].reserve(kReservedQueueingSlots);
     }
 
     void AddMemoryChunkSafe(MemoryChunk* chunk) {
       if (!chunk->IsLargePage() && chunk->executable() != EXECUTABLE) {
-        AddMemoryChunkSafe(kRegular, chunk);
+        AddMemoryChunkSafe(ChunkQueueType::kRegular, chunk);
       } else {
-        AddMemoryChunkSafe(kNonRegular, chunk);
+        AddMemoryChunkSafe(ChunkQueueType::kNonRegular, chunk);
       }
     }
 
@@ -62,9 +64,9 @@ class MemoryAllocator {
       // been uncommitted.
       // (2) Try to steal any memory chunk of kPageSize that would've been
       // uncommitted.
-      MemoryChunk* chunk = GetMemoryChunkSafe(kPooled);
+      MemoryChunk* chunk = GetMemoryChunkSafe(ChunkQueueType::kPooled);
       if (chunk == nullptr) {
-        chunk = GetMemoryChunkSafe(kRegular);
+        chunk = GetMemoryChunkSafe(ChunkQueueType::kRegular);
         if (chunk != nullptr) {
           // For stolen chunks we need to manually free any allocated memory.
           chunk->ReleaseAllAllocatedMemory();
@@ -126,13 +128,13 @@ class MemoryAllocator {
     Heap* const heap_;
     MemoryAllocator* const allocator_;
     base::Mutex mutex_;
-    std::vector<MemoryChunk*> chunks_[kNumberOfChunkQueues];
+    std::vector<MemoryChunk*> chunks_[ChunkQueueType::kNumberOfChunkQueues];
     std::unique_ptr<v8::JobHandle> job_handle_;
 
     friend class MemoryAllocator;
   };
 
-  enum AllocationMode {
+  enum class AllocationMode {
     // Regular allocation path. Does not use pool.
     kRegular,
 
@@ -140,7 +142,7 @@ class MemoryAllocator {
     kUsePool,
   };
 
-  enum FreeMode {
+  enum class FreeMode {
     // Frees page immediately on the main thread.
     kImmediately,
 
@@ -182,13 +184,14 @@ class MemoryAllocator {
   // whether pooled allocation, which only works for MemoryChunk::kPageSize,
   // should be tried first.
   V8_EXPORT_PRIVATE Page* AllocatePage(
-      MemoryAllocator::AllocationMode alloc_mode, size_t size, Space* owner,
+      MemoryAllocator::AllocationMode alloc_mode, Space* space,
       Executability executable);
 
-  LargePage* AllocateLargePage(size_t size, LargeObjectSpace* owner,
-                               Executability executable);
+  V8_EXPORT_PRIVATE LargePage* AllocateLargePage(LargeObjectSpace* space,
+                                                 size_t object_size,
+                                                 Executability executable);
 
-  ReadOnlyPage* AllocateReadOnlyPage(size_t size, ReadOnlySpace* owner);
+  ReadOnlyPage* AllocateReadOnlyPage(ReadOnlySpace* space);
 
   std::unique_ptr<::v8::PageAllocator::SharedMemoryMapping> RemapSharedPage(
       ::v8::PageAllocator::SharedMemory* shared_memory, Address new_address);
@@ -215,15 +218,6 @@ class MemoryAllocator {
     return address < lowest_ever_allocated_ ||
            address >= highest_ever_allocated_;
   }
-
-  // Returns a MemoryChunk in which the memory region from commit_area_size to
-  // reserve_area_size of the chunk area is reserved but not committed, it
-  // could be committed later by calling MemoryChunk::CommitArea.
-  V8_EXPORT_PRIVATE MemoryChunk* AllocateChunk(size_t reserve_area_size,
-                                               size_t commit_area_size,
-                                               Executability executable,
-                                               PageSize page_size,
-                                               BaseSpace* space);
 
   // Partially release |bytes_to_free| bytes starting at |start_free|. Note that
   // internally memory is freed from |start_free| to the end of the reservation.
@@ -264,15 +258,32 @@ class MemoryAllocator {
 
   void UnregisterReadOnlyPage(ReadOnlyPage* page);
 
- private:
-  // Returns a BasicMemoryChunk in which the memory region from commit_area_size
-  // to reserve_area_size of the chunk area is reserved but not committed, it
-  // could be committed later by calling MemoryChunk::CommitArea.
-  V8_EXPORT_PRIVATE BasicMemoryChunk* AllocateBasicChunk(
-      size_t reserve_area_size, size_t commit_area_size,
-      Executability executable, BaseSpace* space);
+  Address HandleAllocationFailure();
 
-  Address AllocateAlignedMemory(size_t reserve_size, size_t commit_size,
+ private:
+  // Used to store all data about MemoryChunk allocation, e.g. in
+  // AllocateUninitializedChunk.
+  struct MemoryChunkAllocationResult {
+    void* start;
+    size_t size;
+    size_t area_start;
+    size_t area_end;
+    VirtualMemory reservation;
+  };
+
+  // Computes the size of a MemoryChunk from the size of the object_area and
+  // whether the chunk is executable or not.
+  static size_t ComputeChunkSize(size_t area_size, Executability executable);
+
+  // Internal allocation method for all pages/memory chunks. Returns data about
+  // the unintialized memory region.
+  V8_WARN_UNUSED_RESULT base::Optional<MemoryChunkAllocationResult>
+  AllocateUninitializedChunk(BaseSpace* space, size_t area_size,
+                             Executability executable, PageSize page_size);
+
+  // Internal raw allocation method that allocates an aligned MemoryChunk and
+  // sets the right memory permissions.
+  Address AllocateAlignedMemory(size_t chunk_size, size_t area_size,
                                 size_t alignment, Executability executable,
                                 void* hint, VirtualMemory* controller);
 
@@ -280,10 +291,11 @@ class MemoryAllocator {
   // it succeeded and false otherwise.
   bool CommitMemory(VirtualMemory* reservation);
 
-  V8_WARN_UNUSED_RESULT bool CommitExecutableMemory(VirtualMemory* vm,
-                                                    Address start,
-                                                    size_t commit_size,
-                                                    size_t reserved_size);
+  // Sets memory permissions on executable memory chunks. This entails page
+  // header (RW), guard pages (no access) and the object area (code modification
+  // permissions).
+  V8_WARN_UNUSED_RESULT bool SetPermissionsOnExecutableMemoryChunk(
+      VirtualMemory* vm, Address start, size_t area_size, size_t reserved_size);
 
   // Disallows any access on memory region owned by given reservation object.
   // Returns true if it succeeded and false otherwise.
@@ -304,7 +316,8 @@ class MemoryAllocator {
 
   // See AllocatePage for public interface. Note that currently we only
   // support pools for NOT_EXECUTABLE pages of size MemoryChunk::kPageSize.
-  MemoryChunk* AllocatePagePooled(Space* owner);
+  base::Optional<MemoryChunkAllocationResult> AllocateUninitializedPageFromPool(
+      Space* space);
 
   // Frees a pooled page. Only used on tear-down and last-resort GCs.
   void FreePooledChunk(MemoryChunk* chunk);
@@ -314,7 +327,7 @@ class MemoryAllocator {
   // collector to rebuild page headers in the from space, which is
   // used as a marking stack and its page headers are destroyed.
   Page* InitializePagesInChunk(int chunk_id, int pages_in_chunk,
-                               PagedSpace* owner);
+                               PagedSpace* space);
 
   void UpdateAllocatedSpaceLimits(Address low, Address high) {
     // The use of atomic primitives does not guarantee correctness (wrt.
@@ -385,7 +398,7 @@ class MemoryAllocator {
   std::atomic<Address> lowest_ever_allocated_;
   std::atomic<Address> highest_ever_allocated_;
 
-  VirtualMemory last_chunk_;
+  base::Optional<VirtualMemory> reserved_chunk_at_virtual_memory_limit_;
   Unmapper unmapper_;
 
 #ifdef DEBUG

@@ -52,11 +52,11 @@ class CWasmArgumentsPacker {
   static int TotalSize(const FunctionSig* sig) {
     int return_size = 0;
     for (ValueType t : sig->returns()) {
-      return_size += t.element_size_bytes();
+      return_size += t.value_kind_size();
     }
     int param_size = 0;
     for (ValueType t : sig->parameters()) {
-      param_size += t.element_size_bytes();
+      param_size += t.value_kind_size();
     }
     return std::max(return_size, param_size);
   }

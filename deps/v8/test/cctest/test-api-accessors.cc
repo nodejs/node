@@ -814,3 +814,64 @@ TEST(BindFunctionTemplateSetNativeDataProperty) {
     CHECK(try_catch.HasCaught());
   }
 }
+
+namespace {
+v8::MaybeLocal<v8::Context> TestHostCreateShadowRealmContextCallback(
+    v8::Local<v8::Context> initiator_context) {
+  v8::Isolate* isolate = initiator_context->GetIsolate();
+  v8::Local<v8::FunctionTemplate> global_constructor =
+      v8::FunctionTemplate::New(isolate);
+  v8::Local<v8::ObjectTemplate> global_template =
+      global_constructor->InstanceTemplate();
+
+  // Check that getter is called on Function.prototype.bind.
+  global_template->SetNativeDataProperty(
+      v8_str("func1"), [](v8::Local<v8::String> property,
+                          const v8::PropertyCallbackInfo<v8::Value>& info) {
+        v8::Isolate* isolate = info.GetIsolate();
+        v8::Local<v8::FunctionTemplate> templ =
+            v8::FunctionTemplate::New(isolate);
+        templ->SetNativeDataProperty(v8_str("name"), FunctionNativeGetter);
+        info.GetReturnValue().Set(
+            templ->GetFunction(isolate->GetCurrentContext()).ToLocalChecked());
+      });
+
+  // Check that getter is called on Function.prototype.bind.
+  global_template->SetNativeDataProperty(
+      v8_str("func2"), [](v8::Local<v8::String> property,
+                          const v8::PropertyCallbackInfo<v8::Value>& info) {
+        v8::Isolate* isolate = info.GetIsolate();
+        v8::Local<v8::FunctionTemplate> templ =
+            v8::FunctionTemplate::New(isolate);
+        templ->SetNativeDataProperty(v8_str("length"), FunctionNativeGetter);
+        info.GetReturnValue().Set(
+            templ->GetFunction(isolate->GetCurrentContext()).ToLocalChecked());
+      });
+
+  return v8::Context::New(isolate, nullptr, global_template);
+}
+}  // namespace
+
+TEST(WrapFunctionTemplateSetNativeDataProperty) {
+  i::FLAG_harmony_shadow_realm = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  isolate->SetHostCreateShadowRealmContextCallback(
+      TestHostCreateShadowRealmContextCallback);
+
+  v8::HandleScope scope(isolate);
+  // Check that getter is called on WrappedFunctionCreate.
+  {
+    v8::TryCatch try_catch(isolate);
+    CHECK(
+        CompileRun("new ShadowRealm().evaluate('globalThis.func1')").IsEmpty());
+    CHECK(try_catch.HasCaught());
+  }
+  // Check that getter is called on WrappedFunctionCreate.
+  {
+    v8::TryCatch try_catch(isolate);
+    CHECK(
+        CompileRun("new ShadowRealm().evaluate('globalThis.func2')").IsEmpty());
+    CHECK(try_catch.HasCaught());
+  }
+}

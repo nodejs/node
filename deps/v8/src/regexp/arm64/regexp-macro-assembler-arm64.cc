@@ -813,7 +813,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   CPURegList registers_to_retain = kCalleeSaved;
   DCHECK_EQ(registers_to_retain.Count(), kNumCalleeSavedRegisters);
 
-  __ PushCPURegList<TurboAssembler::kDontStoreLR>(registers_to_retain);
+  __ PushCPURegList(registers_to_retain);
   __ Push<TurboAssembler::kSignLR>(lr, fp);
   __ PushCPURegList(argument_registers);
 
@@ -1128,7 +1128,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   __ Pop<TurboAssembler::kAuthLR>(fp, lr);
 
   // Restore registers.
-  __ PopCPURegList<TurboAssembler::kDontLoadLR>(registers_to_retain);
+  __ PopCPURegList(registers_to_retain);
 
   __ Ret();
 

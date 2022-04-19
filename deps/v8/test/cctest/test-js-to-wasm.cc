@@ -271,6 +271,7 @@ class FastJSWasmCallTester {
     i::FLAG_allow_natives_syntax = true;
     i::FLAG_turbo_inline_js_wasm_calls = true;
     i::FLAG_stress_background_compile = false;
+    i::FLAG_concurrent_osr = false;  // Seems to mess with %ObserveNode.
   }
 
   void DeclareCallback(const char* name, FunctionSig* signature,

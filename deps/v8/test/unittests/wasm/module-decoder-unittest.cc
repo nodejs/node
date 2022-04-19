@@ -166,10 +166,12 @@ namespace module_decoder_unittest {
     }                                                            \
   } while (false)
 
-#define EXPECT_NOT_OK(result, msg)                         \
-  do {                                                     \
-    EXPECT_FALSE(result.ok());                             \
-    EXPECT_THAT(result.error().message(), HasSubstr(msg)); \
+#define EXPECT_NOT_OK(result, msg)                           \
+  do {                                                       \
+    EXPECT_FALSE(result.ok());                               \
+    if (!result.ok()) {                                      \
+      EXPECT_THAT(result.error().message(), HasSubstr(msg)); \
+    }                                                        \
   } while (false)
 
 static size_t SizeOfVarInt(size_t value) {
@@ -803,7 +805,7 @@ TEST_F(WasmModuleVerifyTest, RttCanonGlobalTypeError) {
   static const byte data[] = {
       SECTION(Type, ENTRY_COUNT(2),
               WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true))),
+              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI64Code, true))),
       SECTION(Global, ENTRY_COUNT(1), WASM_RTT(0), 1, WASM_RTT_CANON(1),
               kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
@@ -1187,6 +1189,46 @@ TEST_F(WasmModuleVerifyTest, InvalidArrayTypeDef) {
                                            kI32Code,            // field type
                                            0)};                 // immmutability
   EXPECT_VERIFIES(immutable);
+}
+
+TEST_F(WasmModuleVerifyTest, TypeCanonicalization) {
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  FLAG_SCOPE(wasm_type_canonicalization);
+  static const byte identical_group[] = {
+      SECTION(Type,            // --
+              ENTRY_COUNT(2),  // two identical rec. groups
+              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),  // --
+              kWasmArrayTypeCode, kI32Code, 0,              // --
+              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),  // --
+              kWasmArrayTypeCode, kI32Code, 0),
+      SECTION(Global,                          // --
+              ENTRY_COUNT(1), kRefCode, 0, 0,  // Type, mutability
+              WASM_ARRAY_INIT_STATIC(1, 1, WASM_I32V(10)),
+              kExprEnd)  // Init. expression
+  };
+
+  // Global initializer should verify as identical type in other group
+  EXPECT_VERIFIES(identical_group);
+
+  static const byte non_identical_group[] = {
+      SECTION(Type,            // --
+              ENTRY_COUNT(2),  // two distrinct rec. groups
+              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),  // --
+              kWasmArrayTypeCode, kI32Code, 0,              // --
+              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(2),  // --
+              kWasmArrayTypeCode, kI32Code, 0,              // --
+              kWasmStructTypeCode, ENTRY_COUNT(0)),
+      SECTION(Global,                          // --
+              ENTRY_COUNT(1), kRefCode, 0, 0,  // Type, mutability
+              WASM_ARRAY_INIT_STATIC(1, 1, WASM_I32V(10)),
+              kExprEnd)  // Init. expression
+  };
+
+  // Global initializer should not verify as type in distinct rec. group.
+  EXPECT_FAILURE_WITH_MSG(
+      non_identical_group,
+      "type error in init. expression[0] (expected (ref 0), got (ref 1))");
 }
 
 TEST_F(WasmModuleVerifyTest, ZeroExceptions) {
@@ -3389,13 +3431,13 @@ TEST_F(WasmModuleVerifyTest, DataCountSegmentCount_omitted) {
   EXPECT_NOT_OK(result, "data segments count 0 mismatch (1 expected)");
 }
 
-/* TODO(7748): Add support for rec. groups.
 TEST_F(WasmModuleVerifyTest, GcStructIdsPass) {
   WASM_FEATURE_SCOPE(gc);
   WASM_FEATURE_SCOPE(typed_funcref);
 
   static const byte data[] = {SECTION(
-      Type, ENTRY_COUNT(3),
+      Type, ENTRY_COUNT(1),                         // One recursive group...
+      kWasmRecursiveTypeGroupCode, ENTRY_COUNT(3),  // with three entries.
       WASM_STRUCT_DEF(FIELD_COUNT(3), STRUCT_FIELD(kI32Code, true),
                       STRUCT_FIELD(WASM_OPT_REF(0), true),
                       STRUCT_FIELD(WASM_OPT_REF(1), true)),
@@ -3404,7 +3446,7 @@ TEST_F(WasmModuleVerifyTest, GcStructIdsPass) {
       WASM_ARRAY_DEF(WASM_OPT_REF(0), true))};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
-}*/
+}
 
 TEST_F(WasmModuleVerifyTest, OutOfBoundsTypeInGlobal) {
   WASM_FEATURE_SCOPE(typed_funcref);
@@ -3424,7 +3466,6 @@ TEST_F(WasmModuleVerifyTest, OutOfBoundsTypeInType) {
   EXPECT_NOT_OK(result, "Type index 1 is out of bounds");
 }
 
-// TODO(7748): Add support for rec. groups.
 TEST_F(WasmModuleVerifyTest, ForwardSupertype) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);

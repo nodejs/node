@@ -38,57 +38,6 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
   }
 })();
 
-(function ConstructFromTypedArraySpeciesConstructorDetaches() {
-  let rab;
-  class MyArrayBuffer extends ArrayBuffer {
-    constructor(...params) {
-      super(...params);
-    }
-    static get [Symbol.species]() {
-      %ArrayBufferDetach(rab);
-    }
-  };
-
-  function CreateRabForTest(ctor) {
-    const rab = new MyArrayBuffer(
-      4 * ctor.BYTES_PER_ELEMENT,
-      {maxByteLength: 8 * ctor.BYTES_PER_ELEMENT});
-    // Write some data into the array.
-    const taWrite = new ctor(rab);
-    for (let i = 0; i < 4; ++i) {
-      WriteToTypedArray(taWrite, i, 2 * i);
-    }
-    return rab;
-  }
-
-  AllBigIntMatchedCtorCombinations((targetCtor, sourceCtor) => {
-    rab = CreateRabForTest(sourceCtor);
-    const fixedLength = new sourceCtor(rab, 0, 4);
-    assertThrows(() => { new targetCtor(fixedLength); }, TypeError);
-  });
-
-  AllBigIntMatchedCtorCombinations((targetCtor, sourceCtor) => {
-    rab = CreateRabForTest(sourceCtor);
-    const fixedLengthWithOffset = new sourceCtor(
-        rab, 2 * sourceCtor.BYTES_PER_ELEMENT, 2);
-    assertThrows(() => { new targetCtor(fixedLengthWithOffset); }, TypeError);
-  });
-
-  AllBigIntMatchedCtorCombinations((targetCtor, sourceCtor) => {
-    rab = CreateRabForTest(sourceCtor);
-    const lengthTracking = new sourceCtor(rab, 0);
-    assertThrows(() => { new targetCtor(lengthTracking); }, TypeError);
-  });
-
-  AllBigIntMatchedCtorCombinations((targetCtor, sourceCtor) => {
-    rab = CreateRabForTest(sourceCtor);
-    const lengthTrackingWithOffset = new sourceCtor(
-      rab, 2 * sourceCtor.BYTES_PER_ELEMENT);
-    assertThrows(() => { new targetCtor(lengthTrackingWithOffset); },
-                 TypeError);
-  });
-})();
-
 (function AccessDetachedTypedArray() {
   const rab = CreateResizableArrayBuffer(16, 40);
 
@@ -1207,32 +1156,29 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     });
   }
 
-  // Tests where the length getter returns a non-zero value -> these throw.
+  // Tests where the length getter detaches -> these are no-op.
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const fixedLength = new ctor(rab, 0, 4);
-    assertThrows(() => { fixedLength.set(CreateSourceProxy(1)); }, TypeError);
+    fixedLength.set(CreateSourceProxy(1));
   }
 
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
-    assertThrows(() => { fixedLengthWithOffset.set(CreateSourceProxy(1)); },
-                         TypeError);
+    fixedLengthWithOffset.set(CreateSourceProxy(1));
   }
 
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
-    assertThrows(() => { lengthTracking.set(CreateSourceProxy(1)); },
-                 TypeError);
+    lengthTracking.set(CreateSourceProxy(1));
   }
 
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
-    assertThrows(() => { lengthTrackingWithOffset.set(CreateSourceProxy(1)); },
-                 TypeError);
+    lengthTrackingWithOffset.set(CreateSourceProxy(1));
   }
 
   // Tests where the length getter returns a zero -> these don't throw.
@@ -1302,31 +1248,28 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     rab = CreateRabForTest(ctor);
     const fixedLength = new ctor(rab, 0, 4);
     detachAt = 2;
-    assertThrows(() => { fixedLength.set(CreateSourceProxy(4)); }, TypeError);
+    fixedLength.set(CreateSourceProxy(4));
   }
 
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     detachAt = 2;
-    assertThrows(() => { fixedLengthWithOffset.set(CreateSourceProxy(2)); },
-                         TypeError);
+    fixedLengthWithOffset.set(CreateSourceProxy(2));
   }
 
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
     detachAt = 2;
-    assertThrows(() => { lengthTracking.set(CreateSourceProxy(2)); },
-                 TypeError);
+    lengthTracking.set(CreateSourceProxy(2));
   }
 
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
     detachAt = 2;
-    assertThrows(() => { lengthTrackingWithOffset.set(CreateSourceProxy(2)); },
-                 TypeError);
+    lengthTrackingWithOffset.set(CreateSourceProxy(2));
   }
 })();
 
@@ -1458,6 +1401,12 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     return 0;
   }
 
+  function AssertIsDetached(ta) {
+    assertEquals(0, ta.byteLength);
+    assertEquals(0, ta.byteOffset);
+    assertEquals(0, ta.length);
+  }
+
   // Fixed length TA.
   for (let ctor of ctors) {
     rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
@@ -1466,7 +1415,8 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const taFull = new ctor(rab, 0);
     WriteUnsortedData(taFull);
 
-    assertThrows(() => { fixedLength.sort(CustomComparison); });
+    fixedLength.sort(CustomComparison);
+    AssertIsDetached(fixedLength);
   }
 
   // Length-tracking TA.
@@ -1477,6 +1427,63 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const taFull = new ctor(rab, 0);
     WriteUnsortedData(taFull);
 
-    assertThrows(() => { lengthTracking.sort(CustomComparison); });
+    lengthTracking.sort(CustomComparison);
+    AssertIsDetached(lengthTracking);
+  }
+})();
+
+(function ObjectDefineProperty() {
+  for (let helper of
+      [ObjectDefinePropertyHelper, ObjectDefinePropertiesHelper]) {
+    for (let ctor of ctors) {
+      const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                             8 * ctor.BYTES_PER_ELEMENT);
+      const fixedLength = new ctor(rab, 0, 4);
+      const fixedLengthWithOffset = new ctor(
+          rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+      const lengthTracking = new ctor(rab, 0);
+      const lengthTrackingWithOffset = new ctor(
+          rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+      // Orig. array: [0, 0, 0, 0]
+      //              [0, 0, 0, 0] << fixedLength
+      //                    [0, 0] << fixedLengthWithOffset
+      //              [0, 0, 0, 0, ...] << lengthTracking
+      //                    [0, 0, ...] << lengthTrackingWithOffset
+
+      %ArrayBufferDetach(rab);
+
+      assertThrows(() => { helper(fixedLength, 0, 8); }, TypeError);
+      assertThrows(() => { helper(fixedLengthWithOffset, 0, 8); }, TypeError);
+      assertThrows(() => { helper(lengthTracking, 0, 8); }, TypeError);
+      assertThrows(() => { helper(lengthTrackingWithOffset, 0, 8); },
+                   TypeError);
+    }
+  }
+})();
+
+(function ObjectDefinePropertyParameterConversionDetaches() {
+  const helper = ObjectDefinePropertyHelper;
+  // Fixed length.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const evil = {toString: () => {
+      %ArrayBufferDetach(rab);
+      return 0;
+    }};
+    assertThrows(() => { helper(fixedLength, evil, 8); }, TypeError);
+  }
+  // Length tracking.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab, 0);
+    const evil = {toString: () => {
+        %ArrayBufferDetach(rab);
+        return 0;
+    }};
+    assertThrows(() => { helper(lengthTracking, evil, 8); }, TypeError);
   }
 })();

@@ -170,26 +170,44 @@ void BaselineAssembler::JumpTarget() {
 }
 
 void BaselineAssembler::Jump(Label* target, Label::Distance distance) {
+  ASM_CODE_COMMENT(masm_);
   __ b(target);
 }
+
 void BaselineAssembler::JumpIfRoot(Register value, RootIndex index,
                                    Label* target, Label::Distance) {
+  ASM_CODE_COMMENT(masm_);
   __ JumpIfRoot(value, index, target);
 }
+
 void BaselineAssembler::JumpIfNotRoot(Register value, RootIndex index,
                                       Label* target, Label::Distance) {
+  ASM_CODE_COMMENT(masm_);
   __ JumpIfNotRoot(value, index, target);
 }
+
 void BaselineAssembler::JumpIfSmi(Register value, Label* target,
                                   Label::Distance) {
+  ASM_CODE_COMMENT(masm_);
   __ JumpIfSmi(value, target);
 }
+
+void BaselineAssembler::JumpIfImmediate(Condition cc, Register left, int right,
+                                        Label* target,
+                                        Label::Distance distance) {
+  ASM_CODE_COMMENT(masm_);
+  JumpIf(cc, left, Operand(right), target, distance);
+}
+
 void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
                                      Label::Distance) {
+  ASM_CODE_COMMENT(masm_);
   __ JumpIfNotSmi(value, target);
 }
 
 void BaselineAssembler::CallBuiltin(Builtin builtin) {
+  ASM_CODE_COMMENT_STRING(masm_,
+                          __ CommentForOffHeapTrampoline("call", builtin));
   if (masm()->options().short_builtin_calls) {
     // Generate pc-relative call.
     __ CallBuiltin(builtin);
@@ -217,12 +235,14 @@ void BaselineAssembler::TailCallBuiltin(Builtin builtin) {
 
 void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
                                       Label* target, Label::Distance) {
+  ASM_CODE_COMMENT(masm_);
   __ AndP(r0, value, Operand(mask));
   __ b(AsMasmCondition(cc), target);
 }
 
 void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,
                                Label* target, Label::Distance) {
+  ASM_CODE_COMMENT(masm_);
   if (IsSignedCondition(cc)) {
     __ CmpS64(lhs, rhs);
   } else {
@@ -235,15 +255,18 @@ void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
                                          InstanceType instance_type,
                                          Register map, Label* target,
                                          Label::Distance) {
+  ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope temps(this);
   Register type = temps.AcquireScratch();
   __ LoadMap(map, object);
   __ LoadU16(type, FieldMemOperand(map, Map::kInstanceTypeOffset));
   JumpIf(cc, type, Operand(instance_type), target);
 }
+
 void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
                                            InstanceType instance_type,
                                            Label* target, Label::Distance) {
+  ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope temps(this);
   Register type = temps.AcquireScratch();
   if (FLAG_debug_code) {
@@ -254,9 +277,11 @@ void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
   __ LoadU16(type, FieldMemOperand(map, Map::kInstanceTypeOffset));
   JumpIf(cc, type, Operand(instance_type), target);
 }
+
 void BaselineAssembler::JumpIfPointer(Condition cc, Register value,
                                       MemOperand operand, Label* target,
                                       Label::Distance) {
+  ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope temps(this);
   Register tmp = temps.AcquireScratch();
   __ LoadU64(tmp, operand);
@@ -265,55 +290,77 @@ void BaselineAssembler::JumpIfPointer(Condition cc, Register value,
 
 void BaselineAssembler::JumpIfSmi(Condition cc, Register value, Smi smi,
                                   Label* target, Label::Distance) {
+  ASM_CODE_COMMENT(masm_);
   __ AssertSmi(value);
   __ LoadSmiLiteral(r0, smi);
   JumpIfHelper(masm_, cc, value, r0, target);
 }
+
 void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Register rhs,
                                   Label* target, Label::Distance) {
+  ASM_CODE_COMMENT(masm_);
   __ AssertSmi(lhs);
   __ AssertSmi(rhs);
   JumpIfHelper(masm_, cc, lhs, rhs, target);
 }
+
 void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
                                      MemOperand operand, Label* target,
                                      Label::Distance) {
+  ASM_CODE_COMMENT(masm_);
   __ LoadU64(r0, operand);
   JumpIfHelper(masm_, cc, value, r0, target);
 }
+
 void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
                                      Register value, Label* target,
                                      Label::Distance) {
+  ASM_CODE_COMMENT(masm_);
   __ LoadU64(r0, operand);
   JumpIfHelper(masm_, cc, r0, value, target);
 }
 void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
                                    Label* target, Label::Distance) {
+  ASM_CODE_COMMENT(masm_);
   JumpIf(cc, value, Operand(byte), target);
 }
 
 void BaselineAssembler::Move(interpreter::Register output, Register source) {
   Move(RegisterFrameOperand(output), source);
 }
+
 void BaselineAssembler::Move(Register output, TaggedIndex value) {
+  ASM_CODE_COMMENT(masm_);
   __ mov(output, Operand(value.ptr()));
 }
+
 void BaselineAssembler::Move(MemOperand output, Register source) {
+  ASM_CODE_COMMENT(masm_);
   __ StoreU64(source, output);
 }
+
 void BaselineAssembler::Move(Register output, ExternalReference reference) {
+  ASM_CODE_COMMENT(masm_);
   __ Move(output, reference);
 }
+
 void BaselineAssembler::Move(Register output, Handle<HeapObject> value) {
+  ASM_CODE_COMMENT(masm_);
   __ Move(output, value);
 }
+
 void BaselineAssembler::Move(Register output, int32_t value) {
+  ASM_CODE_COMMENT(masm_);
   __ mov(output, Operand(value));
 }
+
 void BaselineAssembler::MoveMaybeSmi(Register output, Register source) {
+  ASM_CODE_COMMENT(masm_);
   __ mov(output, source);
 }
+
 void BaselineAssembler::MoveSmi(Register output, Register source) {
+  ASM_CODE_COMMENT(masm_);
   __ mov(output, source);
 }
 
@@ -429,20 +476,34 @@ void BaselineAssembler::Pop(T... registers) {
 
 void BaselineAssembler::LoadTaggedPointerField(Register output, Register source,
                                                int offset) {
+  ASM_CODE_COMMENT(masm_);
   __ LoadTaggedPointerField(output, FieldMemOperand(source, offset), r0);
 }
+
 void BaselineAssembler::LoadTaggedSignedField(Register output, Register source,
                                               int offset) {
+  ASM_CODE_COMMENT(masm_);
   __ LoadTaggedSignedField(output, FieldMemOperand(source, offset));
 }
+
 void BaselineAssembler::LoadTaggedAnyField(Register output, Register source,
                                            int offset) {
+  ASM_CODE_COMMENT(masm_);
   __ LoadAnyTaggedField(output, FieldMemOperand(source, offset), r0);
 }
-void BaselineAssembler::LoadByteField(Register output, Register source,
-                                      int offset) {
+
+void BaselineAssembler::LoadWord16FieldZeroExtend(Register output,
+                                                  Register source, int offset) {
+  ASM_CODE_COMMENT(masm_);
+  __ LoadU16(output, FieldMemOperand(source, offset));
+}
+
+void BaselineAssembler::LoadWord8Field(Register output, Register source,
+                                       int offset) {
+  ASM_CODE_COMMENT(masm_);
   __ LoadU8(output, FieldMemOperand(source, offset));
 }
+
 void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
                                                Smi value) {
   ASM_CODE_COMMENT(masm_);
@@ -451,6 +512,7 @@ void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
   __ LoadSmiLiteral(tmp, value);
   __ StoreTaggedField(tmp, FieldMemOperand(target, offset), r0);
 }
+
 void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
                                                          int offset,
                                                          Register value) {
@@ -461,6 +523,7 @@ void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
   __ RecordWriteField(target, offset, value, scratch, kLRHasNotBeenSaved,
                       SaveFPRegsMode::kIgnore);
 }
+
 void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,
                                                        int offset,
                                                        Register value) {
@@ -521,6 +584,10 @@ void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
   } else {
     __ AddS64(lhs, lhs, r0);
   }
+}
+
+void BaselineAssembler::Word32And(Register output, Register lhs, int rhs) {
+  __ AndP(output, lhs, Operand(rhs));
 }
 
 void BaselineAssembler::Switch(Register reg, int case_value_base,

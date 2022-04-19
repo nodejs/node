@@ -1,22 +1,9 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import {LinuxCppEntriesProvider} from '../../tickprocessor.mjs';
+
 import {SelectRelatedEvent} from './events.mjs';
 import {CollapsableElement, DOM, formatBytes, formatMicroSeconds} from './helper.mjs';
-
-const kRegisters = ['rsp', 'rbp', 'rax', 'rbx', 'rcx', 'rdx', 'rsi', 'rdi'];
-// Make sure we dont match register on bytecode: Star1 or Star2
-const kAvoidBytecodeOps = '(.*?[^a-zA-Z])'
-// Look for registers in strings like:  movl rbx,[rcx-0x30]
-const kRegisterRegexp = `(${kRegisters.join('|')}|r[0-9]+)`
-const kRegisterRegexpSplit =
-    new RegExp(`${kAvoidBytecodeOps}${kRegisterRegexp}`)
-const kIsRegisterRegexp = new RegExp(`^${kRegisterRegexp}$`);
-
-const kFullAddressRegexp = /(0x[0-9a-f]{8,})/;
-const kRelativeAddressRegexp = /([+-]0x[0-9a-f]+)/;
-const kAnyAddressRegexp = /([+-]?0x[0-9a-f]+)/;
 
 DOM.defineCustomElement('view/code-panel',
                         (templateText) =>
@@ -132,36 +119,145 @@ DOM.defineCustomElement('view/code-panel',
   }
 });
 
+const kRegisters = ['rsp', 'rbp', 'rax', 'rbx', 'rcx', 'rdx', 'rsi', 'rdi'];
+// Make sure we dont match register on bytecode: Star1 or Star2
+const kAvoidBytecodeOpsRegexpSource = '(.*?[^a-zA-Z])'
+// Look for registers in strings like:  movl rbx,[rcx-0x30]
+const kRegisterRegexpSource = `(?<register>${kRegisters.join('|')}|r[0-9]+)`
+const kRegisterSplitRegexp =
+    new RegExp(`${kAvoidBytecodeOpsRegexpSource}${kRegisterRegexpSource}`)
+const kIsRegisterRegexp = new RegExp(`^${kRegisterRegexpSource}$`);
+
+const kFullAddressRegexp = /(0x[0-9a-f]{8,})/;
+const kRelativeAddressRegexp = /([+-]0x[0-9a-f]+)/;
+const kAnyAddressRegexp = /(?<address>[+-]?0x[0-9a-f]+)/;
+
+const kJmpRegexp = new RegExp(`jmp ${kRegisterRegexpSource}`);
+const kMovRegexp =
+    new RegExp(`mov. ${kRegisterRegexpSource},${kAnyAddressRegexp.source}`);
+
 class AssemblyFormatter {
   constructor(codeLogEntry) {
     this._fragment = new DocumentFragment();
     this._entry = codeLogEntry;
-    codeLogEntry.code.split('\n').forEach(line => this._addLine(line));
+    this._lines = new Map();
+    this._previousLine = undefined;
+    this._parseLines();
+    this._format();
   }
 
   get fragment() {
     return this._fragment;
   }
 
-  _addLine(line) {
+  _format() {
+    let block = DOM.div(['basicBlock', 'header']);
+    this._lines.forEach(line => {
+      if (!block || line.isBlockStart) {
+        this._fragment.appendChild(block);
+        block = DOM.div('basicBlock');
+      }
+      block.appendChild(line.format())
+    });
+    this._fragment.appendChild(block);
+  }
+
+  _parseLines() {
+    this._entry.code.split('\n').forEach(each => this._parseLine(each));
+    this._findBasicBlocks();
+  }
+
+  _parseLine(line) {
     const parts = line.split(' ');
-    let lineAddress = 0;
-    if (kFullAddressRegexp.test(parts[0])) {
-      lineAddress = parseInt(parts[0]);
+    // Use unique placeholder for address:
+    let lineAddress = -this._lines.size;
+    for (let part of parts) {
+      if (kFullAddressRegexp.test(part)) {
+        lineAddress = parseInt(part);
+        break;
+      }
     }
-    const content = DOM.span({textContent: parts.join(' ') + '\n'});
-    let formattedCode = content.innerHTML.split(kRegisterRegexpSplit)
+    const newLine = new AssemblyLine(lineAddress, parts);
+    // special hack for: mov reg 0x...; jmp reg;
+    if (lineAddress <= 0 && this._previousLine) {
+      const jmpMatch = line.match(kJmpRegexp);
+      if (jmpMatch) {
+        const register = jmpMatch.groups.register;
+        const movMatch = this._previousLine.line.match(kMovRegexp);
+        if (movMatch.groups.register === register) {
+          newLine.outgoing.push(movMatch.groups.address);
+        }
+      }
+    }
+    this._lines.set(lineAddress, newLine);
+    this._previousLine = newLine;
+  }
+
+  _findBasicBlocks() {
+    const lines = Array.from(this._lines.values());
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      let forceBasicBlock = i == 0;
+      if (i > 0 && i < lines.length - 1) {
+        const prevHasAddress = lines[i - 1].address > 0;
+        const currentHasAddress = lines[i].address > 0;
+        const nextHasAddress = lines[i + 1].address > 0;
+        if (prevHasAddress !== currentHasAddress &&
+            currentHasAddress == nextHasAddress) {
+          forceBasicBlock = true;
+        }
+      }
+      if (forceBasicBlock) {
+        // Add fake-incoming address to mark a block start.
+        line.addIncoming(0);
+      }
+      line.outgoing.forEach(address => {
+        const outgoing = this._lines.get(address);
+        if (outgoing) outgoing.addIncoming(line.address);
+      })
+    }
+  }
+}
+
+class AssemblyLine {
+  constructor(address, parts) {
+    this.address = address;
+    this.outgoing = [];
+    this.incoming = [];
+    parts.forEach(part => {
+      const fullMatch = part.match(kFullAddressRegexp);
+      if (fullMatch) {
+        let inlineAddress = parseInt(fullMatch[0]);
+        if (inlineAddress != this.address) this.outgoing.push(inlineAddress);
+        if (Number.isNaN(inlineAddress)) throw 'invalid address';
+      } else if (kRelativeAddressRegexp.test(part)) {
+        this.outgoing.push(this._toAbsoluteAddress(part));
+      }
+    });
+    this.line = parts.join(' ');
+  }
+
+  get isBlockStart() {
+    return this.incoming.length > 0;
+  }
+
+  addIncoming(address) {
+    this.incoming.push(address);
+  }
+
+  format() {
+    const content = DOM.span({textContent: this.line + '\n'});
+    let formattedCode = content.innerHTML.split(kRegisterSplitRegexp)
                             .map(part => this._formatRegisterPart(part))
                             .join('');
-    formattedCode = formattedCode.split(kAnyAddressRegexp)
-                        .map(
-                            (part, index) => this._formatAddressPart(
-                                part, index, lineAddress))
-                        .join('');
+    formattedCode =
+        formattedCode.split(kAnyAddressRegexp)
+            .map((part, index) => this._formatAddressPart(part, index))
+            .join('');
     // Let's replace the base-address since it doesn't add any value.
     // TODO
     content.innerHTML = formattedCode;
-    this._fragment.appendChild(content);
+    return content;
   }
 
   _formatRegisterPart(part) {
@@ -169,7 +265,7 @@ class AssemblyFormatter {
     return `<span class="reg ${part}">${part}</span>`
   }
 
-  _formatAddressPart(part, index, lineAddress) {
+  _formatAddressPart(part, index) {
     if (kFullAddressRegexp.test(part)) {
       // The first or second address must be the line address
       if (index <= 1) {
@@ -177,11 +273,15 @@ class AssemblyFormatter {
       }
       return `<span class=addr data-addr="${part}">${part}</span>`;
     } else if (kRelativeAddressRegexp.test(part)) {
-      const targetAddress = (lineAddress + parseInt(part)).toString(16);
-      return `<span class=addr data-addr="0x${targetAddress}">${part}</span>`;
+      return `<span class=addr data-addr="0x${
+          this._toAbsoluteAddress(part).toString(16)}">${part}</span>`;
     } else {
       return part;
     }
+  }
+
+  _toAbsoluteAddress(part) {
+    return this.address + parseInt(part);
   }
 }
 

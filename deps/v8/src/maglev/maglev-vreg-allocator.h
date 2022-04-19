@@ -26,8 +26,6 @@ class MaglevVregAllocationState {
 
 class MaglevVregAllocator {
  public:
-  static constexpr bool kNeedsCheckpointStates = true;
-
   void PreProcessGraph(MaglevCompilationUnit*, Graph* graph) {}
   void PostProcessGraph(MaglevCompilationUnit*, Graph* graph) {
     for (BasicBlock* block : *graph) {

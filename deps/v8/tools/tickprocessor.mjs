@@ -510,10 +510,8 @@ export class TickProcessor extends LogReader {
     onlySummary,
     runtimeTimerFilter,
     preprocessJson) {
-    super({},
-      timedRange,
-      pairwiseTimedRange);
-    this.dispatchTable_ = {
+    super(timedRange, pairwiseTimedRange);
+    this.setDispatchTable({
       __proto__: null,
       'shared-library': {
         parsers: [parseString, parseInt, parseInt, parseInt],
@@ -586,7 +584,7 @@ export class TickProcessor extends LogReader {
       'code-allocate': undefined,
       'begin-code-region': undefined,
       'end-code-region': undefined
-    };
+    });
 
     this.preprocessJson = preprocessJson;
     this.cppEntriesProvider_ = cppEntriesProvider;

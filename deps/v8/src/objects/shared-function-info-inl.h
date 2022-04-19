@@ -261,6 +261,9 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2,
                     has_static_private_methods_or_accessors,
                     SharedFunctionInfo::HasStaticPrivateMethodsOrAccessorsBit)
 
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, maglev_compilation_failed,
+                    SharedFunctionInfo::MaglevCompilationFailedBit)
+
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, syntax_kind,
                     SharedFunctionInfo::FunctionSyntaxKindBits)
 

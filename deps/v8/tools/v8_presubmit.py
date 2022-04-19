@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright 2012 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
@@ -27,17 +27,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-# for py2/py3 compatibility
-from __future__ import absolute_import
-from __future__ import print_function
-
-try:
-  import hashlib
-  md5er = hashlib.md5
-except ImportError as e:
-  import md5
-  md5er = md5.new
+import hashlib
+md5er = hashlib.md5
 
 
 import json
@@ -55,13 +46,8 @@ from testrunner.local import statusfile
 from testrunner.local import testsuite
 from testrunner.local import utils
 
-PYTHON3 = sys.version_info >= (3, 0)
-
-def maybe_decode(arg, encoding="utf-8"):
-  return arg.decode(encoding) if PYTHON3 else arg
-
-def maybe_encode(arg, encoding="utf-8"):
-  return arg.encode(encoding) if PYTHON3 else arg
+def decode(arg, encoding="utf-8"):
+  return arg.decode(encoding)
 
 # Special LINT rules diverging from default and reason.
 # build/header_guard: Our guards have the form "V8_FOO_H_", not "SRC_FOO_H_".
@@ -92,6 +78,9 @@ ASSERT_UNOPTIMIZED_PATTERN = re.compile("assertUnoptimized")
 FLAGS_NO_ALWAYS_OPT = re.compile("//\s*Flags:.*--no-?always-opt.*\n")
 
 TOOLS_PATH = dirname(abspath(__file__))
+DEPS_DEPOT_TOOLS_PATH = abspath(
+    join(TOOLS_PATH, '..', 'third_party', 'depot_tools'))
+
 
 def CppLintWorker(command):
   try:
@@ -100,7 +89,7 @@ def CppLintWorker(command):
     out_lines = ""
     error_count = -1
     while True:
-      out_line = maybe_decode(process.stderr.readline())
+      out_line = decode(process.stderr.readline())
       if out_line == '' and process.poll() != None:
         if error_count == -1:
           print("Failed to process %s" % command.pop())
@@ -120,7 +109,7 @@ def CppLintWorker(command):
     process.kill()
   except:
     print('Error running cpplint.py. Please make sure you have depot_tools' +
-          ' in your $PATH. Lint check skipped.')
+          ' in your third_party directory. Lint check skipped.')
     process.kill()
 
 def TorqueLintWorker(command):
@@ -130,14 +119,14 @@ def TorqueLintWorker(command):
     out_lines = ""
     error_count = 0
     while True:
-      out_line = maybe_decode(process.stderr.readline())
+      out_line = decode(process.stderr.readline())
       if out_line == '' and process.poll() != None:
         break
       out_lines += out_line
       error_count += 1
     sys.stdout.write(out_lines)
     if error_count != 0:
-        sys.stdout.write(
+      sys.stdout.write(
           "warning: formatting and overwriting unformatted Torque files\n")
     return error_count
   except KeyboardInterrupt:
@@ -160,15 +149,16 @@ def JSLintWorker(command):
         sys.stdout.write("error code " + str(rc) + " running clang-format.\n")
         return rc
 
-      if maybe_decode(output) != contents:
+      if decode(output) != contents:
         return 1
 
       return 0
     except KeyboardInterrupt:
       process.kill()
     except Exception:
-      print('Error running clang-format. Please make sure you have depot_tools' +
-            ' in your $PATH. Lint check skipped.')
+      print(
+          'Error running clang-format. Please make sure you have depot_tools' +
+          ' in your third_party directory. Lint check skipped.')
       process.kill()
 
   rc = format_file(command)
@@ -189,7 +179,7 @@ class FileContentsCache(object):
     try:
       sums_file = None
       try:
-        sums_file = open(self.sums_file_name, 'r')
+        sums_file = open(self.sums_file_name, 'rb')
         self.sums = pickle.load(sums_file)
       except:
         # Cannot parse pickle for any reason. Not much we can do about it.
@@ -200,7 +190,7 @@ class FileContentsCache(object):
 
   def Save(self):
     try:
-      sums_file = open(self.sums_file_name, 'w')
+      sums_file = open(self.sums_file_name, 'wb')
       pickle.dump(self.sums, sums_file)
     except:
       # Failed to write pickle. Try to clean-up behind us.
@@ -217,8 +207,8 @@ class FileContentsCache(object):
     changed_or_new = []
     for file in files:
       try:
-        handle = open(file, "r")
-        file_sum = md5er(maybe_encode(handle.read())).digest()
+        handle = open(file, "rb")
+        file_sum = md5er(handle.read()).digest()
         if not file in self.sums or self.sums[file] != file_sum:
           changed_or_new.append(file)
           self.sums[file] = file_sum
@@ -401,13 +391,9 @@ class CppLintProcessor(CacheableSourceFileProcessor):
   def GetProcessorScript(self):
     filters = ','.join([n for n in LINT_RULES])
     arguments = ['--filter', filters]
-    for path in [TOOLS_PATH] + os.environ["PATH"].split(os.pathsep):
-      path = path.strip('"')
-      cpplint = os.path.join(path, 'cpplint.py')
-      if os.path.isfile(cpplint):
-        return cpplint, arguments
 
-    return None, arguments
+    cpplint = os.path.join(DEPS_DEPOT_TOOLS_PATH, 'cpplint.py')
+    return cpplint, arguments
 
 
 class TorqueLintProcessor(CacheableSourceFileProcessor):
@@ -459,13 +445,9 @@ class JSLintProcessor(CacheableSourceFileProcessor):
     return JSLintWorker
 
   def GetProcessorScript(self):
-    for path in [TOOLS_PATH] + os.environ["PATH"].split(os.pathsep):
-      path = path.strip('"')
-      clang_format = os.path.join(path, 'clang_format.py')
-      if os.path.isfile(clang_format):
-        return clang_format, []
+    jslint = os.path.join(DEPS_DEPOT_TOOLS_PATH, 'clang_format.py')
+    return jslint, []
 
-    return None, []
 
 COPYRIGHT_HEADER_PATTERN = re.compile(
     r'Copyright [\d-]*20[0-2][0-9] the V8 project authors. All rights reserved.')
@@ -502,7 +484,7 @@ class SourceProcessor(SourceFileProcessor):
       output = subprocess.Popen('git ls-files --full-name',
                                 stdout=PIPE, cwd=path, shell=True)
       result = []
-      for file in maybe_decode(output.stdout.read()).split():
+      for file in decode(output.stdout.read()).split():
         for dir_part in os.path.dirname(file).replace(os.sep, '/').split('/'):
           if self.IgnoreDir(dir_part):
             break
@@ -636,7 +618,7 @@ class SourceProcessor(SourceFileProcessor):
     for file in files:
       try:
         handle = open(file, "rb")
-        contents = maybe_decode(handle.read(), "ISO-8859-1")
+        contents = decode(handle.read(), "ISO-8859-1")
         if len(contents) > 0 and not self.ProcessContents(file, contents):
           success = False
           violations += 1
@@ -742,16 +724,32 @@ def CheckDeps(workspace):
   return subprocess.call([sys.executable, checkdeps_py, workspace]) == 0
 
 
+def FindTests(workspace):
+  scripts = []
+  # TODO(almuthanna): unskip valid tests when they are properly migrated
+  exclude = [
+      'tools/clang',
+      'tools/mb/mb_test.py',
+      'tools/cppgc/gen_cmake_test.py',
+      'tools/ignition/linux_perf_report_test.py',
+      'tools/ignition/bytecode_dispatches_report_test.py',
+      'tools/ignition/linux_perf_bytecode_annotate_test.py',
+  ]
+  scripts_without_excluded = []
+  for root, dirs, files in os.walk(join(workspace, 'tools')):
+    for f in files:
+      if f.endswith('_test.py'):
+        fullpath = os.path.join(root, f)
+        scripts.append(fullpath)
+  for script in scripts:
+    if not any(exc_dir in script for exc_dir in exclude):
+      scripts_without_excluded.append(script)
+  return scripts_without_excluded
+
+
 def PyTests(workspace):
   result = True
-  for script in [
-      join(workspace, 'tools', 'clusterfuzz', 'foozzie', 'v8_foozzie_test.py'),
-      join(workspace, 'tools', 'release', 'test_scripts.py'),
-      join(workspace, 'tools', 'unittests', 'predictable_wrapper_test.py'),
-      join(workspace, 'tools', 'unittests', 'run_tests_test.py'),
-      join(workspace, 'tools', 'unittests', 'run_perf_test.py'),
-      join(workspace, 'tools', 'testrunner', 'testproc', 'variant_unittest.py'),
-    ]:
+  for script in FindTests(workspace):
     print('Running ' + script)
     result &= subprocess.call(
         [sys.executable, script], stdout=subprocess.PIPE) == 0

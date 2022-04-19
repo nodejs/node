@@ -7,10 +7,11 @@
 #include "src/common/globals.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-sweeper.h"
-#include "src/heap/barrier.h"
 #include "src/heap/concurrent-allocator.h"
+#include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
 #include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
@@ -125,13 +126,8 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
         // Sweeper is stopped during scavenge, so we can directly
         // insert into its remembered set here.
-        if (chunk->sweeping_slot_set()) {
-          RememberedSetSweeping::Insert<AccessMode::ATOMIC>(chunk,
-                                                            slot.address());
-        } else {
-          RememberedSet<OLD_TO_NEW>::Insert<AccessMode::ATOMIC>(chunk,
-                                                                slot.address());
-        }
+        RememberedSet<OLD_TO_NEW>::Insert<AccessMode::ATOMIC>(chunk,
+                                                              slot.address());
       }
       SLOW_DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
     } else if (record_slots_ &&
@@ -303,9 +299,8 @@ void ScavengerCollector::CollectGarbage() {
     // access to the slots of a page and can completely avoid any locks on
     // the page itself.
     Sweeper::FilterSweepingPagesScope filter_scope(sweeper, pause_scope);
-    filter_scope.FilterOldSpaceSweepingPages([](Page* page) {
-      return !page->ContainsSlots<OLD_TO_NEW>() && !page->sweeping_slot_set();
-    });
+    filter_scope.FilterOldSpaceSweepingPages(
+        [](Page* page) { return !page->ContainsSlots<OLD_TO_NEW>(); });
 
     const bool is_logging = isolate_->LogObjectRelocation();
     for (int i = 0; i < num_scavenge_tasks; ++i) {
@@ -638,17 +633,6 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
           return CheckAndScavengeObject(heap_, slot);
         },
         &empty_chunks_local_);
-  }
-
-  if (page->sweeping_slot_set<AccessMode::NON_ATOMIC>() != nullptr) {
-    InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToNew(page);
-    RememberedSetSweeping::Iterate(
-        page,
-        [this, &filter](MaybeObjectSlot slot) {
-          if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
-          return CheckAndScavengeObject(heap_, slot);
-        },
-        SlotSet::KEEP_EMPTY_BUCKETS);
   }
 
   if (page->invalidated_slots<OLD_TO_NEW>() != nullptr) {

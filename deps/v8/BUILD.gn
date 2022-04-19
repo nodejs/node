@@ -299,7 +299,7 @@ declare_args() {
 
   # Enable the experimental V8 sandbox.
   # Sets -DV8_SANDBOX.
-  v8_enable_sandbox = false
+  v8_enable_sandbox = ""
 
   # Enable external pointer sandboxing. Requires v8_enable_sandbox.
   # Sets -DV8_SANDBOXED_EXTERNAL_POINRTERS.
@@ -421,13 +421,10 @@ if (v8_enable_short_builtin_calls == "") {
       v8_current_cpu == "x64" || (!is_android && v8_current_cpu == "arm64")
 }
 if (v8_enable_external_code_space == "") {
-  # Can't use !is_android here, because Torque toolchain is affected by
-  # the value of this flag but actually runs on the host side.
   v8_enable_external_code_space =
       v8_enable_pointer_compression &&
       (v8_current_cpu == "x64" ||
-       (target_os != "android" && target_os != "fuchsia" &&
-        v8_current_cpu == "arm64"))
+       (target_os != "fuchsia" && v8_current_cpu == "arm64"))
 }
 if (v8_enable_maglev == "") {
   v8_enable_maglev = v8_current_cpu == "x64" && v8_enable_pointer_compression
@@ -474,7 +471,8 @@ if (v8_multi_arch_build &&
 # Check if it is a Chromium build and activate PAC/BTI if needed.
 # TODO(cavalcantii): have a single point of integration with PAC/BTI flags.
 if (build_with_chromium && v8_current_cpu == "arm64" &&
-    arm_control_flow_integrity == "standard") {
+    (arm_control_flow_integrity == "standard" ||
+     arm_control_flow_integrity == "pac")) {
   v8_control_flow_integrity = true
 }
 
@@ -492,10 +490,12 @@ if (v8_enable_shared_ro_heap == "") {
                              v8_enable_pointer_compression_shared_cage
 }
 
-# Enable the v8 sandbox on 64-bit Chromium builds.
-if (build_with_chromium && v8_enable_pointer_compression_shared_cage &&
-    v8_enable_external_code_space) {
-  v8_enable_sandbox = true
+if (v8_enable_sandbox == "") {
+  # TODO(saelo, v8:11880) remove dependency on v8_enable_external_code_space
+  # once that is enabled everywhere by default.
+  v8_enable_sandbox =
+      build_with_chromium && v8_enable_pointer_compression_shared_cage &&
+      v8_enable_external_code_space
 }
 
 # Enable all available sandbox features if sandbox future is enabled.
@@ -1044,8 +1044,8 @@ config("toolchain") {
     defines += [ "V8_TARGET_ARCH_ARM64" ]
     if (current_cpu == "arm64") {
       # This will enable PAC+BTI in code generation and static code.
-      if (v8_control_flow_integrity) {
-        # TODO(v8:10026): Enable this in src/build.
+      if (v8_control_flow_integrity &&
+          (!build_with_chromium || arm_control_flow_integrity == "standard")) {
         cflags += [ "-mbranch-protection=standard" ]
         asmflags = [ "-mmark-bti-property" ]
       } else if (build_with_chromium && arm_control_flow_integrity == "pac") {
@@ -1179,6 +1179,9 @@ config("toolchain") {
 
     #FIXME: Temporarily use MIPS macro for the building.
     defines += [ "CAN_USE_FPU_INSTRUCTIONS" ]
+    if (target_is_simulator) {
+      defines += [ "CAN_USE_RVV_INSTRUCTIONS" ]
+    }
   }
 
   if (v8_current_cpu == "x86") {
@@ -2778,6 +2781,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/backend/spill-placer.h",
     "src/compiler/backend/unwinding-info-writer.h",
     "src/compiler/basic-block-instrumentor.h",
+    "src/compiler/branch-condition-duplicator.h",
     "src/compiler/branch-elimination.h",
     "src/compiler/bytecode-analysis.h",
     "src/compiler/bytecode-graph-builder.h",
@@ -2963,7 +2967,6 @@ v8_header_set("v8_internal_headers") {
     "src/heap/allocation-result.h",
     "src/heap/allocation-stats.h",
     "src/heap/array-buffer-sweeper.h",
-    "src/heap/barrier.h",
     "src/heap/base-space.h",
     "src/heap/basic-memory-chunk.h",
     "src/heap/code-object-registry.h",
@@ -2978,6 +2981,7 @@ v8_header_set("v8_internal_headers") {
     "src/heap/cppgc-js/cpp-marking-state-inl.h",
     "src/heap/cppgc-js/cpp-marking-state.h",
     "src/heap/cppgc-js/cpp-snapshot.h",
+    "src/heap/cppgc-js/unified-heap-marking-state-inl.h",
     "src/heap/cppgc-js/unified-heap-marking-state.h",
     "src/heap/cppgc-js/unified-heap-marking-verifier.h",
     "src/heap/cppgc-js/unified-heap-marking-visitor.h",
@@ -2993,6 +2997,7 @@ v8_header_set("v8_internal_headers") {
     "src/heap/free-list-inl.h",
     "src/heap/free-list.h",
     "src/heap/gc-idle-time-handler.h",
+    "src/heap/gc-tracer-inl.h",
     "src/heap/gc-tracer.h",
     "src/heap/heap-allocator-inl.h",
     "src/heap/heap-allocator.h",
@@ -3390,6 +3395,7 @@ v8_header_set("v8_internal_headers") {
     "src/snapshot/context-deserializer.h",
     "src/snapshot/context-serializer.h",
     "src/snapshot/deserializer.h",
+    "src/snapshot/embedded/embedded-data-inl.h",
     "src/snapshot/embedded/embedded-data.h",
     "src/snapshot/embedded/embedded-file-writer-interface.h",
     "src/snapshot/object-deserializer.h",
@@ -3479,6 +3485,7 @@ v8_header_set("v8_internal_headers") {
       "src/maglev/maglev-graph-labeller.h",
       "src/maglev/maglev-graph-printer.h",
       "src/maglev/maglev-graph-processor.h",
+      "src/maglev/maglev-graph-verifier.h",
       "src/maglev/maglev-graph.h",
       "src/maglev/maglev-interpreter-frame-state.h",
       "src/maglev/maglev-ir.h",
@@ -3510,6 +3517,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/liftoff-assembler.h",
       "src/wasm/baseline/liftoff-compiler.h",
       "src/wasm/baseline/liftoff-register.h",
+      "src/wasm/canonical-types.h",
       "src/wasm/code-space-access.h",
       "src/wasm/compilation-environment.h",
       "src/wasm/decoder.h",
@@ -3890,6 +3898,7 @@ v8_compiler_sources = [
   "src/compiler/backend/register-allocator.cc",
   "src/compiler/backend/spill-placer.cc",
   "src/compiler/basic-block-instrumentor.cc",
+  "src/compiler/branch-condition-duplicator.cc",
   "src/compiler/branch-elimination.cc",
   "src/compiler/bytecode-analysis.cc",
   "src/compiler/bytecode-graph-builder.cc",
@@ -4227,6 +4236,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/concurrent-marking.cc",
     "src/heap/cppgc-js/cpp-heap.cc",
     "src/heap/cppgc-js/cpp-snapshot.cc",
+    "src/heap/cppgc-js/unified-heap-marking-state.cc",
     "src/heap/cppgc-js/unified-heap-marking-verifier.cc",
     "src/heap/cppgc-js/unified-heap-marking-visitor.cc",
     "src/heap/embedder-tracing.cc",
@@ -4445,6 +4455,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/runtime/runtime-proxy.cc",
     "src/runtime/runtime-regexp.cc",
     "src/runtime/runtime-scopes.cc",
+    "src/runtime/runtime-shadow-realm.cc",
     "src/runtime/runtime-strings.cc",
     "src/runtime/runtime-symbol.cc",
     "src/runtime/runtime-test.cc",
@@ -4535,6 +4546,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/trap-handler/handler-shared.cc",
       "src/wasm/baseline/liftoff-assembler.cc",
       "src/wasm/baseline/liftoff-compiler.cc",
+      "src/wasm/canonical-types.cc",
       "src/wasm/code-space-access.cc",
       "src/wasm/function-body-decoder.cc",
       "src/wasm/function-compiler.cc",
@@ -5185,7 +5197,6 @@ v8_component("v8_libbase") {
     "src/base/template-utils.h",
     "src/base/threaded-list.h",
     "src/base/timezone-cache.h",
-    "src/base/type-traits.h",
     "src/base/utils/random-number-generator.cc",
     "src/base/utils/random-number-generator.h",
     "src/base/v8-fallthrough.h",
@@ -5603,7 +5614,6 @@ v8_source_set("cppgc_base") {
     "src/heap/cppgc/compactor.h",
     "src/heap/cppgc/concurrent-marker.cc",
     "src/heap/cppgc/concurrent-marker.h",
-    "src/heap/cppgc/default-platform.cc",
     "src/heap/cppgc/explicit-management.cc",
     "src/heap/cppgc/free-list.cc",
     "src/heap/cppgc/free-list.h",

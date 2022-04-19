@@ -29,6 +29,13 @@ namespace internal {
   V(f16) V(f17) V(f18) V(f19) V(f20) V(f21) V(f22) V(f23) \
   V(f24) V(f25) V(f26) V(f27) V(f28) V(f29) V(f30) V(f31)
 
+// Currently, MIPS just use even float point register, except
+// for C function param registers.
+#define DOUBLE_USE_REGISTERS(V)                           \
+  V(f0)  V(f2)  V(f4)  V(f6)  V(f8)  V(f10) V(f12) V(f13) \
+  V(f14) V(f15) V(f16) V(f18) V(f20) V(f22) V(f24) V(f26) \
+  V(f28) V(f30)
+
 #define FLOAT_REGISTERS DOUBLE_REGISTERS
 #define SIMD128_REGISTERS(V)                              \
   V(w0)  V(w1)  V(w2)  V(w3)  V(w4)  V(w5)  V(w6)  V(w7)  \

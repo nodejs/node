@@ -11,9 +11,19 @@ let S = new SharedStructType(['field']);
 (function TestPrimitivesUsingAtomics() {
   // All primitives can be stored in fields.
   let s = new S();
-  for (let prim of [42, -0, undefined, null, true, false, "foo"]) {
+  const prims = [42, -0, undefined, null, true, false, "foo"];
+
+  for (let prim of prims) {
     Atomics.store(s, 'field', prim);
     assertEquals(Atomics.load(s, 'field'), prim);
+  }
+
+  for (let prim1 of prims) {
+    for (let prim2 of prims) {
+      s.field = prim1;
+      assertEquals(Atomics.exchange(s, 'field', prim2), prim1);
+      assertEquals(s.field, prim2);
+    }
   }
 })();
 
@@ -26,6 +36,10 @@ let S = new SharedStructType(['field']);
   let shared_rhs = new S();
   Atomics.store(s, 'field', shared_rhs);
   assertEquals(Atomics.load(s, 'field'), shared_rhs);
+
+  let shared_rhs2 = new S();
+  assertEquals(Atomics.exchange(s, 'field', shared_rhs2), shared_rhs);
+  assertEquals(s.field, shared_rhs2);
 })();
 
 (function TestNotExtensibleUsingAtomics() {

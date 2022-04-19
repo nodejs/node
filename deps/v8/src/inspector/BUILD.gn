@@ -150,6 +150,8 @@ v8_source_set("inspector") {
     "v8-stack-trace-impl.h",
     "v8-value-utils.cc",
     "v8-value-utils.h",
+    "v8-webdriver-serializer.cc",
+    "v8-webdriver-serializer.h",
     "value-mirror.cc",
     "value-mirror.h",
   ]

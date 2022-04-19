@@ -33,7 +33,6 @@ class StraightForwardRegisterAllocator {
 
   int top_of_stack_ = 0;
   RegList free_registers_ = kAllocatableGeneralRegisters;
-  std::vector<uint32_t> free_slots_;
 
   RegList used_registers() const {
     // Only allocatable registers should be free.
@@ -46,7 +45,10 @@ class StraightForwardRegisterAllocator {
 
   void PrintLiveRegs() const;
 
-  void UpdateInputUse(uint32_t use, const Input& input);
+  void UpdateUse(Input* input) { return UpdateUse(input->node(), input); }
+  void UpdateUse(ValueNode* node, InputLocation* input_location);
+  void UpdateUse(const EagerDeoptInfo& deopt_info);
+  void UpdateUse(const LazyDeoptInfo& deopt_info);
 
   void AllocateControlNode(ControlNode* node, BasicBlock* block);
   void AllocateNode(Node* node);

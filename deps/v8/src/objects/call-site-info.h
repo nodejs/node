@@ -40,6 +40,7 @@ class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
   bool IsMethodCall() const;
   bool IsToplevel() const;
   bool IsPromiseAll() const;
+  bool IsPromiseAllSettled() const;
   bool IsPromiseAny() const;
   bool IsNative() const;
 

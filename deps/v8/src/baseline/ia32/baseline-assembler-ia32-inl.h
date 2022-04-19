@@ -103,18 +103,29 @@ void BaselineAssembler::JumpTarget() {
 void BaselineAssembler::Jump(Label* target, Label::Distance distance) {
   __ jmp(target, distance);
 }
+
 void BaselineAssembler::JumpIfRoot(Register value, RootIndex index,
                                    Label* target, Label::Distance distance) {
   __ JumpIfRoot(value, index, target, distance);
 }
+
 void BaselineAssembler::JumpIfNotRoot(Register value, RootIndex index,
                                       Label* target, Label::Distance distance) {
   __ JumpIfNotRoot(value, index, target, distance);
 }
+
 void BaselineAssembler::JumpIfSmi(Register value, Label* target,
                                   Label::Distance distance) {
   __ JumpIfSmi(value, target, distance);
 }
+
+void BaselineAssembler::JumpIfImmediate(Condition cc, Register left, int right,
+                                        Label* target,
+                                        Label::Distance distance) {
+  __ cmp(left, Immediate(right));
+  __ j(AsMasmCondition(cc), target, distance);
+}
+
 void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
                                      Label::Distance distance) {
   __ JumpIfNotSmi(value, target, distance);
@@ -316,29 +327,39 @@ void BaselineAssembler::PushReverse(T... vals) {
 
 template <typename... T>
 void BaselineAssembler::Pop(T... registers) {
-  ITERATE_PACK(__ Pop(registers));
+  (__ Pop(registers), ...);
 }
 
 void BaselineAssembler::LoadTaggedPointerField(Register output, Register source,
                                                int offset) {
   __ mov(output, FieldOperand(source, offset));
 }
+
 void BaselineAssembler::LoadTaggedSignedField(Register output, Register source,
                                               int offset) {
   __ mov(output, FieldOperand(source, offset));
 }
+
 void BaselineAssembler::LoadTaggedAnyField(Register output, Register source,
                                            int offset) {
   __ mov(output, FieldOperand(source, offset));
 }
-void BaselineAssembler::LoadByteField(Register output, Register source,
-                                      int offset) {
+
+void BaselineAssembler::LoadWord16FieldZeroExtend(Register output,
+                                                  Register source, int offset) {
+  __ movzx_w(output, FieldOperand(source, offset));
+}
+
+void BaselineAssembler::LoadWord8Field(Register output, Register source,
+                                       int offset) {
   __ mov_b(output, FieldOperand(source, offset));
 }
+
 void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
                                                Smi value) {
   __ mov(FieldOperand(target, offset), Immediate(value));
 }
+
 void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
                                                          int offset,
                                                          Register value) {
@@ -349,6 +370,7 @@ void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
   __ mov(FieldOperand(target, offset), value);
   __ RecordWriteField(target, offset, value, scratch, SaveFPRegsMode::kIgnore);
 }
+
 void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,
                                                        int offset,
                                                        Register value) {
@@ -389,6 +411,11 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
 void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
   if (rhs.value() == 0) return;
   __ add(lhs, Immediate(rhs));
+}
+
+void BaselineAssembler::Word32And(Register output, Register lhs, int rhs) {
+  Move(output, lhs);
+  __ and_(output, Immediate(rhs));
 }
 
 void BaselineAssembler::Switch(Register reg, int case_value_base,

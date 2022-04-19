@@ -1043,14 +1043,14 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ DropArguments(params_size);
 }
 
-// Tail-call |function_id| if |actual_marker| == |expected_marker|
-static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
-                                          Register actual_marker,
-                                          OptimizationMarker expected_marker,
-                                          Runtime::FunctionId function_id) {
+// Tail-call |function_id| if |actual_state| == |expected_state|
+static void TailCallRuntimeIfStateEquals(MacroAssembler* masm,
+                                         Register actual_state,
+                                         TieringState expected_state,
+                                         Runtime::FunctionId function_id) {
   ASM_CODE_COMMENT(masm);
   Label no_match;
-  __ CompareAndBranch(actual_marker, Operand(static_cast<int>(expected_marker)),
+  __ CompareAndBranch(actual_state, Operand(static_cast<int>(expected_state)),
                       ne, &no_match);
   GenerateTailCallToReturnedCode(masm, function_id);
   __ bind(&no_match);
@@ -1111,30 +1111,25 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 }
 
 static void MaybeOptimizeCode(MacroAssembler* masm, Register feedback_vector,
-                              Register optimization_marker) {
+                              Register tiering_state) {
   // ----------- S t a t e -------------
   //  -- x0 : actual argument count
   //  -- x3 : new target (preserved for callee if needed, and caller)
   //  -- x1 : target function (preserved for callee if needed, and caller)
   //  -- feedback vector (preserved for caller if needed)
-  //  -- optimization_marker : int32 containing non-zero optimization marker.
+  //  -- tiering_state : int32 containing non-zero tiering state.
   // -----------------------------------
   ASM_CODE_COMMENT(masm);
-  DCHECK(!AreAliased(feedback_vector, x1, x3, optimization_marker));
+  DCHECK(!AreAliased(feedback_vector, x1, x3, tiering_state));
 
-  TailCallRuntimeIfMarkerEquals(
-      masm, optimization_marker,
-      OptimizationMarker::kCompileTurbofan_NotConcurrent,
-      Runtime::kCompileTurbofan_NotConcurrent);
-  TailCallRuntimeIfMarkerEquals(masm, optimization_marker,
-                                OptimizationMarker::kCompileTurbofan_Concurrent,
-                                Runtime::kCompileTurbofan_Concurrent);
+  TailCallRuntimeIfStateEquals(masm, tiering_state,
+                               TieringState::kRequestTurbofan_Synchronous,
+                               Runtime::kCompileTurbofan_Synchronous);
+  TailCallRuntimeIfStateEquals(masm, tiering_state,
+                               TieringState::kRequestTurbofan_Concurrent,
+                               Runtime::kCompileTurbofan_Concurrent);
 
-  // Marker should be one of CompileOptimized / CompileOptimizedConcurrent.
-  // InOptimizationQueue and None shouldn't reach here.
-  if (FLAG_debug_code) {
-    __ Unreachable();
-  }
+  __ Unreachable();
 }
 
 // Advance the current bytecode offset. This simulates what all bytecode
@@ -1215,18 +1210,18 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 }
 
 // Read off the optimization state in the feedback vector and check if there
-// is optimized code or a optimization marker that needs to be processed.
-static void LoadOptimizationStateAndJumpIfNeedsProcessing(
+// is optimized code or a tiering state that needs to be processed.
+static void LoadTieringStateAndJumpIfNeedsProcessing(
     MacroAssembler* masm, Register optimization_state, Register feedback_vector,
-    Label* has_optimized_code_or_marker) {
+    Label* has_optimized_code_or_state) {
   ASM_CODE_COMMENT(masm);
   DCHECK(!AreAliased(optimization_state, feedback_vector));
   __ Ldr(optimization_state,
          FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
   __ TestAndBranchIfAnySet(
       optimization_state,
-      FeedbackVector::kHasOptimizedCodeOrCompileOptimizedMarkerMask,
-      has_optimized_code_or_marker);
+      FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask,
+      has_optimized_code_or_state);
 }
 
 static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
@@ -1237,12 +1232,12 @@ static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
   Label maybe_has_optimized_code;
   // Check if optimized code is available
   __ TestAndBranchIfAllClear(optimization_state,
-                             FeedbackVector::kHasCompileOptimizedMarker,
+                             FeedbackVector::kTieringStateIsAnyRequestMask,
                              &maybe_has_optimized_code);
 
-  Register optimization_marker = optimization_state;
-  __ DecodeField<FeedbackVector::OptimizationMarkerBits>(optimization_marker);
-  MaybeOptimizeCode(masm, feedback_vector, optimization_marker);
+  Register tiering_state = optimization_state;
+  __ DecodeField<FeedbackVector::TieringStateBits>(tiering_state);
+  MaybeOptimizeCode(masm, feedback_vector, tiering_state);
 
   __ bind(&maybe_has_optimized_code);
   Register optimized_code_entry = x7;
@@ -1252,6 +1247,20 @@ static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
                       FeedbackVector::kMaybeOptimizedCodeOffset));
   TailCallOptimizedCodeSlot(masm, optimized_code_entry, x4);
 }
+
+namespace {
+
+void ResetBytecodeAgeAndOsrState(MacroAssembler* masm,
+                                 Register bytecode_array) {
+  // Reset the bytecode age and OSR state (optimized to a single write).
+  static_assert(BytecodeArray::kOsrStateAndBytecodeAgeAreContiguous32Bits);
+  STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
+  __ Str(wzr,
+         FieldMemOperand(bytecode_array,
+                         BytecodeArray::kOsrUrgencyAndInstallTargetOffset));
+}
+
+}  // namespace
 
 // static
 void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
@@ -1275,11 +1284,11 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ Assert(eq, AbortReason::kExpectedFeedbackVector);
   }
 
-  // Check for an optimization marker.
-  Label has_optimized_code_or_marker;
+  // Check the tiering state.
+  Label has_optimized_code_or_state;
   Register optimization_state = temps.AcquireW();
-  LoadOptimizationStateAndJumpIfNeedsProcessing(
-      masm, optimization_state, feedback_vector, &has_optimized_code_or_marker);
+  LoadTieringStateAndJumpIfNeedsProcessing(
+      masm, optimization_state, feedback_vector, &has_optimized_code_or_state);
 
   // Increment invocation count for the function.
   {
@@ -1315,16 +1324,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // the frame, so load it into a register.
     Register bytecode_array = descriptor.GetRegisterParameter(
         BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
-
-    // Reset code age and the OSR arming. The OSR field and BytecodeAgeOffset
-    // are 8-bit fields next to each other, so we could just optimize by writing
-    // a 16-bit. These static asserts guard our assumption is valid.
-    STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                  BytecodeArray::kOsrLoopNestingLevelOffset + kCharSize);
-    STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
-    __ Strh(wzr, FieldMemOperand(bytecode_array,
-                                 BytecodeArray::kOsrLoopNestingLevelOffset));
-
+    ResetBytecodeAgeAndOsrState(masm, bytecode_array);
     __ Push(argc, bytecode_array);
 
     // Baseline code frames store the feedback vector where interpreter would
@@ -1368,7 +1368,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   }
   __ Ret();
 
-  __ bind(&has_optimized_code_or_marker);
+  __ bind(&has_optimized_code_or_state);
   {
     ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
     // Drop the frame created by the baseline call.
@@ -1449,11 +1449,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Cmp(x7, FEEDBACK_VECTOR_TYPE);
   __ B(ne, &push_stack_frame);
 
-  // Check for an optimization marker.
-  Label has_optimized_code_or_marker;
+  // Check the tiering state.
+  Label has_optimized_code_or_state;
   Register optimization_state = w7;
-  LoadOptimizationStateAndJumpIfNeedsProcessing(
-      masm, optimization_state, feedback_vector, &has_optimized_code_or_marker);
+  LoadTieringStateAndJumpIfNeedsProcessing(
+      masm, optimization_state, feedback_vector, &has_optimized_code_or_state);
 
   Label not_optimized;
   __ bind(&not_optimized);
@@ -1474,15 +1474,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ mov(fp, sp);
   __ Push(cp, closure);
 
-  // Reset code age.
-  // Reset code age and the OSR arming. The OSR field and BytecodeAgeOffset are
-  // 8-bit fields next to each other, so we could just optimize by writing a
-  // 16-bit. These static asserts guard our assumption is valid.
-  STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                BytecodeArray::kOsrLoopNestingLevelOffset + kCharSize);
-  STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
-  __ Strh(wzr, FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                               BytecodeArray::kOsrLoopNestingLevelOffset));
+  ResetBytecodeAgeAndOsrState(masm, kInterpreterBytecodeArrayRegister);
 
   // Load the initial bytecode offset.
   __ Mov(kInterpreterBytecodeOffsetRegister,
@@ -1609,7 +1601,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   __ jmp(&after_stack_check_interrupt);
 
-  __ bind(&has_optimized_code_or_marker);
+  __ bind(&has_optimized_code_or_state);
   MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, optimization_state,
                                                feedback_vector);
 
@@ -1631,10 +1623,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ Cmp(x7, FEEDBACK_VECTOR_TYPE);
     __ B(ne, &install_baseline_code);
 
-    // Check for an optimization marker.
-    LoadOptimizationStateAndJumpIfNeedsProcessing(
-        masm, optimization_state, feedback_vector,
-        &has_optimized_code_or_marker);
+    // Check the tiering state.
+    LoadTieringStateAndJumpIfNeedsProcessing(masm, optimization_state,
+                                             feedback_vector,
+                                             &has_optimized_code_or_state);
 
     // Load the baseline code into the closure.
     __ Move(x2, kInterpreterBytecodeArrayRegister);
@@ -2082,7 +2074,7 @@ void OnStackReplacement(MacroAssembler* masm, bool is_interpreter) {
   ASM_CODE_COMMENT(masm);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kCompileForOnStackReplacement);
+    __ CallRuntime(Runtime::kCompileOptimizedOSR);
   }
 
   // If the code object is null, just return to the caller.
@@ -3896,10 +3888,8 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   // Floating point registers are saved on the stack above core registers.
   const int kDoubleRegistersOffset = saved_registers.Count() * kXRegSize;
 
-  Register bailout_id = x2;
-  Register code_object = x3;
-  Register fp_to_sp = x4;
-  __ Mov(bailout_id, Deoptimizer::kFixedExitSizeMarker);
+  Register code_object = x2;
+  Register fp_to_sp = x3;
   // Get the address of the location in the code object. This is the return
   // address for lazy deoptimization.
   __ Mov(code_object, lr);
@@ -3920,15 +3910,14 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
 
   __ Mov(x1, static_cast<int>(deopt_kind));
   // Following arguments are already loaded:
-  //  - x2: bailout id
-  //  - x3: code object address
-  //  - x4: fp-to-sp delta
-  __ Mov(x5, ExternalReference::isolate_address(isolate));
+  //  - x2: code object address
+  //  - x3: fp-to-sp delta
+  __ Mov(x4, ExternalReference::isolate_address(isolate));
 
   {
     // Call Deoptimizer::New().
     AllowExternalCallThatCantCauseGC scope(masm);
-    __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
+    __ CallCFunction(ExternalReference::new_deoptimizer_function(), 5);
   }
 
   // Preserve "deoptimizer" object in register x0.
@@ -4063,10 +4052,6 @@ void Builtins::Generate_DeoptimizationEntry_Eager(MacroAssembler* masm) {
   Generate_DeoptimizationEntry(masm, DeoptimizeKind::kEager);
 }
 
-void Builtins::Generate_DeoptimizationEntry_Soft(MacroAssembler* masm) {
-  Generate_DeoptimizationEntry(masm, DeoptimizeKind::kSoft);
-}
-
 void Builtins::Generate_DeoptimizationEntry_Lazy(MacroAssembler* masm) {
   Generate_DeoptimizationEntry(masm, DeoptimizeKind::kLazy);
 }
@@ -4194,11 +4179,9 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ Pop(kInterpreterAccumulatorRegister, padreg);
 
   if (is_osr) {
-    // Reset the OSR loop nesting depth to disarm back edges.
-    // TODO(pthier): Separate baseline Sparkplug from TF arming and don't disarm
-    // Sparkplug here.
-    __ Strh(wzr, FieldMemOperand(kInterpreterBytecodeArrayRegister,
-                                 BytecodeArray::kOsrLoopNestingLevelOffset));
+    // TODO(pthier): Separate baseline Sparkplug from TF arming and don't
+    // disarm Sparkplug here.
+    ResetBytecodeAgeAndOsrState(masm, kInterpreterBytecodeArrayRegister);
     Generate_OSREntry(masm, code_obj, Code::kHeaderSize - kHeapObjectTag);
   } else {
     __ Add(code_obj, code_obj, Code::kHeaderSize - kHeapObjectTag);

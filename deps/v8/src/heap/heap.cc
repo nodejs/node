@@ -34,7 +34,6 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/array-buffer-sweeper.h"
-#include "src/heap/barrier.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/code-object-registry.h"
@@ -48,6 +47,7 @@
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/finalization-registry-cleanup-task.h"
 #include "src/heap/gc-idle-time-handler.h"
+#include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-controller.h"
 #include "src/heap/heap-layout-tracer.h"
@@ -470,6 +470,12 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
   if (incremental_marking()->NeedsFinalization() &&
       AllocationLimitOvershotByLargeMargin()) {
     *reason = "Incremental marking needs finalization";
+    return GarbageCollector::MARK_COMPACTOR;
+  }
+
+  if (FLAG_separate_gc_phases && incremental_marking()->IsMarking()) {
+    // TODO(v8:12503): Remove previous condition when flag gets removed.
+    *reason = "Incremental marking forced finalization";
     return GarbageCollector::MARK_COMPACTOR;
   }
 
@@ -1909,9 +1915,9 @@ bool Heap::CollectGarbage(AllocationSpace space,
     // order; the latter may replace the current event with that of an
     // interrupted full cycle.
     if (IsYoungGenerationCollector(collector)) {
-      tracer()->StopCycle(collector);
+      tracer()->StopYoungCycleIfNeeded();
     } else {
-      tracer()->StopCycleIfNeeded();
+      tracer()->StopFullCycleIfNeeded();
     }
   }
 
@@ -2184,6 +2190,17 @@ void Heap::CheckCollectionRequested() {
                     current_gc_callback_flags_);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+void Heap::EnsureWasmCanonicalRttsSize(int length) {
+  Handle<WeakArrayList> current_rtts = handle(wasm_canonical_rtts(), isolate_);
+  if (length <= current_rtts->length()) return;
+  Handle<WeakArrayList> result = WeakArrayList::EnsureSpace(
+      isolate(), current_rtts, length, AllocationType::kOld);
+  result->set_length(length);
+  set_wasm_canonical_rtts(*result);
+}
+#endif
+
 void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
   if (start_new_space_size == 0) return;
 
@@ -2225,17 +2242,17 @@ size_t Heap::PerformGarbageCollection(
     const char* collector_reason, const v8::GCCallbackFlags gc_callback_flags) {
   DisallowJavascriptExecution no_js(isolate());
 
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    // We don't really perform a GC here but need this scope for the nested
-    // SafepointScope inside Verify().
-    AllowGarbageCollection allow_gc;
-    Verify();
-  }
-#endif  // VERIFY_HEAP
-
   if (IsYoungGenerationCollector(collector)) {
     CompleteSweepingYoung(collector);
+#ifdef VERIFY_HEAP
+    if (FLAG_verify_heap) {
+      // If heap verification is enabled, we want to ensure that sweeping is
+      // completed here, as it will be triggered from Heap::Verify anyway.
+      // In this way, sweeping finalization is accounted to the corresponding
+      // full GC cycle.
+      CompleteSweepingFull();
+    }
+#endif  // VERIFY_HEAP
     tracer()->StartCycle(collector, gc_reason, collector_reason,
                          GCTracer::MarkingType::kAtomic);
   } else {
@@ -2267,6 +2284,15 @@ size_t Heap::PerformGarbageCollection(
   }
 
   collection_barrier_->StopTimeToCollectionTimer();
+
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    // We don't really perform a GC here but need this scope for the nested
+    // SafepointScope inside Verify().
+    AllowGarbageCollection allow_gc;
+    Verify();
+  }
+#endif  // VERIFY_HEAP
 
   tracer()->StartInSafepoint();
 
@@ -2332,9 +2358,17 @@ size_t Heap::PerformGarbageCollection(
     local_embedder_heap_tracer()->TraceEpilogue();
   }
 
-  if (collector == GarbageCollector::SCAVENGER && cpp_heap()) {
-    CppHeap::From(cpp_heap())->RunMinorGC();
+#if defined(CPPGC_YOUNG_GENERATION)
+  // Schedule Oilpan's Minor GC. Since the minor GC doesn't support conservative
+  // stack scanning, do it only when Scavenger runs from task, which is
+  // non-nestable.
+  if (cpp_heap() && IsYoungGenerationCollector(collector)) {
+    const bool with_stack = (gc_reason != GarbageCollectionReason::kTask);
+    CppHeap::From(cpp_heap())
+        ->RunMinorGC(with_stack ? CppHeap::StackState::kMayContainHeapPointers
+                                : CppHeap::StackState::kNoHeapPointers);
   }
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -2403,7 +2437,7 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
   tracer()->StopAtomicPause();
   tracer()->StopObservablePause();
   tracer()->UpdateStatistics(collector);
-  tracer()->StopCycleIfNeeded();
+  tracer()->StopFullCycleIfNeeded();
 }
 
 void Heap::CompleteSweepingYoung(GarbageCollector collector) {
@@ -2429,6 +2463,11 @@ void Heap::CompleteSweepingYoung(GarbageCollector collector) {
   // the sweeping here, to avoid having to pause and resume during the young
   // generation GC.
   mark_compact_collector()->FinishSweepingIfOutOfWork();
+
+#if defined(CPPGC_YOUNG_GENERATION)
+  // Always complete sweeping if young generation is enabled.
+  if (cpp_heap()) CppHeap::From(cpp_heap())->FinishSweepingIfRunning();
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 }
 
 void Heap::EnsureSweepingCompleted(HeapObject object) {
@@ -2604,7 +2643,14 @@ void Heap::MinorMarkCompact() {
                                   : nullptr);
   IncrementalMarking::PauseBlackAllocationScope pause_black_allocation(
       incremental_marking());
-  ConcurrentMarking::PauseScope pause_scope(concurrent_marking());
+  // Young generation garbage collection is orthogonal from full GC marking. It
+  // is possible that objects that are currently being processed for marking are
+  // reclaimed in the young generation GC that interleaves concurrent marking.
+  // Pause concurrent markers to allow processing them using
+  // `UpdateMarkingWorklistAfterYoungGenGC()`.
+  ConcurrentMarking::PauseScope pause_js_marking(concurrent_marking());
+  CppHeap::PauseConcurrentMarkingScope pause_cpp_marking(
+      CppHeap::From(cpp_heap_));
 
   minor_mark_compact_collector_->CollectGarbage();
 
@@ -2647,7 +2693,14 @@ void Heap::CheckNewSpaceExpansionCriteria() {
 void Heap::EvacuateYoungGeneration() {
   TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_FAST_PROMOTE);
   base::MutexGuard guard(relocation_mutex());
-  ConcurrentMarking::PauseScope pause_scope(concurrent_marking());
+  // Young generation garbage collection is orthogonal from full GC marking. It
+  // is possible that objects that are currently being processed for marking are
+  // reclaimed in the young generation GC that interleaves concurrent marking.
+  // Pause concurrent markers to allow processing them using
+  // `UpdateMarkingWorklistAfterYoungGenGC()`.
+  ConcurrentMarking::PauseScope pause_js_marking(concurrent_marking());
+  CppHeap::PauseConcurrentMarkingScope pause_cpp_marking(
+      CppHeap::From(cpp_heap_));
   if (!FLAG_concurrent_marking) {
     DCHECK(fast_promotion_mode_);
     DCHECK(CanPromoteYoungAndExpandOldGeneration(0));
@@ -2692,6 +2745,7 @@ void Heap::EvacuateYoungGeneration() {
 
 void Heap::Scavenge() {
   DCHECK_NOT_NULL(new_space());
+  DCHECK_IMPLIES(FLAG_separate_gc_phases, !incremental_marking()->IsMarking());
 
   if (FLAG_trace_incremental_marking && !incremental_marking()->IsStopped()) {
     isolate()->PrintWithTimestamp(
@@ -2709,7 +2763,14 @@ void Heap::Scavenge() {
 
   TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE);
   base::MutexGuard guard(relocation_mutex());
-  ConcurrentMarking::PauseScope pause_scope(concurrent_marking());
+  // Young generation garbage collection is orthogonal from full GC marking. It
+  // is possible that objects that are currently being processed for marking are
+  // reclaimed in the young generation GC that interleaves concurrent marking.
+  // Pause concurrent markers to allow processing them using
+  // `UpdateMarkingWorklistAfterYoungGenGC()`.
+  ConcurrentMarking::PauseScope pause_js_marking(concurrent_marking());
+  CppHeap::PauseConcurrentMarkingScope pause_cpp_marking(
+      CppHeap::From(cpp_heap_));
   // There are soft limits in the allocation code, designed to trigger a mark
   // sweep collection by failing allocations. There is no sense in trying to
   // trigger one during scavenge: scavenges allocation should always succeed.
@@ -3887,7 +3948,6 @@ void Heap::FinalizeIncrementalMarkingIncrementally(
                  ThreadKind::kMain);
 
   IgnoreLocalGCRequests ignore_gc_requests(this);
-  SafepointScope safepoint(this);
   InvokeIncrementalMarkingPrologueCallbacks();
   incremental_marking()->FinalizeIncrementally();
   InvokeIncrementalMarkingEpilogueCallbacks();
@@ -4097,10 +4157,12 @@ double Heap::MonotonicallyIncreasingTimeInMs() const {
          static_cast<double>(base::Time::kMillisecondsPerSecond);
 }
 
+#if DEBUG
 void Heap::VerifyNewSpaceTop() {
   if (!new_space()) return;
   new_space()->VerifyTop();
 }
+#endif  // DEBUG
 
 bool Heap::IdleNotification(int idle_time_in_ms) {
   return IdleNotification(
@@ -4717,18 +4779,6 @@ void CollectSlots(MemoryChunk* chunk, Address start, Address end,
         return KEEP_SLOT;
       },
       SlotSet::FREE_EMPTY_BUCKETS);
-  if (direction == OLD_TO_NEW) {
-    CHECK(chunk->SweepingDone());
-    RememberedSetSweeping::Iterate(
-        chunk,
-        [start, end, untyped](MaybeObjectSlot slot) {
-          if (start <= slot.address() && slot.address() < end) {
-            untyped->insert(slot.address());
-          }
-          return KEEP_SLOT;
-        },
-        SlotSet::FREE_EMPTY_BUCKETS);
-  }
   RememberedSet<direction>::IterateTyped(
       chunk, [=](SlotType type, Address slot) {
         if (start <= slot && slot < end) {
@@ -5882,6 +5932,9 @@ void Heap::PrintMaxNewSpaceSizeReached() {
 }
 
 int Heap::NextStressMarkingLimit() {
+  // Reuse Heap-global mutex as this getter is called from different threads on
+  // allocation slow paths.
+  base::MutexGuard guard(relocation_mutex());
   return isolate()->fuzzer_rng()->NextInt(FLAG_stress_marking + 1);
 }
 

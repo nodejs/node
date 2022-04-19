@@ -44,6 +44,9 @@ static constexpr size_t kDefaultAlignment = sizeof(void*);
 // Maximum support alignment for a type as in `alignof(T)`.
 static constexpr size_t kMaxSupportedAlignment = 2 * kDefaultAlignment;
 
+// Granularity of heap allocations.
+constexpr size_t kAllocationGranularity = sizeof(void*);
+
 }  // namespace api_constants
 
 }  // namespace internal

@@ -741,13 +741,16 @@ Cast<Zero|PromiseReaction>(implicit context: Context)(o: Object): Zero|
   }
 }
 
-Cast<JSFunction|JSBoundFunction>(implicit context: Context)(o: Object):
-    JSFunction|JSBoundFunction labels CastError {
+Cast<JSFunction|JSBoundFunction|JSWrappedFunction>(implicit context: Context)(
+    o: Object): JSFunction|JSBoundFunction|JSWrappedFunction labels CastError {
   typeswitch (o) {
     case (o: JSFunction): {
       return o;
     }
     case (o: JSBoundFunction): {
+      return o;
+    }
+    case (o: JSWrappedFunction): {
       return o;
     }
     case (Object): {

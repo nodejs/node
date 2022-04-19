@@ -2,21 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-export function delay(time) {
-  return new Promise(resolver => setTimeout(resolver, time));
-}
-
-export function defer() {
-  let resolve_func, reject_func;
-  const p = new Promise((resolve, reject) => {
-    resolve_func = resolve;
-    reject_func = resolve;
-  });
-  p.resolve = resolve_func;
-  p.reject = reject_func;
-  return p;
-}
-
 export class Group {
   constructor(key, id, parentTotal, entries) {
     this.key = key;
@@ -71,6 +56,27 @@ export function arrayEquals(left, right) {
     if (left[i] != right[i]) return false;
   }
   return true;
+}
+
+export function entriesEquals(left, right) {
+  if (left == right) return true;
+  if (left == undefined) return right == undefined;
+  const leftEntries = Object.entries(left);
+  const rightEntries = Object.entries(right);
+  if (leftEntries.length !== rightEntries.length) return false;
+  for (let i = 0; i < leftEntries.length; i++) {
+    const l = leftEntries[i];
+    const r = rightEntries[i];
+    if (l[0] != r[0]) return false;
+    if (l[1] != r[1]) return false;
+  }
+  return true;
+}
+
+export function keysEquals(left, right) {
+  if (left == right) return true;
+  if (left == undefined) return right == undefined;
+  return arrayEquals(Object.keys(left), Object.keys(right));
 }
 
 export * from '../js/helper.mjs'

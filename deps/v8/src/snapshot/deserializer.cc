@@ -33,7 +33,7 @@
 #include "src/objects/string.h"
 #include "src/roots/roots.h"
 #include "src/sandbox/external-pointer.h"
-#include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/snapshot/references.h"
 #include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/shared-heap-serializer.h"
@@ -560,7 +560,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
   } else if (InstanceTypeChecker::IsBytecodeArray(instance_type)) {
     // TODO(mythria): Remove these once we store the default values for these
     // fields in the serializer.
-    BytecodeArray::cast(raw_obj).set_osr_loop_nesting_level(0);
+    BytecodeArray::cast(raw_obj).reset_osr_urgency();
   } else if (InstanceTypeChecker::IsDescriptorArray(instance_type)) {
     DCHECK(InstanceTypeChecker::IsStrongDescriptorArray(instance_type));
     Handle<DescriptorArray> descriptors = Handle<DescriptorArray>::cast(obj);
@@ -1160,11 +1160,28 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
       return ReadRepeatedObject(slot_accessor, repeats);
     }
 
-    case kOffHeapBackingStore: {
+    case kOffHeapBackingStore:
+    case kOffHeapResizableBackingStore: {
       int byte_length = source_.GetInt();
-      std::unique_ptr<BackingStore> backing_store = BackingStore::Allocate(
-          main_thread_isolate(), byte_length, SharedFlag::kNotShared,
-          InitializedFlag::kUninitialized);
+      std::unique_ptr<BackingStore> backing_store;
+      if (data == kOffHeapBackingStore) {
+        backing_store = BackingStore::Allocate(
+            main_thread_isolate(), byte_length, SharedFlag::kNotShared,
+            InitializedFlag::kUninitialized);
+      } else {
+        int max_byte_length = source_.GetInt();
+        size_t page_size, initial_pages, max_pages;
+        Maybe<bool> result =
+            JSArrayBuffer::GetResizableBackingStorePageConfiguration(
+                nullptr, byte_length, max_byte_length, kDontThrow, &page_size,
+                &initial_pages, &max_pages);
+        DCHECK(result.FromJust());
+        USE(result);
+        constexpr bool kIsWasmMemory = false;
+        backing_store = BackingStore::TryAllocateAndPartiallyCommitMemory(
+            main_thread_isolate(), byte_length, max_byte_length, page_size,
+            initial_pages, max_pages, kIsWasmMemory, SharedFlag::kNotShared);
+      }
       CHECK_NOT_NULL(backing_store);
       source_.CopyRaw(backing_store->buffer_start(), byte_length);
       backing_stores_.push_back(std::move(backing_store));

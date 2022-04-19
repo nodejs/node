@@ -3372,6 +3372,28 @@ void Assembler::haddps(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::cmpeqss(XMMRegister dst, XMMRegister src) {
+  DCHECK(!IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit(0xF3);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xC2);
+  emit_sse_operand(dst, src);
+  emit(0x00);  // EQ == 0
+}
+
+void Assembler::cmpeqsd(XMMRegister dst, XMMRegister src) {
+  DCHECK(!IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xC2);
+  emit_sse_operand(dst, src);
+  emit(0x00);  // EQ == 0
+}
+
 void Assembler::cmpltsd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   emit(0xF2);
@@ -3389,7 +3411,21 @@ void Assembler::roundss(XMMRegister dst, XMMRegister src, RoundingMode mode) {
   emit(static_cast<byte>(mode) | 0x8);
 }
 
+void Assembler::roundss(XMMRegister dst, Operand src, RoundingMode mode) {
+  DCHECK(!IsEnabled(AVX));
+  sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x0A);
+  // Mask precision exception.
+  emit(static_cast<byte>(mode) | 0x8);
+}
+
 void Assembler::roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode) {
+  DCHECK(!IsEnabled(AVX));
+  sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x0B);
+  // Mask precision exception.
+  emit(static_cast<byte>(mode) | 0x8);
+}
+
+void Assembler::roundsd(XMMRegister dst, Operand src, RoundingMode mode) {
   DCHECK(!IsEnabled(AVX));
   sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x0B);
   // Mask precision exception.

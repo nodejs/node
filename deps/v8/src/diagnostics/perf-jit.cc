@@ -217,6 +217,7 @@ void PerfJitLogger::LogRecordedBuffer(
   if (FLAG_perf_basic_prof_only_functions &&
       (abstract_code->kind() != CodeKind::INTERPRETED_FUNCTION &&
        abstract_code->kind() != CodeKind::TURBOFAN &&
+       abstract_code->kind() != CodeKind::MAGLEV &&
        abstract_code->kind() != CodeKind::BASELINE)) {
     return;
   }

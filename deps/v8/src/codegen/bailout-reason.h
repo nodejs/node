@@ -44,6 +44,7 @@ namespace internal {
   V(kOperandIsASmiAndNotAFunction, "Operand is a smi and not a function")     \
   V(kOperandIsASmiAndNotAGeneratorObject,                                     \
     "Operand is a smi and not a generator object")                            \
+  V(kOperandIsCleared, "Operand is cleared")                                  \
   V(kOperandIsNotABoundFunction, "Operand is not a bound function")           \
   V(kOperandIsNotAConstructor, "Operand is not a constructor")                \
   V(kOperandIsNotAFixedArray, "Operand is not a fixed array")                 \

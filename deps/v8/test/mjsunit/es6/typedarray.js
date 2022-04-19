@@ -642,7 +642,7 @@ function TestTypedArraySet() {
       return 1;
     }
   };
-  assertThrows(() => a111.set(evilarr), TypeError);
+  a111.set(evilarr);
   assertEquals(true, detached);
 
   // Check if the target is a typed array before converting offset to integer

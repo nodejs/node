@@ -387,9 +387,6 @@ static void LoadSuspectsAllowList() {
 
   // TODO(cbruni): clean up once fully migrated
   std::ifstream fin("tools/gcmole/suspects.allowlist");
-  if (!fin.is_open()) {
-    fin = std::ifstream("tools/gcmole/suspects.whitelist");
-  }
   std::string s;
 
   while (fin >> s) suspects_allowlist.insert(s);

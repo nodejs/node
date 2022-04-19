@@ -10,11 +10,14 @@
 #include "src/execution/isolate.h"
 #include "src/execution/thread-id.h"
 #include "src/handles/maybe-handles.h"
-#include "src/maglev/maglev-concurrent-dispatcher.h"
 #include "src/objects/objects-inl.h"
 #include "src/roots/roots-inl.h"
 #include "src/utils/address-map.h"
 #include "src/utils/identity-map.h"
+
+#ifdef V8_ENABLE_MAGLEV
+#include "src/maglev/maglev-concurrent-dispatcher.h"
+#endif  // V8_ENABLE_MAGLEV
 
 #ifdef DEBUG
 // For GetIsolateFromWritableHeapObject.

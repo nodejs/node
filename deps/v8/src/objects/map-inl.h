@@ -191,8 +191,8 @@ bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
     return external > limit || counts.GetTotal() > kMaxNumberOfDescriptors;
   } else {
     int limit = std::max({kFastPropertiesSoftLimit, GetInObjectProperties()});
-    int external = NumberOfFields(ConcurrencyMode::kNotConcurrent) -
-                   GetInObjectProperties();
+    int external =
+        NumberOfFields(ConcurrencyMode::kSynchronous) - GetInObjectProperties();
     return external > limit;
   }
 }
@@ -590,14 +590,6 @@ bool Map::has_fast_string_wrapper_elements() const {
   return elements_kind() == FAST_STRING_WRAPPER_ELEMENTS;
 }
 
-bool Map::has_typed_array_elements() const {
-  return IsTypedArrayElementsKind(elements_kind());
-}
-
-bool Map::has_rab_gsab_typed_array_elements() const {
-  return IsRabGsabTypedArrayElementsKind(elements_kind());
-}
-
 bool Map::has_typed_array_or_rab_gsab_typed_array_elements() const {
   return IsTypedArrayOrRabGsabTypedArrayElementsKind(elements_kind());
 }
@@ -768,8 +760,7 @@ void Map::SetBackPointer(HeapObject value, WriteBarrierMode mode) {
 
 // static
 Map Map::ElementsTransitionMap(Isolate* isolate, ConcurrencyMode cmode) {
-  return TransitionsAccessor(isolate, *this,
-                             cmode == ConcurrencyMode::kConcurrent)
+  return TransitionsAccessor(isolate, *this, IsConcurrent(cmode))
       .SearchSpecial(ReadOnlyRoots(isolate).elements_transition_symbol());
 }
 

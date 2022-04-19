@@ -491,8 +491,8 @@ macro GetTargetAndInstance(funcref: WasmInternalFunction): TargetAndInstance {
 
 // Vector format:
 // Two slots per call_ref instruction. These slots' values can be:
-// - uninitialized: (undefined, <unused>). Note: we use {undefined} as the
-//   sentinel as an optimization, as it's the default value for FixedArrays.
+// - uninitialized: (0, <unused>). Note: we use {0} as the sentinel because
+//   it also works as default for vector slots used as counts.
 // - monomorphic: (funcref, count (smi)). The second slot is a counter for how
 //   often the funcref in the first slot has been seen.
 // - polymorphic: (fixed_array, <unused>). In this case, the array
@@ -526,7 +526,8 @@ builtin CallRefIC(
   // All other cases are some sort of miss and must compute the target/
   // instance. They all fall through to returning the computed data.
   const result = GetTargetAndInstance(funcref);
-  if (TaggedEqual(value, Undefined)) {
+  if (TaggedEqual(value, SmiConstant(0))) {
+    // Was uninitialized.
     vector.objects[index] = funcref;
     vector.objects[index + 1] = SmiConstant(1);
   } else if (Is<FixedArray>(value)) {

@@ -12381,7 +12381,7 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
         }
         break;
       case PushPopRegList:
-        __ PushSizeRegList<TurboAssembler::kDontStoreLR>(list, reg_size);
+        __ PushSizeRegList(list, reg_size);
         break;
     }
 
@@ -12406,7 +12406,7 @@ static void PushPopSimpleHelper(int reg_count, int reg_size,
         }
         break;
       case PushPopRegList:
-        __ PopSizeRegList<TurboAssembler::kDontLoadLR>(list, reg_size);
+        __ PopSizeRegList(list, reg_size);
         break;
     }
   }
@@ -12740,8 +12740,8 @@ TEST(push_pop) {
   __ PopXRegList({});
   // Don't push/pop x18 (platform register) or lr
   RegList all_regs = RegList::FromBits(0xFFFFFFFF) - RegList{x18, lr};
-  __ PushXRegList<TurboAssembler::kDontStoreLR>(all_regs);
-  __ PopXRegList<TurboAssembler::kDontLoadLR>(all_regs);
+  __ PushXRegList(all_regs);
+  __ PopXRegList(all_regs);
   __ Drop(12);
 
   END();

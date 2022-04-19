@@ -18,11 +18,9 @@ namespace internal {
                 0x7F)
 ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Eager);
 ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Lazy);
-ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Soft);
 #undef ASSERT_OFFSET
 
-const bool Deoptimizer::kSupportsFixedDeoptExitSizes = true;
-const int Deoptimizer::kNonLazyDeoptExitSize = 4;
+const int Deoptimizer::kEagerDeoptExitSize = 4;
 const int Deoptimizer::kLazyDeoptExitSize = 4;
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {

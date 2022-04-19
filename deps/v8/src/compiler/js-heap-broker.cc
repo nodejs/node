@@ -429,7 +429,7 @@ NamedAccessFeedback::NamedAccessFeedback(NameRef const& name,
                                          ZoneVector<MapRef> const& maps,
                                          FeedbackSlotKind slot_kind)
     : ProcessedFeedback(kNamedAccess, slot_kind), name_(name), maps_(maps) {
-  DCHECK(IsLoadICKind(slot_kind) || IsStoreICKind(slot_kind) ||
+  DCHECK(IsLoadICKind(slot_kind) || IsSetNamedICKind(slot_kind) ||
          IsDefineNamedOwnICKind(slot_kind) || IsKeyedLoadICKind(slot_kind) ||
          IsKeyedHasICKind(slot_kind) || IsKeyedStoreICKind(slot_kind) ||
          IsStoreInArrayLiteralICKind(slot_kind) ||

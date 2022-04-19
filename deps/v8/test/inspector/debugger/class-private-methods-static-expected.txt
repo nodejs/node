@@ -121,7 +121,7 @@ Evaluating this.#inc(); from the base class
         columnNumber : 4
         exception : {
             className : SyntaxError
-            description : SyntaxError: Private field '#inc' must be declared in an enclosing class     at Function.test (<anonymous>:24:7)     at run (<anonymous>:28:5)     at <anonymous>:1:1
+            description : SyntaxError: Private field '#inc' must be declared in an enclosing class     at B.test (<anonymous>:24:7)     at run (<anonymous>:28:5)     at <anonymous>:1:1
             objectId : <objectId>
             subtype : error
             type : object
@@ -133,7 +133,7 @@ Evaluating this.#inc(); from the base class
     }
     result : {
         className : SyntaxError
-        description : SyntaxError: Private field '#inc' must be declared in an enclosing class     at Function.test (<anonymous>:24:7)     at run (<anonymous>:28:5)     at <anonymous>:1:1
+        description : SyntaxError: Private field '#inc' must be declared in an enclosing class     at B.test (<anonymous>:24:7)     at run (<anonymous>:28:5)     at <anonymous>:1:1
         objectId : <objectId>
         subtype : error
         type : object

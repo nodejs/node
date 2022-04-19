@@ -234,6 +234,35 @@ export class Script {
 }
 
 
+const kOffsetPairRegex = /C([0-9]+)O([0-9]+)/g;
+class SourcePositionTable {
+  constructor(encodedTable) {
+    this._offsets = [];
+    while (true) {
+      const regexResult = kOffsetPairRegex.exec(encodedTable);
+      if (!regexResult) break;
+      const codeOffset = parseInt(regexResult[1]);
+      const scriptOffset = parseInt(regexResult[2]);
+      if (isNaN(codeOffset) || isNaN(scriptOffset)) continue;
+      this._offsets.push({code: codeOffset, script: scriptOffset});
+    }
+  }
+
+  getScriptOffset(codeOffset) {
+    if (codeOffset < 0) {
+      throw new Exception(`Invalid codeOffset=${codeOffset}, should be >= 0`);
+    }
+    for (let i = this.offsetTable.length - 1; i >= 0; i--) {
+      const offset = this._offsets[i];
+      if (offset.code <= codeOffset) {
+        return offset.script;
+      }
+    }
+    return this._offsets[0].script;
+  }
+}
+
+
 class SourceInfo {
   script;
   start;
@@ -243,13 +272,16 @@ class SourceInfo {
   fns;
   disassemble;
 
-  setSourcePositionInfo(script, startPos, endPos, sourcePositionTable, inliningPositions, inlinedFunctions) {
+  setSourcePositionInfo(
+        script, startPos, endPos, sourcePositionTableData, inliningPositions,
+        inlinedFunctions) {
     this.script = script;
     this.start = startPos;
     this.end = endPos;
-    this.positions = sourcePositionTable;
+    this.positions = sourcePositionTableData;
     this.inlined = inliningPositions;
     this.fns = inlinedFunctions;
+    this.sourcePositionTable = new SourcePositionTable(sourcePositionTableData);
   }
 
   setDisassemble(code) {

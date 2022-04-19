@@ -6,10 +6,8 @@
 # This is main driver for gcmole tool. See README for more details.
 # Usage: CLANG_BIN=clang-bin-dir python tools/gcmole/gcmole.py [arm|arm64|ia32|x64]
 
-# for py2/py3 compatibility
-from __future__ import print_function
-
 from multiprocessing import cpu_count
+from pathlib import Path
 
 import collections
 import difflib
@@ -20,62 +18,7 @@ import re
 import subprocess
 import sys
 import threading
-
-if sys.version_info.major > 2:
-  from pathlib import Path
-  import queue
-else:
-  import Queue as queue
-  default_open = open
-
-  def open(path, *args, **kwargs):
-    return default_open(str(path), *args, **kwargs)
-
-  class Path(object):
-
-    def __init__(self, path, *args):
-      if args:
-        self._path = os.path.join(str(path), *args)
-      else:
-        self._path = str(path)
-
-    def __div__(self, other):
-      return Path(self._path, str(other))
-
-    def __str__(self):
-      return self._path
-
-    def resolve(self):
-      return Path(os.path.abspath(self._path))
-
-    @property
-    def parent(self):
-      return Path(os.path.dirname(self._path))
-
-    @property
-    def parents(self):
-      current = self
-      parents = []
-      while current._path != "" and current._path != "/":
-        current = current.parent
-        parents.append(current)
-      return parents
-
-    def is_file(self):
-      return os.path.isfile(self._path)
-
-    def is_dir(self):
-      return os.path.isdir(self._path)
-
-    def exists(self):
-      return os.path.exists(self._path)
-
-    def mkdir(self, parents=False, exist_ok=False):
-      if parents and not self.parent.exists():
-        self.parent.mkdir(parents=True, exist_ok=True)
-      if exist_ok and self.exists():
-        return
-      os.mkdir(self._path)
+import queue
 
 
 ArchCfg = collections.namedtuple(

@@ -35,9 +35,8 @@ var importing_module = function(imported_function) {
   return builder.instantiate({other: {func: imported_function}});
 };
 
-// TODO(7748): Implement cross-module subtyping.
 // Same form/different index should be fine.
-// importing_module(exporting_module.exports.func2);
+importing_module(exporting_module.exports.func2);
 // Same index/different form should throw.
 assertThrows(
     () => importing_module(exporting_module.exports.func1),

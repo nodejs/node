@@ -97,15 +97,13 @@ inline constexpr bool CodeKindCanTierUp(CodeKind kind) {
   return CodeKindIsUnoptimizedJSFunction(kind);
 }
 
-// The optimization marker field on the feedback vector has a dual purpose of
-// controlling the tier-up workflow, and caching the produced code object for
-// access from multiple closures.
+// TODO(jgruber): Rename or remove this predicate. Currently it means 'is this
+// kind stored either in the FeedbackVector cache, or in the OSR cache?'.
 inline constexpr bool CodeKindIsStoredInOptimizedCodeCache(CodeKind kind) {
   return kind == CodeKind::TURBOFAN;
 }
 
 inline CodeKind CodeKindForTopTier() { return CodeKind::TURBOFAN; }
-inline CodeKind CodeKindForOSR() { return CodeKind::TURBOFAN; }
 
 // The dedicated CodeKindFlag enum represents all code kinds in a format
 // suitable for bit sets.

@@ -402,7 +402,7 @@ extern enum MessageTemplate {
   kRegExpNonRegExp,
   kRegExpNonObject,
   kPromiseNonCallable,
-  kNotAPromise,
+  kPromiseNewTargetUndefined,
   kResolverNotAFunction,
   kTooManyElementsInPromiseCombinator,
   kToRadixFormatRange,
@@ -672,7 +672,7 @@ extern transitioning builtin SetProperty(implicit context: Context)(
     JSAny, JSAny, JSAny): JSAny;
 extern transitioning builtin SetPropertyIgnoreAttributes(
     implicit context: Context)(JSObject, String, JSAny, Smi): JSAny;
-extern transitioning builtin SetPropertyInLiteral(implicit context: Context)(
+extern transitioning builtin CreateDataProperty(implicit context: Context)(
     JSAny, JSAny, JSAny): JSAny;
 extern transitioning builtin DeleteProperty(implicit context: Context)(
     JSAny, JSAny | PrivateSymbol, LanguageModeSmi): Boolean;

@@ -61,6 +61,16 @@ class Decoder {
   // Returns the length of the disassembled machine instruction in bytes.
   int InstructionDecode(byte* instruction);
 
+  // Prefixed instructions.
+  enum PrefixType { not_prefixed, is_prefixed };
+  // static is used to retain values even with new instances.
+  static PrefixType PrefixStatus;
+  static uint64_t PrefixValue;
+  uint64_t GetPrefixValue();
+  void SetAsPrefixed(uint64_t v);
+  void ResetPrefix();
+  bool IsPrefixed();
+
  private:
   // Bottleneck functions to print into the out_buffer.
   void PrintChar(const char ch);
@@ -82,6 +92,7 @@ class Decoder {
   void Unknown(Instruction* instr);
   void UnknownFormat(Instruction* instr, const char* opcname);
 
+  void DecodeExtP(Instruction* instr);
   void DecodeExt0(Instruction* instr);
   void DecodeExt1(Instruction* instr);
   void DecodeExt2(Instruction* instr);
@@ -94,6 +105,25 @@ class Decoder {
   base::Vector<char> out_buffer_;
   int out_buffer_pos_;
 };
+
+// Define Prefix functions and values.
+// static
+Decoder::PrefixType Decoder::PrefixStatus = not_prefixed;
+uint64_t Decoder::PrefixValue = 0;
+
+uint64_t Decoder::GetPrefixValue() { return PrefixValue; }
+
+void Decoder::SetAsPrefixed(uint64_t v) {
+  PrefixStatus = is_prefixed;
+  PrefixValue = v;
+}
+
+void Decoder::ResetPrefix() {
+  PrefixStatus = not_prefixed;
+  PrefixValue = 0;
+}
+
+bool Decoder::IsPrefixed() { return PrefixStatus == is_prefixed; }
 
 // Support for assertions in the Decoder formatting functions.
 #define STRING_STARTS_WITH(string, compare_string) \
@@ -255,9 +285,16 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       return FormatVectorRegister(instr, format);
     }
     case 'i': {  // int16
-      int32_t value = (instr->Bits(15, 0) << 16) >> 16;
+      int64_t value;
+      uint32_t imm_value = instr->Bits(15, 0);
+      if (IsPrefixed()) {
+        uint64_t prefix_value = GetPrefixValue();
+        value = SIGN_EXT_IMM34((prefix_value << 16) | imm_value);
+      } else {
+        value = (static_cast<int64_t>(imm_value) << 48) >> 48;
+      }
       out_buffer_pos_ +=
-          base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
+          base::SNPrintF(out_buffer_ + out_buffer_pos_, "%ld", value);
       return 5;
     }
     case 'I': {  // IMM8
@@ -423,6 +460,83 @@ void Decoder::UnknownFormat(Instruction* instr, const char* name) {
   char buffer[100];
   snprintf(buffer, sizeof(buffer), "%s (unknown-format)", name);
   Format(instr, buffer);
+}
+
+void Decoder::DecodeExtP(Instruction* instr) {
+  switch (EXTP | (instr->BitField(25, 25))) {
+    case PLOAD_STORE_8LS:
+    case PLOAD_STORE_MLS: {
+      // TODO(miladfarca): Decode the R bit.
+      DCHECK_NE(instr->Bit(20), 1);
+      // Read prefix.
+      SetAsPrefixed(instr->Bits(17, 0));
+      // Read suffix (next instruction).
+      Instruction* next_instr =
+          bit_cast<Instruction*>(bit_cast<intptr_t>(instr) + kInstrSize);
+      switch (next_instr->OpcodeBase()) {
+          // Prefixed ADDI.
+        case (ADDI): {
+          if (next_instr->RAValue() == 0) {
+            // This is load immediate prefixed.
+            Format(instr, "pli");
+            Format(next_instr, "     'rt, ");
+          } else {
+            Format(instr, "paddi");
+            Format(next_instr, "   'rt, 'ra, ");
+          }
+          Format(next_instr, "'int34");
+          break;
+        }
+        // Prefixed LBZ.
+        case LBZ: {
+          Format(next_instr, "plbz    'rt, 'int34('ra)");
+          break;
+        }
+          // Prefixed LHZ.
+        case LHZ: {
+          Format(next_instr, "plhz    'rt, 'int34('ra)");
+          break;
+        }
+          // Prefixed LHA.
+        case LHA: {
+          Format(next_instr, "plha    'rt, 'int34('ra)");
+          break;
+        }
+          // Prefixed LWZ.
+        case LWZ: {
+          Format(next_instr, "plwz    'rt, 'int34('ra)");
+          break;
+        }
+          // Prefixed LWA.
+        case PPLWA: {
+          Format(next_instr, "plwa    'rt, 'int34('ra)");
+          break;
+        }
+          // Prefixed LD.
+        case PPLD: {
+          Format(next_instr, "pld    'rt, 'int34('ra)");
+          break;
+        }
+          // Prefixed LFS.
+        case LFS: {
+          Format(next_instr, "plfs    'Dt, 'int34('ra)");
+          break;
+        }
+        // Prefixed LFD.
+        case LFD: {
+          Format(next_instr, "plfd    'Dt, 'int34('ra)");
+          break;
+        }
+        default: {
+          Unknown(instr);
+        }
+      }
+      break;
+    }
+    default: {
+      Unknown(instr);
+    }
+  }
 }
 
 void Decoder::DecodeExt0(Instruction* instr) {
@@ -1432,9 +1546,21 @@ void Decoder::DecodeExt6(Instruction* instr) {
 // Disassemble the instruction at *instr_ptr into the output buffer.
 int Decoder::InstructionDecode(byte* instr_ptr) {
   Instruction* instr = Instruction::At(instr_ptr);
+
+  uint32_t opcode = instr->OpcodeValue() << 26;
   // Print raw instruction bytes.
-  out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                    "%08x       ", instr->InstructionBits());
+  if (opcode != EXTP) {
+    out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                      "%08x       ", instr->InstructionBits());
+  } else {
+    // Prefixed instructions have a 4-byte prefix and a 4-byte suffix. Print
+    // both on the same line.
+    Instruction* next_instr =
+        bit_cast<Instruction*>(bit_cast<intptr_t>(instr) + kInstrSize);
+    out_buffer_pos_ +=
+        base::SNPrintF(out_buffer_ + out_buffer_pos_, "%08x|%08x ",
+                       instr->InstructionBits(), next_instr->InstructionBits());
+  }
 
   if (ABI_USES_FUNCTION_DESCRIPTORS && instr->InstructionBits() == 0) {
     // The first field will be identified as a jump table entry.  We
@@ -1443,7 +1569,6 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
     return kInstrSize;
   }
 
-  uint32_t opcode = instr->OpcodeValue() << 26;
   switch (opcode) {
     case TWI: {
       PrintSoftwareInterrupt(instr->SvcValue());
@@ -1561,6 +1686,10 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
     }
     case BX: {
       Format(instr, "b'l'a 'target26");
+      break;
+    }
+    case EXTP: {
+      DecodeExtP(instr);
       break;
     }
     case EXT0: {
@@ -1751,6 +1880,13 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
       Unknown(instr);
       break;
     }
+  }
+
+  if (IsPrefixed()) {
+    // The next instruction (suffix) should have already been decoded as part of
+    // prefix decoding.
+    ResetPrefix();
+    return 2 * kInstrSize;
   }
 
   return kInstrSize;

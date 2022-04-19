@@ -3229,10 +3229,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CallBuiltin(Builtin::kSetProperty, context, receiver, key, value);
   }
 
-  TNode<Object> SetPropertyInLiteral(TNode<Context> context,
-                                     TNode<JSObject> receiver,
-                                     TNode<Object> key, TNode<Object> value) {
-    return CallBuiltin(Builtin::kSetPropertyInLiteral, context, receiver, key,
+  TNode<Object> CreateDataProperty(TNode<Context> context,
+                                   TNode<JSObject> receiver, TNode<Object> key,
+                                   TNode<Object> value) {
+    return CallBuiltin(Builtin::kCreateDataProperty, context, receiver, key,
                        value);
   }
 
@@ -3995,6 +3995,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<DescriptorArray> descriptors, TNode<IntPtrT> descriptor);
   TNode<Uint32T> LoadDetailsByDescriptorEntry(
       TNode<DescriptorArray> descriptors, int descriptor);
+  TNode<Object> LoadValueByDescriptorEntry(TNode<DescriptorArray> descriptors,
+                                           TNode<IntPtrT> descriptor);
   TNode<Object> LoadValueByDescriptorEntry(TNode<DescriptorArray> descriptors,
                                            int descriptor);
   TNode<MaybeObject> LoadFieldTypeByDescriptorEntry(

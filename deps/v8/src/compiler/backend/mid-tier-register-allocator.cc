@@ -2043,7 +2043,7 @@ void SinglePassRegisterAllocator::EmitGapMoveFromOutput(InstructionOperand from,
   DCHECK_EQ(data_->GetBlock(instr_index), block);
   if (instr_index == block->last_instruction_index()) {
     // Add gap move to the first instruction of every successor block.
-    for (const RpoNumber succ : block->successors()) {
+    for (const RpoNumber& succ : block->successors()) {
       const InstructionBlock* successor = data_->GetBlock(succ);
       DCHECK_EQ(1, successor->PredecessorCount());
       data_->AddGapMove(successor->first_instruction_index(),

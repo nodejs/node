@@ -30,8 +30,8 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
  public:
   SimplifiedLowering(JSGraph* jsgraph, JSHeapBroker* broker, Zone* zone,
                      SourcePositionTable* source_position,
-                     NodeOriginTable* node_origins,
-                     TickCounter* tick_counter, Linkage* linkage,
+                     NodeOriginTable* node_origins, TickCounter* tick_counter,
+                     Linkage* linkage, OptimizedCompilationInfo* info,
                      ObserveNodeManager* observe_node_manager = nullptr);
   ~SimplifiedLowering() = default;
 
@@ -84,6 +84,7 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
 
   TickCounter* const tick_counter_;
   Linkage* const linkage_;
+  OptimizedCompilationInfo* info_;
 
   ObserveNodeManager* const observe_node_manager_;
 

@@ -24,14 +24,6 @@ class StrongMemberTag;
 class UntracedMemberTag;
 class WeakMemberTag;
 
-// Pre-C++17 custom implementation of std::void_t.
-template <typename... Ts>
-struct make_void {
-  typedef void type;
-};
-template <typename... Ts>
-using void_t = typename make_void<Ts...>::type;
-
 // Not supposed to be specialized by the user.
 template <typename T>
 struct IsWeak : std::false_type {};
@@ -42,7 +34,7 @@ template <typename T, typename = void>
 struct IsTraceMethodConst : std::false_type {};
 
 template <typename T>
-struct IsTraceMethodConst<T, void_t<decltype(std::declval<const T>().Trace(
+struct IsTraceMethodConst<T, std::void_t<decltype(std::declval<const T>().Trace(
                                  std::declval<Visitor*>()))>> : std::true_type {
 };
 
@@ -53,7 +45,7 @@ struct IsTraceable : std::false_type {
 
 template <typename T>
 struct IsTraceable<
-    T, void_t<decltype(std::declval<T>().Trace(std::declval<Visitor*>()))>>
+    T, std::void_t<decltype(std::declval<T>().Trace(std::declval<Visitor*>()))>>
     : std::true_type {
   // All Trace methods should be marked as const. If an object of type
   // 'T' is traceable then any object of type 'const T' should also
@@ -72,8 +64,8 @@ struct HasGarbageCollectedMixinTypeMarker : std::false_type {
 
 template <typename T>
 struct HasGarbageCollectedMixinTypeMarker<
-    T,
-    void_t<typename std::remove_const_t<T>::IsGarbageCollectedMixinTypeMarker>>
+    T, std::void_t<
+           typename std::remove_const_t<T>::IsGarbageCollectedMixinTypeMarker>>
     : std::true_type {
   static_assert(sizeof(T), "T must be fully defined");
 };
@@ -85,7 +77,8 @@ struct HasGarbageCollectedTypeMarker : std::false_type {
 
 template <typename T>
 struct HasGarbageCollectedTypeMarker<
-    T, void_t<typename std::remove_const_t<T>::IsGarbageCollectedTypeMarker>>
+    T,
+    std::void_t<typename std::remove_const_t<T>::IsGarbageCollectedTypeMarker>>
     : std::true_type {
   static_assert(sizeof(T), "T must be fully defined");
 };

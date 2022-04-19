@@ -8,13 +8,17 @@
 #include "include/v8-local-handle.h"
 #include "include/v8-primitive.h"
 #include "include/v8-template.h"
+#include "src/api/api-inl.h"
+#include "src/api/api.h"
 #include "src/d8/d8.h"
 #include "src/execution/isolate-inl.h"
+#include "src/objects/managed-inl.h"
 
 namespace v8 {
 
 namespace {
-AsyncHooksWrap* UnwrapHook(const v8::FunctionCallbackInfo<v8::Value>& args) {
+std::shared_ptr<AsyncHooksWrap> UnwrapHook(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
   Local<Object> hook = args.This();
@@ -26,18 +30,17 @@ AsyncHooksWrap* UnwrapHook(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return nullptr;
   }
 
-  Local<External> wrap = hook->GetInternalField(0).As<External>();
-  void* ptr = wrap->Value();
-  return static_cast<AsyncHooksWrap*>(ptr);
+  i::Handle<i::Object> handle = Utils::OpenHandle(*hook->GetInternalField(0));
+  return i::Handle<i::Managed<AsyncHooksWrap>>::cast(handle)->get();
 }
 
 void EnableHook(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  AsyncHooksWrap* wrap = UnwrapHook(args);
+  auto wrap = UnwrapHook(args);
   if (wrap) wrap->Enable();
 }
 
 void DisableHook(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  AsyncHooksWrap* wrap = UnwrapHook(args);
+  auto wrap = UnwrapHook(args);
   if (wrap) wrap->Disable();
 }
 
@@ -126,8 +129,8 @@ Local<Object> AsyncHooks::CreateHook(
     return Local<Object>();
   }
 
-  std::unique_ptr<AsyncHooksWrap> wrap =
-      std::make_unique<AsyncHooksWrap>(isolate);
+  std::shared_ptr<AsyncHooksWrap> wrap =
+      std::make_shared<AsyncHooksWrap>(isolate);
 
   Local<Object> fn_obj = args[0].As<Object>();
 
@@ -148,7 +151,9 @@ Local<Object> AsyncHooks::CreateHook(
   Local<Object> obj = async_hooks_templ.Get(isolate)
                           ->NewInstance(currentContext)
                           .ToLocalChecked();
-  obj->SetInternalField(0, External::New(isolate, wrap.get()));
+  i::Handle<i::Object> managed = i::Managed<AsyncHooksWrap>::FromSharedPtr(
+      reinterpret_cast<i::Isolate*>(isolate), sizeof(AsyncHooksWrap), wrap);
+  obj->SetInternalField(0, Utils::ToLocal(managed));
 
   {
     base::RecursiveMutexGuard lock_guard(&async_wraps_mutex_);

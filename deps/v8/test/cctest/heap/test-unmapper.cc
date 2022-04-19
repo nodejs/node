@@ -20,16 +20,9 @@ namespace heap {
 
 class MockPlatformForUnmapper : public TestPlatform {
  public:
-  MockPlatformForUnmapper()
-      : task_(nullptr), old_platform_(i::V8::GetCurrentPlatform()) {
-    // Now that it's completely constructed, make this the current platform.
-    i::V8::SetPlatformForTesting(this);
-  }
   ~MockPlatformForUnmapper() override {
-    delete task_;
-    i::V8::SetPlatformForTesting(old_platform_);
     for (auto& task : worker_tasks_) {
-      old_platform_->CallOnWorkerThread(std::move(task));
+      CcTest::default_platform()->CallOnWorkerThread(std::move(task));
     }
     worker_tasks_.clear();
   }
@@ -40,14 +33,8 @@ class MockPlatformForUnmapper : public TestPlatform {
 
   bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }
 
-  int NumberOfWorkerThreads() override {
-    return old_platform_->NumberOfWorkerThreads();
-  }
-
  private:
-  Task* task_;
   std::vector<std::unique_ptr<Task>> worker_tasks_;
-  v8::Platform* old_platform_;
 };
 
 UNINITIALIZED_TEST(EagerUnmappingInCollectAllAvailableGarbage) {

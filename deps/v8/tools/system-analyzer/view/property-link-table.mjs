@@ -3,8 +3,9 @@
 // found in the LICENSE file.
 
 import {App} from '../index.mjs'
+
 import {FocusEvent, SelectRelatedEvent} from './events.mjs';
-import {DOM, ExpandableText, V8CustomElement} from './helper.mjs';
+import {DOM, entriesEquals, ExpandableText, V8CustomElement} from './helper.mjs';
 
 DOM.defineCustomElement('view/property-link-table',
                         template =>
@@ -27,7 +28,7 @@ DOM.defineCustomElement('view/property-link-table',
   }
 
   set propertyDict(propertyDict) {
-    if (this._propertyDict === propertyDict) return;
+    if (entriesEquals(this._propertyDict, propertyDict)) return;
     if (typeof propertyDict !== 'object') {
       throw new Error(
           `Invalid property dict, expected object: ${propertyDict}`);
@@ -38,13 +39,16 @@ DOM.defineCustomElement('view/property-link-table',
 
   _update() {
     this._fragment = new DocumentFragment();
-    this._table = DOM.table('properties');
+    this._table = DOM.table();
     for (let key in this._propertyDict) {
       const value = this._propertyDict[key];
       this._addKeyValue(key, value);
     }
-    this._addFooter();
-    this._fragment.appendChild(this._table);
+
+    const tableDiv = DOM.div('properties');
+    tableDiv.appendChild(this._table);
+    this._fragment.appendChild(tableDiv);
+    this._createFooter();
 
     const newContent = DOM.div();
     newContent.appendChild(this._fragment);
@@ -69,11 +73,13 @@ DOM.defineCustomElement('view/property-link-table',
     if (Array.isArray(value)) {
       cell.appendChild(this._addArrayValue(value));
       return;
-    }
-    if (App.isClickable(value)) {
+    } else if (App.isClickable(value)) {
       cell.className = 'clickable';
       cell.onclick = this._showHandler;
       cell.data = value;
+    }
+    if (value.isCode) {
+      cell.classList.add('code');
     }
     new ExpandableText(cell, value.toString());
   }
@@ -101,21 +107,21 @@ DOM.defineCustomElement('view/property-link-table',
     this._fragment.appendChild(title);
   }
 
-  _addFooter() {
+  _createFooter() {
     if (this._object === undefined) return;
     if (!this._instanceLinkButtons) return;
-    const td = this._table.createTFoot().insertRow().insertCell();
-    td.colSpan = 2;
-    let showButton = td.appendChild(DOM.button('Show', this._showHandler));
+    const footer = DOM.div('footer');
+    let showButton = footer.appendChild(DOM.button('Show', this._showHandler));
     showButton.data = this._object;
     if (this._object.sourcePosition) {
-      let showSourcePositionButton = td.appendChild(
+      let showSourcePositionButton = footer.appendChild(
           DOM.button('Source Position', this._showSourcePositionHandler));
       showSourcePositionButton.data = this._object;
     }
-    let showRelatedButton =
-        td.appendChild(DOM.button('Show Related', this._showRelatedHandler));
+    let showRelatedButton = footer.appendChild(
+        DOM.button('Show Related', this._showRelatedHandler));
     showRelatedButton.data = this._object;
+    this._fragment.appendChild(footer);
   }
 
   _handleArrayValueSelect(event) {

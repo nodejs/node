@@ -738,6 +738,7 @@ class LiftoffAssembler : public TurboAssembler {
       emit_i32_sari(dst.gp(), dst.gp(), kSmiTagSize);
     }
   }
+  inline void IncrementSmi(LiftoffRegister dst, int offset);
   inline void Load(LiftoffRegister dst, Register src_addr, Register offset_reg,
                    uintptr_t offset_imm, LoadType type, LiftoffRegList pinned,
                    uint32_t* protected_load_pc = nullptr,
@@ -1591,8 +1592,7 @@ void EmitI64IndependentHalfOperation(LiftoffAssembler* assm,
     return;
   }
   // Otherwise, we need a temporary register.
-  Register tmp =
-      assm->GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(lhs, rhs)).gp();
+  Register tmp = assm->GetUnusedRegister(kGpReg, LiftoffRegList{lhs, rhs}).gp();
   (assm->*op)(tmp, lhs.low_gp(), rhs.low_gp());
   (assm->*op)(dst.high_gp(), lhs.high_gp(), rhs.high_gp());
   assm->Move(dst.low_gp(), tmp, kI32);
@@ -1619,8 +1619,7 @@ void EmitI64IndependentHalfOperationImm(LiftoffAssembler* assm,
     return;
   }
   // Otherwise, we need a temporary register.
-  Register tmp =
-      assm->GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(lhs)).gp();
+  Register tmp = assm->GetUnusedRegister(kGpReg, LiftoffRegList{lhs}).gp();
   (assm->*op)(tmp, lhs.low_gp(), low_word);
   (assm->*op)(dst.high_gp(), lhs.high_gp(), high_word);
   assm->Move(dst.low_gp(), tmp, kI32);

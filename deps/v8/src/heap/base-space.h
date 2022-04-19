@@ -29,12 +29,12 @@ class V8_EXPORT_PRIVATE BaseSpace : public Malloced {
     return heap_;
   }
 
-  AllocationSpace identity() { return id_; }
+  AllocationSpace identity() const { return id_; }
 
   // Returns name of the space.
   static const char* GetSpaceName(AllocationSpace space);
 
-  const char* name() { return GetSpaceName(id_); }
+  const char* name() const { return GetSpaceName(id_); }
 
   void AccountCommitted(size_t bytes) {
     DCHECK_GE(committed_ + bytes, committed_);
@@ -51,15 +51,15 @@ class V8_EXPORT_PRIVATE BaseSpace : public Malloced {
 
   // Return the total amount committed memory for this space, i.e., allocatable
   // memory and page headers.
-  virtual size_t CommittedMemory() { return committed_; }
+  virtual size_t CommittedMemory() const { return committed_; }
 
-  virtual size_t MaximumCommittedMemory() { return max_committed_; }
+  virtual size_t MaximumCommittedMemory() const { return max_committed_; }
 
   // Approximate amount of physical memory committed for this space.
-  virtual size_t CommittedPhysicalMemory() = 0;
+  virtual size_t CommittedPhysicalMemory() const = 0;
 
   // Returns allocated size.
-  virtual size_t Size() = 0;
+  virtual size_t Size() const = 0;
 
  protected:
   BaseSpace(Heap* heap, AllocationSpace id)

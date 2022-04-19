@@ -2827,6 +2827,53 @@ TEST(AssemblerX64Integer256bit) {
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 
+TEST(AssemblerX64CmpOperations256bit) {
+  if (!CpuFeatures::IsSupported(AVX)) return;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  auto buffer = AllocateAssemblerBuffer();
+  Isolate* isolate = CcTest::i_isolate();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, AVX);
+
+  __ vcmpeqps(ymm1, ymm2, ymm4);
+  __ vcmpltpd(ymm4, ymm7, Operand(rcx, rdx, times_4, 10000));
+  __ vcmpleps(ymm9, ymm8, Operand(r8, r11, times_8, 10000));
+  __ vcmpunordpd(ymm3, ymm7, ymm8);
+  __ vcmpneqps(ymm3, ymm5, ymm9);
+  __ vcmpnltpd(ymm10, ymm12, Operand(r12, r11, times_4, 10000));
+  __ vcmpnleps(ymm9, ymm11, Operand(r10, r9, times_8, 10000));
+  __ vcmpgepd(ymm13, ymm3, ymm12);
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  code->Print(os);
+#endif
+
+  byte expected[] = {
+      // vcmpeqps ymm1, ymm2, ymm4
+      0xC5, 0xEC, 0xC2, 0xCC, 0x00,
+      // vcmpltpd ymm4, ymm7, YMMWORD PTR [rcx+rdx*4+0x2710]
+      0xC5, 0xC5, 0xC2, 0xA4, 0x91, 0x10, 0x27, 0x00, 0x00, 0x01,
+      // vcmpleps ymm9, ymm8, YMMWORD PTR [r8+r11*8+0x2710]
+      0xC4, 0x01, 0x3C, 0xC2, 0x8C, 0xD8, 0x10, 0x27, 0x00, 0x00, 0x02,
+      // vcmpunordpd ymm3, ymm7, ymm8
+      0xC4, 0xC1, 0x45, 0xC2, 0xD8, 0x03,
+      // vcmpneqps ymm3, ymm5, ymm9
+      0xC4, 0xC1, 0x54, 0xC2, 0xD9, 0x04,
+      // vcmpnltpd ymm10, ymm12, YMMWORD PTR [r12+r11*4+0x2710]
+      0xC4, 0x01, 0x1D, 0xC2, 0x94, 0x9C, 0x10, 0x27, 0x00, 0x00, 0x05,
+      // vcmpnleps ymm9, ymm11, YMMWORD PTR [r10+r9*8+0x2710]
+      0xC4, 0x01, 0x24, 0xC2, 0x8C, 0xCA, 0x10, 0x27, 0x00, 0x00, 0x06,
+      // vcmpgepd ymm13, ymm3, ymm12
+      0xC4, 0x41, 0x65, 0xC2, 0xEC, 0x0D};
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+
 TEST(CpuFeatures_ProbeImpl) {
   // Support for a newer extension implies support for the older extensions.
   CHECK_IMPLIES(CpuFeatures::IsSupported(FMA3), CpuFeatures::IsSupported(AVX));

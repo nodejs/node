@@ -6,7 +6,7 @@
 d8.file.execute('test/mjsunit/temporal/temporal-helpers.js');
 
 let d1 = new Temporal.Duration();
-assertDuration(d1.negated(), -0, -0, -0, -0, -0, -0, -0, -0, -0, -0, 0, true);
+assertDuration(d1.negated(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, true);
 
 let d2 = new Temporal.Duration(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 assertDuration(d2.negated(), -1, -2, -3, -4, -5, -6, -7, -8, -9, -10, -1, false);

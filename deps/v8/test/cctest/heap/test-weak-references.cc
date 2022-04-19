@@ -176,7 +176,8 @@ TEST(WeakReferencesOldToCleared) {
 }
 
 TEST(ObjectMovesBeforeClearingWeakField) {
-  if (!FLAG_incremental_marking || FLAG_single_generation) {
+  if (!FLAG_incremental_marking || FLAG_single_generation ||
+      FLAG_separate_gc_phases) {
     return;
   }
   ManualGCScope manual_gc_scope;
@@ -277,7 +278,7 @@ TEST(ObjectWithWeakReferencePromoted) {
 }
 
 TEST(ObjectWithClearedWeakReferencePromoted) {
-  if (FLAG_single_generation) return;
+  if (FLAG_single_generation || FLAG_stress_incremental_marking) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();

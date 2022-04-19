@@ -844,8 +844,8 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
             use_info.type_check() == TypeCheckKind::kNumberOrOddball ||
             use_info.type_check() == TypeCheckKind::kArrayIndex) &&
            IsInt32Double(fv))) {
-        return InsertTypeGuardForVerifier(NodeProperties::GetType(node),
-                                          MakeTruncatedInt32Constant(fv));
+        return InsertTypeOverrideForVerifier(NodeProperties::GetType(node),
+                                             MakeTruncatedInt32Constant(fv));
       }
       break;
     }
@@ -1109,8 +1109,8 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
         if (base::IsValueInRangeForNumericType<int64_t>(fv)) {
           int64_t const iv = static_cast<int64_t>(fv);
           if (static_cast<double>(iv) == fv) {
-            return InsertTypeGuardForVerifier(NodeProperties::GetType(node),
-                                              jsgraph()->Int64Constant(iv));
+            return InsertTypeOverrideForVerifier(NodeProperties::GetType(node),
+                                                 jsgraph()->Int64Constant(iv));
           }
         }
       }
@@ -1121,7 +1121,7 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
       if (m.HasResolvedValue() && m.Ref(broker_).IsBigInt() &&
           use_info.truncation().IsUsedAsWord64()) {
         BigIntRef bigint = m.Ref(broker_).AsBigInt();
-        return InsertTypeGuardForVerifier(
+        return InsertTypeOverrideForVerifier(
             NodeProperties::GetType(node),
             jsgraph()->Int64Constant(static_cast<int64_t>(bigint.AsUint64())));
       }
@@ -1571,14 +1571,13 @@ Node* RepresentationChanger::InsertCheckedFloat64ToInt32(
       node, simplified()->CheckedFloat64ToInt32(check, feedback), use_node);
 }
 
-Node* RepresentationChanger::InsertTypeGuardForVerifier(const Type& type,
-                                                        Node* node) {
+Node* RepresentationChanger::InsertTypeOverrideForVerifier(const Type& type,
+                                                           Node* node) {
   if (verification_enabled()) {
     DCHECK(!type.IsInvalid());
-    node = jsgraph()->graph()->NewNode(jsgraph()->common()->TypeGuard(type),
-                                       node, jsgraph()->graph()->start(),
-                                       jsgraph()->graph()->start());
-    verifier_->RecordTypeGuard(node);
+    node = jsgraph()->graph()->NewNode(
+        jsgraph()->common()->SLVerifierHint(nullptr, type), node);
+    verifier_->RecordHint(node);
   }
   return node;
 }

@@ -311,6 +311,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
     ++line_nr;
   }
   DCHECK(!line_numbers || line_numbers->size() == static_cast<size_t>(line_nr));
+  USE(line_nr);
 
   return decoder.ok();
 }

@@ -490,8 +490,6 @@ class V8_EXPORT_PRIVATE Debug {
                      DebugInfoListNode** curr);
   void FreeDebugInfoListNode(DebugInfoListNode* prev, DebugInfoListNode* node);
 
-  void ClearGlobalPromiseStack();
-
   void SetTemporaryObjectTrackingDisabled(bool disabled);
   bool GetTemporaryObjectTrackingDisabled() const;
 
@@ -569,6 +567,10 @@ class V8_EXPORT_PRIVATE Debug {
     // This flag is true when SetBreakOnNextFunctionCall is called and it forces
     // debugger to break on next function call.
     bool break_on_next_function_call_;
+
+    // Throwing an exception may cause a Promise rejection.  For this purpose
+    // we keep track of a stack of nested promises.
+    Object promise_stack_;
   };
 
   static void Iterate(RootVisitor* v, ThreadLocal* thread_local_data);

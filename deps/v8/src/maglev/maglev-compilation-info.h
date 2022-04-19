@@ -63,9 +63,6 @@ class MaglevCompilationInfo final {
   void set_graph(Graph* graph) { graph_ = graph; }
   Graph* graph() const { return graph_; }
 
-  void set_codet(MaybeHandle<CodeT> codet) { codet_ = codet; }
-  MaybeHandle<CodeT> codet() const { return codet_; }
-
   // Flag accessors (for thread-safe access to global flags).
   // TODO(v8:7700): Consider caching these.
 #define V(Name) \
@@ -102,9 +99,6 @@ class MaglevCompilationInfo final {
 
   // Produced off-thread during ExecuteJobImpl.
   Graph* graph_ = nullptr;
-
-  // Produced during FinalizeJobImpl.
-  MaybeHandle<CodeT> codet_;
 
 #define V(Name) const bool Name##_;
   MAGLEV_COMPILATION_FLAG_LIST(V)

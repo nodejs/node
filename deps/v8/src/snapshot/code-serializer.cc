@@ -109,13 +109,14 @@ AlignedCachedData* CodeSerializer::SerializeSharedFunctionInfo(
   return data.GetScriptData();
 }
 
-bool CodeSerializer::SerializeReadOnlyObject(Handle<HeapObject> obj) {
-  if (!ReadOnlyHeap::Contains(*obj)) return false;
+bool CodeSerializer::SerializeReadOnlyObject(
+    HeapObject obj, const DisallowGarbageCollection& no_gc) {
+  if (!ReadOnlyHeap::Contains(obj)) return false;
 
   // For objects on the read-only heap, never serialize the object, but instead
   // create a back reference that encodes the page number as the chunk_index and
   // the offset within the page as the chunk_offset.
-  Address address = obj->address();
+  Address address = obj.address();
   BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(address);
   uint32_t chunk_index = 0;
   ReadOnlySpace* const read_only_space = isolate()->heap()->read_only_space();
@@ -131,77 +132,93 @@ bool CodeSerializer::SerializeReadOnlyObject(Handle<HeapObject> obj) {
 }
 
 void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
-  if (SerializeHotObject(obj)) return;
-
-  if (SerializeRoot(obj)) return;
-
-  if (SerializeBackReference(obj)) return;
-
-  if (SerializeReadOnlyObject(obj)) return;
-
-  CHECK(!obj->IsCode(cage_base()));
-
   ReadOnlyRoots roots(isolate());
-  if (ElideObject(*obj)) {
-    return SerializeObject(roots.undefined_value_handle());
-  }
+  InstanceType instance_type;
+  {
+    DisallowGarbageCollection no_gc;
+    HeapObject raw = *obj;
+    if (SerializeHotObject(raw)) return;
+    if (SerializeRoot(raw)) return;
+    if (SerializeBackReference(raw)) return;
+    if (SerializeReadOnlyObject(raw, no_gc)) return;
 
-  if (obj->IsScript()) {
-    Handle<Script> script_obj = Handle<Script>::cast(obj);
-    DCHECK_NE(script_obj->compilation_type(), Script::COMPILATION_TYPE_EVAL);
-    // We want to differentiate between undefined and uninitialized_symbol for
-    // context_data for now. It is hack to allow debugging for scripts that are
-    // included as a part of custom snapshot. (see debug::Script::IsEmbedded())
-    Object context_data = script_obj->context_data();
-    if (context_data != roots.undefined_value() &&
-        context_data != roots.uninitialized_symbol()) {
-      script_obj->set_context_data(roots.undefined_value());
+    instance_type = raw.map().instance_type();
+    CHECK(!InstanceTypeChecker::IsCode(instance_type));
+
+    if (ElideObject(raw)) {
+      AllowGarbageCollection allow_gc;
+      return SerializeObject(roots.undefined_value_handle());
     }
-    // We don't want to serialize host options to avoid serializing unnecessary
-    // object graph.
-    FixedArray host_options = script_obj->host_defined_options();
-    script_obj->set_host_defined_options(roots.empty_fixed_array());
-    SerializeGeneric(obj);
-    script_obj->set_host_defined_options(host_options);
-    script_obj->set_context_data(context_data);
-    return;
   }
 
-  if (obj->IsSharedFunctionInfo()) {
-    Handle<SharedFunctionInfo> sfi = Handle<SharedFunctionInfo>::cast(obj);
-    DCHECK(!sfi->IsApiFunction());
+  if (InstanceTypeChecker::IsScript(instance_type)) {
+    Handle<FixedArray> host_options;
+    Handle<Object> context_data;
+    {
+      DisallowGarbageCollection no_gc;
+      Script script_obj = Script::cast(*obj);
+      DCHECK_NE(script_obj.compilation_type(), Script::COMPILATION_TYPE_EVAL);
+      // We want to differentiate between undefined and uninitialized_symbol for
+      // context_data for now. It is hack to allow debugging for scripts that
+      // are included as a part of custom snapshot. (see
+      // debug::Script::IsEmbedded())
+      Object raw_context_data = script_obj.context_data();
+      if (raw_context_data != roots.undefined_value() &&
+          raw_context_data != roots.uninitialized_symbol()) {
+        script_obj.set_context_data(roots.undefined_value());
+      }
+      context_data = handle(raw_context_data, isolate());
+      // We don't want to serialize host options to avoid serializing
+      // unnecessary object graph.
+      host_options = handle(script_obj.host_defined_options(), isolate());
+      script_obj.set_host_defined_options(roots.empty_fixed_array());
+    }
+    SerializeGeneric(obj);
+    {
+      DisallowGarbageCollection no_gc;
+      Script script_obj = Script::cast(*obj);
+      script_obj.set_host_defined_options(*host_options);
+      script_obj.set_context_data(*context_data);
+    }
+    return;
+  } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
+    Handle<DebugInfo> debug_info;
+    bool restore_bytecode = false;
+    {
+      DisallowGarbageCollection no_gc;
+      SharedFunctionInfo sfi = SharedFunctionInfo::cast(*obj);
+      DCHECK(!sfi.IsApiFunction());
 #if V8_ENABLE_WEBASSEMBLY
-    // TODO(7110): Enable serializing of Asm modules once the AsmWasmData
-    // is context independent.
-    DCHECK(!sfi->HasAsmWasmData());
+      // TODO(7110): Enable serializing of Asm modules once the AsmWasmData
+      // is context independent.
+      DCHECK(!sfi.HasAsmWasmData());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-    DebugInfo debug_info;
-    BytecodeArray debug_bytecode_array;
-    if (sfi->HasDebugInfo()) {
-      // Clear debug info.
-      debug_info = sfi->GetDebugInfo();
-      if (debug_info.HasInstrumentedBytecodeArray()) {
-        debug_bytecode_array = debug_info.DebugBytecodeArray();
-        sfi->SetActiveBytecodeArray(debug_info.OriginalBytecodeArray());
+      if (sfi.HasDebugInfo()) {
+        // Clear debug info.
+        DebugInfo raw_debug_info = sfi.GetDebugInfo();
+        if (raw_debug_info.HasInstrumentedBytecodeArray()) {
+          restore_bytecode = true;
+          sfi.SetActiveBytecodeArray(raw_debug_info.OriginalBytecodeArray());
+        }
+        sfi.set_script_or_debug_info(raw_debug_info.script(), kReleaseStore);
+        debug_info = handle(raw_debug_info, isolate());
       }
-      sfi->set_script_or_debug_info(debug_info.script(), kReleaseStore);
+      DCHECK(!sfi.HasDebugInfo());
     }
-    DCHECK(!sfi->HasDebugInfo());
-
     SerializeGeneric(obj);
-
     // Restore debug info
     if (!debug_info.is_null()) {
-      sfi->set_script_or_debug_info(debug_info, kReleaseStore);
-      if (!debug_bytecode_array.is_null()) {
-        sfi->SetActiveBytecodeArray(debug_bytecode_array);
+      DisallowGarbageCollection no_gc;
+      SharedFunctionInfo sfi = SharedFunctionInfo::cast(*obj);
+      sfi.set_script_or_debug_info(*debug_info, kReleaseStore);
+      if (restore_bytecode) {
+        sfi.SetActiveBytecodeArray(debug_info->DebugBytecodeArray());
       }
     }
     return;
-  }
-
-  if (obj->IsUncompiledDataWithoutPreparseDataWithJob()) {
+  } else if (InstanceTypeChecker::IsUncompiledDataWithoutPreparseDataWithJob(
+                 instance_type)) {
     Handle<UncompiledDataWithoutPreparseDataWithJob> data =
         Handle<UncompiledDataWithoutPreparseDataWithJob>::cast(obj);
     Address job = data->job();
@@ -209,8 +226,8 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
     SerializeGeneric(data);
     data->set_job(job);
     return;
-  }
-  if (obj->IsUncompiledDataWithPreparseDataAndJob()) {
+  } else if (InstanceTypeChecker::IsUncompiledDataWithPreparseDataAndJob(
+                 instance_type)) {
     Handle<UncompiledDataWithPreparseDataAndJob> data =
         Handle<UncompiledDataWithPreparseDataAndJob>::cast(obj);
     Address job = data->job();
@@ -233,14 +250,16 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
 #endif  // V8_TARGET_ARCH_ARM
 
   // Past this point we should not see any (context-specific) maps anymore.
-  CHECK(!obj->IsMap());
+  CHECK(!InstanceTypeChecker::IsMap(instance_type));
   // There should be no references to the global object embedded.
-  CHECK(!obj->IsJSGlobalProxy() && !obj->IsJSGlobalObject());
+  CHECK(!InstanceTypeChecker::IsJSGlobalProxy(instance_type) &&
+        !InstanceTypeChecker::IsJSGlobalObject(instance_type));
   // Embedded FixedArrays that need rehashing must support rehashing.
   CHECK_IMPLIES(obj->NeedsRehashing(cage_base()),
                 obj->CanBeRehashed(cage_base()));
   // We expect no instantiated function objects or contexts.
-  CHECK(!obj->IsJSFunction() && !obj->IsContext());
+  CHECK(!InstanceTypeChecker::IsJSFunction(instance_type) &&
+        !InstanceTypeChecker::IsContext(instance_type));
 
   SerializeGeneric(obj);
 }
@@ -269,7 +288,9 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
   SharedFunctionInfo::ScriptIterator iter(isolate, *script);
   for (SharedFunctionInfo shared_info = iter.Next(); !shared_info.is_null();
        shared_info = iter.Next()) {
-    if (!shared_info.HasBytecodeArray()) continue;
+    IsCompiledScope is_compiled(shared_info, isolate);
+    if (!is_compiled.is_compiled()) continue;
+    DCHECK(shared_info.HasBytecodeArray());
     Handle<SharedFunctionInfo> info = handle(shared_info, isolate);
     Handle<Code> code = isolate->factory()->CopyCode(Handle<Code>::cast(
         isolate->factory()->interpreter_entry_trampoline_for_profiling()));
@@ -280,8 +301,12 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
 
     interpreter_data->set_bytecode_array(info->GetBytecodeArray(isolate));
     interpreter_data->set_interpreter_trampoline(ToCodeT(*code));
-
-    info->set_interpreter_data(*interpreter_data);
+    if (info->HasBaselineCode()) {
+      FromCodeT(info->baseline_code(kAcquireLoad))
+          .set_bytecode_or_interpreter_data(*interpreter_data);
+    } else {
+      info->set_interpreter_data(*interpreter_data);
+    }
 
     if (!log_code_creation) continue;
     Handle<AbstractCode> abstract_code = Handle<AbstractCode>::cast(code);

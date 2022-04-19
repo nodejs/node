@@ -405,7 +405,8 @@ void WriteBarrier::GenerationalBarrier(const Params& params, const void* slot) {
   const AgeTable& age_table = local_data.age_table;
 
   // Bail out if the slot is in young generation.
-  if (V8_LIKELY(age_table[params.slot_offset] == AgeTable::Age::kYoung)) return;
+  if (V8_LIKELY(age_table.GetAge(params.slot_offset) == AgeTable::Age::kYoung))
+    return;
 
   GenerationalBarrierSlow(local_data, age_table, slot, params.value_offset);
 }
@@ -420,7 +421,8 @@ void WriteBarrier::GenerationalBarrierForSourceObject(
 
   // Assume that if the first element is in young generation, the whole range is
   // in young generation.
-  if (V8_LIKELY(age_table[params.slot_offset] == AgeTable::Age::kYoung)) return;
+  if (V8_LIKELY(age_table.GetAge(params.slot_offset) == AgeTable::Age::kYoung))
+    return;
 
   GenerationalBarrierForSourceObjectSlow(local_data, inner_pointer);
 }

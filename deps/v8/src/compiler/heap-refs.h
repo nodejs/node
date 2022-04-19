@@ -920,7 +920,8 @@ class StringRef : public NameRef {
   // base::nullopt for these methods.
   base::Optional<Handle<String>> ObjectIfContentAccessible();
   base::Optional<int> length() const;
-  base::Optional<uint16_t> GetFirstChar();
+  base::Optional<uint16_t> GetFirstChar() const;
+  base::Optional<uint16_t> GetChar(int index) const;
   base::Optional<double> ToNumber();
 
   bool IsSeqString() const;

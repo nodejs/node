@@ -1564,22 +1564,6 @@ inline Handle<OrderedHashMap> AddValueToKeyedGroup(
   return groups;
 }
 
-inline ElementsKind DeduceKeyedGroupElementsKind(ElementsKind kind) {
-  // The keyed groups are array lists with fast elements.
-  // Double elements are stored as HeapNumbers in the keyed group elements
-  // so that we don't need to cast all the keyed groups when switching from
-  // fast path to the generic path.
-  // TODO(v8:12499) add unboxed double elements support
-  switch (kind) {
-    case ElementsKind::PACKED_SMI_ELEMENTS: {
-      return ElementsKind::PACKED_SMI_ELEMENTS;
-    }
-    default: {
-      return ElementsKind::PACKED_ELEMENTS;
-    }
-  }
-}
-
 inline bool IsFastArray(Handle<JSReceiver> object) {
   Isolate* isolate = object->GetIsolate();
   if (isolate->force_slow_path()) return false;
@@ -1659,7 +1643,10 @@ inline MaybeHandle<OrderedHashMap> GenericArrayGroupBy(
 template <GroupByMode mode>
 inline MaybeHandle<OrderedHashMap> FastArrayGroupBy(
     Isolate* isolate, Handle<JSArray> array, Handle<Object> callbackfn,
-    Handle<OrderedHashMap> groups, double len) {
+    Handle<OrderedHashMap> groups, double len,
+    ElementsKind* result_elements_kind) {
+  DCHECK_NOT_NULL(result_elements_kind);
+
   Handle<Map> original_map = Handle<Map>(array->map(), isolate);
   uint32_t uint_len = static_cast<uint32_t>(len);
   ElementsAccessor* accessor = array->GetElementsAccessor();
@@ -1667,7 +1654,8 @@ inline MaybeHandle<OrderedHashMap> FastArrayGroupBy(
   // 4. Let k be 0.
   // 6. Repeat, while k < len
   for (InternalIndex k : InternalIndex::Range(uint_len)) {
-    if (!CheckArrayMapNotModified(array, original_map)) {
+    if (!CheckArrayMapNotModified(array, original_map) ||
+        k.as_uint32() >= static_cast<uint32_t>(array->length().Number())) {
       return GenericArrayGroupBy<mode>(isolate, array, callbackfn, groups,
                                        k.as_uint32(), len);
     }
@@ -1709,6 +1697,17 @@ inline MaybeHandle<OrderedHashMap> FastArrayGroupBy(
     // done by the loop.
   }
 
+  // When staying on the fast path, we can deduce a more specific results
+  // ElementsKind for the keyed groups based on the input ElementsKind.
+  //
+  // Double elements are stored as HeapNumbers in the keyed group elements
+  // so that we don't need to cast all the keyed groups when switching from
+  // fast path to the generic path.
+  // TODO(v8:12499) add unboxed double elements support
+  if (array->GetElementsKind() == ElementsKind::PACKED_SMI_ELEMENTS) {
+    *result_elements_kind = ElementsKind::PACKED_SMI_ELEMENTS;
+  }
+
   return groups;
 }
 
@@ -1738,16 +1737,13 @@ BUILTIN(ArrayPrototypeGroupBy) {
 
   // 5. Let groups be a new empty List.
   Handle<OrderedHashMap> groups = isolate->factory()->NewOrderedHashMap();
-  // Elements kind of the array for grouped elements kind deduction.
-  ElementsKind elements_kind = ElementsKind::NO_ELEMENTS;
+  ElementsKind result_elements_kind = ElementsKind::PACKED_ELEMENTS;
   if (IsFastArray(O)) {
     Handle<JSArray> array = Handle<JSArray>::cast(O);
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, groups,
-        FastArrayGroupBy<GroupByMode::kToObject>(isolate, array, callbackfn,
-                                                 groups, len));
-    // Get array's elements kind after called into javascript.
-    elements_kind = array->GetElementsKind();
+        FastArrayGroupBy<GroupByMode::kToObject>(
+            isolate, array, callbackfn, groups, len, &result_elements_kind));
   } else {
     // 4. Let k be 0.
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -1758,8 +1754,7 @@ BUILTIN(ArrayPrototypeGroupBy) {
 
   // 7. Let obj be ! OrdinaryObjectCreate(null).
   Handle<JSObject> obj = isolate->factory()->NewJSObjectWithNullProto();
-  ElementsKind result_elements_kind =
-      DeduceKeyedGroupElementsKind(elements_kind);
+
   // 8. For each Record { [[Key]], [[Elements]] } g of groups, do
   for (InternalIndex entry : groups->IterateEntries()) {
     Handle<Name> key = Handle<Name>(Name::cast(groups->KeyAt(entry)), isolate);
@@ -1804,16 +1799,13 @@ BUILTIN(ArrayPrototypeGroupByToMap) {
 
   // 5. Let groups be a new empty List.
   Handle<OrderedHashMap> groups = isolate->factory()->NewOrderedHashMap();
-  // Elements kind of the array for grouped elements kind deduction.
-  ElementsKind elements_kind = ElementsKind::NO_ELEMENTS;
+  ElementsKind result_elements_kind = ElementsKind::PACKED_ELEMENTS;
   if (IsFastArray(O)) {
     Handle<JSArray> array = Handle<JSArray>::cast(O);
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, groups,
-        FastArrayGroupBy<GroupByMode::kToMap>(isolate, array, callbackfn,
-                                              groups, len));
-    // Get array's elements kind after called into javascript.
-    elements_kind = array->GetElementsKind();
+        FastArrayGroupBy<GroupByMode::kToMap>(
+            isolate, array, callbackfn, groups, len, &result_elements_kind));
   } else {
     // 4. Let k be 0.
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -1825,8 +1817,6 @@ BUILTIN(ArrayPrototypeGroupByToMap) {
   // 7. Let map be ! Construct(%Map%).
   Handle<JSMap> map = isolate->factory()->NewJSMap();
   Handle<OrderedHashMap> map_table = isolate->factory()->NewOrderedHashMap();
-  ElementsKind result_elements_kind =
-      DeduceKeyedGroupElementsKind(elements_kind);
   // 8. For each Record { [[Key]], [[Elements]] } g of groups, do
   for (InternalIndex entry : groups->IterateEntries()) {
     Handle<Object> key = Handle<Object>(groups->KeyAt(entry), isolate);

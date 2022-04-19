@@ -104,7 +104,8 @@ BUILTIN(CallSitePrototypeGetPosition) {
 BUILTIN(CallSitePrototypeGetPromiseIndex) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(frame, "getPromiseIndex");
-  if (!frame->IsPromiseAll() && !frame->IsPromiseAny()) {
+  if (!frame->IsPromiseAll() && !frame->IsPromiseAny() &&
+      !frame->IsPromiseAllSettled()) {
     return ReadOnlyRoots(isolate).null_value();
   }
   return Smi::FromInt(CallSiteInfo::GetSourcePosition(frame));

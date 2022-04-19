@@ -963,6 +963,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         offset = Operand(i.InputRegister(1));
       }
       Register value = i.InputRegister(2);
+
+      if (FLAG_debug_code) {
+        // Checking that |value| is not a cleared weakref: our write barrier
+        // does not support that for now.
+        __ cmp(value, Operand(kClearedWeakHeapObjectLower32));
+        __ Check(ne, AbortReason::kOperandIsCleared);
+      }
+
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, offset, value, mode, DetermineStubCallMode(),
           &unwinding_info_writer_);
@@ -3195,7 +3203,7 @@ void CodeGenerator::AssembleConstructFrame() {
   __ PushCPURegList(saves_fp);
 
   // Save registers.
-  __ PushCPURegList<TurboAssembler::kSignLR>(saves);
+  __ PushCPURegList(saves);
 
   if (returns != 0) {
     __ Claim(returns);
@@ -3213,7 +3221,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   // Restore registers.
   CPURegList saves =
       CPURegList(kXRegSizeInBits, call_descriptor->CalleeSavedRegisters());
-  __ PopCPURegList<TurboAssembler::kAuthLR>(saves);
+  __ PopCPURegList(saves);
 
   // Restore fp registers.
   CPURegList saves_fp =
@@ -3300,8 +3308,7 @@ void CodeGenerator::PrepareForDeoptimizationExits(
   __ ForceConstantPoolEmissionWithoutJump();
   // We are conservative here, reserving sufficient space for the largest deopt
   // kind.
-  DCHECK_GE(Deoptimizer::kLazyDeoptExitSize,
-            Deoptimizer::kNonLazyDeoptExitSize);
+  DCHECK_GE(Deoptimizer::kLazyDeoptExitSize, Deoptimizer::kEagerDeoptExitSize);
   __ CheckVeneerPool(
       false, false,
       static_cast<int>(exits->size()) * Deoptimizer::kLazyDeoptExitSize);

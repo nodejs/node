@@ -8,6 +8,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/utils/ostreams.h"
+#include "src/wasm/canonical-types.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/local-decl-encoder.h"
@@ -89,6 +90,7 @@ class TestModuleBuilder {
   byte AddSignature(const FunctionSig* sig, uint32_t supertype = kNoSuperType) {
     mod.add_signature(sig, supertype);
     CHECK_LE(mod.types.size(), kMaxByteSizedLeb128);
+    GetTypeCanonicalizer()->AddRecursiveGroup(module(), 1);
     return static_cast<byte>(mod.types.size() - 1);
   }
   byte AddFunction(const FunctionSig* sig, bool declared = true) {
@@ -131,12 +133,14 @@ class TestModuleBuilder {
       type_builder.AddField(field.first, field.second);
     }
     mod.add_struct_type(type_builder.Build(), supertype);
+    GetTypeCanonicalizer()->AddRecursiveGroup(module(), 1);
     return static_cast<byte>(mod.types.size() - 1);
   }
 
   byte AddArray(ValueType type, bool mutability) {
     ArrayType* array = mod.signature_zone->New<ArrayType>(type, mutability);
     mod.add_array_type(array, kNoSuperType);
+    GetTypeCanonicalizer()->AddRecursiveGroup(module(), 1);
     return static_cast<byte>(mod.types.size() - 1);
   }
 
@@ -340,7 +344,7 @@ class FunctionBodyDecoderTestBase : public WithZoneMixin<BaseTest> {
   }
 };
 
-using FunctionBodyDecoderTest = FunctionBodyDecoderTestBase<::testing::Test>;
+using FunctionBodyDecoderTest = FunctionBodyDecoderTestBase<TestWithPlatform>;
 
 TEST_F(FunctionBodyDecoderTest, Int32Const1) {
   byte code[] = {kExprI32Const, 0};
@@ -3639,32 +3643,6 @@ TEST_F(FunctionBodyDecoderTest, StructNewDefaultWithRtt) {
   }
 }
 
-TEST_F(FunctionBodyDecoderTest, NominalStructSubtyping) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(gc);
-  byte structural_type = builder.AddStruct({F(kWasmI32, true)});
-  byte nominal_type = builder.AddStruct({F(kWasmI32, true)});
-  AddLocals(optref(structural_type), 1);
-  AddLocals(optref(nominal_type), 1);
-  // Try to assign a nominally-typed value to a structurally-typed local.
-  ExpectFailure(sigs.v_v(),
-                {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT(nominal_type))},
-                kAppendEnd, "expected type (ref null 0)");
-  // Try to assign a structurally-typed value to a nominally-typed local.
-  ExpectFailure(sigs.v_v(),
-                {WASM_LOCAL_SET(
-                    1, WASM_STRUCT_NEW_DEFAULT_WITH_RTT(
-                           structural_type, WASM_RTT_CANON(structural_type)))},
-                kAppendEnd, "expected type (ref null 1)");
-  // But assigning to the correctly typed local works.
-  ExpectValidates(sigs.v_v(),
-                  {WASM_LOCAL_SET(1, WASM_STRUCT_NEW_DEFAULT(nominal_type))});
-  ExpectValidates(sigs.v_v(),
-                  {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT_WITH_RTT(
-                                         structural_type,
-                                         WASM_RTT_CANON(structural_type)))});
-}
-
 TEST_F(FunctionBodyDecoderTest, DefaultableLocal) {
   WASM_FEATURE_SCOPE(typed_funcref);
   AddLocals(kWasmAnyRef, 1);
@@ -5164,7 +5142,8 @@ TEST_F(BytecodeIteratorTest, WithLocalDecls) {
  ******************************************************************************/
 
 class FunctionBodyDecoderTestOnBothMemoryTypes
-    : public FunctionBodyDecoderTestBase<::testing::TestWithParam<MemoryType>> {
+    : public FunctionBodyDecoderTestBase<
+          WithDefaultPlatformMixin<::testing::TestWithParam<MemoryType>>> {
  public:
   bool is_memory64() const { return GetParam() == kMemory64; }
 };

@@ -121,7 +121,7 @@ void ContextSerializer::Serialize(Context* o,
 }
 
 void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
-  DCHECK(!ObjectIsBytecodeHandler(obj));  // Only referenced in dispatch table.
+  DCHECK(!ObjectIsBytecodeHandler(*obj));  // Only referenced in dispatch table.
 
   if (!allow_active_isolate_for_testing()) {
     // When serializing a snapshot intended for real use, we should not end up
@@ -132,11 +132,13 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
     DCHECK_IMPLIES(obj->IsNativeContext(), *obj == context_);
   }
 
-  if (SerializeHotObject(obj)) return;
-
-  if (SerializeRoot(obj)) return;
-
-  if (SerializeBackReference(obj)) return;
+  {
+    DisallowGarbageCollection no_gc;
+    HeapObject raw = *obj;
+    if (SerializeHotObject(raw)) return;
+    if (SerializeRoot(raw)) return;
+    if (SerializeBackReference(raw)) return;
+  }
 
   if (startup_serializer_->SerializeUsingReadOnlyObjectCache(&sink_, obj)) {
     return;
@@ -161,30 +163,29 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   // Function and object templates are not context specific.
   DCHECK(!obj->IsTemplateInfo());
 
-  // Clear literal boilerplates and feedback.
-  if (obj->IsFeedbackVector()) {
+  InstanceType instance_type = obj->map().instance_type();
+  if (InstanceTypeChecker::IsFeedbackVector(instance_type)) {
+    // Clear literal boilerplates and feedback.
     Handle<FeedbackVector>::cast(obj)->ClearSlots(isolate());
-  }
-
-  // Clear InterruptBudget when serializing FeedbackCell.
-  if (obj->IsFeedbackCell()) {
+  } else if (InstanceTypeChecker::IsFeedbackCell(instance_type)) {
+    // Clear InterruptBudget when serializing FeedbackCell.
     Handle<FeedbackCell>::cast(obj)->SetInitialInterruptBudget();
-  }
-
-  if (SerializeJSObjectWithEmbedderFields(obj)) {
-    return;
-  }
-
-  if (obj->IsJSFunction()) {
-    // Unconditionally reset the JSFunction to its SFI's code, since we can't
-    // serialize optimized code anyway.
-    Handle<JSFunction> closure = Handle<JSFunction>::cast(obj);
-    closure->ResetIfCodeFlushed();
-    if (closure->is_compiled()) {
-      if (closure->shared().HasBaselineCode()) {
-        closure->shared().FlushBaselineCode();
+  } else if (InstanceTypeChecker::IsJSObject(instance_type)) {
+    if (SerializeJSObjectWithEmbedderFields(Handle<JSObject>::cast(obj))) {
+      return;
+    }
+    if (InstanceTypeChecker::IsJSFunction(instance_type)) {
+      DisallowGarbageCollection no_gc;
+      // Unconditionally reset the JSFunction to its SFI's code, since we can't
+      // serialize optimized code anyway.
+      JSFunction closure = JSFunction::cast(*obj);
+      closure.ResetIfCodeFlushed();
+      if (closure.is_compiled()) {
+        if (closure.shared().HasBaselineCode()) {
+          closure.shared().FlushBaselineCode();
+        }
+        closure.set_code(closure.shared().GetCode(), kReleaseStore);
       }
-      closure->set_code(closure->shared().GetCode(), kReleaseStore);
     }
   }
 
@@ -219,19 +220,18 @@ bool DataIsEmpty(const StartupData& data) { return data.raw_size == 0; }
 }  // anonymous namespace
 
 bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
-    Handle<HeapObject> obj) {
-  if (!obj->IsJSObject()) return false;
-  Handle<JSObject> js_obj = Handle<JSObject>::cast(obj);
-  int embedder_fields_count = js_obj->GetEmbedderFieldCount();
+    Handle<JSObject> obj) {
+  DisallowGarbageCollection no_gc;
+  JSObject js_obj = *obj;
+  int embedder_fields_count = js_obj.GetEmbedderFieldCount();
   if (embedder_fields_count == 0) return false;
   CHECK_GT(embedder_fields_count, 0);
-  DCHECK(!js_obj->NeedsRehashing(cage_base()));
+  DCHECK(!js_obj.NeedsRehashing(cage_base()));
 
-  DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate());
   DisallowCompilation no_compile(isolate());
 
-  v8::Local<v8::Object> api_obj = v8::Utils::ToLocal(js_obj);
+  v8::Local<v8::Object> api_obj = v8::Utils::ToLocal(obj);
 
   std::vector<EmbedderDataSlot::RawData> original_embedder_values;
   std::vector<StartupData> serialized_data;
@@ -241,7 +241,7 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
   //    serializer. For aligned pointers, call the serialize callback. Hold
   //    onto the result.
   for (int i = 0; i < embedder_fields_count; i++) {
-    EmbedderDataSlot embedder_data_slot(*js_obj, i);
+    EmbedderDataSlot embedder_data_slot(js_obj, i);
     original_embedder_values.emplace_back(
         embedder_data_slot.load_raw(isolate(), no_gc));
     Object object = embedder_data_slot.load_tagged();
@@ -270,13 +270,18 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
   //    with embedder callbacks.
   for (int i = 0; i < embedder_fields_count; i++) {
     if (!DataIsEmpty(serialized_data[i])) {
-      EmbedderDataSlot(*js_obj, i).store_raw(isolate(), kNullAddress, no_gc);
+      EmbedderDataSlot(js_obj, i).store_raw(isolate(), kNullAddress, no_gc);
     }
   }
 
   // 3) Serialize the object. References from embedder fields to heap objects or
   //    smis are serialized regularly.
-  ObjectSerializer(this, js_obj, &sink_).Serialize();
+  {
+    AllowGarbageCollection allow_gc;
+    ObjectSerializer(this, obj, &sink_).Serialize();
+    // Reload raw pointer.
+    js_obj = *obj;
+  }
 
   // 4) Obtain back reference for the serialized object.
   const SerializerReference* reference =
@@ -290,8 +295,8 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
     StartupData data = serialized_data[i];
     if (DataIsEmpty(data)) continue;
     // Restore original values from cleared fields.
-    EmbedderDataSlot(*js_obj, i)
-        .store_raw(isolate(), original_embedder_values[i], no_gc);
+    EmbedderDataSlot(js_obj, i).store_raw(isolate(),
+                                          original_embedder_values[i], no_gc);
     embedder_fields_sink_.Put(kNewObject, "embedder field holder");
     embedder_fields_sink_.PutInt(reference->back_ref_index(), "BackRefIndex");
     embedder_fields_sink_.PutInt(i, "embedder field index");

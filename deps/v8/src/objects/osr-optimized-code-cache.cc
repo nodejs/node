@@ -12,22 +12,32 @@
 namespace v8 {
 namespace internal {
 
-const int OSROptimizedCodeCache::kInitialLength;
-const int OSROptimizedCodeCache::kMaxLength;
+// static
+Handle<OSROptimizedCodeCache> OSROptimizedCodeCache::Empty(Isolate* isolate) {
+  return Handle<OSROptimizedCodeCache>::cast(
+      isolate->factory()->empty_weak_fixed_array());
+}
 
-void OSROptimizedCodeCache::AddOptimizedCode(
-    Handle<NativeContext> native_context, Handle<SharedFunctionInfo> shared,
-    Handle<CodeT> code, BytecodeOffset osr_offset) {
+// static
+void OSROptimizedCodeCache::Insert(Isolate* isolate,
+                                   Handle<NativeContext> native_context,
+                                   Handle<SharedFunctionInfo> shared,
+                                   Handle<CodeT> code,
+                                   BytecodeOffset osr_offset) {
   DCHECK(!osr_offset.IsNone());
-  DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
-  STATIC_ASSERT(kEntryLength == 3);
-  Isolate* isolate = native_context->GetIsolate();
   DCHECK(!isolate->serializer_enabled());
+  DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
 
-  Handle<OSROptimizedCodeCache> osr_cache(
-      native_context->GetOSROptimizedCodeCache(), isolate);
+  Handle<OSROptimizedCodeCache> osr_cache(native_context->osr_code_cache(),
+                                          isolate);
 
-  DCHECK_EQ(osr_cache->FindEntry(shared, osr_offset), -1);
+  if (shared->osr_code_cache_state() == kNotCached) {
+    DCHECK_EQ(osr_cache->FindEntry(*shared, osr_offset), -1);
+  } else if (osr_cache->FindEntry(*shared, osr_offset) != -1) {
+    return;  // Already cached for a different JSFunction.
+  }
+
+  STATIC_ASSERT(kEntryLength == 3);
   int entry = -1;
   for (int index = 0; index < osr_cache->length(); index += kEntryLength) {
     if (osr_cache->Get(index + kSharedOffset)->IsCleared() ||
@@ -37,28 +47,32 @@ void OSROptimizedCodeCache::AddOptimizedCode(
     }
   }
 
-  if (entry == -1 && osr_cache->length() + kEntryLength <= kMaxLength) {
-    entry = GrowOSRCache(native_context, &osr_cache);
-  } else if (entry == -1) {
-    // We reached max capacity and cannot grow further. Reuse an existing entry.
-    // TODO(mythria): We could use better mechanisms (like lru) to replace
-    // existing entries. Though we don't expect this to be a common case, so
-    // for now choosing to replace the first entry.
-    entry = 0;
+  if (entry == -1) {
+    if (osr_cache->length() + kEntryLength <= kMaxLength) {
+      entry = GrowOSRCache(isolate, native_context, &osr_cache);
+    } else {
+      // We reached max capacity and cannot grow further. Reuse an existing
+      // entry.
+      // TODO(mythria): We could use better mechanisms (like lru) to replace
+      // existing entries. Though we don't expect this to be a common case, so
+      // for now choosing to replace the first entry.
+      osr_cache->ClearEntry(0, isolate);
+      entry = 0;
+    }
   }
 
   osr_cache->InitializeEntry(entry, *shared, *code, osr_offset);
 }
 
-void OSROptimizedCodeCache::Clear(NativeContext native_context) {
-  native_context.set_osr_code_cache(
-      *native_context.GetIsolate()->factory()->empty_weak_fixed_array());
+void OSROptimizedCodeCache::Clear(Isolate* isolate,
+                                  NativeContext native_context) {
+  native_context.set_osr_code_cache(*OSROptimizedCodeCache::Empty(isolate));
 }
 
-void OSROptimizedCodeCache::Compact(Handle<NativeContext> native_context) {
-  Handle<OSROptimizedCodeCache> osr_cache(
-      native_context->GetOSROptimizedCodeCache(), native_context->GetIsolate());
-  Isolate* isolate = native_context->GetIsolate();
+void OSROptimizedCodeCache::Compact(Isolate* isolate,
+                                    Handle<NativeContext> native_context) {
+  Handle<OSROptimizedCodeCache> osr_cache(native_context->osr_code_cache(),
+                                          isolate);
 
   // Re-adjust the cache so all the valid entries are on one side. This will
   // enable us to compress the cache if needed.
@@ -83,29 +97,31 @@ void OSROptimizedCodeCache::Compact(Handle<NativeContext> native_context) {
   DCHECK_LT(new_osr_cache->length(), osr_cache->length());
   {
     DisallowGarbageCollection no_gc;
-    new_osr_cache->CopyElements(native_context->GetIsolate(), 0, *osr_cache, 0,
+    new_osr_cache->CopyElements(isolate, 0, *osr_cache, 0,
                                 new_osr_cache->length(),
                                 new_osr_cache->GetWriteBarrierMode(no_gc));
   }
   native_context->set_osr_code_cache(*new_osr_cache);
 }
 
-CodeT OSROptimizedCodeCache::GetOptimizedCode(Handle<SharedFunctionInfo> shared,
-                                              BytecodeOffset osr_offset,
-                                              Isolate* isolate) {
+CodeT OSROptimizedCodeCache::TryGet(SharedFunctionInfo shared,
+                                    BytecodeOffset osr_offset,
+                                    Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   int index = FindEntry(shared, osr_offset);
-  if (index == -1) return CodeT();
+  if (index == -1) return {};
+
   CodeT code = GetCodeFromEntry(index);
   if (code.is_null()) {
     ClearEntry(index, isolate);
-    return CodeT();
+    return {};
   }
+
   DCHECK(code.is_optimized_code() && !code.marked_for_deoptimization());
   return code;
 }
 
-void OSROptimizedCodeCache::EvictMarkedCode(Isolate* isolate) {
+void OSROptimizedCodeCache::EvictDeoptimizedCode(Isolate* isolate) {
   // This is called from DeoptimizeMarkedCodeForContext that uses raw pointers
   // and hence the DisallowGarbageCollection scope here.
   DisallowGarbageCollection no_gc;
@@ -122,22 +138,41 @@ void OSROptimizedCodeCache::EvictMarkedCode(Isolate* isolate) {
   }
 }
 
-std::vector<int> OSROptimizedCodeCache::GetBytecodeOffsetsFromSFI(
+std::vector<BytecodeOffset> OSROptimizedCodeCache::OsrOffsetsFor(
     SharedFunctionInfo shared) {
-  std::vector<int> bytecode_offsets;
   DisallowGarbageCollection gc;
+
+  const OSRCodeCacheStateOfSFI state = shared.osr_code_cache_state();
+  if (state == kNotCached) return {};
+
+  std::vector<BytecodeOffset> offsets;
   for (int index = 0; index < length(); index += kEntryLength) {
-    if (GetSFIFromEntry(index) == shared) {
-      bytecode_offsets.push_back(GetBytecodeOffsetFromEntry(index).ToInt());
-    }
+    if (GetSFIFromEntry(index) != shared) continue;
+    offsets.emplace_back(GetBytecodeOffsetFromEntry(index));
+    if (state == kCachedOnce) return offsets;
   }
-  return bytecode_offsets;
+
+  return offsets;
+}
+
+base::Optional<BytecodeOffset> OSROptimizedCodeCache::FirstOsrOffsetFor(
+    SharedFunctionInfo shared) {
+  DisallowGarbageCollection gc;
+
+  const OSRCodeCacheStateOfSFI state = shared.osr_code_cache_state();
+  if (state == kNotCached) return {};
+
+  for (int index = 0; index < length(); index += kEntryLength) {
+    if (GetSFIFromEntry(index) != shared) continue;
+    return GetBytecodeOffsetFromEntry(index);
+  }
+
+  return {};
 }
 
 int OSROptimizedCodeCache::GrowOSRCache(
-    Handle<NativeContext> native_context,
+    Isolate* isolate, Handle<NativeContext> native_context,
     Handle<OSROptimizedCodeCache>* osr_cache) {
-  Isolate* isolate = native_context->GetIsolate();
   int old_length = (*osr_cache)->length();
   int grow_by = CapacityForLength(old_length) - old_length;
   DCHECK_GT(grow_by, kEntryLength);
@@ -178,12 +213,12 @@ BytecodeOffset OSROptimizedCodeCache::GetBytecodeOffsetFromEntry(int index) {
   return BytecodeOffset(osr_offset_entry.value());
 }
 
-int OSROptimizedCodeCache::FindEntry(Handle<SharedFunctionInfo> shared,
+int OSROptimizedCodeCache::FindEntry(SharedFunctionInfo shared,
                                      BytecodeOffset osr_offset) {
   DisallowGarbageCollection no_gc;
   DCHECK(!osr_offset.IsNone());
   for (int index = 0; index < length(); index += kEntryLength) {
-    if (GetSFIFromEntry(index) != *shared) continue;
+    if (GetSFIFromEntry(index) != shared) continue;
     if (GetBytecodeOffsetFromEntry(index) != osr_offset) continue;
     return index;
   }
@@ -254,6 +289,14 @@ int OSROptimizedCodeCache::CapacityForLength(int curr_length) {
 bool OSROptimizedCodeCache::NeedsTrimming(int num_valid_entries,
                                           int curr_length) {
   return curr_length > kInitialLength && curr_length > num_valid_entries * 3;
+}
+
+MaybeObject OSROptimizedCodeCache::RawGetForTesting(int index) const {
+  return WeakFixedArray::Get(index);
+}
+
+void OSROptimizedCodeCache::RawSetForTesting(int index, MaybeObject value) {
+  WeakFixedArray::Set(index, value);
 }
 
 }  // namespace internal

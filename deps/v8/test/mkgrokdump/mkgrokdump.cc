@@ -19,6 +19,7 @@
 namespace v8 {
 
 static const char* kHeader =
+    "#!/usr/bin/env python3\n"
     "# Copyright 2019 the V8 project authors. All rights reserved.\n"
     "# Use of this source code is governed by a BSD-style license that can\n"
     "# be found in the LICENSE file.\n"

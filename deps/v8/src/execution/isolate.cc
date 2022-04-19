@@ -96,7 +96,7 @@
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/tracing-cpu-profiler.h"
 #include "src/regexp/regexp-stack.h"
-#include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/snapshot/embedded/embedded-file-writer-interface.h"
 #include "src/snapshot/read-only-deserializer.h"
 #include "src/snapshot/shared-heap-deserializer.h"
@@ -989,6 +989,25 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
           PromiseCapability::cast(context->get(index)), isolate);
       if (!capability->promise().IsJSPromise()) return;
       promise = handle(JSPromise::cast(capability->promise()), isolate);
+    } else if (IsBuiltinFunction(
+                   isolate, reaction->fulfill_handler(),
+                   Builtin::kPromiseAllSettledResolveElementClosure)) {
+      Handle<JSFunction> function(JSFunction::cast(reaction->fulfill_handler()),
+                                  isolate);
+      Handle<Context> context(function->context(), isolate);
+      Handle<JSFunction> combinator(
+          context->native_context().promise_all_settled(), isolate);
+      builder->AppendPromiseCombinatorFrame(function, combinator);
+
+      // Now peak into the Promise.allSettled() resolve element context to
+      // find the promise capability that's being resolved when all
+      // the concurrent promises resolve.
+      int const index =
+          PromiseBuiltins::kPromiseAllResolveElementCapabilitySlot;
+      Handle<PromiseCapability> capability(
+          PromiseCapability::cast(context->get(index)), isolate);
+      if (!capability->promise().IsJSPromise()) return;
+      promise = handle(JSPromise::cast(capability->promise()), isolate);
     } else if (IsBuiltinFunction(isolate, reaction->reject_handler(),
                                  Builtin::kPromiseAnyRejectElementClosure)) {
       Handle<JSFunction> function(JSFunction::cast(reaction->reject_handler()),
@@ -1508,8 +1527,6 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
     callback = v8::ToCData<v8::AccessCheckCallback>(fun_obj);
     data = handle(access_check_info.data(), this);
   }
-
-  LOG(this, ApiSecurityCheck());
 
   {
     // Leaving JavaScript.
@@ -2600,21 +2617,22 @@ bool Isolate::OptionalRescheduleException(bool clear_exception) {
 }
 
 void Isolate::PushPromise(Handle<JSObject> promise) {
-  ThreadLocalTop* tltop = thread_local_top();
-  PromiseOnStack* prev = tltop->promise_on_stack_;
-  Handle<JSObject> global_promise = global_handles()->Create(*promise);
-  tltop->promise_on_stack_ = new PromiseOnStack(global_promise, prev);
+  Handle<Object> promise_on_stack(debug()->thread_local_.promise_stack_, this);
+  promise_on_stack = factory()->NewPromiseOnStack(promise_on_stack, promise);
+  debug()->thread_local_.promise_stack_ = *promise_on_stack;
 }
 
-bool Isolate::PopPromise() {
-  ThreadLocalTop* tltop = thread_local_top();
-  if (tltop->promise_on_stack_ == nullptr) return false;
-  PromiseOnStack* prev = tltop->promise_on_stack_->prev();
-  Handle<Object> global_promise = tltop->promise_on_stack_->promise();
-  delete tltop->promise_on_stack_;
-  tltop->promise_on_stack_ = prev;
-  global_handles()->Destroy(global_promise.location());
-  return true;
+void Isolate::PopPromise() {
+  if (!IsPromiseStackEmpty()) {
+    debug()->thread_local_.promise_stack_ =
+        PromiseOnStack::cast(debug()->thread_local_.promise_stack_).prev();
+  }
+}
+
+bool Isolate::IsPromiseStackEmpty() const {
+  DCHECK_IMPLIES(!debug()->thread_local_.promise_stack_.IsSmi(),
+                 debug()->thread_local_.promise_stack_.IsPromiseOnStack());
+  return debug()->thread_local_.promise_stack_.IsSmi();
 }
 
 namespace {
@@ -2688,15 +2706,14 @@ bool Isolate::PromiseHasUserDefinedRejectHandler(Handle<JSPromise> promise) {
 
 Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
   Handle<Object> undefined = factory()->undefined_value();
-  ThreadLocalTop* tltop = thread_local_top();
-  if (tltop->promise_on_stack_ == nullptr) return undefined;
+  if (IsPromiseStackEmpty()) return undefined;
   // Find the top-most try-catch or try-finally handler.
   CatchType prediction = PredictExceptionCatcher();
   if (prediction == NOT_CAUGHT || prediction == CAUGHT_BY_EXTERNAL) {
     return undefined;
   }
   Handle<Object> retval = undefined;
-  PromiseOnStack* promise_on_stack = tltop->promise_on_stack_;
+  Handle<Object> promise_stack(debug()->thread_local_.promise_stack_, this);
   for (StackFrameIterator it(this); !it.done(); it.Advance()) {
     StackFrame* frame = it.frame();
     HandlerTable::CatchPrediction catch_prediction;
@@ -2728,10 +2745,16 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
           Handle<JSPromise>::cast(retval)->set_handled_hint(true);
         }
         return retval;
-      case HandlerTable::PROMISE:
-        return promise_on_stack
-                   ? Handle<Object>::cast(promise_on_stack->promise())
-                   : undefined;
+      case HandlerTable::PROMISE: {
+        Handle<JSObject> promise;
+        if (promise_stack->IsPromiseOnStack() &&
+            PromiseOnStack::GetPromise(
+                Handle<PromiseOnStack>::cast(promise_stack))
+                .ToHandle(&promise)) {
+          return promise;
+        }
+        return undefined;
+      }
       case HandlerTable::UNCAUGHT_ASYNC_AWAIT:
       case HandlerTable::ASYNC_AWAIT: {
         // If in the initial portion of async/await, continue the loop to pop up
@@ -2739,15 +2762,21 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
         // dependents is found, or a non-async stack frame is encountered, in
         // order to handle the synchronous async/await catch prediction case:
         // assume that async function calls are awaited.
-        if (!promise_on_stack) return retval;
-        retval = promise_on_stack->promise();
+        if (!promise_stack->IsPromiseOnStack()) {
+          return retval;
+        }
+        Handle<PromiseOnStack> promise_on_stack =
+            Handle<PromiseOnStack>::cast(promise_stack);
+        if (!PromiseOnStack::GetPromise(promise_on_stack).ToHandle(&retval)) {
+          return retval;
+        }
         if (retval->IsJSPromise()) {
           if (PromiseHasUserDefinedRejectHandler(
                   Handle<JSPromise>::cast(retval))) {
             return retval;
           }
         }
-        promise_on_stack = promise_on_stack->prev();
+        promise_stack = handle(promise_on_stack->prev(), this);
         continue;
       }
     }
@@ -3787,10 +3816,14 @@ void Isolate::AddCrashKeysForIsolateAndHeapPointers() {
       heap()->read_only_space()->FirstPageAddress();
   add_crash_key_callback_(v8::CrashKeyId::kReadonlySpaceFirstPageAddress,
                           AddressToString(ro_space_firstpage_address));
-  const uintptr_t map_space_firstpage_address =
-      heap()->map_space()->FirstPageAddress();
-  add_crash_key_callback_(v8::CrashKeyId::kMapSpaceFirstPageAddress,
-                          AddressToString(map_space_firstpage_address));
+
+  if (heap()->map_space()) {
+    const uintptr_t map_space_firstpage_address =
+        heap()->map_space()->FirstPageAddress();
+    add_crash_key_callback_(v8::CrashKeyId::kMapSpaceFirstPageAddress,
+                            AddressToString(map_space_firstpage_address));
+  }
+
   const uintptr_t code_space_firstpage_address =
       heap()->code_space()->FirstPageAddress();
   add_crash_key_callback_(v8::CrashKeyId::kCodeSpaceFirstPageAddress,
@@ -4088,7 +4121,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   setup_delegate_ = nullptr;
 
   Builtins::InitializeIsolateDataTables(this);
-  Builtins::EmitCodeCreateEvents(this);
+
+  // Extra steps in the logger after the heap has been set up.
+  logger_->LateSetup(this);
 
 #ifdef DEBUG
   // Verify that the current heap state (usually deserialized from the snapshot)
@@ -4325,8 +4360,8 @@ CodeTracer* Isolate::GetCodeTracer() {
 
 bool Isolate::use_optimizer() {
   // TODO(v8:7700): Update this predicate for a world with multiple tiers.
-  return FLAG_opt && !serializer_enabled_ && CpuFeatures::SupportsOptimizer() &&
-         !is_precise_count_code_coverage();
+  return (FLAG_opt || FLAG_maglev) && !serializer_enabled_ &&
+         CpuFeatures::SupportsOptimizer() && !is_precise_count_code_coverage();
 }
 
 void Isolate::IncreaseTotalRegexpCodeGenerated(Handle<HeapObject> code) {
@@ -5039,8 +5074,7 @@ void Isolate::OnTerminationDuringRunMicrotasks() {
   heap()->set_current_microtask(ReadOnlyRoots(this).undefined_value());
 
   // Empty the promise stack.
-  while (PopPromise()) {
-  }
+  debug()->thread_local_.promise_stack_ = Smi::zero();
 
   if (current_microtask->IsPromiseReactionJobTask()) {
     Handle<PromiseReactionJobTask> promise_reaction_job_task =

@@ -139,8 +139,8 @@ CodeT FeedbackVector::optimized_code() const {
   return code;
 }
 
-OptimizationMarker FeedbackVector::optimization_marker() const {
-  return OptimizationMarkerBits::decode(flags());
+TieringState FeedbackVector::tiering_state() const {
+  return TieringStateBits::decode(flags());
 }
 
 bool FeedbackVector::has_optimized_code() const {
@@ -154,10 +154,6 @@ bool FeedbackVector::maybe_has_optimized_code() const {
 
 void FeedbackVector::set_maybe_has_optimized_code(bool value) {
   set_flags(MaybeHasOptimizedCodeBit::update(flags(), value));
-}
-
-bool FeedbackVector::has_optimization_marker() const {
-  return optimization_marker() != OptimizationMarker::kNone;
 }
 
 // Conversion from an integer index to either a slot or an ic slot.

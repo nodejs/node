@@ -144,13 +144,17 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
         "the isolate snapshot");
   }
 #endif  // DEBUG
-  DCHECK(!IsUnexpectedCodeObject(isolate(), *obj));
+  {
+    DisallowGarbageCollection no_gc;
+    HeapObject raw = *obj;
+    DCHECK(!IsUnexpectedCodeObject(isolate(), raw));
+    if (SerializeHotObject(raw)) return;
+    if (IsRootAndHasBeenSerialized(raw) && SerializeRoot(raw)) return;
+  }
 
-  if (SerializeHotObject(obj)) return;
-  if (IsRootAndHasBeenSerialized(*obj) && SerializeRoot(obj)) return;
   if (SerializeUsingReadOnlyObjectCache(&sink_, obj)) return;
   if (SerializeUsingSharedHeapObjectCache(&sink_, obj)) return;
-  if (SerializeBackReference(obj)) return;
+  if (SerializeBackReference(*obj)) return;
 
   bool use_simulator = false;
 #ifdef USE_SIMULATOR

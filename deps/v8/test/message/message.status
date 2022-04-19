@@ -87,31 +87,11 @@
 }], # third_party_heap
 
 ##############################################################################
-['msan == True', {
-  # Large allocations
+['not (arch == x64 and mode == release)', {
+  # Only run these known slow tests on bots that we think to be reasonably
+  # fast.
   'fail/map-grow-failed': [SKIP],
   'fail/set-grow-failed': [SKIP],
-}],  # 'msan == True'
-
-##############################################################################
-['tsan == True', {
-  # Large allocations
-  'fail/map-grow-failed': [SKIP],
-  'fail/set-grow-failed': [SKIP],
-}],  # 'tsan == True'
-
-##############################################################################
-['simulator_run', {
-  # Too slow on simulators
-  'fail/map-grow-failed': [SKIP],
-  'fail/set-grow-failed': [SKIP],
-}],  # simulator_run
-
-##############################################################################
-['is_full_debug', {
-  # Too slow in non-optimized debug mode
-  'fail/map-grow-failed': [SKIP],
-  'fail/set-grow-failed': [SKIP],
-}],  # is_full_debug
+}],  # not (arch == x64 and mode == release)
 
 ]

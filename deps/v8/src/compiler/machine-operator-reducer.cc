@@ -3,15 +3,19 @@
 // found in the LICENSE file.
 
 #include "src/compiler/machine-operator-reducer.h"
+
 #include <cmath>
 #include <limits>
 
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/base/ieee754.h"
+#include "src/base/logging.h"
 #include "src/base/overflowing-math.h"
+#include "src/codegen/tnode.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/js-operator.h"
 #include "src/compiler/machine-graph.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -2187,6 +2191,123 @@ Reduction MachineOperatorReducer::ReduceFloat64RoundDown(Node* node) {
   return NoChange();
 }
 
+namespace {
+
+// Returns true if |node| is a constant whose value is 0.
+bool IsZero(Node* node) {
+  switch (node->opcode()) {
+#define CASE_IS_ZERO(opcode, matcher) \
+  case IrOpcode::opcode: {            \
+    matcher m(node);                  \
+    return m.Is(0);                   \
+  }
+    CASE_IS_ZERO(kInt32Constant, Int32Matcher)
+    CASE_IS_ZERO(kInt64Constant, Int64Matcher)
+#undef CASE_IS_ZERO
+    default:
+      break;
+  }
+  return false;
+}
+
+// If |node| is of the form "x == 0", then return "x" (in order to remove the
+// "== 0" part).
+base::Optional<Node*> TryGetInvertedCondition(Node* cond) {
+  if (cond->opcode() == IrOpcode::kWord32Equal) {
+    Int32BinopMatcher m(cond);
+    if (IsZero(m.right().node())) {
+      return m.left().node();
+    }
+  }
+  return base::nullopt;
+}
+
+struct SimplifiedCondition {
+  Node* condition;
+  bool is_inverted;
+};
+
+// Tries to simplifies |cond| by removing all top-level "== 0". Everytime such a
+// construction is removed, the meaning of the comparison is inverted. This is
+// recorded by the variable |is_inverted| throughout this function, and returned
+// at the end. If |is_inverted| is true at the end, the caller should invert the
+// if/else branches following the comparison.
+base::Optional<SimplifiedCondition> TrySimplifyCompareZero(Node* cond) {
+  bool is_inverted = false;
+  bool changed = false;
+  base::Optional<Node*> new_cond;
+  while ((new_cond = TryGetInvertedCondition(cond)).has_value()) {
+    cond = *new_cond;
+    is_inverted = !is_inverted;
+    changed = true;
+  }
+  if (changed) {
+    return SimplifiedCondition{cond, is_inverted};
+  } else {
+    return {};
+  }
+}
+
+}  // namespace
+
+void MachineOperatorReducer::SwapBranches(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kBranch);
+  for (Node* const use : node->uses()) {
+    switch (use->opcode()) {
+      case IrOpcode::kIfTrue:
+        NodeProperties::ChangeOp(use, common()->IfFalse());
+        break;
+      case IrOpcode::kIfFalse:
+        NodeProperties::ChangeOp(use, common()->IfTrue());
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+  NodeProperties::ChangeOp(
+      node, common()->Branch(NegateBranchHint(BranchHintOf(node->op()))));
+}
+
+// If |node| is a branch, removes all top-level 32-bit "== 0" from |node|.
+Reduction MachineOperatorReducer::SimplifyBranch(Node* node) {
+  Node* cond = node->InputAt(0);
+  if (auto simplified = TrySimplifyCompareZero(cond)) {
+    node->ReplaceInput(0, simplified->condition);
+    if (simplified->is_inverted) {
+      switch (node->opcode()) {
+        case IrOpcode::kBranch:
+          SwapBranches(node);
+          break;
+        case IrOpcode::kTrapIf:
+          NodeProperties::ChangeOp(node,
+                                   common()->TrapUnless(TrapIdOf(node->op())));
+          break;
+        case IrOpcode::kTrapUnless:
+          NodeProperties::ChangeOp(node,
+                                   common()->TrapIf(TrapIdOf(node->op())));
+          break;
+        case IrOpcode::kDeoptimizeIf: {
+          DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
+          NodeProperties::ChangeOp(
+              node, common()->DeoptimizeUnless(p.reason(), p.feedback()));
+          break;
+        }
+        case IrOpcode::kDeoptimizeUnless: {
+          DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
+          NodeProperties::ChangeOp(
+              node, common()->DeoptimizeIf(p.reason(), p.feedback()));
+          break;
+        }
+        default:
+
+          UNREACHABLE();
+      }
+    }
+    return Changed(node);
+  }
+  return NoChange();
+}
+
 Reduction MachineOperatorReducer::ReduceConditional(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kBranch ||
          node->opcode() == IrOpcode::kDeoptimizeIf ||
@@ -2197,17 +2318,18 @@ Reduction MachineOperatorReducer::ReduceConditional(Node* node) {
   // Reductions involving control flow happen elsewhere. Non-zero inputs are
   // considered true in all conditional ops.
   NodeMatcher condition(NodeProperties::GetValueInput(node, 0));
+  Reduction reduction = NoChange();
   if (condition.IsTruncateInt64ToInt32()) {
     if (auto replacement =
             ReduceConditionalN<Word64Adapter>(condition.node())) {
       NodeProperties::ReplaceValueInput(node, *replacement, 0);
-      return Changed(node);
+      reduction = Changed(node);
     }
   } else if (auto replacement = ReduceConditionalN<Word32Adapter>(node)) {
     NodeProperties::ReplaceValueInput(node, *replacement, 0);
-    return Changed(node);
+    reduction = Changed(node);
   }
-  return NoChange();
+  return reduction.FollowedBy(SimplifyBranch(node));
 }
 
 template <typename WordNAdapter>

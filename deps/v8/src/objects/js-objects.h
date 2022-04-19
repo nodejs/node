@@ -175,6 +175,13 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
       LookupIterator* it, Handle<Object> value,
       Maybe<ShouldThrow> should_throw);
 
+  // Add private fields to the receiver, ignoring extensibility and the
+  // traps. The caller should check that the private field does not already
+  // exist on the receiver before calling this method.
+  V8_WARN_UNUSED_RESULT static Maybe<bool> AddPrivateField(
+      LookupIterator* it, Handle<Object> value,
+      Maybe<ShouldThrow> should_throw);
+
   // ES6 9.1.6.1
   V8_WARN_UNUSED_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
       Isolate* isolate, Handle<JSObject> object, Handle<Object> key,
@@ -372,7 +379,6 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   DECL_GETTER(HasSealedElements, bool)
   DECL_GETTER(HasNonextensibleElements, bool)
 
-  DECL_GETTER(HasTypedArrayElements, bool)
   DECL_GETTER(HasTypedArrayOrRabGsabTypedArrayElements, bool)
 
   DECL_GETTER(HasFixedUint8ClampedElements, bool)
@@ -409,16 +415,6 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // to the default behavior that calls the setter.
   enum AccessorInfoHandling { FORCE_FIELD, DONT_FORCE_FIELD };
 
-  // Currently DefineOwnPropertyIgnoreAttributes invokes the setter
-  // interceptor and user-defined setters during define operations,
-  // even in places where it makes more sense to invoke the definer
-  // interceptor and not invoke the setter: e.g. both the definer and
-  // the setter interceptors are called in Object.defineProperty().
-  // kDefine allows us to implement the define semantics correctly
-  // in selected locations.
-  // TODO(joyee): see if we can deprecate the old behavior.
-  enum class EnforceDefineSemantics { kSet, kDefine };
-
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
   DefineOwnPropertyIgnoreAttributes(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
@@ -429,7 +425,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
       Maybe<ShouldThrow> should_throw,
       AccessorInfoHandling handling = DONT_FORCE_FIELD,
-      EnforceDefineSemantics semantics = EnforceDefineSemantics::kSet);
+      EnforceDefineSemantics semantics = EnforceDefineSemantics::kSet,
+      StoreOrigin store_origin = StoreOrigin::kNamed);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> V8_EXPORT_PRIVATE
   SetOwnPropertyIgnoreAttributes(Handle<JSObject> object, Handle<Name> name,
@@ -706,6 +703,12 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                            SeqCstAccessTag tag);
   inline void WriteToField(InternalIndex descriptor, PropertyDetails details,
                            Object value);
+
+  inline Object RawFastPropertyAtSwap(FieldIndex index, Object value,
+                                      SeqCstAccessTag tag);
+  inline Object RawFastPropertyAtSwap(PtrComprCageBase cage_base,
+                                      FieldIndex index, Object value,
+                                      SeqCstAccessTag tag);
 
   // Access to in object properties.
   inline int GetInObjectPropertyOffset(int index);

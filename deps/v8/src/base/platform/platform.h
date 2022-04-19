@@ -33,6 +33,7 @@
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 #if V8_OS_QNX
 #include "src/base/qnx-math.h"
@@ -313,6 +314,28 @@ class V8_BASE_EXPORT OS {
 
   [[noreturn]] static void ExitProcess(int exit_code);
 
+  // Whether the platform supports mapping a given address in another location
+  // in the address space.
+  V8_WARN_UNUSED_RESULT static constexpr bool IsRemapPageSupported() {
+#ifdef V8_OS_MACOS
+    return true;
+#else
+    return false;
+#endif
+  }
+
+  // Remaps already-mapped memory at |new_address| with |access| permissions.
+  //
+  // Both the source and target addresses must be page-aligned, and |size| must
+  // be a multiple of the system page size.  If there is already memory mapped
+  // at the target address, it is replaced by the new mapping.
+  //
+  // Must not be called if |IsRemapPagesSupported()| return false.
+  // Returns true for success.
+  V8_WARN_UNUSED_RESULT static bool RemapPages(const void* address, size_t size,
+                                               void* new_address,
+                                               MemoryPermission access);
+
  private:
   // These classes use the private memory management API below.
   friend class AddressSpaceReservation;
@@ -321,6 +344,7 @@ class V8_BASE_EXPORT OS {
   friend class v8::base::PageAllocator;
   friend class v8::base::VirtualAddressSpace;
   friend class v8::base::VirtualAddressSubspace;
+  FRIEND_TEST(OS, RemapPages);
 
   static size_t AllocatePageSize();
 

@@ -55,10 +55,8 @@ revoke();
 assertThrows(() => wrapped(), TypeError, "Cannot perform 'apply' on a proxy that has been revoked");
 
 // revoked proxy
-var wrapped = shadowRealm.evaluate(`
+assertThrows(() => shadowRealm.evaluate(`
 var revocable = Proxy.revocable(() => 1, {});
 revocable.revoke();
 revocable.proxy;
-`);
-var revoke = shadowRealm.evaluate('globalThis.revoke');
-assertThrows(() => wrapped(), TypeError, "Cannot perform 'apply' on a proxy that has been revoked");
+`), TypeError, "Cannot wrap target callable");

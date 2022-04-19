@@ -89,4 +89,12 @@
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
 
+##############################################################################
+['variant == maglev', {
+  # TODO(v8:7700): This test is in an infinite loop. The loop condition checks
+  # if the function is optimized, but maglev fails with unsupported bytecode.
+  # Re-enable this when maglev support all bytecodes.
+  'string-localecompare': [SKIP],
+}],  # variant == maglev
+
 ]

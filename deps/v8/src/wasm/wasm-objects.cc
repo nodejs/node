@@ -1054,7 +1054,7 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
     global_obj->set_tagged_buffer(*tagged_buffer);
   } else {
     DCHECK(maybe_tagged_buffer.is_null());
-    uint32_t type_size = type.element_size_bytes();
+    uint32_t type_size = type.value_kind_size();
 
     Handle<JSArrayBuffer> untagged_buffer;
     if (!maybe_untagged_buffer.ToHandle(&untagged_buffer)) {
@@ -1594,7 +1594,7 @@ wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
 wasm::WasmValue WasmArray::GetElement(uint32_t index) {
   wasm::ValueType element_type = type()->element_type();
   int element_offset =
-      WasmArray::kHeaderSize + index * element_type.element_size_bytes();
+      WasmArray::kHeaderSize + index * element_type.value_kind_size();
   Address element_address = GetFieldAddress(element_offset);
   using wasm::Simd128;
   switch (element_type.kind()) {
@@ -1810,6 +1810,17 @@ Handle<WasmSuspenderObject> WasmSuspenderObject::New(Isolate* isolate) {
   suspender->set_continuation(ReadOnlyRoots(isolate).undefined_value());
   suspender->set_parent(ReadOnlyRoots(isolate).undefined_value());
   suspender->set_state(Inactive);
+  // Instantiate the callable object which resumes this Suspender. This will be
+  // used implicitly as the onFulfilled callback of the returned JS promise.
+  Handle<WasmOnFulfilledData> function_data =
+      isolate->factory()->NewWasmOnFulfilledData(suspender);
+  Handle<SharedFunctionInfo> shared =
+      isolate->factory()->NewSharedFunctionInfoForWasmOnFulfilled(
+          function_data);
+  Handle<Context> context(isolate->native_context());
+  Handle<JSObject> resume =
+      Factory::JSFunctionBuilder{isolate, shared, context}.Build();
+  suspender->set_resume(*resume);
   return suspender;
 }
 
@@ -1820,7 +1831,7 @@ namespace {
 constexpr uint32_t kBytesPerExceptionValuesArrayElement = 2;
 
 size_t ComputeEncodedElementSize(wasm::ValueType type) {
-  size_t byte_size = type.element_size_bytes();
+  size_t byte_size = type.value_kind_size();
   DCHECK_EQ(byte_size % kBytesPerExceptionValuesArrayElement, 0);
   DCHECK_LE(1, byte_size / kBytesPerExceptionValuesArrayElement);
   return byte_size / kBytesPerExceptionValuesArrayElement;

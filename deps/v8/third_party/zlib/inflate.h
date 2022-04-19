@@ -86,7 +86,8 @@ struct inflate_state {
     int wrap;                   /* bit 0 true for zlib, bit 1 true for gzip,
                                    bit 2 true to validate check value */
     int havedict;               /* true if dictionary provided */
-    int flags;                  /* gzip header method and flags (0 if zlib) */
+    int flags;                  /* gzip header method and flags, 0 if zlib, or
+                                   -1 if raw or no header yet */
     unsigned dmax;              /* zlib header max distance (INFLATE_STRICT) */
     unsigned long check;        /* protected copy of check value */
     unsigned long total;        /* protected copy of output count */

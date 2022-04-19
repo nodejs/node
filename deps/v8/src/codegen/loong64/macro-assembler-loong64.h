@@ -417,6 +417,18 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #undef DEFINE_INSTRUCTION2
 #undef DEFINE_INSTRUCTION3
 
+  void SmiTag(Register dst, Register src) {
+    STATIC_ASSERT(kSmiTag == 0);
+    if (SmiValuesAre32Bits()) {
+      slli_d(dst, src, 32);
+    } else {
+      DCHECK(SmiValuesAre31Bits());
+      add_w(dst, src, src);
+    }
+  }
+
+  void SmiTag(Register reg) { SmiTag(reg, reg); }
+
   void SmiUntag(Register dst, const MemOperand& src);
   void SmiUntag(Register dst, Register src) {
     if (SmiValuesAre32Bits()) {
@@ -997,18 +1009,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // ---------------------------------------------------------------------------
   // Smi utilities.
-
-  void SmiTag(Register dst, Register src) {
-    STATIC_ASSERT(kSmiTag == 0);
-    if (SmiValuesAre32Bits()) {
-      slli_d(dst, src, 32);
-    } else {
-      DCHECK(SmiValuesAre31Bits());
-      add_w(dst, src, src);
-    }
-  }
-
-  void SmiTag(Register reg) { SmiTag(reg, reg); }
 
   // Test if the register contains a smi.
   inline void SmiTst(Register value, Register scratch) {

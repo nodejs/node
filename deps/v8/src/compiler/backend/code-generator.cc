@@ -171,7 +171,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
     ++lazy_deopt_count_;
     tasm()->BindExceptionHandler(exit->label());
   } else {
-    ++non_lazy_deopt_count_;
+    ++eager_deopt_count_;
     tasm()->bind(exit->label());
   }
   Builtin target = Deoptimizer::GetDeoptimizationEntry(deopt_kind);
@@ -327,17 +327,13 @@ void CodeGenerator::AssembleCode() {
   // emitted before emitting the deoptimization exits.
   PrepareForDeoptimizationExits(&deoptimization_exits_);
 
-  if (Deoptimizer::kSupportsFixedDeoptExitSizes) {
-    deopt_exit_start_offset_ = tasm()->pc_offset();
-  }
+  deopt_exit_start_offset_ = tasm()->pc_offset();
 
   // Assemble deoptimization exits.
   offsets_info_.deoptimization_exits = tasm()->pc_offset();
   int last_updated = 0;
-  // We sort the deoptimization exits here so that the lazy ones will
-  // be visited second last, and eagerwithresume last. We need this as on
-  // architectures where Deoptimizer::kSupportsFixedDeoptExitSizes is true,
-  // lazy deopts and eagerwithresume might need additional instructions.
+  // We sort the deoptimization exits here so that the lazy ones will be visited
+  // last. We need this as lazy deopts might need additional instructions.
   auto cmp = [](const DeoptimizationExit* a, const DeoptimizationExit* b) {
     // The deoptimization exits are sorted so that lazy deopt exits appear after
     // eager deopts.
@@ -349,9 +345,7 @@ void CodeGenerator::AssembleCode() {
     }
     return a->pc_offset() < b->pc_offset();
   };
-  if (Deoptimizer::kSupportsFixedDeoptExitSizes) {
-    std::sort(deoptimization_exits_.begin(), deoptimization_exits_.end(), cmp);
-  }
+  std::sort(deoptimization_exits_.begin(), deoptimization_exits_.end(), cmp);
 
   {
 #ifdef V8_TARGET_ARCH_PPC64
@@ -360,9 +354,7 @@ void CodeGenerator::AssembleCode() {
 #endif
     for (DeoptimizationExit* exit : deoptimization_exits_) {
       if (exit->emitted()) continue;
-      if (Deoptimizer::kSupportsFixedDeoptExitSizes) {
-        exit->set_deoptimization_id(next_deoptimization_id_++);
-      }
+      exit->set_deoptimization_id(next_deoptimization_id_++);
       result_ = AssembleDeoptimizerCall(exit);
       if (result_ != kSuccess) return;
 
@@ -906,7 +898,7 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   data->SetOptimizationId(Smi::FromInt(info->optimization_id()));
 
   data->SetDeoptExitStart(Smi::FromInt(deopt_exit_start_offset_));
-  data->SetNonLazyDeoptCount(Smi::FromInt(non_lazy_deopt_count_));
+  data->SetEagerDeoptCount(Smi::FromInt(eager_deopt_count_));
   data->SetLazyDeoptCount(Smi::FromInt(lazy_deopt_count_));
 
   if (info->has_shared_info()) {
@@ -1144,9 +1136,6 @@ DeoptimizationExit* CodeGenerator::BuildTranslation(
 #else   // DEBUG
       0);
 #endif  // DEBUG
-  if (!Deoptimizer::kSupportsFixedDeoptExitSizes) {
-    exit->set_deoptimization_id(next_deoptimization_id_++);
-  }
   if (immediate_args_count != 0) {
     auto immediate_args = zone()->New<ZoneVector<ImmediateOperand*>>(zone());
     InstructionOperandIterator imm_iter(

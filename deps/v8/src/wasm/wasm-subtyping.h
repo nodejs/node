@@ -27,14 +27,16 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
 // - Two numeric types are equivalent iff they are equal.
 // - T(ht1) ~ T(ht2) iff ht1 ~ ht2 for T in {ref, optref, rtt}.
 // Equivalence of heap types ht1 ~ ht2 is defined as follows:
-// - Two heap types are equivalent iff they are equal.
-// - TODO(7748): Implement iso-recursive canonicalization.
-V8_NOINLINE bool EquivalentTypes(ValueType type1, ValueType type2,
-                                 const WasmModule* module1,
-                                 const WasmModule* module2);
+// - Two non-index heap types are equivalent iff they are equal.
+// - Two indexed heap types are equivalent iff they are iso-recursive
+//   equivalent.
+V8_NOINLINE V8_EXPORT_PRIVATE bool EquivalentTypes(ValueType type1,
+                                                   ValueType type2,
+                                                   const WasmModule* module1,
+                                                   const WasmModule* module2);
 
-// Checks if subtype, defined in module1, is a subtype of supertype, defined in
-// module2.
+// Checks if {subtype}, defined in {module1}, is a subtype of {supertype},
+// defined in {module2}.
 // Subtyping between value types is described by the following rules
 // (structural subtyping):
 // - numeric types are subtype-related iff they are equal.
@@ -54,7 +56,7 @@ V8_NOINLINE bool EquivalentTypes(ValueType type1, ValueType type2,
 // - All structs are subtypes of data.
 // - All arrays are subtypes of array.
 // - An indexed heap type h1 is a subtype of indexed heap type h2 if h2 is
-//   transitively an explicit supertype of h1.
+//   transitively an explicit canonical supertype of h1.
 V8_INLINE bool IsSubtypeOf(ValueType subtype, ValueType supertype,
                            const WasmModule* sub_module,
                            const WasmModule* super_module) {
@@ -62,7 +64,7 @@ V8_INLINE bool IsSubtypeOf(ValueType subtype, ValueType supertype,
   return IsSubtypeOfImpl(subtype, supertype, sub_module, super_module);
 }
 
-// Checks if 'subtype' is a subtype of 'supertype' (both defined in module).
+// Checks if {subtype} is a subtype of {supertype} (both defined in {module}).
 V8_INLINE bool IsSubtypeOf(ValueType subtype, ValueType supertype,
                            const WasmModule* module) {
   // If the types are trivially identical, exit early.

@@ -57,7 +57,6 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
     FIELD(SlotSet* [kNumSets], SlotSet),
     FIELD(ProgressBar, ProgressBar),
     FIELD(std::atomic<intptr_t>, LiveByteCount),
-    FIELD(SlotSet*, SweepingSlotSet),
     FIELD(TypedSlotsSet* [kNumSets], TypedSlotSet),
     FIELD(void* [kNumSets], InvalidatedSlots),
     FIELD(base::Mutex*, Mutex),

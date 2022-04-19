@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { MINIMUM_EDGE_SEPARATION, Edge } from "../src/edge";
+import { Edge } from "../src/edge";
 import { NodeLabel } from "./node-label";
 import { MAX_RANK_SENTINEL } from "./constants";
 import { alignUp, measureText } from "./util";
@@ -10,6 +10,7 @@ import { alignUp, measureText } from "./util";
 export const DEFAULT_NODE_BUBBLE_RADIUS = 12;
 export const NODE_INPUT_WIDTH = 50;
 export const MINIMUM_NODE_OUTPUT_APPROACH = 15;
+export const MINIMUM_EDGE_SEPARATION = 20;
 const MINIMUM_NODE_INPUT_APPROACH = 15 + 2 * DEFAULT_NODE_BUBBLE_RADIUS;
 
 export class GNode {
