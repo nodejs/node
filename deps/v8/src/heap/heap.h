@@ -697,7 +697,9 @@ class Heap {
 
   V8_EXPORT_PRIVATE double MonotonicallyIncreasingTimeInMs() const;
 
+#if DEBUG
   void VerifyNewSpaceTop();
+#endif  // DEBUG
 
   void RecordStats(HeapStats* stats, bool take_snapshot = false);
 
@@ -782,6 +784,12 @@ class Heap {
     set_max_old_generation_size(
         std::min(max_old_generation_size(), std::max(heap_limit, min_limit)));
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  // TODO(manoskouk): Inline this if STRONG_MUTABLE_MOVABLE_ROOT_LIST setters
+  // become public.
+  void EnsureWasmCanonicalRttsSize(int length);
+#endif
 
   // ===========================================================================
   // Initialization. ===========================================================
@@ -2431,6 +2439,7 @@ class Heap {
   friend class ScavengeTaskObserver;
   friend class IgnoreLocalGCRequests;
   friend class IncrementalMarking;
+  friend class IncrementalMarkingRootMarkingVisitor;
   friend class IncrementalMarkingJob;
   friend class LargeObjectSpace;
   friend class LocalHeap;
@@ -2453,6 +2462,7 @@ class Heap {
   friend class StressConcurrentAllocationObserver;
   friend class Space;
   friend class Sweeper;
+  friend class UnifiedHeapMarkingState;
   friend class heap::TestMemoryAllocatorScope;
   friend class third_party_heap::Heap;
   friend class third_party_heap::Impl;

@@ -50,7 +50,6 @@
 #endif  // V8_ENABLE_WEBASSEMBLY
 #include "src/debug/liveedit.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/diagnostics/gdb-jit.h"
 #include "src/execution/embedder-state.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
@@ -157,9 +156,6 @@
 #include "src/base/platform/wrappers.h"
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN64
-#if defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-#include "src/diagnostics/system-jit-win.h"
-#endif
 #endif  // V8_OS_WIN
 
 // Has to be the last include (doesn't have include guards):
@@ -814,7 +810,7 @@ namespace internal {
 i::Address* GlobalizeTracedReference(i::Isolate* isolate, i::Address* obj,
                                      internal::Address* slot,
                                      GlobalHandleStoreMode store_mode) {
-  LOG_API(isolate, TracedGlobal, New);
+  API_RCS_SCOPE(isolate, TracedGlobal, New);
 #ifdef DEBUG
   Utils::ApiCheck((slot != nullptr), "v8::GlobalizeTracedReference",
                   "the address slot must be not null");
@@ -847,7 +843,7 @@ void DisposeTracedReference(internal::Address* location) {
 namespace api_internal {
 
 i::Address* GlobalizeReference(i::Isolate* isolate, i::Address* obj) {
-  LOG_API(isolate, Persistent, New);
+  API_RCS_SCOPE(isolate, Persistent, New);
   i::Handle<i::Object> result = isolate->global_handles()->Create(*obj);
 #ifdef VERIFY_HEAP
   if (i::FLAG_verify_heap) {
@@ -1338,7 +1334,7 @@ Local<FunctionTemplate> FunctionTemplate::New(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   // Changes to the environment cannot be captured in the snapshot. Expect no
   // function templates when the isolate is created for serialization.
-  LOG_API(i_isolate, FunctionTemplate, New);
+  API_RCS_SCOPE(i_isolate, FunctionTemplate, New);
 
   if (!Utils::ApiCheck(
           !c_function || behavior == ConstructorBehavior::kThrow,
@@ -1363,7 +1359,7 @@ Local<FunctionTemplate> FunctionTemplate::NewWithCFunctionOverloads(
     SideEffectType side_effect_type,
     const MemorySpan<const CFunction>& c_function_overloads) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, FunctionTemplate, New);
+  API_RCS_SCOPE(i_isolate, FunctionTemplate, New);
 
   if (!Utils::ApiCheck(
           c_function_overloads.size() == 0 ||
@@ -1384,7 +1380,7 @@ Local<FunctionTemplate> FunctionTemplate::NewWithCache(
     Local<Value> data, Local<Signature> signature, int length,
     SideEffectType side_effect_type) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, FunctionTemplate, NewWithCache);
+  API_RCS_SCOPE(i_isolate, FunctionTemplate, NewWithCache);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   return FunctionTemplateNew(i_isolate, callback, data, signature, length,
                              ConstructorBehavior::kAllow, false, cache_property,
@@ -1567,7 +1563,7 @@ Local<ObjectTemplate> ObjectTemplate::New(
 static Local<ObjectTemplate> ObjectTemplateNew(
     i::Isolate* isolate, v8::Local<FunctionTemplate> constructor,
     bool do_not_cache) {
-  LOG_API(isolate, ObjectTemplate, New);
+  API_RCS_SCOPE(isolate, ObjectTemplate, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::Handle<i::Struct> struct_obj = isolate->factory()->NewStruct(
       i::OBJECT_TEMPLATE_INFO_TYPE, i::AllocationType::kOld);
@@ -2031,8 +2027,7 @@ Local<Script> UnboundScript::BindToCurrentContext() {
 
 int UnboundScript::GetId() const {
   auto function_info = i::SharedFunctionInfo::cast(*Utils::OpenHandle(this));
-  i::Isolate* isolate = function_info.GetIsolate();
-  LOG_API(isolate, UnboundScript, GetId);
+  API_RCS_SCOPE(function_info.GetIsolate(), UnboundScript, GetId);
   return i::Script::cast(function_info.script()).id();
 }
 
@@ -2041,7 +2036,7 @@ int UnboundScript::GetLineNumber(int code_pos) {
       i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
   i::Isolate* isolate = obj->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  LOG_API(isolate, UnboundScript, GetLineNumber);
+  API_RCS_SCOPE(isolate, UnboundScript, GetLineNumber);
   if (obj->script().IsScript()) {
     i::Handle<i::Script> script(i::Script::cast(obj->script()), isolate);
     return i::Script::GetLineNumber(script, code_pos);
@@ -2055,7 +2050,7 @@ Local<Value> UnboundScript::GetScriptName() {
       i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
   i::Isolate* isolate = obj->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  LOG_API(isolate, UnboundScript, GetName);
+  API_RCS_SCOPE(isolate, UnboundScript, GetName);
   if (obj->script().IsScript()) {
     i::Object name = i::Script::cast(obj->script()).name();
     return Utils::ToLocal(i::Handle<i::Object>(name, isolate));
@@ -2069,7 +2064,7 @@ Local<Value> UnboundScript::GetSourceURL() {
       i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
   i::Isolate* isolate = obj->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  LOG_API(isolate, UnboundScript, GetSourceURL);
+  API_RCS_SCOPE(isolate, UnboundScript, GetSourceURL);
   if (obj->script().IsScript()) {
     i::Object url = i::Script::cast(obj->script()).source_url();
     return Utils::ToLocal(i::Handle<i::Object>(url, isolate));
@@ -2082,7 +2077,7 @@ Local<Value> UnboundScript::GetSourceMappingURL() {
   i::Handle<i::SharedFunctionInfo> obj =
       i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
   i::Isolate* isolate = obj->GetIsolate();
-  LOG_API(isolate, UnboundScript, GetSourceMappingURL);
+  API_RCS_SCOPE(isolate, UnboundScript, GetSourceMappingURL);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   if (obj->script().IsScript()) {
     i::Object url = i::Script::cast(obj->script()).source_mapping_url();
@@ -3501,7 +3496,7 @@ MaybeLocal<Value> ValueDeserializer::ReadValue(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, ValueDeserializer, ReadValue, Value);
   i::MaybeHandle<i::Object> result;
   if (GetWireFormatVersion() > 0) {
-    result = private_->deserializer.ReadObject();
+    result = private_->deserializer.ReadObjectWrapper();
   } else {
     result =
         private_->deserializer.ReadObjectUsingEntireBufferForLegacyFormat();
@@ -4011,7 +4006,7 @@ std::unique_ptr<v8::BackingStore> v8::BackingStore::Reallocate(
     v8::Isolate* isolate, std::unique_ptr<v8::BackingStore> backing_store,
     size_t byte_length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, ArrayBuffer, BackingStore_Reallocate);
+  API_RCS_SCOPE(i_isolate, ArrayBuffer, BackingStore_Reallocate);
   Utils::ApiCheck(byte_length <= i::JSArrayBuffer::kMaxByteLength,
                   "v8::BackingStore::Reallocate", "byte_lenght is too large");
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -4241,7 +4236,7 @@ bool Value::SameValue(Local<Value> that) const {
 Local<String> Value::TypeOf(v8::Isolate* external_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  LOG_API(isolate, Value, TypeOf);
+  API_RCS_SCOPE(isolate, Value, TypeOf);
   return Utils::ToLocal(i::Object::TypeOf(isolate, Utils::OpenHandle(this)));
 }
 
@@ -5171,7 +5166,7 @@ MaybeLocal<Function> Function::New(Local<Context> context,
                                    int length, ConstructorBehavior behavior,
                                    SideEffectType side_effect_type) {
   i::Isolate* isolate = Utils::OpenHandle(*context)->GetIsolate();
-  LOG_API(isolate, Function, New);
+  API_RCS_SCOPE(isolate, Function, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   auto templ =
       FunctionTemplateNew(isolate, callback, data, Local<Signature>(), length,
@@ -5677,7 +5672,7 @@ int String::WriteUtf8(Isolate* v8_isolate, char* buffer, int capacity,
                       int* nchars_ref, int options) const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  LOG_API(isolate, String, WriteUtf8);
+  API_RCS_SCOPE(isolate, String, WriteUtf8);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   str = i::String::Flatten(isolate, str);
   i::DisallowGarbageCollection no_gc;
@@ -5695,7 +5690,7 @@ template <typename CharType>
 static inline int WriteHelper(i::Isolate* isolate, const String* string,
                               CharType* buffer, int start, int length,
                               int options) {
-  LOG_API(isolate, String, Write);
+  API_RCS_SCOPE(isolate, String, Write);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   DCHECK(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(string);
@@ -6376,7 +6371,7 @@ Local<Context> NewContext(
   CHECK(isolate->builtins()->code(i::Builtin::kIllegal).IsCodeT());
 
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.NewContext");
-  LOG_API(isolate, Context, New);
+  API_RCS_SCOPE(isolate, Context, New);
   i::HandleScope scope(isolate);
   ExtensionConfiguration no_extensions;
   if (extensions == nullptr) extensions = &no_extensions;
@@ -6421,7 +6416,7 @@ MaybeLocal<Object> v8::Context::NewRemoteContext(
     v8::Isolate* external_isolate, v8::Local<ObjectTemplate> global_template,
     v8::MaybeLocal<v8::Value> global_object) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
-  LOG_API(isolate, Context, NewRemoteContext);
+  API_RCS_SCOPE(isolate, Context, NewRemoteContext);
   i::HandleScope scope(isolate);
   i::Handle<i::FunctionTemplateInfo> global_constructor =
       EnsureConstructor(isolate, *global_template);
@@ -6691,7 +6686,7 @@ MaybeLocal<v8::Function> FunctionTemplate::GetFunction(Local<Context> context) {
 MaybeLocal<v8::Object> FunctionTemplate::NewRemoteInstance() {
   auto self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
-  LOG_API(isolate, FunctionTemplate, NewRemoteInstance);
+  API_RCS_SCOPE(isolate, FunctionTemplate, NewRemoteInstance);
   i::HandleScope scope(isolate);
   i::Handle<i::FunctionTemplateInfo> constructor =
       EnsureConstructor(isolate, *InstanceTemplate());
@@ -6752,7 +6747,7 @@ Local<External> v8::External::New(Isolate* isolate, void* value) {
   // constructors.
   DCHECK_NOT_NULL(value);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, External, New);
+  API_RCS_SCOPE(i_isolate, External, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::JSObject> external = i_isolate->factory()->NewExternal(value);
   return Utils::ExternalToLocal(external);
@@ -6828,7 +6823,7 @@ STATIC_ASSERT(v8::String::kMaxLength == i::String::kMaxLength);
   } else {                                                                 \
     i::Isolate* i_isolate = reinterpret_cast<internal::Isolate*>(isolate); \
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);                            \
-    LOG_API(i_isolate, class_name, function_name);                         \
+    API_RCS_SCOPE(i_isolate, class_name, function_name);                   \
     if (length < 0) length = StringLength(data);                           \
     i::Handle<i::String> handle_result =                                   \
         NewString(i_isolate->factory(), type,                              \
@@ -6842,7 +6837,7 @@ Local<String> String::NewFromUtf8Literal(Isolate* isolate, const char* literal,
   DCHECK_LE(length, i::String::kMaxLength);
   i::Isolate* i_isolate = reinterpret_cast<internal::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  LOG_API(i_isolate, String, NewFromUtf8Literal);
+  API_RCS_SCOPE(i_isolate, String, NewFromUtf8Literal);
   i::Handle<i::String> handle_result =
       NewString(i_isolate->factory(), type,
                 base::Vector<const char>(literal, length))
@@ -6874,7 +6869,7 @@ Local<String> v8::String::Concat(Isolate* v8_isolate, Local<String> left,
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   i::Handle<i::String> left_string = Utils::OpenHandle(*left);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  LOG_API(isolate, String, Concat);
+  API_RCS_SCOPE(isolate, String, Concat);
   i::Handle<i::String> right_string = Utils::OpenHandle(*right);
   // If we are steering towards a range error, do not wait for the error to be
   // thrown, and return the null handle instead.
@@ -6896,7 +6891,7 @@ MaybeLocal<String> v8::String::NewExternalTwoByte(
   }
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  LOG_API(i_isolate, String, NewExternalTwoByte);
+  API_RCS_SCOPE(i_isolate, String, NewExternalTwoByte);
   if (resource->length() > 0) {
     i::Handle<i::String> string = i_isolate->factory()
                                       ->NewExternalStringFromTwoByte(resource)
@@ -6918,7 +6913,7 @@ MaybeLocal<String> v8::String::NewExternalOneByte(
   }
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  LOG_API(i_isolate, String, NewExternalOneByte);
+  API_RCS_SCOPE(i_isolate, String, NewExternalOneByte);
   if (resource->length() == 0) {
     // The resource isn't going to be used, free it immediately.
     resource->Dispose();
@@ -7011,7 +7006,7 @@ Isolate* v8::Object::GetIsolate() {
 
 Local<v8::Object> v8::Object::New(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, Object, New);
+  API_RCS_SCOPE(i_isolate, Object, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::JSObject> obj =
       i_isolate->factory()->NewJSObject(i_isolate->object_function());
@@ -7085,7 +7080,7 @@ Local<v8::Object> v8::Object::New(Isolate* isolate,
                        "v8::Object::New", "prototype must be null or object")) {
     return Local<v8::Object>();
   }
-  LOG_API(i_isolate, Object, New);
+  API_RCS_SCOPE(i_isolate, Object, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
 
   i::Handle<i::FixedArrayBase> elements =
@@ -7118,7 +7113,7 @@ Local<v8::Object> v8::Object::New(Isolate* isolate,
 
 Local<v8::Value> v8::NumberObject::New(Isolate* isolate, double value) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, NumberObject, New);
+  API_RCS_SCOPE(i_isolate, NumberObject, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::Object> number = i_isolate->factory()->NewNumber(value);
   i::Handle<i::Object> obj =
@@ -7130,14 +7125,13 @@ double v8::NumberObject::ValueOf() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::JSPrimitiveWrapper> js_primitive_wrapper =
       i::Handle<i::JSPrimitiveWrapper>::cast(obj);
-  i::Isolate* isolate = js_primitive_wrapper->GetIsolate();
-  LOG_API(isolate, NumberObject, NumberValue);
+  API_RCS_SCOPE(js_primitive_wrapper->GetIsolate(), NumberObject, NumberValue);
   return js_primitive_wrapper->value().Number();
 }
 
 Local<v8::Value> v8::BigIntObject::New(Isolate* isolate, int64_t value) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, BigIntObject, New);
+  API_RCS_SCOPE(i_isolate, BigIntObject, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::Object> bigint = i::BigInt::FromInt64(i_isolate, value);
   i::Handle<i::Object> obj =
@@ -7150,14 +7144,14 @@ Local<v8::BigInt> v8::BigIntObject::ValueOf() const {
   i::Handle<i::JSPrimitiveWrapper> js_primitive_wrapper =
       i::Handle<i::JSPrimitiveWrapper>::cast(obj);
   i::Isolate* isolate = js_primitive_wrapper->GetIsolate();
-  LOG_API(isolate, BigIntObject, BigIntValue);
+  API_RCS_SCOPE(isolate, BigIntObject, BigIntValue);
   return Utils::ToLocal(i::Handle<i::BigInt>(
       i::BigInt::cast(js_primitive_wrapper->value()), isolate));
 }
 
 Local<v8::Value> v8::BooleanObject::New(Isolate* isolate, bool value) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, BooleanObject, New);
+  API_RCS_SCOPE(i_isolate, BooleanObject, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::Object> boolean(value
                                    ? i::ReadOnlyRoots(i_isolate).true_value()
@@ -7172,7 +7166,7 @@ bool v8::BooleanObject::ValueOf() const {
   i::Object obj = *Utils::OpenHandle(this);
   i::JSPrimitiveWrapper js_primitive_wrapper = i::JSPrimitiveWrapper::cast(obj);
   i::Isolate* isolate = js_primitive_wrapper.GetIsolate();
-  LOG_API(isolate, BooleanObject, BooleanValue);
+  API_RCS_SCOPE(isolate, BooleanObject, BooleanValue);
   return js_primitive_wrapper.value().IsTrue(isolate);
 }
 
@@ -7180,7 +7174,7 @@ Local<v8::Value> v8::StringObject::New(Isolate* v8_isolate,
                                        Local<String> value) {
   i::Handle<i::String> string = Utils::OpenHandle(*value);
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  LOG_API(isolate, StringObject, New);
+  API_RCS_SCOPE(isolate, StringObject, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::Handle<i::Object> obj =
       i::Object::ToObject(isolate, string).ToHandleChecked();
@@ -7192,14 +7186,14 @@ Local<v8::String> v8::StringObject::ValueOf() const {
   i::Handle<i::JSPrimitiveWrapper> js_primitive_wrapper =
       i::Handle<i::JSPrimitiveWrapper>::cast(obj);
   i::Isolate* isolate = js_primitive_wrapper->GetIsolate();
-  LOG_API(isolate, StringObject, StringValue);
+  API_RCS_SCOPE(isolate, StringObject, StringValue);
   return Utils::ToLocal(i::Handle<i::String>(
       i::String::cast(js_primitive_wrapper->value()), isolate));
 }
 
 Local<v8::Value> v8::SymbolObject::New(Isolate* isolate, Local<Symbol> value) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, SymbolObject, New);
+  API_RCS_SCOPE(i_isolate, SymbolObject, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::Object> obj =
       i::Object::ToObject(i_isolate, Utils::OpenHandle(*value))
@@ -7212,7 +7206,7 @@ Local<v8::Symbol> v8::SymbolObject::ValueOf() const {
   i::Handle<i::JSPrimitiveWrapper> js_primitive_wrapper =
       i::Handle<i::JSPrimitiveWrapper>::cast(obj);
   i::Isolate* isolate = js_primitive_wrapper->GetIsolate();
-  LOG_API(isolate, SymbolObject, SymbolValue);
+  API_RCS_SCOPE(isolate, SymbolObject, SymbolValue);
   return Utils::ToLocal(i::Handle<i::Symbol>(
       i::Symbol::cast(js_primitive_wrapper->value()), isolate));
 }
@@ -7234,8 +7228,7 @@ MaybeLocal<v8::Value> v8::Date::New(Local<Context> context, double time) {
 double v8::Date::ValueOf() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::JSDate> jsdate = i::Handle<i::JSDate>::cast(obj);
-  i::Isolate* isolate = jsdate->GetIsolate();
-  LOG_API(isolate, Date, NumberValue);
+  API_RCS_SCOPE(jsdate->GetIsolate(), Date, NumberValue);
   return jsdate->value().Number();
 }
 
@@ -7328,7 +7321,7 @@ MaybeLocal<v8::Object> v8::RegExp::Exec(Local<Context> context,
 
 Local<v8::Array> v8::Array::New(Isolate* isolate, int length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, Array, New);
+  API_RCS_SCOPE(i_isolate, Array, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   int real_length = length > 0 ? length : 0;
   i::Handle<i::JSArray> obj = i_isolate->factory()->NewJSArray(real_length);
@@ -7342,7 +7335,7 @@ Local<v8::Array> v8::Array::New(Isolate* isolate, Local<Value>* elements,
                                 size_t length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Factory* factory = i_isolate->factory();
-  LOG_API(i_isolate, Array, New);
+  API_RCS_SCOPE(i_isolate, Array, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   int len = static_cast<int>(length);
 
@@ -7368,7 +7361,7 @@ uint32_t v8::Array::Length() const {
 
 Local<v8::Map> v8::Map::New(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, Map, New);
+  API_RCS_SCOPE(i_isolate, Map, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::JSMap> obj = i_isolate->factory()->NewJSMap();
   return Utils::ToLocal(obj);
@@ -7382,7 +7375,7 @@ size_t v8::Map::Size() const {
 void Map::Clear() {
   auto self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
-  LOG_API(isolate, Map, Clear);
+  API_RCS_SCOPE(isolate, Map, Clear);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::JSMap::Clear(isolate, self);
 }
@@ -7493,7 +7486,7 @@ i::Handle<i::JSArray> MapAsArray(i::Isolate* isolate, i::Object table_obj,
 Local<Array> Map::AsArray() const {
   i::Handle<i::JSMap> obj = Utils::OpenHandle(this);
   i::Isolate* isolate = obj->GetIsolate();
-  LOG_API(isolate, Map, AsArray);
+  API_RCS_SCOPE(isolate, Map, AsArray);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   return Utils::ToLocal(
       MapAsArray(isolate, obj->table(), 0, MapAsArrayKind::kEntries));
@@ -7501,7 +7494,7 @@ Local<Array> Map::AsArray() const {
 
 Local<v8::Set> v8::Set::New(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, Set, New);
+  API_RCS_SCOPE(i_isolate, Set, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::JSSet> obj = i_isolate->factory()->NewJSSet();
   return Utils::ToLocal(obj);
@@ -7515,7 +7508,7 @@ size_t v8::Set::Size() const {
 void Set::Clear() {
   auto self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
-  LOG_API(isolate, Set, Clear);
+  API_RCS_SCOPE(isolate, Set, Clear);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::JSSet::Clear(isolate, self);
 }
@@ -7596,7 +7589,7 @@ i::Handle<i::JSArray> SetAsArray(i::Isolate* isolate, i::Object table_obj,
 Local<Array> Set::AsArray() const {
   i::Handle<i::JSSet> obj = Utils::OpenHandle(this);
   i::Isolate* isolate = obj->GetIsolate();
-  LOG_API(isolate, Set, AsArray);
+  API_RCS_SCOPE(isolate, Set, AsArray);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   return Utils::ToLocal(
       SetAsArray(isolate, obj->table(), 0, SetAsArrayKind::kValues));
@@ -7703,7 +7696,7 @@ MaybeLocal<Promise> Promise::Then(Local<Context> context,
 bool Promise::HasHandler() const {
   i::JSReceiver promise = *Utils::OpenHandle(this);
   i::Isolate* isolate = promise.GetIsolate();
-  LOG_API(isolate, Promise, HasRejectHandler);
+  API_RCS_SCOPE(isolate, Promise, HasRejectHandler);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   if (!promise.IsJSPromise()) return false;
   return i::JSPromise::cast(promise).has_handler();
@@ -7712,7 +7705,7 @@ bool Promise::HasHandler() const {
 Local<Value> Promise::Result() {
   i::Handle<i::JSReceiver> promise = Utils::OpenHandle(this);
   i::Isolate* isolate = promise->GetIsolate();
-  LOG_API(isolate, Promise, Result);
+  API_RCS_SCOPE(isolate, Promise, Result);
   i::Handle<i::JSPromise> js_promise = i::Handle<i::JSPromise>::cast(promise);
   Utils::ApiCheck(js_promise->status() != kPending, "v8_Promise_Result",
                   "Promise is still pending");
@@ -7722,8 +7715,7 @@ Local<Value> Promise::Result() {
 
 Promise::PromiseState Promise::State() {
   i::Handle<i::JSReceiver> promise = Utils::OpenHandle(this);
-  i::Isolate* isolate = promise->GetIsolate();
-  LOG_API(isolate, Promise, Status);
+  API_RCS_SCOPE(promise->GetIsolate(), Promise, Status);
   i::Handle<i::JSPromise> js_promise = i::Handle<i::JSPromise>::cast(promise);
   return static_cast<PromiseState>(js_promise->status());
 }
@@ -7924,7 +7916,7 @@ void v8::ArrayBuffer::Detach() {
   i::Isolate* isolate = obj->GetIsolate();
   Utils::ApiCheck(obj->is_detachable(), "v8::ArrayBuffer::Detach",
                   "Only detachable ArrayBuffers can be detached");
-  LOG_API(isolate, ArrayBuffer, Detach);
+  API_RCS_SCOPE(isolate, ArrayBuffer, Detach);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   obj->Detach();
 }
@@ -7936,7 +7928,7 @@ size_t v8::ArrayBuffer::ByteLength() const {
 
 Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* isolate, size_t byte_length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, ArrayBuffer, New);
+  API_RCS_SCOPE(i_isolate, ArrayBuffer, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::MaybeHandle<i::JSArrayBuffer> result =
       i_isolate->factory()->NewJSArrayBufferAndBackingStore(
@@ -7957,7 +7949,7 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(
   CHECK_IMPLIES(backing_store->ByteLength() != 0,
                 backing_store->Data() != nullptr);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, ArrayBuffer, New);
+  API_RCS_SCOPE(i_isolate, ArrayBuffer, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   std::shared_ptr<i::BackingStore> i_backing_store(
       ToInternal(std::move(backing_store)));
@@ -7972,7 +7964,7 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(
 std::unique_ptr<v8::BackingStore> v8::ArrayBuffer::NewBackingStore(
     Isolate* isolate, size_t byte_length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, ArrayBuffer, NewBackingStore);
+  API_RCS_SCOPE(i_isolate, ArrayBuffer, NewBackingStore);
   CHECK_LE(byte_length, i::JSArrayBuffer::kMaxByteLength);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   std::unique_ptr<i::BackingStoreBase> backing_store =
@@ -8063,7 +8055,7 @@ static_assert(
   Local<Type##Array> Type##Array::New(Local<ArrayBuffer> array_buffer,     \
                                       size_t byte_offset, size_t length) { \
     i::Isolate* isolate = Utils::OpenHandle(*array_buffer)->GetIsolate();  \
-    LOG_API(isolate, Type##Array, New);                                    \
+    API_RCS_SCOPE(isolate, Type##Array, New);                              \
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);                              \
     if (!Utils::ApiCheck(length <= kMaxLength,                             \
                          "v8::" #Type                                      \
@@ -8082,7 +8074,7 @@ static_assert(
     CHECK(i::FLAG_harmony_sharedarraybuffer);                              \
     i::Isolate* isolate =                                                  \
         Utils::OpenHandle(*shared_array_buffer)->GetIsolate();             \
-    LOG_API(isolate, Type##Array, New);                                    \
+    API_RCS_SCOPE(isolate, Type##Array, New);                              \
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);                              \
     if (!Utils::ApiCheck(                                                  \
             length <= kMaxLength,                                          \
@@ -8105,7 +8097,7 @@ Local<DataView> DataView::New(Local<ArrayBuffer> array_buffer,
                               size_t byte_offset, size_t byte_length) {
   i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*array_buffer);
   i::Isolate* isolate = buffer->GetIsolate();
-  LOG_API(isolate, DataView, New);
+  API_RCS_SCOPE(isolate, DataView, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::Handle<i::JSDataView> obj =
       isolate->factory()->NewJSDataView(buffer, byte_offset, byte_length);
@@ -8117,7 +8109,7 @@ Local<DataView> DataView::New(Local<SharedArrayBuffer> shared_array_buffer,
   CHECK(i::FLAG_harmony_sharedarraybuffer);
   i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*shared_array_buffer);
   i::Isolate* isolate = buffer->GetIsolate();
-  LOG_API(isolate, DataView, New);
+  API_RCS_SCOPE(isolate, DataView, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::Handle<i::JSDataView> obj =
       isolate->factory()->NewJSDataView(buffer, byte_offset, byte_length);
@@ -8133,7 +8125,7 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(Isolate* isolate,
                                                     size_t byte_length) {
   CHECK(i::FLAG_harmony_sharedarraybuffer);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, SharedArrayBuffer, New);
+  API_RCS_SCOPE(i_isolate, SharedArrayBuffer, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
 
   std::unique_ptr<i::BackingStore> backing_store =
@@ -8157,7 +8149,7 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
   CHECK_IMPLIES(backing_store->ByteLength() != 0,
                 backing_store->Data() != nullptr);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, SharedArrayBuffer, New);
+  API_RCS_SCOPE(i_isolate, SharedArrayBuffer, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   std::shared_ptr<i::BackingStore> i_backing_store(ToInternal(backing_store));
   Utils::ApiCheck(
@@ -8171,7 +8163,7 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
 std::unique_ptr<v8::BackingStore> v8::SharedArrayBuffer::NewBackingStore(
     Isolate* isolate, size_t byte_length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, SharedArrayBuffer, NewBackingStore);
+  API_RCS_SCOPE(i_isolate, SharedArrayBuffer, NewBackingStore);
   CHECK_LE(byte_length, i::JSArrayBuffer::kMaxByteLength);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   std::unique_ptr<i::BackingStoreBase> backing_store =
@@ -8198,7 +8190,7 @@ std::unique_ptr<v8::BackingStore> v8::SharedArrayBuffer::NewBackingStore(
 
 Local<Symbol> v8::Symbol::New(Isolate* isolate, Local<String> name) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, Symbol, New);
+  API_RCS_SCOPE(i_isolate, Symbol, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::Symbol> result = i_isolate->factory()->NewSymbol();
   if (!name.IsEmpty()) result->set_description(*Utils::OpenHandle(*name));
@@ -8245,7 +8237,7 @@ WELL_KNOWN_SYMBOLS(SYMBOL_GETTER)
 
 Local<Private> v8::Private::New(Isolate* isolate, Local<String> name) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, Private, New);
+  API_RCS_SCOPE(i_isolate, Private, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::Symbol> symbol = i_isolate->factory()->NewPrivateSymbol();
   if (!name.IsEmpty()) symbol->set_description(*Utils::OpenHandle(*name));
@@ -8659,20 +8651,9 @@ void Isolate::Initialize(Isolate* isolate,
     // Set up code event handlers. Needs to be after i::Snapshot::Initialize
     // because that is where we add the isolate to WasmEngine.
     auto code_event_handler = params.code_event_handler;
-#ifdef ENABLE_GDB_JIT_INTERFACE
-    if (code_event_handler == nullptr && i::FLAG_gdbjit) {
-      code_event_handler = i::GDBJITInterface::EventHandler;
-    }
-#endif  // ENABLE_GDB_JIT_INTERFACE
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-    if (code_event_handler == nullptr &&
-        i::FLAG_enable_system_instrumentation) {
-      code_event_handler = i::ETWJITInterface::EventHandler;
-    }
-#endif  // defined(V8_OS_WIN)
-
     if (code_event_handler) {
-      isolate->SetJitCodeEventHandler(kJitCodeEventDefault, code_event_handler);
+      isolate->SetJitCodeEventHandler(kJitCodeEventEnumExisting,
+                                      code_event_handler);
     }
   }
 
@@ -9515,7 +9496,7 @@ void Isolate::SetAllowAtomicsWait(bool allow) {
 void v8::Isolate::DateTimeConfigurationChangeNotification(
     TimeZoneDetection time_zone_detection) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  LOG_API(i_isolate, Isolate, DateTimeConfigurationChangeNotification);
+  API_RCS_SCOPE(i_isolate, Isolate, DateTimeConfigurationChangeNotification);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i_isolate->date_cache()->ResetDateCache(
       static_cast<base::TimezoneCache::TimeZoneDetection>(time_zone_detection));
@@ -9531,7 +9512,7 @@ void v8::Isolate::DateTimeConfigurationChangeNotification(
 
 void v8::Isolate::LocaleConfigurationChangeNotification() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  LOG_API(i_isolate, Isolate, LocaleConfigurationChangeNotification);
+  API_RCS_SCOPE(i_isolate, Isolate, LocaleConfigurationChangeNotification);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
 
 #ifdef V8_INTL_SUPPORT
@@ -9541,7 +9522,7 @@ void v8::Isolate::LocaleConfigurationChangeNotification() {
 
 bool v8::Object::IsCodeLike(v8::Isolate* isolate) const {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, Object, IsCodeLike);
+  API_RCS_SCOPE(i_isolate, Object, IsCodeLike);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
   return Utils::OpenHandle(this)->IsCodeLike(i_isolate);
@@ -9648,7 +9629,7 @@ String::Value::~Value() { i::DeleteArray(str_); }
 #define DEFINE_ERROR(NAME, name)                                         \
   Local<Value> Exception::NAME(v8::Local<v8::String> raw_message) {      \
     i::Isolate* isolate = i::Isolate::Current();                         \
-    LOG_API(isolate, NAME, New);                                         \
+    API_RCS_SCOPE(isolate, NAME, New);                                   \
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);                            \
     i::Object error;                                                     \
     {                                                                    \

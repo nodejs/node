@@ -32,8 +32,8 @@ class TieringManager {
 
   void NotifyICChanged() { any_ic_changed_ = true; }
 
-  void AttemptOnStackReplacement(UnoptimizedFrame* frame,
-                                 int nesting_levels = 1);
+  // After this request, the next JumpLoop will perform OSR.
+  void RequestOsrAtNextOpportunity(JSFunction function);
 
   // For use when a JSFunction is available.
   static int InterruptBudgetFor(Isolate* isolate, JSFunction function);
@@ -43,12 +43,10 @@ class TieringManager {
  private:
   // Make the decision whether to optimize the given function, and mark it for
   // optimization if the decision was 'yes'.
-  void MaybeOptimizeFrame(JSFunction function, JavaScriptFrame* frame,
+  // This function is also responsible for bumping the OSR urgency.
+  void MaybeOptimizeFrame(JSFunction function, UnoptimizedFrame* frame,
                           CodeKind code_kind);
 
-  // Potentially attempts OSR from and returns whether no other
-  // optimization attempts should be made.
-  bool MaybeOSR(JSFunction function, UnoptimizedFrame* frame);
   OptimizationDecision ShouldOptimize(JSFunction function, CodeKind code_kind,
                                       JavaScriptFrame* frame);
   void Optimize(JSFunction function, CodeKind code_kind,

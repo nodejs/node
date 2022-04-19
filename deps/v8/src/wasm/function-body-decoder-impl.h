@@ -4233,7 +4233,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         // Byte sequences in data segments are interpreted as little endian for
         // the purposes of this instruction. This means that those will have to
         // be transformed in big endian architectures. TODO(7748): Implement.
-        if (element_type.element_size_bytes() > 1) {
+        if (element_type.value_kind_size() > 1) {
           UNIMPLEMENTED();
         }
 #endif

@@ -66,8 +66,6 @@ TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeToString)
 TO_BE_IMPLEMENTED(TemporalPlainDatePrototypeToJSON)
 
 /* Temporal.PlaneTime */
-/* Temporal #sec-temporal.plaintime.from */
-TO_BE_IMPLEMENTED(TemporalPlainTimeFrom)
 /* Temporal #sec-temporal.plaintime.compare */
 TO_BE_IMPLEMENTED(TemporalPlainTimeCompare)
 /* Temporal #sec-temporal.plaintime.prototype.add */
@@ -198,10 +196,6 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToPlainDate)
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToPlainTime)
 /* Temporal #sec-temporal.zoneddatetime.prototype.toplaindatetime */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToPlainDateTime)
-/* Temporal #sec-temporal.zoneddatetime.prototype.toplainyearmonth */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToPlainYearMonth)
-/* Temporal #sec-temporal.zoneddatetime.prototype.toplainmonthday */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToPlainMonthDay)
 
 /* Temporal.Duration */
 /* Temporal #sec-temporal.duration.from */
@@ -210,10 +204,6 @@ TO_BE_IMPLEMENTED(TemporalDurationFrom)
 TO_BE_IMPLEMENTED(TemporalDurationCompare)
 /* Temporal #sec-temporal.duration.prototype.with */
 TO_BE_IMPLEMENTED(TemporalDurationPrototypeWith)
-/* Temporal #sec-temporal.duration.prototype.negated */
-TO_BE_IMPLEMENTED(TemporalDurationPrototypeNegated)
-/* Temporal #sec-temporal.duration.prototype.abs */
-TO_BE_IMPLEMENTED(TemporalDurationPrototypeAbs)
 /* Temporal #sec-temporal.duration.prototype.add */
 TO_BE_IMPLEMENTED(TemporalDurationPrototypeAdd)
 /* Temporal #sec-temporal.duration.prototype.subtract */
@@ -228,16 +218,6 @@ TO_BE_IMPLEMENTED(TemporalDurationPrototypeToString)
 TO_BE_IMPLEMENTED(TemporalDurationPrototypeToJSON)
 
 /* Temporal.Instant */
-/* Temporal #sec-temporal.instant.from */
-TO_BE_IMPLEMENTED(TemporalInstantFrom)
-/* Temporal #sec-temporal.instant.fromepochseconds */
-TO_BE_IMPLEMENTED(TemporalInstantFromEpochSeconds)
-/* Temporal #sec-temporal.instant.fromepochmilliseconds */
-TO_BE_IMPLEMENTED(TemporalInstantFromEpochMilliseconds)
-/* Temporal #sec-temporal.instant.fromepochmicroseconds */
-TO_BE_IMPLEMENTED(TemporalInstantFromEpochMicroseconds)
-/* Temporal #sec-temporal.instant.fromepochnanoseconds */
-TO_BE_IMPLEMENTED(TemporalInstantFromEpochNanoseconds)
 /* Temporal #sec-temporal.instant.compare */
 TO_BE_IMPLEMENTED(TemporalInstantCompare)
 /* Temporal #sec-temporal.instant.prototype.add */
@@ -322,8 +302,6 @@ TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeGetPreviousTransition)
 TO_BE_IMPLEMENTED(TemporalTimeZonePrototypeToJSON)
 
 /* Temporal.Calendar */
-/* Temporal #sec-temporal.calendar.prototype.datefromfields */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDateFromFields)
 /* Temporal #sec-temporal.calendar.prototype.yearmonthfromfields */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeYearMonthFromFields)
 /* Temporal #sec-temporal.calendar.prototype.monthdayfromfields */
@@ -332,32 +310,14 @@ TO_BE_IMPLEMENTED(TemporalCalendarPrototypeMonthDayFromFields)
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDateAdd)
 /* Temporal #sec-temporal.calendar.prototype.dateuntil */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDateUntil)
-/* Temporal #sec-temporal.calendar.prototype.year */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeYear)
 /* Temporal #sec-temporal.calendar.prototype.month */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeMonth)
 /* Temporal #sec-temporal.calendar.prototype.monthcode */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeMonthCode)
 /* Temporal #sec-temporal.calendar.prototype.day */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDay)
-/* Temporal #sec-temporal.calendar.prototype.dayofweek */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDayOfWeek)
-/* Temporal #sec-temporal.calendar.prototype.dayofyear */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDayOfYear)
 /* Temporal #sec-temporal.calendar.prototype.weekofyear */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeWeekOfYear)
-/* Temporal #sec-temporal.calendar.prototype.daysinweek */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDaysInWeek)
-/* Temporal #sec-temporal.calendar.prototype.daysinmonth */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDaysInMonth)
-/* Temporal #sec-temporal.calendar.prototype.daysinyear */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeDaysInYear)
-/* Temporal #sec-temporal.calendar.prototype.monthsinyear */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeMonthsInYear)
-/* Temporal #sec-temporal.calendar.prototype.inleapyear */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeInLeapYear)
-/* Temporal #sec-temporal.calendar.prototype.mergefields */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeMergeFields)
 /* Temporal #sec-temporal.calendar.prototype.tojson */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeToJSON)
 
@@ -440,6 +400,17 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToLocaleString)
         JSTemporal##T ::METHOD(isolate, obj, args.atOrUndefined(isolate, 1))); \
   }
 
+#define TEMPORAL_PROTOTYPE_METHOD2(T, METHOD, name)                          \
+  BUILTIN(Temporal##T##Prototype##METHOD) {                                  \
+    HandleScope scope(isolate);                                              \
+    const char* method = "Temporal." #T ".prototype." #name;                 \
+    CHECK_RECEIVER(JSTemporal##T, obj, method);                              \
+    RETURN_RESULT_OR_FAILURE(                                                \
+        isolate,                                                             \
+        JSTemporal##T ::METHOD(isolate, obj, args.atOrUndefined(isolate, 1), \
+                               args.atOrUndefined(isolate, 2)));             \
+  }
+
 #define TEMPORAL_PROTOTYPE_METHOD3(T, METHOD, name)                          \
   BUILTIN(Temporal##T##Prototype##METHOD) {                                  \
     HandleScope scope(isolate);                                              \
@@ -479,6 +450,14 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToLocaleString)
     const char* method = "get Temporal." #T ".prototype." #field; \
     CHECK_RECEIVER(JSTemporal##T, obj, method);                   \
     return Smi::FromInt(obj->field());                            \
+  }
+
+#define TEMPORAL_METHOD1(T, METHOD)                                       \
+  BUILTIN(Temporal##T##METHOD) {                                          \
+    HandleScope scope(isolate);                                           \
+    RETURN_RESULT_OR_FAILURE(                                             \
+        isolate,                                                          \
+        JSTemporal##T ::METHOD(isolate, args.atOrUndefined(isolate, 1))); \
   }
 
 #define TEMPORAL_GET(T, METHOD, field)                            \
@@ -606,6 +585,7 @@ TEMPORAL_GET_SMI(PlainTime, Second, iso_second)
 TEMPORAL_GET_SMI(PlainTime, Millisecond, iso_millisecond)
 TEMPORAL_GET_SMI(PlainTime, Microsecond, iso_microsecond)
 TEMPORAL_GET_SMI(PlainTime, Nanosecond, iso_nanosecond)
+TEMPORAL_METHOD2(PlainTime, From)
 TEMPORAL_PROTOTYPE_METHOD0(PlainTime, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(PlainTime)
 
@@ -756,6 +736,8 @@ TEMPORAL_ZONED_DATE_TIME_GET_INT_BY_FORWARD_TIME_ZONE(Nanosecond,
                                                       iso_nanosecond)
 TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, WithCalendar, withCalendar)
 TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, WithTimeZone, withTimeZone)
+TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToPlainYearMonth, toPlainYearMonth)
+TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToPlainMonthDay, toPlainMonthDay)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, GetISOFields, getISOFields)
 TEMPORAL_VALUE_OF(ZonedDateTime)
 
@@ -788,10 +770,17 @@ TEMPORAL_GET(Duration, Microseconds, microseconds)
 TEMPORAL_GET(Duration, Nanoseconds, nanoseconds)
 TEMPORAL_PROTOTYPE_METHOD0(Duration, Sign, sign)
 TEMPORAL_PROTOTYPE_METHOD0(Duration, Blank, blank)
+TEMPORAL_PROTOTYPE_METHOD0(Duration, Negated, negated)
+TEMPORAL_PROTOTYPE_METHOD0(Duration, Abs, abs)
 TEMPORAL_VALUE_OF(Duration)
 
 // Instant
 TEMPORAL_CONSTRUCTOR1(Instant)
+TEMPORAL_METHOD1(Instant, FromEpochSeconds)
+TEMPORAL_METHOD1(Instant, FromEpochMilliseconds)
+TEMPORAL_METHOD1(Instant, FromEpochMicroseconds)
+TEMPORAL_METHOD1(Instant, FromEpochNanoseconds)
+TEMPORAL_METHOD1(Instant, From)
 TEMPORAL_VALUE_OF(Instant)
 TEMPORAL_GET(Instant, EpochNanoseconds, nanoseconds)
 TEMPORAL_GET_NUMBER_AFTER_DIVID(Instant, EpochSeconds, nanoseconds, 1000000000,
@@ -804,6 +793,16 @@ TEMPORAL_GET_BIGINT_AFTER_DIVID(Instant, EpochMicroseconds, nanoseconds, 1000,
 // Calendar
 TEMPORAL_CONSTRUCTOR1(Calendar)
 TEMPORAL_ID_BY_TO_STRING(Calendar)
+TEMPORAL_PROTOTYPE_METHOD2(Calendar, DateFromFields, dateFromFields)
+TEMPORAL_PROTOTYPE_METHOD1(Calendar, DaysInMonth, daysInMonth)
+TEMPORAL_PROTOTYPE_METHOD1(Calendar, DaysInWeek, daysInWeek)
+TEMPORAL_PROTOTYPE_METHOD1(Calendar, DaysInYear, daysInYear)
+TEMPORAL_PROTOTYPE_METHOD1(Calendar, DayOfWeek, dayOfWeek)
+TEMPORAL_PROTOTYPE_METHOD1(Calendar, DayOfYear, dayOfYear)
+TEMPORAL_PROTOTYPE_METHOD1(Calendar, InLeapYear, inLeapYear)
+TEMPORAL_PROTOTYPE_METHOD2(Calendar, MergeFields, mergeFields)
+TEMPORAL_PROTOTYPE_METHOD1(Calendar, MonthsInYear, monthsInYear)
+TEMPORAL_PROTOTYPE_METHOD1(Calendar, Year, year)
 TEMPORAL_TO_STRING(Calendar)
 // #sec-temporal.calendar.from
 BUILTIN(TemporalCalendarFrom) {

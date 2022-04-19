@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {delay, formatBytes} from './helper.mjs';
+
 export class V8CustomElement extends HTMLElement {
   _updateTimeoutId;
   _updateCallback = this.forceUpdate.bind(this);
@@ -34,23 +36,30 @@ export class V8CustomElement extends HTMLElement {
   }
 
   forceUpdate() {
+    this._updateTimeoutId = undefined;
     this._update();
   }
 
   _update() {
     throw Error('Subclass responsibility');
   }
+
+  get isFocused() {
+    return document.activeElement === this;
+  }
 }
 
 export class FileReader extends V8CustomElement {
   constructor(templateText) {
     super(templateText);
-    this.addEventListener('click', (e) => this.handleClick(e));
-    this.addEventListener('dragover', (e) => this.handleDragOver(e));
-    this.addEventListener('drop', (e) => this.handleChange(e));
-    this.$('#file').addEventListener('change', (e) => this.handleChange(e));
-    this.$('#fileReader')
-        .addEventListener('keydown', (e) => this.handleKeyEvent(e));
+    this.addEventListener('click', this.handleClick.bind(this));
+    this.addEventListener('dragover', this.handleDragOver.bind(this));
+    this.addEventListener('drop', this.handleChange.bind(this));
+    this.$('#file').addEventListener('change', this.handleChange.bind(this));
+    this.fileReader = this.$('#fileReader');
+    this.fileReader.addEventListener('keydown', this.handleKeyEvent.bind(this));
+    this.progressNode = this.$('#progress');
+    this.progressTextNode = this.$('#progressText');
   }
 
   set error(message) {
@@ -73,8 +82,6 @@ export class FileReader extends V8CustomElement {
   handleChange(event) {
     // Used for drop and file change.
     event.preventDefault();
-    this.dispatchEvent(
-        new CustomEvent('fileuploadstart', {bubbles: true, composed: true}));
     const host = event.dataTransfer ? event.dataTransfer : event.target;
     this.readFile(host.files[0]);
   }
@@ -87,26 +94,50 @@ export class FileReader extends V8CustomElement {
     this.fileReader.focus();
   }
 
-  get fileReader() {
-    return this.$('#fileReader');
-  }
-
   get root() {
     return this.$('#root');
   }
 
+  setProgress(progress, processedBytes = 0) {
+    this.progress = Math.max(0, Math.min(progress, 1));
+    this.processedBytes = processedBytes;
+  }
+
+  updateProgressBar() {
+    // Create a circular progress bar, starting at 12 o'clock.
+    this.progressNode.style.backgroundImage = `conic-gradient(
+          var(--primary-color) 0%,
+          var(--primary-color) ${this.progress * 100}%,
+          var(--surface-color) ${this.progress * 100}%)`;
+    this.progressTextNode.innerText =
+        this.processedBytes ? formatBytes(this.processedBytes, 1) : '';
+    if (this.root.className == 'loading') {
+      window.requestAnimationFrame(() => this.updateProgressBar());
+    }
+  }
+
   readFile(file) {
+    this.dispatchEvent(new CustomEvent('fileuploadstart', {
+      bubbles: true,
+      composed: true,
+      detail: {
+        progressCallback: this.setProgress.bind(this),
+        totalSize: file.size,
+      }
+    }));
     if (!file) {
       this.error = 'Failed to load file.';
       return;
     }
     this.fileReader.blur();
+    this.setProgress(0);
     this.root.className = 'loading';
     // Delay the loading a bit to allow for CSS animations to happen.
     window.requestAnimationFrame(() => this.asyncReadFile(file));
   }
 
   async asyncReadFile(file) {
+    this.updateProgressBar();
     const decoder = globalThis.TextDecoderStream;
     if (decoder) {
       await this._streamFile(file, decoder);
@@ -132,7 +163,10 @@ export class FileReader extends V8CustomElement {
       const readResult = await reader.read();
       chunk = readResult.value;
       readerDone = readResult.done;
-      if (chunk) this._handleFileChunk(chunk);
+      if (!chunk) break;
+      this._handleFileChunk(chunk);
+      // Artificial delay to allow for layout updates.
+      await delay(5);
     } while (!readerDone);
   }
 

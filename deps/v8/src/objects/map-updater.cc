@@ -297,14 +297,13 @@ struct IntegrityLevelTransitionInfo {
 IntegrityLevelTransitionInfo DetectIntegrityLevelTransitions(
     Map map, Isolate* isolate, DisallowGarbageCollection* no_gc,
     ConcurrencyMode cmode) {
-  const bool is_concurrent = cmode == ConcurrencyMode::kConcurrent;
   IntegrityLevelTransitionInfo info(map);
 
   // Figure out the most restrictive integrity level transition (it should
   // be the last one in the transition tree).
   DCHECK(!map.is_extensible());
   Map previous = Map::cast(map.GetBackPointer(isolate));
-  TransitionsAccessor last_transitions(isolate, previous, is_concurrent);
+  TransitionsAccessor last_transitions(isolate, previous, IsConcurrent(cmode));
   if (!last_transitions.HasIntegrityLevelTransitionTo(
           map, &info.integrity_level_symbol, &info.integrity_level)) {
     // The last transition was not integrity level transition - just bail out.
@@ -322,7 +321,7 @@ IntegrityLevelTransitionInfo DetectIntegrityLevelTransitions(
   // with integrity level transitions, just bail out.
   while (!source_map.is_extensible()) {
     previous = Map::cast(source_map.GetBackPointer(isolate));
-    TransitionsAccessor transitions(isolate, previous, is_concurrent);
+    TransitionsAccessor transitions(isolate, previous, IsConcurrent(cmode));
     if (!transitions.HasIntegrityLevelTransitionTo(source_map)) {
       return info;
     }
@@ -390,8 +389,7 @@ base::Optional<Map> MapUpdater::TryUpdateNoLock(Isolate* isolate, Map old_map,
 
   if (info.has_integrity_level_transition) {
     // Now replay the integrity level transition.
-    result = TransitionsAccessor(isolate, result,
-                                 cmode == ConcurrencyMode::kConcurrent)
+    result = TransitionsAccessor(isolate, result, IsConcurrent(cmode))
                  .SearchSpecial(info.integrity_level_symbol);
   }
   if (result.is_null()) return {};
@@ -571,7 +569,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
   }
 
   if (!old_map_->EquivalentToForTransition(*root_map_,
-                                           ConcurrencyMode::kNotConcurrent)) {
+                                           ConcurrencyMode::kSynchronous)) {
     return Normalize("Normalize_NotEquivalent");
   } else if (old_map_->is_extensible() != root_map_->is_extensible()) {
     DCHECK(!old_map_->is_extensible());

@@ -22,26 +22,34 @@ Truncation LeastGeneralTruncation(const Truncation& t1, const Truncation& t2,
   return LeastGeneralTruncation(LeastGeneralTruncation(t1, t2), t3);
 }
 
+void SimplifiedLoweringVerifier::CheckType(Node* node, const Type& type) {
+  CHECK(NodeProperties::IsTyped(node));
+  Type node_type = NodeProperties::GetType(node);
+  if (!type.Is(node_type)) {
+    std::ostringstream type_str;
+    type.PrintTo(type_str);
+    std::ostringstream node_type_str;
+    node_type.PrintTo(node_type_str);
+
+    FATAL(
+        "SimplifiedLoweringVerifierError: verified type %s of node #%d:%s "
+        "does not match with type %s assigned during lowering",
+        type_str.str().c_str(), node->id(), node->op()->mnemonic(),
+        node_type_str.str().c_str());
+  }
+}
+
 void SimplifiedLoweringVerifier::CheckAndSet(Node* node, const Type& type,
                                              const Truncation& trunc) {
   DCHECK(!type.IsInvalid());
 
   if (NodeProperties::IsTyped(node)) {
-    Type node_type = NodeProperties::GetType(node);
-    if (!type.Is(node_type)) {
-      std::ostringstream type_str;
-      type.PrintTo(type_str);
-      std::ostringstream node_type_str;
-      node_type.PrintTo(node_type_str);
-
-      FATAL(
-          "SimplifiedLoweringVerifierError: verified type %s of node #%d:%s "
-          "does not match with type %s assigned during lowering",
-          type_str.str().c_str(), node->id(), node->op()->mnemonic(),
-          node_type_str.str().c_str());
-    }
+    CheckType(node, type);
   } else {
-    NodeProperties::SetType(node, type);
+    // We store the type inferred by the verification pass. We do not update
+    // the node's type directly, because following phases might encounter
+    // unsound types as long as the verification is not complete.
+    SetType(node, type);
   }
   SetTruncation(node, GeneralizeTruncation(trunc, type));
 }
@@ -188,20 +196,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       break;
     }
     case IrOpcode::kTypeGuard: {
-      Type input_type = Type::Any();
-      if (is_recorded_type_guard(node)) {
-        // If this TypeGuard is recorded, it means that it has been introduced
-        // during lowering to provide type information for nodes that cannot be
-        // typed directly (e.g. constants), so we cannot assume the input node
-        // is typed.
-        if (NodeProperties::IsTyped(node->InputAt(0))) {
-          input_type = InputType(node, 0);
-        }
-      } else {
-        input_type = InputType(node, 0);
-      }
-      Type output_type = op_typer.TypeTypeGuard(node->op(), input_type);
-
+      Type output_type = op_typer.TypeTypeGuard(node->op(), InputType(node, 0));
       // TypeGuard has no effect on trunction, but the restricted type may help
       // generalize it.
       CheckAndSet(node, output_type, InputTruncation(node, 0));
@@ -237,6 +232,30 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
         // No values must be lost due to truncation.
         CHECK_EQ(input_trunc, Truncation::Any());
       }
+      break;
+    }
+    case IrOpcode::kSLVerifierHint: {
+      Type output_type = InputType(node, 0);
+      Truncation output_trunc = InputTruncation(node, 0);
+      const auto& p = SLVerifierHintParametersOf(node->op());
+
+      if (const Operator* semantics = p.semantics()) {
+        switch (semantics->opcode()) {
+          case IrOpcode::kPlainPrimitiveToNumber:
+            output_type = op_typer.ToNumber(output_type);
+            break;
+          default:
+            UNREACHABLE();
+        }
+        CheckType(node, output_type);
+      }
+
+      if (p.override_output_type()) {
+        output_type = *p.override_output_type();
+      }
+
+      SetType(node, output_type);
+      SetTruncation(node, GeneralizeTruncation(output_trunc, output_type));
       break;
     }
 

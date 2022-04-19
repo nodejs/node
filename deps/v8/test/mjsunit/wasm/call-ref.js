@@ -96,11 +96,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   print("--imported function from another module--");
   assertEquals(57, instance.exports.test_wasm_import());
-  /* TODO(7748): Implement cross-module type canonicalization.
   print("--not imported function defined in another module--");
   assertEquals(19, instance.exports.main(
     exporting_instance.exports.addition, 12, 7));
-*/
+
   print("--imported WebAssembly.Function--")
   assertEquals(21, instance.exports.test_js_api_import());
   print("--not imported WebAssembly.Function--")

@@ -383,8 +383,9 @@ int Code::raw_body_size() const {
 }
 
 int Code::InstructionSize() const {
-  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapInstructionSize()
-                                               : raw_instruction_size();
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapInstructionSize(*this, builtin_id())
+             : raw_instruction_size();
 }
 
 Address Code::raw_instruction_start() const {
@@ -392,8 +393,9 @@ Address Code::raw_instruction_start() const {
 }
 
 Address Code::InstructionStart() const {
-  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapInstructionStart()
-                                               : raw_instruction_start();
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? i::OffHeapInstructionStart(*this, builtin_id())
+             : raw_instruction_start();
 }
 
 Address Code::raw_instruction_end() const {
@@ -401,8 +403,9 @@ Address Code::raw_instruction_end() const {
 }
 
 Address Code::InstructionEnd() const {
-  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapInstructionEnd()
-                                               : raw_instruction_end();
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? i::OffHeapInstructionEnd(*this, builtin_id())
+             : raw_instruction_end();
 }
 
 Address Code::raw_metadata_start() const {
@@ -428,24 +431,14 @@ int Code::GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const {
   return static_cast<int>(offset);
 }
 
-Address Code::MetadataStart() const {
-  STATIC_ASSERT(kOnHeapBodyIsContiguous);
-  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapMetadataStart()
-                                               : raw_metadata_start();
-}
-
 Address Code::raw_metadata_end() const {
   return raw_metadata_start() + raw_metadata_size();
 }
 
-Address Code::MetadataEnd() const {
-  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapMetadataEnd()
-                                               : raw_metadata_end();
-}
-
 int Code::MetadataSize() const {
-  return V8_UNLIKELY(is_off_heap_trampoline()) ? OffHeapMetadataSize()
-                                               : raw_metadata_size();
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapMetadataSize(*this, builtin_id())
+             : raw_metadata_size();
 }
 
 int Code::SizeIncludingMetadata() const {
@@ -456,6 +449,48 @@ int Code::SizeIncludingMetadata() const {
   }
   return size;
 }
+
+Address Code::SafepointTableAddress() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapSafepointTableAddress(*this, builtin_id())
+             : raw_metadata_start() + safepoint_table_offset();
+}
+
+int Code::safepoint_table_size() const {
+  DCHECK_GE(handler_table_offset() - safepoint_table_offset(), 0);
+  return handler_table_offset() - safepoint_table_offset();
+}
+
+bool Code::has_safepoint_table() const { return safepoint_table_size() > 0; }
+
+Address Code::HandlerTableAddress() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapHandlerTableAddress(*this, builtin_id())
+             : raw_metadata_start() + handler_table_offset();
+}
+
+int Code::handler_table_size() const {
+  DCHECK_GE(constant_pool_offset() - handler_table_offset(), 0);
+  return constant_pool_offset() - handler_table_offset();
+}
+
+bool Code::has_handler_table() const { return handler_table_size() > 0; }
+
+int Code::constant_pool_size() const {
+  const int size = code_comments_offset() - constant_pool_offset();
+  DCHECK_IMPLIES(!FLAG_enable_embedded_constant_pool, size == 0);
+  DCHECK_GE(size, 0);
+  return size;
+}
+
+bool Code::has_constant_pool() const { return constant_pool_size() > 0; }
+
+int Code::code_comments_size() const {
+  DCHECK_GE(unwinding_info_offset() - code_comments_offset(), 0);
+  return unwinding_info_offset() - code_comments_offset();
+}
+
+bool Code::has_code_comments() const { return code_comments_size() > 0; }
 
 ByteArray Code::unchecked_relocation_info() const {
   PtrComprCageBase cage_base = main_cage_base();
@@ -596,23 +631,23 @@ inline bool Code::is_baseline_leave_frame_builtin() const {
 }
 
 #ifdef V8_EXTERNAL_CODE_SPACE
-// Note, must be in sync with Code::checks_optimization_marker().
-inline bool CodeDataContainer::checks_optimization_marker() const {
+// Note, must be in sync with Code::checks_tiering_state().
+inline bool CodeDataContainer::checks_tiering_state() const {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  bool checks_marker = (builtin_id() == Builtin::kCompileLazy ||
-                        builtin_id() == Builtin::kInterpreterEntryTrampoline ||
-                        CodeKindCanTierUp(kind()));
-  return checks_marker ||
+  bool checks_state = (builtin_id() == Builtin::kCompileLazy ||
+                       builtin_id() == Builtin::kInterpreterEntryTrampoline ||
+                       CodeKindCanTierUp(kind()));
+  return checks_state ||
          (CodeKindCanDeoptimize(kind()) && marked_for_deoptimization());
 }
 #endif  // V8_EXTERNAL_CODE_SPACE
 
-// Note, must be in sync with CodeDataContainer::checks_optimization_marker().
-inline bool Code::checks_optimization_marker() const {
-  bool checks_marker = (builtin_id() == Builtin::kCompileLazy ||
-                        builtin_id() == Builtin::kInterpreterEntryTrampoline ||
-                        CodeKindCanTierUp(kind()));
-  return checks_marker ||
+// Note, must be in sync with CodeDataContainer::checks_tiering_state().
+inline bool Code::checks_tiering_state() const {
+  bool checks_state = (builtin_id() == Builtin::kCompileLazy ||
+                       builtin_id() == Builtin::kInterpreterEntryTrampoline ||
+                       CodeKindCanTierUp(kind()));
+  return checks_state ||
          (CodeKindCanDeoptimize(kind()) && marked_for_deoptimization());
 }
 
@@ -752,25 +787,10 @@ void Code::set_embedded_objects_cleared(bool flag) {
   container.set_kind_specific_flags(updated, kRelaxedStore);
 }
 
-bool Code::deopt_already_counted() const {
-  DCHECK(CodeKindCanDeoptimize(kind()));
-  int32_t flags =
-      code_data_container(kAcquireLoad).kind_specific_flags(kRelaxedLoad);
-  return DeoptAlreadyCountedField::decode(flags);
-}
-
-void Code::set_deopt_already_counted(bool flag) {
-  DCHECK(CodeKindCanDeoptimize(kind()));
-  DCHECK_IMPLIES(flag, AllowDeoptimization::IsAllowed(GetIsolate()));
-  CodeDataContainer container = code_data_container(kAcquireLoad);
-  int32_t previous = container.kind_specific_flags(kRelaxedLoad);
-  int32_t updated = DeoptAlreadyCountedField::update(previous, flag);
-  container.set_kind_specific_flags(updated, kRelaxedStore);
-}
-
 bool Code::is_optimized_code() const {
   return CodeKindIsOptimizedJSFunction(kind());
 }
+
 bool Code::is_wasm_code() const { return kind() == CodeKind::WASM_FUNCTION; }
 
 int Code::constant_pool_offset() const {
@@ -792,18 +812,28 @@ void Code::set_constant_pool_offset(int value) {
 
 Address Code::constant_pool() const {
   if (!has_constant_pool()) return kNullAddress;
-  return MetadataStart() + constant_pool_offset();
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapConstantPoolAddress(*this, builtin_id())
+             : raw_metadata_start() + constant_pool_offset();
 }
 
 Address Code::code_comments() const {
-  return MetadataStart() + code_comments_offset();
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapCodeCommentsAddress(*this, builtin_id())
+             : raw_metadata_start() + code_comments_offset();
 }
 
 Address Code::unwinding_info_start() const {
-  return MetadataStart() + unwinding_info_offset();
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapUnwindingInfoAddress(*this, builtin_id())
+             : raw_metadata_start() + unwinding_info_offset();
 }
 
-Address Code::unwinding_info_end() const { return MetadataEnd(); }
+Address Code::unwinding_info_end() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapMetadataEnd(*this, builtin_id())
+             : raw_metadata_end();
+}
 
 int Code::unwinding_info_size() const {
   DCHECK_GE(unwinding_info_end(), unwinding_info_start());
@@ -1087,6 +1117,7 @@ inline bool CodeDataContainer::is_interpreter_trampoline_builtin() const {
     return FromCodeT(*this).name(cage_base);  \
   }
 
+DEF_PRIMITIVE_FORWARDING_CDC_GETTER(is_maglevved, bool)
 DEF_PRIMITIVE_FORWARDING_CDC_GETTER(is_turbofanned, bool)
 DEF_PRIMITIVE_FORWARDING_CDC_GETTER(is_off_heap_trampoline, bool)
 
@@ -1156,27 +1187,58 @@ void BytecodeArray::set_incoming_new_target_or_generator_register(
   }
 }
 
-int BytecodeArray::osr_loop_nesting_level() const {
-  return ACQUIRE_READ_INT8_FIELD(*this, kOsrLoopNestingLevelOffset);
+int BytecodeArray::osr_urgency() const {
+  return OsrUrgencyBits::decode(osr_urgency_and_install_target());
 }
 
-void BytecodeArray::set_osr_loop_nesting_level(int depth) {
-  DCHECK(0 <= depth && depth <= AbstractCode::kMaxLoopNestingMarker);
-  STATIC_ASSERT(AbstractCode::kMaxLoopNestingMarker < kMaxInt8);
-  RELEASE_WRITE_INT8_FIELD(*this, kOsrLoopNestingLevelOffset, depth);
+void BytecodeArray::set_osr_urgency(int urgency) {
+  DCHECK(0 <= urgency && urgency <= BytecodeArray::kMaxOsrUrgency);
+  STATIC_ASSERT(BytecodeArray::kMaxOsrUrgency <= OsrUrgencyBits::kMax);
+  uint32_t value = osr_urgency_and_install_target();
+  set_osr_urgency_and_install_target(OsrUrgencyBits::update(value, urgency));
 }
 
 BytecodeArray::Age BytecodeArray::bytecode_age() const {
   // Bytecode is aged by the concurrent marker.
-  return static_cast<Age>(RELAXED_READ_INT8_FIELD(*this, kBytecodeAgeOffset));
+  static_assert(kBytecodeAgeSize == kUInt16Size);
+  return static_cast<Age>(RELAXED_READ_INT16_FIELD(*this, kBytecodeAgeOffset));
+}
+
+void BytecodeArray::reset_osr_urgency() { set_osr_urgency(0); }
+
+void BytecodeArray::RequestOsrAtNextOpportunity() {
+  set_osr_urgency(kMaxOsrUrgency);
+}
+
+int BytecodeArray::osr_install_target() {
+  return OsrInstallTargetBits::decode(osr_urgency_and_install_target());
+}
+
+void BytecodeArray::set_osr_install_target(BytecodeOffset jump_loop_offset) {
+  DCHECK_LE(jump_loop_offset.ToInt(), length());
+  set_osr_urgency_and_install_target(OsrInstallTargetBits::update(
+      osr_urgency_and_install_target(), OsrInstallTargetFor(jump_loop_offset)));
+}
+
+void BytecodeArray::reset_osr_install_target() {
+  uint32_t value = osr_urgency_and_install_target();
+  set_osr_urgency_and_install_target(
+      OsrInstallTargetBits::update(value, kNoOsrInstallTarget));
+}
+
+void BytecodeArray::reset_osr_urgency_and_install_target() {
+  set_osr_urgency_and_install_target(OsrUrgencyBits::encode(0) |
+                                     OsrInstallTargetBits::encode(0));
 }
 
 void BytecodeArray::set_bytecode_age(BytecodeArray::Age age) {
   DCHECK_GE(age, kFirstBytecodeAge);
   DCHECK_LE(age, kLastBytecodeAge);
-  STATIC_ASSERT(kLastBytecodeAge <= kMaxInt8);
+  static_assert(kLastBytecodeAge <= kMaxInt16);
+  static_assert(kBytecodeAgeSize == kUInt16Size);
   // Bytecode is aged by the concurrent marker.
-  RELAXED_WRITE_INT8_FIELD(*this, kBytecodeAgeOffset, static_cast<int8_t>(age));
+  RELAXED_WRITE_INT16_FIELD(*this, kBytecodeAgeOffset,
+                            static_cast<int16_t>(age));
 }
 
 int32_t BytecodeArray::parameter_count() const {
@@ -1239,7 +1301,7 @@ DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OptimizationId, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(DeoptExitStart, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(NonLazyDeoptCount, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(EagerDeoptCount, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(LazyDeoptCount, Smi)
 
 DEFINE_DEOPT_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)

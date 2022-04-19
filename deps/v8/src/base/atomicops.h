@@ -130,6 +130,12 @@ inline Atomic32 Relaxed_AtomicExchange(volatile Atomic32* ptr,
                                        std::memory_order_relaxed);
 }
 
+inline Atomic32 SeqCst_AtomicExchange(volatile Atomic32* ptr,
+                                      Atomic32 new_value) {
+  return std::atomic_exchange_explicit(helper::to_std_atomic(ptr), new_value,
+                                       std::memory_order_seq_cst);
+}
+
 inline Atomic32 Relaxed_AtomicIncrement(volatile Atomic32* ptr,
                                         Atomic32 increment) {
   return increment + std::atomic_fetch_add_explicit(helper::to_std_atomic(ptr),
@@ -265,6 +271,12 @@ inline Atomic64 Relaxed_AtomicExchange(volatile Atomic64* ptr,
                                        Atomic64 new_value) {
   return std::atomic_exchange_explicit(helper::to_std_atomic(ptr), new_value,
                                        std::memory_order_relaxed);
+}
+
+inline Atomic64 SeqCst_AtomicExchange(volatile Atomic64* ptr,
+                                      Atomic64 new_value) {
+  return std::atomic_exchange_explicit(helper::to_std_atomic(ptr), new_value,
+                                       std::memory_order_seq_cst);
 }
 
 inline Atomic64 Relaxed_AtomicIncrement(volatile Atomic64* ptr,

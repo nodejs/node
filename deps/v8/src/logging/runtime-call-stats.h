@@ -322,6 +322,7 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AllocateGeneralRegisters)        \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AssembleCode)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AssignSpillSlots)                \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BranchConditionDuplication)      \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BuildLiveRangeBundles)           \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BuildLiveRanges)                 \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BytecodeGraphBuilder)            \
@@ -486,7 +487,9 @@ class RuntimeCallTimer final {
   V(WebSnapshotDeserialize_Functions)          \
   V(WebSnapshotDeserialize_Maps)               \
   V(WebSnapshotDeserialize_Objects)            \
-  V(WebSnapshotDeserialize_Strings)
+  V(WebSnapshotDeserialize_Strings)            \
+  V(WrappedFunctionLengthGetter)               \
+  V(WrappedFunctionNameGetter)
 
 #define FOR_EACH_HANDLER_COUNTER(V)               \
   V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)     \
@@ -684,7 +687,7 @@ class WorkerThreadRuntimeCallStats final {
 // Creating a WorkerThreadRuntimeCallStatsScope will provide a thread-local
 // runtime call stats table, and will dump the table to an immediate trace event
 // when it is destroyed.
-class V8_NODISCARD WorkerThreadRuntimeCallStatsScope final {
+class V8_EXPORT_PRIVATE V8_NODISCARD WorkerThreadRuntimeCallStatsScope final {
  public:
   WorkerThreadRuntimeCallStatsScope() = default;
   explicit WorkerThreadRuntimeCallStatsScope(

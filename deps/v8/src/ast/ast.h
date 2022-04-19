@@ -236,6 +236,8 @@ class Expression : public AstNode {
   // True iff the expression is the null literal.
   bool IsNullLiteral() const;
 
+  bool IsBooleanLiteral() const;
+
   // True iff the expression is the hole literal.
   bool IsTheHoleLiteral() const;
 
@@ -955,6 +957,11 @@ class Literal final : public Expression {
     return Smi::FromInt(smi_);
   }
 
+  bool AsBooleanLiteral() const {
+    DCHECK_EQ(kBoolean, type());
+    return boolean_;
+  }
+
   // Returns true if literal represents a Number.
   bool IsNumber() const { return type() == kHeapNumber || type() == kSmi; }
   double AsNumber() const {
@@ -1598,14 +1605,14 @@ class OptionalChain final : public Expression {
 // Otherwise, the assignment is to a non-property (a global, a local slot, a
 // parameter slot, or a destructuring pattern).
 enum AssignType {
-  NON_PROPERTY,              // destructuring
-  NAMED_PROPERTY,            // obj.key
-  KEYED_PROPERTY,            // obj[key]
-  NAMED_SUPER_PROPERTY,      // super.key
-  KEYED_SUPER_PROPERTY,      // super[key]
-  PRIVATE_METHOD,            // obj.#key: #key is a private method
-  PRIVATE_GETTER_ONLY,       // obj.#key: #key only has a getter defined
-  PRIVATE_SETTER_ONLY,       // obj.#key: #key only has a setter defined
+  NON_PROPERTY,          // destructuring
+  NAMED_PROPERTY,        // obj.key
+  KEYED_PROPERTY,        // obj[key] and obj.#key when #key is a private field
+  NAMED_SUPER_PROPERTY,  // super.key
+  KEYED_SUPER_PROPERTY,  // super[key]
+  PRIVATE_METHOD,        // obj.#key: #key is a private method
+  PRIVATE_GETTER_ONLY,   // obj.#key: #key only has a getter defined
+  PRIVATE_SETTER_ONLY,   // obj.#key: #key only has a setter defined
   PRIVATE_GETTER_AND_SETTER  // obj.#key: #key has both accessors defined
 };
 
@@ -1963,6 +1970,7 @@ class CompareOperation final : public Expression {
 
   // Match special cases.
   bool IsLiteralCompareTypeof(Expression** expr, Literal** literal);
+  bool IsLiteralStrictCompareBoolean(Expression** expr, Literal** literal);
   bool IsLiteralCompareUndefined(Expression** expr);
   bool IsLiteralCompareNull(Expression** expr);
 

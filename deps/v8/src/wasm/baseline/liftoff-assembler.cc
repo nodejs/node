@@ -391,6 +391,10 @@ enum MergeAllowConstants : bool {
   kConstantsAllowed = true,
   kConstantsNotAllowed = false
 };
+enum MergeAllowRegisters : bool {
+  kRegistersAllowed = true,
+  kRegistersNotAllowed = false
+};
 enum ReuseRegisters : bool {
   kReuseRegisters = true,
   kNoReuseRegisters = false
@@ -399,6 +403,7 @@ void InitMergeRegion(LiftoffAssembler::CacheState* state,
                      const VarState* source, VarState* target, uint32_t count,
                      MergeKeepStackSlots keep_stack_slots,
                      MergeAllowConstants allow_constants,
+                     MergeAllowRegisters allow_registers,
                      ReuseRegisters reuse_registers, LiftoffRegList used_regs) {
   RegisterReuseMap register_reuse_map;
   for (const VarState* source_end = source + count; source < source_end;
@@ -409,18 +414,21 @@ void InitMergeRegion(LiftoffAssembler::CacheState* state,
       continue;
     }
     base::Optional<LiftoffRegister> reg;
-    // First try: Keep the same register, if it's free.
-    if (source->is_reg() && state->is_free(source->reg())) {
-      reg = source->reg();
-    }
-    // Second try: Use the same register we used before (if we reuse registers).
-    if (!reg && reuse_registers) {
-      reg = register_reuse_map.Lookup(source->reg());
-    }
-    // Third try: Use any free register.
-    RegClass rc = reg_class_for(source->kind());
-    if (!reg && state->has_unused_register(rc, used_regs)) {
-      reg = state->unused_register(rc, used_regs);
+    if (allow_registers) {
+      // First try: Keep the same register, if it's free.
+      if (source->is_reg() && state->is_free(source->reg())) {
+        reg = source->reg();
+      }
+      // Second try: Use the same register we used before (if we reuse
+      // registers).
+      if (!reg && reuse_registers) {
+        reg = register_reuse_map.Lookup(source->reg());
+      }
+      // Third try: Use any free register.
+      RegClass rc = reg_class_for(source->kind());
+      if (!reg && state->has_unused_register(rc, used_regs)) {
+        reg = state->unused_register(rc, used_regs);
+      }
     }
     if (!reg) {
       // No free register; make this a stack slot.
@@ -469,9 +477,17 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
   for (auto& src : base::VectorOf(source_begin, num_locals)) {
     if (src.is_reg()) used_regs.set(src.reg());
   }
-  for (auto& src :
-       base::VectorOf(source_begin + stack_base + discarded, arity)) {
-    if (src.is_reg()) used_regs.set(src.reg());
+  // If there is more than one operand in the merge region, a stack-to-stack
+  // move can interfere with a register reload, which would not be handled
+  // correctly by the StackTransferRecipe. To avoid this, spill all registers in
+  // this region.
+  MergeAllowRegisters allow_registers =
+      arity <= 1 ? kRegistersAllowed : kRegistersNotAllowed;
+  if (allow_registers) {
+    for (auto& src :
+         base::VectorOf(source_begin + stack_base + discarded, arity)) {
+      if (src.is_reg()) used_regs.set(src.reg());
+    }
   }
 
   // Initialize the merge region. If this region moves, try to turn stack slots
@@ -480,7 +496,8 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
       discarded == 0 ? kKeepStackSlots : kTurnStackSlotsIntoRegisters;
   InitMergeRegion(this, source_begin + stack_base + discarded,
                   target_begin + stack_base, arity, keep_merge_stack_slots,
-                  kConstantsNotAllowed, kNoReuseRegisters, used_regs);
+                  kConstantsNotAllowed, allow_registers, kNoReuseRegisters,
+                  used_regs);
   // Shift spill offsets down to keep slots contiguous.
   int offset = stack_base == 0 ? StaticStackFrameSize()
                                : source.stack_state[stack_base - 1].offset();
@@ -493,7 +510,8 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
   // Initialize the locals region. Here, stack slots stay stack slots (because
   // they do not move). Try to keep register in registers, but avoid duplicates.
   InitMergeRegion(this, source_begin, target_begin, num_locals, kKeepStackSlots,
-                  kConstantsNotAllowed, kNoReuseRegisters, used_regs);
+                  kConstantsNotAllowed, kRegistersAllowed, kNoReuseRegisters,
+                  used_regs);
   // Consistency check: All the {used_regs} are really in use now.
   DCHECK_EQ(used_regs, used_registers & used_regs);
 
@@ -503,7 +521,7 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
   // source region, ensure to use the same register twice in the target region.
   InitMergeRegion(this, source_begin + num_locals, target_begin + num_locals,
                   stack_depth, kKeepStackSlots, kConstantsAllowed,
-                  kReuseRegisters, used_regs);
+                  kRegistersAllowed, kReuseRegisters, used_regs);
 }
 
 void LiftoffAssembler::CacheState::Steal(const CacheState& source) {
@@ -721,8 +739,8 @@ void LiftoffAssembler::MaterializeMergedConstants(uint32_t arity) {
 namespace {
 bool SlotInterference(const VarState& a, const VarState& b) {
   return a.is_stack() && b.is_stack() &&
-         b.offset() > a.offset() - element_size_bytes(a.kind()) &&
-         b.offset() - element_size_bytes(b.kind()) < a.offset();
+         b.offset() > a.offset() - value_kind_size(a.kind()) &&
+         b.offset() - value_kind_size(b.kind()) < a.offset();
 }
 
 bool SlotInterference(const VarState& a, base::Vector<const VarState> v) {
@@ -785,7 +803,7 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
     transfers.TransferStackSlot(target.stack_state[target_stack_base + i],
                                 cache_state_.stack_state[stack_base + i]);
     DCHECK(!SlotInterference(
-        target.stack_state[i],
+        target.stack_state[target_stack_base + i],
         base::VectorOf(cache_state_.stack_state.data() + stack_base + i + 1,
                        arity - i - 1)));
   }

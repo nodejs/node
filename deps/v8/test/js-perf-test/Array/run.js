@@ -10,7 +10,6 @@ let array;
 let func = 0;
 let this_arg;
 let result;
-let target;
 const array_size = 100;
 const max_index = array_size - 1;
 // Matches what {FastSetup} below produces.
@@ -142,8 +141,6 @@ d8.file.execute('join.js');
 d8.file.execute('to-string.js');
 d8.file.execute('slice.js');
 d8.file.execute('copy-within.js');
-d8.file.execute('index-of.js')
-d8.file.execute('includes.js')
 
 var success = true;
 

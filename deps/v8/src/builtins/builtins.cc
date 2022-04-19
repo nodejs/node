@@ -18,7 +18,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/visitors.h"
-#include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {

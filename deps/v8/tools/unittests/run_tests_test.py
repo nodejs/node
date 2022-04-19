@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2017 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -17,9 +17,6 @@ with different test suite extensions and build configurations.
 # TODO(machenbach): Coverage data from multiprocessing doesn't work.
 # TODO(majeski): Add some tests for the fuzzers.
 
-# for py2/py3 compatibility
-from __future__ import print_function
-
 import collections
 import contextlib
 import json
@@ -30,11 +27,7 @@ import sys
 import tempfile
 import unittest
 
-# TODO(https://crbug.com/1292016): Remove after Python3 migration.
-try:
-  from cStringIO import StringIO
-except ImportError:
-  from io import StringIO
+from io import StringIO
 
 TOOLS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEST_DATA_ROOT = os.path.join(TOOLS_ROOT, 'unittests', 'testdata')

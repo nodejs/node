@@ -839,7 +839,7 @@ class SetOrCopyDataPropertiesAssembler : public CodeStubAssembler {
                     1, IndexAdvanceMode::kPost);
               }
 
-              CallBuiltin(Builtin::kSetPropertyInLiteral, context, target, key,
+              CallBuiltin(Builtin::kCreateDataProperty, context, target, key,
                           value);
               Goto(&skip);
               Bind(&skip);
@@ -1362,14 +1362,14 @@ TF_BUILTIN(SetProperty, CodeStubAssembler) {
 // being initialized, and have not yet been made accessible to the user. Thus,
 // any operation here should be unobservable until after the object has been
 // returned.
-TF_BUILTIN(SetPropertyInLiteral, CodeStubAssembler) {
+TF_BUILTIN(CreateDataProperty, CodeStubAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<JSObject>(Descriptor::kReceiver);
   auto key = Parameter<Object>(Descriptor::kKey);
   auto value = Parameter<Object>(Descriptor::kValue);
 
-  KeyedStoreGenericGenerator::SetPropertyInLiteral(state(), context, receiver,
-                                                   key, value);
+  KeyedStoreGenericGenerator::CreateDataProperty(state(), context, receiver,
+                                                 key, value);
 }
 
 TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {

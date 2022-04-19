@@ -153,11 +153,8 @@ class RememberedSet : public AllStatic {
     MemoryChunk* chunk;
     while ((chunk = it.next()) != nullptr) {
       SlotSet* slot_set = chunk->slot_set<type>();
-      SlotSet* sweeping_slot_set =
-          type == OLD_TO_NEW ? chunk->sweeping_slot_set() : nullptr;
       TypedSlotSet* typed_slot_set = chunk->typed_slot_set<type>();
-      if (slot_set != nullptr || sweeping_slot_set != nullptr ||
-          typed_slot_set != nullptr ||
+      if (slot_set != nullptr || typed_slot_set != nullptr ||
           chunk->invalidated_slots<type>() != nullptr) {
         callback(chunk);
       }
@@ -348,46 +345,6 @@ class UpdateTypedSlotHelper {
       rinfo->set_target_object(heap, HeapObject::cast(new_target));
     }
     return result;
-  }
-};
-
-class RememberedSetSweeping {
- public:
-  template <AccessMode access_mode>
-  static void Insert(MemoryChunk* chunk, Address slot_addr) {
-    DCHECK(chunk->Contains(slot_addr));
-    SlotSet* slot_set = chunk->sweeping_slot_set<access_mode>();
-    if (slot_set == nullptr) {
-      slot_set = chunk->AllocateSweepingSlotSet();
-    }
-    RememberedSetOperations::Insert<access_mode>(slot_set, chunk, slot_addr);
-  }
-
-  static void Remove(MemoryChunk* chunk, Address slot_addr) {
-    DCHECK(chunk->Contains(slot_addr));
-    SlotSet* slot_set = chunk->sweeping_slot_set<AccessMode::ATOMIC>();
-    RememberedSetOperations::Remove(slot_set, chunk, slot_addr);
-  }
-
-  // Given a page and a range of slots in that page, this function removes the
-  // slots from the remembered set.
-  static void RemoveRange(MemoryChunk* chunk, Address start, Address end,
-                          SlotSet::EmptyBucketMode mode) {
-    SlotSet* slot_set = chunk->sweeping_slot_set();
-    RememberedSetOperations::RemoveRange(slot_set, chunk, start, end, mode);
-  }
-
-  // Iterates and filters the remembered set in the given memory chunk with
-  // the given callback. The callback should take (Address slot) and return
-  // SlotCallbackResult.
-  //
-  // Notice that |mode| can only be of FREE* or PREFREE* if there are no other
-  // threads concurrently inserting slots.
-  template <typename Callback>
-  static int Iterate(MemoryChunk* chunk, Callback callback,
-                     SlotSet::EmptyBucketMode mode) {
-    SlotSet* slot_set = chunk->sweeping_slot_set();
-    return RememberedSetOperations::Iterate(slot_set, chunk, callback, mode);
   }
 };
 

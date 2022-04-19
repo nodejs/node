@@ -15,7 +15,7 @@ group("v8_gcmole_files") {
     "gcmole-test.cc",
     "gcmole-tools/",
     "run-gcmole.py",
-    "suspects.whitelist",
+    "suspects.allowlist",
     "ignored_files",
     "test-expectations.txt",
 

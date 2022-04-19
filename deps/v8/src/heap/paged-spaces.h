@@ -69,7 +69,7 @@ class V8_EXPORT_PRIVATE PagedSpaceObjectIterator : public ObjectIterator {
 
   Address cur_addr_;  // Current iteration point.
   Address cur_end_;   // End iteration point.
-  PagedSpace* space_;
+  const PagedSpace* const space_;
   PageRange page_range_;
   PageRange::iterator current_page_;
 #if V8_COMPRESS_POINTERS
@@ -99,19 +99,19 @@ class V8_EXPORT_PRIVATE PagedSpace
   bool ContainsSlow(Address addr) const;
 
   // Does the space need executable memory?
-  Executability executable() { return executable_; }
+  Executability executable() const { return executable_; }
 
   // Prepares for a mark-compact GC.
   void PrepareForMarkCompact();
 
   // Current capacity without growing (Size() + Available()).
-  size_t Capacity() { return accounting_stats_.Capacity(); }
+  size_t Capacity() const { return accounting_stats_.Capacity(); }
 
   // Approximate amount of physical memory committed for this space.
-  size_t CommittedPhysicalMemory() override;
+  size_t CommittedPhysicalMemory() const override;
 
 #if DEBUG
-  void VerifyCommittedPhysicalMemory();
+  void VerifyCommittedPhysicalMemory() const;
 #endif  // DEBUG
 
   void IncrementCommittedPhysicalMemory(size_t increment_value);
@@ -131,34 +131,17 @@ class V8_EXPORT_PRIVATE PagedSpace
   // The bytes in the linear allocation area are not included in this total
   // because updating the stats would slow down allocation.  New pages are
   // immediately added to the free list so they show up here.
-  size_t Available() override;
+  size_t Available() const override;
 
   // Allocated bytes in this space.  Garbage bytes that were not found due to
   // concurrent sweeping are counted as being allocated!  The bytes in the
   // current linear allocation area (between top and limit) are also counted
   // here.
-  size_t Size() override { return accounting_stats_.Size(); }
+  size_t Size() const override { return accounting_stats_.Size(); }
 
   // Wasted bytes in this space.  These are just the bytes that were thrown away
   // due to being too small to use for allocation.
-  virtual size_t Waste() { return free_list_->wasted_bytes(); }
-
-  // Allocate the requested number of bytes in the space if possible, return a
-  // failure object if not.
-  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawUnaligned(
-      int size_in_bytes, AllocationOrigin origin = AllocationOrigin::kRuntime);
-
-  // Allocate the requested number of bytes in the space double aligned if
-  // possible, return a failure object if not.
-  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawAligned(
-      int size_in_bytes, AllocationAlignment alignment,
-      AllocationOrigin origin = AllocationOrigin::kRuntime);
-
-  // Allocate the requested number of bytes in the space and consider allocation
-  // alignment if needed.
-  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRaw(
-      int size_in_bytes, AllocationAlignment alignment,
-      AllocationOrigin origin = AllocationOrigin::kRuntime);
+  virtual size_t Waste() const { return free_list_->wasted_bytes(); }
 
   // Allocate the requested number of bytes in the space from a background
   // thread.
@@ -257,7 +240,7 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   // Overridden by subclasses to verify space-specific object
   // properties (e.g., only maps or free-list nodes are in map space).
-  virtual void VerifyObject(HeapObject obj) {}
+  virtual void VerifyObject(HeapObject obj) const {}
 #endif
 
 #ifdef DEBUG
@@ -271,19 +254,21 @@ class V8_EXPORT_PRIVATE PagedSpace
   static void ResetCodeStatistics(Isolate* isolate);
 #endif
 
-  bool CanExpand(size_t size);
+  bool CanExpand(size_t size) const;
 
   // Returns the number of total pages in this space.
-  int CountTotalPages();
+  int CountTotalPages() const;
 
   // Return size of allocatable area on a page in this space.
-  inline int AreaSize() { return static_cast<int>(area_size_); }
+  inline int AreaSize() const { return static_cast<int>(area_size_); }
 
-  bool is_compaction_space() {
+  bool is_compaction_space() const {
     return compaction_space_kind_ != CompactionSpaceKind::kNone;
   }
 
-  CompactionSpaceKind compaction_space_kind() { return compaction_space_kind_; }
+  CompactionSpaceKind compaction_space_kind() const {
+    return compaction_space_kind_;
+  }
 
   // Merges {other} into the current space. Note that this modifies {other},
   // e.g., removes its bump pointer area and resets statistics.
@@ -321,9 +306,9 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   void SetLinearAllocationArea(Address top, Address limit);
 
-  Address original_top() { return original_top_; }
+  Address original_top() const { return original_top_; }
 
-  Address original_limit() { return original_limit_; }
+  Address original_limit() const { return original_limit_; }
 
   void MoveOriginalTopForward() {
     base::SharedMutexGuard<base::kExclusive> guard(&pending_allocation_mutex_);
@@ -343,7 +328,7 @@ class V8_EXPORT_PRIVATE PagedSpace
  private:
   class ConcurrentAllocationMutex {
    public:
-    explicit ConcurrentAllocationMutex(PagedSpace* space) {
+    explicit ConcurrentAllocationMutex(const PagedSpace* space) {
       if (space->SupportsConcurrentAllocation()) {
         guard_.emplace(&space->space_mutex_);
       }
@@ -352,29 +337,26 @@ class V8_EXPORT_PRIVATE PagedSpace
     base::Optional<base::MutexGuard> guard_;
   };
 
-  bool SupportsConcurrentAllocation() { return !is_compaction_space(); }
+  bool SupportsConcurrentAllocation() const { return !is_compaction_space(); }
 
   // Set space linear allocation area.
   void SetTopAndLimit(Address top, Address limit);
   void DecreaseLimit(Address new_limit);
   void UpdateInlineAllocationLimit(size_t min_size) override;
-  bool SupportsAllocationObserver() override { return !is_compaction_space(); }
-
-  // Slow path of allocation function
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateRawSlow(int size_in_bytes, AllocationAlignment alignment,
-                  AllocationOrigin origin);
+  bool SupportsAllocationObserver() const override {
+    return !is_compaction_space();
+  }
 
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
   // smaller, initial pages.
-  virtual bool snapshotable() { return true; }
+  virtual bool snapshotable() const { return true; }
 
-  bool HasPages() { return first_page() != nullptr; }
+  bool HasPages() const { return first_page() != nullptr; }
 
   // Returns whether sweeping of this space is safe on this thread. Code space
   // sweeping is only allowed on the main thread.
-  bool IsSweepingAllowedOnThread(LocalHeap* local_heap);
+  bool IsSweepingAllowedOnThread(LocalHeap* local_heap) const;
 
   // Cleans up the space, frees all pages in this space except those belonging
   // to the initial chunk, uncommits addresses in the initial chunk.
@@ -391,22 +373,9 @@ class V8_EXPORT_PRIVATE PagedSpace
   base::Optional<std::pair<Address, size_t>> ExpandBackground(
       size_t size_in_bytes);
 
-  Page* AllocatePage();
-
-  // Sets up a linear allocation area that fits the given number of bytes.
-  // Returns false if there is not enough space and the caller has to retry
-  // after collecting garbage.
-  inline bool EnsureLabMain(int size_in_bytes, AllocationOrigin origin);
-  // Allocates an object from the linear allocation area. Assumes that the
-  // linear allocation area is large enought to fit the object.
-  inline AllocationResult AllocateFastUnaligned(int size_in_bytes);
-  // Tries to allocate an aligned object from the linear allocation area.
-  // Returns nullptr if the linear allocation area does not fit the object.
-  // Otherwise, returns the object pointer and writes the allocation size
-  // (object size + alignment filler size) to the size_in_bytes.
-  inline AllocationResult AllocateFastAligned(int size_in_bytes,
-                                              int* aligned_size_in_bytes,
-                                              AllocationAlignment alignment);
+  bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
+                        AllocationOrigin origin,
+                        int* out_max_aligned_size) final;
 
   V8_WARN_UNUSED_RESULT bool TryAllocationFromFreeListMain(
       size_t size_in_bytes, AllocationOrigin origin);
@@ -450,7 +419,7 @@ class V8_EXPORT_PRIVATE PagedSpace
   AllocationStats accounting_stats_;
 
   // Mutex guarding any concurrent access to the space.
-  base::Mutex space_mutex_;
+  mutable base::Mutex space_mutex_;
 
   // The top and the limit at the time of setting the linear allocation area.
   // These values are protected by pending_allocation_mutex_.
@@ -492,7 +461,7 @@ class V8_EXPORT_PRIVATE CompactionSpace : public PagedSpace {
 
   Page* Expand() override;
   // The space is temporary and not included in any snapshots.
-  bool snapshotable() override { return false; }
+  bool snapshotable() const override { return false; }
   // Pages that were allocated in this local space and need to be merged
   // to the main space.
   std::vector<Page*> new_pages_;
@@ -578,7 +547,7 @@ class MapSpace : public PagedSpace {
       : PagedSpace(heap, MAP_SPACE, NOT_EXECUTABLE, FreeList::CreateFreeList(),
                    &paged_allocation_info_) {}
 
-  int RoundSizeDownToObjectAlignment(int size) override {
+  int RoundSizeDownToObjectAlignment(int size) const override {
     if (base::bits::IsPowerOfTwo(Map::kSize)) {
       return RoundDown(size, Map::kSize);
     } else {
@@ -589,7 +558,7 @@ class MapSpace : public PagedSpace {
   void SortFreeList();
 
 #ifdef VERIFY_HEAP
-  void VerifyObject(HeapObject obj) override;
+  void VerifyObject(HeapObject obj) const override;
 #endif
 
  private:
@@ -614,7 +583,7 @@ class OldGenerationMemoryChunkIterator {
     kCodeLargeObjectState,
     kFinishedState
   };
-  Heap* heap_;
+  Heap* const heap_;
   State state_;
   PageIterator old_iterator_;
   PageIterator code_iterator_;

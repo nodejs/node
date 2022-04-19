@@ -90,6 +90,11 @@ int fopen_s(FILE** pFile, const char* filename, const char* mode) {
   return *pFile != nullptr ? 0 : 1;
 }
 
+int _wfopen_s(FILE** pFile, const wchar_t* filename, const wchar_t* mode) {
+  *pFile = _wfopen(filename, mode);
+  return *pFile != nullptr ? 0 : 1;
+}
+
 int _vsnprintf_s(char* buffer, size_t sizeOfBuffer, size_t count,
                  const char* format, va_list argptr) {
   DCHECK(count == _TRUNCATE);
@@ -593,10 +598,25 @@ static void VPrintHelper(FILE* stream, const char* format, va_list args) {
   }
 }
 
+// Convert utf-8 encoded string to utf-16 encoded.
+static std::wstring ConvertUtf8StringToUtf16(const char* str) {
+  // On Windows wchar_t must be a 16-bit value.
+  static_assert(sizeof(wchar_t) == 2, "wrong wchar_t size");
+  std::wstring utf16_str;
+  int name_length = static_cast<int>(strlen(str));
+  int len = MultiByteToWideChar(CP_UTF8, 0, str, name_length, nullptr, 0);
+  if (len > 0) {
+    utf16_str.resize(len);
+    MultiByteToWideChar(CP_UTF8, 0, str, name_length, &utf16_str[0], len);
+  }
+  return utf16_str;
+}
 
 FILE* OS::FOpen(const char* path, const char* mode) {
   FILE* result;
-  if (fopen_s(&result, path, mode) == 0) {
+  std::wstring utf16_path = ConvertUtf8StringToUtf16(path);
+  std::wstring utf16_mode = ConvertUtf8StringToUtf16(mode);
+  if (_wfopen_s(&result, utf16_path.c_str(), utf16_mode.c_str()) == 0) {
     return result;
   } else {
     return nullptr;
@@ -1141,8 +1161,11 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
   if (mode == FileMode::kReadWrite) {
     access |= GENERIC_WRITE;
   }
-  HANDLE file = CreateFileA(name, access, FILE_SHARE_READ | FILE_SHARE_WRITE,
-                            nullptr, OPEN_EXISTING, 0, nullptr);
+
+  std::wstring utf16_name = ConvertUtf8StringToUtf16(name);
+  HANDLE file = CreateFileW(utf16_name.c_str(), access,
+                            FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                            OPEN_EXISTING, 0, nullptr);
   if (file == INVALID_HANDLE_VALUE) return nullptr;
 
   DWORD size = GetFileSize(file, nullptr);
@@ -1165,8 +1188,9 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
 // static
 OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
                                                    size_t size, void* initial) {
+  std::wstring utf16_name = ConvertUtf8StringToUtf16(name);
   // Open a physical file.
-  HANDLE file = CreateFileA(name, GENERIC_READ | GENERIC_WRITE,
+  HANDLE file = CreateFileW(utf16_name.c_str(), GENERIC_READ | GENERIC_WRITE,
                             FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
                             OPEN_ALWAYS, 0, nullptr);
   if (file == nullptr) return nullptr;

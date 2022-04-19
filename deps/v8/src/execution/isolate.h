@@ -382,6 +382,14 @@ class StackMemory;
 
 #define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, MaybeHandle<Object>())
 
+#define MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
+  do {                                                                    \
+    if (!(call).To(&dst)) {                                               \
+      DCHECK((isolate)->has_pending_exception());                         \
+      return value;                                                       \
+    }                                                                     \
+  } while (false)
+
 #define MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call) \
   do {                                                               \
     Isolate* __isolate__ = (isolate);                                \
@@ -859,7 +867,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Push and pop a promise and the current try-catch handler.
   void PushPromise(Handle<JSObject> promise);
-  bool PopPromise();
+  void PopPromise();
+  bool IsPromiseStackEmpty() const;
 
   // Return the relevant Promise that a throw/rejection pertains to, based
   // on the contents of the Promise stack
@@ -2409,18 +2418,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #undef FIELD_ACCESSOR
 #undef THREAD_LOCAL_TOP_ACCESSOR
-
-class PromiseOnStack {
- public:
-  PromiseOnStack(Handle<JSObject> promise, PromiseOnStack* prev)
-      : promise_(promise), prev_(prev) {}
-  Handle<JSObject> promise() { return promise_; }
-  PromiseOnStack* prev() { return prev_; }
-
- private:
-  Handle<JSObject> promise_;
-  PromiseOnStack* prev_;
-};
 
 // SaveContext scopes save the current context on the Isolate on creation, and
 // restore it on destruction.

@@ -870,23 +870,10 @@ Instruction* InstructionSelector::EmitWithContinuation(
     continuation_inputs_.push_back(g.Label(cont->false_block()));
   } else if (cont->IsDeoptimize()) {
     int immediate_args_count = 0;
-    if (cont->has_extra_args()) {
-      for (int i = 0; i < cont->extra_args_count(); i++) {
-        InstructionOperand op = cont->extra_args()[i];
-        continuation_inputs_.push_back(op);
-        input_count++;
-        if (op.IsImmediate()) {
-          immediate_args_count++;
-        } else {
-          // All immediate args should be added last.
-          DCHECK_EQ(immediate_args_count, 0);
-        }
-      }
-    }
     opcode |= DeoptImmedArgsCountField::encode(immediate_args_count) |
               DeoptFrameStateOffsetField::encode(static_cast<int>(input_count));
-    AppendDeoptimizeArguments(&continuation_inputs_, cont->kind(),
-                              cont->reason(), cont->node_id(), cont->feedback(),
+    AppendDeoptimizeArguments(&continuation_inputs_, cont->reason(),
+                              cont->node_id(), cont->feedback(),
                               FrameState{cont->frame_state()});
   } else if (cont->IsSet()) {
     continuation_outputs_.push_back(g.DefineAsRegister(cont->result()));
@@ -918,14 +905,12 @@ Instruction* InstructionSelector::EmitWithContinuation(
 }
 
 void InstructionSelector::AppendDeoptimizeArguments(
-    InstructionOperandVector* args, DeoptimizeKind kind,
-    DeoptimizeReason reason, NodeId node_id, FeedbackSource const& feedback,
-    FrameState frame_state) {
+    InstructionOperandVector* args, DeoptimizeReason reason, NodeId node_id,
+    FeedbackSource const& feedback, FrameState frame_state) {
   OperandGenerator g(this);
   FrameStateDescriptor* const descriptor = GetFrameStateDescriptor(frame_state);
-  DCHECK_NE(DeoptimizeKind::kLazy, kind);
   int const state_id = sequence()->AddDeoptimizationEntry(
-      descriptor, kind, reason, node_id, feedback);
+      descriptor, DeoptimizeKind::kEager, reason, node_id, feedback);
   args->push_back(g.TempImmediate(state_id));
   StateObjectDeduplicator deduplicator(instruction_zone());
   AddInputsToFrameStateDescriptor(descriptor, frame_state, &g, &deduplicator,
@@ -1170,6 +1155,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   }
   DCHECK_EQ(input_count, buffer->instruction_args.size() + pushed_count -
                              frame_state_entries);
+  USE(pushed_count);
   if (V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK && is_tail_call &&
       stack_param_delta != 0) {
     // For tail calls that change the size of their parameter list and keep
@@ -1354,7 +1340,7 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     case BasicBlock::kDeoptimize: {
       DeoptimizeParameters p = DeoptimizeParametersOf(input->op());
       FrameState value{input->InputAt(0)};
-      VisitDeoptimize(p.kind(), p.reason(), input->id(), p.feedback(), value);
+      VisitDeoptimize(p.reason(), input->id(), p.feedback(), value);
       break;
     }
     case BasicBlock::kThrow:
@@ -3143,15 +3129,16 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
 void InstructionSelector::VisitDeoptimizeIf(Node* node) {
   DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kNotEqual, p.kind(), p.reason(), node->id(), p.feedback(),
-      node->InputAt(1));
+      kNotEqual, p.reason(), node->id(), p.feedback(),
+      FrameState{node->InputAt(1)});
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kEqual, p.kind(), p.reason(), node->id(), p.feedback(), node->InputAt(1));
+      kEqual, p.reason(), node->id(), p.feedback(),
+      FrameState{node->InputAt(1)});
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 
@@ -3179,14 +3166,12 @@ void InstructionSelector::EmitIdentity(Node* node) {
   SetRename(node, node->InputAt(0));
 }
 
-void InstructionSelector::VisitDeoptimize(DeoptimizeKind kind,
-                                          DeoptimizeReason reason,
+void InstructionSelector::VisitDeoptimize(DeoptimizeReason reason,
                                           NodeId node_id,
                                           FeedbackSource const& feedback,
                                           FrameState frame_state) {
   InstructionOperandVector args(instruction_zone());
-  AppendDeoptimizeArguments(&args, kind, reason, node_id, feedback,
-                            frame_state);
+  AppendDeoptimizeArguments(&args, reason, node_id, feedback, frame_state);
   Emit(kArchDeoptimize, 0, nullptr, args.size(), &args.front(), 0, nullptr);
 }
 

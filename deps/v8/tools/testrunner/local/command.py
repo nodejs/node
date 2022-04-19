@@ -2,9 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# for py2/py3 compatibility
-from __future__ import print_function
-
 from contextlib import contextmanager
 import os
 import re
@@ -18,8 +15,6 @@ from ..local.android import (
     android_driver, CommandFailedException, TimeoutException)
 from ..local import utils
 from ..objects import output
-
-PYTHON3 = sys.version_info >= (3, 0)
 
 BASE_DIR = os.path.normpath(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), '..' , '..', '..'))
@@ -115,17 +110,11 @@ class BaseCommand(object):
 
       timer.cancel()
 
-    def convert(stream):
-      if PYTHON3:
-        return stream.decode('utf-8', 'replace')
-      else:
-        return stream.decode('utf-8', 'replace').encode('utf-8')
-
     return output.Output(
       process.returncode,
       timeout_occured[0],
-      convert(stdout),
-      convert(stderr),
+      stdout.decode('utf-8', 'replace'),
+      stderr.decode('utf-8', 'replace'),
       process.pid,
       duration
     )

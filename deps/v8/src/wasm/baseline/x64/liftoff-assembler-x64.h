@@ -293,7 +293,7 @@ constexpr int LiftoffAssembler::StaticStackFrameSize() {
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
-  return is_reference(kind) ? kSystemPointerSize : element_size_bytes(kind);
+  return value_kind_full_size(kind);
 }
 
 bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
@@ -598,8 +598,8 @@ void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
                                  uintptr_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
-  LiftoffRegList dont_overwrite = cache_state()->used_registers |
-                                  LiftoffRegList::ForRegs(dst_addr, offset_reg);
+  LiftoffRegList dont_overwrite =
+      cache_state()->used_registers | LiftoffRegList{dst_addr, offset_reg};
   DCHECK(!dont_overwrite.has(result));
   if (dont_overwrite.has(value)) {
     // We cannot overwrite {value}, but the {value} register is changed in the
@@ -660,8 +660,7 @@ inline void AtomicBinop(LiftoffAssembler* lasm,
   // The cmpxchg instruction uses rax to store the old value of the
   // compare-exchange primitive. Therefore we have to spill the register and
   // move any use to another register.
-  LiftoffRegList pinned =
-      LiftoffRegList::ForRegs(dst_addr, offset_reg, value_reg);
+  LiftoffRegList pinned = LiftoffRegList{dst_addr, offset_reg, value_reg};
   __ ClearRegister(rax, {&dst_addr, &offset_reg, &value_reg}, pinned);
   Operand dst_op = liftoff::GetMemOp(lasm, dst_addr, offset_reg, offset_imm);
 
@@ -798,7 +797,7 @@ void LiftoffAssembler::AtomicCompareExchange(
   // compare-exchange primitive. Therefore we have to spill the register and
   // move any use to another register.
   LiftoffRegList pinned =
-      LiftoffRegList::ForRegs(dst_addr, offset_reg, expected, value_reg);
+      LiftoffRegList{dst_addr, offset_reg, expected, value_reg};
   ClearRegister(rax, {&dst_addr, &offset_reg, &value_reg}, pinned);
   if (expected.gp() != rax) {
     movq(rax, expected.gp());
@@ -872,21 +871,16 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
   DCHECK_NE(dst_offset, src_offset);
   Operand dst = liftoff::GetStackSlot(dst_offset);
   Operand src = liftoff::GetStackSlot(src_offset);
-  size_t size = element_size_log2(kind);
-  if (kind == kRef || kind == kOptRef || kind == kRtt) {
-    // Pointers are uncompressed on the stack!
-    size = kSystemPointerSizeLog2;
-  }
-  switch (size) {
-    case 2:
+  switch (SlotSizeForType(kind)) {
+    case 4:
       movl(kScratchRegister, src);
       movl(dst, kScratchRegister);
       break;
-    case 3:
+    case 8:
       movq(kScratchRegister, src);
       movq(dst, kScratchRegister);
       break;
-    case 4:
+    case 16:
       Movdqu(kScratchDoubleReg, src);
       Movdqu(dst, kScratchDoubleReg);
       break;
@@ -1473,6 +1467,10 @@ bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
   CpuFeatureScope scope(this, POPCNT);
   popcntq(dst.gp(), src.gp());
   return true;
+}
+
+void LiftoffAssembler::IncrementSmi(LiftoffRegister dst, int offset) {
+  SmiAddConstant(Operand(dst.gp(), offset), Smi::FromInt(1));
 }
 
 void LiftoffAssembler::emit_u32_to_uintptr(Register dst, Register src) {
@@ -3429,9 +3427,9 @@ void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   static constexpr RegClass tmp_rc = reg_class_for(kS128);
   LiftoffRegister tmp1 =
-      GetUnusedRegister(tmp_rc, LiftoffRegList::ForRegs(dst, lhs, rhs));
+      GetUnusedRegister(tmp_rc, LiftoffRegList{dst, lhs, rhs});
   LiftoffRegister tmp2 =
-      GetUnusedRegister(tmp_rc, LiftoffRegList::ForRegs(dst, lhs, rhs, tmp1));
+      GetUnusedRegister(tmp_rc, LiftoffRegList{dst, lhs, rhs, tmp1});
   I64x2Mul(dst.fp(), lhs.fp(), rhs.fp(), tmp1.fp(), tmp2.fp());
 }
 
@@ -4092,7 +4090,7 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
   int arg_bytes = 0;
   for (ValueKind param_kind : sig->parameters()) {
     liftoff::Store(this, Operand(rsp, arg_bytes), *args++, param_kind);
-    arg_bytes += element_size_bytes(param_kind);
+    arg_bytes += value_kind_size(param_kind);
   }
   DCHECK_LE(arg_bytes, stack_bytes);
 

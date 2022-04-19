@@ -601,7 +601,7 @@ MaybeHandle<NativeContext> JSReceiver::GetCreationContext() {
   }
 
   return function.has_context()
-             ? Handle<NativeContext>(function.context().native_context(),
+             ? Handle<NativeContext>(function.native_context(),
                                      receiver.GetIsolate())
              : MaybeHandle<NativeContext>();
 }
@@ -629,7 +629,7 @@ MaybeHandle<NativeContext> JSReceiver::GetFunctionRealm(
     }
     if (current.IsJSFunction()) {
       JSFunction function = JSFunction::cast(current);
-      return handle(function.context().native_context(), isolate);
+      return handle(function.native_context(), isolate);
     }
     if (current.IsJSBoundFunction()) {
       JSBoundFunction function = JSBoundFunction::cast(current);
@@ -1653,6 +1653,49 @@ Maybe<bool> JSReceiver::CreateDataProperty(LookupIterator* it,
 
   return JSReceiver::DefineOwnProperty(isolate, receiver, it->GetName(),
                                        &new_desc, should_throw);
+}
+
+// static
+Maybe<bool> JSReceiver::AddPrivateField(LookupIterator* it,
+                                        Handle<Object> value,
+                                        Maybe<ShouldThrow> should_throw) {
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(it->GetReceiver());
+  Isolate* isolate = receiver->GetIsolate();
+  DCHECK(it->GetName()->IsPrivateName());
+  Handle<Symbol> symbol = Handle<Symbol>::cast(it->GetName());
+
+  switch (it->state()) {
+    case LookupIterator::JSPROXY: {
+      PropertyDescriptor new_desc;
+      new_desc.set_value(value);
+      new_desc.set_writable(true);
+      new_desc.set_enumerable(true);
+      new_desc.set_configurable(true);
+      return JSProxy::SetPrivateSymbol(isolate, Handle<JSProxy>::cast(receiver),
+                                       symbol, &new_desc, should_throw);
+    }
+    case LookupIterator::DATA:
+    case LookupIterator::INTERCEPTOR:
+    case LookupIterator::ACCESSOR:
+    case LookupIterator::INTEGER_INDEXED_EXOTIC:
+      UNREACHABLE();
+
+    case LookupIterator::ACCESS_CHECK: {
+      if (!it->HasAccess()) {
+        it->isolate()->ReportFailedAccessCheck(it->GetHolder<JSObject>());
+        RETURN_VALUE_IF_SCHEDULED_EXCEPTION(it->isolate(), Nothing<bool>());
+        return Just(true);
+      }
+      break;
+    }
+
+    case LookupIterator::TRANSITION:
+    case LookupIterator::NOT_FOUND:
+      break;
+  }
+
+  return Object::TransitionAndWriteDataProperty(it, value, NONE, should_throw,
+                                                StoreOrigin::kMaybeKeyed);
 }
 
 // static
@@ -2963,8 +3006,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
   }
 
   int old_number_of_fields;
-  int number_of_fields =
-      new_map->NumberOfFields(ConcurrencyMode::kNotConcurrent);
+  int number_of_fields = new_map->NumberOfFields(ConcurrencyMode::kSynchronous);
   int inobject = new_map->GetInObjectProperties();
   int unused = new_map->UnusedPropertyFields();
 
@@ -2972,7 +3014,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
   // converted to doubles.
   if (!old_map->InstancesNeedRewriting(*new_map, number_of_fields, inobject,
                                        unused, &old_number_of_fields,
-                                       ConcurrencyMode::kNotConcurrent)) {
+                                       ConcurrencyMode::kSynchronous)) {
     object->set_map(*new_map, kReleaseStore);
     return;
   }
@@ -3300,7 +3342,7 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
     }
     map = MapUpdater{isolate, map}.ReconfigureElementsKind(to_kind);
   }
-  int number_of_fields = map->NumberOfFields(ConcurrencyMode::kNotConcurrent);
+  int number_of_fields = map->NumberOfFields(ConcurrencyMode::kSynchronous);
   int inobject = map->GetInObjectProperties();
   int unused = map->UnusedPropertyFields();
   int total_size = number_of_fields + unused;
@@ -3417,9 +3459,8 @@ MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
 Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
     LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
     Maybe<ShouldThrow> should_throw, AccessorInfoHandling handling,
-    EnforceDefineSemantics semantics) {
+    EnforceDefineSemantics semantics, StoreOrigin store_origin) {
   it->UpdateProtector();
-  Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
 
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
@@ -3481,7 +3522,8 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
             it->IsElement() ? LookupIterator(isolate, receiver, it->index(), c)
                             : LookupIterator(isolate, receiver, it->name(), c);
         return JSObject::DefineOwnPropertyIgnoreAttributes(
-            &own_lookup, value, attributes, should_throw, handling, semantics);
+            &own_lookup, value, attributes, should_throw, handling, semantics,
+            store_origin);
       }
 
       case LookupIterator::ACCESSOR: {
@@ -3516,13 +3558,11 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
           return Object::SetDataProperty(it, value);
         }
 
-        // Special case: properties of typed arrays cannot be reconfigured to
-        // non-writable nor to non-enumerable.
-        if (it->IsElement() && object->HasTypedArrayElements()) {
-          return Object::RedefineIncompatibleProperty(
-              it->isolate(), it->GetName(), value, should_throw);
-        }
-
+        // The non-matching attribute case for JSTypedArrays has already been
+        // handled by JSTypedArray::DefineOwnProperty.
+        DCHECK(!it->IsElement() ||
+               !Handle<JSObject>::cast(it->GetReceiver())
+                    ->HasTypedArrayOrRabGsabTypedArrayElements());
         // Reconfigure the data property if the attributes mismatch.
         it->ReconfigureDataProperty(value, attributes);
 
@@ -3532,7 +3572,7 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
   }
 
   return Object::AddDataProperty(it, value, attributes, should_throw,
-                                 StoreOrigin::kNamed);
+                                 store_origin, semantics);
 }
 
 MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
@@ -3799,7 +3839,7 @@ void JSObject::RequireSlowElements(NumberDictionary dictionary) {
 }
 
 Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
-  DCHECK(!object->HasTypedArrayElements());
+  DCHECK(!object->HasTypedArrayOrRabGsabTypedArrayElements());
   Isolate* isolate = object->GetIsolate();
   bool is_sloppy_arguments = object->HasSloppyArgumentsElements();
   {
@@ -4046,16 +4086,15 @@ Maybe<bool> JSObject::PreventExtensions(Handle<JSObject> object,
                    NewTypeError(MessageTemplate::kCannotPreventExt));
   }
 
-  if (!object->HasTypedArrayElements()) {
-    // If there are fast elements we normalize.
-    Handle<NumberDictionary> dictionary = NormalizeElements(object);
-    DCHECK(object->HasDictionaryElements() ||
-           object->HasSlowArgumentsElements());
+  DCHECK(!object->HasTypedArrayOrRabGsabTypedArrayElements());
 
-    // Make sure that we never go back to fast case.
-    if (*dictionary != ReadOnlyRoots(isolate).empty_slow_element_dictionary()) {
-      object->RequireSlowElements(*dictionary);
-    }
+  // Normalize fast elements.
+  Handle<NumberDictionary> dictionary = NormalizeElements(object);
+  DCHECK(object->HasDictionaryElements() || object->HasSlowArgumentsElements());
+
+  // Make sure that we never go back to fast case.
+  if (*dictionary != ReadOnlyRoots(isolate).empty_slow_element_dictionary()) {
+    object->RequireSlowElements(*dictionary);
   }
 
   // Do a map transition, other objects with this map may still
@@ -4124,7 +4163,8 @@ template void JSObject::ApplyAttributesToDictionary(
 Handle<NumberDictionary> CreateElementDictionary(Isolate* isolate,
                                                  Handle<JSObject> object) {
   Handle<NumberDictionary> new_element_dictionary;
-  if (!object->HasTypedArrayElements() && !object->HasDictionaryElements() &&
+  if (!object->HasTypedArrayOrRabGsabTypedArrayElements() &&
+      !object->HasDictionaryElements() &&
       !object->HasSlowStringWrapperElements()) {
     int length = object->IsJSArray()
                      ? Smi::ToInt(Handle<JSArray>::cast(object)->length())
@@ -4155,12 +4195,16 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
                    NewTypeError(MessageTemplate::kNoAccess));
   }
 
-  if (attrs == NONE && !object->map().is_extensible()) return Just(true);
+  if (attrs == NONE && !object->map().is_extensible()) {
+    return Just(true);
+  }
+
   {
     ElementsKind old_elements_kind = object->map().elements_kind();
     if (IsFrozenElementsKind(old_elements_kind)) return Just(true);
-    if (attrs != FROZEN && IsSealedElementsKind(old_elements_kind))
+    if (attrs != FROZEN && IsSealedElementsKind(old_elements_kind)) {
       return Just(true);
+    }
   }
 
   if (object->IsJSGlobalProxy()) {
@@ -4231,7 +4275,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
       TransitionsAccessor::SearchSpecial(isolate, old_map, *transition_marker);
   if (maybe_transition_map.ToHandle(&transition_map)) {
     DCHECK(transition_map->has_dictionary_elements() ||
-           transition_map->has_typed_array_elements() ||
+           transition_map->has_typed_array_or_rab_gsab_typed_array_elements() ||
            transition_map->elements_kind() == SLOW_STRING_WRAPPER_ELEMENTS ||
            transition_map->has_any_nonextensible_elements());
     DCHECK(!transition_map->is_extensible());
@@ -4297,8 +4341,9 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
 
   // Both seal and preventExtensions always go through without modifications to
   // typed array elements. Freeze works only if there are no actual elements.
-  if (object->HasTypedArrayElements()) {
-    if (attrs == FROZEN && JSArrayBufferView::cast(*object).byte_length() > 0) {
+  if (object->HasTypedArrayOrRabGsabTypedArrayElements()) {
+    DCHECK(new_element_dictionary.is_null());
+    if (attrs == FROZEN && JSTypedArray::cast(*object).GetLength() > 0) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kCannotFreezeArrayBufferView));
       return Nothing<bool>();
@@ -4488,7 +4533,7 @@ MaybeHandle<Object> JSObject::DefineAccessor(LookupIterator* it,
 
   Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
   // Ignore accessors on typed arrays.
-  if (it->IsElement() && object->HasTypedArrayElements()) {
+  if (it->IsElement() && object->HasTypedArrayOrRabGsabTypedArrayElements()) {
     return it->factory()->undefined_value();
   }
 
@@ -4525,7 +4570,7 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
   }
 
   // Ignore accessors on typed arrays.
-  if (it.IsElement() && object->HasTypedArrayElements()) {
+  if (it.IsElement() && object->HasTypedArrayOrRabGsabTypedArrayElements()) {
     return it.factory()->undefined_value();
   }
 
@@ -4654,7 +4699,7 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
     if (maybe_constructor.IsJSFunction()) {
       JSFunction constructor = JSFunction::cast(maybe_constructor);
       if (!constructor.shared().IsApiFunction()) {
-        Context context = constructor.context().native_context();
+        Context context = constructor.native_context();
         JSFunction object_function = context.object_function();
         new_map->SetConstructor(object_function);
       }

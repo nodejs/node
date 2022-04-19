@@ -26,6 +26,7 @@ class PlatformEmbeddedFileWriterMac : public PlatformEmbeddedFileWriterBase {
   void SectionRoData() override;
 
   void AlignToCodeAlignment() override;
+  void PaddingAfterCode() override;
   void AlignToDataAlignment() override;
 
   void DeclareUint32(const char* name, uint32_t value) override;

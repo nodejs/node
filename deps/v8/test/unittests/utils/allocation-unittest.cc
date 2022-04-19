@@ -4,6 +4,8 @@
 
 #include "src/utils/allocation.h"
 
+#include "test/unittests/test-utils.h"
+
 #if V8_OS_POSIX
 #include <setjmp.h>
 #include <signal.h>
@@ -29,7 +31,7 @@ namespace {
 // We don't test the execution permission because to do so we'd have to
 // dynamically generate code and test if we can execute it.
 
-class MemoryAllocationPermissionsTest : public ::testing::Test {
+class MemoryAllocationPermissionsTest : public TestWithPlatform {
   static void SignalHandler(int signal, siginfo_t* info, void*) {
     siglongjmp(continuation_, 1);
   }
@@ -127,9 +129,9 @@ TEST_F(MemoryAllocationPermissionsTest, DoTest) {
 
 // Basic tests of allocation.
 
-class AllocationTest : public ::testing::Test {};
+class AllocationTest : public TestWithPlatform {};
 
-TEST(AllocationTest, AllocateAndFree) {
+TEST_F(AllocationTest, AllocateAndFree) {
   size_t page_size = v8::internal::AllocatePageSize();
   CHECK_NE(0, page_size);
 
@@ -154,7 +156,7 @@ TEST(AllocationTest, AllocateAndFree) {
   v8::internal::FreePages(page_allocator, aligned_mem_addr, kAllocationSize);
 }
 
-TEST(AllocationTest, ReserveMemory) {
+TEST_F(AllocationTest, ReserveMemory) {
   v8::PageAllocator* page_allocator = v8::internal::GetPlatformPageAllocator();
   size_t page_size = v8::internal::AllocatePageSize();
   const size_t kAllocationSize = 1 * v8::internal::MB;

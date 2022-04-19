@@ -178,11 +178,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void MultiPushDoubles(DoubleRegList dregs, Register location = sp);
   void MultiPopDoubles(DoubleRegList dregs, Register location = sp);
 
-  void MultiPushV128(DoubleRegList dregs, Register location = sp);
-  void MultiPopV128(DoubleRegList dregs, Register location = sp);
+  void MultiPushV128(DoubleRegList dregs, Register scratch,
+                     Register location = sp);
+  void MultiPopV128(DoubleRegList dregs, Register scratch,
+                    Register location = sp);
 
-  void MultiPushF64OrV128(DoubleRegList dregs, Register location = sp);
-  void MultiPopF64OrV128(DoubleRegList dregs, Register location = sp);
+  void MultiPushF64OrV128(DoubleRegList dregs, Register scratch,
+                          Register location = sp);
+  void MultiPopF64OrV128(DoubleRegList dregs, Register scratch,
+                         Register location = sp);
 
   // Calculate how much stack space (in bytes) are required to store caller
   // registers excluding those specified in the arguments.
@@ -193,13 +197,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Push caller saved registers on the stack, and return the number of bytes
   // stack pointer is adjusted.
-  int PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
+  int PushCallerSaved(SaveFPRegsMode fp_mode, Register scratch,
+                      Register exclusion1 = no_reg,
                       Register exclusion2 = no_reg,
                       Register exclusion3 = no_reg);
   // Restore caller saved registers from the stack, and return the number of
   // bytes stack pointer is adjusted.
-  int PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
-                     Register exclusion2 = no_reg,
+  int PopCallerSaved(SaveFPRegsMode fp_mode, Register scratch,
+                     Register exclusion1 = no_reg, Register exclusion2 = no_reg,
                      Register exclusion3 = no_reg);
 
   // Load an object from the root table.
@@ -1054,6 +1059,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     SmiUntag(smi);
   }
 
+  // Shift left by kSmiShift
+  void SmiTag(Register reg) { SmiTag(reg, reg); }
+  void SmiTag(Register dst, Register src) {
+    ShiftLeftU64(dst, src, Operand(kSmiShift));
+  }
+
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);
   void AssertSmi(Register object);
@@ -1681,12 +1692,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // ---------------------------------------------------------------------------
   // Smi utilities
-
-  // Shift left by kSmiShift
-  void SmiTag(Register reg) { SmiTag(reg, reg); }
-  void SmiTag(Register dst, Register src) {
-    ShiftLeftU64(dst, src, Operand(kSmiShift));
-  }
 
   // Jump if either of the registers contain a non-smi.
   inline void JumpIfNotSmi(Register value, Label* not_smi_label) {

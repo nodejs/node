@@ -1031,6 +1031,7 @@ Type Typer::Visitor::TypeUnreachable(Node* node) { return Type::None(); }
 
 Type Typer::Visitor::TypePlug(Node* node) { UNREACHABLE(); }
 Type Typer::Visitor::TypeStaticAssert(Node* node) { UNREACHABLE(); }
+Type Typer::Visitor::TypeSLVerifierHint(Node* node) { UNREACHABLE(); }
 
 // JS comparison operators.
 

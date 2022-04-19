@@ -69,10 +69,16 @@ MaglevCompilationInfo::MaglevCompilationInfo(Isolate* isolate,
       zone()->New<compiler::CompilationDependencies>(broker(), zone());
   USE(deps);  // The deps register themselves in the heap broker.
 
+  // Heap broker initialization may already use IsPendingAllocation.
+  isolate->heap()->PublishPendingAllocations();
+
   broker()->SetTargetNativeContextRef(
       handle(function->native_context(), isolate));
   broker()->InitializeAndStartSerializing();
   broker()->StopSerializing();
+
+  // Serialization may have allocated.
+  isolate->heap()->PublishPendingAllocations();
 
   toplevel_compilation_unit_ =
       MaglevCompilationUnit::New(zone(), this, function);

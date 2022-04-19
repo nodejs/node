@@ -10,6 +10,7 @@
 #include "base/bind.h"
 #include "base/files/file.h"
 #include "base/files/file_enumerator.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/strings/string_util.h"
@@ -29,7 +30,10 @@ bool IsHiddenFile(const base::FilePath& file_path) {
 // Creates a directory at |extract_dir|/|entry_path|, including any parents.
 bool CreateDirectory(const base::FilePath& extract_dir,
                      const base::FilePath& entry_path) {
-  return base::CreateDirectory(extract_dir.Append(entry_path));
+  const base::FilePath dir = extract_dir.Append(entry_path);
+  const bool ok = base::CreateDirectory(dir);
+  PLOG_IF(ERROR, !ok) << "Cannot create directory " << Redact(dir);
+  return ok;
 }
 
 // Creates a WriterDelegate that can write a file at |extract_dir|/|entry_path|.
@@ -172,10 +176,13 @@ bool Unzip(const base::FilePath& src_file,
            UnzipOptions options) {
   base::File file(src_file, base::File::FLAG_OPEN | base::File::FLAG_READ);
   if (!file.IsValid()) {
-    LOG(ERROR) << "Cannot open " << Redact(src_file) << ": "
-               << base::File::ErrorToString(file.error_details());
+    PLOG(ERROR) << "Cannot open " << Redact(src_file) << ": "
+                << base::File::ErrorToString(file.error_details());
     return false;
   }
+
+  DLOG_IF(WARNING, !base::IsDirectoryEmpty(dest_dir))
+      << "ZIP extraction directory is not empty: " << dest_dir;
 
   return Unzip(file.GetPlatformFile(),
                base::BindRepeating(&CreateFilePathWriterDelegate, dest_dir),
@@ -199,7 +206,9 @@ bool Unzip(const base::PlatformFile& src_file,
   while (const ZipReader::Entry* const entry = reader.Next()) {
     if (entry->is_unsafe) {
       LOG(ERROR) << "Found unsafe entry " << Redact(entry->path) << " in ZIP";
-      return false;
+      if (!options.continue_on_error)
+        return false;
+      continue;
     }
 
     if (options.filter && !options.filter.Run(entry->path)) {
@@ -209,8 +218,11 @@ bool Unzip(const base::PlatformFile& src_file,
 
     if (entry->is_directory) {
       // It's a directory.
-      if (!directory_creator.Run(entry->path))
-        return false;
+      if (!directory_creator.Run(entry->path)) {
+        LOG(ERROR) << "Cannot create directory " << Redact(entry->path);
+        if (!options.continue_on_error)
+          return false;
+      }
 
       continue;
     }
@@ -220,7 +232,8 @@ bool Unzip(const base::PlatformFile& src_file,
     if (!writer || !reader.ExtractCurrentEntry(writer.get())) {
       LOG(ERROR) << "Cannot extract file " << Redact(entry->path)
                  << " from ZIP";
-      return false;
+      if (!options.continue_on_error)
+        return false;
     }
   }
 

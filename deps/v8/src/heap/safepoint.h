@@ -94,7 +94,7 @@ class IsolateSafepoint final {
   void WaitUntilRunningThreadsInSafepoint(
       const PerClientSafepointData* client_data);
 
-  IncludeMainThread IncludeMainThreadUnlessInitiator(Isolate* initiator);
+  IncludeMainThread ShouldIncludeMainThread(Isolate* initiator);
 
   void LockMutex(LocalHeap* local_heap);
 

@@ -81,7 +81,7 @@ def GetDisasmLines(filename, offset, size, arch, inplace, arch_flags=""):
                              stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT)
   out, err = process.communicate()
-  lines = out.split("\n")
+  lines = out.decode('utf-8').split("\n")
   header_line = 0
   for i, line in enumerate(lines):
     if _DISASM_HEADER_RE.match(line):

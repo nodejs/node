@@ -273,12 +273,12 @@ function foo() { function boo() { #return 239# }; #boo #}
 #
 function foo() { let boo = #function() { #return 239# }; #}
 #
-#() => { #239 #}
+var foo = #() => { #239 #}
 #
 function foo() { #239 #}
 #
-#() => #239#
-#() => { #return 239# }#
+var foo = #() => #239#
+var foo = #() => { #return 239# }#
 
 Running test: argumentsAsCalls
 function foo(){#}

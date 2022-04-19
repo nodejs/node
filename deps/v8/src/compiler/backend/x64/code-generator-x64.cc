@@ -1159,22 +1159,7 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
   __ Assert(equal, AbortReason::kWrongFunctionCodeStart);
 }
 
-// Check if the code object is marked for deoptimization. If it is, then it
-// jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
-// to:
-//    1. read from memory the word that contains that bit, which can be found in
-//       the flags in the referenced {CodeDataContainer} object;
-//    2. test kMarkedForDeoptimizationBit in those flags; and
-//    3. if it is not zero then it jumps to the builtin.
-void CodeGenerator::BailoutIfDeoptimized() {
-  int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
-  __ LoadTaggedPointerField(rbx,
-                            Operand(kJavaScriptCallCodeStartRegister, offset));
-  __ testl(FieldOperand(rbx, CodeDataContainer::kKindSpecificFlagsOffset),
-           Immediate(1 << Code::kMarkedForDeoptimizationBit));
-  __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
-          RelocInfo::CODE_TARGET, not_zero);
-}
+void CodeGenerator::BailoutIfDeoptimized() { __ BailoutIfDeoptimized(rbx); }
 
 bool ShouldClearOutputRegisterBeforeInstruction(CodeGenerator* g,
                                                 Instruction* instr) {
@@ -1495,6 +1480,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(index);
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
+
+      if (FLAG_debug_code) {
+        // Checking that |value| is not a cleared weakref: our write barrier
+        // does not support that for now.
+        __ Cmp(value, kClearedWeakHeapObjectLower32);
+        __ Check(not_equal, AbortReason::kOperandIsCleared);
+      }
+
       auto ool = zone()->New<OutOfLineRecordWrite>(this, object, operand, value,
                                                    scratch0, scratch1, mode,
                                                    DetermineStubCallMode());
@@ -2018,17 +2011,47 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kSSEFloat32ToInt64:
-      if (instr->InputAt(0)->IsFPRegister()) {
-        __ Cvttss2siq(i.OutputRegister(), i.InputDoubleRegister(0));
-      } else {
-        __ Cvttss2siq(i.OutputRegister(), i.InputOperand(0));
+    case kSSEFloat32ToInt64: {
+      Register output_reg = i.OutputRegister(0);
+      if (instr->OutputCount() == 1) {
+        if (instr->InputAt(0)->IsFPRegister()) {
+          __ Cvttss2siq(output_reg, i.InputDoubleRegister(0));
+        } else {
+          __ Cvttss2siq(output_reg, i.InputOperand(0));
+        }
+        break;
       }
-      if (instr->OutputCount() > 1) {
-        __ Move(i.OutputRegister(1), 1);
+      DCHECK_EQ(2, instr->OutputCount());
+      Register success_reg = i.OutputRegister(1);
+      if (CpuFeatures::IsSupported(SSE4_1) || CpuFeatures::IsSupported(AVX)) {
+        DoubleRegister rounded = kScratchDoubleReg;
+        if (instr->InputAt(0)->IsFPRegister()) {
+          __ Roundss(rounded, i.InputDoubleRegister(0), kRoundToZero);
+          __ Cvttss2siq(output_reg, i.InputDoubleRegister(0));
+        } else {
+          __ Roundss(rounded, i.InputOperand(0), kRoundToZero);
+          // Convert {rounded} instead of the input operand, to avoid another
+          // load.
+          __ Cvttss2siq(output_reg, rounded);
+        }
+        DoubleRegister converted_back = i.TempSimd128Register(0);
+        __ Cvtqsi2ss(converted_back, output_reg);
+        // Compare the converted back value to the rounded value, set
+        // success_reg to 0 if they differ, or 1 on success.
+        __ Cmpeqss(converted_back, rounded);
+        __ Movq(success_reg, converted_back);
+        __ And(success_reg, Immediate(1));
+      } else {
+        // Less efficient code for non-AVX and non-SSE4_1 CPUs.
+        if (instr->InputAt(0)->IsFPRegister()) {
+          __ Cvttss2siq(i.OutputRegister(), i.InputDoubleRegister(0));
+        } else {
+          __ Cvttss2siq(i.OutputRegister(), i.InputOperand(0));
+        }
+        __ Move(success_reg, 1);
         Label done;
         Label fail;
-        __ Move(kScratchDoubleReg, static_cast<float>(INT64_MIN));
+        __ Move(kScratchDoubleReg, float{INT64_MIN});
         if (instr->InputAt(0)->IsFPRegister()) {
           __ Ucomiss(kScratchDoubleReg, i.InputDoubleRegister(0));
         } else {
@@ -2038,26 +2061,57 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ j(parity_even, &fail, Label::kNear);
         // If the input is INT64_MIN, then the conversion succeeds.
         __ j(equal, &done, Label::kNear);
-        __ cmpq(i.OutputRegister(0), Immediate(1));
+        __ cmpq(output_reg, Immediate(1));
         // If the conversion results in INT64_MIN, but the input was not
         // INT64_MIN, then the conversion fails.
         __ j(no_overflow, &done, Label::kNear);
         __ bind(&fail);
-        __ Move(i.OutputRegister(1), 0);
+        __ Move(success_reg, 0);
         __ bind(&done);
       }
       break;
-    case kSSEFloat64ToInt64:
-      if (instr->InputAt(0)->IsFPRegister()) {
-        __ Cvttsd2siq(i.OutputRegister(0), i.InputDoubleRegister(0));
-      } else {
-        __ Cvttsd2siq(i.OutputRegister(0), i.InputOperand(0));
+    }
+    case kSSEFloat64ToInt64: {
+      Register output_reg = i.OutputRegister(0);
+      if (instr->OutputCount() == 1) {
+        if (instr->InputAt(0)->IsFPRegister()) {
+          __ Cvttsd2siq(output_reg, i.InputDoubleRegister(0));
+        } else {
+          __ Cvttsd2siq(output_reg, i.InputOperand(0));
+        }
+        break;
       }
-      if (instr->OutputCount() > 1) {
-        __ Move(i.OutputRegister(1), 1);
+      DCHECK_EQ(2, instr->OutputCount());
+      Register success_reg = i.OutputRegister(1);
+      if (CpuFeatures::IsSupported(SSE4_1) || CpuFeatures::IsSupported(AVX)) {
+        DoubleRegister rounded = kScratchDoubleReg;
+        if (instr->InputAt(0)->IsFPRegister()) {
+          __ Roundsd(rounded, i.InputDoubleRegister(0), kRoundToZero);
+          __ Cvttsd2siq(output_reg, i.InputDoubleRegister(0));
+        } else {
+          __ Roundsd(rounded, i.InputOperand(0), kRoundToZero);
+          // Convert {rounded} instead of the input operand, to avoid another
+          // load.
+          __ Cvttsd2siq(output_reg, rounded);
+        }
+        DoubleRegister converted_back = i.TempSimd128Register(0);
+        __ Cvtqsi2sd(converted_back, output_reg);
+        // Compare the converted back value to the rounded value, set
+        // success_reg to 0 if they differ, or 1 on success.
+        __ Cmpeqsd(converted_back, rounded);
+        __ Movq(success_reg, converted_back);
+        __ And(success_reg, Immediate(1));
+      } else {
+        // Less efficient code for non-AVX and non-SSE4_1 CPUs.
+        if (instr->InputAt(0)->IsFPRegister()) {
+          __ Cvttsd2siq(i.OutputRegister(0), i.InputDoubleRegister(0));
+        } else {
+          __ Cvttsd2siq(i.OutputRegister(0), i.InputOperand(0));
+        }
+        __ Move(success_reg, 1);
         Label done;
         Label fail;
-        __ Move(kScratchDoubleReg, static_cast<double>(INT64_MIN));
+        __ Move(kScratchDoubleReg, double{INT64_MIN});
         if (instr->InputAt(0)->IsFPRegister()) {
           __ Ucomisd(kScratchDoubleReg, i.InputDoubleRegister(0));
         } else {
@@ -2067,15 +2121,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ j(parity_even, &fail, Label::kNear);
         // If the input is INT64_MIN, then the conversion succeeds.
         __ j(equal, &done, Label::kNear);
-        __ cmpq(i.OutputRegister(0), Immediate(1));
+        __ cmpq(output_reg, Immediate(1));
         // If the conversion results in INT64_MIN, but the input was not
         // INT64_MIN, then the conversion fails.
         __ j(no_overflow, &done, Label::kNear);
         __ bind(&fail);
-        __ Move(i.OutputRegister(1), 0);
+        __ Move(success_reg, 0);
         __ bind(&done);
       }
       break;
+    }
     case kSSEFloat32ToUint64: {
       Label fail;
       if (instr->OutputCount() > 1) __ Move(i.OutputRegister(1), 0);

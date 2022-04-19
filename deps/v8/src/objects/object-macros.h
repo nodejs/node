@@ -105,6 +105,13 @@
   }                                                          \
   type holder::name(PtrComprCageBase cage_base, AcquireLoadTag) const
 
+#define TQ_FIELD_TYPE(name, tq_type) \
+  static constexpr const char* k##name##TqFieldType = tq_type;
+
+#define DECL_FIELD_OFFSET_TQ(name, value, tq_type) \
+  static const int k##name##Offset = value;        \
+  TQ_FIELD_TYPE(name, tq_type)
+
 #define DECL_SETTER(name, type)      \
   inline void set_##name(type value, \
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -683,3 +690,6 @@ static_assert(sizeof(unsigned) == sizeof(uint32_t),
 #define TQ_OBJECT_CONSTRUCTORS_IMPL(Type) \
   inline Type::Type(Address ptr)          \
       : TorqueGenerated##Type<Type, Type::Super>(ptr) {}
+
+#define TQ_CPP_OBJECT_DEFINITION_ASSERTS(_class, parent) \
+  template class TorqueGenerated##_class##Asserts<_class, parent>;

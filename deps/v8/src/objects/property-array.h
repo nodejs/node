@@ -40,6 +40,10 @@ class PropertyArray
   // Setter with explicit barrier mode.
   inline void set(int index, Object value, WriteBarrierMode mode);
 
+  inline Object Swap(int index, Object value, SeqCstAccessTag tag);
+  inline Object Swap(PtrComprCageBase cage_base, int index, Object value,
+                     SeqCstAccessTag tag);
+
   // Signature must be in sync with FixedArray::CopyElements().
   inline void CopyElements(Isolate* isolate, int dst_index, PropertyArray src,
                            int src_index, int len, WriteBarrierMode mode);

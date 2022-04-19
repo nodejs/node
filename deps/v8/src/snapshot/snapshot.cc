@@ -313,10 +313,6 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
   // Test serialization.
   {
     GlobalSafepointScope global_safepoint(isolate);
-    base::Optional<SafepointScope> shared_isolate_safepoint_scope;
-    if (Isolate* shared_isolate = isolate->shared_isolate()) {
-      shared_isolate_safepoint_scope.emplace(shared_isolate->heap());
-    }
     DisallowGarbageCollection no_gc;
 
     Snapshot::SerializerFlags flags(
