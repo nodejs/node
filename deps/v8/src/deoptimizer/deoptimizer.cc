@@ -460,6 +460,8 @@ const char* Deoptimizer::MessageFor(DeoptimizeKind kind) {
   switch (kind) {
     case DeoptimizeKind::kEager:
       return "deopt-eager";
+    case DeoptimizeKind::kUnused:
+      return "deopt-unused";
     case DeoptimizeKind::kLazy:
       return "deopt-lazy";
   }
@@ -585,6 +587,8 @@ Builtin Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind kind) {
   switch (kind) {
     case DeoptimizeKind::kEager:
       return Builtin::kDeoptimizationEntry_Eager;
+    case DeoptimizeKind::kUnused:
+      return Builtin::kDeoptimizationEntry_Unused;
     case DeoptimizeKind::kLazy:
       return Builtin::kDeoptimizationEntry_Lazy;
   }
@@ -598,6 +602,9 @@ bool Deoptimizer::IsDeoptimizationEntry(Isolate* isolate, Address addr,
   switch (builtin) {
     case Builtin::kDeoptimizationEntry_Eager:
       *type_out = DeoptimizeKind::kEager;
+      return true;
+    case Builtin::kDeoptimizationEntry_Unused:
+      *type_out = DeoptimizeKind::kUnused;
       return true;
     case Builtin::kDeoptimizationEntry_Lazy:
       *type_out = DeoptimizeKind::kLazy;

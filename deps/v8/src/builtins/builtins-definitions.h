@@ -46,6 +46,8 @@ namespace internal {
   /* Deoptimization entries. */                               \
   ASM(DeoptimizationEntry_Eager, DeoptimizationEntry)         \
   ASM(DeoptimizationEntry_Lazy, DeoptimizationEntry)          \
+  /* Replaces "Soft" for ABI compatibility. */                \
+  ASM(DeoptimizationEntry_Unused, DeoptimizationEntry)        \
                                                               \
   /* GC write barrier. */                                     \
   TFC(RecordWriteEmitRememberedSetSaveFP, WriteBarrier)       \
