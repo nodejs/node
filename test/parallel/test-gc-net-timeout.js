@@ -5,6 +5,9 @@
 
 require('../common');
 const onGC = require('../common/ongc');
+const assert = require('assert');
+const net = require('net');
+const os = require('os');
 
 function serverHandler(sock) {
   sock.setTimeout(120000);
@@ -23,20 +26,17 @@ function serverHandler(sock) {
   }, 100);
 }
 
-const net = require('net');
-const assert = require('assert');
-const todo = 500;
+const cpus = os.cpus().length;
+let createClients = true;
 let done = 0;
 let count = 0;
 let countGC = 0;
 
-console.log(`We should do ${todo} requests`);
-
 const server = net.createServer(serverHandler);
-server.listen(0, getall);
+server.listen(0, getAll);
 
-function getall() {
-  if (count >= todo)
+function getAll() {
+  if (!createClients)
     return;
 
   const req = net.connect(server.address().port);
@@ -49,21 +49,28 @@ function getall() {
   count++;
   onGC(req, { ongc });
 
-  setImmediate(getall);
+  setImmediate(getAll);
 }
 
-for (let i = 0; i < 10; i++)
-  getall();
+for (let i = 0; i < cpus; i++)
+  getAll();
 
 function ongc() {
   countGC++;
 }
 
-setInterval(status, 100).unref();
+setImmediate(status);
 
 function status() {
-  global.gc();
-  console.log('Done: %d/%d', done, todo);
-  console.log('Collected: %d/%d', countGC, count);
-  if (countGC === todo) server.close();
+  if (done > 0) {
+    createClients = false;
+    global.gc();
+    console.log(`done/collected/total: ${done}/${countGC}/${count}`);
+    if (countGC === count) {
+      server.close();
+      return;
+    }
+  }
+
+  setImmediate(status);
 }
