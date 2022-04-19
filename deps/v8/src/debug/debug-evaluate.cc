@@ -31,7 +31,7 @@ static MaybeHandle<SharedFunctionInfo> GetFunctionInfo(Isolate* isolate,
                                                        Handle<String> source,
                                                        REPLMode repl_mode) {
   ScriptDetails script_details(isolate->factory()->empty_string(),
-                               ScriptOriginOptions(false, true));
+                               ScriptOriginOptions(true, true));
   script_details.repl_mode = repl_mode;
   return Compiler::GetSharedFunctionInfoForScript(
       isolate, source, script_details, ScriptCompiler::kNoCompileOptions,

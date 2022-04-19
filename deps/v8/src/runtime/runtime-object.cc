@@ -606,19 +606,22 @@ MaybeHandle<Object> Runtime::DefineObjectOwnProperty(
   if (!success) return MaybeHandle<Object>();
   LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
 
-  if (it.IsFound() && key->IsSymbol() && Symbol::cast(*key).is_private_name()) {
+  if (key->IsSymbol() && Symbol::cast(*key).is_private_name()) {
     Handle<Symbol> private_symbol = Handle<Symbol>::cast(key);
-    Handle<Object> name_string(private_symbol->description(), isolate);
-    DCHECK(name_string->IsString());
-    MessageTemplate message =
-        private_symbol->is_private_brand()
-            ? MessageTemplate::kInvalidPrivateBrandReinitialization
-            : MessageTemplate::kInvalidPrivateFieldReinitialization;
-    THROW_NEW_ERROR(isolate, NewTypeError(message, name_string), Object);
+    if (it.IsFound()) {
+      Handle<Object> name_string(private_symbol->description(), isolate);
+      DCHECK(name_string->IsString());
+      MessageTemplate message =
+          private_symbol->is_private_brand()
+              ? MessageTemplate::kInvalidPrivateBrandReinitialization
+              : MessageTemplate::kInvalidPrivateFieldReinitialization;
+      THROW_NEW_ERROR(isolate, NewTypeError(message, name_string), Object);
+    } else {
+      MAYBE_RETURN_NULL(JSReceiver::AddPrivateField(&it, value, should_throw));
+    }
+  } else {
+    MAYBE_RETURN_NULL(JSReceiver::CreateDataProperty(&it, value, should_throw));
   }
-
-  MAYBE_RETURN_NULL(
-      Object::SetProperty(&it, value, store_origin, should_throw));
 
   return value;
 }
@@ -1334,7 +1337,7 @@ void CheckExcludedPropertiesAreOnCallerStack(Isolate* isolate, Address base,
 
 RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedPropertiesOnStack) {
   HandleScope scope(isolate);
-  DCHECK_LE(3, args.length());
+  DCHECK_EQ(3, args.length());
   Handle<Object> source = args.at(0);
   int excluded_property_count = args.smi_value_at(1);
   // The excluded_property_base is passed as a raw stack pointer. This is safe

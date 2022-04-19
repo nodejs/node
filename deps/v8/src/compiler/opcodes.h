@@ -83,6 +83,7 @@
   V(DeadValue)            \
   V(Dead)                 \
   V(Plug)                 \
+  V(SLVerifierHint)       \
   V(StaticAssert)
 
 // Opcodes for JavaScript operators.

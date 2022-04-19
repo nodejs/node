@@ -35,14 +35,14 @@ class BackgroundCompileTaskTest : public TestWithNativeContext {
 
   AccountingAllocator* allocator() { return allocator_; }
 
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
-    TestWithNativeContext::SetUpTestCase();
+    TestWithNativeContext::SetUpTestSuite();
   }
 
-  static void TearDownTestCase() {
-    TestWithNativeContext::TearDownTestCase();
+  static void TearDownTestSuite() {
+    TestWithNativeContext::TearDownTestSuite();
     CHECK_NOT_NULL(save_flags_);
     delete save_flags_;
     save_flags_ = nullptr;

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Copyright 2014 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -102,11 +103,9 @@ Path pieces are concatenated. D8 is always run with the suite's path as cwd.
 The test flags are passed to the js test file after '--'.
 """
 
-# for py2/py3 compatibility
-from __future__ import print_function
-from functools import reduce
-
 from collections import OrderedDict
+from math import sqrt
+from statistics import mean, stdev
 import copy
 import json
 import logging
@@ -124,21 +123,6 @@ from testrunner.local import command
 from testrunner.local import utils
 from testrunner.objects.output import Output, NULL_OUTPUT
 
-from math import sqrt
-# NOTE: added import here to prevent breakages during the py2/3 migration,
-# once we enable python3 only, we can move the import up
-try:
-  from numpy import mean
-  from numpy import std as stdev
-except ImportError:
-  from statistics import mean, stdev
-
-
-# for py2/py3 compatibility
-try:
-  basestring       # Python 2
-except NameError:  # Python 3
-  basestring = str
 
 SUPPORTED_ARCHS = ['arm',
                    'ia32',
@@ -276,7 +260,8 @@ class ResultTracker(object):
     avg = mean(results)
     avg_stderr = stdev(results) / sqrt(len(results))
     logging.debug('  Mean: %.2f, mean_stderr: %.2f', avg, avg_stderr)
-    logging.info('>>> Confidence level is %.2f', avg / (1000.0 * avg_stderr))
+    logging.info('>>> Confidence level is %.2f',
+                 avg / max(1000.0 * avg_stderr, .1))
     return confidence_level * avg_stderr < avg / 1000.0
 
   def __str__(self):  # pragma: no cover
@@ -349,7 +334,7 @@ class GraphConfig(Node):
 
     assert isinstance(suite.get('path', []), list)
     assert isinstance(suite.get('owners', []), list)
-    assert isinstance(suite['name'], basestring)
+    assert isinstance(suite['name'], str)
     assert isinstance(suite.get('flags', []), list)
     assert isinstance(suite.get('test_flags', []), list)
     assert isinstance(suite.get('resources', []), list)

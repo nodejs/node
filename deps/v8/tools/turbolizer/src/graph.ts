@@ -1,5 +1,5 @@
-import { GNode } from "./node";
-import { Edge, MINIMUM_EDGE_SEPARATION } from "./edge";
+import { GNode, MINIMUM_EDGE_SEPARATION } from "./node";
+import { Edge } from "./edge";
 
 export class Graph {
   nodeMap: Array<GNode>;

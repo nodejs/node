@@ -31,6 +31,7 @@
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph-processor.h"
+#include "src/maglev/maglev-graph-verifier.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
@@ -46,8 +47,6 @@ namespace maglev {
 
 class NumberingProcessor {
  public:
-  static constexpr bool kNeedsCheckpointStates = false;
-
   void PreProcessGraph(MaglevCompilationUnit*, Graph* graph) { node_id_ = 1; }
   void PostProcessGraph(MaglevCompilationUnit*, Graph* graph) {}
   void PreProcessBasicBlock(MaglevCompilationUnit*, BasicBlock* block) {}
@@ -62,16 +61,20 @@ class NumberingProcessor {
 
 class UseMarkingProcessor {
  public:
-  static constexpr bool kNeedsCheckpointStates = true;
-
   void PreProcessGraph(MaglevCompilationUnit*, Graph* graph) {}
   void PostProcessGraph(MaglevCompilationUnit*, Graph* graph) {}
   void PreProcessBasicBlock(MaglevCompilationUnit*, BasicBlock* block) {}
 
-  void Process(NodeBase* node, const ProcessingState& state) {
-    if (node->properties().can_deopt()) MarkCheckpointNodes(node, state);
+  template <typename NodeT>
+  void Process(NodeT* node, const ProcessingState& state) {
+    if constexpr (NodeT::kProperties.can_eager_deopt()) {
+      MarkCheckpointNodes(node, node->eager_deopt_info(), state);
+    }
     for (Input& input : *node) {
       input.node()->mark_use(node->id(), &input);
+    }
+    if constexpr (NodeT::kProperties.can_lazy_deopt()) {
+      MarkCheckpointNodes(node, node->lazy_deopt_info(), state);
     }
   }
 
@@ -105,30 +108,40 @@ class UseMarkingProcessor {
   }
 
  private:
-  void MarkCheckpointNodes(NodeBase* node, const ProcessingState& state) {
-    const InterpreterFrameState* checkpoint_state =
-        state.checkpoint_frame_state();
+  void MarkCheckpointNodes(NodeBase* node, const EagerDeoptInfo* deopt_info,
+                           const ProcessingState& state) {
+    const CompactInterpreterFrameState* register_frame =
+        deopt_info->state.register_frame;
     int use_id = node->id();
+    int index = 0;
 
-    for (int i = 0; i < state.parameter_count(); i++) {
-      interpreter::Register reg = interpreter::Register::FromParameterIndex(i);
-      ValueNode* node = checkpoint_state->get(reg);
-      if (node) node->mark_use(use_id, nullptr);
-    }
-    for (int i = 0; i < state.register_count(); i++) {
-      interpreter::Register reg = interpreter::Register(i);
-      ValueNode* node = checkpoint_state->get(reg);
-      if (node) node->mark_use(use_id, nullptr);
-    }
-    if (checkpoint_state->accumulator()) {
-      checkpoint_state->accumulator()->mark_use(use_id, nullptr);
-    }
+    register_frame->ForEachValue(
+        *state.compilation_unit(),
+        [&](ValueNode* node, interpreter::Register reg) {
+          node->mark_use(use_id, &deopt_info->input_locations[index++]);
+        });
+  }
+  void MarkCheckpointNodes(NodeBase* node, const LazyDeoptInfo* deopt_info,
+                           const ProcessingState& state) {
+    const CompactInterpreterFrameState* register_frame =
+        deopt_info->state.register_frame;
+    int use_id = node->id();
+    int index = 0;
+
+    register_frame->ForEachValue(
+        *state.compilation_unit(),
+        [&](ValueNode* node, interpreter::Register reg) {
+          // Skip over the result location.
+          if (reg == deopt_info->result_location) return;
+          node->mark_use(use_id, &deopt_info->input_locations[index++]);
+        });
   }
 };
 
 // static
-void MaglevCompiler::Compile(MaglevCompilationUnit* toplevel_compilation_unit) {
-  MaglevCompiler compiler(toplevel_compilation_unit);
+void MaglevCompiler::Compile(LocalIsolate* local_isolate,
+                             MaglevCompilationUnit* toplevel_compilation_unit) {
+  MaglevCompiler compiler(local_isolate, toplevel_compilation_unit);
   compiler.Compile();
 }
 
@@ -142,7 +155,13 @@ void MaglevCompiler::Compile() {
         new MaglevGraphLabeller());
   }
 
-  MaglevGraphBuilder graph_builder(toplevel_compilation_unit_);
+  // TODO(v8:7700): Support exceptions in maglev. We currently bail if exception
+  // handler table is non-empty.
+  if (toplevel_compilation_unit_->bytecode().handler_table_size() > 0) {
+    return;
+  }
+
+  MaglevGraphBuilder graph_builder(local_isolate(), toplevel_compilation_unit_);
 
   graph_builder.Build();
 
@@ -155,6 +174,13 @@ void MaglevCompiler::Compile() {
     std::cout << "After graph buiding" << std::endl;
     PrintGraph(std::cout, toplevel_compilation_unit_, graph_builder.graph());
   }
+
+#ifdef DEBUG
+  {
+    GraphProcessor<MaglevGraphVerifier> verifier(toplevel_compilation_unit_);
+    verifier.ProcessGraph(graph_builder.graph());
+  }
+#endif
 
   {
     GraphMultiProcessor<NumberingProcessor, UseMarkingProcessor,
@@ -184,11 +210,20 @@ void MaglevCompiler::Compile() {
 MaybeHandle<CodeT> MaglevCompiler::GenerateCode(
     MaglevCompilationUnit* toplevel_compilation_unit) {
   Graph* const graph = toplevel_compilation_unit->info()->graph();
-  if (graph == nullptr) return {};  // Compilation failed.
+  if (graph == nullptr) {
+    // Compilation failed.
+    toplevel_compilation_unit->shared_function_info()
+        .object()
+        ->set_maglev_compilation_failed(true);
+    return {};
+  }
 
   Handle<Code> code;
   if (!MaglevCodeGenerator::Generate(toplevel_compilation_unit, graph)
            .ToHandle(&code)) {
+    toplevel_compilation_unit->shared_function_info()
+        .object()
+        ->set_maglev_compilation_failed(true);
     return {};
   }
 
@@ -201,6 +236,7 @@ MaybeHandle<CodeT> MaglevCompiler::GenerateCode(
   }
 
   Isolate* const isolate = toplevel_compilation_unit->isolate();
+  isolate->native_context()->AddOptimizedCode(ToCodeT(*code));
   return ToCodeT(code, isolate);
 }
 

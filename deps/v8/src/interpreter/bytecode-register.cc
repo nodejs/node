@@ -124,6 +124,8 @@ std::string Register::ToString() const {
     return std::string("<context>");
   } else if (is_function_closure()) {
     return std::string("<closure>");
+  } else if (*this == virtual_accumulator()) {
+    return std::string("<accumulator>");
   } else if (is_parameter()) {
     int parameter_index = ToParameterIndex();
     if (parameter_index == 0) {

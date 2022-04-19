@@ -24,7 +24,8 @@ class Graph;
 class MaglevCompiler {
  public:
   // May be called from any thread.
-  static void Compile(MaglevCompilationUnit* toplevel_compilation_unit);
+  static void Compile(LocalIsolate* local_isolate,
+                      MaglevCompilationUnit* toplevel_compilation_unit);
 
   // Called on the main thread after Compile has completed.
   // TODO(v8:7700): Move this to a different class?
@@ -32,8 +33,10 @@ class MaglevCompiler {
       MaglevCompilationUnit* toplevel_compilation_unit);
 
  private:
-  explicit MaglevCompiler(MaglevCompilationUnit* toplevel_compilation_unit)
-      : toplevel_compilation_unit_(toplevel_compilation_unit) {}
+  explicit MaglevCompiler(LocalIsolate* local_isolate,
+                          MaglevCompilationUnit* toplevel_compilation_unit)
+      : local_isolate_(local_isolate),
+        toplevel_compilation_unit_(toplevel_compilation_unit) {}
 
   void Compile();
 
@@ -41,8 +44,9 @@ class MaglevCompiler {
     return toplevel_compilation_unit_->broker();
   }
   Zone* zone() { return toplevel_compilation_unit_->zone(); }
-  Isolate* isolate() { return toplevel_compilation_unit_->isolate(); }
+  LocalIsolate* local_isolate() { return local_isolate_; }
 
+  LocalIsolate* const local_isolate_;
   MaglevCompilationUnit* const toplevel_compilation_unit_;
 };
 

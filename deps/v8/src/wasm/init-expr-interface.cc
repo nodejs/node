@@ -198,7 +198,7 @@ void InitExprInterface::ArrayInitFromData(
   const WasmDataSegment& data_segment =
       module_->data_segments[data_segment_imm.index];
   uint32_t length_in_bytes =
-      length * array_imm.array_type->element_type().element_size_bytes();
+      length * array_imm.array_type->element_type().value_kind_size();
 
   // Error handling.
   if (length >

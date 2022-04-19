@@ -195,6 +195,14 @@ void BaselineAssembler::JumpIfSmi(Condition cc, Register lhs, Register rhs,
   __ SmiCompare(lhs, rhs);
   __ j(AsMasmCondition(cc), target, distance);
 }
+
+void BaselineAssembler::JumpIfImmediate(Condition cc, Register left, int right,
+                                        Label* target,
+                                        Label::Distance distance) {
+  __ cmpq(left, Immediate(right));
+  __ j(AsMasmCondition(cc), target, distance);
+}
+
 // cmp_tagged
 void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
                                      MemOperand operand, Label* target,
@@ -323,7 +331,7 @@ void BaselineAssembler::PushReverse(T... vals) {
 
 template <typename... T>
 void BaselineAssembler::Pop(T... registers) {
-  ITERATE_PACK(__ Pop(registers));
+  (__ Pop(registers), ...);
 }
 
 void BaselineAssembler::LoadTaggedPointerField(Register output, Register source,
@@ -338,8 +346,12 @@ void BaselineAssembler::LoadTaggedAnyField(Register output, Register source,
                                            int offset) {
   __ LoadAnyTaggedField(output, FieldOperand(source, offset));
 }
-void BaselineAssembler::LoadByteField(Register output, Register source,
-                                      int offset) {
+void BaselineAssembler::LoadWord16FieldZeroExtend(Register output,
+                                                  Register source, int offset) {
+  __ movzxwq(output, FieldOperand(source, offset));
+}
+void BaselineAssembler::LoadWord8Field(Register output, Register source,
+                                       int offset) {
   __ movb(output, FieldOperand(source, offset));
 }
 void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
@@ -400,6 +412,11 @@ void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
     __ Move(rhs_reg, rhs);
     __ addq(lhs, rhs_reg);
   }
+}
+
+void BaselineAssembler::Word32And(Register output, Register lhs, int rhs) {
+  Move(output, lhs);
+  __ andq(output, Immediate(rhs));
 }
 
 void BaselineAssembler::Switch(Register reg, int case_value_base,

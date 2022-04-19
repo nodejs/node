@@ -296,10 +296,6 @@ ScriptContextTable NativeContext::synchronized_script_context_table() const {
       get(SCRIPT_CONTEXT_TABLE_INDEX, kAcquireLoad));
 }
 
-OSROptimizedCodeCache NativeContext::GetOSROptimizedCodeCache() {
-  return OSROptimizedCodeCache::cast(osr_code_cache());
-}
-
 void NativeContext::SetOptimizedCodeListHead(Object head) {
   set(OPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER, kReleaseStore);
 }

@@ -205,6 +205,15 @@ class V8_EXPORT V8InspectorSession {
   virtual void triggerPreciseCoverageDeltaUpdate(StringView occasion) = 0;
 };
 
+class V8_EXPORT WebDriverValue {
+ public:
+  explicit WebDriverValue(StringView type, v8::MaybeLocal<v8::Value> value = {})
+      : type(type), value(value) {}
+
+  StringView type;
+  v8::MaybeLocal<v8::Value> value;
+};
+
 class V8_EXPORT V8InspectorClient {
  public:
   virtual ~V8InspectorClient() = default;
@@ -219,6 +228,10 @@ class V8_EXPORT V8InspectorClient {
   virtual void beginUserGesture() {}
   virtual void endUserGesture() {}
 
+  virtual std::unique_ptr<WebDriverValue> serializeToWebDriverValue(
+      v8::Local<v8::Value> v8_value, int max_depth) {
+    return nullptr;
+  }
   virtual std::unique_ptr<StringBuffer> valueSubtype(v8::Local<v8::Value>) {
     return nullptr;
   }
@@ -270,6 +283,9 @@ class V8_EXPORT V8InspectorClient {
   // The caller would defer to generating a random 64 bit integer if
   // this method returns 0.
   virtual int64_t generateUniqueId() { return 0; }
+
+  virtual void dispatchError(v8::Local<v8::Context>, v8::Local<v8::Message>,
+                             v8::Local<v8::Value>) {}
 };
 
 // These stack trace ids are intended to be passed between debuggers and be

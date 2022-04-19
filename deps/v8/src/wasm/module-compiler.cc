@@ -1207,8 +1207,8 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
   // Allocate feedback vector if needed.
   if (result.feedback_vector_slots > 0) {
     DCHECK(FLAG_wasm_speculative_inlining);
-    Handle<FixedArray> vector =
-        isolate->factory()->NewFixedArray(result.feedback_vector_slots);
+    Handle<FixedArray> vector = isolate->factory()->NewFixedArrayWithZeroes(
+        result.feedback_vector_slots);
     instance->feedback_vectors().set(
         declared_function_index(module, func_index), *vector);
   }
@@ -1244,15 +1244,56 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
   return true;
 }
 
-std::vector<CallSiteFeedback> ProcessTypeFeedback(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index) {
-  int which_vector = declared_function_index(instance->module(), func_index);
-  Object maybe_feedback = instance->feedback_vectors().get(which_vector);
-  if (!maybe_feedback.IsFixedArray()) return {};
+class TransitiveTypeFeedbackProcessor {
+ public:
+  TransitiveTypeFeedbackProcessor(const WasmModule* module,
+                                  Handle<WasmInstanceObject> instance,
+                                  int func_index)
+      : instance_(instance),
+        feedback_for_function_(module->type_feedback.feedback_for_function) {
+    base::MutexGuard mutex_guard(&module->type_feedback.mutex);
+    queue_.insert(func_index);
+    while (!queue_.empty()) {
+      auto next = queue_.cbegin();
+      Process(*next);
+      queue_.erase(next);
+    }
+  }
+
+ private:
+  void Process(int func_index);
+
+  void EnqueueCallees(std::vector<CallSiteFeedback> feedback) {
+    for (size_t i = 0; i < feedback.size(); i++) {
+      int func = feedback[i].function_index;
+      // TODO(jkummerow): Find a way to get the target function ID for
+      // direct calls (which currently requires decoding the function).
+      if (func == -1) continue;
+      // Don't spend time on calls that have never been executed.
+      if (feedback[i].absolute_call_frequency == 0) continue;
+      // Don't recompute feedback that has already been processed.
+      auto existing = feedback_for_function_.find(func);
+      if (existing != feedback_for_function_.end() &&
+          existing->second.feedback_vector.size() > 0) {
+        continue;
+      }
+      queue_.insert(func);
+    }
+  }
+
+  Handle<WasmInstanceObject> instance_;
+  std::map<uint32_t, FunctionTypeFeedback>& feedback_for_function_;
+  std::unordered_set<int> queue_;
+};
+
+void TransitiveTypeFeedbackProcessor::Process(int func_index) {
+  int which_vector = declared_function_index(instance_->module(), func_index);
+  Object maybe_feedback = instance_->feedback_vectors().get(which_vector);
+  if (!maybe_feedback.IsFixedArray()) return;
   FixedArray feedback = FixedArray::cast(maybe_feedback);
   std::vector<CallSiteFeedback> result(feedback.length() / 2);
   int imported_functions =
-      static_cast<int>(instance->module()->num_imported_functions);
+      static_cast<int>(instance_->module()->num_imported_functions);
   for (int i = 0; i < feedback.length(); i += 2) {
     Object value = feedback.get(i);
     if (value.IsWasmInternalFunction() &&
@@ -1263,7 +1304,7 @@ std::vector<CallSiteFeedback> ProcessTypeFeedback(
       // if it's defined in the same module.
       WasmExportedFunction target = WasmExportedFunction::cast(
           WasmInternalFunction::cast(value).external());
-      if (target.instance() == *instance &&
+      if (target.instance() == *instance_ &&
           target.function_index() >= imported_functions) {
         if (FLAG_trace_wasm_speculative_inlining) {
           PrintF("[Function #%d call_ref #%d inlineable (monomorphic)]\n",
@@ -1304,7 +1345,7 @@ std::vector<CallSiteFeedback> ProcessTypeFeedback(
         }
         WasmExportedFunction target =
             WasmExportedFunction::cast(internal.external());
-        if (target.instance() != *instance ||
+        if (target.instance() != *instance_ ||
             target.function_index() < imported_functions) {
           continue;
         }
@@ -1324,6 +1365,15 @@ std::vector<CallSiteFeedback> ProcessTypeFeedback(
         PrintF("[Function #%d call_ref #%d: best frequency %f]\n", func_index,
                i / 2, best_frequency);
       }
+    } else if (value.IsSmi()) {
+      // Direct call, just collecting call count.
+      int count = Smi::cast(value).value();
+      if (FLAG_trace_wasm_speculative_inlining) {
+        PrintF("[Function #%d call_direct #%d: frequency %d]\n", func_index,
+               i / 2, count);
+      }
+      result[i / 2] = {-1, count};
+      continue;
     }
     // If we fall through to here, then this call isn't eligible for inlining.
     // Possible reasons: uninitialized or megamorphic feedback; or monomorphic
@@ -1334,7 +1384,8 @@ std::vector<CallSiteFeedback> ProcessTypeFeedback(
     }
     result[i / 2] = {-1, -1};
   }
-  return result;
+  EnqueueCallees(result);
+  feedback_for_function_[func_index].feedback_vector = std::move(result);
 }
 
 void TriggerTierUp(Isolate* isolate, NativeModule* native_module,
@@ -1363,13 +1414,10 @@ void TriggerTierUp(Isolate* isolate, NativeModule* native_module,
     priority = saved_priority;
   }
   if (FLAG_wasm_speculative_inlining) {
-    auto feedback = ProcessTypeFeedback(isolate, instance, func_index);
-    base::MutexGuard mutex_guard(&module->type_feedback.mutex);
-    // TODO(jkummerow): we could have collisions here if two different instances
-    // of the same module schedule tier-ups of the same function at the same
-    // time. If that ever becomes a problem, figure out a solution.
-    module->type_feedback.feedback_for_function[func_index].feedback_vector =
-        std::move(feedback);
+    // TODO(jkummerow): we could have collisions here if different instances
+    // of the same module have collected different feedback. If that ever
+    // becomes a problem, figure out a solution.
+    TransitiveTypeFeedbackProcessor process(module, instance, func_index);
   }
 
   compilation_state->AddTopTierPriorityCompilationUnit(tiering_unit, priority);

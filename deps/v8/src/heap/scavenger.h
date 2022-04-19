@@ -16,7 +16,6 @@
 namespace v8 {
 namespace internal {
 
-class OneshotBarrier;
 class RootScavengeVisitor;
 class Scavenger;
 

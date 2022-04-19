@@ -17,7 +17,6 @@ class State {
   _mapTimeline;
   _deoptTimeline;
   _codeTimeline;
-  _apiTimeline;
   _tickTimeline;
   _timerTimeline;
   _minStartTime = Number.POSITIVE_INFINITY;
@@ -42,13 +41,12 @@ class State {
   }
 
   setTimelines(
-      mapTimeline, icTimeline, deoptTimeline, codeTimeline, apiTimeline,
-      tickTimeline, timerTimeline) {
+      mapTimeline, icTimeline, deoptTimeline, codeTimeline, tickTimeline,
+      timerTimeline) {
     this._mapTimeline = mapTimeline;
     this._icTimeline = icTimeline;
     this._deoptTimeline = deoptTimeline;
     this._codeTimeline = codeTimeline;
-    this._apiTimeline = apiTimeline;
     this._tickTimeline = tickTimeline;
     this._timerTimeline = timerTimeline;
     for (let timeline of arguments) {
@@ -78,10 +76,6 @@ class State {
     return this._codeTimeline;
   }
 
-  get apiTimeline() {
-    return this._apiTimeline;
-  }
-
   get tickTimeline() {
     return this._tickTimeline;
   }
@@ -93,8 +87,7 @@ class State {
   get timelines() {
     return [
       this._mapTimeline, this._icTimeline, this._deoptTimeline,
-      this._codeTimeline, this._apiTimeline, this._tickTimeline,
-      this._timerTimeline
+      this._codeTimeline, this._tickTimeline, this._timerTimeline
     ];
   }
 

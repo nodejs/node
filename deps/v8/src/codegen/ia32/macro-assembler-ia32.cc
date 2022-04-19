@@ -2033,9 +2033,8 @@ void TurboAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
   ASM_CODE_COMMENT(this);
   CallBuiltin(target);
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
-            (kind == DeoptimizeKind::kLazy)
-                ? Deoptimizer::kLazyDeoptExitSize
-                : Deoptimizer::kNonLazyDeoptExitSize);
+            (kind == DeoptimizeKind::kLazy) ? Deoptimizer::kLazyDeoptExitSize
+                                            : Deoptimizer::kEagerDeoptExitSize);
 }
 
 void TurboAssembler::Trap() { int3(); }

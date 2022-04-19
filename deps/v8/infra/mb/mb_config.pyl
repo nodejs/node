@@ -116,7 +116,6 @@
       'V8 Linux64 - pointer compression - builder': 'release_x64_pointer_compression',
       'V8 Linux64 - pointer compression without dchecks':
           'release_x64_pointer_compression_without_dchecks',
-      'V8 Linux64 - python3 - builder': 'release_x64',
       'V8 Linux64 - arm64 - sim - pointer compression - builder':
           'release_simulate_arm64_pointer_compression',
       'V8 Linux64 gcc - debug builder': 'debug_x64_gcc',
@@ -238,7 +237,6 @@
       'v8_linux64_nodcheck_rel_ng': 'release_x64',
       'v8_linux64_perfetto_dbg_ng': 'debug_x64_perfetto',
       'v8_linux64_pointer_compression_rel_ng': 'release_x64_pointer_compression',
-      'v8_linux64_python3_rel_ng': 'release_x64',
       'v8_linux64_rel_ng': 'release_x64_test_features_trybot',
       'v8_linux64_shared_compile_rel': 'release_x64_shared_verify_heap',
       'v8_linux64_single_generation_dbg_ng': 'debug_x64_single_generation',

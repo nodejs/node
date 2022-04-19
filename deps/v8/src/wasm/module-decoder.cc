@@ -13,6 +13,7 @@
 #include "src/logging/metrics.h"
 #include "src/objects/objects-inl.h"
 #include "src/utils/ostreams.h"
+#include "src/wasm/canonical-types.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/init-expr-interface.h"
@@ -669,17 +670,22 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   void DecodeTypeSection() {
+    TypeCanonicalizer* type_canon = GetTypeCanonicalizer();
     uint32_t types_count = consume_count("types count", kV8MaxWasmTypes);
 
     // Non wasm-gc type section decoding.
     if (!enabled_features_.has_gc()) {
-      for (uint32_t i = 0; ok() && i < types_count; ++i) {
+      module_->types.reserve(types_count);
+      for (uint32_t i = 0; i < types_count; ++i) {
         TRACE("DecodeSignature[%d] module+%d\n", i,
               static_cast<int>(pc_ - start_));
         expect_u8("signature definition", kWasmFunctionTypeCode);
         const FunctionSig* sig = consume_sig(module_->signature_zone.get());
         if (!ok()) break;
         module_->add_signature(sig, kNoSuperType);
+        if (FLAG_wasm_type_canonicalization) {
+          type_canon->AddRecursiveGroup(module_.get(), 1);
+        }
       }
       return;
     }
@@ -699,6 +705,9 @@ class ModuleDecoderImpl : public Decoder {
                 static_cast<int>(pc_ - start_));
           TypeDefinition type = consume_nominal_type_definition();
           if (ok()) module_->add_type(type);
+        }
+        if (ok() && FLAG_wasm_type_canonicalization) {
+          type_canon->AddRecursiveGroup(module_.get(), types_count);
         }
       } else {
         // wasm-gc isorecursive type section decoding.
@@ -722,9 +731,17 @@ class ModuleDecoderImpl : public Decoder {
               TypeDefinition type = consume_subtype_definition();
               if (ok()) module_->add_type(type);
             }
+            if (ok() && FLAG_wasm_type_canonicalization) {
+              type_canon->AddRecursiveGroup(module_.get(), group_size);
+            }
           } else {
             TypeDefinition type = consume_subtype_definition();
-            if (ok()) module_->add_type(type);
+            if (ok()) {
+              module_->add_type(type);
+              if (FLAG_wasm_type_canonicalization) {
+                type_canon->AddRecursiveGroup(module_.get(), 1);
+              }
+            }
           }
         }
       }
@@ -1290,14 +1307,31 @@ class ModuleDecoderImpl : public Decoder {
       uint8_t hint_byte = decoder.consume_u8("compilation hint");
       if (!decoder.ok()) break;
 
+      // Validate the hint_byte.
+      // For the compilation strategy, all 2-bit values are valid. For the tier,
+      // only 0x0, 0x1, and 0x2 are allowed.
+      static_assert(
+          static_cast<int>(WasmCompilationHintTier::kDefault) == 0 &&
+              static_cast<int>(WasmCompilationHintTier::kBaseline) == 1 &&
+              static_cast<int>(WasmCompilationHintTier::kOptimized) == 2,
+          "The check below assumes that 0x03 is the only invalid 2-bit number "
+          "for a compilation tier");
+      if (((hint_byte >> 2) & 0x03) == 0x03 ||
+          ((hint_byte >> 4) & 0x03) == 0x03) {
+        decoder.errorf(decoder.pc(),
+                       "Invalid compilation hint %#04x (invalid tier 0x03)",
+                       hint_byte);
+        break;
+      }
+
       // Decode compilation hint.
       WasmCompilationHint hint;
       hint.strategy =
           static_cast<WasmCompilationHintStrategy>(hint_byte & 0x03);
       hint.baseline_tier =
-          static_cast<WasmCompilationHintTier>(hint_byte >> 2 & 0x3);
+          static_cast<WasmCompilationHintTier>((hint_byte >> 2) & 0x03);
       hint.top_tier =
-          static_cast<WasmCompilationHintTier>(hint_byte >> 4 & 0x3);
+          static_cast<WasmCompilationHintTier>((hint_byte >> 4) & 0x03);
 
       // Ensure that the top tier never downgrades a compilation result. If
       // baseline and top tier are the same compilation will be invoked only
@@ -1305,7 +1339,7 @@ class ModuleDecoderImpl : public Decoder {
       if (hint.top_tier < hint.baseline_tier &&
           hint.top_tier != WasmCompilationHintTier::kDefault) {
         decoder.errorf(decoder.pc(),
-                       "Invalid compilation hint %#x (forbidden downgrade)",
+                       "Invalid compilation hint %#04x (forbidden downgrade)",
                        hint_byte);
       }
 
@@ -1615,7 +1649,7 @@ class ModuleDecoderImpl : public Decoder {
         // All entries in the tagged_globals_buffer have size 1.
         tagged_offset++;
       } else {
-        int size = global.type.element_size_bytes();
+        int size = global.type.value_kind_size();
         untagged_offset = (untagged_offset + size - 1) & ~(size - 1);  // align
         global.offset = untagged_offset;
         untagged_offset += size;

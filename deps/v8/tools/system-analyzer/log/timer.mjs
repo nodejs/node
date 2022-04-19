@@ -30,7 +30,7 @@ export class TimerLogEntry extends LogEntry {
   }
 
   get duration() {
-    return this._endTime - this._time;
+    return Math.max(0, this._endTime - this._time);
   }
 
   covers(time) {

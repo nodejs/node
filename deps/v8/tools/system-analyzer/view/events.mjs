@@ -50,10 +50,12 @@ export class SelectTimeEvent extends AppEvent {
     return 'timerangeselect';
   }
 
-  constructor(start = 0, end = Infinity) {
+  constructor(start = 0, end = Infinity, focus = false, zoom = false) {
     super(SelectTimeEvent.name);
     this.start = start;
     this.end = end;
+    this.focus = focus;
+    this.zoom = zoom;
   }
 }
 

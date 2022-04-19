@@ -155,6 +155,7 @@ static inline bool is_overlapped_widen(const int astart, int asize,
 // PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED
 // HEREUNDER IS PROVIDED "AS IS". REGENTS HAS NO OBLIGATION TO PROVIDE
 // MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+#ifdef CAN_USE_RVV_INSTRUCTIONS
 template <uint64_t N>
 struct type_usew_t;
 template <>
@@ -1431,6 +1432,7 @@ inline Dst unsigned_saturation(Src v, uint n) {
   }                                    \
   RVV_VI_LOOP_END                      \
   rvv_trace_vd();
+#endif
 
 namespace v8 {
 namespace internal {
@@ -1488,7 +1490,9 @@ class RiscvDebugger {
   int64_t GetFPURegisterValue(int regnum);
   float GetFPURegisterValueFloat(int regnum);
   double GetFPURegisterValueDouble(int regnum);
+#ifdef CAN_USE_RVV_INSTRUCTIONS
   __int128_t GetVRegisterValue(int regnum);
+#endif
   bool GetValue(const char* desc, int64_t* value);
 };
 
@@ -1529,6 +1533,7 @@ double RiscvDebugger::GetFPURegisterValueDouble(int regnum) {
   }
 }
 
+#ifdef CAN_USE_RVV_INSTRUCTIONS
 __int128_t RiscvDebugger::GetVRegisterValue(int regnum) {
   if (regnum == kNumVRegisters) {
     return sim_->get_pc();
@@ -1536,6 +1541,7 @@ __int128_t RiscvDebugger::GetVRegisterValue(int regnum) {
     return sim_->get_vregister(regnum);
   }
 }
+#endif
 
 bool RiscvDebugger::GetValue(const char* desc, int64_t* value) {
   int regnum = Registers::Number(desc);
@@ -1695,8 +1701,9 @@ void RiscvDebugger::Debug() {
           } else {
             int regnum = Registers::Number(arg1);
             int fpuregnum = FPURegisters::Number(arg1);
+#ifdef CAN_USE_RVV_INSTRUCTIONS
             int vregnum = VRegisters::Number(arg1);
-
+#endif
             if (regnum != kInvalidRegister) {
               value = GetRegisterValue(regnum);
               PrintF("%s: 0x%08" PRIx64 "  %" PRId64 "  \n", arg1, value,
@@ -1706,11 +1713,13 @@ void RiscvDebugger::Debug() {
               dvalue = GetFPURegisterValueDouble(fpuregnum);
               PrintF("%3s: 0x%016" PRIx64 "  %16.4e\n",
                      FPURegisters::Name(fpuregnum), value, dvalue);
+#ifdef CAN_USE_RVV_INSTRUCTIONS
             } else if (vregnum != kInvalidVRegister) {
               __int128_t v = GetVRegisterValue(vregnum);
               PrintF("\t%s:0x%016" PRIx64 "%016" PRIx64 "\n",
                      VRegisters::Name(vregnum), (uint64_t)(v >> 64),
                      (uint64_t)v);
+#endif
             } else {
               PrintF("%s unrecognized\n", arg1);
             }
@@ -2346,10 +2355,12 @@ double Simulator::get_fpu_register_double(int fpureg) const {
   return *bit_cast<double*>(&FPUregisters_[fpureg]);
 }
 
+#ifdef CAN_USE_RVV_INSTRUCTIONS
 __int128_t Simulator::get_vregister(int vreg) const {
   DCHECK((vreg >= 0) && (vreg < kNumVRegisters));
   return Vregister_[vreg];
 }
+#endif
 
 // Runtime FP routines take up to two double arguments and zero
 // or one integer arguments. All are constructed here,
@@ -2707,9 +2718,9 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
     return reinterpret_cast<uintptr_t>(get_sp());
   }
 
-  // Otherwise the limit is the JS stack. Leave a safety margin of 1024 bytes
+  // Otherwise the limit is the JS stack. Leave a safety margin of 4 KiB
   // to prevent overrunning the stack when pushing values.
-  return reinterpret_cast<uintptr_t>(stack_) + 1024;
+  return reinterpret_cast<uintptr_t>(stack_) + 4 * KB;
 }
 
 // Unsupported instructions use Format to print an error and stop execution.
@@ -4255,6 +4266,7 @@ void Simulator::DecodeRVR4Type() {
   }
 }
 
+#ifdef CAN_USE_RVV_INSTRUCTIONS
 bool Simulator::DecodeRvvVL() {
   uint32_t instr_temp =
       instr_.InstructionBits() & (kRvvMopMask | kRvvNfMask | kBaseOpcodeMask);
@@ -4381,6 +4393,7 @@ bool Simulator::DecodeRvvVS() {
     return false;
   }
 }
+#endif
 
 Builtin Simulator::LookUp(Address pc) {
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
@@ -4618,9 +4631,13 @@ void Simulator::DecodeRVIType() {
       break;
     }
     default: {
+#ifdef CAN_USE_RVV_INSTRUCTIONS
       if (!DecodeRvvVL()) {
         UNSUPPORTED();
       }
+#else
+      UNSUPPORTED();
+#endif
       break;
     }
   }
@@ -4655,9 +4672,13 @@ void Simulator::DecodeRVSType() {
       break;
     }
     default:
+#ifdef CAN_USE_RVV_INSTRUCTIONS
       if (!DecodeRvvVS()) {
         UNSUPPORTED();
       }
+#else
+      UNSUPPORTED();
+#endif
       break;
   }
 }
@@ -5036,6 +5057,7 @@ T sat_subu(T x, T y, bool& sat) {
   return res;
 }
 
+#ifdef CAN_USE_RVV_INSTRUCTIONS
 void Simulator::DecodeRvvIVV() {
   DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_IVV);
   switch (instr_.InstructionBits() & kVTypeMask) {
@@ -6839,6 +6861,8 @@ void Simulator::DecodeVType() {
       FATAL("Error: Unsupport on FILE:%s:%d.", __FILE__, __LINE__);
   }
 }
+#endif
+
 // Executes the current instruction.
 void Simulator::InstructionDecode(Instruction* instr) {
   if (v8::internal::FLAG_check_icache) {
@@ -6909,9 +6933,11 @@ void Simulator::InstructionDecode(Instruction* instr) {
     case Instruction::kCSType:
       DecodeCSType();
       break;
+#ifdef CAN_USE_RVV_INSTRUCTIONS
     case Instruction::kVType:
       DecodeVType();
       break;
+#endif
     default:
       if (1) {
         std::cout << "Unrecognized instruction [@pc=0x" << std::hex

@@ -28,10 +28,10 @@ class KeyedStoreGenericGenerator {
                           TNode<Object> key, TNode<Object> value,
                           LanguageMode language_mode);
 
-  static void SetPropertyInLiteral(compiler::CodeAssemblerState* state,
-                                   TNode<Context> context,
-                                   TNode<JSObject> receiver, TNode<Object> key,
-                                   TNode<Object> value);
+  static void CreateDataProperty(compiler::CodeAssemblerState* state,
+                                 TNode<Context> context,
+                                 TNode<JSObject> receiver, TNode<Object> key,
+                                 TNode<Object> value);
 };
 
 class DefineKeyedOwnGenericGenerator {

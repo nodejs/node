@@ -138,6 +138,18 @@
       ]
     },
     {
+      "name": "ObjectDestructuringAssignment",
+      "path": ["ObjectDestructuringAssignment"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ObjectDestructuringAssignment\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Babel"},
+        {"name": "ForLoop"},
+        {"name": "DestructuringAssignment"}
+      ]
+    },
+    {
       "name": "SpreadCallsGeneral",
       "path": ["SpreadCallsGeneral"],
       "main": "run.js",

@@ -157,7 +157,7 @@ RUNTIME_FUNCTION(Runtime_NormalizeElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<JSObject> array = args.at<JSObject>(0);
-  CHECK(!array->HasTypedArrayElements());
+  CHECK(!array->HasTypedArrayOrRabGsabTypedArrayElements());
   CHECK(!array->IsJSGlobalProxy());
   JSObject::NormalizeElements(array);
   return *array;

@@ -236,6 +236,29 @@ void TaggedField<T, kFieldOffset>::SeqCst_Store(HeapObject host, int offset,
   AsAtomicTagged::SeqCst_Store(location(host, offset), full_to_tagged(ptr));
 }
 
+// static
+template <typename T, int kFieldOffset>
+T TaggedField<T, kFieldOffset>::SeqCst_Swap(HeapObject host, int offset,
+                                            T value) {
+  Address ptr = value.ptr();
+  DCHECK_NE(kFieldOffset + offset, HeapObject::kMapOffset);
+  AtomicTagged_t old_value =
+      AsAtomicTagged::SeqCst_Swap(location(host, offset), full_to_tagged(ptr));
+  return T(tagged_to_full(host.ptr(), old_value));
+}
+
+// static
+template <typename T, int kFieldOffset>
+T TaggedField<T, kFieldOffset>::SeqCst_Swap(PtrComprCageBase cage_base,
+                                            HeapObject host, int offset,
+                                            T value) {
+  Address ptr = value.ptr();
+  DCHECK_NE(kFieldOffset + offset, HeapObject::kMapOffset);
+  AtomicTagged_t old_value =
+      AsAtomicTagged::SeqCst_Swap(location(host, offset), full_to_tagged(ptr));
+  return T(tagged_to_full(cage_base, old_value));
+}
+
 }  // namespace internal
 }  // namespace v8
 

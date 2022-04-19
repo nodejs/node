@@ -421,7 +421,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   ZoneVector<HandlerInfo> handlers_;
   int next_deoptimization_id_ = 0;
   int deopt_exit_start_offset_ = 0;
-  int non_lazy_deopt_count_ = 0;
+  int eager_deopt_count_ = 0;
   int lazy_deopt_count_ = 0;
   ZoneDeque<DeoptimizationExit*> deoptimization_exits_;
   ZoneDeque<DeoptimizationLiteral> deoptimization_literals_;

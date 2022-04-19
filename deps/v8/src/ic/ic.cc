@@ -514,7 +514,6 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
     if (it.IsFound()) {
       return result;
     } else if (!ShouldThrowReferenceError()) {
-      LOG(isolate(), SuspectReadEvent(*name, *object));
       return result;
     }
   }
@@ -759,7 +758,7 @@ bool IC::IsTransitionOfMonomorphicTarget(Map source_map, Map target_map) {
     MapHandles map_list;
     map_list.push_back(handle(target_map, isolate_));
     transitioned_map = source_map.FindElementsKindTransitionedMap(
-        isolate(), map_list, ConcurrencyMode::kNotConcurrent);
+        isolate(), map_list, ConcurrencyMode::kSynchronous);
   }
   return transitioned_map == target_map;
 }
@@ -1425,7 +1424,7 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
     // generate an elements kind transition for this kind of receivers.
     if (receiver_map->is_stable()) {
       Map tmap = receiver_map->FindElementsKindTransitionedMap(
-          isolate(), *receiver_maps, ConcurrencyMode::kNotConcurrent);
+          isolate(), *receiver_maps, ConcurrencyMode::kSynchronous);
       if (!tmap.is_null()) {
         receiver_map->NotifyLeafMapLayoutChange(isolate());
       }
@@ -1779,7 +1778,8 @@ Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
         }
         case LookupIterator::NOT_FOUND:
           return Object::AddDataProperty(it, value, NONE,
-                                         Nothing<ShouldThrow>(), store_origin);
+                                         Nothing<ShouldThrow>(), store_origin,
+                                         EnforceDefineSemantics::kDefine);
       }
     }
     case LookupIterator::ACCESS_CHECK:
@@ -1796,7 +1796,7 @@ Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
 
   return JSObject::DefineOwnPropertyIgnoreAttributes(
       it, value, NONE, should_throw, JSObject::DONT_FORCE_FIELD,
-      JSObject::EnforceDefineSemantics::kDefine);
+      EnforceDefineSemantics::kDefine, store_origin);
 }
 }  // namespace
 
@@ -1806,10 +1806,15 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   // TODO(verwaest): Let SetProperty do the migration, since storing a property
   // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(isolate(), object)) {
+    // KeyedStoreIC should handle DefineKeyedOwnIC with deprecated maps directly
+    // instead of reusing this method.
+    DCHECK(!IsDefineKeyedOwnIC());
+    DCHECK(!name->IsPrivateName());
+
     PropertyKey key(isolate(), name);
     LookupIterator it(
         isolate(), object, key,
-        IsAnyDefineOwn() ? LookupIterator::OWN : LookupIterator::DEFAULT);
+        IsDefineNamedOwnIC() ? LookupIterator::OWN : LookupIterator::DEFAULT);
     DCHECK_IMPLIES(IsDefineNamedOwnIC(), it.IsFound() && it.HolderIsReceiver());
     // TODO(v8:12548): refactor DefinedNamedOwnIC and SetNamedIC as subclasses
     // of StoreIC so their logic doesn't get mixed here.
@@ -1867,14 +1872,16 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     }
   }
 
-  // For IsDefineNamedOwnIC(), we can't simply do CreateDataProperty below
+  // For IsAnyDefineOwn(), we can't simply do CreateDataProperty below
   // because we need to check the attributes before UpdateCaches updates
   // the state of the LookupIterator.
   LookupIterator::State original_state = it.state();
   // We'll defer the check for JSProxy and objects with named interceptors,
   // because the defineProperty traps need to be called first if they are
-  // present.
-  if (IsDefineNamedOwnIC() && !object->IsJSProxy() &&
+  // present. We can also skip this for private names since they are not
+  // bound by configurability or extensibility checks, and errors would've
+  // been thrown if the private field already exists in the object.
+  if (IsAnyDefineOwn() && !name->IsPrivateName() && !object->IsJSProxy() &&
       !Handle<JSObject>::cast(object)->HasNamedInterceptor()) {
     Maybe<bool> can_define = JSReceiver::CheckIfCanDefine(
         isolate(), &it, value, Nothing<ShouldThrow>());
@@ -1895,12 +1902,17 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   // of StoreIC so their logic doesn't get mixed here.
   // ES #sec-definefield
   // ES #sec-runtime-semantics-propertydefinitionevaluation
-  if (IsDefineNamedOwnIC()) {
-    // Private property should be defined via DefineKeyedOwnIC or
-    // KeyedStoreIC with private symbols.
-    DCHECK(!name->IsPrivate());
-    MAYBE_RETURN_NULL(DefineOwnDataProperty(
-        &it, original_state, value, Nothing<ShouldThrow>(), store_origin));
+  // IsAnyDefineOwn() can be true when this method is reused by KeyedStoreIC.
+  if (IsAnyDefineOwn()) {
+    if (name->IsPrivateName()) {
+      // We should define private fields without triggering traps or checking
+      // extensibility.
+      MAYBE_RETURN_NULL(
+          JSReceiver::AddPrivateField(&it, value, Nothing<ShouldThrow>()));
+    } else {
+      MAYBE_RETURN_NULL(DefineOwnDataProperty(
+          &it, original_state, value, Nothing<ShouldThrow>(), store_origin));
+    }
   } else {
     MAYBE_RETURN_NULL(Object::SetProperty(&it, value, store_origin));
   }
@@ -1982,9 +1994,9 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       // If the interceptor is on the receiver...
       if (lookup->HolderIsReceiverOrHiddenPrototype() && !info.non_masking()) {
         // ...return a store interceptor Smi handler if there is a setter
-        // interceptor and it's not DefineNamedOwnIC (which should call the
-        // definer)...
-        if (!info.setter().IsUndefined(isolate()) && !IsDefineNamedOwnIC()) {
+        // interceptor and it's not DefineNamedOwnIC or DefineKeyedOwnIC
+        // (which should call the definer)...
+        if (!info.setter().IsUndefined(isolate()) && !IsAnyDefineOwn()) {
           return MaybeObjectHandle(StoreHandler::StoreInterceptor(isolate()));
         }
         // ...otherwise return a slow-case Smi handler, which invokes the
@@ -2412,7 +2424,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
     } else {
       {
         Map tmap = receiver_map->FindElementsKindTransitionedMap(
-            isolate(), receiver_maps, ConcurrencyMode::kNotConcurrent);
+            isolate(), receiver_maps, ConcurrencyMode::kSynchronous);
         if (!tmap.is_null()) {
           if (receiver_map->is_stable()) {
             receiver_map->NotifyLeafMapLayoutChange(isolate());
@@ -2846,7 +2858,7 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
     kind = vector->GetKind(vector_slot);
   }
 
-  DCHECK(IsStoreICKind(kind) || IsDefineNamedOwnICKind(kind));
+  DCHECK(IsSetNamedICKind(kind) || IsDefineNamedOwnICKind(kind));
   StoreIC ic(isolate, vector, vector_slot, kind);
   ic.UpdateState(receiver, key);
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
@@ -3138,11 +3150,15 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
     StoreOwnElement(isolate, Handle<JSArray>::cast(object), key, value);
     return *value;
   } else {
-    DCHECK(IsKeyedStoreICKind(kind) || IsStoreICKind(kind) ||
+    DCHECK(IsKeyedStoreICKind(kind) || IsSetNamedICKind(kind) ||
            IsDefineKeyedOwnICKind(kind));
     RETURN_RESULT_OR_FAILURE(
-        isolate, Runtime::SetObjectProperty(isolate, object, key, value,
-                                            StoreOrigin::kMaybeKeyed));
+        isolate,
+        IsDefineKeyedOwnICKind(kind)
+            ? Runtime::DefineObjectOwnProperty(isolate, object, key, value,
+                                               StoreOrigin::kMaybeKeyed)
+            : Runtime::SetObjectProperty(isolate, object, key, value,
+                                         StoreOrigin::kMaybeKeyed));
   }
 }
 

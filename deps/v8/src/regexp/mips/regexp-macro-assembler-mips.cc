@@ -11,7 +11,7 @@
 #include "src/logging/log.h"
 #include "src/objects/code-inl.h"
 #include "src/regexp/regexp-stack.h"
-#include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 
 namespace v8 {
 namespace internal {

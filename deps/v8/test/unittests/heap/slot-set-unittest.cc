@@ -278,14 +278,14 @@ TEST(TypedSlotSet, ClearInvalidSlots) {
     set.Insert(type, i * kHostDelta);
   }
 
-  std::map<uint32_t, uint32_t> invalid_ranges;
+  TypedSlotSet::FreeRangesMap invalid_ranges;
   for (uint32_t i = 1; i < entries; i += 2) {
     invalid_ranges.insert(
         std::pair<uint32_t, uint32_t>(i * kHostDelta, i * kHostDelta + 1));
   }
 
   set.ClearInvalidSlots(invalid_ranges);
-  for (std::map<uint32_t, uint32_t>::iterator it = invalid_ranges.begin();
+  for (TypedSlotSet::FreeRangesMap::iterator it = invalid_ranges.begin();
        it != invalid_ranges.end(); ++it) {
     uint32_t start = it->first;
     uint32_t end = it->second;

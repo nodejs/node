@@ -210,7 +210,7 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
 }
 
 TEST(ArrayBuffer_NonLivePromotion) {
-  if (!FLAG_incremental_marking) return;
+  if (!FLAG_incremental_marking || FLAG_separate_gc_phases) return;
   FLAG_concurrent_array_buffer_sweeping = false;
   ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved when promoting
@@ -248,7 +248,7 @@ TEST(ArrayBuffer_NonLivePromotion) {
 }
 
 TEST(ArrayBuffer_LivePromotion) {
-  if (!FLAG_incremental_marking) return;
+  if (!FLAG_incremental_marking || FLAG_separate_gc_phases) return;
   FLAG_concurrent_array_buffer_sweeping = false;
   ManualGCScope manual_gc_scope;
   // The test verifies that the marking state is preserved when promoting

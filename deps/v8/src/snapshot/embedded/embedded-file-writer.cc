@@ -10,6 +10,7 @@
 #include "src/codegen/source-position-table.h"
 #include "src/flags/flags.h"  // For ENABLE_CONTROL_FLOW_INTEGRITY_BOOL
 #include "src/objects/code-inl.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -163,6 +164,7 @@ void EmbeddedFileWriter::WriteCodeSection(PlatformEmbeddedFileWriterBase* w,
        ++builtin) {
     WriteBuiltin(w, blob, builtin);
   }
+  w->PaddingAfterCode();
   w->Newline();
 }
 

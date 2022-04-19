@@ -262,8 +262,9 @@ void InterGenerationalPointerTest(MinorGCTest* test, cppgc::Heap* heap) {
       const uintptr_t offset =
           internal_heap->caged_heap().OffsetFromAddress(young);
       // Age may be young or unknown.
-      EXPECT_NE(AgeTable::Age::kOld,
-                Heap::From(heap)->caged_heap().local_data().age_table[offset]);
+      EXPECT_NE(
+          AgeTable::Age::kOld,
+          Heap::From(heap)->caged_heap().local_data().age_table.GetAge(offset));
     }
   }
 

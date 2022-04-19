@@ -1915,7 +1915,6 @@ IGNITION_HANDLER(JumpConstant, InterpreterAssembler) {
 // will misbehave if passed arbitrary input values.
 IGNITION_HANDLER(JumpIfTrue, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  CSA_DCHECK(this, IsBoolean(CAST(accumulator)));
   JumpIfTaggedEqual(accumulator, TrueConstant(), 0);
 }
 
@@ -1926,7 +1925,6 @@ IGNITION_HANDLER(JumpIfTrue, InterpreterAssembler) {
 // and will misbehave if passed arbitrary input values.
 IGNITION_HANDLER(JumpIfTrueConstant, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  CSA_DCHECK(this, IsBoolean(CAST(accumulator)));
   JumpIfTaggedEqualConstant(accumulator, TrueConstant(), 0);
 }
 
@@ -1937,7 +1935,6 @@ IGNITION_HANDLER(JumpIfTrueConstant, InterpreterAssembler) {
 // will misbehave if passed arbitrary input values.
 IGNITION_HANDLER(JumpIfFalse, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  CSA_DCHECK(this, IsBoolean(CAST(accumulator)));
   JumpIfTaggedEqual(accumulator, FalseConstant(), 0);
 }
 
@@ -1948,7 +1945,6 @@ IGNITION_HANDLER(JumpIfFalse, InterpreterAssembler) {
 // and will misbehave if passed arbitrary input values.
 IGNITION_HANDLER(JumpIfFalseConstant, InterpreterAssembler) {
   TNode<Object> accumulator = GetAccumulator();
-  CSA_DCHECK(this, IsBoolean(CAST(accumulator)));
   JumpIfTaggedEqualConstant(accumulator, FalseConstant(), 0);
 }
 
@@ -2166,26 +2162,50 @@ IGNITION_HANDLER(JumpIfJSReceiverConstant, InterpreterAssembler) {
 // JumpLoop <imm> <loop_depth>
 //
 // Jump by the number of bytes represented by the immediate operand |imm|. Also
-// performs a loop nesting check, a stack check, and potentially triggers OSR in
-// case the current OSR level matches (or exceeds) the specified |loop_depth|.
+// performs a loop nesting check, a stack check, and potentially triggers OSR.
 IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
   TNode<Int32T> loop_depth = BytecodeOperandImm(1);
-  TNode<Int8T> osr_level = LoadOsrNestingLevel();
+  TNode<Int16T> osr_urgency_and_install_target =
+      LoadOsrUrgencyAndInstallTarget();
   TNode<Context> context = GetContext();
 
-  // Check if OSR points at the given {loop_depth} are armed by comparing it to
-  // the current {osr_level} loaded from the header of the BytecodeArray.
-  Label ok(this), osr_armed(this, Label::kDeferred);
-  TNode<BoolT> condition = Int32GreaterThanOrEqual(loop_depth, osr_level);
-  Branch(condition, &ok, &osr_armed);
+  // OSR requests can be triggered either through urgency (when > the current
+  // loop depth), or an explicit install target (= the lower bits of the
+  // targeted bytecode offset).
+  Label ok(this), maybe_osr(this, Label::kDeferred);
+  Branch(Int32GreaterThanOrEqual(loop_depth, osr_urgency_and_install_target),
+         &ok, &maybe_osr);
 
   BIND(&ok);
   // The backward jump can trigger a budget interrupt, which can handle stack
   // interrupts, so we don't need to explicitly handle them here.
   JumpBackward(relative_jump);
 
-  BIND(&osr_armed);
+  BIND(&maybe_osr);
+  Label osr(this);
+  // OSR based on urgency, i.e. is the OSR urgency greater than the current
+  // loop depth?
+  STATIC_ASSERT(BytecodeArray::OsrUrgencyBits::kShift == 0);
+  TNode<Word32T> osr_urgency = Word32And(osr_urgency_and_install_target,
+                                         BytecodeArray::OsrUrgencyBits::kMask);
+  GotoIf(Int32GreaterThan(osr_urgency, loop_depth), &osr);
+
+  // OSR based on the install target offset, i.e. does the current bytecode
+  // offset match the install target offset?
+  //
+  //  if (((offset << kShift) & kMask) == (target & kMask)) { ... }
+  static constexpr int kShift = BytecodeArray::OsrInstallTargetBits::kShift;
+  static constexpr int kMask = BytecodeArray::OsrInstallTargetBits::kMask;
+  // Note: We OR in 1 to avoid 0 offsets, see Code::OsrInstallTargetFor.
+  TNode<Word32T> actual = Word32Or(
+      Int32Sub(TruncateIntPtrToInt32(BytecodeOffset()), kFirstBytecodeOffset),
+      Int32Constant(1));
+  actual = Word32And(Word32Shl(UncheckedCast<Int32T>(actual), kShift), kMask);
+  TNode<Word32T> expected = Word32And(osr_urgency_and_install_target, kMask);
+  Branch(Word32Equal(actual, expected), &osr, &ok);
+
+  BIND(&osr);
   OnStackReplacement(context, relative_jump);
 }
 

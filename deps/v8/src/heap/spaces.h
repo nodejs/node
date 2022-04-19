@@ -21,6 +21,7 @@
 #include "src/heap/list.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
+#include "src/heap/slot-set.h"
 #include "src/objects/objects.h"
 #include "src/utils/allocation.h"
 #include "src/utils/utils.h"
@@ -144,12 +145,12 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 
   // Returns size of objects. Can differ from the allocated size
   // (e.g. see OldLargeObjectSpace).
-  virtual size_t SizeOfObjects() { return Size(); }
+  virtual size_t SizeOfObjects() const { return Size(); }
 
   // Return the available bytes without growing.
-  virtual size_t Available() = 0;
+  virtual size_t Available() const = 0;
 
-  virtual int RoundSizeDownToObjectAlignment(int size) {
+  virtual int RoundSizeDownToObjectAlignment(int size) const {
     if (id_ == CODE_SPACE) {
       return RoundDown(size, kCodeAlignment);
     } else {
@@ -223,6 +224,9 @@ class Page : public MemoryChunk {
       MainThreadFlags(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
       MainThreadFlags(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING) |
       MainThreadFlags(MemoryChunk::INCREMENTAL_MARKING);
+
+  Page(Heap* heap, BaseSpace* space, size_t size, Address area_start,
+       Address area_end, VirtualMemory reservation, Executability executable);
 
   // Returns the page containing a given address. The address ranges
   // from [page_addr .. page_addr + kPageSize[. This only works if the object
@@ -306,10 +310,24 @@ class Page : public MemoryChunk {
   void AllocateFreeListCategories();
   void ReleaseFreeListCategories();
 
-  void MoveOldToNewRememberedSetForSweeping();
-  void MergeOldToNewRememberedSets();
-
   ActiveSystemPages* active_system_pages() { return &active_system_pages_; }
+
+  template <RememberedSetType remembered_set>
+  void ClearInvalidTypedSlots(const TypedSlotSet::FreeRangesMap& ranges) {
+    TypedSlotSet* typed_slot_set = this->typed_slot_set<remembered_set>();
+    if (typed_slot_set != nullptr) {
+      typed_slot_set->ClearInvalidSlots(ranges);
+    }
+  }
+
+  template <RememberedSetType remembered_set>
+  void AssertNoInvalidTypedSlots(const TypedSlotSet::FreeRangesMap& ranges) {
+    // TODO(dinfuehr): Make this a DCHECK eventually.
+    TypedSlotSet* typed_slot_set = this->typed_slot_set<OLD_TO_OLD>();
+    if (typed_slot_set != nullptr) {
+      typed_slot_set->AssertNoInvalidSlots(ranges);
+    }
+  }
 
  private:
   friend class MemoryAllocator;
@@ -353,6 +371,7 @@ class PageIteratorImpl
 using PageIterator = PageIteratorImpl<Page>;
 using ConstPageIterator = PageIteratorImpl<const Page>;
 using LargePageIterator = PageIteratorImpl<LargePage>;
+using ConstLargePageIterator = PageIteratorImpl<const LargePage>;
 
 class PageRange {
  public:
@@ -447,7 +466,7 @@ class SpaceWithLinearArea : public Space {
                       LinearAllocationArea* allocation_info)
       : Space(heap, id, free_list), allocation_info_(allocation_info) {}
 
-  virtual bool SupportsAllocationObserver() = 0;
+  virtual bool SupportsAllocationObserver() const = 0;
 
   // Returns the allocation pointer in this space.
   Address top() const { return allocation_info_->top(); }
@@ -485,7 +504,7 @@ class SpaceWithLinearArea : public Space {
   // area bounded by [start, end), this function computes the limit to use to
   // allow proper observation based on existing observers. min_size specifies
   // the minimum size that the limited area should have.
-  Address ComputeLimit(Address start, Address end, size_t min_size);
+  Address ComputeLimit(Address start, Address end, size_t min_size) const;
   V8_EXPORT_PRIVATE virtual void UpdateInlineAllocationLimit(
       size_t min_size) = 0;
 
@@ -493,10 +512,56 @@ class SpaceWithLinearArea : public Space {
   void EnableInlineAllocation();
   bool IsInlineAllocationEnabled() const { return use_lab_; }
 
-  void PrintAllocationsOrigins();
+  void PrintAllocationsOrigins() const;
+
+  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
+  AllocateRaw(int size_in_bytes, AllocationAlignment alignment,
+              AllocationOrigin origin = AllocationOrigin::kRuntime);
+
+  // Allocate the requested number of bytes in the space if possible, return a
+  // failure object if not.
+  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult AllocateRawUnaligned(
+      int size_in_bytes, AllocationOrigin origin = AllocationOrigin::kRuntime);
+
+  // Allocate the requested number of bytes in the space double aligned if
+  // possible, return a failure object if not.
+  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
+  AllocateRawAligned(int size_in_bytes, AllocationAlignment alignment,
+                     AllocationOrigin origin = AllocationOrigin::kRuntime);
 
  protected:
   V8_EXPORT_PRIVATE void UpdateAllocationOrigins(AllocationOrigin origin);
+
+  // Allocates an object from the linear allocation area. Assumes that the
+  // linear allocation area is large enought to fit the object.
+  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
+  AllocateFastUnaligned(int size_in_bytes, AllocationOrigin origin);
+  // Tries to allocate an aligned object from the linear allocation area.
+  // Returns nullptr if the linear allocation area does not fit the object.
+  // Otherwise, returns the object pointer and writes the allocation size
+  // (object size + alignment filler size) to the size_in_bytes.
+  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
+  AllocateFastAligned(int size_in_bytes, int* aligned_size_in_bytes,
+                      AllocationAlignment alignment, AllocationOrigin origin);
+
+  // Slow path of allocation function
+  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
+  AllocateRawSlow(int size_in_bytes, AllocationAlignment alignment,
+                  AllocationOrigin origin);
+
+  // Sets up a linear allocation area that fits the given number of bytes.
+  // Returns false if there is not enough space and the caller has to retry
+  // after collecting garbage.
+  // Writes to `max_aligned_size` the actual number of bytes used for checking
+  // that there is enough space.
+  virtual bool EnsureAllocation(int size_in_bytes,
+                                AllocationAlignment alignment,
+                                AllocationOrigin origin,
+                                int* out_max_aligned_size) = 0;
+
+#if DEBUG
+  V8_EXPORT_PRIVATE void VerifyTop() const;
+#endif  // DEBUG
 
   LinearAllocationArea* const allocation_info_;
   bool use_lab_ = true;

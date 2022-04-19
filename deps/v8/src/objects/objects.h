@@ -183,6 +183,7 @@
 //       - CallSiteInfo
 //       - CodeCache
 //       - PropertyDescriptorObject
+//       - PromiseOnStack
 //       - PrototypeInfo
 //       - Microtask
 //         - CallbackTask
@@ -275,6 +276,16 @@ enum class OnNonExistent { kThrowReferenceError, kReturnUndefined };
 
 // The element types selection for CreateListFromArrayLike.
 enum class ElementTypes { kAll, kStringAndSymbol };
+
+// Currently DefineOwnPropertyIgnoreAttributes invokes the setter
+// interceptor and user-defined setters during define operations,
+// even in places where it makes more sense to invoke the definer
+// interceptor and not invoke the setter: e.g. both the definer and
+// the setter interceptors are called in Object.defineProperty().
+// kDefine allows us to implement the define semantics correctly
+// in selected locations.
+// TODO(joyee): see if we can deprecate the old behavior.
+enum class EnforceDefineSemantics { kSet, kDefine };
 
 // TODO(mythria): Move this to a better place.
 ShouldThrow GetShouldThrow(Isolate* isolate, Maybe<ShouldThrow> should_throw);
@@ -539,7 +550,13 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
       LookupIterator* it, Handle<Object> value);
   V8_WARN_UNUSED_RESULT static Maybe<bool> AddDataProperty(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
+      Maybe<ShouldThrow> should_throw, StoreOrigin store_origin,
+      EnforceDefineSemantics semantics = EnforceDefineSemantics::kSet);
+
+  V8_WARN_UNUSED_RESULT static Maybe<bool> TransitionAndWriteDataProperty(
+      LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
       Maybe<ShouldThrow> should_throw, StoreOrigin store_origin);
+
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
       Isolate* isolate, Handle<Object> object, Handle<Name> name);
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
