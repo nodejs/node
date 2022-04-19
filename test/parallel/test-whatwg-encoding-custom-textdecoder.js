@@ -45,7 +45,7 @@ assert(TextDecoder);
     const dec = new TextDecoder(i);
     assert.strictEqual(dec.encoding, 'utf-16le');
     const res = dec.decode(buf);
-    assert.strictEqual(res, '\ufefftest€');
+    assert.strictEqual(res, '믯璿攀猀琀가');
   });
 }
 
