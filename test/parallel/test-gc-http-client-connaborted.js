@@ -5,14 +5,14 @@
 
 const common = require('../common');
 const onGC = require('../common/ongc');
-
 const http = require('http');
-const todo = 500;
+const os = require('os');
+
+const cpus = os.cpus().length;
+let createClients = true;
 let done = 0;
 let count = 0;
 let countGC = 0;
-
-console.log(`We should do ${todo} requests`);
 
 function serverHandler(req, res) {
   res.connection.destroy();
@@ -20,12 +20,12 @@ function serverHandler(req, res) {
 
 const server = http.createServer(serverHandler);
 server.listen(0, common.mustCall(() => {
-  for (let i = 0; i < 10; i++)
-    getall();
+  for (let i = 0; i < cpus; i++)
+    getAll();
 }));
 
-function getall() {
-  if (count >= todo)
+function getAll() {
+  if (!createClients)
     return;
 
   const req = http.get({
@@ -37,7 +37,7 @@ function getall() {
   count++;
   onGC(req, { ongc });
 
-  setImmediate(getall);
+  setImmediate(getAll);
 }
 
 function cb(res) {
@@ -48,11 +48,18 @@ function ongc() {
   countGC++;
 }
 
-setInterval(status, 100).unref();
+setImmediate(status);
 
 function status() {
-  global.gc();
-  console.log('Done: %d/%d', done, todo);
-  console.log('Collected: %d/%d', countGC, count);
-  if (countGC === todo) server.close();
+  if (done > 0) {
+    createClients = false;
+    global.gc();
+    console.log(`done/collected/total: ${done}/${countGC}/${count}`);
+    if (countGC === count) {
+      server.close();
+      return;
+    }
+  }
+
+  setImmediate(status);
 }
