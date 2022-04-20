@@ -196,7 +196,7 @@ enum http_status_codes {
 // Unlike the HTTP/1 implementation, the HTTP/2 implementation is not limited
 // to a fixed number of known supported HTTP methods. These constants, therefore
 // are provided strictly as a convenience to users and are exposed via the
-// require('http2').constants object.
+// require('node:http2').constants object.
 #define HTTP_KNOWN_METHODS(V)                                                 \
   V(ACL, "ACL")                                                               \
   V(BASELINE_CONTROL, "BASELINE-CONTROL")                                     \
