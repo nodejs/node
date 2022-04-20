@@ -35,7 +35,7 @@ the Node.js security model.
 
 ### Document threat models and current state of the art
 
-Node.js is used in a number of different use cases and the
+Node.js is used in several different use cases and the
 threats may be different in each use case. The project
 should document the threat models and use that to
 help define the security model in the context of each
