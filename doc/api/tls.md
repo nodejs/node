@@ -6,19 +6,19 @@
 
 <!-- source_link=lib/tls.js -->
 
-The `tls` module provides an implementation of the Transport Layer Security
+The `node:tls` module provides an implementation of the Transport Layer Security
 (TLS) and Secure Socket Layer (SSL) protocols that is built on top of OpenSSL.
 The module can be accessed using:
 
 ```js
-const tls = require('tls');
+const tls = require('node:tls');
 ```
 
 ## Determining if crypto support is unavailable
 
 It is possible for Node.js to be built without including support for the
-`crypto` module. In such cases, attempting to `import` from `tls` or
-calling `require('tls')` will result in an error being thrown.
+`node:crypto` module. In such cases, attempting to `import` from `tls` or
+calling `require('node:tls')` will result in an error being thrown.
 
 When using CommonJS, the error thrown can be caught using try/catch:
 
@@ -27,7 +27,7 @@ When using CommonJS, the error thrown can be caught using try/catch:
 ```cjs
 let tls;
 try {
-  tls = require('tls');
+  tls = require('node:tls');
 } catch (err) {
   console.log('tls support is disabled!');
 }
@@ -45,7 +45,7 @@ of Node.js where crypto support is not enabled, consider using the
 ```mjs
 let tls;
 try {
-  tls = await import('tls');
+  tls = await import('node:tls');
 } catch (err) {
   console.log('tls support is disabled!');
 }
@@ -127,10 +127,10 @@ the character "E" appended to the traditional abbreviations):
 * [ECDHE][]: An ephemeral version of the Elliptic Curve Diffie-Hellman
   key-agreement protocol.
 
-To use perfect forward secrecy using `DHE` with the `tls` module, it is required
-to generate Diffie-Hellman parameters and specify them with the `dhparam`
-option to [`tls.createSecureContext()`][]. The following illustrates the use of
-the OpenSSL command-line interface to generate such parameters:
+To use perfect forward secrecy using `DHE` with the `node:tls` module, it is
+required to generate Diffie-Hellman parameters and specify them with the
+`dhparam` option to [`tls.createSecureContext()`][]. The following illustrates
+the use of the OpenSSL command-line interface to generate such parameters:
 
 ```bash
 openssl dhparam -outform PEM -out dhparam.pem 2048
@@ -279,7 +279,7 @@ on disk, and they should be regenerated regularly.
 
 If clients advertise support for tickets, the server will send them. The
 server can disable tickets by supplying
-`require('constants').SSL_OP_NO_TICKET` in `secureOptions`.
+`require('node:constants').SSL_OP_NO_TICKET` in `secureOptions`.
 
 Both session identifiers and session tickets timeout, causing the server to
 create new sessions. The timeout can be configured with the `sessionTimeout`
@@ -1692,8 +1692,8 @@ The following illustrates a client for the echo server example from
 
 ```js
 // Assumes an echo server that is listening on port 8000.
-const tls = require('tls');
-const fs = require('fs');
+const tls = require('node:tls');
+const fs = require('node:fs');
 
 const options = {
   // Necessary only if the server requires client certificate authentication.
@@ -2093,14 +2093,14 @@ changes:
 Creates a new [`tls.Server`][]. The `secureConnectionListener`, if provided, is
 automatically set as a listener for the [`'secureConnection'`][] event.
 
-The `ticketKeys` options is automatically shared between `cluster` module
+The `ticketKeys` options is automatically shared between `node:cluster` module
 workers.
 
 The following illustrates a simple echo server:
 
 ```js
-const tls = require('tls');
-const fs = require('fs');
+const tls = require('node:tls');
+const fs = require('node:fs');
 
 const options = {
   key: fs.readFileSync('server-key.pem'),
