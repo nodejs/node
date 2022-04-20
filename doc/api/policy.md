@@ -350,7 +350,7 @@ The following example, would allow access to `fs` for all `data:` resources:
 ```json
 {
   "resources": {
-    "data:text/javascript,import('fs');": {
+    "data:text/javascript,import('node:fs');": {
       "cascade": true,
       "integrity": true
     }

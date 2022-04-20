@@ -6,8 +6,8 @@
 
 <!-- source_link=lib/readline.js -->
 
-The `readline` module provides an interface for reading data from a [Readable][]
-stream (such as [`process.stdin`][]) one line at a time.
+The `node:readline` module provides an interface for reading data from a
+[Readable][] stream (such as [`process.stdin`][]) one line at a time.
 
 To use the promise-based APIs:
 
@@ -16,7 +16,7 @@ import * as readline from 'node:readline/promises';
 ```
 
 ```cjs
-const readline = require('readline/promises');
+const readline = require('node:readline/promises');
 ```
 
 To use the callback and sync APIs:
@@ -26,10 +26,11 @@ import * as readline from 'node:readline';
 ```
 
 ```cjs
-const readline = require('readline');
+const readline = require('node:readline');
 ```
 
-The following simple example illustrates the basic use of the `readline` module.
+The following simple example illustrates the basic use of the `node:readline`
+module.
 
 ```mjs
 import * as readline from 'node:readline/promises';
@@ -45,8 +46,8 @@ rl.close();
 ```
 
 ```cjs
-const readline = require('readline');
-const { stdin: input, stdout: output } = require('process');
+const readline = require('node:readline');
+const { stdin: input, stdout: output } = require('node:process');
 
 const rl = readline.createInterface({ input, output });
 
@@ -758,7 +759,7 @@ The `readlinePromises.createInterface()` method creates a new `readlinePromises.
 instance.
 
 ```js
-const readlinePromises = require('readline/promises');
+const readlinePromises = require('node:readline/promises');
 const rl = readlinePromises.createInterface({
   input: process.stdin,
   output: process.stdout
@@ -1015,7 +1016,7 @@ The `readline.createInterface()` method creates a new `readline.Interface`
 instance.
 
 ```js
-const readline = require('readline');
+const readline = require('node:readline');
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
@@ -1153,7 +1154,7 @@ The following example illustrates the use of `readline.Interface` class to
 implement a small command-line interface:
 
 ```js
-const readline = require('readline');
+const readline = require('node:readline');
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
@@ -1185,8 +1186,8 @@ time. The easiest way to do so is leveraging the [`fs.ReadStream`][] API as
 well as a `for await...of` loop:
 
 ```js
-const fs = require('fs');
-const readline = require('readline');
+const fs = require('node:fs');
+const readline = require('node:readline');
 
 async function processLineByLine() {
   const fileStream = fs.createReadStream('input.txt');
@@ -1210,8 +1211,8 @@ processLineByLine();
 Alternatively, one could use the [`'line'`][] event:
 
 ```js
-const fs = require('fs');
-const readline = require('readline');
+const fs = require('node:fs');
+const readline = require('node:readline');
 
 const rl = readline.createInterface({
   input: fs.createReadStream('sample.txt'),
@@ -1227,9 +1228,9 @@ Currently, `for await...of` loop can be a bit slower. If `async` / `await`
 flow and speed are both essential, a mixed approach can be applied:
 
 ```js
-const { once } = require('events');
-const { createReadStream } = require('fs');
-const { createInterface } = require('readline');
+const { once } = require('node:events');
+const { createReadStream } = require('node:fs');
+const { createInterface } = require('node:readline');
 
 (async function processLineByLine() {
   try {
