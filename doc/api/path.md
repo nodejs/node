@@ -6,19 +6,19 @@
 
 <!-- source_link=lib/path.js -->
 
-The `path` module provides utilities for working with file and directory paths.
-It can be accessed using:
+The `node:path` module provides utilities for working with file and directory
+paths. It can be accessed using:
 
 ```js
-const path = require('path');
+const path = require('node:path');
 ```
 
 ## Windows vs. POSIX
 
-The default operation of the `path` module varies based on the operating system
-on which a Node.js application is running. Specifically, when running on a
-Windows operating system, the `path` module will assume that Windows-style
-paths are being used.
+The default operation of the `node:path` module varies based on the operating
+system on which a Node.js application is running. Specifically, when running on
+a Windows operating system, the `node:path` module will assume that
+Windows-style paths are being used.
 
 So using `path.basename()` might yield different results on POSIX and Windows:
 
@@ -447,7 +447,7 @@ added: v0.11.15
 changes:
   - version: v15.3.0
     pr-url: https://github.com/nodejs/node/pull/34962
-    description: Exposed as `require('path/posix')`.
+    description: Exposed as `require('node:path/posix')`.
 -->
 
 * {Object}
@@ -455,7 +455,7 @@ changes:
 The `path.posix` property provides access to POSIX specific implementations
 of the `path` methods.
 
-The API is accessible via `require('path').posix` or `require('path/posix')`.
+The API is accessible via `require('node:path').posix` or `require('node:path/posix')`.
 
 ## `path.relative(from, to)`
 
@@ -592,7 +592,7 @@ added: v0.11.15
 changes:
   - version: v15.3.0
     pr-url: https://github.com/nodejs/node/pull/34962
-    description: Exposed as `require('path/win32')`.
+    description: Exposed as `require('node:path/win32')`.
 -->
 
 * {Object}
@@ -600,7 +600,7 @@ changes:
 The `path.win32` property provides access to Windows-specific implementations
 of the `path` methods.
 
-The API is accessible via `require('path').win32` or `require('path/win32')`.
+The API is accessible via `require('node:path').win32` or `require('node:path/win32')`.
 
 [MSDN-Rel-Path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#fully-qualified-vs-relative-paths
 [`TypeError`]: errors.md#class-typeerror

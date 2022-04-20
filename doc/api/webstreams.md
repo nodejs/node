@@ -62,15 +62,15 @@ for await (const value of stream)
 ```cjs
 const {
   ReadableStream
-} = require('stream/web');
+} = require('node:stream/web');
 
 const {
   setInterval: every
-} = require('timers/promises');
+} = require('node:timers/promises');
 
 const {
   performance
-} = require('perf_hooks');
+} = require('node:perf_hooks');
 
 const SECOND = 1000;
 
@@ -179,7 +179,7 @@ console.log(await reader.read());
 ```
 
 ```cjs
-const { ReadableStream } = require('stream/web');
+const { ReadableStream } = require('node:stream/web');
 
 const stream = new ReadableStream();
 
@@ -251,7 +251,7 @@ for await (const chunk of transformedStream)
 const {
   ReadableStream,
   TransformStream,
-} = require('stream/web');
+} = require('node:stream/web');
 
 const stream = new ReadableStream({
   start(controller) {
@@ -342,7 +342,7 @@ The {ReadableStream} object supports the async iterator protocol using
 `for await` syntax.
 
 ```mjs
-import { Buffer } from 'buffer';
+import { Buffer } from 'node:buffer';
 
 const stream = new ReadableStream(getSomeSource());
 
@@ -577,7 +577,7 @@ available.
 
 Do not pass a pooled {Buffer} object instance in to this method.
 Pooled `Buffer` objects are created using `Buffer.allocUnsafe()`,
-or `Buffer.from()`, or are often returned by various `fs` module
+or `Buffer.from()`, or are often returned by various `node:fs` module
 callbacks. These types of `Buffer`s use a shared underlying
 {ArrayBuffer} object that contains all of the data from all of
 the pooled `Buffer` instances. When a `Buffer`, {TypedArray},
@@ -1445,7 +1445,7 @@ const {
   buffer,
   json,
   text,
-} = require('stream/consumers');
+} = require('node:stream/consumers');
 ```
 
 #### `streamConsumers.arrayBuffer(stream)`

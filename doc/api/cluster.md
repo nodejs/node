@@ -15,10 +15,10 @@ The cluster module allows easy creation of child processes that all share
 server ports.
 
 ```mjs
-import cluster from 'cluster';
-import http from 'http';
-import { cpus } from 'os';
-import process from 'process';
+import cluster from 'node:cluster';
+import http from 'node:http';
+import { cpus } from 'node:os';
+import process from 'node:process';
 
 const numCPUs = cpus().length;
 
@@ -46,10 +46,10 @@ if (cluster.isPrimary) {
 ```
 
 ```cjs
-const cluster = require('cluster');
-const http = require('http');
-const numCPUs = require('os').cpus().length;
-const process = require('process');
+const cluster = require('node:cluster');
+const http = require('node:http');
+const numCPUs = require('node:os').cpus().length;
+const process = require('node:process');
 
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
@@ -143,7 +143,7 @@ will be dropped and new connections will be refused. Node.js does not
 automatically manage the number of workers, however. It is the application's
 responsibility to manage the worker pool based on its own needs.
 
-Although a primary use case for the `cluster` module is networking, it can
+Although a primary use case for the `node:cluster` module is networking, it can
 also be used for other use cases requiring worker processes.
 
 ## Class: `Worker`
@@ -195,7 +195,7 @@ added: v0.11.2
 Similar to the `cluster.on('exit')` event, but specific to this worker.
 
 ```mjs
-import cluster from 'cluster';
+import cluster from 'node:cluster';
 
 const worker = cluster.fork();
 worker.on('exit', (code, signal) => {
@@ -210,7 +210,7 @@ worker.on('exit', (code, signal) => {
 ```
 
 ```cjs
-const cluster = require('cluster');
+const cluster = require('node:cluster');
 
 const worker = cluster.fork();
 worker.on('exit', (code, signal) => {
@@ -235,7 +235,7 @@ added: v0.7.0
 Similar to the `cluster.on('listening')` event, but specific to this worker.
 
 ```mjs
-import cluster from 'cluster';
+import cluster from 'node:cluster';
 
 cluster.fork().on('listening', (address) => {
   // Worker is listening
@@ -243,7 +243,7 @@ cluster.fork().on('listening', (address) => {
 ```
 
 ```cjs
-const cluster = require('cluster');
+const cluster = require('node:cluster');
 
 cluster.fork().on('listening', (address) => {
   // Worker is listening
@@ -271,10 +271,10 @@ Here is an example using the message system. It keeps a count in the primary
 process of the number of HTTP requests received by the workers:
 
 ```mjs
-import cluster from 'cluster';
-import http from 'http';
-import { cpus } from 'os';
-import process from 'process';
+import cluster from 'node:cluster';
+import http from 'node:http';
+import { cpus } from 'node:os';
+import process from 'node:process';
 
 if (cluster.isPrimary) {
 
@@ -315,9 +315,9 @@ if (cluster.isPrimary) {
 ```
 
 ```cjs
-const cluster = require('cluster');
-const http = require('http');
-const process = require('process');
+const cluster = require('node:cluster');
+const http = require('node:http');
+const process = require('node:process');
 
 if (cluster.isPrimary) {
 
@@ -335,7 +335,7 @@ if (cluster.isPrimary) {
   }
 
   // Start workers and listen for messages containing notifyRequest
-  const numCPUs = require('os').cpus().length;
+  const numCPUs = require('node:os').cpus().length;
   for (let i = 0; i < numCPUs; i++) {
     cluster.fork();
   }
@@ -429,7 +429,7 @@ if (cluster.isPrimary) {
   });
 
 } else if (cluster.isWorker) {
-  const net = require('net');
+  const net = require('node:net');
   const server = net.createServer((socket) => {
     // Connections never end
   });
@@ -505,10 +505,10 @@ This function returns `true` if the worker's process has terminated (either
 because of exiting or being signaled). Otherwise, it returns `false`.
 
 ```mjs
-import cluster from 'cluster';
-import http from 'http';
-import { cpus } from 'os';
-import process from 'process';
+import cluster from 'node:cluster';
+import http from 'node:http';
+import { cpus } from 'node:os';
+import process from 'node:process';
 
 const numCPUs = cpus().length;
 
@@ -538,10 +538,10 @@ if (cluster.isPrimary) {
 ```
 
 ```cjs
-const cluster = require('cluster');
-const http = require('http');
-const numCPUs = require('os').cpus().length;
-const process = require('process');
+const cluster = require('node:cluster');
+const http = require('node:http');
+const numCPUs = require('node:os').cpus().length;
+const process = require('node:process');
 
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
@@ -982,7 +982,7 @@ The defaults above apply to the first call only; the defaults for later
 calls are the current values at the time of `cluster.setupPrimary()` is called.
 
 ```mjs
-import cluster from 'cluster';
+import cluster from 'node:cluster';
 
 cluster.setupPrimary({
   exec: 'worker.js',
@@ -998,7 +998,7 @@ cluster.fork(); // http worker
 ```
 
 ```cjs
-const cluster = require('cluster');
+const cluster = require('node:cluster');
 
 cluster.setupPrimary({
   exec: 'worker.js',
@@ -1026,7 +1026,7 @@ added: v0.7.0
 A reference to the current worker object. Not available in the primary process.
 
 ```mjs
-import cluster from 'cluster';
+import cluster from 'node:cluster';
 
 if (cluster.isPrimary) {
   console.log('I am primary');
@@ -1038,7 +1038,7 @@ if (cluster.isPrimary) {
 ```
 
 ```cjs
-const cluster = require('cluster');
+const cluster = require('node:cluster');
 
 if (cluster.isPrimary) {
   console.log('I am primary');
@@ -1067,7 +1067,7 @@ advance. However, it is guaranteed that the removal from the `cluster.workers`
 list happens before the last `'disconnect'` or `'exit'` event is emitted.
 
 ```mjs
-import cluster from 'cluster';
+import cluster from 'node:cluster';
 
 for (const worker of Object.values(cluster.workers)) {
   worker.send('big announcement to all workers');
@@ -1075,7 +1075,7 @@ for (const worker of Object.values(cluster.workers)) {
 ```
 
 ```cjs
-const cluster = require('cluster');
+const cluster = require('node:cluster');
 
 for (const worker of Object.values(cluster.workers)) {
   worker.send('big announcement to all workers');

@@ -6,17 +6,17 @@
 
 <!-- source_link=lib/diagnostics_channel.js -->
 
-The `diagnostics_channel` module provides an API to create named channels
+The `node:diagnostics_channel` module provides an API to create named channels
 to report arbitrary message data for diagnostics purposes.
 
 It can be accessed using:
 
 ```mjs
-import diagnostics_channel from 'diagnostics_channel';
+import diagnostics_channel from 'node:diagnostics_channel';
 ```
 
 ```cjs
-const diagnostics_channel = require('diagnostics_channel');
+const diagnostics_channel = require('node:diagnostics_channel');
 ```
 
 It is intended that a module writer wanting to report diagnostics messages
@@ -38,7 +38,7 @@ other modules.
 Following is a simple overview of the public API.
 
 ```mjs
-import diagnostics_channel from 'diagnostics_channel';
+import diagnostics_channel from 'node:diagnostics_channel';
 
 // Get a reusable channel object
 const channel = diagnostics_channel.channel('my-channel');
@@ -58,7 +58,7 @@ if (channel.hasSubscribers) {
 ```
 
 ```cjs
-const diagnostics_channel = require('diagnostics_channel');
+const diagnostics_channel = require('node:diagnostics_channel');
 
 // Get a reusable channel object
 const channel = diagnostics_channel.channel('my-channel');
@@ -95,7 +95,7 @@ This API is optional but helpful when trying to publish messages from very
 performance-sensitive code.
 
 ```mjs
-import diagnostics_channel from 'diagnostics_channel';
+import diagnostics_channel from 'node:diagnostics_channel';
 
 if (diagnostics_channel.hasSubscribers('my-channel')) {
   // There are subscribers, prepare and publish message
@@ -103,7 +103,7 @@ if (diagnostics_channel.hasSubscribers('my-channel')) {
 ```
 
 ```cjs
-const diagnostics_channel = require('diagnostics_channel');
+const diagnostics_channel = require('node:diagnostics_channel');
 
 if (diagnostics_channel.hasSubscribers('my-channel')) {
   // There are subscribers, prepare and publish message
@@ -126,13 +126,13 @@ channel. It produces a channel object which is optimized to reduce overhead at
 publish time as much as possible.
 
 ```mjs
-import diagnostics_channel from 'diagnostics_channel';
+import diagnostics_channel from 'node:diagnostics_channel';
 
 const channel = diagnostics_channel.channel('my-channel');
 ```
 
 ```cjs
-const diagnostics_channel = require('diagnostics_channel');
+const diagnostics_channel = require('node:diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
 ```
@@ -170,7 +170,7 @@ This API is optional but helpful when trying to publish messages from very
 performance-sensitive code.
 
 ```mjs
-import diagnostics_channel from 'diagnostics_channel';
+import diagnostics_channel from 'node:diagnostics_channel';
 
 const channel = diagnostics_channel.channel('my-channel');
 
@@ -180,7 +180,7 @@ if (channel.hasSubscribers) {
 ```
 
 ```cjs
-const diagnostics_channel = require('diagnostics_channel');
+const diagnostics_channel = require('node:diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
 
@@ -203,7 +203,7 @@ Publish a message to any subscribers to the channel. This will trigger
 message handlers synchronously so they will execute within the same context.
 
 ```mjs
-import diagnostics_channel from 'diagnostics_channel';
+import diagnostics_channel from 'node:diagnostics_channel';
 
 const channel = diagnostics_channel.channel('my-channel');
 
@@ -213,7 +213,7 @@ channel.publish({
 ```
 
 ```cjs
-const diagnostics_channel = require('diagnostics_channel');
+const diagnostics_channel = require('node:diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
 
@@ -239,7 +239,7 @@ will be run synchronously whenever a message is published to the channel. Any
 errors thrown in the message handler will trigger an [`'uncaughtException'`][].
 
 ```mjs
-import diagnostics_channel from 'diagnostics_channel';
+import diagnostics_channel from 'node:diagnostics_channel';
 
 const channel = diagnostics_channel.channel('my-channel');
 
@@ -249,7 +249,7 @@ channel.subscribe((message, name) => {
 ```
 
 ```cjs
-const diagnostics_channel = require('diagnostics_channel');
+const diagnostics_channel = require('node:diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
 
@@ -280,7 +280,7 @@ Remove a message handler previously registered to this channel with
 [`channel.subscribe(onMessage)`][].
 
 ```mjs
-import diagnostics_channel from 'diagnostics_channel';
+import diagnostics_channel from 'node:diagnostics_channel';
 
 const channel = diagnostics_channel.channel('my-channel');
 
@@ -294,7 +294,7 @@ channel.unsubscribe(onMessage);
 ```
 
 ```cjs
-const diagnostics_channel = require('diagnostics_channel');
+const diagnostics_channel = require('node:diagnostics_channel');
 
 const channel = diagnostics_channel.channel('my-channel');
 

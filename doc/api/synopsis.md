@@ -55,7 +55,7 @@ Open `hello-world.js` in any preferred text editor and
 paste in the following content:
 
 ```js
-const http = require('http');
+const http = require('node:http');
 
 const hostname = '127.0.0.1';
 const port = 3000;

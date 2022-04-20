@@ -141,9 +141,9 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     MaybeLocal<Value> loadenv_ret = node::LoadEnvironment(
         env,
         "const publicRequire ="
-        "  require('module').createRequire(process.cwd() + '/');"
+        "  require('node:module').createRequire(process.cwd() + '/');"
         "globalThis.require = publicRequire;"
-        "require('vm').runInThisContext(process.argv[1]);");
+        "require('node:vm').runInThisContext(process.argv[1]);");
 
     if (loadenv_ret.IsEmpty())  // There has been a JS exception.
       return 1;

@@ -98,7 +98,7 @@ analysis using a debugger (such as `lldb`, `gdb`, and `mdb`).
 
 If this flag is passed, the behavior can still be set to not abort through
 [`process.setUncaughtExceptionCaptureCallback()`][] (and through usage of the
-`domain` module that uses it).
+`node:domain` module that uses it).
 
 ### `--completion-bash`
 
@@ -226,7 +226,7 @@ added: v9.8.0
 
 Make built-in language features like `eval` and `new Function` that generate
 code from strings throw an exception instead. This does not affect the Node.js
-`vm` module.
+`node:vm` module.
 
 ### `--dns-result-order=order`
 
@@ -364,7 +364,7 @@ See [customizing ESM specifier resolution][] for example usage.
 added: v9.6.0
 -->
 
-Enable experimental ES Module support in the `vm` module.
+Enable experimental ES Module support in the `node:vm` module.
 
 ### `--experimental-wasi-unstable-preview1`
 
