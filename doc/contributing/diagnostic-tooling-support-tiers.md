@@ -113,6 +113,7 @@ The tools are currently assigned to Tiers as follows:
 | Profiling | V8 CodeEventHandler API              | Partial (V8 Tests)            | Yes                     | 2           |
 | Profiling | V8 --interpreted-frames-native-stack | Yes                           | Yes                     | 2           |
 | Profiling | Linux perf                           | Yes                           | Partial                 | 2           |
+| Profiling | node-clinic                          | No                            | No                      | 3           |
 
 ## Tier 4
 
@@ -141,6 +142,5 @@ The tools are currently assigned to Tiers as follows:
 | Profiling | DTrace                    | No                            | Partial                 | 3           |
 | Profiling | Windows Xperf             | No                            | ?                       | ?           |
 | Profiling | 0x                        | No                            | No                      | 4           |
-| Profiling | node-clinic               | No                            | No                      | too early   |
 | F/P/T     | appmetrics                | No                            | No                      | ?           |
 | M/T       | eBPF tracing tool         | No                            | No                      | ?           |
