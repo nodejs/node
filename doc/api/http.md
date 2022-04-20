@@ -6,7 +6,7 @@
 
 <!-- source_link=lib/http.js -->
 
-To use the HTTP server and client one must `require('http')`.
+To use the HTTP server and client one must `require('node:http')`.
 
 The HTTP interfaces in Node.js are designed to support many features
 of the protocol which have been traditionally difficult to use.
@@ -186,7 +186,7 @@ of these values set to their respective defaults.
 To configure any of them, a custom [`http.Agent`][] instance must be created.
 
 ```js
-const http = require('http');
+const http = require('node:http');
 const keepAliveAgent = new http.Agent({ keepAlive: true });
 options.agent = keepAliveAgent;
 http.request(options, onResponseCallback);
@@ -464,9 +464,9 @@ type other than {net.Socket}.
 A client and server pair demonstrating how to listen for the `'connect'` event:
 
 ```js
-const http = require('http');
-const net = require('net');
-const { URL } = require('url');
+const http = require('node:http');
+const net = require('node:net');
+const { URL } = require('node:url');
 
 // Create an HTTP tunneling proxy
 const proxy = http.createServer((req, res) => {
@@ -560,7 +560,7 @@ HTTP version, status code, status message, key-value headers object,
 and array with the raw header names followed by their respective values.
 
 ```js
-const http = require('http');
+const http = require('node:http');
 
 const options = {
   host: '127.0.0.1',
@@ -638,7 +638,7 @@ type other than {net.Socket}.
 A client server pair demonstrating how to listen for the `'upgrade'` event.
 
 ```js
-const http = require('http');
+const http = require('node:http');
 
 // Create an HTTP server
 const server = http.createServer((req, res) => {
@@ -1002,7 +1002,7 @@ might be reused. But if server closes connection at unfortunate time, client
 may run into a 'ECONNRESET' error.
 
 ```js
-const http = require('http');
+const http = require('node:http');
 
 // Server has a 5 seconds keep-alive timeout by default
 http
@@ -1026,7 +1026,7 @@ By marking a request whether it reused socket or not, we can do
 automatic error retry base on it.
 
 ```js
-const http = require('http');
+const http = require('node:http');
 const agent = new http.Agent({ keepAlive: true });
 
 function retriableRequest() {
@@ -1136,7 +1136,7 @@ this property. In particular, the socket will not emit `'readable'` events
 because of how the protocol parser attaches to the socket.
 
 ```js
-const http = require('http');
+const http = require('node:http');
 const options = {
   host: 'www.google.com',
 };
@@ -1303,7 +1303,7 @@ written data it is immediately destroyed.
 `socket` is the [`net.Socket`][] object that the error originated from.
 
 ```js
-const http = require('http');
+const http = require('node:http');
 
 const server = http.createServer((req, res) => {
   res.end();
@@ -1947,7 +1947,7 @@ because of how the protocol parser attaches to the socket. After
 `response.end()`, the property is nulled.
 
 ```js
-const http = require('http');
+const http = require('node:http');
 const server = http.createServer((req, res) => {
   const ip = res.socket.remoteAddress;
   const port = res.socket.remotePort;
@@ -2048,7 +2048,7 @@ it will switch to implicit header mode and flush the implicit headers.
 This sends a chunk of the response body. This method may
 be called multiple times to provide successive parts of the body.
 
-In the `http` module, the response body is omitted when the
+In the `node:http` module, the response body is omitted when the
 request is a HEAD request. Similarly, the `204` and `304` responses
 _must not_ include a message body.
 
@@ -2981,7 +2981,7 @@ The `requestListener` is a function which is automatically
 added to the [`'request'`][] event.
 
 ```cjs
-const http = require('http');
+const http = require('node:http');
 
 // Create a local server to receive data from
 const server = http.createServer((req, res) => {
@@ -2995,7 +2995,7 @@ server.listen(8000);
 ```
 
 ```cjs
-const http = require('http');
+const http = require('node:http');
 
 // Create a local server to receive data from
 const server = http.createServer();
@@ -3231,7 +3231,7 @@ class. The `ClientRequest` instance is a writable stream. If one needs to
 upload a file with a POST request, then write to the `ClientRequest` object.
 
 ```js
-const http = require('http');
+const http = require('node:http');
 
 const postData = JSON.stringify({
   'msg': 'Hello World!'
@@ -3430,7 +3430,7 @@ Examples:
 Example:
 
 ```js
-const { validateHeaderName } = require('http');
+const { validateHeaderName } = require('node:http');
 
 try {
   validateHeaderName('');
@@ -3464,7 +3464,7 @@ or response. The HTTP module will automatically validate such headers.
 Examples:
 
 ```js
-const { validateHeaderValue } = require('http');
+const { validateHeaderValue } = require('node:http');
 
 try {
   validateHeaderValue('x-my-header', undefined);

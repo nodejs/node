@@ -18,9 +18,9 @@ programs. Some of them are:
   * Locale-sensitive methods like [`String.prototype.localeCompare()`][] and
     [`Date.prototype.toLocaleString()`][]
 * The [WHATWG URL parser][]'s [internationalized domain names][] (IDNs) support
-* [`require('buffer').transcode()`][]
+* [`require('node:buffer').transcode()`][]
 * More accurate [REPL][] line editing
-* [`require('util').TextDecoder`][]
+* [`require('node:util').TextDecoder`][]
 * [`RegExp` Unicode Property Escapes][]
 
 Node.js and the underlying V8 engine use
@@ -44,21 +44,21 @@ in [BUILDING.md][].
 An overview of available Node.js and JavaScript features for each `configure`
 option:
 
-| Feature                                 | `none`                            | `system-icu`                 | `small-icu`            | `full-icu` |
-| --------------------------------------- | --------------------------------- | ---------------------------- | ---------------------- | ---------- |
-| [`String.prototype.normalize()`][]      | none (function is no-op)          | full                         | full                   | full       |
-| `String.prototype.to*Case()`            | full                              | full                         | full                   | full       |
-| [`Intl`][]                              | none (object does not exist)      | partial/full (depends on OS) | partial (English-only) | full       |
-| [`String.prototype.localeCompare()`][]  | partial (not locale-aware)        | full                         | full                   | full       |
-| `String.prototype.toLocale*Case()`      | partial (not locale-aware)        | full                         | full                   | full       |
-| [`Number.prototype.toLocaleString()`][] | partial (not locale-aware)        | partial/full (depends on OS) | partial (English-only) | full       |
-| `Date.prototype.toLocale*String()`      | partial (not locale-aware)        | partial/full (depends on OS) | partial (English-only) | full       |
-| [Legacy URL Parser][]                   | partial (no IDN support)          | full                         | full                   | full       |
-| [WHATWG URL Parser][]                   | partial (no IDN support)          | full                         | full                   | full       |
-| [`require('buffer').transcode()`][]     | none (function does not exist)    | full                         | full                   | full       |
-| [REPL][]                                | partial (inaccurate line editing) | full                         | full                   | full       |
-| [`require('util').TextDecoder`][]       | partial (basic encodings support) | partial/full (depends on OS) | partial (Unicode-only) | full       |
-| [`RegExp` Unicode Property Escapes][]   | none (invalid `RegExp` error)     | full                         | full                   | full       |
+| Feature                                  | `none`                            | `system-icu`                 | `small-icu`            | `full-icu` |
+| ---------------------------------------- | --------------------------------- | ---------------------------- | ---------------------- | ---------- |
+| [`String.prototype.normalize()`][]       | none (function is no-op)          | full                         | full                   | full       |
+| `String.prototype.to*Case()`             | full                              | full                         | full                   | full       |
+| [`Intl`][]                               | none (object does not exist)      | partial/full (depends on OS) | partial (English-only) | full       |
+| [`String.prototype.localeCompare()`][]   | partial (not locale-aware)        | full                         | full                   | full       |
+| `String.prototype.toLocale*Case()`       | partial (not locale-aware)        | full                         | full                   | full       |
+| [`Number.prototype.toLocaleString()`][]  | partial (not locale-aware)        | partial/full (depends on OS) | partial (English-only) | full       |
+| `Date.prototype.toLocale*String()`       | partial (not locale-aware)        | partial/full (depends on OS) | partial (English-only) | full       |
+| [Legacy URL Parser][]                    | partial (no IDN support)          | full                         | full                   | full       |
+| [WHATWG URL Parser][]                    | partial (no IDN support)          | full                         | full                   | full       |
+| [`require('node:buffer').transcode()`][] | none (function does not exist)    | full                         | full                   | full       |
+| [REPL][]                                 | partial (inaccurate line editing) | full                         | full                   | full       |
+| [`require('node:util').TextDecoder`][]   | partial (basic encodings support) | partial/full (depends on OS) | partial (Unicode-only) | full       |
+| [`RegExp` Unicode Property Escapes][]    | none (invalid `RegExp` error)     | full                         | full                   | full       |
 
 The "(not locale-aware)" designation denotes that the function carries out its
 operation just like the non-`Locale` version of the function, if one
@@ -211,8 +211,8 @@ to be helpful:
 [`String.prototype.normalize()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/normalize
 [`String.prototype.toLowerCase()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toLowerCase
 [`String.prototype.toUpperCase()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toUpperCase
-[`require('buffer').transcode()`]: buffer.md#buffertranscodesource-fromenc-toenc
-[`require('util').TextDecoder`]: util.md#class-utiltextdecoder
+[`require('node:buffer').transcode()`]: buffer.md#buffertranscodesource-fromenc-toenc
+[`require('node:util').TextDecoder`]: util.md#class-utiltextdecoder
 [btest402]: https://github.com/srl295/btest402
 [full-icu]: https://www.npmjs.com/package/full-icu
 [internationalized domain names]: https://en.wikipedia.org/wiki/Internationalized_domain_name

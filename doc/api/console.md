@@ -6,8 +6,8 @@
 
 <!-- source_link=lib/console.js -->
 
-The `console` module provides a simple debugging console that is similar to the
-JavaScript console mechanism provided by web browsers.
+The `node:console` module provides a simple debugging console that is similar to
+the JavaScript console mechanism provided by web browsers.
 
 The module exports two specific components:
 
@@ -15,7 +15,7 @@ The module exports two specific components:
   `console.warn()` that can be used to write to any Node.js stream.
 * A global `console` instance configured to write to [`process.stdout`][] and
   [`process.stderr`][]. The global `console` can be used without calling
-  `require('console')`.
+  `require('node:console')`.
 
 _**Warning**_: The global console object's methods are neither consistently
 synchronous like the browser APIs they resemble, nor are they consistently
@@ -77,11 +77,11 @@ changes:
 <!--type=class-->
 
 The `Console` class can be used to create a simple logger with configurable
-output streams and can be accessed using either `require('console').Console`
+output streams and can be accessed using either `require('node:console').Console`
 or `console.Console` (or their destructured counterparts):
 
 ```js
-const { Console } = require('console');
+const { Console } = require('node:console');
 ```
 
 ```js
