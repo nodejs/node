@@ -4535,7 +4535,7 @@ default with the above values.
 added: v0.11.5
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/42796
     description: Passing to the `string` parameter an object with an own
                  `toString` function is no longer supported.
   - version: v17.8.0
@@ -4607,7 +4607,7 @@ details.
 added: v0.1.29
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/42796
     description: Passing to the `string` parameter an object with an own
                  `toString` function is no longer supported.
   - version: v18.0.0
@@ -5849,7 +5849,7 @@ this API: [`fs.utimes()`][].
 added: v0.1.29
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/42796
     description: Passing to the `data` parameter an object with an own
                  `toString` function is no longer supported.
   - version: v17.8.0
