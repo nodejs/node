@@ -1396,6 +1396,9 @@ if (typeof Symbol !== 'undefined') {
   class SetSubclass extends Set {}
   class MapSubclass extends Map {}
   class PromiseSubclass extends Promise {}
+  class SymbolNameClass {
+    static name = Symbol('name');
+  }
 
   const x = new ObjectSubclass();
   x.foo = 42;
@@ -1409,6 +1412,8 @@ if (typeof Symbol !== 'undefined') {
                      "MapSubclass(1) [Map] { 'foo' => 42 }");
   assert.strictEqual(util.inspect(new PromiseSubclass(() => {})),
                      'PromiseSubclass [Promise] { <pending> }');
+  assert.strictEqual(util.inspect(new SymbolNameClass()),
+                     'Symbol(name) {}');
   assert.strictEqual(
     util.inspect({ a: { b: new ArraySubclass([1, [2], 3]) } }, { depth: 1 }),
     '{ a: { b: [ArraySubclass] } }'
