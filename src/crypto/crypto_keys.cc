@@ -318,6 +318,7 @@ MaybeLocal<Value> WritePrivateKey(
     }
   }
 
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   bool err;
 
   PKEncodingType encoding_type = config.type_.ToChecked();
