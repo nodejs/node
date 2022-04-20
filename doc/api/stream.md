@@ -2875,7 +2875,7 @@ added: v17.0.0
 * Returns: {stream.Duplex}
 
 ```mjs
-import { Duplex } from 'stream';
+import { Duplex } from 'node:stream';
 import {
   ReadableStream,
   WritableStream
