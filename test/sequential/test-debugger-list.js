@@ -10,26 +10,20 @@ const assert = require('assert');
 
 const cli = startCLI([fixtures.path('debugger/three-lines.js')]);
 
-cli.waitForInitialBreak()
-  .then(() => cli.waitForPrompt())
-  .then(() => cli.command('list(0)'))
-  .then(() => {
-    assert.match(cli.output, /> 1 let x = 1;/);
-  })
-  .then(() => cli.command('list(1)'))
-  .then(() => {
-    assert.match(cli.output, /> 1 let x = 1;\n {2}2 x = x \+ 1;/);
-  })
-  .then(() => cli.command('list(10)'))
-  .then(() => {
-    assert.match(cli.output, /> 1 let x = 1;\n {2}2 x = x \+ 1;\n {2}3 module\.exports = x;\n {2}4 /);
-  })
-  .then(() => cli.command('c'))
-  .then(() => cli.waitFor(/disconnect/))
-  .then(() => cli.waitFor(/debug> $/))
-  .then(() => cli.command('list()'))
-  .then(() => {
-    assert.match(cli.output, /Uncaught Error \[ERR_DEBUGGER_ERROR\]: Requires execution to be paused/);
-  })
-  .finally(() => cli.quit())
-  .then(common.mustCall());
+(async () => {
+  await cli.waitForInitialBreak();
+  await cli.waitForPrompt();
+  await cli.command('list(0)');
+  assert.match(cli.output, /> 1 let x = 1;/);
+  await cli.command('list(1)');
+  assert.match(cli.output, /> 1 let x = 1;\n {2}2 x = x \+ 1;/);
+  await cli.command('list(10)');
+  assert.match(cli.output, /> 1 let x = 1;\n {2}2 x = x \+ 1;\n {2}3 module\.exports = x;\n {2}4 /);
+  await cli.command('c');
+  await cli.waitFor(/disconnect/);
+  await cli.waitFor(/debug> $/);
+  await cli.command('list()');
+  assert.match(cli.output, /Uncaught Error \[ERR_DEBUGGER_ERROR\]: Requires execution to be paused/);
+})()
+.finally(() => cli.quit())
+.then(common.mustCall());
