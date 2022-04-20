@@ -26,7 +26,7 @@ cli.waitForInitialBreak()
   })
   .then(() => cli.command('c'))
   .then(() => cli.waitFor(/disconnect/))
-  .then(() => cli.waitForPrompt())
+  .then(() => cli.waitFor(/debug> $/))
   .then(() => cli.command('list()'))
   .then(() => {
     assert.match(cli.output, /Uncaught Error \[ERR_DEBUGGER_ERROR\]: Requires execution to be paused/);
