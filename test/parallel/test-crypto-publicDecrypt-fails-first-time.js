@@ -3,6 +3,8 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+// Test for https://github.com/nodejs/node/issues/40814
+
 const assert = require('assert');
 const crypto = require('crypto');
 
