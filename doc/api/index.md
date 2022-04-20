@@ -39,7 +39,7 @@
 * [Internationalization](intl.md)
 * [Modules: CommonJS modules](modules.md)
 * [Modules: ECMAScript modules](esm.md)
-* [Modules: `module` API](module.md)
+* [Modules: `node:module` API](module.md)
 * [Modules: Packages](packages.md)
 * [Net](net.md)
 * [OS](os.md)

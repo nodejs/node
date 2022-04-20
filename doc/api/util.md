@@ -6,12 +6,12 @@
 
 <!-- source_link=lib/util.js -->
 
-The `util` module supports the needs of Node.js internal APIs. Many of the
+The `node:util` module supports the needs of Node.js internal APIs. Many of the
 utilities are useful for application and module developers as well. To access
 it:
 
 ```js
-const util = require('util');
+const util = require('node:util');
 ```
 
 ## `util.callbackify(original)`
@@ -30,7 +30,7 @@ first argument will be the rejection reason (or `null` if the `Promise`
 resolved), and the second argument will be the resolved value.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 async function fn() {
   return 'hello world';
@@ -90,7 +90,7 @@ environment variable, then the returned function operates similar to
 [`console.error()`][]. If not, then the returned function is a no-op.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 const debuglog = util.debuglog('foo');
 
 debuglog('hello from foo [%d]', 123);
@@ -109,7 +109,7 @@ environment variable set, then it will not print anything.
 The `section` supports wildcard also:
 
 ```js
-const util = require('util');
+const util = require('node:util');
 const debuglog = util.debuglog('foo-bar');
 
 debuglog('hi there, it\'s foo-bar [%d]', 2333);
@@ -130,7 +130,7 @@ with a different function that doesn't have any initialization or
 unnecessary wrapping.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 let debuglog = util.debuglog('internals', (debug) => {
   // Replace with a logging function that optimizes out
   // testing if the section is enabled
@@ -153,7 +153,7 @@ then the returned value will be `true`. If not, then the returned value will be
 `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 const enabled = util.debuglog('foo').enabled;
 if (enabled) {
   console.log('hello from foo [%d]', 123);
@@ -197,7 +197,7 @@ The `util.deprecate()` method wraps `fn` (which may be a function or class) in
 such a way that it is marked as deprecated.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 exports.obsoleteFunction = util.deprecate(() => {
   // Do something here.
@@ -214,7 +214,7 @@ If the same optional `code` is supplied in multiple calls to `util.deprecate()`,
 the warning will be emitted only once for that `code`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 const fn1 = util.deprecate(someFunction, someMessage, 'DEP0001');
 const fn2 = util.deprecate(someOtherFunction, someOtherMessage, 'DEP0001');
@@ -433,8 +433,8 @@ As an additional convenience, `superConstructor` will be accessible
 through the `constructor.super_` property.
 
 ```js
-const util = require('util');
-const EventEmitter = require('events');
+const util = require('node:util');
+const EventEmitter = require('node:events');
 
 function MyStream() {
   EventEmitter.call(this);
@@ -460,7 +460,7 @@ stream.write('It works!'); // Received data: "It works!"
 ES6 example using `class` and `extends`:
 
 ```js
-const EventEmitter = require('events');
+const EventEmitter = require('node:events');
 
 class MyStream extends EventEmitter {
   write(data) {
@@ -638,7 +638,7 @@ util.inspect(baz);       // '[foo] {}'
 Circular references point to their anchor by using a reference index:
 
 ```js
-const { inspect } = require('util');
+const { inspect } = require('node:util');
 
 const obj = {};
 obj.a = [obj];
@@ -656,7 +656,7 @@ console.log(inspect(obj));
 The following example inspects all properties of the `util` object:
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 console.log(util.inspect(util, { showHidden: true, depth: null }));
 ```
@@ -664,7 +664,7 @@ console.log(util.inspect(util, { showHidden: true, depth: null }));
 The following example highlights the effect of the `compact` option:
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 const o = {
   a: [1, 2, [[
@@ -720,7 +720,7 @@ guarantee which entries are displayed. That means retrieving the same
 with no remaining strong references may be garbage collected at any time.
 
 ```js
-const { inspect } = require('util');
+const { inspect } = require('node:util');
 
 const obj = { a: 1 };
 const obj2 = { b: 2 };
@@ -734,8 +734,8 @@ The `sorted` option ensures that an object's property insertion order does not
 impact the result of `util.inspect()`.
 
 ```js
-const { inspect } = require('util');
-const assert = require('assert');
+const { inspect } = require('node:util');
+const assert = require('node:assert');
 
 const o1 = {
   b: [2, 3, 1],
@@ -762,7 +762,7 @@ The `numericSeparator` option adds an underscore every three digits to all
 numbers.
 
 ```js
-const { inspect } = require('util');
+const { inspect } = require('node:util');
 
 const thousand = 1_000;
 const million = 1_000_000;
@@ -886,7 +886,7 @@ which `util.inspect()` will invoke and use the result of when inspecting
 the object.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 class Box {
   constructor(value) {
@@ -921,7 +921,7 @@ a string but may return a value of any type that will be formatted accordingly
 by `util.inspect()`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 const obj = { foo: 'this will not show up in the inspect() output' };
 obj[util.inspect.custom] = (depth) => {
@@ -990,7 +990,7 @@ object containing one or more valid [`util.inspect()`][] options. Setting
 option properties directly is also supported.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 const arr = Array(101).fill(0);
 
 console.log(arr); // Logs the truncated array
@@ -1028,8 +1028,8 @@ an `(err, value) => ...` callback as the last argument, and returns a version
 that returns promises.
 
 ```js
-const util = require('util');
-const fs = require('fs');
+const util = require('node:util');
+const fs = require('node:fs');
 
 const stat = util.promisify(fs.stat);
 stat('.').then((stats) => {
@@ -1042,8 +1042,8 @@ stat('.').then((stats) => {
 Or, equivalently using `async function`s:
 
 ```js
-const util = require('util');
-const fs = require('fs');
+const util = require('node:util');
+const fs = require('node:fs');
 
 const stat = util.promisify(fs.stat);
 
@@ -1066,7 +1066,7 @@ Using `promisify()` on class methods or other methods that use `this` may not
 work as expected unless handled specially:
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 class Foo {
   constructor() {
@@ -1096,7 +1096,7 @@ Using the `util.promisify.custom` symbol one can override the return value of
 [`util.promisify()`][]:
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 function doSomething(foo, callback) {
   // ...
@@ -1389,7 +1389,7 @@ added: v10.0.0
 changes:
   - version: v15.3.0
     pr-url: https://github.com/nodejs/node/pull/34055
-    description: Exposed as `require('util/types')`.
+    description: Exposed as `require('node:util/types')`.
 -->
 
 `util.types` provides type checks for different kinds of built-in objects.
@@ -1401,7 +1401,7 @@ The result generally does not make any guarantees about what kinds of
 properties or behavior a value exposes in JavaScript. They are primarily
 useful for addon developers who prefer to do type checking in JavaScript.
 
-The API is accessible via `require('util').types` or `require('util/types')`.
+The API is accessible via `require('node:util').types` or `require('node:util/types')`.
 
 ### `util.types.isAnyArrayBuffer(value)`
 
@@ -2202,7 +2202,7 @@ Alias for [`Array.isArray()`][].
 Returns `true` if the given `object` is an `Array`. Otherwise, returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isArray([]);
 // Returns: true
@@ -2227,7 +2227,7 @@ deprecated: v4.0.0
 Returns `true` if the given `object` is a `Boolean`. Otherwise, returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isBoolean(1);
 // Returns: false
@@ -2252,7 +2252,7 @@ deprecated: v4.0.0
 Returns `true` if the given `object` is a `Buffer`. Otherwise, returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isBuffer({ length: 0 });
 // Returns: false
@@ -2277,7 +2277,7 @@ deprecated: v4.0.0
 Returns `true` if the given `object` is a `Date`. Otherwise, returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isDate(new Date());
 // Returns: true
@@ -2303,7 +2303,7 @@ Returns `true` if the given `object` is an [`Error`][]. Otherwise, returns
 `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isError(new Error());
 // Returns: true
@@ -2318,7 +2318,7 @@ possible to obtain an incorrect result when the `object` argument manipulates
 `@@toStringTag`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 const obj = { name: 'Error', message: 'an error occurred' };
 
 util.isError(obj);
@@ -2344,7 +2344,7 @@ Returns `true` if the given `object` is a `Function`. Otherwise, returns
 `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 function Foo() {}
 const Bar = () => {};
@@ -2373,7 +2373,7 @@ Returns `true` if the given `object` is strictly `null`. Otherwise, returns
 `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isNull(0);
 // Returns: false
@@ -2400,7 +2400,7 @@ Returns `true` if the given `object` is `null` or `undefined`. Otherwise,
 returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isNullOrUndefined(0);
 // Returns: false
@@ -2425,7 +2425,7 @@ deprecated: v4.0.0
 Returns `true` if the given `object` is a `Number`. Otherwise, returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isNumber(false);
 // Returns: false
@@ -2455,7 +2455,7 @@ Returns `true` if the given `object` is strictly an `Object` **and** not a
 Otherwise, returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isObject(5);
 // Returns: false
@@ -2485,7 +2485,7 @@ Returns `true` if the given `object` is a primitive type. Otherwise, returns
 `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isPrimitive(5);
 // Returns: true
@@ -2522,7 +2522,7 @@ deprecated: v4.0.0
 Returns `true` if the given `object` is a `RegExp`. Otherwise, returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isRegExp(/some regexp/);
 // Returns: true
@@ -2547,7 +2547,7 @@ deprecated: v4.0.0
 Returns `true` if the given `object` is a `string`. Otherwise, returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isString('');
 // Returns: true
@@ -2574,7 +2574,7 @@ deprecated: v4.0.0
 Returns `true` if the given `object` is a `Symbol`. Otherwise, returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.isSymbol(5);
 // Returns: false
@@ -2599,7 +2599,7 @@ deprecated: v4.0.0
 Returns `true` if the given `object` is `undefined`. Otherwise, returns `false`.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 const foo = undefined;
 util.isUndefined(5);
@@ -2625,7 +2625,7 @@ The `util.log()` method prints the given `string` to `stdout` with an included
 timestamp.
 
 ```js
-const util = require('util');
+const util = require('node:util');
 
 util.log('Timestamped message.');
 ```

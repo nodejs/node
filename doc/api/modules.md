@@ -688,7 +688,7 @@ const myLocalModule = require('./path/myLocalModule');
 const jsonData = require('./path/filename.json');
 
 // Importing a module from node_modules or Node.js built-in module:
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 ```
 
 #### `require.cache`
@@ -712,13 +712,13 @@ Use with care!
 <!-- eslint-disable node-core/no-duplicate-requires -->
 
 ```js
-const assert = require('assert');
-const realFs = require('fs');
+const assert = require('node:assert');
+const realFs = require('node:fs');
 
 const fakeFs = {};
 require.cache.fs = { exports: fakeFs };
 
-assert.strictEqual(require('fs'), fakeFs);
+assert.strictEqual(require('node:fs'), fakeFs);
 assert.strictEqual(require('node:fs'), realFs);
 ```
 
@@ -871,7 +871,7 @@ which is probably not what is desired.
 For example, suppose we were making a module called `a.js`:
 
 ```js
-const EventEmitter = require('events');
+const EventEmitter = require('node:events');
 
 module.exports = new EventEmitter();
 
