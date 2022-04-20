@@ -19,7 +19,7 @@ The current security model for Node.js is not yet well documented.
 At a high level it is:
 
 * Node.js does not provide a sandbox, both the JavaScript and
-  and Native code which is run is trusted to not be malicious.
+  Native code which is run is trusted to not be malicious.
 * The projects works to help code running on top of Node.js to avoid
   making mistakes, but not doing so is not considered a
   vulnerability in Node.js. Just because you can build something
