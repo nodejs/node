@@ -23,7 +23,7 @@ The key elements of our WebAssembly strategy include:
 
 Node.js gets its core WebAssembly support through V8. We don't need
 to do anything specific to support this, all we have to do is keep
-the version of V8 as up to date as possible.
+the version of V8 as up-to-date as possible.
 
 ### Key API support
 
