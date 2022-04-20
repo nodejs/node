@@ -22,7 +22,7 @@ At a high level it is:
   and Native code which is run is trusted to not be malicious.
 * The projects works to help code running on top of Node.js to avoid
   making mistakes, but not doing so is not considered a
-  vulnerability in Node.js. Just be because you can build something
+  vulnerability in Node.js. Just because you can build something
   vulnerable with the APIs does not mean there is a vulnerability
   in Node.js itself.
 
