@@ -112,8 +112,8 @@ struct AssertionInfo {
   const char* message;
   const char* function;
 };
-[[noreturn]] void NODE_EXTERN Assert(const AssertionInfo& info);
-[[noreturn]] void NODE_EXTERN Abort();
+[[noreturn]] void NODE_EXTERN_PRIVATE Assert(const AssertionInfo& info);
+[[noreturn]] void NODE_EXTERN_PRIVATE Abort();
 void DumpBacktrace(FILE* fp);
 
 // Windows 8+ does not like abort() in Release mode

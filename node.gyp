@@ -198,7 +198,12 @@
           'dependencies': [ '<(node_lib_target_name)' ],
           'conditions': [
             ['OS=="win" and node_shared=="true"', {
-              'dependencies': ['copy_libnode_implib']
+              'dependencies': ['generate_node_def'],
+              'msvs_settings': {
+                'VCLinkerTool': {
+                  'ModuleDefinitionFile': '<(PRODUCT_DIR)/<(node_core_target_name).def',
+                },
+              },
             }],
           ],
         }],
@@ -1518,20 +1523,30 @@
     ['OS=="win" and node_shared=="true"', {
      'targets': [
        {
-         'target_name': 'copy_libnode_implib',
+         'target_name': 'gen_node_def',
+         'type': 'executable',
+         'sources': [
+           'tools/gen_node_def.cc'
+         ],
+       },
+       {
+         'target_name': 'generate_node_def',
+         'dependencies': [
+           'gen_node_def',
+           '<(node_lib_target_name)',
+         ],
          'type': 'none',
-         'dependencies': ['<(node_lib_target_name)'],
          'actions': [
            {
-             'action_name': 'copy_libnode_implib_action',
+             'action_name': 'generate_node_def_action',
              'inputs': [
-               '<(PRODUCT_DIR)/<(node_lib_target_name).lib'
+               '<(PRODUCT_DIR)/<(node_lib_target_name).dll'
              ],
              'outputs': [
-               '<(PRODUCT_DIR)/<(node_core_target_name).lib',
+               '<(PRODUCT_DIR)/<(node_core_target_name).def',
              ],
              'action': [
-               'python', 'tools/copyfile.py',
+               '<(PRODUCT_DIR)/gen_node_def.exe',
                '<@(_inputs)',
                '<@(_outputs)',
              ],

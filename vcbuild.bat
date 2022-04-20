@@ -473,11 +473,8 @@ if defined dll (
   if errorlevel 1 echo Cannot copy libnode.dll && goto package_error
 
   mkdir %TARGET_NAME%\Release > nul
-  copy /Y node.lib %TARGET_NAME%\Release\ > nul
-  if errorlevel 1 echo Cannot copy node.lib && goto package_error
-
-  copy /Y ..\common.gypi %TARGET_NAME%\ > nul
-  if errorlevel 1 echo Cannot copy common.gypi && goto package_error
+  copy /Y node.def %TARGET_NAME%\Release\ > nul
+  if errorlevel 1 echo Cannot copy node.def && goto package_error
 
   set HEADERS_ONLY=1
   python ..\tools\install.py install %CD%\%TARGET_NAME% \ > nul

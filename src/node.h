@@ -32,6 +32,12 @@
 # define NODE_EXTERN __attribute__((visibility("default")))
 #endif
 
+// Declarations annotated with NODE_EXTERN_PRIVATE do not form part of
+// the public API. They are implementation details that can and will
+// change between releases, even in semver patch releases. Do not use
+// any such symbol in external code.
+#define NODE_EXTERN_PRIVATE NODE_EXTERN
+
 #ifdef BUILDING_NODE_EXTENSION
 # undef BUILDING_V8_SHARED
 # undef BUILDING_UV_SHARED
