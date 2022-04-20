@@ -7,7 +7,7 @@
 <!-- source_link=lib/stream.js -->
 
 A stream is an abstract interface for working with streaming data in Node.js.
-The `stream` module provides an API for implementing the stream interface.
+The `node:stream` module provides an API for implementing the stream interface.
 
 There are many stream objects provided by Node.js. For instance, a
 [request to an HTTP server][http-incoming-message] and [`process.stdout`][]
@@ -16,14 +16,14 @@ are both stream instances.
 Streams can be readable, writable, or both. All streams are instances of
 [`EventEmitter`][].
 
-To access the `stream` module:
+To access the `node:stream` module:
 
 ```js
-const stream = require('stream');
+const stream = require('node:stream');
 ```
 
-The `stream` module is useful for creating new types of stream instances. It is
-usually not necessary to use the `stream` module to consume streams.
+The `node:stream` module is useful for creating new types of stream instances.
+It is usually not necessary to use the `node:stream` module to consume streams.
 
 ## Organization of this document
 
@@ -56,8 +56,8 @@ added: v15.0.0
 
 The `stream/promises` API provides an alternative set of asynchronous utility
 functions for streams that return `Promise` objects rather than using
-callbacks. The API is accessible via `require('stream/promises')`
-or `require('stream').promises`.
+callbacks. The API is accessible via `require('node:stream/promises')`
+or `require('node:stream').promises`.
 
 ### Object mode
 
@@ -134,7 +134,7 @@ manner. The following is an example of using streams in a Node.js application
 that implements an HTTP server:
 
 ```js
-const http = require('http');
+const http = require('node:http');
 
 const server = http.createServer((req, res) => {
   // `req` is an http.IncomingMessage, which is a readable stream.
@@ -190,7 +190,7 @@ various ways to communicate the current state of the stream.
 
 Applications that are either writing data to or consuming data from a stream
 are not required to implement the stream interfaces directly and will generally
-have no reason to call `require('stream')`.
+have no reason to call `require('node:stream')`.
 
 Developers wishing to implement new types of streams should refer to the
 section [API for stream implementers][].
@@ -422,7 +422,7 @@ Use `end()` instead of destroy if data should flush before close, or wait for
 the `'drain'` event before destroying the stream.
 
 ```cjs
-const { Writable } = require('stream');
+const { Writable } = require('node:stream');
 
 const myStream = new Writable();
 
@@ -432,7 +432,7 @@ myStream.on('error', (fooErr) => console.error(fooErr.message)); // foo error
 ```
 
 ```cjs
-const { Writable } = require('stream');
+const { Writable } = require('node:stream');
 
 const myStream = new Writable();
 
@@ -441,7 +441,7 @@ myStream.on('error', function wontHappen() {});
 ```
 
 ```cjs
-const { Writable } = require('stream');
+const { Writable } = require('node:stream');
 
 const myStream = new Writable();
 myStream.destroy();
@@ -456,6 +456,16 @@ further errors except from `_destroy()` may be emitted as `'error'`.
 Implementors should not override this method,
 but instead implement [`writable._destroy()`][writable-_destroy].
 
+##### `writable.closed`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+* {boolean}
+
+Is `true` after `'close'` has been emitted.
+
 ##### `writable.destroyed`
 
 <!-- YAML
@@ -467,7 +477,7 @@ added: v8.0.0
 Is `true` after [`writable.destroy()`][writable-destroy] has been called.
 
 ```cjs
-const { Writable } = require('stream');
+const { Writable } = require('node:stream');
 
 const myStream = new Writable();
 
@@ -513,7 +523,7 @@ Calling the [`stream.write()`][stream-write] method after calling
 
 ```js
 // Write 'hello, ' and then end with 'world!'.
-const fs = require('fs');
+const fs = require('node:fs');
 const file = fs.createWriteStream('example.txt');
 file.write('hello, ');
 file.end('world!');
@@ -589,7 +599,7 @@ the stream has not been destroyed, errored or ended.
 ##### `writable.writableAborted`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 > Stability: 1 - Experimental
@@ -622,6 +632,17 @@ added:
 
 Number of times [`writable.uncork()`][stream-uncork] needs to be
 called in order to fully uncork the stream.
+
+##### `writable.errored`
+
+<!-- YAML
+added:
+  v18.0.0
+-->
+
+* {Error}
+
+Returns error if the stream has been destroyed with an error.
 
 ##### `writable.writableFinished`
 
@@ -658,7 +679,9 @@ the status of the `highWaterMark`.
 ##### `writable.writableNeedDrain`
 
 <!-- YAML
-added: v15.2.0
+added:
+  - v15.2.0
+  - v14.17.0
 -->
 
 * {boolean}
@@ -848,7 +871,7 @@ data. While in this state, attaching a listener for the `'data'` event
 will not switch `readable.readableFlowing` to `true`.
 
 ```js
-const { PassThrough, Writable } = require('stream');
+const { PassThrough, Writable } = require('node:stream');
 const pass = new PassThrough();
 const writable = new Writable();
 
@@ -1018,7 +1041,7 @@ event. This is also true if there never was any data to be read. For instance,
 in the following example, `foo.txt` is an empty file:
 
 ```js
-const fs = require('fs');
+const fs = require('node:fs');
 const rr = fs.createReadStream('foo.txt');
 rr.on('readable', () => {
   console.log(`readable: ${rr.read()}`);
@@ -1084,10 +1107,20 @@ further errors except from `_destroy()` may be emitted as `'error'`.
 Implementors should not override this method, but instead implement
 [`readable._destroy()`][readable-_destroy].
 
-##### `readable.destroyed`
+##### `readable.closed`
 
 <!-- YAML
 added: v8.0.0
+-->
+
+* {boolean}
+
+Is `true` after `'close'` has been emitted.
+
+##### `readable.destroyed`
+
+<!-- YAML
+added: v18.0.0
 -->
 
 * {boolean}
@@ -1167,7 +1200,7 @@ The following example pipes all of the data from the `readable` into a file
 named `file.txt`:
 
 ```js
-const fs = require('fs');
+const fs = require('node:fs');
 const readable = getReadableStreamSomehow();
 const writable = fs.createWriteStream('file.txt');
 // All the data from readable goes into 'file.txt'.
@@ -1181,7 +1214,7 @@ The `readable.pipe()` method returns a reference to the _destination_ stream
 making it possible to set up chains of piped streams:
 
 ```js
-const fs = require('fs');
+const fs = require('node:fs');
 const r = fs.createReadStream('file.txt');
 const z = zlib.createGzip();
 const w = fs.createWriteStream('file.txt.gz');
@@ -1318,7 +1351,9 @@ Returns whether the stream was destroyed or errored before emitting `'end'`.
 ##### `readable.readableDidRead`
 
 <!-- YAML
-added: v16.7.0
+added:
+  - v16.7.0
+  - v14.18.0
 -->
 
 > Stability: 1 - Experimental
@@ -1347,6 +1382,17 @@ added: v12.9.0
 * {boolean}
 
 Becomes `true` when [`'end'`][] event is emitted.
+
+##### `readable.errored`
+
+<!-- YAML
+added:
+  v18.0.0
+-->
+
+* {Error}
+
+Returns error if the stream has been destroyed with an error.
 
 ##### `readable.readableFlowing`
 
@@ -1472,7 +1518,7 @@ If the `destination` is specified, but no pipe is set up for it, then
 the method does nothing.
 
 ```js
-const fs = require('fs');
+const fs = require('node:fs');
 const readable = getReadableStreamSomehow();
 const writable = fs.createWriteStream('file.txt');
 // All the data from readable goes into 'file.txt',
@@ -1524,7 +1570,7 @@ section for more information.
 // Pull off a header delimited by \n\n.
 // Use unshift() if we get too much.
 // Call the callback with (error, header, stream).
-const { StringDecoder } = require('string_decoder');
+const { StringDecoder } = require('node:string_decoder');
 function parseHeader(stream, callback) {
   stream.on('error', callback);
   stream.on('readable', onReadable);
@@ -1574,8 +1620,9 @@ added: v0.9.4
 * `stream` {Stream} An "old style" readable stream
 * Returns: {this}
 
-Prior to Node.js 0.10, streams did not implement the entire `stream` module API
-as it is currently defined. (See [Compatibility][] for more information.)
+Prior to Node.js 0.10, streams did not implement the entire `node:stream`
+module API as it is currently defined. (See [Compatibility][] for more
+information.)
 
 When using an older Node.js library that emits [`'data'`][] events and has a
 [`stream.pause()`][stream-pause] method that is advisory only, the
@@ -1588,7 +1635,7 @@ libraries.
 
 ```js
 const { OldReader } = require('./old-api-module.js');
-const { Readable } = require('stream');
+const { Readable } = require('node:stream');
 const oreader = new OldReader();
 const myReader = new Readable().wrap(oreader);
 
@@ -1610,7 +1657,7 @@ changes:
 * Returns: {AsyncIterator} to fully consume the stream.
 
 ```js
-const fs = require('fs');
+const fs = require('node:fs');
 
 async function print(readable) {
   readable.setEncoding('utf8');
@@ -1643,9 +1690,6 @@ added: v16.3.0
   * `destroyOnReturn` {boolean} When set to `false`, calling `return` on the
     async iterator, or exiting a `for await...of` iteration using a `break`,
     `return`, or `throw` will not destroy the stream. **Default:** `true`.
-  * `destroyOnError` {boolean} When set to `false`, if the stream emits an
-    error while it's being iterated, the iterator will not destroy the stream.
-    **Default:** `true`.
 * Returns: {AsyncIterator} to consume the stream.
 
 The iterator created by this method gives users the option to cancel the
@@ -1654,7 +1698,7 @@ destruction of the stream if the `for await...of` loop is exited by `return`,
 emitted an error during iteration.
 
 ```js
-const { Readable } = require('stream');
+const { Readable } = require('node:stream');
 
 async function printIterator(readable) {
   for await (const chunk of readable.iterator({ destroyOnReturn: false })) {
@@ -1691,12 +1735,15 @@ showBoth();
 ##### `readable.map(fn[, options])`
 
 <!-- YAML
-added: v16.14.0
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 > Stability: 1 - Experimental
 
-* `fn` {Function|AsyncFunction} a function to map over every item in the stream.
+* `fn` {Function|AsyncFunction} a function to map over every chunk in the
+  stream.
   * `data` {any} a chunk of data from the stream.
   * `options` {Object}
     * `signal` {AbortSignal} aborted if the stream is destroyed allowing to
@@ -1709,16 +1756,16 @@ added: v16.14.0
 * Returns: {Readable} a stream mapped with the function `fn`.
 
 This method allows mapping over the stream. The `fn` function will be called
-for every item in the stream. If the `fn` function returns a promise - that
+for every chunk in the stream. If the `fn` function returns a promise - that
 promise will be `await`ed before being passed to the result stream.
 
 ```mjs
-import { Readable } from 'stream';
-import { Resolver } from 'dns/promises';
+import { Readable } from 'node:stream';
+import { Resolver } from 'node:dns/promises';
 
 // With a synchronous mapper.
-for await (const item of Readable.from([1, 2, 3, 4]).map((x) => x * 2)) {
-  console.log(item); // 2, 4, 6, 8
+for await (const chunk of Readable.from([1, 2, 3, 4]).map((x) => x * 2)) {
+  console.log(chunk); // 2, 4, 6, 8
 }
 // With an asynchronous mapper, making at most 2 queries at a time.
 const resolver = new Resolver();
@@ -1735,12 +1782,14 @@ for await (const result of dnsResults) {
 ##### `readable.filter(fn[, options])`
 
 <!-- YAML
-added: v16.14.0
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 > Stability: 1 - Experimental
 
-* `fn` {Function|AsyncFunction} a function to filter items from stream.
+* `fn` {Function|AsyncFunction} a function to filter chunks from the stream.
   * `data` {any} a chunk of data from the stream.
   * `options` {Object}
     * `signal` {AbortSignal} aborted if the stream is destroyed allowing to
@@ -1752,18 +1801,18 @@ added: v16.14.0
     aborted.
 * Returns: {Readable} a stream filtered with the predicate `fn`.
 
-This method allows filtering the stream. For each item in the stream the `fn`
-function will be called and if it returns a truthy value, the item will be
+This method allows filtering the stream. For each chunk in the stream the `fn`
+function will be called and if it returns a truthy value, the chunk will be
 passed to the result stream. If the `fn` function returns a promise - that
 promise will be `await`ed.
 
 ```mjs
-import { Readable } from 'stream';
-import { Resolver } from 'dns/promises';
+import { Readable } from 'node:stream';
+import { Resolver } from 'node:dns/promises';
 
 // With a synchronous predicate.
-for await (const item of Readable.from([1, 2, 3, 4]).filter((x) => x > 2)) {
-  console.log(item); // 3, 4
+for await (const chunk of Readable.from([1, 2, 3, 4]).filter((x) => x > 2)) {
+  console.log(chunk); // 3, 4
 }
 // With an asynchronous predicate, making at most 2 queries at a time.
 const resolver = new Resolver();
@@ -1784,12 +1833,12 @@ for await (const result of dnsResults) {
 ##### `readable.forEach(fn[, options])`
 
 <!-- YAML
-added: v16.15.0
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental
 
-* `fn` {Function|AsyncFunction} a function to call on each item of the stream.
+* `fn` {Function|AsyncFunction} a function to call on each chunk of the stream.
   * `data` {any} a chunk of data from the stream.
   * `options` {Object}
     * `signal` {AbortSignal} aborted if the stream is destroyed allowing to
@@ -1801,12 +1850,12 @@ added: v16.15.0
     aborted.
 * Returns: {Promise} a promise for when the stream has finished.
 
-This method allows iterating a stream. For each item in the stream the
+This method allows iterating a stream. For each chunk in the stream the
 `fn` function will be called. If the `fn` function returns a promise - that
 promise will be `await`ed.
 
 This method is different from `for await...of` loops in that it can optionally
-process items concurrently. In addition, a `forEach` iteration can only be
+process chunks concurrently. In addition, a `forEach` iteration can only be
 stopped by having passed a `signal` option and aborting the related
 `AbortController` while `for await...of` can be stopped with `break` or
 `return`. In either case the stream will be destroyed.
@@ -1816,16 +1865,16 @@ uses the [`readable`][] event in the underlying machinary and can limit the
 number of concurrent `fn` calls.
 
 ```mjs
-import { Readable } from 'stream';
-import { Resolver } from 'dns/promises';
+import { Readable } from 'node:stream';
+import { Resolver } from 'node:dns/promises';
 
 // With a synchronous predicate.
-for await (const item of Readable.from([1, 2, 3, 4]).filter((x) => x > 2)) {
-  console.log(item); // 3, 4
+for await (const chunk of Readable.from([1, 2, 3, 4]).filter((x) => x > 2)) {
+  console.log(chunk); // 3, 4
 }
 // With an asynchronous predicate, making at most 2 queries at a time.
 const resolver = new Resolver();
-const dnsResults = await Readable.from([
+const dnsResults = Readable.from([
   'nodejs.org',
   'openjsf.org',
   'www.linuxfoundation.org',
@@ -1843,7 +1892,7 @@ console.log('done'); // Stream has finished
 ##### `readable.toArray([options])`
 
 <!-- YAML
-added: v16.15.0
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental
@@ -1851,20 +1900,18 @@ added: v16.15.0
 * `options` {Object}
   * `signal` {AbortSignal} allows cancelling the toArray operation if the
     signal is aborted.
-* Returns: {Promise} a promise containing an array (if the stream is in
-  object mode) or Buffer with the contents of the stream.
+* Returns: {Promise} a promise containing an array with the contents of the
+  stream.
 
-This method allows easily obtaining the contents of a stream. If the
-stream is in [object mode][object-mode] an array of its contents is returned.
-If the stream is not in object mode a Buffer containing its data is returned.
+This method allows easily obtaining the contents of a stream.
 
 As this method reads the entire stream into memory, it negates the benefits of
 streams. It's intended for interoperability and convenience, not as the primary
 way to consume streams.
 
 ```mjs
-import { Readable } from 'stream';
-import { Resolver } from 'dns/promises';
+import { Readable } from 'node:stream';
+import { Resolver } from 'node:dns/promises';
 
 await Readable.from([1, 2, 3, 4]).toArray(); // [1, 2, 3, 4]
 
@@ -1883,12 +1930,12 @@ const dnsResults = await Readable.from([
 ##### `readable.some(fn[, options])`
 
 <!-- YAML
-added: v16.15.0
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental
 
-* `fn` {Function|AsyncFunction} a function to call on each item of the stream.
+* `fn` {Function|AsyncFunction} a function to call on each chunk of the stream.
   * `data` {any} a chunk of data from the stream.
   * `options` {Object}
     * `signal` {AbortSignal} aborted if the stream is destroyed allowing to
@@ -1909,8 +1956,8 @@ calls on the chunks return a truthy value, the promise is fulfilled with
 `false`.
 
 ```mjs
-import { Readable } from 'stream';
-import { stat } from 'fs/promises';
+import { Readable } from 'node:stream';
+import { stat } from 'node:fs/promises';
 
 // With a synchronous predicate.
 await Readable.from([1, 2, 3, 4]).some((x) => x > 2); // true
@@ -1929,15 +1976,65 @@ console.log(anyBigFile); // `true` if any file in the list is bigger than 1MB
 console.log('done'); // Stream has finished
 ```
 
-##### `readable.every(fn[, options])`
+##### `readable.find(fn[, options])`
 
 <!-- YAML
-added: v16.15.0
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental
 
-* `fn` {Function|AsyncFunction} a function to call on each item of the stream.
+* `fn` {Function|AsyncFunction} a function to call on each chunk of the stream.
+  * `data` {any} a chunk of data from the stream.
+  * `options` {Object}
+    * `signal` {AbortSignal} aborted if the stream is destroyed allowing to
+      abort the `fn` call early.
+* `options` {Object}
+  * `concurrency` {number} the maximum concurrent invocation of `fn` to call
+    on the stream at once. **Default:** `1`.
+  * `signal` {AbortSignal} allows destroying the stream if the signal is
+    aborted.
+* Returns: {Promise} a promise evaluating to the first chunk for which `fn`
+  evaluated with a truthy value, or `undefined` if no element was found.
+
+This method is similar to `Array.prototype.find` and calls `fn` on each chunk
+in the stream to find a chunk with a truthy value for `fn`. Once an `fn` call's
+awaited return value is truthy, the stream is destroyed and the promise is
+fulfilled with value for which `fn` returned a truthy value. If all of the
+`fn` calls on the chunks return a falsy value, the promise is fulfilled with
+`undefined`.
+
+```mjs
+import { Readable } from 'node:stream';
+import { stat } from 'node:fs/promises';
+
+// With a synchronous predicate.
+await Readable.from([1, 2, 3, 4]).find((x) => x > 2); // 3
+await Readable.from([1, 2, 3, 4]).find((x) => x > 0); // 1
+await Readable.from([1, 2, 3, 4]).find((x) => x > 10); // undefined
+
+// With an asynchronous predicate, making at most 2 file checks at a time.
+const foundBigFile = await Readable.from([
+  'file1',
+  'file2',
+  'file3',
+]).find(async (fileName) => {
+  const stats = await stat(fileName);
+  return stat.size > 1024 * 1024;
+}, { concurrency: 2 });
+console.log(foundBigFile); // File name of large file, if any file in the list is bigger than 1MB
+console.log('done'); // Stream has finished
+```
+
+##### `readable.every(fn[, options])`
+
+<!-- YAML
+added: v17.5.0
+-->
+
+> Stability: 1 - Experimental
+
+* `fn` {Function|AsyncFunction} a function to call on each chunk of the stream.
   * `data` {any} a chunk of data from the stream.
   * `options` {Object}
     * `signal` {AbortSignal} aborted if the stream is destroyed allowing to
@@ -1957,8 +2054,8 @@ destroyed and the promise is fulfilled with `false`. If all of the `fn` calls
 on the chunks return a truthy value, the promise is fulfilled with `true`.
 
 ```mjs
-import { Readable } from 'stream';
-import { stat } from 'fs/promises';
+import { Readable } from 'node:stream';
+import { stat } from 'node:fs/promises';
 
 // With a synchronous predicate.
 await Readable.from([1, 2, 3, 4]).every((x) => x > 2); // false
@@ -1981,13 +2078,13 @@ console.log('done'); // Stream has finished
 ##### `readable.flatMap(fn[, options])`
 
 <!-- YAML
-added: v16.15.0
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental
 
 * `fn` {Function|AsyncGeneratorFunction|AsyncFunction} a function to map over
-  every item in the stream.
+  every chunk in the stream.
   * `data` {any} a chunk of data from the stream.
   * `options` {Object}
     * `signal` {AbortSignal} aborted if the stream is destroyed allowing to
@@ -2007,12 +2104,12 @@ It is possible to return a stream or another iterable or async iterable from
 stream.
 
 ```mjs
-import { Readable } from 'stream';
-import { createReadStream } from 'fs';
+import { Readable } from 'node:stream';
+import { createReadStream } from 'node:fs';
 
 // With a synchronous mapper.
-for await (const item of Readable.from([1, 2, 3, 4]).flatMap((x) => [x, x])) {
-  console.log(item); // 1, 1, 2, 2, 3, 3, 4, 4
+for await (const chunk of Readable.from([1, 2, 3, 4]).flatMap((x) => [x, x])) {
+  console.log(chunk); // 1, 1, 2, 2, 3, 3, 4, 4
 }
 // With an asynchronous mapper, combine the contents of 4 files
 const concatResult = Readable.from([
@@ -2030,7 +2127,7 @@ for await (const result of concatResult) {
 ##### `readable.drop(limit[, options])`
 
 <!-- YAML
-added: v16.15.0
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental
@@ -2044,7 +2141,7 @@ added: v16.15.0
 This method returns a new stream with the first `limit` chunks dropped.
 
 ```mjs
-import { Readable } from 'stream';
+import { Readable } from 'node:stream';
 
 await Readable.from([1, 2, 3, 4]).drop(2).toArray(); // [3, 4]
 ```
@@ -2052,7 +2149,7 @@ await Readable.from([1, 2, 3, 4]).drop(2).toArray(); // [3, 4]
 ##### `readable.take(limit[, options])`
 
 <!-- YAML
-added: v16.15.0
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental
@@ -2066,7 +2163,7 @@ added: v16.15.0
 This method returns a new stream with the first `limit` chunks.
 
 ```mjs
-import { Readable } from 'stream';
+import { Readable } from 'node:stream';
 
 await Readable.from([1, 2, 3, 4]).take(2).toArray(); // [1, 2]
 ```
@@ -2074,7 +2171,7 @@ await Readable.from([1, 2, 3, 4]).take(2).toArray(); // [1, 2]
 ##### `readable.asIndexedPairs([options])`
 
 <!-- YAML
-added: v16.15.0
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental
@@ -2089,7 +2186,7 @@ with a counter in the form `[index, chunk]`. The first index value is 0 and it
 increases by 1 for each chunk produced.
 
 ```mjs
-import { Readable } from 'stream';
+import { Readable } from 'node:stream';
 
 const pairs = await Readable.from(['a', 'b', 'c']).asIndexedPairs().toArray();
 console.log(pairs); // [[0, 'a'], [1, 'b'], [2, 'c']]
@@ -2098,7 +2195,7 @@ console.log(pairs); // [[0, 'a'], [1, 'b'], [2, 'c']]
 ##### `readable.reduce(fn[, initial[, options]])`
 
 <!-- YAML
-added: v16.15.0
+added: v17.5.0
 -->
 
 > Stability: 1 - Experimental
@@ -2130,7 +2227,7 @@ initial value. If the stream is empty, the promise is rejected with a
 `TypeError` with the `ERR_INVALID_ARGS` code property.
 
 ```mjs
-import { Readable } from 'stream';
+import { Readable } from 'node:stream';
 
 const ten = await Readable.from([1, 2, 3, 4]).reduce((previous, data) => {
   return previous + data;
@@ -2265,7 +2362,7 @@ A function to get notified when a stream is no longer readable, writable
 or has experienced an error or a premature close event.
 
 ```js
-const { finished } = require('stream');
+const { finished } = require('node:stream');
 
 const rs = fs.createReadStream('archive.tar');
 
@@ -2287,7 +2384,7 @@ or `'finish'`.
 The `finished` API provides promise version:
 
 ```js
-const { finished } = require('stream/promises');
+const { finished } = require('node:stream/promises');
 
 const rs = fs.createReadStream('archive.tar');
 
@@ -2321,6 +2418,11 @@ const cleanup = finished(rs, (err) => {
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41678
+    description: Passing an invalid callback to the `callback` argument
+                 now throws `ERR_INVALID_ARG_TYPE` instead of
+                 `ERR_INVALID_CALLBACK`.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/32158
     description: The `pipeline(..., cb)` will wait for the `'close'` event
@@ -2350,9 +2452,9 @@ A module method to pipe between streams and generators forwarding errors and
 properly cleaning up and provide a callback when the pipeline is complete.
 
 ```js
-const { pipeline } = require('stream');
-const fs = require('fs');
-const zlib = require('zlib');
+const { pipeline } = require('node:stream');
+const fs = require('node:fs');
+const zlib = require('node:zlib');
 
 // Use the pipeline API to easily pipe a series of streams
 // together and get notified when the pipeline is fully done.
@@ -2380,7 +2482,7 @@ receive an options argument as the last parameter with a
 `AbortError`.
 
 ```js
-const { pipeline } = require('stream/promises');
+const { pipeline } = require('node:stream/promises');
 
 async function run() {
   await pipeline(
@@ -2398,7 +2500,7 @@ To use an `AbortSignal`, pass it inside an options object,
 as the last argument:
 
 ```js
-const { pipeline } = require('stream/promises');
+const { pipeline } = require('node:stream/promises');
 
 async function run() {
   const ac = new AbortController();
@@ -2419,8 +2521,8 @@ run().catch(console.error); // AbortError
 The `pipeline` API also supports async generators:
 
 ```js
-const { pipeline } = require('stream/promises');
-const fs = require('fs');
+const { pipeline } = require('node:stream/promises');
+const fs = require('node:fs');
 
 async function run() {
   await pipeline(
@@ -2444,8 +2546,8 @@ Especially in the case where the async generator is the source for the
 pipeline (i.e. first argument) or the pipeline will never complete.
 
 ```js
-const { pipeline } = require('stream/promises');
-const fs = require('fs');
+const { pipeline } = require('node:stream/promises');
+const fs = require('node:fs');
 
 async function run() {
   await pipeline(
@@ -2468,7 +2570,9 @@ run().catch(console.error);
 
 `stream.pipeline()` leaves dangling event listeners on the streams
 after the `callback` has been invoked. In the case of reuse of streams after
-failure, this can cause event listener leaks and swallowed errors.
+failure, this can cause event listener leaks and swallowed errors. If the last
+stream is readable, dangling event listeners will be removed so that the last
+stream can be consumed later.
 
 `stream.pipeline()` closes all the streams when an error is raised.
 The `IncomingRequest` usage with `pipeline` could lead to an unexpected behavior
@@ -2476,9 +2580,9 @@ once it would destroy the socket without sending the expected response.
 See the example below:
 
 ```js
-const fs = require('fs');
-const http = require('http');
-const { pipeline } = require('stream');
+const fs = require('node:fs');
+const http = require('node:http');
+const { pipeline } = require('node:stream');
 
 const server = http.createServer((req, res) => {
   const fileStream = fs.createReadStream('./fileNotExist.txt');
@@ -2518,7 +2622,7 @@ If passed a `Function` it must be a factory method taking a `source`
 `Iterable`.
 
 ```mjs
-import { compose, Transform } from 'stream';
+import { compose, Transform } from 'node:stream';
 
 const removeSpaces = new Transform({
   transform(chunk, encoding, callback) {
@@ -2552,8 +2656,8 @@ functions into streams.
   either `null` or `undefined`.
 
 ```mjs
-import { compose } from 'stream';
-import { finished } from 'stream/promises';
+import { compose } from 'node:stream';
+import { finished } from 'node:stream/promises';
 
 // Convert AsyncIterable into readable Duplex.
 const s1 = compose(async function*() {
@@ -2601,7 +2705,7 @@ added:
 A utility method for creating readable streams out of iterators.
 
 ```js
-const { Readable } = require('stream');
+const { Readable } = require('node:stream');
 
 async function * generate() {
   yield 'hello';
@@ -2619,6 +2723,22 @@ Calling `Readable.from(string)` or `Readable.from(buffer)` will not have
 the strings or buffers be iterated to match the other streams semantics
 for performance reasons.
 
+### `stream.Readable.fromWeb(readableStream[, options])`
+
+<!-- YAML
+added: v17.0.0
+-->
+
+> Stability: 1 - Experimental
+
+* `readableStream` {ReadableStream}
+* `options` {Object}
+  * `encoding` {string}
+  * `highWaterMark` {number}
+  * `objectMode` {boolean}
+  * `signal` {AbortSignal}
+* Returns: {stream.Readable}
+
 ### `stream.Readable.isDisturbed(stream)`
 
 <!-- YAML
@@ -2635,7 +2755,9 @@ Returns whether the stream has been read from or cancelled.
 ### `stream.isErrored(stream)`
 
 <!-- YAML
-added: v16.14.0
+added:
+  - v17.3.0
+  - v16.14.0
 -->
 
 > Stability: 1 - Experimental
@@ -2648,7 +2770,9 @@ Returns whether the stream has encountered an error.
 ### `stream.isReadable(stream)`
 
 <!-- YAML
-added: v16.14.0
+added:
+  - v17.4.0
+  - v16.14.0
 -->
 
 > Stability: 1 - Experimental
@@ -2725,6 +2849,39 @@ A utility method for creating duplex streams.
 * `Promise` converts into readable `Duplex`. Value `null` is ignored.
 * Returns: {stream.Duplex}
 
+### `stream.Duplex.fromWeb(pair[, options])`
+
+<!-- YAML
+added: v17.0.0
+-->
+
+> Stability: 1 - Experimental
+
+* `pair` {Object}
+  * `readable` {ReadableStream}
+  * `writable` {WritableStream}
+* `options` {Object}
+  * `allowHalfOpen` {boolean}
+  * `decodeStrings` {boolean}
+  * `encoding` {string}
+  * `highWaterMark` {number}
+  * `objectMode` {boolean}
+  * `signal` {AbortSignal}
+* Returns: {stream.Duplex}
+
+### `stream.Duplex.toWeb(streamDuplex)`
+
+<!-- YAML
+added: v17.0.0
+-->
+
+> Stability: 1 - Experimental
+
+* `streamDuplex` {stream.Duplex}
+* Returns: {Object}
+  * `readable` {ReadableStream}
+  * `writable` {WritableStream}
+
 ### `stream.addAbortSignal(signal, stream)`
 
 <!-- YAML
@@ -2742,7 +2899,7 @@ Calling `abort` on the `AbortController` corresponding to the passed
 on the stream.
 
 ```js
-const fs = require('fs');
+const fs = require('node:fs');
 
 const controller = new AbortController();
 const read = addAbortSignal(
@@ -2781,7 +2938,7 @@ const stream = addAbortSignal(
 
 <!--type=misc-->
 
-The `stream` module API has been designed to make it possible to easily
+The `node:stream` module API has been designed to make it possible to easily
 implement streams using JavaScript's prototypal inheritance model.
 
 First, a stream developer would declare a new JavaScript class that extends one
@@ -2792,7 +2949,7 @@ parent class constructor:
 <!-- eslint-disable no-useless-constructor -->
 
 ```js
-const { Writable } = require('stream');
+const { Writable } = require('node:stream');
 
 class MyWritable extends Writable {
   constructor({ highWaterMark, ...options }) {
@@ -2843,7 +3000,7 @@ inheritance. This can be accomplished by directly creating instances of the
 objects and passing appropriate methods as constructor options.
 
 ```js
-const { Writable } = require('stream');
+const { Writable } = require('node:stream');
 
 const myWritable = new Writable({
   construct(callback) {
@@ -2925,7 +3082,7 @@ changes:
 <!-- eslint-disable no-useless-constructor -->
 
 ```js
-const { Writable } = require('stream');
+const { Writable } = require('node:stream');
 
 class MyWritable extends Writable {
   constructor(options) {
@@ -2939,8 +3096,8 @@ class MyWritable extends Writable {
 Or, when using pre-ES6 style constructors:
 
 ```js
-const { Writable } = require('stream');
-const util = require('util');
+const { Writable } = require('node:stream');
+const util = require('node:util');
 
 function MyWritable(options) {
   if (!(this instanceof MyWritable))
@@ -2953,7 +3110,7 @@ util.inherits(MyWritable, Writable);
 Or, using the simplified constructor approach:
 
 ```js
-const { Writable } = require('stream');
+const { Writable } = require('node:stream');
 
 const myWritable = new Writable({
   write(chunk, encoding, callback) {
@@ -2970,7 +3127,7 @@ Calling `abort` on the `AbortController` corresponding to the passed
 on the writeable stream.
 
 ```js
-const { Writable } = require('stream');
+const { Writable } = require('node:stream');
 
 const controller = new AbortController();
 const myWritable = new Writable({
@@ -3005,8 +3162,8 @@ has returned, delaying any `_write()`, `_final()` and `_destroy()` calls until
 initialize resources before the stream can be used.
 
 ```js
-const { Writable } = require('stream');
-const fs = require('fs');
+const { Writable } = require('node:stream');
+const fs = require('node:fs');
 
 class WriteStream extends Writable {
   constructor(filename) {
@@ -3162,7 +3319,7 @@ If a `Readable` stream pipes into a `Writable` stream when `Writable` emits an
 error, the `Readable` stream will be unpiped.
 
 ```js
-const { Writable } = require('stream');
+const { Writable } = require('node:stream');
 
 const myWritable = new Writable({
   write(chunk, encoding, callback) {
@@ -3183,7 +3340,7 @@ is not of any real particular usefulness, the example illustrates each of the
 required elements of a custom [`Writable`][] stream instance:
 
 ```js
-const { Writable } = require('stream');
+const { Writable } = require('node:stream');
 
 class MyWritable extends Writable {
   _write(chunk, encoding, callback) {
@@ -3204,8 +3361,8 @@ characters encoding, such as UTF-8. The following example shows how to decode
 multi-byte strings using `StringDecoder` and [`Writable`][].
 
 ```js
-const { Writable } = require('stream');
-const { StringDecoder } = require('string_decoder');
+const { Writable } = require('node:stream');
+const { StringDecoder } = require('node:string_decoder');
 
 class StringWritable extends Writable {
   constructor(options) {
@@ -3285,7 +3442,7 @@ changes:
 <!-- eslint-disable no-useless-constructor -->
 
 ```js
-const { Readable } = require('stream');
+const { Readable } = require('node:stream');
 
 class MyReadable extends Readable {
   constructor(options) {
@@ -3299,8 +3456,8 @@ class MyReadable extends Readable {
 Or, when using pre-ES6 style constructors:
 
 ```js
-const { Readable } = require('stream');
-const util = require('util');
+const { Readable } = require('node:stream');
+const util = require('node:util');
 
 function MyReadable(options) {
   if (!(this instanceof MyReadable))
@@ -3313,7 +3470,7 @@ util.inherits(MyReadable, Readable);
 Or, using the simplified constructor approach:
 
 ```js
-const { Readable } = require('stream');
+const { Readable } = require('node:stream');
 
 const myReadable = new Readable({
   read(size) {
@@ -3327,7 +3484,7 @@ Calling `abort` on the `AbortController` corresponding to the passed
 on the readable created.
 
 ```js
-const { Readable } = require('stream');
+const { Readable } = require('node:stream');
 const controller = new AbortController();
 const read = new Readable({
   read(size) {
@@ -3358,8 +3515,8 @@ called. This is useful to initialize state or asynchronously initialize
 resources before the stream can be used.
 
 ```js
-const { Readable } = require('stream');
-const fs = require('fs');
+const { Readable } = require('node:stream');
+const fs = require('node:fs');
 
 class ReadStream extends Readable {
   constructor(filename) {
@@ -3531,7 +3688,7 @@ Throwing an `Error` from within [`readable._read()`][] or manually emitting an
 `'error'` event results in undefined behavior.
 
 ```js
-const { Readable } = require('stream');
+const { Readable } = require('node:stream');
 
 const myReadable = new Readable({
   read(size) {
@@ -3553,7 +3710,7 @@ The following is a basic example of a `Readable` stream that emits the numerals
 from 1 to 1,000,000 in ascending order, and then ends.
 
 ```js
-const { Readable } = require('stream');
+const { Readable } = require('node:stream');
 
 class Counter extends Readable {
   constructor(opt) {
@@ -3624,7 +3781,7 @@ changes:
 <!-- eslint-disable no-useless-constructor -->
 
 ```js
-const { Duplex } = require('stream');
+const { Duplex } = require('node:stream');
 
 class MyDuplex extends Duplex {
   constructor(options) {
@@ -3637,8 +3794,8 @@ class MyDuplex extends Duplex {
 Or, when using pre-ES6 style constructors:
 
 ```js
-const { Duplex } = require('stream');
-const util = require('util');
+const { Duplex } = require('node:stream');
+const util = require('node:util');
 
 function MyDuplex(options) {
   if (!(this instanceof MyDuplex))
@@ -3651,7 +3808,7 @@ util.inherits(MyDuplex, Duplex);
 Or, using the simplified constructor approach:
 
 ```js
-const { Duplex } = require('stream');
+const { Duplex } = require('node:stream');
 
 const myDuplex = new Duplex({
   read(size) {
@@ -3666,8 +3823,8 @@ const myDuplex = new Duplex({
 When using pipeline:
 
 ```js
-const { Transform, pipeline } = require('stream');
-const fs = require('fs');
+const { Transform, pipeline } = require('node:stream');
+const fs = require('node:fs');
 
 pipeline(
   fs.createReadStream('object.json')
@@ -3715,7 +3872,7 @@ incoming written data via the [`Writable`][] interface that is read back out
 via the [`Readable`][] interface.
 
 ```js
-const { Duplex } = require('stream');
+const { Duplex } = require('node:stream');
 const kSource = Symbol('source');
 
 class MyDuplex extends Duplex {
@@ -3756,7 +3913,7 @@ that accepts JavaScript numbers that are converted to hexadecimal strings on
 the `Readable` side.
 
 ```js
-const { Transform } = require('stream');
+const { Transform } = require('node:stream');
 
 // All Transform streams are also Duplex Streams.
 const myTransform = new Transform({
@@ -3821,7 +3978,7 @@ output on the `Readable` side is not consumed.
 <!-- eslint-disable no-useless-constructor -->
 
 ```js
-const { Transform } = require('stream');
+const { Transform } = require('node:stream');
 
 class MyTransform extends Transform {
   constructor(options) {
@@ -3834,8 +3991,8 @@ class MyTransform extends Transform {
 Or, when using pre-ES6 style constructors:
 
 ```js
-const { Transform } = require('stream');
-const util = require('util');
+const { Transform } = require('node:stream');
+const util = require('node:util');
 
 function MyTransform(options) {
   if (!(this instanceof MyTransform))
@@ -3848,7 +4005,7 @@ util.inherits(MyTransform, Transform);
 Or, using the simplified constructor approach:
 
 ```js
-const { Transform } = require('stream');
+const { Transform } = require('node:stream');
 
 const myTransform = new Transform({
   transform(chunk, encoding, callback) {
@@ -3992,7 +4149,7 @@ A Node.js readable stream can be created from an asynchronous generator using
 the `Readable.from()` utility method:
 
 ```js
-const { Readable } = require('stream');
+const { Readable } = require('node:stream');
 
 const ac = new AbortController();
 const signal = ac.signal;
@@ -4021,9 +4178,9 @@ handling of backpressure and errors. [`stream.pipeline()`][] abstracts away
 the handling of backpressure and backpressure-related errors:
 
 ```js
-const fs = require('fs');
-const { pipeline } = require('stream');
-const { pipeline: pipelinePromise } = require('stream/promises');
+const fs = require('node:fs');
+const { pipeline } = require('node:stream');
+const { pipeline: pipelinePromise } = require('node:stream/promises');
 
 const writable = fs.createWriteStream('./file');
 

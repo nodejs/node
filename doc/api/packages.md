@@ -198,9 +198,9 @@ Strings passed in as an argument to `--eval` (or `-e`), or piped to `node` via
 is set.
 
 ```bash
-node --input-type=module --eval "import { sep } from 'path'; console.log(sep);"
+node --input-type=module --eval "import { sep } from 'node:path'; console.log(sep);"
 
-echo "import { sep } from 'path'; console.log(sep);" | node --input-type=module
+echo "import { sep } from 'node:path'; console.log(sep);" | node --input-type=module
 ```
 
 For completeness there is also `--input-type=commonjs`, for explicitly running

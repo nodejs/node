@@ -21,25 +21,25 @@ changes:
 
 <!-- source_link=lib/http2.js -->
 
-The `http2` module provides an implementation of the [HTTP/2][] protocol. It
-can be accessed using:
+The `node:http2` module provides an implementation of the [HTTP/2][] protocol.
+It can be accessed using:
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 ```
 
 ## Determining if crypto support is unavailable
 
 It is possible for Node.js to be built without including support for the
-`crypto` module. In such cases, attempting to `import` from `http2` or
-calling `require('http2')` will result in an error being thrown.
+`node:crypto` module. In such cases, attempting to `import` from `node:http2` or
+calling `require('node:http2')` will result in an error being thrown.
 
 When using CommonJS, the error thrown can be caught using try/catch:
 
 ```cjs
 let http2;
 try {
-  http2 = require('http2');
+  http2 = require('node:http2');
 } catch (err) {
   console.log('http2 support is disabled!');
 }
@@ -57,7 +57,7 @@ of Node.js where crypto support is not enabled, consider using the
 ```mjs
 let http2;
 try {
-  http2 = await import('http2');
+  http2 = await import('node:http2');
 } catch (err) {
   console.log('http2 support is disabled!');
 }
@@ -83,8 +83,8 @@ Since there are no browsers known that support
 with browser clients.
 
 ```js
-const http2 = require('http2');
-const fs = require('fs');
+const http2 = require('node:http2');
+const fs = require('node:fs');
 
 const server = http2.createSecureServer({
   key: fs.readFileSync('localhost-privkey.pem'),
@@ -116,8 +116,8 @@ openssl req -x509 -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' \
 The following illustrates an HTTP/2 client:
 
 ```js
-const http2 = require('http2');
-const fs = require('fs');
+const http2 = require('node:http2');
+const fs = require('node:fs');
 const client = http2.connect('https://localhost:8443', {
   ca: fs.readFileSync('localhost-cert.pem')
 });
@@ -318,7 +318,7 @@ added: v8.4.0
 The `'stream'` event is emitted when a new `Http2Stream` is created.
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 session.on('stream', (stream, headers, flags) => {
   const method = headers[':method'];
   const path = headers[':path'];
@@ -338,7 +338,7 @@ and would instead register a handler for the `'stream'` event emitted by the
 `http2.createSecureServer()`, respectively, as in the example below:
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 
 // Create an unencrypted HTTP/2 server
 const server = http2.createServer();
@@ -597,7 +597,7 @@ The `windowSize` is the total window size to set, not
 the delta.
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 
 const server = http2.createServer();
 const expectedWindowSize = 2 ** 20;
@@ -741,7 +741,7 @@ added: v9.4.0
 Submits an `ALTSVC` frame (as defined by [RFC 7838][]) to the connected client.
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 
 const server = http2.createServer();
 server.on('session', (session) => {
@@ -807,7 +807,7 @@ to advertise the set of origins for which the server is capable of providing
 authoritative responses.
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const options = getSecureOptionsSomehow();
 const server = http2.createSecureServer(options);
 server.on('stream', (stream) => {
@@ -834,7 +834,7 @@ Alternatively, the `origins` option may be used when creating a new HTTP/2
 server using the `http2.createSecureServer()` method:
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const options = getSecureOptionsSomehow();
 options.origins = ['https://example.com', 'https://example.org'];
 const server = http2.createSecureServer(options);
@@ -868,7 +868,7 @@ ID. If no `origin` is provided in the `ALTSVC` frame, `origin` will
 be an empty string.
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const client = http2.connect('https://example.org');
 
 client.on('altsvc', (alt, origin, streamId) => {
@@ -892,7 +892,7 @@ the client. The event is emitted with an array of `origin` strings. The
 origins.
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const client = http2.connect('https://example.org');
 
 client.on('origin', (origins) => {
@@ -945,7 +945,7 @@ This method is only available if `http2session.type` is equal to
 `http2.constants.NGHTTP2_SESSION_CLIENT`.
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const clientSession = http2.connect('https://localhost:1234');
 const {
   HTTP2_HEADER_PATH,
@@ -1353,7 +1353,7 @@ added: v8.4.0
 * `callback` {Function}
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const client = http2.connect('http://example.org:8000');
 const { NGHTTP2_CANCEL } = http2.constants;
 const req = client.request({ ':path': '/' });
@@ -1402,7 +1402,7 @@ in order to keep the `Http2Stream` open after the final `DATA` frame so that
 trailers can be sent.
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const server = http2.createServer();
 server.on('stream', (stream) => {
   stream.respond(undefined, { waitForTrailers: true });
@@ -1484,7 +1484,7 @@ invoked with two arguments: an `Object` containing the received
 [HTTP/2 Headers Object][], and flags associated with the headers.
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const client = http2.connect('https://localhost');
 const req = client.request({ ':path': '/' });
 req.on('response', (headers, flags) => {
@@ -1564,7 +1564,7 @@ instance created for the push stream passed as the second argument, or an
 `Error` passed as the first argument.
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const server = http2.createServer();
 server.on('stream', (stream) => {
   stream.respond({ ':status': 200 });
@@ -1604,7 +1604,7 @@ changes:
     `'wantTrailers'` event after the final `DATA` frame has been sent.
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const server = http2.createServer();
 server.on('stream', (stream) => {
   stream.respond({ ':status': 200 });
@@ -1623,7 +1623,7 @@ close when the final `DATA` frame is transmitted. User code must call either
 `Http2Stream`.
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const server = http2.createServer();
 server.on('stream', (stream) => {
   stream.respond({ ':status': 200 }, { waitForTrailers: true });
@@ -1671,8 +1671,8 @@ When used, the `Http2Stream` object's `Duplex` interface will be closed
 automatically.
 
 ```js
-const http2 = require('http2');
-const fs = require('fs');
+const http2 = require('node:http2');
+const fs = require('node:fs');
 
 const server = http2.createServer();
 server.on('stream', (stream) => {
@@ -1716,8 +1716,8 @@ close when the final `DATA` frame is transmitted. User code _must_ call either
 `Http2Stream`.
 
 ```js
-const http2 = require('http2');
-const fs = require('fs');
+const http2 = require('node:http2');
+const fs = require('node:fs');
 
 const server = http2.createServer();
 server.on('stream', (stream) => {
@@ -1783,7 +1783,7 @@ the stream will be destroyed.
 Example using a file path:
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const server = http2.createServer();
 server.on('stream', (stream) => {
   function statCheck(stat, headers) {
@@ -1818,7 +1818,7 @@ results to determine if the file has been modified to return an appropriate
 `304` response:
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const server = http2.createServer();
 server.on('stream', (stream) => {
   function statCheck(stat, headers) {
@@ -1853,7 +1853,7 @@ close when the final `DATA` frame is transmitted. User code must call either
 `Http2Stream`.
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const server = http2.createServer();
 server.on('stream', (stream) => {
   stream.respondWithFile('/some/file',
@@ -1874,8 +1874,8 @@ added: v8.4.0
 * Extends: {net.Server}
 
 Instances of `Http2Server` are created using the `http2.createServer()`
-function. The `Http2Server` class is not exported directly by the `http2`
-module.
+function. The `Http2Server` class is not exported directly by the
+`node:http2` module.
 
 #### Event: `'checkContinue'`
 
@@ -1963,7 +1963,7 @@ an `Http2Session` associated with the server.
 See also [`Http2Session`'s `'stream'` event][].
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const {
   HTTP2_HEADER_METHOD,
   HTTP2_HEADER_PATH,
@@ -2083,7 +2083,7 @@ added: v8.4.0
 
 Instances of `Http2SecureServer` are created using the
 `http2.createSecureServer()` function. The `Http2SecureServer` class is not
-exported directly by the `http2` module.
+exported directly by the `node:http2` module.
 
 #### Event: `'checkContinue'`
 
@@ -2171,7 +2171,7 @@ an `Http2Session` associated with the server.
 See also [`Http2Session`'s `'stream'` event][].
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const {
   HTTP2_HEADER_METHOD,
   HTTP2_HEADER_PATH,
@@ -2426,7 +2426,7 @@ Since there are no browsers known that support
 with browser clients.
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 
 // Create an unencrypted HTTP/2 server.
 // Since there are no browsers known that support
@@ -2564,8 +2564,8 @@ Returns a `tls.Server` instance that creates and manages `Http2Session`
 instances.
 
 ```js
-const http2 = require('http2');
-const fs = require('fs');
+const http2 = require('node:http2');
+const fs = require('node:fs');
 
 const options = {
   key: fs.readFileSync('server-key.pem'),
@@ -2692,7 +2692,7 @@ changes:
 Returns a `ClientHttp2Session` instance.
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const client = http2.connect('https://localhost:1234');
 
 /* Use the client */
@@ -2754,7 +2754,7 @@ HTTP/2 settings as specified in the [HTTP/2][] specification. This is intended
 for use with the `HTTP2-Settings` header field.
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 
 const packed = http2.getPackedSettings({ enablePush: false });
 
@@ -2826,7 +2826,7 @@ For incoming headers:
 * For all other headers, the values are joined together with ', '.
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const server = http2.createServer();
 server.on('stream', (stream, headers) => {
   console.log(headers[':path']);
@@ -2913,7 +2913,7 @@ All additional properties on the settings object are ignored.
 ### Error handling
 
 There are several types of error conditions that may arise when using the
-`http2` module:
+`node:http2` module:
 
 Validation errors occur when an incorrect argument, option, or setting value is
 passed in. These will always be reported by a synchronous `throw`.
@@ -2959,7 +2959,7 @@ To receive pushed streams on the client, set a listener for the `'stream'`
 event on the `ClientHttp2Session`:
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 
 const client = http2.connect('http://localhost');
 
@@ -2981,7 +2981,7 @@ for TCP/IP connections.
 A simple TCP Server:
 
 ```js
-const net = require('net');
+const net = require('node:net');
 
 const server = net.createServer((socket) => {
   let name = '';
@@ -2996,9 +2996,9 @@ server.listen(8000);
 An HTTP/2 CONNECT proxy:
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const { NGHTTP2_REFUSED_STREAM } = http2.constants;
-const net = require('net');
+const net = require('node:net');
 
 const proxy = http2.createServer();
 proxy.on('stream', (stream, headers) => {
@@ -3026,7 +3026,7 @@ proxy.listen(8001);
 An HTTP/2 CONNECT client:
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 
 const client = http2.connect('http://localhost:8001');
 
@@ -3060,7 +3060,7 @@ The use of the Extended CONNECT Protocol is enabled by HTTP/2 servers by using
 the `enableConnectProtocol` setting:
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const settings = { enableConnectProtocol: true };
 const server = http2.createServer({ settings });
 ```
@@ -3070,7 +3070,7 @@ the extended CONNECT may be used, it may send `CONNECT` requests that use the
 `':protocol'` HTTP/2 pseudo-header:
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const client = http2.connect('http://localhost:8080');
 client.on('remoteSettings', (settings) => {
   if (settings.enableConnectProtocol) {
@@ -3093,7 +3093,7 @@ The following example creates an HTTP/2 server using the compatibility
 API:
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const server = http2.createServer((req, res) => {
   res.setHeader('Content-Type', 'text/html');
   res.setHeader('X-Foo', 'bar');
@@ -3122,8 +3122,8 @@ features of HTTP/2.
 The following example creates a server that supports both protocols:
 
 ```js
-const { createSecureServer } = require('http2');
-const { readFileSync } = require('fs');
+const { createSecureServer } = require('node:http2');
+const { readFileSync } = require('node:fs');
 
 const cert = readFileSync('./cert.pem');
 const key = readFileSync('./key.pem');
@@ -3798,7 +3798,7 @@ more information.
 All other interactions will be routed directly to the socket.
 
 ```js
-const http2 = require('http2');
+const http2 = require('node:http2');
 const server = http2.createServer((req, res) => {
   const ip = req.socket.remoteAddress;
   const port = req.socket.remotePort;
@@ -3875,7 +3875,7 @@ it will switch to implicit header mode and flush the implicit headers.
 This sends a chunk of the response body. This method may
 be called multiple times to provide successive parts of the body.
 
-In the `http` module, the response body is omitted when the
+In the `node:http` module, the response body is omitted when the
 request is a HEAD request. Similarly, the `204` and `304` responses
 _must not_ include a message body.
 
@@ -3979,7 +3979,7 @@ The [Performance Observer][] API can be used to collect basic performance
 metrics for each `Http2Session` and `Http2Stream` instance.
 
 ```js
-const { PerformanceObserver } = require('perf_hooks');
+const { PerformanceObserver } = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((items) => {
   const entry = items.getEntries()[0];

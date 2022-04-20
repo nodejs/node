@@ -272,7 +272,7 @@ added: v16.15.0
 
 A browser-compatible implementation of {Crypto}. This global is available
 only if the Node.js binary was compiled with including support for the
-`crypto` module.
+`node:crypto` module.
 
 ## `crypto`
 
@@ -296,7 +296,7 @@ added: v16.15.0
 
 A browser-compatible implementation of {CryptoKey}. This global is available
 only if the Node.js binary was compiled with including support for the
-`crypto` module.
+`node:crypto` module.
 
 ## `Event`
 
@@ -537,7 +537,7 @@ added: v16.15.0
 
 A browser-compatible implementation of {SubtleCrypto}. This global is available
 only if the Node.js binary was compiled with including support for the
-`crypto` module.
+`node:crypto` module.
 
 ## `TextDecoder`
 

@@ -6,7 +6,7 @@
 
 <!-- source_link=lib/assert.js -->
 
-The `assert` module provides a set of assertion functions for verifying
+The `node:assert` module provides a set of assertion functions for verifying
 invariants.
 
 ## Strict assertion mode
@@ -16,7 +16,7 @@ added: v9.9.0
 changes:
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/34001
-    description: Exposed as `require('assert/strict')`.
+    description: Exposed as `require('node:assert/strict')`.
   - version:
       - v13.9.0
       - v12.16.2
@@ -42,25 +42,25 @@ assertion mode, error messages for objects display the objects, often truncated.
 To use strict assertion mode:
 
 ```mjs
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 ```
 
 ```cjs
-const assert = require('assert').strict;
+const assert = require('node:assert').strict;
 ```
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 ```
 
 Example error diff:
 
 ```mjs
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 
 assert.deepEqual([[[1, 2, 3]], 4, 5], [[[1, 2, '3']], 4, 5]);
 // AssertionError: Expected inputs to be strictly deep-equal:
@@ -79,7 +79,7 @@ assert.deepEqual([[[1, 2, 3]], 4, 5], [[[1, 2, '3']], 4, 5]);
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.deepEqual([[[1, 2, 3]], 4, 5], [[[1, 2, '3']], 4, 5]);
 // AssertionError: Expected inputs to be strictly deep-equal:
@@ -114,11 +114,11 @@ Legacy assertion mode uses the [`==` operator][] in:
 To use legacy assertion mode:
 
 ```mjs
-import assert from 'assert';
+import assert from 'node:assert';
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 ```
 
 Legacy assertion mode may have surprising results, especially when using
@@ -133,8 +133,8 @@ assert.deepEqual(/a/gi, new Date());
 
 * Extends: {errors.Error}
 
-Indicates the failure of an assertion. All errors thrown by the `assert` module
-will be instances of the `AssertionError` class.
+Indicates the failure of an assertion. All errors thrown by the `node:assert`
+module will be instances of the `AssertionError` class.
 
 ### `new assert.AssertionError(options)`
 
@@ -166,7 +166,7 @@ and:
 * `operator` {string} Set to the passed in operator value.
 
 ```mjs
-import assert from 'assert';
+import assert from 'node:assert';
 
 // Generate an AssertionError to compare the error message later:
 const { message } = new assert.AssertionError({
@@ -191,7 +191,7 @@ try {
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 // Generate an AssertionError to compare the error message later:
 const { message } = new assert.AssertionError({
@@ -241,8 +241,8 @@ for the verification to take place. The usual pattern would be to call it in a
 [`process.on('exit')`][] handler.
 
 ```mjs
-import assert from 'assert';
-import process from 'process';
+import assert from 'node:assert';
+import process from 'node:process';
 
 const tracker = new assert.CallTracker();
 
@@ -261,7 +261,7 @@ process.on('exit', () => {
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 const tracker = new assert.CallTracker();
 
@@ -297,7 +297,7 @@ function has not been called exactly `exact` times when
 error.
 
 ```mjs
-import assert from 'assert';
+import assert from 'node:assert';
 
 // Creates call tracker.
 const tracker = new assert.CallTracker();
@@ -310,7 +310,7 @@ const callsfunc = tracker.calls(func);
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 // Creates call tracker.
 const tracker = new assert.CallTracker();
@@ -344,7 +344,7 @@ The arrays contains information about the expected and actual number of calls of
 the functions that have not been called the expected number of times.
 
 ```mjs
-import assert from 'assert';
+import assert from 'node:assert';
 
 // Creates call tracker.
 const tracker = new assert.CallTracker();
@@ -372,7 +372,7 @@ tracker.report();
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 // Creates call tracker.
 const tracker = new assert.CallTracker();
@@ -412,7 +412,7 @@ Iterates through the list of functions passed to
 have not been called the expected number of times.
 
 ```mjs
-import assert from 'assert';
+import assert from 'node:assert';
 
 // Creates call tracker.
 const tracker = new assert.CallTracker();
@@ -430,7 +430,7 @@ tracker.verify();
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 // Creates call tracker.
 const tracker = new assert.CallTracker();
@@ -540,14 +540,14 @@ The following example does not throw an [`AssertionError`][] because the
 primitives are compared using the [`==` operator][].
 
 ```mjs
-import assert from 'assert';
+import assert from 'node:assert';
 // WARNING: This does not throw an AssertionError!
 
 assert.deepEqual('+00000000', false);
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 // WARNING: This does not throw an AssertionError!
 
 assert.deepEqual('+00000000', false);
@@ -557,7 +557,7 @@ assert.deepEqual('+00000000', false);
 are evaluated also:
 
 ```mjs
-import assert from 'assert';
+import assert from 'node:assert';
 
 const obj1 = {
   a: {
@@ -592,7 +592,7 @@ assert.deepEqual(obj1, obj4);
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 const obj1 = {
   a: {
@@ -693,7 +693,7 @@ are recursively evaluated also by the following rules.
   below for further details.
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 // This fails because 1 !== '1'.
 assert.deepStrictEqual({ a: 1 }, { a: '1' });
@@ -785,7 +785,7 @@ assert.deepStrictEqual(weakMap1, weakMap3);
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 // This fails because 1 !== '1'.
 assert.deepStrictEqual({ a: 1 }, { a: '1' });
@@ -901,7 +901,7 @@ changes:
 Expects the `string` input not to match the regular expression.
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 assert.doesNotMatch('I will fail', /fail/);
 // AssertionError [ERR_ASSERTION]: The input was expected to not match the ...
@@ -914,7 +914,7 @@ assert.doesNotMatch('I will pass', /different/);
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.doesNotMatch('I will fail', /fail/);
 // AssertionError [ERR_ASSERTION]: The input was expected to not match the ...
@@ -965,7 +965,7 @@ Besides the async nature to await the completion behaves identically to
 [`assert.doesNotThrow()`][].
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 await assert.doesNotReject(
   async () => {
@@ -976,7 +976,7 @@ await assert.doesNotReject(
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 (async () => {
   await assert.doesNotReject(
@@ -989,7 +989,7 @@ const assert = require('assert/strict');
 ```
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 assert.doesNotReject(Promise.reject(new TypeError('Wrong value')))
   .then(() => {
@@ -998,7 +998,7 @@ assert.doesNotReject(Promise.reject(new TypeError('Wrong value')))
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.doesNotReject(Promise.reject(new TypeError('Wrong value')))
   .then(() => {
@@ -1047,7 +1047,7 @@ The following, for instance, will throw the [`TypeError`][] because there is no
 matching error type in the assertion:
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 assert.doesNotThrow(
   () => {
@@ -1058,7 +1058,7 @@ assert.doesNotThrow(
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.doesNotThrow(
   () => {
@@ -1072,7 +1072,7 @@ However, the following will result in an [`AssertionError`][] with the message
 'Got unwanted exception...':
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 assert.doesNotThrow(
   () => {
@@ -1083,7 +1083,7 @@ assert.doesNotThrow(
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.doesNotThrow(
   () => {
@@ -1098,7 +1098,7 @@ parameter, the value of `message` will be appended to the [`AssertionError`][]
 message:
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 assert.doesNotThrow(
   () => {
@@ -1111,7 +1111,7 @@ assert.doesNotThrow(
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.doesNotThrow(
   () => {
@@ -1155,7 +1155,7 @@ using the [`==` operator][]. `NaN` is specially handled
 and treated as being identical if both sides are `NaN`.
 
 ```mjs
-import assert from 'assert';
+import assert from 'node:assert';
 
 assert.equal(1, 1);
 // OK, 1 == 1
@@ -1171,7 +1171,7 @@ assert.equal({ a: { b: 1 } }, { a: { b: 1 } });
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 assert.equal(1, 1);
 // OK, 1 == 1
@@ -1205,7 +1205,7 @@ error message. If the `message` parameter is an instance of an [`Error`][] then
 it will be thrown instead of the [`AssertionError`][].
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 assert.fail();
 // AssertionError [ERR_ASSERTION]: Failed
@@ -1218,7 +1218,7 @@ assert.fail(new TypeError('need array'));
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.fail();
 // AssertionError [ERR_ASSERTION]: Failed
@@ -1263,7 +1263,7 @@ removed from stacktrace (see [`Error.captureStackTrace`][]). If no arguments are
 given, the default message `Failed` will be used.
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 assert.fail('a', 'b');
 // AssertionError [ERR_ASSERTION]: 'a' != 'b'
@@ -1282,7 +1282,7 @@ assert.fail(1, 2, new TypeError('need array'));
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.fail('a', 'b');
 // AssertionError [ERR_ASSERTION]: 'a' != 'b'
@@ -1306,7 +1306,7 @@ influence on the error message.
 Example use of `stackStartFn` for truncating the exception's stacktrace:
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 function suppressFrame() {
   assert.fail('a', 'b', undefined, '!==', suppressFrame);
@@ -1319,7 +1319,7 @@ suppressFrame();
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 function suppressFrame() {
   assert.fail('a', 'b', undefined, '!==', suppressFrame);
@@ -1354,7 +1354,7 @@ from the error passed to `ifError()` including the potential new frames for
 `ifError()` itself.
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 assert.ifError(null);
 // OK
@@ -1380,7 +1380,7 @@ let err;
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.ifError(null);
 // OK
@@ -1424,7 +1424,7 @@ changes:
 Expects the `string` input to match the regular expression.
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 assert.match('I will fail', /pass/);
 // AssertionError [ERR_ASSERTION]: The input did not match the regular ...
@@ -1437,7 +1437,7 @@ assert.match('I will pass', /pass/);
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.match('I will fail', /pass/);
 // AssertionError [ERR_ASSERTION]: The input did not match the regular ...
@@ -1507,7 +1507,7 @@ An alias of [`assert.notDeepStrictEqual()`][].
 Tests for any deep inequality. Opposite of [`assert.deepEqual()`][].
 
 ```mjs
-import assert from 'assert';
+import assert from 'node:assert';
 
 const obj1 = {
   a: {
@@ -1540,7 +1540,7 @@ assert.notDeepEqual(obj1, obj4);
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 const obj1 = {
   a: {
@@ -1619,14 +1619,14 @@ changes:
 Tests for deep strict inequality. Opposite of [`assert.deepStrictEqual()`][].
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 assert.notDeepStrictEqual({ a: 1 }, { a: '1' });
 // OK
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.notDeepStrictEqual({ a: 1 }, { a: '1' });
 // OK
@@ -1669,7 +1669,7 @@ Tests shallow, coercive inequality with the [`!=` operator][]. `NaN` is
 specially handled and treated as being identical if both sides are `NaN`.
 
 ```mjs
-import assert from 'assert';
+import assert from 'node:assert';
 
 assert.notEqual(1, 2);
 // OK
@@ -1682,7 +1682,7 @@ assert.notEqual(1, '1');
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 assert.notEqual(1, 2);
 // OK
@@ -1718,7 +1718,7 @@ Tests strict inequality between the `actual` and `expected` parameters as
 determined by [`Object.is()`][].
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 assert.notStrictEqual(1, 2);
 // OK
@@ -1733,7 +1733,7 @@ assert.notStrictEqual(1, '1');
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.notStrictEqual(1, 2);
 // OK
@@ -1782,7 +1782,7 @@ Be aware that in the `repl` the error message will be different to the one
 thrown in a file! See below for further details.
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 assert.ok(true);
 // OK
@@ -1817,7 +1817,7 @@ assert.ok(0);
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.ok(true);
 // OK
@@ -1852,7 +1852,7 @@ assert.ok(0);
 ```
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 // Using `assert()` works the same:
 assert(0);
@@ -1862,7 +1862,7 @@ assert(0);
 ```
 
 ```cjs
-const assert = require('assert');
+const assert = require('node:assert');
 
 // Using `assert()` works the same:
 assert(0);
@@ -1903,7 +1903,7 @@ If specified, `message` will be the message provided by the [`AssertionError`][]
 if the `asyncFn` fails to reject.
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 await assert.rejects(
   async () => {
@@ -1917,7 +1917,7 @@ await assert.rejects(
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 (async () => {
   await assert.rejects(
@@ -1933,7 +1933,7 @@ const assert = require('assert/strict');
 ```
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 await assert.rejects(
   async () => {
@@ -1948,7 +1948,7 @@ await assert.rejects(
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 (async () => {
   await assert.rejects(
@@ -1965,7 +1965,7 @@ const assert = require('assert/strict');
 ```
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 assert.rejects(
   Promise.reject(new Error('Wrong value')),
@@ -1976,7 +1976,7 @@ assert.rejects(
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.rejects(
   Promise.reject(new Error('Wrong value')),
@@ -2010,7 +2010,7 @@ Tests strict equality between the `actual` and `expected` parameters as
 determined by [`Object.is()`][].
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 assert.strictEqual(1, 2);
 // AssertionError [ERR_ASSERTION]: Expected inputs to be strictly equal:
@@ -2038,7 +2038,7 @@ assert.strictEqual(1, '1', new TypeError('Inputs are not identical'));
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.strictEqual(1, 2);
 // AssertionError [ERR_ASSERTION]: Expected inputs to be strictly equal:
@@ -2108,7 +2108,7 @@ fails.
 Custom validation object/error instance:
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 const err = new TypeError('Wrong value');
 err.code = 404;
@@ -2177,7 +2177,7 @@ throws(
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 const err = new TypeError('Wrong value');
 err.code = 404;
@@ -2248,7 +2248,7 @@ throws(
 Validate instanceof using constructor:
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 assert.throws(
   () => {
@@ -2259,7 +2259,7 @@ assert.throws(
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.throws(
   () => {
@@ -2275,7 +2275,7 @@ Using a regular expression runs `.toString` on the error object, and will
 therefore also include the error name.
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 assert.throws(
   () => {
@@ -2286,7 +2286,7 @@ assert.throws(
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.throws(
   () => {
@@ -2302,7 +2302,7 @@ The function must return `true` to indicate all internal validations passed.
 It will otherwise fail with an [`AssertionError`][].
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 assert.throws(
   () => {
@@ -2323,7 +2323,7 @@ assert.throws(
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 assert.throws(
   () => {
@@ -2351,7 +2351,7 @@ message as the thrown error message is going to result in an
 a string as the second argument gets considered:
 
 ```mjs
-import assert from 'assert/strict';
+import assert from 'node:assert/strict';
 
 function throwingFirst() {
   throw new Error('First');
@@ -2387,7 +2387,7 @@ assert.throws(throwingFirst, /Second$/);
 ```
 
 ```cjs
-const assert = require('assert/strict');
+const assert = require('node:assert/strict');
 
 function throwingFirst() {
   throw new Error('First');
