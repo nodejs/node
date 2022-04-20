@@ -2879,7 +2879,7 @@ import { Duplex } from 'node:stream';
 import {
   ReadableStream,
   WritableStream
-} from 'stream/web';
+} from 'node:stream/web';
 
 const readable = new ReadableStream({
   start(controller) {
@@ -2907,11 +2907,11 @@ for await (const chunk of duplex) {
 ```
 
 ```cjs
-const { Duplex } = require('stream');
+const { Duplex } = require('node:stream');
 const {
   ReadableStream,
   WritableStream
-} = require('stream/web');
+} = require('node:stream/web');
 
 const readable = new ReadableStream({
   start(controller) {
@@ -2949,7 +2949,7 @@ added: v17.0.0
   * `writable` {WritableStream}
 
 ```mjs
-import { Duplex } from 'stream';
+import { Duplex } from 'node:stream';
 
 const duplex = Duplex({
   objectMode: true,
@@ -2971,7 +2971,7 @@ console.log('readable', value);
 ```
 
 ```cjs
-const { Duplex } = require('stream');
+const { Duplex } = require('node:stream');
 
 const duplex = Duplex({
   objectMode: true,
