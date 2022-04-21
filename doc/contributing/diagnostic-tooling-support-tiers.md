@@ -43,9 +43,9 @@ the following tiers.
     organization or website;
   * The tool must be open source.
 
-* Tier 3 - If possible its test suite
-  will be run at least nightly in the Node.js CI and issues opened for
-  failures.  Does not block shipping a release.
+* Tier 3 - If possible its test suite will be run at least nightly
+  in the Node.js CI or in CITGM, and issues opened for failures.
+  Does not block shipping a release.
 
 * Tier 4 - Does not block shipping a release.
 
