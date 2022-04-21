@@ -44,6 +44,7 @@ const expectedModules = new Set([
   'Internal Binding v8',
   'Internal Binding worker',
   'NativeModule buffer',
+  'NativeModule diagnostics_channel',
   'NativeModule events',
   'NativeModule fs',
   'NativeModule internal/abort_controller',
