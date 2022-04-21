@@ -327,7 +327,8 @@ by providing the name of a subsystem:
 $ tools/test.py child-process
 ```
 
-You can also execute the tests in a tests directory (such as `test/message`):
+You can also execute the tests in a test suite directory
+(such as `test/message`):
 
 ```text
 $ tools/test.py test/message
