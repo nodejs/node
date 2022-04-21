@@ -674,6 +674,15 @@ of Node.js applications.
 
 ## Loaders
 
+<!-- YAML
+added: v8.8.0
+changes:
+  - version: v16.12.0
+    pr-url: https://github.com/nodejs/node/pull/37468
+    description: Removed `getFormat`, `getSource`, `transformSource`, and
+                 `globalPreload`; added `load` hook and `getGlobalPreload` hook.
+-->
+
 > Stability: 1 - Experimental
 
 > This API is currently being redesigned and will still change.
