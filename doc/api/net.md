@@ -285,6 +285,10 @@ Emitted when the server has been bound after calling [`server.listen()`][].
 
 <!-- YAML
 added: v0.1.90
+changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41431
+    description: The `family` property now returns a number instead of a string.
 -->
 
 * Returns: {Object|string|null}
@@ -292,7 +296,7 @@ added: v0.1.90
 Returns the bound `address`, the address `family` name, and `port` of the server
 as reported by the operating system if listening on an IP socket
 (useful to find which port was assigned when getting an OS-assigned address):
-`{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`.
+`{ port: 12346, family: 4, address: '127.0.0.1' }`.
 
 For a server listening on a pipe or Unix domain socket, the name is returned
 as a string.
@@ -710,7 +714,7 @@ Not applicable to Unix sockets.
 
 * `err` {Error|null} The error object. See [`dns.lookup()`][].
 * `address` {string} The IP address.
-* `family` {string|null} The address type. See [`dns.lookup()`][].
+* `family` {number|null} The address type. See [`dns.lookup()`][].
 * `host` {string} The host name.
 
 ### Event: `'ready'`
@@ -738,13 +742,17 @@ See also: [`socket.setTimeout()`][].
 
 <!-- YAML
 added: v0.1.90
+changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41431
+    description: The `family` property now returns a number instead of a string.
 -->
 
 * Returns: {Object}
 
 Returns the bound `address`, the address `family` name and `port` of the
 socket as reported by the operating system:
-`{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`
+`{ port: 12346, family: 4, address: '127.0.0.1' }`
 
 ### `socket.bufferSize`
 
