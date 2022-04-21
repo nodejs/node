@@ -85,7 +85,7 @@ To update the copy of uvwasi in the Node.js deps:
 * Check if any additional files have been added and need to be added
   to the `sources` list in `deps/uvwasi/uvwasi.gyp`.
 
-In addition to the code from uvwasi, Node.js includes wrappers and
+In addition to the code from uvwasi, Node.js includes bindings and
 APIs that allow WebAssembly to be run with WASI support from Node.js.
 The documentation for this API is in
 [WebAssembly System Interface (WASI)](https://nodejs.org/api/wasi.html).
