@@ -90,7 +90,7 @@ APIs that allow WebAssembly to be run with WASI support from Node.js.
 The documentation for this API is in
 [WebAssembly System Interface (WASI)](https://nodejs.org/api/wasi.html).
 
-The implementation for the wrapper and the public API is in:
+The implementation of the bindings and the public API is in:
 
 * [src/node\_wasi.h](https://github.com/nodejs/node/blob/master/src/node_wasi.h)
 * [src/node\_wasi.cc](https://github.com/nodejs/node/blob/master/src/node_wasi.cc)
