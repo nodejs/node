@@ -49,8 +49,9 @@ so that the shared library can be found by the application or
 to set the LIBPATH (AIX), LD\_LIBRARY\_PATH (Linux/Unix), etc.
 so that it is found at runtime.
 
-For the node.exe wrapper, it is built so that it can
-find the shared library in one of the following:
+For the node wrapper, on linux and macOS it is built
+so that it can find the shared library in one of
+the following:
 
 * the same directory as the node executable
 * ../lib with the expectation that the executable is
@@ -59,6 +60,15 @@ find the shared library in one of the following:
   installed. This is where the default package that
   is build with the shared library option will
   place the executable and library.
+  
+For the node wrapper on windows it is built expecting
+that both the executable and shared library will
+be in the same directory as it common practice on
+that platform.
+
+For the node wrapper on AIX, it is built with
+the path to the shared library hardcoded as that
+is the only option.
 
 ## Exports
 
