@@ -324,13 +324,13 @@ You can execute the entire suite of tests for a given subsystem
 by providing the name of a subsystem:
 
 ```text
-$ tools/test.py -J child-process
+$ tools/test.py child-process
 ```
 
 You can also execute the tests in a tests directory (such as `test/message`):
 
 ```text
-$ tools/test.py -J test/message
+$ tools/test.py test/message
 ```
 
 If you want to check the other options, please refer to the help by using
