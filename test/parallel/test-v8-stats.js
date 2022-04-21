@@ -29,6 +29,7 @@ const heapCodeStatistics = v8.getHeapCodeStatistics();
 const heapCodeStatisticsKeys = [
   'bytecode_and_metadata_size',
   'code_and_metadata_size',
+  'cpu_profiler_metadata_size',
   'external_script_source_size'];
 assert.deepStrictEqual(Object.keys(heapCodeStatistics).sort(),
                        heapCodeStatisticsKeys);
