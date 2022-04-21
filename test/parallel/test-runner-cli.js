@@ -14,7 +14,7 @@ const testFixtures = fixtures.path('test-runner');
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stdout.toString(), '');
-  assert(/^Could not find/.test(child.stderr.toString()));
+  assert.match(child.stderr.toString(), /^Could not find/);
 }
 
 {
@@ -27,11 +27,11 @@ const testFixtures = fixtures.path('test-runner');
   assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stderr.toString(), '');
   const stdout = child.stdout.toString();
-  assert(/ok 1 - .+index\.test\.js/.test(stdout));
-  assert(/not ok 2 - .+random\.test\.mjs/.test(stdout));
-  assert(/not ok 1 - this should fail/.test(stdout));
-  assert(/ok 3 - .+subdir.+subdir_test\.js/.test(stdout));
-  assert(/ok 4 - .+random\.cjs/.test(stdout));
+  assert.match(stdout, /ok 1 - .+index\.test\.js/);
+  assert.match(stdout, /not ok 2 - .+random\.test\.mjs/);
+  assert.match(stdout, /not ok 1 - this should fail/);
+  assert.match(stdout, /ok 3 - .+subdir.+subdir_test\.js/);
+  assert.match(stdout, /ok 4 - .+random\.cjs/);
 }
 
 {
@@ -43,11 +43,11 @@ const testFixtures = fixtures.path('test-runner');
   assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stderr.toString(), '');
   const stdout = child.stdout.toString();
-  assert(/not ok 1 - .+index\.js/.test(stdout));
-  assert(/ok 2 - .+index\.test\.js/.test(stdout));
-  assert(/not ok 3 - .+random\.test\.mjs/.test(stdout));
-  assert(/not ok 1 - this should fail/.test(stdout));
-  assert(/ok 4 - .+subdir.+subdir_test\.js/.test(stdout));
+  assert.match(stdout, /not ok 1 - .+index\.js/);
+  assert.match(stdout, /ok 2 - .+index\.test\.js/);
+  assert.match(stdout, /not ok 3 - .+random\.test\.mjs/);
+  assert.match(stdout, /not ok 1 - this should fail/);
+  assert.match(stdout, /ok 4 - .+subdir.+subdir_test\.js/);
 }
 
 {
@@ -59,7 +59,7 @@ const testFixtures = fixtures.path('test-runner');
   assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stderr.toString(), '');
   const stdout = child.stdout.toString();
-  assert(/not ok 1 - .+test-nm\.js/.test(stdout));
+  assert.match(stdout, /not ok 1 - .+test-nm\.js/);
 }
 
 {
@@ -72,11 +72,11 @@ const testFixtures = fixtures.path('test-runner');
   assert.strictEqual(child.signal, null);
   assert.strictEqual(child.stderr.toString(), '');
   const stdout = child.stdout.toString();
-  assert(/ok 1 - .+index\.test\.js/.test(stdout));
-  assert(/not ok 2 - .+random\.test\.mjs/.test(stdout));
-  assert(/not ok 1 - this should fail/.test(stdout));
-  assert(/ok 3 - .+subdir.+subdir_test\.js/.test(stdout));
-  assert(/ok 4 - .+random\.cjs/.test(stdout));
+  assert.match(stdout, /ok 1 - .+index\.test\.js/);
+  assert.match(stdout, /not ok 2 - .+random\.test\.mjs/);
+  assert.match(stdout, /not ok 1 - this should fail/);
+  assert.match(stdout, /ok 3 - .+subdir.+subdir_test\.js/);
+  assert.match(stdout, /ok 4 - .+random\.cjs/);
 }
 
 {
@@ -102,6 +102,6 @@ const testFixtures = fixtures.path('test-runner');
     assert.strictEqual(child.signal, null);
     assert.strictEqual(child.stdout.toString(), '');
     const stderr = child.stderr.toString();
-    assert(/--test/.test(stderr));
+    assert.match(stderr, /--test/);
   });
 }
