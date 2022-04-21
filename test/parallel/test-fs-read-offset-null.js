@@ -40,7 +40,7 @@ let filehandle = null;
 // Test for promise api
 (async () => {
   filehandle = await fsPromises.open(filepath, 'r');
-  const readObject = await filehandle.read(buf, { offset: null }, buf.length);
+  const readObject = await filehandle.read(buf, { offset: null });
   assert.strictEqual(readObject.buffer[0], 120);
 })()
 .then(common.mustCall())
@@ -48,7 +48,7 @@ let filehandle = null;
 
 (async () => {
   filehandle = await fsPromises.open(filepath, 'r');
-  const readObject = await filehandle.read(buf, null);
+  const readObject = await filehandle.read(buf, null, buf.length, 0);
   assert.strictEqual(readObject.buffer[0], 120);
 })()
 .then(common.mustCall())
