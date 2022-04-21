@@ -15,7 +15,7 @@ const buf = Buffer.alloc(1);
 // Reading only one character, hence buffer of one byte is enough.
 
 // Test for callback API.
-fs.open(filepath, 'r', (_, fd) => {
+fs.open(filepath, 'r', common.mustSucceed((fd) => {
   assert.throws(
     () => fs.read(fd, { offset: null, buffer: buf }, () => {}),
     { code: 'ERR_INVALID_ARG_TYPE' }
@@ -25,7 +25,7 @@ fs.open(filepath, 'r', (_, fd) => {
     { code: 'ERR_INVALID_ARG_TYPE' }
   );
   fs.close(fd, common.mustSucceed(() => {}));
-});
+}));
 
 let filehandle = null;
 
