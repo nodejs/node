@@ -2155,7 +2155,7 @@ assert.throws(
 );
 
 // Using regular expressions to validate error properties:
-throws(
+assert.throws(
   () => {
     throw err;
   },
@@ -2179,7 +2179,7 @@ throws(
 );
 
 // Fails due to the different `message` and `name` properties:
-throws(
+assert.throws(
   () => {
     const otherErr = new Error('Not found');
     // Copy all enumerable properties from `err` to `otherErr`.
@@ -2224,7 +2224,7 @@ assert.throws(
 );
 
 // Using regular expressions to validate error properties:
-throws(
+assert.throws(
   () => {
     throw err;
   },
@@ -2248,7 +2248,7 @@ throws(
 );
 
 // Fails due to the different `message` and `name` properties:
-throws(
+assert.throws(
   () => {
     const otherErr = new Error('Not found');
     // Copy all enumerable properties from `err` to `otherErr`.
