@@ -138,21 +138,22 @@ const notSubtle = Reflect.construct(function() {}, [], SubtleCrypto);
 }
 
 {
-  crypto.subtle.importKey(
+  globalThis.crypto.subtle.importKey(
     'raw',
-    crypto.getRandomValues(new Uint8Array(4)),
+    globalThis.crypto.getRandomValues(new Uint8Array(4)),
     'PBKDF2',
     false,
-    ['deriveKey']).then(key => {
-        crypto.subtle.importKey = common.mustNotCall();
-        return crypto.subtle.deriveKey({
-            name: 'PBKDF2',
-            hash: 'SHA-512',
-            salt: crypto.getRandomValues(new Uint8Array()),
-            iterations: 5
-          }, key, {
-            name: 'AES-GCM',
-            length: 256
-          }, true, ['encrypt', 'decrypt']);
-    }).then(common.mustCall());
+    ['deriveKey'],
+  ).then((key) => {
+    globalThis.crypto.subtle.importKey = common.mustNotCall();
+    return globalThis.crypto.subtle.deriveKey({
+      name: 'PBKDF2',
+      hash: 'SHA-512',
+      salt: globalThis.crypto.getRandomValues(new Uint8Array()),
+      iterations: 5,
+    }, key, {
+      name: 'AES-GCM',
+      length: 256
+    }, true, ['encrypt', 'decrypt']);
+  }).then(common.mustCall());
 }
