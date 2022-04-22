@@ -100,6 +100,12 @@ To begin watching an expression, type `watch('my_expression')`. The command
 `watchers` will print the active watchers. To remove a watcher, type
 `unwatch('my_expression')`.
 
+## Options
+
+### `--port=port`
+
+Start the Node.js debugger client on port `port`. Default `port` is `9229`.
+
 ## Command reference
 
 ### Stepping
