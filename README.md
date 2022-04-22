@@ -352,6 +352,8 @@ For information about the governance of the Node.js project, see
   **Juan José Arboleda** <<soyjuanarbol@gmail.com>> (he/him)
 * [JungMinu](https://github.com/JungMinu) -
   **Minwoo Jung** <<nodecorelab@gmail.com>> (he/him)
+* [kuriyosh](https://github.com/kuriyosh) -
+  **Yoshiki Kurihara** <<yosyos0306@gmail.com>> (he/him)
 * [legendecas](https://github.com/legendecas) -
   **Chengzhong Wu** <<legendecas@gmail.com>> (he/him)
 * [Leko](https://github.com/Leko) -
