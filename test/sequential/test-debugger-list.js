@@ -23,6 +23,7 @@ const cli = startCLI([fixtures.path('debugger/three-lines.js')]);
   await cli.waitFor(/disconnect/);
   await cli.waitFor(/debug> $/);
   await cli.command('list()');
+  await cli.waitFor(/ERR_DEBUGGER_ERROR/);
   assert.match(cli.output, /Uncaught Error \[ERR_DEBUGGER_ERROR\]: Requires execution to be paused/);
 })()
 .finally(() => cli.quit())
