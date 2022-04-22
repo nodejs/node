@@ -2853,12 +2853,6 @@ Cached data cannot be created for modules which have already been evaluated.
 The module being returned from the linker function is from a different context
 than the parent module. Linked modules must share the same context.
 
-<a id="ERR_VM_MODULE_LINKING_ERRORED"></a>
-
-### `ERR_VM_MODULE_LINKING_ERRORED`
-
-The linker function returned a module for which linking has failed.
-
 <a id="ERR_VM_MODULE_LINK_FAILURE"></a>
 
 ### `ERR_VM_MODULE_LINK_FAILURE`
@@ -3343,6 +3337,17 @@ Used when a given value is out of the accepted range.
 ### `ERR_VM_MODULE_NOT_LINKED`
 
 The module must be successfully linked before instantiation.
+
+<a id="ERR_VM_MODULE_LINKING_ERRORED"></a>
+
+### `ERR_VM_MODULE_LINKING_ERRORED`
+
+<!-- YAML
+added: v10.0.0
+removed: REPLACEME
+-->
+
+The linker function returned a module for which linking has failed.
 
 <a id="ERR_WORKER_UNSUPPORTED_EXTENSION"></a>
 
