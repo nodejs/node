@@ -34,5 +34,5 @@ testValid('Passing in an empty object', {});
 testValid('Passing in an object', {
   offset: 0,
   length: bufferAsOption.byteLength,
-  position: 0
+  position: 0,
 });

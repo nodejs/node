@@ -14,11 +14,11 @@ const filepath = fixtures.path('x.txt');
 const buf = Buffer.alloc(1);
 // Reading only one character, hence buffer of one byte is enough.
 
-// Test is done by making sure the first letter in buffer is
+// Tests are done by making sure the first letter in buffer is
 // same as first letter in file.
 // 120 is the ascii code of letter x.
 
-// Test for callback API.
+// Tests for callback API.
 fs.open(filepath, 'r', common.mustSucceed((fd) => {
   fs.read(fd, { offset: null, buffer: buf },
           common.mustSucceed((bytesRead, buffer) => {
@@ -37,19 +37,28 @@ fs.open(filepath, 'r', common.mustSucceed((fd) => {
 
 let filehandle = null;
 
-// Test for promise api
+// Tests for promises api
 (async () => {
   filehandle = await fsPromises.open(filepath, 'r');
   const readObject = await filehandle.read(buf, { offset: null });
   assert.strictEqual(readObject.buffer[0], 120);
 })()
-.then(common.mustCall())
-.finally(() => filehandle?.close());
+.finally(() => filehandle?.close())
+.then(common.mustCall());
+
+// Undocumented: omitted position works the same as position === null
+(async () => {
+  filehandle = await fsPromises.open(filepath, 'r');
+  const readObject = await filehandle.read(buf, null, buf.length);
+  assert.strictEqual(readObject.buffer[0], 120);
+})()
+.finally(() => filehandle?.close())
+.then(common.mustCall());
 
 (async () => {
   filehandle = await fsPromises.open(filepath, 'r');
   const readObject = await filehandle.read(buf, null, buf.length, 0);
   assert.strictEqual(readObject.buffer[0], 120);
 })()
-.then(common.mustCall())
-.finally(() => filehandle?.close());
+.finally(() => filehandle?.close())
+.then(common.mustCall());
