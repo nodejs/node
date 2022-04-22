@@ -312,7 +312,7 @@ assert.throws(
 );
 ```
 
-In case of internal errors, prefer checking only `code` property:
+In the case of internal errors, prefer checking only the `code` property:
 
 ```js
 assert.throws(
