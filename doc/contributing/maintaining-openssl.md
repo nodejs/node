@@ -7,15 +7,12 @@ currently need to generate four PRs as follows:
 
 * a PR for master which is generated following the instructions
   below for OpenSSL 3.x.x.
+* a PR for 18.x following the instructions in the v18.x-staging version
+  of this guide.
 * a PR for 16.x following the instructions in the v16.x-staging version
   of this guide.
 * a PR for 14.x following the instructions in the v14.x-staging version
   of this guide.
-* a PR which uses the same commit from the third PR to apply the
-  updates to the openssl source code, with a new commit generated
-  by following steps 2 onwards on the 12.x line. This is
-  necessary because the configuration files have embedded timestamps
-  which lead to merge conflicts if cherry-picked from the second PR.
 
 ## Use of the quictls/openssl fork
 
