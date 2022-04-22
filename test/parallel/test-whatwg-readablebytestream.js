@@ -65,6 +65,9 @@ const {
   defaultReader.releaseLock();
   const byobReader = r.getReader({ mode: 'byob' });
   assert(byobReader instanceof ReadableStreamBYOBReader);
+  assert.match(
+    inspect(byobReader, { depth: 0 }),
+    /ReadableStreamBYOBReader/);
 }
 
 class Source {
@@ -209,9 +212,11 @@ class Source {
   reader.releaseLock();
   assert.rejects(reader.read(new Uint8Array(10)), {
     code: 'ERR_INVALID_STATE',
+    message: 'Invalid state: The reader is not attached to a stream',
   });
   assert.rejects(reader.cancel(), {
     code: 'ERR_INVALID_STATE',
+    message: 'Invalid state: The reader is not attached to a stream',
   });
 }
 
@@ -227,9 +232,25 @@ class Source {
   controller.close();
   assert.throws(() => controller.enqueue(new Uint8Array(10)), {
     code: 'ERR_INVALID_STATE',
+    message: 'Invalid state: ReadableStream is already closed',
   });
   assert.throws(() => controller.close(), {
     code: 'ERR_INVALID_STATE',
+    message: 'Invalid state: ReadableStream is already closed',
+  });
+}
+
+{
+  let controller;
+  new ReadableStream({
+    type: 'bytes',
+    start(c) { controller = c; }
+  });
+  controller.enqueue(new Uint8Array(10));
+  controller.close();
+  assert.throws(() => controller.enqueue(new Uint8Array(10)), {
+    code: 'ERR_INVALID_STATE',
+    message: 'Invalid state: Controller is already closed',
   });
 }
 
