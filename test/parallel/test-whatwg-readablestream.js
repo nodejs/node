@@ -378,7 +378,7 @@ assert.throws(() => {
   readableStreamReaderGenericRelease(stream[kState].reader);
   assert.rejects(iterable.next(), {
     code: 'ERR_INVALID_STATE',
-  });
+  }).then(common.mustCall());
 }
 
 {
@@ -387,7 +387,7 @@ assert.throws(() => {
   readableStreamReaderGenericRelease(stream[kState].reader);
   assert.rejects(iterable.return(), {
     code: 'ERR_INVALID_STATE',
-  });
+  }).then(common.mustCall());
 }
 
 {
