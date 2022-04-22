@@ -560,6 +560,8 @@ The identifier of the current module, as set in the constructor.
     //              ^^^^^ the module specifier
     ```
 
+  * `referencingModule` {vm.Module} The `Module` object `link()` is called on.
+
   * `extra` {Object}
     * `assert` {Object} The data from the assertion:
       <!-- eslint-skip -->
@@ -570,8 +572,6 @@ The identifier of the current module, as set in the constructor.
       Per ECMA-262, hosts are expected to ignore assertions that they do not
       support, as opposed to, for example, triggering an error if an
       unsupported assertion is present.
-
-  * `referencingModule` {vm.Module} The `Module` object `link()` is called on.
 
   * Returns: {vm.Module|Promise}
 * Returns: {Promise}
