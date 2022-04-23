@@ -42,6 +42,7 @@ const expectedModules = new Set([
   'Internal Binding util',
   'Internal Binding uv',
   'Internal Binding v8',
+  'Internal Binding wasm_web_api',
   'Internal Binding worker',
   'NativeModule buffer',
   'NativeModule events',
