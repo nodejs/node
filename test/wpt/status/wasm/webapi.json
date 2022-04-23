@@ -1,0 +1,24 @@
+{
+  "historical.any.js": {
+    "skip": "indexedDB is not defined"
+  },
+  "origin.sub.any.js": {
+    "skip": "CORS not implemented"
+  },
+
+  "abort.any.js": {
+    "skip": "WPTRunner does not support fetch()"
+  },
+  "contenttype.any.js": {
+    "skip": "WPTRunner does not support fetch()"
+  },
+  "empty-body.any.js": {
+    "skip": "Bug in undici, see https://github.com/nodejs/undici/issues/1345"
+  },
+  "idlharness.any.js": {
+    "skip": "not configured"
+  },
+  "status.any.js": {
+    "skip": "WPTRunner does not support fetch()"
+  }
+}
