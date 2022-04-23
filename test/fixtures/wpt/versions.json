@@ -63,6 +63,14 @@
     "commit": "df24fb604e2d40528ac1d1b5dd970e32fc5c2978",
     "path": "user-timing"
   },
+  "wasm/jsapi": {
+    "commit": "1dd414c79616489ea021c800eb0375a709e8114e",
+    "path": "wasm/jsapi"
+  },
+  "wasm/webapi": {
+    "commit": "fd1b23eeaaf9a01555d4fa29cf79ed11a4c44a50",
+    "path": "wasm/webapi"
+  },
   "WebCryptoAPI": {
     "commit": "cdd0f03df41b222aed098fbbb11c6a3cc500a86b",
     "path": "WebCryptoAPI"

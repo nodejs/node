@@ -550,7 +550,9 @@ constexpr size_t kFsStatsBufferLength =
   V(tls_wrap_constructor_function, v8::Function)                               \
   V(trace_category_state_function, v8::Function)                               \
   V(udp_constructor_function, v8::Function)                                    \
-  V(url_constructor_function, v8::Function)
+  V(url_constructor_function, v8::Function)                                    \
+  V(wasm_streaming_compilation_impl, v8::Function)                             \
+  V(wasm_streaming_object_constructor, v8::Function)
 
 class Environment;
 struct AllocatedBuffer;
