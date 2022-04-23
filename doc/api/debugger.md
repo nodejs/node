@@ -106,6 +106,10 @@ To begin watching an expression, type `watch('my_expression')`. The command
 
 Start the Node.js debugger client on port `port`. Default `port` is `9229`.
 
+### `-p pid`
+
+Start the Node.js debugger client against a given `pid`.
+
 ## Command reference
 
 ### Stepping
