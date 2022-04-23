@@ -6,15 +6,18 @@ const v8 = require('v8');
 const s = v8.getHeapStatistics();
 const keys = [
   'does_zap_garbage',
+  'external_memory',
   'heap_size_limit',
   'malloced_memory',
   'number_of_detached_contexts',
   'number_of_native_contexts',
   'peak_malloced_memory',
   'total_available_size',
+  'total_global_handles_size',
   'total_heap_size',
   'total_heap_size_executable',
   'total_physical_size',
+  'used_global_handles_size',
   'used_heap_size'];
 assert.deepStrictEqual(Object.keys(s).sort(), keys);
 keys.forEach(function(key) {
