@@ -29,6 +29,7 @@ Local<Function> WasmStreamingObject::Initialize(Environment* env) {
   t->InstanceTemplate()->SetInternalFieldCount(
       WasmStreamingObject::kInternalFieldCount);
 
+  env->SetProtoMethod(t, "setURL", SetURL);
   env->SetProtoMethod(t, "push", Push);
   env->SetProtoMethod(t, "finish", Finish);
   env->SetProtoMethod(t, "abort", Abort);
@@ -73,6 +74,17 @@ void WasmStreamingObject::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args);
   new WasmStreamingObject(env, args.This());
+}
+
+void WasmStreamingObject::SetURL(const FunctionCallbackInfo<Value>& args) {
+  WasmStreamingObject* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, args.Holder());
+  CHECK(obj->streaming_);
+
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsString());
+  Utf8Value url(Environment::GetCurrent(args)->isolate(), args[0]);
+  obj->streaming_->SetUrl(url.out(), url.length());
 }
 
 void WasmStreamingObject::Push(const FunctionCallbackInfo<Value>& args) {
