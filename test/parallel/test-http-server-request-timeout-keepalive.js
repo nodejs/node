@@ -14,9 +14,6 @@ function performRequestWithDelay(client, firstDelay, secondDelay, closeAfter) {
   client.resume();
   client.write('GET / HTTP/1.1\r\n');
 
-  firstDelay = common.platformTimeout(firstDelay);
-  secondDelay = common.platformTimeout(secondDelay);
-
   setTimeout(() => {
     client.write('Connection: ');
   }, firstDelay).unref();
@@ -27,12 +24,12 @@ function performRequestWithDelay(client, firstDelay, secondDelay, closeAfter) {
   }, firstDelay + secondDelay).unref();
 }
 
-const requestTimeout = common.platformTimeout(1000);
+const requestTimeout = common.platformTimeout(2000);
 const server = createServer({
   headersTimeout: 0,
   requestTimeout,
   keepAliveTimeout: 0,
-  connectionsCheckingInterval: common.platformTimeout(250),
+  connectionsCheckingInterval: requestTimeout / 4
 }, common.mustCallAtLeast((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end();
@@ -58,7 +55,7 @@ server.listen(0, common.mustCall(() => {
         'HTTP/1.1 200 OK'
       );
 
-      const defer = common.platformTimeout(requestTimeout * 1.5);
+      const defer = requestTimeout * 1.5;
 
       // Wait some time to make sure requestTimeout
       // does not interfere with keep alive
