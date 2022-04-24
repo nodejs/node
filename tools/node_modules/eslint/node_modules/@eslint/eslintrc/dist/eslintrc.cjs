@@ -2380,7 +2380,7 @@ var ModuleResolver = {
  * @author Toru Nagashima <https://github.com/mysticatea>
  */
 
-const require$1 = Module.createRequire((typeof document === 'undefined' ? new (require('u' + 'rl').URL)('file:' + __filename).href : (document.currentScript && document.currentScript.src || new URL('eslintrc.cjs', document.baseURI).href)));
+const require$1 = Module.createRequire(require('url').pathToFileURL(__filename).toString());
 
 const debug$2 = debugOrig__default["default"]("eslintrc:config-array-factory");
 

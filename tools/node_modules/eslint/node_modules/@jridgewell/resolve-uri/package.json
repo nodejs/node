@@ -1,6 +1,6 @@
 {
   "name": "@jridgewell/resolve-uri",
-  "version": "3.0.5",
+  "version": "3.0.6",
   "description": "Resolve a URI relative to an optional base URI",
   "keywords": [
     "resolve",
