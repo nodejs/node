@@ -36,6 +36,8 @@ class WasmStreamingObject final : public BaseObject {
   static void Push(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Finish(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Abort(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetCompiledModuleBytes(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   std::shared_ptr<v8::WasmStreaming> streaming_;
   size_t wasm_size_;
