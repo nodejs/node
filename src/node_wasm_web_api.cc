@@ -170,12 +170,12 @@ void WasmStreamingObject::SetCompiledModuleBytes(
   size_t offset;
   size_t size;
 
-  if (LIKELY(chunk->IsArrayBufferView())) {
+  if (chunk->IsArrayBufferView()) {
     Local<ArrayBufferView> view = chunk.As<ArrayBufferView>();
     bytes = view->Buffer()->GetBackingStore()->Data();
     offset = view->ByteOffset();
     size = view->ByteLength();
-  } else if (LIKELY(chunk->IsArrayBuffer())) {
+  } else if (chunk->IsArrayBuffer()) {
     Local<ArrayBuffer> buffer = chunk.As<ArrayBuffer>();
     bytes = buffer->GetBackingStore()->Data();
     offset = 0;
@@ -183,7 +183,7 @@ void WasmStreamingObject::SetCompiledModuleBytes(
   } else {
     return node::THROW_ERR_INVALID_ARG_TYPE(
         Environment::GetCurrent(args),
-        "chunk must be an ArrayBufferView or an ArrayBuffer");
+        "buffer must be an ArrayBufferView or an ArrayBuffer");
   }
 
   bool bytes_used = obj->streaming_->SetCompiledModuleBytes(
