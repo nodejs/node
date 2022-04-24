@@ -3057,7 +3057,9 @@ const w = new Writable({
 
 <!-- YAML
 changes:
-  - version: v17.5.0
+  - version:
+    - v17.5.0
+    - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41596
     description: Documentation-only deprecation.
 -->
@@ -3090,7 +3092,9 @@ changes:
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41896
     description: Runtime deprecation.
-  - version: v17.6.0
+  - version:
+    - v17.6.0
+    - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41872
     description: Documentation-only deprecation.
 -->
@@ -3104,7 +3108,9 @@ which diminished its usefulness.
 
 <!-- YAML
 changes:
-  - version: v17.6.0
+  - version:
+    - v17.6.0
+    - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41587
     description: Documentation-only deprecation.
 -->
@@ -3125,7 +3131,9 @@ changes:
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42607
     description: Runtime deprecation.
-  - version: v17.8.0
+  - version:
+    - v17.8.0
+    - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/42149
     description: Documentation-only deprecation.
 -->

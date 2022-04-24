@@ -830,7 +830,9 @@ behavior.
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: v17.7.0
+  - version:
+    - v17.7.0
+    - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41310
     description: The `noDelay`, `keepAlive` and `keepAliveInitialDelay`
                  options are supported now.

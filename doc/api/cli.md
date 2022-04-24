@@ -283,7 +283,9 @@ modifying the stack trace.
 ### `--experimental-global-webcrypto`
 
 <!-- YAML
-added: v17.6.0
+added:
+  - v17.6.0
+  - v16.15.0
 -->
 
 Expose the [Web Crypto API][] on the global scope.
@@ -315,7 +317,9 @@ Specify the `module` of a custom experimental [ECMAScript module loader][].
 ### `--experimental-network-imports`
 
 <!-- YAML
-added: v17.6.0
+added:
+  - v17.6.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental

@@ -340,7 +340,9 @@ A browser-compatible implementation of [`CountQueuingStrategy`][].
 ## `Crypto`
 
 <!-- YAML
-added: v17.6.0
+added:
+  - v17.6.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with the
@@ -353,7 +355,9 @@ only if the Node.js binary was compiled with including support for the
 ## `crypto`
 
 <!-- YAML
-added: v17.6.0
+added:
+  - v17.6.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with the
@@ -364,7 +368,9 @@ A browser-compatible implementation of the [Web Crypto API][].
 ## `CryptoKey`
 
 <!-- YAML
-added: v17.6.0
+added:
+  - v17.6.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with the
@@ -421,7 +427,9 @@ This variable may appear to be global but is not. See [`exports`][].
 ## `fetch`
 
 <!-- YAML
-added: v17.5.0
+added:
+  - v17.5.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -432,7 +440,9 @@ A browser-compatible implementation of the [`fetch()`][] function.
 ## Class `FormData`
 
 <!-- YAML
-added: v17.6.0
+added:
+  - v17.6.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -458,7 +468,9 @@ Node.js this is different. The top-level scope is not the global scope;
 ## Class `Headers`
 
 <!-- YAML
-added: v17.5.0
+added:
+  - v17.5.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -623,7 +635,9 @@ This variable may appear to be global but is not. See [`require()`][].
 ## `Response`
 
 <!-- YAML
-added: v17.5.0
+added:
+  - v17.5.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -634,7 +648,9 @@ A browser-compatible implementation of {Response}.
 ## `Request`
 
 <!-- YAML
-added: v17.5.0
+added:
+  - v17.5.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -685,7 +701,9 @@ The WHATWG [`structuredClone`][] method.
 ## `SubtleCrypto`
 
 <!-- YAML
-added: v17.6.0
+added:
+  - v17.6.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental. Enable this API with the

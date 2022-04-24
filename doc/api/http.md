@@ -301,7 +301,9 @@ removed from the array on `'timeout'`.
 <!-- YAML
 added: v0.11.4
 changes:
-  - version: v17.7.0
+  - version:
+    - v17.7.0
+    - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41906
     description: The `options` parameter is now optional.
 -->
@@ -2948,7 +2950,9 @@ changes:
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42163
     description: The `noDelay` option now defaults to `true`.
-  - version: v17.7.0
+  - version:
+    - v17.7.0
+    - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41310
     description: The `noDelay`, `keepAlive` and `keepAliveInitialDelay`
                  options are supported now.
