@@ -179,6 +179,10 @@
     # Controls the threshold for on-heap/off-heap Typed Arrays.
     'v8_typed_array_max_size_in_heap%': 64,
 
+    # Enable sharing read-only space across isolates.
+    # Sets -DV8_SHARED_RO_HEAP.
+    'v8_enable_shared_ro_heap%': 0,
+
     # Enable lazy source positions by default.
     'v8_enable_lazy_source_positions%': 1,
 
@@ -395,6 +399,9 @@
       }],
       ['v8_use_siphash==1', {
         'defines': ['V8_USE_SIPHASH',],
+      }],
+      ['v8_enable_shared_ro_heap==1', {
+        'defines': ['V8_SHARED_RO_HEAP',],
       }],
       ['dcheck_always_on!=0', {
         'defines': ['DEBUG',],
