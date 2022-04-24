@@ -160,6 +160,18 @@ const getReducedASTNode = function (node, sourceCode) {
     if (
       !invokedExpression.has(parent.type)
     ) {
+      let token = node;
+      do {
+        token = sourceCode.getTokenBefore(token, {includeComments: true});
+      } while (token.type === 'Punctuator' && token.value === '(');
+
+      if (token.type === 'Block') {
+        return node;
+      }
+
+      if (sourceCode.getCommentsBefore(node).length) {
+        return node;
+      }
       while (
         !sourceCode.getCommentsBefore(parent).length &&
         !(/Function/u).test(parent.type) &&
