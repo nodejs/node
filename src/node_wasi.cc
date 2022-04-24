@@ -236,11 +236,9 @@ void WASI::New(const FunctionCallbackInfo<Value>& args) {
     delete[] options.argv;
   }
 
-  if (options.envp != nullptr) {
-    for (uint32_t i = 0; options.envp[i]; i++)
-      free(const_cast<char*>(options.envp[i]));
-    delete[] options.envp;
-  }
+  for (uint32_t i = 0; options.envp[i]; i++)
+    free(const_cast<char*>(options.envp[i]));
+  delete[] options.envp;
 
   if (options.preopens != nullptr) {
     for (uint32_t i = 0; i < options.preopenc; i++) {
