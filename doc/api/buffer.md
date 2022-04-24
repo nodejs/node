@@ -3389,7 +3389,9 @@ console.log(buf.subarray(-5, -2).toString());
 <!-- YAML
 added: v0.3.0
 changes:
-  - version: v17.5.0
+  - version:
+    - v17.5.0
+    - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41596
     description: The buf.slice() method has been deprecated.
   - version:
