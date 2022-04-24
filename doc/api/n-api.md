@@ -2502,8 +2502,8 @@ of the ECMAScript Language Specification.
 #### `node_api_symbol_for`
 
 <!-- YAML
-added: REPLACEME
-napiVersion: REPLACEME
+added: v16.15.0
+napiVersion: v16.15.0
 -->
 
 > Stability: 1 - Experimental

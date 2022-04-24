@@ -275,7 +275,7 @@ modifying the stack trace.
 ### `--experimental-fetch`
 
 <!-- YAML
-added: REPLACEME
+added: v16.15.0
 -->
 
 Enable experimental support for the [Fetch API][].
@@ -283,7 +283,7 @@ Enable experimental support for the [Fetch API][].
 ### `--experimental-global-webcrypto`
 
 <!-- YAML
-added: REPLACEME
+added: v16.15.0
 -->
 
 Expose the [Web Crypto API][] on the global scope.
@@ -310,7 +310,7 @@ Specify the `module` of a custom experimental [ECMAScript module loader][].
 ### `--experimental-network-imports`
 
 <!-- YAML
-added: REPLACEME
+added: v16.15.0
 -->
 
 > Stability: 1 - Experimental

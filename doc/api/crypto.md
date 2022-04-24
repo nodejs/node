@@ -2085,7 +2085,7 @@ PKCS#1 and SEC1 encryption.
 ### `keyObject.equals(otherKeyObject)`
 
 <!-- YAML
-added: REPLACEME
+added: v16.15.0
 -->
 
 * `otherKeyObject`: {KeyObject} A `KeyObject` with which to
@@ -2488,7 +2488,7 @@ added: v15.6.0
 <!-- YAML
 added: v15.6.0
 changes:
-  - version: REPLACEME
+  - version: v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41569
     description: The subject option can now be set to `'default'`.
   - version: v16.14.1
@@ -2527,7 +2527,7 @@ considered, even if the certificate contains no subject alternative names.
 <!-- YAML
 added: v15.6.0
 changes:
-  - version: REPLACEME
+  - version: v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41569
     description: The subject option can now be set to `'default'`.
 -->

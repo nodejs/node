@@ -3039,7 +3039,7 @@ const w = new Writable({
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41596
     description: Documentation-only deprecation.
 -->
@@ -3057,7 +3057,7 @@ Use [`buffer.subarray`][] which does the same thing instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41872
     description: Documentation-only deprecation.
 -->
@@ -3071,7 +3071,7 @@ which diminished its usefulness.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41587
     description: Documentation-only deprecation.
 -->
@@ -3089,7 +3089,7 @@ resources and not the actual references.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v16.15.0
     pr-url: https://github.com/nodejs/node/pull/42149
     description: Documentation-only deprecation.
 -->
