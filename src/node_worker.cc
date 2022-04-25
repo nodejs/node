@@ -147,14 +147,7 @@ class WorkerThreadData {
     SetIsolateCreateParamsForNode(&params);
     params.array_buffer_allocator_shared = allocator;
 
-    bool use_node_snapshot = true;
-    if (w_->per_isolate_opts_) {
-      use_node_snapshot = w_->per_isolate_opts_->node_snapshot;
-    } else {
-      // IsolateData is created after the Isolate is created so we'll
-      // inherit the option from the parent here.
-      use_node_snapshot = per_process::cli_options->per_isolate->node_snapshot;
-    }
+    bool use_node_snapshot = per_process::cli_options->node_snapshot;
     const SnapshotData* snapshot_data =
         use_node_snapshot ? SnapshotBuilder::GetEmbeddedSnapshotData()
                           : nullptr;
