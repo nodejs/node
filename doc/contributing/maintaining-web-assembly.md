@@ -35,9 +35,9 @@ APIs as important:
 * WebAssembly System Interface (WASI). This provides the ability for
   WebAssembly to interact with the outside world. Node.js currently
   has an implementation (see below for more details).
-* WebAssembly streaming APIs - As the Node.js implementation of
-  [WebStreams](https://nodejs.org/api/webstreams.html) matures,
-  implementing the embedder APIs to enable streaming with WebAssembly
+* [WebAssembly Web API](https://www.w3.org/TR/wasm-web-api-1/). Node.js
+  currently has an implementation of streaming module compilation and
+  instantiation. As this and other specifications evolve, keeping up with them
   will be important.
 * [WebAssembly Component Model](https://github.com/WebAssembly/component-model/).
   This API is still in the definition stage but the project should
