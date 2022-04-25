@@ -8,7 +8,7 @@
     "path": "console"
   },
   "dom/abort": {
-    "commit": "c49cafb491d99d6318f8f24a26936cc66501f412",
+    "commit": "2b811aa5c2695cb3fd6f895cdce5952d1e0dd22d",
     "path": "dom/abort"
   },
   "encoding": {
