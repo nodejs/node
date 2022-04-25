@@ -755,6 +755,31 @@ Environment::Environment(IsolateData* isolate_data,
                                       "args",
                                       std::move(traced_value));
   }
+
+  if (options_->experimental_permission) {
+    permission()->EnablePermissions();
+    // If any permission is set the process shouldn't be able to neither
+    // spawn/worker nor use addons unless explicitly allowed by the user
+    if (!options_->allow_fs_read.empty() || !options_->allow_fs_write.empty()) {
+      options_->allow_native_addons = false;
+      if (!options_->allow_child_process) {
+        permission()->Deny(permission::PermissionScope::kChildProcess, {});
+      }
+      if (!options_->allow_worker_threads) {
+        permission()->Deny(permission::PermissionScope::kWorkerThreads, {});
+      }
+    }
+
+    if (!options_->allow_fs_read.empty()) {
+      permission()->Apply(options_->allow_fs_read,
+                          permission::PermissionScope::kFileSystemRead);
+    }
+
+    if (!options_->allow_fs_write.empty()) {
+      permission()->Apply(options_->allow_fs_write,
+                          permission::PermissionScope::kFileSystemWrite);
+    }
+  }
 }
 
 void Environment::InitializeMainContext(Local<Context> context,

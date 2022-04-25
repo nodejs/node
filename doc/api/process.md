@@ -2618,6 +2618,79 @@ the [`'warning'` event][process_warning] and the
 [`emitWarning()` method][process_emit_warning] for more information about this
 flag's behavior.
 
+## `process.permission`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Object}
+
+This API is available through the [`--experimental-permission`][] flag.
+
+`process.permission` is an object whose methods are used to manage permissions
+for the current process. Additional documentation is available in the
+[Permission Model][].
+
+### `process.permission.deny(scope[, reference])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `scopes` {string}
+* `reference` {Array}
+* Returns: {boolean}
+
+Deny permissions at runtime.
+
+The available scopes are:
+
+* `fs` - All File System
+* `fs.read` - File System read operations
+* `fs.write` - File System write operations
+
+The reference has a meaning based on the provided scope. For example,
+the reference when the scope is File System means files and folders.
+
+```js
+// Deny READ operations to the ./README.md file
+process.permission.deny('fs.read', ['./README.md']);
+// Deny ALL WRITE operations
+process.permission.deny('fs.write');
+```
+
+### `process.permission.has(scope[, reference])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `scopes` {string}
+* `reference` {string}
+* Returns: {boolean}
+
+Verifies that the process is able to access the given scope and reference.
+If no reference is provided, a global scope is assumed, for instance,
+`process.permission.has('fs.read')` will check if the process has ALL
+file system read permissions.
+
+The reference has a meaning based on the provided scope. For example,
+the reference when the scope is File System means files and folders.
+
+The available scopes are:
+
+* `fs` - All File System
+* `fs.read` - File System read operations
+* `fs.write` - File System write operations
+
+```js
+// Check if the process has permission to read the README file
+process.permission.has('fs.read', './README.md');
+// Check if the process has read permission operations
+process.permission.has('fs.read');
+```
+
 ## `process.pid`
 
 <!-- YAML
@@ -3868,6 +3941,7 @@ cases:
 [Duplex]: stream.md#duplex-and-transform-streams
 [Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/#process-nexttick
 [LTS]: https://github.com/nodejs/Release
+[Permission Model]: permissions.md#permission-model
 [Readable]: stream.md#readable-streams
 [Signal Events]: #signal-events
 [Source Map]: https://sourcemaps.info/spec.html
@@ -3877,6 +3951,7 @@ cases:
 [`'exit'`]: #event-exit
 [`'message'`]: child_process.md#event-message
 [`'uncaughtException'`]: #event-uncaughtexception
+[`--experimental-permission`]: cli.md#--experimental-permission
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
 [`Buffer`]: buffer.md
 [`ChildProcess.disconnect()`]: child_process.md#subprocessdisconnect
