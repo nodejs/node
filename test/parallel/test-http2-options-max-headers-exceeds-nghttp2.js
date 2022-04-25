@@ -65,7 +65,6 @@ server.listen(0, common.mustCall(() => {
     'stream',
     common.mustCall((stream) => {
       stream.additionalHeaders({
-        ':status': 102,
         // Greater than 65536 bytes
         'test-header': 'A'.repeat(90000),
       });
@@ -89,6 +88,8 @@ server.listen(0, common.mustCall(() => {
     0,
     common.mustCall(() => {
       const client = h2.connect(`http://localhost:${server.address().port}`);
+      client.on('error', common.mustNotCall());
+
       const req = client.request();
       req.on('response', common.mustNotCall());
       req.on('error', common.mustNotCall());
