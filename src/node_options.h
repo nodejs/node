@@ -205,6 +205,7 @@ class PerIsolateOptions : public Options {
   bool track_heap_objects = false;
   bool report_uncaught_exception = false;
   bool report_on_signal = false;
+  bool experimental_shadow_realm = false;
   std::string report_signal = "SIGUSR2";
   inline EnvironmentOptions* get_per_env_options();
   void CheckOptions(std::vector<std::string>* errors) override;
