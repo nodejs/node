@@ -206,10 +206,10 @@ added: v16.5.0
   * `preventAbort` {boolean} When `true`, errors in this `ReadableStream`
     will not cause `transform.writable` to be aborted.
   * `preventCancel` {boolean} When `true`, errors in the destination
-    `transform.writable` is not cause this `ReadableStream` to be
+    `transform.writable` will not cause this `ReadableStream` to be
     canceled.
   * `preventClose` {boolean} When `true`, closing this `ReadableStream`
-    will no cause `transform.writable` to be closed.
+    will not cause `transform.writable` to be closed.
   * `signal` {AbortSignal} Allows the transfer of data to be canceled
     using an {AbortController}.
 * Returns: {ReadableStream} From `transform.readable`.
@@ -285,9 +285,9 @@ added: v16.5.0
   * `preventAbort` {boolean} When `true`, errors in this `ReadableStream`
     will not cause `destination` to be aborted.
   * `preventCancel` {boolean} When `true`, errors in the `destination`
-    is not cause this `ReadableStream` to be canceled.
+    will not cause this `ReadableStream` to be canceled.
   * `preventClose` {boolean} When `true`, closing this `ReadableStream`
-    will no cause `destination` to be closed.
+    will not cause `destination` to be closed.
   * `signal` {AbortSignal} Allows the transfer of data to be canceled
     using an {AbortController}.
 * Returns: A promise fulfilled with `undefined`
