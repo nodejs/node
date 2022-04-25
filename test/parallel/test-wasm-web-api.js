@@ -19,7 +19,7 @@ async function testRequest(handler) {
   const server = createServer((_, res) => handler(res)).unref().listen(0);
   await events.once(server, 'listening');
   const { port } = server.address();
-  return fetch(`http://127.0.0.1:${port}/`);
+  return fetch(`http://127.0.0.1:${port}/foo.wasm`);
 }
 
 // Runs the given function both with the promise itself and as a continuation
@@ -222,5 +222,26 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
   }, {
     name: 'TypeError',
     message: /terminated/
+  });
+
+  // Test "Developer-Facing Display Conventions" described in the WebAssembly
+  // Web API specification.
+  await testCompileStreaming(() => testRequest((res) => {
+    // Respond with a WebAssembly module that only exports a single function,
+    // which only contains an 'unreachable' instruction.
+    res.setHeader('Content-Type', 'application/wasm');
+    res.end(fixtures.readSync('crash.wasm'));
+  }), async (modPromise) => {
+    // Call the WebAssembly function and check that the error stack contains the
+    // correct "WebAssembly location" as per the specification.
+    const mod = await modPromise;
+    const instance = new WebAssembly.Instance(mod);
+    assert.throws(() => instance.exports.crash(), (err) => {
+      const stack = err.stack.split(/\n/g);
+      assert.strictEqual(stack[0], 'RuntimeError: unreachable');
+      assert.match(stack[1],
+                   /^\s*at http:\/\/127\.0\.0\.1:\d+\/foo\.wasm:wasm-function\[0\]:0x22$/);
+      return true;
+    });
   });
 })().then(common.mustCall());

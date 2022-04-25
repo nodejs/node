@@ -33,6 +33,7 @@ class WasmStreamingObject final : public BaseObject {
 
  private:
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetURL(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Push(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Finish(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Abort(const v8::FunctionCallbackInfo<v8::Value>& args);
