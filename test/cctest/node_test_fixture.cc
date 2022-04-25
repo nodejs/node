@@ -29,7 +29,7 @@ void NodeTestEnvironment::SetUp() {
 
 void NodeTestEnvironment::TearDown() {
   v8::V8::Dispose();
-  v8::V8::ShutdownPlatform();
+  v8::V8::DisposePlatform();
   NodeZeroIsolateTestFixture::platform->Shutdown();
   NodeZeroIsolateTestFixture::platform.reset(nullptr);
   NodeZeroIsolateTestFixture::tracing_agent.reset(nullptr);
