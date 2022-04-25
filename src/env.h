@@ -552,6 +552,7 @@ constexpr size_t kFsStatsBufferLength =
   V(udp_constructor_function, v8::Function)                                    \
   V(url_constructor_function, v8::Function)                                    \
   V(wasm_streaming_compilation_impl, v8::Function)                             \
+  V(wasm_streaming_compilation_callback, v8::Function)                         \
   V(wasm_streaming_object_constructor, v8::Function)
 
 class Environment;
