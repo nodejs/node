@@ -619,7 +619,7 @@ void ReportWritesToJSStreamListener::OnStreamAfterReqFinished(
     stream->ClearError();
   }
 
-  if (req_wrap_obj->Has(env->context(), env->oncomplete_string()).FromJust())
+  if (req_wrap_obj->Has(env->context(), env->oncomplete_string()).FromMaybe(false))
     async_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 }
 
