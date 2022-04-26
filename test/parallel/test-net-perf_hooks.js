@@ -22,7 +22,7 @@ obs.observe({ type: 'net' });
     socket.destroy();
   }));
 
-  server.listen(8080, common.mustCall(async () => {
+  server.listen(0, common.mustCall(async () => {
     await new Promise((resolve, reject) => {
       const socket = net.connect(server.address().port);
       socket.on('end', resolve);
