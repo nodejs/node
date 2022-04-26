@@ -704,8 +704,8 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             kAllowedInEnvironment);
   Implies("--report-signal", "--report-on-signal");
 
-  AddOption("--experimental-top-level-await", "",
-            NoOp{}, kAllowedInEnvironment);
+  AddOption(
+      "--experimental-top-level-await", "", NoOp{}, kAllowedInEnvironment);
 
   Insert(eop, &PerIsolateOptions::get_per_env_options);
 }

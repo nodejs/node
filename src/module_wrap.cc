@@ -428,10 +428,6 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  // If TLA is enabled, `result` is the evaluation's promise.
-  // Otherwise, `result` is the last evaluated value of the module,
-  // which could be a promise, which would result in it being incorrectly
-  // unwrapped when the higher level code awaits the evaluation.
   args.GetReturnValue().Set(result.ToLocalChecked());
 }
 
