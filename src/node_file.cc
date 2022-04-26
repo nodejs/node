@@ -1382,6 +1382,7 @@ int MKDirpSync(uv_loop_t* loop,
           }
           break;
         case UV_EACCES:
+        case UV_ENOSPC:
         case UV_ENOTDIR:
         case UV_EPERM: {
           return err;
