@@ -21,7 +21,10 @@
     'torque_outputs_inl_inc': ['<!@pymod_do_main(ForEachFormat "<(SHARED_INTERMEDIATE_DIR)/torque-generated/%s-inl.inc" <@(torque_files_replaced))'],
     'torque_outputs_cc': ['<!@pymod_do_main(ForEachFormat "<(SHARED_INTERMEDIATE_DIR)/torque-generated/%s.cc" <@(torque_files_replaced))'],
     'torque_outputs_inc': ['<!@pymod_do_main(ForEachFormat "<(SHARED_INTERMEDIATE_DIR)/torque-generated/%s.inc" <@(torque_files_replaced))'],
-    'v8_compiler_sources': ['<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_compiler_sources = ")'],
+    'v8_compiler_sources': [
+      '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_compiler_sources = ")',
+      '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_source_set.\\"v8_turboshaft.*?sources = ")',
+    ],
     'conditions': [
       ['v8_enable_i18n_support==1', {
         'torque_files': [
@@ -282,14 +285,9 @@
             '<(V8_ROOT)/src/builtins/arm64/builtins-arm64.cc',
           ],
         }],
-        ['v8_target_arch=="mips" or v8_target_arch=="mipsel"', {
-          'sources': [
-            '<(V8_ROOT)/src/builtins/mips/builtins-mips.cc',
-          ],
-        }],
         ['v8_target_arch=="riscv64" or v8_target_arch=="riscv64"', {
           'sources': [
-            '<(V8_ROOT)/src/builtins/riscv64/builtins-riscv64.cc',
+            '<(V8_ROOT)/src/builtins/riscv/builtins-riscv.cc',
           ],
         }],        
         ['v8_target_arch=="loong64" or v8_target_arch=="loong64"', {
@@ -510,6 +508,7 @@
       'type': 'none',
       'toolsets': ['host', 'target'],
       'dependencies': [
+        'v8_libbase',
         'v8_shared_internal_headers',
       ],
       'direct_dependent_settings': {
@@ -552,6 +551,11 @@
           ['v8_enable_i18n_support==1', {
             'sources': [
               '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_i18n_support.*?sources \\+= ")',
+            ],
+          }],
+          ['v8_enable_snapshot_compression==1', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_snapshot_compression.*?sources \\+= ")',
             ],
           }],
           ['v8_control_flow_integrity==0', {
@@ -630,11 +634,6 @@
                   '<(V8_ROOT)/src/diagnostics/unwinding-info-win64.h',
                 ],
               }],
-            ],
-          }],
-          ['v8_target_arch=="mips" or v8_target_arch=="mipsel"', {
-            'sources': [
-              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_current_cpu == \\"mips\\".*?sources \\+= ")',
             ],
           }],
           ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
@@ -789,6 +788,11 @@
             '<(V8_ROOT)/src/heap/third-party/heap-api-stub.cc',
           ],
         }],
+        ['v8_enable_snapshot_compression==1', {
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_snapshot_compression.*?sources \\+= ")',
+          ],
+        }],
         ['v8_enable_maglev==1', {
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_maglev.*?sources \\+= ")',
@@ -877,11 +881,6 @@
             }],
           ],
         }],
-        ['v8_target_arch=="mips" or v8_target_arch=="mipsel"', {
-          'sources': [
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"mips\\".*?sources \\+= ")',
-          ],
-        }],
         ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"mips64\\".*?sources \\+= ")',
@@ -929,9 +928,9 @@
             },
           },
           'conditions': [
-            ['v8_enable_system_instrumentation==1', {
+            ['v8_enable_etw_stack_walking==1', {
               'sources': [
-                '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?is_win.*?v8_enable_system_instrumentation.*?sources \\+= ")',
+                '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?is_win.*?v8_enable_etw_stack_walking.*?sources \\+= ")',
               ],
             }],
           ],
@@ -979,7 +978,7 @@
         }],
         # Platforms that don't have Compare-And-Swap (CAS) support need to link atomic library
         # to implement atomic memory access
-        ['v8_current_cpu in ["mips", "mipsel", "mips64", "mips64el", "ppc", "arm", "riscv64", "loong64"]', {
+        ['v8_current_cpu in ["mips64", "mips64el", "ppc", "arm", "riscv64", "loong64"]', {
           'link_settings': {
             'libraries': ['-latomic', ],
           },
@@ -1178,7 +1177,7 @@
               }
             },
             'conditions': [
-              ['v8_enable_system_instrumentation==1', {
+              ['v8_enable_etw_stack_walking==1', {
                 'msvs_settings': {
                   'VCLinkerTool': {
                     'AdditionalDependencies': [
@@ -1190,7 +1189,7 @@
             ],
           },
         }],
-        ['target_arch == "mips" or OS == "mips64"', {
+        ['OS == "mips64"', {
           # here just for 'BUILD.gn' sync
           # 'data': [
           #   '<(V8_ROOT)/tools/mips_toolchain/sysroot/usr/lib/',
@@ -1559,7 +1558,7 @@
       'toolsets': ['host', 'target'],
       'direct_dependent_settings': {
         'sources': [
-          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_source_set.\\"v8_heap_base_headers.*?sources = ")',
+          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_heap_base_headers.*?sources = ")',
         ],
       },
     },  # v8_heap_base_headers
@@ -1636,11 +1635,6 @@
                   '<(V8_ROOT)/src/heap/base/asm/s390/push_registers_asm.cc',
                 ],
               }],
-              ['_toolset == "host" and host_arch == "mips" or _toolset == "target" and target_arch=="mips" or _toolset == "host" and host_arch == "mipsel" or _toolset == "target" and target_arch=="mipsel"', {
-                'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/mips/push_registers_asm.cc',
-                ],
-              }],
               ['_toolset == "host" and host_arch == "mips64" or _toolset == "target" and target_arch=="mips64" or _toolset == "host" and host_arch == "mips64el" or _toolset == "target" and target_arch=="mips64el"', {
                 'sources': [
                   '<(V8_ROOT)/src/heap/base/asm/mips64/push_registers_asm.cc',
@@ -1662,12 +1656,12 @@
             'conditions': [
               ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
                 'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/x64/push_registers_masm.S',
+                  '<(V8_ROOT)/src/heap/base/asm/x64/push_registers_masm.asm',
                 ],
               }],
               ['_toolset == "host" and host_arch == "ia32" or _toolset == "target" and target_arch=="ia32"', {
                 'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/ia32/push_registers_masm.S',
+                  '<(V8_ROOT)/src/heap/base/asm/ia32/push_registers_masm.asm',
                 ],
               }],
               ['_toolset == "host" and host_arch == "arm64" or _toolset == "target" and target_arch=="arm64"', {
@@ -1773,8 +1767,7 @@
             ]
           },
           'conditions': [
-            ['v8_target_arch=="mips" or v8_target_arch=="mipsel" \
-              or v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
+            ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
               'v8_dump_build_config_args': [
                 'mips_arch_variant=<(mips_arch_variant)',
                 'mips_use_msa=<(mips_use_msa)',

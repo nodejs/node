@@ -6,8 +6,6 @@
   'variables': {
     'inspector_protocol_path': '<(V8_ROOT)/third_party/inspector_protocol',
     'inspector_protocol_files': [
-      '<(inspector_protocol_path)/lib/base_string_adapter_cc.template',
-      '<(inspector_protocol_path)/lib/base_string_adapter_h.template',
       '<(inspector_protocol_path)/lib/Forward_h.template',
       '<(inspector_protocol_path)/lib/Object_cpp.template',
       '<(inspector_protocol_path)/lib/Object_h.template',
