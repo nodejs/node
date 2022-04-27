@@ -68,7 +68,7 @@ Node.js has an experimental implementation of
 
 The core implementation is in:
 
-* [lib/internal/process/policy.js](https://github.com/nodejs/node/blob/master/lib/internal/process/policy.js)
+* [`lib/internal/process/policy.js`](https://github.com/nodejs/node/blob/HEAD/lib/internal/process/policy.js)
 * [`lib/internal/policy`](https://github.com/nodejs/node/blob/HEAD/lib/internal/policy)
 
 along with integration into the CJS and ESM loaders in:
