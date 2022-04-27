@@ -312,6 +312,18 @@ assert.throws(
 );
 ```
 
+In the case of internal errors, prefer checking only the `code` property:
+
+```js
+assert.throws(
+  () => {
+    throw new ERR_FS_FILE_TOO_LARGE(`${sizeKiB} Kb`);
+  },
+  { code: 'ERR_FS_FILE_TOO_LARGE' }
+  // Do not include message: /^File size ([0-9]+ Kb) is greater than 2 GiB$/
+);
+```
+
 ### Console output
 
 Output written by tests to stdout or stderr, such as with `console.log()` or
