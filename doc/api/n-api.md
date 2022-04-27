@@ -2508,7 +2508,6 @@ of the ECMAScript Language Specification.
 
 <!-- YAML
 added: v16.15.0
-napiVersion: v16.15.0
 -->
 
 > Stability: 1 - Experimental
