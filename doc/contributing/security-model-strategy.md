@@ -73,5 +73,5 @@ The core implementation is in:
 
 along with integration into the CJS and ESM loaders in:
 
-* [internal/modules/esm](https://github.com/nodejs/node/tree/master/lib/internal/modules/esm)
+* [`lib/internal/modules/esm`](https://github.com/nodejs/node/blob/HEAD/lib/internal/modules/esm)
 * [internal/modules/cjs](https://github.com/nodejs/node/tree/master/lib/internal/modules/cjs)
