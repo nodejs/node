@@ -109,7 +109,7 @@ The project has a venue for real-time discussion:
     organization (not just collaborators on Node.js core) have access. Its
     contents should not be shared externally.
   * You can find the full moderation policy
-    [here](https://github.com/nodejs/admin/blob/HEAD/Moderation-Policy.md).
+    [here](https://github.com/nodejs/admin/blob/main/Moderation-Policy.md).
 
 ## Reviewing pull requests
 
@@ -252,13 +252,13 @@ needs to be pointed out separately during the onboarding.
 * If you are interested in helping to fix coverity reports consider requesting
   access to the projects coverity project as outlined in [static-analysis][].
 
-[Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
+[Code of Conduct]: https://github.com/nodejs/admin/blob/main/CODE_OF_CONDUCT.md
 [Labels]: doc/contributing/collaborator-guide.md#labels
 [Landing pull requests]: doc/contributing/collaborator-guide.md#landing-pull-requests
 [Publicizing or hiding organization membership]: https://help.github.com/articles/publicizing-or-hiding-organization-membership/
 [`author-ready`]: doc/contributing/collaborator-guide.md#author-ready-pull-requests
 [`core-validate-commit`]: https://github.com/nodejs/core-validate-commit
-[`git-node`]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md
+[`git-node`]: https://github.com/nodejs/node-core-utils/blob/main/docs/git-node.md
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [set up the credentials]: https://github.com/nodejs/node-core-utils#setting-up-github-credentials
 [static-analysis]: doc/contributing/static-analysis.md

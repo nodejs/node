@@ -113,5 +113,5 @@ For topics not covered here, refer to the [Microsoft Writing Style Guide][].
 [`remark-preset-lint-node`]: https://github.com/nodejs/remark-preset-lint-node
 [doctools README]: ../tools/doc/README.md
 [info string]: https://github.github.com/gfm/#info-string
-[language]: https://github.com/highlightjs/highlight.js/blob/HEAD/SUPPORTED_LANGUAGES.md
+[language]: https://github.com/highlightjs/highlight.js/blob/main/SUPPORTED_LANGUAGES.md
 [plugin]: https://editorconfig.org/#download
