@@ -319,3 +319,12 @@ test('custom inspect symbol that throws fail', () => {
 
   throw obj;
 });
+
+test('subtest sync throw fails', async (t) => {
+  await t.test('sync throw fails at first', (t) => {
+    throw new Error('thrown from subtest sync throw fails at first');
+  });
+  await t.test('sync throw fails at second', (t) => {
+    throw new Error('thrown from subtest sync throw fails at second');
+  });
+});
