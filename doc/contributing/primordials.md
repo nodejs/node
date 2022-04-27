@@ -400,6 +400,7 @@ process.on('exit', () => console.log(finallyBlockExecuted)); // true
 
 You can use safe alternatives from primordials that differ slightly from the
 original methods:
+
 * It expects an array (or array-like object) instead of an iterable.
 * It wraps each promise in `SafePromise` objects and wraps the result in a new
   `Promise` instance – which may come with a performance penalty.
