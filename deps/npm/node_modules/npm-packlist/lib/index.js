@@ -31,6 +31,7 @@ const packageMustHavesRE = new RegExp(`^(${packageMustHaveFileNames})(\\..*[^~$]
 
 const fs = require('fs')
 const glob = require('glob')
+const globify = pattern => pattern.split('\\').join('/')
 
 const pathHasPkg = (input) => {
   if (!input.startsWith('node_modules/')) {
@@ -428,7 +429,7 @@ class Walker extends IgnoreWalker {
   }
 
   globFiles (pattern, cb) {
-    glob(pattern, { dot: true, cwd: this.path, nocase: true }, cb)
+    glob(globify(pattern), { dot: true, cwd: this.path, nocase: true }, cb)
   }
 
   readPackageJson (entries) {

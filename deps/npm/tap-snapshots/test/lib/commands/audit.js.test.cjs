@@ -5,7 +5,7 @@
  * Make sure to inspect the output below.  Do not ignore changes!
  */
 'use strict'
-exports[`test/lib/commands/audit.js TAP audit fix > lockfile has test-dep-a@1.0.1 1`] = `
+exports[`test/lib/commands/audit.js TAP audit fix - bulk endpoint > lockfile has test-dep-a@1.0.1 1`] = `
 {
   "name": "test-dep",
   "version": "1.0.0",
@@ -34,11 +34,26 @@ exports[`test/lib/commands/audit.js TAP audit fix > lockfile has test-dep-a@1.0.
 
 `
 
-exports[`test/lib/commands/audit.js TAP audit fix > must match snapshot 1`] = `
+exports[`test/lib/commands/audit.js TAP audit fix - bulk endpoint > must match snapshot 1`] = `
 
 added 1 package, and audited 2 packages in xxx
 
 found 0 vulnerabilities
+`
+
+exports[`test/lib/commands/audit.js TAP fallback audit > must match snapshot 1`] = `
+# npm audit report
+
+test-dep-a  1.0.0
+Severity: high
+Test advisory 100 - https://github.com/advisories/GHSA-100
+fix available via \`npm audit fix\`
+node_modules/test-dep-a
+
+1 high severity vulnerability
+
+To address all issues, run:
+  npm audit fix
 `
 
 exports[`test/lib/commands/audit.js TAP json audit > must match snapshot 1`] = `
@@ -98,14 +113,14 @@ exports[`test/lib/commands/audit.js TAP json audit > must match snapshot 1`] = `
 exports[`test/lib/commands/audit.js TAP normal audit > must match snapshot 1`] = `
 # npm audit report
 
-test-dep-a  *
+test-dep-a  1.0.0
 Severity: high
 Test advisory 100 - https://github.com/advisories/GHSA-100
-No fix available
+fix available via \`npm audit fix\`
 node_modules/test-dep-a
 
 1 high severity vulnerability
 
-Some issues need review, and may require choosing
-a different dependency.
+To address all issues, run:
+  npm audit fix
 `

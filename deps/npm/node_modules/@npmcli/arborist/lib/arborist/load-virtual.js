@@ -278,6 +278,7 @@ module.exports = cls => class VirtualLoader extends cls {
     const peer = sw.peer
 
     const node = new Node({
+      installLinks: this.installLinks,
       legacyPeerDeps: this.legacyPeerDeps,
       root: this.virtualTree,
       path,
@@ -304,6 +305,7 @@ module.exports = cls => class VirtualLoader extends cls {
   [loadLink] (location, targetLoc, target, meta) {
     const path = resolve(this.path, location)
     const link = new Link({
+      installLinks: this.installLinks,
       legacyPeerDeps: this.legacyPeerDeps,
       path,
       realpath: resolve(this.path, targetLoc),

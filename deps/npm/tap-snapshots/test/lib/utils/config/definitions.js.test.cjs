@@ -76,6 +76,7 @@ Array [
   "init.license",
   "init.module",
   "init.version",
+  "install-links",
   "json",
   "key",
   "legacy-bundling",
@@ -168,6 +169,8 @@ exports[`test/lib/utils/config/definitions.js TAP > config description for _auth
 * Type: null or String
 
 A basic-auth string to use when authenticating against the npm registry.
+This will ONLY be used to authenticate against the npm registry. For other
+registries you will need to scope it like "//other-registry.tld/:_auth"
 
 Warning: This should generally not be set via a command-line option. It is
 safer to use a registry-provided authentication bearer token stored in the
@@ -971,6 +974,17 @@ exports[`test/lib/utils/config/definitions.js TAP > config description for init.
 * DEPRECATED: Use \`--init-version\` instead.
 
 Alias for \`--init-version\`
+`
+
+exports[`test/lib/utils/config/definitions.js TAP > config description for install-links 1`] = `
+#### \`install-links\`
+
+* Default: false
+* Type: Boolean
+
+When set file: protocol dependencies that exist outside of the project root
+will be packed and installed as regular dependencies instead of creating a
+symlink. This option has no effect on workspaces.
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for json 1`] = `

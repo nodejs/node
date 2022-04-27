@@ -48,10 +48,8 @@ class Exec extends BaseCommand {
   static ignoreImplicitWorkspace = false
   static isShellout = true
 
-  async exec (_args, { locationMsg, path, runPath } = {}) {
-    if (!path) {
-      path = this.npm.localPrefix
-    }
+  async exec (_args, { locationMsg, runPath } = {}) {
+    const path = this.npm.localPrefix
 
     if (!runPath) {
       runPath = process.cwd()
@@ -95,7 +93,7 @@ class Exec extends BaseCommand {
 
     for (const path of this.workspacePaths) {
       const locationMsg = await getLocationMsg({ color, path })
-      await this.exec(args, { locationMsg, path, runPath: path })
+      await this.exec(args, { locationMsg, runPath: path })
     }
   }
 }
