@@ -46,7 +46,7 @@ models are defined. The initial list includes:
 
 * Server
 * Desktop application
-* cli
+* Cli
 * Single executable application
 * CI/CD pipeline components
 
