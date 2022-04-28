@@ -39,7 +39,7 @@ class WasmStreamingObject final : public BaseObject {
   static void Abort(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   std::shared_ptr<v8::WasmStreaming> streaming_;
-  size_t wasm_size_;
+  size_t wasm_size_ = 0;
 };
 
 // This is a v8::WasmStreamingCallback implementation that must be passed to
