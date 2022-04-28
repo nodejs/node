@@ -1,3 +1,12 @@
+## 6.14.17 (2022-04-28)
+
+### DEPENDENCIES
+
+* [`a869ec48b`](https://github.com/npm/cli/commit/a869ec48b9481c10302378e6c2d94fe36e4c81c2)
+  `ansi-regex@4.1.1`
+* [`a869ec48b`](https://github.com/npm/cli/commit/a869ec48b9481c10302378e6c2d94fe36e4c81c2)
+  `minimist@1.2.6`
+
 ## 6.14.16 (2022-01-19)
 
 ### CHORE

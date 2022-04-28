@@ -42,3 +42,19 @@ test('proto pollution (constructor)', function (t) {
     t.equal(argv.y, undefined);
     t.end();
 });
+
+test('proto pollution (constructor function)', function (t) {
+    var argv = parse(['--_.concat.constructor.prototype.y', '123']);
+    function fnToBeTested() {}
+    t.equal(fnToBeTested.y, undefined);
+    t.equal(argv.y, undefined);
+    t.end();
+});
+
+// powered by snyk - https://github.com/backstage/backstage/issues/10343
+test('proto pollution (constructor function) snyk', function (t) {
+    var argv = parse('--_.constructor.constructor.prototype.foo bar'.split(' '));
+    t.equal((function(){}).foo, undefined);
+    t.equal(argv.y, undefined);
+    t.end();
+})

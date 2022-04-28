@@ -53,7 +53,7 @@ var fixture = new Tacks(
       },
       version: '1.2.5',
       dependencies: {
-        glob: 'git://github.com/isaacs/node-glob.git#npm-test'
+        glob: 'https://github.com/isaacs/node-glob.git#npm-test'
       },
       bundledDependencies: [
         'glob'

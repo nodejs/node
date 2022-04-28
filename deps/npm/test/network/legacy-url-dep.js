@@ -22,7 +22,7 @@ var fixture = new Tacks(
       dependencies: {
         jsonify: 'https://github.com/substack/jsonify/tarball/master',
         sax: 'isaacs/sax-js',
-        'canonical-host': 'git://github.com/isaacs/canonical-host'
+        'canonical-host': 'https://github.com/isaacs/canonical-host'
       }
     })
   })
