@@ -23,7 +23,7 @@ test('git-cache-no-hooks: install a git dependency', function (t) {
   if (process.env.TRAVIS) return t.end()
 
   common.npm([
-    'install', 'git://github.com/nigelzor/npm-4503-a.git',
+    'install', 'https://github.com/nigelzor/npm-4503-a.git',
     '--cache', cache,
     '--tmp', tmp
   ], {
