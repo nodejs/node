@@ -139,6 +139,23 @@ t.test('should install globally using Arborist', async t => {
   t.strictSame(SCRIPTS, [], 'no scripts when installing globally')
 })
 
+t.test('should not install invalid global package name', async t => {
+  const { npm } = await loadMockNpm(t, {
+    '@npmcli/run-script': () => {},
+    '../../lib/utils/reify-finish.js': async () => {},
+    '@npmcli/arborist': function (args) {
+      throw new Error('should not reify')
+    },
+  })
+  npm.config.set('global', true)
+  npm.globalPrefix = path.resolve(t.testdir({}))
+  await t.rejects(
+    npm.exec('install', ['']),
+    /Usage:/,
+    'should not install invalid package name'
+  )
+})
+
 t.test('npm i -g npm engines check success', async t => {
   const { npm } = await loadMockNpm(t, {
     '../../lib/utils/reify-finish.js': async () => {},

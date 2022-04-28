@@ -375,6 +375,8 @@ t.test('color', t => {
   t.strictSame(flat, { color: false, logColor: false }, 'true when --no-color')
 
   setTTY('stdout', false)
+  setTTY('stderr', false)
+
   obj.color = true
   definitions.color.flatten('color', obj, flat)
   t.strictSame(flat, { color: false, logColor: false }, 'no color when stdout not tty')
@@ -383,7 +385,6 @@ t.test('color', t => {
   t.strictSame(flat, { color: true, logColor: false }, '--color turns on color when stdout is tty')
   setTTY('stdout', false)
 
-  setTTY('stderr', false)
   obj.color = true
   definitions.color.flatten('color', obj, flat)
   t.strictSame(flat, { color: false, logColor: false }, 'no color when stderr not tty')

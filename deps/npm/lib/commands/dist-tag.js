@@ -1,9 +1,10 @@
 const npa = require('npm-package-arg')
+const path = require('path')
 const regFetch = require('npm-registry-fetch')
 const semver = require('semver')
 const log = require('../utils/log-shim')
 const otplease = require('../utils/otplease.js')
-const readPackageName = require('../utils/read-package-name.js')
+const readPackage = require('read-package-json-fast')
 const BaseCommand = require('../base-command.js')
 
 class DistTag extends BaseCommand {
@@ -150,12 +151,12 @@ class DistTag extends BaseCommand {
       if (this.npm.config.get('global')) {
         throw this.usageError()
       }
-      const pkg = await readPackageName(this.npm.prefix)
-      if (!pkg) {
+      const { name } = await readPackage(path.resolve(this.npm.prefix, 'package.json'))
+      if (!name) {
         throw this.usageError()
       }
 
-      return this.list(pkg, opts)
+      return this.list(name, opts)
     }
     spec = npa(spec)
 
