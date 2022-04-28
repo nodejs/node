@@ -257,9 +257,10 @@ class Parser : public AsyncWrap, public StreamListener {
   SET_SELF_SIZE(Parser)
 
   int on_message_begin() {
-    // Important: Pop from the list BEFORE resetting the last_message_start_
+    // Important: Pop from the lists BEFORE resetting the last_message_start_
     // otherwise std::set.erase will fail.
     if (connectionsList_ != nullptr) {
+      connectionsList_->Pop(this);
       connectionsList_->PopActive(this);
     }
 
@@ -270,6 +271,7 @@ class Parser : public AsyncWrap, public StreamListener {
     status_message_.Reset();
 
     if (connectionsList_ != nullptr) {
+      connectionsList_->Push(this);
       connectionsList_->PushActive(this);
     }
 
@@ -492,13 +494,18 @@ class Parser : public AsyncWrap, public StreamListener {
   int on_message_complete() {
     HandleScope scope(env()->isolate());
 
-    // Important: Pop from the list BEFORE resetting the last_message_start_
+    // Important: Pop from the lists BEFORE resetting the last_message_start_
     // otherwise std::set.erase will fail.
     if (connectionsList_ != nullptr) {
+      connectionsList_->Pop(this);
       connectionsList_->PopActive(this);
     }
 
     last_message_start_ = 0;
+
+    if (connectionsList_ != nullptr) {
+      connectionsList_->Push(this);
+    }
 
     if (num_fields_)
       Flush();  // Flush trailing HTTP headers.
@@ -666,12 +673,14 @@ class Parser : public AsyncWrap, public StreamListener {
     if (connectionsList != nullptr) {
       parser->connectionsList_ = connectionsList;
 
-      parser->connectionsList_->Push(parser);
-
       // This protects from a DoS attack where an attacker establishes
       // the connection without sending any data on applications where
       // server.timeout is left to the default value of zero.
       parser->last_message_start_ = uv_hrtime();
+
+      // Important: Push into the lists AFTER setting the last_message_start_
+      // otherwise std::set.erase will fail later.
+      parser->connectionsList_->Push(parser);
       parser->connectionsList_->PushActive(parser);
     } else {
       parser->connectionsList_ = nullptr;
@@ -1044,10 +1053,14 @@ class Parser : public AsyncWrap, public StreamListener {
 };
 
 bool ParserComparator::operator()(const Parser* lhs, const Parser* rhs) const {
-  if (lhs->last_message_start_ == 0) {
-    return false;
-  } else if (rhs->last_message_start_ == 0) {
+  if (lhs->last_message_start_ == 0 && rhs->last_message_start_ == 0) {
+    // When both parsers are idle, guarantee strict order by
+    // comparing pointers as ints.
+    return lhs < rhs;
+  } else if (lhs->last_message_start_ == 0) {
     return true;
+  } else if (rhs->last_message_start_ == 0) {
+    return false;
   }
 
   return lhs->last_message_start_ < rhs->last_message_start_;

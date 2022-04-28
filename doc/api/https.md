@@ -133,7 +133,23 @@ added: v0.1.90
 * `callback` {Function}
 * Returns: {https.Server}
 
-See [`server.close()`][`http.close()`] from the HTTP module for details.
+See [`http.Server.close()`][].
+
+### `server.closeAllConnections()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+See [`http.Server.closeAllConnections()`][].
+
+### `server.closeIdleConnections()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+See [`http.Server.closeIdleConnections()`][].
 
 ### `server.headersTimeout`
 
@@ -529,8 +545,10 @@ headers: max-age=0; pin-sha256="WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18="; p
 [`http.Server#requestTimeout`]: http.md#serverrequesttimeout
 [`http.Server#setTimeout()`]: http.md#serversettimeoutmsecs-callback
 [`http.Server#timeout`]: http.md#servertimeout
+[`http.Server.close()`]: http.md#serverclosecallback
+[`http.Server.closeAllConnections()`]: http.md#servercloseallconnections
+[`http.Server.closeIdleConnections()`]: http.md#servercloseidleconnections
 [`http.Server`]: http.md#class-httpserver
-[`http.close()`]: http.md#serverclosecallback
 [`http.createServer()`]: http.md#httpcreateserveroptions-requestlistener
 [`http.get()`]: http.md#httpgetoptions-callback
 [`http.request()`]: http.md#httprequestoptions-callback
