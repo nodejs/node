@@ -48,8 +48,9 @@ installs are essentially frozen\.
 .P
 NOTE: If you create your \fBpackage\-lock\.json\fP file by running \fBnpm install\fP
 with flags that can affect the shape of your dependency tree, such as
-\fB\-\-legacy\-peer\-deps\fP, you \fImust\fR provide the same flags to \fBnpm ci\fP or you
-are likely to encounter errors\. An easy way to do this is to run
+\fB\-\-legacy\-peer\-deps\fP or \fB\-\-install\-links\fP, you \fImust\fR provide the same
+flags to \fBnpm ci\fP or you are likely to encounter errors\. An easy way to do
+this is to run, for example,
 \fBnpm config set legacy\-peer\-deps=true \-\-location=project\fP and commit the
 \fB\|\.npmrc\fP file to your repo\.
 .SS Example

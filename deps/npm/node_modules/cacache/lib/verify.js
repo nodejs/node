@@ -13,6 +13,8 @@ const path = require('path')
 const rimraf = util.promisify(require('rimraf'))
 const ssri = require('ssri')
 
+const globify = pattern => pattern.split('\\').join('/')
+
 const hasOwnProperty = (obj, key) =>
   Object.prototype.hasOwnProperty.call(obj, key)
 
@@ -119,7 +121,7 @@ function garbageCollect (cache, opts) {
     indexStream.on('end', resolve).on('error', reject)
   }).then(() => {
     const contentDir = contentPath.contentDir(cache)
-    return glob(path.join(contentDir, '**'), {
+    return glob(globify(path.join(contentDir, '**')), {
       follow: false,
       nodir: true,
       nosort: true,
