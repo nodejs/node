@@ -1169,8 +1169,7 @@ int Start(int argc, char** argv) {
   }
 
   {
-    bool use_node_snapshot =
-        per_process::cli_options->per_isolate->node_snapshot;
+    bool use_node_snapshot = per_process::cli_options->node_snapshot;
     const SnapshotData* snapshot_data =
         use_node_snapshot ? SnapshotBuilder::GetEmbeddedSnapshotData()
                           : nullptr;
