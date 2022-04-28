@@ -6,6 +6,8 @@ const glob = promisify(require('glob'))
 const readFile = promisify(fs.readFile)
 const BaseCommand = require('../base-command.js')
 
+const globify = pattern => pattern.split('\\').join('/')
+
 class HelpSearch extends BaseCommand {
   static description = 'Search npm help documentation'
   static name = 'help-search'
@@ -19,7 +21,7 @@ class HelpSearch extends BaseCommand {
     }
 
     const docPath = path.resolve(__dirname, '..', '..', 'docs/content')
-    const files = await glob(`${docPath}/*/*.md`)
+    const files = await glob(`${globify(docPath)}/*/*.md`)
     const data = await this.readFiles(files)
     const results = await this.searchFiles(args, data, files)
     const formatted = this.formatResults(args, results)

@@ -5,11 +5,13 @@
  * for tests against any registry data.
  */
 const pacote = require('pacote')
+const npa = require('npm-package-arg')
 class MockRegistry {
   #tap
   #nock
   #registry
   #authorization
+  #basic
 
   constructor (opts) {
     if (!opts.registry) {
@@ -17,6 +19,7 @@ class MockRegistry {
     }
     this.#registry = (new URL(opts.registry)).origin
     this.#authorization = opts.authorization
+    this.#basic = opts.basic
     // Required for this.package
     this.#tap = opts.tap
   }
@@ -31,6 +34,9 @@ class MockRegistry {
       if (this.#authorization) {
         reqheaders.authorization = `Bearer ${this.#authorization}`
       }
+      if (this.#basic) {
+        reqheaders.authorization = `Basic ${this.#basic}`
+      }
       this.#nock = tnock(this.#tap, this.#registry, { reqheaders })
     }
     return this.#nock
@@ -40,8 +46,12 @@ class MockRegistry {
     this.#nock = nock
   }
 
-  whoami ({ username }) {
-    this.nock = this.nock.get('/-/whoami').reply(200, { username })
+  whoami ({ username, body, responseCode = 200, times = 1 }) {
+    if (username) {
+      this.nock = this.nock.get('/-/whoami').times(times).reply(responseCode, { username })
+    } else {
+      this.nock = this.nock.get('/-/whoami').times(times).reply(responseCode, body)
+    }
   }
 
   access ({ spec, access, publishRequires2fa }) {
@@ -80,6 +90,16 @@ class MockRegistry {
     ).reply(200)
   }
 
+  couchuser ({ username, body, responseCode = 200 }) {
+    if (body) {
+      this.nock = this.nock.get(`/-/user/org.couchdb.user:${encodeURIComponent(username)}`)
+        .reply(responseCode, body)
+    } else {
+      this.nock = this.nock.get(`/-/user/org.couchdb.user:${encodeURIComponent(username)}`)
+        .reply(responseCode, { _id: `org.couchdb.user:${username}`, email: '', name: username })
+    }
+  }
+
   couchlogin ({ username, password, email, otp, token = 'npm_default-test-token' }) {
     this.nock = this.nock
       .post('/-/v1/login').reply(401, { error: 'You must be logged in to publish packages.' })
@@ -108,7 +128,7 @@ class MockRegistry {
   }
 
   // team can be a team or a username
-  lsPackages ({ team, packages = {} }) {
+  lsPackages ({ team, packages = {}, times = 1 }) {
     if (team.startsWith('@')) {
       team = team.slice(1)
     }
@@ -119,7 +139,7 @@ class MockRegistry {
     } else {
       uri = `/-/org/${encodeURIComponent(scope)}/package`
     }
-    this.nock = this.nock.get(uri).query({ format: 'cli' }).reply(200, packages)
+    this.nock = this.nock.get(uri).query({ format: 'cli' }).times(times).reply(200, packages)
   }
 
   lsCollaborators ({ spec, user, collaborators = {} }) {
@@ -152,7 +172,8 @@ class MockRegistry {
 
   async package ({ manifest, times = 1, query, tarballs }) {
     let nock = this.nock
-    nock = nock.get(`/${manifest.name}`).times(times)
+    const spec = npa(manifest.name)
+    nock = nock.get(`/${spec.escapedName}`).times(times)
     if (query) {
       nock = nock.query(query)
     }
@@ -169,8 +190,10 @@ class MockRegistry {
     this.nock = nock
   }
 
-  // the last packument in the packuments array will be tagged as latest
-  manifest ({ name = 'test-package', packuments } = {}) {
+  // either pass in packuments if you need to set specific attributes besides version,
+  // or an array of versions
+  // the last packument in the packuments or versions array will be tagged latest
+  manifest ({ name = 'test-package', packuments, versions } = {}) {
     packuments = this.packuments(packuments, name)
     const latest = packuments.slice(-1)[0]
     const manifest = {
@@ -184,6 +207,9 @@ class MockRegistry {
       'dist-tags': { latest: latest.version },
       ...latest,
     }
+    if (versions) {
+      packuments = versions.map(version => ({ version }))
+    }
 
     for (const packument of packuments) {
       manifest.versions[packument.version] = {
@@ -194,6 +220,7 @@ class MockRegistry {
         dist: {
           tarball: `${this.#registry}/${name}/-/${name}-${packument.version}.tgz`,
         },
+        maintainers: [],
         ...packument,
       }
       manifest.time[packument.version] = new Date()

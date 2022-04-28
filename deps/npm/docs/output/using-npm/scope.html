@@ -194,9 +194,22 @@ registry.</p>
 <strong>does</strong> support scoped packages.)</p>
 <p>If you wish, you may associate a scope with a registry; see below.</p>
 <h4 id="publishing-public-scoped-packages-to-the-primary-npm-registry">Publishing public scoped packages to the primary npm registry</h4>
-<p>To publish a public scoped package, you must specify <code>--access public</code> with
-the initial publication. This will publish the package and set access
-to <code>public</code> as if you had run <code>npm access public</code> after publishing.</p>
+<p>Publishing to a scope, you have two options:</p>
+<ul>
+<li>Publishing to your user scope (example: <code>@username/module</code>)</li>
+<li>Publishing to an organization scope (example: <code>@org/module</code>)</li>
+</ul>
+<p>If publishing a public module to an organization scope, you must
+first either create an organization with the name of the scope
+that you'd like to publish to or be added to an existing organization
+with the appropriate permisssions. For example, if you'd like to
+publish to <code>@org</code>, you would  need to create the <code>org</code> organization
+on npmjs.com prior to trying to publish.</p>
+<p>Scoped packages are not public by default.  You will need to specify
+<code>--access public</code> with the initial <code>npm publish</code> command.  This will publish
+the package and set access to <code>public</code> as if you had run <code>npm access public</code>
+after publishing.  You do not need to do this when publishing new versions of
+an existing scoped package.</p>
 <h4 id="publishing-private-scoped-packages-to-the-npm-registry">Publishing private scoped packages to the npm registry</h4>
 <p>To publish a private scoped package to the npm registry, you must have
 an <a href="https://docs.npmjs.com/private-modules/intro">npm Private Modules</a>

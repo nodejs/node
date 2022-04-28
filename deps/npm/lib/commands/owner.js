@@ -3,8 +3,18 @@ const npmFetch = require('npm-registry-fetch')
 const pacote = require('pacote')
 const log = require('../utils/log-shim')
 const otplease = require('../utils/otplease.js')
-const readLocalPkgName = require('../utils/read-package-name.js')
+const readPackageJsonFast = require('read-package-json-fast')
 const BaseCommand = require('../base-command.js')
+const { resolve } = require('path')
+
+const readJson = async (pkg) => {
+  try {
+    const json = await readPackageJsonFast(pkg)
+    return json
+  } catch {
+    return {}
+  }
+}
 
 class Owner extends BaseCommand {
   static description = 'Manage package owners'
@@ -41,12 +51,12 @@ class Owner extends BaseCommand {
       if (this.npm.config.get('global')) {
         return []
       }
-      const pkgName = await readLocalPkgName(this.npm.prefix)
-      if (!pkgName) {
+      const { name } = await readJson(resolve(this.npm.prefix, 'package.json'))
+      if (!name) {
         return []
       }
 
-      const spec = npa(pkgName)
+      const spec = npa(name)
       const data = await pacote.packument(spec, {
         ...this.npm.flatOptions,
         fullMetadata: true,
@@ -96,12 +106,12 @@ class Owner extends BaseCommand {
       if (this.npm.config.get('global')) {
         throw this.usageError()
       }
-      const pkgName = await readLocalPkgName(this.npm.prefix)
-      if (!pkgName) {
+      const { name } = await readJson(resolve(this.npm.prefix, 'package.json'))
+      if (!name) {
         throw this.usageError()
       }
 
-      return pkgName
+      return name
     }
     return pkg
   }
@@ -123,15 +133,6 @@ class Owner extends BaseCommand {
     } catch (err) {
       log.error('owner mutate', `Error getting user data for ${user}`)
       throw err
-    }
-
-    if (!u || !u.name || u.error) {
-      throw Object.assign(
-        new Error(
-          "Couldn't get user data for " + user + ': ' + JSON.stringify(u)
-        ),
-        { code: 'EOWNERUSER' }
-      )
     }
 
     // normalize user data
@@ -177,32 +178,31 @@ class Owner extends BaseCommand {
     }
 
     const dataPath = `/${spec.escapedName}/-rev/${encodeURIComponent(data._rev)}`
-    const res = await otplease(this.npm.flatOptions, opts => {
-      return npmFetch.json(dataPath, {
-        ...opts,
-        method: 'PUT',
-        body: {
-          _id: data._id,
-          _rev: data._rev,
-          maintainers,
-        },
-        spec,
+    try {
+      const res = await otplease(this.npm.flatOptions, opts => {
+        return npmFetch.json(dataPath, {
+          ...opts,
+          method: 'PUT',
+          body: {
+            _id: data._id,
+            _rev: data._rev,
+            maintainers,
+          },
+          spec,
+        })
       })
-    })
-
-    if (!res.error) {
       if (addOrRm === 'add') {
         this.npm.output(`+ ${user} (${spec.name})`)
       } else {
         this.npm.output(`- ${user} (${spec.name})`)
       }
-    } else {
+      return res
+    } catch (err) {
       throw Object.assign(
-        new Error('Failed to update package: ' + JSON.stringify(res)),
+        new Error('Failed to update package: ' + JSON.stringify(err.message)),
         { code: 'EOWNERMUTATE' }
       )
     }
-    return res
   }
 }
 

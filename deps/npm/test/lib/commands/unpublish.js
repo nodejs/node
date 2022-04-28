@@ -423,8 +423,8 @@ t.test('completion', async t => {
       packuments: ['1.0.0', '1.0.1'],
     })
     await registry.package({ manifest, query: { write: true } })
-    registry.nock.get('/-/whoami').reply(200, { username: user })
-      .get('/-/org/test-user/package?format=cli').reply(200, { [pkg]: 'write' })
+    registry.whoami({ username: user })
+    registry.nock.get('/-/org/test-user/package?format=cli').reply(200, { [pkg]: 'write' })
 
     await testComp(t, {
       argv: ['npm', 'unpublish'],
@@ -445,8 +445,8 @@ t.test('completion', async t => {
     const manifest = registry.manifest({ name: pkg })
     manifest.versions = {}
     await registry.package({ manifest, query: { write: true } })
-    registry.nock.get('/-/whoami').reply(200, { username: user })
-      .get('/-/org/test-user/package?format=cli').reply(200, { [pkg]: 'write' })
+    registry.whoami({ username: user })
+    registry.nock.get('/-/org/test-user/package?format=cli').reply(200, { [pkg]: 'write' })
 
     await testComp(t, {
       argv: ['npm', 'unpublish'],
@@ -464,12 +464,12 @@ t.test('completion', async t => {
       registry: npm.config.get('registry'),
       authorization: 'test-auth-token',
     })
-    registry.nock.get('/-/whoami').reply(200, { username: user })
-      .get('/-/org/test-user/package?format=cli').reply(200, {
-        [pkg]: 'write',
-        [`${pkg}a`]: 'write',
-        [`${pkg}b`]: 'write',
-      })
+    registry.whoami({ username: user })
+    registry.nock.get('/-/org/test-user/package?format=cli').reply(200, {
+      [pkg]: 'write',
+      [`${pkg}a`]: 'write',
+      [`${pkg}b`]: 'write',
+    })
 
     await testComp(t, {
       argv: ['npm', 'unpublish'],
@@ -488,7 +488,7 @@ t.test('completion', async t => {
       registry: npm.config.get('registry'),
       authorization: 'test-auth-token',
     })
-    registry.nock.get('/-/whoami').reply(200, { username: user })
+    registry.whoami({ username: user })
     registry.nock.get('/-/org/test-user/package?format=cli').reply(200, {})
 
     await testComp(t, {
@@ -505,11 +505,11 @@ t.test('completion', async t => {
       registry: npm.config.get('registry'),
       authorization: 'test-auth-token',
     })
-    registry.nock.get('/-/whoami').reply(200, { username: user })
-      .get('/-/org/test-user/package?format=cli').reply(200, {
-        [pkg]: 'write',
-        [`${pkg}a`]: 'write',
-      })
+    registry.whoami({ username: user })
+    registry.nock.get('/-/org/test-user/package?format=cli').reply(200, {
+      [pkg]: 'write',
+      [`${pkg}a`]: 'write',
+    })
 
     await testComp(t, {
       argv: ['npm', 'unpublish'],
@@ -525,8 +525,8 @@ t.test('completion', async t => {
       registry: npm.config.get('registry'),
       authorization: 'test-auth-token',
     })
-    registry.nock.get('/-/whoami').reply(200, { username: user })
-      .get('/-/org/test-user/package?format=cli').reply(200, null)
+    registry.whoami({ username: user })
+    registry.nock.get('/-/org/test-user/package?format=cli').reply(200, null)
 
     await testComp(t, {
       argv: ['npm', 'unpublish'],
@@ -542,7 +542,7 @@ t.test('completion', async t => {
       registry: npm.config.get('registry'),
       authorization: 'test-auth-token',
     })
-    registry.nock.get('/-/whoami').reply(404)
+    registry.whoami({ responseCode: 404 })
 
     await testComp(t, {
       argv: ['npm', 'unpublish'],
