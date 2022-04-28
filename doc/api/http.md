@@ -1455,6 +1455,23 @@ added: v0.1.90
 
 Stops the server from accepting new connections. See [`net.Server.close()`][].
 
+### `server.closeAllConnections()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Closes all connections connected to this server.
+
+### `server.closeIdleConnections()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Closes all connections connected to this server which are not sending a request
+or waiting for a response.
+
 ### `server.headersTimeout`
 
 <!-- YAML
