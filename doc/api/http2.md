@@ -2343,7 +2343,7 @@ Throws `ERR_HTTP2_INVALID_SETTING_VALUE` for invalid `settings` values.
 
 Throws `ERR_INVALID_ARG_TYPE` for invalid `settings` argument.
 
-### `http2.createServer(options[, onRequestHandler])`
+### `http2.createServer([options][, onRequestHandler])`
 
 <!-- YAML
 added: v8.4.0
