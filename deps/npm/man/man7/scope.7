@@ -80,9 +80,27 @@ registry\.
 If you wish, you may associate a scope with a registry; see below\.
 .SS Publishing public scoped packages to the primary npm registry
 .P
-To publish a public scoped package, you must specify \fB\-\-access public\fP with
-the initial publication\. This will publish the package and set access
-to \fBpublic\fP as if you had run \fBnpm access public\fP after publishing\.
+Publishing to a scope, you have two options:
+.RS 0
+.IP \(bu 2
+Publishing to your user scope (example: \fB@username/module\fP)
+.IP \(bu 2
+Publishing to an organization scope (example: \fB@org/module\fP)
+
+.RE
+.P
+If publishing a public module to an organization scope, you must
+first either create an organization with the name of the scope
+that you'd like to publish to or be added to an existing organization
+with the appropriate permisssions\. For example, if you'd like to
+publish to \fB@org\fP, you would  need to create the \fBorg\fP organization
+on npmjs\.com prior to trying to publish\.
+.P
+Scoped packages are not public by default\.  You will need to specify
+\fB\-\-access public\fP with the initial \fBnpm publish\fP command\.  This will publish
+the package and set access to \fBpublic\fP as if you had run \fBnpm access public\fP
+after publishing\.  You do not need to do this when publishing new versions of
+an existing scoped package\.
 .SS Publishing private scoped packages to the npm registry
 .P
 To publish a private scoped package to the npm registry, you must have

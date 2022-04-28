@@ -118,7 +118,7 @@ const LoadMockNpm = async (t, {
   mockGlobals(t, {
     'process.env.HOME': home,
     'process.env.npm_config_cache': cache,
-    ...(globals ? result(globals, { prefix, cache }) : {}),
+    ...(globals ? result(globals, { prefix, cache, home }) : {}),
     // Some configs don't work because they can't be set via npm.config.set until
     // config is loaded. But some config items are needed before that. So this is
     // an explicit set of configs that must be loaded as env vars.

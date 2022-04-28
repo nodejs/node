@@ -91,14 +91,14 @@ NOTE: The \fB\-\-production\fP flag has no particular meaning when adding a
   \fInpm will not install the package dependencies\fR in the directory \fB<folder>\fP,
   but it will create a symlink to \fB<folder>\fP\|\.
 .QP
-NOTE: If you want to install the content of a directory like a package from the registry instead of creating a link, you would need to use npm help \fBpack\fP while in the \fB<folder>\fP directory, and then install the resulting tarball instead of the \fB<folder>\fP using \fBnpm install <tarball file>\fP
+NOTE: If you want to install the content of a directory like a package from the registry instead of creating a link, you would need to use the \fB\-\-install\-links\fP option\.
 
 .
   Example:
 .P
 .RS 2
 .nf
-  npm install \.\./\.\./other\-package
+  npm install \.\./\.\./other\-package \-\-install\-links
   npm install \./sub\-package
 .fi
 .RE
@@ -727,6 +727,18 @@ all workspaces via the \fBworkspaces\fP flag, will cause npm to operate only on
 the specified workspaces, and not on the root project\.
 .P
 This value is not exported to the environment for child processes\.
+.SS \fBinstall\-links\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+When set file: protocol dependencies that exist outside of the project root
+will be packed and installed as regular dependencies instead of creating a
+symlink\. This option has no effect on workspaces\.
 .SS Algorithm
 .P
 Given a \fBpackage{dep}\fP structure: \fBA{B,C}, B{C}, C{D}\fP,

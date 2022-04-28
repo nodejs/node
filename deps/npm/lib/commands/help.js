@@ -5,6 +5,7 @@ const { promisify } = require('util')
 const glob = promisify(require('glob'))
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 
+const globify = pattern => pattern.split('\\').join('/')
 const BaseCommand = require('../base-command.js')
 
 // Strips out the number from foo.7 or foo.7. or foo.7.tgz
@@ -26,7 +27,7 @@ class Help extends BaseCommand {
       return []
     }
     const g = path.resolve(__dirname, '../../man/man[0-9]/*.[0-9]')
-    const files = await glob(g)
+    const files = await glob(globify(g))
 
     return Object.keys(files.reduce(function (acc, file) {
       file = path.basename(file).replace(/\.[0-9]+$/, '')
@@ -61,7 +62,7 @@ class Help extends BaseCommand {
     const manroot = path.resolve(__dirname, '..', '..', 'man')
     // find either section.n or npm-section.n
     const f = `${manroot}/${manSearch}/?(npm-)${section}.[0-9]*`
-    let mans = await glob(f)
+    let mans = await glob(globify(f))
     mans = mans.sort((a, b) => {
       // Prefer the page with an npm prefix, if there's only one.
       const aHasPrefix = manNpmPrefixRegex.test(a)
