@@ -45,6 +45,7 @@ class PlaceDep {
       auditReport,
       legacyBundling,
       strictPeerDeps,
+      installLinks,
       legacyPeerDeps,
       globalStyle,
     } = parent || options
@@ -56,6 +57,7 @@ class PlaceDep {
       auditReport,
       legacyBundling,
       strictPeerDeps,
+      installLinks,
       legacyPeerDeps,
       globalStyle,
     })
@@ -293,6 +295,7 @@ class PlaceDep {
       pkg: dep.package,
       resolved: dep.resolved,
       integrity: dep.integrity,
+      installLinks: this.installLinks,
       legacyPeerDeps: this.legacyPeerDeps,
       error: dep.errors[0],
       ...(dep.overrides ? { overrides: dep.overrides } : {}),

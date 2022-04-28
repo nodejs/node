@@ -139,6 +139,12 @@ class Install extends ArboristWorkspaceCmd {
       args = ['.']
     }
 
+    // throw usage error if trying to install empty package
+    // name to global space, e.g: `npm i -g ""`
+    if (where === globalTop && !args.every(Boolean)) {
+      throw this.usageError()
+    }
+
     const opts = {
       ...this.npm.flatOptions,
       auditLevel: null,

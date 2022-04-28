@@ -65,7 +65,7 @@ var stylize = colors.stylize = function stylize(str, style) {
   var styleMap = ansiStyles[style];
 
   // Stylize should work for non-ANSI styles, too
-  if(!styleMap && style in colors){
+  if (!styleMap && style in colors) {
     // Style maps like trap operate as functions on strings;
     // they don't have properties like open or close.
     return colors[style](str);

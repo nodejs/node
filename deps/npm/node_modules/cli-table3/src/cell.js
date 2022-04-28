@@ -1,3 +1,4 @@
+const { info, debug } = require('./debug');
 const utils = require('./utils');
 
 class Cell {
@@ -30,12 +31,19 @@ class Cell {
     if (['boolean', 'number', 'string'].indexOf(typeof content) !== -1) {
       this.content = String(content);
     } else if (!content) {
-      this.content = '';
+      this.content = this.options.href || '';
     } else {
       throw new Error('Content needs to be a primitive, got: ' + typeof content);
     }
     this.colSpan = options.colSpan || 1;
     this.rowSpan = options.rowSpan || 1;
+    if (this.options.href) {
+      Object.defineProperty(this, 'href', {
+        get() {
+          return this.options.href;
+        },
+      });
+    }
   }
 
   mergeTableOptions(tableOptions, cells) {
@@ -57,23 +65,35 @@ class Cell {
     this.head = style.head || tableStyle.head;
     this.border = style.border || tableStyle.border;
 
-    let fixedWidth = tableOptions.colWidths[this.x];
-    if (tableOptions.wordWrap && fixedWidth) {
-      fixedWidth -= this.paddingLeft + this.paddingRight;
-      if (this.colSpan) {
-        let i = 1;
-        while (i < this.colSpan) {
-          fixedWidth += tableOptions.colWidths[this.x + i];
-          i++;
-        }
-      }
-      this.lines = utils.colorizeLines(utils.wordWrap(fixedWidth, this.content));
-    } else {
-      this.lines = utils.colorizeLines(this.content.split('\n'));
-    }
+    this.fixedWidth = tableOptions.colWidths[this.x];
+    this.lines = this.computeLines(tableOptions);
 
     this.desiredWidth = utils.strlen(this.content) + this.paddingLeft + this.paddingRight;
     this.desiredHeight = this.lines.length;
+  }
+
+  computeLines(tableOptions) {
+    if (this.fixedWidth && (tableOptions.wordWrap || tableOptions.textWrap)) {
+      this.fixedWidth -= this.paddingLeft + this.paddingRight;
+      if (this.colSpan) {
+        let i = 1;
+        while (i < this.colSpan) {
+          this.fixedWidth += tableOptions.colWidths[this.x + i];
+          i++;
+        }
+      }
+      const { wrapOnWordBoundary = true } = tableOptions;
+      return this.wrapLines(utils.wordWrap(this.fixedWidth, this.content, wrapOnWordBoundary));
+    }
+    return this.wrapLines(this.content.split('\n'));
+  }
+
+  wrapLines(computedLines) {
+    const lines = utils.colorizeLines(computedLines);
+    if (this.href) {
+      return lines.map((line) => utils.hyperlink(this.href, line));
+    }
+    return lines;
   }
 
   /**
@@ -110,6 +130,12 @@ class Cell {
   draw(lineNum, spanningCell) {
     if (lineNum == 'top') return this.drawTop(this.drawRight);
     if (lineNum == 'bottom') return this.drawBottom(this.drawRight);
+    let content = utils.truncate(this.content, 10, this.truncate);
+    if (!lineNum) {
+      info(`${this.y}-${this.x}: ${this.rowSpan - lineNum}x${this.colSpan} Cell ${content}`);
+    } else {
+      // debug(`${lineNum}-${this.x}: 1x${this.colSpan} RowSpanCell ${content}`);
+    }
     let padLen = Math.max(this.height - this.lines.length, 0);
     let padTop;
     switch (this.vAlign) {
@@ -186,7 +212,7 @@ class Cell {
   wrapWithStyleColors(styleProperty, content) {
     if (this[styleProperty] && this[styleProperty].length) {
       try {
-        let colors = require('colors/safe');
+        let colors = require('@colors/colors/safe');
         for (let i = this[styleProperty].length - 1; i >= 0; i--) {
           colors = colors[this[styleProperty][i]];
         }
@@ -285,7 +311,10 @@ class ColSpanCell {
    */
   constructor() {}
 
-  draw() {
+  draw(lineNum) {
+    if (typeof lineNum === 'number') {
+      debug(`${this.y}-${this.x}: 1x1 ColSpanCell`);
+    }
     return '';
   }
 
@@ -319,10 +348,15 @@ class RowSpanCell {
     if (lineNum == 'bottom') {
       return this.originalCell.draw('bottom');
     }
+    debug(`${this.y}-${this.x}: 1x${this.colSpan} RowSpanCell for ${this.originalCell.content}`);
     return this.originalCell.draw(this.offset + 1 + lineNum);
   }
 
   mergeTableOptions() {}
+}
+
+function firstDefined(...args) {
+  return args.filter((v) => v !== undefined && v !== null).shift();
 }
 
 // HELPER FUNCTIONS
@@ -331,9 +365,9 @@ function setOption(objA, objB, nameB, targetObj) {
   if (nameA.length > 1) {
     nameA[1] = nameA[1].charAt(0).toUpperCase() + nameA[1].substr(1);
     nameA = nameA.join('');
-    targetObj[nameA] = objA[nameA] || objA[nameB] || objB[nameA] || objB[nameB];
+    targetObj[nameA] = firstDefined(objA[nameA], objA[nameB], objB[nameA], objB[nameB]);
   } else {
-    targetObj[nameB] = objA[nameB] || objB[nameB];
+    targetObj[nameB] = firstDefined(objA[nameB], objB[nameB]);
   }
 }
 
@@ -366,6 +400,7 @@ let CHAR_NAMES = [
   'right-mid',
   'middle',
 ];
+
 module.exports = Cell;
 module.exports.ColSpanCell = ColSpanCell;
 module.exports.RowSpanCell = RowSpanCell;

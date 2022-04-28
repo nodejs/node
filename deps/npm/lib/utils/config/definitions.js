@@ -147,6 +147,8 @@ define('_auth', {
   type: [null, String],
   description: `
     A basic-auth string to use when authenticating against the npm registry.
+    This will ONLY be used to authenticate against the npm registry.  For other
+    registries you will need to scope it like "//other-registry.tld/:_auth"
 
     Warning: This should generally not be set via a command-line option.  It
     is safer to use a registry-provided authentication bearer token stored in
@@ -1068,6 +1070,17 @@ define('init.version', {
   description: `
     Alias for \`--init-version\`
   `,
+})
+
+define('install-links', {
+  default: false,
+  type: Boolean,
+  description: `
+    When set file: protocol dependencies that exist outside of the project root
+    will be packed and installed as regular dependencies instead of creating a
+    symlink. This option has no effect on workspaces.
+  `,
+  flatten,
 })
 
 define('json', {

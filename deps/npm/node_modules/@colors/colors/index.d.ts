@@ -1,7 +1,7 @@
-// Type definitions for Colors.js 1.2
+// Type definitions for @colors/colors 1.4+
 // Project: https://github.com/Marak/colors.js
 // Definitions by: Bart van der Schoor <https://github.com/Bartvds>, Staffan Eketorp <https://github.com/staeke>
-// Definitions: https://github.com/Marak/colors.js
+// Definitions: https://github.com/DABH/colors.js
 
 export interface Color {
     (text: string): string;

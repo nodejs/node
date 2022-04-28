@@ -4,7 +4,7 @@ const url = require('url')
 
 function packageName (href) {
   try {
-    let basePath = new url.URL(href).pathname.substr(1)
+    let basePath = new url.URL(href).pathname.slice(1)
     if (!basePath.match(/^-/)) {
       basePath = basePath.split('/')
       var index = basePath.indexOf('_rewrite')

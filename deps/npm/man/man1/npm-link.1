@@ -390,6 +390,18 @@ all workspaces via the \fBworkspaces\fP flag, will cause npm to operate only on
 the specified workspaces, and not on the root project\.
 .P
 This value is not exported to the environment for child processes\.
+.SS \fBinstall\-links\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+When set file: protocol dependencies that exist outside of the project root
+will be packed and installed as regular dependencies instead of creating a
+symlink\. This option has no effect on workspaces\.
 .SS See Also
 .RS 0
 .IP \(bu 2

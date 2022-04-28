@@ -124,6 +124,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
       globalStyle = false,
       idealTree = null,
       includeWorkspaceRoot = false,
+      installLinks = false,
       legacyPeerDeps = false,
       packageLock = true,
       strictPeerDeps = false,
@@ -135,6 +136,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     this[_strictPeerDeps] = !!strictPeerDeps
 
     this.idealTree = idealTree
+    this.installLinks = installLinks
     this.legacyPeerDeps = legacyPeerDeps
 
     this[_usePackageLock] = packageLock
@@ -410,6 +412,7 @@ Try using the package name instead, e.g:
       peer: false,
       optional: false,
       global: this[_global],
+      installLinks: this.installLinks,
       legacyPeerDeps: this.legacyPeerDeps,
       loadOverrides: true,
     })
@@ -424,6 +427,7 @@ Try using the package name instead, e.g:
         peer: false,
         optional: false,
         global: this[_global],
+        installLinks: this.installLinks,
         legacyPeerDeps: this.legacyPeerDeps,
         root,
       })
@@ -992,6 +996,7 @@ This is a one-time fix-up, please be patient...
         preferDedupe: this[_preferDedupe],
         legacyBundling: this[_legacyBundling],
         strictPeerDeps: this[_strictPeerDeps],
+        installLinks: this.installLinks,
         legacyPeerDeps: this.legacyPeerDeps,
         globalStyle: this[_globalStyle],
       }))
@@ -1151,6 +1156,7 @@ This is a one-time fix-up, please be patient...
     const vr = new Node({
       path: node.realpath,
       sourceReference: node,
+      installLinks: this.installLinks,
       legacyPeerDeps: this.legacyPeerDeps,
       overrides: node.overrides,
     })
@@ -1268,17 +1274,18 @@ This is a one-time fix-up, please be patient...
     // the object so it doesn't get mutated.
     // Don't bother to load the manifest for link deps, because the target
     // might be within another package that doesn't exist yet.
-    const { legacyPeerDeps } = this
+    const { installLinks, legacyPeerDeps } = this
+    const isWorkspace = this.idealTree.workspaces && this.idealTree.workspaces.has(spec.name)
 
-    // spec is a directory, link it
-    if (spec.type === 'directory') {
+    // spec is a directory, link it unless installLinks is set or it's a workspace
+    if (spec.type === 'directory' && (isWorkspace || !installLinks)) {
       return this[_linkFromSpec](name, spec, parent, edge)
     }
 
     // if the spec matches a workspace name, then see if the workspace node will
     // satisfy the edge. if it does, we return the workspace node to make sure it
     // takes priority.
-    if (this.idealTree.workspaces && this.idealTree.workspaces.has(spec.name)) {
+    if (isWorkspace) {
       const existingNode = this.idealTree.edgesOut.get(spec.name).to
       if (existingNode && existingNode.isWorkspace && existingNode.satisfies(edge)) {
         return edge.to
@@ -1288,7 +1295,7 @@ This is a one-time fix-up, please be patient...
     // spec isn't a directory, and either isn't a workspace or the workspace we have
     // doesn't satisfy the edge. try to fetch a manifest and build a node from that.
     return this[_fetchManifest](spec)
-      .then(pkg => new Node({ name, pkg, parent, legacyPeerDeps }), error => {
+      .then(pkg => new Node({ name, pkg, parent, installLinks, legacyPeerDeps }), error => {
         error.requiredBy = edge.from.location || '.'
 
         // failed to load the spec, either because of enotarget or
@@ -1298,6 +1305,7 @@ This is a one-time fix-up, please be patient...
           name,
           parent,
           error,
+          installLinks,
           legacyPeerDeps,
         })
         this[_loadFailures].add(n)
@@ -1307,9 +1315,9 @@ This is a one-time fix-up, please be patient...
 
   [_linkFromSpec] (name, spec, parent, edge) {
     const realpath = spec.fetchSpec
-    const { legacyPeerDeps } = this
+    const { installLinks, legacyPeerDeps } = this
     return rpj(realpath + '/package.json').catch(() => ({})).then(pkg => {
-      const link = new Link({ name, parent, realpath, pkg, legacyPeerDeps })
+      const link = new Link({ name, parent, realpath, pkg, installLinks, legacyPeerDeps })
       this[_linkNodes].add(link)
       return link
     })

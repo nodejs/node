@@ -240,6 +240,7 @@ function mergeOptions(options, defaults) {
   return ret;
 }
 
+// Wrap on word boundary
 function wordWrap(maxLength, input) {
   let lines = [];
   let split = input.split(/(\s+)/g);
@@ -270,11 +271,32 @@ function wordWrap(maxLength, input) {
   return lines;
 }
 
-function multiLineWordWrap(maxLength, input) {
+// Wrap text (ignoring word boundaries)
+function textWrap(maxLength, input) {
+  let lines = [];
+  let line = '';
+  function pushLine(str, ws) {
+    if (line.length && ws) line += ws;
+    line += str;
+    while (line.length > maxLength) {
+      lines.push(line.slice(0, maxLength));
+      line = line.slice(maxLength);
+    }
+  }
+  let split = input.split(/(\s+)/g);
+  for (let i = 0; i < split.length; i += 2) {
+    pushLine(split[i], i && split[i - 1]);
+  }
+  if (line.length) lines.push(line);
+  return lines;
+}
+
+function multiLineWordWrap(maxLength, input, wrapOnWordBoundary = true) {
   let output = [];
   input = input.split('\n');
+  const handler = wrapOnWordBoundary ? wordWrap : textWrap;
   for (let i = 0; i < input.length; i++) {
-    output.push.apply(output, wordWrap(maxLength, input[i]));
+    output.push.apply(output, handler(maxLength, input[i]));
   }
   return output;
 }
@@ -291,6 +313,17 @@ function colorizeLines(input) {
   return output;
 }
 
+/**
+ * Credit: Matheus Sampaio https://github.com/matheussampaio
+ */
+function hyperlink(url, text) {
+  const OSC = '\u001B]';
+  const BEL = '\u0007';
+  const SEP = ';';
+
+  return [OSC, '8', SEP, SEP, url || text, BEL, text, OSC, '8', SEP, SEP, BEL].join('');
+}
+
 module.exports = {
   strlen: strlen,
   repeat: repeat,
@@ -299,4 +332,5 @@ module.exports = {
   mergeOptions: mergeOptions,
   wordWrap: multiLineWordWrap,
   colorizeLines: colorizeLines,
+  hyperlink,
 };

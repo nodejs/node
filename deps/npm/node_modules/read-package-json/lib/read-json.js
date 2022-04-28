@@ -109,10 +109,10 @@ function parseJson (file, er, d, log, strict, cb) {
         delete data[key]
       }
     }
-  } catch (er) {
+  } catch (jsonErr) {
     data = parseIndex(d)
     if (!data) {
-      return cb(parseError(er, file))
+      return cb(parseError(jsonErr, file))
     }
   }
 
@@ -120,11 +120,11 @@ function parseJson (file, er, d, log, strict, cb) {
 }
 
 function extrasCached (file, d, data, log, strict, cb) {
-  extras(file, data, log, strict, function (err, data) {
+  extras(file, data, log, strict, function (err, extrasData) {
     if (!err) {
-      cache[d] = jsonClone(data)
+      cache[d] = jsonClone(extrasData)
     }
-    cb(err, data)
+    cb(err, extrasData)
   })
 }
 
@@ -299,8 +299,8 @@ function readme (file, data, cb) {
       return cb(er)
     }
     // don't accept directories.
-    files = files.filter(function (file) {
-      return !file.match(/\/$/)
+    files = files.filter(function (filtered) {
+      return !filtered.match(/\/$/)
     })
     if (!files.length) {
       return cb()
@@ -328,12 +328,12 @@ function preferMarkdownReadme (files) {
 
 function readme_ (file, data, rm, cb) {
   var rmfn = path.basename(rm)
-  fs.readFile(rm, 'utf8', function (er, rm) {
+  fs.readFile(rm, 'utf8', function (er, rmData) {
     // maybe not readable, or something.
     if (er) {
       return cb()
     }
-    data.readme = rm
+    data.readme = rmData
     data.readmeFilename = rmfn
     return cb(er, data)
   })
@@ -346,11 +346,11 @@ function mans (file, data, cb) {
   }
   const dirname = path.dirname(file)
   cwd = path.resolve(path.dirname(file), cwd)
-  glob('**/*.[0-9]', { cwd }, function (er, mans) {
+  glob('**/*.[0-9]', { cwd }, function (er, mansGlob) {
     if (er) {
       return cb(er)
     }
-    data.man = mans.map(man =>
+    data.man = mansGlob.map(man =>
       path.relative(dirname, path.join(cwd, man)).split(path.sep).join('/')
     )
     return cb(null, data)
@@ -366,17 +366,17 @@ function bins (file, data, cb) {
   }
 
   m = path.resolve(path.dirname(file), m)
-  glob('**', { cwd: m }, function (er, bins) {
+  glob('**', { cwd: m }, function (er, binsGlob) {
     if (er) {
       return cb(er)
     }
-    bins_(file, data, bins, cb)
+    bins_(file, data, binsGlob, cb)
   })
 }
 
-function bins_ (file, data, bins, cb) {
+function bins_ (file, data, binsGlob, cb) {
   var m = (data.directories && data.directories.bin) || '.'
-  data.bin = bins.reduce(function (acc, mf) {
+  data.bin = binsGlob.reduce(function (acc, mf) {
     if (mf && mf.charAt(0) !== '.') {
       var f = path.basename(mf)
       acc[f] = path.join(m, mf)
@@ -412,7 +412,7 @@ function githead (file, data, cb) {
   }
   var dir = path.dirname(file)
   var head = path.resolve(dir, '.git/HEAD')
-  fs.readFile(head, 'utf8', function (er, head) {
+  fs.readFile(head, 'utf8', function (er, headData) {
     if (er) {
       var parent = path.dirname(dir)
       if (parent === dir) {
@@ -420,7 +420,7 @@ function githead (file, data, cb) {
       }
       return githead(dir, data, cb)
     }
-    githead_(data, dir, head, cb)
+    githead_(data, dir, headData, cb)
   })
 }
 
@@ -431,11 +431,11 @@ function githead_ (data, dir, head, cb) {
   }
   var headRef = head.replace(/^ref: /, '').trim()
   var headFile = path.resolve(dir, '.git', headRef)
-  fs.readFile(headFile, 'utf8', function (er, head) {
-    if (er || !head) {
+  fs.readFile(headFile, 'utf8', function (er, headData) {
+    if (er || !headData) {
       var packFile = path.resolve(dir, '.git/packed-refs')
-      return fs.readFile(packFile, 'utf8', function (er, refs) {
-        if (er || !refs) {
+      return fs.readFile(packFile, 'utf8', function (readFileErr, refs) {
+        if (readFileErr || !refs) {
           return cb(null, data)
         }
         refs = refs.split('\n')
@@ -449,8 +449,8 @@ function githead_ (data, dir, head, cb) {
         return cb(null, data)
       })
     }
-    head = head.replace(/^ref: /, '').trim()
-    data.gitHead = head
+    headData = headData.replace(/^ref: /, '').trim()
+    data.gitHead = headData
     return cb(null, data)
   })
 }

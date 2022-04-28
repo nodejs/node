@@ -12,6 +12,7 @@ class ArboristCmd extends BaseCommand {
     'workspace',
     'workspaces',
     'include-workspace-root',
+    'install-links',
   ]
 
   static ignoreImplicitWorkspace = false

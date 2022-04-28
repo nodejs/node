@@ -114,23 +114,6 @@ test-npm-ls@1.0.0
 
 `
 
-exports[`test/lib/commands/ls.js TAP ls --only=development > should output tree containing only development deps 1`] = `
-test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls---only-development
-\`-- dev-dep@1.0.0
-  \`-- foo@1.0.0
-    \`-- dog@1.0.0
-
-`
-
-exports[`test/lib/commands/ls.js TAP ls --only=prod > should output tree containing only prod deps 1`] = `
-test-npm-ls@1.0.0 {CWD}/tap-testdir-ls-ls---only-prod
-+-- chai@1.0.0
-+-- optional-dep@1.0.0
-\`-- prod-dep@1.0.0
-  \`-- dog@2.0.0
-
-`
-
 exports[`test/lib/commands/ls.js TAP ls --parseable --depth=0 > should output tree containing only top-level dependencies 1`] = `
 {CWD}/tap-testdir-ls-ls---parseable---depth-0
 {CWD}/tap-testdir-ls-ls---parseable---depth-0/node_modules/chai
@@ -202,21 +185,6 @@ exports[`test/lib/commands/ls.js TAP ls --parseable --long with extraneous deps 
 {CWD}/tap-testdir-ls-ls---parseable---long-with-extraneous-deps/node_modules/chai:chai@1.0.0:EXTRANEOUS
 {CWD}/tap-testdir-ls-ls---parseable---long-with-extraneous-deps/node_modules/foo:foo@1.0.0
 {CWD}/tap-testdir-ls-ls---parseable---long-with-extraneous-deps/node_modules/dog:dog@1.0.0
-`
-
-exports[`test/lib/commands/ls.js TAP ls --parseable --only=development > should output tree containing only development deps 1`] = `
-{CWD}/tap-testdir-ls-ls---parseable---only-development
-{CWD}/tap-testdir-ls-ls---parseable---only-development/node_modules/dev-dep
-{CWD}/tap-testdir-ls-ls---parseable---only-development/node_modules/foo
-{CWD}/tap-testdir-ls-ls---parseable---only-development/node_modules/dog
-`
-
-exports[`test/lib/commands/ls.js TAP ls --parseable --only=prod > should output tree containing only prod deps 1`] = `
-{CWD}/tap-testdir-ls-ls---parseable---only-prod
-{CWD}/tap-testdir-ls-ls---parseable---only-prod/node_modules/chai
-{CWD}/tap-testdir-ls-ls---parseable---only-prod/node_modules/optional-dep
-{CWD}/tap-testdir-ls-ls---parseable---only-prod/node_modules/prod-dep
-{CWD}/tap-testdir-ls-ls---parseable---only-prod/node_modules/prod-dep/node_modules/dog
 `
 
 exports[`test/lib/commands/ls.js TAP ls --parseable --production > should output tree containing production deps 1`] = `

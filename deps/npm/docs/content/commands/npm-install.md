@@ -91,12 +91,12 @@ into a tarball (b).
     *npm will not install the package dependencies* in the directory `<folder>`,
     but it will create a symlink to `<folder>`.
 
-    > NOTE: If you want to install the content of a directory like a package from the registry instead of creating a link, you would need to use [`npm pack`](/commands/npm-pack) while in the `<folder>` directory, and then install the resulting tarball instead of the `<folder>` using `npm install <tarball file>`
+    > NOTE: If you want to install the content of a directory like a package from the registry instead of creating a link, you would need to use the `--install-links` option.
 
     Example:
 
     ```bash
-    npm install ../../other-package
+    npm install ../../other-package --install-links
     npm install ./sub-package
     ```
 
@@ -705,6 +705,18 @@ all workspaces via the `workspaces` flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.
 
 This value is not exported to the environment for child processes.
+
+<!-- automatically generated, do not edit manually -->
+<!-- see lib/utils/config/definitions.js -->
+
+#### `install-links`
+
+* Default: false
+* Type: Boolean
+
+When set file: protocol dependencies that exist outside of the project root
+will be packed and installed as regular dependencies instead of creating a
+symlink. This option has no effect on workspaces.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
