@@ -9,12 +9,12 @@ const { connect } = require('net');
 // after server.requestTimeout if the client
 // does not complete a request when using pipelining.
 
-const requestTimeout = common.platformTimeout(1000);
+const requestTimeout = common.platformTimeout(2000);
 const server = createServer({
   headersTimeout: 0,
   requestTimeout,
   keepAliveTimeout: 0,
-  connectionsCheckingInterval: common.platformTimeout(250),
+  connectionsCheckingInterval: requestTimeout / 4
 }, common.mustCallAtLeast((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end();
@@ -66,5 +66,5 @@ server.listen(0, common.mustCall(() => {
   // Complete the request
   setTimeout(() => {
     client.write('close\r\n\r\n');
-  }, requestTimeout * 1.5).unref();
+  }, requestTimeout * 2).unref();
 }));

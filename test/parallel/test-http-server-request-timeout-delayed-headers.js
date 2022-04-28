@@ -10,12 +10,12 @@ const { connect } = require('net');
 // pauses before start sending the request.
 
 let sendDelayedRequestHeaders;
-const requestTimeout = common.platformTimeout(1000);
+const requestTimeout = common.platformTimeout(2000);
 const server = createServer({
   headersTimeout: 0,
   requestTimeout,
   keepAliveTimeout: 0,
-  connectionsCheckingInterval: common.platformTimeout(250),
+  connectionsCheckingInterval: requestTimeout / 4,
 }, common.mustNotCall());
 server.on('connection', common.mustCall(() => {
   assert.strictEqual(typeof sendDelayedRequestHeaders, 'function');

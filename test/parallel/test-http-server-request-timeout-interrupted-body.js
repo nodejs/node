@@ -10,12 +10,12 @@ const { connect } = require('net');
 // pauses sending in the middle of the body.
 
 let sendDelayedRequestBody;
-const requestTimeout = common.platformTimeout(1000);
+const requestTimeout = common.platformTimeout(2000);
 const server = createServer({
   headersTimeout: 0,
   requestTimeout,
   keepAliveTimeout: 0,
-  connectionsCheckingInterval: common.platformTimeout(250),
+  connectionsCheckingInterval: requestTimeout / 4,
 }, common.mustCall((req, res) => {
   let body = '';
   req.setEncoding('utf-8');
