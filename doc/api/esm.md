@@ -566,8 +566,6 @@ would provide the exports interface for the instantiation of `module.wasm`.
 added: v14.8.0
 -->
 
-> Stability: 1 - Experimental
-
 The `await` keyword may be used in the top level body of an ECMAScript module.
 
 Assuming an `a.mjs` with
