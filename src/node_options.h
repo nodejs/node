@@ -199,7 +199,6 @@ class PerIsolateOptions : public Options {
   bool node_snapshot = true;
   bool report_uncaught_exception = false;
   bool report_on_signal = false;
-  bool experimental_top_level_await = true;
   std::string report_signal = "SIGUSR2";
   inline EnvironmentOptions* get_per_env_options();
   void CheckOptions(std::vector<std::string>* errors) override;
