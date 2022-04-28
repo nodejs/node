@@ -508,6 +508,9 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   }
 
   sc->ctx_.reset(SSL_CTX_new(method));
+  if (!sc->ctx_) {
+    return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_new");
+  }
   SSL_CTX_set_app_data(sc->ctx_.get(), sc);
 
   // Disable SSLv2 in the case when method == TLS_method() and the
