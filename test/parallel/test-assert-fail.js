@@ -39,6 +39,6 @@ assert.throws(() => {
   message: 'custom message'
 });
 
-Object.prototype.get = common.mustNotCall()
-assert.throws(() => assert.fail(''), { code: 'ERR_ASSERTION' })
+Object.prototype.get = common.mustNotCall();
+assert.throws(() => assert.fail(''), { code: 'ERR_ASSERTION' });
 delete Object.prototype.get;
