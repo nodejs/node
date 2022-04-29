@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 // This test ensures that assert.CallTracker.calls() works as intended.
@@ -83,12 +83,28 @@ assert.throws(
   function func() {}
   const tracker = new assert.CallTracker();
   const callsfunc = tracker.calls(func);
-  assert.strictEqual(func.length, callsfunc.length);
+  assert.strictEqual(callsfunc.length, 0);
 }
 
 {
   function func(a, b, c = 2) {}
   const tracker = new assert.CallTracker();
   const callsfunc = tracker.calls(func);
-  assert.strictEqual(func.length, callsfunc.length);
+  assert.strictEqual(callsfunc.length, 2);
+}
+
+{
+  function func(a, b, c = 2) {}
+  delete func.length;
+  const tracker = new assert.CallTracker();
+  const callsfunc = tracker.calls(func);
+  assert.strictEqual(Object.hasOwn(callsfunc, 'length'), false);
+}
+
+{
+  function func(a, b, c = 2) {}
+  Object.defineProperty(func, 'length', { get: common.mustNotCall() });
+  const tracker = new assert.CallTracker();
+  const callsfunc = tracker.calls(func);
+  assert.strictEqual(Object.hasOwn(callsfunc, 'length'), true);
 }
