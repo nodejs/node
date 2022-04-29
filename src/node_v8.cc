@@ -82,7 +82,8 @@ static constexpr size_t kHeapSpaceStatisticsPropertiesCount =
 #define HEAP_CODE_STATISTICS_PROPERTIES(V)                                     \
   V(0, code_and_metadata_size, kCodeAndMetadataSizeIndex)                      \
   V(1, bytecode_and_metadata_size, kBytecodeAndMetadataSizeIndex)              \
-  V(2, external_script_source_size, kExternalScriptSourceSizeIndex)
+  V(2, external_script_source_size, kExternalScriptSourceSizeIndex)            \
+  V(3, cpu_profiler_metadata_size, kCPUProfilerMetaDataSizeIndex)
 
 #define V(a, b, c) +1
 static const size_t kHeapCodeStatisticsPropertiesCount =
