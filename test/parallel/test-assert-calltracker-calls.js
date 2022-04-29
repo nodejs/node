@@ -102,9 +102,15 @@ assert.throws(
 }
 
 {
+  Object.prototype.get = common.mustNotCall('%Object.prototype%.get');
+  const customPropertyValue = Symbol();
   function func(a, b, c = 2) {}
+  func.customProperty = customPropertyValue;
   Object.defineProperty(func, 'length', { get: common.mustNotCall() });
   const tracker = new assert.CallTracker();
   const callsfunc = tracker.calls(func);
   assert.strictEqual(Object.hasOwn(callsfunc, 'length'), true);
+  assert.strictEqual(callsfunc.customProperty, customPropertyValue);
+
+  delete Object.prototype.get;
 }
