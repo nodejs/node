@@ -77,8 +77,19 @@ const zones = [
 assert.deepStrictEqual(Intl.getCanonicalLocales(localesISO639), locales);
 
 
+// On some platforms these keep original locale (for example, 'January')
+const enero = runEnvOutside(
+  { LANG: 'es' },
+  'new Intl.DateTimeFormat(undefined, { month: "long" } ).format(new Date(9e8))'
+);
+const janvier = runEnvOutside(
+  { LANG: 'fr' },
+  'new Intl.DateTimeFormat(undefined, { month: "long" } ).format(new Date(9e8))'
+);
+const isMockable = enero !== janvier;
+
 // Tests with mocked env
-if (!common.isOSX) {
+if (isMockable) {
   assert.strictEqual(
     isSet(zones.map((TZ) => runEnvOutside({ TZ }, 'new Date(333333333333).toString()'))),
     true
