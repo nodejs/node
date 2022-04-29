@@ -29,7 +29,7 @@ const fs = require('fs');
 // Do not require 'os' until needed so that test-os-checked-function can
 // monkey patch it. If 'os' is required here, that test will fail.
 const path = require('path');
-const util = require('util');
+const { inspect } = require('util');
 const { isMainThread } = require('worker_threads');
 
 const tmpdir = require('./tmpdir');
@@ -97,7 +97,7 @@ if (process.argv.length === 2 &&
           (process.features.inspector || !flag.startsWith('--inspect'))) {
         console.log(
           'NOTE: The test started as a child_process using these flags:',
-          util.inspect(flags),
+          inspect(flags),
           'Use NODE_SKIP_FLAG_CHECK to run the test with the original flags.'
         );
         const args = [...flags, ...process.execArgv, ...process.argv.slice(1)];
@@ -138,7 +138,7 @@ if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
   process.on('exit', () => {
     // Iterate through handles to make sure nothing crashes
     for (const k in initHandles)
-      util.inspect(initHandles[k]);
+      inspect(initHandles[k]);
   });
 
   const _queueDestroyAsyncId = async_wrap.queueDestroyAsyncId;
@@ -148,7 +148,7 @@ if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
       process._rawDebug();
       throw new Error(`same id added to destroy list twice (${id})`);
     }
-    destroyListList[id] = util.inspect(new Error());
+    destroyListList[id] = inspect(new Error());
     _queueDestroyAsyncId(id);
   };
 
@@ -162,7 +162,7 @@ if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
       }
       initHandles[id] = {
         resource,
-        stack: util.inspect(new Error()).substr(6)
+        stack: inspect(new Error()).substr(6)
       };
     },
     before() { },
@@ -173,7 +173,7 @@ if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
         process._rawDebug();
         throw new Error(`destroy called for same id (${id})`);
       }
-      destroydIdsList[id] = util.inspect(new Error());
+      destroydIdsList[id] = inspect(new Error());
     },
   }).enable();
 }
@@ -397,7 +397,7 @@ function _mustCallInner(fn, criteria = 1, field) {
   const context = {
     [field]: criteria,
     actual: 0,
-    stack: util.inspect(new Error()),
+    stack: inspect(new Error()),
     name: fn.name || '<anonymous>'
   };
 
@@ -485,7 +485,7 @@ function mustNotCall(msg) {
   const callSite = getCallSite(mustNotCall);
   return function mustNotCall(...args) {
     const argsInfo = args.length > 0 ?
-      `\ncalled with arguments: ${args.map(util.inspect).join(', ')}` : '';
+      `\ncalled with arguments: ${args.map((arg) => inspect(arg)).join(', ')}` : '';
     assert.fail(
       `${msg || 'function should not have been called'} at ${callSite}` +
       argsInfo);
@@ -587,7 +587,7 @@ function expectWarning(nameOrMap, expected, code) {
       if (!catchWarning[warning.name]) {
         throw new TypeError(
           `"${warning.name}" was triggered without being expected.\n` +
-          util.inspect(warning)
+          inspect(warning)
         );
       }
       catchWarning[warning.name](warning);
@@ -608,7 +608,7 @@ function expectsError(validator, exact) {
     if (args.length !== 1) {
       // Do not use `assert.strictEqual()` to prevent `inspect` from
       // always being called.
-      assert.fail(`Expected one argument, got ${util.inspect(args)}`);
+      assert.fail(`Expected one argument, got ${inspect(args)}`);
     }
     const error = args.pop();
     const descriptor = Object.getOwnPropertyDescriptor(error, 'message');
@@ -713,9 +713,9 @@ function invalidArgTypeHelper(input) {
     if (input.constructor && input.constructor.name) {
       return ` Received an instance of ${input.constructor.name}`;
     }
-    return ` Received ${util.inspect(input, { depth: -1 })}`;
+    return ` Received ${inspect(input, { depth: -1 })}`;
   }
-  let inspected = util.inspect(input, { colors: false });
+  let inspected = inspect(input, { colors: false });
   if (inspected.length > 25)
     inspected = `${inspected.slice(0, 25)}...`;
   return ` Received type ${typeof input} (${inspected})`;
