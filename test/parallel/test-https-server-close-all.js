@@ -16,13 +16,19 @@ const options = {
   cert: fixtures.readKey('agent1-cert.pem')
 };
 
+let connections = 0;
+
 const server = createServer(options, common.mustCall(function(req, res) {
-  res.writeHead(200, { 'Connection': 'keep-alive' });
+  res.writeHead(200, { Connection: 'keep-alive' });
   res.end();
 }), {
   headersTimeout: 0,
   keepAliveTimeout: 0,
   requestTimeout: common.platformTimeout(60000),
+});
+
+server.on('connection', function() {
+  connections++;
 });
 
 server.listen(0, function() {
@@ -32,7 +38,7 @@ server.listen(0, function() {
   const client1 = connect({ port, rejectUnauthorized: false });
 
   client1.on('close', common.mustCall());
-  
+
   client1.on('error', () => {});
 
   client1.write('GET / HTTP/1.1');
@@ -46,6 +52,7 @@ server.listen(0, function() {
 
     if (response.endsWith('0\r\n\r\n')) {
       assert(response.startsWith('HTTP/1.1 200 OK\r\nConnection: keep-alive'));
+      assert.strictEqual(connections, 2);
 
       server.closeAllConnections();
       server.close(common.mustCall());
