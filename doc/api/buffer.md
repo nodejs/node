@@ -3820,6 +3820,40 @@ for (const value of buf) {
 //   114
 ```
 
+### `buf.toInt([radix])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `radix` {number} An integer between `2` and `36` that represents the radix
+  (the base in mathematical numeral systems) of the `string`.
+
+Converts a valid `buf` containing items in the range of 0x48 (1) to 0x57 (9)
+inclusive to a `number`.
+
+```mjs
+import { Buffer } from 'node:buffer';
+
+const buf = Buffer.from([48, 49, 50]);
+
+const int = buf.toInt(10);
+
+console.log(int);
+// Prints: 123
+```
+
+```cjs
+const { Buffer } = require('node:buffer');
+
+const buf = Buffer.from([48, 49, 50]);
+
+const int = buf.toInt(10);
+
+console.log(int);
+// Prints: 123
+```
+
 ### `buf.write(string[, offset[, length]][, encoding])`
 
 <!-- YAML
