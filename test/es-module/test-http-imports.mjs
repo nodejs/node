@@ -167,7 +167,7 @@ for (const { protocol, createServer } of [
       export default 1;`);
     await assert.rejects(
       import(fileDep.href),
-      { code: 'ERR_INVALID_URL_SCHEME' }
+      { code: 'ERR_NETWORK_IMPORT_DISALLOWED' }
     );
 
     const builtinDep = new URL(url.href);
@@ -177,7 +177,7 @@ for (const { protocol, createServer } of [
     `);
     await assert.rejects(
       import(builtinDep.href),
-      { code: 'ERR_INVALID_URL_SCHEME' }
+      { code: 'ERR_NETWORK_IMPORT_DISALLOWED' }
     );
 
     const unprefixedBuiltinDep = new URL(url.href);
@@ -187,7 +187,7 @@ for (const { protocol, createServer } of [
     `);
     await assert.rejects(
       import(unprefixedBuiltinDep.href),
-      { code: 'ERR_INVALID_URL_SCHEME' }
+      { code: 'ERR_NETWORK_IMPORT_DISALLOWED' }
     );
 
     const unsupportedMIME = new URL(url.href);

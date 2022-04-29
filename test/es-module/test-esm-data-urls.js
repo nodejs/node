@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('assert');
 function createURL(mime, body) {
   return `data:${mime},${body}`;
@@ -106,5 +107,9 @@ function createBase64URL(mime, body) {
     const plainESMURL = 'data:text/javascript,export%20default%202';
     const module = await import(plainESMURL);
     assert.strictEqual(module.default, 2);
+  }
+  {
+    const plainESMURL = `data:text/javascript,${encodeURIComponent(`import ${JSON.stringify(fixtures.fileURL('es-module-url', 'empty.js'))}`)}`;
+    await import(plainESMURL);
   }
 })().then(common.mustCall());
