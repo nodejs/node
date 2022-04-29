@@ -183,6 +183,10 @@ out a better way, forward the email you receive to
 
 * [ ] Make sure the PRs for the vulnerabilities are closed.
 
+* [ ] PR in that you stewarded the release in
+  [Security release stewards](https://github.com/nodejs/node/blob/HEAD/doc/contributing/security-release-process.md#security-release-stewards).
+  If necessary add the next rotation of the steward rotation.
+
 [H1 CVE requests]: https://hackerone.com/nodejs/cve_requests
 [docker-node]: https://github.com/nodejs/docker-node/issues
 [email]: https://groups.google.com/forum/#!forum/nodejs-sec
