@@ -78,3 +78,17 @@ assert.throws(
   callsNoop();
   tracker.verify();
 }
+
+{
+  function func() {}
+  const tracker = new assert.CallTracker();
+  const callsfunc = tracker.calls(func);
+  assert.strictEqual(func.length, callsfunc.length);
+}
+
+{
+  function func(a, b, c = 2) {}
+  const tracker = new assert.CallTracker();
+  const callsfunc = tracker.calls(func);
+  assert.strictEqual(func.length, callsfunc.length);
+}
