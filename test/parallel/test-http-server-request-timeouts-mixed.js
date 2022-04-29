@@ -23,9 +23,7 @@ const server = createServer({
   keepAliveTimeout: 0,
   connectionsCheckingInterval
 }, common.mustCall((req, res) => {
-  req.on('data', () => {
-    // No-op
-  });
+  req.resume();
 
   req.on('end', () => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
