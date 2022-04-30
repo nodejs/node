@@ -11,4 +11,4 @@ common.expectWarning(
   'DEP0144'
 );
 
-assert.strictEqual(module.parent, undefined);
+assert.strictEqual(module.parent, null);
