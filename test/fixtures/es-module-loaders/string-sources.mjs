@@ -22,7 +22,11 @@ const SOURCES = {
 }
 export function resolve(specifier, context, next) {
   if (specifier.startsWith('test:')) {
-    return { url: specifier, importAssertions: context.importAssertions };
+    return {
+      importAssertions: context.importAssertions,
+      shortCircuit: true,
+      url: specifier,
+    };
   }
   return next(specifier, context);
 }
@@ -31,6 +35,7 @@ export function load(href, context, next) {
   if (href.startsWith('test:')) {
     return {
       format: 'module',
+      shortCircuit: true,
       source: SOURCES[href],
     };
   }
