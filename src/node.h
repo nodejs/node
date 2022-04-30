@@ -36,7 +36,11 @@
 // the public API. They are implementation details that can and will
 // change between releases, even in semver patch releases. Do not use
 // any such symbol in external code.
+#ifdef NODE_SHARED_MODE
 #define NODE_EXTERN_PRIVATE NODE_EXTERN
+#else
+#define NODE_EXTERN_PRIVATE
+#endif
 
 #ifdef BUILDING_NODE_EXTENSION
 # undef BUILDING_V8_SHARED
