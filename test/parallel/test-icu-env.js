@@ -224,14 +224,26 @@ if (isMockable) {
 
 // Tests with process.env mutated inside
 {
-  assert.strictEqual(
-    isSet(zones.map((TZ) => runEnvInside({ TZ }, () => new Date(333333333333).toString()))),
-    true
-  );
-  assert.strictEqual(
-    isSet(zones.map((TZ) => runEnvInside({ TZ }, () => new Date(333333333333).toLocaleString()))),
-    true
-  );
+  // process.env.TZ is not intercepted in Workers
+  if (common.isMainThread) {
+    assert.strictEqual(
+      isSet(zones.map((TZ) => runEnvInside({ TZ }, () => new Date(333333333333).toString()))),
+      true
+    );
+    assert.strictEqual(
+      isSet(zones.map((TZ) => runEnvInside({ TZ }, () => new Date(333333333333).toLocaleString()))),
+      true
+    );
+  } else {
+    assert.strictEqual(
+      isPack(zones.map((TZ) => runEnvInside({ TZ }, () => new Date(333333333333).toString()))),
+      true
+    );
+    assert.strictEqual(
+      isPack(zones.map((TZ) => runEnvInside({ TZ }, () => new Date(333333333333).toLocaleString()))),
+      true
+    );
+  }
 
   assert.strictEqual(
     isPack(locales.map((LANG) => runEnvInside({ LANG, TZ: 'Europe/Zurich' }, () => new Date(333333333333).toString()))),
