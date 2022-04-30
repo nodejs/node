@@ -5344,7 +5344,7 @@ object with an `encoding` property specifying the character encoding to use for
 the link path returned. If the `encoding` is set to `'buffer'`,
 the link path returned will be passed as a {Buffer} object.
 
-### `fs.readSync(fd, buffer, offset, length, position)`
+### `fs.readSync(fd, buffer, offset, length[, position])`
 
 <!-- YAML
 added: v0.1.21
@@ -5362,7 +5362,7 @@ changes:
 * `buffer` {Buffer|TypedArray|DataView}
 * `offset` {integer}
 * `length` {integer}
-* `position` {integer|bigint|null}
+* `position` {integer|bigint|null} **Default:** `null`
 * Returns: {number}
 
 Returns the number of `bytesRead`.
