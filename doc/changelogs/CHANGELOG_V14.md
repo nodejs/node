@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#14.19.2">14.19.2</a><br/>
 <a href="#14.19.1">14.19.1</a><br/>
 <a href="#14.19.0">14.19.0</a><br/>
 <a href="#14.18.3">14.18.3</a><br/>
@@ -72,6 +73,56 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.19.2"></a>
+
+## 2022-05-04, Version 14.19.2 'Fermium' (LTS), @BethGriggs prepared by @juanarbol
+
+### Notable Changes
+
+**doc:**
+
+* New release key for Bryan English
+
+Learn more at: <https://github.com/nodejs/node/pull/42102>
+Contributed by Bryan English (@bengl)
+
+**npm:**
+
+* Upgrade `npm` to `v6.14.17`.
+
+Learn more at: <https://github.com/nodejs/node/pull/42900>
+Contributed by Ruy Adorno (@ruyadorno)
+
+**V8:**
+
+* V8 had a stack overflow issue affecting the `vm` module, cherry-picking [`cc9a8a37445e`](https://github.com/v8/v8/commit/cc9a8a37445eeffff17474020bb6038c2f9af9fc)
+  from V8 solves this issue.
+
+Learn more at: <https://github.com/nodejs/node/pull/41826>
+Contributed by Gus Caplan (@devsnek)
+
+* Using `getHeapSnapshot()` was causing a Node.js crash due a V8 issue, this is fixed by backporting [`367b0c1e7a32`](https://github.com/v8/v8/commit/367b0c1e7a323deafeab56736b01bc7e14fc1998)
+  from V8.
+
+Learn more at: <https://github.com/nodejs/node/pull/42637>
+Contributed by Chengzhong Wu (@legendecas)
+
+### Commits
+
+* \[[`c73ac527d6`](https://github.com/nodejs/node/commit/c73ac527d6)] - **build**: set DESTCPU correctly for 'make binary' on Apple Silicon (Chris Heisterkamp) [#40147](https://github.com/nodejs/node/pull/40147)
+* \[[`dcaed6db24`](https://github.com/nodejs/node/commit/dcaed6db24)] - **build**: use ccache in make-v8.sh on ppc64le and s390x (Richard Lau) [#42204](https://github.com/nodejs/node/pull/42204)
+* \[[`4203d132b1`](https://github.com/nodejs/node/commit/4203d132b1)] - **child\_process**: queue pending messages (Erick Wendel) [#41221](https://github.com/nodejs/node/pull/41221)
+* \[[`a3ebdbfe8f`](https://github.com/nodejs/node/commit/a3ebdbfe8f)] - **deps**: upgrade npm to 6.14.17 (Ruy Adorno) [#42900](https://github.com/nodejs/node/pull/42900)
+* \[[`39e44f8382`](https://github.com/nodejs/node/commit/39e44f8382)] - **deps**: V8: cherry-pick cc9a8a37445e (Gus Caplan) [#41826](https://github.com/nodejs/node/pull/41826)
+* \[[`b52a268b6f`](https://github.com/nodejs/node/commit/b52a268b6f)] - **deps**: V8: cherry-pick 367b0c1e7a32 (legendecas) [#42637](https://github.com/nodejs/node/pull/42637)
+* \[[`77ba012065`](https://github.com/nodejs/node/commit/77ba012065)] - **doc**: fix documentation of `FileHandle.prototype.appendFile` (Antoine du Hamel) [#42588](https://github.com/nodejs/node/pull/42588)
+* \[[`3d3d7ed1b7`](https://github.com/nodejs/node/commit/3d3d7ed1b7)] - **doc**: specify flag needed for JSON and Wasm modules (Rich Trott) [#42736](https://github.com/nodejs/node/pull/42736)
+* \[[`542d812c93`](https://github.com/nodejs/node/commit/542d812c93)] - **doc**: use openpgp.org for keyserver examples (Nick Schonning) [#39227](https://github.com/nodejs/node/pull/39227)
+* \[[`7f2825b1a9`](https://github.com/nodejs/node/commit/7f2825b1a9)] - **doc**: add release key for Bryan English (Bryan English) [#42102](https://github.com/nodejs/node/pull/42102)
+* \[[`75302d3dce`](https://github.com/nodejs/node/commit/75302d3dce)] - **fs**: fix write methods param validation and docs (Livia Medeiros) [#41677](https://github.com/nodejs/node/pull/41677)
+* \[[`d4171e0eac`](https://github.com/nodejs/node/commit/d4171e0eac)] - **stream**: resume stream on drain (Robert Nagy) [#41848](https://github.com/nodejs/node/pull/41848)
+* \[[`de474c8b6f`](https://github.com/nodejs/node/commit/de474c8b6f)] - **worker**: do not send message if port is closing (Rich Trott) [#42357](https://github.com/nodejs/node/pull/42357)
 
 <a id="14.19.1"></a>
 
