@@ -679,6 +679,11 @@ of Node.js applications.
 <!-- YAML
 added: v8.8.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42623
+    description: Add support for loader chaining. This introduces a breaking
+      change, wherein a hook that does not call the next (or the default) hook
+      MUST include a `shortCircuit` flag.
   - version: v16.12.0
     pr-url: https://github.com/nodejs/node/pull/37468
     description: Removed `getFormat`, `getSource`, `transformSource`, and
