@@ -4,7 +4,7 @@ import { doesNotMatch, match, strictEqual } from 'assert';
 import { spawn } from 'child_process';
 import { execPath } from 'process';
 
-// Verify no warnings are printed when no experimental features are enabled
+// Verify no warnings are printed when no experimental features are enabled or used
 {
   const input = `import ${JSON.stringify(fileURL('es-module-loaders', 'module-named-exports.mjs'))}`;
   const child = spawn(execPath, [

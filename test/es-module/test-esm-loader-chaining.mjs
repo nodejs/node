@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 const setupArgs = [
   '--no-warnings',
   '--input-type=module',
-  '-e',
+  '--eval',
 ];
 const commonInput = 'import fs from "node:fs"; console.log(fs)';
 const commonArgs = [
