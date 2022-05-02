@@ -1536,8 +1536,10 @@ def configure_openssl(o):
   if options.openssl_no_asm and options.shared_openssl:
     error('--openssl-no-asm is incompatible with --shared-openssl')
 
-  if options.openssl_is_fips and not options.shared_openssl:
+  if options.openssl_is_fips:
     o['defines'] += ['OPENSSL_FIPS']
+
+  if options.openssl_is_fips and not options.shared_openssl:
     variables['node_fipsinstall'] = b(True)
 
   if options.shared_openssl:
