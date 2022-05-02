@@ -61,6 +61,12 @@ const expectedKeys = [
   stream.removeListener('keypress', keypressListener);
   stream.write('foo');
 
+  assert.deepStrictEqual(sequence, []);
+  assert.deepStrictEqual(keys, []);
+
+  stream.on('keypress', keypressListener);
+  stream.write('foo');
+
   assert.deepStrictEqual(sequence, expectedSequence);
   assert.deepStrictEqual(keys, expectedKeys);
 }
