@@ -16,8 +16,10 @@ const {
 const MockClient = require('./mock-client')
 const MockPool = require('./mock-pool')
 const { matchValue, buildMockOptions } = require('./mock-utils')
-const { InvalidArgumentError } = require('../core/errors')
+const { InvalidArgumentError, UndiciError } = require('../core/errors')
 const Dispatcher = require('../dispatcher')
+const Pluralizer = require('./pluralizer')
+const PendingInterceptorsFormatter = require('./pending-interceptors-formatter')
 
 class FakeWeakRef {
   constructor (value) {
@@ -133,6 +135,30 @@ class MockAgent extends Dispatcher {
 
   [kGetNetConnect] () {
     return this[kNetConnect]
+  }
+
+  pendingInterceptors () {
+    const mockAgentClients = this[kClients]
+
+    return Array.from(mockAgentClients.entries())
+      .flatMap(([origin, scope]) => scope.deref()[kDispatches].map(dispatch => ({ ...dispatch, origin })))
+      .filter(({ pending }) => pending)
+  }
+
+  assertNoPendingInterceptors ({ pendingInterceptorsFormatter = new PendingInterceptorsFormatter() } = {}) {
+    const pending = this.pendingInterceptors()
+
+    if (pending.length === 0) {
+      return
+    }
+
+    const pluralizer = new Pluralizer('interceptor', 'interceptors').pluralize(pending.length)
+
+    throw new UndiciError(`
+${pluralizer.count} ${pluralizer.noun} ${pluralizer.is} pending:
+
+${pendingInterceptorsFormatter.format(pending)}
+`.trim())
   }
 }
 
