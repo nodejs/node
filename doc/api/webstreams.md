@@ -209,7 +209,7 @@ added: v16.5.0
     `transform.writable` do not cause this `ReadableStream` to be
     canceled.
   * `preventClose` {boolean} When `true`, closing this `ReadableStream`
-    will not cause `transform.writable` to be closed.
+    does not cause `transform.writable` to be closed.
   * `signal` {AbortSignal} Allows the transfer of data to be canceled
     using an {AbortController}.
 * Returns: {ReadableStream} From `transform.readable`.
