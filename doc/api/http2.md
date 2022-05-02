@@ -3922,7 +3922,7 @@ changes:
 
 * `statusCode` {number}
 * `statusMessage` {string}
-* `headers` {Object}
+* `headers` {Object|Array}
 * Returns: {http2.Http2ServerResponse}
 
 Sends a response header to the request. The status code is a 3-digit HTTP
