@@ -767,6 +767,18 @@ port2.postMessage(new URL('https://example.org'));
 // Prints: { }
 ```
 
+### `port.hasRef()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* Returns: {boolean}
+
+If true, the `MessagePort` object will keep the Node.js event loop active.
+
 ### `port.ref()`
 
 <!-- YAML
