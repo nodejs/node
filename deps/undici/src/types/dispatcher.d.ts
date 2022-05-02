@@ -4,6 +4,7 @@ import { EventEmitter } from 'events'
 import { IncomingHttpHeaders } from 'http'
 import { Blob } from 'buffer'
 import BodyReadable from './readable'
+import { FormData } from './formdata'
 
 type AbortSignal = unknown;
 
@@ -43,7 +44,7 @@ declare namespace Dispatcher {
     path: string;
     method: HttpMethod;
     /** Default: `null` */
-    body?: string | Buffer | Uint8Array | Readable | null;
+    body?: string | Buffer | Uint8Array | Readable | null | FormData;
     /** Default: `null` */
     headers?: IncomingHttpHeaders | string[] | null;
     /** Whether the requests can be safely retried or not. If `false` the request won't be sent until all preceding requests in the pipeline have completed. Default: `true` if `method` is `HEAD` or `GET`. */

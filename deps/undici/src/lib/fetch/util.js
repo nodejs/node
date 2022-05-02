@@ -318,7 +318,42 @@ function sameOrigin (A, B) {
 
 // https://fetch.spec.whatwg.org/#corb-check
 function CORBCheck (request, response) {
-  // TODO
+  // 1. If request’s initiator is "download", then return allowed.
+  if (request.initiator === 'download') {
+    return 'allowed'
+  }
+
+  // 2. If request’s current URL’s scheme is not an HTTP(S) scheme, then return allowed.
+  if (!/^https?$/.test(request.currentURL.scheme)) {
+    return 'allowed'
+  }
+
+  // 3. Let mimeType be the result of extracting a MIME type from response’s header list.
+  const mimeType = response.headersList.get('content-type')
+
+  // 4. If mimeType is failure, then return allowed.
+  if (mimeType === '') {
+    return 'allowed'
+  }
+
+  // 5. If response’s status is 206 and mimeType is a CORB-protected MIME type, then return blocked.
+
+  const isCORBProtectedMIME =
+  (/^text\/html\b/.test(mimeType) ||
+  /^application\/javascript\b/.test(mimeType) ||
+  /^application\/xml\b/.test(mimeType)) && !/^application\/xml\+svg\b/.test(mimeType)
+
+  if (response.status === 206 && isCORBProtectedMIME) {
+    return 'blocked'
+  }
+
+  // 6. If determine nosniff with response’s header list is true and mimeType is a CORB-protected MIME type or its essence is "text/plain", then return blocked.
+  // https://fetch.spec.whatwg.org/#determinenosniff
+  if (response.headersList.get('x-content-type-options') && isCORBProtectedMIME) {
+    return 'blocked'
+  }
+
+  // 7. Return allowed.
   return 'allowed'
 }
 
