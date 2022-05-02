@@ -594,3 +594,59 @@ ObjectDefineProperties(regex, {
 });
 console.log(RegExpPrototypeSymbolReplace(regex, 'foo', 'a')); // 'faa'
 ```
+
+### Defining object own properties
+
+When defining property descriptor (to add or update an own property to a
+JavaScript object), be sure to always use a null-prototype object to avoid
+prototype pollution.
+
+```js
+// User-land
+Object.prototype.get = function get() {};
+
+// Core
+try {
+  ObjectDefineProperty({}, 'someProperty', { value: 0 });
+} catch (err) {
+  console.log(err); // TypeError: Invalid property descriptor.
+}
+```
+
+```js
+// User-land
+Object.prototype.get = function get() {};
+
+// Core
+ObjectDefineProperty({}, 'someProperty', { __proto__: null, value: 0 });
+console.log('no errors'); // no errors.
+```
+
+Same applies when trying to modify an existing property, e.g. trying to make a
+read-only property enumerable:
+
+```js
+// User-land
+Object.prototype.value = 'Unrelated user-provided data';
+
+// Core
+class SomeClass {
+  get readOnlyProperty() { return 'genuine data'; }
+}
+ObjectDefineProperty(SomeClass.prototype, 'readOnlyProperty', { enumerable: true });
+console.log(new SomeClass().readOnlyProperty); // Unrelated user-provided data
+```
+
+```js
+// User-land
+Object.prototype.value = 'Unrelated user-provided data';
+
+// Core
+const kEnumerableProperty = { __proto__: null, enumerable: true };
+// In core, use const {kEnumerableProperty} = require('internal/util');
+class SomeClass {
+  get readOnlyProperty() { return 'genuine data'; }
+}
+ObjectDefineProperty(SomeClass.prototype, 'readOnlyProperty', kEnumerableProperty);
+console.log(new SomeClass().readOnlyProperty); // genuine data
+```
