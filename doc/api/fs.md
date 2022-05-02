@@ -374,7 +374,7 @@ added: v10.0.0
   file data read.
 * `offset` {integer} The location in the buffer at which to start filling.
 * `length` {integer} The number of bytes to read.
-* `position` {integer} The location where to begin reading data from the
+* `position` {integer|null} The location where to begin reading data from the
   file. If `null`, data will be read from the current file position, and
   the position will be updated. If `position` is an integer, the current
   file position will remain unchanged.
@@ -403,7 +403,7 @@ added:
     **Default:** `0`
   * `length` {integer} The number of bytes to read. **Default:**
     `buffer.byteLength - offset`
-  * `position` {integer} The location where to begin reading data from the
+  * `position` {integer|null} The location where to begin reading data from the
     file. If `null`, data will be read from the current file position, and
     the position will be updated. If `position` is an integer, the current
     file position will remain unchanged. **Default:**: `null`
@@ -497,9 +497,9 @@ added:
 -->
 
 * `buffers` {Buffer\[]|TypedArray\[]|DataView\[]}
-* `position` {integer} The offset from the beginning of the file where the data
-  should be read from. If `position` is not a `number`, the data will be read
-  from the current position.
+* `position` {integer|null} The offset from the beginning of the file where
+  the data should be read from. If `position` is not a `number`, the data will
+  be read from the current position. **Default:** `null`
 * Returns: {Promise} Fulfills upon success an object containing two properties:
   * `bytesRead` {integer} the number of bytes read
   * `buffers` {Buffer\[]|TypedArray\[]|DataView\[]} property containing
@@ -597,10 +597,10 @@ changes:
   to write begins. **Default:** `0`
 * `length` {integer} The number of bytes from `buffer` to write. **Default:**
   `buffer.byteLength - offset`
-* `position` {integer} The offset from the beginning of the file where the
+* `position` {integer|null} The offset from the beginning of the file where the
   data from `buffer` should be written. If `position` is not a `number`,
   the data will be written at the current position. See the POSIX pwrite(2)
-  documentation for more detail.
+  documentation for more detail. **Default:** `null`
 * Returns: {Promise}
 
 Write `buffer` to the file.
@@ -631,10 +631,10 @@ changes:
 -->
 
 * `string` {string}
-* `position` {integer} The offset from the beginning of the file where the
+* `position` {integer|null} The offset from the beginning of the file where the
   data from `string` should be written. If `position` is not a `number` the
   data will be written at the current position. See the POSIX pwrite(2)
-  documentation for more detail.
+  documentation for more detail. **Default:** `null`
 * `encoding` {string} The expected string encoding. **Default:** `'utf8'`
 * Returns: {Promise}
 
@@ -699,9 +699,9 @@ added: v12.9.0
 -->
 
 * `buffers` {Buffer\[]|TypedArray\[]|DataView\[]}
-* `position` {integer} The offset from the beginning of the file where the
+* `position` {integer|null} The offset from the beginning of the file where the
   data from `buffers` should be written. If `position` is not a `number`,
-  the data will be written at the current position.
+  the data will be written at the current position. **Default:** `null`
 * Returns: {Promise}
 
 Write an array of {ArrayBufferView}s to the file.
@@ -3198,7 +3198,7 @@ changes:
   written to.
 * `offset` {integer} The position in `buffer` to write the data to.
 * `length` {integer} The number of bytes to read.
-* `position` {integer|bigint} Specifies where to begin reading from in the
+* `position` {integer|bigint|null} Specifies where to begin reading from in the
   file. If `position` is `null` or `-1 `, data will be read from the current
   file position, and the file position will be updated. If `position` is an
   integer, the file position will be unchanged.
@@ -3237,7 +3237,7 @@ changes:
   * `buffer` {Buffer|TypedArray|DataView} **Default:** `Buffer.alloc(16384)`
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.byteLength - offset`
-  * `position` {integer|bigint} **Default:** `null`
+  * `position` {integer|bigint|null} **Default:** `null`
 * `callback` {Function}
   * `err` {Error}
   * `bytesRead` {integer}
@@ -3502,7 +3502,7 @@ changes:
 
 * `fd` {integer}
 * `buffers` {ArrayBufferView\[]}
-* `position` {integer}
+* `position` {integer|null} **Default:** `null`
 * `callback` {Function}
   * `err` {Error}
   * `bytesRead` {integer}
@@ -3924,7 +3924,7 @@ changes:
 
 * `target` {string|Buffer|URL}
 * `path` {string|Buffer|URL}
-* `type` {string}
+* `type` {string|null} **Default:** `null`
 * `callback` {Function}
   * `err` {Error}
 
@@ -3935,8 +3935,8 @@ See the POSIX symlink(2) documentation for more details.
 
 The `type` argument is only available on Windows and ignored on other platforms.
 It can be set to `'dir'`, `'file'`, or `'junction'`. If the `type` argument is
-not set, Node.js will autodetect `target` type and use `'file'` or `'dir'`. If
-the `target` does not exist, `'file'` will be used. Windows junction points
+not a string, Node.js will autodetect `target` type and use `'file'` or `'dir'`.
+If the `target` does not exist, `'file'` will be used. Windows junction points
 require the destination path to be absolute. When using `'junction'`, the
 `target` argument will automatically be normalized to absolute path.
 
@@ -4363,9 +4363,9 @@ changes:
 
 * `fd` {integer}
 * `buffer` {Buffer|TypedArray|DataView}
-* `offset` {integer}
-* `length` {integer}
-* `position` {integer}
+* `offset` {integer} **Default:** `0`
+* `length` {integer} **Default:** `buffer.byteLength - offset`
+* `position` {integer|null} **Default:** `null`
 * `callback` {Function}
   * `err` {Error}
   * `bytesWritten` {integer}
@@ -4426,7 +4426,7 @@ changes:
 
 * `fd` {integer}
 * `string` {string|Object}
-* `position` {integer}
+* `position` {integer|null} **Default:** `null`
 * `encoding` {string} **Default:** `'utf8'`
 * `callback` {Function}
   * `err` {Error}
@@ -4627,7 +4627,7 @@ changes:
 
 * `fd` {integer}
 * `buffers` {ArrayBufferView\[]}
-* `position` {integer}
+* `position` {integer|null} **Default:** `null`
 * `callback` {Function}
   * `err` {Error}
   * `bytesWritten` {integer}
@@ -5344,7 +5344,7 @@ object with an `encoding` property specifying the character encoding to use for
 the link path returned. If the `encoding` is set to `'buffer'`,
 the link path returned will be passed as a {Buffer} object.
 
-### `fs.readSync(fd, buffer, offset, length, position)`
+### `fs.readSync(fd, buffer, offset, length[, position])`
 
 <!-- YAML
 added: v0.1.21
@@ -5362,7 +5362,7 @@ changes:
 * `buffer` {Buffer|TypedArray|DataView}
 * `offset` {integer}
 * `length` {integer}
-* `position` {integer|bigint}
+* `position` {integer|bigint|null} **Default:** `null`
 * Returns: {number}
 
 Returns the number of `bytesRead`.
@@ -5390,7 +5390,7 @@ changes:
 * `options` {Object}
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.byteLength - offset`
-  * `position` {integer|bigint} **Default:** `null`
+  * `position` {integer|bigint|null} **Default:** `null`
 * Returns: {number}
 
 Returns the number of `bytesRead`.
@@ -5411,7 +5411,7 @@ added:
 
 * `fd` {integer}
 * `buffers` {ArrayBufferView\[]}
-* `position` {integer}
+* `position` {integer|null} **Default:** `null`
 * Returns: {number} The number of bytes read.
 
 For detailed information, see the documentation of the asynchronous version of
@@ -5635,7 +5635,7 @@ changes:
 
 * `target` {string|Buffer|URL}
 * `path` {string|Buffer|URL}
-* `type` {string}
+* `type` {string|null} **Default:** `null`
 
 Returns `undefined`.
 
@@ -5767,9 +5767,9 @@ changes:
 
 * `fd` {integer}
 * `buffer` {Buffer|TypedArray|DataView}
-* `offset` {integer}
-* `length` {integer}
-* `position` {integer}
+* `offset` {integer} **Default:** `0`
+* `length` {integer} **Default:** `buffer.byteLength - offset`
+* `position` {integer|null} **Default:** `null`
 * Returns: {number} The number of bytes written.
 
 For detailed information, see the documentation of the asynchronous version of
@@ -5791,8 +5791,8 @@ changes:
 
 * `fd` {integer}
 * `string` {string}
-* `position` {integer}
-* `encoding` {string}
+* `position` {integer|null} **Default:** `null`
+* `encoding` {string} **Default:** `'utf8'`
 * Returns: {number} The number of bytes written.
 
 For detailed information, see the documentation of the asynchronous version of
@@ -5806,7 +5806,7 @@ added: v12.9.0
 
 * `fd` {integer}
 * `buffers` {ArrayBufferView\[]}
-* `position` {integer}
+* `position` {integer|null} **Default:** `null`
 * Returns: {number} The number of bytes written.
 
 For detailed information, see the documentation of the asynchronous version of
