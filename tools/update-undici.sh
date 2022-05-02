@@ -29,7 +29,7 @@ rm -f deps/undici/undici.js
 )
 
 mv undici-tmp/node_modules/undici deps/undici/src
-mv deps/undici/src/undici.js deps/undici/undici.js
+mv deps/undici/src/undici-fetch.js deps/undici/undici.js
 cp deps/undici/src/LICENSE deps/undici/LICENSE
 
 rm -rf undici-tmp/

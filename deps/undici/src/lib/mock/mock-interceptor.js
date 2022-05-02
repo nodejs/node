@@ -12,7 +12,7 @@ const {
 const { InvalidArgumentError } = require('../core/errors')
 
 /**
- * Defines the scope API for a interceptor reply
+ * Defines the scope API for an interceptor reply
  */
 class MockScope {
   constructor (mockDispatch) {
@@ -73,6 +73,9 @@ class MockInterceptor {
       // Matches https://github.com/nodejs/undici/blob/main/lib/fetch/index.js#L1811
       const parsedURL = new URL(opts.path, 'data://')
       opts.path = parsedURL.pathname + parsedURL.search
+    }
+    if (typeof opts.method === 'string') {
+      opts.method = opts.method.toUpperCase()
     }
 
     this[kDispatchKey] = buildKey(opts)

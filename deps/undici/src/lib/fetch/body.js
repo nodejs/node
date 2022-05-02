@@ -71,7 +71,7 @@ function extractBody (object, keepalive = false) {
 
     // Set source to a copy of the bytes held by object.
     source = new Uint8Array(object)
-  } else if (object instanceof FormData) {
+  } else if (util.isFormDataLike(object)) {
     const boundary = '----formdata-undici-' + Math.random()
     const prefix = `--${boundary}\r\nContent-Disposition: form-data`
 
@@ -348,7 +348,7 @@ const properties = {
   bodyUsed: {
     enumerable: true,
     get () {
-      return this[kState].body && util.isDisturbed(this[kState].body.stream)
+      return !!this[kState].body && util.isDisturbed(this[kState].body.stream)
     }
   }
 }
