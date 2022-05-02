@@ -2889,7 +2889,7 @@ The WASI instance has not been started.
 ### `ERR_WEBASSEMBLY_RESPONSE`
 
 <!-- YAML
-added: REPLACEME
+added: v18.1.0
 -->
 
 The `Response` that has been passed to `WebAssembly.compileStreaming` or to
@@ -3344,7 +3344,7 @@ The module must be successfully linked before instantiation.
 
 <!-- YAML
 added: v10.0.0
-removed: REPLACEME
+removed: v18.1.0
 -->
 
 The linker function returned a module for which linking has failed.

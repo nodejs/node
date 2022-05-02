@@ -770,7 +770,7 @@ port2.postMessage(new URL('https://example.org'));
 ### `port.hasRef()`
 
 <!-- YAML
-added: REPLACEME
+added: v18.1.0
 -->
 
 > Stability: 1 - Experimental

@@ -1072,7 +1072,7 @@ The value given must be a power of two.
 ### `--test`
 
 <!-- YAML
-added: REPLACEME
+added: v18.1.0
 -->
 
 Starts the Node.js command line test runner. This flag cannot be combined with
