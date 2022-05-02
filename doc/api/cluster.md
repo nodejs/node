@@ -197,31 +197,35 @@ Similar to the `cluster.on('exit')` event, but specific to this worker.
 ```mjs
 import cluster from 'node:cluster';
 
-const worker = cluster.fork();
-worker.on('exit', (code, signal) => {
-  if (signal) {
-    console.log(`worker was killed by signal: ${signal}`);
-  } else if (code !== 0) {
-    console.log(`worker exited with error code: ${code}`);
-  } else {
-    console.log('worker success!');
-  }
-});
+if (cluster.isPrimary) {
+  const worker = cluster.fork();
+  worker.on('exit', (code, signal) => {
+    if (signal) {
+      console.log(`worker was killed by signal: ${signal}`);
+    } else if (code !== 0) {
+      console.log(`worker exited with error code: ${code}`);
+    } else {
+      console.log('worker success!');
+    }
+  });
+}
 ```
 
 ```cjs
 const cluster = require('node:cluster');
 
-const worker = cluster.fork();
-worker.on('exit', (code, signal) => {
-  if (signal) {
-    console.log(`worker was killed by signal: ${signal}`);
-  } else if (code !== 0) {
-    console.log(`worker exited with error code: ${code}`);
-  } else {
-    console.log('worker success!');
-  }
-});
+if (cluster.isPrimary) {
+  const worker = cluster.fork();
+  worker.on('exit', (code, signal) => {
+    if (signal) {
+      console.log(`worker was killed by signal: ${signal}`);
+    } else if (code !== 0) {
+      console.log(`worker exited with error code: ${code}`);
+    } else {
+      console.log('worker success!');
+    }
+  });
+}
 ```
 
 ### Event: `'listening'`
@@ -235,16 +239,12 @@ added: v0.7.0
 Similar to the `cluster.on('listening')` event, but specific to this worker.
 
 ```mjs
-import cluster from 'node:cluster';
-
 cluster.fork().on('listening', (address) => {
   // Worker is listening
 });
 ```
 
 ```cjs
-const cluster = require('node:cluster');
-
 cluster.fork().on('listening', (address) => {
   // Worker is listening
 });
