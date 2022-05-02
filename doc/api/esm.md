@@ -726,7 +726,7 @@ A hook that fails to return triggers an exception. A hook that returns without
 calling `next()` and without returning `shortCircuit: true` also triggers an
 exception. These errors are to help prevent unintentional breaks in the chain.
 
-#### `resolve(specifier, context, next)`
+#### `resolve(specifier, context, nextResolve)`
 
 <!-- YAML
 changes:
@@ -750,8 +750,8 @@ changes:
   * `importAssertions` {Object}
   * `parentURL` {string|undefined} The module importing this one, or undefined
     if this is the Node.js entry point
-* `next` {Function} The subsequent `resolve` hook in the chain, or the Node.js
-  default `resolve` hook after the last user-supplied `resolve` hook
+* `nextResolve` {Function} The subsequent `resolve` hook in the chain, or the
+  Node.js default `resolve` hook after the last user-supplied `resolve` hook
   * `specifier` {string}
   * `context` {Object}
 * Returns: {Object}
@@ -788,7 +788,7 @@ Node.js module specifier resolution behavior_ when calling `defaultResolve`, the
 `context.conditions` array originally passed into the `resolve` hook.
 
 ```js
-export async function resolve(specifier, context, next) {
+export async function resolve(specifier, context, nextResolve) {
   const { parentURL = null } = context;
 
   if (Math.random() > 0.5) { // Some condition.
@@ -805,7 +805,7 @@ export async function resolve(specifier, context, next) {
   if (Math.random() < 0.5) { // Another condition.
     // When calling `defaultResolve`, the arguments can be modified. In this
     // case it's adding another value for matching conditional exports.
-    return next(specifier, {
+    return nextResolve(specifier, {
       ...context,
       conditions: [...context.conditions, 'another-condition'],
     });
@@ -813,11 +813,11 @@ export async function resolve(specifier, context, next) {
 
   // Defer to the next hook in the chain, which would be the
   // Node.js default resolve if this is the last user-specified loader.
-  return next(specifier, context);
+  return nextResolve(specifier, context);
 }
 ```
 
-#### `load(url, context, next)`
+#### `load(url, context, nextLoad)`
 
 > The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
@@ -831,8 +831,8 @@ export async function resolve(specifier, context, next) {
   * `format` {string|null|undefined} The format optionally supplied by the
     `resolve` hook chain
   * `importAssertions` {Object}
-* `next` {Function} The subsequent `load` hook in the chain, or the Node.js
-  default `load` hook after the last user-supplied `load` hook
+* `nextLoad` {Function} The subsequent `load` hook in the chain, or the
+  Node.js default `load` hook after the last user-supplied `load` hook
   * `specifier` {string}
   * `context` {Object}
 * Returns: {Object}
@@ -880,7 +880,7 @@ avoid reading files from disk. It could also be used to map an unrecognized
 format to a supported one, for example `yaml` to `module`.
 
 ```js
-export async function load(url, context, next) {
+export async function load(url, context, nextLoad) {
   const { format } = context;
 
   if (Math.random() > 0.5) { // Some condition
@@ -899,7 +899,7 @@ export async function load(url, context, next) {
   }
 
   // Defer to the next hook in the chain.
-  return next(url, context);
+  return nextLoad(url, context);
 }
 ```
 
@@ -989,7 +989,7 @@ and there is no security.
 // https-loader.mjs
 import { get } from 'node:https';
 
-export function resolve(specifier, context, next) {
+export function resolve(specifier, context, nextResolve) {
   const { parentURL = null } = context;
 
   // Normally Node.js would error on specifiers starting with 'https://', so
@@ -1008,10 +1008,10 @@ export function resolve(specifier, context, next) {
   }
 
   // Let Node.js handle all other specifiers.
-  return next(specifier, context);
+  return nextResolve(specifier, context);
 }
 
-export function load(url, context, next) {
+export function load(url, context, nextLoad) {
   // For JavaScript to be loaded over the network, we need to fetch and
   // return it.
   if (url.startsWith('https://')) {
@@ -1031,7 +1031,7 @@ export function load(url, context, next) {
   }
 
   // Let Node.js handle all other URLs.
-  return next(url, context);
+  return nextLoad(url, context);
 }
 ```
 
@@ -1071,7 +1071,7 @@ const baseURL = pathToFileURL(`${cwd()}/`).href;
 // CoffeeScript files end in .coffee, .litcoffee or .coffee.md.
 const extensionsRegex = /\.coffee$|\.litcoffee$|\.coffee\.md$/;
 
-export async function resolve(specifier, context, next) {
+export async function resolve(specifier, context, nextResolve) {
   if (extensionsRegex.test(specifier)) {
     const { parentURL = baseURL } = context;
 
@@ -1084,10 +1084,10 @@ export async function resolve(specifier, context, next) {
   }
 
   // Let Node.js handle all other specifiers.
-  return next(specifier, context);
+  return nextResolve(specifier, context);
 }
 
-export async function load(url, context, next) {
+export async function load(url, context, nextLoad) {
   if (extensionsRegex.test(url)) {
     // Now that we patched resolve to let CoffeeScript URLs through, we need to
     // tell Node.js what format such URLs should be interpreted as. Because
@@ -1112,7 +1112,7 @@ export async function load(url, context, next) {
       };
     }
 
-    const { source: rawSource } = await next(url, { ...context, format });
+    const { source: rawSource } = await nextLoad(url, { ...context, format });
     // This hook converts CoffeeScript source code into JavaScript source code
     // for all imported CoffeeScript files.
     const transformedSource = coffeeCompile(rawSource.toString(), url);
@@ -1125,7 +1125,7 @@ export async function load(url, context, next) {
   }
 
   // Let Node.js handle all other URLs.
-  return next(url, context);
+  return nextLoad(url, context);
 }
 
 async function getPackageType(url) {
