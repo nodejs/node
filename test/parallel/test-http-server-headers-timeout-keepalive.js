@@ -24,7 +24,7 @@ function performRequestWithDelay(client, firstDelay, secondDelay, closeAfter) {
   }, firstDelay + secondDelay).unref();
 }
 
-const headersTimeout = common.platformTimeout(2000);
+const headersTimeout = common.platformTimeout(5000);
 const server = createServer({
   headersTimeout,
   requestTimeout: 0,
