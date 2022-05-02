@@ -41,6 +41,7 @@ Local<Function> WasmStreamingObject::Initialize(Environment* env) {
 
 void WasmStreamingObject::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
+  registry->Register(New);
   registry->Register(Push);
   registry->Register(Finish);
   registry->Register(Abort);
@@ -198,6 +199,8 @@ void Initialize(Local<Object> target,
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetImplementation);
+  registry->Register(StartStreamingCompilation);
+  WasmStreamingObject::RegisterExternalReferences(registry);
 }
 
 }  // namespace wasm_web_api
