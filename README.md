@@ -444,8 +444,6 @@ For information about the governance of the Node.js project, see
   **Khaidi Chu** <<i@2333.moe>> (he/him)
 * [yashLadha](https://github.com/yashLadha) -
   **Yash Ladha** <<yash@yashladha.in>> (he/him)
-* [yosuke-furukawa](https://github.com/yosuke-furukawa) -
-  **Yosuke Furukawa** <<yosuke.furukawa@gmail.com>>
 * [ZYSzys](https://github.com/ZYSzys) -
   **Yongsheng Zhang** <<zyszys98@gmail.com>> (he/him)
 
@@ -632,6 +630,8 @@ For information about the governance of the Node.js project, see
   **Yihong Wang** <<yh.wang@ibm.com>>
 * [yorkie](https://github.com/yorkie) -
   **Yorkie Liu** <<yorkiefixer@gmail.com>>
+* [yosuke-furukawa](https://github.com/yosuke-furukawa) -
+  **Yosuke Furukawa** <<yosuke.furukawa@gmail.com>>
 
 </details>
 
