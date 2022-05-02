@@ -81,7 +81,7 @@ class Response {
     const value = parsedURL.toString()
 
     // 7. Append `Location`/value to responseObject’s response’s header list.
-    responseObject[kState].headersList.push('location', value)
+    responseObject[kState].headersList.append('location', value)
 
     // 8. Return responseObject.
     return responseObject
@@ -172,7 +172,7 @@ class Response {
       // not contain `Content-Type`, then append `Content-Type`/Content-Type
       // to this’s response’s header list.
       if (contentType && !this.headers.has('content-type')) {
-        this.headers.set('content-type', contentType)
+        this.headers.append('content-type', contentType)
       }
     }
   }
@@ -350,7 +350,7 @@ function makeResponse (init) {
     statusText: '',
     ...init,
     headersList: init.headersList
-      ? new HeadersList(...init.headersList)
+      ? new HeadersList(init.headersList)
       : new HeadersList(),
     urlList: init.urlList ? [...init.urlList] : []
   }
@@ -393,17 +393,15 @@ function makeFilteredHeadersList (headersList, filter) {
     get (target, prop) {
       // Override methods used by Headers class.
       if (prop === 'get' || prop === 'has') {
-        return (name) => filter(name) ? target[prop](name) : undefined
-      } else if (prop === 'slice') {
-        return (...args) => {
-          assert(args.length === 0)
-          const arr = []
-          for (let index = 0; index < target.length; index += 2) {
-            if (filter(target[index])) {
-              arr.push(target[index], target[index + 1])
+        const defaultReturn = prop === 'has' ? false : null
+        return (name) => filter(name) ? target[prop](name) : defaultReturn
+      } else if (prop === Symbol.iterator) {
+        return function * () {
+          for (const entry of target) {
+            if (filter(entry[0])) {
+              yield entry
             }
           }
-          return arr
         }
       } else {
         return target[prop]
@@ -423,7 +421,10 @@ function filterResponse (response, type) {
 
     return makeFilteredResponse(response, {
       type: 'basic',
-      headersList: makeFilteredHeadersList(response.headersList, (name) => !forbiddenResponseHeaderNames.includes(name))
+      headersList: makeFilteredHeadersList(
+        response.headersList,
+        (name) => !forbiddenResponseHeaderNames.includes(name.toLowerCase())
+      )
     })
   } else if (type === 'cors') {
     // A CORS filtered response is a filtered response whose type is "cors"

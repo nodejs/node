@@ -768,7 +768,7 @@ async function schemeFetch (fetchParams) {
   const {
     protocol: scheme,
     pathname: path
-  } = new URL(requestCurrentURL(request))
+  } = requestCurrentURL(request)
 
   // switch on request’s current URL’s scheme, and run the associated steps:
   switch (scheme) {
@@ -780,7 +780,7 @@ async function schemeFetch (fetchParams) {
         const resp = makeResponse({
           statusText: 'OK',
           headersList: [
-            'content-type', 'text/html;charset=utf-8'
+            ['content-type', 'text/html;charset=utf-8']
           ]
         })
 
@@ -792,7 +792,7 @@ async function schemeFetch (fetchParams) {
       return makeNetworkError('invalid path called')
     }
     case 'blob:': {
-      resolveObjectURL ??= require('buffer').resolveObjectURL
+      resolveObjectURL = resolveObjectURL || require('buffer').resolveObjectURL
 
       // 1. Run these steps, but abort when the ongoing fetch is terminated:
       //    1. Let blob be request’s current URL’s blob URL entry’s object.
@@ -871,7 +871,7 @@ async function schemeFetch (fetchParams) {
       return makeResponse({
         statusText: 'OK',
         headersList: [
-          'content-type', contentType
+          ['content-type', contentType]
         ],
         body: extractBody(dataURLStruct.body)[0]
       })
@@ -1919,8 +1919,10 @@ async function httpNetworkFetch (
         origin: url.origin,
         method: request.method,
         body: fetchParams.controller.dispatcher[kIsMockActive] ? request.body && request.body.source : body,
-        headers: request.headersList,
-        maxRedirections: 0
+        headers: [...request.headersList].flat(),
+        maxRedirections: 0,
+        bodyTimeout: 300_000,
+        headersTimeout: 300_000
       },
       {
         body: null,
@@ -1962,16 +1964,18 @@ async function httpNetworkFetch (
           const decoders = []
 
           // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding
-          for (const coding of codings) {
-            if (/(x-)?gzip/.test(coding)) {
-              decoders.push(zlib.createGunzip())
-            } else if (/(x-)?deflate/.test(coding)) {
-              decoders.push(zlib.createInflate())
-            } else if (coding === 'br') {
-              decoders.push(zlib.createBrotliDecompress())
-            } else {
-              decoders.length = 0
-              break
+          if (request.method !== 'HEAD' && request.method !== 'CONNECT' && !nullBodyStatus.includes(status)) {
+            for (const coding of codings) {
+              if (/(x-)?gzip/.test(coding)) {
+                decoders.push(zlib.createGunzip())
+              } else if (/(x-)?deflate/.test(coding)) {
+                decoders.push(zlib.createInflate())
+              } else if (coding === 'br') {
+                decoders.push(zlib.createBrotliDecompress())
+              } else {
+                decoders.length = 0
+                break
+              }
             }
           }
 
@@ -2029,7 +2033,7 @@ async function httpNetworkFetch (
 
           fetchParams.controller.terminate(error)
 
-          reject(makeNetworkError(error))
+          reject(error)
         }
       }
     ))

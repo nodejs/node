@@ -11,22 +11,8 @@ const {
   forbiddenResponseHeaderNames
 } = require('./constants')
 
-function binarySearch (arr, val) {
-  let low = 0
-  let high = Math.floor(arr.length / 2)
-
-  while (high > low) {
-    const mid = (high + low) >>> 1
-
-    if (val.localeCompare(arr[mid * 2]) > 0) {
-      low = mid + 1
-    } else {
-      high = mid
-    }
-  }
-
-  return low * 2
-}
+const kHeadersMap = Symbol('headers map')
+const kHeadersSortedMap = Symbol('headers map sorted')
 
 function normalizeAndValidateHeaderName (name) {
   if (name === undefined) {
@@ -91,64 +77,74 @@ function fill (headers, object) {
   }
 }
 
-// TODO: Composition over inheritence? Or helper methods?
-class HeadersList extends Array {
-  append (name, value) {
-    const normalizedName = normalizeAndValidateHeaderName(name)
-    const normalizedValue = normalizeAndValidateHeaderValue(name, value)
-
-    const index = binarySearch(this, normalizedName)
-
-    if (this[index] === normalizedName) {
-      this[index + 1] += `, ${normalizedValue}`
+class HeadersList {
+  constructor (init) {
+    if (init instanceof HeadersList) {
+      this[kHeadersMap] = new Map(init[kHeadersMap])
+      this[kHeadersSortedMap] = init[kHeadersSortedMap]
     } else {
-      this.splice(index, 0, normalizedName, normalizedValue)
+      this[kHeadersMap] = new Map(init)
+      this[kHeadersSortedMap] = null
     }
   }
 
-  delete (name) {
+  append (name, value) {
+    this[kHeadersSortedMap] = null
+
     const normalizedName = normalizeAndValidateHeaderName(name)
+    const normalizedValue = normalizeAndValidateHeaderValue(name, value)
 
-    const index = binarySearch(this, normalizedName)
+    const exists = this[kHeadersMap].get(normalizedName)
 
-    if (this[index] === normalizedName) {
-      this.splice(index, 2)
+    if (exists) {
+      this[kHeadersMap].set(normalizedName, `${exists}, ${normalizedValue}`)
+    } else {
+      this[kHeadersMap].set(normalizedName, `${normalizedValue}`)
     }
+  }
+
+  set (name, value) {
+    this[kHeadersSortedMap] = null
+
+    const normalizedName = normalizeAndValidateHeaderName(name)
+    return this[kHeadersMap].set(normalizedName, value)
+  }
+
+  delete (name) {
+    this[kHeadersSortedMap] = null
+
+    const normalizedName = normalizeAndValidateHeaderName(name)
+    return this[kHeadersMap].delete(normalizedName)
   }
 
   get (name) {
     const normalizedName = normalizeAndValidateHeaderName(name)
-
-    const index = binarySearch(this, normalizedName)
-
-    if (this[index] === normalizedName) {
-      return this[index + 1]
-    }
-
-    return null
+    return this[kHeadersMap].get(normalizedName) ?? null
   }
 
   has (name) {
     const normalizedName = normalizeAndValidateHeaderName(name)
-
-    const index = binarySearch(this, normalizedName)
-
-    return this[index] === normalizedName
+    return this[kHeadersMap].has(normalizedName)
   }
 
-  set (name, value) {
-    const normalizedName = normalizeAndValidateHeaderName(name)
-    const normalizedValue = normalizeAndValidateHeaderValue(name, value)
+  keys () {
+    return this[kHeadersMap].keys()
+  }
 
-    const index = binarySearch(this, normalizedName)
-    if (this[index] === normalizedName) {
-      this[index + 1] = normalizedValue
-    } else {
-      this.splice(index, 0, normalizedName, normalizedValue)
-    }
+  values () {
+    return this[kHeadersMap].values()
+  }
+
+  entries () {
+    return this[kHeadersMap].entries()
+  }
+
+  [Symbol.iterator] () {
+    return this[kHeadersMap][Symbol.iterator]()
   }
 }
 
+// https://fetch.spec.whatwg.org/#headers-class
 class Headers {
   constructor (...args) {
     if (
@@ -161,7 +157,6 @@ class Headers {
       )
     }
     const init = args.length >= 1 ? args[0] ?? {} : {}
-
     this[kHeadersList] = new HeadersList()
 
     // The new Headers(init) constructor steps are:
@@ -287,20 +282,18 @@ class Headers {
       )
     }
 
-    const normalizedName = normalizeAndValidateHeaderName(String(args[0]))
-
     if (this[kGuard] === 'immutable') {
       throw new TypeError('immutable')
     } else if (
       this[kGuard] === 'request' &&
-      forbiddenHeaderNames.includes(normalizedName)
+      forbiddenHeaderNames.includes(String(args[0]).toLocaleLowerCase())
     ) {
       return
     } else if (this[kGuard] === 'request-no-cors') {
       // TODO
     } else if (
       this[kGuard] === 'response' &&
-      forbiddenResponseHeaderNames.includes(normalizedName)
+      forbiddenResponseHeaderNames.includes(String(args[0]).toLocaleLowerCase())
     ) {
       return
     }
@@ -308,25 +301,41 @@ class Headers {
     return this[kHeadersList].set(String(args[0]), String(args[1]))
   }
 
-  * keys () {
-    const clone = this[kHeadersList].slice()
-    for (let index = 0; index < clone.length; index += 2) {
-      yield clone[index]
-    }
+  get [kHeadersSortedMap] () {
+    this[kHeadersList][kHeadersSortedMap] ??= new Map([...this[kHeadersList]].sort((a, b) => a[0] < b[0] ? -1 : 1))
+    return this[kHeadersList][kHeadersSortedMap]
   }
 
-  * values () {
-    const clone = this[kHeadersList].slice()
-    for (let index = 1; index < clone.length; index += 2) {
-      yield clone[index]
+  keys () {
+    if (!(this instanceof Headers)) {
+      throw new TypeError('Illegal invocation')
     }
+
+    return this[kHeadersSortedMap].keys()
   }
 
-  * entries () {
-    const clone = this[kHeadersList].slice()
-    for (let index = 0; index < clone.length; index += 2) {
-      yield [clone[index], clone[index + 1]]
+  values () {
+    if (!(this instanceof Headers)) {
+      throw new TypeError('Illegal invocation')
     }
+
+    return this[kHeadersSortedMap].values()
+  }
+
+  entries () {
+    if (!(this instanceof Headers)) {
+      throw new TypeError('Illegal invocation')
+    }
+
+    return this[kHeadersSortedMap].entries()
+  }
+
+  [Symbol.iterator] () {
+    if (!(this instanceof Headers)) {
+      throw new TypeError('Illegal invocation')
+    }
+
+    return this[kHeadersSortedMap]
   }
 
   forEach (...args) {
@@ -346,15 +355,9 @@ class Headers {
     const callback = args[0]
     const thisArg = args[1]
 
-    const clone = this[kHeadersList].slice()
-    for (let index = 0; index < clone.length; index += 2) {
-      callback.call(
-        thisArg,
-        clone[index + 1],
-        clone[index],
-        this
-      )
-    }
+    this[kHeadersSortedMap].forEach((value, index) => {
+      callback.apply(thisArg, [value, index, this])
+    })
   }
 
   [Symbol.for('nodejs.util.inspect.custom')] () {
@@ -384,7 +387,6 @@ module.exports = {
   fill,
   Headers,
   HeadersList,
-  binarySearch,
   normalizeAndValidateHeaderName,
   normalizeAndValidateHeaderValue
 }

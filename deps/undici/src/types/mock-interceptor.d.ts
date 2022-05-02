@@ -1,6 +1,6 @@
 import { IncomingHttpHeaders } from 'http'
 import Dispatcher from './dispatcher';
-import { Headers } from './fetch'
+import { BodyInit, Headers } from './fetch'
 
 export {
   Interceptable,
@@ -71,7 +71,7 @@ declare namespace MockInterceptor {
     path: string;
     origin: string;
     method: string;
-    body?: string;
+    body?: BodyInit | Dispatcher.DispatchOptions['body'];
     headers: Headers;
     maxRedirections: number;
   }
