@@ -179,7 +179,7 @@ const { MessageChannel, MessagePort } = require('worker_threads');
   assert.deepStrictEqual(
     Object.getOwnPropertyNames(MessagePort.prototype).sort(),
     [
-      'close', 'constructor', 'onmessage', 'onmessageerror', 'postMessage',
-      'ref', 'start', 'unref',
+      'close', 'constructor', 'hasRef', 'onmessage', 'onmessageerror',
+      'postMessage', 'ref', 'start', 'unref',
     ]);
 }
