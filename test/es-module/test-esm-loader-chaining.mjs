@@ -15,7 +15,7 @@ const commonArgs = [
 ];
 
 { // Verify unadulterated source is loaded when there are no loaders
-  const { status, stdout } = spawnSync(
+  const { status, stderr, stdout } = spawnSync(
     process.execPath,
     [
       ...setupArgs,
@@ -24,12 +24,13 @@ const commonArgs = [
     { encoding: 'utf8' },
   );
 
+  assert.strictEqual(stderr, '');
   assert.strictEqual(status, 0);
   assert.match(stdout, /number/); // node:fs is an object
 }
 
 { // Verify loaded source is properly different when only load changes something
-  const { status, stdout } = spawnSync(
+  const { status, stderr, stdout } = spawnSync(
     process.execPath,
     [
       '--loader',
@@ -43,6 +44,7 @@ const commonArgs = [
     { encoding: 'utf8' },
   );
 
+  assert.strictEqual(stderr, '');
   assert.match(stdout, /load passthru/);
   assert.match(stdout, /resolve passthru/);
   assert.strictEqual(status, 0);
@@ -50,7 +52,7 @@ const commonArgs = [
 }
 
 { // Verify multiple changes from hooks result in proper output
-  const { status, stdout } = spawnSync(
+  const { status, stderr, stdout } = spawnSync(
     process.execPath,
     [
       '--loader',
@@ -66,13 +68,14 @@ const commonArgs = [
     { encoding: 'utf8' },
   );
 
+  assert.strictEqual(stderr, '');
   assert.match(stdout, /resolve 42/); // It did go thru resolve-42
   assert.strictEqual(status, 0);
   assert.match(stdout, /foo/); // LIFO, so resolve-foo won
 }
 
 { // Verify modifying context within resolve chain is respected
-  const { status, stdout } = spawnSync(
+  const { status, stderr, stdout } = spawnSync(
     process.execPath,
     [
       '--loader',
@@ -90,12 +93,13 @@ const commonArgs = [
     { encoding: 'utf8' },
   );
 
+  assert.strictEqual(stderr, '');
   assert.match(stdout, /bar/);
   assert.strictEqual(status, 0);
 }
 
 { // Verify multiple changes from hooks result in proper output
-  const { status, stdout } = spawnSync(
+  const { status, stderr, stdout } = spawnSync(
     process.execPath,
     [
       '--loader',
@@ -111,6 +115,7 @@ const commonArgs = [
     { encoding: 'utf8' },
   );
 
+  assert.strictEqual(stderr, '');
   assert.match(stdout, /resolve foo/); // It did go thru resolve-foo
   assert.strictEqual(status, 0);
   assert.match(stdout, /42/); // LIFO, so resolve-42 won
@@ -136,6 +141,48 @@ const commonArgs = [
   assert.match(stderr, /ERR_LOADER_CHAIN_INCOMPLETE/);
   assert.match(stderr, /loader-resolve-incomplete\.mjs/);
   assert.match(stderr, /"resolve"/);
+}
+
+{ // Verify error NOT thrown when nested resolve hook signaled a short circuit
+  const { status, stderr, stdout } = spawnSync(
+    process.execPath,
+    [
+      '--loader',
+      fixtures.path('es-module-loaders/loader-resolve-shortcircuit.mjs'),
+      '--loader',
+      fixtures.path('es-module-loaders/loader-resolve-next-modified.mjs'),
+      '--loader',
+      fixtures.path('es-module-loaders/loader-load-foo-or-42.mjs'),
+      ...commonArgs,
+    ],
+    { encoding: 'utf8' },
+  );
+
+  assert.strictEqual(stderr, '');
+  assert.strictEqual(stdout.trim(), 'foo');
+  assert.strictEqual(status, 0);
+}
+
+{ // Verify error NOT thrown when nested load hook signaled a short circuit
+  const { status, stderr, stdout } = spawnSync(
+    process.execPath,
+    [
+      '--loader',
+      fixtures.path('es-module-loaders/loader-resolve-shortcircuit.mjs'),
+      '--loader',
+      fixtures.path('es-module-loaders/loader-resolve-42.mjs'),
+      '--loader',
+      fixtures.path('es-module-loaders/loader-load-foo-or-42.mjs'),
+      '--loader',
+      fixtures.path('es-module-loaders/loader-load-next-modified.mjs'),
+      ...commonArgs,
+    ],
+    { encoding: 'utf8' },
+  );
+
+  assert.strictEqual(stderr, '');
+  assert.match(stdout, /421/);
+  assert.strictEqual(status, 0);
 }
 
 { // Verify chain does break and throws appropriately
