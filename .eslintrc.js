@@ -338,6 +338,7 @@ module.exports = {
     TextEncoderStream: 'readable',
     TransformStream: 'readable',
     TransformStreamDefaultController: 'readable',
+    ShadowRealm: 'readable',
     SubtleCrypto: 'readable',
     WritableStream: 'readable',
     WritableStreamDefaultWriter: 'readable',
