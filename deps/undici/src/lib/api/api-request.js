@@ -88,14 +88,16 @@ class RequestHandler extends AsyncResource {
     this.res = body
     const headers = this.responseHeaders === 'raw' ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders)
 
-    this.runInAsyncScope(callback, null, null, {
-      statusCode,
-      headers,
-      trailers: this.trailers,
-      opaque,
-      body,
-      context
-    })
+    if (callback !== null) {
+      this.runInAsyncScope(callback, null, null, {
+        statusCode,
+        headers,
+        trailers: this.trailers,
+        opaque,
+        body,
+        context
+      })
+    }
   }
 
   onData (chunk) {

@@ -23,7 +23,7 @@ class ProxyAgent extends DispatcherBase {
         origin: this[kProxy].uri,
         path: opts.origin + opts.path,
         headers: {
-          ...opts.headers,
+          ...buildHeaders(opts.headers),
           host
         }
       },
@@ -53,6 +53,27 @@ function buildProxyOptions (opts) {
     uri: opts.uri,
     protocol: opts.protocol || 'https'
   }
+}
+
+/**
+ * @param {string[] | Record<string, string>} headers
+ * @returns {Record<string, string>}
+ */
+function buildHeaders (headers) {
+  // When using undici.fetch, the headers list is stored
+  // as an array.
+  if (Array.isArray(headers)) {
+    /** @type {Record<string, string>} */
+    const headersPair = {}
+
+    for (let i = 0; i < headers.length; i += 2) {
+      headersPair[headers[i]] = headers[i + 1]
+    }
+
+    return headersPair
+  }
+
+  return headers
 }
 
 module.exports = ProxyAgent
