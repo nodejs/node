@@ -206,7 +206,7 @@ added: v16.5.0
   * `preventAbort` {boolean} When `true`, errors in this `ReadableStream`
     will not cause `transform.writable` to be aborted.
   * `preventCancel` {boolean} When `true`, errors in the destination
-    `transform.writable` will not cause this `ReadableStream` to be
+    `transform.writable` do not cause this `ReadableStream` to be
     canceled.
   * `preventClose` {boolean} When `true`, closing this `ReadableStream`
     will not cause `transform.writable` to be closed.
