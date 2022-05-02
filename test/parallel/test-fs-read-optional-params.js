@@ -5,32 +5,34 @@ const fixtures = require('../common/fixtures');
 const fs = require('fs');
 const assert = require('assert');
 const filepath = fixtures.path('x.txt');
-const fd = fs.openSync(filepath, 'r');
 
 const expected = Buffer.from('xyz\n');
 const defaultBufferAsync = Buffer.alloc(16384);
-const bufferAsOption = Buffer.allocUnsafe(expected.length);
+const bufferAsOption = Buffer.allocUnsafe(expected.byteLength);
 
-// Test not passing in any options object
-fs.read(fd, common.mustCall((err, bytesRead, buffer) => {
-  assert.strictEqual(bytesRead, expected.length);
-  assert.deepStrictEqual(defaultBufferAsync.length, buffer.length);
-}));
+function testValid(message, ...options) {
+  const paramsMsg = `${message} (as params)`;
+  const paramsFilehandle = fs.openSync(filepath, 'r');
+  fs.read(paramsFilehandle, ...options, common.mustSucceed((bytesRead, buffer) => {
+    assert.strictEqual(bytesRead, expected.byteLength, paramsMsg);
+    assert.deepStrictEqual(defaultBufferAsync.byteLength, buffer.byteLength, paramsMsg);
+    fs.closeSync(paramsFilehandle);
+  }));
 
-// Test passing in an empty options object
-fs.read(fd, { position: 0 }, common.mustCall((err, bytesRead, buffer) => {
-  assert.strictEqual(bytesRead, expected.length);
-  assert.deepStrictEqual(defaultBufferAsync.length, buffer.length);
-}));
+  const optionsMsg = `${message} (as options)`;
+  const optionsFilehandle = fs.openSync(filepath, 'r');
+  fs.read(optionsFilehandle, bufferAsOption, ...options, common.mustSucceed((bytesRead, buffer) => {
+    assert.strictEqual(bytesRead, expected.byteLength, optionsMsg);
+    assert.deepStrictEqual(bufferAsOption.byteLength, buffer.byteLength, optionsMsg);
+    fs.closeSync(optionsFilehandle);
+  }));
+}
 
-// Test passing in options
-fs.read(fd, {
-  buffer: bufferAsOption,
+testValid('Not passing in any object');
+testValid('Passing in a null', null);
+testValid('Passing in an empty object', {});
+testValid('Passing in an object', {
   offset: 0,
-  length: bufferAsOption.length,
-  position: 0
-},
-        common.mustCall((err, bytesRead, buffer) => {
-          assert.strictEqual(bytesRead, expected.length);
-          assert.deepStrictEqual(bufferAsOption.length, buffer.length);
-        }));
+  length: bufferAsOption.byteLength,
+  position: 0,
+});
