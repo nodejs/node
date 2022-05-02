@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-'use strict';
 
-const { execSync, spawn } = require('child_process');
-const { promises: fs, readdirSync, statSync } = require('fs');
-const { extname, join, relative, resolve } = require('path');
+import { execSync, spawn } from 'child_process';
+import { promises as fs, readdirSync, statSync } from 'fs';
+import { extname, join, relative, resolve } from 'path';
+import process from 'process';
 
 const FIX_MODE_ENABLED = process.argv.includes('--fix');
 const USE_NPX = process.argv.includes('--from-npx');
@@ -178,7 +178,11 @@ if (
     SPAWN_OPTIONS.cwd = process.cwd();
     checkFiles(entryPoint).catch(onError);
   } else {
-    onError(new Error('You must provide a valid directory or file path. ' +
-                      `Received '${process.argv[2]}'.`));
+    onError(
+      new Error(
+        'You must provide a valid directory or file path. ' +
+          `Received '${process.argv[2]}'.`
+      )
+    );
   }
 }
