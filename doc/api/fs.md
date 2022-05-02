@@ -417,6 +417,80 @@ Reads data from the file and stores that in the given buffer.
 If the file is not modified concurrently, the end-of-file is reached when the
 number of bytes read is zero.
 
+#### `filehandle.read(buffer[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
+  file data read.
+* `options` {Object}
+  * `offset` {integer} The location in the buffer at which to start filling.
+    **Default:** `0`
+  * `length` {integer} The number of bytes to read. **Default:**
+    `buffer.byteLength - offset`
+  * `position` {integer} The location where to begin reading data from the
+    file. If `null`, data will be read from the current file position, and
+    the position will be updated. If `position` is an integer, the current
+    file position will remain unchanged. **Default:**: `null`
+* Returns: {Promise} Fulfills upon success with an object with two properties:
+  * `bytesRead` {integer} The number of bytes read
+  * `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
+    argument.
+
+Reads data from the file and stores that in the given buffer.
+
+If the file is not modified concurrently, the end-of-file is reached when the
+number of bytes read is zero.
+
+#### `filehandle.readableWebStream()`
+
+<!-- YAML
+added: v17.0.0
+-->
+
+> Stability: 1 - Experimental
+
+* Returns: {ReadableStream}
+
+Returns a `ReadableStream` that may be used to read the files data.
+
+An error will be thrown if this method is called more than once or is called
+after the `FileHandle` is closed or closing.
+
+```mjs
+import {
+  open,
+} from 'node:fs/promises';
+
+const file = await open('./some/file/to/read');
+
+for await (const chunk of file.readableWebStream())
+  console.log(chunk);
+
+await file.close();
+```
+
+```cjs
+const {
+  open,
+} = require('node:fs/promises');
+
+(async () => {
+  const file = await open('./some/file/to/read');
+
+  for await (const chunk of file.readableWebStream())
+    console.log(chunk);
+
+  await file.close();
+})();
+```
+
+While the `ReadableStream` will read the file to completion, it will not
+close the `FileHandle` automatically. User code must still call the
+`fileHandle.close()` method.
+
 #### `filehandle.readFile(options)`
 
 <!-- YAML
@@ -3049,6 +3123,28 @@ changes:
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.byteLength - offset`
   * `position` {integer|bigint|null} **Default:** `null`
+* `callback` {Function}
+  * `err` {Error}
+  * `bytesRead` {integer}
+  * `buffer` {Buffer}
+
+Similar to the [`fs.read()`][] function, this version takes an optional
+`options` object. If no `options` object is specified, it will default with the
+above values.
+
+### `fs.read(fd, buffer[, options], callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fd` {integer}
+* `buffer` {Buffer|TypedArray|DataView} The buffer that the data will be
+  written to.
+* `options` {Object}
+  * `offset` {integer} **Default:** `0`
+  * `length` {integer} **Default:** `buffer.byteLength - offset`
+  * `position` {integer|bigint} **Default:** `null`
 * `callback` {Function}
   * `err` {Error}
   * `bytesRead` {integer}
