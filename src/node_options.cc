@@ -703,6 +703,15 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
   AddOption(
       "--experimental-top-level-await", "", NoOp{}, kAllowedInEnvironment);
 
+  AddOption("--experimental-shadow-realm",
+            "",
+            &PerIsolateOptions::experimental_shadow_realm,
+            kAllowedInEnvironment);
+  AddOption("--harmony-shadow-realm", "", V8Option{});
+  Implies("--experimental-shadow-realm", "--harmony-shadow-realm");
+  Implies("--harmony-shadow-realm", "--experimental-shadow-realm");
+  ImpliesNot("--no-harmony-shadow-realm", "--experimental-shadow-realm");
+
   Insert(eop, &PerIsolateOptions::get_per_env_options);
 }
 
