@@ -87,6 +87,10 @@ rules:
       message: Use `const { Request } = require('internal/deps/undici/undici');` instead of the global.
     - name: Response
       message: Use `const { Response } = require('internal/deps/undici/undici');` instead of the global.
+      # ShadowRealm is not available in primordials because it can be
+      # disabled with --no-harmony-shadow-realm CLI flag.
+    - name: ShadowRealm
+      message: Use `const { ShadowRealm } = globalThis;` instead of the global.
       # SharedArrayBuffer is not available in primordials because it can be
       # disabled with --no-harmony-sharedarraybuffer CLI flag.
     - name: SharedArrayBuffer

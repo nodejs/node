@@ -5,6 +5,7 @@
 #include "node_native_module_env.h"
 #include "node_options-inl.h"
 #include "node_platform.h"
+#include "node_shadow_realm.h"
 #include "node_v8_platform-inl.h"
 #include "node_wasm_web_api.h"
 #include "uv.h"
@@ -259,6 +260,12 @@ void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
           ->get_per_env_options()
           ->experimental_fetch) {
     isolate->SetWasmStreamingCallback(wasm_web_api::StartStreamingCompilation);
+  }
+
+  if (per_process::cli_options->get_per_isolate_options()
+          ->experimental_shadow_realm) {
+    isolate->SetHostCreateShadowRealmContextCallback(
+        shadow_realm::HostCreateShadowRealmContextCallback);
   }
 
   if ((s.flags & SHOULD_NOT_SET_PROMISE_REJECTION_CALLBACK) == 0) {

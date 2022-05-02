@@ -346,9 +346,17 @@ Disable experimental support for the [Fetch API][].
 
 <!-- YAML
 added: v16.6.0
- -->
+-->
 
 Use this flag to disable top-level await in REPL.
+
+### `--experimental-shadow-realm`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Use this flag to enable [ShadowRealm][] support.
 
 ### `--experimental-specifier-resolution=mode`
 
@@ -1622,6 +1630,7 @@ Node.js options that are allowed are:
 * `--experimental-modules`
 * `--experimental-network-imports`
 * `--experimental-policy`
+* `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
 * `--experimental-top-level-await`
 * `--experimental-vm-modules`
@@ -2017,6 +2026,7 @@ $ node --max-old-space-size=1536 index.js
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
 [REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
+[ShadowRealm]: https://github.com/tc39/proposal-shadowrealm
 [Source Map]: https://sourcemaps.info/spec.html
 [Subresource Integrity]: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
