@@ -324,6 +324,10 @@ function ReadableStreamFrom (iterable) {
   )
 }
 
+function isFormDataLike (chunk) {
+  return chunk && chunk.constructor && chunk.constructor.name === 'FormData'
+}
+
 const kEnumerableProperty = Object.create(null)
 kEnumerableProperty.enumerable = true
 
@@ -352,5 +356,6 @@ module.exports = {
   ReadableStreamFrom,
   isBuffer,
   validateHandler,
-  getSocketInfo
+  getSocketInfo,
+  isFormDataLike
 }
