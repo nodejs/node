@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -281,7 +281,7 @@ int EVP_DecryptInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher,
 # define PTRDIFF_T size_t
 #endif
 
-int is_partially_overlapping(const void *ptr1, const void *ptr2, int len)
+int is_partially_overlapping(const void *ptr1, const void *ptr2, size_t len)
 {
     PTRDIFF_T diff = (PTRDIFF_T)ptr1-(PTRDIFF_T)ptr2;
     /*
@@ -299,7 +299,8 @@ static int evp_EncryptDecryptUpdate(EVP_CIPHER_CTX *ctx,
                                     unsigned char *out, int *outl,
                                     const unsigned char *in, int inl)
 {
-    int i, j, bl, cmpl = inl;
+    int i, j, bl;
+    size_t cmpl = (size_t)inl;
 
     if (EVP_CIPHER_CTX_test_flags(ctx, EVP_CIPH_FLAG_LENGTH_BITS))
         cmpl = (cmpl + 7) / 8;
@@ -464,8 +465,9 @@ int EVP_EncryptFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
 int EVP_DecryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
                       const unsigned char *in, int inl)
 {
-    int fix_len, cmpl = inl;
+    int fix_len;
     unsigned int b;
+    size_t cmpl = (size_t)inl;
 
     /* Prevent accidental use of encryption context when decrypting */
     if (ctx->encrypt) {

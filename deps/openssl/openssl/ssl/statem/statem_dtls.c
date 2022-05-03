@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -218,8 +218,8 @@ int dtls1_do_write(SSL *s, int type)
         else
             len = s->init_num;
 
-        if (len > s->max_send_fragment)
-            len = s->max_send_fragment;
+        if (len > ssl_get_max_send_fragment(s))
+            len = ssl_get_max_send_fragment(s);
 
         /*
          * XDTLS: this function is too long.  split out the CCS part
@@ -241,7 +241,7 @@ int dtls1_do_write(SSL *s, int type)
 
         ret = dtls1_write_bytes(s, type, &s->init_buf->data[s->init_off], len,
                                 &written);
-        if (ret < 0) {
+        if (ret <= 0) {
             /*
              * might need to update MTU here, but we don't know which
              * previous packet caused the failure -- so can't really

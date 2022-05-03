@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -23,7 +23,9 @@
 #include "internal/constant_time.h"
 #include "e_os.h"
 
+#ifndef OPENSSL_NO_ERR
 static int err_load_strings(const ERR_STRING_DATA *str);
+#endif
 
 static void ERR_STATE_free(ERR_STATE *s);
 #ifndef OPENSSL_NO_ERR
@@ -76,9 +78,9 @@ static ERR_STRING_DATA ERR_str_functs[] = {
     {ERR_PACK(0, SYS_F_BIND, 0), "bind"},
     {ERR_PACK(0, SYS_F_LISTEN, 0), "listen"},
     {ERR_PACK(0, SYS_F_ACCEPT, 0), "accept"},
-# ifdef OPENSSL_SYS_WINDOWS
+#ifdef OPENSSL_SYS_WINDOWS
     {ERR_PACK(0, SYS_F_WSASTARTUP, 0), "WSAstartup"},
-# endif
+#endif
     {ERR_PACK(0, SYS_F_OPENDIR, 0), "opendir"},
     {ERR_PACK(0, SYS_F_FREAD, 0), "fread"},
     {ERR_PACK(0, SYS_F_GETADDRINFO, 0), "getaddrinfo"},
@@ -141,21 +143,26 @@ static int set_err_thread_local;
 static CRYPTO_THREAD_LOCAL err_thread_local;
 
 static CRYPTO_ONCE err_string_init = CRYPTO_ONCE_STATIC_INIT;
-static CRYPTO_RWLOCK *err_string_lock;
+static CRYPTO_RWLOCK *err_string_lock = NULL;
 
+#ifndef OPENSSL_NO_ERR
 static ERR_STRING_DATA *int_err_get_item(const ERR_STRING_DATA *);
+#endif
 
 /*
  * The internal state
  */
 
+#ifndef OPENSSL_NO_ERR
 static LHASH_OF(ERR_STRING_DATA) *int_error_hash = NULL;
+#endif
 static int int_err_library_number = ERR_LIB_USER;
 
 static unsigned long get_error_values(int inc, int top, const char **file,
                                       int *line, const char **data,
                                       int *flags);
 
+#ifndef OPENSSL_NO_ERR
 static unsigned long err_string_data_hash(const ERR_STRING_DATA *a)
 {
     unsigned long ret, l;
@@ -184,7 +191,6 @@ static ERR_STRING_DATA *int_err_get_item(const ERR_STRING_DATA *d)
     return p;
 }
 
-#ifndef OPENSSL_NO_ERR
 /* 2019-05-21: Russian and Ukrainian locales on Linux require more than 6,5 kB */
 # define SPACE_SYS_STR_REASONS 8 * 1024
 # define NUM_SYS_STR_REASONS 127
@@ -299,6 +305,7 @@ DEFINE_RUN_ONCE_STATIC(do_err_strings_init)
     err_string_lock = CRYPTO_THREAD_lock_new();
     if (err_string_lock == NULL)
         return 0;
+#ifndef OPENSSL_NO_ERR
     int_error_hash = lh_ERR_STRING_DATA_new(err_string_data_hash,
                                             err_string_data_cmp);
     if (int_error_hash == NULL) {
@@ -306,6 +313,7 @@ DEFINE_RUN_ONCE_STATIC(do_err_strings_init)
         err_string_lock = NULL;
         return 0;
     }
+#endif
     return 1;
 }
 
@@ -315,10 +323,13 @@ void err_cleanup(void)
         CRYPTO_THREAD_cleanup_local(&err_thread_local);
     CRYPTO_THREAD_lock_free(err_string_lock);
     err_string_lock = NULL;
+#ifndef OPENSSL_NO_ERR
     lh_ERR_STRING_DATA_free(int_error_hash);
     int_error_hash = NULL;
+#endif
 }
 
+#ifndef OPENSSL_NO_ERR
 /*
  * Legacy; pack in the library.
  */
@@ -342,6 +353,7 @@ static int err_load_strings(const ERR_STRING_DATA *str)
     CRYPTO_THREAD_unlock(err_string_lock);
     return 1;
 }
+#endif
 
 int ERR_load_ERR_strings(void)
 {
@@ -360,24 +372,31 @@ int ERR_load_ERR_strings(void)
 
 int ERR_load_strings(int lib, ERR_STRING_DATA *str)
 {
+#ifndef OPENSSL_NO_ERR
     if (ERR_load_ERR_strings() == 0)
         return 0;
 
     err_patch(lib, str);
     err_load_strings(str);
+#endif
+
     return 1;
 }
 
 int ERR_load_strings_const(const ERR_STRING_DATA *str)
 {
+#ifndef OPENSSL_NO_ERR
     if (ERR_load_ERR_strings() == 0)
         return 0;
     err_load_strings(str);
+#endif
+
     return 1;
 }
 
 int ERR_unload_strings(int lib, ERR_STRING_DATA *str)
 {
+#ifndef OPENSSL_NO_ERR
     if (!RUN_ONCE(&err_string_init, do_err_strings_init))
         return 0;
 
@@ -389,14 +408,14 @@ int ERR_unload_strings(int lib, ERR_STRING_DATA *str)
     for (; str->error; str++)
         (void)lh_ERR_STRING_DATA_delete(int_error_hash, str);
     CRYPTO_THREAD_unlock(err_string_lock);
+#endif
 
     return 1;
 }
 
 void err_free_strings_int(void)
 {
-    if (!RUN_ONCE(&err_string_init, do_err_strings_init))
-        return;
+    /* obsolete */
 }
 
 /********************************************************/
@@ -636,6 +655,7 @@ char *ERR_error_string(unsigned long e, char *ret)
 
 const char *ERR_lib_error_string(unsigned long e)
 {
+#ifndef OPENSSL_NO_ERR
     ERR_STRING_DATA d, *p;
     unsigned long l;
 
@@ -647,10 +667,14 @@ const char *ERR_lib_error_string(unsigned long e)
     d.error = ERR_PACK(l, 0, 0);
     p = int_err_get_item(&d);
     return ((p == NULL) ? NULL : p->string);
+#else
+    return NULL;
+#endif
 }
 
 const char *ERR_func_error_string(unsigned long e)
 {
+#ifndef OPENSSL_NO_ERR
     ERR_STRING_DATA d, *p;
     unsigned long l, f;
 
@@ -663,10 +687,14 @@ const char *ERR_func_error_string(unsigned long e)
     d.error = ERR_PACK(l, f, 0);
     p = int_err_get_item(&d);
     return ((p == NULL) ? NULL : p->string);
+#else
+    return NULL;
+#endif
 }
 
 const char *ERR_reason_error_string(unsigned long e)
 {
+#ifndef OPENSSL_NO_ERR
     ERR_STRING_DATA d, *p = NULL;
     unsigned long l, r;
 
@@ -683,6 +711,9 @@ const char *ERR_reason_error_string(unsigned long e)
         p = int_err_get_item(&d);
     }
     return ((p == NULL) ? NULL : p->string);
+#else
+    return NULL;
+#endif
 }
 
 void err_delete_thread_state(void)
