@@ -272,12 +272,12 @@
 
     ],
     'openssl_sources_darwin64-arm64-cc': [
-      './config/archs/darwin64-arm64-cc/no-asm/providers/common/der/der_sm2_gen.c',
       './config/archs/darwin64-arm64-cc/no-asm/providers/common/der/der_digests_gen.c',
       './config/archs/darwin64-arm64-cc/no-asm/providers/common/der/der_dsa_gen.c',
       './config/archs/darwin64-arm64-cc/no-asm/providers/common/der/der_ec_gen.c',
       './config/archs/darwin64-arm64-cc/no-asm/providers/common/der/der_ecx_gen.c',
       './config/archs/darwin64-arm64-cc/no-asm/providers/common/der/der_rsa_gen.c',
+      './config/archs/darwin64-arm64-cc/no-asm/providers/common/der/der_sm2_gen.c',
       './config/archs/darwin64-arm64-cc/no-asm/providers/common/der/der_wrap_gen.c',
 
     ],

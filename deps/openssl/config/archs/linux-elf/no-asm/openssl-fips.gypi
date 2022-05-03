@@ -272,15 +272,15 @@
 
     ],
     'openssl_sources_linux-elf': [
-      './config/archs/linux-elf/no-asm/providers/common/der/der_sm2_gen.c',
       './config/archs/linux-elf/no-asm/providers/common/der/der_digests_gen.c',
       './config/archs/linux-elf/no-asm/providers/common/der/der_dsa_gen.c',
       './config/archs/linux-elf/no-asm/providers/common/der/der_ec_gen.c',
       './config/archs/linux-elf/no-asm/providers/common/der/der_ecx_gen.c',
       './config/archs/linux-elf/no-asm/providers/common/der/der_rsa_gen.c',
+      './config/archs/linux-elf/no-asm/providers/common/der/der_sm2_gen.c',
       './config/archs/linux-elf/no-asm/providers/common/der/der_wrap_gen.c',
-      './config/archs/linux-elf/no-asm/providers/legacy.ld',
       './config/archs/linux-elf/no-asm/providers/fips.ld',
+      './config/archs/linux-elf/no-asm/providers/legacy.ld',
 
     ],
     'openssl_defines_linux-elf': [

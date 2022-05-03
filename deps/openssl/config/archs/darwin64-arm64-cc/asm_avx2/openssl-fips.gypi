@@ -274,10 +274,10 @@
     'openssl_sources_darwin64-arm64-cc': [
       './config/archs/darwin64-arm64-cc/asm_avx2/crypto/aes/aesv8-armx.S',
       './config/archs/darwin64-arm64-cc/asm_avx2/crypto/aes/vpaes-armv8.S',
+      './config/archs/darwin64-arm64-cc/asm_avx2/crypto/arm64cpuid.S',
       './config/archs/darwin64-arm64-cc/asm_avx2/crypto/bn/armv8-mont.S',
       './config/archs/darwin64-arm64-cc/asm_avx2/crypto/chacha/chacha-armv8.S',
       './config/archs/darwin64-arm64-cc/asm_avx2/crypto/ec/ecp_nistz256-armv8.S',
-      './config/archs/darwin64-arm64-cc/asm_avx2/crypto/arm64cpuid.S',
       './config/archs/darwin64-arm64-cc/asm_avx2/crypto/modes/aes-gcm-armv8_64.S',
       './config/archs/darwin64-arm64-cc/asm_avx2/crypto/modes/ghashv8-armx.S',
       './config/archs/darwin64-arm64-cc/asm_avx2/crypto/poly1305/poly1305-armv8.S',
@@ -285,14 +285,13 @@
       './config/archs/darwin64-arm64-cc/asm_avx2/crypto/sha/sha1-armv8.S',
       './config/archs/darwin64-arm64-cc/asm_avx2/crypto/sha/sha256-armv8.S',
       './config/archs/darwin64-arm64-cc/asm_avx2/crypto/sha/sha512-armv8.S',
-      './config/archs/darwin64-arm64-cc/asm_avx2/providers/common/der/der_sm2_gen.c',
       './config/archs/darwin64-arm64-cc/asm_avx2/providers/common/der/der_digests_gen.c',
       './config/archs/darwin64-arm64-cc/asm_avx2/providers/common/der/der_dsa_gen.c',
       './config/archs/darwin64-arm64-cc/asm_avx2/providers/common/der/der_ec_gen.c',
       './config/archs/darwin64-arm64-cc/asm_avx2/providers/common/der/der_ecx_gen.c',
       './config/archs/darwin64-arm64-cc/asm_avx2/providers/common/der/der_rsa_gen.c',
+      './config/archs/darwin64-arm64-cc/asm_avx2/providers/common/der/der_sm2_gen.c',
       './config/archs/darwin64-arm64-cc/asm_avx2/providers/common/der/der_wrap_gen.c',
-      './config/archs/darwin64-arm64-cc/asm_avx2/crypto/bn/armv8-mont.S',
 
     ],
     'openssl_defines_darwin64-arm64-cc': [

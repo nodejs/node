@@ -1381,6 +1381,8 @@ DECLARE_PEM_rw(SSL_SESSION, SSL_SESSION)
 # define SSL_CTRL_GET_TMP_KEY                    133
 # define SSL_CTRL_GET_NEGOTIATED_GROUP           134
 # define SSL_CTRL_SET_RETRY_VERIFY               136
+# define SSL_CTRL_GET_VERIFY_CERT_STORE          137
+# define SSL_CTRL_GET_CHAIN_CERT_STORE           138
 # define SSL_CERT_SET_FIRST                      1
 # define SSL_CERT_SET_NEXT                       2
 # define SSL_CERT_SET_SERVER                     3
@@ -1442,10 +1444,14 @@ DECLARE_PEM_rw(SSL_SESSION, SSL_SESSION)
         SSL_CTX_ctrl(ctx,SSL_CTRL_SET_VERIFY_CERT_STORE,0,(char *)(st))
 # define SSL_CTX_set1_verify_cert_store(ctx,st) \
         SSL_CTX_ctrl(ctx,SSL_CTRL_SET_VERIFY_CERT_STORE,1,(char *)(st))
+# define SSL_CTX_get0_verify_cert_store(ctx,st) \
+        SSL_CTX_ctrl(ctx,SSL_CTRL_GET_VERIFY_CERT_STORE,0,(char *)(st))
 # define SSL_CTX_set0_chain_cert_store(ctx,st) \
         SSL_CTX_ctrl(ctx,SSL_CTRL_SET_CHAIN_CERT_STORE,0,(char *)(st))
 # define SSL_CTX_set1_chain_cert_store(ctx,st) \
         SSL_CTX_ctrl(ctx,SSL_CTRL_SET_CHAIN_CERT_STORE,1,(char *)(st))
+# define SSL_CTX_get0_chain_cert_store(ctx,st) \
+        SSL_CTX_ctrl(ctx,SSL_CTRL_GET_CHAIN_CERT_STORE,0,(char *)(st))
 # define SSL_set0_chain(s,sk) \
         SSL_ctrl(s,SSL_CTRL_CHAIN,0,(char *)(sk))
 # define SSL_set1_chain(s,sk) \
@@ -1468,10 +1474,15 @@ DECLARE_PEM_rw(SSL_SESSION, SSL_SESSION)
         SSL_ctrl(s,SSL_CTRL_SET_VERIFY_CERT_STORE,0,(char *)(st))
 # define SSL_set1_verify_cert_store(s,st) \
         SSL_ctrl(s,SSL_CTRL_SET_VERIFY_CERT_STORE,1,(char *)(st))
+#define SSL_get0_verify_cert_store(s,st) \
+        SSL_ctrl(s,SSL_CTRL_GET_VERIFY_CERT_STORE,0,(char *)(st))
 # define SSL_set0_chain_cert_store(s,st) \
         SSL_ctrl(s,SSL_CTRL_SET_CHAIN_CERT_STORE,0,(char *)(st))
 # define SSL_set1_chain_cert_store(s,st) \
         SSL_ctrl(s,SSL_CTRL_SET_CHAIN_CERT_STORE,1,(char *)(st))
+#define SSL_get0_chain_cert_store(s,st) \
+        SSL_ctrl(s,SSL_CTRL_GET_CHAIN_CERT_STORE,0,(char *)(st))
+
 # define SSL_get1_groups(s, glist) \
         SSL_ctrl(s,SSL_CTRL_GET_GROUPS,0,(int*)(glist))
 # define SSL_CTX_set1_groups(ctx, glist, glistlen) \
