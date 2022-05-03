@@ -268,7 +268,7 @@ const commonArgs = [
   assert.match(stderr, /ERR_INVALID_ARG_TYPE/);
   assert.match(stderr, /loader-resolve-bad-next-specifier\.mjs/);
   assert.match(stderr, /"resolve"/);
-  assert.match(stderr, /next\(specifier\)/);
+  assert.match(stderr, /nextResolve\(specifier\)/);
 }
 
 { // Verify error thrown when invalid `context` argument passed to `resolve…next`
@@ -288,7 +288,7 @@ const commonArgs = [
   assert.match(stderr, /ERR_INVALID_ARG_TYPE/);
   assert.match(stderr, /loader-resolve-bad-next-context\.mjs/);
   assert.match(stderr, /"resolve"/);
-  assert.match(stderr, /next\(, context\)/);
+  assert.match(stderr, /nextResolve\(, context\)/);
 }
 
 { // Verify error thrown when invalid `url` argument passed to `load…next`
@@ -308,7 +308,7 @@ const commonArgs = [
   assert.match(stderr, /ERR_INVALID_ARG_TYPE/);
   assert.match(stderr, /loader-load-bad-next-url\.mjs/);
   assert.match(stderr, /"load"/);
-  assert.match(stderr, /next\(url\)/);
+  assert.match(stderr, /nextLoad\(url\)/);
 }
 
 { // Verify error thrown when invalid `url` argument passed to `load…next`
@@ -328,7 +328,7 @@ const commonArgs = [
   assert.match(stderr, /ERR_INVALID_ARG_VALUE/);
   assert.match(stderr, /loader-load-impersonating-next-url\.mjs/);
   assert.match(stderr, /"load"/);
-  assert.match(stderr, /next\(url\)/);
+  assert.match(stderr, /nextLoad\(url\)/);
 }
 
 { // Verify error thrown when invalid `context` argument passed to `load…next`
@@ -348,5 +348,5 @@ const commonArgs = [
   assert.match(stderr, /ERR_INVALID_ARG_TYPE/);
   assert.match(stderr, /loader-load-bad-next-context\.mjs/);
   assert.match(stderr, /"load"/);
-  assert.match(stderr, /next\(, context\)/);
+  assert.match(stderr, /nextLoad\(, context\)/);
 }
