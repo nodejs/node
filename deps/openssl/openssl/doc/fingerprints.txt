@@ -22,3 +22,13 @@ pub   2048R/0E604491 2013-04-30
       Key fingerprint = 8657 ABB2 60F0 56B1 E519 0839 D9C4 D26D 0E60 4491
 uid                  Matt Caswell <matt@openssl.org>
 uid                  Matt Caswell <frodo@baggins.org>
+
+pub   rsa4096 2021-02-14
+      B7C1 C143 60F3 53A3 6862  E4D5 231C 84CD DCC6 9C45
+uid                  Paul Dale <pauli@openssl.org>
+
+pub   rsa4096 2021-07-16
+      A21F AB74 B008 8AA3 6115  2586 B8EF 1A6B A9DA 2D5C
+uid                  Tomáš Mráz <tm@t8m.info>
+uid                  Tomáš Mráz <tomas@arleto.cz>
+uid                  Tomáš Mráz <tomas@openssl.org>

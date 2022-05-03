@@ -1,5 +1,5 @@
 # -*- mode: perl; -*-
-# Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -264,6 +264,69 @@ sub generate_resumption_tests {
             }
         };
     }
+
+    push @client_tests, {
+        "name" => "resumption-when-mfl-ext-is-missing",
+        "server" => {
+        },
+        "client" => {
+            "extra" => {
+                "MaxFragmentLenExt" => 512,
+            },
+        },
+        "resume_client" => {
+        },
+        "test" => {
+            "Method" => $method,
+            "HandshakeMode" => "Resume",
+            "ResumptionExpected" => "No",
+            "ExpectedResult" => "ServerFail",
+        }
+    };
+
+    push @client_tests, {
+        "name" => "resumption-when-mfl-ext-is-different",
+        "server" => {
+        },
+        "client" => {
+            "extra" => {
+                "MaxFragmentLenExt" => 512,
+            },
+        },
+        "resume_client" => {
+            "extra" => {
+                "MaxFragmentLenExt" => 1024,
+            },
+        },
+        "test" => {
+            "Method" => $method,
+            "HandshakeMode" => "Resume",
+            "ResumptionExpected" => "No",
+            "ExpectedResult" => "ServerFail",
+        }
+    };
+
+    push @client_tests, {
+        "name" => "resumption-when-mfl-ext-is-correct",
+        "server" => {
+        },
+        "client" => {
+            "extra" => {
+                "MaxFragmentLenExt" => 512,
+            },
+        },
+        "resume_client" => {
+            "extra" => {
+                "MaxFragmentLenExt" => 512,
+            },
+        },
+        "test" => {
+            "Method" => $method,
+            "HandshakeMode" => "Resume",
+            "ResumptionExpected" => "Yes",
+            "ExpectedResult" => "Success",
+        }
+    };
 
     return (@server_tests, @client_tests);
 }
