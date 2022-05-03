@@ -824,7 +824,7 @@ export async function resolve(specifier, context, nextResolve) {
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/42623
-    description: Add support for chaining load hooks.  Each hook must either
+    description: Add support for chaining load hooks. Each hook must either
       call `nextLoad()` or include a `shortCircuit` property set to `true` in
       its return.
 -->
