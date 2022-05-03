@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-import { execSync, spawn } from 'child_process';
-import { promises as fs, readdirSync, statSync } from 'fs';
-import { extname, join, relative, resolve } from 'path';
-import process from 'process';
+import { execSync, spawn } from 'node:child_process';
+import { promises as fs, readdirSync, statSync } from 'node:fs';
+import { extname, join, relative, resolve } from 'node:path';
+import process from 'node:process';
 
 const FIX_MODE_ENABLED = process.argv.includes('--fix');
 const USE_NPX = process.argv.includes('--from-npx');
