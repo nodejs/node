@@ -1,9 +1,13 @@
 'use strict';
 const common = require('../common');
+
+// Test for https://github.com/nodejs/node/issues/40814
+
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-// Test for https://github.com/nodejs/node/issues/40814
+if (!common.hasOpenSSL3)
+  common.skip('only openssl3'); // https://github.com/nodejs/node/pull/42793#issuecomment-1107491901
 
 const assert = require('assert');
 const crypto = require('crypto');
