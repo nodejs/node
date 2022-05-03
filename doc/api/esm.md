@@ -732,9 +732,9 @@ the chain.
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/42623
-    description: Add support for chaining resolve hooks. Each hook that does
-      not call `nextResolve()` MUST include a `shortCircuit` property set to
-      `true` in its return.
+    description: Add support for chaining resolve hooks. Each hook must either
+      call `nextResolve()` or include a `shortCircuit` property set to `true`
+      in its return.
   - version:
     - v17.1.0
     - v16.14.0
@@ -824,9 +824,9 @@ export async function resolve(specifier, context, nextResolve) {
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/42623
-    description: Add support for chaining load hooks. Each hook that does
-      not call `nextLoad()` MUST include a `shortCircuit` property set to `true`
-      in its return.
+    description: Add support for chaining load hooks.  Each hook must either
+      call `nextLoad()` or include a `shortCircuit` property set to `true` in
+      its return.
 -->
 
 > The loaders API is being redesigned. This hook may disappear or its
