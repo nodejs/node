@@ -178,11 +178,7 @@ if (
     SPAWN_OPTIONS.cwd = process.cwd();
     checkFiles(entryPoint).catch(onError);
   } else {
-    onError(
-      new Error(
-        'You must provide a valid directory or file path. ' +
-          `Received '${process.argv[2]}'.`
-      )
-    );
+    onError(new Error('You must provide a valid directory or file path. ' +
+                      `Received '${process.argv[2]}'.`));
   }
 }
