@@ -1581,9 +1581,9 @@ success!
 [`util.TextDecoder`]: util.md#class-utiltextdecoder
 [cjs-module-lexer]: https://github.com/nodejs/cjs-module-lexer/tree/1.2.2
 [custom https loader]: #https-loader
-[load hook]: #loadurl-context-next
+[load hook]: #loadurl-context-nextload
 [percent-encoded]: url.md#percent-encoding-in-urls
-[resolve hook]: #resolvespecifier-context-next
+[resolve hook]: #resolvespecifier-context-nextresolve
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [status code]: process.md#exit-codes
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
