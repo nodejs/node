@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -211,7 +211,7 @@ DEFINE_RUN_ONCE_STATIC(ossl_init_load_crypto_nodelete)
 }
 
 static CRYPTO_ONCE load_crypto_strings = CRYPTO_ONCE_STATIC_INIT;
-static int load_crypto_strings_inited = 0;
+
 DEFINE_RUN_ONCE_STATIC(ossl_init_load_crypto_strings)
 {
     int ret = 1;
@@ -225,7 +225,6 @@ DEFINE_RUN_ONCE_STATIC(ossl_init_load_crypto_strings)
                     "err_load_crypto_strings_int()\n");
 # endif
     ret = err_load_crypto_strings_int();
-    load_crypto_strings_inited = 1;
 #endif
     return ret;
 }
@@ -547,14 +546,6 @@ void OPENSSL_cleanup(void)
                         "async_deinit()\n");
 # endif
         async_deinit();
-    }
-
-    if (load_crypto_strings_inited) {
-#ifdef OPENSSL_INIT_DEBUG
-        fprintf(stderr, "OPENSSL_INIT: OPENSSL_cleanup: "
-                        "err_free_strings_int()\n");
-#endif
-        err_free_strings_int();
     }
 
     key = destructor_key.value;

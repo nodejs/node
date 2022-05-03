@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2005 Nokia. All rights reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -588,6 +588,8 @@ int ssl3_alert_code(int code)
     case SSL_AD_NO_APPLICATION_PROTOCOL:
         return TLS1_AD_NO_APPLICATION_PROTOCOL;
     case SSL_AD_CERTIFICATE_REQUIRED:
+        return SSL_AD_HANDSHAKE_FAILURE;
+    case SSL_AD_MISSING_EXTENSION:
         return SSL_AD_HANDSHAKE_FAILURE;
     default:
         return -1;

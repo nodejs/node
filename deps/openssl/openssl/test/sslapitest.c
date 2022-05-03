@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -6734,6 +6734,69 @@ end:
     SSL_CTX_free(cctx);
     return testresult;
 }
+
+/*
+ * Test that the lifetime hint of a TLSv1.3 ticket is no more than 1 week
+ * 0 = TLSv1.2
+ * 1 = TLSv1.3
+ */
+static int test_ticket_lifetime(int idx)
+{
+    SSL_CTX *cctx = NULL, *sctx = NULL;
+    SSL *clientssl = NULL, *serverssl = NULL;
+    int testresult = 0;
+    int version = TLS1_3_VERSION;
+
+#define ONE_WEEK_SEC (7 * 24 * 60 * 60)
+#define TWO_WEEK_SEC (2 * ONE_WEEK_SEC)
+
+    if (idx == 0) {
+#ifdef OPENSSL_NO_TLS1_2
+        TEST_info("Skipping: TLS 1.2 is disabled.");
+        return 1;
+#else
+        version = TLS1_2_VERSION;
+#endif
+    }
+
+    if (!TEST_true(create_ssl_ctx_pair(TLS_server_method(),
+                                       TLS_client_method(), version, version,
+                                       &sctx, &cctx, cert, privkey)))
+        goto end;
+
+    if (!TEST_true(create_ssl_objects(sctx, cctx, &serverssl,
+                                      &clientssl, NULL, NULL)))
+        goto end;
+
+    /*
+     * Set the timeout to be more than 1 week
+     * make sure the returned value is the default
+     */
+    if (!TEST_long_eq(SSL_CTX_set_timeout(sctx, TWO_WEEK_SEC),
+                      SSL_get_default_timeout(serverssl)))
+        goto end;
+
+    if (!TEST_true(create_ssl_connection(serverssl, clientssl, SSL_ERROR_NONE)))
+        goto end;
+
+    if (idx == 0) {
+        /* TLSv1.2 uses the set value */
+        if (!TEST_ulong_eq(SSL_SESSION_get_ticket_lifetime_hint(SSL_get_session(clientssl)), TWO_WEEK_SEC))
+            goto end;
+    } else {
+        /* TLSv1.3 uses the limited value */
+        if (!TEST_ulong_le(SSL_SESSION_get_ticket_lifetime_hint(SSL_get_session(clientssl)), ONE_WEEK_SEC))
+            goto end;
+    }
+    testresult = 1;
+
+end:
+    SSL_free(serverssl);
+    SSL_free(clientssl);
+    SSL_CTX_free(sctx);
+    SSL_CTX_free(cctx);
+    return testresult;
+}
 #endif
 /*
  * Test that setting an ALPN does not violate RFC
@@ -6973,6 +7036,7 @@ int setup_tests(void)
 #endif
 #ifndef OPENSSL_NO_TLS1_3
     ADD_TEST(test_sni_tls13);
+    ADD_ALL_TESTS(test_ticket_lifetime, 2);
 #endif
     ADD_TEST(test_set_alpn);
     ADD_TEST(test_inherit_verify_param);

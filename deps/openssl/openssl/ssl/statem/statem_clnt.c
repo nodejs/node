@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -1422,6 +1422,11 @@ MSG_PROCESS_RETURN tls_process_server_hello(SSL *s, PACKET *pkt)
             && sversion == TLS1_2_VERSION
             && PACKET_remaining(pkt) >= SSL3_RANDOM_SIZE
             && memcmp(hrrrandom, PACKET_data(pkt), SSL3_RANDOM_SIZE) == 0) {
+        if (s->hello_retry_request != SSL_HRR_NONE) {
+            SSLfatal(s, SSL_AD_UNEXPECTED_MESSAGE,
+                     SSL_F_TLS_PROCESS_SERVER_HELLO, SSL_R_UNEXPECTED_MESSAGE);
+            goto err;
+        }
         s->hello_retry_request = SSL_HRR_PENDING;
         hrr = 1;
         if (!PACKET_forward(pkt, SSL3_RANDOM_SIZE)) {

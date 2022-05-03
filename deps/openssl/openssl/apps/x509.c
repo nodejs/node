@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -590,6 +590,8 @@ int x509_main(int argc, char **argv)
         xca = load_cert(CAfile, CAformat, "CA Certificate");
         if (xca == NULL)
             goto end;
+        if (!X509_set_issuer_name(x, X509_get_subject_name(xca)))
+            goto end;
     }
 
     out = bio_open_default(outfile, 'w', outformat);
@@ -987,8 +989,6 @@ static int x509_certify(X509_STORE *ctx, const char *CAfile, const EVP_MD *diges
         goto end;
     }
 
-    if (!X509_set_issuer_name(x, X509_get_subject_name(xca)))
-        goto end;
     if (!X509_set_serialNumber(x, bs))
         goto end;
 
