@@ -111,8 +111,8 @@ our %config = (
   sourcedir => ".",
   target => "darwin-i386-cc",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1n",
-  version_num => "0x101010efL",
+  version => "1.1.1o",
+  version_num => "0x101010ffL",
 );
 
 our %target = (
