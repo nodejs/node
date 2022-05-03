@@ -679,11 +679,10 @@ of Node.js applications.
 <!-- YAML
 added: v8.8.0
 changes:
-  - version: REPLACEME
+  - version:
+    - REPLACEME
     pr-url: https://github.com/nodejs/node/pull/42623
-    description: Add support for loader chaining. This introduces a breaking
-      change, wherein a hook that does not call the next (or the default) hook
-      MUST include a `shortCircuit` flag.
+    description: Add support for chaining loaders.
   - version: v16.12.0
     pr-url: https://github.com/nodejs/node/pull/37468
     description: Removed `getFormat`, `getSource`, `transformSource`, and
@@ -719,21 +718,23 @@ These are called in the following sequence: `cache-buster` calls
 Hooks are part of a chain, even if that chain consists of only one custom
 (user-provided) hook and the default hook, which is always present. Hook
 functions nest: each one must always return a plain object, and chaining happens
-as a result of each function calling `next()`, which is a reference to the
-subsequent loader’s hook.
+as a result of each function calling `next<hookName>()`, which is a reference
+to the subsequent loader’s hook.
 
 A hook that fails to return triggers an exception. A hook that returns without
-calling `next()` and without returning `shortCircuit: true` also triggers an
-exception. These errors are to help prevent unintentional breaks in the chain.
+calling `next<hookName>()` and without returning `shortCircuit: true` also
+triggers an exception. These errors are to help prevent unintentional breaks in
+the chain.
 
 #### `resolve(specifier, context, nextResolve)`
 
 <!-- YAML
 changes:
-  - version:
-    - REPLACEME
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/42623
-    description: Add support for chaining loaders.
+    description: Add support for chaining resolve hooks. This introduces a
+      breaking change, wherein a hook that does not call `nextResolve()` MUST
+      include a `shortCircuit` flag in its return.
   - version:
     - v17.1.0
     - v16.14.0
@@ -818,6 +819,15 @@ export async function resolve(specifier, context, nextResolve) {
 ```
 
 #### `load(url, context, nextLoad)`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42623
+    description: Add support for chaining load hooks. This introduces a
+      breaking change, wherein a hook that does not call `nextLoad()` MUST
+      include a `shortCircuit` flag in its return.
+-->
 
 > The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
@@ -907,6 +917,13 @@ In a more advanced scenario, this can also be used to transform an unsupported
 source to a supported one (see [Examples](#examples) below).
 
 #### `globalPreload()`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/42623
+    description: Add support for chaining globalPreload hooks.
+-->
 
 > The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
@@ -1035,7 +1052,7 @@ export function load(url, context, nextLoad) {
 }
 ```
 
-```mjs
+```js
 // main.mjs
 import { VERSION } from 'https://coffeescript.org/browser-compiler-modern/coffeescript.js';
 
