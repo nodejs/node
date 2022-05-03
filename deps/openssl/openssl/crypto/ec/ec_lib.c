@@ -22,7 +22,6 @@
 #include "crypto/ec.h"
 #include "internal/nelem.h"
 #include "ec_local.h"
-#include "e_os.h" /* strcasecmp */
 
 /* functions for EC_GROUP objects */
 
@@ -1387,6 +1386,7 @@ int EC_GROUP_get_pentanomial_basis(const EC_GROUP *group, unsigned int *k1,
 }
 #endif
 
+#ifndef FIPS_MODULE
 /*
  * Check if the explicit parameters group matches any built-in curves.
  *
@@ -1424,7 +1424,7 @@ static EC_GROUP *ec_group_explicit_to_named(const EC_GROUP *group,
          * parameters with one created from a named group.
          */
 
-#ifndef OPENSSL_NO_EC_NISTP_64_GCC_128
+# ifndef OPENSSL_NO_EC_NISTP_64_GCC_128
         /*
          * NID_wap_wsg_idm_ecid_wtls12 and NID_secp224r1 are both aliases for
          * the same curve, we prefer the SECP nid when matching explicit
@@ -1432,7 +1432,7 @@ static EC_GROUP *ec_group_explicit_to_named(const EC_GROUP *group,
          */
         if (curve_name_nid == NID_wap_wsg_idm_ecid_wtls12)
             curve_name_nid = NID_secp224r1;
-#endif /* !def(OPENSSL_NO_EC_NISTP_64_GCC_128) */
+# endif /* !def(OPENSSL_NO_EC_NISTP_64_GCC_128) */
 
         ret_group = EC_GROUP_new_by_curve_name_ex(libctx, propq, curve_name_nid);
         if (ret_group == NULL)
@@ -1467,6 +1467,7 @@ err:
     EC_GROUP_free(ret_group);
     return NULL;
 }
+#endif /* FIPS_MODULE */
 
 static EC_GROUP *group_new_from_name(const OSSL_PARAM *p,
                                      OSSL_LIB_CTX *libctx, const char *propq)
@@ -1536,9 +1537,13 @@ int ossl_ec_group_set_params(EC_GROUP *group, const OSSL_PARAM params[])
 EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
                                    OSSL_LIB_CTX *libctx, const char *propq)
 {
-    const OSSL_PARAM *ptmp, *pa, *pb;
+    const OSSL_PARAM *ptmp;
+    EC_GROUP *group = NULL;
+
+#ifndef FIPS_MODULE
+    const OSSL_PARAM *pa, *pb;
     int ok = 0;
-    EC_GROUP *group = NULL, *named_group = NULL;
+    EC_GROUP *named_group = NULL;
     BIGNUM *p = NULL, *a = NULL, *b = NULL, *order = NULL, *cofactor = NULL;
     EC_POINT *point = NULL;
     int field_bits = 0;
@@ -1546,6 +1551,7 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
     BN_CTX *bnctx = NULL;
     const unsigned char *buf = NULL;
     int encoding_flag = -1;
+#endif
 
     /* This is the simple named group case */
     ptmp = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_GROUP_NAME);
@@ -1559,6 +1565,10 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
         }
         return group;
     }
+#ifdef FIPS_MODULE
+    ERR_raise(ERR_LIB_EC, EC_R_EXPLICIT_PARAMS_NOT_SUPPORTED);
+    return NULL;
+#else
     /* If it gets here then we are trying explicit parameters */
     bnctx = BN_CTX_new_ex(libctx);
     if (bnctx == NULL) {
@@ -1581,9 +1591,10 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
         ERR_raise(ERR_LIB_EC, EC_R_INVALID_FIELD);
         goto err;
     }
-    if (strcasecmp(ptmp->data, SN_X9_62_prime_field) == 0) {
+    if (OPENSSL_strcasecmp(ptmp->data, SN_X9_62_prime_field) == 0) {
         is_prime_field = 1;
-    } else if (strcasecmp(ptmp->data, SN_X9_62_characteristic_two_field) == 0) {
+    } else if (OPENSSL_strcasecmp(ptmp->data,
+                                  SN_X9_62_characteristic_two_field) == 0) {
         is_prime_field = 0;
     } else {
         /* Invalid field */
@@ -1623,10 +1634,10 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
         /* create the EC_GROUP structure */
         group = EC_GROUP_new_curve_GFp(p, a, b, bnctx);
     } else {
-#ifdef OPENSSL_NO_EC2M
+# ifdef OPENSSL_NO_EC2M
         ERR_raise(ERR_LIB_EC, EC_R_GF2M_NOT_SUPPORTED);
         goto err;
-#else
+# else
         /* create the EC_GROUP structure */
         group = EC_GROUP_new_curve_GF2m(p, a, b, NULL);
         if (group != NULL) {
@@ -1636,7 +1647,7 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
                 goto err;
             }
         }
-#endif /* OPENSSL_NO_EC2M */
+# endif /* OPENSSL_NO_EC2M */
     }
 
     if (group == NULL) {
@@ -1733,4 +1744,5 @@ EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
     BN_CTX_free(bnctx);
 
     return group;
+#endif /* FIPS_MODULE */
 }

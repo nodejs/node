@@ -1531,6 +1531,10 @@ DEPEND[html/man3/OPENSSL_secure_malloc.html]=man3/OPENSSL_secure_malloc.pod
 GENERATE[html/man3/OPENSSL_secure_malloc.html]=man3/OPENSSL_secure_malloc.pod
 DEPEND[man/man3/OPENSSL_secure_malloc.3]=man3/OPENSSL_secure_malloc.pod
 GENERATE[man/man3/OPENSSL_secure_malloc.3]=man3/OPENSSL_secure_malloc.pod
+DEPEND[html/man3/OPENSSL_strcasecmp.html]=man3/OPENSSL_strcasecmp.pod
+GENERATE[html/man3/OPENSSL_strcasecmp.html]=man3/OPENSSL_strcasecmp.pod
+DEPEND[man/man3/OPENSSL_strcasecmp.3]=man3/OPENSSL_strcasecmp.pod
+GENERATE[man/man3/OPENSSL_strcasecmp.3]=man3/OPENSSL_strcasecmp.pod
 DEPEND[html/man3/OSSL_CMP_CTX_new.html]=man3/OSSL_CMP_CTX_new.pod
 GENERATE[html/man3/OSSL_CMP_CTX_new.html]=man3/OSSL_CMP_CTX_new.pod
 DEPEND[man/man3/OSSL_CMP_CTX_new.3]=man3/OSSL_CMP_CTX_new.pod
@@ -3114,6 +3118,7 @@ html/man3/OPENSSL_load_builtin_modules.html \
 html/man3/OPENSSL_malloc.html \
 html/man3/OPENSSL_s390xcap.html \
 html/man3/OPENSSL_secure_malloc.html \
+html/man3/OPENSSL_strcasecmp.html \
 html/man3/OSSL_CMP_CTX_new.html \
 html/man3/OSSL_CMP_HDR_get0_transactionID.html \
 html/man3/OSSL_CMP_ITAV_set0.html \
@@ -3709,6 +3714,7 @@ man/man3/OPENSSL_load_builtin_modules.3 \
 man/man3/OPENSSL_malloc.3 \
 man/man3/OPENSSL_s390xcap.3 \
 man/man3/OPENSSL_secure_malloc.3 \
+man/man3/OPENSSL_strcasecmp.3 \
 man/man3/OSSL_CMP_CTX_new.3 \
 man/man3/OSSL_CMP_HDR_get0_transactionID.3 \
 man/man3/OSSL_CMP_ITAV_set0.3 \
