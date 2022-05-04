@@ -161,7 +161,7 @@ class EnvironmentOptions : public Options {
   bool trace_warnings = false;
   bool extra_info_on_fatal_exception = true;
   std::string unhandled_rejections;
-  std::string userland_loader;
+  std::vector<std::string> userland_loaders;
   bool verify_base_objects =
 #ifdef DEBUG
       true;

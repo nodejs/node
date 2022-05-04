@@ -29,25 +29,30 @@ export function load(url, context, next) {
 
   if (url.endsWith('esmHook/badReturnFormatVal.mjs')) return {
     format: Array(0),
+    shortCircuit: true,
     source: '',
   }
   if (url.endsWith('esmHook/unsupportedReturnFormatVal.mjs')) return {
     format: 'foo', // Not one of the allowable inputs: no translator named 'foo'
+    shortCircuit: true,
     source: '',
   }
 
   if (url.endsWith('esmHook/badReturnSourceVal.mjs')) return {
     format: 'module',
+    shortCircuit: true,
     source: Array(0),
   }
 
   if (url.endsWith('esmHook/preknownFormat.pre')) return {
     format: context.format,
+    shortCircuit: true,
     source: `const msg = 'hello world'; export default msg;`
   };
 
   if (url.endsWith('esmHook/virtual.mjs')) return {
     format: 'module',
+    shortCircuit: true,
     source: `export const message = 'Woohoo!'.toUpperCase();`,
   };
 
@@ -63,6 +68,7 @@ export function resolve(specifier, context, next) {
 
   if (specifier.startsWith('esmHook')) return {
     format,
+    shortCircuit: true,
     url: pathToFileURL(specifier).href,
     importAssertions: context.importAssertions,
   };
