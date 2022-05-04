@@ -171,6 +171,7 @@ export function globalPreload({port}) {
 export async function resolve(specifier, context, defaultResolve) {
   if (specifier === 'node:mock') {
     return {
+      shortCircuit: true,
       url: specifier
     };
   }
@@ -180,10 +181,12 @@ export async function resolve(specifier, context, defaultResolve) {
     // Do nothing, let it get the "real" module
   } else if (mockedModuleExports.has(def.url)) {
     return {
+      shortCircuit: true,
       url: `mock-facade:${currentMockVersion}:${encodeURIComponent(def.url)}`
     };
   };
   return {
+    shortCircuit: true,
     url: def.url,
   };
 }
@@ -196,6 +199,7 @@ export async function load(url, context, defaultLoad) {
      * channel with preloadCode
      */
     return {
+      shortCircuit: true,
       source: 'export default import.meta.doMock',
       format: 'module'
     };
@@ -210,6 +214,7 @@ export async function load(url, context, defaultLoad) {
       decodeURIComponent(encodedTargetURL)
     ));
     return {
+      shortCircuit: true,
       source: ret,
       format: 'module'
     };
