@@ -11,6 +11,7 @@ baseURL.pathname = process.cwd() + '/';
 export function resolve(specifier, { parentURL = baseURL }, defaultResolve) {
   if (builtinModules.includes(specifier)) {
     return {
+      shortCircuit: true,
       url: 'node:' + specifier
     };
   }
@@ -22,6 +23,7 @@ export function resolve(specifier, { parentURL = baseURL }, defaultResolve) {
   }
   const resolved = new URL(specifier, parentURL);
   return {
+    shortCircuit: true,
     url: resolved.href
   };
 }
