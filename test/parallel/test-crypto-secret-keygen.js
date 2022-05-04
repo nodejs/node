@@ -51,12 +51,28 @@ assert.throws(() => generateKey('hmac', { length: -1 }, common.mustNotCall()), {
   code: 'ERR_OUT_OF_RANGE'
 });
 
+assert.throws(() => generateKey('hmac', { length: 4 }, common.mustNotCall()), {
+  code: 'ERR_OUT_OF_RANGE'
+});
+
+assert.throws(() => generateKey('hmac', { length: 7 }, common.mustNotCall()), {
+  code: 'ERR_OUT_OF_RANGE'
+});
+
 assert.throws(
   () => generateKey('hmac', { length: 2 ** 31 }, common.mustNotCall()), {
     code: 'ERR_OUT_OF_RANGE'
   });
 
 assert.throws(() => generateKeySync('hmac', { length: -1 }), {
+  code: 'ERR_OUT_OF_RANGE'
+});
+
+assert.throws(() => generateKeySync('hmac', { length: 4 }), {
+  code: 'ERR_OUT_OF_RANGE'
+});
+
+assert.throws(() => generateKeySync('hmac', { length: 7 }), {
   code: 'ERR_OUT_OF_RANGE'
 });
 
