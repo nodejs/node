@@ -67,7 +67,7 @@ const { ESMLoader } = esmLoaderModule;
         resolve: mustCall(resolve),
         load: mustCall(load),
       },
-      url: 'node:test/es-module/test-esm-loader-hooks.mjs',
+      url: import.meta.url,
     },
   ];
 
