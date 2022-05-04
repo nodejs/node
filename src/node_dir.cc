@@ -333,7 +333,7 @@ static void OpenDir(const FunctionCallbackInfo<Value>& args) {
     FS_DIR_SYNC_TRACE_BEGIN(opendir);
     int result = SyncCall(env, args[3], &req_wrap_sync, "opendir",
                           uv_fs_opendir, *path);
-    FS_DIR_SYNC_TRACE_END(opendir);
+    FS_DIR_SYNC_TRACE_END(opendir, "path", TRACE_STR_COPY(*path));
     if (result < 0) {
       return;  // syscall failed, no need to continue, error info is in ctx
     }

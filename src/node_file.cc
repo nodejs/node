@@ -874,7 +874,7 @@ void Access(const FunctionCallbackInfo<Value>& args) {
     FSReqWrapSync req_wrap_sync;
     FS_SYNC_TRACE_BEGIN(access);
     SyncCall(env, args[3], &req_wrap_sync, "access", uv_fs_access, *path, mode);
-    FS_SYNC_TRACE_END(access);
+    FS_SYNC_TRACE_END(access, "path", TRACE_STR_COPY(*path));
   }
 }
 
@@ -898,7 +898,7 @@ void Close(const FunctionCallbackInfo<Value>& args) {
     FSReqWrapSync req_wrap_sync;
     FS_SYNC_TRACE_BEGIN(close);
     SyncCall(env, args[2], &req_wrap_sync, "close", uv_fs_close, fd);
-    FS_SYNC_TRACE_END(close);
+    FS_SYNC_TRACE_END(close, "fd", fd);
   }
 }
 
@@ -1039,7 +1039,7 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
     FSReqWrapSync req_wrap_sync;
     FS_SYNC_TRACE_BEGIN(stat);
     int err = SyncCall(env, args[3], &req_wrap_sync, "stat", uv_fs_stat, *path);
-    FS_SYNC_TRACE_END(stat);
+    FS_SYNC_TRACE_END(stat, "path", TRACE_STR_COPY(*path));
     if (err != 0) {
       return;  // error info is in ctx
     }
@@ -1071,7 +1071,7 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(lstat);
     int err = SyncCall(env, args[3], &req_wrap_sync, "lstat", uv_fs_lstat,
                        *path);
-    FS_SYNC_TRACE_END(lstat);
+    FS_SYNC_TRACE_END(lstat, "path", TRACE_STR_COPY(*path));
     if (err != 0) {
       return;  // error info is in ctx
     }
@@ -1102,7 +1102,7 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
     FSReqWrapSync req_wrap_sync;
     FS_SYNC_TRACE_BEGIN(fstat);
     int err = SyncCall(env, args[3], &req_wrap_sync, "fstat", uv_fs_fstat, fd);
-    FS_SYNC_TRACE_END(fstat);
+    FS_SYNC_TRACE_END(fstat, "fd", fd);
     if (err != 0) {
       return;  // error info is in ctx
     }
@@ -1138,7 +1138,11 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(symlink);
     SyncCall(env, args[4], &req_wrap_sync, "symlink",
              uv_fs_symlink, *target, *path, flags);
-    FS_SYNC_TRACE_END(symlink);
+    FS_SYNC_TRACE_END(symlink,
+                      "target",
+                      TRACE_STR_COPY(*target),
+                      "path",
+                      TRACE_STR_COPY(*path));
   }
 }
 
@@ -1165,7 +1169,8 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(link);
     SyncCall(env, args[3], &req_wrap_sync, "link",
              uv_fs_link, *src, *dest);
-    FS_SYNC_TRACE_END(link);
+    FS_SYNC_TRACE_END(
+        link, "src", TRACE_STR_COPY(*src), "dest", TRACE_STR_COPY(*dest));
   }
 }
 
@@ -1191,7 +1196,7 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(readlink);
     int err = SyncCall(env, args[3], &req_wrap_sync, "readlink",
                        uv_fs_readlink, *path);
-    FS_SYNC_TRACE_END(readlink);
+    FS_SYNC_TRACE_END(readlink, "path", TRACE_STR_COPY(*path));
     if (err < 0) {
       return;  // syscall failed, no need to continue, error info is in ctx
     }
@@ -1235,7 +1240,11 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(rename);
     SyncCall(env, args[3], &req_wrap_sync, "rename", uv_fs_rename,
              *old_path, *new_path);
-    FS_SYNC_TRACE_END(rename);
+    FS_SYNC_TRACE_END(rename,
+                      "old_path",
+                      TRACE_STR_COPY(*old_path),
+                      "new_path",
+                      TRACE_STR_COPY(*new_path));
   }
 }
 
@@ -1261,7 +1270,7 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(ftruncate);
     SyncCall(env, args[3], &req_wrap_sync, "ftruncate", uv_fs_ftruncate, fd,
              len);
-    FS_SYNC_TRACE_END(ftruncate);
+    FS_SYNC_TRACE_END(ftruncate, "fd", fd, "len", len);
   }
 }
 
@@ -1283,7 +1292,7 @@ static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
     FSReqWrapSync req_wrap_sync;
     FS_SYNC_TRACE_BEGIN(fdatasync);
     SyncCall(env, args[2], &req_wrap_sync, "fdatasync", uv_fs_fdatasync, fd);
-    FS_SYNC_TRACE_END(fdatasync);
+    FS_SYNC_TRACE_END(fdatasync, "fd", fd);
   }
 }
 
@@ -1305,7 +1314,7 @@ static void Fsync(const FunctionCallbackInfo<Value>& args) {
     FSReqWrapSync req_wrap_sync;
     FS_SYNC_TRACE_BEGIN(fsync);
     SyncCall(env, args[2], &req_wrap_sync, "fsync", uv_fs_fsync, fd);
-    FS_SYNC_TRACE_END(fsync);
+    FS_SYNC_TRACE_END(fsync, "fd", fd);
   }
 }
 
@@ -1327,7 +1336,7 @@ static void Unlink(const FunctionCallbackInfo<Value>& args) {
     FSReqWrapSync req_wrap_sync;
     FS_SYNC_TRACE_BEGIN(unlink);
     SyncCall(env, args[2], &req_wrap_sync, "unlink", uv_fs_unlink, *path);
-    FS_SYNC_TRACE_END(unlink);
+    FS_SYNC_TRACE_END(unlink, "path", TRACE_STR_COPY(*path));
   }
 }
 
@@ -1350,7 +1359,7 @@ static void RMDir(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(rmdir);
     SyncCall(env, args[2], &req_wrap_sync, "rmdir",
              uv_fs_rmdir, *path);
-    FS_SYNC_TRACE_END(rmdir);
+    FS_SYNC_TRACE_END(rmdir, "path", TRACE_STR_COPY(*path));
   }
 }
 
@@ -1581,7 +1590,7 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
       SyncCall(env, args[4], &req_wrap_sync, "mkdir",
                uv_fs_mkdir, *path, mode);
     }
-    FS_SYNC_TRACE_END(mkdir);
+    FS_SYNC_TRACE_END(mkdir, "path", TRACE_STR_COPY(*path));
   }
 }
 
@@ -1607,7 +1616,7 @@ static void RealPath(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(realpath);
     int err = SyncCall(env, args[3], &req_wrap_sync, "realpath",
                        uv_fs_realpath, *path);
-    FS_SYNC_TRACE_END(realpath);
+    FS_SYNC_TRACE_END(realpath, "path", TRACE_STR_COPY(*path));
     if (err < 0) {
       return;  // syscall failed, no need to continue, error info is in ctx
     }
@@ -1658,7 +1667,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(readdir);
     int err = SyncCall(env, args[4], &req_wrap_sync, "scandir",
                        uv_fs_scandir, *path, 0 /*flags*/);
-    FS_SYNC_TRACE_END(readdir);
+    FS_SYNC_TRACE_END(readdir, "path", TRACE_STR_COPY(*path));
     if (err < 0) {
       return;  // syscall failed, no need to continue, error info is in ctx
     }
@@ -1742,7 +1751,7 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(open);
     int result = SyncCall(env, args[4], &req_wrap_sync, "open",
                           uv_fs_open, *path, flags, mode);
-    FS_SYNC_TRACE_END(open);
+    FS_SYNC_TRACE_END(open, "path", TRACE_STR_COPY(*path));
     if (result >= 0) env->AddUnmanagedFd(result);
     args.GetReturnValue().Set(result);
   }
@@ -1775,7 +1784,7 @@ static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(open);
     int result = SyncCall(env, args[4], &req_wrap_sync, "open",
                           uv_fs_open, *path, flags, mode);
-    FS_SYNC_TRACE_END(open);
+    FS_SYNC_TRACE_END(open, "path", TRACE_STR_COPY(*path));
     if (result < 0) {
       return;  // syscall failed, no need to continue, error info is in ctx
     }
@@ -1812,7 +1821,8 @@ static void CopyFile(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(copyfile);
     SyncCall(env, args[4], &req_wrap_sync, "copyfile",
              uv_fs_copyfile, *src, *dest, flags);
-    FS_SYNC_TRACE_END(copyfile);
+    FS_SYNC_TRACE_END(
+        copyfile, "src", TRACE_STR_COPY(*src), "dest", TRACE_STR_COPY(*dest));
   }
 }
 
@@ -1867,7 +1877,7 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(write);
     int bytesWritten = SyncCall(env, args[6], &req_wrap_sync, "write",
                                 uv_fs_write, fd, &uvbuf, 1, pos);
-    FS_SYNC_TRACE_END(write, "bytesWritten", bytesWritten);
+    FS_SYNC_TRACE_END(write, "bytesWritten", bytesWritten, "fd", fd);
     args.GetReturnValue().Set(bytesWritten);
   }
 }
@@ -1912,7 +1922,7 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(write);
     int bytesWritten = SyncCall(env, args[4], &req_wrap_sync, "write",
                                 uv_fs_write, fd, *iovs, iovs.length(), pos);
-    FS_SYNC_TRACE_END(write, "bytesWritten", bytesWritten);
+    FS_SYNC_TRACE_END(write, "bytesWritten", bytesWritten, "fd", fd);
     args.GetReturnValue().Set(bytesWritten);
   }
 }
@@ -2011,7 +2021,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(write);
     int bytesWritten = SyncCall(env, args[5], &req_wrap_sync, "write",
                                 uv_fs_write, fd, &uvbuf, 1, pos);
-    FS_SYNC_TRACE_END(write, "bytesWritten", bytesWritten);
+    FS_SYNC_TRACE_END(write, "bytesWritten", bytesWritten, "fd", fd);
     args.GetReturnValue().Set(bytesWritten);
   }
 }
@@ -2070,7 +2080,7 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(read);
     const int bytesRead = SyncCall(env, args[6], &req_wrap_sync, "read",
                                    uv_fs_read, fd, &uvbuf, 1, pos);
-    FS_SYNC_TRACE_END(read, "bytesRead", bytesRead);
+    FS_SYNC_TRACE_END(read, "bytesRead", bytesRead, "fd", fd);
     args.GetReturnValue().Set(bytesRead);
   }
 }
@@ -2116,7 +2126,7 @@ static void ReadBuffers(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(read);
     int bytesRead = SyncCall(env, /* ctx */ args[4], &req_wrap_sync, "read",
                              uv_fs_read, fd, *iovs, iovs.length(), pos);
-    FS_SYNC_TRACE_END(read, "bytesRead", bytesRead);
+    FS_SYNC_TRACE_END(read, "bytesRead", bytesRead, "fd", fd);
     args.GetReturnValue().Set(bytesRead);
   }
 }
@@ -2147,7 +2157,7 @@ static void Chmod(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(chmod);
     SyncCall(env, args[3], &req_wrap_sync, "chmod",
              uv_fs_chmod, *path, mode);
-    FS_SYNC_TRACE_END(chmod);
+    FS_SYNC_TRACE_END(chmod, "path", TRACE_STR_COPY(*path));
   }
 }
 
@@ -2177,7 +2187,7 @@ static void FChmod(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(fchmod);
     SyncCall(env, args[3], &req_wrap_sync, "fchmod",
              uv_fs_fchmod, fd, mode);
-    FS_SYNC_TRACE_END(fchmod);
+    FS_SYNC_TRACE_END(fchmod, "fd", fd);
   }
 }
 
@@ -2210,7 +2220,7 @@ static void Chown(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(chown);
     SyncCall(env, args[4], &req_wrap_sync, "chown",
              uv_fs_chown, *path, uid, gid);
-    FS_SYNC_TRACE_END(chown);
+    FS_SYNC_TRACE_END(chown, "path", TRACE_STR_COPY(*path));
   }
 }
 
@@ -2243,7 +2253,7 @@ static void FChown(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(fchown);
     SyncCall(env, args[4], &req_wrap_sync, "fchown",
              uv_fs_fchown, fd, uid, gid);
-    FS_SYNC_TRACE_END(fchown);
+    FS_SYNC_TRACE_END(fchown, "fd", fd);
   }
 }
 
@@ -2273,7 +2283,7 @@ static void LChown(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(lchown);
     SyncCall(env, args[4], &req_wrap_sync, "lchown",
              uv_fs_lchown, *path, uid, gid);
-    FS_SYNC_TRACE_END(lchown);
+    FS_SYNC_TRACE_END(lchown, "path", TRACE_STR_COPY(*path));
   }
 }
 
@@ -2303,7 +2313,7 @@ static void UTimes(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(utimes);
     SyncCall(env, args[4], &req_wrap_sync, "utime",
              uv_fs_utime, *path, atime, mtime);
-    FS_SYNC_TRACE_END(utimes);
+    FS_SYNC_TRACE_END(utimes, "path", TRACE_STR_COPY(*path));
   }
 }
 
@@ -2332,7 +2342,7 @@ static void FUTimes(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(futimes);
     SyncCall(env, args[4], &req_wrap_sync, "futime",
              uv_fs_futime, fd, atime, mtime);
-    FS_SYNC_TRACE_END(futimes);
+    FS_SYNC_TRACE_END(futimes, "fd", fd);
   }
 }
 
@@ -2361,7 +2371,7 @@ static void LUTimes(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(lutimes);
     SyncCall(env, args[4], &req_wrap_sync, "lutime",
              uv_fs_lutime, *path, atime, mtime);
-    FS_SYNC_TRACE_END(lutimes);
+    FS_SYNC_TRACE_END(lutimes, "path", TRACE_STR_COPY(*path));
   }
 }
 
@@ -2387,7 +2397,7 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_BEGIN(mkdtemp);
     SyncCall(env, args[3], &req_wrap_sync, "mkdtemp",
              uv_fs_mkdtemp, *tmpl);
-    FS_SYNC_TRACE_END(mkdtemp);
+    FS_SYNC_TRACE_END(mkdtemp, "prefix", TRACE_STR_COPY(*tmpl));
     const char* path = req_wrap_sync.req.path;
 
     Local<Value> error;
