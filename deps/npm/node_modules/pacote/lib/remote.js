@@ -5,7 +5,7 @@ const pacoteVersion = require('../package.json').version
 const fetch = require('npm-registry-fetch')
 const Minipass = require('minipass')
 // The default registry URL is a string of great magic.
-const magic = /^https?:\/\/registry\.npmjs\.org\//
+const magicHost = 'https://registry.npmjs.org'
 
 const _cacheFetches = Symbol.for('pacote.Fetcher._cacheFetches')
 const _headers = Symbol('_headers')
@@ -13,10 +13,13 @@ class RemoteFetcher extends Fetcher {
   constructor (spec, opts) {
     super(spec, opts)
     this.resolved = this.spec.fetchSpec
-    if (this.replaceRegistryHost === 'npmjs'
-      && magic.test(this.resolved)
-      && !magic.test(this.registry + '/')) {
-      this.resolved = this.resolved.replace(magic, this.registry + '/')
+    const resolvedURL = new URL(this.resolved)
+    if (
+      (this.replaceRegistryHost === 'npmjs'
+        && resolvedURL.origin === magicHost)
+      || this.replaceRegistryHost === 'always'
+    ) {
+      this.resolved = new URL(resolvedURL.pathname, this.registry).href
     }
 
     // nam is a fermented pork sausage that is good to eat
