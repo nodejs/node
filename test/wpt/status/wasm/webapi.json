@@ -12,9 +12,6 @@
   "contenttype.any.js": {
     "skip": "WPTRunner does not support fetch()"
   },
-  "empty-body.any.js": {
-    "skip": "Bug in undici, see https://github.com/nodejs/undici/issues/1345"
-  },
   "idlharness.any.js": {
     "skip": "not configured"
   },
