@@ -102,7 +102,7 @@ copy("$src_dir/providers/common/include/prov/der_digests.h",
 
 my $linker_script_dir = "<(PRODUCT_DIR)/../../deps/openssl/config/archs/$arch/$asm/providers";
 my $fips_linker_script = "";
-if ($fips_ld ne "") {
+if ($fips_ld ne "" and not $is_win) {
   $fips_linker_script = "$linker_script_dir/fips.ld";
   copy("$src_dir/providers/fips.ld",
        "$base_dir/providers/fips.ld") or die "Copy failed: $!";
@@ -195,7 +195,7 @@ foreach my $obj (@{$unified_info{sources}->{'providers/liblegacy.a'}}) {
 }
 
 foreach my $obj (@{$unified_info{sources}->{'providers/legacy'}}) {
-  if ($obj eq 'providers/legacy.ld') {
+  if ($obj eq 'providers/legacy.ld' and not $is_win) {
     push(@generated_srcs, $obj);
   } else {
     my $src = ${$unified_info{sources}->{$obj}}[0];
@@ -238,7 +238,7 @@ foreach my $obj (@{$unified_info{sources}->{'providers/libcommon.a'}}) {
 }
 
 foreach my $obj (@{$unified_info{sources}->{'providers/fips'}}) {
-  if ($obj eq 'providers/fips.ld') {
+  if ($obj eq 'providers/fips.ld' and not $is_win) {
     push(@generated_srcs, $obj);
   } else {
     my $src = ${$unified_info{sources}->{$obj}}[0];
