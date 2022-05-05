@@ -2032,10 +2032,11 @@ but the throughput improvement depends on your workload
 The default value is
 16MiB for 64-bit systems and 8MiB for 32-bit systems.
 To get the best configuration for your application,
-you should try different max_semi_space_size values
+you should try different max\_semi\_space\_size values
 when running benchmarks for your application.
 
 For example, benchmark on a 64-bit systems:
+
 ```console
 for MB in 16 32 64 128; do
     node --max_semi_space_size=$MB app.js
