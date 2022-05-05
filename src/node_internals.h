@@ -383,23 +383,6 @@ namespace heap {
 v8::Maybe<void> WriteSnapshot(Environment* env, const char* filename);
 }
 
-class TraceEventScope {
- public:
-  TraceEventScope(const char* category,
-                  const char* name,
-                  void* id) : category_(category), name_(name), id_(id) {
-    TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(category_, name_, id_);
-  }
-  ~TraceEventScope() {
-    TRACE_EVENT_NESTABLE_ASYNC_END0(category_, name_, id_);
-  }
-
- private:
-  const char* category_;
-  const char* name_;
-  void* id_;
-};
-
 namespace heap {
 
 void DeleteHeapSnapshot(const v8::HeapSnapshot* snapshot);
