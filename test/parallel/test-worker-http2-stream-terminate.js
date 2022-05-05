@@ -5,7 +5,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const http2 = require('http2');
 const makeDuplexPair = require('../common/duplexpair');
-const { Worker, isMainThread, parentPort } = require('worker_threads');
+const { Worker, parentPort } = require('worker_threads');
 
 // This test ensures that workers can be terminated without error while
 // stream activity is ongoing, in particular the C++ function
@@ -14,7 +14,10 @@ const { Worker, isMainThread, parentPort } = require('worker_threads');
 const MAX_ITERATIONS = 20;
 const MAX_THREADS = 10;
 
-if (isMainThread) {
+// Do not use isMainThread so that this test itself can be run inside a Worker.
+if (!process.env.HAS_STARTED_WORKER) {
+  process.env.HAS_STARTED_WORKER = 1;
+
   function spinWorker(iter) {
     const w = new Worker(__filename);
     w.on('message', common.mustCall((msg) => {
