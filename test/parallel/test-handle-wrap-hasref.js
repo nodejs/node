@@ -133,4 +133,4 @@ const { kStateSymbol } = require('internal/dgram');
     (type) => type === 'Immediate').length, 1);
 }
 
-// See also test/pseudo-tty/test-handle-wrap-isrefed-tty.js
+// See also test/pseudo-tty/test-handle-wrap-hasref-tty.js
