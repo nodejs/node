@@ -50,13 +50,15 @@ Worker::Worker(Environment* env,
                const std::string& url,
                std::shared_ptr<PerIsolateOptions> per_isolate_opts,
                std::vector<std::string>&& exec_argv,
-               std::shared_ptr<KVStore> env_vars)
+               std::shared_ptr<KVStore> env_vars,
+               const SnapshotData* snapshot_data)
     : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_WORKER),
       per_isolate_opts_(per_isolate_opts),
       exec_argv_(exec_argv),
       platform_(env->isolate_data()->platform()),
       thread_id_(AllocateEnvironmentThreadId()),
-      env_vars_(env_vars) {
+      env_vars_(env_vars),
+      snapshot_data_(snapshot_data) {
   Debug(this, "Creating new worker instance with thread id %llu",
         thread_id_.id);
 
@@ -147,12 +149,8 @@ class WorkerThreadData {
     SetIsolateCreateParamsForNode(&params);
     params.array_buffer_allocator_shared = allocator;
 
-    bool use_node_snapshot = per_process::cli_options->node_snapshot;
-    const SnapshotData* snapshot_data =
-        use_node_snapshot ? SnapshotBuilder::GetEmbeddedSnapshotData()
-                          : nullptr;
-    if (snapshot_data != nullptr) {
-      SnapshotBuilder::InitializeIsolateParams(snapshot_data, &params);
+    if (w->snapshot_data() != nullptr) {
+      SnapshotBuilder::InitializeIsolateParams(w->snapshot_data(), &params);
     }
     w->UpdateResourceConstraints(&params.constraints);
 
@@ -239,7 +237,7 @@ class WorkerThreadData {
   uv_loop_t loop_;
   bool loop_init_failed_ = true;
   DeleteFnPtr<IsolateData, FreeIsolateData> isolate_data_;
-
+  const SnapshotData* snapshot_data_ = nullptr;
   friend class Worker;
 };
 
@@ -302,7 +300,17 @@ void Worker::Run() {
         // resource constraints, we need something in place to handle it,
         // though.
         TryCatch try_catch(isolate_);
-        context = NewContext(isolate_);
+        if (snapshot_data_ != nullptr) {
+          context = Context::FromSnapshot(
+                        isolate_, SnapshotBuilder::kNodeBaseContextIndex)
+                        .ToLocalChecked();
+          if (!context.IsEmpty() &&
+              !InitializeContextRuntime(context).IsJust()) {
+            context = Local<Context>();
+          }
+        } else {
+          context = NewContext(isolate_);
+        }
         if (context.IsEmpty()) {
           Exit(1, "ERR_WORKER_INIT_FAILED", "Failed to create new Context");
           return;
@@ -560,12 +568,17 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     exec_argv_out = env->exec_argv();
   }
 
+  bool use_node_snapshot = per_process::cli_options->node_snapshot;
+  const SnapshotData* snapshot_data =
+      use_node_snapshot ? SnapshotBuilder::GetEmbeddedSnapshotData() : nullptr;
+
   Worker* worker = new Worker(env,
                               args.This(),
                               url,
                               per_isolate_opts,
                               std::move(exec_argv_out),
-                              env_vars);
+                              env_vars,
+                              snapshot_data);
 
   CHECK(args[3]->IsFloat64Array());
   Local<Float64Array> limit_info = args[3].As<Float64Array>();
