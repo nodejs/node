@@ -129,84 +129,101 @@ void SnapshotBuilder::Generate(SnapshotData* out,
                                    per_process::v8_platform.Platform(),
                                    args,
                                    exec_args);
-
-      HandleScope scope(isolate);
-      creator.SetDefaultContext(Context::New(isolate));
       out->isolate_data_indices =
           main_instance->isolate_data()->Serialize(&creator);
 
-      // Run the per-context scripts
-      Local<Context> context;
-      {
+      HandleScope scope(isolate);
+
+      // The default context with only things created by V8.
+      creator.SetDefaultContext(Context::New(isolate));
+
+      auto CreateBaseContext = [&]() {
         TryCatch bootstrapCatch(isolate);
-        context = NewContext(isolate);
+        // Run the per-context scripts.
+        Local<Context> base_context = NewContext(isolate);
         if (bootstrapCatch.HasCaught()) {
-          PrintCaughtException(isolate, context, bootstrapCatch);
+          PrintCaughtException(isolate, base_context, bootstrapCatch);
           abort();
         }
-      }
-      Context::Scope context_scope(context);
+        return base_context;
+      };
 
-      // Create the environment
-      env = new Environment(main_instance->isolate_data(),
-                            context,
-                            args,
-                            exec_args,
-                            nullptr,
-                            node::EnvironmentFlags::kDefaultFlags,
-                            {});
-
-      // Run scripts in lib/internal/bootstrap/
+      // The Node.js-specific context with primodials, can be used by workers
+      // TODO(joyeecheung): investigate if this can be used by vm contexts
+      // without breaking compatibility.
       {
+        size_t index = creator.AddContext(CreateBaseContext());
+        CHECK_EQ(index, SnapshotBuilder::kNodeBaseContextIndex);
+      }
+
+      // The main instance context.
+      {
+        Local<Context> main_context = CreateBaseContext();
+        Context::Scope context_scope(main_context);
         TryCatch bootstrapCatch(isolate);
+
+        // Create the environment.
+        env = new Environment(main_instance->isolate_data(),
+                              main_context,
+                              args,
+                              exec_args,
+                              nullptr,
+                              node::EnvironmentFlags::kDefaultFlags,
+                              {});
+
+        // Run scripts in lib/internal/bootstrap/
         MaybeLocal<Value> result = env->RunBootstrapping();
         if (bootstrapCatch.HasCaught()) {
-          PrintCaughtException(isolate, context, bootstrapCatch);
-        }
-        result.ToLocalChecked();
-      }
-
-      // If --build-snapshot is true, lib/internal/main/mksnapshot.js would be
-      // loaded via LoadEnvironment() to execute process.argv[1] as the entry
-      // point (we currently only support this kind of entry point, but we
-      // could also explore snapshotting other kinds of execution modes
-      // in the future).
-      if (per_process::cli_options->build_snapshot) {
-#if HAVE_INSPECTOR
-        env->InitializeInspector({});
-#endif
-        TryCatch bootstrapCatch(isolate);
-        // TODO(joyeecheung): we could use the result for something special,
-        // like setting up initializers that should be invoked at snapshot
-        // dehydration.
-        MaybeLocal<Value> result =
-            LoadEnvironment(env, StartExecutionCallback{});
-        if (bootstrapCatch.HasCaught()) {
-          PrintCaughtException(isolate, context, bootstrapCatch);
-        }
-        result.ToLocalChecked();
-        // FIXME(joyeecheung): right now running the loop in the snapshot
-        // builder seems to introduces inconsistencies in JS land that need to
-        // be synchronized again after snapshot restoration.
-        int exit_code = SpinEventLoop(env).FromMaybe(1);
-        CHECK_EQ(exit_code, 0);
-        if (bootstrapCatch.HasCaught()) {
-          PrintCaughtException(isolate, context, bootstrapCatch);
+          // TODO(joyeecheung): fail by exiting with a non-zero exit code.
+          PrintCaughtException(isolate, main_context, bootstrapCatch);
           abort();
         }
-      }
+        result.ToLocalChecked();
+        // If --build-snapshot is true, lib/internal/main/mksnapshot.js would be
+        // loaded via LoadEnvironment() to execute process.argv[1] as the entry
+        // point (we currently only support this kind of entry point, but we
+        // could also explore snapshotting other kinds of execution modes
+        // in the future).
+        if (per_process::cli_options->build_snapshot) {
+#if HAVE_INSPECTOR
+          env->InitializeInspector({});
+#endif
+          // TODO(joyeecheung): we could use the result for something special,
+          // like setting up initializers that should be invoked at snapshot
+          // dehydration.
+          MaybeLocal<Value> result =
+              LoadEnvironment(env, StartExecutionCallback{});
+          if (bootstrapCatch.HasCaught()) {
+            // TODO(joyeecheung): fail by exiting with a non-zero exit code.
+            PrintCaughtException(isolate, main_context, bootstrapCatch);
+            abort();
+          }
+          result.ToLocalChecked();
+          // FIXME(joyeecheung): right now running the loop in the snapshot
+          // builder seems to introduces inconsistencies in JS land that need to
+          // be synchronized again after snapshot restoration.
+          int exit_code = SpinEventLoop(env).FromMaybe(1);
+          CHECK_EQ(exit_code, 0);
+          if (bootstrapCatch.HasCaught()) {
+            // TODO(joyeecheung): fail by exiting with a non-zero exit code.
+            PrintCaughtException(isolate, main_context, bootstrapCatch);
+            abort();
+          }
+        }
 
-      if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
-        env->PrintAllBaseObjects();
-        printf("Environment = %p\n", env);
-      }
+        if (per_process::enabled_debug_list.enabled(
+                DebugCategory::MKSNAPSHOT)) {
+          env->PrintAllBaseObjects();
+          printf("Environment = %p\n", env);
+        }
 
-      // Serialize the native states
-      out->env_info = env->Serialize(&creator);
-      // Serialize the context
-      size_t index = creator.AddContext(
-          context, {SerializeNodeContextInternalFields, env});
-      CHECK_EQ(index, NodeMainInstance::kNodeContextIndex);
+        // Serialize the native states
+        out->env_info = env->Serialize(&creator);
+        // Serialize the context
+        size_t index = creator.AddContext(
+            main_context, {SerializeNodeContextInternalFields, env});
+        CHECK_EQ(index, SnapshotBuilder::kNodeMainContextIndex);
+      }
     }
 
     // Must be out of HandleScope

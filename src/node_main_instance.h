@@ -65,7 +65,6 @@ class NodeMainInstance {
   DeleteFnPtr<Environment, FreeEnvironment> CreateMainEnvironment(
       int* exit_code);
 
-  static const size_t kNodeContextIndex = 0;
   NodeMainInstance(const NodeMainInstance&) = delete;
   NodeMainInstance& operator=(const NodeMainInstance&) = delete;
   NodeMainInstance(NodeMainInstance&&) = delete;
