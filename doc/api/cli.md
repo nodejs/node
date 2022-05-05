@@ -2018,28 +2018,34 @@ On a machine with 2 GiB of memory, consider setting this to
 $ node --max-old-space-size=1536 index.js
 ```
 
-### `--max_semi_space_size=SIZE` (in megabytes)
+### `--max-semi-space-size=SIZE` (in megabytes)
 
 Sets the maximum
 [semi-space](https://www.memorymanagement.org/glossary/s.html#semi.space)
 size for V8's [scavenge](https://v8.dev/blog/orinoco-parallel-scavenger)
 garbage collector in MiB.
-Increasing the semi-space size by 1MiB will
-cause the heap size of V8 to increase by 3MiB,
+Increasing the max size of a semi-space may bring
+throughput improvement for Node.js at the cost of more
+memory consumption.
+Since the [young generation](https://v8.dev/blog/orinoco-parallel-scavenger)
+size of V8 heap is
+[three times](https://chromium.googlesource.com/v8/v8.git/+/refs/heads/main/src/heap/heap.cc#328)
+the size of semi-space,
+so the memory consumption is tripled when semi-space size increased,
 but the throughput improvement depends on your workload
 (see [#42511](https://github.com/nodejs/node/issues/42511)).
 
 The default value is
-16MiB for 64-bit systems and 8MiB for 32-bit systems.
+16 MiB for 64-bit systems and 8 MiB for 32-bit systems.
 To get the best configuration for your application,
-you should try different max\_semi\_space\_size values
+you should try different max-semi-space-size values
 when running benchmarks for your application.
 
 For example, benchmark on a 64-bit systems:
 
-```console
-for MB in 16 32 64 128; do
-    node --max_semi_space_size=$MB app.js
+```bash
+for MiB in 16 32 64 128; do
+    node --max_semi_space_size=$MiB index.js
 done
 ```
 
