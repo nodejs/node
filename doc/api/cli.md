@@ -2020,18 +2020,15 @@ $ node --max-old-space-size=1536 index.js
 
 ### `--max-semi-space-size=SIZE` (in megabytes)
 
-Sets the maximum
-[semi-space](https://www.memorymanagement.org/glossary/s.html#semi.space)
-size for V8's [scavenge](https://v8.dev/blog/orinoco-parallel-scavenger)
-garbage collector in MiB.
+Sets the maximum [semi-space][] size for V8's
+[scavenge garbage collector][] in MiB.
 Increasing the max size of a semi-space may bring
 throughput improvement for Node.js at the cost of more
 memory consumption.
-Since the [young generation](https://v8.dev/blog/orinoco-parallel-scavenger)
-size of V8 heap is
-[three times](https://chromium.googlesource.com/v8/v8.git/+/refs/heads/main/src/heap/heap.cc#328)
-the size of semi-space,
-an increase of 1 MiB to semi-space will triple and cause the heap size to increase by 3 MiB.
+Since the young generation size of V8 heap is three times
+(see [`YoungGenerationSizeFromSemiSpaceSize`][] implement in V8)
+the size of semi-space, an increase of 1 MiB to semi-space will
+triple and cause the heap size to increase by 3 MiB.
 The throughput improvement depends on your workload
 (see [#42511](https://github.com/nodejs/node/issues/42511)).
 
@@ -2075,6 +2072,7 @@ done
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NO_COLOR`]: https://no-color.org
 [`SlowBuffer`]: buffer.md#class-slowbuffer
+[`YoungGenerationSizeFromSemiSpaceSize`]: https://chromium.googlesource.com/v8/v8.git/+/refs/heads/main/src/heap/heap.cc#328
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.setDefaultResultOrder()`]: dns.md#dnssetdefaultresultorderorder
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
@@ -2094,6 +2092,8 @@ done
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
 [running tests from the command line]: test.md#running-tests-from-the-command-line
+[scavenge garbage collector]: https://v8.dev/blog/orinoco-parallel-scavenger
 [security warning]: #warning-binding-inspector-to-a-public-ipport-combination-is-insecure
+[semi-space]: https://www.memorymanagement.org/glossary/s.html#semi.space
 [timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [ways that `TZ` is handled in other environments]: https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html
