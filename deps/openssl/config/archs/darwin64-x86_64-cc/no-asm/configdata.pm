@@ -206,9 +206,9 @@ our %config = (
     "openssldir" => "",
     "options" => "enable-ssl-trace enable-fips no-afalgeng no-asan no-asm no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-ktls no-loadereng no-md2 no-msan no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
     "patch" => "2",
-    "perl_archname" => "x86_64-linux-gnu-thread-multi",
+    "perl_archname" => "x86_64-linux-thread-multi",
     "perl_cmd" => "/usr/bin/perl",
-    "perl_version" => "5.28.1",
+    "perl_version" => "5.34.1",
     "perlargv" => [
         "no-comp",
         "no-shared",
@@ -7957,9 +7957,6 @@ our %unified_info = (
         },
         "apps/lib" => {
             "deps" => [
-                "apps/lib/openssl-bin-cmp_mock_srv.o",
-                "apps/lib/cmp_client_test-bin-cmp_mock_srv.o",
-                "apps/lib/uitest-bin-apps_ui.o",
                 "apps/lib/libapps-lib-app_libctx.o",
                 "apps/lib/libapps-lib-app_params.o",
                 "apps/lib/libapps-lib-app_provider.o",
@@ -7977,7 +7974,10 @@ our %unified_info = (
                 "apps/lib/libapps-lib-s_cb.o",
                 "apps/lib/libapps-lib-s_socket.o",
                 "apps/lib/libapps-lib-tlssrp_depr.o",
-                "apps/lib/libtestutil-lib-opt.o"
+                "apps/lib/libtestutil-lib-opt.o",
+                "apps/lib/openssl-bin-cmp_mock_srv.o",
+                "apps/lib/cmp_client_test-bin-cmp_mock_srv.o",
+                "apps/lib/uitest-bin-apps_ui.o"
             ],
             "products" => {
                 "bin" => [
@@ -27069,8 +27069,8 @@ unless (caller) {
     use File::Copy;
     use Pod::Usage;
 
-    use lib '/home/hassaan/node/deps/openssl/openssl/util/perl';
-    use OpenSSL::fallback '/home/hassaan/node/deps/openssl/openssl/external/perl/MODULES.txt';
+    use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/util/perl';
+    use OpenSSL::fallback '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/external/perl/MODULES.txt';
 
     my $here = dirname($0);
 
@@ -27097,7 +27097,7 @@ unless (caller) {
             );
 
         use lib '.';
-        use lib '/home/hassaan/node/deps/openssl/openssl/Configurations';
+        use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/Configurations';
         use gentemplate;
 
         print 'Creating ',$buildfile_template,"\n";
@@ -27114,8 +27114,8 @@ unless (caller) {
 
         my $prepend = <<'_____';
 use File::Spec::Functions;
-use lib '/home/hassaan/node/deps/openssl/openssl/util/perl';
-use lib '/home/hassaan/node/deps/openssl/openssl/Configurations';
+use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/util/perl';
+use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/Configurations';
 use lib '.';
 use platform;
 _____
