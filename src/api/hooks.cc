@@ -32,8 +32,7 @@ void EmitBeforeExit(Environment* env) {
 }
 
 Maybe<bool> EmitProcessBeforeExit(Environment* env) {
-  TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
-                              "BeforeExit", env);
+  TRACE_EVENT0(TRACING_CATEGORY_NODE1(environment), "BeforeExit");
   if (!env->destroy_async_id_list()->empty())
     AsyncWrap::DestroyAsyncIdsCallback(env);
 
