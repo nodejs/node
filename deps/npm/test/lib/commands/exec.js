@@ -385,6 +385,64 @@ t.test('npm exec foo, not present locally or in central loc', async t => {
   ])
 })
 
+t.test('npm exec foo, packageLockOnly set to true', async t => {
+  const path = t.testdir()
+  const installDir = resolve('npx-cache-dir/f7fbba6e0636f890')
+  npm.localPrefix = path
+  npm.config.set('package-lock-only', true)
+  t.teardown(() => {
+    npm.config.set('package-lock-only', false)
+  })
+
+  ARB_ACTUAL_TREE[path] = {
+    inventory: {
+      query () {
+        return new Set()
+      },
+    },
+  }
+  ARB_ACTUAL_TREE[installDir] = {
+    inventory: {
+      query () {
+        return new Set()
+      },
+    },
+  }
+  MANIFESTS.foo = {
+    name: 'foo',
+    version: '1.2.3',
+    bin: {
+      foo: 'foo',
+    },
+    _from: 'foo@',
+  }
+  await exec.exec(['foo', 'one arg', 'two arg'])
+  t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
+  t.match(ARB_CTOR, [{
+    path,
+    packageLockOnly: false,
+  }])
+  t.match(ARB_REIFY, [{
+    add: ['foo@'],
+    legacyPeerDeps: false,
+    packageLockOnly: false,
+  }], 'need to install foo@')
+  t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
+  const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
+  t.match(RUN_SCRIPTS, [
+    {
+      pkg: { scripts: { npx: 'foo' } },
+      args: ['one arg', 'two arg'],
+      banner: false,
+      path: process.cwd(),
+      stdioString: true,
+      event: 'npx',
+      env: { PATH },
+      stdio: 'inherit',
+    },
+  ])
+})
+
 t.test('npm exec foo, not present locally but in central loc', async t => {
   const path = t.testdir()
   const installDir = resolve('npx-cache-dir/f7fbba6e0636f890')

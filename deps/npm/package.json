@@ -1,5 +1,5 @@
 {
-  "version": "8.8.0",
+  "version": "8.9.0",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -65,7 +65,7 @@
     "@npmcli/run-script": "^3.0.1",
     "abbrev": "~1.1.1",
     "archy": "~1.0.0",
-    "cacache": "^16.0.6",
+    "cacache": "^16.0.7",
     "chalk": "^4.1.2",
     "chownr": "^2.0.0",
     "cli-columns": "^4.0.0",
@@ -107,7 +107,7 @@
     "npm-user-validate": "^1.0.1",
     "npmlog": "^6.0.2",
     "opener": "^1.5.2",
-    "pacote": "^13.1.1",
+    "pacote": "^13.3.0",
     "parse-conflict-json": "^2.0.2",
     "proc-log": "^2.0.1",
     "qrcode-terminal": "^0.12.0",
@@ -213,7 +213,7 @@
     "test": "tap",
     "test-all": "npm run test --if-present --workspaces --include-workspace-root",
     "snap": "tap",
-    "postsnap": "make -s mandocs",
+    "postsnap": "make -s docs",
     "test:nocleanup": "NO_TEST_CLEANUP=1 npm run test --",
     "sudotest": "sudo npm run test --",
     "sudotest:nocleanup": "sudo NO_TEST_CLEANUP=1 npm run test --",

@@ -2,6 +2,7 @@ const t = require('tap')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
 const MockRegistry = require('../../fixtures/mock-registry.js')
 
+const path = require('path')
 const npa = require('npm-package-arg')
 const packageName = '@npmcli/test-package'
 const spec = npa(packageName)
@@ -11,6 +12,42 @@ const maintainers = [
   { email: 'test-user-a@npmjs.org', name: 'test-user-a' },
   { email: 'test-user-b@npmjs.org', name: 'test-user-b' },
 ]
+
+const workspaceFixture = {
+  'package.json': JSON.stringify({
+    name: packageName,
+    version: '1.2.3-test',
+    workspaces: ['workspace-a', 'workspace-b', 'workspace-c'],
+  }),
+  'workspace-a': {
+    'package.json': JSON.stringify({
+      name: 'workspace-a',
+      version: '1.2.3-a',
+    }),
+  },
+  'workspace-b': {
+    'package.json': JSON.stringify({
+      name: 'workspace-b',
+      version: '1.2.3-n',
+    }),
+  },
+  'workspace-c': JSON.stringify({
+    'package.json': {
+      name: 'workspace-n',
+      version: '1.2.3-n',
+    },
+  }),
+}
+
+function registryPackage (t, registry, name) {
+  const mockRegistry = new MockRegistry({ tap: t, registry })
+
+  const manifest = mockRegistry.manifest({
+    name,
+    packuments: [{ maintainers, version: '1.0.0' }],
+  })
+  mockRegistry.package({ manifest })
+}
 
 t.test('owner no args', async t => {
   const { npm } = await loadMockNpm(t)
@@ -427,6 +464,158 @@ t.test('owner rm <user> no cwd package', async t => {
     npm.exec('owner', ['rm', 'foo']),
     { code: 'EUSAGE' }
   )
+})
+
+t.test('workspaces', async t => {
+  t.test('owner no args --workspace', async t => {
+    const { npm } = await loadMockNpm(t, {
+      prefixDir: workspaceFixture,
+    })
+    npm.config.set('workspace', ['workspace-a'])
+    await t.rejects(
+      npm.exec('owner', []),
+      { code: 'EUSAGE' },
+      'rejects with usage'
+    )
+  })
+
+  t.test('owner ls implicit workspace', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: workspaceFixture,
+      globals: ({ prefix }) => ({
+        'process.cwd': () => path.join(prefix, 'workspace-a'),
+      }),
+    })
+    registryPackage(t, npm.config.get('registry'), 'workspace-a')
+    await npm.exec('owner', ['ls'])
+    t.match(joinedOutput(), maintainers.map(m => `${m.name} <${m.email}>`).join('\n'))
+  })
+
+  t.test('owner ls explicit workspace', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: workspaceFixture,
+      globals: ({ prefix }) => ({
+        'process.cwd': () => prefix,
+      }),
+    })
+    npm.config.set('workspace', ['workspace-a'])
+    registryPackage(t, npm.config.get('registry'), 'workspace-a')
+    await npm.exec('owner', ['ls'])
+    t.match(joinedOutput(), maintainers.map(m => `${m.name} <${m.email}>`).join('\n'))
+  })
+
+  t.test('owner ls <pkg> implicit workspace', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: workspaceFixture,
+      globals: ({ prefix }) => ({
+        'process.cwd': () => path.join(prefix, 'workspace-a'),
+      }),
+    })
+    registryPackage(t, npm.config.get('registry'), packageName)
+    await npm.exec('owner', ['ls', packageName])
+    t.match(joinedOutput(), maintainers.map(m => `${m.name} <${m.email}>`).join('\n'))
+  })
+
+  t.test('owner ls <pkg> explicit workspace', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: workspaceFixture,
+      globals: ({ prefix }) => ({
+        'process.cwd': () => prefix,
+      }),
+    })
+    npm.config.set('workspace', ['workspace-a'])
+    registryPackage(t, npm.config.get('registry'), packageName)
+    await npm.exec('owner', ['ls', packageName])
+    t.match(joinedOutput(), maintainers.map(m => `${m.name} <${m.email}>`).join('\n'))
+  })
+
+  t.test('owner add implicit workspace', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: workspaceFixture,
+      globals: ({ prefix }) => ({
+        'process.cwd': () => path.join(prefix, 'workspace-a'),
+      }),
+    })
+    const username = 'foo'
+    const registry = new MockRegistry({ tap: t, registry: npm.config.get('registry') })
+
+    const manifest = registry.manifest({
+      name: 'workspace-a',
+      packuments: [{ maintainers, version: '1.0.0' }],
+    })
+    registry.package({ manifest })
+    registry.couchuser({ username })
+    registry.nock.put(`/workspace-a/-rev/${manifest._rev}`, body => {
+      t.match(body, {
+        _id: manifest._id,
+        _rev: manifest._rev,
+        maintainers: [
+          ...manifest.maintainers,
+          { name: username, email: '' },
+        ],
+      })
+      return true
+    }).reply(200, {})
+    await npm.exec('owner', ['add', username])
+    t.equal(joinedOutput(), `+ ${username} (workspace-a)`)
+  })
+
+  t.test('owner add --workspace', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: workspaceFixture,
+    })
+    npm.config.set('workspace', ['workspace-a'])
+    const username = 'foo'
+    const registry = new MockRegistry({ tap: t, registry: npm.config.get('registry') })
+
+    const manifest = registry.manifest({
+      name: 'workspace-a',
+      packuments: [{ maintainers, version: '1.0.0' }],
+    })
+    registry.package({ manifest })
+    registry.couchuser({ username })
+    registry.nock.put(`/workspace-a/-rev/${manifest._rev}`, body => {
+      t.match(body, {
+        _id: manifest._id,
+        _rev: manifest._rev,
+        maintainers: [
+          ...manifest.maintainers,
+          { name: username, email: '' },
+        ],
+      })
+      return true
+    }).reply(200, {})
+    await npm.exec('owner', ['add', username])
+    t.equal(joinedOutput(), `+ ${username} (workspace-a)`)
+  })
+
+  t.test('owner rm --workspace', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: workspaceFixture,
+      globals: ({ prefix }) => ({
+        'process.cwd': () => path.join(prefix, 'workspace-a'),
+      }),
+    })
+    const registry = new MockRegistry({ tap: t, registry: npm.config.get('registry') })
+
+    const username = maintainers[0].name
+    const manifest = registry.manifest({
+      name: 'workspace-a',
+      packuments: [{ maintainers, version: '1.0.0' }],
+    })
+    registry.package({ manifest })
+    registry.couchuser({ username })
+    registry.nock.put(`/workspace-a/-rev/${manifest._rev}`, body => {
+      t.match(body, {
+        _id: manifest._id,
+        _rev: manifest._rev,
+        maintainers: maintainers.slice(1),
+      })
+      return true
+    }).reply(200, {})
+    await npm.exec('owner', ['rm', username])
+    t.equal(joinedOutput(), `- ${username} (workspace-a)`)
+  })
 })
 
 t.test('completion', async t => {

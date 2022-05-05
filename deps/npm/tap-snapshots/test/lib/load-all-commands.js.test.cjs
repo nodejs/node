@@ -596,6 +596,8 @@ npm owner ls [<@scope>/]<pkg>
 
 Options:
 [--registry <registry>] [--otp <otp>]
+[-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
+[-ws|--workspaces]
 
 alias: author
 

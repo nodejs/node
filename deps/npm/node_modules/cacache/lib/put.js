@@ -37,6 +37,7 @@ function putStream (cache, key, opts = {}) {
   opts = putOpts(opts)
   let integrity
   let size
+  let error
 
   let memoData
   const pipeline = new Pipeline()
@@ -58,6 +59,9 @@ function putStream (cache, key, opts = {}) {
     .on('size', (s) => {
       size = s
     })
+    .on('error', (err) => {
+      error = err
+    })
 
   pipeline.push(contentStream)
 
@@ -65,21 +69,17 @@ function putStream (cache, key, opts = {}) {
   // and memoize if we're doing that
   pipeline.push(new Flush({
     flush () {
-      return index
-        .insert(cache, key, integrity, { ...opts, size })
-        .then((entry) => {
-          if (memoize && memoData) {
-            memo.put(cache, entry, memoData, opts)
-          }
-
-          if (integrity) {
+      if (!error) {
+        return index
+          .insert(cache, key, integrity, { ...opts, size })
+          .then((entry) => {
+            if (memoize && memoData) {
+              memo.put(cache, entry, memoData, opts)
+            }
             pipeline.emit('integrity', integrity)
-          }
-
-          if (size) {
             pipeline.emit('size', size)
-          }
-        })
+          })
+      }
     },
   }))
 
