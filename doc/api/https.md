@@ -159,7 +159,7 @@ added: v11.3.0
 
 * {number} **Default:** `60000`
 
-See [`http.Server#headersTimeout`][].
+See [`http.Server.headersTimeout`][].
 
 ### `server.listen()`
 
@@ -170,7 +170,7 @@ This method is identical to [`server.listen()`][] from [`net.Server`][].
 
 * {number} **Default:** `2000`
 
-See [`http.Server#maxHeadersCount`][].
+See [`http.Server.maxHeadersCount`][].
 
 ### `server.requestTimeout`
 
@@ -180,7 +180,7 @@ added: v14.11.0
 
 * {number} **Default:** `0`
 
-See [`http.Server#requestTimeout`][].
+See [`http.Server.requestTimeout`][].
 
 ### `server.setTimeout([msecs][, callback])`
 
@@ -192,7 +192,7 @@ added: v0.11.2
 * `callback` {Function}
 * Returns: {https.Server}
 
-See [`http.Server#setTimeout()`][].
+See [`http.Server.setTimeout()`][].
 
 ### `server.timeout`
 
@@ -206,7 +206,7 @@ changes:
 
 * {number} **Default:** 0 (no timeout)
 
-See [`http.Server#timeout`][].
+See [`http.Server.timeout`][].
 
 ### `server.keepAliveTimeout`
 
@@ -216,7 +216,7 @@ added: v8.0.0
 
 * {number} **Default:** `5000` (5 seconds)
 
-See [`http.Server#keepAliveTimeout`][].
+See [`http.Server.keepAliveTimeout`][].
 
 ## `https.createServer([options][, requestListener])`
 
@@ -539,15 +539,15 @@ headers: max-age=0; pin-sha256="WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18="; p
 [`http.Agent(options)`]: http.md#new-agentoptions
 [`http.Agent`]: http.md#class-httpagent
 [`http.ClientRequest`]: http.md#class-httpclientrequest
-[`http.Server#headersTimeout`]: http.md#serverheaderstimeout
-[`http.Server#keepAliveTimeout`]: http.md#serverkeepalivetimeout
-[`http.Server#maxHeadersCount`]: http.md#servermaxheaderscount
-[`http.Server#requestTimeout`]: http.md#serverrequesttimeout
-[`http.Server#setTimeout()`]: http.md#serversettimeoutmsecs-callback
-[`http.Server#timeout`]: http.md#servertimeout
 [`http.Server.close()`]: http.md#serverclosecallback
 [`http.Server.closeAllConnections()`]: http.md#servercloseallconnections
 [`http.Server.closeIdleConnections()`]: http.md#servercloseidleconnections
+[`http.Server.headersTimeout`]: http.md#serverheaderstimeout
+[`http.Server.keepAliveTimeout`]: http.md#serverkeepalivetimeout
+[`http.Server.maxHeadersCount`]: http.md#servermaxheaderscount
+[`http.Server.requestTimeout`]: http.md#serverrequesttimeout
+[`http.Server.setTimeout()`]: http.md#serversettimeoutmsecs-callback
+[`http.Server.timeout`]: http.md#servertimeout
 [`http.Server`]: http.md#class-httpserver
 [`http.createServer()`]: http.md#httpcreateserveroptions-requestlistener
 [`http.get()`]: http.md#httpgetoptions-callback

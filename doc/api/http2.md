@@ -2410,8 +2410,8 @@ changes:
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    This is similar to [`http.Server#maxHeadersCount`][] or
-    [`http.ClientRequest#maxHeadersCount`][]. The minimum value is `4`.
+    This is similar to [`http.Server.maxHeadersCount`][] or
+    [`http.ClientRequest.maxHeadersCount`][]. The minimum value is `4`.
     **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
@@ -2567,8 +2567,8 @@ changes:
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    This is similar to [`http.Server#maxHeadersCount`][] or
-    [`http.ClientRequest#maxHeadersCount`][]. The minimum value is `4`.
+    This is similar to [`http.Server.maxHeadersCount`][] or
+    [`http.ClientRequest.maxHeadersCount`][]. The minimum value is `4`.
     **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
@@ -2695,8 +2695,8 @@ changes:
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    This is similar to [`http.Server#maxHeadersCount`][] or
-    [`http.ClientRequest#maxHeadersCount`][]. The minimum value is `1`.
+    This is similar to [`http.Server.maxHeadersCount`][] or
+    [`http.ClientRequest.maxHeadersCount`][]. The minimum value is `1`.
     **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
@@ -4135,8 +4135,8 @@ you need to implement any fall-back behavior yourself.
 [`Http2Stream`]: #class-http2stream
 [`ServerHttp2Stream`]: #class-serverhttp2stream
 [`TypeError`]: errors.md#class-typeerror
-[`http.ClientRequest#maxHeadersCount`]: http.md#requestmaxheaderscount
-[`http.Server#maxHeadersCount`]: http.md#servermaxheaderscount
+[`http.ClientRequest.maxHeadersCount`]: http.md#requestmaxheaderscount
+[`http.Server.maxHeadersCount`]: http.md#servermaxheaderscount
 [`http2.SecureServer`]: #class-http2secureserver
 [`http2.Server`]: #class-http2server
 [`http2.createSecureServer()`]: #http2createsecureserveroptions-onrequesthandler
