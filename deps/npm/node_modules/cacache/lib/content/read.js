@@ -10,6 +10,7 @@ const Pipeline = require('minipass-pipeline')
 
 const lstat = util.promisify(fs.lstat)
 const readFile = util.promisify(fs.readFile)
+const copyFile = util.promisify(fs.copyFile)
 
 module.exports = read
 
@@ -90,12 +91,8 @@ function readStream (cache, integrity, opts = {}) {
   return stream
 }
 
-let copyFile
-if (fs.copyFile) {
-  module.exports.copy = copy
-  module.exports.copy.sync = copySync
-  copyFile = util.promisify(fs.copyFile)
-}
+module.exports.copy = copy
+module.exports.copy.sync = copySync
 
 function copy (cache, integrity, dest) {
   return withContentSri(cache, integrity, (cpath, sri) => {

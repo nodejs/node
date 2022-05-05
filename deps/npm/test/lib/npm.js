@@ -620,7 +620,7 @@ t.test('implicit workspace rejection', async t => {
     }),
   })
   await t.rejects(
-    mock.npm.exec('owner', []),
+    mock.npm.exec('team', []),
     /This command does not support workspaces/
   )
 })

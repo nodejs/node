@@ -1,4 +1,4 @@
-.TH "NPM\-DEDUPE" "1" "April 2022" "" ""
+.TH "NPM\-DEDUPE" "1" "May 2022" "" ""
 .SH "NAME"
 \fBnpm-dedupe\fR \- Reduce duplication in the package tree
 .SS Synopsis
@@ -140,10 +140,6 @@ Type: Boolean
 .P
 If set to false, then ignore \fBpackage\-lock\.json\fP files when installing\. This
 will also prevent \fIwriting\fR \fBpackage\-lock\.json\fP if \fBsave\fP is true\.
-.P
-When package package\-locks are disabled, automatic pruning of extraneous
-modules will also be disabled\. To remove extraneous modules with
-package\-locks disabled use \fBnpm prune\fP\|\.
 .P
 This configuration does not affect \fBnpm ci\fP\|\.
 .SS \fBomit\fP

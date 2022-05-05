@@ -12,6 +12,7 @@ const coverageMap = (filename) => {
   if (/^test\/lib\/commands/.test(filename) || filename === 'test/lib/npm.js') {
     return [
       filename.replace(/^test\//, ''),
+      'lib/npm.js',
       'lib/base-command.js',
       'lib/exec/get-workspace-location-msg.js',
     ]

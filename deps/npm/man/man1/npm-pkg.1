@@ -1,4 +1,4 @@
-.TH "NPM\-PKG" "1" "April 2022" "" ""
+.TH "NPM\-PKG" "1" "May 2022" "" ""
 .SH "NAME"
 \fBnpm-pkg\fR \- Manages your package\.json
 .SS Synopsis
@@ -67,6 +67,15 @@ Returned values are always in \fBjson\fR format\.
 .RS 2
 .nf
   npm pkg get contributors[0]\.email
+.fi
+.RE
+  For complex fields you can also name a property in square brackets
+  to specifically select a child field\. This is especially helpful
+  with the exports object:
+.P
+.RS 2
+.nf
+  npm pkg get "exports[\.]\.require"
 .fi
 .RE
 .IP \(bu 2

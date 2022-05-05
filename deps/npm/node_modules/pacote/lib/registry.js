@@ -165,6 +165,9 @@ class RegistryFetcher extends Fetcher {
         }
         if (this.integrity) {
           mani._integrity = String(this.integrity)
+          if (dist.signatures) {
+            mani._signatures = dist.signatures
+          }
         }
         this.package = rpj.normalize(mani)
         return this.package

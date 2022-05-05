@@ -1,16 +1,15 @@
 const EventEmitter = require('events')
 const { resolve, dirname, join } = require('path')
 const Config = require('@npmcli/config')
+const chalk = require('chalk')
+const which = require('which')
+const fs = require('@npmcli/fs')
 
 // Patch the global fs module here at the app level
 require('graceful-fs').gracefulify(require('fs'))
 
 const { definitions, flatten, shorthands } = require('./utils/config/index.js')
 const usage = require('./utils/npm-usage.js')
-
-const which = require('which')
-const fs = require('@npmcli/fs')
-
 const LogFile = require('./utils/log-file.js')
 const Timers = require('./utils/timers.js')
 const Display = require('./utils/display.js')
@@ -37,6 +36,7 @@ class Npm extends EventEmitter {
   #tmpFolder = null
   #title = 'npm'
   #argvClean = []
+  #chalk = null
 
   #logFile = new LogFile()
   #display = new Display()
@@ -320,6 +320,17 @@ class Npm extends EventEmitter {
   // in a tty with the associated output (stdout/stderr)
   get color () {
     return this.flatOptions.color
+  }
+
+  get chalk () {
+    if (!this.#chalk) {
+      let level = chalk.level
+      if (!this.color) {
+        level = 0
+      }
+      this.#chalk = new chalk.Instance({ level })
+    }
+    return this.#chalk
   }
 
   get logColor () {
