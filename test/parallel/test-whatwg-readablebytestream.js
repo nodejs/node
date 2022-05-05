@@ -65,6 +65,9 @@ const {
   defaultReader.releaseLock();
   const byobReader = r.getReader({ mode: 'byob' });
   assert(byobReader instanceof ReadableStreamBYOBReader);
+  assert.match(
+    inspect(byobReader, { depth: 0 }),
+    /ReadableStreamBYOBReader/);
 }
 
 class Source {
@@ -229,6 +232,19 @@ class Source {
     code: 'ERR_INVALID_STATE',
   });
   assert.throws(() => controller.close(), {
+    code: 'ERR_INVALID_STATE',
+  });
+}
+
+{
+  let controller;
+  new ReadableStream({
+    type: 'bytes',
+    start(c) { controller = c; }
+  });
+  controller.enqueue(new Uint8Array(10));
+  controller.close();
+  assert.throws(() => controller.enqueue(new Uint8Array(10)), {
     code: 'ERR_INVALID_STATE',
   });
 }
