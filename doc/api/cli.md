@@ -2031,8 +2031,8 @@ Since the [young generation](https://v8.dev/blog/orinoco-parallel-scavenger)
 size of V8 heap is
 [three times](https://chromium.googlesource.com/v8/v8.git/+/refs/heads/main/src/heap/heap.cc#328)
 the size of semi-space,
-so the memory consumption is tripled when semi-space size increased,
-but the throughput improvement depends on your workload
+an increase of 1 MiB to semi-space will triple and cause the heap size to increase by 3 MiB.
+The throughput improvement depends on your workload
 (see [#42511](https://github.com/nodejs/node/issues/42511)).
 
 The default value is
@@ -2045,7 +2045,7 @@ For example, benchmark on a 64-bit systems:
 
 ```bash
 for MiB in 16 32 64 128; do
-    node --max_semi_space_size=$MiB index.js
+    node --max-semi-space-size=$MiB index.js
 done
 ```
 
