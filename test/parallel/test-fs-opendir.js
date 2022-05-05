@@ -67,18 +67,16 @@ const invalidCallbackObj = {
 // Check the opendir async version
 fs.opendir(testDir, common.mustSucceed((dir) => {
   let sync = true;
-  dir.read(common.mustCall((err, dirent) => {
+  dir.read(common.mustSucceed((dirent) => {
     assert(!sync);
-    assert.ifError(err);
 
     // Order is operating / file system dependent
     assert(files.includes(dirent.name), `'files' should include ${dirent}`);
     assertDirent(dirent);
 
     let syncInner = true;
-    dir.read(common.mustCall((err, dirent) => {
+    dir.read(common.mustSucceed((dirent) => {
       assert(!syncInner);
-      assert.ifError(err);
 
       dir.close(common.mustSucceed());
     }));
