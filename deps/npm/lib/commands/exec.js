@@ -73,6 +73,9 @@ class Exec extends BaseCommand {
 
     return libexec({
       ...flatOptions,
+      // we explicitly set packageLockOnly to false because if it's true
+      // when we try to install a missing package, we won't actually install it
+      packageLockOnly: false,
       args,
       call,
       localBin,
