@@ -1986,14 +1986,23 @@ Sets the maximum
 [semi-space](https://www.memorymanagement.org/glossary/s.html#semi.space)
 size for V8's [scavenge](https://v8.dev/blog/orinoco-parallel-scavenger)
 garbage collector in MiB.
-Increasing the max size of a semi-space may bring
-throughput improvement for Node.js at the cost of more
-memory consumption (see [#42511](https://github.com/nodejs/node/issues/42511)).
+Increasing the semi-space size by 1MiB will
+cause the heap size of V8 to increase by 3MiB,
+but the throughput improvement depends on your workload
+(see [#42511](https://github.com/nodejs/node/issues/42511)).
 
-_The default value is
+The default value is
 16MiB for 64-bit systems and 8MiB for 32-bit systems.
-The recommended value is 64MiB or 128MiB if your system has enough
-memory._
+To get the best configuration for your application,
+you should try different max_semi_space_size values
+when running benchmarks for your application.
+
+For example, benchmark on a 64-bit systems:
+```console
+for MB in 16 32 64 128; do
+    node --max_semi_space_size=$MB app.js
+done
+```
 
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [CommonJS]: modules.md
