@@ -1,7 +1,7 @@
 // Flags: --expose-internals --no-warnings
 'use strict';
 
-// See also test/parallel/test-handle-wrap-isrefed.js
+// See also test/parallel/test-handle-wrap-hasref.js
 
 const common = require('../common');
 const strictEqual = require('assert').strictEqual;
