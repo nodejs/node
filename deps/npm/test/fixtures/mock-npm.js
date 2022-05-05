@@ -132,7 +132,9 @@ const LoadMockNpm = async (t, {
   })
 
   const npm = init ? new Npm() : null
-  t.teardown(() => npm && npm.unload())
+  t.teardown(() => {
+    npm && npm.unload()
+  })
 
   if (load) {
     await npm.load()

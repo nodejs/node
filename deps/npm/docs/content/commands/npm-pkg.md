@@ -76,6 +76,14 @@ Returned values are always in **json** format.
     npm pkg get contributors[0].email
     ```
 
+    For complex fields you can also name a property in square brackets
+    to specifically select a child field. This is especially helpful
+    with the exports object:
+
+    ```bash
+    npm pkg get "exports[.].require"
+    ```
+
 * `npm pkg set <field>=<value>`
 
     Sets a `value` in your `package.json` based on the `field` value. When

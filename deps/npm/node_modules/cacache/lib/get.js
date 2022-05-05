@@ -3,14 +3,10 @@
 const Collect = require('minipass-collect')
 const Minipass = require('minipass')
 const Pipeline = require('minipass-pipeline')
-const fs = require('fs')
-const util = require('util')
 
 const index = require('./entry-index')
 const memo = require('./memoization')
 const read = require('./content/read')
-
-const writeFile = util.promisify(fs.writeFile)
 
 function getData (cache, key, opts = {}) {
   const { integrity, memoize, size } = opts
@@ -209,42 +205,25 @@ function info (cache, key, opts = {}) {
 module.exports.info = info
 
 function copy (cache, key, dest, opts = {}) {
-  if (read.copy) {
-    return index.find(cache, key, opts).then((entry) => {
-      if (!entry) {
-        throw new index.NotFoundError(cache, key)
-      }
-      return read.copy(cache, entry.integrity, dest, opts)
-        .then(() => {
-          return {
-            metadata: entry.metadata,
-            size: entry.size,
-            integrity: entry.integrity,
-          }
-        })
-    })
-  }
-
-  return getData(cache, key, opts).then((res) => {
-    return writeFile(dest, res.data).then(() => {
-      return {
-        metadata: res.metadata,
-        size: res.size,
-        integrity: res.integrity,
-      }
-    })
+  return index.find(cache, key, opts).then((entry) => {
+    if (!entry) {
+      throw new index.NotFoundError(cache, key)
+    }
+    return read.copy(cache, entry.integrity, dest, opts)
+      .then(() => {
+        return {
+          metadata: entry.metadata,
+          size: entry.size,
+          integrity: entry.integrity,
+        }
+      })
   })
 }
+
 module.exports.copy = copy
 
 function copyByDigest (cache, key, dest, opts = {}) {
-  if (read.copy) {
-    return read.copy(cache, key, dest, opts).then(() => key)
-  }
-
-  return getDataByDigest(cache, key, opts).then((res) => {
-    return writeFile(dest, res).then(() => key)
-  })
+  return read.copy(cache, key, dest, opts).then(() => key)
 }
 module.exports.copy.byDigest = copyByDigest
 
