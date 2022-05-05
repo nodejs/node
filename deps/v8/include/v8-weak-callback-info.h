@@ -51,12 +51,26 @@ class WeakCallbackInfo {
   void* embedder_fields_[kEmbedderFieldsInWeakCallback];
 };
 
-// kParameter will pass a void* parameter back to the callback, kInternalFields
-// will pass the first two internal fields back to the callback, kFinalizer
-// will pass a void* parameter back, but is invoked before the object is
-// actually collected, so it can be resurrected. In the last case, it is not
-// possible to request a second pass callback.
-enum class WeakCallbackType { kParameter, kInternalFields, kFinalizer };
+/**
+ * Weakness type for weak handles.
+ */
+enum class WeakCallbackType {
+  /**
+   * Passes a user-defined void* parameter back to the callback.
+   */
+  kParameter,
+  /**
+   * Passes the first two internal fields of the object back to the callback.
+   */
+  kInternalFields,
+  /**
+   * Passes a user-defined void* parameter back to the callback. Will do so
+   * before the object is actually reclaimed, allowing it to be resurrected. In
+   * this case it is not possible to set a second-pass callback.
+   */
+  kFinalizer V8_ENUM_DEPRECATED("Resurrecting finalizers are deprecated "
+                                "and will not be supported going forward.")
+};
 
 template <class T>
 void* WeakCallbackInfo<T>::GetInternalField(int index) const {

@@ -20,9 +20,27 @@ t.equal(
 )
 
 t.equal(
+  replaceInfo('  ==  = = '),
+  '  ==  = = ',
+  'should return same string with only separators'
+)
+
+t.equal(
+  replaceInfo(''),
+  '',
+  'should return empty string'
+)
+
+t.equal(
   replaceInfo('https://user:pass@registry.npmjs.org/'),
   'https://user:***@registry.npmjs.org/',
   'should replace single item'
+)
+
+t.equal(
+  replaceInfo(`https://registry.npmjs.org/path/npm_${'a'.repeat('36')}`),
+  'https://registry.npmjs.org/path/npm_***',
+  'should replace single item token'
 )
 
 t.equal(
@@ -49,6 +67,12 @@ t.equal(
   'should replace single item within a phrase'
 )
 
+t.equal(
+  replaceInfo('Something --x=https://user:pass@registry.npmjs.org/ foo bar'),
+  'Something --x=https://user:***@registry.npmjs.org/ foo bar',
+  'should replace single item within a phrase separated by ='
+)
+
 t.same(
   replaceInfo([
     'Something https://user:pass@registry.npmjs.org/ foo bar',
@@ -60,7 +84,21 @@ t.same(
     'http://foo:***@registry.npmjs.org',
     'http://example.npmjs.org',
   ],
-  'should replace single item within a phrase'
+  'should replace items in an array'
+)
+
+t.same(
+  replaceInfo([
+    'Something --x=https://user:pass@registry.npmjs.org/ foo bar',
+    '--url=http://foo:bar@registry.npmjs.org',
+    '--url=http://example.npmjs.org',
+  ]),
+  [
+    'Something --x=https://user:***@registry.npmjs.org/ foo bar',
+    '--url=http://foo:***@registry.npmjs.org',
+    '--url=http://example.npmjs.org',
+  ],
+  'should replace items in an array with equals'
 )
 
 t.same(

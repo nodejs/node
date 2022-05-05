@@ -5,7 +5,6 @@
 import {Script, SourcePosition} from '../profile.mjs';
 
 import {State} from './app-model.mjs';
-import {ApiLogEntry} from './log/api.mjs';
 import {CodeLogEntry} from './log/code.mjs';
 import {DeoptLogEntry} from './log/code.mjs';
 import {SharedLibLogEntry} from './log/code.mjs';
@@ -15,9 +14,8 @@ import {MapLogEntry} from './log/map.mjs';
 import {TickLogEntry} from './log/tick.mjs';
 import {TimerLogEntry} from './log/timer.mjs';
 import {Processor} from './processor.mjs';
-import {Timeline} from './timeline.mjs'
 import {FocusEvent, SelectionEvent, SelectRelatedEvent, SelectTimeEvent, ToolTipEvent,} from './view/events.mjs';
-import {$, CSSColor, groupBy} from './view/helper.mjs';
+import {$, groupBy} from './view/helper.mjs';
 
 class App {
   _state;
@@ -35,14 +33,12 @@ class App {
       icTrack: $('#ic-track'),
       deoptTrack: $('#deopt-track'),
       codeTrack: $('#code-track'),
-      apiTrack: $('#api-track'),
       timerTrack: $('#timer-track'),
 
       icList: $('#ic-list'),
       mapList: $('#map-list'),
       codeList: $('#code-list'),
       deoptList: $('#deopt-list'),
-      apiList: $('#api-list'),
 
       mapPanel: $('#map-panel'),
       codePanel: $('#code-panel'),
@@ -51,11 +47,11 @@ class App {
       toolTip: $('#tool-tip'),
     };
     this._view.logFileReader.addEventListener(
-        'fileuploadstart', (e) => this.handleFileUploadStart(e));
+        'fileuploadstart', this.handleFileUploadStart.bind(this));
     this._view.logFileReader.addEventListener(
-        'fileuploadchunk', (e) => this.handleFileUploadChunk(e));
+        'fileuploadchunk', this.handleFileUploadChunk.bind(this));
     this._view.logFileReader.addEventListener(
-        'fileuploadend', (e) => this.handleFileUploadEnd(e));
+        'fileuploadend', this.handleFileUploadEnd.bind(this));
     this._startupPromise = this._loadCustomElements();
     this._view.codeTrack.svg = true;
   }
@@ -65,7 +61,6 @@ class App {
       SourcePosition,
       MapLogEntry,
       IcLogEntry,
-      ApiLogEntry,
       CodeLogEntry,
       DeoptLogEntry,
       SharedLibLogEntry,
@@ -91,14 +86,14 @@ class App {
     document.addEventListener(
         'keydown', e => this._navigation?.handleKeyDown(e));
     document.addEventListener(
-        SelectRelatedEvent.name, e => this.handleSelectRelatedEntries(e));
+        SelectRelatedEvent.name, this.handleSelectRelatedEntries.bind(this));
     document.addEventListener(
-        SelectionEvent.name, e => this.handleSelectEntries(e))
+        SelectionEvent.name, this.handleSelectEntries.bind(this))
     document.addEventListener(
-        FocusEvent.name, e => this.handleFocusLogEntryl(e));
+        FocusEvent.name, this.handleFocusLogEntry.bind(this));
     document.addEventListener(
-        SelectTimeEvent.name, e => this.handleTimeRangeSelect(e));
-    document.addEventListener(ToolTipEvent.name, e => this.handleToolTip(e));
+        SelectTimeEvent.name, this.handleTimeRangeSelect.bind(this));
+    document.addEventListener(ToolTipEvent.name, this.handleToolTip.bind(this));
   }
 
   handleSelectRelatedEntries(e) {
@@ -126,7 +121,6 @@ class App {
         entries = entry.entries.concat(entry.sourcePositions);
         break;
       case TimerLogEntry:
-      case ApiLogEntry:
       case CodeLogEntry:
       case TickLogEntry:
       case SharedLibLogEntry:
@@ -151,7 +145,7 @@ class App {
 
   handleSelectEntries(e) {
     e.stopImmediatePropagation();
-    this.showEntries(e.entries);
+    this.selectEntries(e.entries);
   }
 
   selectEntries(entries) {
@@ -160,29 +154,28 @@ class App {
       this.selectEntriesOfSingleType(group.entries);
       missingTypes.delete(group.key);
     });
-    missingTypes.forEach(type => this.selectEntriesOfSingleType([], type));
+    missingTypes.forEach(
+        type => this.selectEntriesOfSingleType([], type, false));
   }
 
-  selectEntriesOfSingleType(entries, type) {
+  selectEntriesOfSingleType(entries, type, focusView = true) {
     const entryType = entries[0]?.constructor ?? type;
     switch (entryType) {
       case Script:
         entries = entries.flatMap(script => script.sourcePositions);
-        return this.showSourcePositions(entries);
+        return this.showSourcePositions(entries, focusView);
       case SourcePosition:
-        return this.showSourcePositions(entries);
+        return this.showSourcePositions(entries, focusView);
       case MapLogEntry:
-        return this.showMapEntries(entries);
+        return this.showMapEntries(entries, focusView);
       case IcLogEntry:
-        return this.showIcEntries(entries);
-      case ApiLogEntry:
-        return this.showApiEntries(entries);
+        return this.showIcEntries(entries, focusView);
       case CodeLogEntry:
-        return this.showCodeEntries(entries);
+        return this.showCodeEntries(entries, focusView);
       case DeoptLogEntry:
-        return this.showDeoptEntries(entries);
+        return this.showDeoptEntries(entries, focusView);
       case SharedLibLogEntry:
-        return this.showSharedLibEntries(entries);
+        return this.showSharedLibEntries(entries, focusView);
       case TimerLogEntry:
       case TickLogEntry:
         break;
@@ -215,11 +208,6 @@ class App {
     if (focusView) this._view.codePanel.show();
   }
 
-  showApiEntries(entries, focusView = true) {
-    this._view.apiList.selectedLogEntries = entries;
-    if (focusView) this._view.apiList.show();
-  }
-
   showTickEntries(entries, focusView = true) {}
   showTimerEntries(entries, focusView = true) {}
 
@@ -230,22 +218,21 @@ class App {
 
   handleTimeRangeSelect(e) {
     e.stopImmediatePropagation();
-    this.selectTimeRange(e.start, e.end);
+    this.selectTimeRange(e.start, e.end, e.focus, e.zoom);
   }
 
-  selectTimeRange(start, end) {
+  selectTimeRange(start, end, focus = false, zoom = false) {
     this._state.selectTimeRange(start, end);
     this.showMapEntries(this._state.mapTimeline.selectionOrSelf, false);
     this.showIcEntries(this._state.icTimeline.selectionOrSelf, false);
     this.showDeoptEntries(this._state.deoptTimeline.selectionOrSelf, false);
     this.showCodeEntries(this._state.codeTimeline.selectionOrSelf, false);
-    this.showApiEntries(this._state.apiTimeline.selectionOrSelf, false);
     this.showTickEntries(this._state.tickTimeline.selectionOrSelf, false);
     this.showTimerEntries(this._state.timerTimeline.selectionOrSelf, false);
-    this._view.timelinePanel.timeSelection = {start, end};
+    this._view.timelinePanel.timeSelection = {start, end, focus, zoom};
   }
 
-  handleFocusLogEntryl(e) {
+  handleFocusLogEntry(e) {
     e.stopImmediatePropagation();
     this.focusLogEntry(e.entry);
   }
@@ -260,8 +247,6 @@ class App {
         return this.focusMapLogEntry(entry);
       case IcLogEntry:
         return this.focusIcLogEntry(entry);
-      case ApiLogEntry:
-        return this.focusApiLogEntry(entry);
       case CodeLogEntry:
         return this.focusCodeLogEntry(entry);
       case DeoptLogEntry:
@@ -281,11 +266,11 @@ class App {
     this._state.map = entry;
     this._view.mapTrack.focusedEntry = entry;
     this._view.mapPanel.map = entry;
-    this._view.mapPanel.show();
     if (focusSourcePosition) {
       this.focusCodeLogEntry(entry.code, false);
       this.focusSourcePosition(entry.sourcePosition);
     }
+    this._view.mapPanel.show();
   }
 
   focusIcLogEntry(entry) {
@@ -310,12 +295,6 @@ class App {
 
   focusSharedLibLogEntry(entry) {
     // no-op.
-  }
-
-  focusApiLogEntry(entry) {
-    this._state.apiLogEntry = entry;
-    this._view.apiTrack.focusedEntry = entry;
-    this.focusSourcePosition(entry.sourcePosition);
   }
 
   focusTickLogEntry(entry) {
@@ -361,6 +340,8 @@ class App {
     this.restartApp();
     $('#container').className = 'initial';
     this._processor = new Processor();
+    this._processor.setProgressCallback(
+        e.detail.totalSize, e.detail.progressCallback);
   }
 
   async handleFileUploadChunk(e) {
@@ -378,18 +359,16 @@ class App {
       const icTimeline = processor.icTimeline;
       const deoptTimeline = processor.deoptTimeline;
       const codeTimeline = processor.codeTimeline;
-      const apiTimeline = processor.apiTimeline;
       const tickTimeline = processor.tickTimeline;
       const timerTimeline = processor.timerTimeline;
       this._state.setTimelines(
-          mapTimeline, icTimeline, deoptTimeline, codeTimeline, apiTimeline,
-          tickTimeline, timerTimeline);
+          mapTimeline, icTimeline, deoptTimeline, codeTimeline, tickTimeline,
+          timerTimeline);
       this._view.mapPanel.timeline = mapTimeline;
       this._view.icList.timeline = icTimeline;
       this._view.mapList.timeline = mapTimeline;
       this._view.deoptList.timeline = deoptTimeline;
       this._view.codeList.timeline = codeTimeline;
-      this._view.apiList.timeline = apiTimeline;
       this._view.scriptPanel.scripts = processor.scripts;
       this._view.codePanel.timeline = codeTimeline;
       this._view.codePanel.timeline = codeTimeline;
@@ -408,7 +387,6 @@ class App {
     this._view.icTrack.data = this._state.icTimeline;
     this._view.deoptTrack.data = this._state.deoptTimeline;
     this._view.codeTrack.data = this._state.codeTimeline;
-    this._view.apiTrack.data = this._state.apiTimeline;
     this._view.tickTrack.data = this._state.tickTimeline;
     this._view.timerTrack.data = this._state.timerTimeline;
   }
@@ -420,115 +398,53 @@ class Navigation {
     this.state = state;
     this._view = view;
   }
+
   get map() {
     return this.state.map
   }
+
   set map(value) {
     this.state.map = value
   }
+
   get chunks() {
     return this.state.mapTimeline.chunks;
   }
+
   increaseTimelineResolution() {
     this._view.timelinePanel.nofChunks *= 1.5;
     this.state.nofChunks *= 1.5;
   }
+
   decreaseTimelineResolution() {
     this._view.timelinePanel.nofChunks /= 1.5;
     this.state.nofChunks /= 1.5;
   }
-  selectNextEdge() {
-    if (!this.map) return;
-    if (this.map.children.length != 1) return;
-    this.map = this.map.children[0].to;
-    this._view.mapTrack.selectedEntry = this.map;
-    this.updateUrl();
-    this._view.mapPanel.map = this.map;
-  }
-  selectPrevEdge() {
-    if (!this.map) return;
-    if (!this.map.parent) return;
-    this.map = this.map.parent;
-    this._view.mapTrack.selectedEntry = this.map;
-    this.updateUrl();
-    this._view.mapPanel.map = this.map;
-  }
-  selectDefaultMap() {
-    this.map = this.chunks[0].at(0);
-    this._view.mapTrack.selectedEntry = this.map;
-    this.updateUrl();
-    this._view.mapPanel.map = this.map;
-  }
-  moveInChunks(next) {
-    if (!this.map) return this.selectDefaultMap();
-    let chunkIndex = this.map.chunkIndex(this.chunks);
-    let chunk = this.chunks[chunkIndex];
-    let index = chunk.indexOf(this.map);
-    if (next) {
-      chunk = chunk.next(this.chunks);
-    } else {
-      chunk = chunk.prev(this.chunks);
-    }
-    if (!chunk) return;
-    index = Math.min(index, chunk.size() - 1);
-    this.map = chunk.at(index);
-    this._view.mapTrack.selectedEntry = this.map;
-    this.updateUrl();
-    this._view.mapPanel.map = this.map;
-  }
-  moveInChunk(delta) {
-    if (!this.map) return this.selectDefaultMap();
-    let chunkIndex = this.map.chunkIndex(this.chunks)
-    let chunk = this.chunks[chunkIndex];
-    let index = chunk.indexOf(this.map) + delta;
-    let map;
-    if (index < 0) {
-      map = chunk.prev(this.chunks).last();
-    } else if (index >= chunk.size()) {
-      map = chunk.next(this.chunks).first()
-    } else {
-      map = chunk.at(index);
-    }
-    this.map = map;
-    this._view.mapTrack.selectedEntry = this.map;
-    this.updateUrl();
-    this._view.mapPanel.map = this.map;
-  }
+
   updateUrl() {
     let entries = this.state.entries;
     let params = new URLSearchParams(entries);
     window.history.pushState(entries, '', '?' + params.toString());
   }
+
+  scrollLeft() {}
+
+  scrollRight() {}
+
   handleKeyDown(event) {
     switch (event.key) {
-      case 'ArrowUp':
-        event.preventDefault();
-        if (event.shiftKey) {
-          this.selectPrevEdge();
-        } else {
-          this.moveInChunk(-1);
-        }
+      case 'd':
+        this.scrollLeft();
         return false;
-      case 'ArrowDown':
-        event.preventDefault();
-        if (event.shiftKey) {
-          this.selectNextEdge();
-        } else {
-          this.moveInChunk(1);
-        }
+      case 'a':
+        this.scrollRight();
         return false;
-      case 'ArrowLeft':
-        this.moveInChunks(false);
-        break;
-      case 'ArrowRight':
-        this.moveInChunks(true);
-        break;
       case '+':
         this.increaseTimelineResolution();
-        break;
+        return false;
       case '-':
         this.decreaseTimelineResolution();
-        break;
+        return false;
     }
   }
 }

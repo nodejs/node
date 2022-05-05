@@ -1,4 +1,4 @@
-.TH "SCRIPTS" "7" "March 2022" "" ""
+.TH "SCRIPTS" "7" "April 2022" "" ""
 .SH "NAME"
 \fBscripts\fR \- How npm handles the "scripts" field
 .SS Description
@@ -438,7 +438,7 @@ Don't prefix your script commands with "sudo"\.  If root permissions
 are required for some reason, then it'll fail with that error, and
 the user will sudo the npm command in question\.
 .IP \(bu 2
-Don't use \fBinstall\fP\|\. Use a \fB\|\.gyp\fP file for compilation, and \fBprepublish\fP
+Don't use \fBinstall\fP\|\. Use a \fB\|\.gyp\fP file for compilation, and \fBprepare\fP
 for anything else\. You should almost never have to explicitly set a
 preinstall or install script\. If you are doing this, please consider if
 there is another option\. The only valid use of \fBinstall\fP or \fBpreinstall\fP

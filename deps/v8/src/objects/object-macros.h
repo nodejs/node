@@ -57,21 +57,25 @@
 
 #define DECL_INT32_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, int32_t)
 
-#define DECL_RELAXED_INT32_ACCESSORS(name)   \
-  inline int32_t name(RelaxedLoadTag) const; \
-  inline void set_##name(int32_t value, RelaxedStoreTag);
+#define DECL_SANDBOXED_POINTER_ACCESSORS(name, type) \
+  DECL_PRIMITIVE_GETTER(name, type)                  \
+  DECL_PRIMITIVE_SETTER(name, type)
 
-#define DECL_UINT16_ACCESSORS(name) \
-  inline uint16_t name() const;     \
-  inline void set_##name(int value);
+#define DECL_UINT16_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, uint16_t)
 
-#define DECL_INT16_ACCESSORS(name) \
-  inline int16_t name() const;     \
-  inline void set_##name(int16_t value);
+#define DECL_INT16_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, int16_t)
 
-#define DECL_UINT8_ACCESSORS(name) \
-  inline uint8_t name() const;     \
-  inline void set_##name(int value);
+#define DECL_UINT8_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, uint8_t)
+
+#define DECL_RELAXED_PRIMITIVE_ACCESSORS(name, type) \
+  inline type name(RelaxedLoadTag) const;            \
+  inline void set_##name(type value, RelaxedStoreTag);
+
+#define DECL_RELAXED_INT32_ACCESSORS(name) \
+  DECL_RELAXED_PRIMITIVE_ACCESSORS(name, int32_t)
+
+#define DECL_RELAXED_UINT16_ACCESSORS(name) \
+  DECL_RELAXED_PRIMITIVE_ACCESSORS(name, uint16_t)
 
 // TODO(ishell): eventually isolate-less getters should not be used anymore.
 // For full pointer-mode the C++ compiler should optimize away unused isolate
@@ -100,6 +104,13 @@
     return holder::name(cage_base, tag);                     \
   }                                                          \
   type holder::name(PtrComprCageBase cage_base, AcquireLoadTag) const
+
+#define TQ_FIELD_TYPE(name, tq_type) \
+  static constexpr const char* k##name##TqFieldType = tq_type;
+
+#define DECL_FIELD_OFFSET_TQ(name, value, tq_type) \
+  static const int k##name##Offset = value;        \
+  TQ_FIELD_TYPE(name, tq_type)
 
 #define DECL_SETTER(name, type)      \
   inline void set_##name(type value, \
@@ -150,13 +161,21 @@
 #define CAST_ACCESSOR(Type) \
   Type Type::cast(Object object) { return Type(object.ptr()); }
 
-#define INT_ACCESSORS(holder, name, offset)                   \
-  int holder::name() const { return ReadField<int>(offset); } \
-  void holder::set_##name(int value) { WriteField<int>(offset, value); }
+#define DEF_PRIMITIVE_ACCESSORS(holder, name, offset, type)     \
+  type holder::name() const { return ReadField<type>(offset); } \
+  void holder::set_##name(type value) { WriteField<type>(offset, value); }
 
-#define INT32_ACCESSORS(holder, name, offset)                         \
-  int32_t holder::name() const { return ReadField<int32_t>(offset); } \
-  void holder::set_##name(int32_t value) { WriteField<int32_t>(offset, value); }
+#define INT_ACCESSORS(holder, name, offset) \
+  DEF_PRIMITIVE_ACCESSORS(holder, name, offset, int)
+
+#define INT32_ACCESSORS(holder, name, offset) \
+  DEF_PRIMITIVE_ACCESSORS(holder, name, offset, int32_t)
+
+#define UINT16_ACCESSORS(holder, name, offset) \
+  DEF_PRIMITIVE_ACCESSORS(holder, name, offset, uint16_t)
+
+#define UINT8_ACCESSORS(holder, name, offset) \
+  DEF_PRIMITIVE_ACCESSORS(holder, name, offset, uint8_t)
 
 #define RELAXED_INT32_ACCESSORS(holder, name, offset)       \
   int32_t holder::name(RelaxedLoadTag) const {              \
@@ -166,20 +185,12 @@
     RELAXED_WRITE_INT32_FIELD(*this, offset, value);        \
   }
 
-#define UINT16_ACCESSORS(holder, name, offset)                          \
-  uint16_t holder::name() const { return ReadField<uint16_t>(offset); } \
-  void holder::set_##name(int value) {                                  \
-    DCHECK_GE(value, 0);                                                \
-    DCHECK_LE(value, static_cast<uint16_t>(-1));                        \
-    WriteField<uint16_t>(offset, value);                                \
-  }
-
-#define UINT8_ACCESSORS(holder, name, offset)                         \
-  uint8_t holder::name() const { return ReadField<uint8_t>(offset); } \
-  void holder::set_##name(int value) {                                \
-    DCHECK_GE(value, 0);                                              \
-    DCHECK_LE(value, static_cast<uint8_t>(-1));                       \
-    WriteField<uint8_t>(offset, value);                               \
+#define RELAXED_UINT16_ACCESSORS(holder, name, offset)       \
+  uint16_t holder::name(RelaxedLoadTag) const {              \
+    return RELAXED_READ_UINT16_FIELD(*this, offset);         \
+  }                                                          \
+  void holder::set_##name(uint16_t value, RelaxedStoreTag) { \
+    RELAXED_WRITE_UINT16_FIELD(*this, offset, value);        \
   }
 
 #define ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
@@ -209,13 +220,10 @@
     TorqueGeneratedClass::set_##torque_name(value, mode);             \
   }
 
-#define RENAME_UINT16_TORQUE_ACCESSORS(holder, name, torque_name) \
-  uint16_t holder::name() const {                                 \
-    return TorqueGeneratedClass::torque_name();                   \
-  }                                                               \
-  void holder::set_##name(int value) {                            \
-    DCHECK_EQ(value, static_cast<uint16_t>(value));               \
-    TorqueGeneratedClass::set_##torque_name(value);               \
+#define RENAME_PRIMITIVE_TORQUE_ACCESSORS(holder, name, torque_name, type)  \
+  type holder::name() const { return TorqueGeneratedClass::torque_name(); } \
+  void holder::set_##name(type value) {                                     \
+    TorqueGeneratedClass::set_##torque_name(value);                         \
   }
 
 #define ACCESSORS_RELAXED_CHECKED2(holder, name, type, offset, get_condition, \
@@ -411,6 +419,9 @@
 
 #define FIELD_ADDR(p, offset) ((p).ptr() + offset - kHeapObjectTag)
 
+#define SEQ_CST_READ_FIELD(p, offset) \
+  TaggedField<Object>::SeqCst_Load(p, offset)
+
 #define ACQUIRE_READ_FIELD(p, offset) \
   TaggedField<Object>::Acquire_Load(p, offset)
 
@@ -422,6 +433,9 @@
 
 #define WRITE_FIELD(p, offset, value) \
   TaggedField<Object>::store(p, offset, value)
+
+#define SEQ_CST_WRITE_FIELD(p, offset, value) \
+  TaggedField<Object>::SeqCst_Store(p, offset, value)
 
 #define RELEASE_WRITE_FIELD(p, offset, value) \
   TaggedField<Object>::Release_Store(p, offset, value)
@@ -484,6 +498,8 @@
         WriteBarrier::Marking(object, (object).RawField(offset), value); \
       }                                                                  \
       GenerationalBarrier(object, (object).RawField(offset), value);     \
+    } else {                                                             \
+      SLOW_DCHECK(!WriteBarrier::IsRequired(object, value));             \
     }                                                                    \
   } while (false)
 #endif
@@ -504,6 +520,8 @@
                               value);                                         \
       }                                                                       \
       GenerationalBarrier(object, (object).RawMaybeWeakField(offset), value); \
+    } else {                                                                  \
+      SLOW_DCHECK(!WriteBarrier::IsRequired(object, value));                  \
     }                                                                         \
   } while (false)
 #endif
@@ -522,6 +540,8 @@
       }                                                                      \
       GenerationalEphemeronKeyBarrier(table, (object).RawField(offset),      \
                                       value);                                \
+    } else {                                                                 \
+      SLOW_DCHECK(!WriteBarrier::IsRequired(object, value));                 \
     }                                                                        \
   } while (false)
 #endif
@@ -670,3 +690,6 @@ static_assert(sizeof(unsigned) == sizeof(uint32_t),
 #define TQ_OBJECT_CONSTRUCTORS_IMPL(Type) \
   inline Type::Type(Address ptr)          \
       : TorqueGenerated##Type<Type, Type::Super>(ptr) {}
+
+#define TQ_CPP_OBJECT_DEFINITION_ASSERTS(_class, parent) \
+  template class TorqueGenerated##_class##Asserts<_class, parent>;

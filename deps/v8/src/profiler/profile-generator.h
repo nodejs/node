@@ -411,7 +411,8 @@ class CpuProfile {
   };
 
   V8_EXPORT_PRIVATE CpuProfile(
-      CpuProfiler* profiler, const char* title, CpuProfilingOptions options,
+      CpuProfiler* profiler, ProfilerId id, const char* title,
+      CpuProfilingOptions options,
       std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
   CpuProfile(const CpuProfile&) = delete;
   CpuProfile& operator=(const CpuProfile&) = delete;
@@ -440,6 +441,7 @@ class CpuProfile {
   base::TimeTicks end_time() const { return end_time_; }
   CpuProfiler* cpu_profiler() const { return profiler_; }
   ContextFilter& context_filter() { return context_filter_; }
+  ProfilerId id() const { return id_; }
 
   void UpdateTicksScale();
 
@@ -458,17 +460,15 @@ class CpuProfile {
   ProfileTree top_down_;
   CpuProfiler* const profiler_;
   size_t streaming_next_sample_;
-  uint32_t id_;
+  const ProfilerId id_;
   // Number of microseconds worth of profiler ticks that should elapse before
   // the next sample is recorded.
   base::TimeDelta next_sample_delta_;
-
-  static std::atomic<uint32_t> last_id_;
 };
 
 class CpuProfileMaxSamplesCallbackTask : public v8::Task {
  public:
-  CpuProfileMaxSamplesCallbackTask(
+  explicit CpuProfileMaxSamplesCallbackTask(
       std::unique_ptr<DiscardedSamplesDelegate> delegate)
       : delegate_(std::move(delegate)) {}
 
@@ -540,16 +540,20 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
   CpuProfilesCollection& operator=(const CpuProfilesCollection&) = delete;
 
   void set_cpu_profiler(CpuProfiler* profiler) { profiler_ = profiler; }
-  CpuProfilingStatus StartProfiling(
-      const char* title, CpuProfilingOptions options = {},
+  CpuProfilingResult StartProfiling(
+      const char* title = nullptr, CpuProfilingOptions options = {},
       std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
 
-  CpuProfile* StopProfiling(const char* title);
+  // This Method is only visible for testing
+  CpuProfilingResult StartProfilingForTesting(ProfilerId id);
+  CpuProfile* StopProfiling(ProfilerId id);
+  bool IsLastProfileLeft(ProfilerId id);
+  CpuProfile* Lookup(const char* title);
+
   std::vector<std::unique_ptr<CpuProfile>>* profiles() {
     return &finished_profiles_;
   }
   const char* GetName(Name name) { return resource_names_.GetName(name); }
-  bool IsLastProfile(const char* title);
   void RemoveProfile(CpuProfile* profile);
 
   // Finds a common sampling interval dividing each CpuProfile's interval,
@@ -572,6 +576,10 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
   static const int kMaxSimultaneousProfiles = 100;
 
  private:
+  CpuProfilingResult StartProfiling(
+      ProfilerId id, const char* title = nullptr,
+      CpuProfilingOptions options = {},
+      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
   StringsStorage resource_names_;
   std::vector<std::unique_ptr<CpuProfile>> finished_profiles_;
   CpuProfiler* profiler_;
@@ -579,6 +587,8 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
   // Accessed by VM thread and profile generator thread.
   std::vector<std::unique_ptr<CpuProfile>> current_profiles_;
   base::Semaphore current_profiles_semaphore_;
+  ProfilerId last_id_;
+  Isolate* isolate_;
 };
 
 }  // namespace internal

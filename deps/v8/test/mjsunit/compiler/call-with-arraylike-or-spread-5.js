@@ -49,8 +49,8 @@
   assertTrue(log_got_interpreted);
 
   // Compile foo.
-  %OptimizeFunctionForTopTier(log);
-  %OptimizeFunctionForTopTier(foo);
+  %OptimizeFunctionOnNextCall(log);
+  %OptimizeFunctionOnNextCall(foo);
   assertEquals(42, foo());
   // The call with spread should not have been inlined, because of the
   // generator/iterator.

@@ -508,7 +508,7 @@ static const std::vector<int64_t> ffint_ftintrz_int64_test_values() {
                                     static_cast<int64_t>(0xFFFFFFFFFFFFFFFF)};
   return std::vector<int64_t>(&kValues[0], &kValues[arraysize(kValues)]);
 }
-  // clang-off on
+// clang-format on
 
 // Helper macros that can be used in FOR_INT32_INPUTS(i) { ... *i ... }
 #define FOR_INPUTS(ctype, itype, var, test_vector)           \
@@ -616,7 +616,7 @@ TEST(Ffint_d_l_Ftintrz_l_ud) {
   CcTest::InitializeVM();
   FOR_INT64_INPUTS(i, ffint_ftintrz_int64_test_values) {
     int64_t input = *i;
-    uint64_t abs_input = (input < 0) ? -input : input;
+    uint64_t abs_input = (input >= 0 || input == INT64_MIN) ? input : -input;
     auto fn = [](MacroAssembler* masm) {
       __ movgr2fr_d(f8, a0);
       __ ffint_d_l(f10, f8);
@@ -2879,8 +2879,6 @@ TEST(Popcnt) {
 }
 
 TEST(DeoptExitSizeIsFixed) {
-  CHECK(Deoptimizer::kSupportsFixedDeoptExitSizes);
-
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
@@ -2891,22 +2889,12 @@ TEST(DeoptExitSizeIsFixed) {
     DeoptimizeKind kind = static_cast<DeoptimizeKind>(i);
     Label before_exit;
     masm.bind(&before_exit);
-    if (kind == DeoptimizeKind::kEagerWithResume) {
-      Builtin target = Deoptimizer::GetDeoptWithResumeBuiltin(
-          DeoptimizeReason::kDynamicCheckMaps);
-      masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
-                                 nullptr);
-      CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
-               Deoptimizer::kEagerWithResumeBeforeArgsSize);
-    } else {
-      Builtin target = Deoptimizer::GetDeoptimizationEntry(kind);
-      masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
-                                 nullptr);
-      CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
-               kind == DeoptimizeKind::kLazy
-                   ? Deoptimizer::kLazyDeoptExitSize
-                   : Deoptimizer::kNonLazyDeoptExitSize);
-    }
+    Builtin target = Deoptimizer::GetDeoptimizationEntry(kind);
+    masm.CallForDeoptimization(target, 42, &before_exit, kind, &before_exit,
+                               nullptr);
+    CHECK_EQ(masm.SizeOfCodeGeneratedSince(&before_exit),
+             kind == DeoptimizeKind::kLazy ? Deoptimizer::kLazyDeoptExitSize
+                                           : Deoptimizer::kEagerDeoptExitSize);
   }
 }
 

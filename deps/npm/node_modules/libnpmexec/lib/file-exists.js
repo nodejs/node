@@ -4,7 +4,7 @@ const stat = promisify(require('fs').stat)
 const walkUp = require('walk-up-path')
 
 const fileExists = (file) => stat(file)
-  .then((stat) => stat.isFile())
+  .then((res) => res.isFile())
   .catch(() => false)
 
 const localFileExists = async (dir, binName, root = '/') => {

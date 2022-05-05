@@ -29,7 +29,6 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kDebugBreak:
     case IrOpcode::kDeoptimizeIf:
     case IrOpcode::kDeoptimizeUnless:
-    case IrOpcode::kDynamicCheckMapsWithDeoptUnless:
     case IrOpcode::kEffectPhi:
     case IrOpcode::kIfException:
     case IrOpcode::kLoad:
@@ -37,6 +36,7 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kLoadElement:
     case IrOpcode::kLoadField:
     case IrOpcode::kLoadFromObject:
+    case IrOpcode::kLoadImmutableFromObject:
     case IrOpcode::kLoadLane:
     case IrOpcode::kLoadTransform:
     case IrOpcode::kMemoryBarrier:
@@ -53,6 +53,7 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kStoreField:
     case IrOpcode::kStoreLane:
     case IrOpcode::kStoreToObject:
+    case IrOpcode::kInitializeImmutableInObject:
     case IrOpcode::kUnalignedLoad:
     case IrOpcode::kUnalignedStore:
     case IrOpcode::kUnreachable:
@@ -217,12 +218,14 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
     case IrOpcode::kCall:
       return VisitCall(node, state);
     case IrOpcode::kLoadFromObject:
+    case IrOpcode::kLoadImmutableFromObject:
       return VisitLoadFromObject(node, state);
     case IrOpcode::kLoadElement:
       return VisitLoadElement(node, state);
     case IrOpcode::kLoadField:
       return VisitLoadField(node, state);
     case IrOpcode::kStoreToObject:
+    case IrOpcode::kInitializeImmutableInObject:
       return VisitStoreToObject(node, state);
     case IrOpcode::kStoreElement:
       return VisitStoreElement(node, state);
@@ -306,7 +309,8 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
 
 void MemoryOptimizer::VisitLoadFromObject(Node* node,
                                           AllocationState const* state) {
-  DCHECK_EQ(IrOpcode::kLoadFromObject, node->opcode());
+  DCHECK(node->opcode() == IrOpcode::kLoadFromObject ||
+         node->opcode() == IrOpcode::kLoadImmutableFromObject);
   Reduction reduction = memory_lowering()->ReduceLoadFromObject(node);
   EnqueueUses(node, state);
   if (V8_MAP_PACKING_BOOL && reduction.replacement() != node) {
@@ -316,7 +320,8 @@ void MemoryOptimizer::VisitLoadFromObject(Node* node,
 
 void MemoryOptimizer::VisitStoreToObject(Node* node,
                                          AllocationState const* state) {
-  DCHECK_EQ(IrOpcode::kStoreToObject, node->opcode());
+  DCHECK(node->opcode() == IrOpcode::kStoreToObject ||
+         node->opcode() == IrOpcode::kInitializeImmutableInObject);
   memory_lowering()->ReduceStoreToObject(node, state);
   EnqueueUses(node, state);
 }
@@ -337,11 +342,12 @@ void MemoryOptimizer::VisitLoadField(Node* node, AllocationState const* state) {
   EnqueueUses(node, state);
 
   // Node can be replaced under two cases:
-  //   1. V8_HEAP_SANDBOX_BOOL is enabled and loading an external pointer value.
+  //   1. V8_SANDBOXED_EXTERNAL_POINTERS_BOOL is enabled and loading an external
+  //   pointer value.
   //   2. V8_MAP_PACKING_BOOL is enabled.
-  DCHECK_IMPLIES(!V8_HEAP_SANDBOX_BOOL && !V8_MAP_PACKING_BOOL,
+  DCHECK_IMPLIES(!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL && !V8_MAP_PACKING_BOOL,
                  reduction.replacement() == node);
-  if ((V8_HEAP_SANDBOX_BOOL || V8_MAP_PACKING_BOOL) &&
+  if ((V8_SANDBOXED_EXTERNAL_POINTERS_BOOL || V8_MAP_PACKING_BOOL) &&
       reduction.replacement() != node) {
     ReplaceUsesAndKillNode(node, reduction.replacement());
   }

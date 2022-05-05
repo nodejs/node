@@ -173,3 +173,27 @@ module.exports = {};
  * @property {string} ruleId The rule ID.
  * @property {string[]} replacedBy The rule IDs that replace this deprecated rule.
  */
+
+/**
+ * A linting result.
+ * @typedef {Object} LintResult
+ * @property {string} filePath The path to the file that was linted.
+ * @property {LintMessage[]} messages All of the messages for the result.
+ * @property {SuppressedLintMessage[]} suppressedMessages All of the suppressed messages for the result.
+ * @property {number} errorCount Number of errors for the result.
+ * @property {number} fatalErrorCount Number of fatal errors for the result.
+ * @property {number} warningCount Number of warnings for the result.
+ * @property {number} fixableErrorCount Number of fixable errors for the result.
+ * @property {number} fixableWarningCount Number of fixable warnings for the result.
+ * @property {string} [source] The source code of the file that was linted.
+ * @property {string} [output] The source code of the file that was linted, with as many fixes applied as possible.
+ * @property {DeprecatedRuleInfo[]} usedDeprecatedRules The list of used deprecated rules.
+ */
+
+/**
+ * A formatter function.
+ * @callback FormatterFunction
+ * @param {LintResult[]} results The list of linting results.
+ * @param {{cwd: string, rulesMeta: Record<string, RuleMeta>}} [context] A context object.
+ * @returns {string | Promise<string>} Formatted text.
+ */

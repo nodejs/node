@@ -85,8 +85,15 @@ BUILTIN(NumberFormatPrototypeFormatToParts) {
 
   Handle<Object> x;
   if (args.length() >= 2) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
-                                       Object::ToNumeric(isolate, args.at(1)));
+    Handle<Object> value = args.at(1);
+    if (FLAG_harmony_intl_number_format_v3) {
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, x,
+          Intl::ToIntlMathematicalValueAsNumberBigIntOrString(isolate, value));
+    } else {
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
+                                         Object::ToNumeric(isolate, value));
+    }
   } else {
     x = isolate->factory()->nan_value();
   }
@@ -156,11 +163,10 @@ BUILTIN(DateTimeFormatPrototypeFormatToParts) {
 }
 
 // Common code for DateTimeFormatPrototypeFormtRange(|ToParts)
-template <class T>
+template <class T, MaybeHandle<T> (*F)(Isolate*, Handle<JSDateTimeFormat>,
+                                       double, double)>
 V8_WARN_UNUSED_RESULT Object DateTimeFormatRange(
-    BuiltinArguments args, Isolate* isolate, const char* const method_name,
-    MaybeHandle<T> (*format)(Isolate*, Handle<JSDateTimeFormat>, double,
-                             double)) {
+    BuiltinArguments args, Isolate* isolate, const char* const method_name) {
   // 1. Let dtf be this value.
   // 2. If Type(dtf) is not Object, throw a TypeError exception.
   CHECK_RECEIVER(JSObject, date_format_holder, method_name);
@@ -204,22 +210,22 @@ V8_WARN_UNUSED_RESULT Object DateTimeFormatRange(
   // 8. Return ? FormatDateTimeRange(dtf, x, y)
   // OR
   // 8. Return ? FormatDateTimeRangeToParts(dtf, x, y).
-  RETURN_RESULT_OR_FAILURE(isolate, format(isolate, dtf, x, y));
+  RETURN_RESULT_OR_FAILURE(isolate, F(isolate, dtf, x, y));
 }
 
 BUILTIN(DateTimeFormatPrototypeFormatRange) {
   const char* const method_name = "Intl.DateTimeFormat.prototype.formatRange";
   HandleScope handle_scope(isolate);
-  return DateTimeFormatRange<String>(args, isolate, method_name,
-                                     JSDateTimeFormat::FormatRange);
+  return DateTimeFormatRange<String, JSDateTimeFormat::FormatRange>(
+      args, isolate, method_name);
 }
 
 BUILTIN(DateTimeFormatPrototypeFormatRangeToParts) {
   const char* const method_name =
       "Intl.DateTimeFormat.prototype.formatRangeToParts";
   HandleScope handle_scope(isolate);
-  return DateTimeFormatRange<JSArray>(args, isolate, method_name,
-                                      JSDateTimeFormat::FormatRangeToParts);
+  return DateTimeFormatRange<JSArray, JSDateTimeFormat::FormatRangeToParts>(
+      args, isolate, method_name);
 }
 
 namespace {
@@ -501,8 +507,14 @@ BUILTIN(NumberFormatInternalFormatNumber) {
 
   // 4. Let x be ? ToNumeric(value).
   Handle<Object> numeric_obj;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, numeric_obj,
-                                     Object::ToNumeric(isolate, value));
+  if (FLAG_harmony_intl_number_format_v3) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, numeric_obj,
+        Intl::ToIntlMathematicalValueAsNumberBigIntOrString(isolate, value));
+  } else {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, numeric_obj,
+                                       Object::ToNumeric(isolate, value));
+  }
 
   icu::number::LocalizedNumberFormatter* icu_localized_number_formatter =
       number_format->icu_number_formatter().raw();
@@ -512,6 +524,63 @@ BUILTIN(NumberFormatInternalFormatNumber) {
   RETURN_RESULT_OR_FAILURE(
       isolate, JSNumberFormat::FormatNumeric(
                    isolate, *icu_localized_number_formatter, numeric_obj));
+}
+
+// Common code for NumberFormatPrototypeFormtRange(|ToParts)
+template <class T, MaybeHandle<T> (*F)(Isolate*, Handle<JSNumberFormat>,
+                                       Handle<Object>, Handle<Object>)>
+V8_WARN_UNUSED_RESULT Object NumberFormatRange(BuiltinArguments args,
+                                               Isolate* isolate,
+                                               const char* const method_name) {
+  // 1. Let nf be this value.
+  // 2. Perform ? RequireInternalSlot(nf, [[InitializedNumberFormat]]).
+  CHECK_RECEIVER(JSNumberFormat, nf, method_name);
+
+  Handle<Object> start = args.atOrUndefined(isolate, 1);
+  Handle<Object> end = args.atOrUndefined(isolate, 2);
+
+  Factory* factory = isolate->factory();
+  // 3. If start is undefined or end is undefined, throw a TypeError exception.
+  if (start->IsUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kInvalid,
+                     factory->NewStringFromStaticChars("start"), start));
+  }
+  if (end->IsUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kInvalid,
+                              factory->NewStringFromStaticChars("end"), end));
+  }
+
+  // 4. Let x be ? ToIntlMathematicalValue(start).
+  Handle<Object> x;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, x,
+      Intl::ToIntlMathematicalValueAsNumberBigIntOrString(isolate, start));
+
+  // 5. Let y be ? ToIntlMathematicalValue(end).
+  Handle<Object> y;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, y,
+      Intl::ToIntlMathematicalValueAsNumberBigIntOrString(isolate, end));
+
+  RETURN_RESULT_OR_FAILURE(isolate, F(isolate, nf, x, y));
+}
+
+BUILTIN(NumberFormatPrototypeFormatRange) {
+  const char* const method_name = "Intl.NumberFormat.prototype.formatRange";
+  HandleScope handle_scope(isolate);
+  return NumberFormatRange<String, JSNumberFormat::FormatNumericRange>(
+      args, isolate, method_name);
+}
+
+BUILTIN(NumberFormatPrototypeFormatRangeToParts) {
+  const char* const method_name =
+      "Intl.NumberFormat.prototype.formatRangeToParts";
+  HandleScope handle_scope(isolate);
+  return NumberFormatRange<JSArray, JSNumberFormat::FormatNumericRangeToParts>(
+      args, isolate, method_name);
 }
 
 BUILTIN(DateTimeFormatConstructor) {
@@ -902,22 +971,78 @@ BUILTIN(PluralRulesPrototypeResolvedOptions) {
 BUILTIN(PluralRulesPrototypeSelect) {
   HandleScope scope(isolate);
 
-  // 1. Let pr be the this value.
-  // 2. If Type(pr) is not Object, throw a TypeError exception.
-  // 3. If pr does not have an [[InitializedPluralRules]] internal slot, throw a
-  // TypeError exception.
+  // 1. 1. Let pr be the this value.
+  // 2. Perform ? RequireInternalSlot(pr, [[InitializedPluralRules]]).
   CHECK_RECEIVER(JSPluralRules, plural_rules,
                  "Intl.PluralRules.prototype.select");
 
-  // 4. Let n be ? ToNumber(value).
+  // 3. Let n be ? ToNumber(value).
   Handle<Object> number = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number,
                                      Object::ToNumber(isolate, number));
   double number_double = number->Number();
 
-  // 5. Return ? ResolvePlural(pr, n).
+  // 4. Return ! ResolvePlural(pr, n).
   RETURN_RESULT_OR_FAILURE(isolate, JSPluralRules::ResolvePlural(
                                         isolate, plural_rules, number_double));
+}
+
+BUILTIN(PluralRulesPrototypeSelectRange) {
+  HandleScope scope(isolate);
+
+  // 1. Let pr be the this value.
+  // 2. Perform ? RequireInternalSlot(pr, [[InitializedPluralRules]]).
+  CHECK_RECEIVER(JSPluralRules, plural_rules,
+                 "Intl.PluralRules.prototype.selectRange");
+
+  // 3. If start is undefined or end is undefined, throw a TypeError exception.
+  Handle<Object> start = args.atOrUndefined(isolate, 1);
+  Handle<Object> end = args.atOrUndefined(isolate, 2);
+  if (start->IsUndefined()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kInvalid,
+                              isolate->factory()->startRange_string(), start));
+  }
+  if (end->IsUndefined()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kInvalid,
+                              isolate->factory()->endRange_string(), end));
+  }
+
+  // 4. Let x be ? ToNumber(start).
+  Handle<Object> x;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
+                                     Object::ToNumber(isolate, start));
+
+  // 5. Let y be ? ToNumber(end).
+  Handle<Object> y;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, y,
+                                     Object::ToNumber(isolate, end));
+
+  // 6. Return ! ResolvePluralRange(pr, x, y).
+  // Inside ResolvePluralRange
+  // 5. If x is NaN or y is NaN, throw a RangeError exception.
+  if (x->IsNaN()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalid,
+                               isolate->factory()->startRange_string(), x));
+  }
+  if (y->IsNaN()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalid,
+                               isolate->factory()->endRange_string(), y));
+  }
+
+  // 6. If x > y, throw a RangeError exception.
+  double x_double = x->Number();
+  double y_double = y->Number();
+  if (x_double > y_double) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalid, x, y));
+  }
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSPluralRules::ResolvePluralRange(isolate, plural_rules,
+                                                 x_double, y_double));
 }
 
 BUILTIN(PluralRulesSupportedLocalesOf) {

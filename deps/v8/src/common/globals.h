@@ -30,11 +30,6 @@ class RecursiveMutex;
 
 namespace internal {
 
-constexpr int KB = 1024;
-constexpr int MB = KB * 1024;
-constexpr int GB = MB * 1024;
-constexpr int64_t TB = static_cast<int64_t>(GB) * 1024;
-
 // Determine whether we are running in a simulated environment.
 // Setting USE_SIMULATOR explicitly from the build script will force
 // the use of a simulated environment.
@@ -357,6 +352,11 @@ STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
 // This type defines raw storage type for external (or off-V8 heap) pointers
 // stored on V8 heap.
 constexpr int kExternalPointerSize = sizeof(ExternalPointer_t);
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+STATIC_ASSERT(kExternalPointerSize == kTaggedSize);
+#else
+STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
+#endif
 
 constexpr int kEmbedderDataSlotSize = kSystemPointerSize;
 
@@ -433,6 +433,13 @@ F FUNCTION_CAST(Address addr) {
 #else
 #define USES_FUNCTION_DESCRIPTORS 0
 #endif
+
+constexpr bool StaticStringsEqual(const char* s1, const char* s2) {
+  for (;; ++s1, ++s2) {
+    if (*s1 != *s2) return false;
+    if (*s1 == '\0') return true;
+  }
+}
 
 // -----------------------------------------------------------------------------
 // Declarations for use in both the preparser and the rest of V8.
@@ -515,44 +522,34 @@ constexpr int kNoDeoptimizationId = -1;
 // Deoptimize bailout kind:
 // - Eager: a check failed in the optimized code and deoptimization happens
 //   immediately.
+// - Unused: replaces "Soft" for ABI compatibility.
 // - Lazy: the code has been marked as dependent on some assumption which
 //   is checked elsewhere and can trigger deoptimization the next time the
 //   code is executed.
-// - Soft: similar to lazy deoptimization, but does not contribute to the
-//   total deopt count which can lead to disabling optimization for a function.
-// - Bailout: a check failed in the optimized code but we don't
-//   deoptimize the code, but try to heal the feedback and try to rerun
-//   the optimized code again.
-// - EagerWithResume: a check failed in the optimized code, but we can execute
-//   a more expensive check in a builtin that might either result in us resuming
-//   execution in the optimized code, or deoptimizing immediately.
 enum class DeoptimizeKind : uint8_t {
   kEager,
-  kSoft,
-  kBailout,
+  kUnused,
   kLazy,
-  kEagerWithResume,
 };
 constexpr DeoptimizeKind kFirstDeoptimizeKind = DeoptimizeKind::kEager;
-constexpr DeoptimizeKind kLastDeoptimizeKind = DeoptimizeKind::kEagerWithResume;
+constexpr DeoptimizeKind kLastDeoptimizeKind = DeoptimizeKind::kLazy;
 STATIC_ASSERT(static_cast<int>(kFirstDeoptimizeKind) == 0);
 constexpr int kDeoptimizeKindCount = static_cast<int>(kLastDeoptimizeKind) + 1;
 inline size_t hash_value(DeoptimizeKind kind) {
   return static_cast<size_t>(kind);
 }
-inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
+constexpr const char* ToString(DeoptimizeKind kind) {
   switch (kind) {
     case DeoptimizeKind::kEager:
-      return os << "Eager";
-    case DeoptimizeKind::kSoft:
-      return os << "Soft";
+      return "Eager";
+    case DeoptimizeKind::kUnused:
+      return "Unused";
     case DeoptimizeKind::kLazy:
-      return os << "Lazy";
-    case DeoptimizeKind::kBailout:
-      return os << "Bailout";
-    case DeoptimizeKind::kEagerWithResume:
-      return os << "EagerMaybeResume";
+      return "Lazy";
   }
+}
+inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
+  return os << ToString(kind);
 }
 
 // Indicates whether the lookup is related to sloppy-mode block-scoped
@@ -608,6 +605,10 @@ constexpr intptr_t kDoubleAlignmentMask = kDoubleAlignment - 1;
 // loop header alignment) and 32 bytes (to improve cache line utilization) on
 // other architectures.
 #if V8_TARGET_ARCH_X64
+constexpr int kCodeAlignmentBits = 6;
+#elif V8_TARGET_ARCH_PPC64
+// 64 byte alignment is needed on ppc64 to make sure p10 prefixed instructions
+// don't cross 64-byte boundaries.
 constexpr int kCodeAlignmentBits = 6;
 #else
 constexpr int kCodeAlignmentBits = 5;
@@ -918,6 +919,8 @@ enum class CompactionSpaceKind {
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
+enum class PageSize { kRegular, kLarge };
+
 enum class CodeFlushMode {
   kFlushBytecode,
   kFlushBaselineCode,
@@ -1152,6 +1155,10 @@ inline std::ostream& operator<<(std::ostream& os, CreateArgumentsType type) {
   }
   UNREACHABLE();
 }
+
+// Threshold calculated using a microbenckmark.
+// https://chromium-review.googlesource.com/c/v8/v8/+/3429210
+constexpr int kScopeInfoMaxInlinedLocalNamesSize = 75;
 
 enum ScopeType : uint8_t {
   CLASS_SCOPE,     // The scope introduced by a class.
@@ -1509,34 +1516,6 @@ class CompareOperationFeedback {
   };
 };
 
-enum class Operation {
-  // Binary operations.
-  kAdd,
-  kSubtract,
-  kMultiply,
-  kDivide,
-  kModulus,
-  kExponentiate,
-  kBitwiseAnd,
-  kBitwiseOr,
-  kBitwiseXor,
-  kShiftLeft,
-  kShiftRight,
-  kShiftRightLogical,
-  // Unary operations.
-  kBitwiseNot,
-  kNegate,
-  kIncrement,
-  kDecrement,
-  // Compare operations.
-  kEqual,
-  kStrictEqual,
-  kLessThan,
-  kLessThanOrEqual,
-  kGreaterThan,
-  kGreaterThanOrEqual,
-};
-
 // Type feedback is encoded in such a way that, we can combine the feedback
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
@@ -1603,16 +1582,17 @@ inline std::ostream& operator<<(std::ostream& os, CollectionKind kind) {
   UNREACHABLE();
 }
 
-// Flags for the runtime function kDefineDataPropertyInLiteral. A property can
-// be enumerable or not, and, in case of functions, the function name
-// can be set or not.
-enum class DataPropertyInLiteralFlag {
+// Flags for the runtime function kDefineKeyedOwnPropertyInLiteral. A property
+// can be enumerable or not, and, in case of functions, the function name can be
+// set or not.
+enum class DefineKeyedOwnPropertyInLiteralFlag {
   kNoFlags = 0,
   kDontEnum = 1 << 0,
   kSetFunctionName = 1 << 1
 };
-using DataPropertyInLiteralFlags = base::Flags<DataPropertyInLiteralFlag>;
-DEFINE_OPERATORS_FOR_FLAGS(DataPropertyInLiteralFlags)
+using DefineKeyedOwnPropertyInLiteralFlags =
+    base::Flags<DefineKeyedOwnPropertyInLiteralFlag>;
+DEFINE_OPERATORS_FOR_FLAGS(DefineKeyedOwnPropertyInLiteralFlags)
 
 enum ExternalArrayType {
   kExternalInt8Array = 1,
@@ -1644,71 +1624,51 @@ inline std::ostream& operator<<(std::ostream& os,
 
 using FileAndLine = std::pair<const char*, int>;
 
-enum class OptimizationMarker : int32_t {
-  // These values are set so that it is easy to check if there is a marker where
-  // some processing needs to be done.
-  kNone = 0b000,
-  kInOptimizationQueue = 0b001,
-  kCompileOptimized = 0b010,
-  kCompileOptimizedConcurrent = 0b011,
-  kLogFirstExecution = 0b100,
-  kLastOptimizationMarker = kLogFirstExecution
+#define TIERING_STATE_LIST(V)           \
+  V(None, 0b000)                        \
+  V(InProgress, 0b001)                  \
+  V(RequestMaglev_Synchronous, 0b010)   \
+  V(RequestMaglev_Concurrent, 0b011)    \
+  V(RequestTurbofan_Synchronous, 0b100) \
+  V(RequestTurbofan_Concurrent, 0b101)
+
+enum class TieringState : int32_t {
+#define V(Name, Value) k##Name = Value,
+  TIERING_STATE_LIST(V)
+#undef V
+      kLastTieringState = kRequestTurbofan_Concurrent,
 };
-// For kNone or kInOptimizationQueue we don't need any special processing.
-// To check both cases using a single mask, we expect the kNone to be 0 and
-// kInOptimizationQueue to be 1 so that we can mask off the lsb for checking.
-STATIC_ASSERT(static_cast<int>(OptimizationMarker::kNone) == 0b000 &&
-              static_cast<int>(OptimizationMarker::kInOptimizationQueue) ==
-                  0b001);
-STATIC_ASSERT(static_cast<int>(OptimizationMarker::kLastOptimizationMarker) <=
-              0b111);
-static constexpr uint32_t kNoneOrInOptimizationQueueMask = 0b110;
 
-inline bool IsInOptimizationQueueMarker(OptimizationMarker marker) {
-  return marker == OptimizationMarker::kInOptimizationQueue;
-}
+// To efficiently check whether a marker is kNone or kInProgress using a single
+// mask, we expect the kNone to be 0 and kInProgress to be 1 so that we can
+// mask off the lsb for checking.
+STATIC_ASSERT(static_cast<int>(TieringState::kNone) == 0b00 &&
+              static_cast<int>(TieringState::kInProgress) == 0b01);
+STATIC_ASSERT(static_cast<int>(TieringState::kLastTieringState) <= 0b111);
+static constexpr uint32_t kNoneOrInProgressMask = 0b110;
 
-inline bool IsCompileOptimizedMarker(OptimizationMarker marker) {
-  return marker == OptimizationMarker::kCompileOptimized ||
-         marker == OptimizationMarker::kCompileOptimizedConcurrent;
-}
+#define V(Name, Value)                          \
+  constexpr bool Is##Name(TieringState state) { \
+    return state == TieringState::k##Name;      \
+  }
+TIERING_STATE_LIST(V)
+#undef V
 
-inline std::ostream& operator<<(std::ostream& os,
-                                const OptimizationMarker& marker) {
+constexpr const char* ToString(TieringState marker) {
   switch (marker) {
-    case OptimizationMarker::kLogFirstExecution:
-      return os << "OptimizationMarker::kLogFirstExecution";
-    case OptimizationMarker::kNone:
-      return os << "OptimizationMarker::kNone";
-    case OptimizationMarker::kCompileOptimized:
-      return os << "OptimizationMarker::kCompileOptimized";
-    case OptimizationMarker::kCompileOptimizedConcurrent:
-      return os << "OptimizationMarker::kCompileOptimizedConcurrent";
-    case OptimizationMarker::kInOptimizationQueue:
-      return os << "OptimizationMarker::kInOptimizationQueue";
+#define V(Name, Value)        \
+  case TieringState::k##Name: \
+    return "TieringState::k" #Name;
+    TIERING_STATE_LIST(V)
+#undef V
   }
 }
 
-enum class OptimizationTier {
-  kNone = 0b00,
-  kMidTier = 0b01,
-  kTopTier = 0b10,
-  kLastOptimizationTier = kTopTier
-};
-static constexpr uint32_t kNoneOrMidTierMask = 0b10;
-static constexpr uint32_t kNoneMask = 0b11;
-
-inline std::ostream& operator<<(std::ostream& os,
-                                const OptimizationTier& tier) {
-  switch (tier) {
-    case OptimizationTier::kNone:
-      return os << "OptimizationTier::kNone";
-    case OptimizationTier::kMidTier:
-      return os << "OptimizationTier::kMidTier";
-    case OptimizationTier::kTopTier:
-      return os << "OptimizationTier::kTopTier";
-  }
+inline std::ostream& operator<<(std::ostream& os, TieringState marker) {
+  return os << ToString(marker);
 }
+
+#undef TIERING_STATE_LIST
 
 enum class SpeculationMode { kAllowSpeculation, kDisallowSpeculation };
 enum class CallFeedbackContent { kTarget, kReceiver };
@@ -1721,26 +1681,55 @@ inline std::ostream& operator<<(std::ostream& os,
     case SpeculationMode::kDisallowSpeculation:
       return os << "SpeculationMode::kDisallowSpeculation";
   }
-  UNREACHABLE();
-  return os;
 }
 
 enum class BlockingBehavior { kBlock, kDontBlock };
 
-enum class ConcurrencyMode { kNotConcurrent, kConcurrent };
+enum class ConcurrencyMode : uint8_t { kSynchronous, kConcurrent };
 
-#define FOR_EACH_ISOLATE_ADDRESS_NAME(C)                       \
-  C(Handler, handler)                                          \
-  C(CEntryFP, c_entry_fp)                                      \
-  C(CFunction, c_function)                                     \
-  C(Context, context)                                          \
-  C(PendingException, pending_exception)                       \
-  C(PendingHandlerContext, pending_handler_context)            \
-  C(PendingHandlerEntrypoint, pending_handler_entrypoint)      \
-  C(PendingHandlerConstantPool, pending_handler_constant_pool) \
-  C(PendingHandlerFP, pending_handler_fp)                      \
-  C(PendingHandlerSP, pending_handler_sp)                      \
-  C(ExternalCaughtException, external_caught_exception)        \
+constexpr bool IsSynchronous(ConcurrencyMode mode) {
+  return mode == ConcurrencyMode::kSynchronous;
+}
+constexpr bool IsConcurrent(ConcurrencyMode mode) {
+  return mode == ConcurrencyMode::kConcurrent;
+}
+
+constexpr const char* ToString(ConcurrencyMode mode) {
+  switch (mode) {
+    case ConcurrencyMode::kSynchronous:
+      return "ConcurrencyMode::kSynchronous";
+    case ConcurrencyMode::kConcurrent:
+      return "ConcurrencyMode::kConcurrent";
+  }
+}
+inline std::ostream& operator<<(std::ostream& os, ConcurrencyMode mode) {
+  return os << ToString(mode);
+}
+
+// An architecture independent representation of the sets of registers available
+// for instruction creation.
+enum class AliasingKind {
+  // Registers alias a single register of every other size (e.g. Intel).
+  kOverlap,
+  // Registers alias two registers of the next smaller size (e.g. ARM).
+  kCombine,
+  // SIMD128 Registers are independent of every other size (e.g Riscv)
+  kIndependent
+};
+
+#define FOR_EACH_ISOLATE_ADDRESS_NAME(C)                            \
+  C(Handler, handler)                                               \
+  C(CEntryFP, c_entry_fp)                                           \
+  C(CFunction, c_function)                                          \
+  C(Context, context)                                               \
+  C(PendingException, pending_exception)                            \
+  C(PendingHandlerContext, pending_handler_context)                 \
+  C(PendingHandlerEntrypoint, pending_handler_entrypoint)           \
+  C(PendingHandlerConstantPool, pending_handler_constant_pool)      \
+  C(PendingHandlerFP, pending_handler_fp)                           \
+  C(PendingHandlerSP, pending_handler_sp)                           \
+  C(NumFramesAbovePendingHandler, num_frames_above_pending_handler) \
+  C(ExternalCaughtException, external_caught_exception)             \
   C(JSEntrySP, js_entry_sp)
 
 enum IsolateAddressId {
@@ -1760,7 +1749,7 @@ enum IsolateAddressId {
   V(TrapRemByZero)                 \
   V(TrapFloatUnrepresentable)      \
   V(TrapFuncSigMismatch)           \
-  V(TrapDataSegmentDropped)        \
+  V(TrapDataSegmentOutOfBounds)    \
   V(TrapElemSegmentDropped)        \
   V(TrapTableOutOfBounds)          \
   V(TrapRethrowNull)               \
@@ -1768,8 +1757,6 @@ enum IsolateAddressId {
   V(TrapIllegalCast)               \
   V(TrapArrayOutOfBounds)          \
   V(TrapArrayTooLarge)
-
-enum WasmRttSubMode { kCanonicalize, kFresh };
 
 enum KeyedAccessLoadMode {
   STANDARD_LOAD,
@@ -1820,15 +1807,8 @@ constexpr int kSwissNameDictionaryInitialCapacity = 4;
 constexpr int kSmallOrderedHashSetMinCapacity = 4;
 constexpr int kSmallOrderedHashMapMinCapacity = 4;
 
-#ifdef V8_INCLUDE_RECEIVER_IN_ARGC
-constexpr bool kJSArgcIncludesReceiver = true;
 constexpr int kJSArgcReceiverSlots = 1;
 constexpr uint16_t kDontAdaptArgumentsSentinel = 0;
-#else
-constexpr bool kJSArgcIncludesReceiver = false;
-constexpr int kJSArgcReceiverSlots = 0;
-constexpr uint16_t kDontAdaptArgumentsSentinel = static_cast<uint16_t>(-1);
-#endif
 
 // Helper to get the parameter count for functions with JS linkage.
 inline constexpr int JSParameterCount(int param_count_without_receiver) {
@@ -1852,12 +1832,6 @@ enum class TraceRetainingPathMode { kEnabled, kDisabled };
 // function expressions, and for the receiver. Must be declared here so that it
 // can be used in Torque.
 enum class VariableAllocationInfo { NONE, STACK, CONTEXT, UNUSED };
-
-enum class DynamicCheckMapsStatus : uint8_t {
-  kSuccess = 0,
-  kBailout = 1,
-  kDeopt = 2
-};
 
 #ifdef V8_COMPRESS_POINTERS
 class PtrComprCageBase {
@@ -1925,15 +1899,17 @@ enum class StringTransitionStrategy {
 
 }  // namespace internal
 
-// Tag dispatching support for acquire loads and release stores.
+// Tag dispatching support for atomic loads and stores.
 struct AcquireLoadTag {};
 struct RelaxedLoadTag {};
 struct ReleaseStoreTag {};
 struct RelaxedStoreTag {};
+struct SeqCstAccessTag {};
 static constexpr AcquireLoadTag kAcquireLoad;
 static constexpr RelaxedLoadTag kRelaxedLoad;
 static constexpr ReleaseStoreTag kReleaseStore;
 static constexpr RelaxedStoreTag kRelaxedStore;
+static constexpr SeqCstAccessTag kSeqCstAccess;
 
 }  // namespace v8
 

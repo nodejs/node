@@ -1,3 +1,5 @@
+const { readFileSync, statSync } = require('fs')
+const { resolve } = require('path')
 const t = require('tap')
 const { fake: mockNpm } = require('../../fixtures/mock-npm')
 const mockGlobals = require('../../fixtures/mock-globals.js')
@@ -10,8 +12,13 @@ const config = {
   'tag-version-prefix': 'v',
   json: false,
 }
+const flatOptions = {
+  workspacesUpdate: true,
+}
 const npm = mockNpm({
   config,
+  flatOptions,
+  localPrefix: '',
   prefix: '',
   version: '1.0.0',
   output: (...msg) => {
@@ -21,14 +28,16 @@ const npm = mockNpm({
   },
 })
 const mocks = {
-  libnpmversion: noop,
+  '../../../lib/utils/reify-finish.js': noop,
 }
 
 const Version = t.mock('../../../lib/commands/version.js', mocks)
 const version = new Version(npm)
 
 t.afterEach(() => {
+  flatOptions.workspacesUpdate = true
   config.json = false
+  npm.localPrefix = ''
   npm.prefix = ''
   result = []
 })
@@ -120,7 +129,7 @@ t.test('empty versions', t => {
       ...mocks,
       libnpmversion: (arg, opts) => {
         t.equal(arg, 'major', 'should forward expected value')
-        t.same(
+        t.match(
           opts,
           {
             path: '',
@@ -271,6 +280,103 @@ t.test('empty versions', t => {
     })
 
     t.test('with one arg, all workspaces', async t => {
+      const testDir = t.testdir({
+        'package.json': JSON.stringify(
+          {
+            name: 'workspaces-test',
+            version: '1.0.0',
+            workspaces: ['workspace-a', 'workspace-b'],
+          },
+          null,
+          2
+        ),
+        'workspace-a': {
+          'package.json': JSON.stringify({
+            name: 'workspace-a',
+            version: '1.0.0',
+          }),
+        },
+        'workspace-b': {
+          'package.json': JSON.stringify({
+            name: 'workspace-b',
+            version: '1.0.0',
+          }),
+        },
+      })
+      const Version = t.mock('../../../lib/commands/version.js', {
+        '../../../lib/utils/reify-finish.js': noop,
+      })
+      npm.localPrefix = testDir
+      npm.prefix = testDir
+      const version = new Version(npm)
+
+      await version.execWorkspaces(['major'], [])
+      t.same(
+        result,
+        ['workspace-a', 'v2.0.0', 'workspace-b', 'v2.0.0'],
+        'outputs the new version for only the workspaces prefixed by the tagVersionPrefix'
+      )
+
+      t.matchSnapshot(readFileSync(resolve(testDir, 'package-lock.json'), 'utf8'))
+    })
+
+    t.test('with one arg, all workspaces, saves package.json', async t => {
+      const testDir = t.testdir({
+        'package.json': JSON.stringify(
+          {
+            name: 'workspaces-test',
+            version: '1.0.0',
+            workspaces: ['workspace-a', 'workspace-b'],
+            dependencies: {
+              'workspace-a': '^1.0.0',
+              'workspace-b': '^1.0.0',
+            },
+          },
+          null,
+          2
+        ),
+        'workspace-a': {
+          'package.json': JSON.stringify({
+            name: 'workspace-a',
+            version: '1.0.0',
+          }),
+        },
+        'workspace-b': {
+          'package.json': JSON.stringify({
+            name: 'workspace-b',
+            version: '1.0.0',
+          }),
+        },
+      })
+      const Version = t.mock('../../../lib/commands/version.js', {
+        '../../../lib/utils/reify-finish.js': noop,
+      })
+      config.save = true
+      npm.localPrefix = testDir
+      npm.prefix = testDir
+      const version = new Version(npm)
+
+      await version.execWorkspaces(['major'], [])
+      t.same(
+        result,
+        ['workspace-a', 'v2.0.0', 'workspace-b', 'v2.0.0'],
+        'outputs the new version for only the workspaces prefixed by the tagVersionPrefix'
+      )
+
+      t.matchSnapshot(readFileSync(resolve(testDir, 'package-lock.json'), 'utf8'))
+    })
+
+    t.test('too many args', async t => {
+      await t.rejects(
+        version.execWorkspaces(['foo', 'bar'], []),
+        /npm version/,
+        'should throw usage instructions error'
+      )
+    })
+
+    t.test('no workspaces-update', async t => {
+      flatOptions.workspacesUpdate = false
+
       const libNpmVersionArgs = []
       const testDir = t.testdir({
         'package.json': JSON.stringify(
@@ -312,13 +418,10 @@ t.test('empty versions', t => {
         ['workspace-a', 'v2.0.0', 'workspace-b', 'v2.0.0'],
         'outputs the new version for only the workspaces prefixed by the tagVersionPrefix'
       )
-    })
 
-    t.test('too many args', async t => {
-      await t.rejects(
-        version.execWorkspaces(['foo', 'bar'], []),
-        /npm version/,
-        'should throw usage instructions error'
+      t.throws(
+        () => statSync(resolve(testDir, 'package-lock.json')),
+        'should not have a lockfile since have not reified'
       )
     })
   })

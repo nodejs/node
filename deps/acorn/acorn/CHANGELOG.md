@@ -1,3 +1,17 @@
+## 8.7.0 (2021-12-27)
+
+### New features
+
+Support quoted export names.
+
+Upgrade to Unicode 14.
+
+Add support for Unicode 13 properties in regular expressions.
+
+### Bug fixes
+
+Use a loop to find line breaks, because the existing regexp search would overrun the end of the searched range and waste a lot of time in minified code.
+
 ## 8.6.0 (2021-11-18)
 
 ### Bug fixes

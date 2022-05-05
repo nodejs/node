@@ -24,7 +24,7 @@ const char* CodeKindToMarker(CodeKind kind) {
       return "~";
     case CodeKind::BASELINE:
       return "^";
-    case CodeKind::TURBOPROP:
+    case CodeKind::MAGLEV:
       return "+";
     case CodeKind::TURBOFAN:
       return "*";

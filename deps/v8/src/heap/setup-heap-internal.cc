@@ -13,6 +13,7 @@
 #include "src/init/setup-isolate.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/arguments.h"
+#include "src/objects/call-site-info.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/contexts.h"
 #include "src/objects/data-handler.h"
@@ -37,7 +38,6 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
 #include "src/objects/source-text-module.h"
-#include "src/objects/stack-frame-info.h"
 #include "src/objects/string.h"
 #include "src/objects/synthetic-module.h"
 #include "src/objects/template-objects-inl.h"
@@ -151,9 +151,9 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
                                   SKIP_WRITE_BARRIER);
   Map map = isolate()->factory()->InitializeMap(
       Map::cast(result), instance_type, instance_size, elements_kind,
-      inobject_properties);
+      inobject_properties, this);
 
-  return map;
+  return AllocationResult::FromObject(map);
 }
 
 AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
@@ -184,7 +184,7 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   DCHECK(!map.is_in_retained_map_list());
   map.clear_padding();
   map.set_elements_kind(TERMINAL_FAST_ELEMENTS_KIND);
-  return map;
+  return AllocationResult::FromObject(map);
 }
 
 void Heap::FinalizePartialMap(Map map) {
@@ -208,7 +208,7 @@ AllocationResult Heap::Allocate(Handle<Map> map,
       allocation_type == AllocationType::kYoung ? SKIP_WRITE_BARRIER
                                                 : UPDATE_WRITE_BARRIER;
   result.set_map_after_allocation(*map, write_barrier_mode);
-  return result;
+  return AllocationResult::FromObject(result);
 }
 
 bool Heap::CreateInitialMaps() {
@@ -250,7 +250,6 @@ bool Heap::CreateInitialMaps() {
 #undef ALLOCATE_PARTIAL_MAP
   }
 
-  // Allocate the empty array.
   {
     AllocationResult alloc =
         AllocateRaw(FixedArray::SizeFor(0), AllocationType::kReadOnly);
@@ -476,6 +475,9 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(NUMBER_DICTIONARY_TYPE, number_dictionary)
     ALLOCATE_VARSIZE_MAP(SIMPLE_NUMBER_DICTIONARY_TYPE,
                          simple_number_dictionary)
+    ALLOCATE_VARSIZE_MAP(NAME_TO_INDEX_HASH_TABLE_TYPE,
+                         name_to_index_hash_table)
+    ALLOCATE_VARSIZE_MAP(REGISTERED_SYMBOL_TABLE_TYPE, registered_symbol_table)
 
     ALLOCATE_VARSIZE_MAP(EMBEDDER_DATA_ARRAY_TYPE, embedder_data_array)
     ALLOCATE_VARSIZE_MAP(EPHEMERON_HASH_TABLE_TYPE, ephemeron_hash_table)
@@ -516,6 +518,8 @@ bool Heap::CreateInitialMaps() {
             WasmInternalFunction::kSize, wasm_internal_function)
     IF_WASM(ALLOCATE_MAP, WASM_JS_FUNCTION_DATA_TYPE, WasmJSFunctionData::kSize,
             wasm_js_function_data)
+    IF_WASM(ALLOCATE_MAP, WASM_ON_FULFILLED_DATA_TYPE,
+            WasmOnFulfilledData::kSize, wasm_onfulfilled_data)
     IF_WASM(ALLOCATE_MAP, WASM_TYPE_INFO_TYPE, WasmTypeInfo::kSize,
             wasm_type_info)
 
@@ -523,13 +527,22 @@ bool Heap::CreateInitialMaps() {
 
     ALLOCATE_MAP(JS_MESSAGE_OBJECT_TYPE, JSMessageObject::kHeaderSize,
                  message_object)
-    ALLOCATE_MAP(JS_OBJECT_TYPE, JSObject::kHeaderSize + kEmbedderDataSlotSize,
+    ALLOCATE_MAP(JS_EXTERNAL_OBJECT_TYPE, JSExternalObject::kHeaderSize,
                  external)
     external_map().set_is_extensible(false);
 #undef ALLOCATE_PRIMITIVE_MAP
 #undef ALLOCATE_VARSIZE_MAP
 #undef ALLOCATE_MAP
   }
+  {
+    AllocationResult alloc = AllocateRaw(
+        ArrayList::SizeFor(ArrayList::kFirstIndex), AllocationType::kReadOnly);
+    if (!alloc.To(&obj)) return false;
+    obj.set_map_after_allocation(roots.array_list_map(), SKIP_WRITE_BARRIER);
+    ArrayList::cast(obj).set_length(ArrayList::kFirstIndex);
+    ArrayList::cast(obj).SetLength(0);
+  }
+  set_empty_array_list(ArrayList::cast(obj));
 
   {
     AllocationResult alloc =
@@ -781,16 +794,20 @@ void Heap::CreateInitialObjects() {
   Handle<NameDictionary> empty_property_dictionary = NameDictionary::New(
       isolate(), 1, AllocationType::kReadOnly, USE_CUSTOM_MINIMUM_CAPACITY);
   DCHECK(!empty_property_dictionary->HasSufficientCapacityToAdd(1));
+
   set_empty_property_dictionary(*empty_property_dictionary);
 
-  set_public_symbol_table(*empty_property_dictionary);
-  set_api_symbol_table(*empty_property_dictionary);
-  set_api_private_symbol_table(*empty_property_dictionary);
+  Handle<RegisteredSymbolTable> empty_symbol_table = RegisteredSymbolTable::New(
+      isolate(), 1, AllocationType::kReadOnly, USE_CUSTOM_MINIMUM_CAPACITY);
+  DCHECK(!empty_symbol_table->HasSufficientCapacityToAdd(1));
+  set_public_symbol_table(*empty_symbol_table);
+  set_api_symbol_table(*empty_symbol_table);
+  set_api_private_symbol_table(*empty_symbol_table);
 
   set_number_string_cache(*factory->NewFixedArray(
       kInitialNumberStringCacheSize * 2, AllocationType::kOld));
 
-  set_basic_block_profiling_data(ArrayList::cast(roots.empty_fixed_array()));
+  set_basic_block_profiling_data(roots.empty_array_list());
 
   // Allocate cache for string split and regexp-multiple.
   set_string_split_cache(*factory->NewFixedArray(
@@ -811,6 +828,8 @@ void Heap::CreateInitialObjects() {
   set_shared_wasm_memories(roots.empty_weak_array_list());
 #ifdef V8_ENABLE_WEBASSEMBLY
   set_active_continuation(roots.undefined_value());
+  set_active_suspender(roots.undefined_value());
+  set_wasm_canonical_rtts(roots.empty_weak_array_list());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   set_script_list(roots.empty_weak_array_list());

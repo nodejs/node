@@ -69,19 +69,9 @@ TEST262_FRONTMATTER_PATTERN = re.compile(r"/\*---.*?---\*/", re.DOTALL)
 
 TIMEOUT_LONG = "long"
 
-try:
-  cmp             # Python 2
-except NameError:
-  def cmp(x, y):  # Python 3
-    return (x > y) - (x < y)
-
-def read_file_utf8(file):
-  try:                # Python 3
-    with open(file, encoding='utf-8') as f:
-      return f.read()
-  except TypeError:   # Python 2
-    with open(file) as f:
-      return f.read()
+def read_file(file):
+  with open(file, encoding='ISO-8859-1') as f:
+    return f.read()
 
 class TestCase(object):
   def __init__(self, suite, path, name, test_config):
@@ -414,7 +404,7 @@ class TestCase(object):
     return self._get_source_path() is not None
 
   def get_source(self):
-    return read_file_utf8(self._get_source_path())
+    return read_file(self._get_source_path())
 
   def _get_source_path(self):
     return None
@@ -440,6 +430,8 @@ class TestCase(object):
   def __cmp__(self, other):
     # Make sure that test cases are sorted correctly if sorted without
     # key function. But using a key function is preferred for speed.
+    def cmp(x, y):
+      return (x > y) - (x < y)
     return cmp(
         (self.suite.name, self.name, self.variant),
         (other.suite.name, other.name, other.variant)
@@ -460,7 +452,7 @@ class D8TestCase(TestCase):
     """Returns for a given file a list of absolute paths of files needed by the
     given file.
     """
-    source = read_file_utf8(file)
+    source = read_file(file)
     result = []
     def add_path(path):
       result.append(os.path.abspath(path.replace('/', os.path.sep)))

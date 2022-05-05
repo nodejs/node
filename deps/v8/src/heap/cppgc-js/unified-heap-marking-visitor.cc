@@ -4,16 +4,18 @@
 
 #include "src/heap/cppgc-js/unified-heap-marking-visitor.h"
 
-#include "src/heap/cppgc-js/unified-heap-marking-state.h"
+#include "src/heap/cppgc-js/unified-heap-marking-state-inl.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/visitor.h"
+#include "src/heap/heap.h"
+#include "src/heap/mark-compact.h"
 
 namespace v8 {
 namespace internal {
 
 UnifiedHeapMarkingVisitorBase::UnifiedHeapMarkingVisitorBase(
-    HeapBase& heap, cppgc::internal::MarkingStateBase& marking_state,
+    HeapBase& heap, cppgc::internal::BasicMarkingState& marking_state,
     UnifiedHeapMarkingState& unified_heap_marking_state)
     : JSVisitor(cppgc::internal::VisitorFactory::CreateKey()),
       marking_state_(marking_state),
@@ -53,18 +55,8 @@ void UnifiedHeapMarkingVisitorBase::HandleMovableReference(const void** slot) {
   marking_state_.RegisterMovableReference(slot);
 }
 
-namespace {
-void DeferredTraceTracedReference(cppgc::Visitor* visitor, const void* ref) {
-  static_cast<JSVisitor*>(visitor)->Trace(
-      *static_cast<const TracedReferenceBase*>(ref));
-}
-}  // namespace
-
 void UnifiedHeapMarkingVisitorBase::Visit(const TracedReferenceBase& ref) {
-  bool should_defer_tracing = DeferTraceToMutatorThreadIfConcurrent(
-      &ref, DeferredTraceTracedReference, 0);
-
-  if (!should_defer_tracing) unified_heap_marking_state_.MarkAndPush(ref);
+  unified_heap_marking_state_.MarkAndPush(ref);
 }
 
 MutatorUnifiedHeapMarkingVisitor::MutatorUnifiedHeapMarkingVisitor(
@@ -89,10 +81,22 @@ void MutatorUnifiedHeapMarkingVisitor::VisitWeakRoot(const void* object,
 }
 
 ConcurrentUnifiedHeapMarkingVisitor::ConcurrentUnifiedHeapMarkingVisitor(
-    HeapBase& heap, cppgc::internal::ConcurrentMarkingState& marking_state,
-    UnifiedHeapMarkingState& unified_heap_marking_state)
+    HeapBase& heap, Heap* v8_heap,
+    cppgc::internal::ConcurrentMarkingState& marking_state)
     : UnifiedHeapMarkingVisitorBase(heap, marking_state,
-                                    unified_heap_marking_state) {}
+                                    concurrent_unified_heap_marking_state_),
+      local_marking_worklist_(
+          v8_heap ? std::make_unique<MarkingWorklists::Local>(
+                        v8_heap->mark_compact_collector()->marking_worklists())
+                  : nullptr),
+      concurrent_unified_heap_marking_state_(v8_heap,
+                                             local_marking_worklist_.get()) {}
+
+ConcurrentUnifiedHeapMarkingVisitor::~ConcurrentUnifiedHeapMarkingVisitor() {
+  if (local_marking_worklist_) {
+    local_marking_worklist_->Publish();
+  }
+}
 
 bool ConcurrentUnifiedHeapMarkingVisitor::DeferTraceToMutatorThreadIfConcurrent(
     const void* parameter, cppgc::TraceCallback callback,

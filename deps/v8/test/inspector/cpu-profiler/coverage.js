@@ -7,6 +7,7 @@
 // Flags: --no-stress-incremental-marking
 // Flags: --no-concurrent-recompilation
 // Flags: --no-baseline-batch-compilation
+// Flags: --no-maglev
 
 var source =
 `

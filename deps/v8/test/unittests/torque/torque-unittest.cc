@@ -20,6 +20,8 @@ constexpr const char* kTestTorquePrelude = R"(
 type void;
 type never;
 
+type IntegerLiteral constexpr 'IntegerLiteral';
+
 namespace torque_internal {
   struct Reference<T: type> {
     const object: HeapObject;
@@ -112,6 +114,8 @@ extern macro TaggedToHeapObject(Object): HeapObject
 extern macro Float64SilenceNaN(float64): float64;
 
 extern macro IntPtrConstant(constexpr int31): intptr;
+extern macro ConstexprIntegerLiteralToInt32(constexpr IntegerLiteral): constexpr int32;
+extern macro SmiFromInt32(int32): Smi;
 
 macro FromConstexpr<To: type, From: type>(o: From): To;
 FromConstexpr<Smi, constexpr Smi>(s: constexpr Smi): Smi {
@@ -132,6 +136,15 @@ FromConstexpr<bool, constexpr bool>(b: constexpr bool): bool {
 }
 FromConstexpr<int32, constexpr int31>(i: constexpr int31): int32 {
   return %FromConstexpr<int32>(i);
+}
+FromConstexpr<int32, constexpr int32>(i: constexpr int32): int32 {
+  return %FromConstexpr<int32>(i);
+}
+FromConstexpr<int32, constexpr IntegerLiteral>(i: constexpr IntegerLiteral): int32 {
+  return FromConstexpr<int32>(ConstexprIntegerLiteralToInt32(i));
+}
+FromConstexpr<Smi, constexpr IntegerLiteral>(i: constexpr IntegerLiteral): Smi {
+  return SmiFromInt32(FromConstexpr<int32>(i));
 }
 
 macro Cast<A : type extends Object>(implicit context: Context)(o: Object): A

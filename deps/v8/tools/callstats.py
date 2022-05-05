@@ -74,7 +74,7 @@ def start_replay_server(args, sites, discard_output=True):
     with open(os.devnull, 'w') as null:
       server = subprocess.Popen(cmd_args, stdout=null, stderr=null)
   else:
-      server = subprocess.Popen(cmd_args)
+    server = subprocess.Popen(cmd_args)
   print("RUNNING REPLAY SERVER: %s with PID=%s" % (args.replay_bin, server.pid))
   print("=" * 80)
   return {'process': server, 'injection': injection}
@@ -320,7 +320,7 @@ def do_run_replay_server(args):
   try:
     replay_server['process'].wait()
   finally:
-   stop_replay_server(replay_server)
+    stop_replay_server(replay_server)
 
 
 # Calculate statistics.
@@ -493,12 +493,18 @@ def print_stats(S, args):
     print_entry("Total", S["Total"])
 
 
+def extract_domain(filename):
+  # Extract domain name: domain#123.txt or domain_123.txt
+  match = re.match(r'^(.*?)[^a-zA-Z]?[0-9]+?.txt', filename)
+  domain = match.group(1)
+  return domain
+
+
 def do_stats(args):
   domains = {}
   for path in args.logfiles:
     filename = os.path.basename(path)
-    m = re.match(r'^([^#]+)(#.*)?$', filename)
-    domain = m.group(1)
+    domain = extract_domain(filename)
     if domain not in domains: domains[domain] = {}
     read_stats(path, domains[domain], args)
   if args.aggregate:
@@ -558,8 +564,7 @@ def _read_logs(args):
         if version not in versions: versions[version] = {}
         for filename in files:
           if filename.endswith(".txt"):
-            m = re.match(r'^([^#]+)(#.*)?\.txt$', filename)
-            domain = m.group(1)
+            domain = extract_domain(filename)
             if domain not in versions[version]: versions[version][domain] = {}
             read_stats(os.path.join(root, filename),
                        versions[version][domain], args)

@@ -1,4 +1,5 @@
 :root {
+  --code-font: Consolas, Monaco, Menlo, monospace;
   --background-color: #000000;
   --surface-color-rgb: 18, 18, 18;
   --surface-color: rgb(var(--surface-color-rgb));
@@ -13,6 +14,7 @@
   --map-background-color: #5e5454;
   --timeline-background-color: #1f1f1f;
   --file-reader-background-color: #ffffff80;
+  --file-reader-border-color: #ffffff;
   --red: #dc6eae;
   --green: #aedc6e;
   --yellow: #eeff41;
@@ -66,6 +68,10 @@ kbd {
   font-weight: bold;
   padding: 0px 4px 2px 4px;
   white-space: nowrap;
+}
+
+kbd, code, pre {
+  font-family: var(--code-font);
 }
 
 a {
@@ -173,9 +179,9 @@ button:hover {
 
 .colorbox {
   display: inline-block;
-  width: 10px;
-  height: 10px;
-  border: 1px var(--background-color) solid;
+  width: 8px;
+  height: 8px;
+  border: 2px var(--background-color) solid;
   border-radius: 50%;
 }
 
@@ -227,6 +233,7 @@ button:hover,
 .mark:hover,
 .clickable:active,
 .mark:active {
+  border-radius: 3px;
   background-color: var(--primary-color);
   color: var(--on-primary-color);
   cursor: pointer;
@@ -243,17 +250,16 @@ button:hover,
   padding: 0 10px 0 10px;
 }
 .legend dt  {
-  font-family: monospace;
+  font-family: var(--code-font);
 }
 .legend h3 {
   margin-top: 10px;
 }
 
-
 .panelCloserLabel {
   float: left;
   cursor: zoom-out;
-  margin: 0 10px 0 0;
+  margin: 0 5px 0 0;
   transition: transform 0.2s ease-out;
   user-select: none;
 }

@@ -9,7 +9,6 @@ rules:
   symbol-description: off
 
   # Add new ECMAScript features gradually
-  no-var: error
   prefer-const: error
   prefer-rest-params: error
   prefer-template: error

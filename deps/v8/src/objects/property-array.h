@@ -31,10 +31,18 @@ class PropertyArray
 
   inline Object get(int index) const;
   inline Object get(PtrComprCageBase cage_base, int index) const;
+  inline Object get(int index, SeqCstAccessTag tag) const;
+  inline Object get(PtrComprCageBase cage_base, int index,
+                    SeqCstAccessTag tag) const;
 
   inline void set(int index, Object value);
+  inline void set(int index, Object value, SeqCstAccessTag tag);
   // Setter with explicit barrier mode.
   inline void set(int index, Object value, WriteBarrierMode mode);
+
+  inline Object Swap(int index, Object value, SeqCstAccessTag tag);
+  inline Object Swap(PtrComprCageBase cage_base, int index, Object value,
+                     SeqCstAccessTag tag);
 
   // Signature must be in sync with FixedArray::CopyElements().
   inline void CopyElements(Isolate* isolate, int dst_index, PropertyArray src,

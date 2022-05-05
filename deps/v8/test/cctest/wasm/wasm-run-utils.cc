@@ -73,23 +73,24 @@ TestingModuleBuilder::TestingModuleBuilder(
     auto resolved = compiler::ResolveWasmImportCall(
         maybe_import->js_function, maybe_import->sig,
         instance_object_->module(), enabled_features_);
-    compiler::WasmImportCallKind kind = resolved.first;
-    Handle<JSReceiver> callable = resolved.second;
+    compiler::WasmImportCallKind kind = resolved.kind;
+    Handle<JSReceiver> callable = resolved.callable;
     WasmImportWrapperCache::ModificationScope cache_scope(
         native_module_->import_wrapper_cache());
     WasmImportWrapperCache::CacheKey key(
         kind, maybe_import->sig,
-        static_cast<int>(maybe_import->sig->parameter_count()));
+        static_cast<int>(maybe_import->sig->parameter_count()), kNoSuspend);
     auto import_wrapper = cache_scope[key];
     if (import_wrapper == nullptr) {
       CodeSpaceWriteScope write_scope(native_module_);
       import_wrapper = CompileImportWrapper(
           native_module_, isolate_->counters(), kind, maybe_import->sig,
-          static_cast<int>(maybe_import->sig->parameter_count()), &cache_scope);
+          static_cast<int>(maybe_import->sig->parameter_count()), kNoSuspend,
+          &cache_scope);
     }
 
     ImportedFunctionEntry(instance_object_, maybe_import_index)
-        .SetWasmToJs(isolate_, callable, import_wrapper);
+        .SetWasmToJs(isolate_, callable, import_wrapper, resolved.suspender);
   }
 
   if (tier == TestExecutionTier::kInterpreter) {
@@ -326,11 +327,12 @@ uint32_t TestingModuleBuilder::AddPassiveElementSegment(
   uint32_t index = static_cast<uint32_t>(test_module_->elem_segments.size());
   DCHECK_EQ(index, dropped_elem_segments_.size());
 
-  test_module_->elem_segments.emplace_back(kWasmFuncRef, false);
+  test_module_->elem_segments.emplace_back(
+      kWasmFuncRef, WasmElemSegment::kStatusPassive,
+      WasmElemSegment::kFunctionIndexElements);
   auto& elem_segment = test_module_->elem_segments.back();
   for (uint32_t entry : entries) {
-    elem_segment.entries.push_back(
-        WasmElemSegment::Entry(WasmElemSegment::Entry::kRefFuncEntry, entry));
+    elem_segment.entries.emplace_back(ConstantExpression::RefFunc(entry));
   }
 
   // The vector pointers may have moved, so update the instance object.
@@ -346,7 +348,7 @@ CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
-  byte size = type.element_size_bytes();
+  byte size = type.value_kind_size();
   global_offset = (global_offset + size - 1) & ~(size - 1);  // align
   test_module_->globals.push_back(
       {type, true, {}, {global_offset}, false, false});
@@ -358,9 +360,12 @@ const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
 
 Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   const bool kUsesLiftoff = true;
+  DynamicTiering dynamic_tiering = FLAG_wasm_dynamic_tiering
+                                       ? DynamicTiering::kEnabled
+                                       : DynamicTiering::kDisabled;
   size_t code_size_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(test_module_.get(),
-                                                          kUsesLiftoff);
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
+          test_module_.get(), kUsesLiftoff, dynamic_tiering);
   auto native_module = GetWasmEngine()->NewNativeModule(
       isolate_, enabled_features_, test_module_, code_size_estimate);
   native_module->SetWireBytes(base::OwnedVector<const uint8_t>());

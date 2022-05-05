@@ -4,6 +4,8 @@
 
 #include "src/logging/runtime-call-stats.h"
 
+#include <atomic>
+
 #include "include/v8-template.h"
 #include "src/api/api-inl.h"
 #include "src/base/atomic-utils.h"
@@ -21,7 +23,8 @@ namespace internal {
 
 namespace {
 
-static base::TimeTicks runtime_call_stats_test_time_ = base::TimeTicks();
+static std::atomic<base::TimeTicks> runtime_call_stats_test_time_ =
+    base::TimeTicks();
 // Time source used for the RuntimeCallTimer during tests. We cannot rely on
 // the native timer since it's too unpredictable on the build bots.
 static base::TimeTicks RuntimeCallStatsTestNow() {
@@ -47,16 +50,16 @@ class RuntimeCallStatsTest : public TestWithNativeContext {
     TracingFlags::runtime_stats.store(0, std::memory_order_relaxed);
   }
 
-  static void SetUpTestCase() {
-    TestWithIsolate::SetUpTestCase();
+  static void SetUpTestSuite() {
+    TestWithIsolate::SetUpTestSuite();
     // Use a custom time source to precisly emulate system time.
     RuntimeCallTimer::Now = &RuntimeCallStatsTestNow;
   }
 
-  static void TearDownTestCase() {
-    TestWithIsolate::TearDownTestCase();
+  static void TearDownTestSuite() {
+    TestWithIsolate::TearDownTestSuite();
     // Restore the original time source.
-    RuntimeCallTimer::Now = &base::TimeTicks::HighResolutionNow;
+    RuntimeCallTimer::Now = &base::TimeTicks::Now;
   }
 
   RuntimeCallStats* stats() {
@@ -111,10 +114,10 @@ class V8_NODISCARD NativeTimeScope {
  public:
   NativeTimeScope() {
     CHECK_EQ(RuntimeCallTimer::Now, &RuntimeCallStatsTestNow);
-    RuntimeCallTimer::Now = &base::TimeTicks::HighResolutionNow;
+    RuntimeCallTimer::Now = &base::TimeTicks::Now;
   }
   ~NativeTimeScope() {
-    CHECK_EQ(RuntimeCallTimer::Now, &base::TimeTicks::HighResolutionNow);
+    CHECK_EQ(RuntimeCallTimer::Now, &base::TimeTicks::Now);
     RuntimeCallTimer::Now = &RuntimeCallStatsTestNow;
   }
 };

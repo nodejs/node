@@ -6,7 +6,7 @@
 
 <!-- source_link=lib/dns.js -->
 
-The `dns` module enables name resolution. For example, use it to look up IP
+The `node:dns` module enables name resolution. For example, use it to look up IP
 addresses of host names.
 
 Although named for the [Domain Name System (DNS)][], it does not always use the
@@ -16,7 +16,7 @@ communication. To perform name resolution the way other applications on the same
 system do, use [`dns.lookup()`][].
 
 ```js
-const dns = require('dns');
+const dns = require('node:dns');
 
 dns.lookup('example.org', (err, address, family) => {
   console.log('address: %j family: IPv%s', address, family);
@@ -24,14 +24,14 @@ dns.lookup('example.org', (err, address, family) => {
 // address: "93.184.216.34" family: IPv4
 ```
 
-All other functions in the `dns` module connect to an actual DNS server to
+All other functions in the `node:dns` module connect to an actual DNS server to
 perform name resolution. They will always use the network to perform DNS
 queries. These functions do not use the same set of configuration files used by
 [`dns.lookup()`][] (e.g. `/etc/hosts`). Use these functions to always perform
 DNS queries, bypassing other name-resolution facilities.
 
 ```js
-const dns = require('dns');
+const dns = require('node:dns');
 
 dns.resolve4('archive.org', (err, addresses) => {
   if (err) throw err;
@@ -65,7 +65,7 @@ the servers used for a resolver using
 other resolvers:
 
 ```js
-const { Resolver } = require('dns');
+const { Resolver } = require('node:dns');
 const resolver = new Resolver();
 resolver.setServers(['4.4.4.4']);
 
@@ -75,7 +75,7 @@ resolver.resolve4('example.org', (err, addresses) => {
 });
 ```
 
-The following methods from the `dns` module are available:
+The following methods from the `node:dns` module are available:
 
 * [`resolver.getServers()`][`dns.getServers()`]
 * [`resolver.resolve()`][`dns.resolve()`]
@@ -179,7 +179,7 @@ section if a custom port is used.
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -241,7 +241,7 @@ time to consult the [Implementation considerations section][] before using
 Example usage:
 
 ```js
-const dns = require('dns');
+const dns = require('node:dns');
 const options = {
   family: 6,
   hints: dns.ADDRCONFIG | dns.V4MAPPED,
@@ -288,7 +288,7 @@ The following flags can be passed as hints to [`dns.lookup()`][].
 <!-- YAML
 added: v0.11.14
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -312,7 +312,7 @@ will be thrown.
 On an error, `err` is an [`Error`][] object, where `err.code` is the error code.
 
 ```js
-const dns = require('dns');
+const dns = require('node:dns');
 dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
   console.log(hostname, service);
   // Prints: localhost ssh
@@ -327,7 +327,7 @@ If this method is invoked as its [`util.promisify()`][]ed version, it returns a
 <!-- YAML
 added: v0.1.27
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -368,7 +368,7 @@ On error, `err` is an [`Error`][] object, where `err.code` is one of the
 <!-- YAML
 added: v0.1.16
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -399,7 +399,7 @@ will contain an array of IPv4 addresses (e.g.
 <!-- YAML
 added: v0.1.16
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -428,7 +428,7 @@ will contain an array of IPv6 addresses.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -488,7 +488,7 @@ queries. It may be better to call individual methods like [`dns.resolve4()`][],
 <!-- YAML
 added: v0.3.2
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -512,7 +512,7 @@ added:
   - v15.0.0
   - v14.17.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -535,7 +535,7 @@ available for the `hostname` (e.g. `[{critical: 0, iodef:
 <!-- YAML
 added: v0.1.27
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -557,7 +557,7 @@ property (e.g. `[{priority: 10, exchange: 'mx.example.com'}, ...]`).
 <!-- YAML
 added: v0.9.12
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -598,7 +598,7 @@ function will contain an array of objects with the following properties:
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -620,7 +620,7 @@ contain an array of name server records available for `hostname`
 <!-- YAML
 added: v6.0.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -641,7 +641,7 @@ be an array of strings containing the reply records.
 <!-- YAML
 added: v0.11.10
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -684,7 +684,7 @@ be an object with the following properties:
 <!-- YAML
 added: v0.1.27
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -721,7 +721,7 @@ be an array of objects with the following properties:
 <!-- YAML
 added: v0.1.27
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -826,7 +826,7 @@ added: v10.6.0
 changes:
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/32953
-    description: Exposed as `require('dns/promises')`.
+    description: Exposed as `require('node:dns/promises')`.
   - version:
     - v11.14.0
     - v10.17.0
@@ -836,7 +836,7 @@ changes:
 
 The `dns.promises` API provides an alternative set of asynchronous DNS methods
 that return `Promise` objects rather than using callbacks. The API is accessible
-via `require('dns').promises` or `require('dns/promises')`.
+via `require('node:dns').promises` or `require('node:dns/promises')`.
 
 ### Class: `dnsPromises.Resolver`
 
@@ -852,7 +852,7 @@ the servers used for a resolver using
 other resolvers:
 
 ```js
-const { Resolver } = require('dns').promises;
+const { Resolver } = require('node:dns').promises;
 const resolver = new Resolver();
 resolver.setServers(['4.4.4.4']);
 
@@ -967,7 +967,7 @@ using `dnsPromises.lookup()`.
 Example usage:
 
 ```js
-const dns = require('dns');
+const dns = require('node:dns');
 const dnsPromises = dns.promises;
 const options = {
   family: 6,
@@ -1007,7 +1007,7 @@ On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
 is the error code.
 
 ```js
-const dnsPromises = require('dns').promises;
+const dnsPromises = require('node:dns').promises;
 dnsPromises.lookupService('127.0.0.1', 22).then((result) => {
   console.log(result.hostname, result.service);
   // Prints: localhost ssh

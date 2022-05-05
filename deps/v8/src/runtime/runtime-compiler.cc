@@ -30,23 +30,22 @@ namespace internal {
 namespace {
 
 Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
-                        ConcurrencyMode mode) {
+                        CodeKind target_kind, ConcurrencyMode mode) {
+  // As a pre- and post-condition of CompileOptimized, the function *must* be
+  // compiled, i.e. the installed Code object must not be CompileLazy.
+  IsCompiledScope is_compiled_scope(function->shared(), isolate);
+  DCHECK(is_compiled_scope.is_compiled());
+
   StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
-    return isolate->StackOverflow();
-  }
+  // Concurrent optimization runs on another thread, thus no additional gap.
+  const int gap =
+      IsConcurrent(mode) ? 0 : kStackSpaceRequiredForCompilation * KB;
+  if (check.JsHasOverflowed(gap)) return isolate->StackOverflow();
 
-  // Compile for the next tier.
-  if (!Compiler::CompileOptimized(isolate, function, mode,
-                                  function->NextTier())) {
-    return ReadOnlyRoots(isolate).exception();
-  }
+  Compiler::CompileOptimized(isolate, function, mode, target_kind);
 
-  // As a post-condition of CompileOptimized, the function *must* be compiled,
-  // i.e. the installed Code object must not be the CompileLazy builtin.
   DCHECK(function->is_compiled());
-  // TODO(v8:11880): avoid roundtrips between cdc and code.
-  return ToCodeT(function->code());
+  return function->code();
 }
 
 }  // namespace
@@ -54,15 +53,13 @@ Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
 RUNTIME_FUNCTION(Runtime_CompileLazy) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  Handle<JSFunction> function = args.at<JSFunction>(0);
 
   Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
 
 #ifdef DEBUG
   if (FLAG_trace_lazy && !sfi->is_compiled()) {
-    PrintF("[unoptimized: ");
-    function->PrintName();
-    PrintF("]\n");
+    PrintF("[unoptimized: %s]\n", function->DebugNameCStr().get());
   }
 #endif
 
@@ -76,79 +73,73 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
     return ReadOnlyRoots(isolate).exception();
   }
   DCHECK(function->is_compiled());
-  // TODO(v8:11880): avoid roundtrips between cdc and code.
-  return ToCodeT(function->code());
+  return function->code();
 }
 
 RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  Handle<JSFunction> function = args.at<JSFunction>(0);
   Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
   DCHECK(sfi->HasBaselineCode());
   IsCompiledScope is_compiled_scope(*sfi, isolate);
   DCHECK(!function->HasAvailableOptimizedCode());
-  DCHECK(!function->HasOptimizationMarker());
   DCHECK(!function->has_feedback_vector());
-  JSFunction::EnsureFeedbackVector(function, &is_compiled_scope);
+  JSFunction::CreateAndAttachFeedbackVector(isolate, function,
+                                            &is_compiled_scope);
   CodeT baseline_code = sfi->baseline_code(kAcquireLoad);
   function->set_code(baseline_code);
   return baseline_code;
 }
 
-RUNTIME_FUNCTION(Runtime_CompileOptimized_Concurrent) {
+RUNTIME_FUNCTION(Runtime_CompileMaglev_Concurrent) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  return CompileOptimized(isolate, function, ConcurrencyMode::kConcurrent);
+  Handle<JSFunction> function = args.at<JSFunction>(0);
+  return CompileOptimized(isolate, function, CodeKind::MAGLEV,
+                          ConcurrencyMode::kConcurrent);
 }
 
-RUNTIME_FUNCTION(Runtime_CompileOptimized_NotConcurrent) {
+RUNTIME_FUNCTION(Runtime_CompileMaglev_Synchronous) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  return CompileOptimized(isolate, function, ConcurrencyMode::kNotConcurrent);
+  Handle<JSFunction> function = args.at<JSFunction>(0);
+  return CompileOptimized(isolate, function, CodeKind::MAGLEV,
+                          ConcurrencyMode::kSynchronous);
 }
 
-RUNTIME_FUNCTION(Runtime_FunctionFirstExecution) {
+RUNTIME_FUNCTION(Runtime_CompileTurbofan_Concurrent) {
   HandleScope scope(isolate);
-  StackLimitCheck check(isolate);
   DCHECK_EQ(1, args.length());
+  Handle<JSFunction> function = args.at<JSFunction>(0);
+  return CompileOptimized(isolate, function, CodeKind::TURBOFAN,
+                          ConcurrencyMode::kConcurrent);
+}
 
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  DCHECK_EQ(function->feedback_vector().optimization_marker(),
-            OptimizationMarker::kLogFirstExecution);
-  DCHECK(FLAG_log_function_events);
-  Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
-  Handle<String> name = SharedFunctionInfo::DebugName(sfi);
-  LOG(isolate,
-      FunctionEvent("first-execution", Script::cast(sfi->script()).id(), 0,
-                    sfi->StartPosition(), sfi->EndPosition(), *name));
-  function->feedback_vector().ClearOptimizationMarker();
-  // Return the code to continue execution, we don't care at this point whether
-  // this is for lazy compilation or has been eagerly complied.
-  // TODO(v8:11880): avoid roundtrips between cdc and code.
-  return ToCodeT(function->code());
+RUNTIME_FUNCTION(Runtime_CompileTurbofan_Synchronous) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<JSFunction> function = args.at<JSFunction>(0);
+  return CompileOptimized(isolate, function, CodeKind::TURBOFAN,
+                          ConcurrencyMode::kSynchronous);
 }
 
 RUNTIME_FUNCTION(Runtime_HealOptimizedCodeSlot) {
   SealHandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  Handle<JSFunction> function = args.at<JSFunction>(0);
 
   DCHECK(function->shared().is_compiled());
 
   function->feedback_vector().EvictOptimizedCodeMarkedForDeoptimization(
-      function->raw_feedback_cell(), function->shared(),
-      "Runtime_HealOptimizedCodeSlot");
-  // TODO(v8:11880): avoid roundtrips between cdc and code.
-  return ToCodeT(function->code());
+      function->shared(), "Runtime_HealOptimizedCodeSlot");
+  return function->code();
 }
 
 RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 4);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  Handle<JSFunction> function = args.at<JSFunction>(0);
 
   Handle<JSReceiver> stdlib;
   if (args[1].IsJSReceiver()) {
@@ -186,7 +177,6 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   DCHECK_EQ(0, args.length());
   Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
   DCHECK(CodeKindCanDeoptimize(deoptimizer->compiled_code()->kind()));
-  DCHECK(deoptimizer->compiled_code()->is_turbofanned());
   DCHECK(AllowGarbageCollection::IsAllowed());
   DCHECK(isolate->context().is_null());
 
@@ -197,7 +187,6 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   // code object from deoptimizer.
   Handle<Code> optimized_code = deoptimizer->compiled_code();
   DeoptimizeKind type = deoptimizer->deopt_kind();
-  bool should_reuse_code = deoptimizer->should_reuse_code();
 
   // TODO(turbofan): We currently need the native context to materialize
   // the arguments object, but only to get to its map.
@@ -212,13 +201,8 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   JavaScriptFrame* top_frame = top_it.frame();
   isolate->set_context(Context::cast(top_frame->context()));
 
-  if (should_reuse_code) {
-    optimized_code->increment_deoptimization_count();
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-
-  // Invalidate the underlying optimized code on eager and soft deopts.
-  if (type == DeoptimizeKind::kEager || type == DeoptimizeKind::kSoft) {
+  // Invalidate the underlying optimized code on eager deopts.
+  if (type == DeoptimizeKind::kEager) {
     Deoptimizer::DeoptimizeFunction(*function, *optimized_code);
   }
 
@@ -230,7 +214,7 @@ RUNTIME_FUNCTION(Runtime_ObserveNode) {
   // code compiled by TurboFan.
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
+  Handle<Object> obj = args.at(0);
   return *obj;
 }
 
@@ -238,160 +222,125 @@ RUNTIME_FUNCTION(Runtime_VerifyType) {
   // %VerifyType has no effect in the interpreter.
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
+  Handle<Object> obj = args.at(0);
   return *obj;
 }
 
-static bool IsSuitableForOnStackReplacement(Isolate* isolate,
-                                            Handle<JSFunction> function) {
-  // Don't OSR during serialization.
-  if (isolate->serializer_enabled()) return false;
-  // Keep track of whether we've succeeded in optimizing.
-  if (function->shared().optimization_disabled()) return false;
-  // TODO(chromium:1031479): Currently, OSR triggering mechanism is tied to the
-  // bytecode array. So, it might be possible to mark closure in one native
-  // context and optimize a closure from a different native context. So check if
-  // there is a feedback vector before OSRing. We don't expect this to happen
-  // often.
-  if (!function->has_feedback_vector()) return false;
-  // If we are trying to do OSR when there are already optimized
-  // activations of the function, it means (a) the function is directly or
-  // indirectly recursive and (b) an optimized invocation has been
-  // deoptimized so that we are currently in an unoptimized activation.
-  // Check for optimized activations of this function.
-  for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
-    JavaScriptFrame* frame = it.frame();
-    if (frame->is_optimized() && frame->function() == *function) return false;
-  }
+RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(0, args.length());
+  DCHECK(FLAG_use_osr);
 
-  return true;
-}
-
-namespace {
-
-BytecodeOffset DetermineEntryAndDisarmOSRForUnoptimized(
-    JavaScriptFrame* js_frame) {
-  UnoptimizedFrame* frame = reinterpret_cast<UnoptimizedFrame*>(js_frame);
-
-  // Note that the bytecode array active on the stack might be different from
-  // the one installed on the function (e.g. patched by debugger). This however
-  // is fine because we guarantee the layout to be in sync, hence any
-  // BytecodeOffset representing the entry point will be valid for any copy of
-  // the bytecode.
-  Handle<BytecodeArray> bytecode(frame->GetBytecodeArray(), frame->isolate());
+  // Determine the frame that triggered the OSR request.
+  JavaScriptFrameIterator it(isolate);
+  UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
 
   DCHECK_IMPLIES(frame->is_interpreted(),
                  frame->LookupCode().is_interpreter_trampoline_builtin());
   DCHECK_IMPLIES(frame->is_baseline(),
                  frame->LookupCode().kind() == CodeKind::BASELINE);
-  DCHECK(frame->is_unoptimized());
   DCHECK(frame->function().shared().HasBytecodeArray());
 
-  // Reset the OSR loop nesting depth to disarm back edges.
-  bytecode->set_osr_loop_nesting_level(0);
-
-  // Return a BytecodeOffset representing the bytecode offset of the back
-  // branch.
-  return BytecodeOffset(frame->GetBytecodeOffset());
-}
-
-}  // namespace
-
-RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
-  HandleScope handle_scope(isolate);
-  DCHECK_EQ(0, args.length());
-
-  // Only reachable when OST is enabled.
-  CHECK(FLAG_use_osr);
-
-  // Determine frame triggering OSR request.
-  JavaScriptFrameIterator it(isolate);
-  JavaScriptFrame* frame = it.frame();
-  DCHECK(frame->is_unoptimized());
-
-  // Determine the entry point for which this OSR request has been fired and
-  // also disarm all back edges in the calling code to stop new requests.
-  BytecodeOffset osr_offset = DetermineEntryAndDisarmOSRForUnoptimized(frame);
+  // Determine the entry point for which this OSR request has been fired.
+  BytecodeOffset osr_offset = BytecodeOffset(frame->GetBytecodeOffset());
   DCHECK(!osr_offset.IsNone());
 
-  MaybeHandle<Code> maybe_result;
+  ConcurrencyMode mode =
+      V8_LIKELY(isolate->concurrent_recompilation_enabled() &&
+                FLAG_concurrent_osr)
+          ? ConcurrencyMode::kConcurrent
+          : ConcurrencyMode::kSynchronous;
+
   Handle<JSFunction> function(frame->function(), isolate);
-  if (IsSuitableForOnStackReplacement(isolate, function)) {
-    if (FLAG_trace_osr) {
-      CodeTracer::Scope scope(isolate->GetCodeTracer());
-      PrintF(scope.file(), "[OSR - Compiling: ");
-      function->PrintName(scope.file());
-      PrintF(scope.file(), " at OSR bytecode offset %d]\n", osr_offset.ToInt());
-    }
-    maybe_result =
-        Compiler::GetOptimizedCodeForOSR(isolate, function, osr_offset, frame);
-  }
-
-  // Check whether we ended up with usable optimized code.
-  Handle<Code> result;
-  if (maybe_result.ToHandle(&result) &&
-      CodeKindIsOptimizedJSFunction(result->kind())) {
-    DeoptimizationData data =
-        DeoptimizationData::cast(result->deoptimization_data());
-
-    if (data.OsrPcOffset().value() >= 0) {
-      DCHECK(BytecodeOffset(data.OsrBytecodeOffset().value()) == osr_offset);
-      if (FLAG_trace_osr) {
+  if (IsConcurrent(mode)) {
+    // The synchronous fallback mechanism triggers if we've already got OSR'd
+    // code for the current function but at a different OSR offset - that may
+    // indicate we're having trouble hitting the correct JumpLoop for code
+    // installation. In this case, fall back to synchronous OSR.
+    base::Optional<BytecodeOffset> cached_osr_offset =
+        function->native_context().osr_code_cache().FirstOsrOffsetFor(
+            function->shared());
+    if (cached_osr_offset.has_value() &&
+        cached_osr_offset.value() != osr_offset) {
+      if (V8_UNLIKELY(FLAG_trace_osr)) {
         CodeTracer::Scope scope(isolate->GetCodeTracer());
-        PrintF(scope.file(),
-               "[OSR - Entry at OSR bytecode offset %d, offset %d in optimized "
-               "code]\n",
-               osr_offset.ToInt(), data.OsrPcOffset().value());
+        PrintF(
+            scope.file(),
+            "[OSR - falling back to synchronous compilation due to mismatched "
+            "cached entry. function: %s, requested: %d, cached: %d]\n",
+            function->DebugNameCStr().get(), osr_offset.ToInt(),
+            cached_osr_offset.value().ToInt());
       }
-
-      DCHECK(result->is_turbofanned());
-      if (function->feedback_vector().invocation_count() <= 1 &&
-          function->HasOptimizationMarker()) {
-        // With lazy feedback allocation we may not have feedback for the
-        // initial part of the function that was executed before we allocated a
-        // feedback vector. Reset any optimization markers for such functions.
-        //
-        // TODO(mythria): Instead of resetting the optimization marker here we
-        // should only mark a function for optimization if it has sufficient
-        // feedback. We cannot do this currently since we OSR only after we mark
-        // a function for optimization. We should instead change it to be based
-        // based on number of ticks.
-        DCHECK(!function->IsInOptimizationQueue());
-        function->ClearOptimizationMarker();
-      }
-      // TODO(mythria): Once we have OSR code cache we may not need to mark
-      // the function for non-concurrent compilation. We could arm the loops
-      // early so the second execution uses the already compiled OSR code and
-      // the optimization occurs concurrently off main thread.
-      if (!function->HasAvailableOptimizedCode() &&
-          function->feedback_vector().invocation_count() > 1) {
-        // If we're not already optimized, set to optimize non-concurrently on
-        // the next call, otherwise we'd run unoptimized once more and
-        // potentially compile for OSR again.
-        if (FLAG_trace_osr) {
-          CodeTracer::Scope scope(isolate->GetCodeTracer());
-          PrintF(scope.file(), "[OSR - Re-marking ");
-          function->PrintName(scope.file());
-          PrintF(scope.file(), " for non-concurrent optimization]\n");
-        }
-        function->SetOptimizationMarker(OptimizationMarker::kCompileOptimized);
-      }
-      return *result;
+      mode = ConcurrencyMode::kSynchronous;
     }
   }
 
-  // Failed.
+  Handle<CodeT> result;
+  if (!Compiler::CompileOptimizedOSR(isolate, function, osr_offset, frame, mode)
+           .ToHandle(&result)) {
+    // An empty result can mean one of two things:
+    // 1) we've started a concurrent compilation job - everything is fine.
+    // 2) synchronous compilation failed for some reason.
+
+    if (!function->HasAttachedOptimizedCode()) {
+      function->set_code(function->shared().GetCode(), kReleaseStore);
+    }
+
+    return {};
+  }
+
+  DCHECK(!result.is_null());
+  DCHECK(result->is_turbofanned());  // TODO(v8:7700): Support Maglev.
+  DCHECK(CodeKindIsOptimizedJSFunction(result->kind()));
+
+  DeoptimizationData data =
+      DeoptimizationData::cast(result->deoptimization_data());
+  DCHECK_EQ(BytecodeOffset(data.OsrBytecodeOffset().value()), osr_offset);
+  DCHECK_GE(data.OsrPcOffset().value(), 0);
+
   if (FLAG_trace_osr) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintF(scope.file(), "[OSR - Failed: ");
-    function->PrintName(scope.file());
-    PrintF(scope.file(), " at OSR bytecode offset %d]\n", osr_offset.ToInt());
+    PrintF(scope.file(),
+           "[OSR - entry. function: %s, osr offset: %d, pc offset: %d]\n",
+           function->DebugNameCStr().get(), osr_offset.ToInt(),
+           data.OsrPcOffset().value());
   }
 
-  if (!function->HasAttachedOptimizedCode()) {
-    function->set_code(function->shared().GetCode(), kReleaseStore);
+  if (function->feedback_vector().invocation_count() <= 1 &&
+      !IsNone(function->tiering_state()) &&
+      !IsInProgress(function->tiering_state())) {
+    // With lazy feedback allocation we may not have feedback for the
+    // initial part of the function that was executed before we allocated a
+    // feedback vector. Reset any tiering states for such functions.
+    //
+    // TODO(mythria): Instead of resetting the tiering state here we
+    // should only mark a function for optimization if it has sufficient
+    // feedback. We cannot do this currently since we OSR only after we mark
+    // a function for optimization. We should instead change it to be based
+    // based on number of ticks.
+    function->reset_tiering_state();
   }
-  return Object();
+
+  // TODO(mythria): Once we have OSR code cache we may not need to mark
+  // the function for non-concurrent compilation. We could arm the loops
+  // early so the second execution uses the already compiled OSR code and
+  // the optimization occurs concurrently off main thread.
+  if (!function->HasAvailableOptimizedCode() &&
+      function->feedback_vector().invocation_count() > 1) {
+    // If we're not already optimized, set to optimize non-concurrently on the
+    // next call, otherwise we'd run unoptimized once more and potentially
+    // compile for OSR again.
+    if (FLAG_trace_osr) {
+      CodeTracer::Scope scope(isolate->GetCodeTracer());
+      PrintF(scope.file(),
+             "[OSR - forcing synchronous optimization on next entry. function: "
+             "%s]\n",
+             function->DebugNameCStr().get());
+    }
+    function->set_tiering_state(TieringState::kRequestTurbofan_Synchronous);
+  }
+
+  return *result;
 }
 
 static Object CompileGlobalEval(Isolate* isolate,
@@ -447,14 +396,13 @@ RUNTIME_FUNCTION(Runtime_ResolvePossiblyDirectEval) {
     return *callee;
   }
 
-  DCHECK(args[3].IsSmi());
-  DCHECK(is_valid_language_mode(args.smi_at(3)));
-  LanguageMode language_mode = static_cast<LanguageMode>(args.smi_at(3));
-  DCHECK(args[4].IsSmi());
+  DCHECK(is_valid_language_mode(args.smi_value_at(3)));
+  LanguageMode language_mode = static_cast<LanguageMode>(args.smi_value_at(3));
   Handle<SharedFunctionInfo> outer_info(args.at<JSFunction>(2)->shared(),
                                         isolate);
   return CompileGlobalEval(isolate, args.at<Object>(1), outer_info,
-                           language_mode, args.smi_at(4), args.smi_at(5));
+                           language_mode, args.smi_value_at(4),
+                           args.smi_value_at(5));
 }
 
 }  // namespace internal

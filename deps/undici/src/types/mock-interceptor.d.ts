@@ -1,6 +1,6 @@
 import { IncomingHttpHeaders } from 'http'
 import Dispatcher from './dispatcher';
-import { Headers } from './fetch'
+import { BodyInit, Headers } from './fetch'
 
 export {
   Interceptable,
@@ -44,8 +44,8 @@ declare namespace MockInterceptor {
   export interface Options {
     /** Path to intercept on. */
     path: string | RegExp | ((path: string) => boolean);
-    /** Method to intercept on. */
-    method: string | RegExp | ((method: string) => boolean);
+    /** Method to intercept on. Defaults to GET. */
+    method?: string | RegExp | ((method: string) => boolean);
     /** Body to intercept on. */
     body?: string | RegExp | ((body: string) => boolean);
     /** Headers to intercept on. */
@@ -71,7 +71,7 @@ declare namespace MockInterceptor {
     path: string;
     origin: string;
     method: string;
-    body?: string;
+    body?: BodyInit | Dispatcher.DispatchOptions['body'];
     headers: Headers;
     maxRedirections: number;
   }

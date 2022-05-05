@@ -37,7 +37,7 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
     ro_heap->read_only_space()->RepairFreeSpacesAfterDeserialization();
 
     // Deserialize the Read-only Object Cache.
-    for (size_t i = 0;; ++i) {
+    for (;;) {
       Object* object = ro_heap->ExtendReadOnlyObjectCache();
       // During deserialization, the visitor populates the read-only object
       // cache and eventually terminates the cache with undefined.
@@ -49,7 +49,7 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
     CheckNoArrayBufferBackingStores();
   }
 
-  if (FLAG_rehash_snapshot && can_rehash()) {
+  if (should_rehash()) {
     isolate()->heap()->InitializeHashSeed();
     Rehash();
   }

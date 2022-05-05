@@ -44,17 +44,19 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
+  let sig_index = builder.addType(kSig_i_i);
+
   // h(x) = x - 1
-  let callee0 = builder.addFunction("callee0", kSig_i_i)
+  let callee0 = builder.addFunction("callee0", sig_index)
     .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub]);
 
   // f(x) = x - 2
-  let callee1 = builder.addFunction("callee1", kSig_i_i)
+  let callee1 = builder.addFunction("callee1", sig_index)
     .addBody([kExprLocalGet, 0, kExprI32Const, 2, kExprI32Sub]);
 
-  let global0 = builder.addGlobal(wasmRefType(1), false,
+  let global0 = builder.addGlobal(wasmRefType(sig_index), false,
                                   WasmInitExpr.RefFunc(callee0.index));
-  let global1 = builder.addGlobal(wasmRefType(1), false,
+  let global1 = builder.addGlobal(wasmRefType(sig_index), false,
                                   WasmInitExpr.RefFunc(callee1.index));
 
   // g(x, y) = if (y) { h(5) + x } else { f(7) + x }
@@ -114,17 +116,19 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
+  let sig_index = builder.addType(kSig_i_i);
+
   // h(x) = x - 1
-  let callee0 = builder.addFunction("callee0", kSig_i_i)
+  let callee0 = builder.addFunction("callee0", sig_index)
     .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub]);
 
   // f(x) = x - 2
-  let callee1 = builder.addFunction("callee1", kSig_i_i)
+  let callee1 = builder.addFunction("callee1", sig_index)
     .addBody([kExprLocalGet, 0, kExprI32Const, 2, kExprI32Sub]);
 
-  let global0 = builder.addGlobal(wasmRefType(1), false,
+  let global0 = builder.addGlobal(wasmRefType(sig_index), false,
                                  WasmInitExpr.RefFunc(callee0.index));
-  let global1 = builder.addGlobal(wasmRefType(1), false,
+  let global1 = builder.addGlobal(wasmRefType(sig_index), false,
                                  WasmInitExpr.RefFunc(callee1.index));
 
   // g(x, y) = if (y) { h(x) } else { f(x) }

@@ -8,10 +8,10 @@
 
 <!-- source_link=lib/dgram.js -->
 
-The `dgram` module provides an implementation of UDP datagram sockets.
+The `node:dgram` module provides an implementation of UDP datagram sockets.
 
 ```mjs
-import dgram from 'dgram';
+import dgram from 'node:dgram';
 
 const server = dgram.createSocket('udp4');
 
@@ -34,7 +34,7 @@ server.bind(41234);
 ```
 
 ```cjs
-const dgram = require('dgram');
+const dgram = require('node:dgram');
 const server = dgram.createSocket('udp4');
 
 server.on('error', (err) => {
@@ -113,6 +113,10 @@ exist and calls such as `socket.address()` and `socket.setTTL()` will fail.
 
 <!-- YAML
 added: v0.1.99
+changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41431
+    description: The `family` property now returns a number instead of a string.
 -->
 
 The `'message'` event is emitted when a new datagram is available on a socket.
@@ -121,7 +125,7 @@ The event handler function is passed two arguments: `msg` and `rinfo`.
 * `msg` {Buffer} The message.
 * `rinfo` {Object} Remote address information.
   * `address` {string} The sender address.
-  * `family` {string} The address family (`'IPv4'` or `'IPv6'`).
+  * `family` {number} The address family (`4` for IPv4 or `6` for IPv6).
   * `port` {number} The sender port.
   * `size` {number} The message size.
 
@@ -154,8 +158,8 @@ When sharing a UDP socket across multiple `cluster` workers, the
 `EADDRINUSE` error will occur:
 
 ```mjs
-import cluster from 'cluster';
-import dgram from 'dgram';
+import cluster from 'node:cluster';
+import dgram from 'node:dgram';
 
 if (cluster.isPrimary) {
   cluster.fork(); // Works ok.
@@ -169,8 +173,8 @@ if (cluster.isPrimary) {
 ```
 
 ```cjs
-const cluster = require('cluster');
-const dgram = require('dgram');
+const cluster = require('node:cluster');
+const dgram = require('node:dgram');
 
 if (cluster.isPrimary) {
   cluster.fork(); // Works ok.
@@ -256,7 +260,7 @@ attempting to bind with a closed socket), an [`Error`][] may be thrown.
 Example of a UDP server listening on port 41234:
 
 ```mjs
-import dgram from 'dgram';
+import dgram from 'node:dgram';
 
 const server = dgram.createSocket('udp4');
 
@@ -279,7 +283,7 @@ server.bind(41234);
 ```
 
 ```cjs
-const dgram = require('dgram');
+const dgram = require('node:dgram');
 const server = dgram.createSocket('udp4');
 
 server.on('error', (err) => {
@@ -569,8 +573,8 @@ This method throws [`ERR_SOCKET_BAD_PORT`][] if called on an unbound socket.
 Example of sending a UDP packet to a port on `localhost`;
 
 ```mjs
-import dgram from 'dgram';
-import { Buffer } from 'buffer';
+import dgram from 'node:dgram';
+import { Buffer } from 'node:buffer';
 
 const message = Buffer.from('Some bytes');
 const client = dgram.createSocket('udp4');
@@ -580,8 +584,8 @@ client.send(message, 41234, 'localhost', (err) => {
 ```
 
 ```cjs
-const dgram = require('dgram');
-const { Buffer } = require('buffer');
+const dgram = require('node:dgram');
+const { Buffer } = require('node:buffer');
 
 const message = Buffer.from('Some bytes');
 const client = dgram.createSocket('udp4');
@@ -594,8 +598,8 @@ Example of sending a UDP packet composed of multiple buffers to a port on
 `127.0.0.1`;
 
 ```mjs
-import dgram from 'dgram';
-import { Buffer } from 'buffer';
+import dgram from 'node:dgram';
+import { Buffer } from 'node:buffer';
 
 const buf1 = Buffer.from('Some ');
 const buf2 = Buffer.from('bytes');
@@ -606,8 +610,8 @@ client.send([buf1, buf2], 41234, (err) => {
 ```
 
 ```cjs
-const dgram = require('dgram');
-const { Buffer } = require('buffer');
+const dgram = require('node:dgram');
+const { Buffer } = require('node:buffer');
 
 const buf1 = Buffer.from('Some ');
 const buf2 = Buffer.from('bytes');
@@ -626,8 +630,8 @@ Example of sending a UDP packet using a socket connected to a port on
 `localhost`:
 
 ```mjs
-import dgram from 'dgram';
-import { Buffer } from 'buffer';
+import dgram from 'node:dgram';
+import { Buffer } from 'node:buffer';
 
 const message = Buffer.from('Some bytes');
 const client = dgram.createSocket('udp4');
@@ -639,8 +643,8 @@ client.connect(41234, 'localhost', (err) => {
 ```
 
 ```cjs
-const dgram = require('dgram');
-const { Buffer } = require('buffer');
+const dgram = require('node:dgram');
+const { Buffer } = require('node:buffer');
 
 const message = Buffer.from('Some bytes');
 const client = dgram.createSocket('udp4');
@@ -868,7 +872,7 @@ Calling `socket.unref()` multiple times will have no addition effect.
 The `socket.unref()` method returns a reference to the socket so calls can be
 chained.
 
-## `dgram` module functions
+## `node:dgram` module functions
 
 ### `dgram.createSocket(options[, callback])`
 

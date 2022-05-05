@@ -55,7 +55,7 @@ transitioning javascript builtin StringPrototypeRepeat(
 
         // 4. If n < 0, throw a RangeError exception.
         // 5. If n is +∞, throw a RangeError exception.
-        if (n == V8_INFINITY || n < 0.0) goto InvalidCount;
+        if (n == V8_INFINITY || n < 0) goto InvalidCount;
 
         // 6. If n is 0, return the empty String.
         if (s.length_uint32 == 0) goto EmptyString;

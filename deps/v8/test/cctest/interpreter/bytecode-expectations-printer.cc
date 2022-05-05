@@ -178,7 +178,7 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
     } else if (register_value.is_function_closure()) {
       *stream << "(closure)";
     } else if (register_value.is_parameter()) {
-      int parameter_index = register_value.ToParameterIndex(parameter_count);
+      int parameter_index = register_value.ToParameterIndex();
       if (parameter_index == 0) {
         *stream << "(this)";
       } else {

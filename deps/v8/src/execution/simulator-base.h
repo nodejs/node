@@ -222,7 +222,9 @@ class SimulatorData {
 
  private:
   void AddSignatureForTarget(Address target,
-                             const EncodedCSignature& signature);
+                             const EncodedCSignature& signature) {
+    target_to_signature_table_[target] = signature;
+  }
 
   v8::base::Mutex signature_map_mutex_;
   typedef std::unordered_map<Address, EncodedCSignature> TargetToSignatureTable;

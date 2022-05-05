@@ -14,10 +14,10 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_BigIntCompareToBigInt) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Smi, mode, 0);
-  CONVERT_ARG_HANDLE_CHECKED(BigInt, lhs, 1);
-  CONVERT_ARG_HANDLE_CHECKED(BigInt, rhs, 2);
-  bool result = ComparisonResultToBool(static_cast<Operation>(mode->value()),
+  int mode = args.smi_value_at(0);
+  Handle<BigInt> lhs = args.at<BigInt>(1);
+  Handle<BigInt> rhs = args.at<BigInt>(2);
+  bool result = ComparisonResultToBool(static_cast<Operation>(mode),
                                        BigInt::CompareToBigInt(lhs, rhs));
   return *isolate->factory()->ToBoolean(result);
 }
@@ -25,10 +25,10 @@ RUNTIME_FUNCTION(Runtime_BigIntCompareToBigInt) {
 RUNTIME_FUNCTION(Runtime_BigIntCompareToNumber) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Smi, mode, 0);
-  CONVERT_ARG_HANDLE_CHECKED(BigInt, lhs, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 2);
-  bool result = ComparisonResultToBool(static_cast<Operation>(mode->value()),
+  int mode = args.smi_value_at(0);
+  Handle<BigInt> lhs = args.at<BigInt>(1);
+  Handle<Object> rhs = args.at(2);
+  bool result = ComparisonResultToBool(static_cast<Operation>(mode),
                                        BigInt::CompareToNumber(lhs, rhs));
   return *isolate->factory()->ToBoolean(result);
 }
@@ -36,13 +36,13 @@ RUNTIME_FUNCTION(Runtime_BigIntCompareToNumber) {
 RUNTIME_FUNCTION(Runtime_BigIntCompareToString) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Smi, mode, 0);
-  CONVERT_ARG_HANDLE_CHECKED(BigInt, lhs, 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, rhs, 2);
+  int mode = args.smi_value_at(0);
+  Handle<BigInt> lhs = args.at<BigInt>(1);
+  Handle<String> rhs = args.at<String>(2);
   Maybe<ComparisonResult> maybe_result =
       BigInt::CompareToString(isolate, lhs, rhs);
   MAYBE_RETURN(maybe_result, ReadOnlyRoots(isolate).exception());
-  bool result = ComparisonResultToBool(static_cast<Operation>(mode->value()),
+  bool result = ComparisonResultToBool(static_cast<Operation>(mode),
                                        maybe_result.FromJust());
   return *isolate->factory()->ToBoolean(result);
 }
@@ -50,8 +50,8 @@ RUNTIME_FUNCTION(Runtime_BigIntCompareToString) {
 RUNTIME_FUNCTION(Runtime_BigIntEqualToBigInt) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(BigInt, lhs, 0);
-  CONVERT_ARG_HANDLE_CHECKED(BigInt, rhs, 1);
+  Handle<BigInt> lhs = args.at<BigInt>(0);
+  Handle<BigInt> rhs = args.at<BigInt>(1);
   bool result = BigInt::EqualToBigInt(*lhs, *rhs);
   return *isolate->factory()->ToBoolean(result);
 }
@@ -59,8 +59,8 @@ RUNTIME_FUNCTION(Runtime_BigIntEqualToBigInt) {
 RUNTIME_FUNCTION(Runtime_BigIntEqualToNumber) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(BigInt, lhs, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
+  Handle<BigInt> lhs = args.at<BigInt>(0);
+  Handle<Object> rhs = args.at(1);
   bool result = BigInt::EqualToNumber(lhs, rhs);
   return *isolate->factory()->ToBoolean(result);
 }
@@ -68,8 +68,8 @@ RUNTIME_FUNCTION(Runtime_BigIntEqualToNumber) {
 RUNTIME_FUNCTION(Runtime_BigIntEqualToString) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(BigInt, lhs, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, rhs, 1);
+  Handle<BigInt> lhs = args.at<BigInt>(0);
+  Handle<String> rhs = args.at<String>(1);
   Maybe<bool> maybe_result = BigInt::EqualToString(isolate, lhs, rhs);
   MAYBE_RETURN(maybe_result, ReadOnlyRoots(isolate).exception());
   return *isolate->factory()->ToBoolean(maybe_result.FromJust());
@@ -78,30 +78,30 @@ RUNTIME_FUNCTION(Runtime_BigIntEqualToString) {
 RUNTIME_FUNCTION(Runtime_BigIntToBoolean) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(BigInt, bigint, 0);
+  Handle<BigInt> bigint = args.at<BigInt>(0);
   return *isolate->factory()->ToBoolean(bigint->ToBoolean());
 }
 
 RUNTIME_FUNCTION(Runtime_BigIntToNumber) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(BigInt, x, 0);
+  Handle<BigInt> x = args.at<BigInt>(0);
   return *BigInt::ToNumber(isolate, x);
 }
 
 RUNTIME_FUNCTION(Runtime_ToBigInt) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
+  Handle<Object> x = args.at(0);
   RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromObject(isolate, x));
 }
 
 RUNTIME_FUNCTION(Runtime_BigIntBinaryOp) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, left_obj, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, right_obj, 1);
-  CONVERT_SMI_ARG_CHECKED(opcode, 2);
+  Handle<Object> left_obj = args.at(0);
+  Handle<Object> right_obj = args.at(1);
+  int opcode = args.smi_value_at(2);
   Operation op = static_cast<Operation>(opcode);
 
   if (!left_obj->IsBigInt() || !right_obj->IsBigInt()) {
@@ -157,8 +157,8 @@ RUNTIME_FUNCTION(Runtime_BigIntBinaryOp) {
 RUNTIME_FUNCTION(Runtime_BigIntUnaryOp) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(BigInt, x, 0);
-  CONVERT_SMI_ARG_CHECKED(opcode, 1);
+  Handle<BigInt> x = args.at<BigInt>(0);
+  int opcode = args.smi_value_at(1);
   Operation op = static_cast<Operation>(opcode);
 
   MaybeHandle<BigInt> result;

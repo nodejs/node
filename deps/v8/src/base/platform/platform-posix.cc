@@ -12,15 +12,15 @@
 #if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
 #include <pthread_np.h>  // for pthread_set_name_np
 #endif
+#include <fcntl.h>
 #include <sched.h>  // for sched_yield
 #include <stdio.h>
-#include <time.h>
-#include <unistd.h>
-
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <time.h>
+#include <unistd.h>
 #if defined(__APPLE__) || defined(__DragonFly__) || defined(__FreeBSD__) || \
     defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/sysctl.h>  // for sysctl
@@ -46,8 +46,11 @@
 #include <atomic>
 #endif
 
-#if V8_OS_MACOSX
-#include <dlfcn.h>
+#if V8_OS_DARWIN || V8_OS_LINUX
+#include <dlfcn.h>  // for dlsym
+#endif
+
+#if V8_OS_DARWIN
 #include <mach/mach.h>
 #endif
 
@@ -65,7 +68,7 @@
 #include <sys/syscall.h>
 #endif
 
-#if V8_OS_FREEBSD || V8_OS_MACOSX || V8_OS_OPENBSD || V8_OS_SOLARIS
+#if V8_OS_FREEBSD || V8_OS_DARWIN || V8_OS_OPENBSD || V8_OS_SOLARIS
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
@@ -102,16 +105,16 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(RandomNumberGenerator,
 static LazyMutex rng_mutex = LAZY_MUTEX_INITIALIZER;
 
 #if !V8_OS_FUCHSIA
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 // kMmapFd is used to pass vm_alloc flags to tag the region with the user
 // defined tag 255 This helps identify V8-allocated regions in memory analysis
 // tools like vmmap(1).
 const int kMmapFd = VM_MAKE_TAG(255);
-#else   // !V8_OS_MACOSX
+#else   // !V8_OS_DARWIN
 const int kMmapFd = -1;
-#endif  // !V8_OS_MACOSX
+#endif  // !V8_OS_DARWIN
 
-#if defined(V8_TARGET_OS_MACOSX) && V8_HOST_ARCH_ARM64
+#if defined(V8_TARGET_OS_MACOS) && V8_HOST_ARCH_ARM64
 // During snapshot generation in cross builds, sysconf() runs on the Intel
 // host and returns host page size, while the snapshot needs to use the
 // target page size.
@@ -153,7 +156,7 @@ int GetFlagsForMemoryPermission(OS::MemoryPermission access,
     flags |= MAP_LAZY;
 #endif  // V8_OS_QNX
   }
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
   // MAP_JIT is required to obtain writable and executable pages when the
   // hardened runtime/memory protection is enabled, which is optional (via code
   // signing) on Intel-based Macs but mandatory on Apple silicon ones. See also
@@ -161,7 +164,7 @@ int GetFlagsForMemoryPermission(OS::MemoryPermission access,
   if (access == OS::MemoryPermission::kNoAccessWillJitLater) {
     flags |= MAP_JIT;
   }
-#endif  // V8_OS_MACOSX
+#endif  // V8_OS_DARWIN
   return flags;
 }
 
@@ -237,10 +240,16 @@ bool OS::ArmUsingHardFloat() {
 #endif  // def __arm__
 #endif
 
-void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
+void PosixInitializeCommon(bool hard_abort, const char* const gc_fake_mmap) {
   g_hard_abort = hard_abort;
   g_gc_fake_mmap = gc_fake_mmap;
 }
+
+#if !V8_OS_FUCHSIA
+void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
+  PosixInitializeCommon(hard_abort, gc_fake_mmap);
+}
+#endif  // !V8_OS_FUCHSIA
 
 int OS::ActivationFrameAlignment() {
 #if V8_TARGET_ARCH_ARM
@@ -263,7 +272,7 @@ int OS::ActivationFrameAlignment() {
 
 // static
 size_t OS::AllocatePageSize() {
-#if defined(V8_TARGET_OS_MACOSX) && V8_HOST_ARCH_ARM64
+#if defined(V8_TARGET_OS_MACOS) && V8_HOST_ARCH_ARM64
   return kAppleArmPageSize;
 #else
   static size_t page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
@@ -293,7 +302,7 @@ void* OS::GetRandomMmapAddr() {
     GetPlatformRandomNumberGenerator()->NextBytes(&raw_addr, sizeof(raw_addr));
   }
 #if V8_HOST_ARCH_ARM64
-#if defined(V8_TARGET_OS_MACOSX)
+#if defined(V8_TARGET_OS_MACOS)
   DCHECK_EQ(1 << 14, AllocatePageSize());
 #endif
   // Keep the address page-aligned, AArch64 supports 4K, 16K and 64K
@@ -400,14 +409,14 @@ void* OS::Allocate(void* hint, size_t size, size_t alignment,
   if (aligned_base != base) {
     DCHECK_LT(base, aligned_base);
     size_t prefix_size = static_cast<size_t>(aligned_base - base);
-    CHECK(Free(base, prefix_size));
+    Free(base, prefix_size);
     request_size -= prefix_size;
   }
   // Unmap memory allocated after the potentially unaligned end.
   if (size != request_size) {
     DCHECK_LT(size, request_size);
     size_t suffix_size = request_size - size;
-    CHECK(Free(aligned_base + size, suffix_size));
+    Free(aligned_base + size, suffix_size);
     request_size -= suffix_size;
   }
 
@@ -422,17 +431,37 @@ void* OS::AllocateShared(size_t size, MemoryPermission access) {
 }
 
 // static
-bool OS::Free(void* address, const size_t size) {
+void OS::Free(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % AllocatePageSize());
   DCHECK_EQ(0, size % AllocatePageSize());
-  return munmap(address, size) == 0;
+  CHECK_EQ(0, munmap(address, size));
+}
+
+// macOS specific implementation in platform-macos.cc.
+#if !defined(V8_OS_MACOS)
+// static
+void* OS::AllocateShared(void* hint, size_t size, MemoryPermission access,
+                         PlatformSharedMemoryHandle handle, uint64_t offset) {
+  DCHECK_EQ(0, size % AllocatePageSize());
+  int prot = GetProtectionFromMemoryPermission(access);
+  int fd = FileDescriptorFromSharedMemoryHandle(handle);
+  void* result = mmap(hint, size, prot, MAP_SHARED, fd, offset);
+  if (result == MAP_FAILED) return nullptr;
+  return result;
+}
+#endif  // !defined(V8_OS_MACOS)
+
+// static
+void OS::FreeShared(void* address, size_t size) {
+  DCHECK_EQ(0, size % AllocatePageSize());
+  CHECK_EQ(0, munmap(address, size));
 }
 
 // static
-bool OS::Release(void* address, size_t size) {
+void OS::Release(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
-  return munmap(address, size) == 0;
+  CHECK_EQ(0, munmap(address, size));
 }
 
 // static
@@ -445,7 +474,7 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 
   // MacOS 11.2 on Apple Silicon refuses to switch permissions from
   // rwx to none. Just use madvise instead.
-#if defined(V8_OS_MACOSX)
+#if defined(V8_OS_DARWIN)
   if (ret != 0 && access == OS::MemoryPermission::kNoAccess) {
     ret = madvise(address, size, MADV_FREE_REUSABLE);
     return ret == 0;
@@ -463,7 +492,7 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 // The cost is a syscall that effectively no-ops.
 // TODO(erikchen): Fix this to only call MADV_FREE_REUSE when necessary.
 // https://crbug.com/823915
-#if defined(V8_OS_MACOSX)
+#if defined(V8_OS_DARWIN)
   if (access != OS::MemoryPermission::kNoAccess)
     madvise(address, size, MADV_FREE_REUSE);
 #endif
@@ -473,33 +502,33 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 
 // static
 bool OS::DiscardSystemPages(void* address, size_t size) {
+  // Roughly based on PartitionAlloc's DiscardSystemPagesInternal
+  // (base/allocator/partition_allocator/page_allocator_internals_posix.h)
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
-#if defined(V8_OS_MACOSX)
+#if defined(V8_OS_DARWIN)
   // On OSX, MADV_FREE_REUSABLE has comparable behavior to MADV_FREE, but also
   // marks the pages with the reusable bit, which allows both Activity Monitor
   // and memory-infra to correctly track the pages.
   int ret = madvise(address, size, MADV_FREE_REUSABLE);
+  if (ret) {
+    // MADV_FREE_REUSABLE sometimes fails, so fall back to MADV_DONTNEED.
+    ret = madvise(address, size, MADV_DONTNEED);
+  }
 #elif defined(_AIX) || defined(V8_OS_SOLARIS)
   int ret = madvise(reinterpret_cast<caddr_t>(address), size, MADV_FREE);
-#else
-  int ret = madvise(address, size, MADV_FREE);
-#endif
   if (ret != 0 && errno == ENOSYS)
     return true;  // madvise is not available on all systems.
-  if (ret != 0 && errno == EINVAL) {
-// MADV_FREE only works on Linux 4.5+ . If request failed, retry with older
-// MADV_DONTNEED . Note that MADV_FREE being defined at compile time doesn't
-// imply runtime support.
-#if defined(_AIX) || defined(V8_OS_SOLARIS)
+  if (ret != 0 && errno == EINVAL)
     ret = madvise(reinterpret_cast<caddr_t>(address), size, MADV_DONTNEED);
 #else
-    ret = madvise(address, size, MADV_DONTNEED);
+  int ret = madvise(address, size, MADV_DONTNEED);
 #endif
-  }
   return ret == 0;
 }
 
+#if !defined(_AIX)
+// See AIX version for details.
 // static
 bool OS::DecommitPages(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
@@ -514,6 +543,7 @@ bool OS::DecommitPages(void* address, size_t size) {
                    MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
   return ptr == address;
 }
+#endif  // !defined(_AIX)
 
 // static
 bool OS::CanReserveAddressSpace() { return true; }
@@ -541,13 +571,30 @@ Optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
 }
 
 // static
-bool OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
-  return Free(reservation.base(), reservation.size());
+void OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
+  Free(reservation.base(), reservation.size());
+}
+
+// macOS specific implementation in platform-macos.cc.
+#if !defined(V8_OS_MACOS)
+// static
+// Need to disable CFI_ICALL due to the indirect call to memfd_create.
+DISABLE_CFI_ICALL
+PlatformSharedMemoryHandle OS::CreateSharedMemoryHandleForTesting(size_t size) {
+  return kInvalidSharedMemoryHandle;
 }
 
 // static
+void OS::DestroySharedMemoryHandle(PlatformSharedMemoryHandle handle) {
+  DCHECK_NE(kInvalidSharedMemoryHandle, handle);
+  int fd = FileDescriptorFromSharedMemoryHandle(handle);
+  CHECK_EQ(0, close(fd));
+}
+#endif  // !defined(V8_OS_MACOS)
+
+// static
 bool OS::HasLazyCommits() {
-#if V8_OS_AIX || V8_OS_LINUX || V8_OS_MACOSX
+#if V8_OS_AIX || V8_OS_LINUX || V8_OS_DARWIN
   return true;
 #else
   // TODO(bbudge) Return true for all POSIX platforms.
@@ -669,7 +716,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
 
 
 PosixMemoryMappedFile::~PosixMemoryMappedFile() {
-  if (memory_) CHECK(OS::Free(memory_, RoundUp(size_, OS::AllocatePageSize())));
+  if (memory_) OS::Free(memory_, RoundUp(size_, OS::AllocatePageSize()));
   fclose(file_);
 }
 
@@ -680,7 +727,7 @@ int OS::GetCurrentProcessId() {
 
 
 int OS::GetCurrentThreadId() {
-#if V8_OS_MACOSX || (V8_OS_ANDROID && defined(__APPLE__))
+#if V8_OS_DARWIN || (V8_OS_ANDROID && defined(__APPLE__))
   return static_cast<int>(pthread_mach_thread_np(pthread_self()));
 #elif V8_OS_LINUX
   return static_cast<int>(syscall(__NR_gettid));
@@ -885,12 +932,38 @@ bool AddressSpaceReservation::Allocate(void* address, size_t size,
                                        OS::MemoryPermission access) {
   // The region is already mmap'ed, so it just has to be made accessible now.
   DCHECK(Contains(address, size));
+  if (access == OS::MemoryPermission::kNoAccess) {
+    // Nothing to do. We don't want to call SetPermissions with kNoAccess here
+    // as that will for example mark the pages as discardable, which is
+    // probably not desired here.
+    return true;
+  }
   return OS::SetPermissions(address, size, access);
 }
 
 bool AddressSpaceReservation::Free(void* address, size_t size) {
   DCHECK(Contains(address, size));
   return OS::DecommitPages(address, size);
+}
+
+// macOS specific implementation in platform-macos.cc.
+#if !defined(V8_OS_MACOS)
+bool AddressSpaceReservation::AllocateShared(void* address, size_t size,
+                                             OS::MemoryPermission access,
+                                             PlatformSharedMemoryHandle handle,
+                                             uint64_t offset) {
+  DCHECK(Contains(address, size));
+  int prot = GetProtectionFromMemoryPermission(access);
+  int fd = FileDescriptorFromSharedMemoryHandle(handle);
+  return mmap(address, size, prot, MAP_SHARED | MAP_FIXED, fd, offset) !=
+         MAP_FAILED;
+}
+#endif  // !defined(V8_OS_MACOS)
+
+bool AddressSpaceReservation::FreeShared(void* address, size_t size) {
+  DCHECK(Contains(address, size));
+  return mmap(address, size, PROT_NONE, MAP_FIXED | MAP_ANONYMOUS | MAP_PRIVATE,
+              -1, 0) == address;
 }
 
 bool AddressSpaceReservation::SetPermissions(void* address, size_t size,
@@ -944,7 +1017,7 @@ static void SetThreadName(const char* name) {
 #elif V8_OS_NETBSD
   STATIC_ASSERT(Thread::kMaxThreadNameLength <= PTHREAD_MAX_NAMELEN_NP);
   pthread_setname_np(pthread_self(), "%s", name);
-#elif V8_OS_MACOSX
+#elif V8_OS_DARWIN
   // pthread_setname_np is only available in 10.6 or later, so test
   // for it at runtime.
   int (*dynamic_pthread_setname_np)(const char*);
@@ -990,7 +1063,7 @@ bool Thread::Start() {
   if (result != 0) return false;
   size_t stack_size = stack_size_;
   if (stack_size == 0) {
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
     // Default on Mac OS X is 512kB -- bump up to 1MB
     stack_size = 1 * 1024 * 1024;
 #elif V8_OS_AIX
@@ -1139,7 +1212,7 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 // pthread_getattr_np used below is non portable (hence the _np suffix). We
 // keep this version in POSIX as most Linux-compatible derivatives will
 // support it. MacOS and FreeBSD are different here.
-#if !defined(V8_OS_FREEBSD) && !defined(V8_OS_MACOSX) && !defined(_AIX) && \
+#if !defined(V8_OS_FREEBSD) && !defined(V8_OS_DARWIN) && !defined(_AIX) && \
     !defined(V8_OS_SOLARIS)
 
 // static
@@ -1166,7 +1239,7 @@ Stack::StackSlot Stack::GetStackStart() {
 #endif  // !defined(V8_LIBC_GLIBC)
 }
 
-#endif  // !defined(V8_OS_FREEBSD) && !defined(V8_OS_MACOSX) &&
+#endif  // !defined(V8_OS_FREEBSD) && !defined(V8_OS_DARWIN) &&
         // !defined(_AIX) && !defined(V8_OS_SOLARIS)
 
 // static

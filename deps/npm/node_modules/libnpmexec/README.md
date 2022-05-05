@@ -2,8 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/libnpmexec.svg)](https://npm.im/libnpmexec)
 [![license](https://img.shields.io/npm/l/libnpmexec.svg)](https://npm.im/libnpmexec)
-[![GitHub Actions](https://github.com/npm/libnpmexec/workflows/node-ci/badge.svg)](https://github.com/npm/libnpmexec/actions?query=workflow%3Anode-ci)
-[![Coverage Status](https://coveralls.io/repos/github/npm/libnpmexec/badge.svg?branch=main)](https://coveralls.io/github/npm/libnpmexec?branch=main)
+[![CI - libnpmexec](https://github.com/npm/cli/actions/workflows/ci-libnpmexec.yml/badge.svg)](https://github.com/npm/cli/actions/workflows/ci-libnpmexec.yml)
 
 The `npm exec` (`npx`) Programmatic API
 

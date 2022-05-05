@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "include/cppgc/common.h"
 #include "include/cppgc/platform.h"
 #include "src/heap/cppgc/heap.h"
 #include "src/heap/cppgc/task-handle.h"
@@ -24,6 +25,9 @@ class GCInvoker::GCInvokerImpl final : public GarbageCollector {
   void CollectGarbage(GarbageCollector::Config) final;
   void StartIncrementalGarbageCollection(GarbageCollector::Config) final;
   size_t epoch() const final { return collector_->epoch(); }
+  const EmbedderStackState* override_stack_state() const final {
+    return collector_->override_stack_state();
+  }
 
  private:
   class GCTask final : public cppgc::Task {
@@ -48,6 +52,8 @@ class GCInvoker::GCInvokerImpl final : public GarbageCollector {
 
    private:
     void Run() final {
+      CHECK_NULL(collector_->override_stack_state());
+
       if (handle_.IsCanceled() || (collector_->epoch() != saved_epoch_)) return;
 
       collector_->CollectGarbage(config_);
@@ -94,6 +100,8 @@ void GCInvoker::GCInvokerImpl::CollectGarbage(GarbageCollector::Config config) {
       // Force a precise GC since it will run in a non-nestable task.
       config.stack_state =
           GarbageCollector::Config::StackState::kNoHeapPointers;
+      DCHECK_NE(cppgc::Heap::StackSupport::kSupportsConservativeStackScan,
+                stack_support_);
       gc_task_handle_ = GCTask::Post(
           collector_, platform_->GetForegroundTaskRunner().get(), config);
     }
@@ -136,6 +144,10 @@ void GCInvoker::StartIncrementalGarbageCollection(
 }
 
 size_t GCInvoker::epoch() const { return impl_->epoch(); }
+
+const EmbedderStackState* GCInvoker::override_stack_state() const {
+  return impl_->override_stack_state();
+}
 
 }  // namespace internal
 }  // namespace cppgc

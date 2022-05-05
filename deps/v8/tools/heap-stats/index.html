@@ -80,23 +80,32 @@ function globalSelectionChangedA(e) {
 
   <p>Visualize object statistics that have been gathered using</p>
   <ul>
-    <li><code>--trace-gc-object-stats</code> on V8</li>
+    <li>Use <code>--trace-gc-object-stats</code> for V8 and load the contents of stdout</li>
     <li>
       <a
         href="https://www.chromium.org/developers/how-tos/trace-event-profiling-tool">Chrome's
         tracing infrastructure</a> collecting data for the category
-      <code>v8.gc_stats</code>.
+      <code>disabled-by-default-v8.gc_stats</code> and directly load the
+      results.html or trace.json.gzip file.
     </li>
   </ul>
-  <p>
-    Note that you only get a data point on major GCs. You can enforce this by
-    using the <code>--gc-global</code> flag.
-  </p>
-  <p>
-    Note that the visualizer needs to run on a web server due to HTML imports
-    requiring <a
-         href="https://en.wikipedia.org/wiki/Cross-origin_resource_sharing">CORS</a>.
-  </p>
+
+  Additional information:
+  <ul>
+    <li>
+      You only get a data point on major GCs. You can enforce this by
+      using the <code>--gc-global</code> V8 flag.
+    </li>
+    <li>
+      For more frequent data points you can also the
+      <code>--gc-interval=$AFTER_N_ALLOCATIONS</code> V8.
+    </li>
+    <li>
+      The visualizer needs to run on a web server due to HTML imports
+      requiring <a
+          href="https://en.wikipedia.org/wiki/Cross-origin_resource_sharing">CORS</a>.
+    </li>
+  <ul>
 </body>
 
 </html>

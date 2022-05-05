@@ -15,6 +15,7 @@
 #include "src/handles/local-handles.h"
 #include "src/heap/collection-barrier.h"
 #include "src/heap/concurrent-allocator.h"
+#include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier.h"
@@ -152,9 +153,7 @@ bool LocalHeap::ContainsLocalHandle(Address* location) {
 }
 
 bool LocalHeap::IsHandleDereferenceAllowed() {
-#ifdef DEBUG
   VerifyCurrent();
-#endif
   return IsRunning();
 }
 #endif
@@ -398,7 +397,7 @@ Address LocalHeap::PerformCollectionAndAllocateAgain(
 
     AllocationResult result = AllocateRaw(object_size, type, origin, alignment);
 
-    if (!result.IsRetry()) {
+    if (!result.IsFailure()) {
       allocation_failed_ = false;
       main_thread_parked_ = false;
       return result.ToObjectChecked().address();

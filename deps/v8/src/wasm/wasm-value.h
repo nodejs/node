@@ -116,7 +116,7 @@ class WasmValue {
 
   WasmValue(byte* raw_bytes, ValueType type) : type_(type), bit_pattern_{} {
     DCHECK(type_.is_numeric());
-    memcpy(bit_pattern_, raw_bytes, type.element_size_bytes());
+    memcpy(bit_pattern_, raw_bytes, type.value_kind_size());
   }
 
   WasmValue(Handle<Object> ref, ValueType type) : type_(type), bit_pattern_{} {
@@ -140,14 +140,14 @@ class WasmValue {
     return type_ == other.type_ &&
            !memcmp(bit_pattern_, other.bit_pattern_,
                    type_.is_reference() ? sizeof(Handle<Object>)
-                                        : type_.element_size_bytes());
+                                        : type_.value_kind_size());
   }
 
   void CopyTo(byte* to) const {
     STATIC_ASSERT(sizeof(float) == sizeof(Float32));
     STATIC_ASSERT(sizeof(double) == sizeof(Float64));
     DCHECK(type_.is_numeric());
-    memcpy(to, bit_pattern_, type_.element_size_bytes());
+    memcpy(to, bit_pattern_, type_.value_kind_size());
   }
 
   // If {packed_type.is_packed()}, create a new value of {packed_type()}.
@@ -202,7 +202,6 @@ class WasmValue {
       case kOptRef:
       case kRef:
       case kRtt:
-      case kRttWithDepth:
         return "Handle [" + std::to_string(to_ref().address()) + "]";
       case kVoid:
       case kBottom:

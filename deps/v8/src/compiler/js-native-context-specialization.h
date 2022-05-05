@@ -38,8 +38,8 @@ class TypeCache;
 
 // Specializes a given JSGraph to a given native context, potentially constant
 // folding some {LoadGlobal} nodes or strength reducing some {StoreGlobal}
-// nodes.  And also specializes {LoadNamed} and {StoreNamed} nodes according
-// to type feedback (if available).
+// nodes.  And also specializes {LoadNamed} and {SetNamedProperty} nodes
+// according to type feedback (if available).
 class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
     : public AdvancedReducer {
  public:
@@ -86,13 +86,13 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceJSLoadNamed(Node* node);
   Reduction ReduceJSLoadNamedFromSuper(Node* node);
   Reduction ReduceJSGetIterator(Node* node);
-  Reduction ReduceJSStoreNamed(Node* node);
+  Reduction ReduceJSSetNamedProperty(Node* node);
   Reduction ReduceJSHasProperty(Node* node);
   Reduction ReduceJSLoadProperty(Node* node);
-  Reduction ReduceJSStoreProperty(Node* node);
-  Reduction ReduceJSDefineProperty(Node* node);
-  Reduction ReduceJSStoreNamedOwn(Node* node);
-  Reduction ReduceJSStoreDataPropertyInLiteral(Node* node);
+  Reduction ReduceJSSetKeyedProperty(Node* node);
+  Reduction ReduceJSDefineKeyedOwnProperty(Node* node);
+  Reduction ReduceJSDefineNamedOwnProperty(Node* node);
+  Reduction ReduceJSDefineKeyedOwnPropertyInLiteral(Node* node);
   Reduction ReduceJSStoreInArrayLiteral(Node* node);
   Reduction ReduceJSToObject(Node* node);
 
@@ -107,10 +107,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceNamedAccess(Node* node, Node* value,
                               NamedAccessFeedback const& feedback,
                               AccessMode access_mode, Node* key = nullptr);
-  Reduction ReduceMinimorphicPropertyAccess(
-      Node* node, Node* value,
-      MinimorphicLoadPropertyAccessFeedback const& feedback,
-      FeedbackSource const& source);
   Reduction ReduceGlobalAccess(Node* node, Node* lookup_start_object,
                                Node* receiver, Node* value, NameRef const& name,
                                AccessMode access_mode, Node* key,
@@ -122,7 +118,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceElementAccessOnString(Node* node, Node* index, Node* value,
                                         KeyedAccessMode const& keyed_mode);
 
-  Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
+  Reduction ReduceEagerDeoptimize(Node* node, DeoptimizeReason reason);
   Reduction ReduceJSToString(Node* node);
 
   Reduction ReduceJSLoadPropertyWithEnumeratedKey(Node* node);
@@ -174,8 +170,9 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   // Helpers for accessor inlining.
   Node* InlinePropertyGetterCall(Node* receiver,
                                  ConvertReceiverMode receiver_mode,
-                                 Node* context, Node* frame_state,
-                                 Node** effect, Node** control,
+                                 Node* lookup_start_object, Node* context,
+                                 Node* frame_state, Node** effect,
+                                 Node** control,
                                  ZoneVector<Node*>* if_exceptions,
                                  PropertyAccessInfo const& access_info);
   void InlinePropertySetterCall(Node* receiver, Node* value, Node* context,

@@ -283,6 +283,7 @@ module.exports = cls => class ActualLoader extends cls {
       .then(pkg => [pkg, null], error => [null, error])
       .then(([pkg, error]) => {
         return this[normalize(path) === real ? _newNode : _newLink]({
+          installLinks: this.installLinks,
           legacyPeerDeps: this.legacyPeerDeps,
           path,
           realpath: real,

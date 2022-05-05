@@ -12,8 +12,8 @@ separate module.
 ## Determining if crypto support is unavailable
 
 It is possible for Node.js to be built without including support for the
-`crypto` module. In such cases, attempting to `import` from `https` or
-calling `require('https')` will result in an error being thrown.
+`node:crypto` module. In such cases, attempting to `import` from `https` or
+calling `require('node:https')` will result in an error being thrown.
 
 When using CommonJS, the error thrown can be caught using try/catch:
 
@@ -22,7 +22,7 @@ When using CommonJS, the error thrown can be caught using try/catch:
 ```cjs
 let https;
 try {
-  https = require('https');
+  https = require('node:https');
 } catch (err) {
   console.log('https support is disabled!');
 }
@@ -35,12 +35,12 @@ a preload module).
 
 When using ESM, if there is a chance that the code may be run on a build
 of Node.js where crypto support is not enabled, consider using the
-`import()` function instead of the lexical `import` keyword:
+[`import()`][] function instead of the lexical `import` keyword:
 
 ```mjs
 let https;
 try {
-  https = await import('https');
+  https = await import('node:https');
 } catch (err) {
   console.log('https support is disabled!');
 }
@@ -133,7 +133,23 @@ added: v0.1.90
 * `callback` {Function}
 * Returns: {https.Server}
 
-See [`server.close()`][`http.close()`] from the HTTP module for details.
+See [`http.Server.close()`][].
+
+### `server.closeAllConnections()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+See [`http.Server.closeAllConnections()`][].
+
+### `server.closeIdleConnections()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+See [`http.Server.closeIdleConnections()`][].
 
 ### `server.headersTimeout`
 
@@ -215,8 +231,8 @@ added: v0.3.4
 
 ```js
 // curl -k https://localhost:8000/
-const https = require('https');
-const fs = require('fs');
+const https = require('node:https');
+const fs = require('node:fs');
 
 const options = {
   key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
@@ -232,8 +248,8 @@ https.createServer(options, (req, res) => {
 Or
 
 ```js
-const https = require('https');
-const fs = require('fs');
+const https = require('node:https');
+const fs = require('node:fs');
 
 const options = {
   pfx: fs.readFileSync('test/fixtures/test_cert.pfx'),
@@ -274,7 +290,7 @@ string, it is automatically parsed with [`new URL()`][]. If it is a [`URL`][]
 object, it will be automatically converted to an ordinary `options` object.
 
 ```js
-const https = require('https');
+const https = require('node:https');
 
 https.get('https://encrypted.google.com/', (res) => {
   console.log('statusCode:', res.statusCode);
@@ -353,7 +369,7 @@ class. The `ClientRequest` instance is a writable stream. If one needs to
 upload a file with a POST request, then write to the `ClientRequest` object.
 
 ```js
-const https = require('https');
+const https = require('node:https');
 
 const options = {
   hostname: 'encrypted.google.com',
@@ -427,9 +443,9 @@ Example pinning on certificate fingerprint, or the public key (similar to
 `pin-sha256`):
 
 ```js
-const tls = require('tls');
-const https = require('https');
-const crypto = require('crypto');
+const tls = require('node:tls');
+const https = require('node:https');
+const crypto = require('node:crypto');
 
 function sha256(s) {
   return crypto.createHash('sha256').update(s).digest('base64');
@@ -529,13 +545,16 @@ headers: max-age=0; pin-sha256="WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18="; p
 [`http.Server#requestTimeout`]: http.md#serverrequesttimeout
 [`http.Server#setTimeout()`]: http.md#serversettimeoutmsecs-callback
 [`http.Server#timeout`]: http.md#servertimeout
+[`http.Server.close()`]: http.md#serverclosecallback
+[`http.Server.closeAllConnections()`]: http.md#servercloseallconnections
+[`http.Server.closeIdleConnections()`]: http.md#servercloseidleconnections
 [`http.Server`]: http.md#class-httpserver
-[`http.close()`]: http.md#serverclosecallback
 [`http.createServer()`]: http.md#httpcreateserveroptions-requestlistener
 [`http.get()`]: http.md#httpgetoptions-callback
 [`http.request()`]: http.md#httprequestoptions-callback
 [`https.Agent`]: #class-httpsagent
 [`https.request()`]: #httpsrequestoptions-callback
+[`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
 [`net.Server`]: net.md#class-netserver
 [`new URL()`]: url.md#new-urlinput-base
 [`server.listen()`]: net.md#serverlisten

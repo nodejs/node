@@ -11,7 +11,7 @@
 #if V8_LIBC_MSVCRT
 #include <intrin.h>  // _xgetbv()
 #endif
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 #include <sys/sysctl.h>
 #endif
 
@@ -32,6 +32,8 @@ namespace internal {
 
 namespace {
 
+#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+
 V8_INLINE uint64_t xgetbv(unsigned int xcr) {
 #if V8_LIBC_MSVCRT
   return _xgetbv(xcr);
@@ -47,7 +49,7 @@ V8_INLINE uint64_t xgetbv(unsigned int xcr) {
 }
 
 bool OSHasAVXSupport() {
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
   // Mac OS X up to 10.9 has a bug where AVX transitions were indeed being
   // caused by ISRs, so we detect that here and disable AVX in that case.
   char buffer[128];
@@ -63,11 +65,13 @@ bool OSHasAVXSupport() {
   *period_pos = '\0';
   long kernel_version_major = strtol(buffer, nullptr, 10);  // NOLINT
   if (kernel_version_major <= 13) return false;
-#endif  // V8_OS_MACOSX
+#endif  // V8_OS_DARWIN
   // Check whether OS claims to support AVX.
   uint64_t feature_mask = xgetbv(0);  // XCR_XFEATURE_ENABLED_MASK
   return (feature_mask & 0x6) == 0x6;
 }
+
+#endif  // V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 
 }  // namespace
 
@@ -80,12 +84,14 @@ bool CpuFeatures::SupportsWasmSimd128() {
 }
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
+  // Only use statically determined features for cross compile (snapshot).
+  if (cross_compile) return;
+
+#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
   base::CPU cpu;
   CHECK(cpu.has_sse2());  // SSE2 support is mandatory.
   CHECK(cpu.has_cmov());  // CMOV support is mandatory.
 
-  // Only use statically determined features for cross compile (snapshot).
-  if (cross_compile) return;
   if (cpu.has_sse42()) SetSupported(SSE4_2);
   if (cpu.has_sse41()) SetSupported(SSE4_1);
   if (cpu.has_ssse3()) SetSupported(SSSE3);
@@ -125,6 +131,11 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // at runtime in builtins using an extern ref. Other callers should use
   // CpuFeatures::SupportWasmSimd128().
   CpuFeatures::supports_wasm_simd_128_ = CpuFeatures::SupportsWasmSimd128();
+
+  if (cpu.has_cetss()) SetSupported(CETSS);
+  // The static variable is used for codegen of certain CETSS instructions.
+  CpuFeatures::supports_cetss_ = IsSupported(CETSS);
+#endif  // V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 }
 
 void CpuFeatures::PrintTarget() {}
@@ -396,7 +407,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
   const int safepoint_table_offset =
       (safepoint_table_builder == kNoSafepointTable)
           ? handler_table_offset2
-          : safepoint_table_builder->GetCodeOffset();
+          : safepoint_table_builder->safepoint_table_offset();
   const int reloc_info_offset =
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
@@ -998,9 +1009,9 @@ void Assembler::call(Address entry, RelocInfo::Mode rmode) {
   emit_runtime_entry(entry, rmode);
 }
 
-void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
+void Assembler::call(Handle<CodeT> target, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
-  DCHECK(target->IsExecutable());
+  DCHECK(FromCodeT(*target).IsExecutable());
   EnsureSpace ensure_space(this);
   // 1110 1000 #32-bit disp.
   emit(0xE8);
@@ -1431,7 +1442,7 @@ void Assembler::j(Condition cc, Address entry, RelocInfo::Mode rmode) {
   emitl(static_cast<int32_t>(entry));
 }
 
-void Assembler::j(Condition cc, Handle<Code> target, RelocInfo::Mode rmode) {
+void Assembler::j(Condition cc, Handle<CodeT> target, RelocInfo::Mode rmode) {
   if (cc == always) {
     jmp(target, rmode);
     return;
@@ -1524,7 +1535,7 @@ void Assembler::jmp(Label* L, Label::Distance distance) {
   }
 }
 
-void Assembler::jmp(Handle<Code> target, RelocInfo::Mode rmode) {
+void Assembler::jmp(Handle<CodeT> target, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   EnsureSpace ensure_space(this);
   // 1110 1001 #32-bit disp.
@@ -2105,6 +2116,15 @@ void Assembler::pushq_imm32(int32_t imm32) {
 void Assembler::pushfq() {
   EnsureSpace ensure_space(this);
   emit(0x9C);
+}
+
+void Assembler::incsspq(Register number_of_words) {
+  EnsureSpace ensure_space(this);
+  emit(0xF3);
+  emit_rex_64(number_of_words);
+  emit(0x0F);
+  emit(0xAE);
+  emit(0xE8 | number_of_words.low_bits());
 }
 
 void Assembler::ret(int imm16) {
@@ -3352,6 +3372,28 @@ void Assembler::haddps(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::cmpeqss(XMMRegister dst, XMMRegister src) {
+  DCHECK(!IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit(0xF3);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xC2);
+  emit_sse_operand(dst, src);
+  emit(0x00);  // EQ == 0
+}
+
+void Assembler::cmpeqsd(XMMRegister dst, XMMRegister src) {
+  DCHECK(!IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xC2);
+  emit_sse_operand(dst, src);
+  emit(0x00);  // EQ == 0
+}
+
 void Assembler::cmpltsd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   emit(0xF2);
@@ -3369,7 +3411,21 @@ void Assembler::roundss(XMMRegister dst, XMMRegister src, RoundingMode mode) {
   emit(static_cast<byte>(mode) | 0x8);
 }
 
+void Assembler::roundss(XMMRegister dst, Operand src, RoundingMode mode) {
+  DCHECK(!IsEnabled(AVX));
+  sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x0A);
+  // Mask precision exception.
+  emit(static_cast<byte>(mode) | 0x8);
+}
+
 void Assembler::roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode) {
+  DCHECK(!IsEnabled(AVX));
+  sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x0B);
+  // Mask precision exception.
+  emit(static_cast<byte>(mode) | 0x8);
+}
+
+void Assembler::roundsd(XMMRegister dst, Operand src, RoundingMode mode) {
   DCHECK(!IsEnabled(AVX));
   sse4_instr(dst, src, 0x66, 0x0F, 0x3A, 0x0B);
   // Mask precision exception.
@@ -3736,6 +3792,16 @@ void Assembler::vps(byte op, XMMRegister dst, XMMRegister src1,
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   emit_vex_prefix(dst, src1, src2, kL128, kNoPrefix, k0F, kWIG);
+  emit(op);
+  emit_sse_operand(dst, src2);
+  emit(imm8);
+}
+
+void Assembler::vps(byte op, YMMRegister dst, YMMRegister src1,
+                    YMMRegister src2, byte imm8) {
+  DCHECK(IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, src1, src2, kL256, kNoPrefix, k0F, kWIG);
   emit(op);
   emit_sse_operand(dst, src2);
   emit(imm8);

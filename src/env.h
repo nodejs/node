@@ -289,8 +289,6 @@ constexpr size_t kFsStatsBufferLength =
   V(input_string, "input")                                                     \
   V(internal_binding_string, "internalBinding")                                \
   V(internal_string, "internal")                                               \
-  V(ipv4_string, "IPv4")                                                       \
-  V(ipv6_string, "IPv6")                                                       \
   V(isclosing_string, "isClosing")                                             \
   V(issuer_string, "issuer")                                                   \
   V(issuercert_string, "issuerCertificate")                                    \
@@ -552,7 +550,9 @@ constexpr size_t kFsStatsBufferLength =
   V(tls_wrap_constructor_function, v8::Function)                               \
   V(trace_category_state_function, v8::Function)                               \
   V(udp_constructor_function, v8::Function)                                    \
-  V(url_constructor_function, v8::Function)
+  V(url_constructor_function, v8::Function)                                    \
+  V(wasm_streaming_compilation_impl, v8::Function)                             \
+  V(wasm_streaming_object_constructor, v8::Function)
 
 class Environment;
 struct AllocatedBuffer;

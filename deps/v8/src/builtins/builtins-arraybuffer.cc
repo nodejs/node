@@ -37,16 +37,6 @@ namespace internal {
 
 namespace {
 
-bool RoundUpToPageSize(size_t byte_length, size_t page_size,
-                       size_t max_allowed_byte_length, size_t* pages) {
-  size_t bytes_wanted = RoundUp(byte_length, page_size);
-  if (bytes_wanted > max_allowed_byte_length) {
-    return false;
-  }
-  *pages = bytes_wanted / page_size;
-  return true;
-}
-
 Object ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
                        Handle<JSReceiver> new_target, Handle<Object> length,
                        Handle<Object> max_length, InitializedFlag initialized) {
@@ -91,21 +81,12 @@ Object ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
           NewRangeError(MessageTemplate::kInvalidArrayBufferMaxLength));
     }
 
-    size_t page_size = AllocatePageSize();
-    size_t initial_pages;
-    if (!RoundUpToPageSize(byte_length, page_size,
-                           JSArrayBuffer::kMaxByteLength, &initial_pages)) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
-    }
+    size_t page_size, initial_pages, max_pages;
+    MAYBE_RETURN(JSArrayBuffer::GetResizableBackingStorePageConfiguration(
+                     isolate, byte_length, max_byte_length, kThrowOnError,
+                     &page_size, &initial_pages, &max_pages),
+                 ReadOnlyRoots(isolate).exception());
 
-    size_t max_pages;
-    if (!RoundUpToPageSize(max_byte_length, page_size,
-                           JSArrayBuffer::kMaxByteLength, &max_pages)) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate,
-          NewRangeError(MessageTemplate::kInvalidArrayBufferMaxLength));
-    }
     constexpr bool kIsWasmMemory = false;
     backing_store = BackingStore::TryAllocateAndPartiallyCommitMemory(
         isolate, byte_length, max_byte_length, page_size, initial_pages,
@@ -435,7 +416,7 @@ static Object ResizeHelper(BuiltinArguments args, Isolate* isolate,
   // [GSAB] Let hostHandled be ? HostGrowArrayBuffer(O, newByteLength).
   // If hostHandled is handled, return undefined.
 
-  // TODO(v8:11111): Wasm integration.
+  // TODO(v8:11111, v8:12746): Wasm integration.
 
   if (!is_shared) {
     // [RAB] Let oldBlock be O.[[ArrayBufferData]].

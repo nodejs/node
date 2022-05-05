@@ -162,10 +162,11 @@ class WriteBarrierTest : public testing::TestWithHeap {
  public:
   WriteBarrierTest() : internal_heap_(Heap::From(GetHeap())) {
     DCHECK_NULL(GetMarkerRef().get());
-    GetMarkerRef() = MarkerFactory::CreateAndStartMarking<Marker>(
-        *internal_heap_, GetPlatformHandle().get(),
-        IncrementalMarkingScope::kIncrementalConfig);
+    GetMarkerRef() =
+        std::make_unique<Marker>(*internal_heap_, GetPlatformHandle().get(),
+                                 IncrementalMarkingScope::kIncrementalConfig);
     marker_ = GetMarkerRef().get();
+    marker_->StartMarking();
   }
 
   ~WriteBarrierTest() override {

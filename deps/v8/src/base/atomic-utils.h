@@ -67,6 +67,13 @@ class AsAtomicImpl {
   using AtomicStorageType = TAtomicStorageType;
 
   template <typename T>
+  static T SeqCst_Load(T* addr) {
+    STATIC_ASSERT(sizeof(T) <= sizeof(AtomicStorageType));
+    return cast_helper<T>::to_return_type(
+        base::SeqCst_Load(to_storage_addr(addr)));
+  }
+
+  template <typename T>
   static T Acquire_Load(T* addr) {
     STATIC_ASSERT(sizeof(T) <= sizeof(AtomicStorageType));
     return cast_helper<T>::to_return_type(
@@ -78,6 +85,14 @@ class AsAtomicImpl {
     STATIC_ASSERT(sizeof(T) <= sizeof(AtomicStorageType));
     return cast_helper<T>::to_return_type(
         base::Relaxed_Load(to_storage_addr(addr)));
+  }
+
+  template <typename T>
+  static void SeqCst_Store(T* addr,
+                           typename std::remove_reference<T>::type new_value) {
+    STATIC_ASSERT(sizeof(T) <= sizeof(AtomicStorageType));
+    base::SeqCst_Store(to_storage_addr(addr),
+                       cast_helper<T>::to_storage_type(new_value));
   }
 
   template <typename T>
@@ -94,6 +109,14 @@ class AsAtomicImpl {
     STATIC_ASSERT(sizeof(T) <= sizeof(AtomicStorageType));
     base::Relaxed_Store(to_storage_addr(addr),
                         cast_helper<T>::to_storage_type(new_value));
+  }
+
+  template <typename T>
+  static T SeqCst_Swap(T* addr,
+                       typename std::remove_reference<T>::type new_value) {
+    STATIC_ASSERT(sizeof(T) <= sizeof(AtomicStorageType));
+    return base::SeqCst_AtomicExchange(
+        to_storage_addr(addr), cast_helper<T>::to_storage_type(new_value));
   }
 
   template <typename T>
@@ -175,6 +198,7 @@ class AsAtomicImpl {
 };
 
 using AsAtomic8 = AsAtomicImpl<base::Atomic8>;
+using AsAtomic16 = AsAtomicImpl<base::Atomic16>;
 using AsAtomic32 = AsAtomicImpl<base::Atomic32>;
 using AsAtomicWord = AsAtomicImpl<base::AtomicWord>;
 

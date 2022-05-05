@@ -1112,9 +1112,6 @@ void CompilationDependencies::DependOnElementsKind(
 
 void CompilationDependencies::DependOnOwnConstantElement(
     const JSObjectRef& holder, uint32_t index, const ObjectRef& element) {
-  // Only valid if the holder can use direct reads, since validation uses
-  // GetOwnConstantElementFromHeap.
-  DCHECK(holder.should_access_heap() || broker_->is_concurrent_inlining());
   RecordDependency(
       zone_->New<OwnConstantElementDependency>(holder, index, element));
 }
@@ -1235,7 +1232,7 @@ namespace {
 void DependOnStablePrototypeChain(CompilationDependencies* deps, MapRef map,
                                   base::Optional<JSObjectRef> last_prototype) {
   while (true) {
-    HeapObjectRef proto = map.prototype().value();
+    HeapObjectRef proto = map.prototype();
     if (!proto.IsJSObject()) {
       CHECK_EQ(proto.map().oddball_type(), OddballType::kNull);
       break;
@@ -1286,7 +1283,6 @@ void CompilationDependencies::DependOnElementsKinds(
 
 void CompilationDependencies::DependOnConsistentJSFunctionView(
     const JSFunctionRef& function) {
-  DCHECK(broker_->is_concurrent_inlining());
   RecordDependency(zone_->New<ConsistentJSFunctionViewDependency>(function));
 }
 

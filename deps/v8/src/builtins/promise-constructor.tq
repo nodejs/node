@@ -50,7 +50,7 @@ PromiseConstructor(
     newTarget: JSAny)(executor: JSAny): JSAny {
   // 1. If NewTarget is undefined, throw a TypeError exception.
   if (newTarget == Undefined) {
-    ThrowTypeError(MessageTemplate::kNotAPromise, newTarget);
+    ThrowTypeError(MessageTemplate::kPromiseNewTargetUndefined);
   }
 
   // 2. If IsCallable(executor) is false, throw a TypeError exception.
@@ -60,11 +60,11 @@ PromiseConstructor(
 
   const promiseFun = *NativeContextSlot(ContextSlot::PROMISE_FUNCTION_INDEX);
 
-  // Silently fail if the stack looks fishy.
+  // Throw no access type error if the stack looks fishy.
   if (HasAccessCheckFailed(context, promiseFun, executor)) {
     IncrementUseCounter(
         context, SmiConstant(kPromiseConstructorReturnedUndefined));
-    return Undefined;
+    runtime::ThrowNoAccess();
   }
 
   let result: JSPromise;

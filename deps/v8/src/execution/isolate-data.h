@@ -12,7 +12,7 @@
 #include "src/execution/thread-local-top.h"
 #include "src/heap/linear-allocation-area.h"
 #include "src/roots/roots.h"
-#include "src/security/external-pointer-table.h"
+#include "src/sandbox/external-pointer-table.h"
 #include "src/utils/utils.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
@@ -52,25 +52,16 @@ class Isolate;
   /* Linear allocation areas for the heap's new and old space */              \
   V(kNewAllocationInfo, LinearAllocationArea::kSize, new_allocation_info)     \
   V(kOldAllocationInfo, LinearAllocationArea::kSize, old_allocation_info)     \
-  ISOLATE_DATA_FIELDS_EXTERNAL_CODE_SPACE(V)                                  \
-  ISOLATE_DATA_FIELDS_HEAP_SANDBOX(V)                                         \
+  ISOLATE_DATA_FIELDS_SANDBOXED_EXTERNAL_POINTERS(V)                          \
   V(kStackIsIterableOffset, kUInt8Size, stack_is_iterable)
 
-#ifdef V8_EXTERNAL_CODE_SPACE
-#define ISOLATE_DATA_FIELDS_EXTERNAL_CODE_SPACE(V) \
-  V(kBuiltinCodeDataContainerTableOffset,          \
-    Builtins::kBuiltinCount* kSystemPointerSize,   \
-    builtin_code_data_container_table)
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#define ISOLATE_DATA_FIELDS_SANDBOXED_EXTERNAL_POINTERS(V)    \
+  V(kExternalPointerTableOffset, ExternalPointerTable::kSize, \
+    external_pointer_table)
 #else
-#define ISOLATE_DATA_FIELDS_EXTERNAL_CODE_SPACE(V)
-#endif  // V8_EXTERNAL_CODE_SPACE
-
-#ifdef V8_HEAP_SANDBOX
-#define ISOLATE_DATA_FIELDS_HEAP_SANDBOX(V) \
-  V(kExternalPointerTableOffset, kSystemPointerSize * 3, external_pointer_table)
-#else
-#define ISOLATE_DATA_FIELDS_HEAP_SANDBOX(V)
-#endif  // V8_HEAP_SANDBOX
+#define ISOLATE_DATA_FIELDS_SANDBOXED_EXTERNAL_POINTERS(V)
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
 // This class contains a collection of data accessible from both C++ runtime
 // and compiled code (including builtins, interpreter bytecode handlers and
@@ -118,17 +109,6 @@ class IsolateData final {
            Builtins::ToInt(id) * kSystemPointerSize;
   }
 
-  static int BuiltinCodeDataContainerSlotOffset(Builtin id) {
-#ifdef V8_EXTERNAL_CODE_SPACE
-    // TODO(v8:11880): implement table tiering once the builtin table containing
-    // Code objects is no longer used.
-    return builtin_code_data_container_table_offset() +
-           Builtins::ToInt(id) * kSystemPointerSize;
-#else
-    UNREACHABLE();
-#endif  // V8_EXTERNAL_CODE_SPACE
-  }
-
 #define V(Offset, Size, Name) \
   Address Name##_address() { return reinterpret_cast<Address>(&Name##_); }
   ISOLATE_DATA_FIELDS(V)
@@ -151,13 +131,6 @@ class IsolateData final {
   ThreadLocalTop const& thread_local_top() const { return thread_local_top_; }
   Address* builtin_entry_table() { return builtin_entry_table_; }
   Address* builtin_table() { return builtin_table_; }
-  Address* builtin_code_data_container_table() {
-#ifdef V8_EXTERNAL_CODE_SPACE
-    return builtin_code_data_container_table_;
-#else
-    UNREACHABLE();
-#endif
-  }
   uint8_t stack_is_iterable() const { return stack_is_iterable_; }
 
   // Returns true if this address points to data stored in this instance. If
@@ -236,12 +209,8 @@ class IsolateData final {
   LinearAllocationArea new_allocation_info_;
   LinearAllocationArea old_allocation_info_;
 
-#ifdef V8_EXTERNAL_CODE_SPACE
-  Address builtin_code_data_container_table_[Builtins::kBuiltinCount] = {};
-#endif
-
   // Table containing pointers to external objects.
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   ExternalPointerTable external_pointer_table_;
 #endif
 
@@ -282,7 +251,7 @@ void IsolateData::AssertPredictableLayout() {
   STATIC_ASSERT(sizeof(IsolateData) == IsolateData::kSize);
 }
 
-#undef ISOLATE_DATA_FIELDS_HEAP_SANDBOX
+#undef ISOLATE_DATA_FIELDS_SANDBOXED_EXTERNAL_POINTERS
 #undef ISOLATE_DATA_FIELDS
 
 }  // namespace internal

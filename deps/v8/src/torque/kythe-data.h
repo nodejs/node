@@ -5,8 +5,6 @@
 #ifndef V8_TORQUE_KYTHE_DATA_H_
 #define V8_TORQUE_KYTHE_DATA_H_
 
-#include <map>
-
 #include "src/torque/ast.h"
 #include "src/torque/contextual.h"
 #include "src/torque/global-context.h"

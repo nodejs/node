@@ -176,9 +176,12 @@ ReusableUnoptimizedCompileState::ReusableUnoptimizedCompileState(
       logger_(isolate->logger()),
       dispatcher_(isolate->lazy_compile_dispatcher()),
       ast_string_constants_(isolate->ast_string_constants()),
-      zone_(allocator_, "unoptimized-compile-zone"),
+      ast_raw_string_zone_(allocator_,
+                           "unoptimized-compile-ast-raw-string-zone"),
+      single_parse_zone_(allocator_, "unoptimized-compile-parse-zone"),
       ast_value_factory_(
-          new AstValueFactory(zone(), ast_string_constants(), hash_seed())) {}
+          new AstValueFactory(ast_raw_string_zone(), single_parse_zone(),
+                              ast_string_constants(), hash_seed())) {}
 
 ReusableUnoptimizedCompileState::ReusableUnoptimizedCompileState(
     LocalIsolate* isolate)
@@ -187,9 +190,12 @@ ReusableUnoptimizedCompileState::ReusableUnoptimizedCompileState(
       logger_(isolate->main_thread_logger()),
       dispatcher_(isolate->lazy_compile_dispatcher()),
       ast_string_constants_(isolate->ast_string_constants()),
-      zone_(allocator_, "unoptimized-compile-zone"),
+      ast_raw_string_zone_(allocator_,
+                           "unoptimized-compile-ast-raw-string-zone"),
+      single_parse_zone_(allocator_, "unoptimized-compile-parse-zone"),
       ast_value_factory_(
-          new AstValueFactory(zone(), ast_string_constants(), hash_seed())) {}
+          new AstValueFactory(ast_raw_string_zone(), single_parse_zone(),
+                              ast_string_constants(), hash_seed())) {}
 
 ReusableUnoptimizedCompileState::~ReusableUnoptimizedCompileState() = default;
 
@@ -235,7 +241,7 @@ ParseInfo::ParseInfo(LocalIsolate* isolate, const UnoptimizedCompileFlags flags,
     : ParseInfo(flags, state, reusable_state, stack_limit,
                 isolate->runtime_call_stats()) {}
 
-ParseInfo::~ParseInfo() = default;
+ParseInfo::~ParseInfo() { reusable_state_->NotifySingleParseCompleted(); }
 
 DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 

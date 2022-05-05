@@ -169,7 +169,6 @@
     },
     'client.v8.perf' : {
       'V8 Arm - builder - perf': 'official_arm',
-      'V8 Arm64 - builder - perf': 'official_arm64',
       'V8 Android Arm - builder - perf': 'official_android_arm',
       'V8 Android Arm64 - builder - perf': 'official_android_arm64',
       'V8 Linux - builder - perf': 'official_x86',
@@ -470,8 +469,6 @@
     # Official configs for arm
     'official_arm': [
       'release_bot', 'arm', 'hard_float', 'official', 'disable_pgo'],
-    'official_arm64': [
-      'release_bot', 'arm64', 'hard_float', 'official', 'disable_pgo'],
     'official_android_arm': [
       'release_bot', 'arm', 'android', 'minimal_symbols',
       'android_strip_outputs', 'official', 'disable_pgo'],
@@ -525,7 +522,7 @@
     'release_x64_minimal_symbols': [
       'release_bot', 'x64', 'minimal_symbols'],
     'release_x64_pointer_compression': [
-      'release_bot', 'x64', 'dcheck_always_on', 'v8_enable_slow_dchecks',
+      'release_bot', 'x64', 'dcheck_always_on', 'v8_enable_slow_dchecks', 'v8_enable_javascript_promise_hooks',
       'v8_disable_pointer_compression'],
     'release_x64_pointer_compression_without_dchecks': [
       'release_bot', 'x64', 'v8_disable_pointer_compression'],
@@ -574,13 +571,14 @@
     'debug_x64_fuchsia': [
       'debug_bot', 'x64', 'fuchsia'],
     'debug_x64_gcc': [
-      'debug_bot_no_goma', 'x64', 'gcc', 'lld', 'v8_check_header_includes'],
+      'debug_bot_no_goma', 'x64', 'gcc', 'lld', 'no_custom_libcxx',
+      'v8_check_header_includes'],
     'debug_x64_header_includes': [
       'debug_bot', 'x64', 'v8_check_header_includes'],
     'debug_x64_heap_sandbox': [
-      'debug_bot', 'x64', 'v8_enable_heap_sandbox'],
+      'debug_bot', 'x64', 'v8_enable_sandbox_future'],
     'debug_x64_heap_sandbox_arm64_sim': [
-      'debug_bot', 'simulate_arm64', 'v8_enable_heap_sandbox'],
+      'debug_bot', 'simulate_arm64', 'v8_enable_sandbox_future'],
     'debug_x64_minimal_symbols': [
       'debug_bot', 'x64', 'minimal_symbols'],
     'debug_x64_non_default_cppgc': [
@@ -619,10 +617,11 @@
       'release_bot', 'x86', 'asan', 'lsan', 'symbolized',
       'v8_verify_heap'],
     'release_x86_gcc': [
-      'release_bot_no_goma', 'x86', 'gcc', 'lld', 'v8_check_header_includes'],
-    'release_x86_gcc_minimal_symbols': [
-      'release_bot_no_goma', 'x86', 'gcc', 'lld', 'minimal_symbols',
+      'release_bot_no_goma', 'x86', 'gcc', 'lld', 'no_custom_libcxx',
       'v8_check_header_includes'],
+    'release_x86_gcc_minimal_symbols': [
+      'release_bot_no_goma', 'x86', 'gcc', 'lld', 'no_custom_libcxx',
+      'minimal_symbols', 'v8_check_header_includes'],
     'release_x86_gcmole': [
       'release_bot', 'x86', 'gcmole'],
     'release_x86_gcmole_trybot': [
@@ -720,7 +719,7 @@
 
     'disable_concurrent_marking': {
       # Disable concurrent marking and atomic object field writes in order to
-      # increase the TSAN coverage for background tasks. We need to keep the 
+      # increase the TSAN coverage for background tasks. We need to keep the
       # atomic marking state enabled because that is needed for the concurrent
       # write-barrier used by background compilation.
       'gn_args': 'v8_enable_concurrent_marking=false '
@@ -922,8 +921,8 @@
       'gn_args': 'v8_enable_runtime_call_stats=false',
     },
 
-    'v8_enable_heap_sandbox': {
-      'gn_args': 'v8_enable_heap_sandbox=true',
+    'v8_enable_sandbox_future': {
+      'gn_args': 'v8_enable_sandbox_future=true',
     },
 
     'v8_enable_lite_mode': {
@@ -932,6 +931,10 @@
 
     'v8_enable_slow_dchecks': {
       'gn_args': 'v8_enable_slow_dchecks=true',
+    },
+
+    'v8_enable_javascript_promise_hooks': {
+      'gn_args': 'v8_enable_javascript_promise_hooks=true',
     },
 
     'v8_enable_google_benchmark': {
@@ -950,7 +953,7 @@
       'gn_args': 'v8_enable_pointer_compression=false',
     },
     'v8_enable_single_generation': {
-      'gn_args': 'v8_enable_single_generation=true ' 
+      'gn_args': 'v8_enable_single_generation=true '
                  'v8_disable_write_barriers=true',
     },
     'v8_enable_test_features': {

@@ -31,8 +31,8 @@ namespace liftoff {
 //   1   | previous frame (fp)|
 //   0   | const pool (r28)   | if const pool is enabled
 //  -----+--------------------+  <-- frame ptr (fp) or cp
-//  -1   | 0xa: WASM          |
-//  -2   |     instance       |
+//  -1   | StackFrame::WASM   |
+//  -2   |    instance        |
 //  -3   |    feedback vector |
 //  -4   |    tiering budget  |
 //  -----+--------------------+---------------------------
@@ -228,7 +228,7 @@ constexpr int LiftoffAssembler::StaticStackFrameSize() {
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
   switch (kind) {
     case kS128:
-      return element_size_bytes(kind);
+      return value_kind_size(kind);
     default:
       return kStackSlotSize;
   }
@@ -299,10 +299,6 @@ void LiftoffAssembler::SpillInstance(Register instance) {
 }
 
 void LiftoffAssembler::ResetOSRTarget() {}
-
-void LiftoffAssembler::FillInstanceInto(Register dst) {
-  LoadU64(dst, liftoff::GetInstanceOperand(), r0);
-}
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
@@ -815,7 +811,6 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
     case kRef:
     case kRtt:
     case kOptRef:
-    case kRttWithDepth:
     case kI64: {
       LoadU64(dst.gp(), MemOperand(fp, offset), r0);
       break;
@@ -890,7 +885,6 @@ void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
     case kRef:
     case kRtt:
     case kOptRef:
-    case kRttWithDepth:
     case kI64: {
       LoadU64(dst.gp(), MemOperand(sp, offset), r0);
       break;
@@ -969,7 +963,6 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
     case kOptRef:
     case kRef:
     case kRtt:
-    case kRttWithDepth:
       StoreU64(reg.gp(), liftoff::GetStackSlot(offset), r0);
       break;
     case kF32:
@@ -1018,7 +1011,6 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueKind kind) {
     case kRef:
     case kOptRef:
     case kRtt:
-    case kRttWithDepth:
       LoadU64(reg.gp(), liftoff::GetStackSlot(offset), r0);
       break;
     case kF32:
@@ -1120,7 +1112,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     LFR_TO_REG, LFR_TO_REG, USE, , void)                                     \
   V(i64_ctz, CountTrailingZerosU64, LiftoffRegister, LiftoffRegister,        \
     LFR_TO_REG, LFR_TO_REG, USE, , void)                                     \
-  V(u32_to_intptr, ZeroExtWord32, Register, Register, , , USE, , void)       \
+  V(u32_to_uintptr, ZeroExtWord32, Register, Register, , , USE, , void)      \
   V(i32_signextend_i8, extsb, Register, Register, , , USE, , void)           \
   V(i32_signextend_i16, extsh, Register, Register, , , USE, , void)          \
   V(i64_signextend_i8, extsb, LiftoffRegister, LiftoffRegister, LFR_TO_REG,  \
@@ -1150,7 +1142,7 @@ UNOP_LIST(EMIT_UNOP_FUNCTION)
 // return_val, return_type)
 #define BINOP_LIST(V)                                                          \
   V(f32_copysign, CopySignF64, DoubleRegister, DoubleRegister, DoubleRegister, \
-    , , , ROUND_F64_TO_F32, , void)                                            \
+    , , , USE, , void)                                                         \
   V(f64_copysign, CopySignF64, DoubleRegister, DoubleRegister, DoubleRegister, \
     , , , USE, , void)                                                         \
   V(f32_min, MinF64, DoubleRegister, DoubleRegister, DoubleRegister, , , ,     \
@@ -1261,6 +1253,23 @@ bool LiftoffAssembler::emit_f32_nearest_int(DoubleRegister dst,
 bool LiftoffAssembler::emit_f64_nearest_int(DoubleRegister dst,
                                             DoubleRegister src) {
   return false;
+}
+
+void LiftoffAssembler::IncrementSmi(LiftoffRegister dst, int offset) {
+  UseScratchRegisterScope temps(this);
+  if (COMPRESS_POINTERS_BOOL) {
+    DCHECK(SmiValuesAre31Bits());
+    Register scratch = temps.Acquire();
+    LoadS32(scratch, MemOperand(dst.gp(), offset), r0);
+    AddS64(scratch, scratch, Operand(Smi::FromInt(1)));
+    StoreU32(scratch, MemOperand(dst.gp(), offset), r0);
+  } else {
+    Register scratch = temps.Acquire();
+    SmiUntag(scratch, MemOperand(dst.gp(), offset), LeaveRC, r0);
+    AddS64(scratch, scratch, Operand(1));
+    SmiTag(scratch);
+    StoreU64(scratch, MemOperand(dst.gp(), offset), r0);
+  }
 }
 
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
@@ -1602,7 +1611,6 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
       case kRef:
       case kOptRef:
       case kRtt:
-      case kRttWithDepth:
         DCHECK(liftoff_cond == kEqual || liftoff_cond == kUnequal);
         V8_FALLTHROUGH;
       case kI64:
@@ -2902,15 +2910,14 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
   MultiPop(regs.GetGpList());
 }
 
-void LiftoffAssembler::RecordSpillsInSafepoint(Safepoint& safepoint,
-                                               LiftoffRegList all_spills,
-                                               LiftoffRegList ref_spills,
-                                               int spill_offset) {
+void LiftoffAssembler::RecordSpillsInSafepoint(
+    SafepointTableBuilder::Safepoint& safepoint, LiftoffRegList all_spills,
+    LiftoffRegList ref_spills, int spill_offset) {
   int spill_space_size = 0;
   while (!all_spills.is_empty()) {
     LiftoffRegister reg = all_spills.GetLastRegSet();
     if (ref_spills.has(reg)) {
-      safepoint.DefinePointerSlot(spill_offset);
+      safepoint.DefineTaggedStackSlot(spill_offset);
     }
     all_spills.clear(reg);
     ++spill_offset;
@@ -2963,7 +2970,7 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
         UNREACHABLE();
     }
     args++;
-    arg_bytes += element_size_bytes(param_kind);
+    arg_bytes += value_kind_size(param_kind);
   }
 
   DCHECK_LE(arg_bytes, stack_bytes);
@@ -2997,7 +3004,6 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
       case kOptRef:
       case kRef:
       case kRtt:
-      case kRttWithDepth:
         LoadU64(result_reg->gp(), MemOperand(sp));
         break;
       case kF32:
@@ -3077,7 +3083,6 @@ void LiftoffStackSlots::Construct(int param_slots) {
           case kRef:
           case kOptRef:
           case kRtt:
-          case kRttWithDepth:
           case kI64: {
             asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
             UseScratchRegisterScope temps(asm_);
@@ -3120,7 +3125,6 @@ void LiftoffStackSlots::Construct(int param_slots) {
           case kRef:
           case kOptRef:
           case kRtt:
-          case kRttWithDepth:
             asm_->push(src.reg().gp());
             break;
           case kF32:

@@ -53,9 +53,7 @@ const depValid = (child, requested, requestor) => {
       return semver.satisfies(child.version, requested.fetchSpec, true)
 
     case 'directory':
-      // directory must be a link to the specified folder
-      return !!child.isLink &&
-        relative(child.realpath, requested.fetchSpec) === ''
+      return linkValid(child, requested, requestor)
 
     case 'file':
       return tarballValid(child, requested, requestor)
@@ -106,6 +104,18 @@ const depValid = (child, requested, requestor) => {
   er.requested = requested
   requestor.errors.push(er)
   return false
+}
+
+const linkValid = (child, requested, requestor) => {
+  const isLink = !!child.isLink
+  // if we're installing links and the node is a link, then it's invalid because we want
+  // a real node to be there
+  if (requestor.installLinks) {
+    return !isLink
+  }
+
+  // directory must be a link to the specified folder
+  return isLink && relative(child.realpath, requested.fetchSpec) === ''
 }
 
 const tarballValid = (child, requested, requestor) => {

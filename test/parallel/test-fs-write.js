@@ -126,6 +126,12 @@ fs.open(fn3, 'w', 0o644, common.mustSucceed((fd) => {
   fs.write(fd, expected, done);
 }));
 
+
+// Test write with an object with an own toString function
+// Runtime deprecated by DEP0162
+common.expectWarning('DeprecationWarning',
+                     'Implicit coercion of objects with own toString property is deprecated.',
+                     'DEP0162');
 fs.open(fn4, 'w', 0o644, common.mustSucceed((fd) => {
   const done = common.mustSucceed((written) => {
     assert.strictEqual(written, Buffer.byteLength(expected));
@@ -155,7 +161,11 @@ fs.open(fn4, 'w', 0o644, common.mustSucceed((fd) => {
   );
 });
 
-[false, 5, {}, [], null, undefined].forEach((data) => {
+[
+  false, 5, {}, [], null, undefined,
+  new String('notPrimitive'),
+  { [Symbol.toPrimitive]: (hint) => 'amObject' },
+].forEach((data) => {
   assert.throws(
     () => fs.write(1, data, common.mustNotCall()),
     {

@@ -976,8 +976,9 @@ TEST(ProfilerEnabledDuringBackgroundCompile) {
   std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask> task(
       v8::ScriptCompiler::StartStreaming(isolate, &streamed_source));
 
-  // Run the background compilation task on the main thread.
-  task->Run();
+  // Run the background compilation task. DummySourceStream::GetMoreData won't
+  // block, so it's OK to just join the background task.
+  StreamerThread::StartThreadForTaskAndJoin(task.get());
 
   // Enable the CPU profiler.
   auto* cpu_profiler = v8::CpuProfiler::New(isolate, v8::kStandardNaming);

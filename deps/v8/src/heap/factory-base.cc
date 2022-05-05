@@ -16,6 +16,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/logging/local-logger.h"
 #include "src/logging/log.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/oddball.h"
@@ -46,6 +47,8 @@ template V8_EXPORT_PRIVATE Handle<HeapNumber>
 FactoryBase<Factory>::NewHeapNumber<AllocationType::kOld>();
 template V8_EXPORT_PRIVATE Handle<HeapNumber>
 FactoryBase<Factory>::NewHeapNumber<AllocationType::kReadOnly>();
+template V8_EXPORT_PRIVATE Handle<HeapNumber>
+FactoryBase<Factory>::NewHeapNumber<AllocationType::kSharedOld>();
 
 template V8_EXPORT_PRIVATE Handle<HeapNumber>
 FactoryBase<LocalFactory>::NewHeapNumber<AllocationType::kOld>();
@@ -81,10 +84,12 @@ Handle<CodeDataContainer> FactoryBase<Impl>::NewCodeDataContainer(
                                     SKIP_WRITE_BARRIER);
   data_container.set_kind_specific_flags(flags, kRelaxedStore);
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    Isolate* isolate_for_heap_sandbox = impl()->isolate_for_heap_sandbox();
-    data_container.AllocateExternalPointerEntries(isolate_for_heap_sandbox);
+    data_container.set_code_cage_base(impl()->isolate()->code_cage_base(),
+                                      kRelaxedStore);
+    Isolate* isolate_for_sandbox = impl()->isolate_for_sandbox();
+    data_container.AllocateExternalPointerEntries(isolate_for_sandbox);
     data_container.set_raw_code(Smi::zero(), SKIP_WRITE_BARRIER);
-    data_container.set_code_entry_point(isolate_for_heap_sandbox, kNullAddress);
+    data_container.set_code_entry_point(isolate_for_sandbox, kNullAddress);
   }
   data_container.clear_padding();
   return handle(data_container, isolate());
@@ -135,6 +140,24 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
   FixedArray array = FixedArray::cast(result);
   array.set_length(length);
   MemsetTagged(array.data_start(), *filler, length);
+  return handle(array, isolate());
+}
+
+template <typename Impl>
+Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
+    int length, AllocationType allocation) {
+  DCHECK_LE(0, length);
+  if (length == 0) return impl()->empty_fixed_array();
+  if (length > FixedArray::kMaxLength) {
+    FATAL("Invalid FixedArray size %d", length);
+  }
+  HeapObject result = AllocateRawFixedArray(length, allocation);
+  DisallowGarbageCollection no_gc;
+  result.set_map_after_allocation(read_only_roots().fixed_array_map(),
+                                  SKIP_WRITE_BARRIER);
+  FixedArray array = FixedArray::cast(result);
+  array.set_length(length);
+  MemsetTagged(array.data_start(), Smi::zero(), length);
   return handle(array, isolate());
 }
 
@@ -224,7 +247,7 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
   instance.set_parameter_count(parameter_count);
   instance.set_incoming_new_target_or_generator_register(
       interpreter::Register::invalid_value());
-  instance.set_osr_loop_nesting_level(0);
+  instance.reset_osr_urgency_and_install_target();
   instance.set_bytecode_age(BytecodeArray::kNoAgeBytecodeAge);
   instance.set_constant_pool(*constant_pool);
   instance.set_handler_table(read_only_roots().empty_byte_array(),
@@ -249,9 +272,6 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
   DCHECK(source->IsString() || source->IsUndefined());
   // Create and initialize script object.
   ReadOnlyRoots roots = read_only_roots();
-#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
-  Handle<ArrayList> list = NewArrayList(0);
-#endif
   Handle<Script> script = handle(
       NewStructInternal<Script>(SCRIPT_TYPE, AllocationType::kOld), isolate());
   {
@@ -273,7 +293,7 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
     raw.set_flags(0);
     raw.set_host_defined_options(roots.empty_fixed_array(), SKIP_WRITE_BARRIER);
 #ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
-    raw.set_script_or_modules(*list);
+    raw.set_script_or_modules(roots.empty_array_list());
 #endif
   }
 
@@ -286,12 +306,18 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
 }
 
 template <typename Impl>
-Handle<ArrayList> FactoryBase<Impl>::NewArrayList(int size) {
-  Handle<FixedArray> fixed_array = NewFixedArray(size + ArrayList::kFirstIndex);
-  fixed_array->set_map_no_write_barrier(read_only_roots().array_list_map());
-  Handle<ArrayList> result = Handle<ArrayList>::cast(fixed_array);
-  result->SetLength(0);
-  return result;
+Handle<ArrayList> FactoryBase<Impl>::NewArrayList(int size,
+                                                  AllocationType allocation) {
+  if (size == 0) return impl()->empty_array_list();
+  Handle<FixedArray> fixed_array =
+      NewFixedArray(size + ArrayList::kFirstIndex, allocation);
+  {
+    DisallowGarbageCollection no_gc;
+    FixedArray raw = *fixed_array;
+    raw.set_map_no_write_barrier(read_only_roots().array_list_map());
+    ArrayList::cast(raw).SetLength(0);
+  }
+  return Handle<ArrayList>::cast(fixed_array);
 }
 
 template <typename Impl>

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <atomic>
+
 #include "include/cppgc/allocation.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/marker.h"
@@ -24,8 +26,9 @@ class WeakContainerTest : public testing::TestWithHeap {
     Config config = {Config::CollectionType::kMajor,
                      Config::StackState::kNoHeapPointers,
                      Config::MarkingType::kIncremental};
-    GetMarkerRef() = MarkerFactory::CreateAndStartMarking<Marker>(
+    GetMarkerRef() = std::make_unique<Marker>(
         Heap::From(GetHeap())->AsBase(), GetPlatformHandle().get(), config);
+    GetMarkerRef()->StartMarking();
   }
 
   void FinishMarking(Config::StackState stack_state) {
@@ -49,7 +52,10 @@ constexpr size_t SizeOf() {
 
 class TraceableGCed : public GarbageCollected<TraceableGCed> {
  public:
-  void Trace(cppgc::Visitor*) const { n_trace_calls++; }
+  void Trace(cppgc::Visitor*) const {
+    reinterpret_cast<std::atomic<size_t>*>(&n_trace_calls)
+        ->fetch_add(1, std::memory_order_relaxed);
+  }
   static size_t n_trace_calls;
 };
 size_t TraceableGCed::n_trace_calls = 0u;

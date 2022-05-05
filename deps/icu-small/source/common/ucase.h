@@ -312,6 +312,21 @@ UCaseMapFull(UChar32 c,
 
 U_CDECL_END
 
+/* for icuexportdata -------------------------------------------------------- */
+
+struct UCaseProps {
+    void *mem;  // TODO: was unused, and type UDataMemory -- remove
+    const int32_t *indexes;
+    const uint16_t *exceptions;
+    const uint16_t *unfold;
+
+    UTrie2 trie;
+    uint8_t formatVersion[4];
+};
+
+U_CAPI const struct UCaseProps * U_EXPORT2
+ucase_getSingleton(int32_t *pExceptionsLength, int32_t *pUnfoldLength);
+
 /* file definitions --------------------------------------------------------- */
 
 #define UCASE_DATA_NAME "ucase"

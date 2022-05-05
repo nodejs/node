@@ -1,14 +1,14 @@
 'use strict'
 
-const { kProxy } = require('./core/symbols')
+const { kProxy, kClose, kDestroy } = require('./core/symbols')
 const { URL } = require('url')
 const Agent = require('./agent')
-const Dispatcher = require('./dispatcher')
+const DispatcherBase = require('./dispatcher-base')
 const { InvalidArgumentError } = require('./core/errors')
 
 const kAgent = Symbol('proxy agent')
 
-class ProxyAgent extends Dispatcher {
+class ProxyAgent extends DispatcherBase {
   constructor (opts) {
     super(opts)
     this[kProxy] = buildProxyOptions(opts)
@@ -23,7 +23,7 @@ class ProxyAgent extends Dispatcher {
         origin: this[kProxy].uri,
         path: opts.origin + opts.path,
         headers: {
-          ...opts.headers,
+          ...buildHeaders(opts.headers),
           host
         }
       },
@@ -31,8 +31,12 @@ class ProxyAgent extends Dispatcher {
     )
   }
 
-  async close () {
+  async [kClose] () {
     await this[kAgent].close()
+  }
+
+  async [kDestroy] () {
+    await this[kAgent].destroy()
   }
 }
 
@@ -49,6 +53,27 @@ function buildProxyOptions (opts) {
     uri: opts.uri,
     protocol: opts.protocol || 'https'
   }
+}
+
+/**
+ * @param {string[] | Record<string, string>} headers
+ * @returns {Record<string, string>}
+ */
+function buildHeaders (headers) {
+  // When using undici.fetch, the headers list is stored
+  // as an array.
+  if (Array.isArray(headers)) {
+    /** @type {Record<string, string>} */
+    const headersPair = {}
+
+    for (let i = 0; i < headers.length; i += 2) {
+      headersPair[headers[i]] = headers[i + 1]
+    }
+
+    return headersPair
+  }
+
+  return headers
 }
 
 module.exports = ProxyAgent

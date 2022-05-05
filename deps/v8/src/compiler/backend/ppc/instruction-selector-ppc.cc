@@ -18,6 +18,7 @@ enum ImmediateMode {
   kInt16Imm_Negate,
   kInt16Imm_4ByteAligned,
   kShift32Imm,
+  kInt34Imm,
   kShift64Imm,
   kNoImmediate
 };
@@ -58,6 +59,8 @@ class PPCOperandGenerator final : public OperandGenerator {
         return is_int16(value) && !(value & 3);
       case kShift32Imm:
         return 0 <= value && value < 32;
+      case kInt34Imm:
+        return is_int34(value);
       case kShift64Imm:
         return 0 <= value && value < 64;
       case kNoImmediate:
@@ -173,7 +176,12 @@ static void VisitLoadCommon(InstructionSelector* selector, Node* node,
   Node* base = node->InputAt(0);
   Node* offset = node->InputAt(1);
   InstructionCode opcode = kArchNop;
-  ImmediateMode mode = kInt16Imm;
+  ImmediateMode mode;
+  if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+    mode = kInt34Imm;
+  } else {
+    mode = kInt16Imm;
+  }
   switch (load_rep.representation()) {
     case MachineRepresentation::kFloat32:
       opcode = kPPC_LoadFloat32;
@@ -193,10 +201,10 @@ static void VisitLoadCommon(InstructionSelector* selector, Node* node,
       break;
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:
-    case MachineRepresentation::kCagedPointer:  // Fall through.
+    case MachineRepresentation::kSandboxedPointer:  // Fall through.
 #ifdef V8_COMPRESS_POINTERS
       opcode = kPPC_LoadWordS32;
-      mode = kInt16Imm_4ByteAligned;
+      if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
       break;
 #else
       UNREACHABLE();
@@ -218,7 +226,7 @@ static void VisitLoadCommon(InstructionSelector* selector, Node* node,
 #endif
     case MachineRepresentation::kWord64:
       opcode = kPPC_LoadWord64;
-      mode = kInt16Imm_4ByteAligned;
+      if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
       break;
     case MachineRepresentation::kSimd128:
       opcode = kPPC_LoadSimd128;
@@ -339,7 +347,7 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
         break;
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:
-      case MachineRepresentation::kCagedPointer:  // Fall through.
+      case MachineRepresentation::kSandboxedPointer:  // Fall through.
 #ifdef V8_COMPRESS_POINTERS
         opcode = kPPC_StoreCompressTagged;
         break;

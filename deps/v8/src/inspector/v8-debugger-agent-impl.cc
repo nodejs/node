@@ -435,12 +435,11 @@ Response V8DebuggerAgentImpl::disable() {
   resetBlackboxedStateCache();
   m_skipList.clear();
   m_scripts.clear();
-  m_cachedScriptIds.clear();
+  m_cachedScripts.clear();
   m_cachedScriptSize = 0;
   for (const auto& it : m_debuggerBreakpointIdToBreakpointId) {
     v8::debug::RemoveBreakpoint(m_isolate, it.first);
   }
-  m_breakpointsOnScriptRun.clear();
   m_breakpointIdToDebuggerBreakpointIds.clear();
   m_debuggerBreakpointIdToBreakpointId.clear();
   m_debugger->setAsyncCallStackDepth(this, 0);
@@ -718,9 +717,15 @@ Response V8DebuggerAgentImpl::removeBreakpoint(const String16& breakpointId) {
   // not Wasm breakpoint.
   std::vector<V8DebuggerScript*> scripts;
   for (const auto& scriptIter : m_scripts) {
-    if (!matches(m_inspector, *scriptIter.second, type, selector)) continue;
+    const bool scriptSelectorMatch =
+        matches(m_inspector, *scriptIter.second, type, selector);
+    const bool isInstrumentation =
+        type == BreakpointType::kInstrumentationBreakpoint;
+    if (!scriptSelectorMatch && !isInstrumentation) continue;
     V8DebuggerScript* script = scriptIter.second.get();
-    scripts.push_back(script);
+    if (script->getLanguage() == V8DebuggerScript::Language::WebAssembly) {
+      scripts.push_back(script);
+    }
   }
   removeBreakpointImpl(breakpointId, scripts);
 
@@ -746,7 +751,6 @@ void V8DebuggerAgentImpl::removeBreakpointImpl(
 #endif  // V8_ENABLE_WEBASSEMBLY
     v8::debug::RemoveBreakpoint(m_isolate, id);
     m_debuggerBreakpointIdToBreakpointId.erase(id);
-    m_breakpointsOnScriptRun.erase(id);
   }
   m_breakpointIdToDebuggerBreakpointIds.erase(breakpointId);
 }
@@ -845,9 +849,10 @@ Response V8DebuggerAgentImpl::getStackTrace(
   int64_t id = inStackTraceId->getId().toInteger64(&isOk);
   if (!isOk) return Response::ServerError("Invalid stack trace id");
 
-  V8DebuggerId debuggerId;
+  internal::V8DebuggerId debuggerId;
   if (inStackTraceId->hasDebuggerId()) {
-    debuggerId = V8DebuggerId(inStackTraceId->getDebuggerId(String16()));
+    debuggerId =
+        internal::V8DebuggerId(inStackTraceId->getDebuggerId(String16()));
   } else {
     debuggerId = m_debugger->debuggerIdFor(m_session->contextGroupId());
   }
@@ -1067,8 +1072,20 @@ Response V8DebuggerAgentImpl::getScriptSource(
     Maybe<protocol::Binary>* bytecode) {
   if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
   ScriptsMap::iterator it = m_scripts.find(scriptId);
-  if (it == m_scripts.end())
+  if (it == m_scripts.end()) {
+    auto cachedScriptIt =
+        std::find_if(m_cachedScripts.begin(), m_cachedScripts.end(),
+                     [&scriptId](const CachedScript& cachedScript) {
+                       return cachedScript.scriptId == scriptId;
+                     });
+    if (cachedScriptIt != m_cachedScripts.end()) {
+      *scriptSource = cachedScriptIt->source;
+      *bytecode = protocol::Binary::fromSpan(cachedScriptIt->bytecode.data(),
+                                             cachedScriptIt->bytecode.size());
+      return Response::Success();
+    }
     return Response::ServerError("No script for id: " + scriptId.utf8());
+  }
   *scriptSource = it->second->source(0);
 #if V8_ENABLE_WEBASSEMBLY
   v8::MemorySpan<const uint8_t> span;
@@ -1465,20 +1482,13 @@ Response V8DebuggerAgentImpl::currentCallFrames(
             .setLineNumber(loc.GetLineNumber())
             .setColumnNumber(loc.GetColumnNumber())
             .build();
-    String16 scriptId = String16::fromInteger(script->Id());
-    ScriptsMap::iterator scriptIterator =
-        m_scripts.find(location->getScriptId());
-    String16 url;
-    if (scriptIterator != m_scripts.end()) {
-      url = scriptIterator->second->sourceURL();
-    }
 
     auto frame = CallFrame::create()
                      .setCallFrameId(callFrameId)
                      .setFunctionName(toProtocolString(
                          m_isolate, iterator->GetFunctionDebugName()))
                      .setLocation(std::move(location))
-                     .setUrl(url)
+                     .setUrl(String16())
                      .setScopeChain(std::move(scopes))
                      .setThis(std::move(protocolReceiver))
                      .build();
@@ -1521,7 +1531,8 @@ V8DebuggerAgentImpl::currentExternalStackTrace() {
   if (externalParent.IsInvalid()) return nullptr;
   return protocol::Runtime::StackTraceId::create()
       .setId(stackTraceIdToString(externalParent.id))
-      .setDebuggerId(V8DebuggerId(externalParent.debugger_id).toString())
+      .setDebuggerId(
+          internal::V8DebuggerId(externalParent.debugger_id).toString())
       .build();
 }
 
@@ -1577,7 +1588,6 @@ void V8DebuggerAgentImpl::didParseSource(
     std::unique_ptr<V8DebuggerScript> script, bool success) {
   v8::HandleScope handles(m_isolate);
   if (!success) {
-    DCHECK(!script->isSourceLoadedLazily());
     String16 scriptSource = script->source(0);
     script->setSourceURL(findSourceURL(scriptSource, false));
     script->setSourceMappingURL(findSourceMapURL(scriptSource, false));
@@ -1652,23 +1662,14 @@ void V8DebuggerAgentImpl::didParseSource(
     return;
   }
 
-  if (scriptRef->isSourceLoadedLazily()) {
-    m_frontend.scriptParsed(
-        scriptId, scriptURL, 0, 0, 0, 0, contextId, scriptRef->hash(),
-        std::move(executionContextAuxDataParam), isLiveEditParam,
-        std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam, 0,
-        std::move(stackTrace), std::move(codeOffset), std::move(scriptLanguage),
-        std::move(debugSymbols), embedderName);
-  } else {
-    m_frontend.scriptParsed(
-        scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
-        scriptRef->endLine(), scriptRef->endColumn(), contextId,
-        scriptRef->hash(), std::move(executionContextAuxDataParam),
-        isLiveEditParam, std::move(sourceMapURLParam), hasSourceURLParam,
-        isModuleParam, scriptRef->length(), std::move(stackTrace),
-        std::move(codeOffset), std::move(scriptLanguage),
-        std::move(debugSymbols), embedderName);
-  }
+  m_frontend.scriptParsed(
+      scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
+      scriptRef->endLine(), scriptRef->endColumn(), contextId,
+      scriptRef->hash(), std::move(executionContextAuxDataParam),
+      isLiveEditParam, std::move(sourceMapURLParam), hasSourceURLParam,
+      isModuleParam, scriptRef->length(), std::move(stackTrace),
+      std::move(codeOffset), std::move(scriptLanguage), std::move(debugSymbols),
+      embedderName);
 
   std::vector<protocol::DictionaryValue*> potentialBreakpoints;
   if (!scriptURL.isEmpty()) {
@@ -1740,17 +1741,46 @@ void V8DebuggerAgentImpl::setScriptInstrumentationBreakpointIfNeeded(
     if (!breakpoints->get(breakpointId)) return;
   }
   v8::debug::BreakpointId debuggerBreakpointId;
-  if (!scriptRef->setBreakpointOnRun(&debuggerBreakpointId)) return;
-  std::unique_ptr<protocol::DictionaryValue> data =
-      protocol::DictionaryValue::create();
-  data->setString("url", scriptRef->sourceURL());
-  data->setString("scriptId", scriptRef->scriptId());
-  if (!sourceMapURL.isEmpty()) data->setString("sourceMapURL", sourceMapURL);
+  if (!scriptRef->setInstrumentationBreakpoint(&debuggerBreakpointId)) return;
 
-  m_breakpointsOnScriptRun[debuggerBreakpointId] = std::move(data);
   m_debuggerBreakpointIdToBreakpointId[debuggerBreakpointId] = breakpointId;
   m_breakpointIdToDebuggerBreakpointIds[breakpointId].push_back(
       debuggerBreakpointId);
+}
+
+void V8DebuggerAgentImpl::didPauseOnInstrumentation(
+    v8::debug::BreakpointId instrumentationId) {
+  String16 breakReason = protocol::Debugger::Paused::ReasonEnum::Other;
+  std::unique_ptr<protocol::DictionaryValue> breakAuxData;
+
+  std::unique_ptr<Array<CallFrame>> protocolCallFrames;
+  Response response = currentCallFrames(&protocolCallFrames);
+  if (!response.IsSuccess())
+    protocolCallFrames = std::make_unique<Array<CallFrame>>();
+
+  if (m_debuggerBreakpointIdToBreakpointId.find(instrumentationId) !=
+      m_debuggerBreakpointIdToBreakpointId.end()) {
+    DCHECK_GT(protocolCallFrames->size(), 0);
+    if (protocolCallFrames->size() > 0) {
+      breakReason = protocol::Debugger::Paused::ReasonEnum::Instrumentation;
+      const String16 scriptId =
+          protocolCallFrames->at(0)->getLocation()->getScriptId();
+      DCHECK_NE(m_scripts.find(scriptId), m_scripts.end());
+      const auto& script = m_scripts[scriptId];
+
+      breakAuxData = protocol::DictionaryValue::create();
+      breakAuxData->setString("scriptId", script->scriptId());
+      breakAuxData->setString("url", script->sourceURL());
+      if (!script->sourceMappingURL().isEmpty()) {
+        breakAuxData->setString("sourceMapURL", (script->sourceMappingURL()));
+      }
+    }
+  }
+
+  m_frontend.paused(std::move(protocolCallFrames), breakReason,
+                    std::move(breakAuxData),
+                    std::make_unique<Array<String16>>(),
+                    currentAsyncStackTrace(), currentExternalStackTrace());
 }
 
 void V8DebuggerAgentImpl::didPause(
@@ -1793,25 +1823,8 @@ void V8DebuggerAgentImpl::didPause(
   }
 
   auto hitBreakpointIds = std::make_unique<Array<String16>>();
-  bool hitInstrumentationBreakpoint = false;
   bool hitRegularBreakpoint = false;
   for (const auto& id : hitBreakpoints) {
-    auto it = m_breakpointsOnScriptRun.find(id);
-    if (it != m_breakpointsOnScriptRun.end()) {
-      if (!hitInstrumentationBreakpoint) {
-        // We may hit several instrumentation breakpoints: 1. they are
-        // kept around, and 2. each session may set their own.
-        // Only report one.
-        // TODO(kimanh): This will not be needed anymore if we
-        // make sure that we can only hit an instrumentation
-        // breakpoint once. This workaround is currently for wasm.
-        hitInstrumentationBreakpoint = true;
-        hitReasons.push_back(std::make_pair(
-            protocol::Debugger::Paused::ReasonEnum::Instrumentation,
-            std::move(it->second)));
-      }
-      continue;
-    }
     auto breakpointIterator = m_debuggerBreakpointIdToBreakpointId.find(id);
     if (breakpointIterator == m_debuggerBreakpointIdToBreakpointId.end()) {
       continue;
@@ -1881,7 +1894,6 @@ void V8DebuggerAgentImpl::didPause(
 }
 
 void V8DebuggerAgentImpl::didContinue() {
-  clearBreakDetails();
   m_frontend.resumed();
   m_frontend.flush();
 }
@@ -1939,35 +1951,32 @@ void V8DebuggerAgentImpl::reset() {
   resetBlackboxedStateCache();
   m_skipList.clear();
   m_scripts.clear();
-  m_cachedScriptIds.clear();
+  m_cachedScripts.clear();
   m_cachedScriptSize = 0;
 }
 
 void V8DebuggerAgentImpl::ScriptCollected(const V8DebuggerScript* script) {
   DCHECK_NE(m_scripts.find(script->scriptId()), m_scripts.end());
-  m_cachedScriptIds.push_back(script->scriptId());
-  // TODO(alph): Properly calculate size when sources are one-byte strings.
-  m_cachedScriptSize += script->length() * sizeof(uint16_t);
+  std::vector<uint8_t> bytecode;
+#if V8_ENABLE_WEBASSEMBLY
+  v8::MemorySpan<const uint8_t> span;
+  if (script->wasmBytecode().To(&span)) {
+    bytecode.reserve(span.size());
+    bytecode.insert(bytecode.begin(), span.data(), span.data() + span.size());
+  }
+#endif
+  CachedScript cachedScript{script->scriptId(), script->source(0),
+                            std::move(bytecode)};
+  m_cachedScriptSize += cachedScript.size();
+  m_cachedScripts.push_back(std::move(cachedScript));
+  m_scripts.erase(script->scriptId());
 
   while (m_cachedScriptSize > m_maxScriptCacheSize) {
-    const String16& scriptId = m_cachedScriptIds.front();
-    size_t scriptSize = m_scripts[scriptId]->length() * sizeof(uint16_t);
-    DCHECK_GE(m_cachedScriptSize, scriptSize);
-    m_cachedScriptSize -= scriptSize;
-    m_scripts.erase(scriptId);
-    m_cachedScriptIds.pop_front();
+    const CachedScript& cachedScript = m_cachedScripts.front();
+    DCHECK_GE(m_cachedScriptSize, cachedScript.size());
+    m_cachedScriptSize -= cachedScript.size();
+    m_cachedScripts.pop_front();
   }
-}
-
-std::vector<v8::debug::BreakpointId>
-V8DebuggerAgentImpl::instrumentationBreakpointIdsMatching(
-    const std::vector<v8::debug::BreakpointId>& ids) {
-  std::vector<v8::debug::BreakpointId> instrumentationBreakpointIds;
-  for (const v8::debug::BreakpointId& id : ids) {
-    if (m_breakpointsOnScriptRun.count(id) > 0)
-      instrumentationBreakpointIds.push_back(id);
-  }
-  return instrumentationBreakpointIds;
 }
 
 Response V8DebuggerAgentImpl::processSkipList(

@@ -12,6 +12,7 @@
 #include <type_traits>
 
 #include "src/base/memory.h"
+#include "src/common/ptr-compr.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/contexts-inl.h"
 #include "src/objects/foreign.h"
@@ -54,6 +55,7 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(WasmStruct)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmContinuationObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmSuspenderObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmOnFulfilledData)
 
 CAST_ACCESSOR(WasmInstanceObject)
 
@@ -65,30 +67,24 @@ CAST_ACCESSOR(WasmInstanceObject)
   ACCESSORS_CHECKED2(holder, name, type, offset,                        \
                      !value.IsUndefined(GetReadOnlyRoots(cage_base)), true)
 
-#define PRIMITIVE_ACCESSORS(holder, name, type, offset)                       \
-  type holder::name() const {                                                 \
-    if (COMPRESS_POINTERS_BOOL && alignof(type) > kTaggedSize) {              \
-      /* TODO(ishell, v8:8875): When pointer compression is enabled 8-byte */ \
-      /* size fields (external pointers, doubles and BigInt data) are only */ \
-      /* kTaggedSize aligned so we have to use unaligned pointer friendly  */ \
-      /* way of accessing them in order to avoid undefined behavior in C++ */ \
-      /* code. */                                                             \
-      return base::ReadUnalignedValue<type>(FIELD_ADDR(*this, offset));       \
-    } else {                                                                  \
-      return *reinterpret_cast<type const*>(FIELD_ADDR(*this, offset));       \
-    }                                                                         \
-  }                                                                           \
-  void holder::set_##name(type value) {                                       \
-    if (COMPRESS_POINTERS_BOOL && alignof(type) > kTaggedSize) {              \
-      /* TODO(ishell, v8:8875): When pointer compression is enabled 8-byte */ \
-      /* size fields (external pointers, doubles and BigInt data) are only */ \
-      /* kTaggedSize aligned so we have to use unaligned pointer friendly  */ \
-      /* way of accessing them in order to avoid undefined behavior in C++ */ \
-      /* code. */                                                             \
-      base::WriteUnalignedValue<type>(FIELD_ADDR(*this, offset), value);      \
-    } else {                                                                  \
-      *reinterpret_cast<type*>(FIELD_ADDR(*this, offset)) = value;            \
-    }                                                                         \
+#define PRIMITIVE_ACCESSORS(holder, name, type, offset)               \
+  type holder::name() const {                                         \
+    return ReadMaybeUnalignedValue<type>(FIELD_ADDR(*this, offset));  \
+  }                                                                   \
+  void holder::set_##name(type value) {                               \
+    WriteMaybeUnalignedValue<type>(FIELD_ADDR(*this, offset), value); \
+  }
+
+#define SANDBOXED_POINTER_ACCESSORS(holder, name, type, offset)      \
+  type holder::name() const {                                        \
+    PtrComprCageBase sandbox_base = GetPtrComprCageBase(*this);      \
+    Address value = ReadSandboxedPointerField(offset, sandbox_base); \
+    return reinterpret_cast<type>(value);                            \
+  }                                                                  \
+  void holder::set_##name(type value) {                              \
+    PtrComprCageBase sandbox_base = GetPtrComprCageBase(*this);      \
+    Address addr = reinterpret_cast<Address>(value);                 \
+    WriteSandboxedPointerField(offset, sandbox_base, addr);          \
   }
 
 // WasmModuleObject
@@ -124,10 +120,10 @@ void WasmGlobalObject::set_type(wasm::ValueType value) {
   set_raw_type(static_cast<int>(value.raw_bit_field()));
 }
 
-int WasmGlobalObject::type_size() const { return type().element_size_bytes(); }
+int WasmGlobalObject::type_size() const { return type().value_kind_size(); }
 
 Address WasmGlobalObject::address() const {
-  DCHECK_NE(type(), wasm::kWasmExternRef);
+  DCHECK_NE(type(), wasm::kWasmAnyRef);
   DCHECK_LE(offset() + type_size(), untagged_buffer().byte_length());
   return Address(untagged_buffer().backing_store()) + offset();
 }
@@ -171,8 +167,7 @@ void WasmGlobalObject::SetF64(double value) {
 }
 
 void WasmGlobalObject::SetExternRef(Handle<Object> value) {
-  DCHECK(type().is_reference_to(wasm::HeapType::kExtern) ||
-         type().is_reference_to(wasm::HeapType::kAny));
+  DCHECK(type().is_reference_to(wasm::HeapType::kAny));
   tagged_buffer().set(offset(), *value);
 }
 
@@ -187,7 +182,8 @@ bool WasmGlobalObject::SetFuncRef(Isolate* isolate, Handle<Object> value) {
 }
 
 // WasmInstanceObject
-PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_start, byte*, kMemoryStartOffset)
+SANDBOXED_POINTER_ACCESSORS(WasmInstanceObject, memory_start, byte*,
+                            kMemoryStartOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_size, size_t, kMemorySizeOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, isolate_root, Address,
                     kIsolateRootOffset)
@@ -287,13 +283,6 @@ CAST_ACCESSOR(WasmExportedFunction)
 // WasmFunctionData
 ACCESSORS(WasmFunctionData, internal, WasmInternalFunction, kInternalOffset)
 
-DEF_GETTER(WasmFunctionData, wrapper_code, Code) {
-  return FromCodeT(TorqueGeneratedClass::wrapper_code(cage_base));
-}
-void WasmFunctionData::set_wrapper_code(Code code, WriteBarrierMode mode) {
-  TorqueGeneratedClass::set_wrapper_code(ToCodeT(code), mode);
-}
-
 wasm::FunctionSig* WasmExportedFunctionData::sig() const {
   return reinterpret_cast<wasm::FunctionSig*>(signature().foreign_address());
 }
@@ -306,16 +295,6 @@ CAST_ACCESSOR(WasmJSFunction)
 
 // WasmJSFunctionData
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmJSFunctionData)
-
-// WasmInternalFunction
-ACCESSORS(WasmInternalFunction, raw_code, CodeT, kCodeOffset)
-
-DEF_GETTER(WasmInternalFunction, code, Code) {
-  return FromCodeT(raw_code(cage_base));
-}
-void WasmInternalFunction::set_code(Code code, WriteBarrierMode mode) {
-  set_raw_code(ToCodeT(code), mode);
-}
 
 // WasmCapiFunction
 WasmCapiFunction::WasmCapiFunction(Address ptr) : JSFunction(ptr) {
@@ -389,7 +368,6 @@ Handle<Object> WasmObject::ReadValueAt(Isolate* isolate, Handle<HeapObject> obj,
     }
 
     case wasm::kRtt:
-    case wasm::kRttWithDepth:
       // Rtt values are not supposed to be made available to JavaScript side.
       UNREACHABLE();
 
@@ -425,7 +403,6 @@ MaybeHandle<Object> WasmObject::ToWasmValue(Isolate* isolate,
       UNREACHABLE();
 
     case wasm::kRtt:
-    case wasm::kRttWithDepth:
       // Rtt values are not supposed to be made available to JavaScript side.
       UNREACHABLE();
 
@@ -503,7 +480,6 @@ void WasmObject::WriteValueAt(Isolate* isolate, Handle<HeapObject> obj,
       UNREACHABLE();
 
     case wasm::kRtt:
-    case wasm::kRttWithDepth:
       // Rtt values are not supposed to be made available to JavaScript side.
       UNREACHABLE();
 
@@ -614,7 +590,7 @@ int WasmArray::SizeFor(Map map, int length) {
 uint32_t WasmArray::element_offset(uint32_t index) {
   DCHECK_LE(index, length());
   return WasmArray::kHeaderSize +
-         index * type()->element_type().element_size_bytes();
+         index * type()->element_type().value_kind_size();
 }
 
 Address WasmArray::ElementAddress(uint32_t index) {
@@ -647,7 +623,7 @@ void WasmArray::EncodeElementSizeInMap(int element_size, Map map) {
 int WasmArray::DecodeElementSizeFromMap(Map map) { return map.WasmByte1(); }
 
 void WasmTypeInfo::clear_foreign_address(Isolate* isolate) {
-#ifdef V8_HEAP_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   // Due to the type-specific pointer tags for external pointers, we need to
   // allocate an entry in the table here even though it will just store nullptr.
   AllocateExternalPointerEntries(isolate);

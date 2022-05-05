@@ -92,11 +92,17 @@ constexpr int kRootRegisterBias = 128;
 // sign-extend the least significant 16-bits of value <imm>
 #define SIGN_EXT_IMM16(imm) ((static_cast<int>(imm) << 16) >> 16)
 
+// sign-extend the least significant 14-bits of value <imm>
+#define SIGN_EXT_IMM18(imm) ((static_cast<int>(imm) << 14) >> 14)
+
 // sign-extend the least significant 22-bits of value <imm>
 #define SIGN_EXT_IMM22(imm) ((static_cast<int>(imm) << 10) >> 10)
 
 // sign-extend the least significant 26-bits of value <imm>
 #define SIGN_EXT_IMM26(imm) ((static_cast<int>(imm) << 6) >> 6)
+
+// sign-extend the least significant 34-bits of prefix+suffix value <imm>
+#define SIGN_EXT_IMM34(imm) ((static_cast<int64_t>(imm) << 30) >> 30)
 
 // -----------------------------------------------------------------------------
 // Conditions.
@@ -431,9 +437,15 @@ using Instr = uint32_t;
   /* signalling */                                                          \
   V(xscvspdpn, XSCVSPDPN, 0xF000052C)
 
-#define PPC_XX2_OPCODE_B_FORM_LIST(V) \
-  /* Vector Byte-Reverse Quadword */  \
-  V(xxbrq, XXBRQ, 0xF01F076C)
+#define PPC_XX2_OPCODE_B_FORM_LIST(V)  \
+  /* Vector Byte-Reverse Quadword */   \
+  V(xxbrq, XXBRQ, 0xF01F076C)          \
+  /* Vector Byte-Reverse Doubleword */ \
+  V(xxbrd, XXBRD, 0xF017076C)          \
+  /* Vector Byte-Reverse Word */       \
+  V(xxbrw, XXBRW, 0xF00F076C)          \
+  /* Vector Byte-Reverse Halfword */   \
+  V(xxbrh, XXBRH, 0xF007076C)
 
 #define PPC_XX2_OPCODE_UNUSED_LIST(V)                                        \
   /* VSX Scalar Square Root Double-Precision */                              \
@@ -2666,49 +2678,60 @@ immediate-specified index */                 \
   /* System Call */           \
   V(sc, SC, 0x44000002)
 
-#define PPC_OPCODE_LIST(V)       \
-  PPC_X_OPCODE_LIST(V)           \
-  PPC_X_OPCODE_EH_S_FORM_LIST(V) \
-  PPC_XO_OPCODE_LIST(V)          \
-  PPC_DS_OPCODE_LIST(V)          \
-  PPC_DQ_OPCODE_LIST(V)          \
-  PPC_MDS_OPCODE_LIST(V)         \
-  PPC_MD_OPCODE_LIST(V)          \
-  PPC_XS_OPCODE_LIST(V)          \
-  PPC_D_OPCODE_LIST(V)           \
-  PPC_I_OPCODE_LIST(V)           \
-  PPC_B_OPCODE_LIST(V)           \
-  PPC_XL_OPCODE_LIST(V)          \
-  PPC_A_OPCODE_LIST(V)           \
-  PPC_XFX_OPCODE_LIST(V)         \
-  PPC_M_OPCODE_LIST(V)           \
-  PPC_SC_OPCODE_LIST(V)          \
-  PPC_Z23_OPCODE_LIST(V)         \
-  PPC_Z22_OPCODE_LIST(V)         \
-  PPC_EVX_OPCODE_LIST(V)         \
-  PPC_XFL_OPCODE_LIST(V)         \
-  PPC_EVS_OPCODE_LIST(V)         \
-  PPC_VX_OPCODE_LIST(V)          \
-  PPC_VA_OPCODE_LIST(V)          \
-  PPC_VC_OPCODE_LIST(V)          \
-  PPC_XX1_OPCODE_LIST(V)         \
-  PPC_XX2_OPCODE_LIST(V)         \
-  PPC_XX3_OPCODE_VECTOR_LIST(V)  \
-  PPC_XX3_OPCODE_SCALAR_LIST(V)  \
-  PPC_XX4_OPCODE_LIST(V)
+#define PPC_PREFIX_OPCODE_TYPE_00_LIST(V)        \
+  V(pload_store_8ls, PLOAD_STORE_8LS, 0x4000000) \
+  V(pplwa, PPLWA, 0xA4000000)                    \
+  V(ppld, PPLD, 0xE4000000)
+
+#define PPC_PREFIX_OPCODE_TYPE_10_LIST(V) \
+  V(pload_store_mls, PLOAD_STORE_MLS, 0x6000000)
+
+#define PPC_OPCODE_LIST(V)          \
+  PPC_X_OPCODE_LIST(V)              \
+  PPC_X_OPCODE_EH_S_FORM_LIST(V)    \
+  PPC_XO_OPCODE_LIST(V)             \
+  PPC_DS_OPCODE_LIST(V)             \
+  PPC_DQ_OPCODE_LIST(V)             \
+  PPC_MDS_OPCODE_LIST(V)            \
+  PPC_MD_OPCODE_LIST(V)             \
+  PPC_XS_OPCODE_LIST(V)             \
+  PPC_D_OPCODE_LIST(V)              \
+  PPC_I_OPCODE_LIST(V)              \
+  PPC_B_OPCODE_LIST(V)              \
+  PPC_XL_OPCODE_LIST(V)             \
+  PPC_A_OPCODE_LIST(V)              \
+  PPC_XFX_OPCODE_LIST(V)            \
+  PPC_M_OPCODE_LIST(V)              \
+  PPC_SC_OPCODE_LIST(V)             \
+  PPC_Z23_OPCODE_LIST(V)            \
+  PPC_Z22_OPCODE_LIST(V)            \
+  PPC_EVX_OPCODE_LIST(V)            \
+  PPC_XFL_OPCODE_LIST(V)            \
+  PPC_EVS_OPCODE_LIST(V)            \
+  PPC_VX_OPCODE_LIST(V)             \
+  PPC_VA_OPCODE_LIST(V)             \
+  PPC_VC_OPCODE_LIST(V)             \
+  PPC_XX1_OPCODE_LIST(V)            \
+  PPC_XX2_OPCODE_LIST(V)            \
+  PPC_XX3_OPCODE_VECTOR_LIST(V)     \
+  PPC_XX3_OPCODE_SCALAR_LIST(V)     \
+  PPC_XX4_OPCODE_LIST(V)            \
+  PPC_PREFIX_OPCODE_TYPE_00_LIST(V) \
+  PPC_PREFIX_OPCODE_TYPE_10_LIST(V)
 
 enum Opcode : uint32_t {
 #define DECLARE_INSTRUCTION(name, opcode_name, opcode_value) \
   opcode_name = opcode_value,
   PPC_OPCODE_LIST(DECLARE_INSTRUCTION)
 #undef DECLARE_INSTRUCTION
-      EXT0 = 0x10000000,  // Extended code set 0
-  EXT1 = 0x4C000000,      // Extended code set 1
-  EXT2 = 0x7C000000,      // Extended code set 2
-  EXT3 = 0xEC000000,      // Extended code set 3
-  EXT4 = 0xFC000000,      // Extended code set 4
-  EXT5 = 0x78000000,      // Extended code set 5 - 64bit only
-  EXT6 = 0xF0000000,      // Extended code set 6
+      EXTP = 0x4000000,  // Extended code set prefixed
+  EXT0 = 0x10000000,     // Extended code set 0
+  EXT1 = 0x4C000000,     // Extended code set 1
+  EXT2 = 0x7C000000,     // Extended code set 2
+  EXT3 = 0xEC000000,     // Extended code set 3
+  EXT4 = 0xFC000000,     // Extended code set 4
+  EXT5 = 0x78000000,     // Extended code set 5 - 64bit only
+  EXT6 = 0xF0000000,     // Extended code set 6
 };
 
 // Instruction encoding bits and masks.
@@ -2746,6 +2769,7 @@ enum {
   kImm24Mask = (1 << 24) - 1,
   kOff16Mask = (1 << 16) - 1,
   kImm16Mask = (1 << 16) - 1,
+  kImm18Mask = (1 << 18) - 1,
   kImm22Mask = (1 << 22) - 1,
   kImm26Mask = (1 << 26) - 1,
   kBOfieldMask = 0x1f << 21,
@@ -2788,6 +2812,9 @@ enum LKBit {   // Bit 0
   SetLK = 1,   // Load effective address of next instruction
   LeaveLK = 0  // No action
 };
+
+// Prefixed R bit.
+enum PRBit { SetPR = 1, LeavePR = 0 };
 
 enum BOfield {        // Bits 25-21
   DCBNZF = 0 << 21,   // Decrement CTR; branch if CTR != 0 and condition false
@@ -2962,12 +2989,28 @@ class Instruction {
   inline uint32_t OpcodeField() const {
     return static_cast<Opcode>(BitField(31, 26));
   }
+  inline uint32_t PrefixOpcodeField() const {
+    return static_cast<Opcode>(BitField(31, 25));
+  }
 
 #define OPCODE_CASES(name, opcode_name, opcode_value) case opcode_name:
 
   inline Opcode OpcodeBase() const {
-    uint32_t opcode = OpcodeField();
-    uint32_t extcode = OpcodeField();
+    uint32_t opcode = PrefixOpcodeField();
+    uint32_t extcode = PrefixOpcodeField();
+    // Check for prefix.
+    switch (opcode) {
+      PPC_PREFIX_OPCODE_TYPE_00_LIST(OPCODE_CASES)
+      PPC_PREFIX_OPCODE_TYPE_10_LIST(OPCODE_CASES)
+      return static_cast<Opcode>(opcode);
+    }
+    opcode = OpcodeField();
+    extcode = OpcodeField();
+    // Check for suffix.
+    switch (opcode) {
+      PPC_PREFIX_OPCODE_TYPE_00_LIST(OPCODE_CASES)
+      return static_cast<Opcode>(opcode);
+    }
     switch (opcode) {
       PPC_D_OPCODE_LIST(OPCODE_CASES)
       PPC_I_OPCODE_LIST(OPCODE_CASES)

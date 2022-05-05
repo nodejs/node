@@ -24,33 +24,21 @@ template <typename DerivedDescriptor>
 void StaticCallInterfaceDescriptor<DerivedDescriptor>::
     VerifyArgumentRegisterCount(CallInterfaceDescriptorData* data, int argc) {
   RegList allocatable_regs = data->allocatable_registers();
-  if (argc >= 1) DCHECK(allocatable_regs | r0.bit());
-  if (argc >= 2) DCHECK(allocatable_regs | r1.bit());
-  if (argc >= 3) DCHECK(allocatable_regs | r2.bit());
-  if (argc >= 4) DCHECK(allocatable_regs | r3.bit());
-  if (argc >= 5) DCHECK(allocatable_regs | r4.bit());
-  if (argc >= 6) DCHECK(allocatable_regs | r5.bit());
-  if (argc >= 7) DCHECK(allocatable_regs | r6.bit());
-  if (argc >= 8) DCHECK(allocatable_regs | r7.bit());
+  if (argc >= 1) DCHECK(allocatable_regs.has(r0));
+  if (argc >= 2) DCHECK(allocatable_regs.has(r1));
+  if (argc >= 3) DCHECK(allocatable_regs.has(r2));
+  if (argc >= 4) DCHECK(allocatable_regs.has(r3));
+  if (argc >= 5) DCHECK(allocatable_regs.has(r4));
+  if (argc >= 6) DCHECK(allocatable_regs.has(r5));
+  if (argc >= 7) DCHECK(allocatable_regs.has(r6));
+  if (argc >= 8) DCHECK(allocatable_regs.has(r7));
   // Additional arguments are passed on the stack.
 }
 #endif  // DEBUG
 
 // static
 constexpr auto WriteBarrierDescriptor::registers() {
-  return RegisterArray(r1, r5, r4, r2, r0);
-}
-
-// static
-constexpr auto DynamicCheckMapsDescriptor::registers() {
-  STATIC_ASSERT(kReturnRegister0 == r0);
-  return RegisterArray(r0, r1, r2, r3, cp);
-}
-
-// static
-constexpr auto DynamicCheckMapsWithFeedbackVectorDescriptor::registers() {
-  STATIC_ASSERT(kReturnRegister0 == r0);
-  return RegisterArray(r0, r1, r2, r3, cp);
+  return RegisterArray(r1, r5, r4, r2, r0, r3, kContextRegister);
 }
 
 // static
@@ -62,6 +50,36 @@ constexpr Register LoadDescriptor::SlotRegister() { return r0; }
 
 // static
 constexpr Register LoadWithVectorDescriptor::VectorRegister() { return r3; }
+
+// static
+constexpr Register KeyedLoadBaselineDescriptor::ReceiverRegister() {
+  return r1;
+}
+// static
+constexpr Register KeyedLoadBaselineDescriptor::NameRegister() {
+  return kInterpreterAccumulatorRegister;
+}
+// static
+constexpr Register KeyedLoadBaselineDescriptor::SlotRegister() { return r2; }
+
+// static
+constexpr Register KeyedLoadWithVectorDescriptor::VectorRegister() {
+  return r3;
+}
+
+// static
+constexpr Register KeyedHasICBaselineDescriptor::ReceiverRegister() {
+  return kInterpreterAccumulatorRegister;
+}
+// static
+constexpr Register KeyedHasICBaselineDescriptor::NameRegister() { return r1; }
+// static
+constexpr Register KeyedHasICBaselineDescriptor::SlotRegister() { return r2; }
+
+// static
+constexpr Register KeyedHasICWithVectorDescriptor::VectorRegister() {
+  return r3;
+}
 
 // static
 constexpr Register
@@ -106,13 +124,29 @@ constexpr Register BaselineLeaveFrameDescriptor::WeightRegister() { return r4; }
 constexpr Register TypeConversionDescriptor::ArgumentRegister() { return r0; }
 
 // static
-constexpr auto TypeofDescriptor::registers() { return RegisterArray(r3); }
+constexpr auto TypeofDescriptor::registers() { return RegisterArray(r0); }
 
 // static
 constexpr auto CallTrampolineDescriptor::registers() {
   // r0 : number of arguments
   // r1 : the target to call
   return RegisterArray(r1, r0);
+}
+
+// static
+constexpr auto CopyDataPropertiesWithExcludedPropertiesDescriptor::registers() {
+  // r0 : the source
+  // r1 : the excluded property count
+  return RegisterArray(r1, r0);
+}
+
+// static
+constexpr auto
+CopyDataPropertiesWithExcludedPropertiesOnStackDescriptor::registers() {
+  // r0 : the source
+  // r1 : the excluded property count
+  // r2 : the excluded property base
+  return RegisterArray(r1, r0, r2);
 }
 
 // static
@@ -222,6 +256,14 @@ constexpr auto BinaryOp_BaselineDescriptor::registers() {
   // r0: right operand
   // r2: feedback slot
   return RegisterArray(r1, r0, r2);
+}
+
+// static
+constexpr auto BinarySmiOp_BaselineDescriptor::registers() {
+  // r0: left operand
+  // r1: right operand
+  // r2: feedback slot
+  return RegisterArray(r0, r1, r2);
 }
 
 // static

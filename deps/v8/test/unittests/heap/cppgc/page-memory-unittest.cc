@@ -115,6 +115,8 @@ TEST(PageMemoryRegionTest, LargePageMemoryRegion) {
   EXPECT_EQ(0u, pm.writeable_region().end()[-1]);
 }
 
+// See the comment in globals.h when setting |kGuardPageSize| for details.
+#if !(defined(V8_TARGET_ARCH_ARM64) && defined(V8_OS_MACOS))
 TEST(PageMemoryRegionTest, PlatformUsesGuardPages) {
   // This tests that the testing allocator actually uses protected guard
   // regions.
@@ -132,6 +134,7 @@ TEST(PageMemoryRegionTest, PlatformUsesGuardPages) {
   EXPECT_TRUE(SupportsCommittingGuardPages(allocator));
 #endif
 }
+#endif  // !(defined(V8_TARGET_ARCH_ARM64) && defined(V8_OS_MACOS))
 
 namespace {
 
@@ -295,15 +298,19 @@ TEST(PageBackendTest, LookupNormal) {
   PageBackend backend(allocator, oom_handler);
   constexpr size_t kBucket = 0;
   Address writeable_base = backend.AllocateNormalPageMemory(kBucket);
-  EXPECT_EQ(nullptr, backend.Lookup(writeable_base - kGuardPageSize));
+  if (kGuardPageSize) {
+    EXPECT_EQ(nullptr, backend.Lookup(writeable_base - kGuardPageSize));
+  }
   EXPECT_EQ(nullptr, backend.Lookup(writeable_base - 1));
   EXPECT_EQ(writeable_base, backend.Lookup(writeable_base));
   EXPECT_EQ(writeable_base, backend.Lookup(writeable_base + kPageSize -
                                            2 * kGuardPageSize - 1));
   EXPECT_EQ(nullptr,
             backend.Lookup(writeable_base + kPageSize - 2 * kGuardPageSize));
-  EXPECT_EQ(nullptr,
-            backend.Lookup(writeable_base - kGuardPageSize + kPageSize - 1));
+  if (kGuardPageSize) {
+    EXPECT_EQ(nullptr,
+              backend.Lookup(writeable_base - kGuardPageSize + kPageSize - 1));
+  }
 }
 
 TEST(PageBackendTest, LookupLarge) {
@@ -312,7 +319,9 @@ TEST(PageBackendTest, LookupLarge) {
   PageBackend backend(allocator, oom_handler);
   constexpr size_t kSize = 7934;
   Address writeable_base = backend.AllocateLargePageMemory(kSize);
-  EXPECT_EQ(nullptr, backend.Lookup(writeable_base - kGuardPageSize));
+  if (kGuardPageSize) {
+    EXPECT_EQ(nullptr, backend.Lookup(writeable_base - kGuardPageSize));
+  }
   EXPECT_EQ(nullptr, backend.Lookup(writeable_base - 1));
   EXPECT_EQ(writeable_base, backend.Lookup(writeable_base));
   EXPECT_EQ(writeable_base, backend.Lookup(writeable_base + kSize - 1));

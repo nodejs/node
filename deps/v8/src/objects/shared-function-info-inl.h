@@ -122,8 +122,7 @@ DEF_ACQUIRE_GETTER(SharedFunctionInfo,
 uint16_t SharedFunctionInfo::internal_formal_parameter_count_with_receiver()
     const {
   const uint16_t param_count = TorqueGeneratedClass::formal_parameter_count();
-  if (param_count == kDontAdaptArgumentsSentinel) return param_count;
-  return param_count + (kJSArgcIncludesReceiver ? 0 : 1);
+  return param_count;
 }
 
 uint16_t SharedFunctionInfo::internal_formal_parameter_count_without_receiver()
@@ -139,8 +138,8 @@ void SharedFunctionInfo::set_internal_formal_parameter_count(int value) {
   TorqueGeneratedClass::set_formal_parameter_count(value);
 }
 
-RENAME_UINT16_TORQUE_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
-                               function_token_offset)
+RENAME_PRIMITIVE_TORQUE_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
+                                  function_token_offset, uint16_t)
 
 RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
 int32_t SharedFunctionInfo::relaxed_flags() const {
@@ -225,7 +224,7 @@ bool SharedFunctionInfo::AreSourcePositionsAvailable(IsolateT* isolate) const {
 
 template <typename IsolateT>
 SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability(
-    IsolateT* isolate, bool is_turboprop) const {
+    IsolateT* isolate) const {
   if (!script().IsScript()) return kHasNoScript;
 
   if (GetIsolate()->is_precise_binary_code_coverage() &&
@@ -244,11 +243,7 @@ SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability(
   // inline.
   if (!HasBytecodeArray()) return kHasNoBytecode;
 
-  int max_inlined_size = FLAG_max_inlined_bytecode_size;
-  if (is_turboprop) {
-    max_inlined_size = max_inlined_size / FLAG_turboprop_inline_scaling_factor;
-  }
-  if (GetBytecodeArray(isolate).length() > max_inlined_size) {
+  if (GetBytecodeArray(isolate).length() > FLAG_max_inlined_bytecode_size) {
     return kExceedsBytecodeLimit;
   }
 
@@ -265,6 +260,9 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, class_scope_has_private_brand,
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2,
                     has_static_private_methods_or_accessors,
                     SharedFunctionInfo::HasStaticPrivateMethodsOrAccessorsBit)
+
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, maglev_compilation_failed,
+                    SharedFunctionInfo::MaglevCompilationFailedBit)
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, syntax_kind,
                     SharedFunctionInfo::FunctionSyntaxKindBits)
@@ -305,6 +303,17 @@ bool SharedFunctionInfo::optimization_disabled() const {
 
 BailoutReason SharedFunctionInfo::disabled_optimization_reason() const {
   return DisabledOptimizationReasonBits::decode(flags(kRelaxedLoad));
+}
+
+OSRCodeCacheStateOfSFI SharedFunctionInfo::osr_code_cache_state() const {
+  return OsrCodeCacheStateBits::decode(flags(kRelaxedLoad));
+}
+
+void SharedFunctionInfo::set_osr_code_cache_state(
+    OSRCodeCacheStateOfSFI state) {
+  int hints = flags(kRelaxedLoad);
+  hints = OsrCodeCacheStateBits::update(hints, state);
+  set_flags(hints, kRelaxedStore);
 }
 
 LanguageMode SharedFunctionInfo::language_mode() const {
@@ -401,8 +410,6 @@ bool SharedFunctionInfo::IsDontAdaptArguments() const {
   return TorqueGeneratedClass::formal_parameter_count() ==
          kDontAdaptArgumentsSentinel;
 }
-
-bool SharedFunctionInfo::IsInterpreted() const { return HasBytecodeArray(); }
 
 DEF_ACQUIRE_GETTER(SharedFunctionInfo, scope_info, ScopeInfo) {
   Object maybe_scope_info = name_or_scope_info(cage_base, kAcquireLoad);
@@ -710,6 +717,10 @@ bool SharedFunctionInfo::HasWasmJSFunctionData() const {
 
 bool SharedFunctionInfo::HasWasmCapiFunctionData() const {
   return function_data(kAcquireLoad).IsWasmCapiFunctionData();
+}
+
+bool SharedFunctionInfo::HasWasmOnFulfilledData() const {
+  return function_data(kAcquireLoad).IsWasmOnFulfilledData();
 }
 
 AsmWasmData SharedFunctionInfo::asm_wasm_data() const {

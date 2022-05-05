@@ -6,7 +6,7 @@
 
 <!-- source_link=lib/http.js -->
 
-To use the HTTP server and client one must `require('http')`.
+To use the HTTP server and client one must `require('node:http')`.
 
 The HTTP interfaces in Node.js are designed to support many features
 of the protocol which have been traditionally difficult to use.
@@ -188,7 +188,7 @@ of these values set to their respective defaults.
 To configure any of them, a custom [`http.Agent`][] instance must be created.
 
 ```js
-const http = require('http');
+const http = require('node:http');
 const keepAliveAgent = new http.Agent({ keepAlive: true });
 options.agent = keepAliveAgent;
 http.request(options, onResponseCallback);
@@ -301,7 +301,9 @@ removed from the array on `'timeout'`.
 <!-- YAML
 added: v0.11.4
 changes:
-  - version: v17.7.0
+  - version:
+    - v17.7.0
+    - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41906
     description: The `options` parameter is now optional.
 -->
@@ -393,7 +395,7 @@ agent. Do not modify.
 added: v0.1.17
 -->
 
-* Extends: {Stream}
+* Extends: {http.OutgoingMessage}
 
 This object is created internally and returned from [`http.request()`][]. It
 represents an _in-progress_ request whose header has already been queued. The
@@ -438,6 +440,15 @@ deprecated:
 Emitted when the request has been aborted by the client. This event is only
 emitted on the first call to `abort()`.
 
+### Event: `'close'`
+
+<!-- YAML
+added: v0.5.4
+-->
+
+Indicates that the request is completed, or its underlying connection was
+terminated prematurely (before the response completion).
+
 ### Event: `'connect'`
 
 <!-- YAML
@@ -459,9 +470,9 @@ type other than {net.Socket}.
 A client and server pair demonstrating how to listen for the `'connect'` event:
 
 ```js
-const http = require('http');
-const net = require('net');
-const { URL } = require('url');
+const http = require('node:http');
+const net = require('node:net');
+const { URL } = require('node:url');
 
 // Create an HTTP tunneling proxy
 const proxy = http.createServer((req, res) => {
@@ -523,6 +534,17 @@ Emitted when the server sends a '100 Continue' HTTP response, usually because
 the request contained 'Expect: 100-continue'. This is an instruction that
 the client should send the request body.
 
+### Event: `'finish'`
+
+<!-- YAML
+added: v0.3.6
+-->
+
+Emitted when the request has been sent. More specifically, this event is emitted
+when the last segment of the response headers and body have been handed off to
+the operating system for transmission over the network. It does not imply that
+the server has received anything yet.
+
 ### Event: `'information'`
 
 <!-- YAML
@@ -544,7 +566,7 @@ HTTP version, status code, status message, key-value headers object,
 and array with the raw header names followed by their respective values.
 
 ```js
-const http = require('http');
+const http = require('node:http');
 
 const options = {
   host: '127.0.0.1',
@@ -622,7 +644,7 @@ type other than {net.Socket}.
 A client server pair demonstrating how to listen for the `'upgrade'` event.
 
 ```js
-const http = require('http');
+const http = require('node:http');
 
 // Create an HTTP server
 const server = http.createServer((req, res) => {
@@ -708,6 +730,16 @@ deprecated: v13.0.0
 * {stream.Duplex}
 
 See [`request.socket`][].
+
+### `request.cork()`
+
+<!-- YAML
+added:
+ - v13.2.0
+ - v12.16.0
+-->
+
+See [`writable.cork()`][].
 
 ### `request.end([data[, encoding]][, callback])`
 
@@ -826,6 +858,52 @@ const cookie = request.getHeader('Cookie');
 // 'cookie' is of type string[]
 ```
 
+### `request.getHeaderNames()`
+
+<!-- YAML
+added: v7.7.0
+-->
+
+* Returns: {string\[]}
+
+Returns an array containing the unique names of the current outgoing headers.
+All header names are lowercase.
+
+```js
+request.setHeader('Foo', 'bar');
+request.setHeader('Cookie', ['foo=bar', 'bar=baz']);
+
+const headerNames = request.getHeaderNames();
+// headerNames === ['foo', 'Cookie']
+```
+
+### `request.getHeaders()`
+
+<!-- YAML
+added: v7.7.0
+-->
+
+* Returns: {Object}
+
+Returns a shallow copy of the current outgoing headers. Since a shallow copy
+is used, array values may be mutated without additional calls to various
+header-related http module methods. The keys of the returned object are the
+header names and the values are the respective header values. All header names
+are lowercase.
+
+The object returned by the `response.getHeaders()` method _does not_
+prototypically inherit from the JavaScript `Object`. This means that typical
+`Object` methods such as `obj.toString()`, `obj.hasOwnProperty()`, and others
+are not defined and _will not work_.
+
+```js
+request.setHeader('Foo', 'bar');
+request.setHeader('Cookie', ['foo=bar', 'bar=baz']);
+
+const headers = response.getHeaders();
+// headers === { foo: 'bar', 'cookie': ['foo=bar', 'bar=baz'] }
+```
+
 ### `request.getRawHeaderNames()`
 
 <!-- YAML
@@ -845,6 +923,22 @@ request.setHeader('Set-Cookie', ['foo=bar', 'bar=baz']);
 
 const headerNames = request.getRawHeaderNames();
 // headerNames === ['Foo', 'Set-Cookie']
+```
+
+### `request.hasHeader(name)`
+
+<!-- YAML
+added: v7.7.0
+-->
+
+* `name` {string}
+* Returns: {boolean}
+
+Returns `true` if the header identified by `name` is currently set in the
+outgoing headers. The header name matching is case-insensitive.
+
+```js
+const hasContentType = request.hasHeader('content-type');
 ```
 
 ### `request.maxHeadersCount`
@@ -918,7 +1012,7 @@ might be reused. But if server closes connection at unfortunate time, client
 may run into a 'ECONNRESET' error.
 
 ```js
-const http = require('http');
+const http = require('node:http');
 
 // Server has a 5 seconds keep-alive timeout by default
 http
@@ -942,7 +1036,7 @@ By marking a request whether it reused socket or not, we can do
 automatic error retry base on it.
 
 ```js
-const http = require('http');
+const http = require('node:http');
 const agent = new http.Agent({ keepAlive: true });
 
 function retriableRequest() {
@@ -985,6 +1079,17 @@ or
 
 ```js
 request.setHeader('Cookie', ['type=ninja', 'language=javascript']);
+```
+
+When the value is a string an exception will be thrown if it contains
+characters outside the `latin1` encoding.
+
+If you need to pass UTF-8 characters in the value please encode the value
+using the [RFC 8187][] standard.
+
+```js
+const filename = 'Rock 🎵.txt';
+request.setHeader('Content-Disposition', `attachment; filename*=utf-8''${encodeURIComponent(filename)}`);
 ```
 
 ### `request.setNoDelay([noDelay])`
@@ -1041,7 +1146,7 @@ this property. In particular, the socket will not emit `'readable'` events
 because of how the protocol parser attaches to the socket.
 
 ```js
-const http = require('http');
+const http = require('node:http');
 const options = {
   host: 'www.google.com',
 };
@@ -1058,6 +1163,16 @@ req.once('response', (res) => {
 This property is guaranteed to be an instance of the {net.Socket} class,
 a subclass of {stream.Duplex}, unless the user specified a socket
 type other than {net.Socket}.
+
+### `request.uncork()`
+
+<!-- YAML
+added:
+ - v13.2.0
+ - v12.16.0
+-->
+
+See [`writable.uncork()`][].
 
 ### `request.writableEnded`
 
@@ -1198,7 +1313,7 @@ written data it is immediately destroyed.
 `socket` is the [`net.Socket`][] object that the error originated from.
 
 ```js
-const http = require('http');
+const http = require('node:http');
 
 const server = http.createServer((req, res) => {
   res.end();
@@ -1340,6 +1455,23 @@ added: v0.1.90
 
 Stops the server from accepting new connections. See [`net.Server.close()`][].
 
+### `server.closeAllConnections()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Closes all connections connected to this server.
+
+### `server.closeIdleConnections()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Closes all connections connected to this server which are not sending a request
+or waiting for a response.
+
 ### `server.headersTimeout`
 
 <!-- YAML
@@ -1353,15 +1485,12 @@ added:
 Limit the amount of time the parser will wait to receive the complete HTTP
 headers.
 
-In case of inactivity, the rules defined in [`server.timeout`][] apply. However,
-that inactivity based timeout would still allow the connection to be kept open
-if the headers are being sent very slowly (by default, up to a byte per 2
-minutes). In order to prevent this, whenever header data arrives an additional
-check is made that more than `server.headersTimeout` milliseconds has not
-passed since the connection was established. If the check fails, a `'timeout'`
-event is emitted on the server object, and (by default) the socket is destroyed.
-See [`server.timeout`][] for more information on how timeout behavior can be
-customized.
+If the timeout expires, the server responds with status 408 without
+forwarding the request to the request listener and then closes the connection.
+
+It must be set to a non-zero value (e.g. 120 seconds) to protect against
+potential Denial-of-Service attacks in case the server is deployed without a
+reverse proxy in front.
 
 ### `server.listen()`
 
@@ -1390,9 +1519,14 @@ Limits maximum incoming headers count. If set to 0, no limit will be applied.
 
 <!-- YAML
 added: v14.11.0
+changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41263
+    description: The default request timeout changed
+                 from no timeout to 300s (5 minutes).
 -->
 
-* {number} **Default:** `0`
+* {number} **Default:** `300000`
 
 Sets the timeout value in milliseconds for receiving the entire request from
 the client.
@@ -1494,7 +1628,7 @@ affects new connections to the server, not any existing connections.
 added: v0.1.17
 -->
 
-* Extends: {Stream}
+* Extends: {http.OutgoingMessage}
 
 This object is created internally by an HTTP server, not by the user. It is
 passed as the second parameter to the [`'request'`][] event.
@@ -1842,7 +1976,7 @@ because of how the protocol parser attaches to the socket. After
 `response.end()`, the property is nulled.
 
 ```js
-const http = require('http');
+const http = require('node:http');
 const server = http.createServer((req, res) => {
   const ip = res.socket.remoteAddress;
   const port = res.socket.remotePort;
@@ -1943,7 +2077,7 @@ it will switch to implicit header mode and flush the implicit headers.
 This sends a chunk of the response body. This method may
 be called multiple times to provide successive parts of the body.
 
-In the `http` module, the response body is omitted when the
+In the `node:http` module, the response body is omitted when the
 request is a HEAD request. Similarly, the `204` and `304` responses
 _must not_ include a message body.
 
@@ -2221,7 +2355,7 @@ Key-value pairs of header names and values. Header names are lower-cased.
 // { 'user-agent': 'curl/7.22.0',
 //   host: '127.0.0.1:8000',
 //   accept: '*/*' }
-console.log(request.headers);
+console.log(request.getHeaders());
 ```
 
 Duplicates in raw headers are handled in the following ways, depending on the
@@ -2388,15 +2522,15 @@ Accept: text/plain
 To parse the URL into its parts:
 
 ```js
-new URL(request.url, `http://${request.headers.host}`);
+new URL(request.url, `http://${request.getHeaders().host}`);
 ```
 
 When `request.url` is `'/status?name=ryan'` and
-`request.headers.host` is `'localhost:3000'`:
+`request.getHeaders().host` is `'localhost:3000'`:
 
 ```console
 $ node
-> new URL(request.url, `http://${request.headers.host}`)
+> new URL(request.url, `http://${request.getHeaders().host}`)
 URL {
   href: 'http://localhost:3000/status?name=ryan',
   origin: 'http://localhost:3000',
@@ -2422,8 +2556,8 @@ added: v0.1.17
 * Extends: {Stream}
 
 This class serves as the parent class of [`http.ClientRequest`][]
-and [`http.ServerResponse`][]. It is an abstract of outgoing message from
-the perspective of the participants of HTTP transaction.
+and [`http.ServerResponse`][]. It is an abstract outgoing message from
+the perspective of the participants of an HTTP transaction.
 
 ### Event: `'drain'`
 
@@ -2447,7 +2581,7 @@ Emitted when the transmission is finished successfully.
 added: v0.11.6
 -->
 
-Emitted when `outgoingMessage.end` was called.
+Emitted after `outgoingMessage.end()` is called.
 When the event is emitted, all data has been processed but not necessarily
 completely flushed.
 
@@ -2461,11 +2595,11 @@ added: v0.3.0
 
 Adds HTTP trailers (headers but at the end of the message) to the message.
 
-Trailers are **only** be emitted if the message is chunked encoded. If not,
-the trailer will be silently discarded.
+Trailers will **only** be emitted if the message is chunked encoded. If not,
+the trailers will be silently discarded.
 
 HTTP requires the  `Trailer` header to be sent to emit trailers,
-with a list of header fields in its value, e.g.
+with a list of header field names in its value, e.g.
 
 ```js
 message.writeHead(200, { 'Content-Type': 'text/plain',
@@ -2489,12 +2623,14 @@ deprecated:
 
 > Stability: 0 - Deprecated: Use [`outgoingMessage.socket`][] instead.
 
-Aliases of `outgoingMessage.socket`
+Alias of [`outgoingMessage.socket`][].
 
 ### `outgoingMessage.cork()`
 
 <!-- YAML
-added: v14.0.0
+added:
+  - v13.2.0
+  - v12.16.0
 -->
 
 See [`writable.cork()`][].
@@ -2527,14 +2663,14 @@ changes:
 
 Finishes the outgoing message. If any parts of the body are unsent, it will
 flush them to the underlying system. If the message is chunked, it will
-send the terminating chunk `0\r\n\r\n`, and send the trailer (if any).
+send the terminating chunk `0\r\n\r\n`, and send the trailers (if any).
 
-If `chunk` is specified, it is equivalent to call
+If `chunk` is specified, it is equivalent to calling
 `outgoingMessage.write(chunk, encoding)`, followed by
 `outgoingMessage.end(callback)`.
 
-If `callback` is provided, it will be called when the message is finished.
-(equivalent to the callback to event `finish`)
+If `callback` is provided, it will be called when the message is finished
+(equivalent to a listener of the `'finish'` event).
 
 ### `outgoingMessage.flushHeaders()`
 
@@ -2542,7 +2678,7 @@ If `callback` is provided, it will be called when the message is finished.
 added: v1.6.0
 -->
 
-Compulsorily flushes the message headers
+Flushes the message headers.
 
 For efficiency reason, Node.js normally buffers the message headers
 until `outgoingMessage.end()` is called or the first chunk of message data
@@ -2551,7 +2687,7 @@ packet.
 
 It is usually desired (it saves a TCP round-trip), but not when the first
 data is not sent until possibly much later. `outgoingMessage.flushHeaders()`
-bypasses the optimization and kickstarts the request.
+bypasses the optimization and kickstarts the message.
 
 ### `outgoingMessage.getHeader(name)`
 
@@ -2562,24 +2698,24 @@ added: v0.4.0
 * `name` {string} Name of header
 * Returns {string | undefined}
 
-Gets the value of HTTP header with the given name. If such a name doesn't
-exist in message, it will be `undefined`.
+Gets the value of the HTTP header with the given name. If that header is not
+set, the returned value will be `undefined`.
 
 ### `outgoingMessage.getHeaderNames()`
 
 <!-- YAML
-added: v8.0.0
+added: v7.7.0
 -->
 
 * Returns {string\[]}
 
-Returns an array of names of headers of the outgoing outgoingMessage. All
-names are lowercase.
+Returns an array containing the unique names of the current outgoing headers.
+All names are lowercase.
 
 ### `outgoingMessage.getHeaders()`
 
 <!-- YAML
-added:  v8.0.0
+added: v7.7.0
 -->
 
 * Returns: {Object}
@@ -2591,8 +2727,8 @@ object are the header names and the values are the respective header
 values. All header names are lowercase.
 
 The object returned by the `outgoingMessage.getHeaders()` method does
-not prototypically inherit from the JavaScript Object. This means that
-typical Object methods such as `obj.toString()`, `obj.hasOwnProperty()`,
+not prototypically inherit from the JavaScript `Object`. This means that
+typical `Object` methods such as `obj.toString()`, `obj.hasOwnProperty()`,
 and others are not defined and will not work.
 
 ```js
@@ -2606,7 +2742,7 @@ const headers = outgoingMessage.getHeaders();
 ### `outgoingMessage.hasHeader(name)`
 
 <!-- YAML
-added:  v8.0.0
+added: v7.7.0
 -->
 
 * `name` {string}
@@ -2635,20 +2771,19 @@ Read-only. `true` if the headers were sent, otherwise `false`.
 added: v9.0.0
 -->
 
-Overrides the pipe method of legacy `Stream` which is the parent class of
-`http.outgoingMessage`.
+Overrides the `stream.pipe()` method inherited from the legacy `Stream` class
+which is the parent class of `http.OutgoingMessage`.
 
-Since `OutgoingMessage` should be a write-only stream,
-call this function will throw an `Error`. Thus, it disabled the pipe method
-it inherits from `Stream`.
+Calling this method will throw an `Error` because `outgoingMessage` is a
+write-only stream.
 
-The User should not call this function directly.
-
-### `outgoingMessage.removeHeader()`
+### `outgoingMessage.removeHeader(name)`
 
 <!-- YAML
-added:  v0.4.0
+added: v0.4.0
 -->
+
+* `name` {string} Header name
 
 Removes a header that is queued for implicit sending.
 
@@ -2663,10 +2798,12 @@ added: v0.4.0
 -->
 
 * `name` {string} Header name
-* `value` {string} Header value
+* `value` {any} Header value
 * Returns: {this}
 
-Sets a single header value for the header object.
+Sets a single header value. If the header already exists in the to-be-sent
+headers, its value will be replaced. Use an array of strings to send multiple
+headers with the same name.
 
 ### `outgoingMessage.setTimeout(msesc[, callback])`
 
@@ -2698,7 +2835,9 @@ After calling `outgoingMessage.end()`, this property will be nulled.
 ### `outgoingMessage.uncork()`
 
 <!-- YAML
-added: v14.0.0
+added:
+  - v13.2.0
+  - v12.16.0
 -->
 
 See [`writable.uncork()`][]
@@ -2706,71 +2845,67 @@ See [`writable.uncork()`][]
 ### `outgoingMessage.writableCorked`
 
 <!-- YAML
-added: v14.0.0
+added:
+  - v13.2.0
+  - v12.16.0
 -->
 
 * {number}
 
-This `outgoingMessage.writableCorked` will return the time how many
-`outgoingMessage.cork()` have been called.
+The number of times `outgoingMessage.cork()` has been called.
 
 ### `outgoingMessage.writableEnded`
 
 <!-- YAML
-added: v13.0.0
+added: v12.9.0
 -->
 
 * {boolean}
 
-Readonly, `true` if `outgoingMessage.end()` has been called. Noted that
-this property does not reflect whether the data has been flush. For that
-purpose, use `message.writableFinished` instead.
+Is `true` if `outgoingMessage.end()` has been called. This property does
+not indicate whether the data has been flushed. For that purpose, use
+`message.writableFinished` instead.
 
 ### `outgoingMessage.writableFinished`
 
 <!-- YAML
-added: v13.0.0
+added: v12.7.0
 -->
 
 * {boolean}
 
-Readonly. `true` if all data has been flushed to the underlying system.
+Is `true` if all data has been flushed to the underlying system.
 
 ### `outgoingMessage.writableHighWaterMark`
 
 <!-- YAML
-added: v13.0.0
+added: v12.9.0
 -->
 
 * {number}
 
-This `outgoingMessage.writableHighWaterMark` will be the `highWaterMark` of
-underlying socket if socket exists. Else, it would be the default
-`highWaterMark`.
-
-`highWaterMark` is the maximum amount of data that can be potentially
-buffered by the socket.
+The `highWaterMark` of the underlying socket if assigned. Otherwise, the default
+buffer level when [`writable.write()`][] starts returning false (`16384`).
 
 ### `outgoingMessage.writableLength`
 
 <!-- YAML
-added: v13.0.0
+added: v12.9.0
 -->
 
 * {number}
 
-Readonly, This `outgoingMessage.writableLength` contains the number of
-bytes (or objects) in the buffer ready to send.
+The number of buffered bytes.
 
 ### `outgoingMessage.writableObjectMode`
 
 <!-- YAML
-added: v13.0.0
+added: v12.9.0
 -->
 
 * {boolean}
 
-Readonly, always returns `false`.
+Always `false`.
 
 ### `outgoingMessage.write(chunk[, encoding][, callback])`
 
@@ -2778,7 +2913,7 @@ Readonly, always returns `false`.
 added: v0.1.29
 changes:
   - version: v0.11.6
-    description: add `callback` argument.
+    description: The `callback` argument was added.
 -->
 
 * `chunk` {string | Buffer}
@@ -2786,35 +2921,17 @@ changes:
 * `callback` {Function}
 * Returns {boolean}
 
-If this method is called and the header is not sent, it will call
-`this._implicitHeader` to flush implicit header.
-If the message should not have a body (indicated by `this._hasBody`),
-the call is ignored and `chunk` will not be sent. It could be useful
-when handling a particular message which must not include a body.
-e.g. response to `HEAD` request, `204` and `304` response.
+Sends a chunk of the body. This method can be called multiple times.
 
-`chunk` can be a string or a buffer. When `chunk` is a string, the
-`encoding` parameter specifies how to encode `chunk` into a byte stream.
-`callback` will be called when the `chunk` is flushed.
+The `encoding` argument is only relevant when `chunk` is a string. Defaults to
+`'utf8'`.
 
-If the message is transferred in chucked encoding
-(indicated by `this.chunkedEncoding`), `chunk` will be flushed as
-one chunk among a stream of chunks. Otherwise, it will be flushed as the
-body of message.
-
-This method handles the raw body of the HTTP message and has nothing to do
-with higher-level multi-part body encodings that may be used.
-
-If it is the first call to this method of a message, it will send the
-buffered header first, then flush the `chunk` as described above.
-
-The second and successive calls to this method will assume the data
-will be streamed and send the new data separately. It means that the response
-is buffered up to the first chunk of the body.
+The `callback` argument is optional and will be called when this chunk of data
+is flushed.
 
 Returns `true` if the entire data was flushed successfully to the kernel
 buffer. Returns `false` if all or part of the data was queued in the user
-memory. Event `drain` will be emitted when the buffer is free again.
+memory. The `'drain'` event will be emitted when the buffer is free again.
 
 ## `http.METHODS`
 
@@ -2843,10 +2960,16 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41263
+    description: The `requestTimeout`, `headersTimeout`, `keepAliveTimeout` and
+                 `connectionsCheckingInterval` are supported now.
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42163
     description: The `noDelay` option now defaults to `true`.
-  - version: v17.7.0
+  - version:
+    - v17.7.0
+    - v16.15.0
     pr-url: https://github.com/nodejs/node/pull/41310
     description: The `noDelay`, `keepAlive` and `keepAliveInitialDelay`
                  options are supported now.
@@ -2873,6 +2996,22 @@ changes:
   * `ServerResponse` {http.ServerResponse} Specifies the `ServerResponse` class
     to be used. Useful for extending the original `ServerResponse`. **Default:**
     `ServerResponse`.
+  * `requestTimeout`: Sets the timeout value in milliseconds for receiving
+    the entire request from the client.
+    See [`server.requestTimeout`][] for more information.
+    **Default:** `300000`.
+  * `headersTimeout`: Sets the timeout value in milliseconds for receiving
+    the complete HTTP headers from the client.
+    See [`server.headersTimeout`][] for more information.
+    **Default:** `60000`.
+  * `keepAliveTimeout`: The number of milliseconds of inactivity a server
+    needs to wait for additional incoming data, after it has finished writing
+    the last response, before a socket will be destroyed.
+    See [`server.keepAliveTimeout`][] for more information.
+    **Default:** `5000`.
+  * `connectionsCheckingInterval`: Sets the interval value in milliseconds to
+    check for request and headers timeout in incomplete requests.
+    **Default:** `30000`.
   * `insecureHTTPParser` {boolean} Use an insecure HTTP parser that accepts
     invalid HTTP headers when `true`. Using the insecure parser should be
     avoided. See [`--insecure-http-parser`][] for more information.
@@ -2880,7 +3019,7 @@ changes:
   * `maxHeaderSize` {number} Optionally overrides the value of
     [`--max-http-header-size`][] for requests received by this server, i.e.
     the maximum length of request headers in bytes.
-    **Default:** 16384 (16 KB).
+    **Default:** 16384 (16 KiB).
   * `noDelay` {boolean} If set to `true`, it disables the use of Nagle's
     algorithm immediately after a new incoming connection is received.
     **Default:** `true`.
@@ -2902,7 +3041,7 @@ The `requestListener` is a function which is automatically
 added to the [`'request'`][] event.
 
 ```cjs
-const http = require('http');
+const http = require('node:http');
 
 // Create a local server to receive data from
 const server = http.createServer((req, res) => {
@@ -2916,7 +3055,7 @@ server.listen(8000);
 ```
 
 ```cjs
-const http = require('http');
+const http = require('node:http');
 
 // Create a local server to receive data from
 const server = http.createServer();
@@ -3036,7 +3175,7 @@ added:
 * {number}
 
 Read-only property specifying the maximum allowed size of HTTP headers in bytes.
-Defaults to 16 KB. Configurable using the [`--max-http-header-size`][] CLI
+Defaults to 16 KiB. Configurable using the [`--max-http-header-size`][] CLI
 option.
 
 This can be overridden for servers and client requests by passing the
@@ -3113,7 +3252,7 @@ changes:
   * `maxHeaderSize` {number} Optionally overrides the value of
     [`--max-http-header-size`][] (the maximum length of response headers in
     bytes) for responses received from the server.
-    **Default:** 16384 (16 KB).
+    **Default:** 16384 (16 KiB).
   * `method` {string} A string specifying the HTTP request method. **Default:**
     `'GET'`.
   * `path` {string} Request path. Should include query string if any.
@@ -3154,7 +3293,7 @@ class. The `ClientRequest` instance is a writable stream. If one needs to
 upload a file with a POST request, then write to the `ClientRequest` object.
 
 ```js
-const http = require('http');
+const http = require('node:http');
 
 const postData = JSON.stringify({
   'msg': 'Hello World!'
@@ -3353,7 +3492,7 @@ Examples:
 Example:
 
 ```js
-const { validateHeaderName } = require('http');
+const { validateHeaderName } = require('node:http');
 
 try {
   validateHeaderName('');
@@ -3387,7 +3526,7 @@ or response. The HTTP module will automatically validate such headers.
 Examples:
 
 ```js
-const { validateHeaderValue } = require('http');
+const { validateHeaderValue } = require('node:http');
 
 try {
   validateHeaderValue('x-my-header', undefined);
@@ -3406,6 +3545,7 @@ try {
 }
 ```
 
+[RFC 8187]: https://www.rfc-editor.org/rfc/rfc8187.txt
 [`'checkContinue'`]: #event-checkcontinue
 [`'finish'`]: #event-finish
 [`'request'`]: #event-request
@@ -3464,7 +3604,10 @@ try {
 [`response.write(data, encoding)`]: #responsewritechunk-encoding-callback
 [`response.writeContinue()`]: #responsewritecontinue
 [`response.writeHead()`]: #responsewriteheadstatuscode-statusmessage-headers
+[`server.headersTimeout`]: #serverheaderstimeout
+[`server.keepAliveTimeout`]: #serverkeepalivetimeout
 [`server.listen()`]: net.md#serverlisten
+[`server.requestTimeout`]: #serverrequesttimeout
 [`server.timeout`]: #servertimeout
 [`setHeader(name, value)`]: #requestsetheadername-value
 [`socket.connect()`]: net.md#socketconnectoptions-connectlistener
@@ -3477,4 +3620,5 @@ try {
 [`writable.destroy()`]: stream.md#writabledestroyerror
 [`writable.destroyed`]: stream.md#writabledestroyed
 [`writable.uncork()`]: stream.md#writableuncork
+[`writable.write()`]: stream.md#writablewritechunk-encoding-callback
 [initial delay]: net.md#socketsetkeepaliveenable-initialdelay

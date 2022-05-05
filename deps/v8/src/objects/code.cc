@@ -12,7 +12,7 @@
 #include "src/codegen/safepoint-table.h"
 #include "src/codegen/source-position.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/execution/isolate-utils.h"
+#include "src/execution/isolate-utils-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter.h"
@@ -20,7 +20,7 @@
 #include "src/objects/code-kind.h"
 #include "src/objects/fixed-array.h"
 #include "src/roots/roots-inl.h"
-#include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/utils/ostreams.h"
 
 #ifdef ENABLE_DISASSEMBLER
@@ -33,43 +33,117 @@
 namespace v8 {
 namespace internal {
 
-Address Code::SafepointTableAddress() const {
-  return MetadataStart() + safepoint_table_offset();
+namespace {
+
+// Helper function for getting an EmbeddedData that can handle un-embedded
+// builtins when short builtin calls are enabled.
+inline EmbeddedData EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(
+    HeapObject code) {
+#if defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE)
+  // GetIsolateFromWritableObject(*this) works for both read-only and writable
+  // objects when pointer compression is enabled with a per-Isolate cage.
+  return EmbeddedData::FromBlob(GetIsolateFromWritableObject(code));
+#elif defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+  // When pointer compression is enabled with a shared cage, there is also a
+  // shared CodeRange. When short builtin calls are enabled, there is a single
+  // copy of the re-embedded builtins in the shared CodeRange, so use that if
+  // it's present.
+  if (FLAG_jitless) return EmbeddedData::FromBlob();
+  CodeRange* code_range = CodeRange::GetProcessWideCodeRange().get();
+  return (code_range && code_range->embedded_blob_code_copy() != nullptr)
+             ? EmbeddedData::FromBlob(code_range)
+             : EmbeddedData::FromBlob();
+#else
+  // Otherwise there is a single copy of the blob across all Isolates, use the
+  // global atomic variables.
+  return EmbeddedData::FromBlob();
+#endif
 }
 
-int Code::safepoint_table_size() const {
-  DCHECK_GE(handler_table_offset() - safepoint_table_offset(), 0);
-  return handler_table_offset() - safepoint_table_offset();
+}  // namespace
+
+Address OffHeapInstructionStart(HeapObject code, Builtin builtin) {
+  // TODO(11527): Here and below: pass Isolate as an argument for getting
+  // the EmbeddedData.
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+  return d.InstructionStartOfBuiltin(builtin);
 }
 
-bool Code::has_safepoint_table() const { return safepoint_table_size() > 0; }
-
-Address Code::HandlerTableAddress() const {
-  return MetadataStart() + handler_table_offset();
+Address OffHeapInstructionEnd(HeapObject code, Builtin builtin) {
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+  return d.InstructionStartOfBuiltin(builtin) +
+         d.InstructionSizeOfBuiltin(builtin);
 }
 
-int Code::handler_table_size() const {
-  DCHECK_GE(constant_pool_offset() - handler_table_offset(), 0);
-  return constant_pool_offset() - handler_table_offset();
+int OffHeapInstructionSize(HeapObject code, Builtin builtin) {
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+  return d.InstructionSizeOfBuiltin(builtin);
 }
 
-bool Code::has_handler_table() const { return handler_table_size() > 0; }
-
-int Code::constant_pool_size() const {
-  const int size = code_comments_offset() - constant_pool_offset();
-  DCHECK_IMPLIES(!FLAG_enable_embedded_constant_pool, size == 0);
-  DCHECK_GE(size, 0);
-  return size;
+Address OffHeapMetadataStart(HeapObject code, Builtin builtin) {
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+  return d.MetadataStartOfBuiltin(builtin);
 }
 
-bool Code::has_constant_pool() const { return constant_pool_size() > 0; }
-
-int Code::code_comments_size() const {
-  DCHECK_GE(unwinding_info_offset() - code_comments_offset(), 0);
-  return unwinding_info_offset() - code_comments_offset();
+Address OffHeapMetadataEnd(HeapObject code, Builtin builtin) {
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+  return d.MetadataStartOfBuiltin(builtin) + d.MetadataSizeOfBuiltin(builtin);
 }
 
-bool Code::has_code_comments() const { return code_comments_size() > 0; }
+int OffHeapMetadataSize(HeapObject code, Builtin builtin) {
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+  return d.MetadataSizeOfBuiltin(builtin);
+}
+
+Address OffHeapSafepointTableAddress(HeapObject code, Builtin builtin) {
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+  return d.SafepointTableStartOf(builtin);
+}
+
+int OffHeapSafepointTableSize(HeapObject code, Builtin builtin) {
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+  return d.SafepointTableSizeOf(builtin);
+}
+
+Address OffHeapHandlerTableAddress(HeapObject code, Builtin builtin) {
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+  return d.HandlerTableStartOf(builtin);
+}
+
+int OffHeapHandlerTableSize(HeapObject code, Builtin builtin) {
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+  return d.HandlerTableSizeOf(builtin);
+}
+
+Address OffHeapConstantPoolAddress(HeapObject code, Builtin builtin) {
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+  return d.ConstantPoolStartOf(builtin);
+}
+
+int OffHeapConstantPoolSize(HeapObject code, Builtin builtin) {
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+  return d.ConstantPoolSizeOf(builtin);
+}
+
+Address OffHeapCodeCommentsAddress(HeapObject code, Builtin builtin) {
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+  return d.CodeCommentsStartOf(builtin);
+}
+
+int OffHeapCodeCommentsSize(HeapObject code, Builtin builtin) {
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+  return d.CodeCommentsSizeOf(builtin);
+}
+
+Address OffHeapUnwindingInfoAddress(HeapObject code, Builtin builtin) {
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+  return d.UnwindingInfoStartOf(builtin);
+}
+
+int OffHeapUnwindingInfoSize(HeapObject code, Builtin builtin) {
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+  return d.UnwindingInfoSizeOf(builtin);
+}
 
 void Code::ClearEmbeddedObjects(Heap* heap) {
   HeapObject undefined = ReadOnlyRoots(heap).undefined_value();
@@ -123,8 +197,9 @@ void Code::RelocateFromDesc(ByteArray reloc_info, Heap* heap,
     } else if (RelocInfo::IsCodeTargetMode(mode)) {
       // Rewrite code handles to direct pointers to the first instruction in the
       // code object.
-      Handle<Object> p = it.rinfo()->target_object_handle(origin);
-      Code code = Code::cast(*p);
+      Handle<HeapObject> p = it.rinfo()->target_object_handle(origin);
+      DCHECK(p->IsCodeT(GetPtrComprCageBaseSlow(*p)));
+      Code code = FromCodeT(CodeT::cast(*p));
       it.rinfo()->set_target_address(code.raw_instruction_start(),
                                      UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
     } else if (RelocInfo::IsRuntimeEntry(mode)) {
@@ -144,66 +219,6 @@ SafepointEntry Code::GetSafepointEntry(Isolate* isolate, Address pc) {
   return table.FindEntry(pc);
 }
 
-int Code::OffHeapInstructionSize() const {
-  DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
-    return raw_instruction_size();
-  }
-  EmbeddedData d = EmbeddedData::FromBlob();
-  return d.InstructionSizeOfBuiltin(builtin_id());
-}
-
-namespace {
-
-// Helper function for getting an EmbeddedData that can handle un-embedded
-// builtins when short builtin calls are enabled.
-inline EmbeddedData EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(Code code) {
-#if defined(V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE)
-  // GetIsolateFromWritableObject(*this) works for both read-only and writable
-  // objects when pointer compression is enabled with a per-Isolate cage.
-  return EmbeddedData::FromBlob(GetIsolateFromWritableObject(code));
-#elif defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
-  // When pointer compression is enabled with a shared cage, there is also a
-  // shared CodeRange. When short builtin calls are enabled, there is a single
-  // copy of the re-embedded builtins in the shared CodeRange, so use that if
-  // it's present.
-  if (FLAG_jitless) return EmbeddedData::FromBlob();
-  CodeRange* code_range = CodeRange::GetProcessWideCodeRange().get();
-  return (code_range && code_range->embedded_blob_code_copy() != nullptr)
-             ? EmbeddedData::FromBlob(code_range)
-             : EmbeddedData::FromBlob();
-#else
-  // Otherwise there is a single copy of the blob across all Isolates, use the
-  // global atomic variables.
-  return EmbeddedData::FromBlob();
-#endif
-}
-
-}  // namespace
-
-Address Code::OffHeapInstructionStart() const {
-  DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
-    return raw_instruction_size();
-  }
-
-  // TODO(11527): pass Isolate as an argument for getting the EmbeddedData.
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
-  return d.InstructionStartOfBuiltin(builtin_id());
-}
-
-Address Code::OffHeapInstructionEnd() const {
-  DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
-    return raw_instruction_size();
-  }
-
-  // TODO(11527): pass Isolate as an argument for getting the EmbeddedData.
-  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(*this);
-  return d.InstructionStartOfBuiltin(builtin_id()) +
-         d.InstructionSizeOfBuiltin(builtin_id());
-}
-
 Address Code::OffHeapInstructionStart(Isolate* isolate, Address pc) const {
   DCHECK(is_off_heap_trampoline());
   EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
@@ -215,34 +230,6 @@ Address Code::OffHeapInstructionEnd(Isolate* isolate, Address pc) const {
   EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
   return d.InstructionStartOfBuiltin(builtin_id()) +
          d.InstructionSizeOfBuiltin(builtin_id());
-}
-
-int Code::OffHeapMetadataSize() const {
-  DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
-    return raw_instruction_size();
-  }
-  EmbeddedData d = EmbeddedData::FromBlob();
-  return d.MetadataSizeOfBuiltin(builtin_id());
-}
-
-Address Code::OffHeapMetadataStart() const {
-  DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
-    return raw_instruction_size();
-  }
-  EmbeddedData d = EmbeddedData::FromBlob();
-  return d.MetadataStartOfBuiltin(builtin_id());
-}
-
-Address Code::OffHeapMetadataEnd() const {
-  DCHECK(is_off_heap_trampoline());
-  if (Isolate::CurrentEmbeddedBlobCode() == nullptr) {
-    return raw_instruction_size();
-  }
-  EmbeddedData d = EmbeddedData::FromBlob();
-  return d.MetadataStartOfBuiltin(builtin_id()) +
-         d.MetadataSizeOfBuiltin(builtin_id());
 }
 
 // TODO(cbruni): Move to BytecodeArray
@@ -512,7 +499,9 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   os << "compiler = "
      << (is_turbofanned()
              ? "turbofan"
-             : kind() == CodeKind::BASELINE ? "baseline" : "unknown")
+             : is_maglevved()
+                   ? "turbofan"
+                   : kind() == CodeKind::BASELINE ? "baseline" : "unknown")
      << "\n";
   os << "address = " << reinterpret_cast<void*>(ptr()) << "\n\n";
 
@@ -534,8 +523,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
       DCHECK_EQ(pool_size & kPointerAlignmentMask, 0);
       os << "\nConstant Pool (size = " << pool_size << ")\n";
       base::Vector<char> buf = base::Vector<char>::New(50);
-      intptr_t* ptr =
-          reinterpret_cast<intptr_t*>(MetadataStart() + constant_pool_offset());
+      intptr_t* ptr = reinterpret_cast<intptr_t*>(constant_pool());
       for (int i = 0; i < pool_size; i += kSystemPointerSize, ptr++) {
         SNPrintF(buf, "%4d %08" V8PRIxPTR, i, *ptr);
         os << static_cast<const void*>(ptr) << "  " << buf.begin() << "\n";
@@ -584,7 +572,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   }
   os << "\n";
 
-  if (has_safepoint_info()) {
+  if (uses_safepoint_table()) {
     SafepointTable table(isolate, current_pc, *this);
     table.Print(os);
     os << "\n";
@@ -622,8 +610,8 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   os << "Parameter count " << parameter_count() << "\n";
   os << "Register count " << register_count() << "\n";
   os << "Frame size " << frame_size() << "\n";
-  os << "OSR nesting level: " << osr_loop_nesting_level() << "\n";
-  os << "Bytecode Age: " << bytecode_age() << "\n";
+  os << "OSR urgency: " << osr_urgency() << "\n";
+  os << "Bytecode age: " << bytecode_age() << "\n";
 
   Address base_address = GetFirstBytecodeAddress();
   SourcePositionTableIterator source_positions(SourcePositionTable());
@@ -646,8 +634,7 @@ void BytecodeArray::Disassemble(std::ostream& os) {
     os << reinterpret_cast<const void*>(current_address) << " @ "
        << std::setw(4) << iterator.current_offset() << " : ";
     interpreter::BytecodeDecoder::Decode(
-        os, reinterpret_cast<byte*>(current_address),
-        static_cast<int>(parameter_count()));
+        os, reinterpret_cast<byte*>(current_address));
     if (interpreter::Bytecodes::IsJump(iterator.current_bytecode())) {
       Address jump_target = base_address + iterator.GetJumpTargetOffset();
       os << " (" << reinterpret_cast<void*>(jump_target) << " @ "
@@ -711,8 +698,9 @@ void BytecodeArray::MakeOlder() {
   DCHECK_LE(RoundDown(age_addr, kTaggedSize) + kTaggedSize, address() + Size());
   Age age = bytecode_age();
   if (age < kLastBytecodeAge) {
-    base::AsAtomic8::Relaxed_CompareAndSwap(
-        reinterpret_cast<base::Atomic8*>(age_addr), age, age + 1);
+    static_assert(kBytecodeAgeSize == kUInt16Size);
+    base::AsAtomic16::Relaxed_CompareAndSwap(
+        reinterpret_cast<base::Atomic16*>(age_addr), age, age + 1);
   }
 
   DCHECK_GE(bytecode_age(), kFirstBytecodeAge);

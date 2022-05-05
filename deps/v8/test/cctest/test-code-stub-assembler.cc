@@ -1099,7 +1099,7 @@ TEST(TransitionLookup) {
 
     if ((i & 2) == 0) {
       for (int j = 0; j < ATTRS_COUNT; j++) {
-        PropertyAttributes attributes = static_cast<PropertyAttributes>(j);
+        auto attributes = PropertyAttributesFromInt(j);
         if (attributes == base_attributes) continue;
         // Don't add private symbols with enumerable attributes.
         if (is_private && ((attributes & DONT_ENUM) == 0)) continue;
@@ -1122,7 +1122,7 @@ TEST(TransitionLookup) {
 
   // Ensure we didn't overflow transition array and therefore all the
   // combinations of cases are covered.
-  CHECK(TransitionsAccessor(isolate, root_map).CanHaveMoreTransitions());
+  CHECK(TransitionsAccessor::CanHaveMoreTransitions(isolate, root_map));
 
   // Now try querying keys.
   bool positive_lookup_tested = false;
@@ -1340,7 +1340,7 @@ TEST(TryHasOwnProperty) {
     for (Handle<JSObject> object : objects) {
       for (size_t name_index = 0; name_index < arraysize(names); name_index++) {
         Handle<Name> name = names[name_index];
-        CHECK(JSReceiver::HasProperty(object, name).FromJust());
+        CHECK(JSReceiver::HasProperty(isolate, object, name).FromJust());
         ft.CheckTrue(object, name, expect_found);
       }
     }
@@ -1360,7 +1360,7 @@ TEST(TryHasOwnProperty) {
       for (size_t key_index = 0; key_index < arraysize(non_existing_names);
            key_index++) {
         Handle<Name> name = non_existing_names[key_index];
-        CHECK(!JSReceiver::HasProperty(object, name).FromJust());
+        CHECK(!JSReceiver::HasProperty(isolate, object, name).FromJust());
         ft.CheckTrue(object, name, expect_not_found);
       }
     }
@@ -1666,12 +1666,12 @@ TEST(TryLookupElement) {
   Handle<Object> expect_not_found(Smi::FromInt(kNotFound), isolate);
   Handle<Object> expect_bailout(Smi::FromInt(kBailout), isolate);
 
-#define CHECK_FOUND(object, index)                         \
-  CHECK(JSReceiver::HasElement(object, index).FromJust()); \
+#define CHECK_FOUND(object, index)                                  \
+  CHECK(JSReceiver::HasElement(isolate, object, index).FromJust()); \
   ft.CheckTrue(object, smi##index, expect_found);
 
-#define CHECK_NOT_FOUND(object, index)                      \
-  CHECK(!JSReceiver::HasElement(object, index).FromJust()); \
+#define CHECK_NOT_FOUND(object, index)                               \
+  CHECK(!JSReceiver::HasElement(isolate, object, index).FromJust()); \
   ft.CheckTrue(object, smi##index, expect_not_found);
 
 #define CHECK_ABSENT(object, index)                  \
@@ -2129,9 +2129,6 @@ TEST(PopAndReturnConstant) {
     CSA_CHECK(&m, m.Word32Equal(argc, m.Int32Constant(kNumParams)));
 
     int pop_count = kNumParams;
-    if (!kJSArgcIncludesReceiver) {
-      pop_count += 1;  // Include receiver.
-    }
     m.PopAndReturn(m.IntPtrConstant(pop_count), m.SmiConstant(1234));
   }
 
@@ -2166,9 +2163,6 @@ TEST(PopAndReturnVariable) {
     CSA_CHECK(&m, m.Word32Equal(argc, m.Int32Constant(kNumParams)));
 
     int pop_count = kNumParams;
-    if (!kJSArgcIncludesReceiver) {
-      pop_count += 1;  // Include receiver.
-    }
     m.PopAndReturn(m.IntPtrConstant(pop_count), m.SmiConstant(1234));
   }
 
@@ -2960,9 +2954,9 @@ TEST(AllocateFunctionWithMapAndContext) {
   CHECK(!fun->has_prototype_slot());
   CHECK_EQ(*isolate->factory()->promise_capability_default_resolve_shared_fun(),
            fun->shared());
-  CHECK_EQ(FromCodeT(isolate->factory()
-                         ->promise_capability_default_resolve_shared_fun()
-                         ->GetCode()),
+  CHECK_EQ(isolate->factory()
+               ->promise_capability_default_resolve_shared_fun()
+               ->GetCode(),
            fun->code());
 }
 

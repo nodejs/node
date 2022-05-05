@@ -10,6 +10,7 @@
 #include "include/v8config.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
+#include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
@@ -114,6 +115,10 @@ class ConcurrentMarkingVisitor final
 
   int VisitJSObjectFast(Map map, JSObject object) {
     return VisitJSObjectSubclassFast(map, object);
+  }
+
+  int VisitJSExternalObject(Map map, JSExternalObject object) {
+    return VisitJSObjectSubclass(map, object);
   }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -318,15 +323,17 @@ class ConcurrentMarkingVisitor final
   }
 
   void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target) {
+    if (!MarkCompactCollector::ShouldRecordRelocSlot(host, rinfo, target))
+      return;
+
     MarkCompactCollector::RecordRelocSlotInfo info =
-        MarkCompactCollector::PrepareRecordRelocSlot(host, rinfo, target);
-    if (info.should_record) {
-      MemoryChunkData& data = (*memory_chunk_data_)[info.memory_chunk];
-      if (!data.typed_slots) {
-        data.typed_slots.reset(new TypedSlots());
-      }
-      data.typed_slots->Insert(info.slot_type, info.offset);
+        MarkCompactCollector::ProcessRelocInfo(host, rinfo, target);
+
+    MemoryChunkData& data = (*memory_chunk_data_)[info.memory_chunk];
+    if (!data.typed_slots) {
+      data.typed_slots.reset(new TypedSlots());
     }
+    data.typed_slots->Insert(info.slot_type, info.offset);
   }
 
   void SynchronizePageAccess(HeapObject heap_object) {
@@ -451,7 +458,11 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
   int kObjectsUntilInterrupCheck = 1000;
   uint8_t task_id = delegate->GetTaskId() + 1;
   TaskState* task_state = &task_state_[task_id];
-  MarkingWorklists::Local local_marking_worklists(marking_worklists_);
+  auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
+  MarkingWorklists::Local local_marking_worklists(
+      marking_worklists_, cpp_heap
+                              ? cpp_heap->CreateCppMarkingState()
+                              : MarkingWorklists::Local::kNoCppMarkingState);
   WeakObjects::Local local_weak_objects(weak_objects_);
   ConcurrentMarkingVisitor visitor(
       task_id, &local_marking_worklists, &local_weak_objects, heap_,

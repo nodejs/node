@@ -20,7 +20,8 @@ class StatsCollector;
  */
 class MetricRecorder {
  public:
-  struct FullCycle {
+  struct GCCycle {
+    enum class Type { kMinor, kMajor };
     struct IncrementalPhases {
       int64_t mark_duration_us = -1;
       int64_t sweep_duration_us = -1;
@@ -35,6 +36,7 @@ class MetricRecorder {
       int64_t freed_bytes = -1;
     };
 
+    Type type = Type::kMajor;
     Phases total;
     Phases main_thread;
     Phases main_thread_atomic;
@@ -56,7 +58,7 @@ class MetricRecorder {
 
   virtual ~MetricRecorder() = default;
 
-  virtual void AddMainThreadEvent(const FullCycle& event) {}
+  virtual void AddMainThreadEvent(const GCCycle& event) {}
   virtual void AddMainThreadEvent(const MainThreadIncrementalMark& event) {}
   virtual void AddMainThreadEvent(const MainThreadIncrementalSweep& event) {}
 };

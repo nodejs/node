@@ -42,8 +42,8 @@
 #include "src/objects/tagged-impl-inl.h"
 #include "src/objects/tagged-index.h"
 #include "src/objects/templates.h"
-#include "src/security/caged-pointer-inl.h"
-#include "src/security/external-pointer-inl.h"
+#include "src/sandbox/external-pointer-inl.h"
+#include "src/sandbox/sandboxed-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -159,6 +159,21 @@ T Object::Relaxed_ReadField(size_t offset) const {
       reinterpret_cast<AtomicT*>(field_address(offset))));
 }
 
+template <class T,
+          typename std::enable_if<(std::is_arithmetic<T>::value ||
+                                   std::is_enum<T>::value) &&
+                                      !std::is_floating_point<T>::value,
+                                  int>::type>
+void Object::Relaxed_WriteField(size_t offset, T value) {
+  // Pointer compression causes types larger than kTaggedSize to be
+  // unaligned. Atomic stores must be aligned.
+  DCHECK_IMPLIES(COMPRESS_POINTERS_BOOL, sizeof(T) <= kTaggedSize);
+  using AtomicT = typename base::AtomicTypeFromByteWidth<sizeof(T)>::type;
+  base::AsAtomicImpl<AtomicT>::Relaxed_Store(
+      reinterpret_cast<AtomicT*>(field_address(offset)),
+      static_cast<AtomicT>(value));
+}
+
 bool HeapObject::InSharedHeap() const {
   if (IsReadOnlyHeapObject(*this)) return V8_SHARED_RO_HEAP_BOOL;
   return InSharedWritableHeap();
@@ -190,7 +205,7 @@ DEF_GETTER(HeapObject, IsUniqueName, bool) {
 }
 
 DEF_GETTER(HeapObject, IsFunction, bool) {
-  return IsJSFunctionOrBoundFunction();
+  return IsJSFunctionOrBoundFunctionOrWrappedFunction();
 }
 
 DEF_GETTER(HeapObject, IsCallable, bool) {
@@ -288,9 +303,8 @@ bool Object::IsNumeric(PtrComprCageBase cage_base) const {
 }
 
 DEF_GETTER(HeapObject, IsArrayList, bool) {
-  ReadOnlyRoots roots = GetReadOnlyRoots(cage_base);
-  return *this == roots.empty_fixed_array() ||
-         map(cage_base) == roots.array_list_map();
+  return map(cage_base) ==
+         GetReadOnlyRoots(cage_base).unchecked_array_list_map();
 }
 
 DEF_GETTER(HeapObject, IsRegExpMatchInfo, bool) {
@@ -563,10 +577,11 @@ MaybeHandle<Object> Object::ToPropertyKey(Isolate* isolate,
 }
 
 // static
-MaybeHandle<Object> Object::ToPrimitive(Handle<Object> input,
+MaybeHandle<Object> Object::ToPrimitive(Isolate* isolate, Handle<Object> input,
                                         ToPrimitiveHint hint) {
   if (input->IsPrimitive()) return input;
-  return JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input), hint);
+  return JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(input),
+                                 hint);
 }
 
 // static
@@ -644,24 +659,26 @@ MaybeHandle<Object> Object::SetElement(Isolate* isolate, Handle<Object> object,
   return value;
 }
 
-Address Object::ReadCagedPointerField(size_t offset,
-                                      PtrComprCageBase cage_base) const {
-  return i::ReadCagedPointerField(field_address(offset), cage_base);
+Address Object::ReadSandboxedPointerField(size_t offset,
+                                          PtrComprCageBase cage_base) const {
+  return i::ReadSandboxedPointerField(field_address(offset), cage_base);
 }
 
-void Object::WriteCagedPointerField(size_t offset, PtrComprCageBase cage_base,
-                                    Address value) {
-  i::WriteCagedPointerField(field_address(offset), cage_base, value);
+void Object::WriteSandboxedPointerField(size_t offset,
+                                        PtrComprCageBase cage_base,
+                                        Address value) {
+  i::WriteSandboxedPointerField(field_address(offset), cage_base, value);
 }
 
-void Object::WriteCagedPointerField(size_t offset, Isolate* isolate,
-                                    Address value) {
-  i::WriteCagedPointerField(field_address(offset), PtrComprCageBase(isolate),
-                            value);
+void Object::WriteSandboxedPointerField(size_t offset, Isolate* isolate,
+                                        Address value) {
+  i::WriteSandboxedPointerField(field_address(offset),
+                                PtrComprCageBase(isolate), value);
 }
 
-void Object::InitExternalPointerField(size_t offset, Isolate* isolate) {
-  i::InitExternalPointerField(field_address(offset), isolate);
+void Object::InitExternalPointerField(size_t offset, Isolate* isolate,
+                                      ExternalPointerTag tag) {
+  i::InitExternalPointerField(field_address(offset), isolate, tag);
 }
 
 void Object::InitExternalPointerField(size_t offset, Isolate* isolate,
@@ -689,6 +706,10 @@ MaybeObjectSlot HeapObject::RawMaybeWeakField(int byte_offset) const {
 
 CodeObjectSlot HeapObject::RawCodeField(int byte_offset) const {
   return CodeObjectSlot(field_address(byte_offset));
+}
+
+ExternalPointer_t HeapObject::RawExternalPointerField(int byte_offset) const {
+  return ReadRawExternalPointerField(field_address(byte_offset));
 }
 
 MapWord MapWord::FromMap(const Map map) {
@@ -721,7 +742,7 @@ HeapObject MapWord::ToForwardingAddress() {
   HeapObject obj = HeapObject::FromAddress(value_);
   // For objects allocated outside of the main pointer compression cage the
   // variant with explicit cage base must be used.
-  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !obj.IsCode());
+  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(obj));
   return obj;
 }
 
@@ -782,58 +803,70 @@ Map HeapObject::map(PtrComprCageBase cage_base) const {
 }
 
 void HeapObject::set_map(Map value) {
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap && !value.is_null()) {
-    GetHeapFromWritableObject(*this)->VerifyObjectLayoutChange(*this, value);
-  }
-#endif
-  set_map_word(MapWord::FromMap(value), kRelaxedStore);
-#ifndef V8_DISABLE_WRITE_BARRIERS
-  if (!value.is_null()) {
-    // TODO(1600) We are passing kNullAddress as a slot because maps can never
-    // be on an evacuation candidate.
-    WriteBarrier::Marking(*this, ObjectSlot(kNullAddress), value);
-  }
-#endif
-}
-
-DEF_ACQUIRE_GETTER(HeapObject, map, Map) {
-  return map_word(cage_base, kAcquireLoad).ToMap();
+  set_map<EmitWriteBarrier::kYes>(value, kRelaxedStore,
+                                  VerificationMode::kPotentialLayoutChange);
 }
 
 void HeapObject::set_map(Map value, ReleaseStoreTag tag) {
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap && !value.is_null()) {
-    GetHeapFromWritableObject(*this)->VerifyObjectLayoutChange(*this, value);
-  }
-#endif
-  set_map_word(MapWord::FromMap(value), tag);
-#ifndef V8_DISABLE_WRITE_BARRIERS
-  if (!value.is_null()) {
-    // TODO(1600) We are passing kNullAddress as a slot because maps can never
-    // be on an evacuation candidate.
-    WriteBarrier::Marking(*this, ObjectSlot(kNullAddress), value);
-  }
-#endif
+  set_map<EmitWriteBarrier::kYes>(value, kReleaseStore,
+                                  VerificationMode::kPotentialLayoutChange);
+}
+
+void HeapObject::set_map_safe_transition(Map value) {
+  set_map<EmitWriteBarrier::kYes>(value, kRelaxedStore,
+                                  VerificationMode::kSafeMapTransition);
+}
+
+void HeapObject::set_map_safe_transition(Map value, ReleaseStoreTag tag) {
+  set_map<EmitWriteBarrier::kYes>(value, kReleaseStore,
+                                  VerificationMode::kSafeMapTransition);
 }
 
 // Unsafe accessor omitting write barrier.
 void HeapObject::set_map_no_write_barrier(Map value, RelaxedStoreTag tag) {
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap && !value.is_null()) {
-    GetHeapFromWritableObject(*this)->VerifyObjectLayoutChange(*this, value);
-  }
-#endif
-  set_map_word(MapWord::FromMap(value), tag);
+  set_map<EmitWriteBarrier::kNo>(value, kRelaxedStore,
+                                 VerificationMode::kPotentialLayoutChange);
 }
 
 void HeapObject::set_map_no_write_barrier(Map value, ReleaseStoreTag tag) {
+  set_map<EmitWriteBarrier::kNo>(value, kReleaseStore,
+                                 VerificationMode::kPotentialLayoutChange);
+}
+
+template <HeapObject::EmitWriteBarrier emit_write_barrier, typename MemoryOrder>
+void HeapObject::set_map(Map value, MemoryOrder order, VerificationMode mode) {
+#if V8_ENABLE_WEBASSEMBLY
+  // In {WasmGraphBuilder::SetMap} and {WasmGraphBuilder::LoadMap}, we treat
+  // maps as immutable. Therefore we are not allowed to mutate them here.
+  DCHECK(!value.IsWasmStructMap() && !value.IsWasmArrayMap());
+#endif
+  // Object layout changes are currently not supported on background threads.
+  // This method might change object layout and therefore can't be used on
+  // background threads.
+  DCHECK_IMPLIES(mode != VerificationMode::kSafeMapTransition,
+                 !LocalHeap::Current());
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && !value.is_null()) {
-    GetHeapFromWritableObject(*this)->VerifyObjectLayoutChange(*this, value);
+    Heap* heap = GetHeapFromWritableObject(*this);
+    if (mode == VerificationMode::kSafeMapTransition) {
+      heap->VerifySafeMapTransition(*this, value);
+    } else {
+      DCHECK_EQ(mode, VerificationMode::kPotentialLayoutChange);
+      heap->VerifyObjectLayoutChange(*this, value);
+    }
   }
 #endif
-  set_map_word(MapWord::FromMap(value), tag);
+  set_map_word(MapWord::FromMap(value), order);
+#ifndef V8_DISABLE_WRITE_BARRIERS
+  if (!value.is_null()) {
+    if (emit_write_barrier == EmitWriteBarrier::kYes) {
+      WriteBarrier::Marking(*this, map_slot(), value);
+    } else {
+      DCHECK_EQ(emit_write_barrier, EmitWriteBarrier::kNo);
+      SLOW_DCHECK(!WriteBarrier::IsRequired(*this, value));
+    }
+  }
+#endif
 }
 
 void HeapObject::set_map_after_allocation(Map value, WriteBarrierMode mode) {
@@ -842,11 +875,15 @@ void HeapObject::set_map_after_allocation(Map value, WriteBarrierMode mode) {
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (mode != SKIP_WRITE_BARRIER) {
     DCHECK(!value.is_null());
-    // TODO(1600) We are passing kNullAddress as a slot because maps can never
-    // be on an evacuation candidate.
-    WriteBarrier::Marking(*this, ObjectSlot(kNullAddress), value);
+    WriteBarrier::Marking(*this, map_slot(), value);
+  } else {
+    SLOW_DCHECK(!WriteBarrier::IsRequired(*this, value));
   }
 #endif
+}
+
+DEF_ACQUIRE_GETTER(HeapObject, map, Map) {
+  return map_word(cage_base, kAcquireLoad).ToMap();
 }
 
 ObjectSlot HeapObject::map_slot() const {
@@ -1083,7 +1120,8 @@ Object Object::GetSimpleHash(Object object) {
     uint32_t hash = ComputeUnseededHash(Smi::ToInt(object));
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
-  if (object.IsHeapNumber()) {
+  auto instance_type = HeapObject::cast(object).map().instance_type();
+  if (InstanceTypeChecker::IsHeapNumber(instance_type)) {
     double num = HeapNumber::cast(object).value();
     if (std::isnan(num)) return Smi::FromInt(Smi::kMaxValue);
     // Use ComputeUnseededHash for all values in Signed32 range, including -0,
@@ -1096,20 +1134,16 @@ Object Object::GetSimpleHash(Object object) {
       hash = ComputeLongHash(base::double_to_uint64(num));
     }
     return Smi::FromInt(hash & Smi::kMaxValue);
-  }
-  if (object.IsName()) {
+  } else if (InstanceTypeChecker::IsName(instance_type)) {
     uint32_t hash = Name::cast(object).EnsureHash();
     return Smi::FromInt(hash);
-  }
-  if (object.IsOddball()) {
+  } else if (InstanceTypeChecker::IsOddball(instance_type)) {
     uint32_t hash = Oddball::cast(object).to_string().EnsureHash();
     return Smi::FromInt(hash);
-  }
-  if (object.IsBigInt()) {
+  } else if (InstanceTypeChecker::IsBigInt(instance_type)) {
     uint32_t hash = BigInt::cast(object).Hash();
     return Smi::FromInt(hash & Smi::kMaxValue);
-  }
-  if (object.IsSharedFunctionInfo()) {
+  } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
     uint32_t hash = SharedFunctionInfo::cast(object).Hash();
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
@@ -1125,6 +1159,51 @@ Object Object::GetHash() {
   DCHECK(IsJSReceiver());
   JSReceiver receiver = JSReceiver::cast(*this);
   return receiver.GetIdentityHash();
+}
+
+bool Object::IsShared() const {
+  // This logic should be kept in sync with fast paths in
+  // CodeStubAssembler::SharedValueBarrier.
+
+  // Smis are trivially shared.
+  if (IsSmi()) return true;
+
+  HeapObject object = HeapObject::cast(*this);
+
+  // RO objects are shared when the RO space is shared.
+  if (IsReadOnlyHeapObject(object)) {
+    return ReadOnlyHeap::IsReadOnlySpaceShared();
+  }
+
+  // Check if this object is already shared.
+  switch (object.map().instance_type()) {
+    case SHARED_STRING_TYPE:
+    case SHARED_ONE_BYTE_STRING_TYPE:
+    case JS_SHARED_STRUCT_TYPE:
+      DCHECK(object.InSharedHeap());
+      return true;
+    case INTERNALIZED_STRING_TYPE:
+    case ONE_BYTE_INTERNALIZED_STRING_TYPE:
+      if (FLAG_shared_string_table) {
+        DCHECK(object.InSharedHeap());
+        return true;
+      }
+      return false;
+    case HEAP_NUMBER_TYPE:
+      return object.InSharedWritableHeap();
+    default:
+      return false;
+  }
+}
+
+// static
+MaybeHandle<Object> Object::Share(Isolate* isolate, Handle<Object> value,
+                                  ShouldThrow throw_if_cannot_be_shared) {
+  // Sharing values requires the RO space be shared.
+  DCHECK(ReadOnlyHeap::IsReadOnlySpaceShared());
+  if (value->IsShared()) return value;
+  return ShareSlow(isolate, Handle<HeapObject>::cast(value),
+                   throw_if_cannot_be_shared);
 }
 
 Handle<Object> ObjectHashTableShape::AsHandle(Handle<Object> key) {

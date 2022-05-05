@@ -175,8 +175,8 @@ class V8_EXPORT ArrayBuffer : public Object {
     /**
      * Convenience allocator.
      *
-     * When the virtual memory cage is enabled, this allocator will allocate its
-     * backing memory inside the cage. Otherwise, it will rely on malloc/free.
+     * When the sandbox is enabled, this allocator will allocate its backing
+     * memory inside the sandbox. Otherwise, it will rely on malloc/free.
      *
      * Caller takes ownership, i.e. the returned object needs to be freed using
      * |delete allocator| once it is no longer in use.

@@ -19,7 +19,7 @@ Access A.#staticMethod() in testStatic()
         columnNumber : 0
         exception : {
             className : ReferenceError
-            description : ReferenceError: A is not defined     at eval (eval at testStatic (:1:1), <anonymous>:1:1)     at Function.testStatic (<anonymous>:6:29)     at run (<anonymous>:9:7)     at <anonymous>:1:1
+            description : ReferenceError: A is not defined     at eval (eval at testStatic (:1:1), <anonymous>:1:1)     at A.testStatic (<anonymous>:6:29)     at run (<anonymous>:9:7)     at <anonymous>:1:1
             objectId : <objectId>
             subtype : error
             type : object
@@ -31,7 +31,7 @@ Access A.#staticMethod() in testStatic()
     }
     result : {
         className : ReferenceError
-        description : ReferenceError: A is not defined     at eval (eval at testStatic (:1:1), <anonymous>:1:1)     at Function.testStatic (<anonymous>:6:29)     at run (<anonymous>:9:7)     at <anonymous>:1:1
+        description : ReferenceError: A is not defined     at eval (eval at testStatic (:1:1), <anonymous>:1:1)     at A.testStatic (<anonymous>:6:29)     at run (<anonymous>:9:7)     at <anonymous>:1:1
         objectId : <objectId>
         subtype : error
         type : object
@@ -43,7 +43,7 @@ Access this.#staticMethod() in testStatic()
         columnNumber : 5
         exception : {
             className : Error
-            description : Error: Unused static private method '#staticMethod' cannot be accessed at debug time     at eval (eval at testStatic (:1:1), <anonymous>:1:6)     at Function.testStatic (<anonymous>:6:29)     at run (<anonymous>:9:7)     at <anonymous>:1:1
+            description : Error: Unused static private method '#staticMethod' cannot be accessed at debug time     at eval (eval at testStatic (:1:1), <anonymous>:1:6)     at A.testStatic (<anonymous>:6:29)     at run (<anonymous>:9:7)     at <anonymous>:1:1
             objectId : <objectId>
             subtype : error
             type : object
@@ -55,7 +55,7 @@ Access this.#staticMethod() in testStatic()
     }
     result : {
         className : Error
-        description : Error: Unused static private method '#staticMethod' cannot be accessed at debug time     at eval (eval at testStatic (:1:1), <anonymous>:1:6)     at Function.testStatic (<anonymous>:6:29)     at run (<anonymous>:9:7)     at <anonymous>:1:1
+        description : Error: Unused static private method '#staticMethod' cannot be accessed at debug time     at eval (eval at testStatic (:1:1), <anonymous>:1:6)     at A.testStatic (<anonymous>:6:29)     at run (<anonymous>:9:7)     at <anonymous>:1:1
         objectId : <objectId>
         subtype : error
         type : object

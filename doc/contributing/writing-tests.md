@@ -37,8 +37,8 @@ const fixtures = require('../common/fixtures');                        // 3
 // This test ensures that the http-parser can handle UTF-8 characters  // 5
 // in the http header.                                                 // 6
 
-const assert = require('assert');                                      // 8
-const http = require('http');                                          // 9
+const assert = require('node:assert');                                 // 8
+const http = require('node:http');                                     // 9
 
 const server = http.createServer(common.mustCall((req, res) => {       // 11
   res.end('ok');                                                       // 12
@@ -95,13 +95,13 @@ designed to test.
 ### **Lines 8-9**
 
 ```js
-const assert = require('assert');
-const http = require('http');
+const assert = require('node:assert');
+const http = require('node:http');
 ```
 
-The test checks functionality in the `http` module.
+The test checks functionality in the `node:http` module.
 
-Most tests use the `assert` module to confirm expectations of the test.
+Most tests use the `node:assert` module to confirm expectations of the test.
 
 The require statements are sorted in
 [ASCII][] order (digits, upper
@@ -173,8 +173,8 @@ explain this with a real test from the test suite.
 ```js
 'use strict';
 require('../common');
-const assert = require('assert');
-const http = require('http');
+const assert = require('node:assert');
+const http = require('node:http');
 
 let request = 0;
 let listening = 0;
@@ -207,7 +207,7 @@ This test could be greatly simplified by using `common.mustCall` like this:
 ```js
 'use strict';
 const common = require('../common');
-const http = require('http');
+const http = require('node:http');
 
 const server = http.createServer(common.mustCall((req, res) => {
   res.end();
@@ -256,8 +256,8 @@ Node.js automatically crashes - and hence, the test fails - in the case of an
 
 ```js
 const common = require('../common');
-const assert = require('assert');
-const fs = require('fs').promises;
+const assert = require('node:assert');
+const fs = require('node:fs').promises;
 
 // Wrap the `onFulfilled` handler in `common.mustCall()`.
 fs.readFile('test-file').then(
@@ -280,8 +280,8 @@ A test that would require `internal/freelist` could start like this:
 // Flags: --expose-internals
 
 require('../common');
-const assert = require('assert');
-const freelist = require('internal/freelist');
+const assert = require('node:assert');
+const freelist = require('node:internal/freelist');
 ```
 
 In specific scenarios it may be useful to get a hold of `primordials` or
@@ -291,7 +291,8 @@ In specific scenarios it may be useful to get a hold of `primordials` or
 node --expose-internals -r internal/test/binding lib/fs.js
 ```
 
-This only works if you preload `internal/test/binding` by command line flag.
+This only works if you preload `node:internal/test/binding` by command line
+flag.
 
 ### Assertions
 
@@ -308,6 +309,18 @@ assert.throws(
     throw new Error('Wrong value');
   },
   /^Error: Wrong value$/ // Instead of something like /Wrong value/
+);
+```
+
+In the case of internal errors, prefer checking only the `code` property:
+
+```js
+assert.throws(
+  () => {
+    throw new ERR_FS_FILE_TOO_LARGE(`${sizeKiB} Kb`);
+  },
+  { code: 'ERR_FS_FILE_TOO_LARGE' }
+  // Do not include message: /^File size ([0-9]+ Kb) is greater than 2 GiB$/
 );
 ```
 

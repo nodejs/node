@@ -70,63 +70,60 @@ TypedArrayPrototypeSet(
     // 7. Let targetBuffer be target.[[ViewedArrayBuffer]].
     // 8. If IsDetachedBuffer(targetBuffer) is true, throw a TypeError
     //   exception.
-    const utarget = typed_array::EnsureAttached(target) otherwise IsDetached;
+    const attachedTargetAndLength = EnsureAttachedAndReadLength(target)
+        otherwise IsDetachedOrOutOfBounds;
 
     const overloadedArg = arguments[0];
     try {
-      // 1. Choose 22.2.3.23.2 or 22.2.3.23.1 depending on whether the
-      //   overloadedArg has a [[TypedArrayName]] internal slot.
-      //   If it does, the definition in 22.2.3.23.2 applies.
-      //   If it does not, the definition in 22.2.3.23.1 applies.
+      // 1. Choose SetTypedArrayFromTypedArray or SetTypedArrayFromArrayLike
+      //   depending on whether the overloadedArg has a [[TypedArrayName]]
+      //   internal slot.
       const typedArray =
           Cast<JSTypedArray>(overloadedArg) otherwise NotTypedArray;
 
-      // Step 9 is not observable, do it later.
+      // Step 3 is not observable, do it later.
 
-      // 10. Let srcBuffer be typedArray.[[ViewedArrayBuffer]].
-      // 11. If IsDetachedBuffer(srcBuffer) is true, throw a TypeError
+      // 4. Let srcBuffer be typedArray.[[ViewedArrayBuffer]].
+      // 5. If IsDetachedBuffer(srcBuffer) is true, throw a TypeError
       //   exception.
-      const utypedArray =
-          typed_array::EnsureAttached(typedArray) otherwise IsDetached;
-
+      const attachedSourceAndLength = EnsureAttachedAndReadLength(typedArray)
+          otherwise IsDetachedOrOutOfBounds;
       TypedArrayPrototypeSetTypedArray(
-          utarget, utypedArray, targetOffset, targetOffsetOverflowed)
+          attachedTargetAndLength, attachedSourceAndLength, targetOffset,
+          targetOffsetOverflowed)
           otherwise OffsetOutOfBounds;
       return Undefined;
     } label NotTypedArray deferred {
       TypedArrayPrototypeSetArray(
-          utarget, overloadedArg, targetOffset, targetOffsetOverflowed)
-          otherwise OffsetOutOfBounds, IsDetached;
+          target, attachedTargetAndLength.length, overloadedArg, targetOffset,
+          targetOffsetOverflowed)
+          otherwise OffsetOutOfBounds;
       return Undefined;
     }
   } label OffsetOutOfBounds deferred {
     ThrowRangeError(MessageTemplate::kTypedArraySetOffsetOutOfBounds);
-  } label IsDetached deferred {
+  } label IsDetachedOrOutOfBounds deferred {
     ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameSet);
   }
 }
 
-// %TypedArray%.prototype.set ( array [ , offset ] )
-// https://tc39.es/ecma262/#sec-%typedarray%.prototype.set-array-offset
+// SetTypedArrayFromArrayLike
+// https://tc39.es/ecma262/#sec-settypedarrayfromarraylike
 transitioning macro
 TypedArrayPrototypeSetArray(implicit context: Context, receiver: JSAny)(
-    target: JSTypedArray, arrayArg: JSAny, targetOffset: uintptr,
-    targetOffsetOverflowed: bool): void labels IfOffsetOutOfBounds,
-    IfDetached {
-  // Steps 9-13 are not observable, do them later.
-
-  // 14. Let src be ? ToObject(array).
+    target: JSTypedArray, targetLength: uintptr, arrayArg: JSAny,
+    targetOffset: uintptr,
+    targetOffsetOverflowed: bool): void labels IfOffsetOutOfBounds {
+  // 4. Let src be ? ToObject(source).
   const src: JSReceiver = ToObject_Inline(context, arrayArg);
 
-  // 15. Let srcLength be ? LengthOfArrayLike(src).
+  // 5. Let srcLength be ? LengthOfArrayLike(src).
   const srcLengthNum: Number = GetLengthProperty(src);
 
+  // 6. If targetOffset is +∞, throw a RangeError exception.
   if (targetOffsetOverflowed) goto IfOffsetOutOfBounds;
 
-  // 9. Let targetLength be target.[[ArrayLength]].
-  const targetLength = target.length;
-
-  // 16. If srcLength + targetOffset > targetLength, throw a RangeError
+  // 7. If srcLength + targetOffset > targetLength, throw a RangeError
   //   exception.
   const srcLength = ChangeSafeIntegerNumberToUintPtr(srcLengthNum)
       otherwise IfOffsetOutOfBounds;
@@ -136,12 +133,6 @@ TypedArrayPrototypeSetArray(implicit context: Context, receiver: JSAny)(
   // All the obvervable side effects are executed, so there's nothing else
   // to do with the empty source array.
   if (srcLength == 0) return;
-
-  // 10. Let targetName be the String value of target.[[TypedArrayName]].
-  // 11. Let targetElementSize be the Element Size value specified in
-  //   Table 62 for targetName.
-  // 12. Let targetType be the Element Type value in Table 62 for
-  //   targetName.
 
   try {
     // BigInt typed arrays are not handled by
@@ -161,7 +152,10 @@ TypedArrayPrototypeSetArray(implicit context: Context, receiver: JSAny)(
         IsElementsKindInRange(
             srcKind, ElementsKind::PACKED_DOUBLE_ELEMENTS,
             ElementsKind::HOLEY_DOUBLE_ELEMENTS)) {
-      const utarget = typed_array::EnsureAttached(target) otherwise IfDetached;
+      // If the source is a JSArray (no custom length getter or elements
+      // getter), there's nothing that could detach or resize the target, so
+      // it's always non-detached here. Also we don't need to reload the length.
+      const utarget = typed_array::EnsureAttached(target) otherwise unreachable;
       CallCCopyFastNumberJSArrayElementsToTypedArray(
           context, fastSrc, utarget, srcLength, targetOffset);
 
@@ -174,56 +168,56 @@ TypedArrayPrototypeSetArray(implicit context: Context, receiver: JSAny)(
   }
 }
 
-// %TypedArray%.prototype.set ( typedArray [ , offset ] )
-// https://tc39.es/ecma262/#sec-%typedarray%.prototype.set-typedarray-offset
+// SetTypedArrayFromTypedArray
+// https://tc39.es/ecma262/#sec-settypedarrayfromtypedarray
 transitioning macro
 TypedArrayPrototypeSetTypedArray(implicit context: Context, receiver: JSAny)(
-    target: AttachedJSTypedArray, typedArray: AttachedJSTypedArray,
+    attachedTargetAndLength: AttachedJSTypedArrayAndLength,
+    attachedSourceAndLength: AttachedJSTypedArrayAndLength,
     targetOffset: uintptr,
     targetOffsetOverflowed: bool): void labels IfOffsetOutOfBounds {
-  // Steps 12-20 are not observable, so we can handle offset overflow
-  // at step 21 here.
+  // Steps 6-14 are not observable, so we can handle offset overflow
+  // at step 15 here.
   if (targetOffsetOverflowed) goto IfOffsetOutOfBounds;
 
-  // 9. Let targetLength be target.[[ArrayLength]].
-  const targetLength = target.length;
+  // 3. Let targetLength be IntegerIndexedObjectLength(target).
+  const target = attachedTargetAndLength.array;
+  const targetLength = attachedTargetAndLength.length;
 
-  // 19. Let srcLength be typedArray.[[ArrayLength]].
-  const srcLength: uintptr = typedArray.length;
+  // 13. Let srcLength be IntegerIndexedObjectLength(source).
+  const source = attachedSourceAndLength.array;
+  const srcLength = attachedSourceAndLength.length;
 
-  // Steps 12-20 are not observable, so we can do step 21 here.
-
-  // 21. If srcLength + targetOffset > targetLength, throw a RangeError
+  // 16. If srcLength + targetOffset > targetLength, throw a RangeError
   //   exception.
   CheckIntegerIndexAdditionOverflow(srcLength, targetOffset, targetLength)
       otherwise IfOffsetOutOfBounds;
 
-  // 12. Let targetName be the String value of target.[[TypedArrayName]].
-  // 13. Let targetType be the Element Type value in Table 62 for
-  //   targetName.
-  // 14. Let targetElementSize be the Element Size value specified in
+  // 6. Let targetName be the String value of target.[[TypedArrayName]].
+  // 7. Let targetType be the Element Type value in Table 62 for
+  //    targetName.
+  // 8. Let targetElementSize be the Element Size value specified in
   //   Table 62 for targetName.
   const targetElementsInfo = GetTypedArrayElementsInfo(target);
 
-  // 16. Let srcName be the String value of typedArray.[[TypedArrayName]].
-  // 17. Let srcType be the Element Type value in Table 62 for srcName.
-  // 18. Let srcElementSize be the Element Size value specified in
+  // 10. Let srcName be the String value of source.[[TypedArrayName]].
+  // 11. Let srcType be the Element Type value in Table 62 for srcName.
+  // 12. Let srcElementSize be the Element Size value specified in
   //   Table 62 for srcName.
-  const srcKind: ElementsKind = typedArray.elements_kind;
-  // const srcElementsInfo = GetTypedArrayElementsInfo(typedArray);
+  const srcKind: ElementsKind = source.elements_kind;
 
-  // We skip steps 23-25 because both memmove and
+  // We skip steps 18-20 because both memmove and
   // CopyTypedArrayElementsToTypedArray() properly handle overlapping
   // regions.
 
-  // 23. If both IsSharedArrayBuffer(srcBuffer) and
+  // 18. If both IsSharedArrayBuffer(srcBuffer) and
   //   IsSharedArrayBuffer(targetBuffer) are true, then
-  // 23a. If srcBuffer.[[ArrayBufferData]] and
+  //   a. If srcBuffer.[[ArrayBufferData]] and
   //   targetBuffer.[[ArrayBufferData]] are the same Shared Data Block
   //   values, let same be true; else let same be false.
-  // 24. Else, let same be SameValue(srcBuffer, targetBuffer).
-  // 25. If same is true, then
-  //   a. Let srcByteLength be typedArray.[[ByteLength]].
+  // 19. Else, let same be SameValue(srcBuffer, targetBuffer).
+  // 20. If same is true, then
+  //   a. Let srcByteLength be source.[[ByteLength]].
   //   b. Set srcBuffer to ? CloneArrayBuffer(srcBuffer, srcByteOffset,
   //    srcByteLength, %ArrayBuffer%).
   //   c. NOTE: %ArrayBuffer% is used to clone srcBuffer because is it known
@@ -232,6 +226,8 @@ TypedArrayPrototypeSetTypedArray(implicit context: Context, receiver: JSAny)(
 
   try {
     // Use memmove if possible.
+    // TODO(v8:11111): Enable fast copying between a RAB/GSAB element kind and
+    // the corresponding non-RAB/GSAB element kind.
     if (srcKind != targetElementsInfo.kind) {
       // Uint8/Uint8Clamped elements could still be copied with memmove.
       if (!IsUint8ElementsKind(srcKind) ||
@@ -255,10 +251,19 @@ TypedArrayPrototypeSetTypedArray(implicit context: Context, receiver: JSAny)(
         otherwise unreachable;
     const dstPtr: RawPtr = target.data_ptr + Convert<intptr>(startOffset);
 
-    dcheck(countBytes <= target.byte_length - startOffset);
-    dcheck(countBytes <= typedArray.byte_length);
+    // We've already checked for detachedness, and there's nothing that could've
+    // detached the buffers until here.
+    @if(DEBUG) {
+      const targetByteLength = LoadJSArrayBufferViewByteLength(
+          target, target.buffer) otherwise unreachable;
+      const sourceByteLength = LoadJSArrayBufferViewByteLength(
+          source, source.buffer) otherwise unreachable;
 
-    // 29. If srcType is the same as targetType, then
+      dcheck(countBytes <= targetByteLength - startOffset);
+      dcheck(countBytes <= sourceByteLength);
+    }
+
+    // 24. If srcType is the same as targetType, then
     //   a. NOTE: If srcType and targetType are the same, the transfer must
     //      be performed in a manner that preserves the bit-level encoding of
     //      the source data.
@@ -271,13 +276,13 @@ TypedArrayPrototypeSetTypedArray(implicit context: Context, receiver: JSAny)(
     //     iv. Set targetByteIndex to targetByteIndex + 1.
     if (IsSharedArrayBuffer(target.buffer)) {
       // SABs need a relaxed memmove to preserve atomicity.
-      CallCRelaxedMemmove(dstPtr, typedArray.data_ptr, countBytes);
+      CallCRelaxedMemmove(dstPtr, source.data_ptr, countBytes);
     } else {
-      CallCMemmove(dstPtr, typedArray.data_ptr, countBytes);
+      CallCMemmove(dstPtr, source.data_ptr, countBytes);
     }
   } label IfSlow deferred {
-    // 22. If target.[[ContentType]] is not equal to
-    //   typedArray.[[ContentType]], throw a TypeError exception.
+    // 17. If target.[[ContentType]] is not equal to
+    //   source.[[ContentType]], throw a TypeError exception.
     if (IsBigInt64ElementsKind(srcKind) !=
         IsBigInt64ElementsKind(targetElementsInfo.kind))
       deferred {
@@ -288,7 +293,7 @@ TypedArrayPrototypeSetTypedArray(implicit context: Context, receiver: JSAny)(
     // to do with the empty source array.
     if (srcLength == 0) return;
 
-    // 30. Else,
+    // 25. Else,
     //   a. Repeat, while targetByteIndex < limit
     //      i. Let value be GetValueFromBuffer(srcBuffer, srcByteIndex,
     //                                         srcType, true, Unordered).
@@ -297,7 +302,7 @@ TypedArrayPrototypeSetTypedArray(implicit context: Context, receiver: JSAny)(
     //    iii. Set srcByteIndex to srcByteIndex + srcElementSize.
     //     iv. Set targetByteIndex to targetByteIndex + targetElementSize.
     CallCCopyTypedArrayElementsToTypedArray(
-        typedArray, target, srcLength, targetOffset);
+        source, target, srcLength, targetOffset);
   }
 }
 }

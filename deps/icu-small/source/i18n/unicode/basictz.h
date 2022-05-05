@@ -152,17 +152,15 @@ public:
     virtual void getSimpleRulesNear(UDate date, InitialTimeZoneRule*& initial,
         AnnualTimeZoneRule*& std, AnnualTimeZoneRule*& dst, UErrorCode& status) const;
 
-#ifndef U_FORCE_HIDE_DRAFT_API
     /**
      * Get time zone offsets from local wall time.
-     * @draft ICU 69
+     * @stable ICU 69
      */
     virtual void getOffsetFromLocal(
         UDate date, UTimeZoneLocalOption nonExistingTimeOpt,
         UTimeZoneLocalOption duplicatedTimeOpt, int32_t& rawOffset,
         int32_t& dstOffset, UErrorCode& status) const;
 
-#endif /* U_FORCE_HIDE_DRAFT_API */
 
 #ifndef U_HIDE_INTERNAL_API
     /**

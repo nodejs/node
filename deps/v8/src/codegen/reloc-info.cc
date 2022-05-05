@@ -12,7 +12,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code-inl.h"
-#include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -476,7 +476,7 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
     // Deoptimization bailouts are stored as runtime entries.
     DeoptimizeKind type;
     if (Deoptimizer::IsDeoptimizationEntry(isolate, target_address(), &type)) {
-      os << "  (" << Deoptimizer::MessageFor(type, false)
+      os << "  (" << Deoptimizer::MessageFor(type)
          << " deoptimization bailout)";
     }
   } else if (IsConstPool(rmode_)) {

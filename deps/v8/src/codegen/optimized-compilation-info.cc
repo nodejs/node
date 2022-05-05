@@ -66,22 +66,14 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
 void OptimizedCompilationInfo::ConfigureFlags() {
   if (FLAG_turbo_inline_js_wasm_calls) set_inline_js_wasm_calls();
 
-  if (IsTurboprop() || FLAG_concurrent_inlining) {
-    set_concurrent_inlining();
-  }
-
   switch (code_kind_) {
     case CodeKind::TURBOFAN:
-      if (FLAG_function_context_specialization) {
-        set_function_context_specializing();
-      }
-      if (FLAG_turbo_splitting) set_splitting();
-      V8_FALLTHROUGH;
-    case CodeKind::TURBOPROP:
       set_called_with_code_start_register();
       set_switch_jump_table();
-      // TODO(yangguo): Disable this in case of debugging for crbug.com/826613
-      if (FLAG_analyze_environment_liveness) set_analyze_environment_liveness();
+      if (FLAG_analyze_environment_liveness) {
+        set_analyze_environment_liveness();
+      }
+      if (FLAG_turbo_splitting) set_splitting();
       break;
     case CodeKind::BYTECODE_HANDLER:
       set_called_with_code_start_register();
@@ -104,6 +96,7 @@ void OptimizedCompilationInfo::ConfigureFlags() {
     case CodeKind::WASM_TO_JS_FUNCTION:
       break;
     case CodeKind::BASELINE:
+    case CodeKind::MAGLEV:
     case CodeKind::INTERPRETED_FUNCTION:
     case CodeKind::REGEXP:
       UNREACHABLE();

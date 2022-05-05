@@ -98,7 +98,7 @@ analysis using a debugger (such as `lldb`, `gdb`, and `mdb`).
 
 If this flag is passed, the behavior can still be set to not abort through
 [`process.setUncaughtExceptionCaptureCallback()`][] (and through usage of the
-`domain` module that uses it).
+`node:domain` module that uses it).
 
 ### `--completion-bash`
 
@@ -226,7 +226,7 @@ added: v9.8.0
 
 Make built-in language features like `eval` and `new Function` that generate
 code from strings throw an exception instead. This does not affect the Node.js
-`vm` module.
+`node:vm` module.
 
 ### `--dns-result-order=order`
 
@@ -283,7 +283,9 @@ modifying the stack trace.
 ### `--experimental-global-webcrypto`
 
 <!-- YAML
-added: v17.6.0
+added:
+  - v17.6.0
+  - v16.15.0
 -->
 
 Expose the [Web Crypto API][] on the global scope.
@@ -301,7 +303,12 @@ Enable experimental `import.meta.resolve()` support.
 ### `--experimental-loader=module`
 
 <!-- YAML
-added: v9.0.0
+added: v8.8.0
+changes:
+  - version: v12.11.1
+    pr-url: https://github.com/nodejs/node/pull/29752
+    description: This flag was renamed from `--loader` to
+                 `--experimental-loader`.
 -->
 
 Specify the `module` of a custom experimental [ECMAScript module loader][].
@@ -310,7 +317,9 @@ Specify the `module` of a custom experimental [ECMAScript module loader][].
 ### `--experimental-network-imports`
 
 <!-- YAML
-added: v17.6.0
+added:
+  - v17.6.0
+  - v16.15.0
 -->
 
 > Stability: 1 - Experimental
@@ -328,7 +337,7 @@ Use the specified file as a security policy.
 ### `--no-experimental-fetch`
 
 <!-- YAML
-added: REPLACEME
+added: v18.0.0
 -->
 
 Disable experimental support for the [Fetch API][].
@@ -337,9 +346,17 @@ Disable experimental support for the [Fetch API][].
 
 <!-- YAML
 added: v16.6.0
- -->
+-->
 
 Use this flag to disable top-level await in REPL.
+
+### `--experimental-shadow-realm`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Use this flag to enable [ShadowRealm][] support.
 
 ### `--experimental-specifier-resolution=mode`
 
@@ -364,7 +381,7 @@ See [customizing ESM specifier resolution][] for example usage.
 added: v9.6.0
 -->
 
-Enable experimental ES Module support in the `vm` module.
+Enable experimental ES Module support in the `node:vm` module.
 
 ### `--experimental-wasi-unstable-preview1`
 
@@ -666,10 +683,10 @@ added:
 changes:
   - version: v13.13.0
     pr-url: https://github.com/nodejs/node/pull/32520
-    description: Change maximum default size of HTTP headers from 8 KB to 16 KB.
+    description: Change maximum default size of HTTP headers from 8 KiB to 16 KiB.
 -->
 
-Specify the maximum size, in bytes, of HTTP headers. Defaults to 16 KB.
+Specify the maximum size, in bytes, of HTTP headers. Defaults to 16 KiB.
 
 ### `--napi-modules`
 
@@ -1051,6 +1068,25 @@ When using `--secure-heap`, the `--secure-heap-min` flag specifies the
 minimum allocation from the secure heap. The minimum value is `2`.
 The maximum value is the lesser of `--secure-heap` or `2147483647`.
 The value given must be a power of two.
+
+### `--test`
+
+<!-- YAML
+added: v18.1.0
+-->
+
+Starts the Node.js command line test runner. This flag cannot be combined with
+`--check`, `--eval`, `--interactive`, or the inspector. See the documentation
+on [running tests from the command line][] for more details.
+
+### `--test-only`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+Configures the test runner to only execute top level tests that have the `only`
+option set.
 
 ### `--throw-deprecation`
 
@@ -1594,6 +1630,7 @@ Node.js options that are allowed are:
 * `--experimental-modules`
 * `--experimental-network-imports`
 * `--experimental-policy`
+* `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
 * `--experimental-top-level-await`
 * `--experimental-vm-modules`
@@ -1641,6 +1678,7 @@ Node.js options that are allowed are:
 * `--require`, `-r`
 * `--secure-heap-min`
 * `--secure-heap`
+* `--test-only`
 * `--throw-deprecation`
 * `--title`
 * `--tls-cipher-list`
@@ -1973,8 +2011,8 @@ Sets the max memory size of V8's old memory section. As memory
 consumption approaches the limit, V8 will spend more time on
 garbage collection in an effort to free unused memory.
 
-On a machine with 2 GB of memory, consider setting this to
-1536 (1.5 GB) to leave some memory for other uses and avoid swapping.
+On a machine with 2 GiB of memory, consider setting this to
+1536 (1.5 GiB) to leave some memory for other uses and avoid swapping.
 
 ```console
 $ node --max-old-space-size=1536 index.js
@@ -2012,6 +2050,7 @@ done
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
 [REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
+[ShadowRealm]: https://github.com/tc39/proposal-shadowrealm
 [Source Map]: https://sourcemaps.info/spec.html
 [Subresource Integrity]: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
@@ -2047,6 +2086,7 @@ done
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
+[running tests from the command line]: test.md#running-tests-from-the-command-line
 [security warning]: #warning-binding-inspector-to-a-public-ipport-combination-is-insecure
 [timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [ways that `TZ` is handled in other environments]: https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html

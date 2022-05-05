@@ -69,10 +69,6 @@ class Publish extends BaseCommand {
     const spec = npa(args[0])
     let manifest = await this.getManifest(spec, opts)
 
-    if (manifest.publishConfig) {
-      flatten(manifest.publishConfig, opts)
-    }
-
     // only run scripts for directory type publishes
     if (spec.type === 'directory' && !ignoreScripts) {
       await runScript({
@@ -92,29 +88,30 @@ class Publish extends BaseCommand {
     // so that we send the latest and greatest thing to the registry
     // note that publishConfig might have changed as well!
     manifest = await this.getManifest(spec, opts)
-    if (manifest.publishConfig) {
-      flatten(manifest.publishConfig, opts)
-    }
 
-    // note that logTar calls log.notice(), so if we ARE in silent mode,
-    // this will do nothing, but we still want it in the debuglog if it fails.
+    // JSON already has the package contents
     if (!json) {
       logTar(pkgContents, { unicode })
     }
 
-    if (!dryRun) {
-      const resolved = npa.resolve(manifest.name, manifest.version)
-      const registry = npmFetch.pickRegistry(resolved, opts)
-      const creds = this.npm.config.getCredentialsByURI(registry)
-      const outputRegistry = replaceInfo(registry)
-      if (!creds.token && !creds.username) {
-        throw Object.assign(
-          new Error(`This command requires you to be logged in to ${outputRegistry}`), {
-            code: 'ENEEDAUTH',
-          }
-        )
+    const resolved = npa.resolve(manifest.name, manifest.version)
+    const registry = npmFetch.pickRegistry(resolved, opts)
+    const creds = this.npm.config.getCredentialsByURI(registry)
+    const noCreds = !creds.token && !creds.username
+    const outputRegistry = replaceInfo(registry)
+
+    if (noCreds) {
+      const msg = `This command requires you to be logged in to ${outputRegistry}`
+      if (dryRun) {
+        log.warn('', `${msg} (dry-run)`)
+      } else {
+        throw Object.assign(new Error(msg), { code: 'ENEEDAUTH' })
       }
-      log.notice('', `Publishing to ${outputRegistry}`)
+    }
+
+    log.notice('', `Publishing to ${outputRegistry}${dryRun ? ' (dry-run)' : ''}`)
+
+    if (!dryRun) {
       await otplease(opts, opts => libpub(manifest, tarballData, opts))
     }
 
@@ -192,15 +189,22 @@ class Publish extends BaseCommand {
 
   // if it's a directory, read it from the file system
   // otherwise, get the full metadata from whatever it is
-  getManifest (spec, opts) {
+  // XXX can't pacote read the manifest from a directory?
+  async getManifest (spec, opts) {
+    let manifest
     if (spec.type === 'directory') {
-      return readJson(`${spec.fetchSpec}/package.json`)
+      manifest = await readJson(`${spec.fetchSpec}/package.json`)
+    } else {
+      manifest = await pacote.manifest(spec, {
+        ...opts,
+        fullmetadata: true,
+        fullReadJson: true,
+      })
     }
-    return pacote.manifest(spec, {
-      ...opts,
-      fullMetadata: true,
-      fullReadJson: true,
-    })
+    if (manifest.publishConfig) {
+      flatten(manifest.publishConfig, opts)
+    }
+    return manifest
   }
 }
 module.exports = Publish

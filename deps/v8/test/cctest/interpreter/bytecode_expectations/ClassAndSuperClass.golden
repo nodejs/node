@@ -25,7 +25,7 @@ parameter count: 1
 bytecode array length: 16
 bytecodes: [
   /*  104 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
-  /*  117 E> */ B(LdaNamedPropertyFromSuper), R(this), U8(0), U8(1),
+  /*  117 E> */ B(GetNamedPropertyFromSuper), R(this), U8(0), U8(1),
                 B(Star0),
   /*  117 E> */ B(CallAnyReceiver), R(0), R(this), U8(1), U8(3),
   /*  126 E> */ B(AddSmi), I8(1), U8(0),
@@ -65,7 +65,7 @@ bytecodes: [
                 B(Mov), R(this), R(0),
   /*  138 E> */ B(CallRuntime), U16(Runtime::kStoreToSuper), R(0), U8(4),
   /*  143 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
-  /*  156 E> */ B(LdaNamedPropertyFromSuper), R(this), U8(0), U8(0),
+  /*  156 E> */ B(GetNamedPropertyFromSuper), R(this), U8(0), U8(0),
   /*  158 S> */ B(Return),
 ]
 constant pool: [
@@ -106,7 +106,7 @@ bytecodes: [
   /*  128 S> */ B(Ldar), R(this),
                 B(ThrowSuperNotCalledIfHole),
                 B(LdaSmi), I8(2),
-  /*  136 E> */ B(StaNamedProperty), R(this), U8(0), U8(2),
+  /*  136 E> */ B(SetNamedProperty), R(this), U8(0), U8(2),
                 B(Ldar), R(this),
                 B(ThrowSuperNotCalledIfHole),
   /*  141 S> */ B(Return),
@@ -147,7 +147,7 @@ bytecodes: [
   /*  126 S> */ B(Ldar), R(this),
                 B(ThrowSuperNotCalledIfHole),
                 B(LdaSmi), I8(2),
-  /*  134 E> */ B(StaNamedProperty), R(this), U8(0), U8(2),
+  /*  134 E> */ B(SetNamedProperty), R(this), U8(0), U8(2),
                 B(Ldar), R(this),
                 B(ThrowSuperNotCalledIfHole),
   /*  139 S> */ B(Return),

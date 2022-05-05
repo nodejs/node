@@ -1,14 +1,16 @@
 'use strict'
 
 const { Headers, HeadersList, fill } = require('./headers')
+const { AbortError } = require('../core/errors')
 const { extractBody, cloneBody, mixinBody } = require('./body')
 const util = require('../core/util')
 const { kEnumerableProperty } = util
-const { responseURL, isValidReasonPhrase, toUSVString } = require('./util')
+const { responseURL, isValidReasonPhrase, toUSVString, isCancelled, isAborted } = require('./util')
 const {
   redirectStatus,
   nullBodyStatus,
-  forbiddenResponseHeaderNames
+  forbiddenResponseHeaderNames,
+  corsSafeListedResponseHeaderNames
 } = require('./constants')
 const { kState, kHeaders, kGuard, kRealm } = require('./symbols')
 const { kHeadersList } = require('../core/symbols')
@@ -79,7 +81,7 @@ class Response {
     const value = parsedURL.toString()
 
     // 7. Append `Location`/value to responseObject’s response’s header list.
-    responseObject[kState].headersList.push('location', value)
+    responseObject[kState].headersList.append('location', value)
 
     // 8. Return responseObject.
     return responseObject
@@ -170,7 +172,7 @@ class Response {
       // not contain `Content-Type`, then append `Content-Type`/Content-Type
       // to this’s response’s header list.
       if (contentType && !this.headers.has('content-type')) {
-        this.headers.set('content-type', contentType)
+        this.headers.append('content-type', contentType)
       }
     }
   }
@@ -337,10 +339,10 @@ function cloneResponse (response) {
 
 function makeResponse (init) {
   return {
-    internalResponse: null,
     aborted: false,
     rangeRequested: false,
     timingAllowPassed: false,
+    requestIncludesCredentials: false,
     type: 'default',
     status: 200,
     timingInfo: null,
@@ -348,7 +350,7 @@ function makeResponse (init) {
     statusText: '',
     ...init,
     headersList: init.headersList
-      ? new HeadersList(...init.headersList)
+      ? new HeadersList(init.headersList)
       : new HeadersList(),
     urlList: init.urlList ? [...init.urlList] : []
   }
@@ -361,8 +363,50 @@ function makeNetworkError (reason) {
     error:
       reason instanceof Error
         ? reason
-        : new Error(reason ? String(reason) : reason),
+        : new Error(reason ? String(reason) : reason, {
+          cause: reason instanceof Error ? reason : undefined
+        }),
     aborted: reason && reason.name === 'AbortError'
+  })
+}
+
+function makeFilteredResponse (response, state) {
+  state = {
+    internalResponse: response,
+    ...state
+  }
+
+  return new Proxy(response, {
+    get (target, p) {
+      return p in state ? state[p] : target[p]
+    },
+    set (target, p, value) {
+      assert(!(p in state))
+      target[p] = value
+      return true
+    }
+  })
+}
+
+function makeFilteredHeadersList (headersList, filter) {
+  return new Proxy(headersList, {
+    get (target, prop) {
+      // Override methods used by Headers class.
+      if (prop === 'get' || prop === 'has') {
+        const defaultReturn = prop === 'has' ? false : null
+        return (name) => filter(name) ? target[prop](name) : defaultReturn
+      } else if (prop === Symbol.iterator) {
+        return function * () {
+          for (const entry of target) {
+            if (filter(entry[0])) {
+              yield entry
+            }
+          }
+        }
+      } else {
+        return target[prop]
+      }
+    }
   })
 }
 
@@ -375,18 +419,12 @@ function filterResponse (response, type) {
     // and header list excludes any headers in internal response’s header list
     // whose name is a forbidden response-header name.
 
-    const headers = []
-    for (let n = 0; n < response.headersList.length; n += 2) {
-      if (!forbiddenResponseHeaderNames.includes(response.headersList[n])) {
-        headers.push(response.headersList[n + 0], response.headersList[n + 1])
-      }
-    }
-
-    return makeResponse({
-      ...response,
-      internalResponse: response,
-      headersList: new HeadersList(...headers),
-      type: 'basic'
+    return makeFilteredResponse(response, {
+      type: 'basic',
+      headersList: makeFilteredHeadersList(
+        response.headersList,
+        (name) => !forbiddenResponseHeaderNames.includes(name.toLowerCase())
+      )
     })
   } else if (type === 'cors') {
     // A CORS filtered response is a filtered response whose type is "cors"
@@ -394,22 +432,18 @@ function filterResponse (response, type) {
     // list whose name is not a CORS-safelisted response-header name, given
     // internal response’s CORS-exposed header-name list.
 
-    // TODO: This is not correct...
-    return makeResponse({
-      ...response,
-      internalResponse: response,
-      type: 'cors'
+    return makeFilteredResponse(response, {
+      type: 'cors',
+      headersList: makeFilteredHeadersList(response.headersList, (name) => !corsSafeListedResponseHeaderNames.includes(name))
     })
   } else if (type === 'opaque') {
     // An opaque filtered response is a filtered response whose type is
     // "opaque", URL list is the empty list, status is 0, status message
     // is the empty byte sequence, header list is empty, and body is null.
 
-    return makeResponse({
-      ...response,
-      internalResponse: response,
+    return makeFilteredResponse(response, {
       type: 'opaque',
-      urlList: [],
+      urlList: Object.freeze([]),
       status: 0,
       statusText: '',
       body: null
@@ -419,13 +453,11 @@ function filterResponse (response, type) {
     // is "opaqueredirect", status is 0, status message is the empty byte
     // sequence, header list is empty, and body is null.
 
-    return makeResponse({
-      ...response,
-      internalResponse: response,
+    return makeFilteredResponse(response, {
       type: 'opaqueredirect',
       status: 0,
       statusText: '',
-      headersList: new HeadersList(),
+      headersList: makeFilteredHeadersList(response.headersList, () => false),
       body: null
     })
   } else {
@@ -433,4 +465,22 @@ function filterResponse (response, type) {
   }
 }
 
-module.exports = { makeNetworkError, makeResponse, filterResponse, Response }
+// https://fetch.spec.whatwg.org/#appropriate-network-error
+function makeAppropriateNetworkError (fetchParams) {
+  // 1. Assert: fetchParams is canceled.
+  assert(isCancelled(fetchParams))
+
+  // 2. Return an aborted network error if fetchParams is aborted;
+  // otherwise return a network error.
+  return isAborted(fetchParams)
+    ? makeNetworkError(new AbortError())
+    : makeNetworkError(fetchParams.controller.terminated.reason)
+}
+
+module.exports = {
+  makeNetworkError,
+  makeResponse,
+  makeAppropriateNetworkError,
+  filterResponse,
+  Response
+}

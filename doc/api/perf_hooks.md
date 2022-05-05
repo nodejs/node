@@ -17,7 +17,7 @@ Node.js supports the following [Web Performance APIs][]:
 * [User Timing][]
 
 ```js
-const { PerformanceObserver, performance } = require('perf_hooks');
+const { PerformanceObserver, performance } = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((items) => {
   console.log(items.getEntries()[0].duration);
@@ -111,8 +111,8 @@ of how a mostly idle process will have a high ELU.
 
 ```js
 'use strict';
-const { eventLoopUtilization } = require('perf_hooks').performance;
-const { spawnSync } = require('child_process');
+const { eventLoopUtilization } = require('node:perf_hooks').performance;
+const { spawnSync } = require('node:child_process');
 
 setImmediate(() => {
   const elu = eventLoopUtilization();
@@ -312,7 +312,7 @@ event type in order for the timing details to be accessed.
 const {
   performance,
   PerformanceObserver
-} = require('perf_hooks');
+} = require('node:perf_hooks');
 
 function someFunction() {
   console.log('hello world');
@@ -660,7 +660,7 @@ initialized.
 <!-- YAML
 added: v8.5.0
 changes:
-  - version: REPLACEME
+  - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -678,7 +678,7 @@ changes:
 const {
   performance,
   PerformanceObserver
-} = require('perf_hooks');
+} = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((list, observer) => {
   console.log(list.getEntries());
@@ -744,7 +744,7 @@ or `options.type`:
 const {
   performance,
   PerformanceObserver
-} = require('perf_hooks');
+} = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((list, observer) => {
   // Called once asynchronously. `list` contains three items.
@@ -780,7 +780,7 @@ with respect to `performanceEntry.startTime`.
 const {
   performance,
   PerformanceObserver
-} = require('perf_hooks');
+} = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((perfObserverList, observer) => {
   console.log(perfObserverList.getEntries());
@@ -830,7 +830,7 @@ equal to `name`, and optionally, whose `performanceEntry.entryType` is equal to
 const {
   performance,
   PerformanceObserver
-} = require('perf_hooks');
+} = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((perfObserverList, observer) => {
   console.log(perfObserverList.getEntriesByName('meow'));
@@ -886,7 +886,7 @@ is equal to `type`.
 const {
   performance,
   PerformanceObserver
-} = require('perf_hooks');
+} = require('node:perf_hooks');
 
 const obs = new PerformanceObserver((perfObserverList, observer) => {
   console.log(perfObserverList.getEntriesByType('mark'));
@@ -959,7 +959,7 @@ of the timer, and those delays are specifically what this API is intended to
 detect.
 
 ```js
-const { monitorEventLoopDelay } = require('perf_hooks');
+const { monitorEventLoopDelay } = require('node:perf_hooks');
 const h = monitorEventLoopDelay({ resolution: 20 });
 h.enable();
 // Do something.
@@ -1228,11 +1228,11 @@ to execute the callback).
 
 ```js
 'use strict';
-const async_hooks = require('async_hooks');
+const async_hooks = require('node:async_hooks');
 const {
   performance,
   PerformanceObserver
-} = require('perf_hooks');
+} = require('node:perf_hooks');
 
 const set = new Set();
 const hook = async_hooks.createHook({
@@ -1277,8 +1277,8 @@ dependencies:
 const {
   performance,
   PerformanceObserver
-} = require('perf_hooks');
-const mod = require('module');
+} = require('node:perf_hooks');
+const mod = require('node:module');
 
 // Monkey patch the require function
 mod.Module.prototype.require =
@@ -1310,8 +1310,8 @@ the request and sending the response:
 
 ```js
 'use strict';
-const { PerformanceObserver } = require('perf_hooks');
-const http = require('http');
+const { PerformanceObserver } = require('node:perf_hooks');
+const http = require('node:http');
 
 const obs = new PerformanceObserver((items) => {
   items.getEntries().forEach((item) => {
@@ -1334,8 +1334,8 @@ http.createServer((req, res) => {
 
 ```js
 'use strict';
-const { PerformanceObserver } = require('perf_hooks');
-const net = require('net');
+const { PerformanceObserver } = require('node:perf_hooks');
+const net = require('node:net');
 const obs = new PerformanceObserver((items) => {
   items.getEntries().forEach((item) => {
     console.log(item);
@@ -1354,8 +1354,8 @@ net.createServer((socket) => {
 
 ```js
 'use strict';
-const { PerformanceObserver } = require('perf_hooks');
-const dns = require('dns');
+const { PerformanceObserver } = require('node:perf_hooks');
+const dns = require('node:dns');
 const obs = new PerformanceObserver((items) => {
   items.getEntries().forEach((item) => {
     console.log(item);

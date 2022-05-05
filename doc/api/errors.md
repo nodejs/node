@@ -15,7 +15,7 @@ errors:
 * User-specified errors triggered by application code.
 * `AssertionError`s are a special class of error that can be triggered when
   Node.js detects an exceptional logic violation that should never occur. These
-  are raised typically by the `assert` module.
+  are raised typically by the `node:assert` module.
 
 All JavaScript and system errors raised by Node.js inherit from, or are
 instances of, the standard JavaScript {Error} class and are guaranteed
@@ -63,7 +63,7 @@ Errors that occur within _Asynchronous APIs_ may be reported in multiple ways:
   <!-- eslint-disable no-useless-return -->
 
   ```js
-  const fs = require('fs');
+  const fs = require('node:fs');
   fs.readFile('a file that does not exist', (err, data) => {
     if (err) {
       console.error('There was an error reading the file!', err);
@@ -77,7 +77,7 @@ Errors that occur within _Asynchronous APIs_ may be reported in multiple ways:
   [`EventEmitter`][], errors can be routed to that object's `'error'` event.
 
   ```js
-  const net = require('net');
+  const net = require('node:net');
   const connection = net.connect('localhost');
 
   // Adding an 'error' event handler to a stream:
@@ -109,7 +109,7 @@ used appropriately or a handler has been registered for the
 [`'uncaughtException'`][] event.
 
 ```js
-const EventEmitter = require('events');
+const EventEmitter = require('node:events');
 const ee = new EventEmitter();
 
 setImmediate(() => {
@@ -137,7 +137,7 @@ completes or an error is raised, the callback function is called with the
 the first argument will be passed as `null`.
 
 ```js
-const fs = require('fs');
+const fs = require('node:fs');
 
 function errorFirstCallback(err, data) {
   if (err) {
@@ -157,7 +157,7 @@ use `throw` inside an error-first callback:
 
 ```js
 // THIS WILL NOT WORK:
-const fs = require('fs');
+const fs = require('node:fs');
 
 try {
   fs.readFile('/some/file/that/does-not-exist', (err, data) => {
@@ -372,7 +372,7 @@ acceptable values for a function; whether that is a numeric range, or
 outside the set of options for a given function parameter.
 
 ```js
-require('net').connect(-1);
+require('node:net').connect(-1);
 // Throws "RangeError: "port" option should be >= 0 and < 65536: -1"
 ```
 
@@ -409,7 +409,7 @@ are almost always indicative of a broken program.
 
 ```js
 try {
-  require('vm').runInThisContext('binary ! isNotOk');
+  require('node:vm').runInThisContext('binary ! isNotOk');
 } catch (err) {
   // 'err' will be a SyntaxError.
 }
@@ -570,7 +570,7 @@ Indicates that a provided argument is not an allowable type. For example,
 passing a function to a parameter which expects a string would be a `TypeError`.
 
 ```js
-require('url').parse(() => { });
+require('node:url').parse(() => { });
 // Throws TypeError, since it expected a string.
 ```
 
@@ -638,11 +638,11 @@ order to be compatible with the web platform's `AbortError`.
 ### `ERR_AMBIGUOUS_ARGUMENT`
 
 A function argument is being used in a way that suggests that the function
-signature may be misunderstood. This is thrown by the `assert` module when the
-`message` parameter in `assert.throws(block, message)` matches the error message
-thrown by `block` because that usage suggests that the user believes `message`
-is the expected message rather than the message the `AssertionError` will
-display if `block` does not throw.
+signature may be misunderstood. This is thrown by the `node:assert` module when
+the `message` parameter in `assert.throws(block, message)` matches the error
+message thrown by `block` because that usage suggests that the user believes
+`message` is the expected message rather than the message the `AssertionError`
+will display if `block` does not throw.
 
 <a id="ERR_ARG_NOT_ITERABLE"></a>
 
@@ -657,7 +657,7 @@ required, but not provided to a Node.js API.
 
 A special type of error that can be triggered whenever Node.js detects an
 exceptional logic violation that should never occur. These are raised typically
-by the `assert` module.
+by the `node:assert` module.
 
 <a id="ERR_ASYNC_CALLBACK"></a>
 
@@ -818,14 +818,14 @@ key lies outside of the elliptic curve.
 ### `ERR_CRYPTO_ENGINE_UNKNOWN`
 
 An invalid crypto engine identifier was passed to
-[`require('crypto').setEngine()`][].
+[`require('node:crypto').setEngine()`][].
 
 <a id="ERR_CRYPTO_FIPS_FORCED"></a>
 
 ### `ERR_CRYPTO_FIPS_FORCED`
 
 The [`--force-fips`][] command-line argument was used but there was an attempt
-to enable or disable FIPS mode in the `crypto` module.
+to enable or disable FIPS mode in the `node:crypto` module.
 
 <a id="ERR_CRYPTO_FIPS_UNAVAILABLE"></a>
 
@@ -1164,8 +1164,8 @@ ongoing asynchronous operations.
 
 ### `ERR_DOMAIN_CALLBACK_NOT_AVAILABLE`
 
-The `domain` module was not usable since it could not establish the required
-error handling hooks, because
+The `node:domain` module was not usable since it could not establish the
+required error handling hooks, because
 [`process.setUncaughtExceptionCaptureCallback()`][] had been called at an
 earlier point in time.
 
@@ -1174,10 +1174,10 @@ earlier point in time.
 ### `ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`
 
 [`process.setUncaughtExceptionCaptureCallback()`][] could not be called
-because the `domain` module has been loaded at an earlier point in time.
+because the `node:domain` module has been loaded at an earlier point in time.
 
 The stack trace is extended to include the point in time at which the
-`domain` module had been loaded.
+`node:domain` module had been loaded.
 
 <a id="ERR_ENCODING_INVALID_ENCODED_DATA"></a>
 
@@ -1750,7 +1750,7 @@ only be used with input via `--eval`, `--print` or `STDIN`.
 
 ### `ERR_INSPECTOR_ALREADY_ACTIVATED`
 
-While using the `inspector` module, an attempt was made to activate the
+While using the `node:inspector` module, an attempt was made to activate the
 inspector when it already started to listen on a port. Use `inspector.close()`
 before activating it on a different address.
 
@@ -1758,21 +1758,21 @@ before activating it on a different address.
 
 ### `ERR_INSPECTOR_ALREADY_CONNECTED`
 
-While using the `inspector` module, an attempt was made to connect when the
+While using the `node:inspector` module, an attempt was made to connect when the
 inspector was already connected.
 
 <a id="ERR_INSPECTOR_CLOSED"></a>
 
 ### `ERR_INSPECTOR_CLOSED`
 
-While using the `inspector` module, an attempt was made to use the inspector
-after the session had already closed.
+While using the `node:inspector` module, an attempt was made to use the
+inspector after the session had already closed.
 
 <a id="ERR_INSPECTOR_COMMAND"></a>
 
 ### `ERR_INSPECTOR_COMMAND`
 
-An error occurred while issuing a command via the `inspector` module.
+An error occurred while issuing a command via the `node:inspector` module.
 
 <a id="ERR_INSPECTOR_NOT_ACTIVE"></a>
 
@@ -1784,14 +1784,14 @@ The `inspector` is not active when `inspector.waitForDebugger()` is called.
 
 ### `ERR_INSPECTOR_NOT_AVAILABLE`
 
-The `inspector` module is not available for use.
+The `node:inspector` module is not available for use.
 
 <a id="ERR_INSPECTOR_NOT_CONNECTED"></a>
 
 ### `ERR_INSPECTOR_NOT_CONNECTED`
 
-While using the `inspector` module, an attempt was made to use the inspector
-before it was connected.
+While using the `node:inspector` module, an attempt was made to use the
+inspector before it was connected.
 
 <a id="ERR_INSPECTOR_NOT_WORKER"></a>
 
@@ -1920,6 +1920,13 @@ valid.
 
 The imported module string is an invalid URL, package name, or package subpath
 specifier.
+
+<a id="ERR_INVALID_OBJECT_DEFINE_PROPERTY"></a>
+
+### `ERR_INVALID_OBJECT_DEFINE_PROPERTY`
+
+An error occurred while setting an invalid attribute on the property of
+an object.
 
 <a id="ERR_INVALID_PACKAGE_CONFIG"></a>
 
@@ -2084,6 +2091,17 @@ for more information.
 An attempt was made to open an IPC communication channel with a synchronously
 forked Node.js process. See the documentation for the [`child_process`][] module
 for more information.
+
+<a id="ERR_LOADER_CHAIN_INCOMPLETE"></a>
+
+### `ERR_LOADER_CHAIN_INCOMPLETE`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An ESM loader hook returned without calling `next()` and without explicitly
+signaling a short circuit.
 
 <a id="ERR_MANIFEST_ASSERT_INTEGRITY"></a>
 
@@ -2516,7 +2534,7 @@ Prevents an abort if a string decoder was set on the Socket or if the decoder
 is in `objectMode`.
 
 ```js
-const Socket = require('net').Socket;
+const Socket = require('node:net').Socket;
 const instance = new Socket();
 
 instance.setEncoding('utf8');
@@ -2678,8 +2696,8 @@ category.
 
 ### `ERR_TRACE_EVENTS_UNAVAILABLE`
 
-The `trace_events` module could not be loaded because Node.js was compiled with
-the `--without-v8-platform` flag.
+The `node:trace_events` module could not be loaded because Node.js was compiled
+with the `--without-v8-platform` flag.
 
 <a id="ERR_TRANSFORM_ALREADY_TRANSFORMING"></a>
 
@@ -2795,6 +2813,14 @@ import 'package-name'; // supported
 
 `import` with URL schemes other than `file` and `data` is unsupported.
 
+<a id="ERR_USE_AFTER_CLOSE"></a>
+
+### `ERR_USE_AFTER_CLOSE`
+
+> Stability: 1 - Experimental
+
+An attempt was made to use something that was already closed.
+
 <a id="ERR_VALID_PERFORMANCE_ENTRY_TYPE"></a>
 
 ### `ERR_VALID_PERFORMANCE_ENTRY_TYPE`
@@ -2838,12 +2864,6 @@ Cached data cannot be created for modules which have already been evaluated.
 The module being returned from the linker function is from a different context
 than the parent module. Linked modules must share the same context.
 
-<a id="ERR_VM_MODULE_LINKING_ERRORED"></a>
-
-### `ERR_VM_MODULE_LINKING_ERRORED`
-
-The linker function returned a module for which linking has failed.
-
 <a id="ERR_VM_MODULE_LINK_FAILURE"></a>
 
 ### `ERR_VM_MODULE_LINK_FAILURE`
@@ -2874,6 +2894,17 @@ The WASI instance has already started.
 ### `ERR_WASI_NOT_STARTED`
 
 The WASI instance has not been started.
+
+<a id="ERR_WEBASSEMBLY_RESPONSE"></a>
+
+### `ERR_WEBASSEMBLY_RESPONSE`
+
+<!-- YAML
+added: v18.1.0
+-->
+
+The `Response` that has been passed to `WebAssembly.compileStreaming` or to
+`WebAssembly.instantiateStreaming` is not a valid WebAssembly response.
 
 <a id="ERR_WORKER_INIT_FAILED"></a>
 
@@ -2936,11 +2967,11 @@ changes:
      - v10.15.0
     commit: 186035243fad247e3955f
     pr-url: https://github.com/nodejs-private/node-private/pull/143
-    description: Max header size in `http_parser` was set to 8 KB.
+    description: Max header size in `http_parser` was set to 8 KiB.
 -->
 
 Too much HTTP header data was received. In order to protect against malicious or
-malconfigured clients, if more than 8 KB of HTTP header data is received then
+malconfigured clients, if more than 8 KiB of HTTP header data is received then
 HTTP parsing will abort without a request or response object being created, and
 an `Error` with this code will be emitted.
 
@@ -3183,7 +3214,7 @@ added: v9.0.0
 removed: v10.0.0
 -->
 
-The `repl` module was unable to parse data from the REPL history file.
+The `node:repl` module was unable to parse data from the REPL history file.
 
 <a id="ERR_SOCKET_CANNOT_SEND"></a>
 
@@ -3318,6 +3349,17 @@ Used when a given value is out of the accepted range.
 
 The module must be successfully linked before instantiation.
 
+<a id="ERR_VM_MODULE_LINKING_ERRORED"></a>
+
+### `ERR_VM_MODULE_LINKING_ERRORED`
+
+<!-- YAML
+added: v10.0.0
+removed: v18.1.0
+-->
+
+The linker function returned a module for which linking has failed.
+
 <a id="ERR_WORKER_UNSUPPORTED_EXTENSION"></a>
 
 ### `ERR_WORKER_UNSUPPORTED_EXTENSION`
@@ -3411,7 +3453,7 @@ The native call from `process.cpuUsage` could not be processed.
 [`process.send()`]: process.md#processsendmessage-sendhandle-options-callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`readable._read()`]: stream.md#readable_readsize
-[`require('crypto').setEngine()`]: crypto.md#cryptosetengineengine-flags
+[`require('node:crypto').setEngine()`]: crypto.md#cryptosetengineengine-flags
 [`require()`]: modules.md#requireid
 [`server.close()`]: net.md#serverclosecallback
 [`server.listen()`]: net.md#serverlisten

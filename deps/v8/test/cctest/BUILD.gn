@@ -43,10 +43,9 @@ v8_executable("cctest") {
     ]
   }
 
-  # TODO(machenbach): Translate from gyp.
-  #["OS=="aix"", {
-  #  "ldflags": [ "-Wl,-bbigtoc" ],
-  #}],
+  if (current_os == "aix") {
+    ldflags = [ "-Wl,-bbigtoc" ]
+  }
 }
 
 v8_header_set("cctest_headers") {
@@ -145,13 +144,11 @@ v8_source_set("cctest_sources") {
     "heap/test-compaction.cc",
     "heap/test-concurrent-allocation.cc",
     "heap/test-concurrent-marking.cc",
-    "heap/test-embedder-tracing.cc",
     "heap/test-external-string-tracker.cc",
     "heap/test-heap.cc",
     "heap/test-incremental-marking.cc",
     "heap/test-invalidated-slots.cc",
     "heap/test-iterators.cc",
-    "heap/test-lab.cc",
     "heap/test-mark-compact.cc",
     "heap/test-memory-measurement.cc",
     "heap/test-page-promotion.cc",

@@ -17,14 +17,13 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
-#include "src/execution/runtime-profiler.h"
 #include "src/execution/simulator.h"
 #include "src/init/bootstrapper.h"
 #include "src/libsampler/sampler.h"
 #include "src/objects/elements.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/heap-profiler.h"
-#include "src/security/vm-cage.h"
+#include "src/sandbox/sandbox.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/tracing-category-observer.h"
 
@@ -39,29 +38,79 @@
 namespace v8 {
 namespace internal {
 
-V8_DECLARE_ONCE(init_once);
+v8::Platform* V8::platform_ = nullptr;
+
+namespace {
+enum class V8StartupState {
+  kIdle,
+  kPlatformInitializing,
+  kPlatformInitialized,
+  kV8Initializing,
+  kV8Initialized,
+  kV8Disposing,
+  kV8Disposed,
+  kPlatformDisposing,
+  kPlatformDisposed
+};
+
+std::atomic<V8StartupState> v8_startup_state_(V8StartupState::kIdle);
+
+void AdvanceStartupState(V8StartupState expected_next_state) {
+  V8StartupState current_state = v8_startup_state_;
+  CHECK_NE(current_state, V8StartupState::kPlatformDisposed);
+  V8StartupState next_state =
+      static_cast<V8StartupState>(static_cast<int>(current_state) + 1);
+  if (next_state != expected_next_state) {
+    // Ensure the following order:
+    // v8::V8::InitializePlatform(platform);
+    // v8::V8::Initialize();
+    // v8::Isolate* isolate = v8::Isolate::New(...);
+    // ...
+    // isolate->Dispose();
+    // v8::V8::Dispose();
+    // v8::V8::DisposePlatform();
+    FATAL("Wrong initialization order: got %d expected %d!",
+          static_cast<int>(current_state), static_cast<int>(next_state));
+  }
+  if (!v8_startup_state_.compare_exchange_strong(current_state, next_state)) {
+    FATAL(
+        "Multiple threads are initializating V8 in the wrong order: expected "
+        "%d got %d!",
+        static_cast<int>(current_state),
+        static_cast<int>(v8_startup_state_.load()));
+  }
+}
+
+}  // namespace
 
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
-V8_DECLARE_ONCE(init_natives_once);
 V8_DECLARE_ONCE(init_snapshot_once);
 #endif
 
-v8::Platform* V8::platform_ = nullptr;
-
-void V8::Initialize() { base::CallOnce(&init_once, &InitializeOncePerProcess); }
-
-void V8::Dispose() {
-#if V8_ENABLE_WEBASSEMBLY
-  wasm::WasmEngine::GlobalTearDown();
-#endif  // V8_ENABLE_WEBASSEMBLY
-#if defined(USE_SIMULATOR)
-  Simulator::GlobalTearDown();
+void V8::InitializePlatform(v8::Platform* platform) {
+  AdvanceStartupState(V8StartupState::kPlatformInitializing);
+  CHECK(!platform_);
+  CHECK_NOT_NULL(platform);
+  platform_ = platform;
+  v8::base::SetPrintStackTrace(platform_->GetStackTracePrinter());
+  v8::tracing::TracingCategoryObserver::SetUp();
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+  if (FLAG_enable_system_instrumentation) {
+    // TODO(sartang@microsoft.com): Move to platform specific diagnostics object
+    v8::internal::ETWJITInterface::Register();
+  }
 #endif
-  CallDescriptors::TearDown();
-  ElementsAccessor::TearDown();
-  RegisteredExtension::UnregisterAll();
-  FlagList::ResetAllFlags();  // Frees memory held by string arguments.
+  AdvanceStartupState(V8StartupState::kPlatformInitialized);
 }
+
+#ifdef V8_SANDBOX
+bool V8::InitializeSandbox() {
+  // Platform must have been initialized already.
+  CHECK(platform_);
+  v8::VirtualAddressSpace* vas = GetPlatformVirtualAddressSpace();
+  return GetProcessWideSandbox()->Initialize(vas);
+}
+#endif  // V8_SANDBOX
 
 #define DISABLE_FLAG(flag)                                                    \
   if (FLAG_##flag) {                                                          \
@@ -70,26 +119,24 @@ void V8::Dispose() {
     FLAG_##flag = false;                                                      \
   }
 
-void V8::InitializeOncePerProcess() {
+void V8::Initialize() {
+  AdvanceStartupState(V8StartupState::kV8Initializing);
   CHECK(platform_);
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-  if (!GetProcessWideVirtualMemoryCage()->is_initialized()) {
+#ifdef V8_SANDBOX
+  if (!GetProcessWideSandbox()->is_initialized()) {
     // For now, we still allow the cage to be disabled even if V8 was compiled
-    // with V8_VIRTUAL_MEMORY_CAGE. This will eventually be forbidden.
-    CHECK(kAllowBackingStoresOutsideCage);
-    GetProcessWideVirtualMemoryCage()->Disable();
+    // with V8_SANDBOX. This will eventually be forbidden.
+    CHECK(kAllowBackingStoresOutsideSandbox);
+    GetProcessWideSandbox()->Disable();
   }
 #endif
 
   // Update logging information before enforcing flag implications.
   bool* log_all_flags[] = {&FLAG_turbo_profiling_log_builtins,
                            &FLAG_log_all,
-                           &FLAG_log_api,
                            &FLAG_log_code,
                            &FLAG_log_code_disassemble,
-                           &FLAG_log_handles,
-                           &FLAG_log_suspect,
                            &FLAG_log_source_code,
                            &FLAG_log_function_events,
                            &FLAG_log_internal_timer_events,
@@ -112,6 +159,10 @@ void V8::InitializeOncePerProcess() {
     // Profiling flags depend on logging.
     FLAG_log |= FLAG_perf_prof || FLAG_perf_basic_prof || FLAG_ll_prof ||
                 FLAG_prof || FLAG_prof_cpp;
+    FLAG_log |= FLAG_gdbjit;
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+    FLAG_log |= FLAG_enable_system_instrumentation;
+#endif
   }
 
   FlagList::EnforceFlagImplications();
@@ -201,32 +252,31 @@ void V8::InitializeOncePerProcess() {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   ExternalReferenceTable::InitializeOncePerProcess();
+
+  AdvanceStartupState(V8StartupState::kV8Initialized);
 }
 
-void V8::InitializePlatform(v8::Platform* platform) {
-  CHECK(!platform_);
-  CHECK(platform);
-  platform_ = platform;
-  v8::base::SetPrintStackTrace(platform_->GetStackTracePrinter());
-  v8::tracing::TracingCategoryObserver::SetUp();
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-  if (FLAG_enable_system_instrumentation) {
-    // TODO(sartang@microsoft.com): Move to platform specific diagnostics object
-    v8::internal::ETWJITInterface::Register();
-  }
-#endif
-}
+#undef DISABLE_FLAG
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
-bool V8::InitializeVirtualMemoryCage() {
-  // Platform must have been initialized already.
+void V8::Dispose() {
+  AdvanceStartupState(V8StartupState::kV8Disposing);
   CHECK(platform_);
-  v8::VirtualAddressSpace* vas = GetPlatformVirtualAddressSpace();
-  return GetProcessWideVirtualMemoryCage()->Initialize(vas);
-}
+#if V8_ENABLE_WEBASSEMBLY
+  wasm::WasmEngine::GlobalTearDown();
+#endif  // V8_ENABLE_WEBASSEMBLY
+#if defined(USE_SIMULATOR)
+  Simulator::GlobalTearDown();
 #endif
+  CallDescriptors::TearDown();
+  ElementsAccessor::TearDown();
+  RegisteredExtension::UnregisterAll();
+  Isolate::DisposeOncePerProcess();
+  FlagList::ResetAllFlags();  // Frees memory held by string arguments.
+  AdvanceStartupState(V8StartupState::kV8Disposed);
+}
 
 void V8::DisposePlatform() {
+  AdvanceStartupState(V8StartupState::kPlatformDisposing);
   CHECK(platform_);
 #if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
   if (FLAG_enable_system_instrumentation) {
@@ -236,13 +286,14 @@ void V8::DisposePlatform() {
   v8::tracing::TracingCategoryObserver::TearDown();
   v8::base::SetPrintStackTrace(nullptr);
 
-#ifdef V8_VIRTUAL_MEMORY_CAGE
+#ifdef V8_SANDBOX
   // TODO(chromium:1218005) alternatively, this could move to its own
-  // public TearDownVirtualMemoryCage function.
-  GetProcessWideVirtualMemoryCage()->TearDown();
+  // public TearDownSandbox function.
+  GetProcessWideSandbox()->TearDown();
 #endif
 
   platform_ = nullptr;
+  AdvanceStartupState(V8StartupState::kPlatformDisposed);
 }
 
 v8::Platform* V8::GetCurrentPlatform() {

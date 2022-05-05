@@ -4,6 +4,11 @@
 
 #include "src/objects/turbofan-types.h"
 
+const kMaxIntPtr: constexpr IntegerLiteral
+    generates 'IntegerLiteral(ca_.Is64() ? 0x7FFFFFFFFFFFFFFF : 0x7FFFFFFF)';
+const kMinIntPtr: constexpr IntegerLiteral
+    generates 'IntegerLiteral(ca_.Is64() ? 0x8000000000000000 : 0x80000000)';
+
 @export
 @abstract
 class TurbofanType extends HeapObject {
@@ -33,7 +38,8 @@ bitfield struct TurbofanTypeLowBits extends uint32 {
   other_undetectable: bool: 1 bit;
   callable_proxy: bool: 1 bit;
   other_proxy: bool: 1 bit;
-  function: bool: 1 bit;
+  callable_function: bool: 1 bit;
+  class_constructor: bool: 1 bit;
   bound_function: bool: 1 bit;
   hole: bool: 1 bit;
   other_internal: bool: 1 bit;
@@ -43,12 +49,11 @@ bitfield struct TurbofanTypeLowBits extends uint32 {
   other_unsigned_big_int_64: bool: 1 bit;
   negative_big_int_63: bool: 1 bit;
   other_big_int: bool: 1 bit;
-  sandboxed_external_pointer: bool: 1 bit;
-  caged_pointer: bool: 1 bit;
+  wasm_object: bool: 1 bit;
 }
 
 bitfield struct TurbofanTypeHighBits extends uint32 {
-  wasm_object: bool: 1 bit;
+  sandboxed_pointer: bool: 1 bit;
 }
 
 @export
@@ -80,7 +85,7 @@ class TurbofanOtherNumberConstantType extends TurbofanType {
 }
 
 macro IsMinusZero(x: float64): bool {
-  return x == 0 && 1 / x < 0;
+  return x == 0 && 1.0 / x < 0;
 }
 
 macro TestTurbofanBitsetType(
@@ -94,13 +99,13 @@ macro TestTurbofanBitsetType(
       if (IsInteger(value)) {
         if (IsMinusZero(valueF)) {
           return bitsetLow.minus_zero;
-        } else if (valueF < Convert<float64>(-0x80000000)) {
+        } else if (valueF < -0x80000000) {
           return bitsetLow.other_number;
         } else if (valueF < -0x40000000) {
           return bitsetLow.other_signed32;
         } else if (valueF < 0) {
           return bitsetLow.negative31;
-        } else if (valueF < Convert<float64>(0x40000000)) {
+        } else if (valueF < 0x40000000) {
           return bitsetLow.unsigned30;
         } else if (valueF < 0x80000000) {
           return bitsetLow.other_unsigned31;
@@ -138,8 +143,12 @@ macro TestTurbofanBitsetType(
       return Is<Callable>(proxy) ? bitsetLow.callable_proxy :
                                    bitsetLow.other_proxy;
     }
-    case (JSFunction): {
-      return bitsetLow.function;
+    case (fun: JSFunction): {
+      if (fun.shared_function_info.flags.is_class_constructor) {
+        return bitsetLow.class_constructor;
+      } else {
+        return bitsetLow.callable_function;
+      }
     }
     case (JSBoundFunction): {
       return bitsetLow.bound_function;
@@ -150,11 +159,37 @@ macro TestTurbofanBitsetType(
     case (JSArray): {
       return bitsetLow.array;
     }
-    case (BigInt): {
-      // TODO (tebbi): Distinguish different BigInt types.
-      return bitsetLow.unsigned_big_int_63 |
-          bitsetLow.other_unsigned_big_int_64 | bitsetLow.negative_big_int_63 |
-          bitsetLow.other_big_int;
+    case (bi: BigInt): {
+      dcheck(!bitsetLow.other_big_int || bitsetLow.other_unsigned_big_int_64);
+      dcheck(!bitsetLow.other_big_int || bitsetLow.negative_big_int_63);
+      dcheck(
+          !bitsetLow.other_unsigned_big_int_64 ||
+          bitsetLow.unsigned_big_int_63);
+      dcheck(!bitsetLow.negative_big_int_63 || bitsetLow.unsigned_big_int_63);
+
+      // On 32 bit architectures, [Un]signedBigInt64 types are not used, yet.
+      if (!Is64()) {
+        return bitsetLow.other_big_int;
+      }
+
+      const length = bigint::ReadBigIntLength(bi);
+      if (length > 1) {
+        return bitsetLow.other_big_int;
+      } else if (length == 0) {
+        return bitsetLow.unsigned_big_int_63;
+      }
+      dcheck(length == 1);
+      const sign = bigint::ReadBigIntSign(bi);
+      const digit = bigint::LoadBigIntDigit(bi, 0);
+      if (sign == bigint::kPositiveSign) {
+        return bitsetLow.other_unsigned_big_int_64 ||
+            (digit <= Convert<uintptr>(kMaxIntPtr) &&
+             bitsetLow.unsigned_big_int_63);
+      } else {
+        return bitsetLow.other_big_int ||
+            (digit <= Convert<uintptr>(kMinIntPtr) &&
+             bitsetLow.negative_big_int_63);
+      }
     }
     case (object: JSObject): {
       if (object.map.IsUndetectable()) {
@@ -167,7 +202,7 @@ macro TestTurbofanBitsetType(
     }
     @if(V8_ENABLE_WEBASSEMBLY)
     case (WasmObject): {
-      return bitsetHigh.wasm_object;
+      return bitsetLow.wasm_object;
     }
     case (Object): {
       return false;

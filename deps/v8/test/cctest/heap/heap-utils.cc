@@ -10,6 +10,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/marking-barrier.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/safepoint.h"
 #include "test/cctest/cctest.h"
@@ -31,7 +32,8 @@ void SealCurrentObjects(Heap* heap) {
   CHECK(!FLAG_stress_concurrent_allocation);
   CcTest::CollectAllGarbage();
   CcTest::CollectAllGarbage();
-  heap->mark_compact_collector()->EnsureSweepingCompleted();
+  heap->mark_compact_collector()->EnsureSweepingCompleted(
+      MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   heap->old_space()->FreeLinearAllocationArea();
   for (Page* page : *heap->old_space()) {
     page->MarkNeverAllocateForTesting();
@@ -140,7 +142,7 @@ bool FillCurrentPageButNBytes(v8::internal::NewSpace* space, int extra_bytes,
   // We cannot rely on `space->limit()` to point to the end of the current page
   // in the case where inline allocations are disabled, it actually points to
   // the current allocation pointer.
-  DCHECK_IMPLIES(space->heap()->inline_allocation_disabled(),
+  DCHECK_IMPLIES(!space->IsInlineAllocationEnabled(),
                  space->limit() == space->top());
   int space_remaining =
       static_cast<int>(space->to_space().page_high() - space->top());
@@ -172,7 +174,8 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   i::MarkCompactCollector* collector = heap->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
     SafepointScope scope(heap);
-    collector->EnsureSweepingCompleted();
+    collector->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
   CHECK(marking->IsMarking() || marking->IsStopped() || marking->IsComplete());
   if (marking->IsStopped()) {
@@ -187,6 +190,8 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
                   i::StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
       SafepointScope scope(heap);
+      MarkingBarrier::PublishAll(heap);
+      marking->MarkRootsForTesting();
       marking->FinalizeIncrementally();
     }
   }
@@ -201,7 +206,8 @@ void SimulateFullSpace(v8::internal::PagedSpace* space) {
   CodePageCollectionMemoryModificationScope modification_scope(space->heap());
   i::MarkCompactCollector* collector = space->heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
+    collector->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
   space->FreeLinearAllocationArea();
   space->ResetFreeList();
@@ -218,7 +224,8 @@ void GcAndSweep(Heap* heap, AllocationSpace space) {
   heap->CollectGarbage(space, GarbageCollectionReason::kTesting);
   if (heap->mark_compact_collector()->sweeping_in_progress()) {
     SafepointScope scope(heap);
-    heap->mark_compact_collector()->EnsureSweepingCompleted();
+    heap->mark_compact_collector()->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
 }
 

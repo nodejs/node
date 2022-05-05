@@ -411,11 +411,9 @@ TEST(NativeTemplateAccessorWithSideEffects) {
   v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
   templ->SetAccessor(v8_str("get"), Getter, nullptr, v8::Local<v8::Value>(),
                      v8::AccessControl::DEFAULT, v8::PropertyAttribute::None,
-                     v8::Local<v8::AccessorSignature>(),
                      v8::SideEffectType::kHasSideEffect);
   templ->SetAccessor(v8_str("set"), Getter, Setter, v8::Local<v8::Value>(),
                      v8::AccessControl::DEFAULT, v8::PropertyAttribute::None,
-                     v8::Local<v8::AccessorSignature>(),
                      v8::SideEffectType::kHasNoSideEffect,
                      v8::SideEffectType::kHasSideEffect);
 
@@ -551,7 +549,6 @@ TEST(SetAccessorSetSideEffectReceiverCheck2) {
   templ->InstanceTemplate()->SetAccessor(
       v8_str("bar"), Getter, Setter, v8::Local<v8::Value>(),
       v8::AccessControl::DEFAULT, v8::PropertyAttribute::None,
-      v8::Local<v8::AccessorSignature>(),
       v8::SideEffectType::kHasSideEffectToReceiver,
       v8::SideEffectType::kHasSideEffectToReceiver);
   CHECK(env->Global()
@@ -668,10 +665,10 @@ TEST(ObjectTemplateSetAccessorHasNoSideEffect) {
 
   v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
   templ->SetAccessor(v8_str("foo"), StringGetter);
-  templ->SetAccessor(
-      v8_str("foo2"), StringGetter, nullptr, v8::Local<v8::Value>(),
-      v8::AccessControl::DEFAULT, v8::PropertyAttribute::None,
-      v8::Local<v8::AccessorSignature>(), v8::SideEffectType::kHasNoSideEffect);
+  templ->SetAccessor(v8_str("foo2"), StringGetter, nullptr,
+                     v8::Local<v8::Value>(), v8::AccessControl::DEFAULT,
+                     v8::PropertyAttribute::None,
+                     v8::SideEffectType::kHasNoSideEffect);
   v8::Local<v8::Object> obj = templ->NewInstance(env.local()).ToLocalChecked();
   CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
 
@@ -711,8 +708,8 @@ TEST(ObjectTemplateSetNativePropertyHasNoSideEffect) {
   templ->SetNativeDataProperty(v8_str("foo"), Getter);
   templ->SetNativeDataProperty(
       v8_str("foo2"), Getter, nullptr, v8::Local<v8::Value>(),
-      v8::PropertyAttribute::None, v8::Local<v8::AccessorSignature>(),
-      v8::AccessControl::DEFAULT, v8::SideEffectType::kHasNoSideEffect);
+      v8::PropertyAttribute::None, v8::AccessControl::DEFAULT,
+      v8::SideEffectType::kHasNoSideEffect);
   v8::Local<v8::Object> obj = templ->NewInstance(env.local()).ToLocalChecked();
   CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
 
@@ -777,4 +774,104 @@ TEST(ObjectTemplateSetLazyPropertyHasNoSideEffect) {
                   .ToLocalChecked()
                   ->Int32Value(env.local())
                   .FromJust());
+}
+
+namespace {
+void FunctionNativeGetter(v8::Local<v8::String> property,
+                          const v8::PropertyCallbackInfo<v8::Value>& info) {
+  info.GetIsolate()->ThrowError(v8_str("side effect in getter"));
+}
+}  // namespace
+
+TEST(BindFunctionTemplateSetNativeDataProperty) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  // Check that getter is called on Function.prototype.bind.
+  {
+    v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+    templ->SetNativeDataProperty(v8_str("name"), FunctionNativeGetter);
+    v8::Local<v8::Function> func =
+        templ->GetFunction(env.local()).ToLocalChecked();
+    CHECK(env->Global()->Set(env.local(), v8_str("func"), func).FromJust());
+
+    v8::TryCatch try_catch(isolate);
+    CHECK(CompileRun("func.bind()").IsEmpty());
+    CHECK(try_catch.HasCaught());
+  }
+
+  // Check that getter is called on Function.prototype.bind.
+  {
+    v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+    templ->SetNativeDataProperty(v8_str("length"), FunctionNativeGetter);
+    v8::Local<v8::Function> func =
+        templ->GetFunction(env.local()).ToLocalChecked();
+    CHECK(env->Global()->Set(env.local(), v8_str("func"), func).FromJust());
+
+    v8::TryCatch try_catch(isolate);
+    CHECK(CompileRun("func.bind()").IsEmpty());
+    CHECK(try_catch.HasCaught());
+  }
+}
+
+namespace {
+v8::MaybeLocal<v8::Context> TestHostCreateShadowRealmContextCallback(
+    v8::Local<v8::Context> initiator_context) {
+  v8::Isolate* isolate = initiator_context->GetIsolate();
+  v8::Local<v8::FunctionTemplate> global_constructor =
+      v8::FunctionTemplate::New(isolate);
+  v8::Local<v8::ObjectTemplate> global_template =
+      global_constructor->InstanceTemplate();
+
+  // Check that getter is called on Function.prototype.bind.
+  global_template->SetNativeDataProperty(
+      v8_str("func1"), [](v8::Local<v8::String> property,
+                          const v8::PropertyCallbackInfo<v8::Value>& info) {
+        v8::Isolate* isolate = info.GetIsolate();
+        v8::Local<v8::FunctionTemplate> templ =
+            v8::FunctionTemplate::New(isolate);
+        templ->SetNativeDataProperty(v8_str("name"), FunctionNativeGetter);
+        info.GetReturnValue().Set(
+            templ->GetFunction(isolate->GetCurrentContext()).ToLocalChecked());
+      });
+
+  // Check that getter is called on Function.prototype.bind.
+  global_template->SetNativeDataProperty(
+      v8_str("func2"), [](v8::Local<v8::String> property,
+                          const v8::PropertyCallbackInfo<v8::Value>& info) {
+        v8::Isolate* isolate = info.GetIsolate();
+        v8::Local<v8::FunctionTemplate> templ =
+            v8::FunctionTemplate::New(isolate);
+        templ->SetNativeDataProperty(v8_str("length"), FunctionNativeGetter);
+        info.GetReturnValue().Set(
+            templ->GetFunction(isolate->GetCurrentContext()).ToLocalChecked());
+      });
+
+  return v8::Context::New(isolate, nullptr, global_template);
+}
+}  // namespace
+
+TEST(WrapFunctionTemplateSetNativeDataProperty) {
+  i::FLAG_harmony_shadow_realm = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  isolate->SetHostCreateShadowRealmContextCallback(
+      TestHostCreateShadowRealmContextCallback);
+
+  v8::HandleScope scope(isolate);
+  // Check that getter is called on WrappedFunctionCreate.
+  {
+    v8::TryCatch try_catch(isolate);
+    CHECK(
+        CompileRun("new ShadowRealm().evaluate('globalThis.func1')").IsEmpty());
+    CHECK(try_catch.HasCaught());
+  }
+  // Check that getter is called on WrappedFunctionCreate.
+  {
+    v8::TryCatch try_catch(isolate);
+    CHECK(
+        CompileRun("new ShadowRealm().evaluate('globalThis.func2')").IsEmpty());
+    CHECK(try_catch.HasCaught());
+  }
 }

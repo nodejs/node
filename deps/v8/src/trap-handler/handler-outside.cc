@@ -89,6 +89,7 @@ void ValidateCodeObjects() {
   }
 
   // Check the validity of the free list.
+#ifdef DEBUG
   size_t free_count = 0;
   for (size_t i = gNextCodeObject; i != gNumCodeObjects;
        i = gCodeObjects[i].next_free) {
@@ -106,6 +107,7 @@ void ValidateCodeObjects() {
     }
   }
   TH_DCHECK(free_count == free_count2);
+#endif
 }
 }  // namespace
 

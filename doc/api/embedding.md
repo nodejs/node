@@ -124,6 +124,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
   {
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
+    HandleScope handle_scope(isolate);
     // The v8::Context needs to be entered when node::CreateEnvironment() and
     // node::LoadEnvironment() are being called.
     Context::Scope context_scope(setup->context());
@@ -140,9 +141,9 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     MaybeLocal<Value> loadenv_ret = node::LoadEnvironment(
         env,
         "const publicRequire ="
-        "  require('module').createRequire(process.cwd() + '/');"
+        "  require('node:module').createRequire(process.cwd() + '/');"
         "globalThis.require = publicRequire;"
-        "require('vm').runInThisContext(process.argv[1]);");
+        "require('node:vm').runInThisContext(process.argv[1]);");
 
     if (loadenv_ret.IsEmpty())  // There has been a JS exception.
       return 1;

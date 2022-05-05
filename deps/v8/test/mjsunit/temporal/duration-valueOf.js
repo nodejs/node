@@ -4,5 +4,4 @@
 // Flags: --harmony-temporal
 
 let d1 = new Temporal.Duration();
-assertThrows(() => d1.valueOf(), TypeError,
-    "Method Temporal.Duration called on a non-object or on a wrong type of object.");
+assertThrows(() => d1.valueOf(), TypeError);

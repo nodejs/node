@@ -24,10 +24,10 @@ void StaticCallInterfaceDescriptor<DerivedDescriptor>::
     VerifyArgumentRegisterCount(CallInterfaceDescriptorData* data,
                                 int nof_expected_args) {
   RegList allocatable_regs = data->allocatable_registers();
-  if (nof_expected_args >= 1) DCHECK(allocatable_regs | arg_reg_1.bit());
-  if (nof_expected_args >= 2) DCHECK(allocatable_regs | arg_reg_2.bit());
-  if (nof_expected_args >= 3) DCHECK(allocatable_regs | arg_reg_3.bit());
-  if (nof_expected_args >= 4) DCHECK(allocatable_regs | arg_reg_4.bit());
+  if (nof_expected_args >= 1) DCHECK(allocatable_regs.has(arg_reg_1));
+  if (nof_expected_args >= 2) DCHECK(allocatable_regs.has(arg_reg_2));
+  if (nof_expected_args >= 3) DCHECK(allocatable_regs.has(arg_reg_3));
+  if (nof_expected_args >= 4) DCHECK(allocatable_regs.has(arg_reg_4));
   // Additional arguments are passed on the stack.
 }
 #endif  // DEBUG
@@ -54,30 +54,6 @@ constexpr auto TSANLoadDescriptor::registers() {
 #endif  // V8_IS_TSAN
 
 // static
-constexpr auto DynamicCheckMapsDescriptor::registers() {
-#if V8_TARGET_OS_WIN
-  return RegisterArray(kReturnRegister0, arg_reg_1, arg_reg_2, arg_reg_3,
-                       kRuntimeCallFunctionRegister, kContextRegister);
-#else
-  STATIC_ASSERT(kContextRegister == arg_reg_2);
-  return RegisterArray(kReturnRegister0, arg_reg_1, arg_reg_2, arg_reg_3,
-                       kRuntimeCallFunctionRegister);
-#endif  // V8_TARGET_OS_WIN
-}
-
-// static
-constexpr auto DynamicCheckMapsWithFeedbackVectorDescriptor::registers() {
-#if V8_TARGET_OS_WIN
-  return RegisterArray(kReturnRegister0, arg_reg_1, arg_reg_2, arg_reg_3,
-                       kRuntimeCallFunctionRegister, kContextRegister);
-#else
-  STATIC_ASSERT(kContextRegister == arg_reg_2);
-  return RegisterArray(kReturnRegister0, arg_reg_1, arg_reg_2, arg_reg_3,
-                       kRuntimeCallFunctionRegister);
-#endif  // V8_TARGET_OS_WIN
-}
-
-// static
 constexpr Register LoadDescriptor::ReceiverRegister() { return rdx; }
 // static
 constexpr Register LoadDescriptor::NameRegister() { return rcx; }
@@ -86,6 +62,36 @@ constexpr Register LoadDescriptor::SlotRegister() { return rax; }
 
 // static
 constexpr Register LoadWithVectorDescriptor::VectorRegister() { return rbx; }
+
+// static
+constexpr Register KeyedLoadBaselineDescriptor::ReceiverRegister() {
+  return rdx;
+}
+// static
+constexpr Register KeyedLoadBaselineDescriptor::NameRegister() {
+  return kInterpreterAccumulatorRegister;
+}
+// static
+constexpr Register KeyedLoadBaselineDescriptor::SlotRegister() { return rcx; }
+
+// static
+constexpr Register KeyedLoadWithVectorDescriptor::VectorRegister() {
+  return rbx;
+}
+
+// static
+constexpr Register KeyedHasICBaselineDescriptor::ReceiverRegister() {
+  return kInterpreterAccumulatorRegister;
+}
+// static
+constexpr Register KeyedHasICBaselineDescriptor::NameRegister() { return rdx; }
+// static
+constexpr Register KeyedHasICBaselineDescriptor::SlotRegister() { return rcx; }
+
+// static
+constexpr Register KeyedHasICWithVectorDescriptor::VectorRegister() {
+  return rbx;
+}
 
 // static
 constexpr Register
@@ -131,13 +137,28 @@ constexpr Register BaselineLeaveFrameDescriptor::WeightRegister() {
 constexpr Register TypeConversionDescriptor::ArgumentRegister() { return rax; }
 
 // static
-constexpr auto TypeofDescriptor::registers() { return RegisterArray(rbx); }
+constexpr auto TypeofDescriptor::registers() { return RegisterArray(rax); }
 
 // static
 constexpr auto CallTrampolineDescriptor::registers() {
   // rax : number of arguments
   // rdi : the target to call
   return RegisterArray(rdi, rax);
+}
+// static
+constexpr auto CopyDataPropertiesWithExcludedPropertiesDescriptor::registers() {
+  // rdi : the source
+  // rax : the excluded property count
+  return RegisterArray(rdi, rax);
+}
+
+// static
+constexpr auto
+CopyDataPropertiesWithExcludedPropertiesOnStackDescriptor::registers() {
+  // rdi : the source
+  // rax : the excluded property count
+  // rcx : the excluded property base
+  return RegisterArray(rdi, rax, rcx);
 }
 
 // static
@@ -245,6 +266,11 @@ constexpr auto Compare_BaselineDescriptor::registers() {
 // static
 constexpr auto BinaryOp_BaselineDescriptor::registers() {
   return RegisterArray(rdx, rax, rbx);
+}
+
+// static
+constexpr auto BinarySmiOp_BaselineDescriptor::registers() {
+  return RegisterArray(rax, rdx, rbx);
 }
 
 // static

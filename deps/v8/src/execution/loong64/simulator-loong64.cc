@@ -3484,13 +3484,13 @@ void Simulator::DecodeTypeOp17() {
       printf_instr("MASKEQZ\t %s: %016lx, %s, %016lx, %s, %016lx\n",
                    Registers::Name(rd_reg()), rd(), Registers::Name(rj_reg()),
                    rj(), Registers::Name(rk_reg()), rk());
-      SetResult(rd_reg(), rk() == 0 ? rj() : 0);
+      SetResult(rd_reg(), rk() == 0 ? 0 : rj());
       break;
     case MASKNEZ:
       printf_instr("MASKNEZ\t %s: %016lx, %s, %016lx, %s, %016lx\n",
                    Registers::Name(rd_reg()), rd(), Registers::Name(rj_reg()),
                    rj(), Registers::Name(rk_reg()), rk());
-      SetResult(rd_reg(), rk() != 0 ? rj() : 0);
+      SetResult(rd_reg(), rk() != 0 ? 0 : rj());
       break;
     case NOR:
       printf_instr("NOR\t %s: %016lx, %s, %016lx, %s, %016lx\n",
@@ -4267,12 +4267,20 @@ void Simulator::DecodeTypeOp17() {
     case FSCALEB_D:
       printf("Sim UNIMPLEMENTED: FSCALEB_D\n");
       UNIMPLEMENTED();
-    case FCOPYSIGN_S:
-      printf("Sim UNIMPLEMENTED: FCOPYSIGN_S\n");
-      UNIMPLEMENTED();
-    case FCOPYSIGN_D:
-      printf("Sim UNIMPLEMENTED: FCOPYSIGN_D\n");
-      UNIMPLEMENTED();
+    case FCOPYSIGN_S: {
+      printf_instr("FCOPYSIGN_S\t %s: %016f, %s, %016f, %s, %016f\n",
+                   FPURegisters::Name(fd_reg()), fd_float(),
+                   FPURegisters::Name(fj_reg()), fj_float(),
+                   FPURegisters::Name(fk_reg()), fk_float());
+      SetFPUFloatResult(fd_reg(), std::copysign(fj_float(), fk_float()));
+    } break;
+    case FCOPYSIGN_D: {
+      printf_instr("FCOPYSIGN_d\t %s: %016f, %s, %016f, %s, %016f\n",
+                   FPURegisters::Name(fd_reg()), fd_double(),
+                   FPURegisters::Name(fj_reg()), fj_double(),
+                   FPURegisters::Name(fk_reg()), fk_double());
+      SetFPUDoubleResult(fd_reg(), std::copysign(fj_double(), fk_double()));
+    } break;
     default:
       UNREACHABLE();
   }

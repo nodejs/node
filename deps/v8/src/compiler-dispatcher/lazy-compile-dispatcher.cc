@@ -12,6 +12,7 @@
 #include "src/base/platform/time.h"
 #include "src/codegen/compiler.h"
 #include "src/common/globals.h"
+#include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/parked-scope.h"
@@ -23,7 +24,7 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/roots/roots.h"
-#include "src/security/external-pointer.h"
+#include "src/sandbox/external-pointer.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tasks/task-utils.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
@@ -266,7 +267,7 @@ bool LazyCompileDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
   }
 
   if (job->state == Job::State::kPendingToRunOnForeground) {
-    job->task->Run();
+    job->task->RunOnMainThread(isolate_);
     job->state = Job::State::kFinalizingNow;
   }
 
@@ -400,11 +401,7 @@ void LazyCompileDispatcher::DoBackgroundWork(JobDelegate* delegate) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.LazyCompileDispatcherDoBackgroundWork");
 
-  WorkerThreadRuntimeCallStatsScope worker_thread_scope(
-      worker_thread_runtime_call_stats_);
-
-  LocalIsolate isolate(isolate_, ThreadKind::kBackground,
-                       worker_thread_scope.Get());
+  LocalIsolate isolate(isolate_, ThreadKind::kBackground);
   UnparkedScope unparked_scope(&isolate);
   LocalHandleScope handle_scope(&isolate);
 
@@ -459,7 +456,7 @@ void LazyCompileDispatcher::DoBackgroundWork(JobDelegate* delegate) {
   while (!delegate->ShouldYield()) {
     Job* job = nullptr;
     {
-      base::MutexGuard lock(&job_dispose_mutex_);
+      base::MutexGuard lock(&mutex_);
       if (jobs_to_dispose_.empty()) break;
       job = jobs_to_dispose_.back();
       jobs_to_dispose_.pop_back();
@@ -541,13 +538,8 @@ void LazyCompileDispatcher::DoIdleWork(double deadline_in_seconds) {
 
 void LazyCompileDispatcher::DeleteJob(Job* job) {
   DCHECK(job->state == Job::State::kFinalized);
-#ifdef DEBUG
-  {
-    base::MutexGuard lock(&mutex_);
-    all_jobs_.erase(job);
-  }
-#endif
-  delete job;
+  base::MutexGuard lock(&mutex_);
+  DeleteJob(job, lock);
 }
 
 void LazyCompileDispatcher::DeleteJob(Job* job, const base::MutexGuard&) {
@@ -555,7 +547,6 @@ void LazyCompileDispatcher::DeleteJob(Job* job, const base::MutexGuard&) {
 #ifdef DEBUG
   all_jobs_.erase(job);
 #endif
-  base::MutexGuard lock(&job_dispose_mutex_);
   jobs_to_dispose_.push_back(job);
   if (jobs_to_dispose_.size() == 1) {
     num_jobs_for_background_++;

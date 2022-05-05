@@ -230,6 +230,11 @@ bool FormattedValueStringBuilderImpl::nextPositionImpl(ConstrainedFieldPosition&
             if (si + 1 < spanIndicesCount) {
                 nextSpanStart = spanIndices[si + 1].start;
             }
+            if (length == 0) {
+                // ICU-21871: Don't return fields on empty spans
+                i--;
+                continue;
+            }
             if (cfpos.matchesField(spanCategory, spanValue)) {
                 fieldStart = i - fString.fZero;
                 int32_t end = fieldStart + length;

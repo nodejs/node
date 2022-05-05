@@ -27,7 +27,6 @@ enum class PageInitializationMode {
 // pre-reserved region of virtual space. This class requires the virtual space
 // to be kept reserved during the lifetime of this object.
 // The main application of bounded page allocator are
-//  - the V8 virtual memory cage
 //  - V8 heap pointer compression which requires the whole V8 heap to be
 //    allocated within a contiguous range of virtual address space,
 //  - executable page allocation, which allows to use PC-relative 32-bit code

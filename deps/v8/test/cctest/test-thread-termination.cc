@@ -854,6 +854,16 @@ TEST(TerminateConsole) {
       isolate, TerminateCurrentThread, DoLoopCancelTerminate);
   v8::Local<v8::Context> context = v8::Context::New(isolate, nullptr, global);
   v8::Context::Scope context_scope(context);
+  {
+    // setup console global.
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::String> name = v8::String::NewFromUtf8Literal(
+        isolate, "console", v8::NewStringType::kInternalized);
+    v8::Local<v8::Value> console =
+        context->GetExtrasBindingObject()->Get(context, name).ToLocalChecked();
+    context->Global()->Set(context, name, console).FromJust();
+  }
+
   CHECK(!isolate->IsExecutionTerminating());
   v8::TryCatch try_catch(isolate);
   CHECK(!isolate->IsExecutionTerminating());

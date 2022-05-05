@@ -10,6 +10,7 @@
 
 #include "src/base/optional.h"
 #include "src/common/globals.h"
+#include "src/numbers/integer-literal-inl.h"
 #include "src/torque/cc-generator.h"
 #include "src/torque/cfg.h"
 #include "src/torque/constants.h"
@@ -182,6 +183,7 @@ void ImplementationVisitor::BeginDebugMacrosFile() {
   header << "#ifndef " << kHeaderDefine << "\n";
   header << "#define " << kHeaderDefine << "\n\n";
   header << "#include \"tools/debug_helper/debug-helper-internal.h\"\n";
+  header << "#include \"src/numbers/integer-literal.h\"\n";
   header << "\n";
 
   header << "namespace v8 {\n"
@@ -605,12 +607,11 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
                       "Int32T>(argc)));\n";
       csa_ccfile() << "  TNode<RawPtrT> arguments_frame = "
                       "UncheckedCast<RawPtrT>(LoadFramePointer());\n";
-      csa_ccfile() << "  TorqueStructArguments "
-                      "torque_arguments(GetFrameArguments(arguments_frame, "
-                      "arguments_length, (kJSArgcIncludesReceiver ? "
-                      "FrameArgumentsArgcType::kCountIncludesReceiver : "
-                      "FrameArgumentsArgcType::kCountExcludesReceiver)"
-                   << "));\n";
+      csa_ccfile()
+          << "  TorqueStructArguments "
+             "torque_arguments(GetFrameArguments(arguments_frame, "
+             "arguments_length, FrameArgumentsArgcType::kCountIncludesReceiver"
+          << "));\n";
       csa_ccfile()
           << "  CodeStubArguments arguments(this, torque_arguments);\n";
 
@@ -944,22 +945,20 @@ VisitResult ImplementationVisitor::Visit(AssignmentExpression* expr) {
   return scope.Yield(assignment_value);
 }
 
-VisitResult ImplementationVisitor::Visit(NumberLiteralExpression* expr) {
+VisitResult ImplementationVisitor::Visit(FloatingPointLiteralExpression* expr) {
   const Type* result_type = TypeOracle::GetConstFloat64Type();
-  if (expr->number >= std::numeric_limits<int32_t>::min() &&
-      expr->number <= std::numeric_limits<int32_t>::max()) {
-    int32_t i = static_cast<int32_t>(expr->number);
-    if (i == expr->number) {
-      if ((i >> 30) == (i >> 31)) {
-        result_type = TypeOracle::GetConstInt31Type();
-      } else {
-        result_type = TypeOracle::GetConstInt32Type();
-      }
-    }
-  }
   std::stringstream str;
   str << std::setprecision(std::numeric_limits<double>::digits10 + 1)
-      << expr->number;
+      << expr->value;
+  return VisitResult{result_type, str.str()};
+}
+
+VisitResult ImplementationVisitor::Visit(IntegerLiteralExpression* expr) {
+  const Type* result_type = TypeOracle::GetIntegerLiteralType();
+  std::stringstream str;
+  str << "IntegerLiteral("
+      << (expr->value.is_negative() ? "true, 0x" : "false, 0x") << std::hex
+      << expr->value.absolute_value() << std::dec << "ull)";
   return VisitResult{result_type, str.str()};
 }
 
@@ -2849,7 +2848,9 @@ VisitResult ImplementationVisitor::GenerateCall(
     // If we're currently generating a C++ macro and it's calling another macro,
     // then we need to make sure that we also generate C++ code for the called
     // macro within the same -inl.inc file.
-    if (output_type_ == OutputType::kCC && !inline_macro) {
+    if ((output_type_ == OutputType::kCC ||
+         output_type_ == OutputType::kCCDebug) &&
+        !inline_macro) {
       if (auto* torque_macro = TorqueMacro::DynamicCast(macro)) {
         auto* streams = CurrentFileStreams::Get();
         SourceId file = streams ? streams->file : SourceId::Invalid();
@@ -2863,14 +2864,32 @@ VisitResult ImplementationVisitor::GenerateCall(
       std::stringstream result;
       result << "(";
       bool first = true;
-      if (auto* extern_macro = ExternMacro::DynamicCast(macro)) {
-        result << extern_macro->external_assembler_name() << "(state_)."
-               << extern_macro->ExternalName() << "(";
-      } else {
-        result << macro->ExternalName() << "(state_";
-        first = false;
+      switch (output_type_) {
+        case OutputType::kCSA: {
+          if (auto* extern_macro = ExternMacro::DynamicCast(macro)) {
+            result << extern_macro->external_assembler_name() << "(state_)."
+                   << extern_macro->ExternalName() << "(";
+          } else {
+            result << macro->ExternalName() << "(state_";
+            first = false;
+          }
+          break;
+        }
+        case OutputType::kCC: {
+          auto* extern_macro = ExternMacro::DynamicCast(macro);
+          CHECK_NOT_NULL(extern_macro);
+          result << extern_macro->CCName() << "(";
+          break;
+        }
+        case OutputType::kCCDebug: {
+          auto* extern_macro = ExternMacro::DynamicCast(macro);
+          CHECK_NOT_NULL(extern_macro);
+          result << extern_macro->CCDebugName() << "(accessor";
+          first = false;
+          break;
+        }
       }
-      for (VisitResult arg : arguments.parameters) {
+      for (VisitResult arg : converted_arguments) {
         DCHECK(!arg.IsOnStack());
         if (!first) {
           result << ", ";
@@ -3976,6 +3995,7 @@ class CppClassGenerator {
   }
 
   void GenerateClass();
+  void GenerateCppObjectDefinitionAsserts();
 
  private:
   SourcePosition Position();
@@ -4105,8 +4125,6 @@ void CppClassGenerator::GenerateClass() {
           << "::cast(*this), "
              "isolate);\n";
     impl_ << "}\n\n";
-  }
-  if (type_->ShouldGenerateVerify()) {
     impl_ << "\n";
   }
 
@@ -4220,6 +4238,36 @@ void CppClassGenerator::GenerateClass() {
 
     GenerateClassExport(type_, hdr_, inl_);
   }
+}
+
+void CppClassGenerator::GenerateCppObjectDefinitionAsserts() {
+  hdr_ << "// Definition " << Position() << "\n"
+       << template_decl() << "\n"
+       << "class " << gen_name_ << "Asserts {\n";
+
+  ClassFieldOffsetGenerator g(hdr_, inl_, type_, gen_name_,
+                              type_->GetSuperClass());
+  for (auto f : type_->fields()) {
+    CurrentSourcePosition::Scope scope(f.pos);
+    g.RecordOffsetFor(f);
+  }
+  g.Finish();
+  hdr_ << "\n";
+
+  for (auto f : type_->fields()) {
+    std::string field = "k" + CamelifyString(f.name_and_type.name) + "Offset";
+    std::string type = f.name_and_type.type->SimpleName();
+    hdr_ << "  static_assert(" << field << " == D::" << field << ",\n"
+         << "                \"Values of " << name_ << "::" << field
+         << " defined in Torque and C++ do not match\");\n"
+         << "  static_assert(StaticStringsEqual(\"" << type << "\", D::k"
+         << CamelifyString(f.name_and_type.name) << "TqFieldType),\n"
+         << "                \"Types of " << name_ << "::" << field
+         << " specified in Torque and C++ do not match\");\n";
+  }
+  hdr_ << "  static_assert(kSize == D::kSize);\n";
+
+  hdr_ << "};\n\n";
 }
 
 void CppClassGenerator::GenerateClassCasts() {
@@ -4685,7 +4733,9 @@ void ImplementationVisitor::GenerateClassDefinitions(
       std::string name = type->ShouldGenerateCppClassDefinitions()
                              ? type->name()
                              : type->GetGeneratedTNodeTypeName();
-      header << "class " << name << ";\n";
+      if (type->ShouldGenerateCppClassDefinitions()) {
+        header << "class " << name << ";\n";
+      }
       forward_declarations << "class " << name << ";\n";
     }
 
@@ -4699,6 +4749,9 @@ void ImplementationVisitor::GenerateClassDefinitions(
       if (type->ShouldGenerateCppClassDefinitions()) {
         CppClassGenerator g(type, header, inline_header, implementation);
         g.GenerateClass();
+      } else if (type->ShouldGenerateCppObjectDefinitionAsserts()) {
+        CppClassGenerator g(type, header, inline_header, implementation);
+        g.GenerateCppObjectDefinitionAsserts();
       }
       for (const Field& f : type->fields()) {
         const Type* field_type = f.name_and_type.type;
@@ -4748,21 +4801,22 @@ void ImplementationVisitor::GenerateClassDefinitions(
         factory_impl << ");\n";
         factory_impl << "  Map map = factory()->read_only_roots()."
                      << SnakeifyString(type->name()) << "_map();";
-        factory_impl << "  HeapObject result =\n";
+        factory_impl << "  HeapObject raw_object =\n";
         factory_impl << "    factory()->AllocateRawWithImmortalMap(size, "
                         "allocation_type, map);\n";
+        factory_impl << "  " << type->UnhandlifiedCppTypeName()
+                     << " result = " << type->UnhandlifiedCppTypeName()
+                     << "::cast(raw_object);\n";
+        factory_impl << "  DisallowGarbageCollection no_gc;";
         factory_impl << "  WriteBarrierMode write_barrier_mode =\n"
                      << "     allocation_type == AllocationType::kYoung\n"
                      << "     ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;\n"
                      << "  USE(write_barrier_mode);\n";
-        factory_impl << "  " << type->HandlifiedCppTypeName()
-                     << " result_handle(" << type->name()
-                     << "::cast(result), factory()->isolate());\n";
 
         for (const Field& f : type->ComputeAllFields()) {
           if (f.name_and_type.name == "map") continue;
           if (!f.index) {
-            factory_impl << "  result_handle->TorqueGeneratedClass::set_"
+            factory_impl << "  result.TorqueGeneratedClass::set_"
                          << SnakeifyString(f.name_and_type.name) << "(";
             if (f.name_and_type.type->IsSubtypeOf(
                     TypeOracle::GetTaggedType()) &&
@@ -4776,7 +4830,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
           }
         }
 
-        factory_impl << "  return result_handle;\n";
+        factory_impl << "  return handle(result, factory()->isolate());\n";
         factory_impl << "}\n\n";
 
         factory_impl << "template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) "

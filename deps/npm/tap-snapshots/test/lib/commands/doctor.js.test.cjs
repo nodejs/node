@@ -467,7 +467,7 @@ node -v                             ok      current: v1.0.0, recommended: v1.0.0
 npm config get registry             ok      using default registry (https://registry.npmjs.org/)
 which git                           ok      /path/to/git
 Perms check on cached files         not ok  Check the permissions of files in {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache (should be owned by current user)
-Perms check on local node_modules   not ok  Check the permissions of files in {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/prefix/node_modules (should be owned by current user)
+Perms check on local node_modules   ok
 Perms check on global node_modules  ok
 Perms check on local bin folder     ok
 Perms check on global bin folder    ok
@@ -516,103 +516,7 @@ Object {
   "warn": Array [
     Array [
       "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache",
-    ],
-    Array [
-      "checkFilesPermission",
       "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache/_cacache",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache/_logs",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache/_cacache/content-v2",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache/_cacache/index-v5",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache/_cacache/tmp",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache/_logs/{DATE}-debug-0.log",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache/_cacache/content-v2/sha512",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache/_cacache/index-v5/5e",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache/_cacache/index-v5/af",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache/_cacache/content-v2/sha512/{sha}",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache/_cacache/content-v2/sha512/{sha}",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache/_cacache/index-v5/5e/be",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache/_cacache/index-v5/af/03",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache/_cacache/content-v2/sha512/{sha}",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache/_cacache/content-v2/sha512/{sha}",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache/_cacache/index-v5/5e/be/ccdeeea0a01ebb0e365e566161f7c68ddcbbe04206d8542742d98875f03f",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache/_cacache/index-v5/af/03/5c781820370e585dc2323edbbc80669bf714da5b47d56510c7d0bd7521ee",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache/_cacache/content-v2/sha512/{sha}",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/cache/_cacache/content-v2/sha512/{sha}",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/prefix/node_modules",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/prefix/node_modules/.bin",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/prefix/node_modules/testDir",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/prefix/node_modules/testLink",
-    ],
-    Array [
-      "checkFilesPermission",
-      "should be owner of {CWD}/test/lib/commands/tap-testdir-doctor-incorrect-owner/prefix/node_modules/testDir/testFile",
     ],
   ],
 }

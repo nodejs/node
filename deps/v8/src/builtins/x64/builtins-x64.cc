@@ -94,11 +94,7 @@ void Generate_PushArguments(MacroAssembler* masm, Register array, Register argc,
   DCHECK(!AreAliased(array, argc, scratch, kScratchRegister));
   Register counter = scratch;
   Label loop, entry;
-  if (kJSArgcIncludesReceiver) {
-    __ leaq(counter, Operand(argc, -kJSArgcReceiverSlots));
-  } else {
-    __ movq(counter, argc);
-  }
+  __ leaq(counter, Operand(argc, -kJSArgcReceiverSlots));
   __ jmp(&entry);
   __ bind(&loop);
   Operand value(array, counter, times_system_pointer_size, 0);
@@ -161,9 +157,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
 
   // Remove caller arguments from the stack and return.
   __ DropArguments(rbx, rcx, MacroAssembler::kCountIsSmi,
-                   kJSArgcIncludesReceiver
-                       ? TurboAssembler::kCountIncludesReceiver
-                       : TurboAssembler::kCountExcludesReceiver);
+                   TurboAssembler::kCountIncludesReceiver);
 
   __ ret(0);
 
@@ -317,9 +311,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::CONSTRUCT);
   // Remove caller arguments from the stack and return.
   __ DropArguments(rbx, rcx, MacroAssembler::kCountIsSmi,
-                   kJSArgcIncludesReceiver
-                       ? TurboAssembler::kCountIncludesReceiver
-                       : TurboAssembler::kCountExcludesReceiver);
+                   TurboAssembler::kCountIncludesReceiver);
   __ ret(0);
 
   // If the result is a smi, it is *not* an object in the ECMA sense.
@@ -484,7 +476,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return.
-  Handle<Code> trampoline_code =
+  Handle<CodeT> trampoline_code =
       masm->isolate()->builtins()->code_handle(entry_trampoline);
   __ Call(trampoline_code, RelocInfo::CODE_TARGET);
 
@@ -657,9 +649,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ Push(r9);
 
     // Invoke the builtin code.
-    Handle<Code> builtin = is_construct
-                               ? BUILTIN_CODE(masm->isolate(), Construct)
-                               : masm->isolate()->builtins()->Call();
+    Handle<CodeT> builtin = is_construct
+                                ? BUILTIN_CODE(masm->isolate(), Construct)
+                                : masm->isolate()->builtins()->Call();
     __ Call(builtin, RelocInfo::CODE_TARGET);
 
     // Exit the internal frame. Notice that this also removes the empty
@@ -684,19 +676,19 @@ void Builtins::Generate_RunMicrotasksTrampoline(MacroAssembler* masm) {
   __ Jump(BUILTIN_CODE(masm->isolate(), RunMicrotasks), RelocInfo::CODE_TARGET);
 }
 
-static void AssertCodeIsBaselineAllowClobber(MacroAssembler* masm,
-                                             Register code, Register scratch) {
+static void AssertCodeTIsBaselineAllowClobber(MacroAssembler* masm,
+                                              Register code, Register scratch) {
   // Verify that the code kind is baseline code via the CodeKind.
-  __ movl(scratch, FieldOperand(code, Code::kFlagsOffset));
-  __ DecodeField<Code::KindField>(scratch);
+  __ movl(scratch, FieldOperand(code, CodeT::kFlagsOffset));
+  __ DecodeField<CodeT::KindField>(scratch);
   __ cmpl(scratch, Immediate(static_cast<int>(CodeKind::BASELINE)));
   __ Assert(equal, AbortReason::kExpectedBaselineData);
 }
 
-static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
-                                 Register scratch) {
+static void AssertCodeTIsBaseline(MacroAssembler* masm, Register code,
+                                  Register scratch) {
   DCHECK(!AreAliased(code, scratch));
-  return AssertCodeIsBaselineAllowClobber(masm, code, scratch);
+  return AssertCodeTIsBaselineAllowClobber(masm, code, scratch);
 }
 
 static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
@@ -711,12 +703,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   if (FLAG_debug_code) {
     Label not_baseline;
     __ j(not_equal, &not_baseline);
-    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      __ LoadCodeDataContainerCodeNonBuiltin(scratch1, sfi_data);
-      AssertCodeIsBaselineAllowClobber(masm, scratch1, scratch1);
-    } else {
-      AssertCodeIsBaseline(masm, sfi_data, scratch1);
-    }
+    AssertCodeTIsBaseline(masm, sfi_data, scratch1);
     __ j(equal, is_baseline);
     __ bind(&not_baseline);
   } else {
@@ -797,9 +784,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
       rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
   __ movzxwq(
       rcx, FieldOperand(rcx, SharedFunctionInfo::kFormalParameterCountOffset));
-  if (kJSArgcIncludesReceiver) {
-    __ decq(rcx);
-  }
+  __ decq(rcx);  // Exclude receiver.
   __ LoadTaggedPointerField(
       rbx, FieldOperand(rdx, JSGeneratorObject::kParametersAndRegistersOffset));
 
@@ -913,19 +898,18 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
                                   Register scratch2) {
   ASM_CODE_COMMENT(masm);
   Register params_size = scratch1;
-  // Get the size of the formal parameters + receiver (in bytes).
+  // Get the size of the formal parameters (in bytes).
   __ movq(params_size,
           Operand(rbp, InterpreterFrameConstants::kBytecodeArrayFromFp));
   __ movl(params_size,
           FieldOperand(params_size, BytecodeArray::kParameterSizeOffset));
 
   Register actual_params_size = scratch2;
-  // Compute the size of the actual parameters + receiver (in bytes).
+  // Compute the size of the actual parameters (in bytes).
   __ movq(actual_params_size,
           Operand(rbp, StandardFrameConstants::kArgCOffset));
   __ leaq(actual_params_size,
-          Operand(actual_params_size, times_system_pointer_size,
-                  kJSArgcIncludesReceiver ? 0 : kSystemPointerSize));
+          Operand(actual_params_size, times_system_pointer_size, 0));
 
   // If actual is bigger than formal, then we should use it to free up the stack
   // arguments.
@@ -943,50 +927,45 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
                    TurboAssembler::kCountIncludesReceiver);
 }
 
-// Tail-call |function_id| if |actual_marker| == |expected_marker|
-static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
-                                          Register actual_marker,
-                                          OptimizationMarker expected_marker,
-                                          Runtime::FunctionId function_id) {
+// Tail-call |function_id| if |actual_state| == |expected_state|
+static void TailCallRuntimeIfStateEquals(MacroAssembler* masm,
+                                         Register actual_state,
+                                         TieringState expected_state,
+                                         Runtime::FunctionId function_id) {
   ASM_CODE_COMMENT(masm);
   Label no_match;
-  __ Cmp(actual_marker, static_cast<int>(expected_marker));
+  __ Cmp(actual_state, static_cast<int>(expected_state));
   __ j(not_equal, &no_match);
   GenerateTailCallToReturnedCode(masm, function_id);
   __ bind(&no_match);
 }
 
 static void MaybeOptimizeCode(MacroAssembler* masm, Register feedback_vector,
-                              Register optimization_marker) {
+                              Register tiering_state) {
   // ----------- S t a t e -------------
   //  -- rax : actual argument count
   //  -- rdx : new target (preserved for callee if needed, and caller)
   //  -- rdi : target function (preserved for callee if needed, and caller)
   //  -- feedback vector (preserved for caller if needed)
-  //  -- optimization_marker : a Smi containing a non-zero optimization marker.
+  //  -- tiering_state : a Smi containing a non-zero tiering state.
   // -----------------------------------
   ASM_CODE_COMMENT(masm);
-  DCHECK(!AreAliased(feedback_vector, rdx, rdi, optimization_marker));
+  DCHECK(!AreAliased(feedback_vector, rdx, rdi, tiering_state));
 
-  // TODO(v8:8394): The logging of first execution will break if
-  // feedback vectors are not allocated. We need to find a different way of
-  // logging these events if required.
-  TailCallRuntimeIfMarkerEquals(masm, optimization_marker,
-                                OptimizationMarker::kLogFirstExecution,
-                                Runtime::kFunctionFirstExecution);
-  TailCallRuntimeIfMarkerEquals(masm, optimization_marker,
-                                OptimizationMarker::kCompileOptimized,
-                                Runtime::kCompileOptimized_NotConcurrent);
-  TailCallRuntimeIfMarkerEquals(masm, optimization_marker,
-                                OptimizationMarker::kCompileOptimizedConcurrent,
-                                Runtime::kCompileOptimized_Concurrent);
+  TailCallRuntimeIfStateEquals(masm, tiering_state,
+                               TieringState::kRequestMaglev_Synchronous,
+                               Runtime::kCompileMaglev_Synchronous);
+  TailCallRuntimeIfStateEquals(masm, tiering_state,
+                               TieringState::kRequestMaglev_Concurrent,
+                               Runtime::kCompileMaglev_Concurrent);
+  TailCallRuntimeIfStateEquals(masm, tiering_state,
+                               TieringState::kRequestTurbofan_Synchronous,
+                               Runtime::kCompileTurbofan_Synchronous);
+  TailCallRuntimeIfStateEquals(masm, tiering_state,
+                               TieringState::kRequestTurbofan_Concurrent,
+                               Runtime::kCompileTurbofan_Concurrent);
 
-  // Marker should be one of LogFirstExecution / CompileOptimized /
-  // CompileOptimizedConcurrent. InOptimizationQueue and None shouldn't reach
-  // here.
-  if (FLAG_debug_code) {
-    __ int3();
-  }
+  __ int3();
 }
 
 static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
@@ -1127,17 +1106,18 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 }
 
 // Read off the optimization state in the feedback vector and check if there
-// is optimized code or a optimization marker that needs to be processed.
-static void LoadOptimizationStateAndJumpIfNeedsProcessing(
+// is optimized code or a tiering state that needs to be processed.
+static void LoadTieringStateAndJumpIfNeedsProcessing(
     MacroAssembler* masm, Register optimization_state, Register feedback_vector,
-    Label* has_optimized_code_or_marker) {
+    Label* has_optimized_code_or_state) {
   ASM_CODE_COMMENT(masm);
   __ movl(optimization_state,
           FieldOperand(feedback_vector, FeedbackVector::kFlagsOffset));
   __ testl(
       optimization_state,
-      Immediate(FeedbackVector::kHasOptimizedCodeOrCompileOptimizedMarkerMask));
-  __ j(not_zero, has_optimized_code_or_marker);
+      Immediate(
+          FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
+  __ j(not_zero, has_optimized_code_or_state);
 }
 
 static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
@@ -1146,14 +1126,13 @@ static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
   ASM_CODE_COMMENT(masm);
   DCHECK(!AreAliased(optimization_state, feedback_vector, closure));
   Label maybe_has_optimized_code;
-  __ testl(
-      optimization_state,
-      Immediate(FeedbackVector::kHasCompileOptimizedOrLogFirstExecutionMarker));
+  __ testl(optimization_state,
+           Immediate(FeedbackVector::kTieringStateIsAnyRequestMask));
   __ j(zero, &maybe_has_optimized_code);
 
-  Register optimization_marker = optimization_state;
-  __ DecodeField<FeedbackVector::OptimizationMarkerBits>(optimization_marker);
-  MaybeOptimizeCode(masm, feedback_vector, optimization_marker);
+  Register tiering_state = optimization_state;
+  __ DecodeField<FeedbackVector::TieringStateBits>(tiering_state);
+  MaybeOptimizeCode(masm, feedback_vector, tiering_state);
 
   __ bind(&maybe_has_optimized_code);
   Register optimized_code_entry = optimization_state;
@@ -1164,6 +1143,20 @@ static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
                             WriteBarrierDescriptor::SlotAddressRegister(),
                             jump_mode);
 }
+
+namespace {
+
+void ResetBytecodeAgeAndOsrState(MacroAssembler* masm,
+                                 Register bytecode_array) {
+  // Reset the bytecode age and OSR state (optimized to a single write).
+  static_assert(BytecodeArray::kOsrStateAndBytecodeAgeAreContiguous32Bits);
+  STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
+  __ movl(FieldOperand(bytecode_array,
+                       BytecodeArray::kOsrUrgencyAndInstallTargetOffset),
+          Immediate(0));
+}
+
+}  // namespace
 
 // Generate code for entering a JS function with the interpreter.
 // On entry to the function the receiver and arguments have been pushed on the
@@ -1216,11 +1209,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ CmpInstanceType(rcx, FEEDBACK_VECTOR_TYPE);
   __ j(not_equal, &push_stack_frame);
 
-  // Check for an optimization marker.
-  Label has_optimized_code_or_marker;
+  // Check the tiering state.
+  Label has_optimized_code_or_state;
   Register optimization_state = rcx;
-  LoadOptimizationStateAndJumpIfNeedsProcessing(
-      masm, optimization_state, feedback_vector, &has_optimized_code_or_marker);
+  LoadTieringStateAndJumpIfNeedsProcessing(
+      masm, optimization_state, feedback_vector, &has_optimized_code_or_state);
 
   Label not_optimized;
   __ bind(&not_optimized);
@@ -1240,15 +1233,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Push(kJavaScriptCallTargetRegister);    // Callee's JS function.
   __ Push(kJavaScriptCallArgCountRegister);  // Actual argument count.
 
-  // Reset code age and the OSR arming. The OSR field and BytecodeAgeOffset are
-  // 8-bit fields next to each other, so we could just optimize by writing a
-  // 16-bit. These static asserts guard our assumption is valid.
-  STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                BytecodeArray::kOsrLoopNestingLevelOffset + kCharSize);
-  STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
-  __ movw(FieldOperand(kInterpreterBytecodeArrayRegister,
-                       BytecodeArray::kOsrLoopNestingLevelOffset),
-          Immediate(0));
+  ResetBytecodeAgeAndOsrState(masm, kInterpreterBytecodeArrayRegister);
 
   // Load initial bytecode offset.
   __ Move(kInterpreterBytecodeOffsetRegister,
@@ -1372,7 +1357,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
   __ int3();  // Should not return.
 
-  __ bind(&has_optimized_code_or_marker);
+  __ bind(&has_optimized_code_or_state);
   MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, optimization_state,
                                                feedback_vector, closure);
 
@@ -1392,10 +1377,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ CmpInstanceType(rcx, FEEDBACK_VECTOR_TYPE);
     __ j(not_equal, &install_baseline_code);
 
-    // Check for an optimization marker.
-    LoadOptimizationStateAndJumpIfNeedsProcessing(
-        masm, optimization_state, feedback_vector,
-        &has_optimized_code_or_marker);
+    // Check the tiering state.
+    LoadTieringStateAndJumpIfNeedsProcessing(masm, optimization_state,
+                                             feedback_vector,
+                                             &has_optimized_code_or_state);
 
     // Load the baseline code into the closure.
     __ Move(rcx, kInterpreterBytecodeArrayRegister);
@@ -1448,14 +1433,9 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
     __ decl(rax);
   }
 
-  int argc_modification = kJSArgcIncludesReceiver ? 0 : 1;
+  __ movl(rcx, rax);
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    argc_modification -= 1;
-  }
-  if (argc_modification != 0) {
-    __ leal(rcx, Operand(rax, argc_modification));
-  } else {
-    __ movl(rcx, rax);
+    __ decl(rcx);  // Exclude receiver.
   }
 
   // Add a stack check before pushing arguments.
@@ -1526,11 +1506,8 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   }
 
   // rcx and r8 will be modified.
-  Register argc_without_receiver = rax;
-  if (kJSArgcIncludesReceiver) {
-    argc_without_receiver = r11;
-    __ leaq(argc_without_receiver, Operand(rax, -kJSArgcReceiverSlots));
-  }
+  Register argc_without_receiver = r11;
+  __ leaq(argc_without_receiver, Operand(rax, -kJSArgcReceiverSlots));
   GenerateInterpreterPushArgs(masm, argc_without_receiver, rcx, r8);
 
   // Push slot for the receiver to be constructed.
@@ -1551,8 +1528,8 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
     // context at this point).
     __ AssertFunction(rdi);
     // Jump to the constructor function (rax, rbx, rdx passed on).
-    Handle<Code> code = BUILTIN_CODE(masm->isolate(), ArrayConstructorImpl);
-    __ Jump(code, RelocInfo::CODE_TARGET);
+    __ Jump(BUILTIN_CODE(masm->isolate(), ArrayConstructorImpl),
+            RelocInfo::CODE_TARGET);
   } else if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     // Call the constructor (rax, rdx, rdi passed on).
     __ Jump(BUILTIN_CODE(masm->isolate(), ConstructWithSpread),
@@ -1728,10 +1705,10 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ Assert(equal, AbortReason::kExpectedFeedbackVector);
   }
 
-  // Check for an optimization marker.
-  Label has_optimized_code_or_marker;
-  LoadOptimizationStateAndJumpIfNeedsProcessing(
-      masm, optimization_state, feedback_vector, &has_optimized_code_or_marker);
+  // Check the tiering state.
+  Label has_optimized_code_or_state;
+  LoadTieringStateAndJumpIfNeedsProcessing(
+      masm, optimization_state, feedback_vector, &has_optimized_code_or_state);
 
   // Increment invocation count for the function.
   __ incl(
@@ -1762,16 +1739,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       // onto the frame, so load it into a register.
       Register bytecode_array = descriptor.GetRegisterParameter(
           BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
-
-      // Reset code age and the OSR arming. The OSR field and BytecodeAgeOffset
-      // are 8-bit fields next to each other, so we could just optimize by
-      // writing a 16-bit. These static asserts guard our assumption is valid.
-      STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
-                    BytecodeArray::kOsrLoopNestingLevelOffset + kCharSize);
-      STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
-      __ movw(FieldOperand(bytecode_array,
-                           BytecodeArray::kOsrLoopNestingLevelOffset),
-              Immediate(0));
+      ResetBytecodeAgeAndOsrState(masm, bytecode_array);
       __ Push(bytecode_array);
 
       // Baseline code frames store the feedback vector where interpreter would
@@ -1809,7 +1777,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ Ret();
 
-  __ bind(&has_optimized_code_or_marker);
+  __ bind(&has_optimized_code_or_state);
   {
     ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
     // Drop the return address, rebalancing the return stack buffer by using
@@ -1879,7 +1847,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
     // from LAZY is always the last argument.
     __ movq(Operand(rsp, rax, times_system_pointer_size,
                     BuiltinContinuationFrameConstants::kFixedFrameSize -
-                        (kJSArgcIncludesReceiver ? kSystemPointerSize : 0)),
+                        kJSArgcReceiverSlots * kSystemPointerSize),
             kScratchRegister);
   }
   __ movq(
@@ -1963,10 +1931,9 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
       __ bind(&no_arg_array);
     }
     __ bind(&no_this_arg);
-    __ DropArgumentsAndPushNewReceiver(
-        rax, rdx, rcx, TurboAssembler::kCountIsInteger,
-        kJSArgcIncludesReceiver ? TurboAssembler::kCountIncludesReceiver
-                                : TurboAssembler::kCountExcludesReceiver);
+    __ DropArgumentsAndPushNewReceiver(rax, rdx, rcx,
+                                       TurboAssembler::kCountIsInteger,
+                                       TurboAssembler::kCountIncludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -2023,13 +1990,8 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
   // 3. Make sure we have at least one argument.
   {
     Label done;
-    if (kJSArgcIncludesReceiver) {
-      __ cmpq(rax, Immediate(JSParameterCount(0)));
-      __ j(greater, &done, Label::kNear);
-    } else {
-      __ testq(rax, rax);
-      __ j(not_zero, &done, Label::kNear);
-    }
+    __ cmpq(rax, Immediate(JSParameterCount(0)));
+    __ j(greater, &done, Label::kNear);
     __ PushRoot(RootIndex::kUndefinedValue);
     __ incq(rax);
     __ bind(&done);
@@ -2074,10 +2036,9 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ j(below, &done, Label::kNear);
     __ movq(rbx, args[3]);  // argumentsList
     __ bind(&done);
-    __ DropArgumentsAndPushNewReceiver(
-        rax, rdx, rcx, TurboAssembler::kCountIsInteger,
-        kJSArgcIncludesReceiver ? TurboAssembler::kCountIncludesReceiver
-                                : TurboAssembler::kCountExcludesReceiver);
+    __ DropArgumentsAndPushNewReceiver(rax, rdx, rcx,
+                                       TurboAssembler::kCountIsInteger,
+                                       TurboAssembler::kCountIncludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -2129,8 +2090,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ DropArgumentsAndPushNewReceiver(
         rax, masm->RootAsOperand(RootIndex::kUndefinedValue), rcx,
         TurboAssembler::kCountIsInteger,
-        kJSArgcIncludesReceiver ? TurboAssembler::kCountIncludesReceiver
-                                : TurboAssembler::kCountExcludesReceiver);
+        TurboAssembler::kCountIncludesReceiver);
   }
 
   // ----------- S t a t e -------------
@@ -2175,13 +2135,6 @@ void Generate_AllocateSpaceAndShiftExistingArguments(
   __ AllocateStackSpace(new_space);
 
   Register copy_count = argc_in_out;
-  if (!kJSArgcIncludesReceiver) {
-    // We have a spare register, so use it instead of clobbering argc.
-    // lea + add (to add the count to argc in the end) uses 1 less byte than
-    // inc + lea (with base, index and disp), at the cost of 1 extra register.
-    copy_count = scratch1;
-    __ leaq(copy_count, Operand(argc_in_out, 1));  // Include the receiver.
-  }
   Register current = scratch2;
   Register value = kScratchRegister;
 
@@ -2212,7 +2165,7 @@ void Generate_AllocateSpaceAndShiftExistingArguments(
 // static
 // TODO(v8:11615): Observe Code::kMaxArguments in CallOrConstructVarargs
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
-                                               Handle<Code> code) {
+                                               Handle<CodeT> code) {
   // ----------- S t a t e -------------
   //  -- rdi    : target
   //  -- rax    : number of parameters on the stack
@@ -2283,7 +2236,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
 // static
 void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
                                                       CallOrConstructMode mode,
-                                                      Handle<Code> code) {
+                                                      Handle<CodeT> code) {
   // ----------- S t a t e -------------
   //  -- rax : the number of arguments
   //  -- rdx : the new target (for [[Construct]] calls)
@@ -2311,9 +2264,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 
   Label stack_done, stack_overflow;
   __ movq(r8, Operand(rbp, StandardFrameConstants::kArgCOffset));
-  if (kJSArgcIncludesReceiver) {
-    __ decq(r8);
-  }
+  __ decq(r8);  // Exclude receiver.
   __ subl(r8, rcx);
   __ j(less_equal, &stack_done);
   {
@@ -2377,14 +2328,10 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // -----------------------------------
 
   StackArgumentsAccessor args(rax);
-  __ AssertFunction(rdi);
+  __ AssertCallableFunction(rdi);
 
-  Label class_constructor;
   __ LoadTaggedPointerField(
       rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ testl(FieldOperand(rdx, SharedFunctionInfo::kFlagsOffset),
-           Immediate(SharedFunctionInfo::IsClassConstructorBit::kMask));
-  __ j(not_zero, &class_constructor);
   // ----------- S t a t e -------------
   //  -- rax : the number of arguments
   //  -- rdx : the shared function info.
@@ -2469,14 +2416,6 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   __ movzxwq(
       rbx, FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
   __ InvokeFunctionCode(rdi, no_reg, rbx, rax, InvokeType::kJump);
-
-  // The function is a "classConstructor", need to raise an exception.
-  __ bind(&class_constructor);
-  {
-    FrameScope frame(masm, StackFrame::INTERNAL);
-    __ Push(rdi);
-    __ CallRuntime(Runtime::kThrowConstructorNonCallableError);
-  }
 }
 
 namespace {
@@ -2617,6 +2556,12 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ cmpw(instance_type, Immediate(JS_PROXY_TYPE));
   __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy), RelocInfo::CODE_TARGET,
           equal);
+
+  // Check if target is a wrapped function and call CallWrappedFunction external
+  // builtin
+  __ cmpw(instance_type, Immediate(JS_WRAPPED_FUNCTION_TYPE));
+  __ Jump(BUILTIN_CODE(masm->isolate(), CallWrappedFunction),
+          RelocInfo::CODE_TARGET, equal);
 
   // ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
   // Check that the function is not a "classConstructor".
@@ -2779,24 +2724,33 @@ void Generate_OSREntry(MacroAssembler* masm, Register entry_address) {
   __ ret(0);
 }
 
-void OnStackReplacement(MacroAssembler* masm, bool is_interpreter) {
+enum class OsrSourceTier {
+  kInterpreter,
+  kBaseline,
+};
+
+void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kCompileForOnStackReplacement);
+    __ CallRuntime(Runtime::kCompileOptimizedOSR);
   }
 
-  Label skip;
+  Label jump_to_returned_code;
   // If the code object is null, just return to the caller.
   __ testq(rax, rax);
-  __ j(not_equal, &skip, Label::kNear);
+  __ j(not_equal, &jump_to_returned_code, Label::kNear);
   __ ret(0);
 
-  __ bind(&skip);
+  __ bind(&jump_to_returned_code);
 
-  if (is_interpreter) {
+  if (source == OsrSourceTier::kInterpreter) {
     // Drop the handler frame that is be sitting on top of the actual
     // JavaScript frame. This is the case then OSR is triggered from bytecode.
     __ leave();
+  }
+
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    __ LoadCodeDataContainerCodeNonBuiltin(rax, rax);
   }
 
   // Load deoptimization data from the code object.
@@ -2817,13 +2771,13 @@ void OnStackReplacement(MacroAssembler* masm, bool is_interpreter) {
 }  // namespace
 
 void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
-  return OnStackReplacement(masm, true);
+  OnStackReplacement(masm, OsrSourceTier::kInterpreter);
 }
 
 void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
   __ movq(kContextRegister,
           MemOperand(rbp, BaselineFrameConstants::kContextOffset));
-  return OnStackReplacement(masm, false);
+  OnStackReplacement(masm, OsrSourceTier::kBaseline);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -2888,19 +2842,19 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 
     // Save all parameter registers. They might hold live values, we restore
     // them after the runtime call.
-    for (int reg_code : base::bits::IterateBitsBackwards(
-             WasmDebugBreakFrameConstants::kPushedGpRegs)) {
-      __ Push(Register::from_code(reg_code));
+    for (Register reg :
+         base::Reversed(WasmDebugBreakFrameConstants::kPushedGpRegs)) {
+      __ Push(reg);
     }
 
     constexpr int kFpStackSize =
         kSimd128Size * WasmDebugBreakFrameConstants::kNumPushedFpRegisters;
     __ AllocateStackSpace(kFpStackSize);
     int offset = kFpStackSize;
-    for (int reg_code : base::bits::IterateBitsBackwards(
-             WasmDebugBreakFrameConstants::kPushedFpRegs)) {
+    for (DoubleRegister reg :
+         base::Reversed(WasmDebugBreakFrameConstants::kPushedFpRegs)) {
       offset -= kSimd128Size;
-      __ movdqu(Operand(rsp, offset), DoubleRegister::from_code(reg_code));
+      __ movdqu(Operand(rsp, offset), reg);
     }
 
     // Initialize the JavaScript context with 0. CEntry will use it to
@@ -2909,15 +2863,13 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kWasmDebugBreak, 0);
 
     // Restore registers.
-    for (int reg_code :
-         base::bits::IterateBits(WasmDebugBreakFrameConstants::kPushedFpRegs)) {
-      __ movdqu(DoubleRegister::from_code(reg_code), Operand(rsp, offset));
+    for (DoubleRegister reg : WasmDebugBreakFrameConstants::kPushedFpRegs) {
+      __ movdqu(reg, Operand(rsp, offset));
       offset += kSimd128Size;
     }
     __ addq(rsp, Immediate(kFpStackSize));
-    for (int reg_code :
-         base::bits::IterateBits(WasmDebugBreakFrameConstants::kPushedGpRegs)) {
-      __ Pop(Register::from_code(reg_code));
+    for (Register reg : WasmDebugBreakFrameConstants::kPushedGpRegs) {
+      __ Pop(reg);
     }
   }
 
@@ -2967,43 +2919,154 @@ void RestoreAfterBuiltinCall(MacroAssembler* masm, Register function_data,
   __ popq(param_limit);
   __ popq(current_param);
 }
-}  // namespace
 
-void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
-  // Set up the stackframe.
-  __ EnterFrame(StackFrame::JS_TO_WASM);
+void FillJumpBuffer(MacroAssembler* masm, Register jmpbuf, Label* pc) {
+  __ movq(MemOperand(jmpbuf, wasm::kJmpBufSpOffset), rsp);
+  __ movq(MemOperand(jmpbuf, wasm::kJmpBufFpOffset), rbp);
+  __ movq(kScratchRegister,
+          __ StackLimitAsOperand(StackLimitKind::kRealStackLimit));
+  __ movq(MemOperand(jmpbuf, wasm::kJmpBufStackLimitOffset), kScratchRegister);
+  __ leaq(kScratchRegister, MemOperand(pc, 0));
+  __ movq(MemOperand(jmpbuf, wasm::kJmpBufPcOffset), kScratchRegister);
+}
 
-  // -------------------------------------------
-  // Compute offsets and prepare for GC.
-  // -------------------------------------------
-  // The number of parameters passed to this function.
-  constexpr int kInParamCountOffset =
-      BuiltinWasmWrapperConstants::kGCScanSlotCountOffset - kSystemPointerSize;
-  // The number of parameters according to the signature.
-  constexpr int kParamCountOffset = kInParamCountOffset - kSystemPointerSize;
-  constexpr int kReturnCountOffset = kParamCountOffset - kSystemPointerSize;
-  constexpr int kValueTypesArrayStartOffset =
-      kReturnCountOffset - kSystemPointerSize;
-  // We set and use this slot only when moving parameters into the parameter
-  // registers (so no GC scan is needed).
-  constexpr int kFunctionDataOffset =
-      kValueTypesArrayStartOffset - kSystemPointerSize;
-  constexpr int kLastSpillOffset = kFunctionDataOffset;
-  constexpr int kNumSpillSlots = 6;
-  __ subq(rsp, Immediate(kNumSpillSlots * kSystemPointerSize));
-  // Put the in_parameter count on the stack, we only  need it at the very end
-  // when we pop the parameters off the stack.
-  Register in_param_count = rax;
-  if (kJSArgcIncludesReceiver) {
-    __ decq(in_param_count);
+void LoadJumpBuffer(MacroAssembler* masm, Register jmpbuf, bool load_pc) {
+  __ movq(rsp, MemOperand(jmpbuf, wasm::kJmpBufSpOffset));
+  __ movq(rbp, MemOperand(jmpbuf, wasm::kJmpBufFpOffset));
+  if (load_pc) {
+    __ jmp(MemOperand(jmpbuf, wasm::kJmpBufPcOffset));
   }
-  __ movq(MemOperand(rbp, kInParamCountOffset), in_param_count);
-  in_param_count = no_reg;
+  // The stack limit is set separately under the ExecutionAccess lock.
+}
 
-  // -------------------------------------------
-  // Load the Wasm exported function data and the Wasm instance.
-  // -------------------------------------------
-  Register closure = rdi;
+void SaveState(MacroAssembler* masm, Register active_continuation, Register tmp,
+               Label* suspend) {
+  Register foreign_jmpbuf = tmp;
+  __ LoadAnyTaggedField(
+      foreign_jmpbuf,
+      FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset));
+  Register jmpbuf = foreign_jmpbuf;
+  __ LoadExternalPointerField(
+      jmpbuf, FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
+      kForeignForeignAddressTag, kScratchRegister);
+  FillJumpBuffer(masm, jmpbuf, suspend);
+}
+
+// Returns the new continuation in rax.
+void AllocateContinuation(MacroAssembler* masm, Register function_data,
+                          Register wasm_instance) {
+  Register suspender = kScratchRegister;
+  __ LoadAnyTaggedField(
+      suspender,
+      FieldOperand(function_data, WasmExportedFunctionData::kSuspenderOffset));
+  MemOperand GCScanSlotPlace =
+      MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
+  __ Move(GCScanSlotPlace, 3);
+  __ Push(wasm_instance);
+  __ Push(function_data);
+  __ Push(suspender);  // Argument.
+  __ Move(kContextRegister, Smi::zero());
+  __ CallRuntime(Runtime::kWasmAllocateContinuation);
+  __ Pop(function_data);
+  __ Pop(wasm_instance);
+  STATIC_ASSERT(kReturnRegister0 == rax);
+  suspender = no_reg;
+}
+
+void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_continuation) {
+  Register foreign_jmpbuf = target_continuation;
+  __ LoadAnyTaggedField(
+      foreign_jmpbuf,
+      FieldOperand(target_continuation, WasmContinuationObject::kJmpbufOffset));
+  Register target_jmpbuf = foreign_jmpbuf;
+  __ LoadExternalPointerField(
+      target_jmpbuf,
+      FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
+      kForeignForeignAddressTag, kScratchRegister);
+  MemOperand GCScanSlotPlace =
+      MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
+  __ Move(GCScanSlotPlace, 0);
+  // Switch stack!
+  LoadJumpBuffer(masm, target_jmpbuf, false);
+}
+
+void ReloadParentContinuation(MacroAssembler* masm, Register wasm_instance,
+                              Register return_reg, Register tmp1,
+                              Register tmp2) {
+  Register active_continuation = tmp1;
+  __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
+
+  // Set a null pointer in the jump buffer's SP slot to indicate to the stack
+  // frame iterator that this stack is empty.
+  Register foreign_jmpbuf = kScratchRegister;
+  __ LoadAnyTaggedField(
+      foreign_jmpbuf,
+      FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset));
+  Register jmpbuf = foreign_jmpbuf;
+  __ LoadExternalPointerField(
+      jmpbuf, FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
+      kForeignForeignAddressTag, tmp2);
+  __ movq(Operand(jmpbuf, wasm::kJmpBufSpOffset), Immediate(kNullAddress));
+
+  Register parent = tmp2;
+  __ LoadAnyTaggedField(
+      parent,
+      FieldOperand(active_continuation, WasmContinuationObject::kParentOffset));
+
+  // Update active continuation root.
+  __ movq(masm->RootAsOperand(RootIndex::kActiveContinuation), parent);
+  foreign_jmpbuf = tmp1;
+  __ LoadAnyTaggedField(
+      foreign_jmpbuf,
+      FieldOperand(parent, WasmContinuationObject::kJmpbufOffset));
+  jmpbuf = foreign_jmpbuf;
+  __ LoadExternalPointerField(
+      jmpbuf, FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
+      kForeignForeignAddressTag, tmp2);
+
+  // Switch stack!
+  LoadJumpBuffer(masm, jmpbuf, false);
+  MemOperand GCScanSlotPlace =
+      MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
+  __ Move(GCScanSlotPlace, 1);
+  __ Push(return_reg);
+  __ Push(wasm_instance);  // Spill.
+  __ Move(kContextRegister, Smi::zero());
+  __ CallRuntime(Runtime::kWasmSyncStackLimit);
+  __ Pop(wasm_instance);
+  __ Pop(return_reg);
+}
+
+void RestoreParentSuspender(MacroAssembler* masm) {
+  Register suspender = kScratchRegister;
+  __ LoadRoot(suspender, RootIndex::kActiveSuspender);
+  __ LoadAnyTaggedField(
+      suspender, FieldOperand(suspender, WasmSuspenderObject::kParentOffset));
+  __ CompareRoot(suspender, RootIndex::kUndefinedValue);
+  Label undefined;
+  __ j(equal, &undefined, Label::kNear);
+#ifdef DEBUG
+  // Check that the parent suspender is inactive.
+  Label parent_inactive;
+  Register state = rbx;
+  __ LoadTaggedSignedField(
+      state, FieldOperand(suspender, WasmSuspenderObject::kStateOffset));
+  __ SmiCompare(state, Smi::FromInt(WasmSuspenderObject::Inactive));
+  __ j(equal, &parent_inactive, Label::kNear);
+  __ Trap();
+  __ bind(&parent_inactive);
+#endif
+  __ StoreTaggedSignedField(
+      FieldOperand(suspender, WasmSuspenderObject::kStateOffset),
+      Smi::FromInt(WasmSuspenderObject::State::Active));
+  __ bind(&undefined);
+  __ movq(masm->RootAsOperand(RootIndex::kActiveSuspender), suspender);
+}
+
+void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
+                                     Register function_data,
+                                     Register wasm_instance) {
+  Register closure = function_data;
   Register shared_function_info = closure;
   __ LoadAnyTaggedField(
       shared_function_info,
@@ -3011,40 +3074,22 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
           closure,
           wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
   closure = no_reg;
-  Register function_data = shared_function_info;
   __ LoadAnyTaggedField(
       function_data,
       MemOperand(shared_function_info,
                  SharedFunctionInfo::kFunctionDataOffset - kHeapObjectTag));
   shared_function_info = no_reg;
 
-  Register wasm_instance = rsi;
   __ LoadAnyTaggedField(
       wasm_instance,
       MemOperand(function_data,
                  WasmExportedFunctionData::kInstanceOffset - kHeapObjectTag));
+}
 
-  // -------------------------------------------
-  // Decrement the budget of the generic wrapper in function data.
-  // -------------------------------------------
-  __ SmiAddConstant(
-      MemOperand(function_data, WasmExportedFunctionData::kWrapperBudgetOffset -
-                                    kHeapObjectTag),
-      Smi::FromInt(-1));
-
-  // -------------------------------------------
-  // Check if the budget of the generic wrapper reached 0 (zero).
-  // -------------------------------------------
-  // Instead of a specific comparison, we can directly use the flags set
-  // from the previous addition.
-  Label compile_wrapper, compile_wrapper_done;
-  __ j(less_equal, &compile_wrapper);
-  __ bind(&compile_wrapper_done);
-
-  // -------------------------------------------
-  // Load values from the signature.
-  // -------------------------------------------
-  Register foreign_signature = r11;
+void LoadValueTypesArray(MacroAssembler* masm, Register function_data,
+                         Register valuetypes_array_ptr, Register return_count,
+                         Register param_count) {
+  Register foreign_signature = valuetypes_array_ptr;
   __ LoadAnyTaggedField(
       foreign_signature,
       MemOperand(function_data,
@@ -3055,16 +3100,145 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
       FieldOperand(foreign_signature, Foreign::kForeignAddressOffset),
       kForeignForeignAddressTag, kScratchRegister);
   foreign_signature = no_reg;
-  Register return_count = r8;
   __ movq(return_count,
           MemOperand(signature, wasm::FunctionSig::kReturnCountOffset));
-  Register param_count = rcx;
   __ movq(param_count,
           MemOperand(signature, wasm::FunctionSig::kParameterCountOffset));
-  Register valuetypes_array_ptr = signature;
+  valuetypes_array_ptr = signature;
   __ movq(valuetypes_array_ptr,
           MemOperand(signature, wasm::FunctionSig::kRepsOffset));
-  signature = no_reg;
+}
+
+void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
+  // Set up the stackframe.
+  __ EnterFrame(stack_switch ? StackFrame::STACK_SWITCH
+                             : StackFrame::JS_TO_WASM);
+
+  // -------------------------------------------
+  // Compute offsets and prepare for GC.
+  // -------------------------------------------
+  constexpr int kGCScanSlotCountOffset =
+      BuiltinWasmWrapperConstants::kGCScanSlotCountOffset;
+  // The number of parameters passed to this function.
+  constexpr int kInParamCountOffset =
+      BuiltinWasmWrapperConstants::kInParamCountOffset;
+  // The number of parameters according to the signature.
+  constexpr int kParamCountOffset =
+      BuiltinWasmWrapperConstants::kParamCountOffset;
+  constexpr int kReturnCountOffset = kParamCountOffset - kSystemPointerSize;
+  constexpr int kValueTypesArrayStartOffset =
+      kReturnCountOffset - kSystemPointerSize;
+  // A boolean flag to check if one of the parameters is a reference. If so, we
+  // iterate over the parameters two times, first for all value types, and then
+  // for all references.
+  constexpr int kHasRefTypesOffset =
+      kValueTypesArrayStartOffset - kSystemPointerSize;
+  // We set and use this slot only when moving parameters into the parameter
+  // registers (so no GC scan is needed).
+  constexpr int kFunctionDataOffset = kHasRefTypesOffset - kSystemPointerSize;
+  constexpr int kLastSpillOffset = kFunctionDataOffset;
+  constexpr int kNumSpillSlots = 7;
+  __ subq(rsp, Immediate(kNumSpillSlots * kSystemPointerSize));
+  // Put the in_parameter count on the stack, we only  need it at the very end
+  // when we pop the parameters off the stack.
+  Register in_param_count = rax;
+  __ decq(in_param_count);  // Exclude receiver.
+  __ movq(MemOperand(rbp, kInParamCountOffset), in_param_count);
+  in_param_count = no_reg;
+
+  Register function_data = rdi;
+  Register wasm_instance = rsi;
+  LoadFunctionDataAndWasmInstance(masm, function_data, wasm_instance);
+
+  Label compile_wrapper, compile_wrapper_done;
+  if (!stack_switch) {
+    // -------------------------------------------
+    // Decrement the budget of the generic wrapper in function data.
+    // -------------------------------------------
+    __ SmiAddConstant(
+        MemOperand(
+            function_data,
+            WasmExportedFunctionData::kWrapperBudgetOffset - kHeapObjectTag),
+        Smi::FromInt(-1));
+
+    // -------------------------------------------
+    // Check if the budget of the generic wrapper reached 0 (zero).
+    // -------------------------------------------
+    // Instead of a specific comparison, we can directly use the flags set
+    // from the previous addition.
+    __ j(less_equal, &compile_wrapper);
+    __ bind(&compile_wrapper_done);
+  }
+
+  Label suspend;
+  if (stack_switch) {
+    Register active_continuation = rbx;
+    __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
+    SaveState(masm, active_continuation, rcx, &suspend);
+    AllocateContinuation(masm, function_data, wasm_instance);
+    Register target_continuation = rax; /* fixed */
+    // Save the old stack's rbp in r9, and use it to access the parameters in
+    // the parent frame.
+    // We also distribute the spill slots across the two stacks as needed by
+    // creating a "shadow frame":
+    //
+    //      old stack:                    new stack:
+    //      +-----------------+
+    //      | <parent frame>  |
+    // r9-> +-----------------+           +-----------------+
+    //      | <fixed>         |           | 0 (jmpbuf rbp)  |
+    //      +-----------------+     rbp-> +-----------------+
+    //      |kGCScanSlotCount |           |kGCScanSlotCount |
+    //      +-----------------+           +-----------------+
+    //      | kParamCount     |           |      /          |
+    //      +-----------------+           +-----------------+
+    //      | kInParamCount   |           |      /          |
+    //      +-----------------+           +-----------------+
+    //      |      /          |           | kReturnCount    |
+    //      +-----------------+           +-----------------+
+    //      |      /          |           |kValueTypesArray |
+    //      +-----------------+           +-----------------+
+    //      |      /          |           | kHasRefTypes    |
+    //      +-----------------+           +-----------------+
+    //      |      /          |           | kFunctionData   |
+    //      +-----------------+    rsp->  +-----------------+
+    //          seal stack                         |
+    //                                             V
+    //
+    // - When we first enter the prompt, we have access to both frames, so it
+    // does not matter where the values are spilled.
+    // - When we suspend for the first time, we longjmp to the original frame
+    // (left).  So the frame needs to contain the necessary information to
+    // properly deconstruct itself (actual param count and signature param
+    // count).
+    // - When we suspend for the second time, we longjmp to the frame that was
+    // set up by the WasmResume builtin, which has the same layout as the
+    // original frame (left).
+    // - When the closure finally resolves, we use the value types pointer
+    // stored in the shadow frame to get the return type and convert the return
+    // value accordingly.
+    __ movq(r9, rbp);
+    LoadTargetJumpBuffer(masm, target_continuation);
+    // Push the loaded rbp. We know it is null, because there is no frame yet,
+    // so we could also push 0 directly. In any case we need to push it, because
+    // this marks the base of the stack segment for the stack frame iterator.
+    __ pushq(rbp);
+    __ movq(rbp, rsp);
+    __ addq(rsp, Immediate(kLastSpillOffset));
+  }
+  Register original_fp = stack_switch ? r9 : rbp;
+
+  // -------------------------------------------
+  // Load values from the signature.
+  // -------------------------------------------
+  Register valuetypes_array_ptr = r11;
+  Register return_count = r8;
+  Register param_count = rcx;
+  LoadValueTypesArray(masm, function_data, valuetypes_array_ptr, return_count,
+                      param_count);
+
+  // Initialize the {HasRefTypes} slot.
+  __ movq(MemOperand(rbp, kHasRefTypesOffset), Immediate(0));
 
   // -------------------------------------------
   // Store signature-related values to the stack.
@@ -3073,7 +3247,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // We cannot push values onto the stack right before the wasm call. The wasm
   // function expects the parameters, that didn't fit into the registers, on the
   // top of the stack.
-  __ movq(MemOperand(rbp, kParamCountOffset), param_count);
+  __ movq(MemOperand(original_fp, kParamCountOffset), param_count);
   __ movq(MemOperand(rbp, kReturnCountOffset), return_count);
   __ movq(MemOperand(rbp, kValueTypesArrayStartOffset), valuetypes_array_ptr);
 
@@ -3143,7 +3317,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ subq(rsp, params_size);
   params_size = no_reg;
   param_count = rcx;
-  __ movq(param_count, MemOperand(rbp, kParamCountOffset));
+  __ movq(param_count, MemOperand(original_fp, kParamCountOffset));
 
   // -------------------------------------------
   // Set up for the param evaluation loop.
@@ -3198,7 +3372,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   Label loop_through_params;
   __ bind(&loop_through_params);
 
-  __ movq(param, MemOperand(rbp, current_param, times_1, 0));
+  __ movq(param, MemOperand(original_fp, current_param, times_1, 0));
   __ movl(valuetype,
           Operand(valuetypes_array_ptr, wasm::ValueType::bit_field_offset()));
 
@@ -3232,6 +3406,70 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ j(not_equal, &loop_through_params);
 
   // -------------------------------------------
+  // Second loop to handle references.
+  // -------------------------------------------
+  // In this loop we iterate over all parameters for a second time and copy all
+  // reference parameters at the end of the integer parameters section.
+  Label ref_params_done;
+  // We check if we have seen a reference in the first parameter loop.
+  Register ref_param_count = param_count;
+  __ movq(ref_param_count, Immediate(0));
+  __ cmpq(MemOperand(rbp, kHasRefTypesOffset), Immediate(0));
+  __ j(equal, &ref_params_done);
+  // We re-calculate the beginning of the value-types array and the beginning of
+  // the parameters ({valuetypes_array_ptr} and {current_param}).
+  __ movq(valuetypes_array_ptr, MemOperand(rbp, kValueTypesArrayStartOffset));
+  return_count = current_param;
+  current_param = no_reg;
+  __ movq(return_count, MemOperand(rbp, kReturnCountOffset));
+  returns_size = return_count;
+  return_count = no_reg;
+  __ shlq(returns_size, Immediate(kValueTypeSizeLog2));
+  __ addq(valuetypes_array_ptr, returns_size);
+
+  current_param = returns_size;
+  returns_size = no_reg;
+  __ Move(current_param,
+          kFPOnStackSize + kPCOnStackSize + kReceiverOnStackSize);
+
+  Label ref_loop_through_params;
+  Label ref_loop_end;
+  // Start of the loop.
+  __ bind(&ref_loop_through_params);
+
+  // Load the current parameter with type.
+  __ movq(param, MemOperand(original_fp, current_param, times_1, 0));
+  __ movl(valuetype,
+          Operand(valuetypes_array_ptr, wasm::ValueType::bit_field_offset()));
+  // Extract the ValueKind of the type, to check for kRef and kOptRef.
+  __ andl(valuetype, Immediate(wasm::kWasmValueKindBitsMask));
+  Label move_ref_to_slot;
+  __ cmpq(valuetype, Immediate(wasm::ValueKind::kOptRef));
+  __ j(equal, &move_ref_to_slot);
+  __ cmpq(valuetype, Immediate(wasm::ValueKind::kRef));
+  __ j(equal, &move_ref_to_slot);
+  __ jmp(&ref_loop_end);
+
+  // Place the param into the proper slot in Integer section.
+  __ bind(&move_ref_to_slot);
+  __ addq(ref_param_count, Immediate(1));
+  __ movq(MemOperand(current_int_param_slot, 0), param);
+  __ subq(current_int_param_slot, Immediate(kSystemPointerSize));
+
+  // Move to the next parameter.
+  __ bind(&ref_loop_end);
+  __ addq(current_param, Immediate(increment));
+  __ addq(valuetypes_array_ptr, Immediate(kValueTypeSize));
+
+  // Check if we finished all parameters.
+  __ cmpq(current_param, param_limit);
+  __ j(not_equal, &ref_loop_through_params);
+
+  __ bind(&ref_params_done);
+  __ movq(valuetype, ref_param_count);
+  ref_param_count = valuetype;
+  valuetype = no_reg;
+  // -------------------------------------------
   // Move the parameters into the proper param registers.
   // -------------------------------------------
   // The Wasm function expects that the params can be popped from the top of the
@@ -3252,7 +3490,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // -----------------------------------
 
   Register temp_params_size = rax;
-  __ movq(temp_params_size, MemOperand(rbp, kParamCountOffset));
+  __ movq(temp_params_size, MemOperand(original_fp, kParamCountOffset));
   __ shlq(temp_params_size, Immediate(kSystemPointerSizeLog2));
   // We want to use the register of the function_data = rdi.
   __ movq(MemOperand(rbp, kFunctionDataOffset), function_data);
@@ -3307,6 +3545,22 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // params that didn't fit into param registers are pushed again.
 
   Label loop_through_valuetypes;
+  Label loop_place_ref_params;
+  __ bind(&loop_place_ref_params);
+  __ testq(ref_param_count, ref_param_count);
+  __ j(zero, &loop_through_valuetypes);
+
+  __ cmpq(start_int_section, current_int_param_slot);
+  // if no int or ref param remains, directly iterate valuetypes
+  __ j(less_equal, &loop_through_valuetypes);
+
+  __ pushq(MemOperand(current_int_param_slot, 0));
+  __ addq(current_int_param_slot, Immediate(kSystemPointerSize));
+  __ subq(ref_param_count, Immediate(1));
+  __ jmp(&loop_place_ref_params);
+
+  valuetype = ref_param_count;
+  ref_param_count = no_reg;
   __ bind(&loop_through_valuetypes);
 
   // We iterated through the valuetypes array, we are one field over the end in
@@ -3342,7 +3596,12 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ cmpq(valuetype, Immediate(wasm::kWasmF64.raw_bit_field()));
   __ j(equal, &place_float_param);
 
-  __ int3();
+  // ref params have already been pushed, so go through directly
+  __ addq(current_int_param_slot, Immediate(kSystemPointerSize));
+  __ jmp(&loop_through_valuetypes);
+
+  // All other types are reference types. We can just fall through to place them
+  // in the integer section.
 
   __ bind(&place_integer_param);
   __ cmpq(start_int_section, current_int_param_slot);
@@ -3397,13 +3656,15 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
 
   // We set the indicating value for the GC to the proper one for Wasm call.
   constexpr int kWasmCallGCScanSlotCount = 0;
-  __ Move(MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset),
-          kWasmCallGCScanSlotCount);
+  __ Move(MemOperand(rbp, kGCScanSlotCountOffset), kWasmCallGCScanSlotCount);
 
   // -------------------------------------------
   // Call the Wasm function.
   // -------------------------------------------
   __ call(function_entry);
+  // Note: we might be returning to a different frame if the stack was suspended
+  // and resumed during the call. The new frame is set up by WasmResume and has
+  // a compatible layout.
   function_entry = no_reg;
 
   // -------------------------------------------
@@ -3437,6 +3698,14 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
 
   Label return_done;
   __ bind(&return_done);
+  if (stack_switch) {
+    ReloadParentContinuation(masm, wasm_instance, return_reg, rbx, rcx);
+    RestoreParentSuspender(masm);
+  }
+  __ bind(&suspend);
+  // No need to process the return value if the stack is suspended, there is a
+  // single 'externref' value (the promise) which doesn't require conversion.
+
   __ movq(param_count, MemOperand(rbp, kParamCountOffset));
 
   // Calculate the number of parameters we have to pop off the stack. This
@@ -3449,7 +3718,8 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // -------------------------------------------
   // Deconstrunct the stack frame.
   // -------------------------------------------
-  __ LeaveFrame(StackFrame::JS_TO_WASM);
+  __ LeaveFrame(stack_switch ? StackFrame::STACK_SWITCH
+                             : StackFrame::JS_TO_WASM);
 
   // We have to remove the caller frame slots:
   //  - JS arguments
@@ -3481,12 +3751,10 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   // The builtin expects the parameter to be in register param = rax.
 
   constexpr int kBuiltinCallGCScanSlotCount = 2;
-  PrepareForBuiltinCall(
-      masm,
-      MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset),
-      kBuiltinCallGCScanSlotCount, current_param, param_limit,
-      current_int_param_slot, current_float_param_slot, valuetypes_array_ptr,
-      wasm_instance, function_data);
+  PrepareForBuiltinCall(masm, MemOperand(rbp, kGCScanSlotCountOffset),
+                        kBuiltinCallGCScanSlotCount, current_param, param_limit,
+                        current_int_param_slot, current_float_param_slot,
+                        valuetypes_array_ptr, wasm_instance, function_data);
 
   Label param_kWasmI32_not_smi;
   Label param_kWasmI64;
@@ -3504,6 +3772,21 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
 
   __ cmpq(valuetype, Immediate(wasm::kWasmF64.raw_bit_field()));
   __ j(equal, &param_kWasmF64);
+
+  // The parameter is a reference. We do not convert the parameter immediately.
+  // Instead we will later loop over all parameters again to handle reference
+  // parameters. The reason is that later value type parameters may trigger a
+  // GC, and we cannot keep reference parameters alive then. Instead we leave
+  // reference parameters at their initial place on the stack and only copy them
+  // once no GC can happen anymore.
+  // As an optimization we set a flag here that indicates that we have seen a
+  // reference so far. If there was no reference parameter, we would not iterate
+  // over the parameters for a second time.
+  __ movq(MemOperand(rbp, kHasRefTypesOffset), Immediate(1));
+  RestoreAfterBuiltinCall(masm, function_data, wasm_instance,
+                          valuetypes_array_ptr, current_float_param_slot,
+                          current_int_param_slot, param_limit, current_param);
+  __ jmp(&param_conversion_done);
 
   __ int3();
 
@@ -3570,6 +3853,7 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   Label return_kWasmI64;
   Label return_kWasmF32;
   Label return_kWasmF64;
+  Label return_kWasmFuncRef;
 
   __ cmpq(valuetype, Immediate(wasm::kWasmI32.raw_bit_field()));
   __ j(equal, &return_kWasmI32);
@@ -3582,6 +3866,14 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
 
   __ cmpq(valuetype, Immediate(wasm::kWasmF64.raw_bit_field()));
   __ j(equal, &return_kWasmF64);
+
+  __ cmpq(valuetype, Immediate(wasm::kWasmFuncRef.raw_bit_field()));
+  __ j(equal, &return_kWasmFuncRef);
+
+  // All types that are not SIMD are reference types.
+  __ cmpq(valuetype, Immediate(wasm::kWasmS128.raw_bit_field()));
+  // References can be passed to JavaScript as is.
+  __ j(not_equal, &return_done);
 
   __ int3();
 
@@ -3628,61 +3920,168 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
   __ jmp(&return_done);
 
-  // -------------------------------------------
-  // Kick off compilation.
-  // -------------------------------------------
-  __ bind(&compile_wrapper);
-  // Enable GC.
-  MemOperand GCScanSlotPlace =
-      MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
-  __ Move(GCScanSlotPlace, 4);
-  // Save registers to the stack.
-  __ pushq(wasm_instance);
-  __ pushq(function_data);
-  // Push the arguments for the runtime call.
-  __ Push(wasm_instance);  // first argument
-  __ Push(function_data);  // second argument
-  // Set up context.
-  __ Move(kContextRegister, Smi::zero());
-  // Call the runtime function that kicks off compilation.
-  __ CallRuntime(Runtime::kWasmCompileWrapper, 2);
-  // Pop the result.
-  __ movq(r9, kReturnRegister0);
-  // Restore registers from the stack.
-  __ popq(function_data);
-  __ popq(wasm_instance);
-  __ jmp(&compile_wrapper_done);
-}
+  __ bind(&return_kWasmFuncRef);
+  __ Call(BUILTIN_CODE(masm->isolate(), WasmFuncRefToJS),
+          RelocInfo::CODE_TARGET);
+  __ jmp(&return_done);
 
-namespace {
-// Helper function for WasmReturnPromiseOnSuspend.
-void LoadJumpBuffer(MacroAssembler* masm, Register jmpbuf) {
-  __ movq(rsp, MemOperand(jmpbuf, wasm::kJmpBufSpOffset));
-  __ movq(rbp, MemOperand(jmpbuf, wasm::kJmpBufFpOffset));
-  // The stack limit is set separately under the ExecutionAccess lock.
-  // TODO(thibaudm): Reload live registers.
+  if (!stack_switch) {
+    // -------------------------------------------
+    // Kick off compilation.
+    // -------------------------------------------
+    __ bind(&compile_wrapper);
+    // Enable GC.
+    MemOperand GCScanSlotPlace = MemOperand(rbp, kGCScanSlotCountOffset);
+    __ Move(GCScanSlotPlace, 4);
+    // Save registers to the stack.
+    __ pushq(wasm_instance);
+    __ pushq(function_data);
+    // Push the arguments for the runtime call.
+    __ Push(wasm_instance);  // first argument
+    __ Push(function_data);  // second argument
+                             // Set up context.
+    __ Move(kContextRegister, Smi::zero());
+    // Call the runtime function that kicks off compilation.
+    __ CallRuntime(Runtime::kWasmCompileWrapper, 2);
+    // Pop the result.
+    __ movq(r9, kReturnRegister0);
+    // Restore registers from the stack.
+    __ popq(function_data);
+    __ popq(wasm_instance);
+    __ jmp(&compile_wrapper_done);
+  }
 }
 }  // namespace
 
+void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
+  GenericJSToWasmWrapperHelper(masm, false);
+}
+
 void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
+  GenericJSToWasmWrapperHelper(masm, true);
+}
+
+void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // Set up the stackframe.
-  __ EnterFrame(StackFrame::RETURN_PROMISE_ON_SUSPEND);
+  __ EnterFrame(StackFrame::STACK_SWITCH);
 
-  // Parameters.
-  Register closure = kJSFunctionRegister;                  // rdi
-  Register param_count = kJavaScriptCallArgCountRegister;  // rax
-  if (kJSArgcIncludesReceiver) {
-    __ decq(param_count);
-  }
+  Register promise = rax;
+  Register suspender = rbx;
 
-  __ subq(rsp, Immediate(ReturnPromiseOnSuspendFrameConstants::kSpillAreaSize));
+  __ subq(rsp, Immediate(-(BuiltinWasmWrapperConstants::kGCScanSlotCountOffset -
+                           TypedFrameConstants::kFixedFrameSizeFromFp)));
 
-  __ movq(
-      MemOperand(rbp, ReturnPromiseOnSuspendFrameConstants::kParamCountOffset),
-      param_count);
+  // TODO(thibaudm): Throw if any of the following holds:
+  // - caller is null
+  // - ActiveSuspender is undefined
+  // - 'suspender' is not the active suspender
 
   // -------------------------------------------
-  // Get the instance and wasm call target.
+  // Save current state in active jump buffer.
+  // -------------------------------------------
+  Label resume;
+  Register continuation = rcx;
+  __ LoadRoot(continuation, RootIndex::kActiveContinuation);
+  Register jmpbuf = rdx;
+  __ LoadAnyTaggedField(
+      jmpbuf,
+      FieldOperand(continuation, WasmContinuationObject::kJmpbufOffset));
+  __ LoadExternalPointerField(
+      jmpbuf, FieldOperand(jmpbuf, Foreign::kForeignAddressOffset),
+      kForeignForeignAddressTag, r8);
+  FillJumpBuffer(masm, jmpbuf, &resume);
+  __ StoreTaggedSignedField(
+      FieldOperand(suspender, WasmSuspenderObject::kStateOffset),
+      Smi::FromInt(WasmSuspenderObject::Suspended));
+  jmpbuf = no_reg;
+  // live: [rax, rbx, rcx]
+
+#ifdef DEBUG
+  // -------------------------------------------
+  // Check that the suspender's continuation is the active continuation.
+  // -------------------------------------------
+  // TODO(thibaudm): Once we add core stack-switching instructions, this check
+  // will not hold anymore: it's possible that the active continuation changed
+  // (due to an internal switch), so we have to update the suspender.
+  Register suspender_continuation = rdx;
+  __ LoadAnyTaggedField(
+      suspender_continuation,
+      FieldOperand(suspender, WasmSuspenderObject::kContinuationOffset));
+  __ cmpq(suspender_continuation, continuation);
+  Label ok;
+  __ j(equal, &ok);
+  __ Trap();
+  __ bind(&ok);
+#endif
+
+  // -------------------------------------------
+  // Update roots.
+  // -------------------------------------------
+  Register caller = rcx;
+  __ LoadAnyTaggedField(
+      caller,
+      FieldOperand(suspender, WasmSuspenderObject::kContinuationOffset));
+  __ LoadAnyTaggedField(
+      caller, FieldOperand(caller, WasmContinuationObject::kParentOffset));
+  __ movq(masm->RootAsOperand(RootIndex::kActiveContinuation), caller);
+  Register parent = rdx;
+  __ LoadAnyTaggedField(
+      parent, FieldOperand(suspender, WasmSuspenderObject::kParentOffset));
+  __ movq(masm->RootAsOperand(RootIndex::kActiveSuspender), parent);
+  parent = no_reg;
+  // live: [rax, rcx]
+
+  // -------------------------------------------
+  // Load jump buffer.
+  // -------------------------------------------
+  MemOperand GCScanSlotPlace =
+      MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
+  __ Move(GCScanSlotPlace, 2);
+  __ Push(promise);
+  __ Push(caller);
+  __ Move(kContextRegister, Smi::zero());
+  __ CallRuntime(Runtime::kWasmSyncStackLimit);
+  __ Pop(caller);
+  __ Pop(promise);
+  jmpbuf = caller;
+  __ LoadAnyTaggedField(
+      jmpbuf, FieldOperand(caller, WasmContinuationObject::kJmpbufOffset));
+  caller = no_reg;
+  __ LoadExternalPointerField(
+      jmpbuf, FieldOperand(jmpbuf, Foreign::kForeignAddressOffset),
+      kForeignForeignAddressTag, r8);
+  __ movq(kReturnRegister0, promise);
+  __ Move(GCScanSlotPlace, 0);
+  LoadJumpBuffer(masm, jmpbuf, true);
+  __ Trap();
+  __ bind(&resume);
+  __ LeaveFrame(StackFrame::STACK_SWITCH);
+  __ ret(0);
+}
+
+// Resume the suspender stored in the closure.
+void Builtins::Generate_WasmResume(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::STACK_SWITCH);
+
+  Register param_count = rax;
+  __ decq(param_count);                    // Exclude receiver.
+  Register closure = kJSFunctionRegister;  // rdi
+
+  // These slots are not used in this builtin. But when we return from the
+  // resumed continuation, we return to the GenericJSToWasmWrapper code, which
+  // expects these slots to be set.
+  constexpr int kInParamCountOffset =
+      BuiltinWasmWrapperConstants::kInParamCountOffset;
+  constexpr int kParamCountOffset =
+      BuiltinWasmWrapperConstants::kParamCountOffset;
+  __ subq(rsp, Immediate(3 * kSystemPointerSize));
+  __ movq(MemOperand(rbp, kParamCountOffset), param_count);
+  __ movq(MemOperand(rbp, kInParamCountOffset), param_count);
+
+  param_count = no_reg;
+
+  // -------------------------------------------
+  // Load suspender from closure.
   // -------------------------------------------
   Register sfi = closure;
   __ LoadAnyTaggedField(
@@ -3694,155 +4093,93 @@ void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   __ LoadAnyTaggedField(
       function_data,
       FieldOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-  Register wasm_instance = kWasmInstanceRegister;  // rsi
+  Register suspender = rax;
   __ LoadAnyTaggedField(
-      wasm_instance,
-      FieldOperand(function_data, WasmExportedFunctionData::kInstanceOffset));
-  sfi = no_reg;
+      suspender,
+      FieldOperand(function_data, WasmOnFulfilledData::kSuspenderOffset));
+  // Check the suspender state.
+  Label suspender_is_suspended;
+  Register state = rdx;
+  __ LoadTaggedSignedField(
+      state, FieldOperand(suspender, WasmSuspenderObject::kStateOffset));
+  __ SmiCompare(state, Smi::FromInt(WasmSuspenderObject::Suspended));
+  __ j(equal, &suspender_is_suspended);
+  __ Trap();  // TODO(thibaudm): Throw a wasm trap.
   closure = no_reg;
-  // live: [rsi, rdi]
+  sfi = no_reg;
 
+  __ bind(&suspender_is_suspended);
   // -------------------------------------------
-  // Save current state in active jmpbuf.
+  // Save current state.
   // -------------------------------------------
-  Register active_continuation = rax;
-  Register foreign_jmpbuf = rbx;
+  Label suspend;
+  Register active_continuation = r9;
   __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
+  Register current_jmpbuf = rdi;
   __ LoadAnyTaggedField(
-      foreign_jmpbuf,
+      current_jmpbuf,
       FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset));
-  Register jmpbuf = rbx;
   __ LoadExternalPointerField(
-      jmpbuf, FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
-      kForeignForeignAddressTag, r8);
-  __ movq(MemOperand(jmpbuf, wasm::kJmpBufSpOffset), rsp);
-  __ movq(MemOperand(jmpbuf, wasm::kJmpBufFpOffset), rbp);
-  Register stack_limit_address = rcx;
-  __ movq(stack_limit_address,
-          FieldOperand(wasm_instance,
-                       WasmInstanceObject::kRealStackLimitAddressOffset));
-  Register stack_limit = rdx;
-  __ movq(stack_limit, MemOperand(stack_limit_address, 0));
-  __ movq(MemOperand(jmpbuf, wasm::kJmpBufStackLimitOffset), stack_limit);
-  // TODO(thibaudm): Save live registers.
-  foreign_jmpbuf = no_reg;
-  stack_limit = no_reg;
-  stack_limit_address = no_reg;
-  // live: [rsi, rdi, rax]
+      current_jmpbuf,
+      FieldOperand(current_jmpbuf, Foreign::kForeignAddressOffset),
+      kForeignForeignAddressTag, rdx);
+  FillJumpBuffer(masm, current_jmpbuf, &suspend);
+  current_jmpbuf = no_reg;
 
   // -------------------------------------------
-  // Allocate a new continuation.
+  // Set suspender's parent to active continuation.
   // -------------------------------------------
+  __ StoreTaggedSignedField(
+      FieldOperand(suspender, WasmSuspenderObject::kStateOffset),
+      Smi::FromInt(WasmSuspenderObject::Active));
+  Register target_continuation = rdi;
+  __ LoadAnyTaggedField(
+      target_continuation,
+      FieldOperand(suspender, WasmSuspenderObject::kContinuationOffset));
+  Register slot_address = WriteBarrierDescriptor::SlotAddressRegister();
+  __ StoreTaggedField(
+      FieldOperand(target_continuation, WasmContinuationObject::kParentOffset),
+      active_continuation);
+  __ RecordWriteField(
+      target_continuation, WasmContinuationObject::kParentOffset,
+      active_continuation, slot_address, SaveFPRegsMode::kIgnore);
+  active_continuation = no_reg;
+
+  // -------------------------------------------
+  // Update roots.
+  // -------------------------------------------
+  __ movq(masm->RootAsOperand(RootIndex::kActiveContinuation),
+          target_continuation);
+  __ movq(masm->RootAsOperand(RootIndex::kActiveSuspender), suspender);
+  suspender = no_reg;
+
   MemOperand GCScanSlotPlace =
       MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
-  __ Move(GCScanSlotPlace, 2);
-  __ Push(wasm_instance);
-  __ Push(function_data);
-  __ Move(kContextRegister, Smi::zero());
-  __ CallRuntime(Runtime::kWasmAllocateContinuation);
-  __ Pop(function_data);
-  __ Pop(wasm_instance);
-  STATIC_ASSERT(kReturnRegister0 == rax);
-  Register target_continuation = rax;
-  // live: [rsi, rdi, rax]
-
-  // -------------------------------------------
-  // Load target continuation jmpbuf.
-  // -------------------------------------------
-  foreign_jmpbuf = rbx;
-  __ LoadAnyTaggedField(
-      foreign_jmpbuf,
-      FieldOperand(target_continuation, WasmContinuationObject::kJmpbufOffset));
-  Register target_jmpbuf = rbx;
-  __ LoadExternalPointerField(
-      target_jmpbuf,
-      FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
-      kForeignForeignAddressTag, r8);
-  __ Move(GCScanSlotPlace, 0);
-  // Switch stack!
-  LoadJumpBuffer(masm, target_jmpbuf);
-  foreign_jmpbuf = no_reg;
-  target_jmpbuf = no_reg;
-  // live: [rsi, rdi]
-
-  // -------------------------------------------
-  // Load and call target wasm function.
-  // -------------------------------------------
-  // TODO(thibaudm): Handle arguments.
-  // TODO(thibaudm): Handle GC.
-  // Set thread_in_wasm_flag.
-  Register thread_in_wasm_flag_addr = rax;
-  __ movq(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(1));
-  Register function_entry = function_data;
-  __ LoadAnyTaggedField(
-      function_entry,
-      FieldOperand(function_entry, WasmExportedFunctionData::kInternalOffset));
-  __ LoadExternalPointerField(
-      function_entry,
-      FieldOperand(function_data, WasmInternalFunction::kForeignAddressOffset),
-      kForeignForeignAddressTag, r8);
-  __ Push(wasm_instance);
-  __ call(function_entry);
-  __ Pop(wasm_instance);
-  // Unset thread_in_wasm_flag.
-  __ movq(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(0));
-  thread_in_wasm_flag_addr = no_reg;
-  function_entry = no_reg;
-  function_data = no_reg;
-  // live: [rsi]
-
-  // -------------------------------------------
-  // Reload parent continuation.
-  // -------------------------------------------
-  active_continuation = rbx;
-  __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
-  Register parent = rdx;
-  __ LoadAnyTaggedField(
-      parent,
-      FieldOperand(active_continuation, WasmContinuationObject::kParentOffset));
-  active_continuation = no_reg;
-  // live: [rsi]
-
-  // -------------------------------------------
-  // Update instance active continuation.
-  // -------------------------------------------
-  __ movq(masm->RootAsOperand(RootIndex::kActiveContinuation), parent);
-  foreign_jmpbuf = rax;
-  __ LoadAnyTaggedField(
-      foreign_jmpbuf,
-      FieldOperand(parent, WasmContinuationObject::kJmpbufOffset));
-  jmpbuf = foreign_jmpbuf;
-  __ LoadExternalPointerField(
-      jmpbuf, FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
-      kForeignForeignAddressTag, r8);
-  // Switch stack!
-  LoadJumpBuffer(masm, jmpbuf);
   __ Move(GCScanSlotPlace, 1);
-  __ Push(wasm_instance);  // Spill.
+  __ Push(target_continuation);
   __ Move(kContextRegister, Smi::zero());
   __ CallRuntime(Runtime::kWasmSyncStackLimit);
-  __ Pop(wasm_instance);
-  parent = no_reg;
-  active_continuation = no_reg;
-  foreign_jmpbuf = no_reg;
-  wasm_instance = no_reg;
+  __ Pop(target_continuation);
 
   // -------------------------------------------
-  // Epilogue.
+  // Load state from target jmpbuf (longjmp).
   // -------------------------------------------
-  __ movq(
-      param_count,
-      MemOperand(rbp, ReturnPromiseOnSuspendFrameConstants::kParamCountOffset));
-  __ LeaveFrame(StackFrame::RETURN_PROMISE_ON_SUSPEND);
-  __ DropArguments(param_count, r8, TurboAssembler::kCountIsInteger,
-                   TurboAssembler::kCountExcludesReceiver);
-  __ ret(0);
+  Register target_jmpbuf = target_continuation;
+  __ LoadAnyTaggedField(
+      target_jmpbuf,
+      FieldOperand(target_continuation, WasmContinuationObject::kJmpbufOffset));
+  __ LoadExternalPointerField(
+      target_jmpbuf,
+      FieldOperand(target_jmpbuf, Foreign::kForeignAddressOffset),
+      kForeignForeignAddressTag, rax);
+  // Move resolved value to return register.
+  __ movq(kReturnRegister0, Operand(rbp, 3 * kSystemPointerSize));
+  __ Move(GCScanSlotPlace, 0);
+  LoadJumpBuffer(masm, target_jmpbuf, true);
+  __ Trap();
+  __ bind(&suspend);
+  __ LeaveFrame(StackFrame::STACK_SWITCH);
+  __ ret(3);
 }
 
 void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
@@ -3995,6 +4332,18 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ PrepareCallCFunction(3);
     __ CallCFunction(find_handler, 3);
   }
+
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  // Drop frames from the shadow stack.
+  ExternalReference num_frames_above_pending_handler_address =
+      ExternalReference::Create(
+          IsolateAddressId::kNumFramesAbovePendingHandlerAddress,
+          masm->isolate());
+  __ movq(rcx, masm->ExternalReferenceAsOperand(
+                   num_frames_above_pending_handler_address));
+  __ IncsspqIfSupported(rcx, kScratchRegister);
+#endif  // V8_ENABLE_CET_SHADOW_STACK
+
   // Retrieve the handler context, SP and FP.
   __ movq(rsi,
           masm->ExternalReferenceAsOperand(pending_handler_context_address));
@@ -4223,8 +4572,12 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   } else {
     DCHECK_EQ(stack_space, 0);
     __ PopReturnAddressTo(rcx);
+    // {stack_space_operand} was loaded into {rbx} above.
     __ addq(rsp, rbx);
-    __ jmp(rcx);
+    // Push and ret (instead of jmp) to keep the RSB and the CET shadow stack
+    // balanced.
+    __ PushReturnAddressFrom(rcx);
+    __ ret(0);
   }
 
   // Re-throw by promoting a scheduled exception.
@@ -4488,22 +4841,16 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
       ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate),
       rbp);
 
-  // We use this to keep the value of the fifth argument temporarily.
-  // Unfortunately we can't store it directly in r8 (used for passing
-  // this on linux), since it is another parameter passing register on windows.
-  Register arg5 = r15;
-
-  __ Move(arg_reg_3, Deoptimizer::kFixedExitSizeMarker);
   // Get the address of the location in the code object
   // and compute the fp-to-sp delta in register arg5.
-  __ movq(arg_reg_4, Operand(rsp, kCurrentOffsetToReturnAddress));
+  __ movq(arg_reg_3, Operand(rsp, kCurrentOffsetToReturnAddress));
   // Load the fp-to-sp-delta.
-  __ leaq(arg5, Operand(rsp, kCurrentOffsetToParentSP));
-  __ subq(arg5, rbp);
-  __ negq(arg5);
+  __ leaq(arg_reg_4, Operand(rsp, kCurrentOffsetToParentSP));
+  __ subq(arg_reg_4, rbp);
+  __ negq(arg_reg_4);
 
   // Allocate a new deoptimizer object.
-  __ PrepareCallCFunction(6);
+  __ PrepareCallCFunction(5);
   __ Move(rax, 0);
   Label context_check;
   __ movq(rdi, Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset));
@@ -4515,19 +4862,19 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
   // Args 3 and 4 are already in the right registers.
 
   // On windows put the arguments on the stack (PrepareCallCFunction
-  // has created space for this). On linux pass the arguments in r8 and r9.
+  // has created space for this). On linux pass the arguments in r8.
 #ifdef V8_TARGET_OS_WIN
-  __ movq(Operand(rsp, 4 * kSystemPointerSize), arg5);
+  Register arg5 = r15;
   __ LoadAddress(arg5, ExternalReference::isolate_address(isolate));
-  __ movq(Operand(rsp, 5 * kSystemPointerSize), arg5);
+  __ movq(Operand(rsp, 4 * kSystemPointerSize), arg5);
 #else
-  __ movq(r8, arg5);
-  __ LoadAddress(r9, ExternalReference::isolate_address(isolate));
+  // r8 is arg_reg_5 on Linux
+  __ LoadAddress(r8, ExternalReference::isolate_address(isolate));
 #endif
 
   {
     AllowExternalCallThatCantCauseGC scope(masm);
-    __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
+    __ CallCFunction(ExternalReference::new_deoptimizer_function(), 5);
   }
   // Preserve deoptimizer object in register rax and get the input
   // frame descriptor pointer.
@@ -4656,16 +5003,12 @@ void Builtins::Generate_DeoptimizationEntry_Eager(MacroAssembler* masm) {
   Generate_DeoptimizationEntry(masm, DeoptimizeKind::kEager);
 }
 
-void Builtins::Generate_DeoptimizationEntry_Soft(MacroAssembler* masm) {
-  Generate_DeoptimizationEntry(masm, DeoptimizeKind::kSoft);
-}
-
-void Builtins::Generate_DeoptimizationEntry_Bailout(MacroAssembler* masm) {
-  Generate_DeoptimizationEntry(masm, DeoptimizeKind::kBailout);
-}
-
 void Builtins::Generate_DeoptimizationEntry_Lazy(MacroAssembler* masm) {
   Generate_DeoptimizationEntry(masm, DeoptimizeKind::kLazy);
+}
+
+void Builtins::Generate_DeoptimizationEntry_Unused(MacroAssembler* masm) {
+  Generate_DeoptimizationEntry(masm, DeoptimizeKind::kUnused);
 }
 
 namespace {
@@ -4713,12 +5056,11 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     __ Assert(equal, AbortReason::kExpectedBaselineData);
   }
 
-  // Load baseline code from baseline data.
+  if (FLAG_debug_code) {
+    AssertCodeTIsBaseline(masm, code_obj, r11);
+  }
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     __ LoadCodeDataContainerCodeNonBuiltin(code_obj, code_obj);
-  }
-  if (FLAG_debug_code) {
-    AssertCodeIsBaseline(masm, code_obj, r11);
   }
 
   // Load the feedback vector.
@@ -4789,12 +5131,8 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ popq(kInterpreterAccumulatorRegister);
 
   if (is_osr) {
-    // Reset the OSR loop nesting depth to disarm back edges.
-    // TODO(pthier): Separate baseline Sparkplug from TF arming and don't disarm
-    // Sparkplug here.
-    __ movw(FieldOperand(kInterpreterBytecodeArrayRegister,
-                         BytecodeArray::kOsrLoopNestingLevelOffset),
-            Immediate(0));
+    // TODO(pthier): Separate Sparkplug and Turbofan OSR states.
+    ResetBytecodeAgeAndOsrState(masm, kInterpreterBytecodeArrayRegister);
     Generate_OSREntry(masm, code_obj);
   } else {
     __ jmp(code_obj);
@@ -4840,74 +5178,6 @@ void Builtins::Generate_BaselineOrInterpreterEnterAtNextBytecode(
 void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
     MacroAssembler* masm) {
   Generate_BaselineOrInterpreterEntry(masm, false, true);
-}
-
-void Builtins::Generate_DynamicCheckMapsTrampoline(MacroAssembler* masm) {
-  Generate_DynamicCheckMapsTrampoline<DynamicCheckMapsDescriptor>(
-      masm, BUILTIN_CODE(masm->isolate(), DynamicCheckMaps));
-}
-
-void Builtins::Generate_DynamicCheckMapsWithFeedbackVectorTrampoline(
-    MacroAssembler* masm) {
-  Generate_DynamicCheckMapsTrampoline<
-      DynamicCheckMapsWithFeedbackVectorDescriptor>(
-      masm, BUILTIN_CODE(masm->isolate(), DynamicCheckMapsWithFeedbackVector));
-}
-
-template <class Descriptor>
-void Builtins::Generate_DynamicCheckMapsTrampoline(
-    MacroAssembler* masm, Handle<Code> builtin_target) {
-  FrameScope scope(masm, StackFrame::MANUAL);
-  __ EnterFrame(StackFrame::INTERNAL);
-
-  // Only save the registers that the DynamicCheckMaps builtin can clobber.
-  Descriptor descriptor;
-  RegList registers = descriptor.allocatable_registers();
-  // FLAG_debug_code is enabled CSA checks will call C function and so we need
-  // to save all CallerSaved registers too.
-  if (FLAG_debug_code) registers |= kCallerSaved;
-  __ MaybeSaveRegisters(registers);
-
-  // Load the immediate arguments from the deopt exit to pass to the builtin.
-  Register slot_arg = descriptor.GetRegisterParameter(Descriptor::kSlot);
-  Register handler_arg = descriptor.GetRegisterParameter(Descriptor::kHandler);
-  __ movq(handler_arg, Operand(rbp, CommonFrameConstants::kCallerPCOffset));
-  __ movq(slot_arg, Operand(handler_arg,
-                            Deoptimizer::kEagerWithResumeImmedArgs1PcOffset));
-  __ movq(
-      handler_arg,
-      Operand(handler_arg, Deoptimizer::kEagerWithResumeImmedArgs2PcOffset));
-
-  __ Call(builtin_target, RelocInfo::CODE_TARGET);
-
-  Label deopt, bailout;
-  __ cmpq(rax, Immediate(static_cast<int>(DynamicCheckMapsStatus::kSuccess)));
-  __ j(not_equal, &deopt);
-
-  __ MaybeRestoreRegisters(registers);
-  __ LeaveFrame(StackFrame::INTERNAL);
-  __ Ret();
-
-  __ bind(&deopt);
-  __ cmpq(rax, Immediate(static_cast<int>(DynamicCheckMapsStatus::kBailout)));
-  __ j(equal, &bailout);
-
-  if (FLAG_debug_code) {
-    __ cmpq(rax, Immediate(static_cast<int>(DynamicCheckMapsStatus::kDeopt)));
-    __ Assert(equal, AbortReason::kUnexpectedDynamicCheckMapsStatus);
-  }
-  __ MaybeRestoreRegisters(registers);
-  __ LeaveFrame(StackFrame::INTERNAL);
-  Handle<Code> deopt_eager = masm->isolate()->builtins()->code_handle(
-      Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind::kEager));
-  __ Jump(deopt_eager, RelocInfo::CODE_TARGET);
-
-  __ bind(&bailout);
-  __ MaybeRestoreRegisters(registers);
-  __ LeaveFrame(StackFrame::INTERNAL);
-  Handle<Code> deopt_bailout = masm->isolate()->builtins()->code_handle(
-      Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind::kBailout));
-  __ Jump(deopt_bailout, RelocInfo::CODE_TARGET);
 }
 
 #undef __

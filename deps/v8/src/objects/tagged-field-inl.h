@@ -202,6 +202,63 @@ Tagged_t TaggedField<T, kFieldOffset>::Release_CompareAndSwap(HeapObject host,
   return result;
 }
 
+// static
+template <typename T, int kFieldOffset>
+T TaggedField<T, kFieldOffset>::SeqCst_Load(HeapObject host, int offset) {
+  AtomicTagged_t value = AsAtomicTagged::SeqCst_Load(location(host, offset));
+  DCHECK_NE(kFieldOffset + offset, HeapObject::kMapOffset);
+  return T(tagged_to_full(host.ptr(), value));
+}
+
+// static
+template <typename T, int kFieldOffset>
+T TaggedField<T, kFieldOffset>::SeqCst_Load(PtrComprCageBase cage_base,
+                                            HeapObject host, int offset) {
+  AtomicTagged_t value = AsAtomicTagged::SeqCst_Load(location(host, offset));
+  DCHECK_NE(kFieldOffset + offset, HeapObject::kMapOffset);
+  return T(tagged_to_full(cage_base, value));
+}
+
+// static
+template <typename T, int kFieldOffset>
+void TaggedField<T, kFieldOffset>::SeqCst_Store(HeapObject host, T value) {
+  Address ptr = value.ptr();
+  DCHECK_NE(kFieldOffset, HeapObject::kMapOffset);
+  AsAtomicTagged::SeqCst_Store(location(host), full_to_tagged(ptr));
+}
+
+// static
+template <typename T, int kFieldOffset>
+void TaggedField<T, kFieldOffset>::SeqCst_Store(HeapObject host, int offset,
+                                                T value) {
+  Address ptr = value.ptr();
+  DCHECK_NE(kFieldOffset + offset, HeapObject::kMapOffset);
+  AsAtomicTagged::SeqCst_Store(location(host, offset), full_to_tagged(ptr));
+}
+
+// static
+template <typename T, int kFieldOffset>
+T TaggedField<T, kFieldOffset>::SeqCst_Swap(HeapObject host, int offset,
+                                            T value) {
+  Address ptr = value.ptr();
+  DCHECK_NE(kFieldOffset + offset, HeapObject::kMapOffset);
+  AtomicTagged_t old_value =
+      AsAtomicTagged::SeqCst_Swap(location(host, offset), full_to_tagged(ptr));
+  return T(tagged_to_full(host.ptr(), old_value));
+}
+
+// static
+template <typename T, int kFieldOffset>
+T TaggedField<T, kFieldOffset>::SeqCst_Swap(PtrComprCageBase cage_base,
+                                            HeapObject host, int offset,
+                                            T value) {
+  Address ptr = value.ptr();
+  DCHECK_NE(kFieldOffset + offset, HeapObject::kMapOffset);
+  AtomicTagged_t old_value =
+      AsAtomicTagged::SeqCst_Swap(location(host, offset), full_to_tagged(ptr));
+  return T(tagged_to_full(cage_base, old_value));
+}
+
 }  // namespace internal
 }  // namespace v8
 

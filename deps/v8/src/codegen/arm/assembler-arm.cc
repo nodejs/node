@@ -533,7 +533,7 @@ Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
       pending_32_bit_constants_(),
-      scratch_register_list_(ip.bit()) {
+      scratch_register_list_({ip}) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
   constant_pool_deadline_ = kMaxInt;
   const_pool_blocked_nesting_ = 0;
@@ -594,7 +594,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
   const int safepoint_table_offset =
       (safepoint_table_builder == kNoSafepointTable)
           ? handler_table_offset2
-          : safepoint_table_builder->GetCodeOffset();
+          : safepoint_table_builder->safepoint_table_offset();
   const int reloc_info_offset =
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
@@ -1412,9 +1412,9 @@ void Assembler::AddrMode3(Instr instr, Register rd, const MemOperand& x) {
 
 void Assembler::AddrMode4(Instr instr, Register rn, RegList rl) {
   DCHECK((instr & ~(kCondMask | P | U | W | L)) == B27);
-  DCHECK_NE(rl, 0);
+  DCHECK(!rl.is_empty());
   DCHECK(rn != pc);
-  emit(instr | rn.code() * B16 | rl);
+  emit(instr | rn.code() * B16 | rl.bits());
 }
 
 void Assembler::AddrMode5(Instr instr, CRegister crd, const MemOperand& x) {
@@ -2251,12 +2251,12 @@ void Assembler::pld(const MemOperand& address) {
 void Assembler::ldm(BlockAddrMode am, Register base, RegList dst,
                     Condition cond) {
   // ABI stack constraint: ldmxx base, {..sp..}  base != sp  is not restartable.
-  DCHECK(base == sp || (dst & sp.bit()) == 0);
+  DCHECK(base == sp || !dst.has(sp));
 
   AddrMode4(cond | B27 | am | L, base, dst);
 
   // Emit the constant pool after a function return implemented by ldm ..{..pc}.
-  if (cond == al && (dst & pc.bit()) != 0) {
+  if (cond == al && dst.has(pc)) {
     // There is a slight chance that the ldm instruction was actually a call,
     // in which case it would be wrong to return into the constant pool; we
     // recognize this case by checking if the emission of the pool was blocked
@@ -5499,11 +5499,7 @@ UseScratchRegisterScope::~UseScratchRegisterScope() {
 Register UseScratchRegisterScope::Acquire() {
   RegList* available = assembler_->GetScratchRegisterList();
   DCHECK_NOT_NULL(available);
-  DCHECK_NE(*available, 0);
-  int index = static_cast<int>(base::bits::CountTrailingZeros32(*available));
-  Register reg = Register::from_code(index);
-  *available &= ~reg.bit();
-  return reg;
+  return available->PopFirst();
 }
 
 LoadStoreLaneParams::LoadStoreLaneParams(MachineRepresentation rep,

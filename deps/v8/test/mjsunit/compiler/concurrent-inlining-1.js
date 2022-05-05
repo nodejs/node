@@ -22,5 +22,5 @@ function foo() { return %TurbofanStaticAssert(bar(global)); }
 
 bar({gaga() {}});
 foo();
-%OptimizeFunctionForTopTier(foo);
+%OptimizeFunctionOnNextCall(foo);
 foo();

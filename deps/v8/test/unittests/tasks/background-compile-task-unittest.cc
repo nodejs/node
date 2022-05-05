@@ -35,14 +35,14 @@ class BackgroundCompileTaskTest : public TestWithNativeContext {
 
   AccountingAllocator* allocator() { return allocator_; }
 
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
-    TestWithNativeContext::SetUpTestCase();
+    TestWithNativeContext::SetUpTestSuite();
   }
 
-  static void TearDownTestCase() {
-    TestWithNativeContext::TearDownTestCase();
+  static void TearDownTestSuite() {
+    TestWithNativeContext::TearDownTestSuite();
     CHECK_NOT_NULL(save_flags_);
     delete save_flags_;
     save_flags_ = nullptr;
@@ -79,7 +79,7 @@ TEST_F(BackgroundCompileTaskTest, SyntaxError) {
   std::unique_ptr<BackgroundCompileTask> task(
       NewBackgroundCompileTask(isolate(), shared));
 
-  task->Run();
+  task->RunOnMainThread(isolate());
   ASSERT_FALSE(Compiler::FinalizeBackgroundCompileTask(
       task.get(), isolate(), Compiler::KEEP_EXCEPTION));
   ASSERT_TRUE(isolate()->has_pending_exception());
@@ -105,7 +105,7 @@ TEST_F(BackgroundCompileTaskTest, CompileAndRun) {
   std::unique_ptr<BackgroundCompileTask> task(
       NewBackgroundCompileTask(isolate(), shared));
 
-  task->Run();
+  task->RunOnMainThread(isolate());
   ASSERT_TRUE(Compiler::FinalizeBackgroundCompileTask(
       task.get(), isolate(), Compiler::KEEP_EXCEPTION));
   ASSERT_TRUE(shared->is_compiled());
@@ -131,7 +131,7 @@ TEST_F(BackgroundCompileTaskTest, CompileFailure) {
   std::unique_ptr<BackgroundCompileTask> task(
       NewBackgroundCompileTask(isolate(), shared, 100));
 
-  task->Run();
+  task->RunOnMainThread(isolate());
   ASSERT_FALSE(Compiler::FinalizeBackgroundCompileTask(
       task.get(), isolate(), Compiler::KEEP_EXCEPTION));
   ASSERT_TRUE(isolate()->has_pending_exception());
@@ -201,7 +201,7 @@ TEST_F(BackgroundCompileTaskTest, EagerInnerFunctions) {
   std::unique_ptr<BackgroundCompileTask> task(
       NewBackgroundCompileTask(isolate(), shared));
 
-  task->Run();
+  task->RunOnMainThread(isolate());
   ASSERT_TRUE(Compiler::FinalizeBackgroundCompileTask(
       task.get(), isolate(), Compiler::KEEP_EXCEPTION));
   ASSERT_TRUE(shared->is_compiled());
@@ -231,7 +231,7 @@ TEST_F(BackgroundCompileTaskTest, LazyInnerFunctions) {
 
   // There's already a task for this SFI.
 
-  task->Run();
+  task->RunOnMainThread(isolate());
   ASSERT_TRUE(Compiler::FinalizeBackgroundCompileTask(
       task.get(), isolate(), Compiler::KEEP_EXCEPTION));
   ASSERT_TRUE(shared->is_compiled());

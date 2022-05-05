@@ -28,10 +28,8 @@ struct AsyncContext {
 
 class AsyncHooksWrap {
  public:
-  explicit AsyncHooksWrap(Isolate* isolate) {
-    enabled_ = false;
-    isolate_ = isolate;
-  }
+  explicit AsyncHooksWrap(Isolate* isolate)
+      : isolate_(isolate), enabled_(false) {}
   void Enable();
   void Disable();
   bool IsEnabled() const { return enabled_; }
@@ -58,18 +56,8 @@ class AsyncHooksWrap {
 
 class AsyncHooks {
  public:
-  explicit AsyncHooks(Isolate* isolate) {
-    isolate_ = isolate;
-
-    AsyncContext ctx;
-    ctx.execution_async_id = 1;
-    ctx.trigger_async_id = 0;
-    asyncContexts.push(ctx);
-    current_async_id = 1;
-
-    Initialize();
-  }
-  ~AsyncHooks() { Deinitialize(); }
+  explicit AsyncHooks(Isolate* isolate);
+  ~AsyncHooks();
 
   async_id_t GetExecutionAsyncId() const;
   async_id_t GetTriggerAsyncId() const;
@@ -79,19 +67,18 @@ class AsyncHooks {
   Persistent<FunctionTemplate> async_hook_ctor;
 
  private:
-  std::vector<AsyncHooksWrap*> async_wraps_;
+  base::RecursiveMutex async_wraps_mutex_;
+  std::vector<std::shared_ptr<AsyncHooksWrap>> async_wraps_;
   Isolate* isolate_;
   Persistent<ObjectTemplate> async_hooks_templ;
   Persistent<Private> async_id_smb;
   Persistent<Private> trigger_id_smb;
 
-  void Initialize();
-  void Deinitialize();
-
   static void ShellPromiseHook(PromiseHookType type, Local<Promise> promise,
                                Local<Value> parent);
   static void PromiseHookDispatch(PromiseHookType type, Local<Promise> promise,
-                                  Local<Value> parent, AsyncHooksWrap* wrap,
+                                  Local<Value> parent,
+                                  const AsyncHooksWrap& wrap,
                                   AsyncHooks* hooks);
 
   std::stack<AsyncContext> asyncContexts;

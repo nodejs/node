@@ -7,9 +7,9 @@ const { Headers, fill: fillHeaders, HeadersList } = require('./headers')
 const util = require('../core/util')
 const {
   isValidHTTPToken,
-  EnvironmentSettingsObject,
   sameOrigin,
-  toUSVString
+  toUSVString,
+  normalizeMethod
 } = require('./util')
 const {
   forbiddenMethods,
@@ -81,9 +81,7 @@ class Request {
       try {
         parsedURL = new URL(input, baseUrl)
       } catch (err) {
-        const error = new TypeError('Failed to parse URL from ' + input)
-        error.cause = err
-        throw error
+        throw new TypeError('Failed to parse URL from ' + input, { cause: err })
       }
 
       // 3. If parsedURL includes credentials, then throw a TypeError.
@@ -121,7 +119,7 @@ class Request {
     // 9. If request’s window is an environment settings object and its origin
     // is same origin with origin, then set window to request’s window.
     if (
-      request.window instanceof EnvironmentSettingsObject &&
+      request.window?.constructor?.name === 'EnvironmentSettingsObject' &&
       sameOrigin(request.window, origin)
     ) {
       window = request.window
@@ -149,7 +147,7 @@ class Request {
       // unsafe-request flag Set.
       unsafeRequest: request.unsafeRequest,
       // client This’s relevant settings object.
-      client: request.client,
+      client: this[kRealm].settingsObject,
       // window window.
       window,
       // priority request’s priority.
@@ -179,8 +177,7 @@ class Request {
       // history-navigation flag request’s history-navigation flag.
       historyNavigation: request.historyNavigation,
       // URL list A clone of request’s URL list.
-      // undici implementation note: urlList is cloned in makeRequest
-      urlList: request.urlList
+      urlList: [...request.urlList]
     })
 
     // 13. If init is not empty, then:
@@ -228,11 +225,7 @@ class Request {
         try {
           parsedReferrer = new URL(referrer, baseUrl)
         } catch (err) {
-          const error = new TypeError(
-            `Referrer "${referrer}" is not a valid URL.`
-          )
-          error.cause = err
-          throw error
+          throw new TypeError(`Referrer "${referrer}" is not a valid URL.`, { cause: err })
         }
 
         // 3. If one of the following is true
@@ -346,8 +339,7 @@ class Request {
       }
 
       // 3. Normalize method.
-      // https://fetch.spec.whatwg.org/#concept-method-normalize
-      method = init.method.toUpperCase()
+      method = normalizeMethod(init.method)
 
       // 4. Set request’s method to method.
       request.method = method
@@ -428,7 +420,15 @@ class Request {
       // 4. If headers is a Headers object, then for each header in its header
       // list, append header’s name/header’s value to this’s headers.
       if (headers instanceof Headers) {
-        this[kState].headersList.push(...headers[kHeadersList])
+        // TODO (fix): Why doesn't this work?
+        // for (const [key, val] of headers[kHeadersList]) {
+        //   this[kHeaders].append(key, val)
+        // }
+
+        this[kState].headersList = new HeadersList([
+          ...this[kState].headersList,
+          ...headers[kHeadersList]
+        ])
       } else {
         // 5. Otherwise, fill this’s headers with headers.
         fillHeaders(this[kState].headersList, headers)
@@ -468,6 +468,7 @@ class Request {
       // this’s headers.
       if (contentType && !this[kHeaders].has('content-type')) {
         this[kHeaders].append('content-type', contentType)
+        this[kState].headersList.append('content-type', contentType)
       }
     }
 
@@ -722,7 +723,7 @@ class Request {
     }
 
     // 1. If this is unusable, then throw a TypeError.
-    if (this.bodyUsed || (this.body && this.body.locked)) {
+    if (this.bodyUsed || this.body?.locked) {
       throw new TypeError('unusable')
     }
 
@@ -801,9 +802,8 @@ function makeRequest (init) {
     timingAllowFailed: false,
     ...init,
     headersList: init.headersList
-      ? new HeadersList(...init.headersList)
-      : new HeadersList(),
-    urlList: init.urlList ? [...init.urlList.map((url) => new URL(url))] : []
+      ? new HeadersList(init.headersList)
+      : new HeadersList()
   }
   request.url = request.urlList[0]
   return request

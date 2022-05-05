@@ -108,13 +108,15 @@ class U_I18N_API ComplexUnitsConverter : public UMemory {
     MaybeStackVector<Measure>
     convert(double quantity, icu::number::impl::RoundingImpl *rounder, UErrorCode &status) const;
 
-  private:
+    // TODO(ICU-21937): Make it private after submitting the public units conversion API.
     MaybeStackVector<UnitsConverter> unitsConverters_;
 
+    // TODO(ICU-21937): Make it private after submitting the public units conversion API.
     // Individual units of mixed units, sorted big to small, with indices
     // indicating the requested output mixed unit order.
     MaybeStackVector<MeasureUnitImplWithIndex> units_;
 
+  private:
     // Sorts units_, which must be populated before calling this, and populates
     // unitsConverters_.
     void init(const MeasureUnitImpl &inputUnit, const ConversionRates &ratesInfo, UErrorCode &status);

@@ -109,7 +109,6 @@ class Install extends ArboristWorkspaceCmd {
     const isGlobalInstall = this.npm.config.get('global')
     const where = isGlobalInstall ? globalTop : this.npm.prefix
     const forced = this.npm.config.get('force')
-    const isDev = this.npm.config.get('dev')
     const scriptShell = this.npm.config.get('script-shell') || undefined
 
     // be very strict about engines when trying to update npm itself
@@ -140,12 +139,10 @@ class Install extends ArboristWorkspaceCmd {
       args = ['.']
     }
 
-    // TODO: Add warnings for other deprecated flags?  or remove this one?
-    if (isDev) {
-      log.warn(
-        'install',
-        'Usage of the `--dev` option is deprecated. Use `--include=dev` instead.'
-      )
+    // throw usage error if trying to install empty package
+    // name to global space, e.g: `npm i -g ""`
+    if (where === globalTop && !args.every(Boolean)) {
+      throw this.usageError()
     }
 
     const opts = {
@@ -163,7 +160,7 @@ class Install extends ArboristWorkspaceCmd {
         'preinstall',
         'install',
         'postinstall',
-        'prepublish', // XXX should we remove this finally??
+        'prepublish', // XXX(npm9) should we remove this finally??
         'preprepare',
         'prepare',
         'postprepare',

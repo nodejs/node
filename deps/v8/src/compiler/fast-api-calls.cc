@@ -4,6 +4,8 @@
 
 #include "src/compiler/fast-api-calls.h"
 
+#include "src/compiler/globals.h"
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -76,6 +78,44 @@ OverloadsResolutionResult ResolveOverloads(
 
   // No overload found with a JSArray and a typed array as i-th argument.
   return OverloadsResolutionResult::Invalid();
+}
+
+bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {
+  USE(c_signature);
+
+#ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+  if (c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat32 ||
+      c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat64) {
+    return false;
+  }
+#endif
+
+#ifndef V8_TARGET_ARCH_64_BIT
+  if (c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kInt64 ||
+      c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kUint64) {
+    return false;
+  }
+#endif
+
+  for (unsigned int i = 0; i < c_signature->ArgumentCount(); ++i) {
+    USE(i);
+
+#ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+    if (c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat32 ||
+        c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat64) {
+      return false;
+    }
+#endif
+
+#ifndef V8_TARGET_ARCH_64_BIT
+    if (c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kInt64 ||
+        c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kUint64) {
+      return false;
+    }
+#endif
+  }
+
+  return true;
 }
 
 }  // namespace fast_api_call

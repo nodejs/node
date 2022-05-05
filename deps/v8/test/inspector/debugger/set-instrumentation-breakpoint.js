@@ -127,5 +127,100 @@ InspectorTest.runAsyncTestSuite([
     }
     await Protocol.Debugger.disable();
     await Protocol.Runtime.disable();
+  },
+
+  async function testRemoveAfterCompile() {
+    await Protocol.Runtime.enable();
+    await Protocol.Debugger.enable();
+    InspectorTest.log('set breakpoint..');
+    const { result : {breakpointId} } = await Protocol.Debugger.setInstrumentationBreakpoint({
+      instrumentation: 'beforeScriptExecution'
+    });
+    InspectorTest.log('compile script..');
+    const { result: { scriptId } } = await Protocol.Runtime.compileScript({
+      expression: 'console.log(3)', sourceURL: 'foo.js', persistScript: true });
+
+    InspectorTest.log('Remove instrumentation breakpoint..');
+    await Protocol.Debugger.removeBreakpoint({breakpointId});
+
+    InspectorTest.log('evaluate script..');
+    await Protocol.Runtime.runScript({ scriptId });
+    InspectorTest.log('no breakpoint was hit');
+
+    await Protocol.Debugger.disable();
+    await Protocol.Runtime.disable();
+  },
+
+  async function testRemoveBeforeEvaluate() {
+    await Protocol.Runtime.enable();
+    await Protocol.Debugger.enable();
+    InspectorTest.log('set breakpoint..');
+    const { result : {breakpointId} } = await Protocol.Debugger.setInstrumentationBreakpoint({
+      instrumentation: 'beforeScriptExecution'
+    });
+
+    InspectorTest.log('Remove instrumentation breakpoint..');
+    await Protocol.Debugger.removeBreakpoint({breakpointId});
+
+    InspectorTest.log('evaluate script..');
+    await Protocol.Runtime.evaluate({expression: 'console.log(3) //# sourceURL=foo.js'});
+    InspectorTest.log('no breakpoint was hit');
+
+    await Protocol.Debugger.disable();
+    await Protocol.Runtime.disable();
+  },
+
+  async function testRemoveAfterOnePause() {
+    await Protocol.Runtime.enable();
+    await Protocol.Debugger.enable();
+    InspectorTest.log('set breakpoint..');
+    const { result : {breakpointId} } = await Protocol.Debugger.setInstrumentationBreakpoint({
+      instrumentation: 'beforeScriptExecution'
+    });
+
+    InspectorTest.log('evaluate script..');
+    Protocol.Runtime.evaluate({expression: 'console.log(3) //# sourceURL=foo.js'});
+    {
+      const { params: { reason, data } } = await Protocol.Debugger.oncePaused();
+      InspectorTest.log(`paused with reason: ${reason}`);
+      InspectorTest.logMessage(data);
+    }
+
+    InspectorTest.log('Remove instrumentation breakpoint..');
+    await Protocol.Debugger.removeBreakpoint({breakpointId});
+
+    InspectorTest.log('evaluate another script..');
+    await Protocol.Runtime.evaluate({expression: 'console.log(3) //# sourceURL=foo.js'});
+    InspectorTest.log('no breakpoint was hit');
+
+    await Protocol.Debugger.disable();
+    await Protocol.Runtime.disable();
+  },
+
+  async function testInstrumentationCoincideWithScheduledPauseOnNextStatement() {
+    await Protocol.Runtime.enable();
+    await Protocol.Debugger.enable();
+    InspectorTest.log('set breakpoint..');
+    InspectorTest.log('set instrumentation');
+    await Protocol.Debugger.setInstrumentationBreakpoint({
+      instrumentation: 'beforeScriptExecution'
+    });
+    contextGroup.schedulePauseOnNextStatement('instrumentation:scriptFirstStatement', '{}');
+    const runPromise = Protocol.Runtime.evaluate({expression: 'console.log(3)'});
+    {
+      const { params: { reason, data } } = await Protocol.Debugger.oncePaused();
+      InspectorTest.log(`paused with reason: ${reason}`);
+      InspectorTest.logMessage(data);
+      Protocol.Debugger.resume();
+    }
+    {
+      const { params: { reason, data } } = await Protocol.Debugger.oncePaused();
+      InspectorTest.log(`paused with reason: ${reason}`);
+      InspectorTest.logMessage(data);
+      Protocol.Debugger.resume();
+    }
+    await runPromise;
+    await Protocol.Debugger.disable();
+    await Protocol.Runtime.disable();
   }
 ]);

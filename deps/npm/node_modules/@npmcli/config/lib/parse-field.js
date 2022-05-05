@@ -56,7 +56,7 @@ const parseField = (f, key, opts, listElement = false) => {
   if (isPath) {
     const homePattern = platform === 'win32' ? /^~(\/|\\)/ : /^~\//
     if (homePattern.test(f) && home) {
-      f = resolve(home, f.substr(2))
+      f = resolve(home, f.slice(2))
     } else {
       f = resolve(f)
     }

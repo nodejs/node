@@ -49,6 +49,7 @@
 ['variant in [jitless, nooptimization, stress]', {
   # Slow tests.
   'kraken/ai-astar': [PASS, SLOW],
+  'kraken/audio-beat-detection': [SLOW],
   'kraken/imaging-darkroom': [PASS, SLOW],
   'kraken/imaging-desaturate': [PASS, SLOW],
   'octane/code-load': [PASS, SLOW],
@@ -73,6 +74,7 @@
 
 ['variant == jitless', {
   # Too slow for jitless mode.
+  'kraken/audio-fft': [PASS, ['mode == debug', SKIP]],
   'kraken/imaging-desaturate' : [PASS, ['mode == debug', SKIP]],
   'kraken/imaging-gaussian-blur' : [PASS, ['mode == debug', SKIP]],
   'octane/zlib': [SKIP],

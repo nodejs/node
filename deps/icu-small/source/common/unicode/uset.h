@@ -628,7 +628,6 @@ uset_removeRange(USet* set, UChar32 start, UChar32 end);
 U_CAPI void U_EXPORT2
 uset_removeString(USet* set, const UChar* str, int32_t strLen);
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Removes EACH of the characters in this string. Note: "ch" == {"c", "h"}
  * A frozen set will not be modified.
@@ -636,11 +635,10 @@ uset_removeString(USet* set, const UChar* str, int32_t strLen);
  * @param set the object to be modified
  * @param str the string
  * @param length the length of the string, or -1 if NUL-terminated
- * @draft ICU 69
+ * @stable ICU 69
  */
 U_CAPI void U_EXPORT2
 uset_removeAllCodePoints(USet *set, const UChar *str, int32_t length);
-#endif  // U_HIDE_DRAFT_API
 
 /**
  * Removes from this set all of its elements that are contained in the
@@ -671,7 +669,6 @@ uset_removeAll(USet* set, const USet* removeSet);
 U_CAPI void U_EXPORT2
 uset_retain(USet* set, UChar32 start, UChar32 end);
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Retains only the specified string from this set if it is present.
  * Upon return this set will be empty if it did not contain s, or
@@ -681,7 +678,7 @@ uset_retain(USet* set, UChar32 start, UChar32 end);
  * @param set the object to be modified
  * @param str the string
  * @param length the length of the string, or -1 if NUL-terminated
- * @draft ICU 69
+ * @stable ICU 69
  */
 U_CAPI void U_EXPORT2
 uset_retainString(USet *set, const UChar *str, int32_t length);
@@ -693,11 +690,10 @@ uset_retainString(USet *set, const UChar *str, int32_t length);
  * @param set the object to be modified
  * @param str the string
  * @param length the length of the string, or -1 if NUL-terminated
- * @draft ICU 69
+ * @stable ICU 69
  */
 U_CAPI void U_EXPORT2
 uset_retainAllCodePoints(USet *set, const UChar *str, int32_t length);
-#endif  // U_HIDE_DRAFT_API
 
 /**
  * Retains only the elements in this set that are contained in the
@@ -741,7 +737,6 @@ uset_compact(USet* set);
 U_CAPI void U_EXPORT2
 uset_complement(USet* set);
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Complements the specified range in this set.  Any character in
  * the range will be removed if it is in this set, or will be
@@ -753,7 +748,7 @@ uset_complement(USet* set);
  * @param set the object to be modified
  * @param start first character, inclusive, of range
  * @param end last character, inclusive, of range
- * @draft ICU 69
+ * @stable ICU 69
  */
 U_CAPI void U_EXPORT2
 uset_complementRange(USet *set, UChar32 start, UChar32 end);
@@ -766,7 +761,7 @@ uset_complementRange(USet *set, UChar32 start, UChar32 end);
  * @param set the object to be modified
  * @param str the string
  * @param length the length of the string, or -1 if NUL-terminated
- * @draft ICU 69
+ * @stable ICU 69
  */
 U_CAPI void U_EXPORT2
 uset_complementString(USet *set, const UChar *str, int32_t length);
@@ -778,11 +773,10 @@ uset_complementString(USet *set, const UChar *str, int32_t length);
  * @param set the object to be modified
  * @param str the string
  * @param length the length of the string, or -1 if NUL-terminated
- * @draft ICU 69
+ * @stable ICU 69
  */
 U_CAPI void U_EXPORT2
 uset_complementAllCodePoints(USet *set, const UChar *str, int32_t length);
-#endif  // U_HIDE_DRAFT_API
 
 /**
  * Complements in this set all elements contained in the specified

@@ -43,9 +43,8 @@ class LazyCompileDispatcherTestFlags {
   static void SetFlagsForTest() {
     CHECK_NULL(save_flags_);
     save_flags_ = new SaveFlags();
-    FLAG_single_threaded = true;
-    FlagList::EnforceFlagImplications();
     FLAG_lazy_compile_dispatcher = true;
+    FlagList::EnforceFlagImplications();
   }
 
   static void RestoreFlags() {
@@ -68,13 +67,13 @@ class LazyCompileDispatcherTest : public TestWithNativeContext {
   LazyCompileDispatcherTest& operator=(const LazyCompileDispatcherTest&) =
       delete;
 
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
     LazyCompileDispatcherTestFlags::SetFlagsForTest();
-    TestWithNativeContext::SetUpTestCase();
+    TestWithNativeContext::SetUpTestSuite();
   }
 
-  static void TearDownTestCase() {
-    TestWithNativeContext::TearDownTestCase();
+  static void TearDownTestSuite() {
+    TestWithNativeContext::TearDownTestSuite();
     LazyCompileDispatcherTestFlags::RestoreFlags();
   }
 

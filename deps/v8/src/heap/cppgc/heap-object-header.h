@@ -125,18 +125,17 @@ class HeapObjectHeader {
   using GCInfoIndexField = UnusedField1::Next<GCInfoIndex, 14>;
   // Used in |encoded_low_|.
   using MarkBitField = v8::base::BitField16<bool, 0, 1>;
-  using SizeField = void;  // Use EncodeSize/DecodeSize instead.
+  using SizeField =
+      MarkBitField::Next<size_t, 15>;  // Use EncodeSize/DecodeSize instead.
 
   static constexpr size_t DecodeSize(uint16_t encoded) {
     // Essentially, gets optimized to << 1.
-    using SizeFieldImpl = MarkBitField::Next<size_t, 15>;
-    return SizeFieldImpl::decode(encoded) * kAllocationGranularity;
+    return SizeField::decode(encoded) * kAllocationGranularity;
   }
 
   static constexpr uint16_t EncodeSize(size_t size) {
     // Essentially, gets optimized to >> 1.
-    using SizeFieldImpl = MarkBitField::Next<size_t, 15>;
-    return SizeFieldImpl::encode(size / kAllocationGranularity);
+    return SizeField::encode(size / kAllocationGranularity);
   }
 
   V8_EXPORT_PRIVATE void CheckApiConstants();
@@ -230,8 +229,16 @@ size_t HeapObjectHeader::AllocatedSize() const {
 }
 
 void HeapObjectHeader::SetAllocatedSize(size_t size) {
+#if !defined(CPPGC_YOUNG_GENERATION)
+  // With sticky bits, marked objects correspond to old objects.
+  // TODO(bikineev:1029379): Consider disallowing old/marked objects to be
+  // resized.
   DCHECK(!IsMarked());
-  encoded_low_ = EncodeSize(size);
+#endif
+  // The object may be marked (i.e. old, in case young generation is enabled).
+  // Make sure to not overwrite the mark bit.
+  encoded_low_ &= ~SizeField::encode(SizeField::kMax);
+  encoded_low_ |= EncodeSize(size);
 }
 
 template <AccessMode mode>

@@ -642,6 +642,18 @@ static bool AllOnOnePage(uintptr_t start, int size) {
   return start_page == end_page;
 }
 
+static bool is_snan(float input) {
+  uint32_t kQuietNanFPBit = 1 << 22;
+  uint32_t InputAsUint = bit_cast<uint32_t>(input);
+  return isnan(input) && ((InputAsUint & kQuietNanFPBit) == 0);
+}
+
+static bool is_snan(double input) {
+  uint64_t kQuietNanDPBit = 1L << 51;
+  uint64_t InputAsUint = bit_cast<uint64_t>(input);
+  return isnan(input) && ((InputAsUint & kQuietNanDPBit) == 0);
+}
+
 void Simulator::set_last_debugger_input(char* input) {
   DeleteArray(last_debugger_input_);
   last_debugger_input_ = input;
@@ -1529,6 +1541,122 @@ float VMXFPMax(float x, float y) {
 void Simulator::ExecuteGeneric(Instruction* instr) {
   uint32_t opcode = instr->OpcodeBase();
   switch (opcode) {
+      // Prefixed instructions.
+    case PLOAD_STORE_8LS:
+    case PLOAD_STORE_MLS: {
+      // TODO(miladfarca): Simulate PC-relative capability indicated by the R
+      // bit.
+      DCHECK_NE(instr->Bit(20), 1);
+      // Read prefix value.
+      uint64_t prefix_value = instr->Bits(17, 0);
+      // Read suffix (next instruction).
+      Instruction* next_instr = bit_cast<Instruction*>(get_pc() + kInstrSize);
+      uint16_t suffix_value = next_instr->Bits(15, 0);
+      int64_t im_val = SIGN_EXT_IMM34((prefix_value << 16) | suffix_value);
+      switch (next_instr->OpcodeBase()) {
+          // Prefixed ADDI.
+        case ADDI: {
+          int rt = next_instr->RTValue();
+          int ra = next_instr->RAValue();
+          intptr_t alu_out;
+          if (ra == 0) {
+            alu_out = im_val;
+          } else {
+            intptr_t ra_val = get_register(ra);
+            alu_out = ra_val + im_val;
+          }
+          set_register(rt, alu_out);
+          break;
+        }
+          // Prefixed LBZ.
+        case LBZ: {
+          int ra = next_instr->RAValue();
+          int rt = next_instr->RTValue();
+          intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+          set_register(rt, ReadB(ra_val + im_val) & 0xFF);
+          break;
+        }
+          // Prefixed LHZ.
+        case LHZ: {
+          int ra = next_instr->RAValue();
+          int rt = next_instr->RTValue();
+          intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+          uintptr_t result = ReadHU(ra_val + im_val) & 0xFFFF;
+          set_register(rt, result);
+          break;
+        }
+          // Prefixed LHA.
+        case LHA: {
+          int ra = next_instr->RAValue();
+          int rt = next_instr->RTValue();
+          intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+          intptr_t result = ReadH(ra_val + im_val);
+          set_register(rt, result);
+          break;
+        }
+          // Prefixed LWZ.
+        case LWZ: {
+          int ra = next_instr->RAValue();
+          int rt = next_instr->RTValue();
+          intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+          set_register(rt, ReadWU(ra_val + im_val));
+          break;
+        }
+          // Prefixed LWA.
+        case PPLWA: {
+          int ra = next_instr->RAValue();
+          int rt = next_instr->RTValue();
+          int64_t ra_val = ra == 0 ? 0 : get_register(ra);
+          set_register(rt, ReadW(ra_val + im_val));
+          break;
+        }
+          // Prefixed LD.
+        case PPLD: {
+          int ra = next_instr->RAValue();
+          int rt = next_instr->RTValue();
+          int64_t ra_val = ra == 0 ? 0 : get_register(ra);
+          set_register(rt, ReadDW(ra_val + im_val));
+          break;
+        }
+          // Prefixed LFS.
+        case LFS: {
+          int frt = next_instr->RTValue();
+          int ra = next_instr->RAValue();
+          intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+          int32_t val = ReadW(ra_val + im_val);
+          float* fptr = reinterpret_cast<float*>(&val);
+#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+          // Conversion using double changes sNan to qNan on ia32/x64
+          if ((val & 0x7F800000) == 0x7F800000) {
+            int64_t dval = static_cast<int64_t>(val);
+            dval = ((dval & 0xC0000000) << 32) | ((dval & 0x40000000) << 31) |
+                   ((dval & 0x40000000) << 30) | ((dval & 0x7FFFFFFF) << 29) |
+                   0x0;
+            set_d_register(frt, dval);
+          } else {
+            set_d_register_from_double(frt, static_cast<double>(*fptr));
+          }
+#else
+          set_d_register_from_double(frt, static_cast<double>(*fptr));
+#endif
+          break;
+        }
+          // Prefixed LFD.
+        case LFD: {
+          int frt = next_instr->RTValue();
+          int ra = next_instr->RAValue();
+          intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+          int64_t dptr = ReadDW(ra_val + im_val);
+          set_d_register(frt, dptr);
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
+      // We have now executed instructions at this as well as next pc.
+      set_pc(get_pc() + (2 * kInstrSize));
+      break;
+    }
     case SUBFIC: {
       int rt = instr->RTValue();
       int ra = instr->RAValue();
@@ -4763,7 +4891,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
           bit_cast<float, uint32_t>(static_cast<uint32_t>(double_bits >> 32));
       double_bits = bit_cast<uint64_t, double>(static_cast<double>(f));
       // Preserve snan.
-      if (issignaling(f)) {
+      if (is_snan(f)) {
         double_bits &= 0xFFF7FFFFFFFFFFFFU;  // Clear bit 51.
       }
       set_d_register(t, double_bits);
@@ -4776,7 +4904,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       uint64_t float_bits = static_cast<uint64_t>(
           bit_cast<uint32_t, float>(static_cast<float>(b_val)));
       // Preserve snan.
-      if (issignaling(b_val)) {
+      if (is_snan(b_val)) {
         float_bits &= 0xFFBFFFFFU;  // Clear bit 22.
       }
       // fp result is placed in both 32bit halfs of the dst.

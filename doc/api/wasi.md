@@ -11,9 +11,9 @@ specification. WASI gives sandboxed WebAssembly applications access to the
 underlying operating system via a collection of POSIX-like functions.
 
 ```mjs
-import { readFile } from 'fs/promises';
+import { readFile } from 'node:fs/promises';
 import { WASI } from 'wasi';
-import { argv, env } from 'process';
+import { argv, env } from 'node:process';
 
 const wasi = new WASI({
   args: argv,
@@ -37,10 +37,10 @@ wasi.start(instance);
 
 ```cjs
 'use strict';
-const { readFile } = require('fs/promises');
+const { readFile } = require('node:fs/promises');
 const { WASI } = require('wasi');
-const { argv, env } = require('process');
-const { join } = require('path');
+const { argv, env } = require('node:process');
+const { join } = require('node:path');
 
 const wasi = new WASI({
   args: argv,

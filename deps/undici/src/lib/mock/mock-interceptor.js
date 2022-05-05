@@ -12,7 +12,7 @@ const {
 const { InvalidArgumentError } = require('../core/errors')
 
 /**
- * Defines the scope API for a interceptor reply
+ * Defines the scope API for an interceptor reply
  */
 class MockScope {
   constructor (mockDispatch) {
@@ -64,7 +64,7 @@ class MockInterceptor {
       throw new InvalidArgumentError('opts.path must be defined')
     }
     if (typeof opts.method === 'undefined') {
-      throw new InvalidArgumentError('opts.method must be defined')
+      opts.method = 'GET'
     }
     // See https://github.com/nodejs/undici/issues/1245
     // As per RFC 3986, clients are not supposed to send URI
@@ -73,6 +73,9 @@ class MockInterceptor {
       // Matches https://github.com/nodejs/undici/blob/main/lib/fetch/index.js#L1811
       const parsedURL = new URL(opts.path, 'data://')
       opts.path = parsedURL.pathname + parsedURL.search
+    }
+    if (typeof opts.method === 'string') {
+      opts.method = opts.method.toUpperCase()
     }
 
     this[kDispatchKey] = buildKey(opts)

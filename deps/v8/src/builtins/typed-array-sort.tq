@@ -15,15 +15,10 @@ transitioning macro CallCompare(
   // a. Let v be ? ToNumber(? Call(comparefn, undefined, x, y)).
   const v: Number = ToNumber_Inline(Call(context, comparefn, Undefined, a, b));
 
-  // b. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-  if (IsDetachedBuffer(array.buffer)) {
-    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameSort);
-  }
-
-  // c. If v is NaN, return +0.
+  // b. If v is NaN, return +0.
   if (NumberIsNaN(v)) return 0;
 
-  // d. return v.
+  // c. return v.
   return v;
 }
 
@@ -99,12 +94,10 @@ transitioning javascript builtin TypedArrayPrototypeSort(
   const obj: JSAny = receiver;
 
   // 3. Let buffer be ? ValidateTypedArray(obj).
-  //    ValidateTypedArray currently returns the array, not the ViewBuffer.
-  const array: JSTypedArray =
-      ValidateTypedArray(context, obj, kBuiltinNameSort);
-
-  // 4. Let len be obj.[[ArrayLength]].
-  const len: uintptr = array.length;
+  // 4. Let len be IntegerIndexedObjectLength(obj).
+  let len: uintptr =
+      ValidateTypedArrayAndGetLength(context, obj, kBuiltinNameSort);
+  const array: JSTypedArray = UnsafeCast<JSTypedArray>(obj);
 
   // Arrays of length 1 or less are considered sorted.
   if (len < 2) return array;
@@ -140,6 +133,19 @@ transitioning javascript builtin TypedArrayPrototypeSort(
   }
 
   TypedArrayMergeSort(work2, 0, len, work1, array, comparefn);
+
+  // Reload the length; it's possible the backing ArrayBuffer has been resized
+  // to be OOB or detached, in which case treat it as length 0.
+
+  try {
+    const newLen = LoadJSTypedArrayLengthAndCheckDetached(array)
+        otherwise DetachedOrOutOfBounds;
+    if (newLen < len) {
+      len = newLen;
+    }
+  } label DetachedOrOutOfBounds {
+    len = 0;
+  }
 
   // work1 contains the sorted numbers. Write them back.
   for (let i: uintptr = 0; i < len; ++i) {

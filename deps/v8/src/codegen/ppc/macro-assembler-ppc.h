@@ -50,6 +50,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   using TurboAssemblerBase::TurboAssemblerBase;
 
   void CallBuiltin(Builtin builtin, Condition cond);
+  void TailCallBuiltin(Builtin builtin);
   void Popcnt32(Register dst, Register src);
   void Popcnt64(Register dst, Register src);
   // Converts the integer (untagged smi) in |src| to a double, storing
@@ -557,15 +558,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void MultiPush(RegList regs, Register location = sp);
   void MultiPop(RegList regs, Register location = sp);
 
-  void MultiPushDoubles(RegList dregs, Register location = sp);
-  void MultiPopDoubles(RegList dregs, Register location = sp);
+  void MultiPushDoubles(DoubleRegList dregs, Register location = sp);
+  void MultiPopDoubles(DoubleRegList dregs, Register location = sp);
 
-  void MultiPushV128(RegList dregs, Register location = sp);
-  void MultiPopV128(RegList dregs, Register location = sp);
+  void MultiPushV128(Simd128RegList dregs, Register location = sp);
+  void MultiPopV128(Simd128RegList dregs, Register location = sp);
 
-  void MultiPushF64AndV128(RegList dregs, RegList simd_regs,
+  void MultiPushF64AndV128(DoubleRegList dregs, Simd128RegList simd_regs,
                            Register location = sp);
-  void MultiPopF64AndV128(RegList dregs, RegList simd_regs,
+  void MultiPopF64AndV128(DoubleRegList dregs, Simd128RegList simd_regs,
                           Register location = sp);
 
   // Calculate how much stack space (in bytes) are required to store caller
@@ -614,7 +615,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void ByteReverseU16(Register dst, Register val, Register scratch);
   void ByteReverseU32(Register dst, Register val, Register scratch);
-  void ByteReverseU64(Register dst, Register val);
+  void ByteReverseU64(Register dst, Register val, Register = r0);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, non-register arguments must be stored in
@@ -707,6 +708,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Load the builtin given by the Smi in |builtin_index| into the same
   // register.
   void LoadEntryFromBuiltinIndex(Register builtin_index);
+  void LoadEntryFromBuiltin(Builtin builtin, Register destination);
+  MemOperand EntryFromBuiltinAsOperand(Builtin builtin);
   void LoadCodeObjectEntry(Register destination, Register code_object);
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
@@ -768,6 +771,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Move(Register dst, ExternalReference reference);
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DoubleRegister dst, DoubleRegister src);
+  void Move(Register dst, const MemOperand& src) { LoadU64(dst, src); }
 
   void SmiUntag(Register dst, const MemOperand& src, RCBit rc = LeaveRC,
                 Register scratch = no_reg);
@@ -786,6 +790,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     }
     DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
     SmiUntag(smi);
+  }
+
+  // Shift left by kSmiShift
+  void SmiTag(Register reg, RCBit rc = LeaveRC) { SmiTag(reg, reg, rc); }
+  void SmiTag(Register dst, Register src, RCBit rc = LeaveRC) {
+    ShiftLeftU64(dst, src, Operand(kSmiShift), rc);
   }
 
   // Abort execution if argument is a smi, enabled via --debug-code.
@@ -972,6 +982,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadTaggedPointerField(const Register& destination,
                               const MemOperand& field_operand,
                               const Register& scratch = no_reg);
+  void LoadTaggedSignedField(Register destination, MemOperand field_operand,
+                             Register scratch);
 
   // Loads a field containing any tagged value and decompresses it if necessary.
   void LoadAnyTaggedField(const Register& destination,
@@ -1294,12 +1306,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // ---------------------------------------------------------------------------
   // Smi utilities
-
-  // Shift left by kSmiShift
-  void SmiTag(Register reg, RCBit rc = LeaveRC) { SmiTag(reg, reg, rc); }
-  void SmiTag(Register dst, Register src, RCBit rc = LeaveRC) {
-    ShiftLeftU64(dst, src, Operand(kSmiShift), rc);
-  }
 
   // Jump if either of the registers contain a non-smi.
   inline void JumpIfNotSmi(Register value, Label* not_smi_label) {

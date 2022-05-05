@@ -13,7 +13,7 @@ description: Remove a package
 ```bash
 npm uninstall [<@scope>/]<pkg>...
 
-aliases: un, unlink, remove, rm, r
+aliases: unlink, remove, rm, r, un
 ```
 
 <!-- automatically generated, do not edit manually -->
@@ -30,7 +30,7 @@ It also removes the package from the `dependencies`, `devDependencies`,
 `optionalDependencies`, and `peerDependencies` objects in your
 `package.json`.
 
-Futher, if you have an `npm-shrinkwrap.json` or `package-lock.json`, npm
+Further, if you have an `npm-shrinkwrap.json` or `package-lock.json`, npm
 will update those files as well.
 
 `--no-save` will tell npm not to remove the package from your
@@ -70,8 +70,7 @@ npm uninstall lodash --no-save
 <!-- see lib/utils/config/definitions.js -->
 #### `save`
 
-* Default: `true` unless when using `npm update` or `npm dedupe` where it
-  defaults to `false`
+* Default: `true` unless when using `npm update` where it defaults to `false`
 * Type: Boolean
 
 Save installed packages to a `package.json` file as dependencies.
@@ -140,6 +139,20 @@ Include the workspace root when workspaces are enabled for a command.
 When false, specifying individual workspaces via the `workspace` config, or
 all workspaces via the `workspaces` flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.
+
+This value is not exported to the environment for child processes.
+
+<!-- automatically generated, do not edit manually -->
+<!-- see lib/utils/config/definitions.js -->
+
+#### `install-links`
+
+* Default: false
+* Type: Boolean
+
+When set file: protocol dependencies that exist outside of the project root
+will be packed and installed as regular dependencies instead of creating a
+symlink. This option has no effect on workspaces.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->

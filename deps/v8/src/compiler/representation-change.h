@@ -14,6 +14,7 @@ namespace internal {
 namespace compiler {
 
 // Foward declarations.
+class SimplifiedLoweringVerifier;
 class TypeCache;
 
 enum IdentifyZeros : uint8_t { kIdentifyZeros, kDistinguishZeros };
@@ -78,7 +79,7 @@ class Truncation final {
 
   // Debug utilities.
   const char* description() const;
-  bool IsLessGeneralThan(Truncation other) {
+  bool IsLessGeneralThan(Truncation other) const {
     return LessGeneral(kind(), other.kind()) &&
            LessGeneralIdentifyZeros(identify_zeros(), other.identify_zeros());
   }
@@ -96,13 +97,11 @@ class Truncation final {
   };
 
   explicit Truncation(TruncationKind kind, IdentifyZeros identify_zeros)
-      : kind_(kind), identify_zeros_(identify_zeros) {
-    DCHECK(kind == TruncationKind::kAny ||
-           kind == TruncationKind::kOddballAndBigIntToNumber ||
-           identify_zeros == kIdentifyZeros);
-  }
+      : kind_(kind), identify_zeros_(identify_zeros) {}
+
   TruncationKind kind() const { return kind_; }
 
+  friend class SimplifiedLoweringVerifier;
   TruncationKind kind_;
   IdentifyZeros identify_zeros_;
 
@@ -322,7 +321,8 @@ class UseInfo {
 // Eagerly folds any representation changes for constants.
 class V8_EXPORT_PRIVATE RepresentationChanger final {
  public:
-  RepresentationChanger(JSGraph* jsgraph, JSHeapBroker* broker);
+  RepresentationChanger(JSGraph* jsgraph, JSHeapBroker* broker,
+                        SimplifiedLoweringVerifier* verifier);
 
   // Changes representation from {output_type} to {use_rep}. The {truncation}
   // parameter is only used for checking - if the changer cannot figure
@@ -349,10 +349,13 @@ class V8_EXPORT_PRIVATE RepresentationChanger final {
                              : MachineType::Pointer();
   }
 
+  bool verification_enabled() const { return verifier_ != nullptr; }
+
  private:
   TypeCache const* cache_;
   JSGraph* jsgraph_;
   JSHeapBroker* broker_;
+  SimplifiedLoweringVerifier* verifier_;
 
   friend class RepresentationChangerTester;  // accesses the below fields.
 
@@ -402,6 +405,7 @@ class V8_EXPORT_PRIVATE RepresentationChanger final {
   Node* InsertTruncateInt64ToInt32(Node* node);
   Node* InsertUnconditionalDeopt(Node* node, DeoptimizeReason reason,
                                  const FeedbackSource& feedback = {});
+  Node* InsertTypeOverrideForVerifier(const Type& type, Node* node);
 
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;

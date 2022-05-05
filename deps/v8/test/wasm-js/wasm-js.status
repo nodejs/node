@@ -8,18 +8,15 @@
   # This test can only be executed in the browser
   'wpt/idlharness': [SKIP],
   # Failing WPT tests
+  'wpt/exception/getArg.tentative': [FAIL],
   'wpt/exception/toString.tentative': [FAIL],
   'wpt/exception/type.tentative': [FAIL],
   'wpt/function/constructor.tentative': [FAIL],
   'wpt/function/table.tentative': [FAIL],
   'wpt/function/type.tentative': [FAIL],
-
-  # Failing tests after update
-  'proposals/js-types/global/type': [FAIL],
-  'proposals/js-types/module/exports': [FAIL],
-  'proposals/js-types/module/imports': [FAIL],
-  'proposals/js-types/table/constructor': [FAIL],
-  'proposals/js-types/table/type': [FAIL],
+  'wpt/global/type.tentative': [FAIL],
+  'wpt/interface': [FAIL],
+  'wpt/table/type.tentative': [FAIL],
 
   # Outdated proposal tests.
   'proposals/js-types/table/get-set': [FAIL],
@@ -33,7 +30,6 @@
 
   # TODO(v8:10556): Remove sub-typing in the reference-types implementation
   'proposals/js-types/constructor/instantiate': [FAIL],
-  'proposals/js-types/global/constructor': [FAIL],
   'proposals/js-types/global/value-get-set': [FAIL],
   'proposals/js-types/instance/constructor': [FAIL],
 

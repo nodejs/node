@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-typed-funcref
+// Flags: --experimental-wasm-gc
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
-
 (function TestTables() {
   print(arguments.callee.name);
   var exporting_instance = (function() {
@@ -100,7 +99,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertThrows(
       () => instance.exports.table.set(0, exporting_instance.exports.addition),
       TypeError,
-      /Argument 1 must be null or a WebAssembly function of type compatible to/);
+      /Argument 1 is invalid for table of type \(ref null 0\)/);
 })();
 
 (function TestNonNullableTables() {
@@ -109,11 +108,11 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   var binary_type = builder.addType(kSig_i_ii);
 
-  var addition = builder.addFunction('addition', kSig_i_ii).addBody([
+  var addition = builder.addFunction('addition', binary_type).addBody([
     kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Add
   ]);
   var subtraction =
-      builder.addFunction('subtraction', kSig_i_ii)
+      builder.addFunction('subtraction', binary_type)
           .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Sub])
           .exportFunc();
 
@@ -142,4 +141,68 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   instance.exports.init();
   assertEquals(44, instance.exports.table_test(0, 33, 11));
   assertEquals(22, instance.exports.table_test(1, 33, 11));
+})();
+
+(function TestAnyRefTable() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let unary_type = builder.addType(kSig_i_i);
+  let binary_type = builder.addType(kSig_i_ii);
+  let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
+
+  let successor = builder.addFunction('addition', unary_type)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add]);
+
+  let subtraction = builder.addFunction('subtraction', binary_type)
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprI32Sub])
+
+  let table = builder.addTable(kWasmAnyRef, 4, 4);
+  builder.addActiveElementSegment(
+    table, WasmInitExpr.I32Const(0),
+    [WasmInitExpr.RefFunc(successor.index),
+     WasmInitExpr.RefFunc(subtraction.index),
+     WasmInitExpr.StructNew(struct_type, [WasmInitExpr.I32Const(10)]),
+     WasmInitExpr.RefNull(kWasmEqRef)],
+    kWasmAnyRef);
+
+  // return static_cast<i->i>(table[0])(local_0)
+  builder.addFunction("f0_getter", kSig_i_i)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprI32Const, 0, kExprTableGet, 0,
+      kGCPrefix, kExprRefAsFunc, kGCPrefix, kExprRefCastStatic, unary_type,
+      kExprCallRef])
+    .exportFunc();
+
+  // return static_cast<(i,i)->i>(table[1])(local_0, local_1)
+  builder.addFunction("f1_getter", kSig_i_ii)
+   .addBody([
+     kExprLocalGet, 0, kExprLocalGet, 1,
+     kExprI32Const, 1, kExprTableGet, 0,
+     kGCPrefix, kExprRefAsFunc, kGCPrefix, kExprRefCastStatic, binary_type,
+     kExprCallRef])
+   .exportFunc();
+
+  // return static_cast<struct_type>(table[2]).field_0
+  builder.addFunction("struct_getter", kSig_i_v)
+    .addBody([
+      kExprI32Const, 2, kExprTableGet, 0,
+      kGCPrefix, kExprRefAsData, kGCPrefix, kExprRefCastStatic, struct_type,
+      kGCPrefix, kExprStructGet, struct_type, 0])
+    .exportFunc();
+
+  // return table[3] == null
+  builder.addFunction("null_getter", kSig_i_v)
+    .addBody([kExprI32Const, 3, kExprTableGet, 0, kExprRefIsNull])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+
+  assertTrue(!!instance);
+
+  assertEquals(43, instance.exports.f0_getter(42));
+  assertEquals(-7, instance.exports.f1_getter(12, 19));
+  assertEquals(10, instance.exports.struct_getter());
+  assertEquals(1, instance.exports.null_getter());
 })();

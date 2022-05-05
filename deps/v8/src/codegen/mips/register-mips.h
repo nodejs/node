@@ -6,8 +6,7 @@
 #define V8_CODEGEN_MIPS_REGISTER_MIPS_H_
 
 #include "src/codegen/mips/constants-mips.h"
-#include "src/codegen/register.h"
-#include "src/codegen/reglist.h"
+#include "src/codegen/register-base.h"
 
 namespace v8 {
 namespace internal {
@@ -30,6 +29,13 @@ namespace internal {
   V(f16) V(f17) V(f18) V(f19) V(f20) V(f21) V(f22) V(f23) \
   V(f24) V(f25) V(f26) V(f27) V(f28) V(f29) V(f30) V(f31)
 
+// Currently, MIPS just use even float point register, except
+// for C function param registers.
+#define DOUBLE_USE_REGISTERS(V)                           \
+  V(f0)  V(f2)  V(f4)  V(f6)  V(f8)  V(f10) V(f12) V(f13) \
+  V(f14) V(f15) V(f16) V(f18) V(f20) V(f22) V(f24) V(f26) \
+  V(f28) V(f30)
+
 #define FLOAT_REGISTERS DOUBLE_REGISTERS
 #define SIMD128_REGISTERS(V)                              \
   V(w0)  V(w1)  V(w2)  V(w3)  V(w4)  V(w5)  V(w6)  V(w7)  \
@@ -46,101 +52,6 @@ namespace internal {
 // Note that the bit values must match those used in actual instruction
 // encoding.
 const int kNumRegs = 32;
-
-const RegList kJSCallerSaved = 1 << 2 |   // v0
-                               1 << 3 |   // v1
-                               1 << 4 |   // a0
-                               1 << 5 |   // a1
-                               1 << 6 |   // a2
-                               1 << 7 |   // a3
-                               1 << 8 |   // t0
-                               1 << 9 |   // t1
-                               1 << 10 |  // t2
-                               1 << 11 |  // t3
-                               1 << 12 |  // t4
-                               1 << 13 |  // t5
-                               1 << 14 |  // t6
-                               1 << 15;   // t7
-
-const int kNumJSCallerSaved = 14;
-
-// Callee-saved registers preserved when switching from C to JavaScript.
-const RegList kCalleeSaved = 1 << 16 |  // s0
-                             1 << 17 |  // s1
-                             1 << 18 |  // s2
-                             1 << 19 |  // s3
-                             1 << 20 |  // s4
-                             1 << 21 |  // s5
-                             1 << 22 |  // s6 (roots in Javascript code)
-                             1 << 23 |  // s7 (cp in Javascript code)
-                             1 << 30;   // fp/s8
-
-const int kNumCalleeSaved = 9;
-
-const RegList kCalleeSavedFPU = 1 << 20 |  // f20
-                                1 << 22 |  // f22
-                                1 << 24 |  // f24
-                                1 << 26 |  // f26
-                                1 << 28 |  // f28
-                                1 << 30;   // f30
-
-const int kNumCalleeSavedFPU = 6;
-
-const RegList kCallerSavedFPU = 1 << 0 |   // f0
-                                1 << 2 |   // f2
-                                1 << 4 |   // f4
-                                1 << 6 |   // f6
-                                1 << 8 |   // f8
-                                1 << 10 |  // f10
-                                1 << 12 |  // f12
-                                1 << 14 |  // f14
-                                1 << 16 |  // f16
-                                1 << 18;   // f18
-
-// Number of registers for which space is reserved in safepoints. Must be a
-// multiple of 8.
-const int kNumSafepointRegisters = 24;
-
-// Define the list of registers actually saved at safepoints.
-// Note that the number of saved registers may be smaller than the reserved
-// space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
-const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
-const int kNumSafepointSavedRegisters = kNumJSCallerSaved + kNumCalleeSaved;
-
-const int kUndefIndex = -1;
-// Map with indexes on stack that corresponds to codes of saved registers.
-const int kSafepointRegisterStackIndexMap[kNumRegs] = {kUndefIndex,  // zero_reg
-                                                       kUndefIndex,  // at
-                                                       0,            // v0
-                                                       1,            // v1
-                                                       2,            // a0
-                                                       3,            // a1
-                                                       4,            // a2
-                                                       5,            // a3
-                                                       6,            // t0
-                                                       7,            // t1
-                                                       8,            // t2
-                                                       9,            // t3
-                                                       10,           // t4
-                                                       11,           // t5
-                                                       12,           // t6
-                                                       13,           // t7
-                                                       14,           // s0
-                                                       15,           // s1
-                                                       16,           // s2
-                                                       17,           // s3
-                                                       18,           // s4
-                                                       19,           // s5
-                                                       20,           // s6
-                                                       21,           // s7
-                                                       kUndefIndex,  // t8
-                                                       kUndefIndex,  // t9
-                                                       kUndefIndex,  // k0
-                                                       kUndefIndex,  // k1
-                                                       kUndefIndex,  // gp
-                                                       kUndefIndex,  // sp
-                                                       22,           // fp
-                                                       kUndefIndex};
 
 // CPU Registers.
 //
@@ -209,7 +120,7 @@ constexpr int ArgumentPaddingSlots(int argument_count) {
   return 0;
 }
 
-constexpr bool kSimpleFPAliasing = true;
+constexpr AliasingKind kFPAliasing = AliasingKind::kOverlap;
 constexpr bool kSimdMaskRegisters = false;
 
 enum DoubleRegisterCode {

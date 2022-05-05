@@ -13,6 +13,9 @@ esac
 
 NODE_EXE="$basedir/node.exe"
 if ! [ -x "$NODE_EXE" ]; then
+  NODE_EXE="$basedir/node"
+fi
+if ! [ -x "$NODE_EXE" ]; then
   NODE_EXE=node
 fi
 

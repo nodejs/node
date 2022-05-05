@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --interrupt-budget=1024 --concurrent-inlining
+// Flags: --interrupt-budget=1024
 
 const v2 = {};
 const v4 = {a:42};

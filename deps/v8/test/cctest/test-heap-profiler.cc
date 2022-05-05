@@ -465,7 +465,7 @@ TEST(HeapSnapshotCodeObjects) {
   for (int i = 0, count = compiled_sfi->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = compiled_sfi->GetChild(i);
     const v8::HeapGraphNode* node = prop->GetToNode();
-    if (node->GetType() == v8::HeapGraphNode::kHidden &&
+    if (node->GetType() == v8::HeapGraphNode::kCode &&
         !strcmp("system / ScopeInfo", GetName(node))) {
       if (HasString(env->GetIsolate(), node, "x")) {
         compiled_references_x = true;
@@ -476,7 +476,7 @@ TEST(HeapSnapshotCodeObjects) {
   for (int i = 0, count = lazy_sfi->GetChildrenCount(); i < count; ++i) {
     const v8::HeapGraphEdge* prop = lazy_sfi->GetChild(i);
     const v8::HeapGraphNode* node = prop->GetToNode();
-    if (node->GetType() == v8::HeapGraphNode::kHidden &&
+    if (node->GetType() == v8::HeapGraphNode::kCode &&
         !strcmp("system / ScopeInfo", GetName(node))) {
       if (HasString(env->GetIsolate(), node, "x")) {
         lazy_references_x = true;
@@ -2106,6 +2106,7 @@ static int StringCmp(const char* ref, i::String act) {
 TEST(GetConstructor) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
 
   CompileRun(
       "function Constructor1() {};\n"
@@ -2128,42 +2129,43 @@ TEST(GetConstructor) {
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj1 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj1));
-  CHECK(!i::V8HeapExplorer::GetConstructor(*js_obj1).is_null());
+  CHECK(!i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj1).is_null());
   v8::Local<v8::Object> obj2 = js_global->Get(env.local(), v8_str("obj2"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj2 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj2));
-  CHECK(!i::V8HeapExplorer::GetConstructor(*js_obj2).is_null());
+  CHECK(!i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj2).is_null());
   v8::Local<v8::Object> obj3 = js_global->Get(env.local(), v8_str("obj3"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj3 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj3));
-  CHECK(!i::V8HeapExplorer::GetConstructor(*js_obj3).is_null());
+  CHECK(!i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj3).is_null());
   v8::Local<v8::Object> obj4 = js_global->Get(env.local(), v8_str("obj4"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj4 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj4));
-  CHECK(!i::V8HeapExplorer::GetConstructor(*js_obj4).is_null());
+  CHECK(!i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj4).is_null());
   v8::Local<v8::Object> obj5 = js_global->Get(env.local(), v8_str("obj5"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj5 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj5));
-  CHECK(i::V8HeapExplorer::GetConstructor(*js_obj5).is_null());
+  CHECK(i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj5).is_null());
   v8::Local<v8::Object> obj6 = js_global->Get(env.local(), v8_str("obj6"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj6 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj6));
-  CHECK(i::V8HeapExplorer::GetConstructor(*js_obj6).is_null());
+  CHECK(i::V8HeapExplorer::GetConstructor(i_isolate, *js_obj6).is_null());
 }
 
 TEST(GetConstructorName) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
 
   CompileRun(
       "function Constructor1() {};\n"
@@ -2186,43 +2188,43 @@ TEST(GetConstructorName) {
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj1 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj1));
-  CHECK_EQ(0, StringCmp(
-      "Constructor1", i::V8HeapExplorer::GetConstructorName(*js_obj1)));
+  CHECK_EQ(0, StringCmp("Constructor1", i::V8HeapExplorer::GetConstructorName(
+                                            i_isolate, *js_obj1)));
   v8::Local<v8::Object> obj2 = js_global->Get(env.local(), v8_str("obj2"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj2 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj2));
-  CHECK_EQ(0, StringCmp(
-      "Constructor2", i::V8HeapExplorer::GetConstructorName(*js_obj2)));
+  CHECK_EQ(0, StringCmp("Constructor2", i::V8HeapExplorer::GetConstructorName(
+                                            i_isolate, *js_obj2)));
   v8::Local<v8::Object> obj3 = js_global->Get(env.local(), v8_str("obj3"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj3 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj3));
-  CHECK_EQ(0, StringCmp("Constructor3",
-                        i::V8HeapExplorer::GetConstructorName(*js_obj3)));
+  CHECK_EQ(0, StringCmp("Constructor3", i::V8HeapExplorer::GetConstructorName(
+                                            i_isolate, *js_obj3)));
   v8::Local<v8::Object> obj4 = js_global->Get(env.local(), v8_str("obj4"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj4 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj4));
-  CHECK_EQ(0, StringCmp("Constructor4",
-                        i::V8HeapExplorer::GetConstructorName(*js_obj4)));
+  CHECK_EQ(0, StringCmp("Constructor4", i::V8HeapExplorer::GetConstructorName(
+                                            i_isolate, *js_obj4)));
   v8::Local<v8::Object> obj5 = js_global->Get(env.local(), v8_str("obj5"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj5 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj5));
-  CHECK_EQ(0, StringCmp(
-      "Object", i::V8HeapExplorer::GetConstructorName(*js_obj5)));
+  CHECK_EQ(0, StringCmp("Object", i::V8HeapExplorer::GetConstructorName(
+                                      i_isolate, *js_obj5)));
   v8::Local<v8::Object> obj6 = js_global->Get(env.local(), v8_str("obj6"))
                                    .ToLocalChecked()
                                    .As<v8::Object>();
   i::Handle<i::JSObject> js_obj6 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj6));
-  CHECK_EQ(0, StringCmp(
-      "Object", i::V8HeapExplorer::GetConstructorName(*js_obj6)));
+  CHECK_EQ(0, StringCmp("Object", i::V8HeapExplorer::GetConstructorName(
+                                      i_isolate, *js_obj6)));
 }
 
 
@@ -2678,7 +2680,7 @@ TEST(AllocationSitesAreVisible) {
   CHECK(feedback_cell);
   const v8::HeapGraphNode* vector = GetProperty(
       env->GetIsolate(), feedback_cell, v8::HeapGraphEdge::kInternal, "value");
-  CHECK_EQ(v8::HeapGraphNode::kHidden, vector->GetType());
+  CHECK_EQ(v8::HeapGraphNode::kCode, vector->GetType());
   CHECK_EQ(4, vector->GetChildrenCount());
 
   // The last value in the feedback vector should be the boilerplate,
@@ -2696,7 +2698,7 @@ TEST(AllocationSitesAreVisible) {
       GetProperty(env->GetIsolate(), transition_info,
                   v8::HeapGraphEdge::kInternal, "elements");
   CHECK(elements);
-  CHECK_EQ(v8::HeapGraphNode::kArray, elements->GetType());
+  CHECK_EQ(v8::HeapGraphNode::kCode, elements->GetType());
   CHECK_EQ(v8::internal::FixedArray::SizeFor(3),
            static_cast<int>(elements->GetShallowSize()));
 
@@ -2772,13 +2774,20 @@ TEST(CheckCodeNames) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
 
-  const char* builtin_path1[] = {"::(GC roots)", "::(Builtins)",
-                                 "::(KeyedLoadIC_PolymorphicName builtin)"};
+  const char* builtin_path1[] = {
+      "::(GC roots)", "::(Builtins)",
+#ifdef V8_EXTERNAL_CODE_SPACE
+      "KeyedLoadIC_PolymorphicName::system / CodeDataContainer",
+#endif
+      "::(KeyedLoadIC_PolymorphicName builtin)"};
   const v8::HeapGraphNode* node = GetNodeByPath(
       env->GetIsolate(), snapshot, builtin_path1, arraysize(builtin_path1));
   CHECK(node);
 
   const char* builtin_path2[] = {"::(GC roots)", "::(Builtins)",
+#ifdef V8_EXTERNAL_CODE_SPACE
+                                 "CompileLazy::system / CodeDataContainer",
+#endif
                                  "::(CompileLazy builtin)"};
   node = GetNodeByPath(env->GetIsolate(), snapshot, builtin_path2,
                        arraysize(builtin_path2));
@@ -2991,7 +3000,8 @@ TEST(TrackBumpPointerAllocations) {
 
     // Now check that not all allocations are tracked if we manually reenable
     // inline allocations.
-    CHECK(CcTest::heap()->inline_allocation_disabled());
+    CHECK(i::FLAG_single_generation ||
+          !CcTest::heap()->new_space()->IsInlineAllocationEnabled());
     CcTest::heap()->EnableInlineAllocation();
 
     CompileRun(inline_heap_allocation_source);
@@ -4125,12 +4135,13 @@ TEST(WeakReference) {
           .Build();
   CHECK(code->IsCode());
 
+  // Manually inlined version of FeedbackVector::SetOptimizedCode (needed due
+  // to the FOR_TESTING code kind).
   fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(ToCodeT(*code)),
                                v8::kReleaseStore);
-  fv->set_flags(i::FeedbackVector::OptimizationTierBits::encode(
-                    i::OptimizationTier::kTopTier) |
-                i::FeedbackVector::OptimizationMarkerBits::encode(
-                    i::OptimizationMarker::kNone));
+  fv->set_flags(
+      i::FeedbackVector::MaybeHasOptimizedCodeBit::encode(true) |
+      i::FeedbackVector::TieringStateBits::encode(i::TieringState::kNone));
 
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();

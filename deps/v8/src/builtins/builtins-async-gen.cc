@@ -22,234 +22,131 @@ class ValueUnwrapContext {
 
 }  // namespace
 
-TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
-    TNode<Context> context, TNode<JSGeneratorObject> generator,
-    TNode<Object> value, TNode<JSPromise> outer_promise,
-    TNode<SharedFunctionInfo> on_resolve_sfi,
-    TNode<SharedFunctionInfo> on_reject_sfi,
-    TNode<Oddball> is_predicted_as_caught) {
-  const TNode<NativeContext> native_context = LoadNativeContext(context);
-
-  static const int kClosureContextSize =
-      FixedArray::SizeFor(Context::MIN_CONTEXT_EXTENDED_SLOTS);
-  TNode<Context> closure_context =
-      UncheckedCast<Context>(AllocateInNewSpace(kClosureContextSize));
-  {
-    // Initialize the await context, storing the {generator} as extension.
-    TNode<Map> map = CAST(
-        LoadContextElement(native_context, Context::AWAIT_CONTEXT_MAP_INDEX));
-    StoreMapNoWriteBarrier(closure_context, map);
-    StoreObjectFieldNoWriteBarrier(
-        closure_context, Context::kLengthOffset,
-        SmiConstant(Context::MIN_CONTEXT_EXTENDED_SLOTS));
-    const TNode<Object> empty_scope_info =
-        LoadContextElement(native_context, Context::SCOPE_INFO_INDEX);
-    StoreContextElementNoWriteBarrier(
-        closure_context, Context::SCOPE_INFO_INDEX, empty_scope_info);
-    StoreContextElementNoWriteBarrier(closure_context, Context::PREVIOUS_INDEX,
-                                      native_context);
-    StoreContextElementNoWriteBarrier(closure_context, Context::EXTENSION_INDEX,
-                                      generator);
-  }
-
-  // Let promiseCapability be ! NewPromiseCapability(%Promise%).
-  const TNode<JSFunction> promise_fun =
-      CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
-  CSA_DCHECK(this, IsFunctionWithPrototypeSlotMap(LoadMap(promise_fun)));
-  const TNode<Map> promise_map = CAST(
-      LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset));
-  // Assert that the JSPromise map has an instance size is
-  // JSPromise::kSizeWithEmbedderFields.
-  CSA_DCHECK(this,
-             IntPtrEqual(LoadMapInstanceSizeInWords(promise_map),
-                         IntPtrConstant(JSPromise::kSizeWithEmbedderFields /
-                                        kTaggedSize)));
-  TNode<JSPromise> promise;
-  {
-    // Allocate and initialize Promise
-    TNode<HeapObject> wrapped_value =
-        AllocateInNewSpace(JSPromise::kSizeWithEmbedderFields);
-    StoreMapNoWriteBarrier(wrapped_value, promise_map);
-    StoreObjectFieldRoot(wrapped_value, JSPromise::kPropertiesOrHashOffset,
-                         RootIndex::kEmptyFixedArray);
-    StoreObjectFieldRoot(wrapped_value, JSPromise::kElementsOffset,
-                         RootIndex::kEmptyFixedArray);
-    promise = CAST(wrapped_value);
-    PromiseInit(promise);
-  }
-
-  // Allocate and initialize resolve handler
-  TNode<HeapObject> on_resolve =
-      AllocateInNewSpace(JSFunction::kSizeWithoutPrototype);
-  InitializeNativeClosure(closure_context, native_context, on_resolve,
-                          on_resolve_sfi);
-
-  // Allocate and initialize reject handler
-  TNode<HeapObject> on_reject =
-      AllocateInNewSpace(JSFunction::kSizeWithoutPrototype);
-  InitializeNativeClosure(closure_context, native_context, on_reject,
-                          on_reject_sfi);
-
-  TVARIABLE(HeapObject, var_throwaway, UndefinedConstant());
-
-  RunContextPromiseHookInit(context, promise, outer_promise);
-
-  InitAwaitPromise(Runtime::kAwaitPromisesInitOld, context, value, promise,
-                   outer_promise, on_reject, is_predicted_as_caught,
-                   &var_throwaway);
-
-  // Perform ! Call(promiseCapability.[[Resolve]], undefined, « promise »).
-  CallBuiltin(Builtin::kResolvePromise, context, promise, value);
-
-  return CallBuiltin(Builtin::kPerformPromiseThen, context, promise, on_resolve,
-                     on_reject, var_throwaway.value());
-}
-
-TNode<Object> AsyncBuiltinsAssembler::AwaitOptimized(
-    TNode<Context> context, TNode<JSGeneratorObject> generator,
-    TNode<JSPromise> promise, TNode<JSPromise> outer_promise,
-    TNode<SharedFunctionInfo> on_resolve_sfi,
-    TNode<SharedFunctionInfo> on_reject_sfi,
-    TNode<Oddball> is_predicted_as_caught) {
-  const TNode<NativeContext> native_context = LoadNativeContext(context);
-
-  // 2. Let promise be ? PromiseResolve(« promise »).
-  // We skip this step, because promise is already guaranteed to be a
-  // JSPRomise at this point.
-
-  static const int kClosureContextSize =
-      FixedArray::SizeFor(Context::MIN_CONTEXT_EXTENDED_SLOTS);
-  TNode<Context> closure_context =
-      UncheckedCast<Context>(AllocateInNewSpace(kClosureContextSize));
-  {
-    // Initialize the await context, storing the {generator} as extension.
-    TNode<Map> map = CAST(
-        LoadContextElement(native_context, Context::AWAIT_CONTEXT_MAP_INDEX));
-    StoreMapNoWriteBarrier(closure_context, map);
-    StoreObjectFieldNoWriteBarrier(
-        closure_context, Context::kLengthOffset,
-        SmiConstant(Context::MIN_CONTEXT_EXTENDED_SLOTS));
-    const TNode<Object> empty_scope_info =
-        LoadContextElement(native_context, Context::SCOPE_INFO_INDEX);
-    StoreContextElementNoWriteBarrier(
-        closure_context, Context::SCOPE_INFO_INDEX, empty_scope_info);
-    StoreContextElementNoWriteBarrier(closure_context, Context::PREVIOUS_INDEX,
-                                      native_context);
-    StoreContextElementNoWriteBarrier(closure_context, Context::EXTENSION_INDEX,
-                                      generator);
-  }
-
-  // Allocate and initialize resolve handler
-  TNode<HeapObject> on_resolve =
-      AllocateInNewSpace(JSFunction::kSizeWithoutPrototype);
-  InitializeNativeClosure(closure_context, native_context, on_resolve,
-                          on_resolve_sfi);
-
-  // Allocate and initialize reject handler
-  TNode<HeapObject> on_reject =
-      AllocateInNewSpace(JSFunction::kSizeWithoutPrototype);
-  InitializeNativeClosure(closure_context, native_context, on_reject,
-                          on_reject_sfi);
-
-  TVARIABLE(HeapObject, var_throwaway, UndefinedConstant());
-
-  InitAwaitPromise(Runtime::kAwaitPromisesInit, context, promise, promise,
-                   outer_promise, on_reject, is_predicted_as_caught,
-                   &var_throwaway);
-
-  return CallBuiltin(Builtin::kPerformPromiseThen, native_context, promise,
-                     on_resolve, on_reject, var_throwaway.value());
-}
-
-void AsyncBuiltinsAssembler::InitAwaitPromise(
-    Runtime::FunctionId id, TNode<Context> context, TNode<Object> value,
-    TNode<Object> promise, TNode<Object> outer_promise,
-    TNode<HeapObject> on_reject, TNode<Oddball> is_predicted_as_caught,
-    TVariable<HeapObject>* var_throwaway) {
-  // Deal with PromiseHooks and debug support in the runtime. This
-  // also allocates the throwaway promise, which is only needed in
-  // case of PromiseHooks or debugging.
-  Label if_debugging(this, Label::kDeferred),
-      if_promise_hook(this, Label::kDeferred),
-      not_debugging(this),
-      do_nothing(this);
-  TNode<Uint32T> promiseHookFlags = PromiseHookFlags();
-  Branch(IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
-      promiseHookFlags), &if_debugging, &not_debugging);
-  BIND(&if_debugging);
-  *var_throwaway =
-      CAST(CallRuntime(id, context, value, promise,
-                       outer_promise, on_reject, is_predicted_as_caught));
-  Goto(&do_nothing);
-  BIND(&not_debugging);
-
-  // This call to NewJSPromise is to keep behaviour parity with what happens
-  // in Runtime::kAwaitPromisesInit above if native hooks are set. It will
-  // create a throwaway promise that will trigger an init event and will get
-  // passed into Builtin::kPerformPromiseThen below.
-  Branch(IsContextPromiseHookEnabled(promiseHookFlags), &if_promise_hook,
-         &do_nothing);
-  BIND(&if_promise_hook);
-  *var_throwaway = NewJSPromise(context, promise);
-  Goto(&do_nothing);
-  BIND(&do_nothing);
-}
-
 TNode<Object> AsyncBuiltinsAssembler::Await(
     TNode<Context> context, TNode<JSGeneratorObject> generator,
     TNode<Object> value, TNode<JSPromise> outer_promise,
     TNode<SharedFunctionInfo> on_resolve_sfi,
     TNode<SharedFunctionInfo> on_reject_sfi,
     TNode<Oddball> is_predicted_as_caught) {
-  TVARIABLE(Object, result);
-  Label if_old(this), if_new(this), done(this),
-      if_slow_constructor(this, Label::kDeferred);
+  const TNode<NativeContext> native_context = LoadNativeContext(context);
 
   // We do the `PromiseResolve(%Promise%,value)` avoiding to unnecessarily
   // create wrapper promises. Now if {value} is already a promise with the
   // intrinsics %Promise% constructor as its "constructor", we don't need
-  // to allocate the wrapper promise and can just use the `AwaitOptimized`
-  // logic.
-  GotoIf(TaggedIsSmi(value), &if_old);
-  TNode<HeapObject> value_object = CAST(value);
-  const TNode<Map> value_map = LoadMap(value_object);
-  GotoIfNot(IsJSPromiseMap(value_map), &if_old);
-  // We can skip the "constructor" lookup on {value} if it's [[Prototype]]
-  // is the (initial) Promise.prototype and the @@species protector is
-  // intact, as that guards the lookup path for "constructor" on
-  // JSPromise instances which have the (initial) Promise.prototype.
-  const TNode<NativeContext> native_context = LoadNativeContext(context);
-  const TNode<Object> promise_prototype =
-      LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_INDEX);
-  GotoIfNot(TaggedEqual(LoadMapPrototype(value_map), promise_prototype),
-            &if_slow_constructor);
-  Branch(IsPromiseSpeciesProtectorCellInvalid(), &if_slow_constructor, &if_new);
-
-  // At this point, {value} doesn't have the initial promise prototype or
-  // the promise @@species protector was invalidated, but {value} could still
-  // have the %Promise% as its "constructor", so we need to check that as well.
-  BIND(&if_slow_constructor);
+  // to allocate the wrapper promise.
   {
-    const TNode<Object> value_constructor =
-        GetProperty(context, value, isolate()->factory()->constructor_string());
-    const TNode<Object> promise_function =
-        LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
-    Branch(TaggedEqual(value_constructor, promise_function), &if_new, &if_old);
+    TVARIABLE(Object, var_value, value);
+    Label if_slow_path(this, Label::kDeferred), if_done(this),
+        if_slow_constructor(this, Label::kDeferred);
+    GotoIf(TaggedIsSmi(value), &if_slow_path);
+    TNode<HeapObject> value_object = CAST(value);
+    const TNode<Map> value_map = LoadMap(value_object);
+    GotoIfNot(IsJSPromiseMap(value_map), &if_slow_path);
+    // We can skip the "constructor" lookup on {value} if it's [[Prototype]]
+    // is the (initial) Promise.prototype and the @@species protector is
+    // intact, as that guards the lookup path for "constructor" on
+    // JSPromise instances which have the (initial) Promise.prototype.
+    const TNode<Object> promise_prototype =
+        LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_INDEX);
+    GotoIfNot(TaggedEqual(LoadMapPrototype(value_map), promise_prototype),
+              &if_slow_constructor);
+    Branch(IsPromiseSpeciesProtectorCellInvalid(), &if_slow_constructor,
+           &if_done);
+
+    // At this point, {value} doesn't have the initial promise prototype or
+    // the promise @@species protector was invalidated, but {value} could still
+    // have the %Promise% as its "constructor", so we need to check that as
+    // well.
+    BIND(&if_slow_constructor);
+    {
+      const TNode<Object> value_constructor = GetProperty(
+          context, value, isolate()->factory()->constructor_string());
+      const TNode<Object> promise_function =
+          LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+      Branch(TaggedEqual(value_constructor, promise_function), &if_done,
+             &if_slow_path);
+    }
+
+    BIND(&if_slow_path);
+    {
+      // We need to mark the {value} wrapper as having {outer_promise}
+      // as its parent, which is why we need to inline a good chunk of
+      // logic from the `PromiseResolve` builtin here.
+      var_value = NewJSPromise(native_context, outer_promise);
+      CallBuiltin(Builtin::kResolvePromise, native_context, var_value.value(),
+                  value);
+      Goto(&if_done);
+    }
+
+    BIND(&if_done);
+    value = var_value.value();
   }
 
-  BIND(&if_old);
-  result = AwaitOld(context, generator, value, outer_promise, on_resolve_sfi,
-                    on_reject_sfi, is_predicted_as_caught);
-  Goto(&done);
+  static const int kClosureContextSize =
+      FixedArray::SizeFor(Context::MIN_CONTEXT_EXTENDED_SLOTS);
+  TNode<Context> closure_context =
+      UncheckedCast<Context>(AllocateInNewSpace(kClosureContextSize));
+  {
+    // Initialize the await context, storing the {generator} as extension.
+    TNode<Map> map = CAST(
+        LoadContextElement(native_context, Context::AWAIT_CONTEXT_MAP_INDEX));
+    StoreMapNoWriteBarrier(closure_context, map);
+    StoreObjectFieldNoWriteBarrier(
+        closure_context, Context::kLengthOffset,
+        SmiConstant(Context::MIN_CONTEXT_EXTENDED_SLOTS));
+    const TNode<Object> empty_scope_info =
+        LoadContextElement(native_context, Context::SCOPE_INFO_INDEX);
+    StoreContextElementNoWriteBarrier(
+        closure_context, Context::SCOPE_INFO_INDEX, empty_scope_info);
+    StoreContextElementNoWriteBarrier(closure_context, Context::PREVIOUS_INDEX,
+                                      native_context);
+    StoreContextElementNoWriteBarrier(closure_context, Context::EXTENSION_INDEX,
+                                      generator);
+  }
 
-  BIND(&if_new);
-  result =
-      AwaitOptimized(context, generator, CAST(value), outer_promise,
-                     on_resolve_sfi, on_reject_sfi, is_predicted_as_caught);
-  Goto(&done);
+  // Allocate and initialize resolve handler
+  TNode<HeapObject> on_resolve =
+      AllocateInNewSpace(JSFunction::kSizeWithoutPrototype);
+  InitializeNativeClosure(closure_context, native_context, on_resolve,
+                          on_resolve_sfi);
 
-  BIND(&done);
-  return result.value();
+  // Allocate and initialize reject handler
+  TNode<HeapObject> on_reject =
+      AllocateInNewSpace(JSFunction::kSizeWithoutPrototype);
+  InitializeNativeClosure(closure_context, native_context, on_reject,
+                          on_reject_sfi);
+
+  // Deal with PromiseHooks and debug support in the runtime. This
+  // also allocates the throwaway promise, which is only needed in
+  // case of PromiseHooks or debugging.
+  TVARIABLE(Object, var_throwaway, UndefinedConstant());
+  Label if_instrumentation(this, Label::kDeferred),
+      if_instrumentation_done(this);
+  TNode<Uint32T> promiseHookFlags = PromiseHookFlags();
+  GotoIf(IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(
+             promiseHookFlags),
+         &if_instrumentation);
+#ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
+  // This call to NewJSPromise is to keep behaviour parity with what happens
+  // in Runtime::kDebugAsyncFunctionSuspended below if native hooks are set.
+  // It creates a throwaway promise that will trigger an init event and get
+  // passed into Builtin::kPerformPromiseThen below.
+  GotoIfNot(IsContextPromiseHookEnabled(promiseHookFlags),
+            &if_instrumentation_done);
+  var_throwaway = NewJSPromise(context, value);
+#endif  // V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
+  Goto(&if_instrumentation_done);
+  BIND(&if_instrumentation);
+  {
+    var_throwaway = CallRuntime(Runtime::kDebugAsyncFunctionSuspended,
+                                native_context, value, outer_promise, on_reject,
+                                generator, is_predicted_as_caught);
+    Goto(&if_instrumentation_done);
+  }
+  BIND(&if_instrumentation_done);
+
+  return CallBuiltin(Builtin::kPerformPromiseThen, native_context, value,
+                     on_resolve, on_reject, var_throwaway.value());
 }
 
 void AsyncBuiltinsAssembler::InitializeNativeClosure(

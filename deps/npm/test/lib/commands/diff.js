@@ -34,7 +34,6 @@ const mocks = {
   'proc-log': { info: noop, verbose: noop },
   libnpmdiff: (...args) => libnpmdiff(...args),
   'npm-registry-fetch': async () => ({}),
-  '../../../lib/utils/usage.js': () => 'usage instructions',
 }
 
 t.afterEach(() => {
@@ -418,7 +417,6 @@ t.test('single arg', t => {
 
     const Diff = t.mock('../../../lib/commands/diff.js', {
       ...mocks,
-      '../../../lib/utils/read-package-name.js': async () => 'my-project',
       pacote: {
         packument: spec => {
           t.equal(spec.name, 'lorem', 'should have expected spec name')
@@ -456,7 +454,6 @@ t.test('single arg', t => {
 
     const Diff = t.mock('../../../lib/commands/diff.js', {
       ...mocks,
-      '../../../lib/utils/read-package-name.js': async () => 'my-project',
       '@npmcli/arborist': class {
         constructor () {
           throw new Error('ERR')

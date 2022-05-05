@@ -9,9 +9,9 @@ Error: boo!
     at Object.runInThisContext (node:vm:*)
     at Object.<anonymous> (*test*message*vm_display_runtime_error.js:*)
     at Module._compile (node:internal/modules/cjs/loader:*)
-    at Object.Module._extensions..js (node:internal/modules/cjs/loader:*)
+    at Module._extensions..js (node:internal/modules/cjs/loader:*)
     at Module.load (node:internal/modules/cjs/loader:*)
-    at Function.Module._load (node:internal/modules/cjs/loader:*)
+    at Module._load (node:internal/modules/cjs/loader:*)
     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:*)
     at node:internal/main/run_main_module:*:*
 test.vm:1
@@ -24,9 +24,9 @@ Error: spooky!
     at Object.runInThisContext (node:vm:*)
     at Object.<anonymous> (*test*message*vm_display_runtime_error.js:*)
     at Module._compile (node:internal/modules/cjs/loader:*)
-    at Object.Module._extensions..js (node:internal/modules/cjs/loader:*)
+    at Module._extensions..js (node:internal/modules/cjs/loader:*)
     at Module.load (node:internal/modules/cjs/loader:*)
-    at Function.Module._load (node:internal/modules/cjs/loader:*)
+    at Module._load (node:internal/modules/cjs/loader:*)
     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:*)
     at node:internal/main/run_main_module:*:*
 

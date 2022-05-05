@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --concurrent-recompilation
-// Flags: --no-stress-opt --no-always-opt --no-turboprop
+// Flags: --no-stress-opt --no-always-opt
 //
 // --nostress-opt is in place because this particular optimization
 // (guaranteeing that the Array prototype chain has no elements) is

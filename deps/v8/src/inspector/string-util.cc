@@ -305,8 +305,4 @@ void ProtocolTypeTraits<Binary>::Serialize(const Binary& value,
   cbor::EncodeBinary(span<uint8_t>(value.data(), value.size()), bytes);
 }
 
-void SerializerTraits<Binary>::Serialize(
-    const v8_inspector::protocol::Binary& binary, std::vector<uint8_t>* out) {
-  cbor::EncodeBinary(span<uint8_t>(binary.data(), binary.size()), out);
-}
 }  // namespace v8_crdtp

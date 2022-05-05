@@ -3,7 +3,7 @@ const colors = require('../colors.js')
 const calculate = (data, { color }) => {
   const c = colors(color)
   const output = []
-  const { metadata: { vulnerabilities }} = data
+  const { metadata: { vulnerabilities } } = data
   const vulnCount = vulnerabilities.total
 
   let someFixable = false
@@ -14,7 +14,7 @@ const calculate = (data, { color }) => {
   if (vulnCount === 0) {
     output.push(`found ${c.green('0')} vulnerabilities`)
   } else {
-    for (const [name, vuln] of Object.entries(data.vulnerabilities)) {
+    for (const [, vuln] of Object.entries(data.vulnerabilities)) {
       const { fixAvailable } = vuln
       someFixable = someFixable || fixAvailable === true
       someUnfixable = someUnfixable || fixAvailable === false
@@ -45,7 +45,7 @@ const calculate = (data, { color }) => {
     if (someFixable) {
       output.push('', 'To address ' +
         (someForceFixable || someUnfixable ? 'issues that do not require attention'
-          : 'all issues') + ', run:\n  npm audit fix')
+        : 'all issues') + ', run:\n  npm audit fix')
     }
 
     if (someForceFixable) {
@@ -66,10 +66,10 @@ const calculate = (data, { color }) => {
   return {
     summary,
     report: vulnCount > 0 ? `${summary}\n\nRun \`npm audit\` for details.`
-      : summary
+    : summary,
   }
 }
 
 module.exports = Object.assign((data, opt) => calculate(data, opt).report, {
-  summary: (data, opt) => calculate(data, opt).summary
+  summary: (data, opt) => calculate(data, opt).summary,
 })

@@ -16,12 +16,13 @@ if (is_fuchsia) {
 
   fuchsia_package_runner("v8_unittests_fuchsia") {
     testonly = true
+    use_cfv2 = false
     package = ":v8_unittests_pkg"
     package_name_override = "v8_unittests"
   }
 }
 
-v8_executable("v8_cppgc_shared_unittests") {
+v8_executable("v8_heap_base_unittests") {
   testonly = true
 
   configs = [
@@ -32,16 +33,19 @@ v8_executable("v8_cppgc_shared_unittests") {
   sources = [ "heap/base/run-all-unittests.cc" ]
 
   deps = [
-    ":v8_cppgc_shared_unittests_sources",
+    ":v8_heap_base_unittests_sources",
     "//testing/gmock",
     "//testing/gtest",
   ]
 }
 
-v8_source_set("v8_cppgc_shared_unittests_sources") {
+v8_source_set("v8_heap_base_unittests_sources") {
   testonly = true
 
-  sources = [ "heap/base/worklist-unittest.cc" ]
+  sources = [
+    "heap/base/active-system-pages-unittest.cc",
+    "heap/base/worklist-unittest.cc",
+  ]
 
   configs = [
     "../..:external_config",
@@ -49,7 +53,7 @@ v8_source_set("v8_cppgc_shared_unittests_sources") {
   ]
 
   deps = [
-    "../..:v8_cppgc_shared_for_testing",
+    "../..:v8_heap_base_for_testing",
     "//testing/gmock",
     "//testing/gtest",
   ]
@@ -74,7 +78,7 @@ if (cppgc_is_standalone) {
 
     deps = [
       ":cppgc_unittests_sources",
-      ":v8_cppgc_shared_unittests_sources",
+      ":v8_heap_base_unittests_sources",
       "../..:cppgc_for_testing",
       "//testing/gmock",
       "//testing/gtest",
@@ -162,14 +166,13 @@ v8_source_set("cppgc_unittests_sources") {
 v8_executable("unittests") {
   testonly = true
 
-  # TODO(machenbach): Translate from gyp.
-  #['OS=="aix"', {
-  #  'ldflags': [ '-Wl,-bbigtoc' ],
-  #}],
+  if (current_os == "aix") {
+    ldflags = [ "-Wl,-bbigtoc" ]
+  }
 
   deps = [
     ":unittests_sources",
-    ":v8_cppgc_shared_unittests_sources",
+    ":v8_heap_base_unittests_sources",
     "../..:v8_for_testing",
     "../..:v8_libbase",
     "../..:v8_libplatform",
@@ -233,6 +236,7 @@ v8_source_set("unittests_sources") {
     "base/threaded-list-unittest.cc",
     "base/utils/random-number-generator-unittest.cc",
     "base/vector-unittest.cc",
+    "base/virtual-address-space-unittest.cc",
     "base/vlq-base64-unittest.cc",
     "base/vlq-unittest.cc",
     "codegen/aligned-slot-allocator-unittest.cc",
@@ -309,7 +313,6 @@ v8_source_set("unittests_sources") {
     "diagnostics/gdb-jit-unittest.cc",
     "execution/microtask-queue-unittest.cc",
     "heap/allocation-observer-unittest.cc",
-    "heap/barrier-unittest.cc",
     "heap/bitmap-test-utils.h",
     "heap/bitmap-unittest.cc",
     "heap/code-object-registry-unittest.cc",
@@ -326,6 +329,7 @@ v8_source_set("unittests_sources") {
     "heap/heap-utils.cc",
     "heap/heap-utils.h",
     "heap/index-generator-unittest.cc",
+    "heap/lab-unittest.cc",
     "heap/list-unittest.cc",
     "heap/local-factory-unittest.cc",
     "heap/local-heap-unittest.cc",
@@ -357,6 +361,7 @@ v8_source_set("unittests_sources") {
     "libplatform/default-job-unittest.cc",
     "libplatform/default-platform-unittest.cc",
     "libplatform/default-worker-threads-task-runner-unittest.cc",
+    "libplatform/single-threaded-default-platform-unittest.cc",
     "libplatform/task-queue-unittest.cc",
     "libplatform/worker-thread-unittest.cc",
     "logging/counters-unittest.cc",
@@ -364,6 +369,7 @@ v8_source_set("unittests_sources") {
     "numbers/conversions-unittest.cc",
     "objects/object-unittest.cc",
     "objects/osr-optimized-code-cache-unittest.cc",
+    "objects/swiss-hash-table-helpers-unittest.cc",
     "objects/value-serializer-unittest.cc",
     "objects/weakarraylist-unittest.cc",
     "parser/ast-value-unittest.cc",
@@ -375,7 +381,7 @@ v8_source_set("unittests_sources") {
     "regress/regress-crbug-938251-unittest.cc",
     "run-all-unittests.cc",
     "runtime/runtime-debug-unittest.cc",
-    "security/virtual-memory-cage-unittest.cc",
+    "sandbox/sandbox-unittest.cc",
     "strings/char-predicates-unittest.cc",
     "strings/unicode-unittest.cc",
     "tasks/background-compile-task-unittest.cc",
@@ -522,6 +528,7 @@ v8_source_set("unittests_sources") {
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "../..:v8_shared_internal_headers",
+    "../..:v8_version",
     "../../third_party/inspector_protocol:crdtp_test",
     "//build/win:default_exe_manifest",
     "//testing/gmock",

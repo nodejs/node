@@ -79,12 +79,12 @@ CodeT SharedFunctionInfo::GetCode() const {
   if (data.IsSmi()) {
     // Holding a Smi means we are a builtin.
     DCHECK(HasBuiltinId());
-    return isolate->builtins()->codet(builtin_id());
+    return isolate->builtins()->code(builtin_id());
   }
   if (data.IsBytecodeArray()) {
     // Having a bytecode array means we are a compiled, interpreted function.
     DCHECK(HasBytecodeArray());
-    return isolate->builtins()->codet(Builtin::kInterpreterEntryTrampoline);
+    return isolate->builtins()->code(Builtin::kInterpreterEntryTrampoline);
   }
   if (data.IsCodeT()) {
     // Having baseline Code means we are a compiled, baseline function.
@@ -95,34 +95,37 @@ CodeT SharedFunctionInfo::GetCode() const {
   if (data.IsAsmWasmData()) {
     // Having AsmWasmData means we are an asm.js/wasm function.
     DCHECK(HasAsmWasmData());
-    return isolate->builtins()->codet(Builtin::kInstantiateAsmJs);
+    return isolate->builtins()->code(Builtin::kInstantiateAsmJs);
   }
   if (data.IsWasmExportedFunctionData()) {
     // Having a WasmExportedFunctionData means the code is in there.
     DCHECK(HasWasmExportedFunctionData());
-    return ToCodeT(wasm_exported_function_data().wrapper_code());
+    return wasm_exported_function_data().wrapper_code();
   }
   if (data.IsWasmJSFunctionData()) {
-    return ToCodeT(wasm_js_function_data().wrapper_code());
+    return wasm_js_function_data().wrapper_code();
   }
   if (data.IsWasmCapiFunctionData()) {
-    return ToCodeT(wasm_capi_function_data().wrapper_code());
+    return wasm_capi_function_data().wrapper_code();
+  }
+  if (data.IsWasmOnFulfilledData()) {
+    return isolate->builtins()->code(Builtin::kWasmResume);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   if (data.IsUncompiledData()) {
     // Having uncompiled data (with or without scope) means we need to compile.
     DCHECK(HasUncompiledData());
-    return isolate->builtins()->codet(Builtin::kCompileLazy);
+    return isolate->builtins()->code(Builtin::kCompileLazy);
   }
   if (data.IsFunctionTemplateInfo()) {
     // Having a function template info means we are an API function.
     DCHECK(IsApiFunction());
-    return isolate->builtins()->codet(Builtin::kHandleApiCall);
+    return isolate->builtins()->code(Builtin::kHandleApiCall);
   }
   if (data.IsInterpreterData()) {
     CodeT code = InterpreterTrampoline();
     DCHECK(code.IsCodeT());
-    DCHECK(FromCodeT(code).is_interpreter_trampoline_builtin());
+    DCHECK(code.is_interpreter_trampoline_builtin());
     return code;
   }
   UNREACHABLE();

@@ -35,10 +35,6 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 from testrunner.outproc import base as outproc
 
-try:
-  basestring       # Python 2
-except NameError:  # Python 3
-  basestring = str
 
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 ENV_PATTERN = re.compile(r"//\s+Environment Variables:(.*)")
@@ -206,18 +202,18 @@ class CombinedTest(testcase.D8TestCase):
     """In addition to standard set of shell flags it appends:
       --disable-abortjs: %AbortJS can abort the test even inside
         trycatch-wrapper, so we disable it.
-      --es-staging: We skip all harmony flags due to false positives,
+      --harmony: We skip all harmony flags due to false positives,
           but always pass the staging flag to cover the mature features.
       --omit-quit: Calling quit() in JS would otherwise early terminate.
       --quiet-load: suppress any stdout from load() function used by
         trycatch-wrapper.
     """
     return [
-      '--test',
-      '--disable-abortjs',
-      '--es-staging',
-      '--omit-quit',
-      '--quiet-load',
+        '--test',
+        '--disable-abortjs',
+        '--harmony',
+        '--omit-quit',
+        '--quiet-load',
     ]
 
   def _get_cmd_params(self):
@@ -249,7 +245,7 @@ class CombinedTest(testcase.D8TestCase):
 
   def _is_flag_blocked(self, flag):
     for item in MISBEHAVING_COMBINED_TESTS_FLAGS:
-      if isinstance(item, basestring):
+      if isinstance(item, str):
         if item == flag:
           return True
       elif item.match(flag):

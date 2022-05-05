@@ -39,10 +39,10 @@ const internalInterfaces = Object.values(os.networkInterfaces()).flat().filter(
 );
 for (const iface of internalInterfaces) {
   testListeningOptions.push({
-    hostname: iface?.family === 'IPv6' ? `[${iface?.address}]` : iface?.address,
+    hostname: iface?.family === 6 ? `[${iface.address}]` : iface?.address,
     listenOptions: {
       host: iface?.address,
-      ipv6Only: iface?.family === 'IPv6'
+      ipv6Only: iface?.family === 6
     }
   });
 }
@@ -167,7 +167,7 @@ for (const { protocol, createServer } of [
       export default 1;`);
     await assert.rejects(
       import(fileDep.href),
-      { code: 'ERR_INVALID_URL_SCHEME' }
+      { code: 'ERR_NETWORK_IMPORT_DISALLOWED' }
     );
 
     const builtinDep = new URL(url.href);
@@ -177,7 +177,7 @@ for (const { protocol, createServer } of [
     `);
     await assert.rejects(
       import(builtinDep.href),
-      { code: 'ERR_INVALID_URL_SCHEME' }
+      { code: 'ERR_NETWORK_IMPORT_DISALLOWED' }
     );
 
     const unprefixedBuiltinDep = new URL(url.href);
@@ -187,7 +187,7 @@ for (const { protocol, createServer } of [
     `);
     await assert.rejects(
       import(unprefixedBuiltinDep.href),
-      { code: 'ERR_INVALID_URL_SCHEME' }
+      { code: 'ERR_NETWORK_IMPORT_DISALLOWED' }
     );
 
     const unsupportedMIME = new URL(url.href);

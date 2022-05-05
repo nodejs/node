@@ -510,10 +510,9 @@ export class TickProcessor extends LogReader {
     onlySummary,
     runtimeTimerFilter,
     preprocessJson) {
-    super({},
-      timedRange,
-      pairwiseTimedRange);
-    this.dispatchTable_ = {
+    super(timedRange, pairwiseTimedRange);
+    this.setDispatchTable({
+      __proto__: null,
       'shared-library': {
         parsers: [parseString, parseInt, parseInt, parseInt],
         processor: this.processSharedLibrary
@@ -575,17 +574,17 @@ export class TickProcessor extends LogReader {
         processor: this.advanceDistortion
       },
       // Ignored events.
-      'profiler': null,
-      'function-creation': null,
-      'function-move': null,
-      'function-delete': null,
-      'heap-sample-item': null,
-      'current-time': null,  // Handled specially, not parsed.
+      'profiler': undefined,
+      'function-creation': undefined,
+      'function-move': undefined,
+      'function-delete': undefined,
+      'heap-sample-item': undefined,
+      'current-time': undefined,  // Handled specially, not parsed.
       // Obsolete row types.
-      'code-allocate': null,
-      'begin-code-region': null,
-      'end-code-region': null
-    };
+      'code-allocate': undefined,
+      'begin-code-region': undefined,
+      'end-code-region': undefined
+    });
 
     this.preprocessJson = preprocessJson;
     this.cppEntriesProvider_ = cppEntriesProvider;

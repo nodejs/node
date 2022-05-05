@@ -38,6 +38,19 @@ Object PropertyArray::get(PtrComprCageBase cage_base, int index) const {
                                            OffsetOfElementAt(index));
 }
 
+Object PropertyArray::get(int index, SeqCstAccessTag tag) const {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return get(cage_base, index, tag);
+}
+
+Object PropertyArray::get(PtrComprCageBase cage_base, int index,
+                          SeqCstAccessTag tag) const {
+  DCHECK_LT(static_cast<unsigned>(index),
+            static_cast<unsigned>(this->length(kAcquireLoad)));
+  return TaggedField<Object>::SeqCst_Load(cage_base, *this,
+                                          OffsetOfElementAt(index));
+}
+
 void PropertyArray::set(int index, Object value) {
   DCHECK(IsPropertyArray());
   DCHECK_LT(static_cast<unsigned>(index),
@@ -53,6 +66,38 @@ void PropertyArray::set(int index, Object value, WriteBarrierMode mode) {
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
   CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
+}
+
+void PropertyArray::set(int index, Object value, SeqCstAccessTag tag) {
+  DCHECK(IsPropertyArray());
+  DCHECK_LT(static_cast<unsigned>(index),
+            static_cast<unsigned>(this->length(kAcquireLoad)));
+  DCHECK(value.IsShared());
+  int offset = OffsetOfElementAt(index);
+  SEQ_CST_WRITE_FIELD(*this, offset, value);
+  // JSSharedStructs are allocated in the shared old space, which is currently
+  // collected by stopping the world, so the incremental write barrier is not
+  // needed. They can only store Smis and other HeapObjects in the shared old
+  // space, so the generational write barrier is also not needed.
+}
+
+Object PropertyArray::Swap(int index, Object value, SeqCstAccessTag tag) {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return Swap(cage_base, index, value, tag);
+}
+
+Object PropertyArray::Swap(PtrComprCageBase cage_base, int index, Object value,
+                           SeqCstAccessTag tag) {
+  DCHECK(IsPropertyArray());
+  DCHECK_LT(static_cast<unsigned>(index),
+            static_cast<unsigned>(this->length(kAcquireLoad)));
+  DCHECK(value.IsShared());
+  return TaggedField<Object>::SeqCst_Swap(cage_base, *this,
+                                          OffsetOfElementAt(index), value);
+  // JSSharedStructs are allocated in the shared old space, which is currently
+  // collected by stopping the world, so the incremental write barrier is not
+  // needed. They can only store Smis and other HeapObjects in the shared old
+  // space, so the generational write barrier is also not needed.
 }
 
 ObjectSlot PropertyArray::data_start() { return RawField(kHeaderSize); }

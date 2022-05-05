@@ -14,13 +14,14 @@ extern class WasmInstanceObject extends JSObject;
 // Represents the context of a function that is defined through the JS or C
 // APIs. Corresponds to the WasmInstanceObject passed to a Wasm function
 // reference.
-// TODO(manoskouk): If V8_HEAP_SANDBOX, we cannot encode the isolate_root as a
-// sandboxed pointer, because that would require having access to the isolate
-// root in the first place.
+// TODO(manoskouk): If V8_SANDBOXED_EXTERNAL_POINTERS, we cannot encode the
+// isolate_root as a sandboxed pointer, because that would require having access
+// to the isolate root in the first place.
 extern class WasmApiFunctionRef extends HeapObject {
   isolate_root: RawPtr;
   native_context: NativeContext;
   callable: JSReceiver|Undefined;
+  suspender: WasmSuspenderObject|Undefined;
 }
 
 // This is the representation that is used internally by wasm to represent
@@ -41,9 +42,6 @@ extern class WasmInternalFunction extends Foreign {
   @if(V8_EXTERNAL_CODE_SPACE) code: CodeDataContainer;
   @ifnot(V8_EXTERNAL_CODE_SPACE) code: Code;
 }
-// WasmInternalFunction is safely comparable for pointer equality.
-extern operator '==' macro TaggedEqual(WasmInternalFunction, Object): bool;
-extern operator '==' macro TaggedEqual(Object, WasmInternalFunction): bool;
 
 extern class WasmFunctionData extends HeapObject {
   // The wasm-internal representation of this function object.
@@ -66,6 +64,9 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   @if(V8_EXTERNAL_CODE_SPACE) c_wrapper_code: CodeDataContainer;
   @ifnot(V8_EXTERNAL_CODE_SPACE) c_wrapper_code: Code;
   packed_args_size: Smi;
+  // Functions returned by suspender.returnPromiseOnSuspend() have this field
+  // set to the host suspender object.
+  suspender: WasmSuspenderObject|Undefined;
 }
 
 extern class WasmJSFunctionData extends WasmFunctionData {
@@ -77,6 +78,10 @@ extern class WasmJSFunctionData extends WasmFunctionData {
 extern class WasmCapiFunctionData extends WasmFunctionData {
   embedder_data: Foreign;  // Managed<wasm::FuncData>
   serialized_signature: PodArrayOfWasmValueType;
+}
+
+extern class WasmOnFulfilledData extends HeapObject {
+  suspender: WasmSuspenderObject;
 }
 
 extern class WasmIndirectFunctionTable extends Struct {
@@ -97,6 +102,9 @@ extern class WasmContinuationObject extends Struct {
 
 extern class WasmSuspenderObject extends JSObject {
   continuation: WasmContinuationObject|Undefined;
+  parent: WasmSuspenderObject|Undefined;
+  resume: JSObject;
+  state: Smi;  // 0: Inactive, 1: Active, 2: Suspended.
 }
 
 extern class WasmExceptionTag extends Struct {

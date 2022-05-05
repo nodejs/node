@@ -36,7 +36,7 @@ bytecodes: [
   /*   10 E> */ B(CreateMappedArguments),
                 B(Star0),
   /*   15 S> */ B(LdaZero),
-  /*   31 E> */ B(LdaKeyedProperty), R(0), U8(0),
+  /*   31 E> */ B(GetKeyedProperty), R(0), U8(0),
   /*   35 S> */ B(Return),
 ]
 constant pool: [
@@ -78,7 +78,7 @@ bytecodes: [
                 B(CreateMappedArguments),
                 B(Star0),
   /*   16 S> */ B(LdaZero),
-  /*   32 E> */ B(LdaKeyedProperty), R(0), U8(0),
+  /*   32 E> */ B(GetKeyedProperty), R(0), U8(0),
   /*   36 S> */ B(Return),
 ]
 constant pool: [

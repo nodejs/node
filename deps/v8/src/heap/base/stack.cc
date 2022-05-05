@@ -10,7 +10,6 @@
 #include "src/base/sanitizer/asan.h"
 #include "src/base/sanitizer/msan.h"
 #include "src/base/sanitizer/tsan.h"
-#include "src/heap/cppgc/globals.h"
 
 namespace heap {
 namespace base {
@@ -21,7 +20,12 @@ extern "C" void PushAllRegistersAndIterateStack(const Stack*, StackVisitor*,
 
 Stack::Stack(const void* stack_start) : stack_start_(stack_start) {}
 
+void Stack::SetStackStart(const void* stack_start) {
+  stack_start_ = stack_start;
+}
+
 bool Stack::IsOnStack(void* slot) const {
+  DCHECK_NOT_NULL(stack_start_);
 #ifdef V8_USE_ADDRESS_SANITIZER
   // If the slot is part of a fake frame, then it is definitely on the stack.
   if (__asan_addr_is_in_fake_stack(__asan_get_current_fake_stack(),
@@ -35,7 +39,7 @@ bool Stack::IsOnStack(void* slot) const {
 #if defined(__has_feature)
 #if __has_feature(safe_stack)
   if (__builtin___get_unsafe_stack_top() >= slot &&
-      slot > __builtin___get_unsafe_stack_ptr()) {
+      slot >= __builtin___get_unsafe_stack_ptr()) {
     return true;
   }
 #endif  // __has_feature(safe_stack)
@@ -86,7 +90,7 @@ void IterateAsanFakeFrameIfNecessary(StackVisitor* visitor,
 
 #endif  // V8_USE_ADDRESS_SANITIZER
 
-void IterateSafeStackIfNecessary(StackVisitor* visitor) {
+void IterateUnsafeStackIfNecessary(StackVisitor* visitor) {
 #if defined(__has_feature)
 #if __has_feature(safe_stack)
   // Source:
@@ -146,16 +150,29 @@ void IteratePointersImpl(const Stack* stack, StackVisitor* visitor,
 }  // namespace
 
 void Stack::IteratePointers(StackVisitor* visitor) const {
+  DCHECK_NOT_NULL(stack_start_);
   PushAllRegistersAndIterateStack(this, visitor, &IteratePointersImpl);
   // No need to deal with callee-saved registers as they will be kept alive by
   // the regular conservative stack iteration.
   // TODO(chromium:1056170): Add support for SIMD and/or filtering.
-  IterateSafeStackIfNecessary(visitor);
+  IterateUnsafeStackIfNecessary(visitor);
 }
 
 void Stack::IteratePointersUnsafe(StackVisitor* visitor,
                                   uintptr_t stack_end) const {
   IteratePointersImpl(this, visitor, reinterpret_cast<intptr_t*>(stack_end));
+}
+
+const void* Stack::GetCurrentStackPointerForLocalVariables() {
+#if defined(__has_feature)
+#if __has_feature(safe_stack)
+  return __builtin___get_unsafe_stack_ptr();
+#else   // __has_feature(safe_stack)
+  return v8::base::Stack::GetCurrentStackPosition();
+#endif  // __has_feature(safe_stack)
+#else   // defined(__has_feature)
+  return v8::base::Stack::GetCurrentStackPosition();
+#endif  // defined(__has_feature)
 }
 
 }  // namespace base

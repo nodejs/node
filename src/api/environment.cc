@@ -3,8 +3,11 @@
 #include "node_errors.h"
 #include "node_internals.h"
 #include "node_native_module_env.h"
+#include "node_options-inl.h"
 #include "node_platform.h"
+#include "node_shadow_realm.h"
 #include "node_v8_platform-inl.h"
+#include "node_wasm_web_api.h"
 #include "uv.h"
 
 #if HAVE_INSPECTOR
@@ -251,6 +254,19 @@ void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
   auto* allow_wasm_codegen_cb = s.allow_wasm_code_generation_callback ?
     s.allow_wasm_code_generation_callback : AllowWasmCodeGenerationCallback;
   isolate->SetAllowWasmCodeGenerationCallback(allow_wasm_codegen_cb);
+
+  Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
+  if (per_process::cli_options->get_per_isolate_options()
+          ->get_per_env_options()
+          ->experimental_fetch) {
+    isolate->SetWasmStreamingCallback(wasm_web_api::StartStreamingCompilation);
+  }
+
+  if (per_process::cli_options->get_per_isolate_options()
+          ->experimental_shadow_realm) {
+    isolate->SetHostCreateShadowRealmContextCallback(
+        shadow_realm::HostCreateShadowRealmContextCallback);
+  }
 
   if ((s.flags & SHOULD_NOT_SET_PROMISE_REJECTION_CALLBACK) == 0) {
     auto* promise_reject_cb = s.promise_reject_callback ?

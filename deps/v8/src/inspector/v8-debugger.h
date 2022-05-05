@@ -27,10 +27,16 @@ class StackFrame;
 class V8Debugger;
 class V8DebuggerAgentImpl;
 class V8InspectorImpl;
+class V8RuntimeAgentImpl;
 class V8StackTraceImpl;
 struct V8StackTraceId;
 
-enum class WrapMode { kForceValue, kNoPreview, kWithPreview };
+enum class WrapMode {
+  kForceValue,
+  kNoPreview,
+  kWithPreview,
+  kGenerateWebDriverValue
+};
 
 using protocol::Response;
 using TerminateExecutionCallback =
@@ -85,6 +91,9 @@ class V8Debugger : public v8::debug::DebugDelegate,
   int maxAsyncCallChainDepth() { return m_maxAsyncCallStackDepth; }
   void setAsyncCallStackDepth(V8DebuggerAgentImpl*, int);
 
+  int maxCallStackSizeToCapture() const { return m_maxCallStackSizeToCapture; }
+  void setMaxCallStackSizeToCapture(V8RuntimeAgentImpl*, int);
+
   std::shared_ptr<AsyncStackTrace> currentAsyncParent();
   V8StackTraceId currentExternalParent();
 
@@ -120,7 +129,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
   void setMaxAsyncTaskStacksForTest(int limit);
   void dumpAsyncTaskStacksStateForTest();
 
-  V8DebuggerId debuggerIdFor(int contextGroupId);
+  internal::V8DebuggerId debuggerIdFor(int contextGroupId);
   std::shared_ptr<AsyncStackTrace> stackTraceFor(int contextGroupId,
                                                  const V8StackTraceId& id);
 
@@ -181,6 +190,8 @@ class V8Debugger : public v8::debug::DebugDelegate,
       v8::Local<v8::Context> paused_context,
       const std::vector<v8::debug::BreakpointId>& break_points_hit,
       v8::debug::BreakReasons break_reasons) override;
+  void BreakOnInstrumentation(v8::Local<v8::Context> paused_context,
+                              v8::debug::BreakpointId) override;
   void ExceptionThrown(v8::Local<v8::Context> paused_context,
                        v8::Local<v8::Value> exception,
                        v8::Local<v8::Value> promise, bool is_uncaught,
@@ -193,7 +204,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
                        int column) override;
 
   int currentContextGroupId();
-  bool asyncStepOutOfFunction(int targetContextGroupId, bool onlyAtReturn);
 
   bool hasScheduledBreakOnNextFunctionCall() const;
 
@@ -248,6 +258,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
 
   size_t m_maxAsyncCallStacks;
   int m_maxAsyncCallStackDepth;
+  int m_maxCallStackSizeToCapture;
 
   std::vector<void*> m_currentTasks;
   std::vector<std::shared_ptr<AsyncStackTrace>> m_currentAsyncParent;
@@ -259,6 +270,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
   std::list<std::shared_ptr<AsyncStackTrace>> m_allAsyncStacks;
 
   std::unordered_map<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
+  std::unordered_map<V8RuntimeAgentImpl*, int> m_maxCallStackSizeToCaptureMap;
   void* m_taskWithScheduledBreak = nullptr;
 
   // If any of the following three is true, we schedule pause on next JS
@@ -277,7 +289,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
   StackTraceIdToStackTrace m_storedStackTraces;
   uintptr_t m_lastStackTraceId = 0;
 
-  std::unordered_map<int, V8DebuggerId> m_contextGroupIdToDebuggerId;
+  std::unordered_map<int, internal::V8DebuggerId> m_contextGroupIdToDebuggerId;
 
   std::unique_ptr<TerminateExecutionCallback> m_terminateExecutionCallback;
 };

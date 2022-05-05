@@ -129,15 +129,31 @@ void WriteBarrier::GenerationalBarrierSlow(const CagedHeapLocalData& local_data,
                                            const AgeTable& age_table,
                                            const void* slot,
                                            uintptr_t value_offset) {
+  DCHECK(slot);
   // A write during atomic pause (e.g. pre-finalizer) may trigger the slow path
   // of the barrier. This is a result of the order of bailouts where not marking
   // results in applying the generational barrier.
   if (local_data.heap_base.in_atomic_pause()) return;
 
-  if (value_offset > 0 && age_table[value_offset] == AgeTable::Age::kOld)
+  if (value_offset > 0 && age_table.GetAge(value_offset) == AgeTable::Age::kOld)
     return;
+
   // Record slot.
-  local_data.heap_base.remembered_slots().insert(const_cast<void*>(slot));
+  local_data.heap_base.remembered_set().AddSlot((const_cast<void*>(slot)));
+}
+
+// static
+void WriteBarrier::GenerationalBarrierForSourceObjectSlow(
+    const CagedHeapLocalData& local_data, const void* inner_pointer) {
+  DCHECK(inner_pointer);
+
+  auto& object_header =
+      BasePage::FromInnerAddress(&local_data.heap_base, inner_pointer)
+          ->ObjectHeaderFromInnerAddress<AccessMode::kAtomic>(inner_pointer);
+
+  // Record the source object.
+  local_data.heap_base.remembered_set().AddSourceObject(
+      const_cast<HeapObjectHeader&>(object_header));
 }
 #endif  // CPPGC_YOUNG_GENERATION
 

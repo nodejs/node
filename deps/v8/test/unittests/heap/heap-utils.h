@@ -7,6 +7,7 @@
 
 #include "src/base/macros.h"
 #include "src/common/globals.h"
+#include "src/heap/heap.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -29,6 +30,14 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
     heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
   }
 
+  void FullGC() {
+    heap()->CollectGarbage(OLD_SPACE, i::GarbageCollectionReason::kTesting);
+  }
+
+  void YoungGC() {
+    heap()->CollectGarbage(NEW_SPACE, i::GarbageCollectionReason::kTesting);
+  }
+
   Heap* heap() const { return this->i_isolate()->heap(); }
 
   void SimulateIncrementalMarking(bool force_completion = true) {
@@ -37,12 +46,27 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
   }
 };
 
-using TestWithHeapInternals =       //
-    WithHeapInternals<              //
-        WithInternalIsolateMixin<   //
-            WithIsolateScopeMixin<  //
-                WithIsolateMixin<   //
-                    ::testing::Test>>>>;
+using TestWithHeapInternals =                  //
+    WithHeapInternals<                         //
+        WithInternalIsolateMixin<              //
+            WithIsolateScopeMixin<             //
+                WithIsolateMixin<              //
+                    WithDefaultPlatformMixin<  //
+                        ::testing::Test>>>>>;
+
+using TestWithHeapInternalsAndContext =  //
+    WithContextMixin<                    //
+        TestWithHeapInternals>;
+
+inline void FullGC(v8::Isolate* isolate) {
+  reinterpret_cast<i::Isolate*>(isolate)->heap()->CollectAllGarbage(
+      i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting);
+}
+
+inline void YoungGC(v8::Isolate* isolate) {
+  reinterpret_cast<i::Isolate*>(isolate)->heap()->CollectGarbage(
+      i::NEW_SPACE, i::GarbageCollectionReason::kTesting);
+}
 
 }  // namespace internal
 }  // namespace v8
