@@ -1448,10 +1448,6 @@ define('package-lock', {
     This will also prevent _writing_ \`package-lock.json\` if \`save\` is
     true.
 
-    When package package-locks are disabled, automatic pruning of extraneous
-    modules will also be disabled.  To remove extraneous modules with
-    package-locks disabled use \`npm prune\`.
-
     This configuration does not affect \`npm ci\`.
   `,
   flatten: (key, obj, flatOptions) => {

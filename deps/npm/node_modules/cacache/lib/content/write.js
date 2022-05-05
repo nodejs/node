@@ -13,34 +13,37 @@ const path = require('path')
 const rimraf = util.promisify(require('rimraf'))
 const ssri = require('ssri')
 const uniqueFilename = require('unique-filename')
-const { disposer } = require('./../util/disposer')
 const fsm = require('fs-minipass')
 
 const writeFile = util.promisify(fs.writeFile)
 
 module.exports = write
 
-function write (cache, data, opts = {}) {
+async function write (cache, data, opts = {}) {
   const { algorithms, size, integrity } = opts
   if (algorithms && algorithms.length > 1) {
     throw new Error('opts.algorithms only supports a single algorithm for now')
   }
 
   if (typeof size === 'number' && data.length !== size) {
-    return Promise.reject(sizeError(size, data.length))
+    throw sizeError(size, data.length)
   }
 
   const sri = ssri.fromData(data, algorithms ? { algorithms } : {})
   if (integrity && !ssri.checkData(data, integrity, opts)) {
-    return Promise.reject(checksumError(integrity, sri))
+    throw checksumError(integrity, sri)
   }
 
-  return disposer(makeTmp(cache, opts), makeTmpDisposer,
-    (tmp) => {
-      return writeFile(tmp.target, data, { flag: 'wx' })
-        .then(() => moveToDestination(tmp, cache, sri, opts))
-    })
-    .then(() => ({ integrity: sri, size: data.length }))
+  const tmp = await makeTmp(cache, opts)
+  try {
+    await writeFile(tmp.target, data, { flag: 'wx' })
+    await moveToDestination(tmp, cache, sri, opts)
+    return { integrity: sri, size: data.length }
+  } finally {
+    if (!tmp.moved) {
+      await rimraf(tmp.target)
+    }
+  }
 }
 
 module.exports.stream = writeStream
@@ -94,18 +97,22 @@ function writeStream (cache, opts = {}) {
   return new CacacheWriteStream(cache, opts)
 }
 
-function handleContent (inputStream, cache, opts) {
-  return disposer(makeTmp(cache, opts), makeTmpDisposer, (tmp) => {
-    return pipeToTmp(inputStream, cache, tmp.target, opts)
-      .then((res) => {
-        return moveToDestination(
-          tmp,
-          cache,
-          res.integrity,
-          opts
-        ).then(() => res)
-      })
-  })
+async function handleContent (inputStream, cache, opts) {
+  const tmp = await makeTmp(cache, opts)
+  try {
+    const res = await pipeToTmp(inputStream, cache, tmp.target, opts)
+    await moveToDestination(
+      tmp,
+      cache,
+      res.integrity,
+      opts
+    )
+    return res
+  } finally {
+    if (!tmp.moved) {
+      await rimraf(tmp.target)
+    }
+  }
 }
 
 function pipeToTmp (inputStream, cache, tmpTarget, opts) {
@@ -136,11 +143,7 @@ function pipeToTmp (inputStream, cache, tmpTarget, opts) {
     outStream
   )
 
-  return pipeline.promise()
-    .then(() => ({ integrity, size }))
-    .catch(er => rimraf(tmpTarget).then(() => {
-      throw er
-    }))
+  return pipeline.promise().then(() => ({ integrity, size }))
 }
 
 function makeTmp (cache, opts) {
@@ -149,14 +152,6 @@ function makeTmp (cache, opts) {
     target: tmpTarget,
     moved: false,
   }))
-}
-
-function makeTmpDisposer (tmp) {
-  if (tmp.moved) {
-    return Promise.resolve()
-  }
-
-  return rimraf(tmp.target)
 }
 
 function moveToDestination (tmp, cache, sri, opts) {

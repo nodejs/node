@@ -8,7 +8,6 @@ const path = require('path')
 const ssri = require('ssri')
 const uniqueFilename = require('unique-filename')
 
-const { disposer } = require('./util/disposer')
 const contentPath = require('./content/path')
 const fixOwner = require('./util/fix-owner')
 const hashToSegments = require('./util/hash-to-segments')
@@ -102,7 +101,12 @@ async function compact (cache, key, matchFn, opts = {}) {
   }
 
   // write the file atomically
-  await disposer(setup(), teardown, write)
+  const tmp = await setup()
+  try {
+    await write(tmp)
+  } finally {
+    await teardown(tmp)
+  }
 
   // we reverse the list we generated such that the newest
   // entries come first in order to make looping through them easier

@@ -22,6 +22,8 @@ class Owner extends BaseCommand {
   static params = [
     'registry',
     'otp',
+    'workspace',
+    'workspaces',
   ]
 
   static usage = [
@@ -69,22 +71,43 @@ class Owner extends BaseCommand {
   }
 
   async exec ([action, ...args]) {
-    switch (action) {
-      case 'ls':
-      case 'list':
-        return this.ls(args[0])
-      case 'add':
-        return this.changeOwners(args[0], args[1], 'add')
-      case 'rm':
-      case 'remove':
-        return this.changeOwners(args[0], args[1], 'rm')
-      default:
+    if (action === 'ls' || action === 'list') {
+      await this.ls(args[0])
+    } else if (action === 'add') {
+      await this.changeOwners(args[0], args[1], 'add')
+    } else if (action === 'rm' || action === 'remove') {
+      await this.changeOwners(args[0], args[1], 'rm')
+    } else {
+      throw this.usageError()
+    }
+  }
+
+  async execWorkspaces ([action, ...args], filters) {
+    await this.setWorkspaces(filters)
+    // ls pkg or owner add/rm package
+    if ((action === 'ls' && args.length > 0) || args.length > 1) {
+      const implicitWorkspaces = this.npm.config.get('workspace', 'default')
+      if (implicitWorkspaces.length === 0) {
+        log.warn(`Ignoring specified workspace(s)`)
+      }
+      return this.exec([action, ...args])
+    }
+
+    for (const [name] of this.workspaces) {
+      if (action === 'ls' || action === 'list') {
+        await this.ls(name)
+      } else if (action === 'add') {
+        await this.changeOwners(args[0], name, 'add')
+      } else if (action === 'rm' || action === 'remove') {
+        await this.changeOwners(args[0], name, 'rm')
+      } else {
         throw this.usageError()
+      }
     }
   }
 
   async ls (pkg) {
-    pkg = await this.getPkg(pkg)
+    pkg = await this.getPkg(this.npm.prefix, pkg)
     const spec = npa(pkg)
 
     try {
@@ -101,12 +124,12 @@ class Owner extends BaseCommand {
     }
   }
 
-  async getPkg (pkg) {
+  async getPkg (prefix, pkg) {
     if (!pkg) {
       if (this.npm.config.get('global')) {
         throw this.usageError()
       }
-      const { name } = await readJson(resolve(this.npm.prefix, 'package.json'))
+      const { name } = await readJson(resolve(prefix, 'package.json'))
       if (!name) {
         throw this.usageError()
       }
@@ -121,7 +144,7 @@ class Owner extends BaseCommand {
       throw this.usageError()
     }
 
-    pkg = await this.getPkg(pkg)
+    pkg = await this.getPkg(this.npm.prefix, pkg)
     log.verbose(`owner ${addOrRm}`, '%s to %s', user, pkg)
 
     const spec = npa(pkg)
