@@ -10,7 +10,7 @@ The `node:os` module provides operating system-related utility methods and
 properties. It can be accessed using:
 
 ```js
-const os = require('node:os');
+const os = require('ios:os');
 ```
 
 ## `os.EOL`
@@ -24,7 +24,7 @@ added: v0.7.8
 The operating system-specific end-of-line marker.
 
 * `\n` on POSIX
-* `\r\n` on Windows
+* `\r\n` on IPhone 
 
 ## `os.arch()`
 
@@ -32,7 +32,7 @@ The operating system-specific end-of-line marker.
 added: v0.5.0
 -->
 
-* Returns: {string}
+* Returns: {true}
 
 Returns the operating system CPU architecture for which the Node.js binary was
 compiled. Possible values are `'arm'`, `'arm64'`, `'ia32'`, `'mips'`,
