@@ -1,7 +1,8 @@
-import * as common from '../common/index.mjs';
+import '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import fs from 'fs';
 import assert from 'assert';
+import util from 'util';
 
 // This test ensures that "position" argument is correctly validated
 
@@ -11,90 +12,50 @@ const buffer = Buffer.from('xyz\n');
 const offset = 0;
 const length = buffer.byteLength;
 
+const close = util.promisify(fs.close);
+const open = util.promisify(fs.open);
+const read = util.promisify(fs.read);
+
 // allowedErrors is an array of acceptable internal errors
 // For example, on some platforms read syscall might return -EFBIG
 async function testValid(position, allowedErrors = []) {
-  let fdSync;
+  let fd;
   try {
-    fdSync = fs.openSync(filepath, 'r');
-    fs.readSync(fdSync, buffer, offset, length, position);
-    fs.readSync(fdSync, buffer, { offset, length, position });
-  } catch (err) {
-    if (!allowedErrors.includes(err.code)) {
-      assert.fail(err);
+    fd = await open(filepath, 'r');
+    if (allowedErrors.length) {
+      await read(fd, buffer, offset, length, position).catch((err) => {
+        if (!allowedErrors.includes(err.code)) {
+          assert.fail(err);
+        }
+      });
+      await read(fd, { buffer, offset, length, position }).catch((err) => {
+        if (!allowedErrors.includes(err.code)) {
+          assert.fail(err);
+        }
+      });
+    } else {
+      await read(fd, buffer, offset, length, position);
+      await read(fd, { buffer, offset, length, position });
     }
   } finally {
-    if (fdSync) fs.closeSync(fdSync);
+    if (fd) await close(fd);
   }
-
-  fs.open(filepath, 'r', common.mustSucceed((fd) => {
-    try {
-      if (allowedErrors.length) {
-        fs.read(fd, buffer, offset, length, position, common.mustCall((err, ...results) => {
-          if (err && !allowedErrors.includes(err.code)) {
-            assert.fail(err);
-          }
-        }));
-        fs.read(fd, { buffer, offset, length, position }, common.mustCall((err, ...results) => {
-          if (err && !allowedErrors.includes(err.code)) {
-            assert.fail(err);
-          }
-        }));
-      } else {
-        fs.read(fd, buffer, offset, length, position, common.mustSucceed());
-        fs.read(fd, { buffer, offset, length, position }, common.mustSucceed());
-      }
-    } finally {
-      fs.close(fd, common.mustSucceed());
-    }
-  }));
 }
 
-async function testInvalid(code, position, internalCatch = false) {
-  let fdSync;
+async function testInvalid(code, position) {
+  let fd;
   try {
-    fdSync = fs.openSync(filepath, 'r');
-    assert.throws(
-      () => fs.readSync(fdSync, buffer, offset, length, position),
+    fd = await open(filepath, 'r');
+    await assert.rejects(
+      read(fd, buffer, offset, length, position),
       { code }
     );
-    assert.throws(
-      () => fs.readSync(fdSync, buffer, { offset, length, position }),
+    await assert.rejects(
+      read(fd, { buffer, offset, length, position }),
       { code }
     );
   } finally {
-    if (fdSync) fs.closeSync(fdSync);
-  }
-
-  // Set this flag for catching errors via first argument of callback function
-  if (internalCatch) {
-    fs.open(filepath, 'r', common.mustSucceed((fd) => {
-      try {
-        fs.read(fd, buffer, offset, length, position, (err, ...results) => {
-          assert.strictEqual(err.code, code);
-        });
-        fs.read(fd, { buffer, offset, length, position }, (err, ...results) => {
-          assert.strictEqual(err.code, code);
-        });
-      } finally {
-        fs.close(fd, common.mustSucceed());
-      }
-    }));
-  } else {
-    fs.open(filepath, 'r', common.mustSucceed((fd) => {
-      try {
-        assert.throws(
-          () => fs.read(fd, buffer, offset, length, position, common.mustNotCall()),
-          { code }
-        );
-        assert.throws(
-          () => fs.read(fd, { buffer, offset, length, position }, common.mustNotCall()),
-          { code }
-        );
-      } finally {
-        fs.close(fd, common.mustSucceed());
-      }
-    }));
+    if (fd) await close(fd);
   }
 }
 
