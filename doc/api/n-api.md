@@ -1187,6 +1187,8 @@ added:
   - v16.14.0
 -->
 
+> Stability: 1 - Experimental
+
 ````c
 NAPI_EXTERN napi_status node_api_throw_syntax_error(napi_env env,
                                                     const char* code,
@@ -1305,6 +1307,8 @@ added:
   - v17.2.0
   - v16.14.0
 -->
+
+> Stability: 1 - Experimental
 
 ```c
 NAPI_EXTERN napi_status node_api_create_syntax_error(napi_env env,
