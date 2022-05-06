@@ -1185,6 +1185,8 @@ This API throws a JavaScript `RangeError` with the text provided.
 added: v16.14.0
 -->
 
+> Stability: 1 - Experimental
+
 ````c
 NAPI_EXTERN napi_status node_api_throw_syntax_error(napi_env env,
                                                     const char* code,
@@ -1301,6 +1303,8 @@ This API returns a JavaScript `RangeError` with the text provided.
 <!-- YAML
 added: v16.14.0
 -->
+
+> Stability: 1 - Experimental
 
 ```c
 NAPI_EXTERN napi_status node_api_create_syntax_error(napi_env env,
