@@ -449,16 +449,8 @@ void ContextifyContext::PropertySetterCallback(
       !is_function)
     return;
 
-  if (!is_declared_on_global_proxy && is_declared_on_sandbox  &&
-      args.ShouldThrowOnError() && is_contextual_store && !is_function) {
-    // The property exists on the sandbox but not on the global
-    // proxy. Setting it would throw because we are in strict mode.
-    // Don't attempt to set it by signaling that the call was
-    // intercepted. Only change the value on the sandbox.
-    args.GetReturnValue().Set(false);
-  }
-
   USE(ctx->sandbox()->Set(context, property, value));
+  args.GetReturnValue().Set(value);
 }
 
 // static
