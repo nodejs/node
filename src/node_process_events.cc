@@ -21,7 +21,6 @@ using v8::Value;
 MaybeLocal<Value> ProcessEmit(Environment* env,
                               const char* event,
                               Local<Value> message) {
-  // Send message to enable debug in cluster workers
   Isolate* isolate = env->isolate();
 
   Local<String> event_string;
