@@ -359,6 +359,8 @@ YYYY-MM-DD, Version x.y.z (Release Type)
 Notable changes:
 
 * Copy the notable changes list here, reformatted for plain-text
+
+PR-URL: TBD
 ```
 
 For security releases, begin the commit message with the phrase
@@ -374,6 +376,8 @@ This is a security release.
 Notable changes:
 
 * Copy the notable changes list here, reformatted for plain-text
+
+PR-URL: TBD
 ```
 
 ### 6. Propose release on GitHub
