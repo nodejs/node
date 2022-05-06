@@ -49,7 +49,7 @@ tar xvzf /path/to/download/libuv-v1.44.1-dist.tar.gz -C deps/uv --strip 1
 1.44.1
 ```
 
-### Committing zlib
+### Committing libuv
 
 ```console
 git add --all deps/uv
