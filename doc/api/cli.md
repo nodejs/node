@@ -2022,13 +2022,14 @@ $ node --max-old-space-size=1536 index.js
 
 Sets the maximum [semi-space][] size for V8's
 [scavenge garbage collector][] in MiB.
-Increasing the max size of a semi-space may bring
-throughput improvement for Node.js at the cost of more
+Increasing the max size of a semi-space may
+improve throughput for Node.js at the cost of more
 memory consumption.
-Since the young generation size of V8 heap is three times
-(see [`YoungGenerationSizeFromSemiSpaceSize`][] implement in V8)
-the size of semi-space, an increase of 1 MiB to semi-space will
-triple and cause the heap size to increase by 3 MiB.
+Since the young generation size of the V8 heap is three times
+(see [`YoungGenerationSizeFromSemiSpaceSize`][] in V8)
+the size of the semi-space, an increase of 1 MiB to semi-space applies
+to each of the three individual semi spaces and
+causes the heap size to increase by 3 MiB.
 The throughput improvement depends on your workload
 (see [#42511](https://github.com/nodejs/node/issues/42511)).
 
