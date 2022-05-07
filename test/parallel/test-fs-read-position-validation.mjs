@@ -14,25 +14,21 @@ const length = buffer.byteLength;
 
 // allowedErrors is an array of acceptable internal errors
 // For example, on some platforms read syscall might return -EFBIG
-function testValidCbPositional([position, allowedErrors], callback) {
+function testValidCb([position, allowedErrors], callback) {
   fs.open(filepath, 'r', common.mustSucceed((fd) => {
-    fs.read(fd, buffer, offset, length, position, common.mustCall((err) => {
-      fs.close(fd, common.mustSucceed(callback));
+    let callCount = 3;
+    function handler(err) {
+      callCount--;
       if (err && !allowedErrors?.includes(err.code)) {
+        fs.close(fd, common.mustSucceed());
         assert.fail(err);
+      } else if (callCount === 0) {
+        fs.close(fd, common.mustSucceed(callback));
       }
-    }));
-  }));
-}
-
-function testValidCbNamedParams([position, allowedErrors], callback) {
-  fs.open(filepath, 'r', common.mustSucceed((fd) => {
-    fs.read(fd, { buffer, offset, length, position }, common.mustCall((err) => {
-      fs.close(fd, common.mustSucceed(callback));
-      if (err && !allowedErrors?.includes(err.code)) {
-        assert.fail(err);
-      }
-    }));
+    }
+    fs.read(fd, buffer, offset, length, position, common.mustCall(handler));
+    fs.read(fd, { buffer, offset, length, position }, common.mustCall(handler));
+    fs.read(fd, buffer, { offset, length, position }, common.mustCall(handler));
   }));
 }
 
@@ -47,6 +43,10 @@ function testInvalidCb(code, position, callback) {
         () => fs.read(fd, { buffer, offset, length, position }, common.mustNotCall()),
         { code }
       );
+      assert.throws(
+        () => fs.read(fd, buffer, { offset, length, position }, common.mustNotCall()),
+        { code }
+      );
     } finally {
       fs.close(fd, common.mustSucceed(callback));
     }
@@ -54,14 +54,12 @@ function testInvalidCb(code, position, callback) {
 }
 
 // Promisify to reduce flakiness
-const testValidArrPositional = util.promisify(testValidCbPositional);
-const testValidArrNamedParams = util.promisify(testValidCbNamedParams);
+const testValidArr = util.promisify(testValidCb);
 const testInvalid = util.promisify(testInvalidCb);
 
 // Wrapper to make allowedErrors optional
 async function testValid(position, allowedErrors) {
-  await testValidArrPositional([position, allowedErrors]);
-  await testValidArrNamedParams([position, allowedErrors]);
+  await testValidArr([position, allowedErrors]);
 }
 
 {
