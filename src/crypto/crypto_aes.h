@@ -1,7 +1,7 @@
 #ifndef SRC_CRYPTO_CRYPTO_AES_H_
 #define SRC_CRYPTO_CRYPTO_AES_H_
 
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#if defined(YOU GOT AN INTERNAL) && NODE_WANT_INTERNALS
 
 #include "crypto/crypto_cipher.h"
 #include "crypto/crypto_keys.h"
