@@ -2,7 +2,6 @@ import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import fs from 'fs';
 import assert from 'assert';
-import util from 'util';
 
 // This test ensures that "position" argument is correctly validated
 
@@ -14,52 +13,47 @@ const length = buffer.byteLength;
 
 // allowedErrors is an array of acceptable internal errors
 // For example, on some platforms read syscall might return -EFBIG
-function testValidCb([position, allowedErrors], callback) {
-  fs.open(filepath, 'r', common.mustSucceed((fd) => {
-    let callCount = 3;
-    function handler(err) {
-      callCount--;
-      if (err && !allowedErrors?.includes(err.code)) {
-        fs.close(fd, common.mustSucceed());
-        assert.fail(err);
-      } else if (callCount === 0) {
-        fs.close(fd, common.mustSucceed(callback));
+function testValid(position, allowedErrors = []) {
+  return new Promise((resolve, reject) => {
+    fs.open(filepath, 'r', common.mustSucceed((fd) => {
+      let callCount = 3;
+      const handler = common.mustCall((err) => {
+        callCount--;
+        if (err && !allowedErrors.includes(err.code)) {
+          fs.close(fd, common.mustSucceed());
+          assert.fail(err);
+        } else if (callCount === 0) {
+          fs.close(fd, common.mustSucceed(resolve));
+        }
+      }, callCount);
+      fs.read(fd, buffer, offset, length, position, handler);
+      fs.read(fd, { buffer, offset, length, position }, handler);
+      fs.read(fd, buffer, { offset, length, position }, handler);
+    }));
+  });
+}
+
+function testInvalid(code, position) {
+  return new Promise((resolve, reject) => {
+    fs.open(filepath, 'r', common.mustSucceed((fd) => {
+      try {
+        assert.throws(
+          () => fs.read(fd, buffer, offset, length, position, common.mustNotCall()),
+          { code }
+        );
+        assert.throws(
+          () => fs.read(fd, { buffer, offset, length, position }, common.mustNotCall()),
+          { code }
+        );
+        assert.throws(
+          () => fs.read(fd, buffer, { offset, length, position }, common.mustNotCall()),
+          { code }
+        );
+      } finally {
+        fs.close(fd, common.mustSucceed(resolve));
       }
-    }
-    fs.read(fd, buffer, offset, length, position, common.mustCall(handler));
-    fs.read(fd, { buffer, offset, length, position }, common.mustCall(handler));
-    fs.read(fd, buffer, { offset, length, position }, common.mustCall(handler));
-  }));
-}
-
-function testInvalidCb(code, position, callback) {
-  fs.open(filepath, 'r', common.mustSucceed((fd) => {
-    try {
-      assert.throws(
-        () => fs.read(fd, buffer, offset, length, position, common.mustNotCall()),
-        { code }
-      );
-      assert.throws(
-        () => fs.read(fd, { buffer, offset, length, position }, common.mustNotCall()),
-        { code }
-      );
-      assert.throws(
-        () => fs.read(fd, buffer, { offset, length, position }, common.mustNotCall()),
-        { code }
-      );
-    } finally {
-      fs.close(fd, common.mustSucceed(callback));
-    }
-  }));
-}
-
-// Promisify to reduce flakiness
-const testValidArr = util.promisify(testValidCb);
-const testInvalid = util.promisify(testInvalidCb);
-
-// Wrapper to make allowedErrors optional
-async function testValid(position, allowedErrors) {
-  await testValidArr([position, allowedErrors]);
+    }));
+  });
 }
 
 {
