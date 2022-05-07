@@ -59,7 +59,7 @@ function testInvalidCb(code, position, callback) {
 const testValidArr = util.promisify(testValidCb);
 const testInvalid = util.promisify(testInvalidCb);
 
-// Wrapper to make allowerErrors optional
+// Wrapper to make allowedErrors optional
 async function testValid(position, allowedErrors) {
   return testValidArr([position, allowedErrors]);
 }
