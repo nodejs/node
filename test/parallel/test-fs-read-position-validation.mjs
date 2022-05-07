@@ -14,27 +14,25 @@ const length = buffer.byteLength;
 
 // allowedErrors is an array of acceptable internal errors
 // For example, on some platforms read syscall might return -EFBIG
-function testValidCb([position, allowedErrors], callback) {
+function testValidCbPositional([position, allowedErrors], callback) {
   fs.open(filepath, 'r', common.mustSucceed((fd) => {
-    try {
-      if (allowedErrors?.length) {
-        fs.read(fd, buffer, offset, length, position, common.mustCall((err, ...results) => {
-          if (err && !allowedErrors.includes(err.code)) {
-            assert.fail(err);
-          }
-        }));
-        fs.read(fd, { buffer, offset, length, position }, common.mustCall((err, ...results) => {
-          if (err && !allowedErrors.includes(err.code)) {
-            assert.fail(err);
-          }
-        }));
-      } else {
-        fs.read(fd, buffer, offset, length, position, common.mustSucceed());
-        fs.read(fd, { buffer, offset, length, position }, common.mustSucceed());
-      }
-    } finally {
+    fs.read(fd, buffer, offset, length, position, common.mustCall((err) => {
       fs.close(fd, common.mustSucceed(callback));
-    }
+      if (err && !allowedErrors?.includes(err.code)) {
+        assert.fail(err);
+      }
+    }));
+  }));
+}
+
+function testValidCbNamedParams([position, allowedErrors], callback) {
+  fs.open(filepath, 'r', common.mustSucceed((fd) => {
+    fs.read(fd, { buffer, offset, length, position }, common.mustCall((err) => {
+      fs.close(fd, common.mustSucceed(callback));
+      if (err && !allowedErrors?.includes(err.code)) {
+        assert.fail(err);
+      }
+    }));
   }));
 }
 
@@ -56,12 +54,14 @@ function testInvalidCb(code, position, callback) {
 }
 
 // Promisify to reduce flakiness
-const testValidArr = util.promisify(testValidCb);
+const testValidArrPositional = util.promisify(testValidCbPositional);
+const testValidArrNamedParams = util.promisify(testValidCbNamedParams);
 const testInvalid = util.promisify(testInvalidCb);
 
 // Wrapper to make allowedErrors optional
 async function testValid(position, allowedErrors) {
-  return testValidArr([position, allowedErrors]);
+  await testValidArrPositional([position, allowedErrors]);
+  await testValidArrNamedParams([position, allowedErrors]);
 }
 
 {
