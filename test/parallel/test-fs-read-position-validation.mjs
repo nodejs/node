@@ -13,7 +13,7 @@ const length = buffer.byteLength;
 
 // allowedErrors is an array of acceptable internal errors
 // For example, on some platforms read syscall might return -EFBIG
-function testValid(position, allowedErrors = []) {
+async function testValid(position, allowedErrors = []) {
   return new Promise((resolve, reject) => {
     fs.open(filepath, 'r', common.mustSucceed((fd) => {
       let callCount = 3;
@@ -33,7 +33,7 @@ function testValid(position, allowedErrors = []) {
   });
 }
 
-function testInvalid(code, position) {
+async function testInvalid(code, position) {
   return new Promise((resolve, reject) => {
     fs.open(filepath, 'r', common.mustSucceed((fd) => {
       try {
