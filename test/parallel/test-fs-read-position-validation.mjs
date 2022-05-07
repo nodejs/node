@@ -20,8 +20,7 @@ async function testValid(position, allowedErrors = []) {
       const handler = common.mustCall((err) => {
         callCount--;
         if (err && !allowedErrors.includes(err.code)) {
-          fs.close(fd, common.mustSucceed());
-          assert.fail(err);
+          fs.close(fd, common.mustSucceed(() => reject(err)));
         } else if (callCount === 0) {
           fs.close(fd, common.mustSucceed(resolve));
         }
@@ -49,8 +48,11 @@ async function testInvalid(code, position) {
           () => fs.read(fd, buffer, { offset, length, position }, common.mustNotCall()),
           { code }
         );
+        resolve();
+      } catch (err) {
+        reject(err);
       } finally {
-        fs.close(fd, common.mustSucceed(resolve));
+        fs.close(fd, common.mustSucceed());
       }
     }));
   });
