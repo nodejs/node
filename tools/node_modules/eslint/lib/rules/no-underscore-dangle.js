@@ -49,6 +49,10 @@ module.exports = {
                     allowFunctionParams: {
                         type: "boolean",
                         default: true
+                    },
+                    enforceInClassFields: {
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false
@@ -68,6 +72,7 @@ module.exports = {
         const allowAfterSuper = typeof options.allowAfterSuper !== "undefined" ? options.allowAfterSuper : false;
         const allowAfterThisConstructor = typeof options.allowAfterThisConstructor !== "undefined" ? options.allowAfterThisConstructor : false;
         const enforceInMethodNames = typeof options.enforceInMethodNames !== "undefined" ? options.enforceInMethodNames : false;
+        const enforceInClassFields = typeof options.enforceInClassFields !== "undefined" ? options.enforceInClassFields : false;
         const allowFunctionParams = typeof options.allowFunctionParams !== "undefined" ? options.allowFunctionParams : true;
 
         //-------------------------------------------------------------------------
@@ -261,6 +266,30 @@ module.exports = {
             }
         }
 
+        /**
+         * Check if a class field has a dangling underscore
+         * @param {ASTNode} node node to evaluate
+         * @returns {void}
+         * @private
+         */
+        function checkForDanglingUnderscoreInClassField(node) {
+            const identifier = node.key.name;
+
+            if (typeof identifier !== "undefined" && hasDanglingUnderscore(identifier) &&
+                enforceInClassFields &&
+                !isAllowed(identifier)) {
+                context.report({
+                    node,
+                    messageId: "unexpectedUnderscore",
+                    data: {
+                        identifier: node.key.type === "PrivateIdentifier"
+                            ? `#${identifier}`
+                            : identifier
+                    }
+                });
+            }
+        }
+
         //--------------------------------------------------------------------------
         // Public API
         //--------------------------------------------------------------------------
@@ -270,7 +299,7 @@ module.exports = {
             VariableDeclarator: checkForDanglingUnderscoreInVariableExpression,
             MemberExpression: checkForDanglingUnderscoreInMemberExpression,
             MethodDefinition: checkForDanglingUnderscoreInMethod,
-            PropertyDefinition: checkForDanglingUnderscoreInMethod,
+            PropertyDefinition: checkForDanglingUnderscoreInClassField,
             Property: checkForDanglingUnderscoreInMethod,
             FunctionExpression: checkForDanglingUnderscoreInFunction,
             ArrowFunctionExpression: checkForDanglingUnderscoreInFunction

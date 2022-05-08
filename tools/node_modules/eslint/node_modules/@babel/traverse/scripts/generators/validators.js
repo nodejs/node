@@ -24,6 +24,8 @@ export interface NodePathValidators {
       output += `is${type}(opts?: object): this is NodePath<t.${type}>;`;
     } else if (types /* in VirtualTypeAliases */) {
       output += `is${type}(opts?: object): this is NodePath<VirtualTypeAliases["${type}"]>;`;
+    } else if (type === "Pure") {
+      output += `isPure(constantsOnly?: boolean): boolean;`;
     } else {
       // if it don't have types, then VirtualTypeAliases[type] is t.Node
       // which TS marked as always true

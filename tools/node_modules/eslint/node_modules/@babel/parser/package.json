@@ -1,6 +1,6 @@
 {
   "name": "@babel/parser",
-  "version": "7.17.9",
+  "version": "7.17.10",
   "description": "A JavaScript parser",
   "author": "The Babel Team (https://babel.dev/team)",
   "homepage": "https://babel.dev/docs/en/next/babel-parser",
@@ -35,7 +35,7 @@
   "devDependencies": {
     "@babel/code-frame": "^7.16.7",
     "@babel/helper-check-duplicate-nodes": "^7.17.9",
-    "@babel/helper-fixtures": "^7.17.0",
+    "@babel/helper-fixtures": "^7.17.10",
     "@babel/helper-validator-identifier": "^7.16.7",
     "charcodes": "^0.2.0"
   },
