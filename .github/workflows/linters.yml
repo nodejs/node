@@ -156,7 +156,7 @@ jobs:
           persist-credentials: false
       - run: shellcheck -V
       - name: Lint Shell scripts
-        run: tools/lint-sh.js .
+        run: tools/lint-sh.mjs .
   lint-codeowners:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
