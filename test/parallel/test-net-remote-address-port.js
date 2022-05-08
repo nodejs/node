@@ -53,6 +53,14 @@ const server = net.createServer(common.mustCall(function(socket) {
 server.listen(0, function() {
   const client = net.createConnection(this.address().port, '127.0.0.1');
   const client2 = net.createConnection(this.address().port);
+
+  assert.strictEqual(client.remoteAddress, undefined);
+  assert.strictEqual(client.remoteFamily, undefined);
+  assert.strictEqual(client.remotePort, undefined);
+  assert.strictEqual(client2.remoteAddress, undefined);
+  assert.strictEqual(client2.remoteFamily, undefined);
+  assert.strictEqual(client2.remotePort, undefined);
+
   client.on('connect', function() {
     assert.ok(remoteAddrCandidates.includes(client.remoteAddress));
     assert.ok(remoteFamilyCandidates.includes(client.remoteFamily));
