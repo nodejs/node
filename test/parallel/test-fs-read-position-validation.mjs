@@ -20,7 +20,8 @@ async function testValid(position, allowedErrors = []) {
       const handler = common.mustCall((err) => {
         callCount--;
         if (err && !allowedErrors.includes(err.code)) {
-          fs.close(fd, common.mustSucceed(() => reject(err)));
+          fs.close(fd, common.mustSucceed());
+          reject(err);
         } else if (callCount === 0) {
           fs.close(fd, common.mustSucceed(resolve));
         }
