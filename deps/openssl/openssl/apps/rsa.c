@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -257,7 +257,7 @@ int rsa_main(int argc, char **argv)
         ERR_print_errors(bio_err);
         goto end;
     }
-    if (!EVP_PKEY_is_a(pkey, "RSA")) {
+    if (!EVP_PKEY_is_a(pkey, "RSA") && !EVP_PKEY_is_a(pkey, "RSA-PSS")) {
         BIO_printf(bio_err, "Not an RSA key\n");
         goto end;
     }

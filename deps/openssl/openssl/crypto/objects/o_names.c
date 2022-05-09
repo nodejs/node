@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -20,23 +20,6 @@
 #include "crypto/lhash.h"
 #include "obj_local.h"
 #include "e_os.h"
-
-/*
- * We define this wrapper for two reasons. Firstly, later versions of
- * DEC C add linkage information to certain functions, which makes it
- * tricky to use them as values to regular function pointers.
- * Secondly, in the EDK2 build environment, the strcasecmp function is
- * actually an external function with the Microsoft ABI, so we can't
- * transparently assign function pointers to it.
- */
-#if defined(OPENSSL_SYS_VMS_DECC) || defined(OPENSSL_SYS_UEFI)
-static int obj_strcasecmp(const char *a, const char *b)
-{
-    return strcasecmp(a, b);
-}
-#else
-#define obj_strcasecmp strcasecmp
-#endif
 
 /*
  * I use the ex_data stuff to manage the identifiers for the obj_name_types
@@ -111,7 +94,7 @@ int OBJ_NAME_new_index(unsigned long (*hash_func) (const char *),
             goto out;
         }
         name_funcs->hash_func = ossl_lh_strcasehash;
-        name_funcs->cmp_func = obj_strcasecmp;
+        name_funcs->cmp_func = OPENSSL_strcasecmp;
         push = sk_NAME_FUNCS_push(name_funcs_stack, name_funcs);
 
         if (!push) {
@@ -145,7 +128,7 @@ static int obj_name_cmp(const OBJ_NAME *a, const OBJ_NAME *b)
             ret = sk_NAME_FUNCS_value(name_funcs_stack,
                                       a->type)->cmp_func(a->name, b->name);
         } else
-            ret = strcasecmp(a->name, b->name);
+            ret = OPENSSL_strcasecmp(a->name, b->name);
     }
     return ret;
 }

@@ -457,7 +457,7 @@ static int try_cert(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
 
         /* If we have a data type, it should be a PEM name */
         if (data->data_type != NULL
-            && (strcasecmp(data->data_type, PEM_STRING_X509_TRUSTED) == 0))
+            && (OPENSSL_strcasecmp(data->data_type, PEM_STRING_X509_TRUSTED) == 0))
             ignore_trusted = 0;
 
         if (d2i_X509_AUX(&cert, (const unsigned char **)&data->octet_data,

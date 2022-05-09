@@ -18,6 +18,17 @@ OpenSSL Releases
 OpenSSL 3.0
 -----------
 
+### Major changes between OpenSSL 3.0.2 and OpenSSL 3.0.3 [3 May 2022]
+
+  * Fixed a bug in the c_rehash script which was not properly sanitising shell
+    metacharacters to prevent command injection ([CVE-2022-1292])
+  * Fixed a bug in the function `OCSP_basic_verify` that verifies the signer
+    certificate on an OCSP response ([CVE-2022-1343])
+  * Fixed a bug where the RC4-MD5 ciphersuite incorrectly used the
+    AAD data as the MAC key ([CVE-2022-1434])
+  * Fix a bug in the OPENSSL_LH_flush() function that breaks reuse of the memory
+    occuppied by the removed hash table entries ([CVE-2022-1473])
+
 ### Major changes between OpenSSL 3.0.1 and OpenSSL 3.0.2 [15 Mar 2022]
 
   * Fixed a bug in the BN_mod_sqrt() function that can cause it to loop forever

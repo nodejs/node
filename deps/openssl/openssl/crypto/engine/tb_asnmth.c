@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -152,7 +152,7 @@ const EVP_PKEY_ASN1_METHOD *ENGINE_get_pkey_asn1_meth_str(ENGINE *e,
         e->pkey_asn1_meths(e, &ameth, NULL, nids[i]);
         if (ameth != NULL
             && ((int)strlen(ameth->pem_str) == len)
-            && strncasecmp(ameth->pem_str, str, len) == 0)
+            && OPENSSL_strncasecmp(ameth->pem_str, str, len) == 0)
             return ameth;
     }
     return NULL;
@@ -177,7 +177,7 @@ static void look_str_cb(int nid, STACK_OF(ENGINE) *sk, ENGINE *def, void *arg)
         e->pkey_asn1_meths(e, &ameth, NULL, nid);
         if (ameth != NULL
                 && ((int)strlen(ameth->pem_str) == lk->len)
-                && strncasecmp(ameth->pem_str, lk->str, lk->len) == 0) {
+                && OPENSSL_strncasecmp(ameth->pem_str, lk->str, lk->len) == 0) {
             lk->e = e;
             lk->ameth = ameth;
             return;

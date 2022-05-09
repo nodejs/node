@@ -244,7 +244,7 @@ The following options can be set:
                                         ("indirect method")
 
         Note that a signature-based POPO can only be produced if a private key
-        is provided as the newPkey or client pkey component of the CMP context.
+        is provided as the newPkey or client's pkey component of the CMP context.
 
 =item B<OSSL_CMP_OPT_DIGEST_ALGNID>
 
@@ -441,7 +441,7 @@ The reference counts of those certificates handled successfully are increased.
 OSSL_CMP_CTX_get0_untrusted(OSSL_CMP_CTX *ctx) returns a pointer to the
 list of untrusted certs, which may be empty if unset.
 
-OSSL_CMP_CTX_set1_cert() sets the certificate related to the private key
+OSSL_CMP_CTX_set1_cert() sets the certificate related to the client's private key
 used for CMP message protection.
 Therefore the public key of this I<cert> must correspond to
 the private key set before or thereafter via OSSL_CMP_CTX_set1_pkey().
@@ -468,7 +468,7 @@ Calling this function is optional; by default a chain construction
 is performed on demand that is equivalent to calling this function
 with the I<candidates> and I<own_trusted> arguments being NULL.
 
-OSSL_CMP_CTX_set1_pkey() sets the private key corresponding to the
+OSSL_CMP_CTX_set1_pkey() sets the client's private key corresponding to the
 CMP signer certificate set via OSSL_CMP_CTX_set1_cert().
 This key is used create signature-based protection (protectionAlg = MSG_SIG_ALG)
 of outgoing messages
@@ -519,7 +519,7 @@ The I<priv> parameter must be 0 if and only if the given key is a public key.
 OSSL_CMP_CTX_get0_newPkey() gives the key to use for certificate enrollment
 dependent on fields of the CMP context structure:
 the newPkey (which may be a private or public key) if present,
-else the public key in the p10CSR if present, else the client private key.
+else the public key in the p10CSR if present, else the client's private key.
 If the I<priv> parameter is not 0 and the selected key does not have a
 private component then NULL is returned.
 
