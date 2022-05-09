@@ -985,8 +985,16 @@ struct EnvSerializeInfo {
 };
 
 struct SnapshotData {
-  v8::StartupData blob;
+  // The result of v8::SnapshotCreator::CreateBlob() during the snapshot
+  // building process.
+  v8::StartupData v8_snapshot_blob_data;
+
+  static const size_t kNodeBaseContextIndex = 0;
+  static const size_t kNodeMainContextIndex = kNodeBaseContextIndex + 1;
+
   std::vector<size_t> isolate_data_indices;
+  // TODO(joyeecheung): there should be a vector of env_info once we snapshot
+  // the worker environments.
   EnvSerializeInfo env_info;
 };
 
