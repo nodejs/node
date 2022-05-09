@@ -90,6 +90,7 @@ In order to update Node.js with a new version of llhttp:
 
 It should look like the following:
 
+```shell
 ├── CMakeLists.txt
 ├── common.gypi
 ├── include
@@ -101,6 +102,7 @@ It should look like the following:
 ├── api.c
 ├── http.c
 └── llhttp.c
+```
 
 The low-level implementation is made available in the Node.js API through
 JavaScript code in the [lib](https://github.com/nodejs/node/tree/HEAD/lib)
