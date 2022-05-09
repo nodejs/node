@@ -183,7 +183,7 @@ NodeMainInstance::CreateMainEnvironment(int* exit_code) {
                               EnvironmentFlags::kDefaultFlags,
                               {}));
     context = Context::FromSnapshot(isolate_,
-                                    SnapshotBuilder::kNodeMainContextIndex,
+                                    SnapshotData::kNodeMainContextIndex,
                                     {DeserializeNodeInternalFields, env.get()})
                   .ToLocalChecked();
 

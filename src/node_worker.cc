@@ -301,8 +301,8 @@ void Worker::Run() {
         // though.
         TryCatch try_catch(isolate_);
         if (snapshot_data_ != nullptr) {
-          context = Context::FromSnapshot(
-                        isolate_, SnapshotBuilder::kNodeBaseContextIndex)
+          context = Context::FromSnapshot(isolate_,
+                                          SnapshotData::kNodeBaseContextIndex)
                         .ToLocalChecked();
           if (!context.IsEmpty() &&
               !InitializeContextRuntime(context).IsJust()) {
