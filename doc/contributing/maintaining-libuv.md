@@ -38,8 +38,11 @@ Primary key fingerprint: CFBB 9CA9 A5BE AFD7 0E2B  3C5A 79A6 7C55 A367 9C8B
 
 ```bash
 cd /path/to/nodejs/node
+find deps/uv -maxdepth 1 ! -name . ! -name .. ! -name common.gypi ! -name uv.gyp | xargs rm -rf {}
 tar xvzf /path/to/download/libuv-v1.44.1-dist.tar.gz -C deps/uv --strip 1
 ```
+`common.gypi` and `uv.gyp` may require changes and it is recommended inspect to
+these files even if the build and tests pass in the next stage.
 
 ### Check that Node.js still builds and tests
 
