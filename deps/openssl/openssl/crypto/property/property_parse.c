@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -45,7 +45,7 @@ static int match(const char *t[], const char m[], size_t m_len)
 {
     const char *s = *t;
 
-    if (strncasecmp(s, m, m_len) == 0) {
+    if (OPENSSL_strncasecmp(s, m, m_len) == 0) {
         *t = skip_space(s + m_len);
         return 1;
     }

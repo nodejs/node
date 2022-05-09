@@ -2317,6 +2317,7 @@ int SSL_shutdown(SSL *s)
         if ((s->mode & SSL_MODE_ASYNC) && ASYNC_get_current_job() == NULL) {
             struct ssl_async_args args;
 
+            memset(&args, 0, sizeof(args));
             args.s = s;
             args.type = OTHERFUNC;
             args.f.func_other = s->method->ssl_shutdown;
@@ -4004,6 +4005,7 @@ int SSL_do_handshake(SSL *s)
         if ((s->mode & SSL_MODE_ASYNC) && ASYNC_get_current_job() == NULL) {
             struct ssl_async_args args;
 
+            memset(&args, 0, sizeof(args));
             args.s = s;
 
             ret = ssl_start_async_job(s, &args, ssl_do_handshake_intern);

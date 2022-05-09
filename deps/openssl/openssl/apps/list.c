@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -71,7 +71,7 @@ static void legacy_cipher_fn(const EVP_CIPHER *c,
 {
     if (select_name != NULL
         && (c == NULL
-            || strcasecmp(select_name,  EVP_CIPHER_get0_name(c)) != 0))
+            || OPENSSL_strcasecmp(select_name,  EVP_CIPHER_get0_name(c)) != 0))
         return;
     if (c != NULL) {
         BIO_printf(arg, "  %s\n", EVP_CIPHER_get0_name(c));
@@ -370,7 +370,7 @@ DEFINE_STACK_OF(EVP_RAND)
 
 static int rand_cmp(const EVP_RAND * const *a, const EVP_RAND * const *b)
 {
-    int ret = strcasecmp(EVP_RAND_get0_name(*a), EVP_RAND_get0_name(*b));
+    int ret = OPENSSL_strcasecmp(EVP_RAND_get0_name(*a), EVP_RAND_get0_name(*b));
 
     if (ret == 0)
         ret = strcmp(OSSL_PROVIDER_get0_name(EVP_RAND_get0_provider(*a)),
@@ -404,7 +404,7 @@ static void list_random_generators(void)
         const EVP_RAND *m = sk_EVP_RAND_value(rands, i);
 
         if (select_name != NULL
-            && strcasecmp(EVP_RAND_get0_name(m), select_name) != 0)
+            && OPENSSL_strcasecmp(EVP_RAND_get0_name(m), select_name) != 0)
             continue;
         BIO_printf(bio_out, "  %s", EVP_RAND_get0_name(m));
         BIO_printf(bio_out, " @ %s\n",
@@ -463,7 +463,7 @@ static void display_random(const char *name, EVP_RAND_CTX *drbg)
         if (gettables != NULL)
             for (; gettables->key != NULL; gettables++) {
                 /* State has been dealt with already, so ignore */
-                if (strcasecmp(gettables->key, OSSL_RAND_PARAM_STATE) == 0)
+                if (OPENSSL_strcasecmp(gettables->key, OSSL_RAND_PARAM_STATE) == 0)
                     continue;
                 /* Outside of verbose mode, we skip non-string values */
                 if (gettables->data_type != OSSL_PARAM_UTF8_STRING

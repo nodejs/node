@@ -27,21 +27,5 @@ struct lhash_st {
     unsigned long up_load;      /* load times 256 */
     unsigned long down_load;    /* load times 256 */
     unsigned long num_items;
-    unsigned long num_expands;
-    unsigned long num_expand_reallocs;
-    unsigned long num_contracts;
-    unsigned long num_contract_reallocs;
-    TSAN_QUALIFIER unsigned long num_hash_calls;
-    TSAN_QUALIFIER unsigned long num_comp_calls;
-    unsigned long num_insert;
-    unsigned long num_replace;
-    unsigned long num_delete;
-    unsigned long num_no_delete;
-    TSAN_QUALIFIER unsigned long num_retrieve;
-    TSAN_QUALIFIER unsigned long num_retrieve_miss;
-    TSAN_QUALIFIER unsigned long num_hash_comps;
     int error;
-#ifdef TSAN_REQUIRES_LOCKING
-    CRYPTO_RWLOCK *tsan_lock;
-#endif
 };
