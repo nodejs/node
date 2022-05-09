@@ -329,7 +329,7 @@ For information about the governance of the Node.js project, see
 * [HarshithaKP](https://github.com/HarshithaKP) -
   **Harshitha K P** <<harshitha014@gmail.com>> (she/her)
 * [himself65](https://github.com/himself65) -
-  **Zeyu Yang** <<himself65@outlook.com>> (he/him)
+  **Zeyu "Alex" Yang** <<himself65@outlook.com>> (he/him)
 * [hiroppy](https://github.com/hiroppy) -
   **Yuta Hiroto** <<hello@hiroppy.me>> (he/him)
 * [iansu](https://github.com/iansu) -
