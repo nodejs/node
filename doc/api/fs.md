@@ -2988,6 +2988,7 @@ changes:
   * `mode` {string|integer} Not supported on Windows. **Default:** `0o777`.
 * `callback` {Function}
   * `err` {Error}
+  * `path` {string|undefined}
 
 Asynchronously creates a directory.
 
