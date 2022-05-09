@@ -81,7 +81,7 @@ repository. Updates are pulled into Node.js under
 In order to update Node.js with a new version of llhttp:
 
 * check out the tagged release that you want to update to (a release
-  should be created in the llhttp repo before updating Node.js)
+  should be created in the llhttp repo before updating Node.js).
 * run `npm install` in the directory that you checked out llhttp.
 * run `make release` in the directory that you checked out llhttp.
 * copy the contents of the `release` directory from the directory you
