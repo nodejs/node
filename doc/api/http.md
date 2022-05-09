@@ -2193,7 +2193,7 @@ changes:
 An `IncomingMessage` object is created by [`http.Server`][] or
 [`http.ClientRequest`][] and passed as the first argument to the [`'request'`][]
 and [`'response'`][] event respectively. It may be used to access response
-status, headers and data.
+status, headers, and data.
 
 Different from its `socket` value which is a subclass of {stream.Duplex}, the
 `IncomingMessage` itself extends {stream.Readable} and is created separately to
