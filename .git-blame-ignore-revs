@@ -1,0 +1,10 @@
+# tools: make trailing commas consistent in .eslintrc - https://github.com/nodejs/node/pull/25739
+1a37fd63c6b098524bb577e1db69bcb073fc5171
+# http: remove trailing space
+f20a88fb866917d7dd489b88c233a5e123ff3271
+# fs: add trailing commas
+fe027da1f0aa8d63ed9a2c8298a45946bc674fff
+# doc: remove trailing whitespace
+d0bf5ca90b2e816c37511e30225a373b8810ed0d
+# benchmark: add trailing newline for consistency
+dc88d19380b9b05f6bee7d61d87398f08124c861

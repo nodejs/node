@@ -15,6 +15,7 @@
 !.eslintrc.js
 !.eslintrc.yaml
 !.flake8
+!.git-blame-ignore-revs
 !.gitattributes
 !.github
 !.gitignore
