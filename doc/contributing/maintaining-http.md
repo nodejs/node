@@ -90,7 +90,7 @@ In order to update Node.js with a new version of llhttp:
 
 It should look like the following:
 
-```shell
+```console
 ├── CMakeLists.txt
 ├── common.gypi
 ├── include
