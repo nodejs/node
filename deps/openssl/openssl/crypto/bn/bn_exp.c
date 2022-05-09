@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -187,13 +187,14 @@ int BN_mod_exp_recp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
         return ret;
     }
 
+    BN_RECP_CTX_init(&recp);
+
     BN_CTX_start(ctx);
     aa = BN_CTX_get(ctx);
     val[0] = BN_CTX_get(ctx);
     if (val[0] == NULL)
         goto err;
 
-    BN_RECP_CTX_init(&recp);
     if (m->neg) {
         /* ignore sign of 'm' */
         if (!BN_copy(aa, m))
