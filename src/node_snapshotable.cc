@@ -59,11 +59,13 @@ namespace node {
 
 static const char blob_data[] = {
 )";
-  WriteVector(&ss, data->blob.data, data->blob.raw_size);
+  WriteVector(&ss,
+              data->v8_snapshot_blob_data.data,
+              data->v8_snapshot_blob_data.raw_size);
   ss << R"(};
 
 static const int blob_size = )"
-     << data->blob.raw_size << R"(;
+     << data->v8_snapshot_blob_data.raw_size << R"(;
 
 SnapshotData snapshot_data {
   // -- blob begins --
@@ -103,7 +105,8 @@ const std::vector<intptr_t>& SnapshotBuilder::CollectExternalReferences() {
 void SnapshotBuilder::InitializeIsolateParams(const SnapshotData* data,
                                               Isolate::CreateParams* params) {
   params->external_references = CollectExternalReferences().data();
-  params->snapshot_blob = const_cast<v8::StartupData*>(&(data->blob));
+  params->snapshot_blob =
+      const_cast<v8::StartupData*>(&(data->v8_snapshot_blob_data));
 }
 
 void SnapshotBuilder::Generate(SnapshotData* out,
@@ -153,7 +156,7 @@ void SnapshotBuilder::Generate(SnapshotData* out,
       // without breaking compatibility.
       {
         size_t index = creator.AddContext(CreateBaseContext());
-        CHECK_EQ(index, SnapshotBuilder::kNodeBaseContextIndex);
+        CHECK_EQ(index, SnapshotData::kNodeBaseContextIndex);
       }
 
       // The main instance context.
@@ -222,17 +225,17 @@ void SnapshotBuilder::Generate(SnapshotData* out,
         // Serialize the context
         size_t index = creator.AddContext(
             main_context, {SerializeNodeContextInternalFields, env});
-        CHECK_EQ(index, SnapshotBuilder::kNodeMainContextIndex);
+        CHECK_EQ(index, SnapshotData::kNodeMainContextIndex);
       }
     }
 
     // Must be out of HandleScope
-    out->blob =
+    out->v8_snapshot_blob_data =
         creator.CreateBlob(SnapshotCreator::FunctionCodeHandling::kClear);
 
     // We must be able to rehash the blob when we restore it or otherwise
     // the hash seed would be fixed by V8, introducing a vulnerability.
-    CHECK(out->blob.CanBeRehashed());
+    CHECK(out->v8_snapshot_blob_data.CanBeRehashed());
 
     // We cannot resurrect the handles from the snapshot, so make sure that
     // no handles are left open in the environment after the blob is created
@@ -260,7 +263,7 @@ std::string SnapshotBuilder::Generate(
   SnapshotData data;
   Generate(&data, args, exec_args);
   std::string result = FormatBlob(&data);
-  delete[] data.blob.data;
+  delete[] data.v8_snapshot_blob_data.data;
   return result;
 }
 
