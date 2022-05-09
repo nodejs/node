@@ -74,9 +74,35 @@ to align them with the APIs built for the client.
 The low-level implementation of the
 [HTTP](https://nodejs.org/docs/latest/api/http.html)
 and [HTTPS](https://nodejs.org/docs/latest/api/https.html) APIs
-are maintained in the [llttp](https://github.com/nodejs/llhttp)
+are maintained in the [llhttp](https://github.com/nodejs/llhttp)
 repository. Updates are pulled into Node.js under
-[deps/llhttp](https://github.com/nodejs/node/tree/HEAD/deps/llhttp)
+[deps/llhttp](https://github.com/nodejs/node/tree/HEAD/deps/llhttp).
+
+In order to update Node.js with a new version of llhttp:
+
+* check out the tagged release that you want to update to (a release
+  should be created in the llhttp repo before updating Node.js).
+* run `npm install` in the directory that you checked out llhttp.
+* run `make release` in the directory that you checked out llhttp.
+* copy the contents of the `release` directory from the directory you
+  checked llhttp out to
+  [deps/llhttp](https://github.com/nodejs/node/tree/HEAD/deps/llhttp)
+
+It should look like the following:
+
+```console
+├── CMakeLists.txt
+├── common.gypi
+├── include
+│   └── llhttp.h
+├── LICENSE-MIT
+├── llhttp.gyp
+├── README.md
+└── src
+    ├── api.c
+    ├── http.c
+    └── llhttp.c
+```
 
 The low-level implementation is made available in the Node.js API through
 JavaScript code in the [lib](https://github.com/nodejs/node/tree/HEAD/lib)
