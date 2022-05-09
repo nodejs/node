@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -2367,7 +2367,7 @@ static char *make_revocation_str(REVINFO_TYPE rev_type, const char *rev_arg)
 
     case REV_CRL_REASON:
         for (i = 0; i < 8; i++) {
-            if (strcasecmp(rev_arg, crl_reasons[i]) == 0) {
+            if (OPENSSL_strcasecmp(rev_arg, crl_reasons[i]) == 0) {
                 reason = crl_reasons[i];
                 break;
             }
@@ -2584,7 +2584,7 @@ int unpack_revinfo(ASN1_TIME **prevtm, int *preason, ASN1_OBJECT **phold,
     }
     if (reason_str) {
         for (i = 0; i < NUM_REASONS; i++) {
-            if (strcasecmp(reason_str, crl_reasons[i]) == 0) {
+            if (OPENSSL_strcasecmp(reason_str, crl_reasons[i]) == 0) {
                 reason_code = i;
                 break;
             }

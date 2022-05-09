@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -54,7 +54,7 @@ int ossl_ec_encoding_name2id(const char *name)
         return OPENSSL_EC_NAMED_CURVE;
 
     for (i = 0, sz = OSSL_NELEM(encoding_nameid_map); i < sz; i++) {
-        if (strcasecmp(name, encoding_nameid_map[i].ptr) == 0)
+        if (OPENSSL_strcasecmp(name, encoding_nameid_map[i].ptr) == 0)
             return encoding_nameid_map[i].id;
     }
     return -1;
@@ -91,7 +91,7 @@ static int ec_check_group_type_name2id(const char *name)
         return 0;
 
     for (i = 0, sz = OSSL_NELEM(check_group_type_nameid_map); i < sz; i++) {
-        if (strcasecmp(name, check_group_type_nameid_map[i].ptr) == 0)
+        if (OPENSSL_strcasecmp(name, check_group_type_nameid_map[i].ptr) == 0)
             return check_group_type_nameid_map[i].id;
     }
     return -1;
@@ -136,7 +136,7 @@ int ossl_ec_pt_format_name2id(const char *name)
         return (int)POINT_CONVERSION_UNCOMPRESSED;
 
     for (i = 0, sz = OSSL_NELEM(format_nameid_map); i < sz; i++) {
-        if (strcasecmp(name, format_nameid_map[i].ptr) == 0)
+        if (OPENSSL_strcasecmp(name, format_nameid_map[i].ptr) == 0)
             return format_nameid_map[i].id;
     }
     return -1;

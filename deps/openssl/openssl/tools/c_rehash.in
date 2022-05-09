@@ -1,7 +1,7 @@
 #!{- $config{HASHBANGPERL} -}
 {- use OpenSSL::Util; -}
 # {- join("\n# ", @autowarntext) -}
-# Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1999-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -152,6 +152,23 @@ sub check_file {
     return ($is_cert, $is_crl);
 }
 
+sub compute_hash {
+    my $fh;
+    if ( $^O eq "VMS" ) {
+        # VMS uses the open through shell
+        # The file names are safe there and list form is unsupported
+        if (!open($fh, "-|", join(' ', @_))) {
+            print STDERR "Cannot compute hash on '$fname'\n";
+            return;
+        }
+    } else {
+        if (!open($fh, "-|", @_)) {
+            print STDERR "Cannot compute hash on '$fname'\n";
+            return;
+        }
+    }
+    return (<$fh>, <$fh>);
+}
 
 # Link a certificate to its subject name hash value, each hash is of
 # the form <hash>.<n> where n is an integer. If the hash value already exists
@@ -161,10 +178,12 @@ sub check_file {
 
 sub link_hash_cert {
     my $fname = $_[0];
-    $fname =~ s/\"/\\\"/g;
-    my ($hash, $fprint) = `"$openssl" x509 $x509hash -fingerprint -noout -in "$fname"`;
+    my ($hash, $fprint) = compute_hash($openssl, "x509", $x509hash,
+                                       "-fingerprint", "-noout",
+                                       "-in", $fname);
     chomp $hash;
     chomp $fprint;
+    return if !$hash;
     $fprint =~ s/^.*=//;
     $fprint =~ tr/://d;
     my $suffix = 0;
@@ -202,10 +221,12 @@ sub link_hash_cert {
 
 sub link_hash_crl {
     my $fname = $_[0];
-    $fname =~ s/'/'\\''/g;
-    my ($hash, $fprint) = `"$openssl" crl $crlhash -fingerprint -noout -in '$fname'`;
+    my ($hash, $fprint) = compute_hash($openssl, "crl", $crlhash,
+                                       "-fingerprint", "-noout",
+                                       "-in", $fname);
     chomp $hash;
     chomp $fprint;
+    return if !$hash;
     $fprint =~ s/^.*=//;
     $fprint =~ tr/://d;
     my $suffix = 0;

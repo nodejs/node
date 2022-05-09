@@ -64,7 +64,7 @@ Allows servers to accept client-initiated renegotiation. Equivalent to
 setting B<SSL_OP_ALLOW_CLIENT_RENEGOTIATION>.
 Only used by servers.
 
-=item B<-legacyrenegotiation>
+=item B<-legacy_renegotiation>
 
 Permits the use of unsafe legacy renegotiation. Equivalent to setting
 B<SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION>.

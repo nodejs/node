@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,7 +10,6 @@
 #include "internal/ffc.h"
 #include "internal/nelem.h"
 #include "crypto/bn_dh.h"
-#include "e_os.h" /* strcasecmp */
 
 #ifndef OPENSSL_NO_DH
 
@@ -84,7 +83,7 @@ const DH_NAMED_GROUP *ossl_ffc_name_to_dh_named_group(const char *name)
     size_t i;
 
     for (i = 0; i < OSSL_NELEM(dh_named_groups); ++i) {
-        if (strcasecmp(dh_named_groups[i].name, name) == 0)
+        if (OPENSSL_strcasecmp(dh_named_groups[i].name, name) == 0)
             return &dh_named_groups[i];
     }
     return NULL;

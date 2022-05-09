@@ -2,7 +2,8 @@
 
 =head1 NAME
 
-SSL_CTX_get0_param, SSL_get0_param, SSL_CTX_set1_param, SSL_set1_param -
+SSL_CTX_get0_param, SSL_get0_param, SSL_CTX_set1_param, SSL_set1_param,
+SSL_CTX_set_purpose, SSL_CTX_set_trust, SSL_set_purpose, SSL_set_trust -
 get and set verification parameters
 
 =head1 SYNOPSIS
@@ -14,6 +15,12 @@ get and set verification parameters
  int SSL_CTX_set1_param(SSL_CTX *ctx, X509_VERIFY_PARAM *vpm);
  int SSL_set1_param(SSL *ssl, X509_VERIFY_PARAM *vpm);
 
+ int SSL_CTX_set_purpose(SSL_CTX *ctx, int purpose);
+ int SSL_set_purpose(SSL *ssl, int purpose);
+
+ int SSL_CTX_set_trust(SSL_CTX *ctx, int trust);
+ int SSL_set_trust(SSL *ssl, int trust);
+
 =head1 DESCRIPTION
 
 SSL_CTX_get0_param() and SSL_get0_param() retrieve an internal pointer to
@@ -22,6 +29,14 @@ pointer must not be freed by the calling application.
 
 SSL_CTX_set1_param() and SSL_set1_param() set the verification parameters
 to B<vpm> for B<ctx> or B<ssl>.
+
+The functions SSL_CTX_set_purpose() and SSL_set_purpose() are shorthands which
+set the purpose parameter on the verification parameters object. These functions
+are equivalent to calling X509_VERIFY_PARAM_set_purpose() directly.
+
+The functions SSL_CTX_set_trust() and SSL_set_trust() are similarly shorthands
+which set the trust parameter on the verification parameters object. These
+functions are equivalent to calling X509_VERIFY_PARAM_set_trust() directly.
 
 =head1 NOTES
 
@@ -34,8 +49,9 @@ them to suit its needs: for example to add a hostname check.
 SSL_CTX_get0_param() and SSL_get0_param() return a pointer to an
 B<X509_VERIFY_PARAM> structure.
 
-SSL_CTX_set1_param() and SSL_set1_param() return 1 for success and 0
-for failure.
+SSL_CTX_set1_param(), SSL_set1_param(), SSL_CTX_set_purpose(),
+SSL_set_purpose(), SSL_CTX_set_trust() and SSL_set_trust() return 1 for success
+and 0 for failure.
 
 =head1 EXAMPLES
 
@@ -55,7 +71,7 @@ These functions were added in OpenSSL 1.0.2.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -262,8 +262,10 @@ static int test_siphash_basic(void)
 
     /* Use invalid hash size */
     return TEST_int_eq(SipHash_set_hash_size(&siphash, 4), 0)
+           && TEST_false(SipHash_Final(&siphash, output, 0))
            /* Use hash size = 8 */
            && TEST_true(SipHash_set_hash_size(&siphash, 8))
+           && TEST_false(SipHash_Final(&siphash, output, 8))
            && TEST_true(SipHash_Init(&siphash, key, 0, 0))
            && TEST_true(SipHash_Final(&siphash, output, 8))
            && TEST_int_eq(SipHash_Final(&siphash, output, 16), 0)

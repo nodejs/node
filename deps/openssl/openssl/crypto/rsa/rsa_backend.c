@@ -27,8 +27,6 @@
 #include "crypto/rsa.h"
 #include "rsa_local.h"
 
-#include "e_os.h"                /* strcasecmp for Windows() */
-
 /*
  * The intention with the "backend" source file is to offer backend support
  * for legacy backends (EVP_PKEY_ASN1_METHOD and EVP_PKEY_METHOD) and provider
@@ -275,8 +273,8 @@ int ossl_rsa_pss_params_30_fromdata(RSA_PSS_PARAMS_30 *pss_params,
         else if (!OSSL_PARAM_get_utf8_ptr(param_mgf, &mgfname))
             return 0;
 
-        if (strcasecmp(param_mgf->data,
-                       ossl_rsa_mgf_nid2name(default_maskgenalg_nid)) != 0)
+        if (OPENSSL_strcasecmp(param_mgf->data,
+                               ossl_rsa_mgf_nid2name(default_maskgenalg_nid)) != 0)
             return 0;
     }
 

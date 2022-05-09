@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -108,7 +108,7 @@ static TLS_FEATURE *v2i_TLS_FEATURE(const X509V3_EXT_METHOD *method,
             extval = val->name;
 
         for (j = 0; j < OSSL_NELEM(tls_feature_tbl); j++)
-            if (strcasecmp(extval, tls_feature_tbl[j].name) == 0)
+            if (OPENSSL_strcasecmp(extval, tls_feature_tbl[j].name) == 0)
                 break;
         if (j < OSSL_NELEM(tls_feature_tbl))
             tlsextid = tls_feature_tbl[j].num;

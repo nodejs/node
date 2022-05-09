@@ -954,7 +954,7 @@ int x509_main(int argc, char **argv)
                 purpose_print(out, x, X509_PURPOSE_get0(j));
         } else if (i == modulus) {
             BIO_printf(out, "Modulus=");
-            if (EVP_PKEY_is_a(pkey, "RSA")) {
+            if (EVP_PKEY_is_a(pkey, "RSA") || EVP_PKEY_is_a(pkey, "RSA-PSS")) {
                 BIGNUM *n = NULL;
 
                 /* Every RSA key has an 'n' */

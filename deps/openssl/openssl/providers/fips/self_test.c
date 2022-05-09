@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -103,6 +103,13 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
     }
     return TRUE;
 }
+
+#elif defined(__GNUC__)
+# undef DEP_INIT_ATTRIBUTE
+# undef DEP_FINI_ATTRIBUTE
+# define DEP_INIT_ATTRIBUTE static __attribute__((constructor))
+# define DEP_FINI_ATTRIBUTE static __attribute__((destructor))
+
 #elif defined(__sun)
 # pragma init(init)
 # pragma fini(cleanup)
@@ -124,12 +131,6 @@ void _cleanup(void)
 #elif defined(__hpux)
 # pragma init "init"
 # pragma fini "cleanup"
-
-#elif defined(__GNUC__)
-# undef DEP_INIT_ATTRIBUTE
-# undef DEP_FINI_ATTRIBUTE
-# define DEP_INIT_ATTRIBUTE static __attribute__((constructor))
-# define DEP_FINI_ATTRIBUTE static __attribute__((destructor))
 
 #elif defined(__TANDEM)
 /* Method automatically called by the NonStop OS when the DLL loads */

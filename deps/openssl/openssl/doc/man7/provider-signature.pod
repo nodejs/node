@@ -43,7 +43,7 @@ provider-signature - The signature library E<lt>-E<gt> provider functions
 
  /* Digest Sign */
  int OSSL_FUNC_signature_digest_sign_init(void *ctx, const char *mdname,
-                                          const char *props, void *provkey,
+                                          void *provkey,
                                           const OSSL_PARAM params[]);
  int OSSL_FUNC_signature_digest_sign_update(void *ctx, const unsigned char *data,
                                      size_t datalen);
@@ -56,7 +56,7 @@ provider-signature - The signature library E<lt>-E<gt> provider functions
 
  /* Digest Verify */
  int OSSL_FUNC_signature_digest_verify_init(void *ctx, const char *mdname,
-                                            const char *props, void *provkey,
+                                            void *provkey,
                                             const OSSL_PARAM params[]);
  int OSSL_FUNC_signature_digest_verify_update(void *ctx,
                                               const unsigned char *data,
@@ -266,9 +266,7 @@ OSSL_FUNC_signature_set_ctx_md_params().
 The key object should have been
 previously generated, loaded or imported into the provider using the
 key management (OSSL_OP_KEYMGMT) operation (see provider-keymgmt(7)>.
-The name of the digest to be used will be in the I<mdname> parameter. There may
-also be properties to be used in fetching the digest in the I<props> parameter,
-although this may be ignored by providers.
+The name of the digest to be used will be in the I<mdname> parameter.
 
 OSSL_FUNC_signature_digest_sign_update() provides data to be signed in the I<data>
 parameter which should be of length I<datalen>. A previously initialised
@@ -305,9 +303,7 @@ OSSL_FUNC_signature_set_ctx_md_params().
 The key object should have been
 previously generated, loaded or imported into the provider using the
 key management (OSSL_OP_KEYMGMT) operation (see provider-keymgmt(7)>.
-The name of the digest to be used will be in the I<mdname> parameter. There may
-also be properties to be used in fetching the digest in the I<props> parameter,
-although this may be ignored by providers.
+The name of the digest to be used will be in the I<mdname> parameter.
 
 OSSL_FUNC_signature_digest_verify_update() provides data to be verified in the I<data>
 parameter which should be of length I<datalen>. A previously initialised
@@ -435,7 +431,7 @@ The provider SIGNATURE interface was introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

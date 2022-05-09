@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -26,7 +26,6 @@
 #include "prov/providercommon.h"
 #include "prov/provider_ctx.h"
 #include "prov/macsignature.h"
-#include "e_os.h" /* strcasecmp */
 
 static OSSL_FUNC_keymgmt_new_fn mac_new;
 static OSSL_FUNC_keymgmt_free_fn mac_free;

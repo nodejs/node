@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,7 +14,6 @@
 #include <openssl/rand.h>
 #include <openssl/aes.h>
 #include <openssl/proverr.h>
-#include "e_os.h" /* strcasecmp */
 #include "crypto/modes.h"
 #include "internal/thread_once.h"
 #include "prov/implementations.h"
@@ -690,7 +689,7 @@ static int drbg_ctr_set_ctx_params(void *vctx, const OSSL_PARAM params[])
         if (p->data_type != OSSL_PARAM_UTF8_STRING
                 || p->data_size < ctr_str_len)
             return 0;
-        if (strcasecmp("CTR", base + p->data_size - ctr_str_len) != 0) {
+        if (OPENSSL_strcasecmp("CTR", base + p->data_size - ctr_str_len) != 0) {
             ERR_raise(ERR_LIB_PROV, PROV_R_REQUIRE_CTR_MODE_CIPHER);
             return 0;
         }

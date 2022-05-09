@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -42,6 +42,8 @@ int ossl_pkcs5_pbkdf2_hmac_ex(const char *pass, int passlen,
         salt = (unsigned char *)empty;
 
     kdf = EVP_KDF_fetch(libctx, OSSL_KDF_NAME_PBKDF2, propq);
+    if (kdf == NULL)
+         return 0;
     kctx = EVP_KDF_CTX_new(kdf);
     EVP_KDF_free(kdf);
     if (kctx == NULL)

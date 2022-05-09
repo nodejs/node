@@ -40,19 +40,35 @@ from various information provided in the CMP context argument I<ctx>
 for inclusion in a CMP request message based on details contained in I<ctx>.
 The I<rid> argument defines the request identifier to use, which typically is 0.
 
-The subject DN to include in the certificate template is determined as follows.
-If I<ctx> includes a subject name set via L<OSSL_CMP_CTX_set1_subjectName(3)>,
-this name is used.
-Otherwise, if a PKCS#10 CSR is given in I<ctx>, its subject is used.
-Otherwise, if a reference certificate is given in I<ctx>
-(see L<OSSL_CMP_CTX_set1_oldCert(3)>), its subject is used if I<for_KUR>
-is nonzero or the I<ctx> does not include a Subject Alternative Name.
+The subject DN included in the certificate template is
+the first available value of these:
 
-The public key to include is taken from any value set via
-L<OSSL_CMP_CTX_set0_newPkey(3)>,
-otherwise the public key of any PKCS#10 CSR is given in I<ctx>,
-otherwise the public key of any reference certificate given in I<ctx>,
-otherwise it is derived from the client private key if given in I<ctx>.
+=over 4
+
+=item any subject name in I<ctx> set via L<OSSL_CMP_CTX_set1_subjectName(3)>,
+
+=item the subject field of any PKCS#10 CSR is given in I<ctx>, or
+
+=item the subject field of any reference certificate given in I<ctx>
+(see L<OSSL_CMP_CTX_set1_oldCert(3)>), if I<for_KUR> is nonzero
+or the I<ctx> does not include a Subject Alternative Name.
+
+=back
+
+The public key included is the first available value of these:
+
+=over 4
+
+=item the public key derived from any key set via L<OSSL_CMP_CTX_set0_newPkey(3)>,
+
+=item the public key of any PKCS#10 CSR is given in I<ctx>,
+
+=item the public key of any reference certificate given in I<ctx>, or
+
+=item the public key derived from any client's private key
+set via L<OSSL_CMP_CTX_set1_pkey(3)>.
+
+=back
 
 The set of X.509 extensions to include is computed as follows.
 If a PKCS#10 CSR is present in I<ctx>, default extensions are taken from there,

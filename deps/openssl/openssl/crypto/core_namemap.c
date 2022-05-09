@@ -7,7 +7,6 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "e_os.h"                /* strcasecmp */
 #include "internal/namemap.h"
 #include <openssl/lhash.h>
 #include "crypto/lhash.h"      /* ossl_lh_strcasehash */
@@ -49,7 +48,7 @@ static unsigned long namenum_hash(const NAMENUM_ENTRY *n)
 
 static int namenum_cmp(const NAMENUM_ENTRY *a, const NAMENUM_ENTRY *b)
 {
-    return strcasecmp(a->name, b->name);
+    return OPENSSL_strcasecmp(a->name, b->name);
 }
 
 static void namenum_free(NAMENUM_ENTRY *n)

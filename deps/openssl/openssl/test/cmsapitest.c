@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -18,6 +18,7 @@
 
 static X509 *cert = NULL;
 static EVP_PKEY *privkey = NULL;
+static char *derin = NULL;
 
 static int test_encrypt_decrypt(const EVP_CIPHER *cipher)
 {
@@ -288,7 +289,30 @@ static int test_d2i_CMS_bio_NULL(void)
     return ret;
 }
 
-OPT_TEST_DECLARE_USAGE("certfile privkeyfile\n")
+static int test_d2i_CMS_bio_file_encrypted_data(void)
+{
+    BIO *bio = NULL;
+    CMS_ContentInfo *cms = NULL;
+    int ret = 0;
+
+    ERR_clear_error();
+
+    if (!TEST_ptr(bio = BIO_new_file(derin, "r"))
+      || !TEST_ptr(cms = d2i_CMS_bio(bio, NULL)))
+      goto end;
+
+    if (!TEST_int_eq(ERR_peek_error(), 0))
+        goto end;
+
+    ret = 1;
+end:
+    CMS_ContentInfo_free(cms);
+    BIO_free(bio);
+
+    return ret;
+}
+
+OPT_TEST_DECLARE_USAGE("certfile privkeyfile derfile\n")
 
 int setup_tests(void)
 {
@@ -301,7 +325,8 @@ int setup_tests(void)
     }
 
     if (!TEST_ptr(certin = test_get_argument(0))
-            || !TEST_ptr(privkeyin = test_get_argument(1)))
+            || !TEST_ptr(privkeyin = test_get_argument(1))
+            || !TEST_ptr(derin = test_get_argument(2)))
         return 0;
 
     certbio = BIO_new_file(certin, "r");
@@ -332,6 +357,7 @@ int setup_tests(void)
     ADD_TEST(test_encrypt_decrypt_aes_192_gcm);
     ADD_TEST(test_encrypt_decrypt_aes_256_gcm);
     ADD_TEST(test_d2i_CMS_bio_NULL);
+    ADD_TEST(test_d2i_CMS_bio_file_encrypted_data);
     return 1;
 }
 

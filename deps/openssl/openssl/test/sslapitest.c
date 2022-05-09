@@ -94,6 +94,7 @@ static char *cert8192 = NULL;
 static char *privkey8192 = NULL;
 static char *srpvfile = NULL;
 static char *tmpfilename = NULL;
+static char *dhfile = NULL;
 
 static int is_fips = 0;
 
@@ -9384,6 +9385,68 @@ end:
     SSL_CTX_free(cctx);
     return testresult;
 }
+
+/*
+ * Test that the lifetime hint of a TLSv1.3 ticket is no more than 1 week
+ * 0 = TLSv1.2
+ * 1 = TLSv1.3
+ */
+static int test_ticket_lifetime(int idx)
+{
+    SSL_CTX *cctx = NULL, *sctx = NULL;
+    SSL *clientssl = NULL, *serverssl = NULL;
+    int testresult = 0;
+    int version = TLS1_3_VERSION;
+
+#define ONE_WEEK_SEC (7 * 24 * 60 * 60)
+#define TWO_WEEK_SEC (2 * ONE_WEEK_SEC)
+
+    if (idx == 0) {
+#ifdef OPENSSL_NO_TLS1_2
+        return TEST_skip("TLS 1.2 is disabled.");
+#else
+        version = TLS1_2_VERSION;
+#endif
+    }
+
+    if (!TEST_true(create_ssl_ctx_pair(libctx, TLS_server_method(),
+                                       TLS_client_method(), version, version,
+                                       &sctx, &cctx, cert, privkey)))
+        goto end;
+
+    if (!TEST_true(create_ssl_objects(sctx, cctx, &serverssl,
+                                      &clientssl, NULL, NULL)))
+        goto end;
+
+    /*
+     * Set the timeout to be more than 1 week
+     * make sure the returned value is the default
+     */
+    if (!TEST_long_eq(SSL_CTX_set_timeout(sctx, TWO_WEEK_SEC),
+                      SSL_get_default_timeout(serverssl)))
+        goto end;
+
+    if (!TEST_true(create_ssl_connection(serverssl, clientssl, SSL_ERROR_NONE)))
+        goto end;
+
+    if (idx == 0) {
+        /* TLSv1.2 uses the set value */
+        if (!TEST_ulong_eq(SSL_SESSION_get_ticket_lifetime_hint(SSL_get_session(clientssl)), TWO_WEEK_SEC))
+            goto end;
+    } else {
+        /* TLSv1.3 uses the limited value */
+        if (!TEST_ulong_le(SSL_SESSION_get_ticket_lifetime_hint(SSL_get_session(clientssl)), ONE_WEEK_SEC))
+            goto end;
+    }
+    testresult = 1;
+
+end:
+    SSL_free(serverssl);
+    SSL_free(clientssl);
+    SSL_CTX_free(sctx);
+    SSL_CTX_free(cctx);
+    return testresult;
+}
 #endif
 /*
  * Test that setting an ALPN does not violate RFC
@@ -9457,6 +9520,172 @@ end:
     return testresult;
 }
 
+/*
+ * Test SSL_CTX_set1_verify/chain_cert_store and SSL_CTX_get_verify/chain_cert_store.
+ */
+static int test_set_verify_cert_store_ssl_ctx(void)
+{
+   SSL_CTX *ctx = NULL;
+   int testresult = 0;
+   X509_STORE *store = NULL, *new_store = NULL,
+              *cstore = NULL, *new_cstore = NULL;
+
+   /* Create an initial SSL_CTX. */
+   ctx = SSL_CTX_new_ex(libctx, NULL, TLS_server_method());
+   if (!TEST_ptr(ctx))
+       goto end;
+
+   /* Retrieve verify store pointer. */
+   if (!TEST_true(SSL_CTX_get0_verify_cert_store(ctx, &store)))
+       goto end;
+
+   /* Retrieve chain store pointer. */
+   if (!TEST_true(SSL_CTX_get0_chain_cert_store(ctx, &cstore)))
+       goto end;
+
+   /* We haven't set any yet, so this should be NULL. */
+   if (!TEST_ptr_null(store) || !TEST_ptr_null(cstore))
+       goto end;
+
+   /* Create stores. We use separate stores so pointers are different. */
+   new_store = X509_STORE_new();
+   if (!TEST_ptr(new_store))
+       goto end;
+
+   new_cstore = X509_STORE_new();
+   if (!TEST_ptr(new_cstore))
+       goto end;
+
+   /* Set stores. */
+   if (!TEST_true(SSL_CTX_set1_verify_cert_store(ctx, new_store)))
+       goto end;
+
+   if (!TEST_true(SSL_CTX_set1_chain_cert_store(ctx, new_cstore)))
+       goto end;
+
+   /* Should be able to retrieve the same pointer. */
+   if (!TEST_true(SSL_CTX_get0_verify_cert_store(ctx, &store)))
+       goto end;
+
+   if (!TEST_true(SSL_CTX_get0_chain_cert_store(ctx, &cstore)))
+       goto end;
+
+   if (!TEST_ptr_eq(store, new_store) || !TEST_ptr_eq(cstore, new_cstore))
+       goto end;
+
+   /* Should be able to unset again. */
+   if (!TEST_true(SSL_CTX_set1_verify_cert_store(ctx, NULL)))
+       goto end;
+
+   if (!TEST_true(SSL_CTX_set1_chain_cert_store(ctx, NULL)))
+       goto end;
+
+   /* Should now be NULL. */
+   if (!TEST_true(SSL_CTX_get0_verify_cert_store(ctx, &store)))
+       goto end;
+
+   if (!TEST_true(SSL_CTX_get0_chain_cert_store(ctx, &cstore)))
+       goto end;
+
+   if (!TEST_ptr_null(store) || !TEST_ptr_null(cstore))
+       goto end;
+
+   testresult = 1;
+
+end:
+   X509_STORE_free(new_store);
+   X509_STORE_free(new_cstore);
+   SSL_CTX_free(ctx);
+   return testresult;
+}
+
+/*
+ * Test SSL_set1_verify/chain_cert_store and SSL_get_verify/chain_cert_store.
+ */
+static int test_set_verify_cert_store_ssl(void)
+{
+   SSL_CTX *ctx = NULL;
+   SSL *ssl = NULL;
+   int testresult = 0;
+   X509_STORE *store = NULL, *new_store = NULL,
+              *cstore = NULL, *new_cstore = NULL;
+
+   /* Create an initial SSL_CTX. */
+   ctx = SSL_CTX_new_ex(libctx, NULL, TLS_server_method());
+   if (!TEST_ptr(ctx))
+       goto end;
+
+   /* Create an SSL object. */
+   ssl = SSL_new(ctx);
+   if (!TEST_ptr(ssl))
+       goto end;
+
+   /* Retrieve verify store pointer. */
+   if (!TEST_true(SSL_get0_verify_cert_store(ssl, &store)))
+       goto end;
+
+   /* Retrieve chain store pointer. */
+   if (!TEST_true(SSL_get0_chain_cert_store(ssl, &cstore)))
+       goto end;
+
+   /* We haven't set any yet, so this should be NULL. */
+   if (!TEST_ptr_null(store) || !TEST_ptr_null(cstore))
+       goto end;
+
+   /* Create stores. We use separate stores so pointers are different. */
+   new_store = X509_STORE_new();
+   if (!TEST_ptr(new_store))
+       goto end;
+
+   new_cstore = X509_STORE_new();
+   if (!TEST_ptr(new_cstore))
+       goto end;
+
+   /* Set stores. */
+   if (!TEST_true(SSL_set1_verify_cert_store(ssl, new_store)))
+       goto end;
+
+   if (!TEST_true(SSL_set1_chain_cert_store(ssl, new_cstore)))
+       goto end;
+
+   /* Should be able to retrieve the same pointer. */
+   if (!TEST_true(SSL_get0_verify_cert_store(ssl, &store)))
+       goto end;
+
+   if (!TEST_true(SSL_get0_chain_cert_store(ssl, &cstore)))
+       goto end;
+
+   if (!TEST_ptr_eq(store, new_store) || !TEST_ptr_eq(cstore, new_cstore))
+       goto end;
+
+   /* Should be able to unset again. */
+   if (!TEST_true(SSL_set1_verify_cert_store(ssl, NULL)))
+       goto end;
+
+   if (!TEST_true(SSL_set1_chain_cert_store(ssl, NULL)))
+       goto end;
+
+   /* Should now be NULL. */
+   if (!TEST_true(SSL_get0_verify_cert_store(ssl, &store)))
+       goto end;
+
+   if (!TEST_true(SSL_get0_chain_cert_store(ssl, &cstore)))
+       goto end;
+
+   if (!TEST_ptr_null(store) || !TEST_ptr_null(cstore))
+       goto end;
+
+   testresult = 1;
+
+end:
+   X509_STORE_free(new_store);
+   X509_STORE_free(new_cstore);
+   SSL_free(ssl);
+   SSL_CTX_free(ctx);
+   return testresult;
+}
+
+
 static int test_inherit_verify_param(void)
 {
     int testresult = 0;
@@ -9496,6 +9725,42 @@ static int test_inherit_verify_param(void)
     SSL_CTX_free(ctx);
 
     return testresult;
+}
+
+
+static int test_load_dhfile(void)
+{
+#ifndef OPENSSL_NO_DH
+    int testresult = 0;
+
+    SSL_CTX *ctx = NULL;
+    SSL_CONF_CTX *cctx = NULL;
+
+    if (dhfile == NULL)
+        return 1;
+
+    if (!TEST_ptr(ctx = SSL_CTX_new_ex(libctx, NULL, TLS_client_method()))
+        || !TEST_ptr(cctx = SSL_CONF_CTX_new()))
+        goto end;
+
+    SSL_CONF_CTX_set_ssl_ctx(cctx, ctx);
+    SSL_CONF_CTX_set_flags(cctx,
+                           SSL_CONF_FLAG_CERTIFICATE
+                           | SSL_CONF_FLAG_SERVER
+                           | SSL_CONF_FLAG_FILE);
+
+    if (!TEST_int_eq(SSL_CONF_cmd(cctx, "DHParameters", dhfile), 2))
+        goto end;
+
+    testresult = 1;
+end:
+    SSL_CONF_CTX_free(cctx);
+    SSL_CTX_free(ctx);
+
+    return testresult;
+#else
+    return TEST_skip("DH not supported by this build");
+#endif
 }
 
 #ifndef OPENSSL_NO_QUIC
@@ -9857,7 +10122,7 @@ static int test_quic_early_data(int tst)
 # endif /* OSSL_NO_USABLE_TLS1_3 */
 #endif /* OPENSSL_NO_QUIC */
 
-OPT_TEST_DECLARE_USAGE("certfile privkeyfile srpvfile tmpfile provider config\n")
+OPT_TEST_DECLARE_USAGE("certfile privkeyfile srpvfile tmpfile provider config dhfile\n")
 
 int setup_tests(void)
 {
@@ -9887,7 +10152,8 @@ int setup_tests(void)
             || !TEST_ptr(srpvfile = test_get_argument(1))
             || !TEST_ptr(tmpfilename = test_get_argument(2))
             || !TEST_ptr(modulename = test_get_argument(3))
-            || !TEST_ptr(configfile = test_get_argument(4)))
+            || !TEST_ptr(configfile = test_get_argument(4))
+            || !TEST_ptr(dhfile = test_get_argument(5)))
         return 0;
 
     if (!TEST_true(OSSL_LIB_CTX_load_config(libctx, configfile)))
@@ -10113,10 +10379,14 @@ int setup_tests(void)
 #endif
 #ifndef OSSL_NO_USABLE_TLS1_3
     ADD_TEST(test_sni_tls13);
+    ADD_ALL_TESTS(test_ticket_lifetime, 2);
 #endif
     ADD_TEST(test_inherit_verify_param);
     ADD_TEST(test_set_alpn);
+    ADD_TEST(test_set_verify_cert_store_ssl_ctx);
+    ADD_TEST(test_set_verify_cert_store_ssl);
     ADD_ALL_TESTS(test_session_timeout, 1);
+    ADD_TEST(test_load_dhfile);
 #ifndef OPENSSL_NO_QUIC
     ADD_ALL_TESTS(test_quic_api, 9);
 # ifndef OSSL_NO_USABLE_TLS1_3

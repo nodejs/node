@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -19,24 +19,19 @@
  * depth of the tree but potentially wastes more memory.  That is, this is a
  * direct space versus time tradeoff.
  *
- * The large memory model uses twelve bits which means that the are 4096
- * pointers in each tree node.  This is more than sufficient to hold the
- * largest defined NID (as of Feb 2019).  This means that using a NID to
- * index a sparse array becomes a constant time single array look up.
- *
- * The small memory model uses four bits which means the tree nodes contain
- * sixteen pointers.  This reduces the amount of unused space significantly
- * at a cost in time.
+ * The default is to use four bits which means that the are 16
+ * pointers in each tree node.
  *
  * The library builder is also permitted to define other sizes in the closed
- * interval [2, sizeof(ossl_uintmax_t) * 8].
+ * interval [2, sizeof(ossl_uintmax_t) * 8].  Space use generally scales
+ * exponentially with the block size, although the implementation only
+ * creates enough blocks to support the largest used index.  The depth is:
+ *      ceil(log_2(largest index) / 2^{block size})
+ * E.g. with a block size of 4, and a largest index of 1000, the depth
+ * will be three.
  */
 #ifndef OPENSSL_SA_BLOCK_BITS
-# ifdef OPENSSL_SMALL_FOOTPRINT
-#  define OPENSSL_SA_BLOCK_BITS           4
-# else
-#  define OPENSSL_SA_BLOCK_BITS           12
-# endif
+# define OPENSSL_SA_BLOCK_BITS           4
 #elif OPENSSL_SA_BLOCK_BITS < 2 || OPENSSL_SA_BLOCK_BITS > (BN_BITS2 - 1)
 # error OPENSSL_SA_BLOCK_BITS is out of range
 #endif
