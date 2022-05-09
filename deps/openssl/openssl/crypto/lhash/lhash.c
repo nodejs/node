@@ -44,22 +44,6 @@ static int expand(OPENSSL_LHASH *lh);
 static void contract(OPENSSL_LHASH *lh);
 static OPENSSL_LH_NODE **getrn(OPENSSL_LHASH *lh, const void *data, unsigned long *rhash);
 
-static ossl_inline int tsan_lock(const OPENSSL_LHASH *lh)
-{
-#ifdef TSAN_REQUIRES_LOCKING
-    if (!CRYPTO_THREAD_write_lock(lh->tsan_lock))
-        return 0;
-#endif
-    return 1;
-}
-
-static ossl_inline void tsan_unlock(const OPENSSL_LHASH *lh)
-{
-#ifdef TSAN_REQUIRES_LOCKING
-    CRYPTO_THREAD_unlock(lh->tsan_lock);
-#endif
-}
-
 OPENSSL_LHASH *OPENSSL_LH_new(OPENSSL_LH_HASHFUNC h, OPENSSL_LH_COMPFUNC c)
 {
     OPENSSL_LHASH *ret;
@@ -74,10 +58,6 @@ OPENSSL_LHASH *OPENSSL_LH_new(OPENSSL_LH_HASHFUNC h, OPENSSL_LH_COMPFUNC c)
     }
     if ((ret->b = OPENSSL_zalloc(sizeof(*ret->b) * MIN_NODES)) == NULL)
         goto err;
-#ifdef TSAN_REQUIRES_LOCKING
-    if ((ret->tsan_lock = CRYPTO_THREAD_lock_new()) == NULL)
-        goto err;
-#endif
     ret->comp = ((c == NULL) ? (OPENSSL_LH_COMPFUNC)strcmp : c);
     ret->hash = ((h == NULL) ? (OPENSSL_LH_HASHFUNC)OPENSSL_LH_strhash : h);
     ret->num_nodes = MIN_NODES / 2;
@@ -99,9 +79,6 @@ void OPENSSL_LH_free(OPENSSL_LHASH *lh)
         return;
 
     OPENSSL_LH_flush(lh);
-#ifdef TSAN_REQUIRES_LOCKING
-    CRYPTO_THREAD_lock_free(lh->tsan_lock);
-#endif
     OPENSSL_free(lh->b);
     OPENSSL_free(lh);
 }
@@ -123,6 +100,8 @@ void OPENSSL_LH_flush(OPENSSL_LHASH *lh)
         }
         lh->b[i] = NULL;
     }
+
+    lh->num_items = 0;
 }
 
 void *OPENSSL_LH_insert(OPENSSL_LHASH *lh, void *data)
@@ -147,12 +126,10 @@ void *OPENSSL_LH_insert(OPENSSL_LHASH *lh, void *data)
         nn->hash = hash;
         *rn = nn;
         ret = NULL;
-        lh->num_insert++;
         lh->num_items++;
     } else {                    /* replace same key */
         ret = (*rn)->data;
         (*rn)->data = data;
-        lh->num_replace++;
     }
     return ret;
 }
@@ -167,14 +144,12 @@ void *OPENSSL_LH_delete(OPENSSL_LHASH *lh, const void *data)
     rn = getrn(lh, data, &hash);
 
     if (*rn == NULL) {
-        lh->num_no_delete++;
         return NULL;
     } else {
         nn = *rn;
         *rn = nn->next;
         ret = nn->data;
         OPENSSL_free(nn);
-        lh->num_delete++;
     }
 
     lh->num_items--;
@@ -190,18 +165,11 @@ void *OPENSSL_LH_retrieve(OPENSSL_LHASH *lh, const void *data)
     unsigned long hash;
     OPENSSL_LH_NODE **rn;
 
-    /*-
-     * This should be atomic without tsan.
-     * It's not clear why it was done this way and not elsewhere.
-     */
-    tsan_store((TSAN_QUALIFIER int *)&lh->error, 0);
+    if (lh->error != 0)
+        lh->error = 0;
 
     rn = getrn(lh, data, &hash);
 
-    if (tsan_lock(lh)) {
-        tsan_counter(*rn == NULL ? &lh->num_retrieve_miss : &lh->num_retrieve);
-        tsan_unlock(lh);
-    }
     return *rn == NULL ? NULL : (*rn)->data;
 }
 
@@ -262,14 +230,12 @@ static int expand(OPENSSL_LHASH *lh)
         memset(n + nni, 0, sizeof(*n) * (j - nni));
         lh->pmax = nni;
         lh->num_alloc_nodes = j;
-        lh->num_expand_reallocs++;
         lh->p = 0;
     } else {
         lh->p++;
     }
 
     lh->num_nodes++;
-    lh->num_expands++;
     n1 = &(lh->b[p]);
     n2 = &(lh->b[p + pmax]);
     *n2 = NULL;
@@ -302,7 +268,6 @@ static void contract(OPENSSL_LHASH *lh)
             lh->error++;
             return;
         }
-        lh->num_contract_reallocs++;
         lh->num_alloc_nodes /= 2;
         lh->pmax /= 2;
         lh->p = lh->pmax - 1;
@@ -311,7 +276,6 @@ static void contract(OPENSSL_LHASH *lh)
         lh->p--;
 
     lh->num_nodes--;
-    lh->num_contracts++;
 
     n1 = lh->b[(int)lh->p];
     if (n1 == NULL)
@@ -329,14 +293,8 @@ static OPENSSL_LH_NODE **getrn(OPENSSL_LHASH *lh,
     OPENSSL_LH_NODE **ret, *n1;
     unsigned long hash, nn;
     OPENSSL_LH_COMPFUNC cf;
-    int do_tsan = 1;
 
-#ifdef TSAN_REQUIRES_LOCKING
-    do_tsan = tsan_lock(lh);
-#endif
     hash = (*(lh->hash)) (data);
-    if (do_tsan)
-        tsan_counter(&lh->num_hash_calls);
     *rhash = hash;
 
     nn = hash % lh->pmax;
@@ -346,20 +304,14 @@ static OPENSSL_LH_NODE **getrn(OPENSSL_LHASH *lh,
     cf = lh->comp;
     ret = &(lh->b[(int)nn]);
     for (n1 = *ret; n1 != NULL; n1 = n1->next) {
-        if (do_tsan)
-            tsan_counter(&lh->num_hash_comps);
         if (n1->hash != hash) {
             ret = &(n1->next);
             continue;
         }
-        if (do_tsan)
-            tsan_counter(&lh->num_comp_calls);
         if (cf(n1->data, data) == 0)
             break;
         ret = &(n1->next);
     }
-    if (do_tsan)
-        tsan_unlock(lh);
     return ret;
 }
 

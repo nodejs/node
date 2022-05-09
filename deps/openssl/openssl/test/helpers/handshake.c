@@ -1432,6 +1432,7 @@ static HANDSHAKE_RESULT *do_handshake_internal(
                                  test_ctx, extra, &server_ctx_data,
                                  &server2_ctx_data, &client_ctx_data)) {
         TEST_note("configure_handshake_ctx");
+        HANDSHAKE_RESULT_free(ret);
         return NULL;
     }
 
