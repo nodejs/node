@@ -202,6 +202,13 @@ debug>
 * `repl`: Open debugger's repl for evaluation in debugging script's context
 * `exec expr`, `p expr`: Execute an expression in debugging script's context and
   print its value
+* `profile`: Start CPU profiling session
+* `profileEnd`: Stop current CPU profiling session
+* `profiles`: List all completed CPU profiling sessions
+* `profiles[n].save(filepath = 'node.cpuprofile')`: Save CPU profiling session
+  to disk as JSON
+* `takeHeapSnapshot(filepath = 'node.heapsnapshot')`: Take a heap snapshot
+  and save to disk as JSON
 
 ### Execution control
 
