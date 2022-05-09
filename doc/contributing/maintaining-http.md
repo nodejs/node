@@ -74,7 +74,7 @@ to align them with the APIs built for the client.
 The low-level implementation of the
 [HTTP](https://nodejs.org/docs/latest/api/http.html)
 and [HTTPS](https://nodejs.org/docs/latest/api/https.html) APIs
-are maintained in the [llttp](https://github.com/nodejs/llhttp)
+are maintained in the [llhttp](https://github.com/nodejs/llhttp)
 repository. Updates are pulled into Node.js under
 [deps/llhttp](https://github.com/nodejs/node/tree/HEAD/deps/llhttp).
 
