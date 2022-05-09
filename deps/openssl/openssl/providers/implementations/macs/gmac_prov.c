@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -120,7 +120,7 @@ static int gmac_init(void *vmacctx, const unsigned char *key,
         return 0;
     if (key != NULL)
         return gmac_setkey(macctx, key, keylen);
-    return 1;
+    return EVP_EncryptInit_ex(macctx->ctx, NULL, NULL, NULL, NULL);
 }
 
 static int gmac_update(void *vmacctx, const unsigned char *data,
@@ -209,19 +209,22 @@ static int gmac_set_ctx_params(void *vmacctx, const OSSL_PARAM params[])
 
     if (params == NULL)
         return 1;
-    if (ctx == NULL
-        || !ossl_prov_cipher_load_from_params(&macctx->cipher, params, provctx))
+    if (ctx == NULL)
         return 0;
 
-    if (EVP_CIPHER_get_mode(ossl_prov_cipher_cipher(&macctx->cipher))
-        != EVP_CIPH_GCM_MODE) {
-        ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_MODE);
-        return 0;
+    if ((p = OSSL_PARAM_locate_const(params, OSSL_MAC_PARAM_CIPHER)) != NULL) {
+        if (!ossl_prov_cipher_load_from_params(&macctx->cipher, params, provctx))
+            return 0;
+        if (EVP_CIPHER_get_mode(ossl_prov_cipher_cipher(&macctx->cipher))
+            != EVP_CIPH_GCM_MODE) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_MODE);
+            return 0;
+        }
+        if (!EVP_EncryptInit_ex(ctx, ossl_prov_cipher_cipher(&macctx->cipher),
+                                ossl_prov_cipher_engine(&macctx->cipher), NULL,
+                                NULL))
+            return 0;
     }
-    if (!EVP_EncryptInit_ex(ctx, ossl_prov_cipher_cipher(&macctx->cipher),
-                            ossl_prov_cipher_engine(&macctx->cipher), NULL,
-                            NULL))
-        return 0;
 
     if ((p = OSSL_PARAM_locate_const(params, OSSL_MAC_PARAM_KEY)) != NULL)
         if (p->data_type != OSSL_PARAM_OCTET_STRING

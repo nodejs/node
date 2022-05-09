@@ -1115,6 +1115,11 @@ static void make_ocsp_response(BIO *err, OCSP_RESPONSE **resp, OCSP_REQUEST *req
             single = OCSP_basic_add1_status(bs, cid,
                                             V_OCSP_CERTSTATUS_REVOKED,
                                             reason, revtm, thisupd, nextupd);
+            if (single == NULL) {
+                *resp = OCSP_response_create(OCSP_RESPONSE_STATUS_INTERNALERROR,
+                                             NULL);
+                goto end;
+            }
             if (invtm != NULL)
                 OCSP_SINGLERESP_add1_ext_i2d(single, NID_invalidity_date,
                                              invtm, 0, 0);

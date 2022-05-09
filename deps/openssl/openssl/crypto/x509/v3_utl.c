@@ -349,7 +349,9 @@ STACK_OF(CONF_VALUE) *X509V3_parse_list(const char *line)
                     ERR_raise(ERR_LIB_X509V3, X509V3_R_INVALID_EMPTY_NAME);
                     goto err;
                 }
-                X509V3_add_value(ntmp, NULL, &values);
+                if (!X509V3_add_value(ntmp, NULL, &values)) {
+                    goto err;
+                }
             }
             break;
 
@@ -362,7 +364,9 @@ STACK_OF(CONF_VALUE) *X509V3_parse_list(const char *line)
                     ERR_raise(ERR_LIB_X509V3, X509V3_R_INVALID_NULL_VALUE);
                     goto err;
                 }
-                X509V3_add_value(ntmp, vtmp, &values);
+                if (!X509V3_add_value(ntmp, vtmp, &values)) {
+                    goto err;
+                }
                 ntmp = NULL;
                 q = p + 1;
             }
@@ -376,14 +380,18 @@ STACK_OF(CONF_VALUE) *X509V3_parse_list(const char *line)
             ERR_raise(ERR_LIB_X509V3, X509V3_R_INVALID_NULL_VALUE);
             goto err;
         }
-        X509V3_add_value(ntmp, vtmp, &values);
+        if (!X509V3_add_value(ntmp, vtmp, &values)) {
+            goto err;
+        }
     } else {
         ntmp = strip_spaces(q);
         if (!ntmp) {
             ERR_raise(ERR_LIB_X509V3, X509V3_R_INVALID_EMPTY_NAME);
             goto err;
         }
-        X509V3_add_value(ntmp, NULL, &values);
+        if (!X509V3_add_value(ntmp, NULL, &values)) {
+            goto err;
+        }
     }
     OPENSSL_free(linebuf);
     return values;
@@ -707,7 +715,7 @@ static int wildcard_match(const unsigned char *prefix, size_t prefix_len,
     }
     /* IDNA labels cannot match partial wildcards */
     if (!allow_idna &&
-        subject_len >= 4 && strncasecmp((char *)subject, "xn--", 4) == 0)
+        subject_len >= 4 && OPENSSL_strncasecmp((char *)subject, "xn--", 4) == 0)
         return 0;
     /* The wildcard may match a literal '*' */
     if (wildcard_end == wildcard_start + 1 && *wildcard_start == '*')
@@ -767,7 +775,7 @@ static const unsigned char *valid_star(const unsigned char *p, size_t len,
                    || ('A' <= p[i] && p[i] <= 'Z')
                    || ('0' <= p[i] && p[i] <= '9')) {
             if ((state & LABEL_START) != 0
-                && len - i >= 4 && strncasecmp((char *)&p[i], "xn--", 4) == 0)
+                && len - i >= 4 && OPENSSL_strncasecmp((char *)&p[i], "xn--", 4) == 0)
                 state |= LABEL_IDNA;
             state &= ~(LABEL_HYPHEN | LABEL_START);
         } else if (p[i] == '.') {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1159,9 +1159,9 @@ static int devcrypto_ctrl(ENGINE *e, int cmd, long i, void *p, void (*f) (void))
     case DEVCRYPTO_CMD_CIPHERS:
         if (p == NULL)
             return 1;
-        if (strcasecmp((const char *)p, "ALL") == 0) {
+        if (OPENSSL_strcasecmp((const char *)p, "ALL") == 0) {
             devcrypto_select_all_ciphers(selected_ciphers);
-        } else if (strcasecmp((const char*)p, "NONE") == 0) {
+        } else if (OPENSSL_strcasecmp((const char*)p, "NONE") == 0) {
             memset(selected_ciphers, 0, sizeof(selected_ciphers));
         } else {
             new_list=OPENSSL_zalloc(sizeof(selected_ciphers));
@@ -1179,9 +1179,9 @@ static int devcrypto_ctrl(ENGINE *e, int cmd, long i, void *p, void (*f) (void))
     case DEVCRYPTO_CMD_DIGESTS:
         if (p == NULL)
             return 1;
-        if (strcasecmp((const char *)p, "ALL") == 0) {
+        if (OPENSSL_strcasecmp((const char *)p, "ALL") == 0) {
             devcrypto_select_all_digests(selected_digests);
-        } else if (strcasecmp((const char*)p, "NONE") == 0) {
+        } else if (OPENSSL_strcasecmp((const char*)p, "NONE") == 0) {
             memset(selected_digests, 0, sizeof(selected_digests));
         } else {
             new_list=OPENSSL_zalloc(sizeof(selected_digests));

@@ -216,7 +216,7 @@ static int servername_cb(SSL *s, int *ad, void *arg)
 
     if (servername) {
         if (s_ctx2 != NULL && sn_server2 != NULL &&
-            !strcasecmp(servername, sn_server2)) {
+            !OPENSSL_strcasecmp(servername, sn_server2)) {
             BIO_printf(bio_stdout, "Switching server context.\n");
             SSL_set_SSL_CTX(s, s_ctx2);
         }
