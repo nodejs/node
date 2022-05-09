@@ -29,9 +29,6 @@ class NODE_EXTERN_PRIVATE SnapshotBuilder {
   static void InitializeIsolateParams(const SnapshotData* data,
                                       v8::Isolate::CreateParams* params);
 
-  static const size_t kNodeBaseContextIndex = 0;
-  static const size_t kNodeMainContextIndex = kNodeBaseContextIndex + 1;
-
  private:
   // Used to synchronize access to the snapshot data
   static Mutex snapshot_data_mutex_;
