@@ -222,7 +222,7 @@ to be cherry-picked in the Node.js repository and V8-CI must test the change.
   * Run the Node.js [V8 CI][] in addition to the [Node.js CI][].
     The CI uses the `test-v8` target in the `Makefile`, which uses
     `tools/make-v8.sh` to reconstruct a git tree in the `deps/v8` directory to
-    run V8 tests.[^2]
+    run V8 tests.
 
 The [`git-node`][] tool can be used to simplify this task. Run
 `git node v8 backport <sha>` to cherry-pick a commit.
@@ -406,11 +406,6 @@ This would require some tooling to:
 
 [^1]: Node.js 0.12 and older are intentionally omitted from this document
     as their support has ended.
-
-[^2]: The V8 tests still require Python 2. To run these tests locally, you can
-    run `PYTHON2 ./configure.py` before running `make test-v8`, in the root
-    of this repository. On macOS, this also requires a full Xcode install,
-    not just the "command line tools" for Xcode.
 
 [ChromiumReleaseCalendar]: https://www.chromium.org/developers/calendar
 [Node.js CI]: https://ci.nodejs.org/job/node-test-pull-request/
