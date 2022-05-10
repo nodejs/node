@@ -133,7 +133,7 @@ added: v0.1.90
 * `callback` {Function}
 * Returns: {https.Server}
 
-See [`server.close()`][] in the `http` module.
+See [`server.close()`][] in the `node:http` module.
 
 ### `server.closeAllConnections()`
 
@@ -141,7 +141,7 @@ See [`server.close()`][] in the `http` module.
 added: REPLACEME
 -->
 
-See [`server.closeAllConnections()`][] in the `http` module.
+See [`server.closeAllConnections()`][] in the `node:http` module.
 
 ### `server.closeIdleConnections()`
 
@@ -149,7 +149,7 @@ See [`server.closeAllConnections()`][] in the `http` module.
 added: REPLACEME
 -->
 
-See [`server.closeIdleConnections()`][] in the `http` module.
+See [`server.closeIdleConnections()`][] in the `node:http` module.
 
 ### `server.headersTimeout`
 
@@ -159,7 +159,7 @@ added: v11.3.0
 
 * {number} **Default:** `60000`
 
-See [`server.headersTimeout`][] in the `http` module.
+See [`server.headersTimeout`][] in the `node:http` module.
 
 ### `server.listen()`
 
@@ -170,7 +170,7 @@ This method is identical to [`server.listen()`][] from [`net.Server`][].
 
 * {number} **Default:** `2000`
 
-See [`server.maxHeadersCount`][] in the `http` module.
+See [`server.maxHeadersCount`][] in the `node:http` module.
 
 ### `server.requestTimeout`
 
@@ -180,7 +180,7 @@ added: v14.11.0
 
 * {number} **Default:** `0`
 
-See [`server.requestTimeout`][] in the `http` module.
+See [`server.requestTimeout`][] in the `node:http` module.
 
 ### `server.setTimeout([msecs][, callback])`
 
@@ -192,7 +192,7 @@ added: v0.11.2
 * `callback` {Function}
 * Returns: {https.Server}
 
-See [`server.setTimeout()`][] in the `http` module.
+See [`server.setTimeout()`][] in the `node:http` module.
 
 ### `server.timeout`
 
@@ -206,7 +206,7 @@ changes:
 
 * {number} **Default:** 0 (no timeout)
 
-See [`server.timeout`][] in the `http` module.
+See [`server.timeout`][] in the `node:http` module.
 
 ### `server.keepAliveTimeout`
 
@@ -216,7 +216,7 @@ added: v8.0.0
 
 * {number} **Default:** `5000` (5 seconds)
 
-See [`server.keepAliveTimeout`][] in the `http` module.
+See [`server.keepAliveTimeout`][] in the `node:http` module.
 
 ## `https.createServer([options][, requestListener])`
 
