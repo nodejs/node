@@ -854,7 +854,7 @@ const common = {
     const re = isWindows ? /Loopback Pseudo-Interface/ : /lo/;
     return Object.keys(iFaces).some((name) => {
       return re.test(name) &&
-             iFaces[name].some(({ family }) => family === 6);
+             iFaces[name].some(({ family }) => family === 'IPv6');
     });
   },
 
