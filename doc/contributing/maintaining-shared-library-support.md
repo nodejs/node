@@ -2,7 +2,7 @@
 
 Node.js unofficially supports a build option where Node.js is built as
 a shared library. The shared library is called libnode with additional postfixes
-as appropriate for the platform (for example libnode.dll on windows). 
+as appropriate for the platform (for example libnode.dll on windows).
 The shared library provides a way to embed Node.js into other
 applications and to have multiple applications use a single copy of
 Node.js instead of having to bundle in the full Node.js footprint
@@ -62,7 +62,7 @@ the following:
   installed. This is where the default package that
   is build with the shared library option will
   place the executable and library.
-  
+
 For the node wrapper on windows it is built expecting
 that both the executable and shared library will
 be in the same directory as it common practice on
@@ -79,7 +79,7 @@ addons or additional Node.js executables need to have
 NODE_EXTERN_PRIVATE or NODE_EXTERN otherwise they will
 not be exported by the shared library. In the case of
 functions used by additional Node.js executables
-(ex: `mksnapshot`) a missing NODE_EXTERN or 
+(ex: `mksnapshot`) a missing NODE_EXTERN or
 NODE_EXTERN_PRIVATE will cause the build to fail.
 NODE_EXTERN_PRIVATE should be used in these cases
 unless the intent is to add the function to the
