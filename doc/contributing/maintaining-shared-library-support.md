@@ -87,38 +87,18 @@ public embedder API.
 
 ## Native addons
 
-For regular Node.js builds, native addons rely on symbols
+For regular Node.js builds, running native addons relies on symbols
 exported by the node executable. As a result any
-pre-built binaries will expect symbols from the executable
+pre-built binaries expect symbols to be exported from the executable
 instead of the shared library itself.
 
-The current node executable wrapper addresses this by
-ensuring that node.lib from node.exe does not get generated
-and instead copy libnode.lib to node.lib. This means addons
-compiled when referencing the correct node.lib file will correctly
-depend on libnode.dll. The down side is that native addons compiled
-with stock Node.js will still try to resolve symbols against
-node.exe rather than libnode.dll. This would be a problem for
-package that use node-addon-api pre-compiled binaries with the
-goal of them working across different Node.js versions and
-types (standard versus shared library). At this point the
-main purpose for the node executable wrapper is for testing
-so this is not considered a major issue.
-
-For applications that use the shared library and also
-want to support pre-compiled addons it should be possible
-to use an approach as follows on windows (and something similar
-on other platforms):
-
-* the exports from libnode using dumpbin
-* process the dumpbin output to generate a node.def file to be linked
-  into node.exe with the /DEF:node.def flag.
-  The export entries in node.def would all read my\_symbol=libnode.my\_symbol
-  so that node.exe will redirect all exported symbols back to libnode.dll.
-
-However, this has not been validated/tested. It would be
-a good contribution for somebody to extend the node executable
-wrapper to do this.
+The node executable and shared library are built and linked
+so that the required symbols are exported from the node
+executable. This requires some extra work on some platforms
+and the process to build the node executable is a good example
+of how this can be achieved. Applications that use the shared
+library and want to support native addons should employ
+a similar technique.
 
 ## Testing
 
