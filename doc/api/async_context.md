@@ -462,10 +462,28 @@ changes:
   `AsyncResource`.
 * `thisArg` {any}
 
-Binds the given function to the current execution context.
+Binds the given function to the current execution context using a new
+`AsyncResource`.
 
 The returned function will have an `asyncResource` property referencing
 the `AsyncResource` to which the function is bound.
+
+### Static method: `AsyncResource.bindCurrent(fn[, thisArg])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function} The function to bind to the current execution context.
+* `thisArg` {any}
+
+Binds the given function to the current execution context, without creating
+an underlying `AsyncResource`, and instead using the current
+`executionAsyncResource()`.
+
+The returned function will have an `asyncResource` property referencing
+the resource to which the function is bound. Note that this might not be
+an instance of `AsyncResource`.
 
 ### `asyncResource.bind(fn[, thisArg])`
 
