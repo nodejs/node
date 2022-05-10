@@ -1456,7 +1456,7 @@ Stops the server from accepting new connections. See [`net.Server.close()`][].
 ### `server.closeAllConnections()`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 Closes all connections connected to this server.
@@ -1464,7 +1464,7 @@ Closes all connections connected to this server.
 ### `server.closeIdleConnections()`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 Closes all connections connected to this server which are not sending a request
