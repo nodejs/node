@@ -2411,8 +2411,8 @@ changes:
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     This is similar to [`server.maxHeadersCount`][] or
-    [`request.maxHeadersCount`][] in the `node:http` module. The minimum value is `4`.
-    **Default:** `128`.
+    [`request.maxHeadersCount`][] in the `node:http` module. The minimum value
+    is `4`. **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
   * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
@@ -2568,8 +2568,8 @@ changes:
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     This is similar to [`server.maxHeadersCount`][] or
-    [`request.maxHeadersCount`][] in the `node:http` module. The minimum value is `4`.
-    **Default:** `128`.
+    [`request.maxHeadersCount`][] in the `node:http` module. The minimum value
+    is `4`. **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
   * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
@@ -2696,8 +2696,8 @@ changes:
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     This is similar to [`server.maxHeadersCount`][] or
-    [`request.maxHeadersCount`][] in the `node:http` module. The minimum value is `1`.
-    **Default:** `128`.
+    [`request.maxHeadersCount`][] in the `node:http` module. The minimum value
+    is `1`. **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
   * `maxReservedRemoteStreams` {number} Sets the maximum number of reserved push
