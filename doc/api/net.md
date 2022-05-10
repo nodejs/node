@@ -286,6 +286,9 @@ Emitted when the server has been bound after calling [`server.listen()`][].
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43054
+    description: The `family` property now returns a string instead of a number.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41431
     description: The `family` property now returns a number instead of a string.
@@ -296,7 +299,7 @@ changes:
 Returns the bound `address`, the address `family` name, and `port` of the server
 as reported by the operating system if listening on an IP socket
 (useful to find which port was assigned when getting an OS-assigned address):
-`{ port: 12346, family: 4, address: '127.0.0.1' }`.
+`{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`.
 
 For a server listening on a pipe or Unix domain socket, the name is returned
 as a string.
@@ -743,6 +746,9 @@ See also: [`socket.setTimeout()`][].
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43054
+    description: The `family` property now returns a string instead of a number.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41431
     description: The `family` property now returns a number instead of a string.
@@ -752,7 +758,7 @@ changes:
 
 Returns the bound `address`, the address `family` name and `port` of the
 socket as reported by the operating system:
-`{ port: 12346, family: 4, address: '127.0.0.1' }`
+`{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`
 
 ### `socket.bufferSize`
 
