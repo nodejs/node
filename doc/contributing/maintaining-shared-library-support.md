@@ -41,7 +41,9 @@ example, node.exe on windows and node on other platforms for
 the executable.
 
 libnode may have additional naming components, as an example
-in a build on macOS `libnode.105.dylib`.
+in a build on macOS `libnode.105.dylib`. For non-windows platforms
+the additional naming components include the `NODE_MODULE_VERSION` and
+the appropriate postfix used for shared libraries on the platform.
 
 In cases where an application links against the shared
 library it is up to the application developer to add options
