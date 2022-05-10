@@ -420,7 +420,7 @@ number of bytes read is zero.
 #### `filehandle.read(buffer[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
@@ -3277,7 +3277,7 @@ above values.
 ### `fs.read(fd, buffer[, options], callback)`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * `fd` {integer}

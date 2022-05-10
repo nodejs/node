@@ -70,7 +70,7 @@ Performance Timeline. If `name` is provided, removes only the named mark.
 ### `performance.clearResourceTimings([name])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * `name` {string}
@@ -215,7 +215,7 @@ Performance Timeline manually with `performance.clearMarks`.
 global, cacheMode)\`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * `timingInfo` {Object} [Fetch Timing Info][]
@@ -695,7 +695,7 @@ initialized.
 ## Class: `PerformanceResourceTiming`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * Extends: {PerformanceEntry}
@@ -708,7 +708,7 @@ The constructor of this class is not exposed to users directly.
 ### `performanceResourceTiming.workerStart`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * {number}
@@ -720,7 +720,7 @@ will always return 0.
 ### `performanceResourceTiming.redirectStart`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * {number}
@@ -731,7 +731,7 @@ of the fetch which initiates the redirect.
 ### `performanceResourceTiming.redirectEnd`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * {number}
@@ -742,7 +742,7 @@ receiving the last byte of the response of the last redirect.
 ### `performanceResourceTiming.fetchStart`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * {number}
@@ -753,7 +753,7 @@ to fetch the resource.
 ### `performanceResourceTiming.domainLookupStart`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * {number}
@@ -764,7 +764,7 @@ the domain name lookup for the resource.
 ### `performanceResourceTiming.domainLookupEnd`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * {number}
@@ -775,7 +775,7 @@ after the Node.js finished the domain name lookup for the resource.
 ### `performanceResourceTiming.connectStart`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * {number}
@@ -787,7 +787,7 @@ the resource.
 ### `performanceResourceTiming.connectEnd`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * {number}
@@ -799,7 +799,7 @@ the resource.
 ### `performanceResourceTiming.secureConnectionStart`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * {number}
@@ -810,7 +810,7 @@ before Node.js starts the handshake process to secure the current connection.
 ### `performanceResourceTiming.requestStart`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * {number}
@@ -821,7 +821,7 @@ before Node.js receives the first byte of the response from the server.
 ### `performanceResourceTiming.responseEnd`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * {number}
@@ -833,7 +833,7 @@ the transport connection is closed, whichever comes first.
 ### `performanceResourceTiming.transferSize`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * {number}
@@ -844,7 +844,7 @@ includes the response header fields plus the response payload body.
 ### `performanceResourceTiming.encodedBodySize`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * {number}
@@ -856,7 +856,7 @@ content-codings.
 ### `performanceResourceTiming.decodedBodySize`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * {number}
@@ -868,7 +868,7 @@ content-codings.
 ### `performanceResourceTiming.toJSON()`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 Returns a `object` that is the JSON representation of the
