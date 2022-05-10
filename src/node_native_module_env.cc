@@ -25,7 +25,7 @@ using v8::SideEffectType;
 using v8::String;
 using v8::Value;
 
-bool NativeModuleEnv::has_code_cache = false;
+bool NativeModuleEnv::has_code_cache_ = false;
 
 bool NativeModuleEnv::Add(const char* id, const UnionBytes& source) {
   return NativeModuleLoader::GetInstance()->Add(id, source);
@@ -245,7 +245,7 @@ MaybeLocal<Function> NativeModuleEnv::LookupAndCompile(
   return maybe;
 }
 
-void HasCachedBuiltins(const FunctionCallbackInfo<Value>& args) {
+void NativeModuleEnv::HasCachedBuiltins(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(
       v8::Boolean::New(args.GetIsolate(), NativeModuleEnv::has_code_cache_));
 }
