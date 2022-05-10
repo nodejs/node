@@ -2355,9 +2355,9 @@ changes:
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    This is similar to [`http.Server#maxHeadersCount`][] or
-    [`http.ClientRequest#maxHeadersCount`][]. The minimum value is `4`.
-    **Default:** `128`.
+    This is similar to [`server.maxHeadersCount`][] or
+    [`request.maxHeadersCount`][] in the `node:http` module. The minimum value
+    is `4`. **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
   * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
@@ -2512,9 +2512,9 @@ changes:
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    This is similar to [`http.Server#maxHeadersCount`][] or
-    [`http.ClientRequest#maxHeadersCount`][]. The minimum value is `4`.
-    **Default:** `128`.
+    This is similar to [`server.maxHeadersCount`][] or
+    [`request.maxHeadersCount`][] in the `node:http` module. The minimum value
+    is `4`. **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
   * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
@@ -2640,9 +2640,9 @@ changes:
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    This is similar to [`http.Server#maxHeadersCount`][] or
-    [`http.ClientRequest#maxHeadersCount`][]. The minimum value is `1`.
-    **Default:** `128`.
+    This is similar to [`server.maxHeadersCount`][] or
+    [`request.maxHeadersCount`][] in the `node:http` module. The minimum value
+    is `1`. **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
   * `maxReservedRemoteStreams` {number} Sets the maximum number of reserved push
@@ -4072,8 +4072,6 @@ you need to implement any fall-back behavior yourself.
 [`Http2Stream`]: #class-http2stream
 [`ServerHttp2Stream`]: #class-serverhttp2stream
 [`TypeError`]: errors.md#class-typeerror
-[`http.ClientRequest#maxHeadersCount`]: http.md#requestmaxheaderscount
-[`http.Server#maxHeadersCount`]: http.md#servermaxheaderscount
 [`http2.SecureServer`]: #class-http2secureserver
 [`http2.Server`]: #class-http2server
 [`http2.createSecureServer()`]: #http2createsecureserveroptions-onrequesthandler
@@ -4089,6 +4087,7 @@ you need to implement any fall-back behavior yourself.
 [`net.connect()`]: net.md#netconnect
 [`net.createServer()`]: net.md#netcreateserveroptions-connectionlistener
 [`request.authority`]: #requestauthority
+[`request.maxHeadersCount`]: http.md#requestmaxheaderscount
 [`request.socket.getPeerCertificate()`]: tls.md#tlssocketgetpeercertificatedetailed
 [`request.socket`]: #requestsocket
 [`response.end()`]: #responseenddata-encoding-callback
@@ -4099,6 +4098,7 @@ you need to implement any fall-back behavior yourself.
 [`response.write(data, encoding)`]: http.md#responsewritechunk-encoding-callback
 [`response.writeContinue()`]: #responsewritecontinue
 [`response.writeHead()`]: #responsewriteheadstatuscode-statusmessage-headers
+[`server.maxHeadersCount`]: http.md#servermaxheaderscount
 [`tls.Server.close()`]: tls.md#serverclosecallback
 [`tls.TLSSocket`]: tls.md#class-tlstlssocket
 [`tls.connect()`]: tls.md#tlsconnectoptions-callback
