@@ -99,9 +99,9 @@ It should look like the following:
 ├── llhttp.gyp
 ├── README.md
 └── src
-├── api.c
-├── http.c
-└── llhttp.c
+    ├── api.c
+    ├── http.c
+    └── llhttp.c
 ```
 
 The low-level implementation is made available in the Node.js API through
