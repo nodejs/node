@@ -37,7 +37,6 @@ class NativeModuleEnv {
   static bool CompileAllModules(v8::Local<v8::Context> context);
   static void RefreshCodeCache(const std::vector<CodeCacheInfo>& in);
   static void CopyCodeCache(std::vector<CodeCacheInfo>* out);
-  static bool has_code_cache;
 
  private:
   static void RecordResult(const char* id,
@@ -59,6 +58,7 @@ class NativeModuleEnv {
   static void CompileFunction(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CopyCodeCache(const NativeModuleCacheMap& in,
                             NativeModuleCacheMap* out);
+  static bool has_code_cache_;
 };
 
 }  // namespace native_module

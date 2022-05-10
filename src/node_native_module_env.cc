@@ -95,7 +95,7 @@ void NativeModuleEnv::RefreshCodeCache(const std::vector<CodeCacheInfo>& in) {
       out->emplace(item.id, new_cache.release());
     }
   }
-  NativeModuleEnv::has_code_cache = true;
+  NativeModuleEnv::has_code_cache_ = true;
 }
 
 void NativeModuleEnv::GetModuleCategories(
@@ -247,7 +247,7 @@ MaybeLocal<Function> NativeModuleEnv::LookupAndCompile(
 
 void HasCachedBuiltins(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(
-      v8::Boolean::New(args.GetIsolate(), NativeModuleEnv::has_code_cache));
+      v8::Boolean::New(args.GetIsolate(), NativeModuleEnv::has_code_cache_));
 }
 
 // TODO(joyeecheung): It is somewhat confusing that Class::Initialize

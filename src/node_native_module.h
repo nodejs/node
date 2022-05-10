@@ -44,7 +44,6 @@ class NODE_EXTERN_PRIVATE NativeModuleLoader {
   // Only allow access from friends.
   friend class NativeModuleEnv;
   friend class CodeCacheBuilder;
-  friend class ::node::SnapshotBuilder;
 
   NativeModuleLoader();
   static NativeModuleLoader* GetInstance();

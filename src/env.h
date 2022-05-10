@@ -985,8 +985,8 @@ struct SnapshotData {
   EnvSerializeInfo env_info;
   // A vector of built-in ids and v8::ScriptCompiler::CachedData, this can be
   // shared across Node.js instances because they are supposed to share the
-  // read only space. We use the vector because v8::ScriptCompiler::CachedData
-  // is not copyable.
+  // read only space. We use native_module::CodeCacheInfo because
+  // v8::ScriptCompiler::CachedData is not copyable.
   std::vector<native_module::CodeCacheInfo> code_cache;
 };
 
