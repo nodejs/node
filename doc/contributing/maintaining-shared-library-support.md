@@ -76,12 +76,12 @@ is the only option.
 
 On windows, functions that may be linked from native
 addons or additional Node.js executables need to have
-NODE_EXTERN_PRIVATE or NODE_EXTERN otherwise they will
+NODE\_EXTERN\_PRIVATE or NODE\_EXTERN otherwise they will
 not be exported by the shared library. In the case of
 functions used by additional Node.js executables
-(ex: `mksnapshot`) a missing NODE_EXTERN or
-NODE_EXTERN_PRIVATE will cause the build to fail.
-NODE_EXTERN_PRIVATE should be used in these cases
+(ex: `mksnapshot`) a missing NODE\_EXTERN or
+NODE\_EXTERN\_PRIVATE will cause the build to fail.
+NODE\_EXTERN\_PRIVATE should be used in these cases
 unless the intent is to add the function to the
 public embedder API.
 
