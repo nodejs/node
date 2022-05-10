@@ -133,7 +133,7 @@ added: v0.1.90
 * `callback` {Function}
 * Returns: {https.Server}
 
-See [`server.close()`][`http.close()`] from the HTTP module for details.
+See [`server.close()`][] in the `node:http` module.
 
 ### `server.headersTimeout`
 
@@ -143,7 +143,7 @@ added: v11.3.0
 
 * {number} **Default:** `60000`
 
-See [`http.Server#headersTimeout`][].
+See [`server.headersTimeout`][] in the `node:http` module.
 
 ### `server.listen()`
 
@@ -154,7 +154,7 @@ This method is identical to [`server.listen()`][] from [`net.Server`][].
 
 * {number} **Default:** `2000`
 
-See [`http.Server#maxHeadersCount`][].
+See [`server.maxHeadersCount`][] in the `node:http` module.
 
 ### `server.requestTimeout`
 
@@ -164,7 +164,7 @@ added: v14.11.0
 
 * {number} **Default:** `0`
 
-See [`http.Server#requestTimeout`][].
+See [`server.requestTimeout`][] in the `node:http` module.
 
 ### `server.setTimeout([msecs][, callback])`
 
@@ -176,7 +176,7 @@ added: v0.11.2
 * `callback` {Function}
 * Returns: {https.Server}
 
-See [`http.Server#setTimeout()`][].
+See [`server.setTimeout()`][] in the `node:http` module.
 
 ### `server.timeout`
 
@@ -190,7 +190,7 @@ changes:
 
 * {number} **Default:** 0 (no timeout)
 
-See [`http.Server#timeout`][].
+See [`server.timeout`][] in the `node:http` module.
 
 ### `server.keepAliveTimeout`
 
@@ -200,7 +200,7 @@ added: v8.0.0
 
 * {number} **Default:** `5000` (5 seconds)
 
-See [`http.Server#keepAliveTimeout`][].
+See [`server.keepAliveTimeout`][] in the `node:http` module.
 
 ## `https.createServer([options][, requestListener])`
 
@@ -521,14 +521,7 @@ headers: max-age=0; pin-sha256="WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18="; p
 [`http.Agent(options)`]: http.md#new-agentoptions
 [`http.Agent`]: http.md#class-httpagent
 [`http.ClientRequest`]: http.md#class-httpclientrequest
-[`http.Server#headersTimeout`]: http.md#serverheaderstimeout
-[`http.Server#keepAliveTimeout`]: http.md#serverkeepalivetimeout
-[`http.Server#maxHeadersCount`]: http.md#servermaxheaderscount
-[`http.Server#requestTimeout`]: http.md#serverrequesttimeout
-[`http.Server#setTimeout()`]: http.md#serversettimeoutmsecs-callback
-[`http.Server#timeout`]: http.md#servertimeout
 [`http.Server`]: http.md#class-httpserver
-[`http.close()`]: http.md#serverclosecallback
 [`http.createServer()`]: http.md#httpcreateserveroptions-requestlistener
 [`http.get()`]: http.md#httpgetoptions-callback
 [`http.request()`]: http.md#httprequestoptions-callback
@@ -537,7 +530,14 @@ headers: max-age=0; pin-sha256="WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18="; p
 [`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
 [`net.Server`]: net.md#class-netserver
 [`new URL()`]: url.md#new-urlinput-base
+[`server.close()`]: http.md#serverclosecallback
+[`server.headersTimeout`]: http.md#serverheaderstimeout
+[`server.keepAliveTimeout`]: http.md#serverkeepalivetimeout
 [`server.listen()`]: net.md#serverlisten
+[`server.maxHeadersCount`]: http.md#servermaxheaderscount
+[`server.requestTimeout`]: http.md#serverrequesttimeout
+[`server.setTimeout()`]: http.md#serversettimeoutmsecs-callback
+[`server.timeout`]: http.md#servertimeout
 [`tls.connect()`]: tls.md#tlsconnectoptions-callback
 [`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions
 [`tls.createServer()`]: tls.md#tlscreateserveroptions-secureconnectionlistener
