@@ -39,10 +39,10 @@ const internalInterfaces = Object.values(os.networkInterfaces()).flat().filter(
 );
 for (const iface of internalInterfaces) {
   testListeningOptions.push({
-    hostname: iface?.family === 6 ? `[${iface.address}]` : iface?.address,
+    hostname: iface?.family === 'IPv6' ? `[${iface?.address}]` : iface?.address,
     listenOptions: {
       host: iface?.address,
-      ipv6Only: iface?.family === 6
+      ipv6Only: iface?.family === 'IPv6'
     }
   });
 }

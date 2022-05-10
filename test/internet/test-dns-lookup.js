@@ -47,7 +47,7 @@ dns.lookup(addresses.NOT_FOUND, {
 
 assert.throws(
   () => dnsPromises.lookup(addresses.NOT_FOUND, {
-    family: 'IPv4',
+    family: 'ipv4',
     all: 'all'
   }),
   { code: 'ERR_INVALID_ARG_VALUE' }

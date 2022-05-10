@@ -179,6 +179,11 @@ section if a custom port is used.
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43054
+    description: For compatibility with `node:net`, when passing an option
+                 object the `family` option can be the string `'IPv4'` or the
+                 string `'IPv6'`.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -197,9 +202,10 @@ changes:
 
 * `hostname` {string}
 * `options` {integer | Object}
-  * `family` {integer} The record family. Must be `4`, `6`, or `0`. The value
-    `0` indicates that IPv4 and IPv6 addresses are both returned. **Default:**
-    `0`.
+  * `family` {integer|string} The record family. Must be `4`, `6`, or `0`. For
+    backward compatibility reasons,`'IPv4'` and `'IPv6'` are interpreted as `4`
+    and `6` respectively. The value `0` indicates that IPv4 and IPv6 addresses
+    are both returned. **Default:** `0`.
   * `hints` {number} One or more [supported `getaddrinfo` flags][]. Multiple
     flags may be passed by bitwise `OR`ing their values.
   * `all` {boolean} When `true`, the callback returns all resolved addresses in
@@ -219,8 +225,8 @@ changes:
 
 Resolves a host name (e.g. `'nodejs.org'`) into the first found A (IPv4) or
 AAAA (IPv6) record. All `option` properties are optional. If `options` is an
-integer, then it must be `4` or `6` – if `options` is not provided, then IPv4
-and IPv6 addresses are both returned if found.
+integer, then it must be `4` or `6` – if `options` is `0` or not provided, then
+IPv4 and IPv6 addresses are both returned if found.
 
 With the `all` option set to `true`, the arguments for `callback` change to
 `(err, addresses)`, with `addresses` being an array of objects with the

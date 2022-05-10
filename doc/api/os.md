@@ -225,6 +225,9 @@ always `[0, 0, 0]`.
 <!-- YAML
 added: v0.6.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43054
+    description: The `family` property now returns a string instead of a number.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41431
     description: The `family` property now returns a number instead of a string.
@@ -242,12 +245,12 @@ The properties available on the assigned network address object include:
 
 * `address` {string} The assigned IPv4 or IPv6 address
 * `netmask` {string} The IPv4 or IPv6 network mask
-* `family` {number} Either `4` (for IPv4) or `6` (for IPv6)
+* `family` {string} Either `IPv4` or `IPv6`
 * `mac` {string} The MAC address of the network interface
 * `internal` {boolean} `true` if the network interface is a loopback or
   similar interface that is not remotely accessible; otherwise `false`
 * `scopeid` {number} The numeric IPv6 scope ID (only specified when `family`
-  is `6`)
+  is `IPv6`)
 * `cidr` {string} The assigned IPv4 or IPv6 address with the routing prefix
   in CIDR notation. If the `netmask` is invalid, this property is set
   to `null`.
@@ -260,7 +263,7 @@ The properties available on the assigned network address object include:
     {
       address: '127.0.0.1',
       netmask: '255.0.0.0',
-      family: 4,
+      family: 'IPv4',
       mac: '00:00:00:00:00:00',
       internal: true,
       cidr: '127.0.0.1/8'
@@ -268,7 +271,7 @@ The properties available on the assigned network address object include:
     {
       address: '::1',
       netmask: 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
-      family: 6,
+      family: 'IPv6',
       mac: '00:00:00:00:00:00',
       scopeid: 0,
       internal: true,
@@ -279,7 +282,7 @@ The properties available on the assigned network address object include:
     {
       address: '192.168.1.108',
       netmask: '255.255.255.0',
-      family: 4,
+      family: 'IPv4',
       mac: '01:02:03:0a:0b:0c',
       internal: false,
       cidr: '192.168.1.108/24'
@@ -287,7 +290,7 @@ The properties available on the assigned network address object include:
     {
       address: 'fe80::a00:27ff:fe4e:66a1',
       netmask: 'ffff:ffff:ffff:ffff::',
-      family: 6,
+      family: 'IPv6',
       mac: '01:02:03:0a:0b:0c',
       scopeid: 1,
       internal: false,

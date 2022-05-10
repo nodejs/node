@@ -301,6 +301,8 @@ class NoArrayBufferZeroFillScope {
   V(input_string, "input")                                                     \
   V(internal_binding_string, "internalBinding")                                \
   V(internal_string, "internal")                                               \
+  V(ipv4_string, "IPv4")                                                       \
+  V(ipv6_string, "IPv6")                                                       \
   V(isclosing_string, "isClosing")                                             \
   V(issuer_string, "issuer")                                                   \
   V(issuercert_string, "issuerCertificate")                                    \

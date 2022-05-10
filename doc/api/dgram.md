@@ -114,6 +114,9 @@ exist and calls such as `socket.address()` and `socket.setTTL()` will fail.
 <!-- YAML
 added: v0.1.99
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43054
+    description: The `family` property now returns a string instead of a number.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41431
     description: The `family` property now returns a number instead of a string.
@@ -125,7 +128,7 @@ The event handler function is passed two arguments: `msg` and `rinfo`.
 * `msg` {Buffer} The message.
 * `rinfo` {Object} Remote address information.
   * `address` {string} The sender address.
-  * `family` {number} The address family (`4` for IPv4 or `6` for IPv6).
+  * `family` {string} The address family (`'IPv4'` or `'IPv6'`).
   * `port` {number} The sender port.
   * `size` {number} The message size.
 
