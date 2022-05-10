@@ -138,7 +138,7 @@ See [`server.close()`][] in the `node:http` module.
 ### `server.closeAllConnections()`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 See [`server.closeAllConnections()`][] in the `node:http` module.
@@ -146,7 +146,7 @@ See [`server.closeAllConnections()`][] in the `node:http` module.
 ### `server.closeIdleConnections()`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 See [`server.closeIdleConnections()`][] in the `node:http` module.
