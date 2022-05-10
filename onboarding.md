@@ -39,11 +39,11 @@ onboarding session.
   * Always create a branch in your own GitHub fork for pull requests
     * Branches in the `nodejs/node` repository are only for release lines
   * Add the canonical nodejs repository as `upstream` remote:
-    * `git remote add upstream git://github.com/nodejs/node.git`
+    * `git remote add upstream git@github.com:nodejs/node.git`
   * To update from `upstream`:
     * `git checkout master`
-    * `git remote update -p` OR `git fetch --all`
-    * `git merge --ff-only upstream/master` (or `REMOTENAME/BRANCH`)
+    * `git fetch upstream HEAD`
+    * `git reset --hard FETCH_HEAD`
   * Make a new branch for each pull request you submit.
   * Membership: Consider making your membership in the Node.js GitHub
     organization public. This makes it easier to identify collaborators.
@@ -203,9 +203,9 @@ needs to be pointed out separately during the onboarding.
 ## Exercise: Make a pull request adding yourself to the README
 
 * Example:
-  <https://github.com/nodejs/node/commit/b58fe52692659c0bc25ddbe6afa7f4ae2c7f14a8>
+  <https://github.com/nodejs/node/commit/6669b3857f0f43ee0296eb7ac45086cd907b9e94>
   * For raw commit message:
-    `git show --format=%B b58fe52692659c0bc25ddbe6afa7f4ae2c7f14a8`
+    `git show --format=%B 6669b3857f0f43ee0296eb7ac45086cd907b9e94`
 * Collaborators are in alphabetical order by GitHub username.
 * Optionally, include your personal pronouns.
 * Add the `Fixes: <collaborator-nomination-issue-url>` to the commit message

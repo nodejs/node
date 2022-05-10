@@ -54,7 +54,7 @@ replace that with the staging branch for the targeted release line.
    ```bash
    # Assuming your fork of Node.js is checked out in $NODE_DIR,
    # the origin remote points to your fork, and the upstream remote points
-   # to git://github.com/nodejs/node
+   # to git@github.com:nodejs/node.git
    cd $NODE_DIR
    # If v10.x-staging is checked out `pull` should be used instead of `fetch`
    git fetch upstream v10.x-staging:v10.x-staging -f
