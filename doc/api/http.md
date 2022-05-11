@@ -2651,7 +2651,7 @@ added: REPLACEME
 -->
 
 * `name` {string} Header name
-* `value` {string|string} Header value
+* `value` {string|string[]} Header value
 * Returns: {this}
 
 Append a single header value for the header object.
