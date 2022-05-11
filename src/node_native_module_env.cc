@@ -245,7 +245,8 @@ MaybeLocal<Function> NativeModuleEnv::LookupAndCompile(
   return maybe;
 }
 
-void NativeModuleEnv::HasCachedBuiltins(const FunctionCallbackInfo<Value>& args) {
+void NativeModuleEnv::HasCachedBuiltins(
+    const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(
       v8::Boolean::New(args.GetIsolate(), NativeModuleEnv::has_code_cache_));
 }

@@ -56,7 +56,8 @@ class NativeModuleEnv {
       const v8::PropertyCallbackInfo<v8::Value>& info);
   // Compile a specific native module as a function
   static void CompileFunction(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void HasCachedBuiltins(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void HasCachedBuiltins(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static bool has_code_cache_;
 };
