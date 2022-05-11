@@ -1,6 +1,6 @@
 {
   "name": "@npmcli/arborist",
-  "version": "5.1.1",
+  "version": "5.2.0",
   "description": "Manage node_modules trees",
   "dependencies": {
     "@isaacs/string-locale-compare": "^1.1.0",
@@ -40,7 +40,7 @@
   },
   "devDependencies": {
     "@npmcli/eslint-config": "^3.0.1",
-    "@npmcli/template-oss": "3.4.2",
+    "@npmcli/template-oss": "3.5.0",
     "benchmark": "^2.1.4",
     "chalk": "^4.1.0",
     "minify-registry-metadata": "^2.1.0",
@@ -101,6 +101,6 @@
   },
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "3.4.2"
+    "version": "3.5.0"
   }
 }

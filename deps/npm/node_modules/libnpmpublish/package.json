@@ -28,7 +28,7 @@
   },
   "devDependencies": {
     "@npmcli/eslint-config": "^3.0.1",
-    "@npmcli/template-oss": "3.4.2",
+    "@npmcli/template-oss": "3.5.0",
     "libnpmpack": "^4.0.0",
     "lodash.clonedeep": "^4.5.0",
     "nock": "^13.2.4",
@@ -53,6 +53,6 @@
   },
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "3.4.2"
+    "version": "3.5.0"
   }
 }

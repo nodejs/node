@@ -46,7 +46,7 @@ function registryPackage (t, registry, name) {
     name,
     packuments: [{ maintainers, version: '1.0.0' }],
   })
-  mockRegistry.package({ manifest })
+  return mockRegistry.package({ manifest })
 }
 
 t.test('owner no args', async t => {
@@ -73,7 +73,7 @@ t.test('owner ls no args', async t => {
     name: packageName,
     packuments: [{ maintainers, version: '1.0.0' }],
   })
-  registry.package({ manifest })
+  await registry.package({ manifest })
 
   await npm.exec('owner', ['ls'])
   t.match(joinedOutput(), maintainers.map(m => `${m.name} <${m.email}>`).join('\n'))
@@ -137,7 +137,7 @@ t.test('owner ls <pkg>', async t => {
     name: packageName,
     packuments: [{ maintainers, version: '1.0.0' }],
   })
-  registry.package({ manifest })
+  await registry.package({ manifest })
 
   await npm.exec('owner', ['ls', packageName])
   t.match(joinedOutput(), maintainers.map(m => `${m.name} <${m.email}>`).join('\n'))
@@ -153,7 +153,7 @@ t.test('owner ls <pkg> no maintainers', async t => {
     name: packageName,
     versions: ['1.0.0'],
   })
-  registry.package({ manifest })
+  await registry.package({ manifest })
 
   await npm.exec('owner', ['ls', packageName])
   t.equal(joinedOutput(), 'no admin found')
@@ -173,7 +173,7 @@ t.test('owner add <user> <pkg>', async t => {
     packuments: [{ maintainers, version: '1.0.0' }],
   })
   registry.couchuser({ username })
-  registry.package({ manifest })
+  await registry.package({ manifest })
   registry.nock.put(`/${spec.escapedName}/-rev/${manifest._rev}`, body => {
     t.match(body, {
       _id: manifest._id,
@@ -206,7 +206,7 @@ t.test('owner add <user> cwd package', async t => {
     packuments: [{ maintainers, version: '1.0.0' }],
   })
   registry.couchuser({ username })
-  registry.package({ manifest })
+  await registry.package({ manifest })
   registry.nock.put(`/${spec.escapedName}/-rev/${manifest._rev}`, body => {
     t.match(body, {
       _id: manifest._id,
@@ -236,7 +236,7 @@ t.test('owner add <user> <pkg> already an owner', async t => {
     packuments: [{ maintainers, version: '1.0.0' }],
   })
   registry.couchuser({ username })
-  registry.package({ manifest })
+  await registry.package({ manifest })
   await npm.exec('owner', ['add', username, packageName])
   t.equal(joinedOutput(), '')
   t.match(
@@ -273,7 +273,7 @@ t.test('owner add <user> <pkg> fails to PUT updates', async t => {
     packuments: [{ maintainers, version: '1.0.0' }],
   })
   registry.couchuser({ username })
-  registry.package({ manifest })
+  await registry.package({ manifest })
   registry.nock.put(`/${spec.escapedName}/-rev/${manifest._rev}`).reply(404, {})
   await t.rejects(
     npm.exec('owner', ['add', username, packageName]),
@@ -295,7 +295,7 @@ t.test('owner add <user> <pkg> no previous maintainers property from server', as
     packuments: [{ maintainers: undefined, version: '1.0.0' }],
   })
   registry.couchuser({ username })
-  registry.package({ manifest })
+  await registry.package({ manifest })
   registry.nock.put(`/${spec.escapedName}/-rev/${manifest._rev}`, body => {
     t.match(body, {
       _id: manifest._id,
@@ -351,7 +351,7 @@ t.test('owner rm <user> <pkg>', async t => {
     packuments: [{ maintainers, version: '1.0.0' }],
   })
   registry.couchuser({ username })
-  registry.package({ manifest })
+  await registry.package({ manifest })
   registry.nock.put(`/${spec.escapedName}/-rev/${manifest._rev}`, body => {
     t.match(body, {
       _id: manifest._id,
@@ -378,7 +378,7 @@ t.test('owner rm <user> <pkg> not a current owner', async t => {
     packuments: [{ maintainers, version: '1.0.0' }],
   })
   registry.couchuser({ username })
-  registry.package({ manifest })
+  await registry.package({ manifest })
   await npm.exec('owner', ['rm', username, packageName])
   t.match(logs.info, [['owner rm', `Not a package owner: ${username}`]])
 })
@@ -400,7 +400,7 @@ t.test('owner rm <user> cwd package', async t => {
     packuments: [{ maintainers, version: '1.0.0' }],
   })
   registry.couchuser({ username })
-  registry.package({ manifest })
+  await registry.package({ manifest })
   registry.nock.put(`/${spec.escapedName}/-rev/${manifest._rev}`, body => {
     t.match(body, {
       _id: manifest._id,
@@ -430,7 +430,7 @@ t.test('owner rm <user> only user', async t => {
     packuments: [{ maintainers: maintainers.slice(0, 1), version: '1.0.0' }],
   })
   registry.couchuser({ username })
-  registry.package({ manifest })
+  await registry.package({ manifest })
   await t.rejects(
     npm.exec('owner', ['rm', username]),
     {
@@ -486,7 +486,7 @@ t.test('workspaces', async t => {
         'process.cwd': () => path.join(prefix, 'workspace-a'),
       }),
     })
-    registryPackage(t, npm.config.get('registry'), 'workspace-a')
+    await registryPackage(t, npm.config.get('registry'), 'workspace-a')
     await npm.exec('owner', ['ls'])
     t.match(joinedOutput(), maintainers.map(m => `${m.name} <${m.email}>`).join('\n'))
   })
@@ -499,7 +499,7 @@ t.test('workspaces', async t => {
       }),
     })
     npm.config.set('workspace', ['workspace-a'])
-    registryPackage(t, npm.config.get('registry'), 'workspace-a')
+    await registryPackage(t, npm.config.get('registry'), 'workspace-a')
     await npm.exec('owner', ['ls'])
     t.match(joinedOutput(), maintainers.map(m => `${m.name} <${m.email}>`).join('\n'))
   })
@@ -511,7 +511,7 @@ t.test('workspaces', async t => {
         'process.cwd': () => path.join(prefix, 'workspace-a'),
       }),
     })
-    registryPackage(t, npm.config.get('registry'), packageName)
+    await registryPackage(t, npm.config.get('registry'), packageName)
     await npm.exec('owner', ['ls', packageName])
     t.match(joinedOutput(), maintainers.map(m => `${m.name} <${m.email}>`).join('\n'))
   })
@@ -524,7 +524,7 @@ t.test('workspaces', async t => {
       }),
     })
     npm.config.set('workspace', ['workspace-a'])
-    registryPackage(t, npm.config.get('registry'), packageName)
+    await registryPackage(t, npm.config.get('registry'), packageName)
     await npm.exec('owner', ['ls', packageName])
     t.match(joinedOutput(), maintainers.map(m => `${m.name} <${m.email}>`).join('\n'))
   })
@@ -543,7 +543,7 @@ t.test('workspaces', async t => {
       name: 'workspace-a',
       packuments: [{ maintainers, version: '1.0.0' }],
     })
-    registry.package({ manifest })
+    await registry.package({ manifest })
     registry.couchuser({ username })
     registry.nock.put(`/workspace-a/-rev/${manifest._rev}`, body => {
       t.match(body, {
@@ -572,7 +572,7 @@ t.test('workspaces', async t => {
       name: 'workspace-a',
       packuments: [{ maintainers, version: '1.0.0' }],
     })
-    registry.package({ manifest })
+    await registry.package({ manifest })
     registry.couchuser({ username })
     registry.nock.put(`/workspace-a/-rev/${manifest._rev}`, body => {
       t.match(body, {
@@ -603,7 +603,7 @@ t.test('workspaces', async t => {
       name: 'workspace-a',
       packuments: [{ maintainers, version: '1.0.0' }],
     })
-    registry.package({ manifest })
+    await registry.package({ manifest })
     registry.couchuser({ username })
     registry.nock.put(`/workspace-a/-rev/${manifest._rev}`, body => {
       t.match(body, {
@@ -649,7 +649,7 @@ t.test('completion', async t => {
       name: packageName,
       packuments: [{ maintainers, version: '1.0.0' }],
     })
-    registry.package({ manifest })
+    await registry.package({ manifest })
     const res = await owner.completion({ conf: { argv: { remain: ['npm', 'owner', 'rm'] } } })
     t.strictSame(res, maintainers.map(m => m.name), 'should return list of current owners')
   })
@@ -683,7 +683,7 @@ t.test('completion', async t => {
       name: packageName,
       packuments: [{ maintainers: [], version: '1.0.0' }],
     })
-    registry.package({ manifest })
+    await registry.package({ manifest })
 
     const res = await owner.completion({ conf: { argv: { remain: ['npm', 'owner', 'rm'] } } })
     t.strictSame(res, [], 'should return no owners if not found')
