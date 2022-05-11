@@ -68,6 +68,7 @@ The following shorthands are parsed on the command-line:
 * `--desc`: `--description`
 * `-f`: `--force`
 * `-g`: `--global`
+* `--iwr`: `--include-workspace-root`
 * `-L`: `--location`
 * `-d`: `--loglevel info`
 * `-s`: `--loglevel silent`
@@ -1173,6 +1174,19 @@ it will be included.
 
 If the resulting omit list includes `'dev'`, then the `NODE_ENV` environment
 variable will be set to `'production'` for all lifecycle scripts.
+
+<!-- automatically generated, do not edit manually -->
+<!-- see lib/utils/config/definitions.js -->
+
+#### `omit-lockfile-registry-resolved`
+
+* Default: false
+* Type: Boolean
+
+This option causes npm to create lock files without a `resolved` key for
+registry dependencies. Subsequent installs will need to resolve tarball
+endpoints with the configured registry, likely resulting in a longer install
+time.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->

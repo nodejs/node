@@ -103,6 +103,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "npm-version": "{NPM-VERSION}",
   "offline": false,
   "omit": [],
+  "omit-lockfile-registry-resolved": false,
   "only": null,
   "optional": null,
   "otp": null,
@@ -257,6 +258,7 @@ noproxy = [""]
 npm-version = "{NPM-VERSION}"
 offline = false
 omit = []
+omit-lockfile-registry-resolved = false
 only = null
 optional = null
 otp = null

@@ -10,7 +10,7 @@ const makeFetchHappen = (url, opts) => {
   return fetch(request, options)
 }
 
-makeFetchHappen.defaults = (defaultUrl, defaultOptions = {}) => {
+makeFetchHappen.defaults = (defaultUrl, defaultOptions = {}, wrappedFetch = makeFetchHappen) => {
   if (typeof defaultUrl === 'object') {
     defaultOptions = defaultUrl
     defaultUrl = null
@@ -26,10 +26,11 @@ makeFetchHappen.defaults = (defaultUrl, defaultOptions = {}) => {
         ...options.headers,
       },
     }
-    return makeFetchHappen(finalUrl, finalOptions)
+    return wrappedFetch(finalUrl, finalOptions)
   }
 
-  defaultedFetch.defaults = makeFetchHappen.defaults
+  defaultedFetch.defaults = (defaultUrl1, defaultOptions1 = {}) =>
+    makeFetchHappen.defaults(defaultUrl1, defaultOptions1, defaultedFetch)
   return defaultedFetch
 }
 

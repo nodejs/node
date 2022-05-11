@@ -37,6 +37,7 @@ If you're looking to manage multiple versions of **`node`** &/or **`npm`**, cons
 * [**`nodenv`**](https://github.com/nodenv/nodenv)
 * [**`asdf-nodejs`**](https://github.com/asdf-vm/asdf-nodejs)
 * [**`nvm-windows`**](https://github.com/coreybutler/nvm-windows)
+* [**`fnm`**](https://github.com/Schniz/fnm)
 
 ### Usage
 

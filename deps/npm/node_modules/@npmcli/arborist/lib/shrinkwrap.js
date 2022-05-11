@@ -95,6 +95,7 @@ const specFromResolved = resolved => {
 const relpath = require('./relpath.js')
 
 const consistentResolve = require('./consistent-resolve.js')
+const { overrideResolves } = require('./override-resolves.js')
 
 const maybeReadFile = file => {
   return readFile(file, 'utf8').then(d => d, er => {
@@ -265,7 +266,7 @@ class Shrinkwrap {
     return s
   }
 
-  static metaFromNode (node, path) {
+  static metaFromNode (node, path, options = {}) {
     if (node.isLink) {
       return {
         resolved: relpath(path, node.realpath),
@@ -299,7 +300,12 @@ class Shrinkwrap {
     })
 
     const resolved = consistentResolve(node.resolved, node.path, path, true)
-    if (resolved) {
+    // hide resolved from registry dependencies.
+    if (!resolved) {
+      // no-op
+    } else if (node.isRegistryDependency) {
+      meta.resolved = overrideResolves(resolved, options)
+    } else {
       meta.resolved = resolved
     }
 
@@ -330,6 +336,7 @@ class Shrinkwrap {
       shrinkwrapOnly = false,
       hiddenLockfile = false,
       lockfileVersion,
+      resolveOptions = {},
     } = options
 
     this.lockfileVersion = hiddenLockfile ? 3
@@ -347,6 +354,7 @@ class Shrinkwrap {
     this.yarnLock = null
     this.hiddenLockfile = hiddenLockfile
     this.loadingError = null
+    this.resolveOptions = resolveOptions
     // only load npm-shrinkwrap.json in dep trees, not package-lock
     this.shrinkwrapOnly = shrinkwrapOnly
   }
@@ -830,7 +838,7 @@ class Shrinkwrap {
           resolved,
           integrity,
           hasShrinkwrap,
-        } = Shrinkwrap.metaFromNode(node, this.path)
+        } = Shrinkwrap.metaFromNode(node, this.path, this.resolveOptions)
         node.resolved = node.resolved || resolved || null
         node.integrity = node.integrity || integrity || null
         node.hasShrinkwrap = node.hasShrinkwrap || hasShrinkwrap || false
@@ -886,7 +894,10 @@ class Shrinkwrap {
   [_updateWaitingNode] (loc) {
     const node = this[_awaitingUpdate].get(loc)
     this[_awaitingUpdate].delete(loc)
-    this.data.packages[loc] = Shrinkwrap.metaFromNode(node, this.path)
+    this.data.packages[loc] = Shrinkwrap.metaFromNode(
+      node,
+      this.path,
+      this.resolveOptions)
   }
 
   commit () {
@@ -894,7 +905,10 @@ class Shrinkwrap {
       if (this.yarnLock) {
         this.yarnLock.fromTree(this.tree)
       }
-      const root = Shrinkwrap.metaFromNode(this.tree.target, this.path)
+      const root = Shrinkwrap.metaFromNode(
+        this.tree.target,
+        this.path,
+        this.resolveOptions)
       this.data.packages = {}
       if (Object.keys(root).length) {
         this.data.packages[''] = root
@@ -905,7 +919,10 @@ class Shrinkwrap {
           continue
         }
         const loc = relpath(this.path, node.path)
-        this.data.packages[loc] = Shrinkwrap.metaFromNode(node, this.path)
+        this.data.packages[loc] = Shrinkwrap.metaFromNode(
+          node,
+          this.path,
+          this.resolveOptions)
       }
     } else if (this[_awaitingUpdate].size > 0) {
       for (const loc of this[_awaitingUpdate].keys()) {
@@ -1013,7 +1030,7 @@ class Shrinkwrap {
         spec.type !== 'git' &&
         spec.type !== 'file' &&
         spec.type !== 'remote') {
-      lock.resolved = node.resolved
+      lock.resolved = overrideResolves(node.resolved, this.resolveOptions)
     }
 
     if (node.integrity) {

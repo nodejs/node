@@ -57,6 +57,7 @@ module.exports = cls => class VirtualLoader extends cls {
     const s = await Shrinkwrap.load({
       path: this.path,
       lockfileVersion: this.options.lockfileVersion,
+      resolveOptions: this.options,
     })
     if (!s.loadedFromDisk && !options.root) {
       const er = new Error('loadVirtual requires existing shrinkwrap file')

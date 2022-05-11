@@ -129,12 +129,13 @@ function diff(obj1, obj2, pathConverter) {
       }
     }
 
-    return diffs.remove
-      .reverse()
-      .concat(diffs.replace)
-      .concat(diffs.add);
+    return diffs;
   }
-  return getDiff(obj1, obj2, [], {remove: [], replace: [], add: []});
+  const finalDiffs = getDiff(obj1, obj2, [], {remove: [], replace: [], add: []});
+  return finalDiffs.remove
+    .reverse()
+    .concat(finalDiffs.replace)
+    .concat(finalDiffs.add);
 }
 
 function pushReplace(path, basePath, key, diffs, pathConverter, obj2) {

@@ -118,13 +118,10 @@ class HttpsProxyAgent extends agent_base_1.Agent {
             if (statusCode === 200) {
                 req.once('socket', resume);
                 if (opts.secureEndpoint) {
-                    const servername = opts.servername || opts.host;
-                    if (!servername) {
-                        throw new Error('Could not determine "servername"');
-                    }
                     // The proxy is connecting to a TLS server, so upgrade
                     // this socket connection to a TLS connection.
                     debug('Upgrading socket connection to TLS');
+                    const servername = opts.servername || opts.host;
                     return tls_1.default.connect(Object.assign(Object.assign({}, omit(opts, 'host', 'hostname', 'path', 'port')), { socket,
                         servername }));
                 }
@@ -141,7 +138,7 @@ class HttpsProxyAgent extends agent_base_1.Agent {
             //
             // See: https://hackerone.com/reports/541502
             socket.destroy();
-            const fakeSocket = new net_1.default.Socket();
+            const fakeSocket = new net_1.default.Socket({ writable: false });
             fakeSocket.readable = true;
             // Need to wait for the "socket" event to re-play the "data" events.
             req.once('socket', (s) => {

@@ -242,8 +242,8 @@ class Walker extends IgnoreWalker {
       if (excl) {
         pattern = pattern.slice(excl[0].length)
       }
-      // strip off any / from the start of the pattern.  /foo => foo
-      pattern = pattern.replace(/^\/+/, '')
+      // strip off any / or ./ from the start of the pattern.  /foo => foo, ./foo => foo
+      pattern = pattern.replace(/^\.?\/+/, '')
       // an odd number of ! means a negated pattern.  !!foo ==> foo
       const negate = excl && excl[0].length % 2 === 1
       set.push({ pattern, negate })

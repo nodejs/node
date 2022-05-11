@@ -5,7 +5,7 @@ module.exports = [
     version: '3.0.1',
     description: 'Collection of programmatic APIs for the npm CLI',
     keywords: ['npm', 'api', 'package manager', 'lib'],
-    date: new Date('2019-07-16T17:50:00.572Z'),
+    date: '2019-07-16T17:50:00.572Z',
     links: {
       npm: 'https://www.npmjs.com/package/libnpm',
       homepage: 'https://github.com/npm/libnpm#readme',
@@ -26,7 +26,8 @@ module.exports = [
     scope: 'unscoped',
     version: '4.0.1',
     description: 'programmatic library for `npm access` commands',
-    date: new Date('2020-11-03T19:19:00.526Z'),
+    keywords: 'libnpmaccess',
+    date: '2020-11-03T19:19:00.526Z',
     links: {
       npm: 'https://www.npmjs.com/package/libnpmaccess',
       homepage: 'https://npmjs.com/package/libnpmaccess',
@@ -47,7 +48,7 @@ module.exports = [
     scope: 'evocateur',
     version: '3.1.2',
     description: 'programmatic library for `npm access` commands',
-    date: new Date('2019-07-16T19:43:33.959Z'),
+    date: '2019-07-16T19:43:33.959Z',
     links: {
       npm: 'https://www.npmjs.com/package/%40evocateur%2Flibnpmaccess',
       homepage: 'https://npmjs.com/package/@evocateur/libnpmaccess',
@@ -63,7 +64,7 @@ module.exports = [
     scope: 'evocateur',
     version: '1.2.2',
     description: 'Programmatic API for the bits behind npm publish and unpublish',
-    date: new Date('2019-07-16T19:40:40.850Z'),
+    date: '2019-07-16T19:40:40.850Z',
     links: {
       npm: 'https://www.npmjs.com/package/%40evocateur%2Flibnpmpublish',
       homepage: 'https://npmjs.com/package/@evocateur/libnpmpublish',
@@ -80,7 +81,7 @@ module.exports = [
     version: '2.0.1',
     description: 'Programmatic api for `npm org` commands',
     keywords: ['libnpm', 'npm', 'package manager', 'api', 'orgs', 'teams'],
-    date: new Date('2020-11-03T19:21:57.757Z'),
+    date: '2020-11-03T19:21:57.757Z',
     links: {
       npm: 'https://www.npmjs.com/package/libnpmorg',
       homepage: 'https://npmjs.com/package/libnpmorg',
@@ -102,7 +103,7 @@ module.exports = [
     version: '3.1.0',
     description: 'Programmatic API for searching in npm and compatible registries.',
     keywords: ['npm', 'search', 'api', 'libnpm'],
-    date: new Date('2020-12-08T23:54:18.374Z'),
+    date: '2020-12-08T23:54:18.374Z',
     links: {
       npm: 'https://www.npmjs.com/package/libnpmsearch',
       homepage: 'https://npmjs.com/package/libnpmsearch',
@@ -123,7 +124,7 @@ module.exports = [
     scope: 'unscoped',
     version: '2.0.2',
     description: 'npm Team management APIs',
-    date: new Date('2020-11-03T19:24:42.380Z'),
+    date: '2020-11-03T19:24:42.380Z',
     links: {
       npm: 'https://www.npmjs.com/package/libnpmteam',
       homepage: 'https://npmjs.com/package/libnpmteam',
@@ -145,7 +146,7 @@ module.exports = [
     version: '6.0.1',
     description: 'programmatic API for managing npm registry hooks',
     keywords: ['npm', 'hooks', 'registry', 'npm api'],
-    date: new Date('2020-11-03T19:20:45.818Z'),
+    date: '2020-11-03T19:20:45.818Z',
     links: {
       npm: 'https://www.npmjs.com/package/libnpmhook',
       homepage: 'https://github.com/npm/libnpmhook#readme',
@@ -166,7 +167,7 @@ module.exports = [
     scope: 'unscoped',
     version: '4.0.0',
     description: 'Programmatic API for the bits behind npm publish and unpublish',
-    date: new Date('2020-11-03T19:13:43.780Z'),
+    date: '2020-11-03T19:13:43.780Z',
     links: {
       npm: 'https://www.npmjs.com/package/libnpmpublish',
       homepage: 'https://npmjs.com/package/libnpmpublish',
@@ -193,7 +194,7 @@ module.exports = [
       'git', 'fund',
       'gitfund',
     ],
-    date: new Date('2020-12-08T23:22:00.213Z'),
+    date: '2020-12-08T23:22:00.213Z',
     links: {
       npm: 'https://www.npmjs.com/package/libnpmfund',
       homepage: 'https://github.com/npm/libnpmfund#readme',
@@ -222,7 +223,7 @@ module.exports = [
       'workspaces',
       'map-workspaces',
     ],
-    date: new Date('2020-09-30T15:16:29.017Z'),
+    date: '2020-09-30T15:16:29.017Z',
     links: {
       npm: 'https://www.npmjs.com/package/%40npmcli%2Fmap-workspaces',
       homepage: 'https://github.com/npm/map-workspaces#readme',
@@ -243,7 +244,7 @@ module.exports = [
     scope: 'unscoped',
     version: '1.0.7',
     description: "library to do the things that 'npm version' does",
-    date: new Date('2020-11-04T00:21:41.069Z'),
+    date: '2020-11-04T00:21:41.069Z',
     links: {
       npm: 'https://www.npmjs.com/package/libnpmversion',
       homepage: 'https://github.com/npm/libnpmversion#readme',
@@ -269,7 +270,7 @@ module.exports = [
     scope: 'types',
     version: '2.0.1',
     description: 'TypeScript definitions for libnpmsearch',
-    date: new Date('2019-09-26T22:24:28.713Z'),
+    date: '2019-09-26T22:24:28.713Z',
     links: { npm: 'https://www.npmjs.com/package/%40types%2Flibnpmsearch' },
     publisher: { username: 'types', email: 'ts-npm-types@microsoft.com' },
     maintainers: [{ username: 'types', email: 'ts-npm-types@microsoft.com' }],

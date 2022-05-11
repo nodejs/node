@@ -29,18 +29,26 @@
 // as an array.
 //
 
+const fs = require('@npmcli/fs')
+const nopt = require('nopt')
+
 const { definitions, shorthands } = require('../utils/config/index.js')
 const { aliases, cmdList, plumbing } = require('../utils/cmd-list.js')
 const aliasNames = Object.keys(aliases)
 const fullList = cmdList.concat(aliasNames).filter(c => !plumbing.includes(c))
-const nopt = require('nopt')
 const configNames = Object.keys(definitions)
 const shorthandNames = Object.keys(shorthands)
 const allConfs = configNames.concat(shorthandNames)
 const { isWindowsShell } = require('../utils/is-windows.js')
-const fileExists = require('../utils/file-exists.js')
+const fileExists = async (file) => {
+  try {
+    const stat = await fs.stat(file)
+    return stat.isFile()
+  } catch {
+    return false
+  }
+}
 
-const { promisify } = require('util')
 const BaseCommand = require('../base-command.js')
 
 class Completion extends BaseCommand {
@@ -189,12 +197,10 @@ class Completion extends BaseCommand {
 }
 
 const dumpScript = async () => {
-  const fs = require('fs')
-  const readFile = promisify(fs.readFile)
   const { resolve } = require('path')
   const p = resolve(__dirname, '..', 'utils', 'completion.sh')
 
-  const d = (await readFile(p, 'utf8')).replace(/^#!.*?\n/, '')
+  const d = (await fs.readFile(p, 'utf8')).replace(/^#!.*?\n/, '')
   await new Promise((res, rej) => {
     let done = false
     process.stdout.on('error', er => {
