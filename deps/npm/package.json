@@ -1,5 +1,5 @@
 {
-  "version": "8.9.0",
+  "version": "8.10.0",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
@@ -90,7 +90,7 @@
     "libnpmsearch": "^5.0.2",
     "libnpmteam": "^4.0.2",
     "libnpmversion": "^3.0.1",
-    "make-fetch-happen": "^10.1.2",
+    "make-fetch-happen": "^10.1.3",
     "minipass": "^3.1.6",
     "minipass-pipeline": "^1.2.4",
     "mkdirp": "^1.0.4",
@@ -200,7 +200,7 @@
   ],
   "devDependencies": {
     "@npmcli/eslint-config": "^3.0.1",
-    "@npmcli/template-oss": "3.4.2",
+    "@npmcli/template-oss": "3.5.0",
     "licensee": "^8.2.0",
     "nock": "^13.2.4",
     "spawk": "^1.7.1",
@@ -230,13 +230,18 @@
     ],
     "color": 1,
     "files": "test/{lib,bin,index.js}",
-    "coverage-map": "test/coverage-map.js",
-    "timeout": 600
+    "timeout": 600,
+    "nyc-arg": [
+      "--exclude",
+      "workspaces/**",
+      "--exclude",
+      "tap-snapshots/**"
+    ]
   },
   "templateOSS": {
     "rootRepo": false,
     "rootModule": false,
-    "version": "3.4.2"
+    "version": "3.5.0"
   },
   "license": "Artistic-2.0",
   "engines": {

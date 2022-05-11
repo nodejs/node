@@ -97,6 +97,7 @@ Array [
   "npm-version",
   "offline",
   "omit",
+  "omit-lockfile-registry-resolved",
   "only",
   "optional",
   "otp",
@@ -1237,6 +1238,18 @@ it will be included.
 
 If the resulting omit list includes \`'dev'\`, then the \`NODE_ENV\` environment
 variable will be set to \`'production'\` for all lifecycle scripts.
+`
+
+exports[`test/lib/utils/config/definitions.js TAP > config description for omit-lockfile-registry-resolved 1`] = `
+#### \`omit-lockfile-registry-resolved\`
+
+* Default: false
+* Type: Boolean
+
+This option causes npm to create lock files without a \`resolved\` key for
+registry dependencies. Subsequent installs will need to resolve tarball
+endpoints with the configured registry, likely resulting in a longer install
+time.
 `
 
 exports[`test/lib/utils/config/definitions.js TAP > config description for only 1`] = `

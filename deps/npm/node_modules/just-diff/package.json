@@ -1,6 +1,6 @@
 {
   "name": "just-diff",
-  "version": "5.0.1",
+  "version": "5.0.2",
   "description": "Return an object representing the diffs between two objects. Supports jsonPatch protocol",
   "main": "index.js",
   "module": "index.mjs",
