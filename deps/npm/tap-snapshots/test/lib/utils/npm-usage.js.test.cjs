@@ -223,10 +223,12 @@ All commands:
     bugs            Report bugs for a package in a web browser
                     
                     Usage:
-                    npm bugs [<pkgname>]
+                    npm bugs [<pkgname> [<pkgname> ...]]
                     
                     Options:
                     [--no-browser|--browser <browser>] [--registry <registry>]
+                    [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
+                    [-ws|--workspaces] [--include-workspace-root]
                     
                     alias: issues
                     
@@ -777,7 +779,7 @@ All commands:
                     npm repo [<pkgname> [<pkgname> ...]]
                     
                     Options:
-                    [--no-browser|--browser <browser>]
+                    [--no-browser|--browser <browser>] [--registry <registry>]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
                     [-ws|--workspaces] [--include-workspace-root]
                     
@@ -862,7 +864,7 @@ All commands:
                     npm star [<pkg>...]
                     
                     Options:
-                    [--registry <registry>] [--unicode]
+                    [--registry <registry>] [--unicode] [--otp <otp>]
                     
                     Run "npm help star" for more info
 

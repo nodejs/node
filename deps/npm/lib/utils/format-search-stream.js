@@ -1,6 +1,3 @@
-// XXX these output classes should not live in here forever.  it'd be good to
-// split them out, perhaps to libnpmsearch
-
 const Minipass = require('minipass')
 const columnify = require('columnify')
 
@@ -18,32 +15,26 @@ const columnify = require('columnify')
 // The returned stream will format this package data
 // into a byte stream of formatted, displayable output.
 
-module.exports = (opts = {}) =>
-  opts.json ? new JSONOutputStream() : new TextOutputStream(opts)
+module.exports = (opts) => {
+  return opts.json ? new JSONOutputStream() : new TextOutputStream(opts)
+}
 
 class JSONOutputStream extends Minipass {
-  constructor () {
-    super()
-    this._didFirst = false
-  }
+  #didFirst = false
 
   write (obj) {
-    if (!this._didFirst) {
+    if (!this.#didFirst) {
       super.write('[\n')
-      this._didFirst = true
+      this.#didFirst = true
     } else {
       super.write('\n,\n')
     }
 
-    try {
-      return super.write(JSON.stringify(obj))
-    } catch (er) {
-      return this.emit('error', er)
-    }
+    return super.write(JSON.stringify(obj))
   }
 
   end () {
-    super.write(this._didFirst ? ']\n' : '\n[]\n')
+    super.write(this.#didFirst ? ']\n' : '\n[]\n')
     super.end()
   }
 }
@@ -61,14 +52,11 @@ class TextOutputStream extends Minipass {
 }
 
 function prettify (data, num, opts) {
-  opts = opts || {}
   var truncate = !opts.long
 
   var pkg = normalizePackage(data, opts)
 
-  var columns = opts.description
-    ? ['name', 'description', 'author', 'date', 'version', 'keywords']
-    : ['name', 'author', 'date', 'version', 'keywords']
+  var columns = ['name', 'description', 'author', 'date', 'version', 'keywords']
 
   if (opts.parseable) {
     return columns.map(function (col) {
@@ -76,7 +64,10 @@ function prettify (data, num, opts) {
     }).join('\t')
   }
 
-  var output = columnify(
+  // stdout in tap is never a tty
+  /* istanbul ignore next */
+  const maxWidth = process.stdout.isTTY ? process.stdout.getWindowSize()[0] : Infinity
+  let output = columnify(
     [pkg],
     {
       include: columns,
@@ -92,8 +83,8 @@ function prettify (data, num, opts) {
         keywords: { maxWidth: Infinity },
       },
     }
-  )
-  output = trimToMaxWidth(output)
+  ).split('\n').map(line => line.slice(0, maxWidth)).join('\n')
+
   if (opts.color) {
     output = highlightSearchTerms(output, opts.args)
   }
@@ -140,26 +131,6 @@ function colorize (line) {
   return line.split('\u0000').join(uncolor)
 }
 
-function getMaxWidth () {
-  var cols
-  try {
-    var tty = require('tty')
-    var stdout = process.stdout
-    cols = !tty.isatty(stdout.fd) ? Infinity : process.stdout.getWindowSize()[0]
-    cols = (cols === 0) ? Infinity : cols
-  } catch (ex) {
-    cols = Infinity
-  }
-  return cols
-}
-
-function trimToMaxWidth (str) {
-  var maxWidth = getMaxWidth()
-  return str.split('\n').map(function (line) {
-    return line.slice(0, maxWidth)
-  }).join('\n')
-}
-
 function highlightSearchTerms (str, terms) {
   terms.forEach(function (arg, i) {
     str = addColorMarker(str, arg, i)
@@ -169,13 +140,10 @@ function highlightSearchTerms (str, terms) {
 }
 
 function normalizePackage (data, opts) {
-  opts = opts || {}
   return {
     name: data.name,
-    description: opts.description ? data.description : '',
-    author: (data.maintainers || []).map(function (m) {
-      return '=' + m.username
-    }).join(' '),
+    description: data.description,
+    author: data.maintainers.map((m) => `=${m.username}`).join(' '),
     keywords: Array.isArray(data.keywords)
       ? data.keywords.join(' ')
       : typeof data.keywords === 'string'

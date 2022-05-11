@@ -147,6 +147,7 @@ module.exports = cls => class ActualLoader extends cls {
     const meta = await Shrinkwrap.load({
       path: this[_actualTree].path,
       hiddenLockfile: true,
+      resolveOptions: this.options,
     })
     if (meta.loadedFromDisk) {
       this[_actualTree].meta = meta
@@ -155,6 +156,7 @@ module.exports = cls => class ActualLoader extends cls {
       const meta = await Shrinkwrap.load({
         path: this[_actualTree].path,
         lockfileVersion: this.options.lockfileVersion,
+        resolveOptions: this.options,
       })
       this[_actualTree].meta = meta
       return this[_loadActualActually]({ root, ignoreMissing })
