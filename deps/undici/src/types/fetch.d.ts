@@ -7,6 +7,8 @@ import { URL, URLSearchParams } from 'url'
 import { ReadableStream } from 'stream/web'
 import { FormData } from './formdata'
 
+import Dispatcher = require('./dispatcher')
+
 export type RequestInfo = string | URL | Request
 
 export declare function fetch (
@@ -36,9 +38,21 @@ export interface BodyMixin {
   readonly text: () => Promise<string>
 }
 
+export interface HeadersIterator<T, TReturn = any, TNext = undefined> {
+  next(...args: [] | [TNext]): IteratorResult<T, TReturn>;
+}
+
+export interface HeadersIterableIterator<T> extends HeadersIterator<T> {
+  [Symbol.iterator](): HeadersIterableIterator<T>;
+}
+
+export interface HeadersIterable<T> {
+  [Symbol.iterator](): HeadersIterator<T>;
+}
+
 export type HeadersInit = string[][] | Record<string, string | ReadonlyArray<string>> | Headers
 
-export declare class Headers implements Iterable<[string, string]> {
+export declare class Headers implements HeadersIterable<[string, string]> {
   constructor (init?: HeadersInit)
   readonly append: (name: string, value: string) => void
   readonly delete: (name: string) => void
@@ -50,10 +64,10 @@ export declare class Headers implements Iterable<[string, string]> {
     thisArg?: unknown
   ) => void
 
-  readonly keys: () => IterableIterator<string>
-  readonly values: () => IterableIterator<string>
-  readonly entries: () => IterableIterator<[string, string]>
-  readonly [Symbol.iterator]: () => Iterator<[string, string]>
+  readonly keys: () => HeadersIterableIterator<string>
+  readonly values: () => HeadersIterableIterator<string>
+  readonly entries: () => HeadersIterableIterator<[string, string]>
+  readonly [Symbol.iterator]: () => HeadersIterator<[string, string]>
 }
 
 export type RequestCache =
@@ -99,6 +113,7 @@ export interface RequestInit {
   readonly referrer?: string
   readonly referrerPolicy?: ReferrerPolicy
   readonly window?: null
+  readonly dispatcher?: Dispatcher
 }
 
 export type ReferrerPolicy =

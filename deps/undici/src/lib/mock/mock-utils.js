@@ -229,8 +229,7 @@ function getStatusText (statusCode) {
     case 508: return 'Loop Detected'
     case 510: return 'Not Extended'
     case 511: return 'Network Authentication Required'
-    default:
-      throw new ReferenceError(`Unknown status code "${statusCode}"!`)
+    default: return 'unknown'
   }
 }
 
