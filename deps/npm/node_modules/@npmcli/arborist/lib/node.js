@@ -524,6 +524,18 @@ class Node {
     return this === this.root || this === this.root.target
   }
 
+  get isRegistryDependency () {
+    if (this.edgesIn.size === 0) {
+      return false
+    }
+    for (const edge of this.edgesIn) {
+      if (!npa(edge.spec).registry) {
+        return false
+      }
+    }
+    return true
+  }
+
   * ancestry () {
     for (let anc = this; anc; anc = anc.resolveParent) {
       yield anc

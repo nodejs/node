@@ -61,6 +61,9 @@ Object {
   "help": Array [
     "--usage",
   ],
+  "iwr": Array [
+    "--include-workspace-root",
+  ],
   "l": Array [
     "--long",
   ],
