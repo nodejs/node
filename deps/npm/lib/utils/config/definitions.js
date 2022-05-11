@@ -1385,6 +1385,18 @@ define('omit', {
   },
 })
 
+define('omit-lockfile-registry-resolved', {
+  default: false,
+  type: Boolean,
+  description: `
+    This option causes npm to create lock files without a \`resolved\` key for
+    registry dependencies. Subsequent installs will need to resolve tarball
+    endpoints with the configured registry, likely resulting in a longer install
+    time.
+  `,
+  flatten,
+})
+
 define('only', {
   default: null,
   type: [null, 'prod', 'production'],
@@ -1856,7 +1868,7 @@ define('searchexclude', {
   `,
   flatten (key, obj, flatOptions) {
     flatOptions.search = flatOptions.search || { limit: 20 }
-    flatOptions.search.exclude = obj[key]
+    flatOptions.search.exclude = obj[key].toLowerCase()
   },
 })
 

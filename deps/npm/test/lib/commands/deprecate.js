@@ -85,7 +85,7 @@ t.test('undeprecate', async t => {
     name: 'foo',
     versions,
   })
-  registry.package({ manifest, query: { write: true } })
+  await registry.package({ manifest, query: { write: true } })
   registry.nock.put('/foo', body => {
     for (const version of versions) {
       if (body.versions[version].deprecated !== '') {
@@ -110,7 +110,7 @@ t.test('deprecates given range', async t => {
     name: 'foo',
     versions,
   })
-  registry.package({ manifest, query: { write: true } })
+  await registry.package({ manifest, query: { write: true } })
   const message = 'test deprecation message'
   registry.nock.put('/foo', body => {
     if (body.versions['1.0.1'].deprecated) {
@@ -136,7 +136,7 @@ t.test('deprecates all versions when no range is specified', async t => {
     name: 'foo',
     versions,
   })
-  registry.package({ manifest, query: { write: true } })
+  await registry.package({ manifest, query: { write: true } })
   const message = 'test deprecation message'
   registry.nock.put('/foo', body => {
     for (const version of versions) {
