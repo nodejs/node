@@ -35,6 +35,13 @@ const pkgDirs = t.testdir({
       repository: { url: 'https://github.com/foo/repoobj' },
     }),
   },
+  repourlobj: {
+    'package.json': JSON.stringify({
+      name: 'repourlobj',
+      version: '1.2.3',
+      repository: { url: { works: false } },
+    }),
+  },
   workspaces: {
     'package.json': JSON.stringify({
       name: 'workspaces-test',
@@ -81,14 +88,13 @@ const docs = new Docs(npm)
 t.afterEach(() => opened = {})
 
 t.test('open docs urls', t => {
-  // XXX It is very odd that `where` is how pacote knows to look anywhere other
-  // than the cwd. I would think npm.localPrefix would factor in somehow
-  flatOptions.where = pkgDirs
+  npm.localPrefix = pkgDirs
   const expect = {
     nodocs: 'https://www.npmjs.com/package/nodocs',
     docsurl: 'https://bugzilla.localhost/docsurl',
     repourl: 'https://github.com/foo/repourl#readme',
     repoobj: 'https://github.com/foo/repoobj#readme',
+    repourlobj: 'https://www.npmjs.com/package/repourlobj',
     '.': 'https://example.com',
   }
   const keys = Object.keys(expect)
@@ -110,7 +116,6 @@ t.test('open default package if none specified', async t => {
 })
 
 t.test('workspaces', (t) => {
-  flatOptions.where = undefined
   npm.localPrefix = join(pkgDirs, 'workspaces')
   t.test('all workspaces', async t => {
     await docs.execWorkspaces([], [])

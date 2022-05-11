@@ -70,6 +70,8 @@ The following shorthands are parsed on the command\-line:
 .IP \(bu 2
 \fB\-g\fP: \fB\-\-global\fP
 .IP \(bu 2
+\fB\-\-iwr\fP: \fB\-\-include\-workspace\-root\fP
+.IP \(bu 2
 \fB\-L\fP: \fB\-\-location\fP
 .IP \(bu 2
 \fB\-d\fP: \fB\-\-loglevel info\fP
@@ -1238,6 +1240,19 @@ it will be included\.
 .P
 If the resulting omit list includes \fB\|'dev'\fP, then the \fBNODE_ENV\fP environment
 variable will be set to \fB\|'production'\fP for all lifecycle scripts\.
+.SS \fBomit\-lockfile\-registry\-resolved\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+This option causes npm to create lock files without a \fBresolved\fP key for
+registry dependencies\. Subsequent installs will need to resolve tarball
+endpoints with the configured registry, likely resulting in a longer install
+time\.
 .SS \fBotp\fP
 .RS 0
 .IP \(bu 2
