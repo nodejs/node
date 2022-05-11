@@ -36,7 +36,7 @@ env:
 jobs:
   test-asan:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       CC: clang
       CXX: clang++

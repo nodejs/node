@@ -6,7 +6,7 @@ on:
 name: release-please
 jobs:
   release-please:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: GoogleCloudPlatform/release-please-action@v2
         with:

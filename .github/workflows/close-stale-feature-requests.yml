@@ -31,7 +31,7 @@ env:
 jobs:
   stale:
     if: github.repository == 'nodejs/node'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/stale@v4
         with:

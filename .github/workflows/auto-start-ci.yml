@@ -16,7 +16,7 @@ env:
 jobs:
   get-prs-for-ci:
     if: github.repository == 'nodejs/node'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       numbers: ${{ steps.get_prs_for_ci.outputs.numbers }}
     steps:
@@ -34,7 +34,7 @@ jobs:
   start-ci:
     needs: get-prs-for-ci
     if: needs.get-prs-for-ci.outputs.numbers != ''
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
         with:

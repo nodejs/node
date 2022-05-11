@@ -6,7 +6,7 @@ on:
 
 jobs:
   label:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: nodejs/node-pr-labeler@v1

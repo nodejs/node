@@ -13,7 +13,7 @@ env:
 jobs:
   find:
     if: github.repository == 'nodejs/node'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout the repo

@@ -9,7 +9,7 @@ jobs:
   slackNotification:
     name: Slack Notification
     if: github.repository == 'nodejs/node' && github.event.forced
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Slack Notification
         uses: rtCamp/action-slack-notify@master

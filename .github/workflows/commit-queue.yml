@@ -21,7 +21,7 @@ env:
 jobs:
   get_mergeable_prs:
     if: github.repository == 'nodejs/node'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       numbers: ${{ steps.get_mergeable_prs.outputs.numbers }}
     steps:
@@ -40,7 +40,7 @@ jobs:
   commitQueue:
     needs: get_mergeable_prs
     if: needs.get_mergeable_prs.outputs.numbers != ''
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
         with:
