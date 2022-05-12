@@ -159,8 +159,10 @@ void MarkGarbageCollectionEnd(
   if (LIKELY(!state->observers[NODE_PERFORMANCE_ENTRY_TYPE_GC]))
     return;
 
-  double start_time = state->performance_last_gc_start_mark / 1e6;
-  double duration = (PERFORMANCE_NOW() / 1e6) - start_time;
+  double start_time =
+      (state->performance_last_gc_start_mark - timeOrigin) / 1e6;
+  double duration =
+      (PERFORMANCE_NOW() / 1e6) - (state->performance_last_gc_start_mark / 1e6);
 
   std::unique_ptr<GCPerformanceEntry> entry =
       std::make_unique<GCPerformanceEntry>(
