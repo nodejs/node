@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#14.19.3">14.19.3</a><br/>
 <a href="#14.19.2">14.19.2</a><br/>
 <a href="#14.19.1">14.19.1</a><br/>
 <a href="#14.19.0">14.19.0</a><br/>
@@ -73,6 +74,21 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.19.3"></a>
+
+## 2022-05-17, Version 14.19.3 'Fermium' (LTS), @richardlau
+
+### Notable Changes
+
+* This release updates OpenSSL to 1.1.1o. This update is not being treated as a security release as the issues addressed in OpenSSL 1.1.1o were assessed to not affect Node.js 14. See <https://nodejs.org/en/blog/vulnerability/openssl-fixes-in-regular-releases-may2022/> for more information on how the May 2022 OpenSSL releases affects other Node.js release lines.
+* The list of GPG keys used to sign releases has been synchronized with the main branch.
+
+### Commits
+
+* \[[`68397e49d9`](https://github.com/nodejs/node/commit/68397e49d9)] - **deps**: update archs files for OpenSSL-1.1.1o (RafaelGSS) [#42956](https://github.com/nodejs/node/pull/42956)
+* \[[`7f9a5ed4a8`](https://github.com/nodejs/node/commit/7f9a5ed4a8)] - **deps**: upgrade openssl sources to 1.1.1o (RafaelGSS) [#42956](https://github.com/nodejs/node/pull/42956)
+* \[[`61eba58cb6`](https://github.com/nodejs/node/commit/61eba58cb6)] - **doc**: add release key for Juan Arboleda (Juan José) [#42961](https://github.com/nodejs/node/pull/42961)
 
 <a id="14.19.2"></a>
 
