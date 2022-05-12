@@ -260,7 +260,7 @@ changes:
                  was not a string.
   - version: v11.4.0
     pr-url: https://github.com/nodejs/node/pull/23708
-    description: The `%d`, `%f` and `%i` specifiers now support Symbols
+    description: The `%d`, `%f`, and `%i` specifiers now support Symbols
                  properly.
   - version: v11.4.0
     pr-url: https://github.com/nodejs/node/pull/24806
@@ -586,7 +586,7 @@ changes:
   * `showProxy` {boolean} If `true`, `Proxy` inspection includes
     the [`target` and `handler`][] objects. **Default:** `false`.
   * `maxArrayLength` {integer} Specifies the maximum number of `Array`,
-    [`TypedArray`][], [`WeakMap`][] and [`WeakSet`][] elements to include when
+    [`TypedArray`][], [`WeakMap`][], and [`WeakSet`][] elements to include when
     formatting. Set to `null` or `Infinity` to show all elements. Set to `0` or
     negative to show no elements. **Default:** `100`.
   * `maxStringLength` {integer} Specifies the maximum number of characters to
@@ -1281,7 +1281,7 @@ changes:
   * `ignoreBOM` {boolean} When `true`, the `TextDecoder` will include the byte
     order mark in the decoded result. When `false`, the byte order mark will
     be removed from the output. This option is only used when `encoding` is
-    `'utf-8'`, `'utf-16be'` or `'utf-16le'`. **Default:** `false`.
+    `'utf-8'`, `'utf-16be'`, or `'utf-16le'`. **Default:** `false`.
 
 Creates a new `TextDecoder` instance. The `encoding` may specify one of the
 supported encodings or an alias.
@@ -1290,7 +1290,7 @@ The `TextDecoder` class is also available on the global object.
 
 ### `textDecoder.decode([input[, options]])`
 
-* `input` {ArrayBuffer|DataView|TypedArray} An `ArrayBuffer`, `DataView` or
+* `input` {ArrayBuffer|DataView|TypedArray} An `ArrayBuffer`, `DataView`, or
   `TypedArray` instance containing the encoded data.
 * `options` {Object}
   * `stream` {boolean} `true` if additional chunks of data are expected.
