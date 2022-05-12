@@ -6157,29 +6157,6 @@ void BytecodeGenerator::BuildLiteralCompareNil(
   }
 }
 
-void BytecodeGenerator::BuildLiteralStrictCompareBoolean(Literal* literal) {
-  DCHECK(literal->IsBooleanLiteral());
-  if (execution_result()->IsTest()) {
-    TestResultScope* test_result = execution_result()->AsTest();
-    if (literal->AsBooleanLiteral()) {
-      builder()->JumpIfTrue(ToBooleanMode::kAlreadyBoolean,
-                            test_result->NewThenLabel());
-    } else {
-      builder()->JumpIfFalse(ToBooleanMode::kAlreadyBoolean,
-                             test_result->NewThenLabel());
-    }
-    if (test_result->fallthrough() != TestFallthrough::kElse) {
-      builder()->Jump(test_result->NewElseLabel());
-    }
-    test_result->SetResultConsumedByTest();
-  } else {
-    Register result = register_allocator()->NewRegister();
-    builder()->StoreAccumulatorInRegister(result);
-    builder()->LoadBoolean(literal->AsBooleanLiteral());
-    builder()->CompareReference(result);
-  }
-}
-
 void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Expression* sub_expr;
   Literal* literal;
@@ -6195,11 +6172,6 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     } else {
       builder()->CompareTypeOf(literal_flag);
     }
-  } else if (expr->IsLiteralStrictCompareBoolean(&sub_expr, &literal)) {
-    DCHECK(expr->op() == Token::EQ_STRICT);
-    VisitForAccumulatorValue(sub_expr);
-    builder()->SetExpressionPosition(expr);
-    BuildLiteralStrictCompareBoolean(literal);
   } else if (expr->IsLiteralCompareUndefined(&sub_expr)) {
     VisitForAccumulatorValue(sub_expr);
     builder()->SetExpressionPosition(expr);
