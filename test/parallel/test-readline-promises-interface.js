@@ -123,7 +123,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
     }),
     {
       message: 'The value of "tabSize" is out of range. ' +
-                'It must be >= 1 && < 4294967296. Received 0',
+                'It must be >= 1 && <= 4294967295. Received 0',
       code: 'ERR_OUT_OF_RANGE'
     }
   );
