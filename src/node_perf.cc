@@ -167,9 +167,8 @@ void MarkGarbageCollectionEnd(
           "gc",
           start_time,
           duration,
-          GCPerformanceEntry::Details(
-            static_cast<PerformanceGCKind>(type),
-            static_cast<PerformanceGCFlags>(flags)));
+          GCPerformanceEntry::Details(static_cast<PerformanceGCKind>(type),
+                                      static_cast<PerformanceGCFlags>(flags)));
 
   env->SetImmediate([entry = std::move(entry)](Environment* env) {
     entry->Notify(env);
