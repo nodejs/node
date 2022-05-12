@@ -640,7 +640,7 @@ void Http2Stream::EmitStatistics() {
   std::unique_ptr<Http2StreamPerformanceEntry> entry =
       std::make_unique<Http2StreamPerformanceEntry>(
           "Http2Stream",
-          start,
+          start - (node::performance::timeOrigin / 1e6),
           duration,
           statistics_);
 
@@ -660,7 +660,7 @@ void Http2Session::EmitStatistics() {
   std::unique_ptr<Http2SessionPerformanceEntry> entry =
       std::make_unique<Http2SessionPerformanceEntry>(
           "Http2Session",
-          start,
+          start - (node::performance::timeOrigin / 1e6),
           duration,
           statistics_);
 
