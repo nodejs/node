@@ -112,17 +112,6 @@ their underlying data pointers. It is used extensively through `src/crypto`
 to make it easier to deal with inputs that allow any `ArrayBuffer`-backed
 object.
 
-### `AllocatedBuffer`
-
-The `AllocatedBuffer` utility is defined in `allocated_buffer.h` and is not
-specific to `src/crypto`. It is used extensively within `src/crypto` to hold
-allocated data that is intended to be output in response to various
-crypto functions (generated hash values, or ciphertext, for instance).
-
-_Currently, we are working to transition away from using `AllocatedBuffer`
-to directly using the `v8::BackingStore` API. This will take some time.
-New uses of `AllocatedBuffer` should be avoided if possible._
-
 ### Key objects
 
 Most crypto operations involve the use of keys -- cryptographic inputs

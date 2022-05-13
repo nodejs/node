@@ -43,7 +43,6 @@
 #include "node_version.h"
 
 #if HAVE_OPENSSL
-#include "allocated_buffer-inl.h"  // Inlined functions needed by node_crypto.h
 #include "node_crypto.h"
 #endif
 

@@ -1,7 +1,6 @@
 #include "stream_base.h"  // NOLINT(build/include_inline)
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
-#include "allocated_buffer-inl.h"
 
 #include "env-inl.h"
 #include "js_stream.h"

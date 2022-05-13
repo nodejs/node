@@ -138,6 +138,19 @@ enum class FsStatsOffset {
 constexpr size_t kFsStatsBufferLength =
     static_cast<size_t>(FsStatsOffset::kFsStatsFieldsNumber) * 2;
 
+// Disables zero-filling for ArrayBuffer allocations in this scope. This is
+// similar to how we implement Buffer.allocUnsafe() in JS land.
+class NoArrayBufferZeroFillScope {
+ public:
+  inline explicit NoArrayBufferZeroFillScope(IsolateData* isolate_data);
+  inline ~NoArrayBufferZeroFillScope();
+
+ private:
+  NodeArrayBufferAllocator* node_allocator_;
+
+  friend class Environment;
+};
+
 // PER_ISOLATE_* macros: We have a lot of per-isolate properties
 // and adding and maintaining their getters and setters by hand would be
 // difficult so let's make the preprocessor generate them for us.
@@ -555,7 +568,6 @@ constexpr size_t kFsStatsBufferLength =
   V(wasm_streaming_object_constructor, v8::Function)
 
 class Environment;
-struct AllocatedBuffer;
 
 typedef size_t SnapshotIndex;
 class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
@@ -1457,8 +1469,6 @@ class Environment : public MemoryRetainer {
   inline uv_buf_t allocate_managed_buffer(const size_t suggested_size);
   inline std::unique_ptr<v8::BackingStore> release_managed_buffer(
       const uv_buf_t& buf);
-  inline std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>*
-      released_allocated_buffers();
 
   void AddUnmanagedFd(int fd);
   void RemoveUnmanagedFd(int fd);
@@ -1632,8 +1642,8 @@ class Environment : public MemoryRetainer {
   // the source passed to LoadEnvironment() directly instead.
   std::unique_ptr<v8::String::Value> main_utf16_;
 
-  // Used by AllocatedBuffer::release() to keep track of the BackingStore for
-  // a given pointer.
+  // Used by allocate_managed_buffer() and release_managed_buffer() to keep
+  // track of the BackingStore for a given pointer.
   std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>
       released_allocated_buffers_;
 };

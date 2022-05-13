@@ -1,10 +1,9 @@
 #include "crypto/crypto_aes.h"
+#include "async_wrap-inl.h"
+#include "base_object-inl.h"
 #include "crypto/crypto_cipher.h"
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_util.h"
-#include "allocated_buffer-inl.h"
-#include "async_wrap-inl.h"
-#include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "threadpoolwork-inl.h"
@@ -30,7 +29,7 @@ namespace crypto {
 namespace {
 // Implements general AES encryption and decryption for CBC
 // The key_data must be a secret key.
-// On success, this function sets out to a new AllocatedBuffer
+// On success, this function sets out to a new ByteSource
 // instance containing the results and returns WebCryptoCipherStatus::OK.
 WebCryptoCipherStatus AES_Cipher(
     Environment* env,
