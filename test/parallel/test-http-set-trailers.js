@@ -96,7 +96,7 @@ const server = http.createServer((req, res) => {
 });
 server.listen(0, () => {
   Promise.all([testHttp10, testHttp11, testClientTrailers]
-    .map(util.promisify)
+    .map((f) => util.promisify(f))
     .map((f) => f(server.address().port)))
     .then(() => server.close());
 });
