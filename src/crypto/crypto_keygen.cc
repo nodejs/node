@@ -1,5 +1,4 @@
 #include "crypto/crypto_keygen.h"
-#include "allocated_buffer-inl.h"
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
