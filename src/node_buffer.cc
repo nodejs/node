@@ -20,7 +20,6 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node_buffer.h"
-#include "allocated_buffer-inl.h"
 #include "node.h"
 #include "node_blob.h"
 #include "node_errors.h"
