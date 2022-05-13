@@ -1024,9 +1024,16 @@ equality.
 
 <!-- YAML
 added: v8.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43088
+    description: options argument was added.
 -->
 
 * `original` {Function}
+* `options` {Object}
+  * `resolveArray` {boolean} **Default:** `false`
+  * `callbackPosition` {integer|null} **Default:** `null`
 * Returns: {Function}
 
 Takes a function following the common error-first callback style, i.e. taking
@@ -1062,11 +1069,16 @@ async function callStat() {
 If there is an `original[util.promisify.custom]` property present, `promisify`
 will return its value, see [Custom promisified functions][].
 
-`promisify()` assumes that `original` is a function taking a callback as its
-final argument in all cases. If `original` is not a function, `promisify()`
-will throw an error. If `original` is a function but its last argument is not
-an error-first callback, it will still be passed an error-first
-callback as its last argument.
+If `options.resolveArray` is truthy, the promise is resolved with an array of
+arguments passed to callback. Otherwise it resolves only with the first one.
+
+By default, `promisify()` assumes that `original` is a function taking
+a callback as its final argument. If `original` is not a function,
+`promisify()` will throw an error. If `original` is a function but its last
+argument is not an error-first callback, it will still be passed an error-first
+callback as its last argument. If `options.callbackPosition` is a number in
+range from 0 to `arguments.length`, argument on this position will be used
+instead of final one.
 
 Using `promisify()` on class methods or other methods that use `this` may not
 work as expected unless handled specially:
