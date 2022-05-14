@@ -364,7 +364,7 @@
           'variables': {
             'openssl-cli': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)openssl-cli<(EXECUTABLE_SUFFIX)',
             'provider_name': 'libopenssl-fipsmodule',
-            'opensslconfig': './deps/openssl/openssl/apps/openssl.cnf',
+            'opensslconfig': './deps/openssl/nodejs-openssl.cnf',
             'conditions': [
               ['GENERATOR == "ninja"', {
 	        'fipsmodule_internal': '<(PRODUCT_DIR)/lib/<(provider_name).so',
@@ -374,7 +374,7 @@
              }, {
 	        'fipsmodule_internal': '<(PRODUCT_DIR)/obj.target/deps/openssl/<(provider_name).so',
                 'fipsmodule': '<(PRODUCT_DIR)/obj.target/deps/openssl/lib/openssl-modules/fips.so',
-                'fipsconfig': '<(PRODUCT_DIR)/obj/deps/openssl/fipsmodule.cnf',
+                'fipsconfig': '<(PRODUCT_DIR)/obj.target/deps/openssl/fipsmodule.cnf',
                 'opensslconfig_internal': '<(PRODUCT_DIR)/obj.target/deps/openssl/openssl.cnf',
              }],
             ],
@@ -426,7 +426,7 @@
          }, {
            'variables': {
               'opensslconfig_internal': '<(obj_dir)/deps/openssl/openssl.cnf',
-              'opensslconfig': './deps/openssl/openssl/apps/openssl.cnf',
+              'opensslconfig': './deps/openssl/nodejs-openssl.cnf',
            },
            'actions': [
              {
@@ -435,8 +435,8 @@
                'outputs': [ '<(opensslconfig_internal)', ],
                'action': [
                  'python', 'tools/copyfile.py',
-                 './deps/openssl/openssl/apps/openssl.cnf',
-                 '<(obj_dir)/deps/openssl/openssl.cnf',
+                 '<(opensslconfig)',
+                 '<(opensslconfig_internal)',
                ],
              },
            ],
