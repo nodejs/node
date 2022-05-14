@@ -808,6 +808,36 @@ async function completer(linePartial) {
 }
 ```
 
+### `readlinePromises.createInterface(input)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `input` {FileHandle}
+
+Convenient alias to create a `readlinePromises.Interface` and stream over the file.
+
+```mjs
+import { open } from 'node:fs/promises';
+import { createInterface as readLines } from 'node:readline/promises';
+const file = await open('./some/file/to/read');
+for await (const line of readLines(file)) {
+  console.log(line);
+}
+```
+
+```cjs
+const { open } = require('node:fs/promises');
+const { createInterface: readLines } = require('node:readline/promises');
+(async () => {
+  const file = await open('./some/file/to/read');
+  for await (const line of readLines(file)) {
+    console.log(line);
+  }
+})();
+```
+
 ## Callback API
 
 <!-- YAML
@@ -1069,6 +1099,36 @@ function completer(linePartial, callback) {
 }
 ```
 
+### `readline.createInterface(input)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `input` {FileHandle}
+
+Convenient alias to create a `readline.Interface` and stream over the file.
+
+```mjs
+import { open } from 'node:fs/promises';
+import { createInterface as readLines } from 'node:readline';
+const file = await open('./some/file/to/read');
+for await (const line of readLines(file)) {
+  console.log(line);
+}
+```
+
+```cjs
+const { open } = require('node:fs/promises');
+const { createInterface: readLines } = require('node:readline');
+(async () => {
+  const file = await open('./some/file/to/read');
+  for await (const line of readLines(file)) {
+    console.log(line);
+  }
+})();
+```
+
 ### `readline.cursorTo(stream, x[, y][, callback])`
 
 <!-- YAML
@@ -1206,6 +1266,30 @@ async function processLineByLine() {
 }
 
 processLineByLine();
+```
+
+You can also pass directly a `FileHandle` object:
+
+```mjs
+import fs from 'node:fs/promises';
+import { createInterface as readLines } from 'node:readline';
+
+const myFile = await fs.open('input.txt');
+for await (const line of readLines(myFile)) {
+  console.log(`Line from file: ${line}`);
+}
+```
+
+```cjs
+const fs = require('node:fs/promises');
+const { createInterface: readLines } = require('node:readline')
+
+(async () => {
+  const myFile = await fs.open('input.txt');
+  for await (const line of readLines(myFile)) {
+    console.log(`Line from file: ${line}`);
+  }
+})();
 ```
 
 Alternatively, one could use the [`'line'`][] event:
