@@ -57,6 +57,25 @@ assert.strictEqual(handler, details[1]);
 details = processUtil.getProxyDetails(proxyObj, false);
 assert.strictEqual(target, details);
 
+details = processUtil.getProxyDetails({}, true);
+assert.strictEqual(details, undefined);
+
+const r = Proxy.revocable({}, {});
+r.revoke();
+
+details = processUtil.getProxyDetails(r.proxy, true);
+assert.strictEqual(details[0], null);
+assert.strictEqual(details[1], null);
+
+details = processUtil.getProxyDetails(r.proxy, false);
+assert.strictEqual(details, null);
+
+assert.strictEqual(util.inspect(r.proxy), 'Proxy [  ]');
+assert.strictEqual(
+  util.inspect(r, { showProxy: true }),
+  '{ proxy: Proxy [ null, null ], revoke: [Function (anonymous)] }',
+);
+
 assert.strictEqual(
   util.inspect(proxyObj, opts),
   'Proxy [\n' +
