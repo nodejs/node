@@ -30,7 +30,11 @@ env:
 jobs:
   build-windows:
     if: github.event.pull_request.draft == false
-    runs-on: windows-2019
+    strategy:
+      matrix:
+        windows: [windows-2019]
+      fail-fast: false
+    runs-on: ${{ matrix.windows }}
     steps:
       - uses: actions/checkout@v3
         with:
