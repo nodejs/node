@@ -162,6 +162,9 @@ PVOID old_vectored_exception_handler;
 struct V8Platform v8_platform;
 }  // namespace per_process
 
+// The section in the OpenSSL configuration file to be loaded.
+const char* conf_section_name = STRINGIFY(NODE_OPENSSL_CONF_NAME);
+
 #ifdef __POSIX__
 void SignalExit(int signo, siginfo_t* info, void* ucontext) {
   ResetStdio();
@@ -1084,27 +1087,39 @@ InitializationResult InitializeOncePerProcess(
     // CheckEntropy. CheckEntropy will call RAND_status which will now always
     // return 0, leading to an endless loop and the node process will appear to
     // hang/freeze.
+
+    // Passing NULL as the config file will allow the default openssl.cnf file
+    // to be loaded, but the default section in that file will not be used,
+    // instead only the section that matches the value of conf_section_name
+    // will be read from the default configuration file.
+    //  fprintf(stderr, "appanme: %s\n", conf_section_name);
+    const char* conf_file = nullptr;
+    // Use OPENSSL_CONF environment variable is set.
     std::string env_openssl_conf;
     credentials::SafeGetenv("OPENSSL_CONF", &env_openssl_conf);
+    if (!env_openssl_conf.empty()) {
+      conf_file = env_openssl_conf.c_str();
+    }
+    // Use --openssl-conf command line option if specified.
+    if (!per_process::cli_options->openssl_config.empty()) {
+      conf_file = per_process::cli_options->openssl_config.c_str();
+    }
 
-    bool has_cli_conf = !per_process::cli_options->openssl_config.empty();
-    if (has_cli_conf || !env_openssl_conf.empty()) {
-      OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
-      OPENSSL_INIT_set_config_file_flags(settings, CONF_MFLAGS_DEFAULT_SECTION);
-      if (has_cli_conf) {
-        const char* conf = per_process::cli_options->openssl_config.c_str();
-        OPENSSL_INIT_set_config_filename(settings, conf);
-      }
-      OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, settings);
-      OPENSSL_INIT_free(settings);
+    OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
+    OPENSSL_INIT_set_config_filename(settings, conf_file);
+    OPENSSL_INIT_set_config_appname(settings, conf_section_name);
+    OPENSSL_INIT_set_config_file_flags(settings,
+                                       CONF_MFLAGS_IGNORE_MISSING_FILE);
 
-      if (ERR_peek_error() != 0) {
-        result.exit_code = ERR_GET_REASON(ERR_peek_error());
-        result.early_return = true;
-        fprintf(stderr, "OpenSSL configuration error:\n");
-        ERR_print_errors_fp(stderr);
-        return result;
-      }
+    OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, settings);
+    OPENSSL_INIT_free(settings);
+
+    if (ERR_peek_error() != 0) {
+      result.exit_code = ERR_GET_REASON(ERR_peek_error());
+      result.early_return = true;
+      fprintf(stderr, "OpenSSL configuration error:\n");
+      ERR_print_errors_fp(stderr);
+      return result;
     }
 #else  // OPENSSL_VERSION_MAJOR < 3
     if (FIPS_mode()) {
