@@ -1282,7 +1282,7 @@ for await (const line of readLines(myFile)) {
 
 ```cjs
 const fs = require('node:fs/promises');
-const { createInterface: readLines } = require('node:readline')
+const { createInterface: readLines } = require('node:readline');
 
 (async () => {
   const myFile = await fs.open('input.txt');
