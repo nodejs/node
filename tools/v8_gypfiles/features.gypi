@@ -219,7 +219,7 @@
     'v8_enable_zone_compression%': 0,
 
     # Enable the experimental V8 sandbox.
-    # Sets -DV8_SANDBOX.
+    # Sets -DV8_ENABLE_SANDBOX.
     'v8_enable_sandbox%': 0,
 
     # Enable external pointer sandboxing. Requires v8_enable_sandbox.
@@ -323,7 +323,7 @@
         'defines': ['V8_COMPRESS_ZONES',],
       }],
       ['v8_enable_sandbox==1', {
-        'defines': ['V8_SANDBOX',],
+        'defines': ['V8_ENABLE_SANDBOX',],
       }],
       ['v8_enable_sandboxed_pointers==1', {
         'defines': ['V8_SANDBOXED_POINTERS',],
