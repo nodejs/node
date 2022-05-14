@@ -221,6 +221,9 @@ declare namespace primordials {
   export const DatePrototypeToTimeString: UncurryThis<typeof Date.prototype.toTimeString>
   export const DatePrototypeToISOString: UncurryThis<typeof Date.prototype.toISOString>
   export const DatePrototypeToUTCString: UncurryThis<typeof Date.prototype.toUTCString>
+  /**
+   * @deprecated
+   */
   export const DatePrototypeToGMTString: UncurryThis<typeof Date.prototype.toGMTString>
   export const DatePrototypeGetDate: UncurryThis<typeof Date.prototype.getDate>
   export const DatePrototypeSetDate: UncurryThis<typeof Date.prototype.setDate>
@@ -256,7 +259,13 @@ declare namespace primordials {
   export const DatePrototypeGetUTCSeconds: UncurryThis<typeof Date.prototype.getUTCSeconds>
   export const DatePrototypeSetUTCSeconds: UncurryThis<typeof Date.prototype.setUTCSeconds>
   export const DatePrototypeValueOf: UncurryThis<typeof Date.prototype.valueOf>
+  /**
+   * @deprecated
+   */
   export const DatePrototypeGetYear: UncurryThis<typeof Date.prototype.getYear>
+  /**
+   * @deprecated
+   */
   export const DatePrototypeSetYear: UncurryThis<typeof Date.prototype.setYear>
   export const DatePrototypeToJSON: UncurryThis<typeof Date.prototype.toJSON>
   export const DatePrototypeToLocaleString: UncurryThis<typeof Date.prototype.toLocaleString>
@@ -370,10 +379,22 @@ declare namespace primordials {
   export const ObjectEntries: typeof Object.entries
   export const ObjectFromEntries: typeof Object.fromEntries
   export const ObjectValues: typeof Object.values
+  /**
+   * @deprecated
+   */
   export const ObjectPrototype__defineGetter__: UncurryThis<typeof Object.prototype.__defineGetter__>
+  /**
+   * @deprecated
+   */
   export const ObjectPrototype__defineSetter__: UncurryThis<typeof Object.prototype.__defineSetter__>
   export const ObjectPrototypeHasOwnProperty: UncurryThis<typeof Object.prototype.hasOwnProperty>
+  /**
+   * @deprecated
+   */
   export const ObjectPrototype__lookupGetter__: UncurryThis<typeof Object.prototype.__lookupGetter__>
+  /**
+   * @deprecated
+   */
   export const ObjectPrototype__lookupSetter__: UncurryThis<typeof Object.prototype.__lookupSetter__>
   export const ObjectPrototypeIsPrototypeOf: UncurryThis<typeof Object.prototype.isPrototypeOf>
   export const ObjectPrototypePropertyIsEnumerable: UncurryThis<typeof Object.prototype.propertyIsEnumerable>
@@ -393,6 +414,9 @@ declare namespace primordials {
   export const RegExpName: typeof RegExp.name
   export const RegExpPrototype: typeof RegExp.prototype
   export const RegExpPrototypeExec: UncurryThis<typeof RegExp.prototype.exec>
+  /**
+   * @deprecated
+   */
   export const RegExpPrototypeCompile: UncurryThis<typeof RegExp.prototype.compile>
   export const RegExpPrototypeToString: UncurryThis<typeof RegExp.prototype.toString>
   export const RegExpPrototypeTest: UncurryThis<typeof RegExp.prototype.test>
@@ -424,22 +448,49 @@ declare namespace primordials {
   export const StringFromCharCode: typeof String.fromCharCode
   export const StringFromCodePoint: typeof String.fromCodePoint
   export const StringRaw: typeof String.raw
+  /**
+   * @deprecated
+   */
   export const StringPrototypeAnchor: UncurryThis<typeof String.prototype.anchor>
+  /**
+   * @deprecated
+   */
   export const StringPrototypeBig: UncurryThis<typeof String.prototype.big>
+  /**
+   * @deprecated
+   */
   export const StringPrototypeBlink: UncurryThis<typeof String.prototype.blink>
+  /**
+   * @deprecated
+   */
   export const StringPrototypeBold: UncurryThis<typeof String.prototype.bold>
   export const StringPrototypeCharAt: UncurryThis<typeof String.prototype.charAt>
   export const StringPrototypeCharCodeAt: UncurryThis<typeof String.prototype.charCodeAt>
   export const StringPrototypeCodePointAt: UncurryThis<typeof String.prototype.codePointAt>
   export const StringPrototypeConcat: UncurryThis<typeof String.prototype.concat>
   export const StringPrototypeEndsWith: UncurryThis<typeof String.prototype.endsWith>
+  /**
+   * @deprecated
+   */
   export const StringPrototypeFontcolor: UncurryThis<typeof String.prototype.fontcolor>
+  /**
+   * @deprecated
+   */
   export const StringPrototypeFontsize: UncurryThis<typeof String.prototype.fontsize>
+  /**
+   * @deprecated
+   */
   export const StringPrototypeFixed: UncurryThis<typeof String.prototype.fixed>
   export const StringPrototypeIncludes: UncurryThis<typeof String.prototype.includes>
   export const StringPrototypeIndexOf: UncurryThis<typeof String.prototype.indexOf>
+  /**
+   * @deprecated
+   */
   export const StringPrototypeItalics: UncurryThis<typeof String.prototype.italics>
   export const StringPrototypeLastIndexOf: UncurryThis<typeof String.prototype.lastIndexOf>
+  /**
+   * @deprecated
+   */
   export const StringPrototypeLink: UncurryThis<typeof String.prototype.link>
   export const StringPrototypeLocaleCompare: UncurryThis<typeof String.prototype.localeCompare>
   export const StringPrototypeMatch: UncurryThis<typeof String.prototype.match>
@@ -451,19 +502,40 @@ declare namespace primordials {
   export const StringPrototypeReplace: UncurryThis<typeof String.prototype.replace>
   export const StringPrototypeSearch: UncurryThis<typeof String.prototype.search>
   export const StringPrototypeSlice: UncurryThis<typeof String.prototype.slice>
+  /**
+   * @deprecated
+   */
   export const StringPrototypeSmall: UncurryThis<typeof String.prototype.small>
   export const StringPrototypeSplit: UncurryThis<typeof String.prototype.split>
+  /**
+   * @deprecated
+   */
   export const StringPrototypeStrike: UncurryThis<typeof String.prototype.strike>
+  /**
+   * @deprecated
+   */
   export const StringPrototypeSub: UncurryThis<typeof String.prototype.sub>
+  /**
+   * @deprecated
+   */
   export const StringPrototypeSubstr: UncurryThis<typeof String.prototype.substr>
   export const StringPrototypeSubstring: UncurryThis<typeof String.prototype.substring>
+  /**
+   * @deprecated
+   */
   export const StringPrototypeSup: UncurryThis<typeof String.prototype.sup>
   export const StringPrototypeStartsWith: UncurryThis<typeof String.prototype.startsWith>
   export const StringPrototypeToString: UncurryThis<typeof String.prototype.toString>
   export const StringPrototypeTrim: UncurryThis<typeof String.prototype.trim>
   export const StringPrototypeTrimStart: UncurryThis<typeof String.prototype.trimStart>
+  /**
+   * @deprecated
+   */
   export const StringPrototypeTrimLeft: UncurryThis<typeof String.prototype.trimLeft>
   export const StringPrototypeTrimEnd: UncurryThis<typeof String.prototype.trimEnd>
+  /**
+   * @deprecated
+   */
   export const StringPrototypeTrimRight: UncurryThis<typeof String.prototype.trimRight>
   export const StringPrototypeToLocaleLowerCase: UncurryThis<typeof String.prototype.toLocaleLowerCase>
   export const StringPrototypeToLocaleUpperCase: UncurryThis<typeof String.prototype.toLocaleUpperCase>
