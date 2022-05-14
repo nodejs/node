@@ -44,6 +44,7 @@
 #if HAVE_OPENSSL
 #include "allocated_buffer-inl.h"  // Inlined functions needed by node_crypto.h
 #include "node_crypto.h"
+#include <openssl/conf.h>
 #endif
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
@@ -161,6 +162,11 @@ PVOID old_vectored_exception_handler;
 // node_v8_platform-inl.h
 struct V8Platform v8_platform;
 }  // namespace per_process
+
+// The section in the OpenSSL configuration file to be loaded.
+const char* conf_section_name = STRINGIFY(NODE_OPENSSL_CONF_NAME);
+
+const char* fips_error_msg = "OpenSSL error when trying to enable FIPS:\n";
 
 #ifdef __POSIX__
 void SignalExit(int signo, siginfo_t* info, void* ucontext) {
@@ -975,6 +981,18 @@ InitializationResult InitializeOncePerProcess(int argc, char** argv) {
   return InitializeOncePerProcess(argc, argv, kDefaultInitialization);
 }
 
+#if HAVE_OPENSSL
+InitializationResult handle_openssl_error(int exit_code,
+                                          const char* msg,
+                                          InitializationResult* result) {
+  result->exit_code = exit_code;
+  result->early_return = true;
+  fprintf(stderr, "%s", msg);
+  ERR_print_errors_fp(stderr);
+  return *result;
+}
+#endif
+
 InitializationResult InitializeOncePerProcess(
   int argc,
   char** argv,
@@ -1054,7 +1072,6 @@ InitializationResult InitializeOncePerProcess(
     }
     // In the case of FIPS builds we should make sure
     // the random source is properly initialized first.
-#if OPENSSL_VERSION_MAJOR >= 3
     // Call OPENSSL_init_crypto to initialize OPENSSL_INIT_LOAD_CONFIG to
     // avoid the default behavior where errors raised during the parsing of the
     // OpenSSL configuration file are not propagated and cannot be detected.
@@ -1069,46 +1086,69 @@ InitializationResult InitializeOncePerProcess(
     // CheckEntropy. CheckEntropy will call RAND_status which will now always
     // return 0, leading to an endless loop and the node process will appear to
     // hang/freeze.
+
+    // Passing NULL as the config file will allow the default openssl.cnf file
+    // to be loaded, but the default section in that file will not be used,
+    // instead only the section that matches the value of conf_section_name
+    // will be read from the default configuration file.
+    const char* conf_file = nullptr;
+    // Use OPENSSL_CONF environment variable is set.
     std::string env_openssl_conf;
     credentials::SafeGetenv("OPENSSL_CONF", &env_openssl_conf);
+    if (!env_openssl_conf.empty()) {
+      conf_file = env_openssl_conf.c_str();
+    }
+    // Use --openssl-conf command line option if specified.
+    if (!per_process::cli_options->openssl_config.empty()) {
+      conf_file = per_process::cli_options->openssl_config.c_str();
+    }
 
-    bool has_cli_conf = !per_process::cli_options->openssl_config.empty();
-    if (has_cli_conf || !env_openssl_conf.empty()) {
-      OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
-      OPENSSL_INIT_set_config_file_flags(settings, CONF_MFLAGS_DEFAULT_SECTION);
-      if (has_cli_conf) {
-        const char* conf = per_process::cli_options->openssl_config.c_str();
-        OPENSSL_INIT_set_config_filename(settings, conf);
-      }
-      OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, settings);
-      OPENSSL_INIT_free(settings);
+    OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
+    OPENSSL_INIT_set_config_filename(settings, conf_file);
+    OPENSSL_INIT_set_config_appname(settings, conf_section_name);
+    OPENSSL_INIT_set_config_file_flags(settings,
+                                       CONF_MFLAGS_IGNORE_MISSING_FILE);
 
-      if (ERR_peek_error() != 0) {
-        result.exit_code = ERR_GET_REASON(ERR_peek_error());
-        result.early_return = true;
-        fprintf(stderr, "OpenSSL configuration error:\n");
-        ERR_print_errors_fp(stderr);
-        return result;
+    OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, settings);
+    OPENSSL_INIT_free(settings);
+
+#if OPENSSL_VERSION_MAJOR < 3
+    if (ERR_peek_error() != 0) {
+      int ossl_error_code = ERR_GET_REASON(ERR_peek_error());
+      if (ossl_error_code == EVP_R_FIPS_MODE_NOT_SUPPORTED) {
+        if (!crypto::ProcessFipsOptions()) {
+          return handle_openssl_error(ossl_error_code, fips_error_msg, &result);
+        }
+      } else {
+        return handle_openssl_error(ossl_error_code,
+                                    "OpenSSL configuration error:\n",
+                                    &result);
       }
     }
-#else  // OPENSSL_VERSION_MAJOR < 3
+#else
+    if (ERR_peek_error() != 0) {
+      return handle_openssl_error(ERR_GET_REASON(ERR_peek_error()),
+                                  "OpenSSL configuration error:\n",
+                                  &result);
+      }
+#endif
+
+#if OPENSSL_VERSION_MAJOR < 3
     if (FIPS_mode()) {
       OPENSSL_init();
     }
 #endif
-  if (!crypto::ProcessFipsOptions()) {
-      result.exit_code = ERR_GET_REASON(ERR_peek_error());
-      result.early_return = true;
-      fprintf(stderr, "OpenSSL error when trying to enable FIPS:\n");
-      ERR_print_errors_fp(stderr);
-      return result;
-  }
 
-  // V8 on Windows doesn't have a good source of entropy. Seed it from
-  // OpenSSL's pool.
-  V8::SetEntropySource(crypto::EntropySource);
+    // V8 on Windows doesn't have a good source of entropy. Seed it from
+    // OpenSSL's pool.
+    V8::SetEntropySource(crypto::EntropySource);
+    if (!crypto::ProcessFipsOptions()) {
+      return handle_openssl_error(ERR_GET_REASON(ERR_peek_error()),
+                                  fips_error_msg,
+                                  &result);
+    }
 #endif  // HAVE_OPENSSL && !defined(OPENSSL_IS_BORINGSSL)
-}
+  }
   per_process::v8_platform.Initialize(
       static_cast<int>(per_process::cli_options->v8_thread_pool_size));
   if (init_flags & kInitializeV8) {
