@@ -181,6 +181,12 @@ parser.add_argument("--link-module",
          "e.g. /root/x/y.js will be referenced via require('root/x/y'). "
          "Can be used multiple times")
 
+parser.add_argument("--openssl-conf-name",
+    action="store",
+    dest="openssl_conf_name",
+    default='nodejs_conf',
+    help="The OpenSSL config appname (config section name) used by Node.js")
+
 parser.add_argument('--openssl-default-cipher-list',
     action='store',
     dest='openssl_default_cipher_list',
@@ -1487,6 +1493,8 @@ def configure_openssl(o):
 
   if options.openssl_no_asm:
     variables['openssl_no_asm'] = 1
+
+  o['defines'] += ['NODE_OPENSSL_CONF_NAME=' + options.openssl_conf_name]
 
   if options.without_ssl:
     def without_ssl_error(option):

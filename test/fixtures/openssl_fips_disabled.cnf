@@ -1,6 +1,6 @@
 # Skeleton openssl.cnf for testing with FIPS
 
-openssl_conf = openssl_conf_section
+nodejs_conf = openssl_conf_section
 authorityKeyIdentifier=keyid:always,issuer:always
 
 [openssl_conf_section]
