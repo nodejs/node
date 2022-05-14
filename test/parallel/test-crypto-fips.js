@@ -83,7 +83,7 @@ testHelper(
   [],
   FIPS_DISABLED,
   'require("crypto").getFips()',
-  { ...process.env, 'OPENSSL_CONF': '' });
+  { ...process.env, 'OPENSSL_CONF': ' ' });
 
 // This should succeed for both FIPS and non-FIPS builds in combination with
 // OpenSSL 1.1.1 or OpenSSL 3.0
