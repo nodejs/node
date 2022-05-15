@@ -419,16 +419,10 @@ class Request {
 
       // 4. If headers is a Headers object, then for each header in its header
       // list, append header’s name/header’s value to this’s headers.
-      if (headers instanceof Headers) {
-        // TODO (fix): Why doesn't this work?
-        // for (const [key, val] of headers[kHeadersList]) {
-        //   this[kHeaders].append(key, val)
-        // }
-
-        this[kState].headersList = new HeadersList([
-          ...this[kState].headersList,
-          ...headers[kHeadersList]
-        ])
+      if (headers.constructor.name === 'Headers') {
+        for (const [key, val] of headers[kHeadersList] || headers) {
+          this[kHeaders].append(key, val)
+        }
       } else {
         // 5. Otherwise, fill this’s headers with headers.
         fillHeaders(this[kState].headersList, headers)
@@ -468,7 +462,6 @@ class Request {
       // this’s headers.
       if (contentType && !this[kHeaders].has('content-type')) {
         this[kHeaders].append('content-type', contentType)
-        this[kState].headersList.append('content-type', contentType)
       }
     }
 
