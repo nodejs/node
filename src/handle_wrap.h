@@ -97,6 +97,7 @@ class HandleWrap : public AsyncWrap {
   }
 
   static void OnClose(uv_handle_t* handle);
+  enum { kInitialized, kClosing, kClosed } state_;
 
  private:
   friend class Environment;
@@ -109,7 +110,6 @@ class HandleWrap : public AsyncWrap {
   // refer to `doc/contributing/node-postmortem-support.md`
   friend int GenDebugSymbols();
   ListNode<HandleWrap> handle_wrap_queue_;
-  enum { kInitialized, kClosing, kClosed } state_;
   uv_handle_t* const handle_;
 };
 
