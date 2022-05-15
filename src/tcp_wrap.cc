@@ -343,9 +343,8 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args,
 }
 void TCPWrap::Reset(const FunctionCallbackInfo<Value>& args) {
   TCPWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap,
-                          args.Holder(),
-                          args.GetReturnValue().Set(UV_EBADF));
+  ASSIGN_OR_RETURN_UNWRAP(
+      &wrap, args.Holder(), args.GetReturnValue().Set(UV_EBADF));
 
   int err = wrap->Reset(args[0]);
 
@@ -353,16 +352,15 @@ void TCPWrap::Reset(const FunctionCallbackInfo<Value>& args) {
 }
 
 int TCPWrap::Reset(Local<Value> close_callback) {
-  if (state_ != kInitialized)
-    return 0;
+  if (state_ != kInitialized) return 0;
 
   int err = uv_tcp_close_reset(&handle_, OnClose);
   state_ = kClosing;
   if (!err & !close_callback.IsEmpty() && close_callback->IsFunction() &&
       !persistent().IsEmpty()) {
-    object()->Set(env()->context(),
-                  env()->handle_onclose_symbol(),
-                  close_callback).Check();
+    object()
+        ->Set(env()->context(), env()->handle_onclose_symbol(), close_callback)
+        .Check();
   }
   return err;
 }
