@@ -184,7 +184,7 @@ changes:
       - v15.14.0
       - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37490
-    description: The `data` argument supports `AsyncIterable`, `Iterable` and `Stream`.
+    description: The `data` argument supports `AsyncIterable`, `Iterable`, and `Stream`.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31030
     description: The `data` parameter won't coerce unsupported input to
@@ -690,7 +690,7 @@ changes:
       - v15.14.0
       - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37490
-    description: The `data` argument supports `AsyncIterable`, `Iterable` and `Stream`.
+    description: The `data` argument supports `AsyncIterable`, `Iterable`, and `Stream`.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31030
     description: The `data` parameter won't coerce unsupported input to
@@ -704,7 +704,7 @@ changes:
 * Returns: {Promise}
 
 Asynchronously writes data to a file, replacing the file if it already exists.
-`data` can be a string, a buffer, an {AsyncIterable} or {Iterable} object.
+`data` can be a string, a buffer, an {AsyncIterable}, or an {Iterable} object.
 The promise is resolved with no arguments upon success.
 
 If `options` is a string, then it specifies the `encoding`.
@@ -1472,7 +1472,7 @@ The `atime` and `mtime` arguments follow these rules:
 
 * Values can be either numbers representing Unix epoch time, `Date`s, or a
   numeric string like `'123456789.0'`.
-* If the value can not be converted to a number, or is `NaN`, `Infinity` or
+* If the value can not be converted to a number, or is `NaN`, `Infinity`, or
   `-Infinity`, an `Error` will be thrown.
 
 ### `fsPromises.watch(filename[, options])`
@@ -1536,7 +1536,7 @@ changes:
       - v15.14.0
       - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37490
-    description: The `data` argument supports `AsyncIterable`, `Iterable` and `Stream`.
+    description: The `data` argument supports `AsyncIterable`, `Iterable`, and `Stream`.
   - version:
       - v15.2.0
       - v14.17.0
@@ -1559,7 +1559,7 @@ changes:
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously writes data to a file, replacing the file if it already exists.
-`data` can be a string, a buffer, an {AsyncIterable} or {Iterable} object.
+`data` can be a string, a buffer, an {AsyncIterable}, or an {Iterable} object.
 
 The `encoding` option is ignored if `data` is a buffer.
 
@@ -1684,7 +1684,7 @@ access(file, constants.R_OK | constants.W_OK, (err) => {
 ```
 
 Do not use `fs.access()` to check for the accessibility of a file before calling
-`fs.open()`, `fs.readFile()` or `fs.writeFile()`. Doing
+`fs.open()`, `fs.readFile()`, or `fs.writeFile()`. Doing
 so introduces a race condition, since other processes may change the file's
 state between the two calls. Instead, user code should open/read/write the
 file directly and handle the error raised if the file is not accessible.
@@ -1971,17 +1971,17 @@ specifies the permissions for others.
 
 For example, the octal value `0o765` means:
 
-* The owner may read, write and execute the file.
+* The owner may read, write, and execute the file.
 * The group may read and write the file.
 * Others may read and execute the file.
 
 When using raw numbers where file modes are expected, any value larger than
 `0o777` may result in platform-specific behaviors that are not supported to work
-consistently. Therefore constants like `S_ISVTX`, `S_ISGID` or `S_ISUID` are not
-exposed in `fs.constants`.
+consistently. Therefore constants like `S_ISVTX`, `S_ISGID`, or `S_ISUID` are
+not exposed in `fs.constants`.
 
 Caveats: on Windows only the write permission can be changed, and the
-distinction among the permissions of group, owner or others is not
+distinction among the permissions of group, owner, or others is not
 implemented.
 
 ### `fs.chown(path, uid, gid, callback)`
@@ -2354,7 +2354,7 @@ By default, the stream will emit a `'close'` event after it has been
 destroyed.  Set the `emitClose` option to `false` to change this behavior.
 
 By providing the `fs` option it is possible to override the corresponding `fs`
-implementations for `open`, `write`, `writev` and `close`. Overriding `write()`
+implementations for `open`, `write`, `writev`, and `close`. Overriding `write()`
 without `writev()` can reduce performance as some optimizations (`_writev()`)
 will be disabled. When providing the `fs` option, overrides for at least one of
 `write` and `writev` are required. If no `fd` option is supplied, an override
@@ -2409,7 +2409,7 @@ has only one boolean parameter. This is one reason `fs.access()` is recommended
 instead of `fs.exists()`.
 
 Using `fs.exists()` to check for the existence of a file before calling
-`fs.open()`, `fs.readFile()` or `fs.writeFile()` is not recommended. Doing
+`fs.open()`, `fs.readFile()`, or `fs.writeFile()` is not recommended. Doing
 so introduces a race condition, since other processes may change the file's
 state between the two calls. Instead, user code should open/read/write the
 file directly and handle the error raised if the file does not exist.
@@ -2759,7 +2759,7 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
   - version: v4.1.0
     pr-url: https://github.com/nodejs/node/pull/2387
-    description: Numeric strings, `NaN` and `Infinity` are now allowed
+    description: Numeric strings, `NaN`, and `Infinity` are now allowed
                  time specifiers.
 -->
 
@@ -3256,7 +3256,7 @@ changes:
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/31402
     description: Options object can be passed in
-                 to make Buffer, offset, length and position optional.
+                 to make buffer, offset, length, and position optional.
 -->
 
 * `fd` {integer}
@@ -3611,7 +3611,7 @@ changes:
   * `err` {Error}
   * `resolvedPath` {string|Buffer}
 
-Asynchronously computes the canonical pathname by resolving `.`, `..` and
+Asynchronously computes the canonical pathname by resolving `.`, `..`, and
 symbolic links.
 
 A canonical pathname is not necessarily unique. Hard links and bind mounts can
@@ -3873,7 +3873,7 @@ Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
 In case of an error, the `err.code` will be one of [Common System Errors][].
 
 Using `fs.stat()` to check for the existence of a file before calling
-`fs.open()`, `fs.readFile()` or `fs.writeFile()` is not recommended.
+`fs.open()`, `fs.readFile()`, or `fs.writeFile()` is not recommended.
 Instead, user code should open/read/write the file directly and handle the
 error raised if the file is not available.
 
@@ -4157,7 +4157,7 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
   - version: v4.1.0
     pr-url: https://github.com/nodejs/node/pull/2387
-    description: Numeric strings, `NaN` and `Infinity` are now allowed
+    description: Numeric strings, `NaN`, and `Infinity` are now allowed
                  time specifiers.
 -->
 
@@ -4173,7 +4173,7 @@ The `atime` and `mtime` arguments follow these rules:
 
 * Values can be either numbers representing Unix epoch time in seconds,
   `Date`s, or a numeric string like `'123456789.0'`.
-* If the value can not be converted to a number, or is `NaN`, `Infinity` or
+* If the value can not be converted to a number, or is `NaN`, `Infinity`, or
   `-Infinity`, an `Error` will be thrown.
 
 ### `fs.watch(filename[, options][, listener])`
@@ -5069,7 +5069,7 @@ added: v0.4.2
 changes:
   - version: v4.1.0
     pr-url: https://github.com/nodejs/node/pull/2387
-    description: Numeric strings, `NaN` and `Infinity` are now allowed
+    description: Numeric strings, `NaN`, and `Infinity` are now allowed
                  time specifiers.
 -->
 
@@ -5431,7 +5431,7 @@ changes:
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32460
     description: Options object can be passed in
-                 to make offset, length and position optional.
+                 to make offset, length, and position optional.
 -->
 
 * `fd` {integer}
@@ -5736,7 +5736,7 @@ changes:
                  protocol.
   - version: v4.1.0
     pr-url: https://github.com/nodejs/node/pull/2387
-    description: Numeric strings, `NaN` and `Infinity` are now allowed
+    description: Numeric strings, `NaN`, and `Infinity` are now allowed
                  time specifiers.
 -->
 
@@ -6363,7 +6363,7 @@ changes:
 
 A {fs.Stats} object provides information about a file.
 
-Objects returned from [`fs.stat()`][], [`fs.lstat()`][] and [`fs.fstat()`][] and
+Objects returned from [`fs.stat()`][], [`fs.lstat()`][], [`fs.fstat()`][], and
 their synchronous counterparts are of this type.
 If `bigint` in the `options` passed to those methods is true, the numeric values
 will be `bigint` instead of `number`, and the object will contain additional
@@ -7010,7 +7010,7 @@ The following constants are meant for use with `fs.open()`.
 </table>
 
 On Windows, only `O_APPEND`, `O_CREAT`, `O_EXCL`, `O_RDONLY`, `O_RDWR`,
-`O_TRUNC`, `O_WRONLY` and `UV_FS_O_FILEMAP` are available.
+`O_TRUNC`, `O_WRONLY`, and `UV_FS_O_FILEMAP` are available.
 
 ##### File type constants
 
@@ -7521,7 +7521,7 @@ fs.open('<directory>', 'a+', (err, fd) => {
 ```
 
 On Windows, opening an existing hidden file using the `'w'` flag (either
-through `fs.open()` or `fs.writeFile()` or `fsPromises.open()`) will fail with
+through `fs.open()`, `fs.writeFile()`, or `fsPromises.open()`) will fail with
 `EPERM`. Existing hidden files can be opened for writing with the `'r+'` flag.
 
 A call to `fs.ftruncate()` or `filehandle.truncate()` can be used to reset
