@@ -608,12 +608,27 @@ static void PrintGCStatistics(JSONWriter* writer, Isolate* isolate) {
 
   writer->json_objectstart("javascriptHeap");
   writer->json_keyvalue("totalMemory", v8_heap_stats.total_heap_size());
+  writer->json_keyvalue("executableMemory",
+                        v8_heap_stats.total_heap_size_executable());
   writer->json_keyvalue("totalCommittedMemory",
                         v8_heap_stats.total_physical_size());
-  writer->json_keyvalue("usedMemory", v8_heap_stats.used_heap_size());
   writer->json_keyvalue("availableMemory",
                         v8_heap_stats.total_available_size());
+  writer->json_keyvalue("totalGlobalHandlesMemory",
+                        v8_heap_stats.total_global_handles_size());
+  writer->json_keyvalue("usedGlobalHandlesMemory",
+                        v8_heap_stats.used_global_handles_size());
+  writer->json_keyvalue("usedMemory", v8_heap_stats.used_heap_size());
   writer->json_keyvalue("memoryLimit", v8_heap_stats.heap_size_limit());
+  writer->json_keyvalue("mallocedMemory", v8_heap_stats.malloced_memory());
+  writer->json_keyvalue("externalMemory", v8_heap_stats.external_memory());
+  writer->json_keyvalue("peakMallocedMemory",
+                        v8_heap_stats.peak_malloced_memory());
+  writer->json_keyvalue("nativeContextCount",
+                        v8_heap_stats.number_of_native_contexts());
+  writer->json_keyvalue("detachedContextCount",
+                        v8_heap_stats.number_of_detached_contexts());
+  writer->json_keyvalue("doesZapGarbage", v8_heap_stats.does_zap_garbage());
 
   writer->json_objectstart("heapSpaces");
   // Loop through heap spaces
