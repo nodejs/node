@@ -194,6 +194,21 @@ Basic usage example:
     }
 ```
 
+You can pass an optional dispatcher to `fetch` as:
+
+```js
+import { fetch, Agent } from 'undici'
+  
+const res = await fetch('https://example.com', {
+  // Mocks are also supported
+  dispatcher: new Agent({
+    keepAliveTimeout: 10,
+    keepAliveMaxTimeout: 10
+  })
+})
+const json = await res.json()
+console.log(json)
+```
 
 #### `request.body`
 
