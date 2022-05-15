@@ -76,6 +76,8 @@ assert.strictEqual(
   '{ proxy: Proxy [ null, null ], revoke: [Function (anonymous)] }',
 );
 
+assert.strictEqual(util.format('%s', r.proxy), 'Proxy []');
+
 assert.strictEqual(
   util.inspect(proxyObj, opts),
   'Proxy [\n' +
