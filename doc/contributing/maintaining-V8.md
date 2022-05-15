@@ -407,7 +407,7 @@ This would require some tooling to:
 [^1]: Node.js 0.12 and older are intentionally omitted from this document
     as their support has ended.
 
-[^2]: On macOS, The V8 tests require a full Xcode install, not just the "command
+[^2]: On macOS, the V8 tests require a full Xcode install, not just the "command
     line tools" for Xcode.
 
 [ChromiumReleaseCalendar]: https://www.chromium.org/developers/calendar
