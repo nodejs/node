@@ -1,0 +1,17 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  chore:
+    name: "Testing chores"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        fetch-depth: 2
+
+      - run: git diff HEAD
+      - run: git diff HEAD^2
