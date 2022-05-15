@@ -112,15 +112,6 @@ var require_errors = __commonJS({
         this.code = "UND_ERR_RES_CONTENT_LENGTH_MISMATCH";
       }
     };
-    var TrailerMismatchError = class extends UndiciError {
-      constructor(message) {
-        super(message);
-        Error.captureStackTrace(this, TrailerMismatchError);
-        this.name = "TrailerMismatchError";
-        this.message = message || "Trailers does not match trailer header";
-        this.code = "UND_ERR_TRAILER_MISMATCH";
-      }
-    };
     var ClientDestroyedError = class extends UndiciError {
       constructor(message) {
         super(message);
@@ -185,7 +176,6 @@ var require_errors = __commonJS({
       BodyTimeoutError,
       RequestContentLengthMismatchError,
       ConnectTimeoutError,
-      TrailerMismatchError,
       InvalidArgumentError,
       InvalidReturnValueError,
       RequestAbortedError,
@@ -2651,7 +2641,6 @@ var require_client = __commonJS({
     var {
       RequestContentLengthMismatchError,
       ResponseContentLengthMismatchError,
-      TrailerMismatchError,
       InvalidArgumentError,
       RequestAbortedError,
       HeadersTimeoutError,
@@ -2985,7 +2974,6 @@ var require_client = __commonJS({
         this.paused = false;
         this.resume = this.resume.bind(this);
         this.bytesRead = 0;
-        this.trailer = "";
         this.keepAlive = "";
         this.contentLength = "";
       }
@@ -3133,8 +3121,6 @@ var require_client = __commonJS({
         const key = this.headers[len - 2];
         if (key.length === 10 && key.toString().toLowerCase() === "keep-alive") {
           this.keepAlive += buf.toString();
-        } else if (key.length === 7 && key.toString().toLowerCase() === "trailer") {
-          this.trailer += buf.toString();
         } else if (key.length === 14 && key.toString().toLowerCase() === "content-length") {
           this.contentLength += buf.toString();
         }
@@ -3280,7 +3266,7 @@ var require_client = __commonJS({
         }
       }
       onMessageComplete() {
-        const { client, socket, statusCode, upgrade, trailer, headers, contentLength, bytesRead, shouldKeepAlive } = this;
+        const { client, socket, statusCode, upgrade, headers, contentLength, bytesRead, shouldKeepAlive } = this;
         if (socket.destroyed && (!statusCode || shouldKeepAlive)) {
           return -1;
         }
@@ -3294,29 +3280,12 @@ var require_client = __commonJS({
         this.statusText = "";
         this.bytesRead = 0;
         this.contentLength = "";
-        this.trailer = "";
         this.keepAlive = "";
         assert(this.headers.length % 2 === 0);
         this.headers = [];
         this.headersSize = 0;
         if (statusCode < 200) {
           return;
-        }
-        const trailers = trailer ? trailer.split(/,\s*/) : [];
-        for (let i = 0; i < trailers.length; i++) {
-          const trailer2 = trailers[i];
-          let found = false;
-          for (let n = 0; n < headers.length; n += 2) {
-            const key = headers[n];
-            if (key.length === trailer2.length && key.toString().toLowerCase() === trailer2.toLowerCase()) {
-              found = true;
-              break;
-            }
-          }
-          if (!found) {
-            util.destroy(socket, new TrailerMismatchError());
-            return -1;
-          }
         }
         if (request.method !== "HEAD" && contentLength && bytesRead !== parseInt(contentLength, 10)) {
           util.destroy(socket, new ResponseContentLengthMismatchError());
@@ -4088,7 +4057,7 @@ var require_agent = __commonJS({
     function defaultFactory(origin, opts) {
       return opts && opts.connections === 1 ? new Client(origin, opts) : new Pool(origin, opts);
     }
-    var Agent2 = class extends DispatcherBase {
+    var Agent = class extends DispatcherBase {
       constructor({ factory = defaultFactory, maxRedirections = 0, connect, ...options } = {}) {
         super();
         if (typeof factory !== "function") {
@@ -4179,7 +4148,38 @@ var require_agent = __commonJS({
         await Promise.all(destroyPromises);
       }
     };
-    module2.exports = Agent2;
+    module2.exports = Agent;
+  }
+});
+
+// lib/global.js
+var require_global = __commonJS({
+  "lib/global.js"(exports2, module2) {
+    "use strict";
+    var globalDispatcher = Symbol.for("undici.globalDispatcher.1");
+    var { InvalidArgumentError } = require_errors();
+    var Agent = require_agent();
+    if (getGlobalDispatcher2() === void 0) {
+      setGlobalDispatcher(new Agent());
+    }
+    function setGlobalDispatcher(agent) {
+      if (!agent || typeof agent.dispatch !== "function") {
+        throw new InvalidArgumentError("Argument agent must implement Agent");
+      }
+      Object.defineProperty(globalThis, globalDispatcher, {
+        value: agent,
+        writable: true,
+        enumerable: false,
+        configurable: false
+      });
+    }
+    function getGlobalDispatcher2() {
+      return globalThis[globalDispatcher];
+    }
+    module2.exports = {
+      setGlobalDispatcher,
+      getGlobalDispatcher: getGlobalDispatcher2
+    };
   }
 });
 
@@ -4237,6 +4237,20 @@ var require_headers = __commonJS({
       } else {
         throw TypeError();
       }
+    }
+    var esIteratorPrototype = Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]()));
+    function makeHeadersIterator(iterator) {
+      const i = {
+        next() {
+          if (Object.getPrototypeOf(this) !== i) {
+            throw new TypeError("'next' called on an object that does not implement interface Headers Iterator.");
+          }
+          return iterator.next();
+        },
+        [Symbol.toStringTag]: "Headers Iterator"
+      };
+      Object.setPrototypeOf(i, esIteratorPrototype);
+      return Object.setPrototypeOf({}, i);
     }
     var HeadersList = class {
       constructor(init) {
@@ -4301,25 +4315,16 @@ var require_headers = __commonJS({
         fill(this, init);
       }
       get [Symbol.toStringTag]() {
-        if (!(this instanceof Headers)) {
-          throw new TypeError("Illegal invocation");
-        }
         return this.constructor.name;
       }
-      toString() {
+      append(name, value) {
         if (!(this instanceof Headers)) {
           throw new TypeError("Illegal invocation");
         }
-        return Object.prototype.toString.call(this);
-      }
-      append(...args) {
-        if (!(this instanceof Headers)) {
-          throw new TypeError("Illegal invocation");
+        if (arguments.length < 2) {
+          throw new TypeError(`Failed to execute 'append' on 'Headers': 2 arguments required, but only ${arguments.length} present.`);
         }
-        if (args.length < 2) {
-          throw new TypeError(`Failed to execute 'append' on 'Headers': 2 arguments required, but only ${args.length} present.`);
-        }
-        const normalizedName = normalizeAndValidateHeaderName(String(args[0]));
+        const normalizedName = normalizeAndValidateHeaderName(String(name));
         if (this[kGuard] === "immutable") {
           throw new TypeError("immutable");
         } else if (this[kGuard] === "request" && forbiddenHeaderNames.includes(normalizedName)) {
@@ -4328,16 +4333,16 @@ var require_headers = __commonJS({
         } else if (this[kGuard] === "response" && forbiddenResponseHeaderNames.includes(normalizedName)) {
           return;
         }
-        return this[kHeadersList].append(String(args[0]), String(args[1]));
+        return this[kHeadersList].append(String(name), String(value));
       }
-      delete(...args) {
+      delete(name) {
         if (!(this instanceof Headers)) {
           throw new TypeError("Illegal invocation");
         }
-        if (args.length < 1) {
-          throw new TypeError(`Failed to execute 'delete' on 'Headers': 1 argument required, but only ${args.length} present.`);
+        if (arguments.length < 1) {
+          throw new TypeError(`Failed to execute 'delete' on 'Headers': 1 argument required, but only ${arguments.length} present.`);
         }
-        const normalizedName = normalizeAndValidateHeaderName(String(args[0]));
+        const normalizedName = normalizeAndValidateHeaderName(String(name));
         if (this[kGuard] === "immutable") {
           throw new TypeError("immutable");
         } else if (this[kGuard] === "request" && forbiddenHeaderNames.includes(normalizedName)) {
@@ -4346,42 +4351,42 @@ var require_headers = __commonJS({
         } else if (this[kGuard] === "response" && forbiddenResponseHeaderNames.includes(normalizedName)) {
           return;
         }
-        return this[kHeadersList].delete(String(args[0]));
+        return this[kHeadersList].delete(String(name));
       }
-      get(...args) {
+      get(name) {
         if (!(this instanceof Headers)) {
           throw new TypeError("Illegal invocation");
         }
-        if (args.length < 1) {
-          throw new TypeError(`Failed to execute 'get' on 'Headers': 1 argument required, but only ${args.length} present.`);
+        if (arguments.length < 1) {
+          throw new TypeError(`Failed to execute 'get' on 'Headers': 1 argument required, but only ${arguments.length} present.`);
         }
-        return this[kHeadersList].get(String(args[0]));
+        return this[kHeadersList].get(String(name));
       }
-      has(...args) {
+      has(name) {
         if (!(this instanceof Headers)) {
           throw new TypeError("Illegal invocation");
         }
-        if (args.length < 1) {
-          throw new TypeError(`Failed to execute 'has' on 'Headers': 1 argument required, but only ${args.length} present.`);
+        if (arguments.length < 1) {
+          throw new TypeError(`Failed to execute 'has' on 'Headers': 1 argument required, but only ${arguments.length} present.`);
         }
-        return this[kHeadersList].has(String(args[0]));
+        return this[kHeadersList].has(String(name));
       }
-      set(...args) {
+      set(name, value) {
         if (!(this instanceof Headers)) {
           throw new TypeError("Illegal invocation");
         }
-        if (args.length < 2) {
-          throw new TypeError(`Failed to execute 'set' on 'Headers': 2 arguments required, but only ${args.length} present.`);
+        if (arguments.length < 2) {
+          throw new TypeError(`Failed to execute 'set' on 'Headers': 2 arguments required, but only ${arguments.length} present.`);
         }
         if (this[kGuard] === "immutable") {
           throw new TypeError("immutable");
-        } else if (this[kGuard] === "request" && forbiddenHeaderNames.includes(String(args[0]).toLocaleLowerCase())) {
+        } else if (this[kGuard] === "request" && forbiddenHeaderNames.includes(String(name).toLocaleLowerCase())) {
           return;
         } else if (this[kGuard] === "request-no-cors") {
-        } else if (this[kGuard] === "response" && forbiddenResponseHeaderNames.includes(String(args[0]).toLocaleLowerCase())) {
+        } else if (this[kGuard] === "response" && forbiddenResponseHeaderNames.includes(String(name).toLocaleLowerCase())) {
           return;
         }
-        return this[kHeadersList].set(String(args[0]), String(args[1]));
+        return this[kHeadersList].set(String(name), String(value));
       }
       get [kHeadersSortedMap]() {
         this[kHeadersList][kHeadersSortedMap] ??= new Map([...this[kHeadersList]].sort((a, b) => a[0] < b[0] ? -1 : 1));
@@ -4391,41 +4396,33 @@ var require_headers = __commonJS({
         if (!(this instanceof Headers)) {
           throw new TypeError("Illegal invocation");
         }
-        return this[kHeadersSortedMap].keys();
+        return makeHeadersIterator(this[kHeadersSortedMap].keys());
       }
       values() {
         if (!(this instanceof Headers)) {
           throw new TypeError("Illegal invocation");
         }
-        return this[kHeadersSortedMap].values();
+        return makeHeadersIterator(this[kHeadersSortedMap].values());
       }
       entries() {
         if (!(this instanceof Headers)) {
           throw new TypeError("Illegal invocation");
         }
-        return this[kHeadersSortedMap].entries();
+        return makeHeadersIterator(this[kHeadersSortedMap].entries());
       }
-      [Symbol.iterator]() {
+      forEach(callbackFn, thisArg = globalThis) {
         if (!(this instanceof Headers)) {
           throw new TypeError("Illegal invocation");
         }
-        return this[kHeadersSortedMap];
-      }
-      forEach(...args) {
-        if (!(this instanceof Headers)) {
-          throw new TypeError("Illegal invocation");
+        if (arguments.length < 1) {
+          throw new TypeError(`Failed to execute 'forEach' on 'Headers': 1 argument required, but only ${arguments.length} present.`);
         }
-        if (args.length < 1) {
-          throw new TypeError(`Failed to execute 'forEach' on 'Headers': 1 argument required, but only ${args.length} present.`);
-        }
-        if (typeof args[0] !== "function") {
+        if (typeof callbackFn !== "function") {
           throw new TypeError("Failed to execute 'forEach' on 'Headers': parameter 1 is not of type 'Function'.");
         }
-        const callback = args[0];
-        const thisArg = args[1];
-        this[kHeadersSortedMap].forEach((value, index) => {
-          callback.apply(thisArg, [value, index, this]);
-        });
+        for (const [key, value] of this) {
+          callbackFn.apply(thisArg, [value, key, this]);
+        }
       }
       [Symbol.for("nodejs.util.inspect.custom")]() {
         if (!(this instanceof Headers)) {
@@ -4977,11 +4974,10 @@ var require_request2 = __commonJS({
           }
           this[kState].headersList = new HeadersList();
           this[kHeaders][kHeadersList] = this[kState].headersList;
-          if (headers instanceof Headers) {
-            this[kState].headersList = new HeadersList([
-              ...this[kState].headersList,
-              ...headers[kHeadersList]
-            ]);
+          if (headers.constructor.name === "Headers") {
+            for (const [key, val] of headers[kHeadersList] || headers) {
+              this[kHeaders].append(key, val);
+            }
           } else {
             fillHeaders(this[kState].headersList, headers);
           }
@@ -4996,7 +4992,6 @@ var require_request2 = __commonJS({
           initBody = extractedBody;
           if (contentType && !this[kHeaders].has("content-type")) {
             this[kHeaders].append("content-type", contentType);
-            this[kState].headersList.append("content-type", contentType);
           }
         }
         const inputOrInitBody = initBody ?? inputBody;
@@ -6221,6 +6216,9 @@ var require_fetch = __commonJS({
           let bytes;
           try {
             const { done, value } = await fetchParams.controller.next();
+            if (isAborted(fetchParams)) {
+              break;
+            }
             bytes = done ? void 0 : value;
           } catch (err) {
             if (fetchParams.controller.ended && !timingInfo.encodedBodySize) {
@@ -6365,11 +6363,11 @@ var require_fetch = __commonJS({
 });
 
 // index-fetch.js
-var Agent = require_agent();
-var globalDispatcher = new Agent();
+var { getGlobalDispatcher } = require_global();
 var fetchImpl = require_fetch();
 module.exports.fetch = async function fetch(resource) {
-  return fetchImpl.apply(globalDispatcher, arguments);
+  const dispatcher = arguments[1] && arguments[1].dispatcher || getGlobalDispatcher();
+  return fetchImpl.apply(dispatcher, arguments);
 };
 module.exports.FormData = require_formdata().FormData;
 module.exports.Headers = require_headers().Headers;
