@@ -408,7 +408,7 @@ added: v10.0.0
 
 Try to construct a table with the columns of the properties of `tabularData`
 (or use `properties`) and rows of `tabularData` and log it. Falls back to just
-logging the argument if it can’t be parsed as tabular.
+logging the argument if it can't be parsed as tabular.
 
 ```js
 // These can't be parsed as tabular data
@@ -459,7 +459,7 @@ changes:
     description: The elapsed time is displayed with a suitable time unit.
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/5901
-    description: This method no longer supports multiple calls that don’t map
+    description: This method no longer supports multiple calls that don't map
                  to individual `console.time()` calls; see below for details.
 -->
 
