@@ -1827,6 +1827,11 @@ async function httpNetworkFetch (
       let bytes
       try {
         const { done, value } = await fetchParams.controller.next()
+
+        if (isAborted(fetchParams)) {
+          break
+        }
+
         bytes = done ? undefined : value
       } catch (err) {
         if (fetchParams.controller.ended && !timingInfo.encodedBodySize) {

@@ -11,7 +11,6 @@ const RedirectHandler = require('./handler/redirect')
 const {
   RequestContentLengthMismatchError,
   ResponseContentLengthMismatchError,
-  TrailerMismatchError,
   InvalidArgumentError,
   RequestAbortedError,
   HeadersTimeoutError,
@@ -425,7 +424,6 @@ class Parser {
 
     this.bytesRead = 0
 
-    this.trailer = ''
     this.keepAlive = ''
     this.contentLength = ''
   }
@@ -615,8 +613,6 @@ class Parser {
     const key = this.headers[len - 2]
     if (key.length === 10 && key.toString().toLowerCase() === 'keep-alive') {
       this.keepAlive += buf.toString()
-    } else if (key.length === 7 && key.toString().toLowerCase() === 'trailer') {
-      this.trailer += buf.toString()
     } else if (key.length === 14 && key.toString().toLowerCase() === 'content-length') {
       this.contentLength += buf.toString()
     }
@@ -819,7 +815,7 @@ class Parser {
   }
 
   onMessageComplete () {
-    const { client, socket, statusCode, upgrade, trailer, headers, contentLength, bytesRead, shouldKeepAlive } = this
+    const { client, socket, statusCode, upgrade, headers, contentLength, bytesRead, shouldKeepAlive } = this
 
     if (socket.destroyed && (!statusCode || shouldKeepAlive)) {
       return -1
@@ -838,7 +834,6 @@ class Parser {
     this.statusText = ''
     this.bytesRead = 0
     this.contentLength = ''
-    this.trailer = ''
     this.keepAlive = ''
 
     assert(this.headers.length % 2 === 0)
@@ -847,23 +842,6 @@ class Parser {
 
     if (statusCode < 200) {
       return
-    }
-
-    const trailers = trailer ? trailer.split(/,\s*/) : []
-    for (let i = 0; i < trailers.length; i++) {
-      const trailer = trailers[i]
-      let found = false
-      for (let n = 0; n < headers.length; n += 2) {
-        const key = headers[n]
-        if (key.length === trailer.length && key.toString().toLowerCase() === trailer.toLowerCase()) {
-          found = true
-          break
-        }
-      }
-      if (!found) {
-        util.destroy(socket, new TrailerMismatchError())
-        return -1
-      }
     }
 
     /* istanbul ignore next: should be handled by llhttp? */

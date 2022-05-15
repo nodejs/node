@@ -116,16 +116,6 @@ class ResponseContentLengthMismatchError extends UndiciError {
   }
 }
 
-class TrailerMismatchError extends UndiciError {
-  constructor (message) {
-    super(message)
-    Error.captureStackTrace(this, TrailerMismatchError)
-    this.name = 'TrailerMismatchError'
-    this.message = message || 'Trailers does not match trailer header'
-    this.code = 'UND_ERR_TRAILER_MISMATCH'
-  }
-}
-
 class ClientDestroyedError extends UndiciError {
   constructor (message) {
     super(message)
@@ -196,7 +186,6 @@ module.exports = {
   BodyTimeoutError,
   RequestContentLengthMismatchError,
   ConnectTimeoutError,
-  TrailerMismatchError,
   InvalidArgumentError,
   InvalidReturnValueError,
   RequestAbortedError,
