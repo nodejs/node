@@ -305,8 +305,6 @@
       './config/archs/VC-WIN32/asm_avx2/crypto/des/crypt586.asm',
       './config/archs/VC-WIN32/asm_avx2/crypto/des/des-586.asm',
       './config/archs/VC-WIN32/asm_avx2/crypto/md5/md5-586.asm',
-      './config/archs/VC-WIN32/asm_avx2/providers/legacy.ld',
-      './config/archs/VC-WIN32/asm_avx2/providers/fips.ld',
 
     ],
     'openssl_defines_VC-WIN32': [
