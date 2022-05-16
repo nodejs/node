@@ -217,9 +217,9 @@ our %config = (
     "openssldir" => "",
     "options" => "enable-ssl-trace enable-fips no-afalgeng no-asan no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-ktls no-loadereng no-md2 no-msan no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
     "patch" => "3",
-    "perl_archname" => "x86_64-linux-gnu-thread-multi",
+    "perl_archname" => "x86_64-linux-thread-multi",
     "perl_cmd" => "/usr/bin/perl",
-    "perl_version" => "5.30.0",
+    "perl_version" => "5.34.1",
     "perlargv" => [
         "no-comp",
         "no-shared",
@@ -287,7 +287,7 @@ our %target = (
     "LDFLAGS" => "/nologo /debug",
     "MT" => "mt",
     "MTFLAGS" => "-nologo",
-    "RANLIB" => "CODE(0x5614f015f400)",
+    "RANLIB" => "CODE(0x562885b4eb48)",
     "RC" => "rc",
     "_conf_fname_int" => [
         "Configurations/00-base-templates.conf",
@@ -27418,8 +27418,8 @@ unless (caller) {
     use File::Copy;
     use Pod::Usage;
 
-    use lib '/home/rafaelgss/repos/os/node/deps/openssl/openssl/util/perl';
-    use OpenSSL::fallback '/home/rafaelgss/repos/os/node/deps/openssl/openssl/external/perl/MODULES.txt';
+    use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/util/perl';
+    use OpenSSL::fallback '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/external/perl/MODULES.txt';
 
     my $here = dirname($0);
 
@@ -27446,7 +27446,7 @@ unless (caller) {
             );
 
         use lib '.';
-        use lib '/home/rafaelgss/repos/os/node/deps/openssl/openssl/Configurations';
+        use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/Configurations';
         use gentemplate;
 
         print 'Creating ',$buildfile_template,"\n";
@@ -27463,8 +27463,8 @@ unless (caller) {
 
         my $prepend = <<'_____';
 use File::Spec::Functions;
-use lib '/home/rafaelgss/repos/os/node/deps/openssl/openssl/util/perl';
-use lib '/home/rafaelgss/repos/os/node/deps/openssl/openssl/Configurations';
+use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/util/perl';
+use lib '/home/danielbevenius/work/nodejs/node/deps/openssl/openssl/Configurations';
 use lib '.';
 use platform;
 _____

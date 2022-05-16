@@ -981,8 +981,6 @@
       './config/archs/VC-WIN32/asm/crypto/des/crypt586.asm',
       './config/archs/VC-WIN32/asm/crypto/des/des-586.asm',
       './config/archs/VC-WIN32/asm/crypto/md5/md5-586.asm',
-      './config/archs/VC-WIN32/asm/providers/legacy.ld',
-      './config/archs/VC-WIN32/asm/providers/fips.ld',
     ],
     'openssl_defines_VC-WIN32': [
       'NDEBUG',
