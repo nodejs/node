@@ -288,7 +288,6 @@ class V8_EXPORT Isolate {
     FatalErrorCallback fatal_error_callback = nullptr;
     OOMErrorCallback oom_error_callback = nullptr;
 
-    V8_DEPRECATED("Use oom_error_callback (https://crbug.com/1323177)")
     LegacyOOMErrorCallback legacy_oom_error_callback = nullptr;
 
     /**
@@ -1532,7 +1531,6 @@ class V8_EXPORT Isolate {
 
   void SetWasmExceptionsEnabledCallback(WasmExceptionsEnabledCallback callback);
 
-  V8_DEPRECATE_SOON("Dynamic tiering is now enabled by default")
   void SetWasmDynamicTieringEnabledCallback(WasmDynamicTieringEnabledCallback) {
   }
 
