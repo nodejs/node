@@ -28,7 +28,7 @@ function testValid(position, allowedErrors = []) {
   }
 }
 
-function testInvalid(code, position, internalCatch = false) {
+function testInvalid(code, position) {
   let fdSync;
   try {
     fdSync = fs.openSync(filepath, 'r');
