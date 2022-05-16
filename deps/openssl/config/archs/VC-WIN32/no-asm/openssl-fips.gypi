@@ -279,8 +279,6 @@
       './config/archs/VC-WIN32/no-asm/providers/common/der/der_ecx_gen.c',
       './config/archs/VC-WIN32/no-asm/providers/common/der/der_rsa_gen.c',
       './config/archs/VC-WIN32/no-asm/providers/common/der/der_wrap_gen.c',
-      './config/archs/VC-WIN32/no-asm/providers/legacy.ld',
-      './config/archs/VC-WIN32/no-asm/providers/fips.ld',
 
     ],
     'openssl_defines_VC-WIN32': [
