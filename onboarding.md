@@ -144,12 +144,12 @@ The project has a venue for real-time discussion:
 
 * Approving a change
   * Collaborators indicate that they have reviewed and approve of the changes in
-    a pull request using GitHub’s approval interface
+    a pull request using GitHub's approval interface
   * Some people like to comment `LGTM` (“Looks Good To Me”)
-  * You have the authority to approve any other collaborator’s work.
+  * You have the authority to approve any other collaborator's work.
   * You cannot approve your own pull requests.
   * When explicitly using `Changes requested`, show empathy – comments will
-    usually be addressed even if you don’t use it.
+    usually be addressed even if you don't use it.
     * If you do, it is nice if you are available later to check whether your
       comments have been addressed
     * If you see that the requested changes have been made, you can clear
@@ -158,7 +158,7 @@ The project has a venue for real-time discussion:
       comments to block the pull request from landing.
 
 * What belongs in Node.js:
-  * Opinions vary – it’s good to have a broad collaborator base for that reason!
+  * Opinions vary – it's good to have a broad collaborator base for that reason!
   * If Node.js itself needs it (due to historical reasons), then it belongs in
     Node.js.
     * That is to say, `url` is there because of `http`, `freelist` is there

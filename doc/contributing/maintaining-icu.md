@@ -193,9 +193,9 @@ Floating patches are applied at `configure` time. The "patch" files
 are used instead of the original source files. The patch files are
 complete `.cpp` files replacing the original contents.
 
-Patches are tied to a specific ICU version. They won’t apply to a
+Patches are tied to a specific ICU version. They won't apply to a
 future ICU version.  We assume that you filed a bug against [ICU][] and
-upstreamed the fix, so the patch won’t be needed in a later ICU
+upstreamed the fix, so the patch won't be needed in a later ICU
 version.
 
 ### Example

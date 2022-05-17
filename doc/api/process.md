@@ -1527,7 +1527,7 @@ added: v0.1.27
 changes:
   - version: v11.14.0
     pr-url: https://github.com/nodejs/node/pull/26544
-    description: Worker threads will now use a copy of the parent thread’s
+    description: Worker threads will now use a copy of the parent thread's
                  `process.env` by default, configurable through the `env`
                  option of the `Worker` constructor.
   - version: v10.0.0
@@ -1650,7 +1650,7 @@ console.log(env.test);
 
 Unless explicitly specified when creating a [`Worker`][] instance,
 each [`Worker`][] thread has its own copy of `process.env`, based on its
-parent thread’s `process.env`, or whatever was specified as the `env` option
+parent thread's `process.env`, or whatever was specified as the `env` option
 to the [`Worker`][] constructor. Changes to `process.env` will not be visible
 across [`Worker`][] threads, and only the main thread can make changes that
 are visible to the operating system or to native add-ons.

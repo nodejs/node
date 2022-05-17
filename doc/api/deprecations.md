@@ -2569,7 +2569,7 @@ changes:
 Type: Runtime
 
 Passing a callback to [`worker.terminate()`][] is deprecated. Use the returned
-`Promise` instead, or a listener to the worker’s `'exit'` event.
+`Promise` instead, or a listener to the worker's `'exit'` event.
 
 ### DEP0133: `http` `connection`
 
