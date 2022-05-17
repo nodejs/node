@@ -813,7 +813,7 @@ stack trace for such warnings.
 
 The emitted warning can be inspected with [`process.on('warning')`][] and will
 have the additional `emitter`, `type`, and `count` properties, referring to
-the event emitter instance, the event’s name and the number of attached
+the event emitter instance, the event's name and the number of attached
 listeners, respectively.
 Its `name` property is set to `'MaxListenersExceededWarning'`.
 
@@ -1633,7 +1633,7 @@ added: v14.5.0
 -->
 
 * `event` {Event}
-* Returns: {boolean} `true` if either event’s `cancelable` attribute value is
+* Returns: {boolean} `true` if either event's `cancelable` attribute value is
   false or its `preventDefault()` method was not invoked, otherwise `false`.
 
 Dispatches the `event` to the list of handlers for `event.type`.

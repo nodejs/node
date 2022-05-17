@@ -2534,7 +2534,7 @@ The "not recommended" examples above check for existence and then use the
 file; the "recommended" examples are better because they use the file directly
 and handle the error, if any.
 
-In general, check for the existence of a file only if the file won’t be
+In general, check for the existence of a file only if the file won't be
 used directly, for example when its existence is a signal from another
 process.
 
@@ -4008,7 +4008,7 @@ If the `target` does not exist, `'file'` will be used. Windows junction points
 require the destination path to be absolute. When using `'junction'`, the
 `target` argument will automatically be normalized to absolute path.
 
-Relative targets are relative to the link’s parent directory.
+Relative targets are relative to the link's parent directory.
 
 ```mjs
 import { symlink } from 'node:fs';
