@@ -41,8 +41,6 @@ class SecureContext final : public BaseObject {
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   static SecureContext* Create(Environment* env);
 
-  SSL_CTX* operator*() const { return ctx_.get(); }
-
   SSL_CTX* ssl_ctx() const { return ctx_.get(); }
 
   SSLPointer CreateSSL();
