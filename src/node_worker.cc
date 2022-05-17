@@ -63,18 +63,18 @@ Worker::Worker(Environment* env,
         thread_id_.id);
 
   // Set up everything that needs to be set up in the parent environment.
-  parent_port_ = MessagePort::New(env, env->context());
-  if (parent_port_ == nullptr) {
+  MessagePort* parent_port = MessagePort::New(env, env->context());
+  if (parent_port == nullptr) {
     // This can happen e.g. because execution is terminating.
     return;
   }
 
   child_port_data_ = std::make_unique<MessagePortData>(nullptr);
-  MessagePort::Entangle(parent_port_, child_port_data_.get());
+  MessagePort::Entangle(parent_port, child_port_data_.get());
 
-  object()->Set(env->context(),
-                env->message_port_string(),
-                parent_port_->object()).Check();
+  object()
+      ->Set(env->context(), env->message_port_string(), parent_port->object())
+      .Check();
 
   object()->Set(env->context(),
                 env->thread_id_string(),
@@ -732,10 +732,6 @@ void Worker::Exit(int code, const char* error_code, const char* error_message) {
   } else {
     stopped_ = true;
   }
-}
-
-void Worker::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("parent_port", parent_port_);
 }
 
 bool Worker::IsNotIndicativeOfMemoryLeakAtExit() const {
