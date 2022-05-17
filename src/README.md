@@ -1,6 +1,6 @@
 # Node.js C++ codebase
 
-Hi! 👋 You’ve found the C++ code backing Node.js. This README aims to help you
+Hi! 👋 You've found the C++ code backing Node.js. This README aims to help you
 get started working on it and document some idioms you may encounter while
 doing so.
 
@@ -22,7 +22,7 @@ accessed online in the following locations:
 
 * On GitHub: [`v8.h` in Node.js master][]
 * On GitHub: [`v8.h` in V8 master][]
-* On the Chromium project’s Code Search application: [`v8.h` in Code Search][]
+* On the Chromium project's Code Search application: [`v8.h` in Code Search][]
 
 V8 also provides an [introduction for V8 embedders][],
 which can be useful for understanding some of the concepts it uses in its
@@ -42,7 +42,7 @@ There is a [reference documentation for the libuv API][].
 
 The Node.js C++ files follow this structure:
 
-The `.h` header files contain declarations, and sometimes definitions that don’t
+The `.h` header files contain declarations, and sometimes definitions that don't
 require including other headers (e.g. getters, setters, etc.). They should only
 include other `.h` header files and nothing else.
 
@@ -272,7 +272,7 @@ Often, the `Context` is passed around for [exception handling][].
 Typical ways of accessing the current `Context` in the Node.js code are:
 
 * Given an [`Isolate`][], using `isolate->GetCurrentContext()`.
-* Given an [`Environment`][], using `env->context()` to get the `Environment`’s
+* Given an [`Environment`][], using `env->context()` to get the `Environment`'s
   main context.
 
 <a id="event-loop"></a>
@@ -288,7 +288,7 @@ The current event loop can be accessed using `env->event_loop()` given an
 [`Environment`][] instance. The restriction of using a single event loop
 is not inherent to the design of Node.js, and a sufficiently committed person
 could restructure Node.js to provide e.g. the ability to run parts of Node.js
-inside an event loop separate from the active thread’s event loop.
+inside an event loop separate from the active thread's event loop.
 
 <a id="environment"></a>
 
@@ -351,7 +351,7 @@ The platform can be accessed through `isolate_data->platform()` given an
 
 * The current Node.js instance was not started by an embedder; or
 * The current Node.js instance was started by an embedder whose `v8::Platform`
-  implementation also implement’s the `node::MultiIsolatePlatform` interface
+  implementation also implement's the `node::MultiIsolatePlatform` interface
   and who passed this to Node.js.
 
 <a id="binding-functions"></a>
@@ -419,7 +419,7 @@ void Initialize(Local<Object> target,
 }
 
 // Run the `Initialize` function when loading this module through
-// `internalBinding('cares_wrap')` in Node.js’s built-in JavaScript code:
+// `internalBinding('cares_wrap')` in Node.js's built-in JavaScript code:
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(cares_wrap, Initialize)
 ```
 
@@ -484,7 +484,7 @@ That object is always a [`BaseObject`][].
 
 Its class needs to have a static `type_name` field based on a
 constant string, in order to disambiguate it from other classes of this type,
-and which could e.g. match the binding’s name (in the example above, that would
+and which could e.g. match the binding's name (in the example above, that would
 be `cares_wrap`).
 
 ```cpp
@@ -556,7 +556,7 @@ the process otherwise. `maybe.FromJust()` (aka `maybe.ToChecked()`) can be used
 to access the value and crash the process if it is not set.
 
 This should only be performed if it is actually sure that the operation has
-not failed. A lot of Node.js’s source code does **not** follow this rule, and
+not failed. A lot of the Node.js source code does **not** follow this rule, and
 can be brought to crash through this.
 
 In particular, it is often not safe to assume that an operation does not throw
@@ -621,18 +621,18 @@ v8::Maybe<double> SumNumbers(v8::Local<v8::Context> context,
     v8::Local<v8::Value> entry;
     if (array_of_integers->Get(context, i).ToLocal(&entry)) {
       // Oops, we might have hit a getter that throws an exception!
-      // It’s better to not continue return an empty (“nothing”) Maybe.
+      // It's better to not continue return an empty (“nothing”) Maybe.
       return v8::Nothing<double>();
     }
 
     if (!entry->IsNumber()) {
-      // Let’s just skip any non-numbers. It would also be reasonable to throw
+      // Let's just skip any non-numbers. It would also be reasonable to throw
       // an exception here, e.g. using the error system in src/node_errors.h,
       // and then to return an empty Maybe again.
       continue;
     }
 
-    // This cast is valid, because we’ve made sure it’s really a number.
+    // This cast is valid, because we've made sure it's really a number.
     v8::Local<v8::Number> entry_as_number = entry.As<v8::Number>();
 
     sum += entry_as_number->Value();
@@ -643,7 +643,7 @@ v8::Maybe<double> SumNumbers(v8::Local<v8::Context> context,
 
 // Function that is exposed to JS:
 void SumNumbers(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  // This will crash if the first argument is not an array. Let’s assume we
+  // This will crash if the first argument is not an array. Let's assume we
   // have performed type checking in a JavaScript wrapper function.
   CHECK(args[0]->IsArray());
 
@@ -859,7 +859,7 @@ this information is provided to async tracking tools.
 The `AsyncWrap` class has a set of methods called `MakeCallback()`, with the
 intention of the naming being that it is used to “make calls back into
 JavaScript” from the event loop, rather than making callbacks in some way.
-(As the naming has made its way into Node.js’s public API, it’s not worth
+(As the naming has made its way into the Node.js public API, it's not worth
 the breakage of fixing it).
 
 `MakeCallback()` generally calls a method on the JavaScript object associated
@@ -936,7 +936,7 @@ classes provide the same facilities as [`MakeCallback()`][], namely:
 
 Usually, using `AsyncWrap::MakeCallback()` or using the constructor taking
 an `AsyncWrap*` argument (i.e. used as
-`InternalCallbackScope callback_scope(this);`) suffices inside of Node.js’s
+`InternalCallbackScope callback_scope(this);`) suffices inside of the Node.js
 C++ codebase.
 
 ## C++ utilities
