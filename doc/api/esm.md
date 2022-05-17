@@ -135,7 +135,7 @@ algorithm][]. All other specifier resolutions are always only resolved with
 the standard relative [URL][] resolution semantics.
 
 Like in CommonJS, module files within packages can be accessed by appending a
-path to the package name unless the package’s [`package.json`][] contains an
+path to the package name unless the package's [`package.json`][] contains an
 [`"exports"`][] field, in which case files within packages can only be accessed
 via the paths defined in [`"exports"`][].
 
@@ -930,7 +930,7 @@ export function globalPreload({ port }) {
 ### Examples
 
 The various loader hooks can be used together to accomplish wide-ranging
-customizations of Node.js’ code loading and evaluation behaviors.
+customizations of the Node.js code loading and evaluation behaviors.
 
 #### HTTPS loader
 
@@ -1002,7 +1002,7 @@ prints the current version of CoffeeScript per the module at the URL in
 
 #### Transpiler loader
 
-Sources that are in formats Node.js doesn’t understand can be converted into
+Sources that are in formats Node.js doesn't understand can be converted into
 JavaScript using the [`load` hook][load hook]. Before that hook gets called,
 however, a [`resolve` hook][resolve hook] needs to tell Node.js not to
 throw an error on unknown file types.
