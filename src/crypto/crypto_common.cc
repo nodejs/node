@@ -213,7 +213,7 @@ const char* GetServerName(SSL* ssl) {
 }
 
 bool SetGroups(SecureContext* sc, const char* groups) {
-  return SSL_CTX_set1_groups_list(**sc, groups) == 1;
+  return SSL_CTX_set1_groups_list(sc->ssl_ctx(), groups) == 1;
 }
 
 const char* X509ErrorCode(long err) {  // NOLINT(runtime/int)
