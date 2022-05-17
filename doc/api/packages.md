@@ -224,7 +224,7 @@ in your project's `package.json`.
 
 ## Package entry points
 
-In a package’s `package.json` file, two fields can define entry points for a
+In a package's `package.json` file, two fields can define entry points for a
 package: [`"main"`][] and [`"exports"`][]. The [`"main"`][] field is supported
 in all versions of Node.js, but its capabilities are limited: it only defines
 the main entry point of the package.
@@ -255,7 +255,7 @@ likely be a breaking change.**
 
 To make the introduction of [`"exports"`][] non-breaking, ensure that every
 previously supported entry point is exported. It is best to explicitly specify
-entry points so that the package’s public API is well-defined. For example,
+entry points so that the package's public API is well-defined. For example,
 a project that previous exported `main`, `lib`,
 `feature`, and the `package.json` could use the following `package.exports`:
 
@@ -303,7 +303,7 @@ path `import feature from 'my-mod/feature/index.js`.
 ### Main entry point export
 
 To set the main entry point for a package, it is advisable to define both
-[`"exports"`][] and [`"main"`][] in the package’s [`package.json`][] file:
+[`"exports"`][] and [`"main"`][] in the package's [`package.json`][] file:
 
 ```json
 {
@@ -700,8 +700,8 @@ changes:
     description: Unflag self-referencing a package using its name.
 -->
 
-Within a package, the values defined in the package’s
-`package.json` [`"exports"`][] field can be referenced via the package’s name.
+Within a package, the values defined in the package's
+`package.json` [`"exports"`][] field can be referenced via the package's name.
 For example, assuming the `package.json` is:
 
 ```json
@@ -905,7 +905,7 @@ This approach is appropriate for any of the following use cases:
   install both this package and those other packages. For example a `utilities`
   package is used directly in an application, and a `utilities-plus` package
   adds a few more functions to `utilities`. Because the wrapper exports
-  underlying CommonJS files, it doesn’t matter if `utilities-plus` is written in
+  underlying CommonJS files, it doesn't matter if `utilities-plus` is written in
   CommonJS or ES module syntax; it will work either way.
 * The package stores internal state, and the package author would prefer not to
   refactor the package to isolate its state management. See the next section.
@@ -915,7 +915,7 @@ be to add an export, e.g. `"./module"`, to point to an all-ES module-syntax
 version of the package. This could be used via `import 'pkg/module'` by users
 who are certain that the CommonJS version will not be loaded anywhere in the
 application, such as by dependencies; or if the CommonJS version can be loaded
-but doesn’t affect the ES module version (for example, because the package is
+but doesn't affect the ES module version (for example, because the package is
 stateless):
 
 ```json
@@ -949,22 +949,22 @@ points directly:
 
 This can be done if both the CommonJS and ES module versions of the package are
 equivalent, for example because one is the transpiled output of the other; and
-the package’s management of state is carefully isolated (or the package is
+the package's management of state is carefully isolated (or the package is
 stateless).
 
 The reason that state is an issue is because both the CommonJS and ES module
 versions of the package might get used within an application; for example, the
-user’s application code could `import` the ES module version while a dependency
+user's application code could `import` the ES module version while a dependency
 `require`s the CommonJS version. If that were to occur, two copies of the
 package would be loaded in memory and therefore two separate states would be
 present. This would likely cause hard-to-troubleshoot bugs.
 
-Aside from writing a stateless package (if JavaScript’s `Math` were a package,
+Aside from writing a stateless package (if JavaScript's `Math` were a package,
 for example, it would be stateless as all of its methods are static), there are
-some ways to isolate state so that it’s shared between the potentially loaded
+some ways to isolate state so that it's shared between the potentially loaded
 CommonJS and ES module instances of the package:
 
-1. If possible, contain all state within an instantiated object. JavaScript’s
+1. If possible, contain all state within an instantiated object. JavaScript's
    `Date`, for example, needs to be instantiated to contain state; if it were a
    package, it would be used like this:
 
@@ -974,7 +974,7 @@ CommonJS and ES module instances of the package:
    // someDate contains state; Date does not
    ```
 
-   The `new` keyword isn’t required; a package’s function can return a new
+   The `new` keyword isn't required; a package's function can return a new
    object, or modify a passed-in object, to keep the state external to the
    package.
 
@@ -1001,7 +1001,7 @@ CommonJS and ES module instances of the package:
    each reference of `pkg` will contain the same state; and modifying that
    state from either module system will apply to both.
 
-Any plugins that attach to the package’s singleton would need to separately
+Any plugins that attach to the package's singleton would need to separately
 attach to both the CommonJS and ES module singletons.
 
 This approach is appropriate for any of the following use cases:
@@ -1076,7 +1076,7 @@ changes:
 }
 ```
 
-The `"name"` field defines your package’s name. Publishing to the
+The `"name"` field defines your package's name. Publishing to the
 _npm_ registry requires a name that satisfies
 [certain requirements](https://docs.npmjs.com/files/package.json#name).
 
@@ -1159,7 +1159,7 @@ Files ending with `.js` are loaded as ES modules when the nearest parent
 `"module"`.
 
 The nearest parent `package.json` is defined as the first `package.json` found
-when searching in the current folder, that folder’s parent, and so on up
+when searching in the current folder, that folder's parent, and so on up
 until a node\_modules folder or the volume root is reached.
 
 ```json
