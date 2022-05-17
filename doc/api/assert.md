@@ -322,6 +322,73 @@ function func() {}
 const callsfunc = tracker.calls(func);
 ```
 
+### `tracker.callsWith([fn][withArgs][, exact])`
+
+<!-- YAML
+added:
+  - v19.0.0
+-->
+
+* `fn` {Function} **Default:** A no-op function.
+* `withArgs` {Array} **Default:** An array with the arguments list.
+* `exact` {number} **Default:** `1`.
+* Returns: {Function} that wraps `fn`.
+
+The wrapper function is expected to be called exactly `exact` times. If the
+function has not been called exactly `exact` times when
+[`tracker.verify()`][] is called, then [`tracker.verify()`][] will throw an
+error.
+
+```mjs
+import assert from 'node:assert';
+
+// Creates call tracker.
+const tracker = new assert.CallTracker();
+
+function func() {}
+
+// Returns a function that wraps func() that must be called exact times
+// Before tracker.verify().
+const callsfunc = tracker.callsWith(func, ['test', 1, 2]);
+callsfunc('test', 1, 2);
+
+// Or without any no-op function and calling twice
+const myfn = tracker.callsWith(['test', 1, 2], 2);
+myfn('test', 1, 2);
+myfn('test', 1, 2);
+tracker.verify();
+
+// Or
+const fn = tracker.callsWith(['test', 1, 2]);
+fn('test', 1, 2);
+tracker.verify();
+```
+
+```cjs
+const assert = require('node:assert');
+
+// Creates call tracker.
+const tracker = new assert.CallTracker();
+
+function func() {}
+
+// Returns a function that wraps func() that must be called exact times
+// Before tracker.verify().
+const callsfunc = tracker.callsWith(func, ['test', 1, 2]);
+callsfunc('test', 1, 2);
+
+// Or without any no-op function and calling twice
+const myfn = tracker.callsWith(['test', 1, 2], 2);
+myfn('test', 1, 2);
+myfn('test', 1, 2);
+tracker.verify();
+
+// Or
+const fn = tracker.callsWith(['test', 1, 2]);
+fn('test', 1, 2);
+tracker.verify();
+```
+
 ### `tracker.report()`
 
 <!-- YAML
