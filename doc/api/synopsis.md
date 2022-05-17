@@ -19,7 +19,7 @@ Commands in this document start with `$` or `>` to replicate how they would
 appear in a user's terminal. Do not include the `$` and `>` characters. They are
 there to show the start of each command.
 
-Lines that don’t start with `$` or `>` character show the output of the previous
+Lines that don't start with `$` or `>` character show the output of the previous
 command.
 
 First, make sure to have downloaded and installed Node.js. See
