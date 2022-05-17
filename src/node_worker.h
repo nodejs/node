@@ -51,7 +51,7 @@ class Worker : public AsyncWrap {
   template <typename Fn>
   inline bool RequestInterrupt(Fn&& cb);
 
-  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(Worker)
   SET_SELF_SIZE(Worker)
   bool IsNotIndicativeOfMemoryLeakAtExit() const override;
@@ -110,10 +110,6 @@ class Worker : public AsyncWrap {
 
   std::unique_ptr<MessagePortData> child_port_data_;
   std::shared_ptr<KVStore> env_vars_;
-
-  // This is always kept alive because the JS object associated with the Worker
-  // instance refers to it via its [kPort] property.
-  MessagePort* parent_port_ = nullptr;
 
   // A raw flag that is used by creator and worker threads to
   // sync up on pre-mature termination of worker  - while in the
