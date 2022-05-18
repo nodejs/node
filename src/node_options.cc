@@ -869,6 +869,10 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "enable OpenSSL 3.0 legacy provider",
             &PerProcessOptions::openssl_legacy_provider,
             kAllowedInEnvironment);
+  AddOption("--openssl-shared-config",
+            "enable OpenSSL shared configuration",
+            &PerProcessOptions::openssl_shared_config,
+            kAllowedInEnvironment);
 
 #endif  // OPENSSL_VERSION_MAJOR
   AddOption("--use-largepages",

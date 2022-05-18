@@ -266,6 +266,7 @@ class PerProcessOptions : public Options {
 #endif
 #if OPENSSL_VERSION_MAJOR >= 3
   bool openssl_legacy_provider = false;
+  bool openssl_shared_config = false;
 #endif
 
   // Per-process because reports can be triggered outside a known V8 context.

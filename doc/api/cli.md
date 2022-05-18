@@ -783,6 +783,21 @@ Load an OpenSSL configuration file on startup. Among other uses, this can be
 used to enable FIPS-compliant crypto if Node.js is built
 against FIPS-enabled OpenSSL.
 
+### `--openssl-shared-config`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable OpenSSL default configuration section, `openssl_conf` to be read from
+the OpenSSL configuration file. The default configuration file is named
+`openssl.cnf` but this can be changed using the environment variable
+`OPENSSL_CONF`, or by using the command line option `--openssl-config`.
+The location of the default OpenSSL configuration file depends on how OpenSSL
+is being linked to Node.js. Sharing the OpenSSL configuration may have unwanted
+implications and it is recommended to use a configuration section specific to
+Node.js which is `nodejs_conf` and is default when this option is not used.
+
 ### `--openssl-legacy-provider`
 
 <!-- YAML
@@ -1675,6 +1690,7 @@ Node.js options that are allowed are:
 * `--node-memory-debug`
 * `--openssl-config`
 * `--openssl-legacy-provider`
+* `--openssl-shared-config`
 * `--pending-deprecation`
 * `--policy-integrity`
 * `--preserve-symlinks-main`
