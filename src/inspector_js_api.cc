@@ -343,6 +343,18 @@ void Initialize(Local<Object> target, Local<Value> unused,
   env->SetMethod(target, "registerAsyncHook", RegisterAsyncHookWrapper);
   env->SetMethodNoSideEffect(target, "isEnabled", IsEnabled);
 
+  Local<String> console_string =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "console");
+
+  // Grab the console from the binding object and expose those to our binding
+  // layer.
+  Local<Object> binding = context->GetExtrasBindingObject();
+  target
+      ->Set(context,
+            console_string,
+            binding->Get(context, console_string).ToLocalChecked())
+      .Check();
+
   JSBindingsConnection<LocalConnection>::Bind(env, target);
   JSBindingsConnection<MainThreadConnection>::Bind(env, target);
 }
