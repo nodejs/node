@@ -55,6 +55,7 @@ const conditionalOpts = [
       return [
         '--openssl-config',
         common.hasOpenSSL3 ? '--openssl-legacy-provider' : '',
+        '--openssl-shared-config',
         '--tls-cipher-list',
         '--use-bundled-ca',
         '--use-openssl-ca',

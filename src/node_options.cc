@@ -824,13 +824,16 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "minimum allocation size from the OpenSSL secure heap",
             &PerProcessOptions::secure_heap_min,
             kAllowedInEnvironment);
+  AddOption("--openssl-shared-config",
+            "enable OpenSSL shared configuration",
+            &PerProcessOptions::openssl_shared_config,
+            kAllowedInEnvironment);
 #endif  // HAVE_OPENSSL
 #if OPENSSL_VERSION_MAJOR >= 3
   AddOption("--openssl-legacy-provider",
             "enable OpenSSL 3.0 legacy provider",
             &PerProcessOptions::openssl_legacy_provider,
             kAllowedInEnvironment);
-
 #endif  // OPENSSL_VERSION_MAJOR
   AddOption("--use-largepages",
             "Map the Node.js static code to large pages. Options are "

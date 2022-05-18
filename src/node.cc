@@ -1096,6 +1096,12 @@ InitializationResult InitializeOncePerProcess(
     // instead only the section that matches the value of conf_section_name
     // will be read from the default configuration file.
     const char* conf_file = nullptr;
+    // To allow for using the previous default where the 'openssl_conf' appname
+    // was used, the command line option 'openssl-shared-config' can be used to
+    // force the old behavior.
+    if (per_process::cli_options->openssl_shared_config) {
+      conf_section_name = "openssl_conf";
+    }
     // Use OPENSSL_CONF environment variable is set.
     std::string env_openssl_conf;
     credentials::SafeGetenv("OPENSSL_CONF", &env_openssl_conf);
