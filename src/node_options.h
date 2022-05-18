@@ -238,6 +238,7 @@ class PerProcessOptions : public Options {
   // or are used once during process initialization.
 #if HAVE_OPENSSL
   std::string openssl_config;
+  bool openssl_shared_config = false;
   std::string tls_cipher_list = DEFAULT_CIPHER_LIST_CORE;
 #ifdef NODE_OPENSSL_CERT_STORE
   bool ssl_openssl_cert_store = true;
