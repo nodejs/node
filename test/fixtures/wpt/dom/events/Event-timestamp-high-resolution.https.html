@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script type="text/javascript">
+'use strict';
+for (let eventType of ["GamepadEvent"]) {
+    test(function() {
+        let before = performance.now();
+        let e = new window[eventType]('test');
+        let after = performance.now();
+        assert_greater_than_equal(e.timeStamp, before, "Event timestamp should be greater than performance.now() timestamp taken before its creation");
+        assert_less_than_equal(e.timeStamp, after, "Event timestamp should be less than performance.now() timestamp taken after its creation");
+    }, `Constructed ${eventType} timestamp should be high resolution and have the same time origin as performance.now()`);
+}
+</script>

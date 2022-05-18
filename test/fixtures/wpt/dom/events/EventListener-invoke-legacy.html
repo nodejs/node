@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Invoke legacy event listener</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<style>
+  @keyframes test {
+    0% { color: red; }
+    100% { color: green; }
+  }
+</style>
+<div id="log"></div>
+<script>
+function runLegacyEventTest(type, legacyType, ctor, setup) {
+  function createTestElem(t) {
+    var elem = document.createElement('div');
+    document.body.appendChild(elem);
+    t.add_cleanup(function() {
+      document.body.removeChild(elem);
+    });
+    return elem;
+  }
+
+  async_test(function(t) {
+    var elem = createTestElem(t);
+    var gotEvent = false;
+    elem.addEventListener(legacyType,
+      t.unreached_func("listener of " + legacyType + " should not be invoked"));
+    elem.addEventListener(type, t.step_func(function() {
+      assert_false(gotEvent, "unexpected " + type + " event");
+      gotEvent = true;
+      t.step_timeout(function() { t.done(); }, 100);
+    }));
+    setup(elem);
+  }, "Listener of " + type);
+
+  async_test(function(t) {
+    var elem = createTestElem(t);
+    var count = 0;
+    elem.addEventListener(legacyType, t.step_func(function() {
+      ++count;
+      if (count > 1) {
+        assert_unreached("listener of " + legacyType + " should not be invoked again");
+        return;
+      }
+      elem.dispatchEvent(new window[ctor](type));
+      t.done();
+    }));
+    setup(elem);
+  }, "Legacy listener of " + type);
+}
+
+function setupTransition(elem) {
+  getComputedStyle(elem).color;
+  elem.style.color = 'green';
+  elem.style.transition = 'color 30ms';
+}
+
+function setupAnimation(elem) {
+  elem.style.animation = 'test 30ms';
+}
+
+runLegacyEventTest('transitionend', 'webkitTransitionEnd', "TransitionEvent", setupTransition);
+runLegacyEventTest('animationend', 'webkitAnimationEnd', "AnimationEvent", setupAnimation);
+runLegacyEventTest('animationstart', 'webkitAnimationStart', "AnimationEvent", setupAnimation);
+</script>

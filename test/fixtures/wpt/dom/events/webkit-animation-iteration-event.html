@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Prefixed CSS Animation iteration events</title>
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-event-listener-invoke">
+
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<body>
+
+<script src="resources/prefixed-animation-event-tests.js"></script>
+<script>
+'use strict';
+
+runAnimationEventTests({
+  unprefixedType: 'animationiteration',
+  prefixedType: 'webkitAnimationIteration',
+  // Use a long duration to avoid missing the animation due to slow machines,
+  // but set a negative delay so that the iteration boundary happens shortly
+  // after the animation starts.
+  animationCssStyle: '100s -99.9s 2',
+});
+</script>
