@@ -25,7 +25,7 @@ struct StackOfXASN1Deleter {
 };
 using StackOfASN1 = std::unique_ptr<STACK_OF(ASN1_OBJECT), StackOfXASN1Deleter>;
 
-bool SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer);
+X509Pointer SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert);
 
 void LogSecret(
     const SSLPointer& ssl,

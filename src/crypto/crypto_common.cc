@@ -52,13 +52,18 @@ static constexpr int kX509NameFlagsRFC2253WithinUtf8JSON =
     ~ASN1_STRFLGS_ESC_MSB &
     ~ASN1_STRFLGS_ESC_CTRL;
 
-bool SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer) {
+X509Pointer SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert) {
   X509_STORE* store = SSL_CTX_get_cert_store(ctx);
   DeleteFnPtr<X509_STORE_CTX, X509_STORE_CTX_free> store_ctx(
       X509_STORE_CTX_new());
-  return store_ctx.get() != nullptr &&
-         X509_STORE_CTX_init(store_ctx.get(), store, nullptr, nullptr) == 1 &&
-         X509_STORE_CTX_get1_issuer(issuer, store_ctx.get(), cert) == 1;
+  X509Pointer result;
+  X509* issuer;
+  if (store_ctx.get() != nullptr &&
+      X509_STORE_CTX_init(store_ctx.get(), store, nullptr, nullptr) == 1 &&
+      X509_STORE_CTX_get1_issuer(&issuer, store_ctx.get(), cert) == 1) {
+    result.reset(issuer);
+  }
+  return result;
 }
 
 void LogSecret(
@@ -390,12 +395,12 @@ MaybeLocal<Object> GetLastIssuedCert(
     Environment* const env) {
   Local<Context> context = env->isolate()->GetCurrentContext();
   while (X509_check_issued(cert->get(), cert->get()) != X509_V_OK) {
-    X509* ca;
-    if (SSL_CTX_get_issuer(SSL_get_SSL_CTX(ssl.get()), cert->get(), &ca) <= 0)
+    X509Pointer ca;
+    if (!(ca = SSL_CTX_get_issuer(SSL_get_SSL_CTX(ssl.get()), cert->get())))
       break;
 
     Local<Object> ca_info;
-    MaybeLocal<Object> maybe_ca_info = X509ToObject(env, ca);
+    MaybeLocal<Object> maybe_ca_info = X509ToObject(env, ca.get());
     if (!maybe_ca_info.ToLocal(&ca_info))
       return MaybeLocal<Object>();
 
@@ -403,16 +408,14 @@ MaybeLocal<Object> GetLastIssuedCert(
       return MaybeLocal<Object>();
     issuer_chain = ca_info;
 
-    // Take the value of cert->get() before the call to cert->reset()
-    // in order to compare it to ca after and provide a way to exit this loop
-    // in case it gets stuck.
-    X509* value_before_reset = cert->get();
+    // For self-signed certificates whose keyUsage field does not include
+    // keyCertSign, X509_check_issued() will return false. Avoid going into an
+    // infinite loop by checking if SSL_CTX_get_issuer() returned the same
+    // certificate.
+    if (cert->get() == ca.get()) break;
 
     // Delete previous cert and continue aggregating issuers.
-    cert->reset(ca);
-
-    if (value_before_reset == ca)
-      break;
+    *cert = std::move(ca);
   }
   return MaybeLocal<Object>(issuer_chain);
 }
