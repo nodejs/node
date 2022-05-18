@@ -1033,6 +1033,7 @@ changes:
 * `original` {Function}
 * `options` {Object}
   * `resolveArray` {boolean} **Default:** `false`
+  * `resolveObject` {Array|null} **Default:** `null`
   * `callbackPosition` {integer|null} **Default:** `null`
 * Returns: {Function}
 
@@ -1071,6 +1072,9 @@ will return its value, see [Custom promisified functions][].
 
 If `options.resolveArray` is truthy, the promise is resolved with an array of
 arguments passed to callback. Otherwise it resolves only with the first one.
+
+If `options.resolveObject` is an array, the promise is resolved with an object
+having its values as keys and callback arguments as values.
 
 By default, `promisify()` assumes that `original` is a function taking
 a callback as its final argument. If `original` is not a function,

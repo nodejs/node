@@ -74,6 +74,10 @@ Object.entries(cb).forEach(([fnName, fn]) => {
     await promisify(cb.classic, { resolveArray: true })(1, 2, 3),
     [3]
   );
+  assert.deepStrictEqual(
+    await promisify(cb.classic, { resolveObject: ['kFoo'] })(1, 2, 3),
+    { kFoo: 3 }
+  );
   assert.rejects(
     promisify(cb.classic)(1, 1, 3),
     { code: 'CbError' }
@@ -120,6 +124,10 @@ Object.entries(cb).forEach(([fnName, fn]) => {
     await promisify(cb.returnMultiple, { resolveArray: true })(1, 2, 3),
     [1, 2, 3]
   );
+  assert.deepStrictEqual(
+    await promisify(cb.returnMultiple, { resolveObject: ['kFoo', 'kBar', 'kBaz'] })(1, 2, 3),
+    { kFoo: 1, kBar: 2, kBaz: 3 }
+  );
 
   assert.strictEqual(
     await promisify(cb.callbackFirst, { callbackPosition: 0 })(1, 2, 3),
@@ -156,6 +164,20 @@ Object.entries(cb).forEach(([fnName, fn]) => {
     await promisify(cb.returnRest, { callbackPosition: 0, resolveArray: true })(1, 2, 3, 4, 5),
     [1, 2, 3, 4, 5]
   );
+  assert.deepStrictEqual(
+    await promisify(cb.returnRest, {
+      callbackPosition: 0,
+      resolveObject: ['a', 'b', 'c', 'd', 'e']
+    })(1, 2, 3, 4, 5),
+    { a: 1, b: 2, c: 3, d: 4, e: 5 }
+  );
+  assert.deepStrictEqual(
+    await promisify(cb.returnRest, {
+      callbackPosition: 0,
+      resolveObject: ['a', 'b', 'c', 'd', 'e', 'f'],
+    })(1, 2, 3, 4, 5),
+    { a: 1, b: 2, c: 3, d: 4, e: 5, f: undefined }
+  );
 
   assert.strictEqual(
     await promisify(cb.hybrid, { callbackPosition: 2 })(1, 2, 3, 4, 5, 6),
@@ -165,5 +187,12 @@ Object.entries(cb).forEach(([fnName, fn]) => {
   assert.deepStrictEqual(
     await promisify(cb.returnHybrid, { callbackPosition: 2, resolveArray: true })(1, 2, 3, 4, 5, 6),
     [3, 4, 5, 6]
+  );
+  assert.deepStrictEqual(
+    await promisify(cb.returnHybrid, {
+      callbackPosition: 2,
+      resolveObject: ['a', 'b', 'c', 'd', 'e', 'f']
+    })(1, 2, 3, 4, 5, 6),
+    { a: 3, b: 4, c: 5, d: 6, e: undefined, f: undefined }
   );
 })().then(common.mustCall());
