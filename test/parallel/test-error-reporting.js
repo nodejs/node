@@ -25,8 +25,10 @@ const assert = require('assert');
 const exec = require('child_process').exec;
 const fixtures = require('../common/fixtures');
 
-function errExec(script, callback) {
-  const cmd = `"${process.argv[0]}" "${fixtures.path(script)}"`;
+function errExec(script, option, callback) {
+  callback = typeof option === 'function' ? option : callback;
+  option = typeof option === 'string' ? option : '';
+  const cmd = `"${process.argv[0]}" ${option} "${fixtures.path(script)}"`;
   return exec(cmd, (err, stdout, stderr) => {
     // There was some error
     assert.ok(err);
@@ -79,4 +81,9 @@ errExec('throws_error6.js', common.mustCall((err, stdout, stderr) => {
 errExec('throws_error7.js', common.mustCall((err, stdout, stderr) => {
   assert.match(stderr,
                /throw {\r?\n\^\r?\n{ toString: \[Function: toString] }\r?\n$/);
+}));
+
+// Regression tests for https://github.com/nodejs/node/issues/39149
+errExec('throws_error7.js', '--enable-source-maps', common.mustCall((err, stdout, stderr) => {
+  assert.match(stderr, /throw {\r?\n\^\r?\n{ toString: \[Function: toString] }\r?\n$/);
 }));
