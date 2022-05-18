@@ -779,6 +779,10 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "force FIPS crypto (cannot be disabled)",
             &PerProcessOptions::force_fips_crypto,
             kAllowedInEnvironment);
+  AddOption("--openssl-shared-config",
+            "enable OpenSSL shared configuration",
+            &PerProcessOptions::openssl_shared_config,
+            kAllowedInEnvironment);
 #endif
   AddOption("--use-largepages",
             "Map the Node.js static code to large pages. Options are "

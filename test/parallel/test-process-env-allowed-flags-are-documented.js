@@ -47,6 +47,7 @@ const conditionalOpts = [
     filter: (opt) => {
       return [
         '--openssl-config',
+        '--openssl-shared-config',
         '--tls-cipher-list',
         '--use-bundled-ca',
         '--use-openssl-ca',
