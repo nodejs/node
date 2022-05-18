@@ -322,11 +322,11 @@ function func() {}
 const callsfunc = tracker.calls(func);
 ```
 
-### `tracker.callsWith([fn][withArgs][, exact])`
+### `tracker.callsWith([fn],withArgs[, exact])`
 
 <!-- YAML
 added:
-  - v19.0.0
+  - REPLACEME
 -->
 
 * `fn` {Function} **Default:** A no-op function.

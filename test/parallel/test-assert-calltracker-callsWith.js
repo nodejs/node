@@ -71,7 +71,7 @@ function bar() {}
   tracker.verify();
 }
 
-// Known bug: when sending a nearly created function its different (?)
+// Known behavior: it should validate two different function instances as not equal
 {
   const tracker = new assert.CallTracker();
   const callsNoop = tracker.callsWith([function() {}]);
@@ -105,7 +105,7 @@ function bar() {}
   );
 }
 
-// It should not validate two Map instances with different values as the same
+// It should make sure that the objects' instances have different values
 {
   const tracker = new assert.CallTracker();
   const callsNoop = tracker.callsWith([ new Map([[ 'a', '1' ]]) ]);
@@ -120,7 +120,7 @@ function bar() {}
 // It should validate two complex objects
 {
   const tracker = new assert.CallTracker();
-  const callsNoop = tracker.callsWith([ new Map([[ 'a', '1' ]]) ]);
-  callsNoop(new Map([[ 'a', '1']]));
+  const callsNoop = tracker.callsWith([ new Map([[ 'a', '1' ]]), new Set([ 'a', 2]) ]);
+  callsNoop(new Map([[ 'a', '1']]), new Set([ 'a', 2]));
   tracker.verify();
 }
