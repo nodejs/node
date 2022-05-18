@@ -247,6 +247,7 @@ class PerProcessOptions : public Options {
   std::string tls_cipher_list = DEFAULT_CIPHER_LIST_CORE;
   int64_t secure_heap = 0;
   int64_t secure_heap_min = 2;
+  bool openssl_shared_config = false;
 #ifdef NODE_OPENSSL_CERT_STORE
   bool ssl_openssl_cert_store = true;
 #else
