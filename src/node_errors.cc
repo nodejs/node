@@ -62,7 +62,8 @@ static std::string GetErrorSource(Isolate* isolate,
   // added in the JavaScript context:
   Environment* env = Environment::GetCurrent(isolate);
   const bool has_source_map_url =
-      !message->GetScriptOrigin().SourceMapUrl().IsEmpty();
+      !message->GetScriptOrigin().SourceMapUrl().IsEmpty() &&
+      !message->GetScriptOrigin().SourceMapUrl()->IsUndefined();
   if (has_source_map_url && env != nullptr && env->source_maps_enabled()) {
     return sourceline;
   }
