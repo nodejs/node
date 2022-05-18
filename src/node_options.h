@@ -240,6 +240,7 @@ class PerProcessOptions : public Options {
   // or are used once during process initialization.
 #if HAVE_OPENSSL
   std::string openssl_config;
+  bool openssl_shared_config = false;
   std::string tls_cipher_list = DEFAULT_CIPHER_LIST_CORE;
   int64_t secure_heap = 0;
   int64_t secure_heap_min = 2;
