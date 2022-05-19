@@ -1429,7 +1429,7 @@ using `dns.resolve()` and using the address instead of a host name. Also, some
 networking APIs (such as [`socket.connect()`][] and [`dgram.createSocket()`][])
 allow the default resolver, `dns.lookup()`, to be replaced.
 
-### `dns.resolve()`, `dns.resolve*()` and `dns.reverse()`
+### `dns.resolve()`, `dns.resolve*()`, and `dns.reverse()`
 
 These functions are implemented quite differently than [`dns.lookup()`][]. They
 do not use getaddrinfo(3) and they _always_ perform a DNS query on the
