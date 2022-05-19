@@ -70,13 +70,13 @@ assert.strictEqual(details[1], null);
 details = processUtil.getProxyDetails(r.proxy, false);
 assert.strictEqual(details, null);
 
-assert.strictEqual(util.inspect(r.proxy), 'Proxy []');
+assert.strictEqual(util.inspect(r.proxy), '<Revoked Proxy>');
 assert.strictEqual(
   util.inspect(r, { showProxy: true }),
-  '{ proxy: Proxy [ null, null ], revoke: [Function (anonymous)] }',
+  '{ proxy: <Revoked Proxy>, revoke: [Function (anonymous)] }',
 );
 
-assert.strictEqual(util.format('%s', r.proxy), 'Proxy []');
+assert.strictEqual(util.format('%s', r.proxy), '<Revoked Proxy>');
 
 assert.strictEqual(
   util.inspect(proxyObj, opts),
