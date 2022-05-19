@@ -65,7 +65,7 @@ added: v16.7.0
 * `name` {string}
 
 If `name` is not provided, removes all `PerformanceMeasure` objects from the
-Performance Timeline. If `name` is provided, removes only the named mark.
+Performance Timeline. If `name` is provided, removes only the named measure.
 
 ### `performance.clearResourceTimings([name])`
 
@@ -196,7 +196,7 @@ changes:
 * `options` {Object}
   * `detail` {any} Additional optional detail to include with the mark.
   * `startTime` {number} An optional timestamp to be used as the mark time.
-    **Defaults**: `performance.now()`.
+    **Default**: `performance.now()`.
 
 Creates a new `PerformanceMark` entry in the Performance Timeline. A
 `PerformanceMark` is a subclass of `PerformanceEntry` whose
@@ -210,9 +210,7 @@ and can be queried with `performance.getEntries`,
 observation is performed, the entries should be cleared from the global
 Performance Timeline manually with `performance.clearMarks`.
 
-### \`performance.markResourceTiming(timingInfo, requestedUrl, initiatorType,
-
-global, cacheMode)\`
+### `performance.markResourceTiming(timingInfo, requestedUrl, initiatorType, global, cacheMode)`
 
 <!-- YAML
 added: v18.2.0
