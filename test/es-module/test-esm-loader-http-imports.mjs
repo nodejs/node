@@ -8,9 +8,9 @@ import { promisify } from 'node:util';
 
 
 const files = {
-  'main.mjs': `export * from './lib.mjs';`,
-  'lib.mjs':  `export { sum } from './sum.mjs';`,
-  'sum.mjs':  `export function sum(a, b) { return a + b }`,
+  'main.mjs': 'export * from "./lib.mjs";',
+  'lib.mjs': 'export { sum } from "./sum.mjs";',
+  'sum.mjs': 'export function sum(a, b) { return a + b }',
 };
 
 const requestListener = ({ url }, rsp) => {
@@ -45,7 +45,7 @@ const {
     process.execPath,
     [
       '--no-warnings',
-      `--loader`,
+      '--loader',
       fixtures.fileURL('es-module-loaders', 'http-loader.mjs'),
       '--input-type=module',
       '--eval',
