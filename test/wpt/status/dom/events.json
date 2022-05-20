@@ -1,5 +1,5 @@
 {
-  "Event-dispatch-listener-order.window.js": { "fail": { "unexpected": [ "document is not defined" ] } },
+  "Event-dispatch-listener-order.window.js": { "fail": "document is not defined" },
   "AddEventListenerOptions-passive.any.js": {
     "fail": {
       "unexpected": [
