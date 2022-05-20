@@ -330,11 +330,26 @@ added:
 -->
 
 * `fn` {Function} **Default:** A no-op function.
-* `withArgs` {Array} **Default:** An array with the arguments list.
+* `withArgs` {Array}: An array with the arguments list.
 * `exact` {number} **Default:** `1`.
 * Returns: {Function} that wraps `fn`.
 
-The wrapper function is expected to be called exactly `exact` times. If the
+The wrapper function is expected to be called exactly `exact` times and
+to be called exactly with `withArgs` arguments.
+
+The `withArgs` will compare whether the function arguments are deep-strict equal
+
+> When comparing two function instances you must pass the right instance or
+> it'll not be equal:
+
+```js
+const callsNoop = tracker.callsWith([function() {}]);
+callsNoop(function() {});
+tracker.verify();
+// Will throw an error as its expected to two different function instances not be equal
+```
+
+If the
 function has not been called exactly `exact` times when
 [`tracker.verify()`][] is called, then [`tracker.verify()`][] will throw an
 error.
