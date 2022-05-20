@@ -1033,7 +1033,6 @@ changes:
 * `original` {Function}
 * `options` {Object}
   * `callbackPosition` {integer|null} **Default:** `null`
-  * `noCustom` {boolean} **Default:** `false`
   * `resolveArray` {boolean} **Default:** `false`
   * `resolveObject` {Array|null} **Default:** `null`
 * Returns: {Function}
@@ -1069,8 +1068,8 @@ async function callStat() {
 ```
 
 If there is an `original[util.promisify.custom]` property present, `promisify`
-will return its value, see [Custom promisified functions][]. Setting
-`options.noCustom` to truthy value prevents this.
+will return its value, see [Custom promisified functions][]. Setting `options`
+to non-null value prevents this.
 
 If `options.resolveArray` is truthy, the promise is resolved with an array of
 arguments passed to callback. Otherwise it resolves only with the first one.
