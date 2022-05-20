@@ -1488,6 +1488,6 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [`dnsPromises.setDefaultResultOrder()`]: #dnspromisessetdefaultresultorderorder
 [`dnsPromises.setServers()`]: #dnspromisessetserversservers
 [`socket.connect()`]: net.md#socketconnectoptions-connectlistener
-[`util.promisify()`]: util.md#utilpromisifyoriginal
+[`util.promisify()`]: util.md#utilpromisifyoriginal-options
 [supported `getaddrinfo` flags]: #supported-getaddrinfo-flags
 [worker threads]: worker_threads.md

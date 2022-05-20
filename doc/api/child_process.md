@@ -1882,6 +1882,6 @@ or [`child_process.fork()`][].
 [`subprocess.stdin`]: #subprocessstdin
 [`subprocess.stdio`]: #subprocessstdio
 [`subprocess.stdout`]: #subprocessstdout
-[`util.promisify()`]: util.md#utilpromisifyoriginal
+[`util.promisify()`]: util.md#utilpromisifyoriginal-options
 [synchronous counterparts]: #synchronous-process-creation
 [v8.serdes]: v8.md#serialization-api

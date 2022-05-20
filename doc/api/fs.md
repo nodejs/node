@@ -7588,7 +7588,7 @@ the file contents.
 [`fsPromises.utimes()`]: #fspromisesutimespath-atime-mtime
 [`inotify(7)`]: https://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
-[`util.promisify()`]: util.md#utilpromisifyoriginal
+[`util.promisify()`]: util.md#utilpromisifyoriginal-options
 [bigints]: https://tc39.github.io/proposal-bigint
 [caveats]: #caveats
 [chcp]: https://ss64.com/nt/chcp.html

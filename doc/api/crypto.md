@@ -6156,7 +6156,7 @@ See the [list of SSL OP Flags][] for details.
 [`sign.update()`]: #signupdatedata-inputencoding
 [`stream.Writable` options]: stream.md#new-streamwritableoptions
 [`stream.transform` options]: stream.md#new-streamtransformoptions
-[`util.promisify()`]: util.md#utilpromisifyoriginal
+[`util.promisify()`]: util.md#utilpromisifyoriginal-options
 [`verify.update()`]: #verifyupdatedata-inputencoding
 [`verify.verify()`]: #verifyverifyobject-signature-signatureencoding
 [`x509.fingerprint256`]: #x509fingerprint256

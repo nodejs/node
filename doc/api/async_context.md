@@ -816,4 +816,4 @@ const server = createServer((req, res) => {
 [`EventEmitter`]: events.md#class-eventemitter
 [`Stream`]: stream.md#stream
 [`Worker`]: worker_threads.md#class-worker
-[`util.promisify()`]: util.md#utilpromisifyoriginal
+[`util.promisify()`]: util.md#utilpromisifyoriginal-options
