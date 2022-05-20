@@ -161,6 +161,6 @@ const {
 {
   const et = new EventTarget();
   throws(() => et.addEventListener('foo', () => {}, { signal: null }), {
-    message: 'The "options.signal" property must be an instance of AbortSignal. Received null',
+    name: 'TypeError',
   });
 }
