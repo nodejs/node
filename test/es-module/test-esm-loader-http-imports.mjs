@@ -41,7 +41,7 @@ const {
 } = server.address();
 
 { // Verify nested HTTP imports work
-  const child = spawn( // `spawn` MUST be used (vs `spawnSync`) to avoid blocking the event loop
+  const child = spawn( // ! `spawn` MUST be used (vs `spawnSync`) to avoid blocking the event loop
     process.execPath,
     [
       '--no-warnings',
