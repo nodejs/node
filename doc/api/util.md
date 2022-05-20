@@ -2699,7 +2699,7 @@ util.log('Timestamped message.');
 [`tty.hasColors()`]: tty.md#writestreamhascolorscount-env
 [`util.format()`]: #utilformatformat-args
 [`util.inspect()`]: #utilinspectobject-options
-[`util.promisify()`]: #utilpromisifyoriginal
+[`util.promisify()`]: #utilpromisifyoriginal-options
 [`util.types.isAnyArrayBuffer()`]: #utiltypesisanyarraybuffervalue
 [`util.types.isArrayBuffer()`]: #utiltypesisarraybuffervalue
 [`util.types.isDate()`]: #utiltypesisdatevalue
