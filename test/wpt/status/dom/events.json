@@ -25,16 +25,28 @@
       ]
     }
   },
-  "EventListener-addEventListener.sub.window.js": { "fail": { "unexpected": [ "document is not defined" ] } },
-  "EventTarget-constructible.any.js": { "fail": { "unexpected": [ "CustomEvent is not defined" ] } },
-  "relatedTarget.window.js": { "fail": { "unexpected": [ "document is not defined" ] } },
-  "event-global.worker.js": { "fail": { "unexpected": [ "importScripts is not defined" ] } },
-  "event-global-extra.window.js": { "fail": { "unexpected": [ "document is not defined" ] } },
-  "legacy-pre-activation-behavior.window.js": { "fail": { "unexpected": [ "document is not defined" ] } },
-  "event-global-set-before-handleEvent-lookup.window.js": { "fail": { "unexpected": [ "window is not defined" ] } },
+  "EventListener-addEventListener.sub.window.js": {
+    "fail": "document is not defined"
+  },
+  "EventTarget-constructible.any.js": {
+    "fail": "CustomEvent is not defined"
+  },
+  "relatedTarget.window.js": {
+    "fail": "document is not defined"
+  },
+  "event-global.worker.js": {
+    "fail": "importScripts is not defined"
+  },
+  "event-global-extra.window.js": {
+    "fail": "document is not defined"
+  },
+  "legacy-pre-activation-behavior.window.js": {
+    "fail": "document is not defined"
+  },
+  "event-global-set-before-handleEvent-lookup.window.js": {
+    "fail": "window is not defined"
+  },
   "EventTarget-removeEventListener.any.js": {
-    "fail": {
-      "unexpected": [ "globalThis.removeEventListener is not a function" ]
-    }
+    "fail": "globalThis.removeEventListener is not a function"
   }
 }
