@@ -1020,7 +1020,7 @@ Otherwise, returns `false`.
 See [`assert.deepStrictEqual()`][] for more information about deep strict
 equality.
 
-## `util.promisify(original)`
+## `util.promisify(original[, options])`
 
 <!-- YAML
 added: v8.0.0
@@ -1032,9 +1032,10 @@ changes:
 
 * `original` {Function}
 * `options` {Object}
+  * `callbackPosition` {integer|null} **Default:** `null`
+  * `noCustom` {boolean} **Default:** `false`
   * `resolveArray` {boolean} **Default:** `false`
   * `resolveObject` {Array|null} **Default:** `null`
-  * `callbackPosition` {integer|null} **Default:** `null`
 * Returns: {Function}
 
 Takes a function following the common error-first callback style, i.e. taking
@@ -1068,7 +1069,8 @@ async function callStat() {
 ```
 
 If there is an `original[util.promisify.custom]` property present, `promisify`
-will return its value, see [Custom promisified functions][].
+will return its value, see [Custom promisified functions][]. Setting
+`options.noCustom` to truthy value prevents this.
 
 If `options.resolveArray` is truthy, the promise is resolved with an array of
 arguments passed to callback. Otherwise it resolves only with the first one.
