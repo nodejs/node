@@ -4,7 +4,7 @@ require('../common');
 
 const {
   strictEqual,
-  throws
+  throws,
 } = require('assert');
 
 // Manually ported from: wpt@dom/events/AddEventListenerOptions-signal.any.js
