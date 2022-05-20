@@ -540,7 +540,7 @@ are also recursively evaluated by the following rules.
   objects.
 * [`Symbol`][] properties are not compared.
 * [`WeakMap`][] and [`WeakSet`][] comparison does not rely on their values.
-* [`RegExp`][] lastIndex, flags and source are always compared, even if these
+* [`RegExp`][] lastIndex, flags, and source are always compared, even if these
   are not enumerable properties.
 
 The following example does not throw an [`AssertionError`][] because the
@@ -701,7 +701,7 @@ are recursively evaluated also by the following rules.
   reference.
 * [`WeakMap`][] and [`WeakSet`][] comparison does not rely on their values. See
   below for further details.
-* [`RegExp`][] lastIndex, flags and source are always compared, even if these
+* [`RegExp`][] lastIndex, flags, and source are always compared, even if these
   are not enumerable properties.
 
 ```mjs
@@ -970,7 +970,7 @@ benefit in catching a rejection and then rejecting it again. Instead, consider
 adding a comment next to the specific code path that should not reject and keep
 error messages as expressive as possible.
 
-If specified, `error` can be a [`Class`][], [`RegExp`][] or a validation
+If specified, `error` can be a [`Class`][], [`RegExp`][], or a validation
 function. See [`assert.throws()`][] for more details.
 
 Besides the async nature to await the completion behaves identically to
@@ -1052,7 +1052,7 @@ parameter, then an [`AssertionError`][] is thrown. If the error is of a
 different type, or if the `error` parameter is undefined, the error is
 propagated back to the caller.
 
-If specified, `error` can be a [`Class`][], [`RegExp`][] or a validation
+If specified, `error` can be a [`Class`][], [`RegExp`][], or a validation
 function. See [`assert.throws()`][] for more details.
 
 The following, for instance, will throw the [`TypeError`][] because there is no
