@@ -958,7 +958,7 @@ benefit in catching a rejection and then rejecting it again. Instead, consider
 adding a comment next to the specific code path that should not reject and keep
 error messages as expressive as possible.
 
-If specified, `error` can be a [`Class`][], [`RegExp`][] or a validation
+If specified, `error` can be a [`Class`][], [`RegExp`][], or a validation
 function. See [`assert.throws()`][] for more details.
 
 Besides the async nature to await the completion behaves identically to
@@ -1040,7 +1040,7 @@ parameter, then an [`AssertionError`][] is thrown. If the error is of a
 different type, or if the `error` parameter is undefined, the error is
 propagated back to the caller.
 
-If specified, `error` can be a [`Class`][], [`RegExp`][] or a validation
+If specified, `error` can be a [`Class`][], [`RegExp`][], or a validation
 function. See [`assert.throws()`][] for more details.
 
 The following, for instance, will throw the [`TypeError`][] because there is no
