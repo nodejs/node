@@ -13,7 +13,7 @@ const {
 } = require('fs');
 
 // These should throw, not crash.
-const invalid = 4294967296;
+const invalid = 4_294_967_296;
 
 assert.throws(() => open(__filename, invalid, common.mustNotCall()), {
   code: 'ERR_OUT_OF_RANGE'
