@@ -3173,7 +3173,7 @@ class InspectionWebFormatter(object):
       object_info = self.padawan.SenseObject(maybe_address)
       if not object_info:
         continue
-        extra.append(html.escape(str(object_info)))
+      extra.append(html.escape(str(object_info)))
     if len(extra) == 0:
       return line
     return ("%s <span class=disasmcomment>;; %s</span>" %
