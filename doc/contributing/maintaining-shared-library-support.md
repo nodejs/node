@@ -21,9 +21,9 @@ Currently, shared library support has only been tested on:
 
 ## Building with shared library option
 
-On non-Windows platoforms, Node.js is built with the shared library
+On non-Windows platforms, Node.js is built with the shared library
 option by adding `--shared` to the configure step. On Windows
-platofrms Node.js is built with the shared library option by
+platforms Node.js is built with the shared library option by
 adding `dll` to the vcbuild command line.
 
 Once built there are two key components:

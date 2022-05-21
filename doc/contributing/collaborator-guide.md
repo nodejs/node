@@ -238,7 +238,7 @@ files also qualify as affecting the `node` binary:
 * `configure`
 * `configure.py`
 * `Makefile`
-* `vcbuilt.bat`
+* `vcbuild.bat`
 
 </details>
 

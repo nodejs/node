@@ -2237,7 +2237,7 @@ result from the calculation on the previous element. It returns a promise for
 the final value of the reduction.
 
 The reducer function iterates the stream element-by-element which means that
-there is no `concurrency` parameter or parallism. To perform a `reduce`
+there is no `concurrency` parameter or parallelism. To perform a `reduce`
 concurrently, it can be chained to the [`readable.map`][] method.
 
 If no `initial` value is supplied the first chunk of the stream is used as the

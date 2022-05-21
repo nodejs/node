@@ -462,7 +462,7 @@ const options = {
       return err;
     }
 
-    // Pin the public key, similar to HPKP pin-sha25 pinning
+    // Pin the public key, similar to HPKP pin-sha256 pinning
     const pubkey256 = 'pL1+qb9HTMRZJmuC/bB/ZI9d302BYrrqiVuRyW+DGrU=';
     if (sha256(cert.pubkey) !== pubkey256) {
       const msg = 'Certificate verification error: ' +
