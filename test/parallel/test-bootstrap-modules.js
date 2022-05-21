@@ -78,7 +78,6 @@ const expectedModules = new Set([
   'NativeModule internal/modules/esm/fetch_module',
   'NativeModule internal/modules/esm/formats',
   'NativeModule internal/modules/esm/get_format',
-  'NativeModule internal/modules/esm/get_source',
   'NativeModule internal/modules/esm/handle_process_exit',
   'NativeModule internal/modules/esm/initialize_import_meta',
   'NativeModule internal/modules/esm/load',
