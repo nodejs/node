@@ -1250,8 +1250,7 @@ void TLSWrap::GetServername(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_NOT_NULL(wrap->ssl_);
 
-  const char* servername = SSL_get_servername(wrap->ssl_.get(),
-                                              TLSEXT_NAMETYPE_host_name);
+  const char* servername = GetServerName(wrap->ssl_.get());
   if (servername != nullptr) {
     args.GetReturnValue().Set(OneByteString(env->isolate(), servername));
   } else {
@@ -1282,7 +1281,7 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  const char* servername = SSL_get_servername(s, TLSEXT_NAMETYPE_host_name);
+  const char* servername = GetServerName(s);
   if (!Set(env, p->GetOwner(), env->servername_string(), servername))
     return SSL_TLSEXT_ERR_NOACK;
 
