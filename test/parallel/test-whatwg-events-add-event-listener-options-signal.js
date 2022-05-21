@@ -160,7 +160,9 @@ const {
 }
 {
   const et = new EventTarget();
-  throws(() => et.addEventListener('foo', () => {}, { signal: null }), {
-    name: 'TypeError',
+  [1, {}, null, false, 'hi'].forEach((signal) => {
+    throws(() => et.addEventListener('foo', () => {}, { signal }), {
+      name: 'TypeError',
+    });
   });
 }
