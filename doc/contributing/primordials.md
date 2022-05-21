@@ -297,17 +297,25 @@ Object.defineProperty(Object.prototype, Symbol.isConcatSpreadable, {
 });
 
 // Core
-const a = [1, 2];
-const b = [3, 4];
-console.log(ArrayPrototypeConcat(a, b)); // [1, 2, 5, 3, 4, 5]
-// Safe example concatenating two arrays as a third array object:
-const concatArray = []
-ArrayPrototypePush(concatArray, ...new SafeArrayIterator(a),
-                                ...new SafeArrayIterator(b));
-console.log(concatArray) // [1, 2, 3, 4]
-// Safe example for concatenating two arrays into the first one:
-ArrayPrototypePushApply(a, b);
-console.log(a); // [1, 2, 3, 4]
+{
+  const a = [1, 2];
+  const b = [3, 4];
+  console.log(ArrayPrototypeConcat(a, b)); // [1, 2, 5, 3, 4, 5]
+}
+{
+  const a = [1, 2];
+  const b = [3, 4];
+  // Using @Array.prototype.push% and `SafeArrayIterator` to get the expected
+  // outcome:
+  const concatArray = [];
+  ArrayPrototypePush(concatArray, ...new SafeArrayIterator(a),
+                     ...new SafeArrayIterator(b));
+  console.log(concatArray); // [1, 2, 3, 4]
+
+  // Or using `ArrayPrototypePushApply` is it's OK to mutate the first array:
+  ArrayPrototypePushApply(a, b);
+  console.log(a); // [1, 2, 3, 4]
+}
 ```
 
 </details>
