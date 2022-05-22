@@ -2822,6 +2822,8 @@ changes:
   * `mode` {string|integer} Not supported on Windows. **Default:** `0o777`.
 * `callback` {Function}
   * `err` {Error}
+  * `path` {string|undefined} Present only if a directory is created with
+    `recursive` set to `true`.
 
 Asynchronously creates a directory.
 
