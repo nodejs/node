@@ -10797,80 +10797,6 @@ function escapeStringRegexp(string) {
 		.replace(/-/g, '\\x2d');
 }
 
-function color$1(d) {
-  return '\u001B[33m' + d + '\u001B[39m'
-}
-
-const CONTINUE = true;
-const SKIP = 'skip';
-const EXIT = false;
-const visitParents =
-  (
-    function (tree, test, visitor, reverse) {
-      if (typeof test === 'function' && typeof visitor !== 'function') {
-        reverse = visitor;
-        visitor = test;
-        test = null;
-      }
-      var is = convert(test);
-      var step = reverse ? -1 : 1;
-      factory(tree, null, [])();
-      function factory(node, index, parents) {
-        var value = typeof node === 'object' && node !== null ? node : {};
-        var name;
-        if (typeof value.type === 'string') {
-          name =
-            typeof value.tagName === 'string'
-              ? value.tagName
-              : typeof value.name === 'string'
-              ? value.name
-              : undefined;
-          Object.defineProperty(visit, 'name', {
-            value:
-              'node (' +
-              color$1(value.type + (name ? '<' + name + '>' : '')) +
-              ')'
-          });
-        }
-        return visit
-        function visit() {
-          var result = [];
-          var subresult;
-          var offset;
-          var grandparents;
-          if (!test || is(node, index, parents[parents.length - 1] || null)) {
-            result = toResult(visitor(node, parents));
-            if (result[0] === EXIT) {
-              return result
-            }
-          }
-          if (node.children && result[0] !== SKIP) {
-            offset = (reverse ? node.children.length : -1) + step;
-            grandparents = parents.concat(node);
-            while (offset > -1 && offset < node.children.length) {
-              subresult = factory(node.children[offset], offset, grandparents)();
-              if (subresult[0] === EXIT) {
-                return subresult
-              }
-              offset =
-                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
-            }
-          }
-          return result
-        }
-      }
-    }
-  );
-function toResult(value) {
-  if (Array.isArray(value)) {
-    return value
-  }
-  if (typeof value === 'number') {
-    return [CONTINUE, value]
-  }
-  return [value]
-}
-
 const own$3 = {}.hasOwnProperty;
 const findAndReplace =
   (
@@ -10891,7 +10817,7 @@ const findAndReplace =
       const pairs = toPairs(schema);
       let pairIndex = -1;
       while (++pairIndex < pairs.length) {
-        visitParents(tree, 'text', visitor);
+        visitParents$1(tree, 'text', visitor);
       }
       return tree
       function visitor(node, parents) {
@@ -10911,28 +10837,33 @@ const findAndReplace =
           grandparent = parent;
         }
         if (grandparent) {
-          return handler(node, grandparent)
+          return handler(node, parents)
         }
       }
-      function handler(node, parent) {
+      function handler(node, parents) {
+        const parent = parents[parents.length - 1];
         const find = pairs[pairIndex][0];
         const replace = pairs[pairIndex][1];
         let start = 0;
-        let index = parent.children.indexOf(node);
+        const index = parent.children.indexOf(node);
         let nodes = [];
         let position;
         find.lastIndex = 0;
         let match = find.exec(node.value);
         while (match) {
           position = match.index;
-          let value = replace(...match, {
+          const matchObject = {
             index: match.index,
-            input: match.input
-          });
+            input: match.input,
+            stack: [...parents, node]
+          };
+          let value = replace(...match, matchObject);
           if (typeof value === 'string') {
             value = value.length > 0 ? {type: 'text', value} : undefined;
           }
-          if (value !== false) {
+          if (value === false) {
+            position = undefined;
+          } else {
             if (start !== position) {
               nodes.push({
                 type: 'text',
@@ -10953,14 +10884,13 @@ const findAndReplace =
         }
         if (position === undefined) {
           nodes = [node];
-          index--;
         } else {
           if (start < node.value.length) {
             nodes.push({type: 'text', value: node.value.slice(start)});
           }
           parent.children.splice(index, 1, ...nodes);
         }
-        return index + nodes.length + 1
+        return index + nodes.length
       }
     }
   );
@@ -11745,6 +11675,80 @@ function location(file) {
     }
     return offset > -1 && offset < indices[indices.length - 1] ? offset : -1
   }
+}
+
+function color$1(d) {
+  return '\u001B[33m' + d + '\u001B[39m'
+}
+
+const CONTINUE = true;
+const SKIP = 'skip';
+const EXIT = false;
+const visitParents =
+  (
+    function (tree, test, visitor, reverse) {
+      if (typeof test === 'function' && typeof visitor !== 'function') {
+        reverse = visitor;
+        visitor = test;
+        test = null;
+      }
+      var is = convert(test);
+      var step = reverse ? -1 : 1;
+      factory(tree, null, [])();
+      function factory(node, index, parents) {
+        var value = typeof node === 'object' && node !== null ? node : {};
+        var name;
+        if (typeof value.type === 'string') {
+          name =
+            typeof value.tagName === 'string'
+              ? value.tagName
+              : typeof value.name === 'string'
+              ? value.name
+              : undefined;
+          Object.defineProperty(visit, 'name', {
+            value:
+              'node (' +
+              color$1(value.type + (name ? '<' + name + '>' : '')) +
+              ')'
+          });
+        }
+        return visit
+        function visit() {
+          var result = [];
+          var subresult;
+          var offset;
+          var grandparents;
+          if (!test || is(node, index, parents[parents.length - 1] || null)) {
+            result = toResult(visitor(node, parents));
+            if (result[0] === EXIT) {
+              return result
+            }
+          }
+          if (node.children && result[0] !== SKIP) {
+            offset = (reverse ? node.children.length : -1) + step;
+            grandparents = parents.concat(node);
+            while (offset > -1 && offset < node.children.length) {
+              subresult = factory(node.children[offset], offset, grandparents)();
+              if (subresult[0] === EXIT) {
+                return subresult
+              }
+              offset =
+                typeof subresult[1] === 'number' ? subresult[1] : offset + step;
+            }
+          }
+          return result
+        }
+      }
+    }
+  );
+function toResult(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'number') {
+    return [CONTINUE, value]
+  }
+  return [value]
 }
 
 const visit =
