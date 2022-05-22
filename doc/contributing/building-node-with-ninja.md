@@ -28,7 +28,8 @@ system has. You can use the `-j` parameter to override this behavior,
 which is equivalent to the `-j` parameter in the regular `make`:
 
 ```bash
-make -j [number]
+make -j4 # With this flag, Ninja will limit itself to 4 parallel jobs,
+         # regardless of the number of cores on the current machine.
 ```
 
 ## Producing a debug build
