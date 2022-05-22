@@ -72,7 +72,7 @@ module.exports = {
         function isAllowed(node) {
             const propertyName = astUtils.getStaticPropertyName(node);
 
-            return propertyName && allowed.indexOf(propertyName) !== -1;
+            return propertyName && allowed.includes(propertyName);
         }
 
         /**

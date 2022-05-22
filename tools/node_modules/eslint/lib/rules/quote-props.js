@@ -95,7 +95,7 @@ module.exports = {
          * @returns {boolean} `true` if it is an ES3 token.
          */
         function isKeyword(tokenStr) {
-            return keywords.indexOf(tokenStr) >= 0;
+            return keywords.includes(tokenStr);
         }
 
         /**
@@ -108,7 +108,7 @@ module.exports = {
          */
         function areQuotesRedundant(rawKey, tokens, skipNumberLiterals) {
             return tokens.length === 1 && tokens[0].start === 0 && tokens[0].end === rawKey.length &&
-                (["Identifier", "Keyword", "Null", "Boolean"].indexOf(tokens[0].type) >= 0 ||
+                (["Identifier", "Keyword", "Null", "Boolean"].includes(tokens[0].type) ||
                 (tokens[0].type === "Numeric" && !skipNumberLiterals && String(+tokens[0].value) === tokens[0].value));
         }
 

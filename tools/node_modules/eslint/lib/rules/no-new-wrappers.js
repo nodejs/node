@@ -34,7 +34,7 @@ module.exports = {
             NewExpression(node) {
                 const wrapperObjects = ["String", "Number", "Boolean"];
 
-                if (wrapperObjects.indexOf(node.callee.name) > -1) {
+                if (wrapperObjects.includes(node.callee.name)) {
                     context.report({
                         node,
                         messageId: "noConstructor",

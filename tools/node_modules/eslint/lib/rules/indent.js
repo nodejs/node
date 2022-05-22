@@ -796,7 +796,7 @@ module.exports = {
             let statement = node.parent && node.parent.parent;
 
             while (
-                statement.type === "UnaryExpression" && ["!", "~", "+", "-"].indexOf(statement.operator) > -1 ||
+                statement.type === "UnaryExpression" && ["!", "~", "+", "-"].includes(statement.operator) ||
                 statement.type === "AssignmentExpression" ||
                 statement.type === "LogicalExpression" ||
                 statement.type === "SequenceExpression" ||
