@@ -305,14 +305,14 @@ Object.defineProperty(Object.prototype, Symbol.isConcatSpreadable, {
 {
   const a = [1, 2];
   const b = [3, 4];
-  // Using @Array.prototype.push% and `SafeArrayIterator` to get the expected
+  // Using %Array.prototype.push% and `SafeArrayIterator` to get the expected
   // outcome:
   const concatArray = [];
   ArrayPrototypePush(concatArray, ...new SafeArrayIterator(a),
                      ...new SafeArrayIterator(b));
   console.log(concatArray); // [1, 2, 3, 4]
 
-  // Or using `ArrayPrototypePushApply` is it's OK to mutate the first array:
+  // Or using `ArrayPrototypePushApply` if it's OK to mutate the first array:
   ArrayPrototypePushApply(a, b);
   console.log(a); // [1, 2, 3, 4]
 }
