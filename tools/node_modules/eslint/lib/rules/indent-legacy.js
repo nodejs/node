@@ -753,7 +753,7 @@ module.exports = {
                             if (typeof options.CallExpression.arguments === "number") {
                                 nodeIndent += options.CallExpression.arguments * indentSize;
                             } else if (options.CallExpression.arguments === "first") {
-                                if (parent.arguments.indexOf(node) !== -1) {
+                                if (parent.arguments.includes(node)) {
                                     nodeIndent = parent.arguments[0].loc.start.column;
                                 }
                             } else {
@@ -840,7 +840,7 @@ module.exports = {
                 "IfStatement", "WhileStatement", "ForStatement", "ForInStatement", "ForOfStatement", "DoWhileStatement", "ClassDeclaration", "TryStatement"
             ];
 
-            if (node.parent && statementsWithProperties.indexOf(node.parent.type) !== -1 && isNodeBodyBlock(node)) {
+            if (node.parent && statementsWithProperties.includes(node.parent.type) && isNodeBodyBlock(node)) {
                 indent = getNodeIndent(node.parent).goodChar;
             } else if (node.parent && node.parent.type === "CatchClause") {
                 indent = getNodeIndent(node.parent.parent).goodChar;

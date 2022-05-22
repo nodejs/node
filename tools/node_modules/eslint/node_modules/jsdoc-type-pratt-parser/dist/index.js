@@ -896,11 +896,12 @@
         }
         return parameters;
     }
-    function createFunctionParslet({ allowNamedParameters, allowNoReturnType, allowWithoutParenthesis }) {
+    function createFunctionParslet({ allowNamedParameters, allowNoReturnType, allowWithoutParenthesis, allowNewAsFunctionKeyword }) {
         return composeParslet({
             name: 'functionParslet',
-            accept: type => type === 'function',
+            accept: (type, next) => type === 'function' || (allowNewAsFunctionKeyword && type === 'new' && next === '('),
             parsePrefix: parser => {
+                const newKeyword = parser.consume('new');
                 parser.consume('function');
                 const hasParenthesis = parser.lexer.current.type === '(';
                 if (!hasParenthesis) {
@@ -912,15 +913,21 @@
                         value: 'function'
                     };
                 }
-                const result = {
+                let result = {
                     type: 'JsdocTypeFunction',
                     parameters: [],
                     arrow: false,
+                    constructor: newKeyword,
                     parenthesis: hasParenthesis
                 };
                 const value = parser.parseIntermediateType(Precedence.FUNCTION);
                 if (allowNamedParameters === undefined) {
                     result.parameters = getUnnamedParameters(value);
+                }
+                else if (newKeyword && value.type === 'JsdocTypeFunction' && value.arrow) {
+                    result = value;
+                    result.constructor = true;
+                    return result;
                 }
                 else {
                     result.parameters = getParameters(value);
@@ -1047,7 +1054,7 @@
         }
     });
 
-    function createKeyValueParslet({ allowKeyTypes, allowReadonly, allowOptional }) {
+    function createKeyValueParslet({ allowKeyTypes, allowReadonly, allowOptional, allowVariadic }) {
         return composeParslet({
             name: 'keyValueParslet',
             precedence: Precedence.KEY_VALUE,
@@ -1056,12 +1063,17 @@
                 var _a;
                 let optional = false;
                 let readonlyProperty = false;
+                let variadic = false;
                 if (allowOptional && left.type === 'JsdocTypeNullable') {
                     optional = true;
                     left = left.element;
                 }
                 if (allowReadonly && left.type === 'JsdocTypeReadonlyProperty') {
                     readonlyProperty = true;
+                    left = left.element;
+                }
+                if (allowVariadic && left.type === 'JsdocTypeVariadic' && left.element !== undefined) {
+                    variadic = true;
                     left = left.element;
                 }
                 // object parslet uses a special grammar and for the value we want to switch back to the parent
@@ -1078,9 +1090,10 @@
                     return {
                         type: 'JsdocTypeKeyValue',
                         key: left.value.toString(),
-                        right: right,
-                        optional: optional,
+                        right,
+                        optional,
                         readonly: readonlyProperty,
+                        variadic,
                         meta: {
                             quote,
                             hasLeftSideExpression: false
@@ -1146,6 +1159,7 @@
                                 right: undefined,
                                 optional: optional,
                                 readonly: false,
+                                variadic: false,
                                 meta: {
                                     quote,
                                     hasLeftSideExpression: false
@@ -1190,7 +1204,8 @@
         createFunctionParslet({
             allowWithoutParenthesis: true,
             allowNamedParameters: ['this', 'new'],
-            allowNoReturnType: true
+            allowNoReturnType: true,
+            allowNewAsFunctionKeyword: false
         }),
         stringValueParslet,
         createSpecialNamePathParslet({
@@ -1213,7 +1228,8 @@
         createKeyValueParslet({
             allowKeyTypes: true,
             allowOptional: false,
-            allowReadonly: false
+            allowReadonly: false,
+            allowVariadic: false
         })
     ];
     const jsdocGrammar = [
@@ -1254,7 +1270,8 @@
         createKeyValueParslet({
             allowKeyTypes: false,
             allowOptional: false,
-            allowReadonly: false
+            allowReadonly: false,
+            allowVariadic: false
         })
     ];
     const closureGrammar = [
@@ -1270,7 +1287,8 @@
         createFunctionParslet({
             allowWithoutParenthesis: false,
             allowNamedParameters: ['this', 'new'],
-            allowNoReturnType: true
+            allowNoReturnType: true,
+            allowNewAsFunctionKeyword: false
         }),
         createVariadicParslet({
             allowEnclosingBrackets: false,
@@ -1291,7 +1309,8 @@
         createKeyValueParslet({
             allowKeyTypes: false,
             allowOptional: false,
-            allowReadonly: false
+            allowReadonly: false,
+            allowVariadic: false
         }),
         symbolParslet
     ];
@@ -1393,6 +1412,7 @@
                 type: 'JsdocTypeFunction',
                 parameters: getParameters(left).map(assertPlainKeyValueOrNameResult),
                 arrow: true,
+                constructor: false,
                 parenthesis: true,
                 returnType: parser.parseType(Precedence.OBJECT)
             };
@@ -1445,7 +1465,8 @@
         createKeyValueParslet({
             allowKeyTypes: false,
             allowOptional: true,
-            allowReadonly: true
+            allowReadonly: true,
+            allowVariadic: false
         })
     ];
     const typescriptGrammar = [
@@ -1461,7 +1482,8 @@
         createFunctionParslet({
             allowWithoutParenthesis: true,
             allowNoReturnType: false,
-            allowNamedParameters: ['this', 'new']
+            allowNamedParameters: ['this', 'new', 'args'],
+            allowNewAsFunctionKeyword: true
         }),
         createTupleParslet({
             allowQuestionMark: false
@@ -1486,7 +1508,8 @@
         createKeyValueParslet({
             allowKeyTypes: false,
             allowOptional: true,
-            allowReadonly: true
+            allowReadonly: true,
+            allowVariadic: true
         }),
         intersectionParslet,
         predicateParslet
@@ -1579,7 +1602,7 @@
             JsdocTypeKeyof: (result, transform) => `keyof ${transform(result.element)}`,
             JsdocTypeFunction: (result, transform) => {
                 if (!result.arrow) {
-                    let stringified = 'function';
+                    let stringified = result.constructor ? 'new' : 'function';
                     if (!result.parenthesis) {
                         return stringified;
                     }
@@ -1593,7 +1616,11 @@
                     if (result.returnType === undefined) {
                         throw new Error('Arrow function needs a return type.');
                     }
-                    return `(${result.parameters.map(transform).join(', ')}) => ${transform(result.returnType)}`;
+                    let stringified = `(${result.parameters.map(transform).join(', ')}) => ${transform(result.returnType)}`;
+                    if (result.constructor) {
+                        stringified = 'new ' + stringified;
+                    }
+                    return stringified;
                 }
             },
             JsdocTypeName: result => result.value,
@@ -1642,6 +1669,9 @@
                     text += quote(result.key, result.meta.quote);
                     if (result.optional) {
                         text += '?';
+                    }
+                    if (result.variadic) {
+                        text = '...' + text;
                     }
                     if (result.right === undefined) {
                         return text;
@@ -2226,6 +2256,7 @@
                         right: result.right === undefined ? undefined : transform(result.right),
                         optional: result.optional,
                         readonly: result.readonly,
+                        variadic: result.variadic,
                         meta: result.meta
                     };
                 }
@@ -2268,6 +2299,7 @@
                     type: 'JsdocTypeFunction',
                     arrow: result.arrow,
                     parameters: result.parameters.map(transform),
+                    constructor: result.constructor,
                     parenthesis: result.parenthesis
                 };
                 if (result.returnType !== undefined) {

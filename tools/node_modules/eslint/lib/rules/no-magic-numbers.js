@@ -80,7 +80,7 @@ module.exports = {
         const config = context.options[0] || {},
             detectObjects = !!config.detectObjects,
             enforceConst = !!config.enforceConst,
-            ignore = (config.ignore || []).map(normalizeIgnoreValue),
+            ignore = new Set((config.ignore || []).map(normalizeIgnoreValue)),
             ignoreArrayIndexes = !!config.ignoreArrayIndexes,
             ignoreDefaultValues = !!config.ignoreDefaultValues;
 
@@ -92,7 +92,7 @@ module.exports = {
          * @returns {boolean} true if the value is ignored
          */
         function isIgnoredValue(value) {
-            return ignore.indexOf(value) !== -1;
+            return ignore.has(value);
         }
 
         /**
@@ -209,7 +209,7 @@ module.exports = {
                         });
                     }
                 } else if (
-                    okTypes.indexOf(parent.type) === -1 ||
+                    !okTypes.includes(parent.type) ||
                     (parent.type === "AssignmentExpression" && parent.left.type === "Identifier")
                 ) {
                     context.report({

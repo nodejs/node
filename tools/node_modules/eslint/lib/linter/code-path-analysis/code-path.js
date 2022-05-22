@@ -212,7 +212,7 @@ class CodePath {
                 }
 
                 // Reset the flag of skipping if all branches have been skipped.
-                if (skippedSegment && segment.prevSegments.indexOf(skippedSegment) !== -1) {
+                if (skippedSegment && segment.prevSegments.includes(skippedSegment)) {
                     skippedSegment = null;
                 }
                 visited[segment.id] = true;

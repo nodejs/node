@@ -51,13 +51,13 @@ module.exports = {
         const sourceCode = context.getSourceCode();
 
         // Node types which have a test which will coerce values to booleans.
-        const BOOLEAN_NODE_TYPES = [
+        const BOOLEAN_NODE_TYPES = new Set([
             "IfStatement",
             "DoWhileStatement",
             "WhileStatement",
             "ConditionalExpression",
             "ForStatement"
-        ];
+        ]);
 
         /**
          * Check if a node is a Boolean function or constructor.
@@ -95,7 +95,7 @@ module.exports = {
                 (isBooleanFunctionOrConstructorCall(node.parent) &&
                 node === node.parent.arguments[0]) ||
 
-                (BOOLEAN_NODE_TYPES.indexOf(node.parent.type) !== -1 &&
+                (BOOLEAN_NODE_TYPES.has(node.parent.type) &&
                     node === node.parent.test) ||
 
                 // !<bool>

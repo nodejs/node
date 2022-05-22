@@ -60,7 +60,7 @@ function canBecomeVariableDeclaration(identifier) {
  */
 function isOuterVariableInDestructing(name, initScope) {
 
-    if (initScope.through.find(ref => ref.resolved && ref.resolved.name === name)) {
+    if (initScope.through.some(ref => ref.resolved && ref.resolved.name === name)) {
         return true;
     }
 

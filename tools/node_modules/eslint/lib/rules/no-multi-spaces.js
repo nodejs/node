@@ -56,7 +56,7 @@ module.exports = {
         const options = context.options[0] || {};
         const ignoreEOLComments = options.ignoreEOLComments;
         const exceptions = Object.assign({ Property: true }, options.exceptions);
-        const hasExceptions = Object.keys(exceptions).filter(key => exceptions[key]).length > 0;
+        const hasExceptions = Object.keys(exceptions).some(key => exceptions[key]);
 
         /**
          * Formats value of given comment token for error message by truncating its length.

@@ -160,7 +160,7 @@ module.exports = {
                 return REQ_COMPUTED;
             }
 
-            if (BUILTIN_MODULES.indexOf(arg.value) !== -1) {
+            if (BUILTIN_MODULES.includes(arg.value)) {
 
                 // "var fs = require('fs');"
                 return REQ_CORE;

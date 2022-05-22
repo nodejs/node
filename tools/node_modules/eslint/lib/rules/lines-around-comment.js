@@ -141,7 +141,7 @@ module.exports = {
             comments = sourceCode.getAllComments(),
             commentLines = getCommentLineNums(comments),
             emptyLines = getEmptyLineNums(lines),
-            commentAndEmptyLines = commentLines.concat(emptyLines);
+            commentAndEmptyLines = new Set(commentLines.concat(emptyLines));
 
         /**
          * Returns whether or not comments are on lines starting with or ending with code
@@ -393,7 +393,7 @@ module.exports = {
             const nextTokenOrComment = sourceCode.getTokenAfter(token, { includeComments: true });
 
             // check for newline before
-            if (!exceptionStartAllowed && before && !commentAndEmptyLines.includes(prevLineNum) &&
+            if (!exceptionStartAllowed && before && !commentAndEmptyLines.has(prevLineNum) &&
                     !(astUtils.isCommentToken(previousTokenOrComment) && astUtils.isTokenOnSameLine(previousTokenOrComment, token))) {
                 const lineStart = token.range[0] - token.loc.start.column;
                 const range = [lineStart, lineStart];
@@ -408,7 +408,7 @@ module.exports = {
             }
 
             // check for newline after
-            if (!exceptionEndAllowed && after && !commentAndEmptyLines.includes(nextLineNum) &&
+            if (!exceptionEndAllowed && after && !commentAndEmptyLines.has(nextLineNum) &&
                     !(astUtils.isCommentToken(nextTokenOrComment) && astUtils.isTokenOnSameLine(token, nextTokenOrComment))) {
                 context.report({
                     node: token,

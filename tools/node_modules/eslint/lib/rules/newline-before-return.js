@@ -47,7 +47,7 @@ module.exports = {
         function isPrecededByTokens(node, testTokens) {
             const tokenBefore = sourceCode.getTokenBefore(node);
 
-            return testTokens.some(token => tokenBefore.value === token);
+            return testTokens.includes(tokenBefore.value);
         }
 
         /**
