@@ -298,11 +298,13 @@ Object.defineProperty(Object.prototype, Symbol.isConcatSpreadable, {
 
 // Core
 {
+  // Using ArrayPrototypeConcat does not produce the expected result:
   const a = [1, 2];
   const b = [3, 4];
   console.log(ArrayPrototypeConcat(a, b)); // [1, 2, 5, 3, 4, 5]
 }
 {
+  // Concatenating two arrays can be achieved safely, e.g.:
   const a = [1, 2];
   const b = [3, 4];
   // Using %Array.prototype.push% and `SafeArrayIterator` to get the expected
