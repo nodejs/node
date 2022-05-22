@@ -789,8 +789,7 @@ with an {Error} object. The following example checks if the file
 `/etc/passwd` can be read and written by the current process.
 
 ```mjs
-import { access } from 'node:fs/promises';
-import { constants } from 'node:fs';
+import { access, constants } from 'node:fs/promises';
 
 try {
   await access('/etc/passwd', constants.R_OK | constants.W_OK);
@@ -892,8 +891,7 @@ error occurs after the destination file has been opened for writing, an attempt
 will be made to remove the destination.
 
 ```mjs
-import { constants } from 'node:fs';
-import { copyFile } from 'node:fs/promises';
+import { copyFile, constants } from 'node:fs/promises';
 
 try {
   await copyFile('source.txt', 'destination.txt');
@@ -1623,6 +1621,14 @@ try {
 
 Aborting an ongoing request does not abort individual operating
 system requests but rather the internal buffering `fs.writeFile` performs.
+
+### `fsPromises.constants`
+
+* {Object}
+
+Returns an object containing commonly used constants for file system
+operations. The object is the same as `fs.constants`. See [FS constants][]
+for more details.
 
 ## Callback API
 
@@ -6885,7 +6891,7 @@ operations.
 
 #### FS constants
 
-The following constants are exported by `fs.constants`.
+The following constants are exported by `fs.constants` and `fsPromises.constants`.
 
 Not every constant will be available on every operating system;
 this is especially important for Windows, where many of the POSIX specific
@@ -7590,6 +7596,7 @@ the file contents.
 
 [#25741]: https://github.com/nodejs/node/issues/25741
 [Common System Errors]: errors.md#common-system-errors
+[FS constants]: #fs-constants
 [File access constants]: #file-access-constants
 [MDN-Date]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
 [MDN-Number]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
