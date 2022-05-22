@@ -1131,8 +1131,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, common.mustNotCall()), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.modulusLength' is invalid. " +
-        `Received ${inspect(modulusLength)}`
     });
   }
 
