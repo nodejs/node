@@ -159,10 +159,10 @@ module.exports = {
                 if (skipComments) {
                     const comments = sourceCode.getAllComments();
 
-                    const commentLines = comments.flatMap(getLinesWithoutCode);
+                    const commentLines = new Set(comments.flatMap(getLinesWithoutCode));
 
                     lines = lines.filter(
-                        l => !commentLines.includes(l.lineNumber)
+                        l => !commentLines.has(l.lineNumber)
                     );
                 }
 

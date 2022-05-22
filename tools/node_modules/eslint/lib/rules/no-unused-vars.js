@@ -259,7 +259,7 @@ module.exports = {
             let scope = ref.from;
 
             while (scope) {
-                if (nodes.indexOf(scope.block) >= 0) {
+                if (nodes.includes(scope.block)) {
                     return true;
                 }
 
