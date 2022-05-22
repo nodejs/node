@@ -1246,10 +1246,6 @@ function addNumericalSeparator(val) {
     }, common.mustNotCall()), {
       name: 'RangeError',
       code: 'ERR_OUT_OF_RANGE',
-      message:
-        'The value of "options.modulusLength" is out of range. ' +
-        'It must be >= 0 && <= 4294967295. ' +
-        `Received ${addNumericalSeparator(modulusLength)}`
     });
   }
 
