@@ -6,7 +6,7 @@
 
 "use strict";
 
-const ACCEPTABLE_PARENTS = [
+const ACCEPTABLE_PARENTS = new Set([
     "AssignmentExpression",
     "VariableDeclarator",
     "MemberExpression",
@@ -16,7 +16,7 @@ const ACCEPTABLE_PARENTS = [
     "Program",
     "VariableDeclaration",
     "ChainExpression"
-];
+]);
 
 /**
  * Finds the eslint-scope reference in the given scope.
@@ -75,7 +75,7 @@ module.exports = {
                 const currentScope = context.getScope();
 
                 if (node.callee.name === "require" && !isShadowed(currentScope, node.callee)) {
-                    const isGoodRequire = context.getAncestors().every(parent => ACCEPTABLE_PARENTS.indexOf(parent.type) > -1);
+                    const isGoodRequire = context.getAncestors().every(parent => ACCEPTABLE_PARENTS.has(parent.type));
 
                     if (!isGoodRequire) {
                         context.report({ node, messageId: "unexpected" });

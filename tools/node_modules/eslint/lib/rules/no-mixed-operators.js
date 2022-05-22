@@ -64,7 +64,7 @@ function normalizeOptions(options = {}) {
  * @returns {boolean} `true` if such group existed.
  */
 function includesBothInAGroup(groups, left, right) {
-    return groups.some(group => group.indexOf(left) !== -1 && group.indexOf(right) !== -1);
+    return groups.some(group => group.includes(left) && group.includes(right));
 }
 
 /**

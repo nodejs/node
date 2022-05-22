@@ -53,7 +53,7 @@ module.exports = {
             if (!node.parent) {
                 return null;
             }
-            if (types.indexOf(node.parent.type) === -1) {
+            if (!types.includes(node.parent.type)) {
                 return findClosestParentOfType(node.parent, types);
             }
             return node.parent;
@@ -87,7 +87,7 @@ module.exports = {
          * @returns {boolean} Whether or not this function matches our callback name.
          */
         function isCallback(node) {
-            return containsOnlyIdentifiers(node.callee) && callbacks.indexOf(sourceCode.getText(node.callee)) > -1;
+            return containsOnlyIdentifiers(node.callee) && callbacks.includes(sourceCode.getText(node.callee));
         }
 
         /**

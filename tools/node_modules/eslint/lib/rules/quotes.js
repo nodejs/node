@@ -283,7 +283,7 @@ module.exports = {
                         astUtils.isSurroundedBy(rawVal, settings.quote);
 
                     if (!isValid && avoidEscape) {
-                        isValid = astUtils.isSurroundedBy(rawVal, settings.alternateQuote) && rawVal.indexOf(settings.quote) >= 0;
+                        isValid = astUtils.isSurroundedBy(rawVal, settings.alternateQuote) && rawVal.includes(settings.quote);
                     }
 
                     if (!isValid) {
