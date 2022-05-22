@@ -37,11 +37,6 @@ const bits = ['arm64', 'mips', 'mipsel', 'ppc64', 'riscv64', 's390x', 'x64']
   .includes(process.arch) ? 64 : 32;
 const hasIntl = !!process.config.variables.v8_enable_i18n_support;
 
-const {
-  atob,
-  btoa
-} = require('buffer');
-
 // Some tests assume a umask of 0o022 so set that up front. Tests that need a
 // different umask will set it themselves.
 //
@@ -263,57 +258,12 @@ function platformTimeout(ms) {
   return ms;
 }
 
-let knownGlobals = [
-  atob,
-  btoa,
-  clearImmediate,
-  clearInterval,
-  clearTimeout,
-  global,
-  setImmediate,
-  setInterval,
-  setTimeout,
-  queueMicrotask,
-];
-
-// TODO(@jasnell): This check can be temporary. AbortController is
-// not currently supported in either Node.js 12 or 10, making it
-// difficult to run tests comparatively on those versions. Once
-// all supported versions have AbortController as a global, this
-// check can be removed and AbortController can be added to the
-// knownGlobals list above.
-if (global.AbortController)
-  knownGlobals.push(global.AbortController);
-
-if (global.gc) {
-  knownGlobals.push(global.gc);
-}
-
-if (global.performance) {
-  knownGlobals.push(global.performance);
-}
-if (global.PerformanceMark) {
-  knownGlobals.push(global.PerformanceMark);
-}
-if (global.PerformanceMeasure) {
-  knownGlobals.push(global.PerformanceMeasure);
-}
-
-// TODO(@ethan-arrowood): Similar to previous checks, this can be temporary
-// until v16.x is EOL. Once all supported versions have structuredClone we
-// can add this to the list above instead.
-if (global.structuredClone) {
-  knownGlobals.push(global.structuredClone);
-}
-
-if (global.fetch) {
-  knownGlobals.push(fetch);
-}
-if (hasCrypto && global.crypto) {
-  knownGlobals.push(global.crypto);
-  knownGlobals.push(global.Crypto);
-  knownGlobals.push(global.CryptoKey);
-  knownGlobals.push(global.SubtleCrypto);
+let knownGlobals;
+try {
+  knownGlobals = require('./knownGlobals.json');
+} catch (err) {
+  console.info('You may need to run `make test/common/knownGlobals.json`.');
+  throw err;
 }
 if (global.ReadableStream) {
   knownGlobals.push(
@@ -338,7 +288,7 @@ if (global.ReadableStream) {
 }
 
 function allowGlobals(...allowlist) {
-  knownGlobals = knownGlobals.concat(allowlist);
+  knownGlobals.push(...allowlist);
 }
 
 if (process.env.NODE_TEST_KNOWN_GLOBALS !== '0') {
@@ -350,9 +300,10 @@ if (process.env.NODE_TEST_KNOWN_GLOBALS !== '0') {
   function leakedGlobals() {
     const leaked = [];
 
-    for (const val in global) {
-      if (!knownGlobals.includes(global[val])) {
-        leaked.push(val);
+    const globals = Object.getOwnPropertyDescriptors(global);
+    for (const val in globals) {
+      if (globals[val].configurable && !knownGlobals.includes(val) && !knownGlobals.includes(global[val])) {
+        leaked.push(val.toString());
       }
     }
 
@@ -362,7 +313,7 @@ if (process.env.NODE_TEST_KNOWN_GLOBALS !== '0') {
   process.on('exit', function() {
     const leaked = leakedGlobals();
     if (leaked.length > 0) {
-      assert.fail(`Unexpected global(s) found: ${leaked.join(', ')}`);
+      assert.fail(`Unexpected global(s) found: ${leaked.join(', ')}. Add it to lib/.eslint.yaml or call common.allowGlobals().`);
     }
   });
 }

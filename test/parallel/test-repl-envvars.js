@@ -2,12 +2,14 @@
 
 // Flags: --expose-internals
 
-require('../common');
+const common = require('../common');
 const stream = require('stream');
 const REPL = require('internal/repl');
 const assert = require('assert');
 const inspect = require('util').inspect;
 const { REPL_MODE_SLOPPY, REPL_MODE_STRICT } = require('repl');
+
+common.allowGlobals('require', '_', '_error', ...require('module').builtinModules);
 
 const tests = [
   {

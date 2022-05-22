@@ -39,6 +39,7 @@ const moduleFilename = fixtures.path('a');
 global.invoke_me = function(arg) {
   return `invoked ${arg}`;
 };
+common.allowGlobals('invoke_me', 'require', 'a', '_', '_error', 'message', ...require('module').builtinModules);
 
 // Helpers for describing the expected output:
 const kArrow = /^ *\^+ *$/;  // Arrow of ^ pointing to syntax error location

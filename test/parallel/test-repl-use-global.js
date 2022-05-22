@@ -7,6 +7,8 @@ const stream = require('stream');
 const repl = require('internal/repl');
 const assert = require('assert');
 
+common.allowGlobals('require', '_', '_error', ...require('module').builtinModules);
+
 // Array of [useGlobal, expectedResult] pairs
 const globalTestCases = [
   [false, 'undefined'],

@@ -17,6 +17,8 @@ common.skipIfDumbTerminal();
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
+common.allowGlobals('require', '_', '_error', ...require('module').builtinModules);
+
 // Mock os.homedir()
 os.homedir = function() {
   return tmpdir.path;

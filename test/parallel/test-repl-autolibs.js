@@ -26,6 +26,8 @@ const assert = require('assert');
 const util = require('util');
 const repl = require('repl');
 
+common.allowGlobals('require', '_', '_error', ...require('module').builtinModules);
+
 const putIn = new ArrayStream();
 repl.start('', putIn, null, true);
 

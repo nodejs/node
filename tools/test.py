@@ -43,6 +43,7 @@ import utils
 import multiprocessing
 import errno
 import copy
+import json
 
 
 if sys.version_info >= (3, 5):
@@ -88,6 +89,49 @@ VERBOSE = False
 
 os.umask(0o022)
 os.environ['NODE_OPTIONS'] = ''
+
+
+def createKnowGlobalsJSON(workspace, test_root):
+  eslintConfigFile = join(workspace, 'lib', '.eslintrc.yaml')
+  outputFile = join(test_root, 'common', 'knownGlobals.json')
+  searchLines = [
+    '  no-restricted-globals:',
+    '  node-core/prefer-primordials:',
+  ]
+  isReadingGlobals = False
+  restrictedGlobalDeclaration = re.compile(r"^\s{4}- name:\s?([^#\s]+)")
+  closingSectionLine = re.compile(r"^\s{0,3}[^#\s]")
+  with open(eslintConfigFile, 'r') as eslintConfig, open(outputFile, 'w') as output:
+    output.write(u'["process"')
+    for line in eslintConfig.readlines():
+      if isReadingGlobals:
+        match = restrictedGlobalDeclaration.match(line)
+        if match is not None:
+          output.write(u',{}'.format(json.dumps(match.group(1))))
+        elif closingSectionLine.match(line) is not None:
+          isReadingGlobals = False
+      elif searchLines and line.rstrip() == searchLines[0]:
+        searchLines = searchLines[1:]
+        isReadingGlobals = True
+    output.write(u']')
+
+def createKnowGlobalsJSONIfPossible(workspace, test_root):
+  try:
+      # Python 3
+      FileNotFoundError # noqa: F823
+  except NameError:
+      # Python 2
+      FileNotFoundError = IOError
+  try:
+    createKnowGlobalsJSON(workspace, test_root)
+  except FileNotFoundError:
+    # In the tarball, the .eslintrc.yaml file doesn't exist, and we cannot
+    # create the JSON file. However, in the tarball the JSON file has already
+    # been generated, so we can ignore this error.
+    # If the JSON file is not present, JavaScript will raise an error, so we can
+    # also ignore.
+    pass
+
 
 # ---------------------------------------------
 # --- P r o g r e s s   I n d i c a t o r s ---
@@ -1395,6 +1439,9 @@ def BuildOptions():
   result.add_option("--type",
       help="Type of build (simple, fips, coverage)",
       default=None)
+  result.add_option('--create-knownGlobals-json',
+      help='Generates the knownGlobal.json file. No tests will be run when using this flag.',
+      default=False, action='store_true', dest='create_knownGlobal_json')
   return result
 
 
@@ -1581,6 +1628,10 @@ def Main():
   repositories = [TestRepository(join(test_root, name)) for name in suites]
   repositories += [TestRepository(a) for a in options.suite]
 
+  if options.create_knownGlobal_json:
+    createKnowGlobalsJSON(workspace, test_root)
+    return 0
+
   root = LiteralTestSuite(repositories, test_root)
   paths = ArgsToTestPaths(test_root, args, suites)
 
@@ -1667,6 +1718,8 @@ def Main():
       '-p', 'process.versions.openssl'], context)
   if has_crypto.stdout.rstrip() == 'undefined':
     context.node_has_crypto = False
+
+  createKnowGlobalsJSONIfPossible(workspace, test_root)
 
   if options.cat:
     visited = set()

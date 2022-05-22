@@ -261,7 +261,8 @@ coverage-report-js:
 
 .PHONY: cctest
 # Runs the C++ tests using the built `cctest` executable.
-cctest: all
+# knownGlobals.json is listed as order-only prerequisit to make it work from the tarball.
+cctest: all | test/common/knownGlobals.json
 	@out/$(BUILDTYPE)/$@ --gtest_filter=$(GTEST_FILTER)
 	@out/$(BUILDTYPE)/embedtest "require('./test/embedding/test-embedding.js')"
 
@@ -325,8 +326,8 @@ test-cov: all
 	$(MAKE) build-addons
 	$(MAKE) build-js-native-api-tests
 	$(MAKE) build-node-api-tests
-	$(MAKE) cctest
 	CI_SKIP_TESTS=$(COV_SKIP_TESTS) $(MAKE) jstest
+	$(MAKE) cctest
 
 .PHONY: test-parallel
 test-parallel: all
@@ -1136,11 +1137,15 @@ pkg-upload: pkg
 	scp -p $(TARNAME).pkg $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg.done"
 
-$(TARBALL): release-only doc-only
+test/common/knownGlobals.json: lib/.eslintrc.yaml
+	$(PYTHON) tools/test.py --create-knownGlobals-json
+
+$(TARBALL): test/common/knownGlobals.json release-only doc-only
 	git checkout-index -a -f --prefix=$(TARNAME)/
 	mkdir -p $(TARNAME)/doc/api
 	cp doc/node.1 $(TARNAME)/doc/node.1
 	cp -r out/doc/api/* $(TARNAME)/doc/api/
+	cp $< $(TARNAME)/$<
 	$(RM) -r $(TARNAME)/.editorconfig
 	$(RM) -r $(TARNAME)/.git*
 	$(RM) -r $(TARNAME)/.mailmap

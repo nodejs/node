@@ -1,9 +1,11 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const repl = require('repl');
 const stream = require('stream');
+
+common.allowGlobals('require', '_', '_error', ...require('module').builtinModules);
 
 testSloppyMode();
 testStrictMode();

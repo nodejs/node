@@ -278,6 +278,7 @@ assert.throws(
 
   assert.deepStrictEqual(children, {
     'common/index.js': {
+      'common/knownGlobals.json': {},
       'common/tmpdir.js': {}
     },
     'fixtures/not-main-module.js': {},

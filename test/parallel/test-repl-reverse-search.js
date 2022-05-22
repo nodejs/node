@@ -16,6 +16,8 @@ common.allowGlobals('aaaa');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
+common.allowGlobals('require', '_', '_error', ...require('module').builtinModules);
+
 const defaultHistoryPath = path.join(tmpdir.path, '.node_repl_history');
 
 // Create an input stream specialized for testing an array of actions
