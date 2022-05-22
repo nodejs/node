@@ -29,8 +29,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "groups[1]" is out of range. ' +
-              'It must be >= 0 && <= 4294967295. Received -1'
   }
 );
 
