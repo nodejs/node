@@ -770,7 +770,7 @@ process.on('SIGTERM', handle);
 * `'SIGKILL'` cannot have a listener installed, it will unconditionally
   terminate Node.js on all platforms.
 * `'SIGSTOP'` cannot have a listener installed.
-* `'SIGBUS'`, `'SIGFPE'`, `'SIGSEGV'` and `'SIGILL'`, when not raised
+* `'SIGBUS'`, `'SIGFPE'`, `'SIGSEGV'`, and `'SIGILL'`, when not raised
   artificially using kill(2), inherently leave the process in a state from
   which it is not safe to call JS listeners. Doing so might cause the process
   to stop responding.
