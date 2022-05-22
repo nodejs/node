@@ -15,8 +15,8 @@ const astUtils = require("./utils/ast-utils");
 // Helpers
 //------------------------------------------------------------------------------
 
-const FUNC_EXPR_NODE_TYPES = ["ArrowFunctionExpression", "FunctionExpression"];
-const CALL_EXPR_NODE_TYPE = ["CallExpression"];
+const FUNC_EXPR_NODE_TYPES = new Set(["ArrowFunctionExpression", "FunctionExpression"]);
+const CALL_EXPR_NODE_TYPE = new Set(["CallExpression"]);
 const FOR_IN_OF_TYPE = /^For(?:In|Of)Statement$/u;
 const SENTINEL_TYPE = /^(?:(?:Function|Class)(?:Declaration|Expression)|ArrowFunctionExpression|CatchClause|ImportDeclaration|ExportNamedDeclaration)$/u;
 
@@ -123,7 +123,7 @@ module.exports = {
             const { variableScope } = variable.scope;
 
 
-            if (!(FUNC_EXPR_NODE_TYPES.includes(variableScope.block.type) && getOuterScope(variableScope) === shadowedVariable.scope)) {
+            if (!(FUNC_EXPR_NODE_TYPES.has(variableScope.block.type) && getOuterScope(variableScope) === shadowedVariable.scope)) {
                 return false;
             }
 
@@ -132,7 +132,7 @@ module.exports = {
 
             const callExpression = findSelfOrAncestor(
                 parent,
-                node => CALL_EXPR_NODE_TYPE.includes(node.type)
+                node => CALL_EXPR_NODE_TYPE.has(node.type)
             );
 
             if (!callExpression) {
@@ -173,7 +173,7 @@ module.exports = {
          * @returns {boolean} Whether or not the variable name is allowed.
          */
         function isAllowed(variable) {
-            return options.allow.indexOf(variable.name) !== -1;
+            return options.allow.includes(variable.name);
         }
 
         /**

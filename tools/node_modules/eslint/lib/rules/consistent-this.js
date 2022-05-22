@@ -65,7 +65,7 @@ module.exports = {
         function checkAssignment(node, name, value) {
             const isThis = value.type === "ThisExpression";
 
-            if (aliases.indexOf(name) !== -1) {
+            if (aliases.includes(name)) {
                 if (!isThis || node.operator && node.operator !== "=") {
                     reportBadAssignment(node, name);
                 }

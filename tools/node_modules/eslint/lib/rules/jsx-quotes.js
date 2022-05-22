@@ -70,7 +70,7 @@ module.exports = {
          * @public
          */
         function usesExpectedQuotes(node) {
-            return node.value.indexOf(setting.quote) !== -1 || astUtils.isSurroundedBy(node.raw, setting.quote);
+            return node.value.includes(setting.quote) || astUtils.isSurroundedBy(node.raw, setting.quote);
         }
 
         return {

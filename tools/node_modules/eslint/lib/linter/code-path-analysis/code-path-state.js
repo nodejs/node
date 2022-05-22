@@ -33,7 +33,7 @@ function addToReturnedOrThrown(dest, others, all, segments) {
         const segment = segments[i];
 
         dest.push(segment);
-        if (others.indexOf(segment) === -1) {
+        if (!others.includes(segment)) {
             all.push(segment);
         }
     }

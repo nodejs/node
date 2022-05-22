@@ -191,10 +191,13 @@ module.exports = {
         function getParenTokens(node) {
             switch (node.type) {
                 case "NewExpression":
-                    if (!node.arguments.length && !(
-                        astUtils.isOpeningParenToken(sourceCode.getLastToken(node, { skip: 1 })) &&
-                        astUtils.isClosingParenToken(sourceCode.getLastToken(node))
-                    )) {
+                    if (!node.arguments.length &&
+                        !(
+                            astUtils.isOpeningParenToken(sourceCode.getLastToken(node, { skip: 1 })) &&
+                            astUtils.isClosingParenToken(sourceCode.getLastToken(node)) &&
+                            node.callee.range[1] < node.range[1]
+                        )
+                    ) {
 
                         // If the NewExpression does not have parens (e.g. `new Foo`), return null.
                         return null;

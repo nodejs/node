@@ -76,7 +76,7 @@ module.exports = {
         function checkComputedProperty(node, value) {
             if (
                 validIdentifier.test(value) &&
-                (allowKeywords || keywords.indexOf(String(value)) === -1) &&
+                (allowKeywords || !keywords.includes(String(value))) &&
                 !(allowPattern && allowPattern.test(value))
             ) {
                 const formattedValue = node.property.type === "Literal" ? JSON.stringify(value) : `\`${value}\``;
@@ -142,7 +142,7 @@ module.exports = {
                     !allowKeywords &&
                     !node.computed &&
                     node.property.type === "Identifier" &&
-                    keywords.indexOf(String(node.property.name)) !== -1
+                    keywords.includes(String(node.property.name))
                 ) {
                     context.report({
                         node: node.property,

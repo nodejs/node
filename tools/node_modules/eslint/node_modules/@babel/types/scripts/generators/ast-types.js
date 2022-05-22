@@ -36,13 +36,13 @@ export interface SourceLocation {
 }
 
 interface BaseNode {
-  leadingComments: ReadonlyArray<Comment> | null;
-  innerComments: ReadonlyArray<Comment> | null;
-  trailingComments: ReadonlyArray<Comment> | null;
-  start: number | null;
-  end: number | null;
-  loc: SourceLocation | null;
   type: Node["type"];
+  leadingComments?: ReadonlyArray<Comment> | null;
+  innerComments?: ReadonlyArray<Comment> | null;
+  trailingComments?: ReadonlyArray<Comment> | null;
+  start?: number | null;
+  end?: number | null;
+  loc?: SourceLocation | null;
   range?: [number, number];
   extra?: Record<string, unknown>;
 }
