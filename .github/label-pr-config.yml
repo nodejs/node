@@ -67,7 +67,7 @@ subSystemLabels:
   /^tools\/make-v8/: tools, v8 engine, needs-ci
   /^tools\/v8_gypfiles/: tools, v8 engine, needs-ci
   /^tools\/(code_cache|snapshot)/: needs-ci
-  /^tools\/build-addons.js/: needs-ci
+  /^tools\/build-addons.mjs/: needs-ci
   # all other tool changes should be marked as such
   /^tools\//: tools
   /^\.eslint|\.remark|\.editorconfig/: tools
