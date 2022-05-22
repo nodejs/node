@@ -366,9 +366,7 @@ function *iterateRuleDeprecationWarnings(usedConfigArrays) {
 
     // Flatten used configs.
     /** @type {ExtractedConfig[]} */
-    const configs = [].concat(
-        ...usedConfigArrays.map(getUsedExtractedConfigs)
-    );
+    const configs = usedConfigArrays.flatMap(getUsedExtractedConfigs);
 
     // Traverse rule configs.
     for (const config of configs) {
@@ -1023,7 +1021,7 @@ class CLIEngine {
             let formatterPath;
 
             // if there's a slash, then it's a file (TODO: this check seems dubious for scoped npm packages)
-            if (!namespace && normalizedFormatName.indexOf("/") > -1) {
+            if (!namespace && normalizedFormatName.includes("/")) {
                 formatterPath = path.resolve(cwd, normalizedFormatName);
             } else {
                 try {

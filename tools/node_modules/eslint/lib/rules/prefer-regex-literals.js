@@ -47,7 +47,7 @@ function isStaticTemplateLiteral(node) {
     return node.type === "TemplateLiteral" && node.expressions.length === 0;
 }
 
-const validPrecedingTokens = [
+const validPrecedingTokens = new Set([
     "(",
     ";",
     "[",
@@ -110,7 +110,7 @@ const validPrecedingTokens = [
     "debugger",
     "case",
     "throw"
-];
+]);
 
 
 //------------------------------------------------------------------------------
@@ -334,7 +334,7 @@ module.exports = {
 
                         const tokenBefore = sourceCode.getTokenBefore(node);
 
-                        if (tokenBefore && !validPrecedingTokens.includes(tokenBefore.value)) {
+                        if (tokenBefore && !validPrecedingTokens.has(tokenBefore.value)) {
                             noFix = true;
                         }
 
