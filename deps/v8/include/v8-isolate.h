@@ -287,9 +287,6 @@ class V8_EXPORT Isolate {
      */
     FatalErrorCallback fatal_error_callback = nullptr;
     LegacyOOMErrorCallback legacy_oom_error_callback = nullptr;
-    V8_DEPRECATED(
-        "Use legacy_oom_error_callback; OOMErrorCallback will be changed soon "
-        "(https://crbug.com/1323177)")
     OOMErrorCallback oom_error_callback = nullptr;
 
     /**
