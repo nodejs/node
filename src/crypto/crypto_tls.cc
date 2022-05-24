@@ -295,8 +295,8 @@ int TLSExtStatusCallback(SSL* s, void* arg) {
 
 void ConfigureSecureContext(SecureContext* sc) {
   // OCSP stapling
-  SSL_CTX_set_tlsext_status_cb(sc->ctx_.get(), TLSExtStatusCallback);
-  SSL_CTX_set_tlsext_status_arg(sc->ctx_.get(), nullptr);
+  SSL_CTX_set_tlsext_status_cb(sc->ctx().get(), TLSExtStatusCallback);
+  SSL_CTX_set_tlsext_status_arg(sc->ctx().get(), nullptr);
 }
 
 inline bool Set(
@@ -1303,20 +1303,20 @@ int TLSWrap::SelectSNIContextCallback(SSL* s, int* ad, void* arg) {
   p->sni_context_ = BaseObjectPtr<SecureContext>(sc);
 
   ConfigureSecureContext(sc);
-  CHECK_EQ(SSL_set_SSL_CTX(p->ssl_.get(), sc->ctx_.get()), sc->ctx_.get());
+  CHECK_EQ(SSL_set_SSL_CTX(p->ssl_.get(), sc->ctx().get()), sc->ctx().get());
   p->SetCACerts(sc);
 
   return SSL_TLSEXT_ERR_OK;
 }
 
 int TLSWrap::SetCACerts(SecureContext* sc) {
-  int err = SSL_set1_verify_cert_store(
-      ssl_.get(), SSL_CTX_get_cert_store(sc->ctx_.get()));
+  int err = SSL_set1_verify_cert_store(ssl_.get(),
+                                       SSL_CTX_get_cert_store(sc->ctx().get()));
   if (err != 1)
     return err;
 
   STACK_OF(X509_NAME)* list =
-      SSL_dup_CA_list(SSL_CTX_get_client_CA_list(sc->ctx_.get()));
+      SSL_dup_CA_list(SSL_CTX_get_client_CA_list(sc->ctx().get()));
 
   // NOTE: `SSL_set_client_CA_list` takes the ownership of `list`
   SSL_set_client_CA_list(ssl_.get(), list);

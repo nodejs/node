@@ -154,7 +154,7 @@ long VerifyPeerCertificate(  // NOLINT(runtime/int)
 
 bool UseSNIContext(
     const SSLPointer& ssl, BaseObjectPtr<SecureContext> context) {
-  SSL_CTX* ctx = context->ctx_.get();
+  SSL_CTX* ctx = context->ctx().get();
   X509* x509 = SSL_CTX_get0_certificate(ctx);
   EVP_PKEY* pkey = SSL_CTX_get0_privatekey(ctx);
   STACK_OF(X509)* chain;
@@ -218,7 +218,7 @@ const char* GetServerName(SSL* ssl) {
 }
 
 bool SetGroups(SecureContext* sc, const char* groups) {
-  return SSL_CTX_set1_groups_list(sc->ssl_ctx(), groups) == 1;
+  return SSL_CTX_set1_groups_list(sc->ctx().get(), groups) == 1;
 }
 
 const char* X509ErrorCode(long err) {  // NOLINT(runtime/int)
