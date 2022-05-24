@@ -521,7 +521,7 @@ added:
 
 The total size of the `Blob` in bytes.
 
-### `blob.slice([start, [end, [type]]])`
+### `blob.slice([start[, end[, type]]])`
 
 <!-- YAML
 added:

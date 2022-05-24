@@ -50,7 +50,7 @@ work for more complex pull requests. These are the currently known limitations
 of the commit queue:
 
 1. All commits in a pull request must either be following commit message
-   guidelines or be a valid [`fixup!`](https://git-scm.com/docs/git-commit#Documentation/git-commit.txt---fixupltcommitgt)
+   guidelines or be a valid [`fixup!`](https://git-scm.com/docs/git-commit#Documentation/git-commit.txt---fixupamendrewordltcommitgt)
    commit that will be correctly handled by the [`--autosquash`](https://git-scm.com/docs/git-rebase#Documentation/git-rebase.txt---autosquash)
    option
 2. A CI must've ran and succeeded since the last change on the PR

@@ -539,7 +539,7 @@ When modifying only the JS layer in `lib`, it is possible to externally load it
 without modifying the executable:
 
 ```console
-$ ./configure --node-builtin-modules-path $(pwd)
+$ ./configure --node-builtin-modules-path "$(pwd)"
 ```
 
 The resulting binary won't include any JS files and will try to load them from

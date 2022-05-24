@@ -2912,7 +2912,7 @@ is currently in use. Setting to true requires a FIPS build of Node.js.
 This property is deprecated. Please use `crypto.setFips()` and
 `crypto.getFips()` instead.
 
-### `crypto.checkPrime(candidate[, options, [callback]])`
+### `crypto.checkPrime(candidate[, options[, callback]])`
 
 <!-- YAML
 added: v15.8.0
