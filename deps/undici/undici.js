@@ -1,7 +1,13 @@
 "use strict";
+var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __commonJS = (cb, mod) => function __require() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+};
+var __publicField = (obj, key, value) => {
+  __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+  return value;
 };
 
 // lib/core/errors.js
@@ -56,6 +62,18 @@ var require_errors = __commonJS({
         this.name = "BodyTimeoutError";
         this.message = message || "Body Timeout Error";
         this.code = "UND_ERR_BODY_TIMEOUT";
+      }
+    };
+    var ResponseStatusCodeError = class extends UndiciError {
+      constructor(message, statusCode, headers) {
+        super(message);
+        Error.captureStackTrace(this, ResponseStatusCodeError);
+        this.name = "ResponseStatusCodeError";
+        this.message = message || "Response Status Code Error";
+        this.code = "UND_ERR_RESPONSE_STATUS_CODE";
+        this.status = statusCode;
+        this.statusCode = statusCode;
+        this.headers = headers;
       }
     };
     var InvalidArgumentError = class extends UndiciError {
@@ -176,6 +194,7 @@ var require_errors = __commonJS({
       BodyTimeoutError,
       RequestContentLengthMismatchError,
       ConnectTimeoutError,
+      ResponseStatusCodeError,
       InvalidArgumentError,
       InvalidReturnValueError,
       RequestAbortedError,
@@ -664,6 +683,40 @@ var require_util = __commonJS({
     function isBlobLike(object) {
       return Blob && object instanceof Blob || object && typeof object === "object" && (typeof object.stream === "function" || typeof object.arrayBuffer === "function") && /^(Blob|File)$/.test(object[Symbol.toStringTag]);
     }
+    function isObject(val) {
+      return val !== null && typeof val === "object";
+    }
+    function encode(val) {
+      return encodeURIComponent(val);
+    }
+    function buildURL(url, queryParams) {
+      if (url.includes("?") || url.includes("#")) {
+        throw new Error('Query params cannot be passed when url already contains "?" or "#".');
+      }
+      if (!isObject(queryParams)) {
+        throw new Error("Query params must be an object");
+      }
+      const parts = [];
+      for (let [key, val] of Object.entries(queryParams)) {
+        if (val === null || typeof val === "undefined") {
+          continue;
+        }
+        if (!Array.isArray(val)) {
+          val = [val];
+        }
+        for (const v of val) {
+          if (isObject(v)) {
+            throw new Error("Passing object as a query param is not supported, please serialize to string up-front");
+          }
+          parts.push(encode(key) + "=" + encode(v));
+        }
+      }
+      const serializedParams = parts.join("&");
+      if (serializedParams) {
+        url += "?" + serializedParams;
+      }
+      return url;
+    }
     function parseURL(url) {
       if (typeof url === "string") {
         url = new URL(url);
@@ -911,7 +964,8 @@ var require_util = __commonJS({
       isBuffer,
       validateHandler,
       getSocketInfo,
-      isFormDataLike
+      isFormDataLike,
+      buildURL
     };
   }
 });
@@ -1056,9 +1110,6 @@ var require_file = __commonJS({
         return this[kState].lastModified;
       }
       get [Symbol.toStringTag]() {
-        if (!(this instanceof File)) {
-          throw new TypeError("Illegal invocation");
-        }
         return this.constructor.name;
       }
     };
@@ -1123,9 +1174,6 @@ var require_file = __commonJS({
         return this[kState].lastModified;
       }
       get [Symbol.toStringTag]() {
-        if (!(this instanceof FileLike)) {
-          throw new TypeError("Illegal invocation");
-        }
         return "File";
       }
     };
@@ -1140,6 +1188,7 @@ var require_util2 = __commonJS({
     var { redirectStatus } = require_constants();
     var { performance } = require("perf_hooks");
     var { isBlobLike, toUSVString, ReadableStreamFrom } = require_util();
+    var assert = require("assert");
     var File;
     var badPorts = [
       "1",
@@ -1367,26 +1416,6 @@ var require_util2 = __commonJS({
       }
       return false;
     }
-    function CORBCheck(request, response) {
-      if (request.initiator === "download") {
-        return "allowed";
-      }
-      if (!/^https?$/.test(request.currentURL.scheme)) {
-        return "allowed";
-      }
-      const mimeType = response.headersList.get("content-type");
-      if (mimeType === "") {
-        return "allowed";
-      }
-      const isCORBProtectedMIME = (/^text\/html\b/.test(mimeType) || /^application\/javascript\b/.test(mimeType) || /^application\/xml\b/.test(mimeType)) && !/^application\/xml\+svg\b/.test(mimeType);
-      if (response.status === 206 && isCORBProtectedMIME) {
-        return "blocked";
-      }
-      if (response.headersList.get("x-content-type-options") && isCORBProtectedMIME) {
-        return "blocked";
-      }
-      return "allowed";
-    }
     function createDeferredPromise() {
       let res;
       let rej;
@@ -1404,6 +1433,14 @@ var require_util2 = __commonJS({
     }
     function normalizeMethod(method) {
       return /^(DELETE|GET|HEAD|OPTIONS|POST|PUT)$/i.test(method) ? method.toUpperCase() : method;
+    }
+    function serializeJavascriptValueToJSONString(value) {
+      const result = JSON.stringify(value);
+      if (result === void 0) {
+        throw new TypeError("Value is not JSON serializable");
+      }
+      assert(typeof result === "string");
+      return result;
     }
     module2.exports = {
       isAborted,
@@ -1433,8 +1470,8 @@ var require_util2 = __commonJS({
       isFileLike,
       isValidReasonPhrase,
       sameOrigin,
-      CORBCheck,
-      normalizeMethod
+      normalizeMethod,
+      serializeJavascriptValueToJSONString
     };
   }
 });
@@ -1447,7 +1484,7 @@ var require_formdata = __commonJS({
     var { kState } = require_symbols2();
     var { File, FileLike } = require_file();
     var { Blob } = require("buffer");
-    var FormData = class {
+    var _FormData = class {
       constructor(...args) {
         if (args.length > 0 && !(args[0]?.constructor?.name === "HTMLFormElement")) {
           throw new TypeError("Failed to construct 'FormData': parameter 1 is not of type 'HTMLFormElement'");
@@ -1455,7 +1492,7 @@ var require_formdata = __commonJS({
         this[kState] = [];
       }
       append(...args) {
-        if (!(this instanceof FormData)) {
+        if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
         if (args.length < 2) {
@@ -1471,7 +1508,7 @@ var require_formdata = __commonJS({
         this[kState].push(entry);
       }
       delete(...args) {
-        if (!(this instanceof FormData)) {
+        if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
         if (args.length < 1) {
@@ -1487,7 +1524,7 @@ var require_formdata = __commonJS({
         this[kState] = next;
       }
       get(...args) {
-        if (!(this instanceof FormData)) {
+        if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
         if (args.length < 1) {
@@ -1501,7 +1538,7 @@ var require_formdata = __commonJS({
         return this[kState][idx].value;
       }
       getAll(...args) {
-        if (!(this instanceof FormData)) {
+        if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
         if (args.length < 1) {
@@ -1511,7 +1548,7 @@ var require_formdata = __commonJS({
         return this[kState].filter((entry) => entry.name === name).map((entry) => entry.value);
       }
       has(...args) {
-        if (!(this instanceof FormData)) {
+        if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
         if (args.length < 1) {
@@ -1521,7 +1558,7 @@ var require_formdata = __commonJS({
         return this[kState].findIndex((entry) => entry.name === name) !== -1;
       }
       set(...args) {
-        if (!(this instanceof FormData)) {
+        if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
         if (args.length < 2) {
@@ -1546,13 +1583,10 @@ var require_formdata = __commonJS({
         }
       }
       get [Symbol.toStringTag]() {
-        if (!(this instanceof FormData)) {
-          throw new TypeError("Illegal invocation");
-        }
         return this.constructor.name;
       }
       *entries() {
-        if (!(this instanceof FormData)) {
+        if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
         for (const pair of this) {
@@ -1560,7 +1594,7 @@ var require_formdata = __commonJS({
         }
       }
       *keys() {
-        if (!(this instanceof FormData)) {
+        if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
         for (const [key] of this) {
@@ -1568,7 +1602,7 @@ var require_formdata = __commonJS({
         }
       }
       *values() {
-        if (!(this instanceof FormData)) {
+        if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
         for (const [, value] of this) {
@@ -1581,6 +1615,8 @@ var require_formdata = __commonJS({
         }
       }
     };
+    var FormData = _FormData;
+    __publicField(FormData, "name", "FormData");
     function makeEntry(name, value, filename) {
       const entry = {
         name: null,
@@ -1596,7 +1632,7 @@ var require_formdata = __commonJS({
       entry.value = value;
       return entry;
     }
-    module2.exports = { FormData: globalThis.FormData ?? FormData };
+    module2.exports = { FormData };
   }
 });
 
@@ -1833,8 +1869,8 @@ var require_request = __commonJS({
       InvalidArgumentError,
       NotSupportedError
     } = require_errors();
-    var util = require_util();
     var assert = require("assert");
+    var util = require_util();
     var kHandler = Symbol("handler");
     var channels = {};
     var extractBody;
@@ -1861,11 +1897,13 @@ var require_request = __commonJS({
         method,
         body,
         headers,
+        query,
         idempotent,
         blocking,
         upgrade,
         headersTimeout,
-        bodyTimeout
+        bodyTimeout,
+        throwOnError
       }, handler) {
         if (typeof path !== "string") {
           throw new InvalidArgumentError("path must be a string");
@@ -1886,6 +1924,7 @@ var require_request = __commonJS({
         }
         this.headersTimeout = headersTimeout;
         this.bodyTimeout = bodyTimeout;
+        this.throwOnError = throwOnError === true;
         this.method = method;
         if (body == null) {
           this.body = null;
@@ -1907,7 +1946,7 @@ var require_request = __commonJS({
         this.completed = false;
         this.aborted = false;
         this.upgrade = upgrade || null;
-        this.path = path;
+        this.path = query ? util.buildURL(path, query) : path;
         this.origin = origin;
         this.idempotent = idempotent == null ? method === "HEAD" || method === "GET" : idempotent;
         this.blocking = blocking == null ? false : blocking;
@@ -4462,7 +4501,7 @@ var require_response = __commonJS({
     var { extractBody, cloneBody, mixinBody } = require_body();
     var util = require_util();
     var { kEnumerableProperty } = util;
-    var { responseURL, isValidReasonPhrase, toUSVString, isCancelled, isAborted } = require_util2();
+    var { responseURL, isValidReasonPhrase, toUSVString, isCancelled, isAborted, serializeJavascriptValueToJSONString } = require_util2();
     var {
       redirectStatus,
       nullBodyStatus,
@@ -4481,6 +4520,29 @@ var require_response = __commonJS({
         responseObject[kHeaders][kHeadersList] = responseObject[kState].headersList;
         responseObject[kHeaders][kGuard] = "immutable";
         responseObject[kHeaders][kRealm] = relevantRealm;
+        return responseObject;
+      }
+      static json(data, init = {}) {
+        if (arguments.length === 0) {
+          throw new TypeError("Failed to execute 'json' on 'Response': 1 argument required, but 0 present.");
+        }
+        if (init === null || typeof init !== "object") {
+          throw new TypeError(`Failed to execute 'json' on 'Response': init must be a RequestInit, found ${typeof init}.`);
+        }
+        init = {
+          status: 200,
+          statusText: "",
+          headers: new HeadersList(),
+          ...init
+        };
+        const bytes = new TextEncoder("utf-8").encode(serializeJavascriptValueToJSONString(data));
+        const body = extractBody(bytes);
+        const relevantRealm = { settingsObject: {} };
+        const responseObject = new Response();
+        responseObject[kRealm] = relevantRealm;
+        responseObject[kHeaders][kGuard] = "response";
+        responseObject[kHeaders][kRealm] = relevantRealm;
+        initializeResponse(responseObject, init, { body: body[0], type: "application/json" });
         return responseObject;
       }
       static redirect(...args) {
@@ -4517,48 +4579,19 @@ var require_response = __commonJS({
         const body = args.length >= 1 ? args[0] : null;
         const init = args.length >= 2 ? args[1] ?? {} : {};
         this[kRealm] = { settingsObject: {} };
-        if ("status" in init && init.status !== void 0) {
-          if (!Number.isFinite(init.status)) {
-            throw new TypeError();
-          }
-          if (init.status < 200 || init.status > 599) {
-            throw new RangeError(`Failed to construct 'Response': The status provided (${init.status}) is outside the range [200, 599].`);
-          }
-        }
-        if ("statusText" in init && init.statusText !== void 0) {
-          if (!isValidReasonPhrase(String(init.statusText))) {
-            throw new TypeError("Invalid statusText");
-          }
-        }
         this[kState] = makeResponse({});
         this[kHeaders] = new Headers();
         this[kHeaders][kGuard] = "response";
         this[kHeaders][kHeadersList] = this[kState].headersList;
         this[kHeaders][kRealm] = this[kRealm];
-        if ("status" in init && init.status !== void 0) {
-          this[kState].status = init.status;
-        }
-        if ("statusText" in init && init.statusText !== void 0) {
-          this[kState].statusText = String(init.statusText);
-        }
-        if ("headers" in init) {
-          fill(this[kState].headersList, init.headers);
-        }
+        let bodyWithType = null;
         if (body != null) {
-          if (nullBodyStatus.includes(init.status)) {
-            throw new TypeError("Response with null body status cannot have body");
-          }
-          const [extractedBody, contentType] = extractBody(body);
-          this[kState].body = extractedBody;
-          if (contentType && !this.headers.has("content-type")) {
-            this.headers.append("content-type", contentType);
-          }
+          const [extractedBody, type] = extractBody(body);
+          bodyWithType = { body: extractedBody, type };
         }
+        initializeResponse(this, init, bodyWithType);
       }
       get [Symbol.toStringTag]() {
-        if (!(this instanceof Response)) {
-          throw new TypeError("Illegal invocation");
-        }
         return this.constructor.name;
       }
       get type() {
@@ -4745,6 +4778,34 @@ var require_response = __commonJS({
     function makeAppropriateNetworkError(fetchParams) {
       assert(isCancelled(fetchParams));
       return isAborted(fetchParams) ? makeNetworkError(new AbortError()) : makeNetworkError(fetchParams.controller.terminated.reason);
+    }
+    function initializeResponse(response, init, body) {
+      if (init.status != null && (init.status < 200 || init.status > 599)) {
+        throw new RangeError('init["status"] must be in the range of 200 to 599, inclusive.');
+      }
+      if ("statusText" in init && init.statusText != null) {
+        if (!isValidReasonPhrase(String(init.statusText))) {
+          throw new TypeError("Invalid statusText");
+        }
+      }
+      if ("status" in init && init.status != null) {
+        response[kState].status = init.status;
+      }
+      if ("statusText" in init && init.statusText != null) {
+        response[kState].statusText = init.statusText;
+      }
+      if ("headers" in init && init.headers != null) {
+        fill(response[kState].headersList, init.headers);
+      }
+      if (body) {
+        if (nullBodyStatus.includes(response.status)) {
+          throw new TypeError();
+        }
+        response[kState].body = body.body;
+        if (body.type != null && !response[kState].headersList.has("Content-Type")) {
+          response[kState].headersList.append("content-type", body.type);
+        }
+      }
     }
     module2.exports = {
       makeNetworkError,
@@ -5020,9 +5081,6 @@ var require_request2 = __commonJS({
         this[kState].body = finalBody;
       }
       get [Symbol.toStringTag]() {
-        if (!(this instanceof Request)) {
-          throw new TypeError("Illegal invocation");
-        }
         return this.constructor.name;
       }
       get method() {
@@ -5414,34 +5472,6 @@ var require_dataURL = __commonJS({
   }
 });
 
-// lib/mock/mock-symbols.js
-var require_mock_symbols = __commonJS({
-  "lib/mock/mock-symbols.js"(exports2, module2) {
-    "use strict";
-    module2.exports = {
-      kAgent: Symbol("agent"),
-      kOptions: Symbol("options"),
-      kFactory: Symbol("factory"),
-      kDispatches: Symbol("dispatches"),
-      kDispatchKey: Symbol("dispatch key"),
-      kDefaultHeaders: Symbol("default headers"),
-      kDefaultTrailers: Symbol("default trailers"),
-      kContentLength: Symbol("content length"),
-      kMockAgent: Symbol("mock agent"),
-      kMockAgentSet: Symbol("mock agent set"),
-      kMockAgentGet: Symbol("mock agent get"),
-      kMockDispatch: Symbol("mock dispatch"),
-      kClose: Symbol("close"),
-      kOriginalClose: Symbol("original agent close"),
-      kOrigin: Symbol("origin"),
-      kIsMockActive: Symbol("is mock active"),
-      kNetConnect: Symbol("net connect"),
-      kGetNetConnect: Symbol("get net connect"),
-      kConnected: Symbol("connected")
-    };
-  }
-});
-
 // lib/fetch/index.js
 var require_fetch = __commonJS({
   "lib/fetch/index.js"(exports2, module2) {
@@ -5475,7 +5505,6 @@ var require_fetch = __commonJS({
       coarsenedSharedCurrentTime,
       createDeferredPromise,
       isBlobLike,
-      CORBCheck,
       sameOrigin,
       isCancelled,
       isAborted
@@ -5496,7 +5525,6 @@ var require_fetch = __commonJS({
     var { Readable, pipeline } = require("stream");
     var { isErrored, isReadable } = require_util();
     var { dataURLProcessor } = require_dataURL();
-    var { kIsMockActive } = require_mock_symbols();
     var { TransformStream } = require("stream/web");
     var resolveObjectURL;
     var ReadableStream;
@@ -5731,11 +5759,7 @@ var require_fetch = __commonJS({
               return makeNetworkError('redirect mode cannot be "follow" for "no-cors" request');
             }
             request.responseTainting = "opaque";
-            const noCorsResponse = await schemeFetch(fetchParams);
-            if (noCorsResponse.status === 0 || CORBCheck(request, noCorsResponse) === "allowed") {
-              return noCorsResponse;
-            }
-            return makeResponse({ status: noCorsResponse.status });
+            return await schemeFetch(fetchParams);
           }
           if (!/^https?:/.test(requestCurrentURL(request).protocol)) {
             return makeNetworkError("URL scheme must be a HTTP(S) scheme");
@@ -6275,7 +6299,7 @@ var require_fetch = __commonJS({
           path: url.pathname + url.search,
           origin: url.origin,
           method: request.method,
-          body: fetchParams.controller.dispatcher[kIsMockActive] ? request.body && request.body.source : body,
+          body: fetchParams.controller.dispatcher.isMockActive ? request.body && request.body.source : body,
           headers: [...request.headersList].flat(),
           maxRedirections: 0,
           bodyTimeout: 3e5,
