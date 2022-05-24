@@ -101,4 +101,36 @@ const badRequest = await bankTransfer('1234567890', '100')
 // subsequent request to origin http://localhost:3000 was not allowed (net.connect disabled)
 ```
 
+## Reply with data based on request
 
+If the mocked response needs to be dynamically derived from the request parameters, you can provide a function instead of an object to `reply`
+
+```js
+mockPool.intercept({
+  path: '/bank-transfer',
+  method: 'POST',
+  headers: {
+    'X-TOKEN-SECRET': 'SuperSecretToken',
+  },
+  body: JSON.stringify({
+    recepient: '1234567890',
+    amount: '100'
+  })
+}).reply(200, (opts) => {
+  // do something with opts
+
+  return { message: 'transaction processed' }
+})
+```
+
+in this case opts will be
+
+```
+{
+  method: 'POST',
+  headers: { 'X-TOKEN-SECRET': 'SuperSecretToken' },
+  body: '{"recepient":"1234567890","amount":"100"}',
+  origin: 'http://localhost:3000',
+  path: '/bank-transfer'
+}
+```
