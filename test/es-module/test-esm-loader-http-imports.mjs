@@ -62,10 +62,10 @@ const {
   child.stdout.on('data', (data) => stdout += data);
 
   child.on('close', mustCall((code, signal) => {
-    strictEqual(code, 0);
-    strictEqual(signal, null);
     strictEqual(stderr, '');
     strictEqual(stdout, '[Module: null prototype] { sum: [Function: sum] }\n');
+    strictEqual(code, 0);
+    strictEqual(signal, null);
 
     server.close();
   }));

@@ -6,12 +6,12 @@ export function resolve(specifier, context, nextResolve) {
   if (specifier.startsWith('http://')) {
     return {
       shortCircuit: true,
-      url: specifier
+      url: specifier,
     };
-  } else if (parentURL && parentURL.startsWith('http://')) {
+  } else if (parentURL?.startsWith('http://')) {
     return {
       shortCircuit: true,
-      url: new URL(specifier, parentURL).href
+      url: new URL(specifier, parentURL).href,
     };
   }
 
