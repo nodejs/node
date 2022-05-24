@@ -1,7 +1,6 @@
 'use strict'
 
 const { kProxy, kClose, kDestroy } = require('./core/symbols')
-const { URL } = require('url')
 const Agent = require('./agent')
 const DispatcherBase = require('./dispatcher-base')
 const { InvalidArgumentError } = require('./core/errors')

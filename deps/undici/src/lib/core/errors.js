@@ -56,6 +56,19 @@ class BodyTimeoutError extends UndiciError {
   }
 }
 
+class ResponseStatusCodeError extends UndiciError {
+  constructor (message, statusCode, headers) {
+    super(message)
+    Error.captureStackTrace(this, ResponseStatusCodeError)
+    this.name = 'ResponseStatusCodeError'
+    this.message = message || 'Response Status Code Error'
+    this.code = 'UND_ERR_RESPONSE_STATUS_CODE'
+    this.status = statusCode
+    this.statusCode = statusCode
+    this.headers = headers
+  }
+}
+
 class InvalidArgumentError extends UndiciError {
   constructor (message) {
     super(message)
@@ -186,6 +199,7 @@ module.exports = {
   BodyTimeoutError,
   RequestContentLengthMismatchError,
   ConnectTimeoutError,
+  ResponseStatusCodeError,
   InvalidArgumentError,
   InvalidReturnValueError,
   RequestAbortedError,
