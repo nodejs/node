@@ -314,28 +314,17 @@ bool Set(
   return !target->Set(context, name, value).IsNothing();
 }
 
-MaybeLocal<Value> GetCipherValue(Environment* env,
-    const SSL_CIPHER* cipher,
-    const char* (*getstr)(const SSL_CIPHER* cipher)) {
+template <const char* (*getstr)(const SSL_CIPHER* cipher)>
+MaybeLocal<Value> GetCipherValue(Environment* env, const SSL_CIPHER* cipher) {
   if (cipher == nullptr)
     return Undefined(env->isolate());
 
   return OneByteString(env->isolate(), getstr(cipher));
 }
 
-MaybeLocal<Value> GetCipherName(Environment* env, const SSL_CIPHER* cipher) {
-  return GetCipherValue(env, cipher, SSL_CIPHER_get_name);
-}
-
-MaybeLocal<Value> GetCipherStandardName(
-    Environment* env,
-    const SSL_CIPHER* cipher) {
-  return GetCipherValue(env, cipher, SSL_CIPHER_standard_name);
-}
-
-MaybeLocal<Value> GetCipherVersion(Environment* env, const SSL_CIPHER* cipher) {
-  return GetCipherValue(env, cipher, SSL_CIPHER_get_version);
-}
+constexpr auto GetCipherName = GetCipherValue<SSL_CIPHER_get_name>;
+constexpr auto GetCipherStandardName = GetCipherValue<SSL_CIPHER_standard_name>;
+constexpr auto GetCipherVersion = GetCipherValue<SSL_CIPHER_get_version>;
 
 StackOfX509 CloneSSLCerts(X509Pointer&& cert,
                           const STACK_OF(X509)* const ssl_certs) {
@@ -1052,18 +1041,10 @@ static MaybeLocal<Value> GetX509NameObject(Environment* env, X509* cert) {
   return result;
 }
 
-MaybeLocal<Value> GetCipherName(Environment* env, const SSLPointer& ssl) {
-  return GetCipherName(env, SSL_get_current_cipher(ssl.get()));
-}
-
-MaybeLocal<Value> GetCipherStandardName(
-    Environment* env,
-    const SSLPointer& ssl) {
-  return GetCipherStandardName(env, SSL_get_current_cipher(ssl.get()));
-}
-
-MaybeLocal<Value> GetCipherVersion(Environment* env, const SSLPointer& ssl) {
-  return GetCipherVersion(env, SSL_get_current_cipher(ssl.get()));
+template <MaybeLocal<Value> (*Get)(Environment* env, const SSL_CIPHER* cipher)>
+MaybeLocal<Value> GetCurrentCipherValue(Environment* env,
+                                        const SSLPointer& ssl) {
+  return Get(env, SSL_get_current_cipher(ssl.get()));
 }
 
 MaybeLocal<Array> GetClientHelloCiphers(
@@ -1109,15 +1090,15 @@ MaybeLocal<Object> GetCipherInfo(Environment* env, const SSLPointer& ssl) {
   if (!Set<Value>(env->context(),
                   info,
                   env->name_string(),
-                  GetCipherName(env, ssl)) ||
+                  GetCurrentCipherValue<GetCipherName>(env, ssl)) ||
       !Set<Value>(env->context(),
                   info,
                   env->standard_name_string(),
-                  GetCipherStandardName(env, ssl)) ||
+                  GetCurrentCipherValue<GetCipherStandardName>(env, ssl)) ||
       !Set<Value>(env->context(),
                   info,
                   env->version_string(),
-                  GetCipherVersion(env, ssl))) {
+                  GetCurrentCipherValue<GetCipherVersion>(env, ssl))) {
     return MaybeLocal<Object>();
   }
 

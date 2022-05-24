@@ -74,18 +74,6 @@ v8::MaybeLocal<v8::Value> GetValidationErrorCode(Environment* env, int err);
 
 v8::MaybeLocal<v8::Value> GetCert(Environment* env, const SSLPointer& ssl);
 
-v8::MaybeLocal<v8::Value> GetCipherName(
-    Environment* env,
-    const SSLPointer& ssl);
-
-v8::MaybeLocal<v8::Value> GetCipherStandardName(
-    Environment* env,
-    const SSLPointer& ssl);
-
-v8::MaybeLocal<v8::Value> GetCipherVersion(
-    Environment* env,
-    const SSLPointer& ssl);
-
 v8::MaybeLocal<v8::Object> GetCipherInfo(
     Environment* env,
     const SSLPointer& ssl);
