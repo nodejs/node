@@ -1,9 +1,11 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if (!common.hasCrypto) common.skip('missing crypto');
 const h2 = require('http2');
+const assert = require('assert');
+const { ServerHttp2Session } = require('internal/http2/core');
 
 const server = h2.createServer();
 
@@ -44,3 +46,54 @@ server.listen(0, common.mustCall(() => {
   }));
   req.end();
 }));
+
+{
+  const options = {
+    maxSendHeaderBlockLength: 100000,
+  };
+
+  const server = h2.createServer(options);
+
+  server.on('error', common.mustNotCall());
+  server.on(
+    'session',
+    common.mustCall((session) => {
+      assert.strictEqual(session instanceof ServerHttp2Session, true);
+    }),
+  );
+  server.on(
+    'stream',
+    common.mustCall((stream) => {
+      stream.additionalHeaders({
+        // Greater than 65536 bytes
+        'test-header': 'A'.repeat(90000),
+      });
+      stream.respond();
+      stream.end();
+    }),
+  );
+
+  server.on(
+    'sessionError',
+    common.mustCall((err, session) => {
+      assert.strictEqual(err.code, 'ERR_HTTP2_SESSION_ERROR');
+      assert.strictEqual(err.name, 'Error');
+      assert.strictEqual(err.message, 'Session closed with error code 9');
+      assert.strictEqual(session instanceof ServerHttp2Session, true);
+      server.close();
+    }),
+  );
+
+  server.listen(
+    0,
+    common.mustCall(() => {
+      const client = h2.connect(`http://localhost:${server.address().port}`);
+      client.on('error', common.mustNotCall());
+
+      const req = client.request();
+      req.on('response', common.mustNotCall());
+      req.on('error', common.mustNotCall());
+      req.end();
+    }),
+  );
+}

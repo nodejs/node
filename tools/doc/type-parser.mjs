@@ -164,6 +164,7 @@ const customTypesMap = {
   'Http2Session': 'http2.html#class-http2session',
   'Http2Stream': 'http2.html#class-http2stream',
   'ServerHttp2Stream': 'http2.html#class-serverhttp2stream',
+  'ServerHttp2Session': 'http2.html#class-serverhttp2session',
 
   'https.Server': 'https.html#class-httpsserver',
 

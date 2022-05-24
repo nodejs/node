@@ -6,7 +6,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 const http2 = require('http2');
+const assert = require('assert');
 const { kSocket } = require('internal/http2/util');
+const { ServerHttp2Session } = require('internal/http2/core');
 
 const server = http2.createServer();
 server.on('stream', common.mustNotCall());
@@ -14,6 +16,7 @@ server.on('stream', common.mustNotCall());
 let test = 0;
 
 server.on('session', common.mustCall((session) => {
+  assert.strictEqual(session instanceof ServerHttp2Session, true);
   switch (++test) {
     case 1:
       server.on('error', common.mustNotCall());
@@ -30,6 +33,12 @@ server.on('session', common.mustCall((session) => {
       session[kSocket].emit('error', new Error('test'));
       break;
   }
+}, 2));
+
+server.on('sessionError', common.mustCall((err, session) => {
+  assert.strictEqual(err.name, 'Error');
+  assert.strictEqual(err.message, 'test');
+  assert.strictEqual(session instanceof ServerHttp2Session, true);
 }, 2));
 
 server.listen(0, common.mustCall(() => {
