@@ -96,6 +96,12 @@ class MockAgent extends Dispatcher {
     this[kNetConnect] = false
   }
 
+  // This is required to bypass issues caused by using global symbols - see:
+  // https://github.com/nodejs/undici/issues/1447
+  get isMockActive () {
+    return this[kIsMockActive]
+  }
+
   [kMockAgentSet] (origin, dispatcher) {
     this[kClients].set(origin, new FakeWeakRef(dispatcher))
   }
