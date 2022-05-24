@@ -93,5 +93,4 @@ assert.throws(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
-  message: /must be an instance of Buffer, TypedArray, or DataView/
 });

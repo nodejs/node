@@ -168,7 +168,6 @@ if (isGitPresent) {
   }, {
     code: 'ENOENT',
     name: 'Error',
-    message: /^ENOENT: no such file or directory, stat/
   });
 
   // Should delete a file
@@ -231,7 +230,6 @@ if (isGitPresent) {
   ), {
     code: 'ENOENT',
     name: 'Error',
-    message: /^ENOENT: no such file or directory, stat/
   });
 
   // Should not fail if target does not exist and force option is true
@@ -307,7 +305,6 @@ if (isGitPresent) {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: /^The "options" argument must be of type object\./
     });
   });
 
@@ -317,7 +314,6 @@ if (isGitPresent) {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: /^The "options\.recursive" property must be of type boolean\./
     });
   });
 
@@ -327,7 +323,6 @@ if (isGitPresent) {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: /^The "options\.force" property must be of type boolean\./
     });
   });
 
@@ -336,7 +331,6 @@ if (isGitPresent) {
   }, {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: /^The value of "options\.retryDelay" is out of range\./
   });
 
   assert.throws(() => {
@@ -344,7 +338,6 @@ if (isGitPresent) {
   }, {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: /^The value of "options\.maxRetries" is out of range\./
   });
 }
 

@@ -25,7 +25,6 @@ assert.throws(
   {
     code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
     name: 'RangeError',
-    message: 'Invalid value for setting "test": -1'
   });
 
 assertWithinRange('test', 1);
@@ -35,8 +34,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "test" argument must be of type object. Received ' +
-             "type string ('foo')"
   });
 
 assert.throws(
@@ -44,8 +41,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "test" argument must be an instance of Date. Received type ' +
-             "string ('foo')"
   });
 
 assertIsObject({}, 'test');

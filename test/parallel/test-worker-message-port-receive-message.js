@@ -28,6 +28,5 @@ for (const value of [null, 0, -1, {}, []]) {
   assert.throws(() => receiveMessageOnPort(value), {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "port" argument must be a MessagePort instance'
   });
 }

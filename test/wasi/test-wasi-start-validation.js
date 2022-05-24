@@ -18,7 +18,6 @@ const bufferSource = fixtures.readSync('simple.wasm');
       () => { wasi.start(); },
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        message: /"instance" argument must be of type object/
       }
     );
   }
@@ -34,7 +33,6 @@ const bufferSource = fixtures.readSync('simple.wasm');
       () => { wasi.start(instance); },
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        message: /"instance\.exports" property must be of type object/
       }
     );
   }
@@ -54,7 +52,6 @@ const bufferSource = fixtures.readSync('simple.wasm');
       () => { wasi.start(instance); },
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        message: /"instance\.exports\._start" property must be of type function/
       }
     );
   }
@@ -78,8 +75,6 @@ const bufferSource = fixtures.readSync('simple.wasm');
       () => { wasi.start(instance); },
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        message: 'The "instance.exports._initialize" property must be' +
-          ' undefined. Received function _initialize',
       }
     );
   }
@@ -97,7 +92,6 @@ const bufferSource = fixtures.readSync('simple.wasm');
       () => { wasi.start(instance); },
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        message: /"instance\.exports\.memory" property must be of type object/
       }
     );
   }
@@ -123,7 +117,6 @@ const bufferSource = fixtures.readSync('simple.wasm');
       () => { wasi.start(instance); },
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        message: /"instance\.exports\.memory\.buffer" property must be an WebAssembly\.Memory/
       }
     );
   }
@@ -189,7 +182,6 @@ const bufferSource = fixtures.readSync('simple.wasm');
       () => { wasi.start(instance); },
       {
         code: 'ERR_WASI_ALREADY_STARTED',
-        message: /^WASI instance has already started$/
       }
     );
   }

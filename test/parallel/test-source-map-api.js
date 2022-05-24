@@ -1,7 +1,6 @@
 // Flags: --enable-source-maps
 'use strict';
 
-const common = require('../common');
 const assert = require('assert');
 const { findSourceMap, SourceMap } = require('module');
 const { readFileSync } = require('fs');
@@ -14,8 +13,6 @@ const { readFileSync } = require('fs');
       {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
-        message: 'The "payload" argument must be of type object.' +
-               common.invalidArgTypeHelper(invalidArg)
       }
     )
   );

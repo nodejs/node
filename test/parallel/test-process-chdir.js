@@ -38,7 +38,6 @@ assert.strictEqual(process.cwd().normalize(),
 
 const err = {
   code: 'ERR_INVALID_ARG_TYPE',
-  message: /The "directory" argument must be of type string/
 };
 assert.throws(function() { process.chdir({}); }, err);
 assert.throws(function() { process.chdir(); }, err);

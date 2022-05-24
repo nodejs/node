@@ -98,7 +98,6 @@ const r3 = () => repl.start({
 assert.throws(r3, {
   code: 'ERR_INVALID_REPL_EVAL_CONFIG',
   name: 'TypeError',
-  message: 'Cannot specify both "breakEvalOnSigint" and "eval" for REPL'
 });
 
 // 4, Verify that defaults are used when no arguments are provided

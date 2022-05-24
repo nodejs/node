@@ -119,7 +119,6 @@ assert.throws(
   }),
   {
     name: 'Error',
-    message: 'boom'
   });
 
 // Issue https://github.com/nodejs/node/issues/25487: error message for invalid
@@ -168,8 +167,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "algorithm" argument must be of type string. ' +
-             'Received undefined'
   }
 );
 

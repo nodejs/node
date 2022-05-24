@@ -31,7 +31,6 @@ server.on('stream', (stream) => {
       common.expectsError({
         code: 'ERR_HTTP2_SEND_FILE_NOSEEK',
         name: 'Error',
-        message: 'Offset or length can only be specified for regular files'
       })(err);
 
       stream.respond({ ':status': 404 });

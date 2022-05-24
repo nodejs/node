@@ -67,7 +67,7 @@ const caArrDataView = toDataView(caCert);
 });
 
 // Checks to ensure https.createServer predictably throws an error
-// Format ['key', 'cert', 'expected message']
+// Format ['key', 'cert']
 [
   [true, certBuff],
   [true, certStr],
@@ -77,20 +77,16 @@ const caArrDataView = toDataView(caCert);
   [true, false],
   [{ pem: keyBuff }, false],
   [1, false],
-  [[keyBuff, true], [certBuff, certBuff2], 1],
-  [[true, keyStr2], [certStr, certStr2], 0],
-  [[true, false], [certBuff, certBuff2], 0],
+  [[keyBuff, true], [certBuff, certBuff2]],
+  [[true, keyStr2], [certStr, certStr2]],
+  [[true, false], [certBuff, certBuff2]],
   [true, [certBuff, certBuff2]],
-].forEach(([key, cert, index]) => {
-  const val = index === undefined ? key : key[index];
+].forEach(([key, cert]) => {
   assert.throws(() => {
     https.createServer({ key, cert });
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "options.key" property must be of type string or an ' +
-             'instance of Buffer, TypedArray, or DataView.' +
-             common.invalidArgTypeHelper(val)
   });
 });
 
@@ -103,20 +99,16 @@ const caArrDataView = toDataView(caCert);
   [false, true],
   [false, { pem: keyBuff }],
   [false, 1],
-  [[keyBuff, keyBuff2], [true, certBuff2], 0],
-  [[keyStr, keyStr2], [certStr, true], 1],
-  [[keyStr, keyStr2], [true, false], 0],
+  [[keyBuff, keyBuff2], [true, certBuff2]],
+  [[keyStr, keyStr2], [certStr, true]],
+  [[keyStr, keyStr2], [true, false]],
   [[keyStr, keyStr2], true],
-].forEach(([key, cert, index]) => {
-  const val = index === undefined ? cert : cert[index];
+].forEach(([key, cert]) => {
   assert.throws(() => {
     https.createServer({ key, cert });
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "options.cert" property must be of type string or an ' +
-             'instance of Buffer, TypedArray, or DataView.' +
-             common.invalidArgTypeHelper(val)
   });
 });
 
@@ -141,16 +133,12 @@ const caArrDataView = toDataView(caCert);
   [keyBuff, certBuff, {}],
   [keyBuff, certBuff, 1],
   [keyBuff, certBuff, true],
-  [keyBuff, certBuff, [caCert, true], 1],
-].forEach(([key, cert, ca, index]) => {
-  const val = index === undefined ? ca : ca[index];
+  [keyBuff, certBuff, [caCert, true]],
+].forEach(([key, cert, ca]) => {
   assert.throws(() => {
     https.createServer({ key, cert, ca });
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "options.ca" property must be of type string or an instance' +
-             ' of Buffer, TypedArray, or DataView.' +
-             common.invalidArgTypeHelper(val)
   });
 });

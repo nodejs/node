@@ -36,7 +36,6 @@ function dummy() {}
   port2.close();
   assert.throws(() => moveMessagePortToContext(port2, {}), {
     code: 'ERR_CLOSED_MESSAGE_PORT',
-    message: 'Cannot send data on closed MessagePort'
   });
 }
 

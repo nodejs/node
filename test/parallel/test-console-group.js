@@ -218,7 +218,6 @@ function teardown() {
       {
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError',
-        message: /an integer/,
       }
     );
   });
@@ -234,7 +233,6 @@ function teardown() {
       {
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError',
-        message: />= 0 && <= 1000/,
       }
     );
   });

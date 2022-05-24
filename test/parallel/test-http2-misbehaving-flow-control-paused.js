@@ -63,7 +63,6 @@ server.on('stream', (stream) => {
   stream.on('error', common.expectsError({
     code: 'ERR_HTTP2_STREAM_ERROR',
     name: 'Error',
-    message: 'Stream closed with error code NGHTTP2_FLOW_CONTROL_ERROR'
   }));
   stream.on('close', common.mustCall(() => {
     server.close();

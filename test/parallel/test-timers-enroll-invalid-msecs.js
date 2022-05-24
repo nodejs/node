@@ -30,9 +30,6 @@ const timers = require('timers');
     {
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
-      message: 'The value of "msecs" is out of range. ' +
-               'It must be a non-negative finite number. ' +
-               `Received ${val}`
     }
   );
 });

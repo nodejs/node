@@ -35,5 +35,4 @@ assert.throws(() => {
   );
 }, {
   code: 'ERR_SCRIPT_EXECUTION_TIMEOUT',
-  message: 'Script execution timed out after 5ms'
 });

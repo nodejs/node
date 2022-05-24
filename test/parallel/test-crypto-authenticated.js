@@ -26,7 +26,6 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { inspect } = require('util');
 const fixtures = require('../common/fixtures');
 
 crypto.DEFAULT_ENCODING = 'buffer';
@@ -245,7 +244,6 @@ for (const test of TEST_CASES) {
       decrypt.setAuthTag(Buffer.from('1'.repeat(length)));
     }, {
       name: 'TypeError',
-      message: /Invalid authentication tag length/
     });
 
     assert.throws(() => {
@@ -257,7 +255,6 @@ for (const test of TEST_CASES) {
                             });
     }, {
       name: 'TypeError',
-      message: /Invalid authentication tag length/
     });
 
     assert.throws(() => {
@@ -269,7 +266,6 @@ for (const test of TEST_CASES) {
                               });
     }, {
       name: 'TypeError',
-      message: /Invalid authentication tag length/
     });
   }
 }
@@ -304,7 +300,6 @@ for (const test of TEST_CASES) {
     decipher.setAuthTag(Buffer.from('1'.repeat(12)));
   }, {
     name: 'TypeError',
-    message: /Invalid authentication tag length/
   });
 
   // The Decipher object should be left intact.
@@ -330,8 +325,6 @@ for (const test of TEST_CASES) {
     }, {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.authTagLength' is invalid. " +
-               `Received ${inspect(authTagLength)}`
     });
 
     assert.throws(() => {
@@ -344,8 +337,6 @@ for (const test of TEST_CASES) {
     }, {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.authTagLength' is invalid. " +
-        `Received ${inspect(authTagLength)}`
     });
 
     if (!common.hasFipsCrypto) {
@@ -354,8 +345,6 @@ for (const test of TEST_CASES) {
       }, {
         name: 'TypeError',
         code: 'ERR_INVALID_ARG_VALUE',
-        message: "The property 'options.authTagLength' is invalid. " +
-          `Received ${inspect(authTagLength)}`
       });
 
       assert.throws(() => {
@@ -363,8 +352,6 @@ for (const test of TEST_CASES) {
       }, {
         name: 'TypeError',
         code: 'ERR_INVALID_ARG_VALUE',
-        message: "The property 'options.authTagLength' is invalid. " +
-          `Received ${inspect(authTagLength)}`
       });
     }
   }
@@ -454,8 +441,6 @@ for (const test of TEST_CASES) {
     }, {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.plaintextLength' is invalid. " +
-        `Received ${inspect(plaintextLength)}`
     });
   }
 }
@@ -695,7 +680,6 @@ for (const test of TEST_CASES) {
       crypto.createCipheriv('chacha20-poly1305', key, iv, { authTagLength });
     }, {
       code: 'ERR_CRYPTO_INVALID_AUTH_TAG',
-      message: errMessages.authTagLength
     });
   }
 }
@@ -737,7 +721,6 @@ for (const test of TEST_CASES) {
           decipher.setAuthTag(authTag);
         }, {
           code: 'ERR_CRYPTO_INVALID_AUTH_TAG',
-          message: `Invalid authentication tag length: ${authTagLength}`
         });
       }
     }

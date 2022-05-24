@@ -76,7 +76,6 @@ server.listen(0, common.mustCall(() => {
     assert(!client.ping(common.expectsError({
       code: 'ERR_HTTP2_PING_CANCEL',
       name: 'Error',
-      message: 'HTTP2 ping cancelled'
     })));
 
     // Should throw if payload is not of type ArrayBufferView
@@ -87,9 +86,6 @@ server.listen(0, common.mustCall(() => {
           {
             name: 'TypeError',
             code: 'ERR_INVALID_ARG_TYPE',
-            message: 'The "payload" argument must be an instance of Buffer, ' +
-                     'TypedArray, or DataView.' +
-                     common.invalidArgTypeHelper(payload)
           }
         )
       );
@@ -105,7 +101,6 @@ server.listen(0, common.mustCall(() => {
           {
             name: 'RangeError',
             code: 'ERR_HTTP2_PING_LENGTH',
-            message: 'HTTP2 ping payload must be 8 bytes'
           }
         )
       );

@@ -278,22 +278,14 @@ function resetCaptureOnThrowInError() {
 function argValidation() {
 
   function testType(obj) {
-    const received = obj.constructor.name !== 'Number' ?
-      `an instance of ${obj.constructor.name}` :
-      `type number (${obj})`;
-
     assert.throws(() => new EventEmitter({ captureRejections: obj }), {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "options.captureRejections" property must be of type ' +
-               `boolean. Received ${received}`
     });
 
     assert.throws(() => EventEmitter.captureRejections = obj, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "EventEmitter.captureRejections" property must be of ' +
-               `type boolean. Received ${received}`
     });
   }
 

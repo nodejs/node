@@ -43,7 +43,6 @@ async function checkOperationError(op) {
 
     await assert.rejects(op(filePath), {
       name: 'Error',
-      message: 'INTERNAL_ERROR',
       code: 123,
     });
   } finally {

@@ -12,13 +12,13 @@ assert.throws(
     tls.createSecureContext({ privateKeyEngine: 0,
                               privateKeyIdentifier: 'key' });
   },
-  { code: 'ERR_INVALID_ARG_TYPE',
-    message: / Received type number \(0\)$/ });
+  { code: 'ERR_INVALID_ARG_TYPE' }
+);
 
 assert.throws(
   () => {
     tls.createSecureContext({ privateKeyEngine: 'engine',
                               privateKeyIdentifier: 0 });
   },
-  { code: 'ERR_INVALID_ARG_TYPE',
-    message: / Received type number \(0\)$/ });
+  { code: 'ERR_INVALID_ARG_TYPE' }
+);

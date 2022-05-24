@@ -14,7 +14,6 @@ client.connect(PORT, common.mustCall(() => {
     client.connect(PORT, common.mustNotCall());
   }, {
     name: 'Error',
-    message: 'Already connected',
     code: 'ERR_SOCKET_DGRAM_IS_CONNECTED'
   });
 
@@ -23,7 +22,6 @@ client.connect(PORT, common.mustCall(() => {
     client.disconnect();
   }, {
     name: 'Error',
-    message: 'Not connected',
     code: 'ERR_SOCKET_DGRAM_NOT_CONNECTED'
   });
 
@@ -31,7 +29,6 @@ client.connect(PORT, common.mustCall(() => {
     client.remoteAddress();
   }, {
     name: 'Error',
-    message: 'Not connected',
     code: 'ERR_SOCKET_DGRAM_NOT_CONNECTED'
   });
 
@@ -43,7 +40,6 @@ assert.throws(() => {
   client.connect(PORT);
 }, {
   name: 'Error',
-  message: 'Already connected',
   code: 'ERR_SOCKET_DGRAM_IS_CONNECTED'
 });
 
@@ -51,7 +47,6 @@ assert.throws(() => {
   client.disconnect();
 }, {
   name: 'Error',
-  message: 'Not connected',
   code: 'ERR_SOCKET_DGRAM_NOT_CONNECTED'
 });
 
@@ -60,7 +55,6 @@ assert.throws(() => {
     client.connect(port);
   }, {
     name: 'RangeError',
-    message: /^Port should be > 0 and < 65536/,
     code: 'ERR_SOCKET_BAD_PORT'
   });
 });

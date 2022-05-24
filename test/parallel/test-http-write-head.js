@@ -37,7 +37,6 @@ const s = http.createServer(common.mustCall((req, res) => {
     {
       code: 'ERR_INVALID_HTTP_TOKEN',
       name: 'TypeError',
-      message: 'Header name must be a valid HTTP token ["3840"]'
     }
   );
 
@@ -47,7 +46,6 @@ const s = http.createServer(common.mustCall((req, res) => {
     {
       code: 'ERR_HTTP_INVALID_HEADER_VALUE',
       name: 'TypeError',
-      message: 'Invalid value "undefined" for header "foo"'
     }
   );
 
@@ -58,7 +56,6 @@ const s = http.createServer(common.mustCall((req, res) => {
   }, {
     code: 'ERR_HTTP_HEADERS_SENT',
     name: 'Error',
-    message: 'Cannot render headers after they are sent to the client'
   });
 
   res.end();

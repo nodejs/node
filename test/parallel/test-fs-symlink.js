@@ -67,7 +67,6 @@ fs.symlink(linkData, linkPath, common.mustSucceed(() => {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: /target|path/
   };
   assert.throws(() => fs.symlink(input, '', common.mustNotCall()), errObj);
   assert.throws(() => fs.symlinkSync(input, ''), errObj);
@@ -79,8 +78,6 @@ fs.symlink(linkData, linkPath, common.mustSucceed(() => {
 const errObj = {
   code: 'ERR_FS_INVALID_SYMLINK_TYPE',
   name: 'Error',
-  message:
-    'Symlink type must be one of "dir", "file", or "junction". Received "🍏"'
 };
 assert.throws(() => fs.symlink('', '', '🍏', common.mustNotCall()), errObj);
 assert.throws(() => fs.symlinkSync('', '', '🍏'), errObj);

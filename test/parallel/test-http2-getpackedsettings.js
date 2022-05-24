@@ -56,7 +56,6 @@ http2.getPackedSettings({ enablePush: false });
   }, {
     code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
     name: 'RangeError',
-    message: `Invalid value for setting "${i[0]}": ${i[1]}`
   });
 });
 
@@ -68,7 +67,6 @@ http2.getPackedSettings({ enablePush: false });
   }, {
     code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
     name: 'TypeError',
-    message: `Invalid value for setting "enablePush": ${i}`
   });
 });
 
@@ -80,7 +78,6 @@ http2.getPackedSettings({ enablePush: false });
   }, {
     code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
     name: 'TypeError',
-    message: `Invalid value for setting "enableConnectProtocol": ${i}`
   });
 });
 
@@ -132,9 +129,6 @@ http2.getPackedSettings({ enablePush: false });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message:
-        'The "buf" argument must be an instance of Buffer or TypedArray.' +
-        common.invalidArgTypeHelper(input)
     });
   });
 
@@ -143,7 +137,6 @@ http2.getPackedSettings({ enablePush: false });
   }, {
     code: 'ERR_HTTP2_INVALID_PACKED_SETTINGS_LENGTH',
     name: 'RangeError',
-    message: 'Packed settings length must be a multiple of six'
   });
 
   const settings = http2.getUnpackedSettings(packed);
@@ -174,7 +167,6 @@ http2.getPackedSettings({ enablePush: false });
   }, {
     code: 'ERR_HTTP2_INVALID_PACKED_SETTINGS_LENGTH',
     name: 'RangeError',
-    message: 'Packed settings length must be a multiple of six'
   });
 
   const settings = http2.getUnpackedSettings(packed);
@@ -205,9 +197,6 @@ http2.getPackedSettings({ enablePush: false });
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message:
-        'The "buf" argument must be an instance of Buffer or TypedArray.' +
-        common.invalidArgTypeHelper(packed)
   });
 }
 
@@ -253,6 +242,5 @@ http2.getPackedSettings({ enablePush: false });
   }, {
     code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
     name: 'RangeError',
-    message: 'Invalid value for setting "maxFrameSize": 16777216'
   });
 }

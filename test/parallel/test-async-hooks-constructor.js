@@ -15,7 +15,6 @@ const nonFunctionArray = [null, -1, 1, {}, []];
       }, {
         code: 'ERR_ASYNC_CALLBACK',
         name: 'TypeError',
-        message: `hook.${functionName} must be a function`,
       });
     });
   });

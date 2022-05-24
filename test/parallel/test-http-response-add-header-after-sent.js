@@ -11,7 +11,6 @@ const server = http.createServer((req, res) => {
     {
       code: 'ERR_HTTP_HEADERS_SENT',
       name: 'Error',
-      message: 'Cannot set headers after they are sent to the client'
     }
   );
   res.end();

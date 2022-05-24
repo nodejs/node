@@ -38,5 +38,4 @@ assert.rejects(async () => {
   await module.evaluate({ timeout: 5 });
 }, {
   code: 'ERR_SCRIPT_EXECUTION_TIMEOUT',
-  message: 'Script execution timed out after 5ms'
 });

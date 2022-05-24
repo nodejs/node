@@ -404,7 +404,6 @@ const { hasOpenSSL3 } = common;
       });
     }, {
       code: 'ERR_TLS_CERT_ALTNAME_FORMAT',
-      message: 'Invalid subject alternative name string'
     });
   }
 }
@@ -425,10 +424,6 @@ const { hasOpenSSL3 } = common;
   const err = tls.checkServerIdentity(hostname, { subjectaltname: san });
   assert(err);
   assert.strictEqual(err.code, 'ERR_TLS_CERT_ALTNAME_INVALID');
-  assert.strictEqual(err.message, 'Hostname/IP does not match certificate\'s ' +
-                                  'altnames: Host: b.example.com. is not in ' +
-                                  'the cert\'s altnames: DNS:"a.example.com, ' +
-                                  'DNS:b.example.com, DNS:c.example.com"');
 }
 
 // The subject MUST be ignored if a dNSName subject alternative name exists.
@@ -461,10 +456,6 @@ const { hasOpenSSL3 } = common;
     }, common.mustNotCall());
     socket.on('error', common.mustCall((err) => {
       assert.strictEqual(err.code, 'ERR_TLS_CERT_ALTNAME_INVALID');
-      assert.strictEqual(err.message, 'Hostname/IP does not match ' +
-                                      "certificate's altnames: Host: " +
-                                      "good.example.com. is not in the cert's" +
-                                      ' altnames: DNS:evil.example.com');
     }));
   })).unref();
 }

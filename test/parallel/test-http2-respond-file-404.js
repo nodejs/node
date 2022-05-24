@@ -21,7 +21,6 @@ server.on('stream', (stream) => {
       common.expectsError({
         code: 'ENOENT',
         name: 'Error',
-        message: `ENOENT: no such file or directory, open '${file}'`
       })(err);
 
       stream.respond({ ':status': 404 });

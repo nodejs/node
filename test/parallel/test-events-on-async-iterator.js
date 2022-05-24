@@ -194,8 +194,6 @@ async function iterableThrow() {
     // No argument
     iterable.throw();
   }, {
-    message: 'The "EventEmitter.AsyncIterator" property must be' +
-    ' an instance of Error. Received undefined',
     name: 'TypeError'
   });
 

@@ -77,28 +77,24 @@ assert.throws(
   () => test_error.throwErrorCode(),
   {
     code: 'ERR_TEST_CODE',
-    message: 'Error [error]'
   });
 
 assert.throws(
   () => test_error.throwRangeErrorCode(),
   {
     code: 'ERR_TEST_CODE',
-    message: 'RangeError [range error]'
   });
 
 assert.throws(
   () => test_error.throwTypeErrorCode(),
   {
     code: 'ERR_TEST_CODE',
-    message: 'TypeError [type error]'
   });
 
 assert.throws(
   () => test_error.throwSyntaxErrorCode(),
   {
     code: 'ERR_TEST_CODE',
-    message: 'SyntaxError [syntax error]'
   });
 
 let error = test_error.createError();

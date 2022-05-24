@@ -10,5 +10,4 @@ assert.throws(() => {
 }, {
   code: 'ERR_INVALID_ARG_VALUE',
   name: 'TypeError',
-  message: `The argument 'address' is invalid. Received '${invalidAddress}'`
 });

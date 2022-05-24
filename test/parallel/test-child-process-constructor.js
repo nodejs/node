@@ -1,6 +1,5 @@
 'use strict';
 
-const common = require('../common');
 const assert = require('assert');
 const { ChildProcess } = require('child_process');
 assert.strictEqual(typeof ChildProcess, 'function');
@@ -15,8 +14,6 @@ assert.strictEqual(typeof ChildProcess, 'function');
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "options" argument must be of type object.' +
-               `${common.invalidArgTypeHelper(options)}`
     });
   });
 }
@@ -31,8 +28,6 @@ assert.strictEqual(typeof ChildProcess, 'function');
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "options.file" property must be of type string.' +
-               `${common.invalidArgTypeHelper(file)}`
     });
   });
 }
@@ -47,8 +42,6 @@ assert.strictEqual(typeof ChildProcess, 'function');
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "options.envPairs" property must be an instance of Array.' +
-              common.invalidArgTypeHelper(envPairs)
     });
   });
 }
@@ -63,8 +56,6 @@ assert.strictEqual(typeof ChildProcess, 'function');
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "options.args" property must be an instance of Array.' +
-               common.invalidArgTypeHelper(args)
     });
   });
 }

@@ -156,7 +156,6 @@ async function testSign({ hash,
     subtle.generateKey({ name }, false, []), {
       name: 'TypeError',
       code: 'ERR_MISSING_OPTION',
-      message: 'algorithm.hash is required'
     });
 
   // Test failure when no sign usage

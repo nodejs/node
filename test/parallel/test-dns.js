@@ -99,12 +99,10 @@ assert.deepStrictEqual(dns.getServers(), goog);
 assert.throws(() => dns.setServers(['foobar']), {
   code: 'ERR_INVALID_IP_ADDRESS',
   name: 'TypeError',
-  message: 'Invalid IP address: foobar'
 });
 assert.throws(() => dns.setServers(['127.0.0.1:va']), {
   code: 'ERR_INVALID_IP_ADDRESS',
   name: 'TypeError',
-  message: 'Invalid IP address: 127.0.0.1:va'
 });
 assert.deepStrictEqual(dns.getServers(), goog);
 
@@ -143,8 +141,6 @@ assert.deepStrictEqual(dns.getServers(), []);
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "rrtype" argument must be of type string. ' +
-             'Received an instance of Array'
   };
   assert.throws(() => {
     dns.resolve('example.com', [], common.mustNotCall());
@@ -157,8 +153,6 @@ assert.deepStrictEqual(dns.getServers(), []);
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "name" argument must be of type string. ' +
-             'Received undefined'
   };
   assert.throws(() => {
     dnsPromises.resolve();
@@ -170,7 +164,6 @@ assert.deepStrictEqual(dns.getServers(), []);
   const errorReg = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: /^The "hostname" argument must be of type string\. Received .*/
   };
 
   assert.throws(() => dns.lookup({}, common.mustNotCall()), errorReg);
@@ -218,7 +211,6 @@ assert.deepStrictEqual(dns.getServers(), []);
   const err = {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: /The argument 'hints' is invalid\. Received \d+/
   };
 
   assert.throws(() => {
@@ -281,8 +273,6 @@ dns.lookup('', {
   const err = {
     code: 'ERR_MISSING_ARGS',
     name: 'TypeError',
-    message: 'The "address", "port", and "callback" arguments must be ' +
-    'specified'
   };
 
   assert.throws(() => dns.lookupService('0.0.0.0'), err);
@@ -295,7 +285,6 @@ dns.lookup('', {
   const err = {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: `The argument 'address' is invalid. Received '${invalidAddress}'`
   };
 
   assert.throws(() => {
@@ -310,8 +299,6 @@ dns.lookup('', {
 const portErr = (port) => {
   const err = {
     code: 'ERR_SOCKET_BAD_PORT',
-    message:
-      `Port should be >= 0 and < 65536. Received ${port}.`,
     name: 'RangeError'
   };
 

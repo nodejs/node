@@ -16,7 +16,6 @@ const dnsPromises = dns.promises;
   const err = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: /^The "hostname" argument must be of type string\. Received type number/
   };
 
   assert.throws(() => dns.lookup(1, {}), err);
@@ -54,7 +53,6 @@ assert.throws(() => {
   const err = {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: "The argument 'hints' is invalid. Received 100"
   };
   const options = {
     hints: 100,
@@ -73,7 +71,6 @@ assert.throws(() => {
   const err = {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: `The property 'options.family' must be one of: 0, 4, 6. Received ${family}`
   };
   const options = {
     hints: 0,

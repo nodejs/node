@@ -276,7 +276,6 @@ const assert = require('assert');
   write.write('asd', common.expectsError({
     name: 'Error',
     code: 'ERR_STREAM_DESTROYED',
-    message: 'Cannot call write after a stream was destroyed'
   }));
 }
 
@@ -295,13 +294,11 @@ const assert = require('assert');
   write.write('asd', common.expectsError({
     name: 'Error',
     code: 'ERR_STREAM_DESTROYED',
-    message: 'Cannot call write after a stream was destroyed'
   }));
   write.destroy();
   write.write('asd', common.expectsError({
     name: 'Error',
     code: 'ERR_STREAM_DESTROYED',
-    message: 'Cannot call write after a stream was destroyed'
   }));
   write.uncork();
 }

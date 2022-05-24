@@ -24,6 +24,5 @@ crypto.subtle.importKey(
       }, k, new Uint8Array(0));
     }, {
       name: 'OperationError',
-      message: /The provided data is too small/,
     });
   });

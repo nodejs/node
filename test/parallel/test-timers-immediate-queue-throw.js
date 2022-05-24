@@ -20,7 +20,6 @@ const QUEUE = 10;
 
 const errObj = {
   name: 'Error',
-  message: 'setImmediate Err'
 };
 
 process.once('uncaughtException', common.mustCall((err, errorOrigin) => {

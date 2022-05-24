@@ -31,7 +31,6 @@ function doTest(session) {
     const client = h2.connect(`http://localhost:${server.address().port}`);
     client.on('error', common.expectsError({
       code: 'ERR_HTTP2_SESSION_ERROR',
-      message: 'Session closed with error code 2',
     }));
     client.on('close', common.mustCall(() => server.close()));
   }));

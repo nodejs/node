@@ -26,7 +26,6 @@ async function runWorker(options = {}) {
   if (!options.skipErrorCheck) {
     common.expectsError({
       constructor: RangeError,
-      message: 'Maximum call stack size exceeded'
     })(error);
   }
 

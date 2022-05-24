@@ -88,7 +88,6 @@ const util = require('util');
     () => m[util.inspect.custom].call(Object.create(null)),
     {
       code: 'ERR_VM_MODULE_NOT_MODULE',
-      message: 'Provided module is not an instance of Module'
     },
   );
 }
@@ -120,7 +119,6 @@ const util = require('util');
 // Check the impossibility of creating an abstract instance of the Module.
 {
   assert.throws(() => new Module(), {
-    message: 'Module is not a constructor',
     name: 'TypeError'
   });
 }
@@ -128,9 +126,6 @@ const util = require('util');
 // Check to throws invalid exportNames
 {
   assert.throws(() => new SyntheticModule(undefined, () => {}, {}), {
-    message: 'The "exportNames" argument must be an ' +
-        'Array of unique strings.' +
-        ' Received undefined',
     name: 'TypeError'
   });
 }
@@ -139,7 +134,6 @@ const util = require('util');
 // https://github.com/nodejs/node/issues/32806
 {
   assert.throws(() => new SyntheticModule(['x', 'x'], () => {}, {}), {
-    message: 'The property \'exportNames.x\' is duplicated. Received \'x\'',
     name: 'TypeError',
   });
 }
@@ -147,8 +141,6 @@ const util = require('util');
 // Check to throws invalid evaluateCallback
 {
   assert.throws(() => new SyntheticModule([], undefined, {}), {
-    message: 'The "evaluateCallback" argument must be of type function.' +
-      ' Received undefined',
     name: 'TypeError'
   });
 }
@@ -156,8 +148,6 @@ const util = require('util');
 // Check to throws invalid options
 {
   assert.throws(() => new SyntheticModule([], () => {}, null), {
-    message: 'The "options" argument must be of type object.' +
-      ' Received null',
     name: 'TypeError'
   });
 }

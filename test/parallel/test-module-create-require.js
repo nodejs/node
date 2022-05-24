@@ -28,6 +28,4 @@ assert.throws(() => {
   createRequire({});
 }, {
   code: 'ERR_INVALID_ARG_VALUE',
-  message: 'The argument \'filename\' must be a file URL object, file URL ' +
-           'string, or absolute path string. Received {}'
 });

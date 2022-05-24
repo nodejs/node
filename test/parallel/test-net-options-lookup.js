@@ -43,6 +43,5 @@ function connectDoesNotThrow(input) {
     code: 'ERR_INVALID_ADDRESS_FAMILY',
     host: 'localhost',
     port: 0,
-    message: 'Invalid address family: 100 localhost:0'
   }));
 }

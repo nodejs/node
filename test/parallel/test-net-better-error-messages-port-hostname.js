@@ -30,7 +30,6 @@ c.on('error', common.mustCall((error) => {
     errno: mockedErrorCode,
     code: mockedErrorCode,
     name: 'Error',
-    message: 'getaddrinfo ENOTFOUND something.invalid',
     hostname: addresses.INVALID_HOST,
     syscall: 'getaddrinfo'
   });

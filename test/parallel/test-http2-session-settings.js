@@ -112,7 +112,6 @@ server.listen(
           {
             name: 'RangeError',
             code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
-            message: `Invalid value for setting "${i[0]}": ${i[1]}`
           }
         );
       });
@@ -124,7 +123,6 @@ server.listen(
           {
             name: 'TypeError',
             code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
-            message: `Invalid value for setting "enablePush": ${i}`
           }
         );
       });

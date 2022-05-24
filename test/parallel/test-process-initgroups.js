@@ -18,10 +18,6 @@ if (!common.isMainThread)
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message:
-        'The "user" argument must be ' +
-        'one of type number or string.' +
-        common.invalidArgTypeHelper(val)
     }
   );
 });
@@ -34,10 +30,6 @@ if (!common.isMainThread)
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message:
-        'The "extraGroup" argument must be ' +
-        'one of type number or string.' +
-        common.invalidArgTypeHelper(val)
     }
   );
 });
@@ -51,7 +43,5 @@ assert.throws(
   },
   {
     code: 'ERR_UNKNOWN_CREDENTIAL',
-    message:
-      'Group identifier does not exist: fhqwhgadshgnsdhjsdbkhsdabkfabkveyb'
   }
 );

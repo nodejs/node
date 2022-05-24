@@ -18,7 +18,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "hmac" argument must be of type string. Received null'
   });
 
 // This used to segfault. See: https://github.com/nodejs/node/issues/9819
@@ -28,7 +27,6 @@ assert.throws(
   }),
   {
     name: 'Error',
-    message: 'boom'
   });
 
 assert.throws(

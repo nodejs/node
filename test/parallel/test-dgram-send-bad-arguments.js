@@ -35,8 +35,6 @@ function checkArgs(connected) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "buffer" argument must be of type string or an instance ' +
-      'of Buffer, TypedArray, or DataView. Received undefined'
     }
   );
 
@@ -47,7 +45,6 @@ function checkArgs(connected) {
       {
         code: 'ERR_SOCKET_DGRAM_IS_CONNECTED',
         name: 'Error',
-        message: 'Already connected'
       }
     );
 
@@ -56,7 +53,6 @@ function checkArgs(connected) {
       {
         code: 'ERR_SOCKET_DGRAM_IS_CONNECTED',
         name: 'Error',
-        message: 'Already connected'
       }
     );
 
@@ -65,7 +61,6 @@ function checkArgs(connected) {
       {
         code: 'ERR_SOCKET_DGRAM_IS_CONNECTED',
         name: 'Error',
-        message: 'Already connected'
       }
     );
 
@@ -74,7 +69,6 @@ function checkArgs(connected) {
       {
         code: 'ERR_SOCKET_DGRAM_IS_CONNECTED',
         name: 'Error',
-        message: 'Already connected'
       }
     );
 
@@ -96,7 +90,6 @@ function checkArgs(connected) {
         {
           code: 'ERR_BUFFER_OUT_OF_BOUNDS',
           name: 'RangeError',
-          message: '"offset" is outside of buffer bounds',
         }
       );
 
@@ -105,7 +98,6 @@ function checkArgs(connected) {
         {
           code: 'ERR_BUFFER_OUT_OF_BOUNDS',
           name: 'RangeError',
-          message: '"length" is outside of buffer bounds',
         }
       );
 
@@ -114,7 +106,6 @@ function checkArgs(connected) {
         {
           code: 'ERR_BUFFER_OUT_OF_BOUNDS',
           name: 'RangeError',
-          message: '"length" is outside of buffer bounds',
         }
       );
     }
@@ -130,8 +121,6 @@ function checkArgs(connected) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "buffer" argument must be of type string or an instance ' +
-      'of Buffer, TypedArray, or DataView. Received type number (23)'
     }
   );
 
@@ -141,9 +130,6 @@ function checkArgs(connected) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "buffer list arguments" argument must be of type string ' +
-      'or an instance of Buffer, TypedArray, or DataView. ' +
-      'Received an instance of Array'
     }
   );
 }

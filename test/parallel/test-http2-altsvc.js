@@ -33,8 +33,6 @@ server.on('session', common.mustCall((session) => {
       {
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError',
-        message: 'The value of "originOrStream" is out of ' +
-                 `range. It must be > 0 && < 4294967296. Received ${input}`
       }
     );
   });
@@ -56,7 +54,6 @@ server.on('session', common.mustCall((session) => {
       {
         code: 'ERR_INVALID_CHAR',
         name: 'TypeError',
-        message: 'Invalid character in alt'
       }
     );
   });
@@ -82,7 +79,6 @@ server.on('session', common.mustCall((session) => {
       {
         code: 'ERR_HTTP2_ALTSVC_INVALID_ORIGIN',
         name: 'TypeError',
-        message: 'HTTP/2 ALTSVC frames require a valid origin'
       }
     );
   });
@@ -96,7 +92,6 @@ server.on('session', common.mustCall((session) => {
     {
       code: 'ERR_HTTP2_ALTSVC_LENGTH',
       name: 'TypeError',
-      message: 'HTTP/2 ALTSVC frames are limited to 16382 bytes'
     }
   );
 }));

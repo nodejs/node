@@ -78,7 +78,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: "The property 'options.padding' is invalid. Received null",
   });
 
 assert.throws(
@@ -89,7 +88,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: "The property 'options.saltLength' is invalid. Received null",
   });
 
 // Test signing and verifying
@@ -343,10 +341,8 @@ assert.throws(
       });
   }, common.hasOpenSSL3 ? {
     code: 'ERR_OSSL_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
-    message: /illegal or unsupported padding mode/,
   } : {
     code: 'ERR_OSSL_RSA_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
-    message: /illegal or unsupported padding mode/,
     opensslErrorStack: [
       'error:06089093:digital envelope routines:EVP_PKEY_CTX_ctrl:' +
       'command not supported',
@@ -372,8 +368,6 @@ assert.throws(
     const errObj = {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "algorithm" argument must be of type string.' +
-               `${common.invalidArgTypeHelper(input)}`
     };
     assert.throws(() => crypto.createSign(input), errObj);
     assert.throws(() => crypto.createVerify(input), errObj);
@@ -753,6 +747,5 @@ assert.throws(
     crypto.sign('sha512', 'message', privateKey);
   }, {
     code: 'ERR_OSSL_RSA_DIGEST_TOO_BIG_FOR_RSA_KEY',
-    message: /digest too big for rsa key/
   });
 }

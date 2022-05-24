@@ -21,8 +21,6 @@ session.post('NodeTracing.start', {
 }, common.mustCall((err) => {
   assert.deepStrictEqual(err, {
     code: -32000,
-    message:
-      'Tracing properties can only be changed through main thread sessions'
   });
 }));
 session.disconnect();

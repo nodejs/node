@@ -24,7 +24,6 @@ server.on('stream', (stream) => {
   }, {
     code: 'ERR_HTTP2_PAYLOAD_FORBIDDEN',
     name: 'Error',
-    message: 'Responses with 204 status must not have a payload'
   });
   stream.respond({});
   stream.end();

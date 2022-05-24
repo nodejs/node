@@ -14,6 +14,5 @@ assert.throws(
   () => recurse(),
   {
     name: 'RangeError',
-    message: 'Maximum call stack size exceeded'
   }
 );

@@ -21,7 +21,6 @@ for (const prototype of ['maxHeaderListSize', 'maxHeaderSize']) {
       req.on('error', common.expectsError({
         code: 'ERR_HTTP2_STREAM_ERROR',
         name: 'Error',
-        message: 'Stream closed with error code NGHTTP2_ENHANCE_YOUR_CALM'
       }));
       req.on('close', common.mustCall(() => {
         assert.strictEqual(req.rstCode, NGHTTP2_ENHANCE_YOUR_CALM);

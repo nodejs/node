@@ -18,7 +18,6 @@ common.skipIfInspectorDisabled();
     }),
     {
       code: 'ERR_INSPECTOR_COMMAND',
-      message: 'Inspector error -32000: Execution was terminated'
     }
   );
   session.disconnect();

@@ -35,10 +35,7 @@ stream.on('finish', common.mustCall(function() {
   fs.readFile(file, 'utf8', common.mustCall(function(err, buf) {
     assert.ok(err instanceof Error);
     if (err.message !== 'Array buffer allocation failed') {
-      const stringLengthHex = kStringMaxLength.toString(16);
       common.expectsError({
-        message: 'Cannot create a string longer than ' +
-                 `0x${stringLengthHex} characters`,
         code: 'ERR_STRING_TOO_LONG',
         name: 'Error'
       })(err);

@@ -49,7 +49,6 @@ async function checkCloseError(op) {
 
     await assert.rejects(op(filePath), {
       name: 'Error',
-      message: 'CLOSE_ERROR',
       code: 456,
     });
   } finally {

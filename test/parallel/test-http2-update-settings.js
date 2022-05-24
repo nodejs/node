@@ -37,15 +37,12 @@ function testUpdateSettingsWith({ server, newServerSettings }) {
   assert.deepStrictEqual(updatedServerSettings, { ...oldServerSettings,
                                                   ...newServerSettings });
   assert.throws(() => server.updateSettings(''), {
-    message: 'The "settings" argument must be of type object. ' +
-    'Received type string (\'\')',
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError'
   });
   assert.throws(() => server.updateSettings({
     'maxHeaderListSize': 'foo'
   }), {
-    message: 'Invalid value for setting "maxHeaderListSize": foo',
     code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
     name: 'RangeError'
   });

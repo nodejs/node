@@ -16,7 +16,6 @@ const OutgoingMessage = http.OutgoingMessage;
     {
       code: 'ERR_HTTP_HEADERS_SENT',
       name: 'Error',
-      message: 'Cannot render headers after they are sent to the client'
     }
   );
 }

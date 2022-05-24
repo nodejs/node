@@ -170,14 +170,12 @@ fs.accessSync(readWriteFile, mode);
     () => fs.access(readWriteFile, mode, common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /"mode" argument.+integer/
     }
   );
   assert.throws(
     () => fs.accessSync(readWriteFile, mode),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /"mode" argument.+integer/
     }
   );
 });
@@ -194,14 +192,12 @@ fs.accessSync(readWriteFile, mode);
     () => fs.access(readWriteFile, mode, common.mustNotCall()),
     {
       code: 'ERR_OUT_OF_RANGE',
-      message: /"mode".+It must be an integer >= 0 && <= 7/
     }
   );
   assert.throws(
     () => fs.accessSync(readWriteFile, mode),
     {
       code: 'ERR_OUT_OF_RANGE',
-      message: /"mode".+It must be an integer >= 0 && <= 7/
     }
   );
 });
@@ -211,10 +207,6 @@ assert.throws(
   (err) => {
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.path, doesNotExist);
-    assert.strictEqual(
-      err.message,
-      `ENOENT: no such file or directory, access '${doesNotExist}'`
-    );
     assert.strictEqual(err.constructor, Error);
     assert.strictEqual(err.syscall, 'access');
     assert.strictEqual(err.errno, UV_ENOENT);
@@ -227,10 +219,6 @@ assert.throws(
   (err) => {
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.path, doesNotExist);
-    assert.strictEqual(
-      err.message,
-      `ENOENT: no such file or directory, access '${doesNotExist}'`
-    );
     assert.strictEqual(err.constructor, Error);
     assert.strictEqual(err.syscall, 'access');
     assert.strictEqual(err.errno, UV_ENOENT);

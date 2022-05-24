@@ -67,7 +67,6 @@ assert.throws(
   () => { assert.fail('fhqwhgads'); },
   {
     code: 'ERR_ASSERTION',
-    message: /^fhqwhgads$/
   });
 
 const fnOnce = common.mustCall(() => {});

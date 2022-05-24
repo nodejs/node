@@ -37,7 +37,6 @@ assert.throws(
   () => ECDH.convertKey(cafebabePubPtComp, 'badcurve'),
   {
     name: 'TypeError',
-    message: 'Invalid EC curve name'
   });
 
 if (getCurves().includes('secp256k1')) {
@@ -47,7 +46,6 @@ if (getCurves().includes('secp256k1')) {
     {
       code: 'ERR_CRYPTO_ECDH_INVALID_FORMAT',
       name: 'TypeError',
-      message: 'Invalid ECDH format: 10'
     });
 
   // Point formats.

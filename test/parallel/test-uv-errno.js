@@ -1,7 +1,6 @@
 // Flags: --expose-internals
 'use strict';
 
-const common = require('../common');
 const assert = require('assert');
 const {
   getSystemErrorName,
@@ -21,7 +20,6 @@ keys.forEach((key) => {
   assert.strictEqual(getSystemErrorName(uv[key]), name);
   assert.strictEqual(err.code, name);
   assert.strictEqual(err.code, getSystemErrorName(err.errno));
-  assert.strictEqual(err.message, `test ${name}`);
 });
 
 function runTest(fn) {
@@ -31,8 +29,6 @@ function runTest(fn) {
       {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
-        message: 'The "err" argument must be of type number.' +
-                 common.invalidArgTypeHelper(err)
       });
   });
 
@@ -42,9 +38,6 @@ function runTest(fn) {
       {
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError',
-        message: 'The value of "err" is out of range. ' +
-                 'It must be a negative integer. ' +
-                 `Received ${err}`
       });
   });
 }

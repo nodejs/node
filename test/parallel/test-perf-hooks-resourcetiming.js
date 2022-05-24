@@ -64,7 +64,6 @@ function createTimingInfo({
 {
   assert.throws(() => new PerformanceResourceTiming(), {
     name: 'TypeError',
-    message: 'Illegal constructor',
     code: 'ERR_ILLEGAL_CONSTRUCTOR',
   });
 }

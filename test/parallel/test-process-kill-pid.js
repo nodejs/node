@@ -20,7 +20,6 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
 const assert = require('assert');
 
 // Test variants of pid
@@ -42,8 +41,6 @@ const assert = require('assert');
   assert.throws(() => process.kill(val), {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "pid" argument must be of type number.' +
-             common.invalidArgTypeHelper(val)
   });
 });
 
@@ -51,14 +48,12 @@ const assert = require('assert');
 assert.throws(() => process.kill(0, 'test'), {
   code: 'ERR_UNKNOWN_SIGNAL',
   name: 'TypeError',
-  message: 'Unknown signal: test'
 });
 
 // Test that kill throws an error for invalid signal numbers
 assert.throws(() => process.kill(0, 987), {
   code: 'EINVAL',
   name: 'Error',
-  message: 'kill EINVAL'
 });
 
 // Test kill argument processing in valid cases.

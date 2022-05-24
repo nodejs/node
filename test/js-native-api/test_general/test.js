@@ -55,7 +55,7 @@ assert.strictEqual(test_general.testNapiTypeof(null), 'null');
 const x = {};
 test_general.wrap(x);
 assert.throws(() => test_general.wrap(x),
-              { name: 'Error', message: 'Invalid argument' });
+              { name: 'Error' });
 // Clean up here, otherwise derefItemWasCalled() will be polluted.
 test_general.removeWrap(x);
 

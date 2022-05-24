@@ -9,7 +9,6 @@ assert.throws(
   () => { new SystemError(); },
   {
     name: 'TypeError',
-    message: 'String.prototype.match called on null or undefined'
   }
 );
 
@@ -30,8 +29,6 @@ const { ERR_TEST } = codes;
     {
       code: 'ERR_TEST',
       name: 'SystemError',
-      message: 'custom message: syscall_test returned ETEST (code message)' +
-               ' /str => /str2',
       info: ctx
     }
   );
@@ -50,8 +47,6 @@ const { ERR_TEST } = codes;
     {
       code: 'ERR_TEST',
       name: 'SystemError',
-      message: 'custom message: syscall_test returned ETEST (code message)' +
-               ' /buf => /str2',
       info: ctx
     }
   );
@@ -70,8 +65,6 @@ const { ERR_TEST } = codes;
     {
       code: 'ERR_TEST',
       name: 'SystemError',
-      message: 'custom message: syscall_test returned ETEST (code message)' +
-               ' /buf => /buf2',
       info: ctx
     }
   );
@@ -127,8 +120,6 @@ const { ERR_TEST } = codes;
     {
       code: 'ERR_TEST',
       name: 'Foobar',
-      message: 'custom message: syscall_test returned ERR_TEST ' +
-               '(Error occurred)',
       info: ctx
     }
   );

@@ -72,7 +72,6 @@ async function checkModuleState() {
     await m.evaluate();
   }, {
     code: 'ERR_VM_MODULE_STATUS',
-    message: 'Module status must be one of linked, evaluated, or errored'
   });
 
   await assert.rejects(async () => {
@@ -80,8 +79,6 @@ async function checkModuleState() {
     await m.evaluate(false);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "options" argument must be of type object. ' +
-             'Received type boolean (false)'
   });
 
   assert.throws(() => {
@@ -89,7 +86,6 @@ async function checkModuleState() {
     m.error; // eslint-disable-line no-unused-expressions
   }, {
     code: 'ERR_VM_MODULE_STATUS',
-    message: 'Module status must be errored'
   });
 
   await assert.rejects(async () => {
@@ -98,7 +94,6 @@ async function checkModuleState() {
     m.error; // eslint-disable-line no-unused-expressions
   }, {
     code: 'ERR_VM_MODULE_STATUS',
-    message: 'Module status must be errored'
   });
 
   assert.throws(() => {
@@ -106,7 +101,6 @@ async function checkModuleState() {
     m.namespace; // eslint-disable-line no-unused-expressions
   }, {
     code: 'ERR_VM_MODULE_STATUS',
-    message: 'Module status must not be unlinked or linking'
   });
 }
 
@@ -168,8 +162,6 @@ assert.throws(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
-  message: 'The "options.importModuleDynamically" property must be of type ' +
-    "function. Received type string ('hucairz')"
 });
 
 // Check the JavaScript engine deals with exceptions correctly
@@ -205,9 +197,6 @@ async function checkInvalidOptionForEvaluate() {
     await m.evaluate({ breakOnSigint: 'a-string' });
   }, {
     name: 'TypeError',
-    message:
-      'The "options.breakOnSigint" property must be of type boolean. ' +
-      "Received type string ('a-string')",
     code: 'ERR_INVALID_ARG_TYPE'
   });
 
@@ -217,7 +206,6 @@ async function checkInvalidOptionForEvaluate() {
         await Module.prototype[method]();
       }, {
         code: 'ERR_VM_MODULE_NOT_MODULE',
-        message: /Provided module is not an instance of Module/
       });
     });
   }
@@ -225,15 +213,11 @@ async function checkInvalidOptionForEvaluate() {
 
 function checkInvalidCachedData() {
   [true, false, 'foo', {}, Array, function() {}].forEach((invalidArg) => {
-    const message = 'The "options.cachedData" property must be an ' +
-                    'instance of Buffer, TypedArray, or DataView.' +
-                    common.invalidArgTypeHelper(invalidArg);
     assert.throws(
       () => new SourceTextModule('import "foo";', { cachedData: invalidArg }),
       {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
-        message,
       }
     );
   });
@@ -242,7 +226,6 @@ function checkInvalidCachedData() {
 function checkGettersErrors() {
   const expectedError = {
     code: 'ERR_VM_MODULE_NOT_MODULE',
-    message: /Provided module is not an instance of Module/
   };
   const getters = ['identifier', 'context', 'namespace', 'status', 'error'];
   getters.forEach((getter) => {

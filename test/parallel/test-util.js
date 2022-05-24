@@ -21,7 +21,6 @@
 
 'use strict';
 // Flags: --expose-internals
-const common = require('../common');
 const assert = require('assert');
 const util = require('util');
 const errors = require('internal/errors');
@@ -183,6 +182,4 @@ assert.throws(() => {
   util.stripVTControlCharacters({});
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
-  message: 'The "str" argument must be of type string.' +
-           common.invalidArgTypeHelper({})
 });

@@ -57,8 +57,6 @@ assert.throws(() => fs.lchmodSync(f, '123x'), {
   const errObj = {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "mode" is out of range. It must be >= 0 && <= ' +
-             `4294967295. Received ${input}`
   };
 
   assert.rejects(promises.lchmod(f, input, () => {}), errObj);

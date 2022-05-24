@@ -7,8 +7,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "fn" argument must be of type function or null. ' +
-             'Received type number (42)'
   }
 );
 
@@ -19,6 +17,5 @@ assert.throws(
   {
     code: 'ERR_UNCAUGHT_EXCEPTION_CAPTURE_ALREADY_SET',
     name: 'Error',
-    message: /setupUncaughtExceptionCapture.*called while a capture callback/
   }
 );

@@ -9,6 +9,6 @@ const tls = require('tls');
 ['fhqwhgads', 42, {}, []].forEach((testValue) => {
   assert.throws(
     () => { tls.createServer({ SNICallback: testValue }); },
-    { code: 'ERR_INVALID_ARG_TYPE', message: /\boptions\.SNICallback\b/ }
+    { code: 'ERR_INVALID_ARG_TYPE' }
   );
 });

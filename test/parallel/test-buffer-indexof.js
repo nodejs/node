@@ -1,5 +1,4 @@
 'use strict';
-const common = require('../common');
 const assert = require('assert');
 
 const b = Buffer.from('abcdef');
@@ -367,9 +366,6 @@ assert.strictEqual(Buffer.from('aaaaa').indexOf('b', 'ucs2'), -1);
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "value" argument must be one of type number or string ' +
-               'or an instance of Buffer or Uint8Array.' +
-               common.invalidArgTypeHelper(val)
     }
   );
 });
@@ -626,8 +622,5 @@ assert.strictEqual(reallyLong.lastIndexOf(pattern), 0);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "buffer" argument must be an instance of Buffer, ' +
-             'TypedArray, or DataView. ' +
-             'Received an instance of lastIndexOf'
   });
 }

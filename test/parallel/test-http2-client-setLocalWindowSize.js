@@ -33,8 +33,6 @@ const http2 = require('http2');
         {
           name: 'RangeError',
           code: 'ERR_OUT_OF_RANGE',
-          message: 'The value of "windowSize" is out of range.' +
-            ' It must be >= 0 && <= 2147483647. Received ' + outOfRangeNum
         }
       );
 
@@ -49,8 +47,6 @@ const http2 = require('http2');
           {
             name: 'TypeError',
             code: 'ERR_INVALID_ARG_TYPE',
-            message: 'The "windowSize" argument must be of type number.' +
-                    common.invalidArgTypeHelper(value)
           }
         );
       });

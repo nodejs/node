@@ -6,7 +6,6 @@ if (!common.hasCrypto)
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const http2 = require('http2');
-const { inspect } = require('util');
 
 const optionsWithTypeError = {
   offset: 'number',
@@ -46,8 +45,6 @@ server.on('stream', common.mustCall((stream) => {
         {
           name: 'TypeError',
           code: 'ERR_INVALID_ARG_VALUE',
-          message: `The property 'options.${option}' is invalid. ` +
-            `Received ${inspect(types[type])}`
         }
       );
     });
@@ -61,7 +58,6 @@ server.on('stream', common.mustCall((stream) => {
     }),
     {
       code: 'ERR_HTTP2_PAYLOAD_FORBIDDEN',
-      message: `Responses with ${status} status must not have a payload`
     }
   ));
 
@@ -73,7 +69,6 @@ server.on('stream', common.mustCall((stream) => {
     }),
     {
       code: 'ERR_HTTP2_HEADERS_SENT',
-      message: 'Response has already been initiated.'
     }
   );
 
@@ -85,7 +80,6 @@ server.on('stream', common.mustCall((stream) => {
     }),
     {
       code: 'ERR_HTTP2_INVALID_STREAM',
-      message: 'The stream has been destroyed'
     }
   );
 }));

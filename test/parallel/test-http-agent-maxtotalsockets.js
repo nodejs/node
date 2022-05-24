@@ -10,8 +10,6 @@ assert.throws(() => new http.Agent({
 }), {
   code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
-  message: 'The "maxTotalSockets" argument must be of type number. ' +
-    "Received type string ('test')",
 });
 
 [-1, 0, NaN].forEach((item) => {
@@ -20,8 +18,6 @@ assert.throws(() => new http.Agent({
   }), {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "maxTotalSockets" is out of range. ' +
-      `It must be > 0. Received ${item}`,
   });
 });
 

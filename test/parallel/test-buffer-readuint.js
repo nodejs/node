@@ -37,8 +37,6 @@ const assert = require('assert');
         {
           code: 'ERR_OUT_OF_RANGE',
           name: 'RangeError',
-          message: 'The value of "offset" is out of range. ' +
-                   `It must be an integer. Received ${offset}`
         });
     });
   });
@@ -110,8 +108,6 @@ const assert = require('assert');
         () => buffer[fn](0, byteLength),
         {
           code: 'ERR_OUT_OF_RANGE',
-          message: 'The value of "byteLength" is out of range. ' +
-                   `It must be >= 1 and <= 6. Received ${byteLength}`
         });
     });
 
@@ -121,8 +117,6 @@ const assert = require('assert');
         {
           code: 'ERR_OUT_OF_RANGE',
           name: 'RangeError',
-          message: 'The value of "byteLength" is out of range. ' +
-                   `It must be an integer. Received ${byteLength}`
         });
     });
   });
@@ -145,8 +139,6 @@ const assert = require('assert');
           {
             code: 'ERR_OUT_OF_RANGE',
             name: 'RangeError',
-            message: 'The value of "offset" is out of range. ' +
-                     `It must be >= 0 and <= ${8 - i}. Received ${offset}`
           });
       });
 
@@ -156,8 +148,6 @@ const assert = require('assert');
           {
             code: 'ERR_OUT_OF_RANGE',
             name: 'RangeError',
-            message: 'The value of "offset" is out of range. ' +
-                     `It must be an integer. Received ${offset}`
           });
       });
     });

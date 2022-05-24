@@ -22,7 +22,6 @@ server.on('session', common.mustCall((session) => {
       server.on('error', common.mustNotCall());
       session.on('error', common.expectsError({
         name: 'Error',
-        message: 'test'
       }));
       session[kSocket].emit('error', new Error('test'));
       break;
@@ -46,14 +45,12 @@ server.listen(0, common.mustCall(() => {
   http2.connect(url)
     .on('error', common.expectsError({
       code: 'ERR_HTTP2_SESSION_ERROR',
-      message: 'Session closed with error code 2',
     }))
     .on('close', () => {
       server.removeAllListeners('error');
       http2.connect(url)
         .on('error', common.expectsError({
           code: 'ERR_HTTP2_SESSION_ERROR',
-          message: 'Session closed with error code 2',
         }))
         .on('close', () => server.close());
     });

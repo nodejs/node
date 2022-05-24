@@ -65,7 +65,6 @@ file
     file.write('should not work anymore', common.expectsError({
       code: 'ERR_STREAM_WRITE_AFTER_END',
       name: 'Error',
-      message: 'write after end'
     }));
     file.on('error', common.mustNotCall());
 

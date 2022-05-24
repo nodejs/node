@@ -17,7 +17,6 @@ m._initPaths();
 assert.throws(
   () => require('.'),
   {
-    message: /Cannot find module '\.'/,
     code: 'MODULE_NOT_FOUND'
   }
 );

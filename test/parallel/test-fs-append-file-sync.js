@@ -78,7 +78,7 @@ fs.writeFileSync(filename4, currentFileData, { mode: m });
 ].forEach((value) => {
   assert.throws(
     () => fs.appendFileSync(filename4, value, { mode: m }),
-    { message: /data/, code: 'ERR_INVALID_ARG_TYPE' }
+    { code: 'ERR_INVALID_ARG_TYPE' }
   );
 });
 fs.appendFileSync(filename4, `${num}`, { mode: m });

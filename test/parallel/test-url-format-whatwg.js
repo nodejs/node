@@ -26,8 +26,6 @@ assert.strictEqual(
       {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
-        message: 'The "options" argument must be of type object.' +
-                 common.invalidArgTypeHelper(value)
       }
     );
   });

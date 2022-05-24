@@ -11,9 +11,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_OBJECT_DEFINE_PROPERTY',
     name: 'TypeError',
-    message: '\'process.env\' only accepts a ' +
-        'configurable, writable,' +
-        ' and enumerable data descriptor'
   }
 );
 
@@ -33,8 +30,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_OBJECT_DEFINE_PROPERTY',
     name: 'TypeError',
-    message: '\'process.env\' does not accept an' +
-        'accessor(getter/setter) descriptor'
   }
 );
 
@@ -50,9 +45,6 @@ attributes.forEach((attribute) => {
     {
       code: 'ERR_INVALID_OBJECT_DEFINE_PROPERTY',
       name: 'TypeError',
-      message: '\'process.env\' only accepts a ' +
-          'configurable, writable,' +
-          ' and enumerable data descriptor'
     }
   );
 });

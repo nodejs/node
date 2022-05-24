@@ -23,8 +23,6 @@ server.listen(0, common.mustCall(() => {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "options.method" property must be of type string.' +
-               common.invalidArgTypeHelper(method)
     });
   });
 

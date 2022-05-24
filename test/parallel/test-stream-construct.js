@@ -39,7 +39,6 @@ const assert = require('assert');
     })
   }).on('error', common.expectsError({
     name: 'Error',
-    message: 'test'
   }));
 }
 
@@ -52,7 +51,6 @@ const assert = require('assert');
     })
   }).on('error', common.expectsError({
     name: 'Error',
-    message: 'test'
   }));
 }
 
@@ -65,7 +63,6 @@ const assert = require('assert');
     })
   }).on('error', common.expectsError({
     name: 'Error',
-    message: 'test'
   }));
 }
 
@@ -78,7 +75,6 @@ const assert = require('assert');
     })
   }).on('error', common.expectsError({
     name: 'Error',
-    message: 'test'
   }));
 }
 

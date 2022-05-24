@@ -88,8 +88,6 @@ assert.throws(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
-  message: 'The "superCtor.prototype" property must be of type object. ' +
-           'Received undefined'
 });
 
 assert.throws(() => {
@@ -97,8 +95,6 @@ assert.throws(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
-  message: 'The "superCtor" argument must be of type function. ' +
-           'Received null'
 });
 
 assert.throws(() => {
@@ -106,5 +102,4 @@ assert.throws(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
-  message: 'The "ctor" argument must be of type function. Received null'
 });

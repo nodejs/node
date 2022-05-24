@@ -139,8 +139,6 @@ tmpdir.refresh();
     }, {
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
-      message: 'The value of "offset" is out of range. ' +
-               'It must be an integer. Received NaN'
     });
 
     fs.closeSync(fd);

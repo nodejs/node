@@ -120,7 +120,6 @@ assert.throws(
   () => require('../fixtures/packages/missing-main-no-index'),
   {
     code: 'MODULE_NOT_FOUND',
-    message: /packages[/\\]missing-main-no-index[/\\]doesnotexist\.js'\. Please.+package\.json.+valid "main"/,
     path: /fixtures[/\\]packages[/\\]missing-main-no-index[/\\]package\.json/,
     requestPath: /^\.\.[/\\]fixtures[/\\]packages[/\\]missing-main-no-index$/
   }

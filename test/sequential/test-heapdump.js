@@ -41,9 +41,6 @@ process.chdir(tmpdir.path);
   assert.throws(() => writeHeapSnapshot(i), {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "path" argument must be of type string or an instance of ' +
-             'Buffer or URL.' +
-             common.invalidArgTypeHelper(i)
   });
 });
 

@@ -10,7 +10,6 @@ const server = net.createServer().listen(0, common.mustCall(() => {
     }, {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'Second argument must be a buffer'
     });
     client.destroy();
     server.close();

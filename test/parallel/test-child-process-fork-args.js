@@ -25,7 +25,6 @@ const expectedEnv = { foo: 'bar' };
     assert.throws(() => fork(modulePath), {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: /^The "modulePath" argument must be of type string/
     });
   });
 

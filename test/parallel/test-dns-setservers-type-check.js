@@ -20,8 +20,6 @@ const promiseResolver = new dns.promises.Resolver();
     const errObj = {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "servers" argument must be an instance of Array.' +
-               common.invalidArgTypeHelper(val)
     };
     assert.throws(
       () => {
@@ -60,8 +58,6 @@ const promiseResolver = new dns.promises.Resolver();
     const errObj = {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "servers[0]" argument must be of type string.' +
-               common.invalidArgTypeHelper(val[0])
     };
     assert.throws(
       () => {
@@ -110,8 +106,6 @@ const promiseResolver = new dns.promises.Resolver();
     const errObj = {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "servers[0]" argument must be of type string.' +
-              common.invalidArgTypeHelper(val[0])
     };
     assert.throws(() => {
       setServers(val);

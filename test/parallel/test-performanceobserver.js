@@ -39,8 +39,6 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_HTTP2], 0);
       {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
-        message: 'The "options" argument must be of type object.' +
-                 common.invalidArgTypeHelper(input)
       });
   });
 

@@ -124,8 +124,6 @@ const certFixture = {
     () => https.request({ insecureHTTPParser: 0 }, common.mustNotCall()),
     common.expectsError({
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "options.insecureHTTPParser" property must be of' +
-      ' type boolean. Received type number (0)'
     })
   );
 }

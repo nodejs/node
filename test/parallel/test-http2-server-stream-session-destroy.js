@@ -22,7 +22,6 @@ server.on('stream', common.mustCall((stream) => {
   const invalidStreamError = {
     name: 'Error',
     code: 'ERR_HTTP2_INVALID_STREAM',
-    message: 'The stream has been destroyed'
   };
   assert.throws(() => stream.additionalHeaders(), invalidStreamError);
   assert.throws(() => stream.priority(), invalidStreamError);
@@ -40,7 +39,6 @@ server.on('stream', common.mustCall((stream) => {
   assert.strictEqual(stream.write('data', common.expectsError({
     name: 'Error',
     code: 'ERR_STREAM_WRITE_AFTER_END',
-    message: 'write after end'
   })), false);
 }));
 

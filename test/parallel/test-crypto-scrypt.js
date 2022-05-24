@@ -113,39 +113,39 @@ const toobig = [
 const badargs = [
   {
     args: [],
-    expected: { code: 'ERR_INVALID_ARG_TYPE', message: /"password"/ },
+    expected: { code: 'ERR_INVALID_ARG_TYPE' },
   },
   {
     args: [null],
-    expected: { code: 'ERR_INVALID_ARG_TYPE', message: /"password"/ },
+    expected: { code: 'ERR_INVALID_ARG_TYPE' },
   },
   {
     args: [''],
-    expected: { code: 'ERR_INVALID_ARG_TYPE', message: /"salt"/ },
+    expected: { code: 'ERR_INVALID_ARG_TYPE' },
   },
   {
     args: ['', null],
-    expected: { code: 'ERR_INVALID_ARG_TYPE', message: /"salt"/ },
+    expected: { code: 'ERR_INVALID_ARG_TYPE' },
   },
   {
     args: ['', ''],
-    expected: { code: 'ERR_INVALID_ARG_TYPE', message: /"keylen"/ },
+    expected: { code: 'ERR_INVALID_ARG_TYPE' },
   },
   {
     args: ['', '', null],
-    expected: { code: 'ERR_INVALID_ARG_TYPE', message: /"keylen"/ },
+    expected: { code: 'ERR_INVALID_ARG_TYPE' },
   },
   {
     args: ['', '', .42],
-    expected: { code: 'ERR_OUT_OF_RANGE', message: /"keylen"/ },
+    expected: { code: 'ERR_OUT_OF_RANGE' },
   },
   {
     args: ['', '', -42],
-    expected: { code: 'ERR_OUT_OF_RANGE', message: /"keylen"/ },
+    expected: { code: 'ERR_OUT_OF_RANGE' },
   },
   {
     args: ['', '', 2147485780],
-    expected: { code: 'ERR_OUT_OF_RANGE', message: /"keylen"/ },
+    expected: { code: 'ERR_OUT_OF_RANGE' },
   },
 ];
 

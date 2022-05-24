@@ -61,7 +61,6 @@ server.listen(0, common.mustCall(() => {
       }),
       {
         code: 'ERR_HTTP2_CONNECT_AUTHORITY',
-        message: ':authority header is required for CONNECT requests'
       }
     );
     assert.throws(
@@ -72,7 +71,6 @@ server.listen(0, common.mustCall(() => {
       }),
       {
         code: 'ERR_HTTP2_CONNECT_SCHEME',
-        message: 'The :scheme header is forbidden for CONNECT requests'
       }
     );
     assert.throws(
@@ -83,7 +81,6 @@ server.listen(0, common.mustCall(() => {
       }),
       {
         code: 'ERR_HTTP2_CONNECT_PATH',
-        message: 'The :path header is forbidden for CONNECT requests'
       }
     );
 

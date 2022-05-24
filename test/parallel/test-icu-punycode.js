@@ -43,7 +43,6 @@ const fixtures = require('../fixtures/icu-punycode-toascii.json');
         {
           code: 'ERR_INVALID_ARG_VALUE',
           name: 'TypeError',
-          message: 'Cannot convert name to ASCII'
         }
       );
       icu.toASCII(input, true); // Should not throw.

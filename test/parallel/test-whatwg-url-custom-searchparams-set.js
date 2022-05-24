@@ -12,14 +12,12 @@ const assert = require('assert');
   }, {
     code: 'ERR_INVALID_THIS',
     name: 'TypeError',
-    message: 'Value of "this" must be of type URLSearchParams'
   });
   assert.throws(() => {
     params.set('a');
   }, {
     code: 'ERR_MISSING_ARGS',
     name: 'TypeError',
-    message: 'The "name" and "value" arguments must be specified'
   });
 
   const obj = {

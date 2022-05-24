@@ -1,5 +1,4 @@
 'use strict';
-const common = require('../common');
 const assert = require('assert');
 
 const b = Buffer.from('abcdef');
@@ -282,9 +281,6 @@ for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "value" argument must be one of type number or string ' +
-               'or an instance of Buffer or Uint8Array.' +
-               common.invalidArgTypeHelper(val)
     }
   );
 });

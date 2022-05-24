@@ -20,7 +20,6 @@ const key = 'test-key';
     common.expectsError({
       code: 'ERR_CHILD_CLOSED_BEFORE_REPLY',
       name: 'Error',
-      message: 'Child closed before reply received'
     })(err);
     assert.strictEqual(child.listenerCount('internalMessage'), 0);
   }));
@@ -62,7 +61,6 @@ const key = 'test-key';
     common.expectsError({
       code: 'ERR_CHILD_CLOSED_BEFORE_REPLY',
       name: 'Error',
-      message: 'Child closed before reply received'
     })(err);
     assert.strictEqual(child.listenerCount('internalMessage'), 0);
   }));
@@ -141,7 +139,6 @@ const key = 'test-key';
     common.expectsError({
       code: 'ERR_CHILD_CLOSED_BEFORE_REPLY',
       name: 'Error',
-      message: 'Child closed before reply received'
     })(err);
     assert.strictEqual(child.listenerCount('internalMessage'), 0);
   }));

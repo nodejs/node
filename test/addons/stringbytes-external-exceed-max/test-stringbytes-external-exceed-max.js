@@ -25,13 +25,9 @@ try {
 if (!binding.ensureAllocation(2 * kStringMaxLength))
   common.skip(skipMessage);
 
-const stringLengthHex = kStringMaxLength.toString(16);
-
 assert.throws(() => {
   buf.toString('utf16le');
 }, {
-  message: `Cannot create a string longer than 0x${stringLengthHex} ` +
-           'characters',
   code: 'ERR_STRING_TOO_LONG',
   name: 'Error'
 });

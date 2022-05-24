@@ -4,8 +4,6 @@ require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
-const errUnknownBuiltinModuleRE = /^No such built-in module: /u;
-
 // For direct use of require expressions inside of CJS modules,
 // all kinds of specifiers should work without issue.
 {
@@ -16,7 +14,6 @@ const errUnknownBuiltinModuleRE = /^No such built-in module: /u;
     () => require('node:unknown'),
     {
       code: 'ERR_UNKNOWN_BUILTIN_MODULE',
-      message: errUnknownBuiltinModuleRE,
     },
   );
 
@@ -24,7 +21,6 @@ const errUnknownBuiltinModuleRE = /^No such built-in module: /u;
     () => require('node:internal/test/binding'),
     {
       code: 'ERR_UNKNOWN_BUILTIN_MODULE',
-      message: errUnknownBuiltinModuleRE,
     },
   );
 }

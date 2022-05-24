@@ -12,8 +12,6 @@ const h2 = require('http2');
 const errMsg = {
   code: 'ERR_HTTP2_NO_SOCKET_MANIPULATION',
   name: 'Error',
-  message: 'HTTP/2 sockets should not be directly manipulated ' +
-           '(e.g. read and written)'
 };
 
 const server = h2.createServer();

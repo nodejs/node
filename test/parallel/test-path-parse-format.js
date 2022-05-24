@@ -20,7 +20,6 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 
@@ -219,8 +218,6 @@ function checkFormat(path, testCases) {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "pathObject" argument must be of type object.' +
-               common.invalidArgTypeHelper(pathObject)
     });
   });
 }

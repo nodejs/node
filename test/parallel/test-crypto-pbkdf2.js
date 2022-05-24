@@ -80,8 +80,6 @@ for (const iterations of [-1, 0]) {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "keylen" argument must be of type number.' +
-               `${common.invalidArgTypeHelper(notNumber)}`
     });
 });
 
@@ -93,8 +91,6 @@ for (const iterations of [-1, 0]) {
     }, {
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
-      message: 'The value of "keylen" is out of range. It ' +
-               `must be an integer. Received ${input}`
     });
 });
 
@@ -118,8 +114,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "digest" argument must be of type string. ' +
-             'Received undefined'
   });
 
 assert.throws(
@@ -127,8 +121,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "digest" argument must be of type string. ' +
-             'Received undefined'
   });
 
 assert.throws(
@@ -136,8 +128,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "digest" argument must be of type string. ' +
-             'Received null'
   });
 [1, {}, [], true, undefined, null].forEach((input) => {
   assert.throws(
@@ -174,13 +164,11 @@ assert.throws(
 });
 
 ['test', {}, [], true, undefined, null].forEach((i) => {
-  const received = common.invalidArgTypeHelper(i);
   assert.throws(
     () => crypto.pbkdf2('pass', 'salt', i, 8, 'sha256', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `The "iterations" argument must be of type number.${received}`
     }
   );
 
@@ -189,7 +177,6 @@ assert.throws(
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `The "iterations" argument must be of type number.${received}`
     }
   );
 });
@@ -206,7 +193,6 @@ assert.throws(
   {
     code: 'ERR_CRYPTO_INVALID_DIGEST',
     name: 'TypeError',
-    message: 'Invalid digest: md55'
   }
 );
 
@@ -215,7 +201,6 @@ assert.throws(
   {
     code: 'ERR_CRYPTO_INVALID_DIGEST',
     name: 'TypeError',
-    message: 'Invalid digest: md55'
   }
 );
 
@@ -235,7 +220,6 @@ if (!common.hasOpenSSL3) {
     {
       code: 'ERR_CRYPTO_INVALID_DIGEST',
       name: 'TypeError',
-      message: 'Invalid digest: %'
     }
   );
 }

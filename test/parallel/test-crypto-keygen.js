@@ -18,7 +18,7 @@ const {
   sign,
   verify
 } = require('crypto');
-const { inspect, promisify } = require('util');
+const { promisify } = require('util');
 
 // Asserts that the size of the given key (in chars or bytes) is within 10% of
 // the expected size.
@@ -213,12 +213,9 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     const publicKey = { key: publicKeyDER, ...publicKeyEncoding };
     const expectedError = common.hasOpenSSL3 ? {
       name: 'Error',
-      message: 'error:07880109:common libcrypto routines::interrupted or ' +
-               'cancelled'
     } : {
       name: 'TypeError',
       code: 'ERR_MISSING_PASSPHRASE',
-      message: 'Passphrase required for encrypted key'
     };
     assert.throws(() => testSignVerify(publicKey, privateKey), expectedError);
 
@@ -255,7 +252,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, {
       name: 'TypeError',
       code: 'ERR_MISSING_PASSPHRASE',
-      message: 'Passphrase required for encrypted key'
     });
 
     // Signing should work with the correct password.
@@ -465,7 +461,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, {
       name: 'TypeError',
       code: 'ERR_MISSING_PASSPHRASE',
-      message: 'Passphrase required for encrypted key'
     });
 
     // Signing should work with the correct password.
@@ -571,7 +566,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
                   } : {
                     name: 'TypeError',
                     code: 'ERR_MISSING_PASSPHRASE',
-                    message: 'Passphrase required for encrypted key'
                   });
 
     testSignVerify(publicKey, { key: privateKey, passphrase: 'secret' });
@@ -605,7 +599,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
                   } : {
                     name: 'TypeError',
                     code: 'ERR_MISSING_PASSPHRASE',
-                    message: 'Passphrase required for encrypted key'
                   });
 
     testSignVerify(publicKey, { key: privateKey, passphrase: 'secret' });
@@ -642,7 +635,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
                   } : {
                     name: 'TypeError',
                     code: 'ERR_MISSING_PASSPHRASE',
-                    message: 'Passphrase required for encrypted key'
                   });
 
     testSignVerify(publicKey, {
@@ -680,7 +672,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
                   } : {
                     name: 'TypeError',
                     code: 'ERR_MISSING_PASSPHRASE',
-                    message: 'Passphrase required for encrypted key'
                   });
 
     testSignVerify(publicKey, {
@@ -796,8 +787,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }), {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_VALUE',
-    message: "The property 'options.paramEncoding' is invalid. " +
-      "Received 'otherEncoding'"
   });
   assert.throws(() => generateKeyPairSync('dsa', {
     modulusLength: 4096,
@@ -810,7 +799,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }), {
     name: 'Error',
     code: 'ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE',
-    message: 'Unsupported JWK Key Type.'
   });
   assert.throws(() => generateKeyPairSync('ec', {
     namedCurve: 'secp224r1',
@@ -823,7 +811,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }), {
     name: 'Error',
     code: 'ERR_CRYPTO_JWK_UNSUPPORTED_CURVE',
-    message: 'Unsupported JWK EC curve: secp224r1.'
   });
 }
 
@@ -861,15 +848,12 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     assert.throws(() => generateKeyPairSync(type, {}), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "type" argument must be of type string.' +
-               common.invalidArgTypeHelper(type)
     });
   }
 
   assert.throws(() => generateKeyPairSync('rsa2', {}), {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_VALUE',
-    message: "The argument 'type' must be a supported key type. Received 'rsa2'"
   });
 }
 
@@ -878,8 +862,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   assert.throws(() => generateKeyPair('rsa', common.mustNotCall()), {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "options" argument must be of type object. ' +
-      'Received undefined'
   });
 
   // Even if no options are required, it should be impossible to pass anything
@@ -887,8 +869,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   assert.throws(() => generateKeyPair('ed448', 0, common.mustNotCall()), {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "options" argument must be of type object. ' +
-      'Received type number (0)'
   });
 }
 
@@ -945,8 +925,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.publicKeyEncoding' is invalid. " +
-        `Received ${inspect(enc)}`
     });
   }
 
@@ -965,8 +943,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.publicKeyEncoding.type' is invalid. " +
-        `Received ${inspect(type)}`
     });
   }
 
@@ -985,8 +961,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.publicKeyEncoding.format' is invalid. " +
-        `Received ${inspect(format)}`
     });
   }
 
@@ -1002,8 +976,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.privateKeyEncoding' is invalid. " +
-        `Received ${inspect(enc)}`
     });
   }
 
@@ -1022,8 +994,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.privateKeyEncoding.type' is invalid. " +
-        `Received ${inspect(type)}`
     });
   }
 
@@ -1042,8 +1012,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.privateKeyEncoding.format' is invalid. " +
-        `Received ${inspect(format)}`
     });
   }
 
@@ -1063,8 +1031,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.privateKeyEncoding.cipher' is invalid. " +
-        `Received ${inspect(cipher)}`
     });
   }
 
@@ -1084,7 +1050,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }), {
     name: 'Error',
     code: 'ERR_CRYPTO_UNKNOWN_CIPHER',
-    message: 'Unknown cipher'
   });
 
   // Cipher, but no valid passphrase.
@@ -1104,8 +1069,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.privateKeyEncoding.passphrase' " +
-        `is invalid. Received ${inspect(passphrase)}`
     });
   }
 
@@ -1131,9 +1094,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, common.mustNotCall()), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_TYPE',
-      message:
-        'The "options.modulusLength" property must be of type number.' +
-        common.invalidArgTypeHelper(modulusLength)
     });
   }
 
@@ -1144,10 +1104,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, common.mustNotCall()), {
       name: 'RangeError',
       code: 'ERR_OUT_OF_RANGE',
-      message:
-        'The value of "options.modulusLength" is out of range. ' +
-        'It must be an integer. ' +
-        `Received ${inspect(modulusLength)}`
     });
   }
 
@@ -1169,9 +1125,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, common.mustNotCall()), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_TYPE',
-      message:
-        'The "options.publicExponent" property must be of type number.' +
-        common.invalidArgTypeHelper(publicExponent)
     });
   }
 
@@ -1183,10 +1136,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, common.mustNotCall()), {
       name: 'RangeError',
       code: 'ERR_OUT_OF_RANGE',
-      message:
-        'The value of "options.publicExponent" is out of range. ' +
-        'It must be an integer. ' +
-        `Received ${inspect(publicExponent)}`
     });
   }
 
@@ -1211,9 +1160,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, common.mustNotCall()), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_TYPE',
-      message:
-        'The "options.modulusLength" property must be of type number.' +
-        common.invalidArgTypeHelper(modulusLength)
     });
   }
 
@@ -1245,9 +1191,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, common.mustNotCall()), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_TYPE',
-      message:
-        'The "options.divisorLength" property must be of type number.' +
-        common.invalidArgTypeHelper(divisorLength)
     });
   }
 
@@ -1259,10 +1202,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, common.mustNotCall()), {
       name: 'RangeError',
       code: 'ERR_OUT_OF_RANGE',
-      message:
-        'The value of "options.divisorLength" is out of range. ' +
-        'It must be an integer. ' +
-        `Received ${inspect(divisorLength)}`
     });
   }
 
@@ -1274,10 +1213,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, common.mustNotCall()), {
       name: 'RangeError',
       code: 'ERR_OUT_OF_RANGE',
-      message:
-        'The value of "options.divisorLength" is out of range. ' +
-        'It must be >= 0 && <= 2147483647. ' +
-        `Received ${inspect(divisorLength)}`
     });
   }
 }
@@ -1293,7 +1228,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     });
   }, {
     name: 'TypeError',
-    message: 'Invalid EC curve name'
   });
 
   // Test error type when curve is not a string
@@ -1307,9 +1241,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_TYPE',
-      message:
-        'The "options.namedCurve" property must be of type string.' +
-        common.invalidArgTypeHelper(namedCurve)
     });
   }
 
@@ -1371,7 +1302,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }, {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "options" argument must be of type object. Received undefined'
   });
 
   assert.throws(() => {
@@ -1379,8 +1309,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }, {
     name: 'TypeError',
     code: 'ERR_MISSING_OPTION',
-    message: 'At least one of the group, prime, or primeLength options is ' +
-             'required'
   });
 
   assert.throws(() => {
@@ -1390,7 +1318,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }, {
     name: 'Error',
     code: 'ERR_CRYPTO_UNKNOWN_DH_GROUP',
-    message: 'Unknown DH group'
   });
 
   assert.throws(() => {
@@ -1400,9 +1327,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }, {
     name: 'RangeError',
     code: 'ERR_OUT_OF_RANGE',
-    message: 'The value of "options.primeLength" is out of range. ' +
-             'It must be >= 0 && <= 2147483647. ' +
-             'Received 2147483648',
   });
 
   assert.throws(() => {
@@ -1412,9 +1336,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }, {
     name: 'RangeError',
     code: 'ERR_OUT_OF_RANGE',
-    message: 'The value of "options.primeLength" is out of range. ' +
-             'It must be >= 0 && <= 2147483647. ' +
-             'Received -1',
   });
 
   assert.throws(() => {
@@ -1425,9 +1346,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }, {
     name: 'RangeError',
     code: 'ERR_OUT_OF_RANGE',
-    message: 'The value of "options.generator" is out of range. ' +
-             'It must be >= 0 && <= 2147483647. ' +
-             'Received 2147483648',
   });
 
   assert.throws(() => {
@@ -1438,9 +1356,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }, {
     name: 'RangeError',
     code: 'ERR_OUT_OF_RANGE',
-    message: 'The value of "options.generator" is out of range. ' +
-             'It must be >= 0 && <= 2147483647. ' +
-             'Received -1',
   });
 
   // Test incompatible options.
@@ -1465,8 +1380,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, {
       name: 'TypeError',
       code: 'ERR_INCOMPATIBLE_OPTION_PAIR',
-      message: `Option "${opt1}" cannot be used in combination with option ` +
-               `"${opt2}"`
     });
   }
 }
@@ -1484,8 +1397,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.publicKeyEncoding.type' is invalid. " +
-        `Received ${inspect(type)}`
     });
   }
 
@@ -1499,9 +1410,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_TYPE',
-      message:
-      'The "options.hashAlgorithm" property must be of type string.' +
-        common.invalidArgTypeHelper(hashValue)
     });
   }
 
@@ -1516,9 +1424,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }, {
     name: 'RangeError',
     code: 'ERR_OUT_OF_RANGE',
-    message: 'The value of "options.saltLength" is out of range. ' +
-             'It must be >= 0 && <= 2147483647. ' +
-             'Received 2147483648'
   });
 
   assert.throws(() => {
@@ -1531,9 +1436,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }, {
     name: 'RangeError',
     code: 'ERR_OUT_OF_RANGE',
-    message: 'The value of "options.saltLength" is out of range. ' +
-             'It must be >= 0 && <= 2147483647. ' +
-             'Received -1'
   });
 
   // Invalid private key type.
@@ -1547,8 +1449,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.privateKeyEncoding.type' is invalid. " +
-        `Received ${inspect(type)}`
     });
   }
 
@@ -1564,7 +1464,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, {
       name: 'Error',
       code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS',
-      message: 'The selected key encoding pkcs1 can only be used for RSA keys.'
     });
 
     assert.throws(() => {
@@ -1577,7 +1476,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, {
       name: 'Error',
       code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS',
-      message: 'The selected key encoding pkcs1 can only be used for RSA keys.'
     });
   }
 
@@ -1591,7 +1489,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, {
       name: 'Error',
       code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS',
-      message: 'The selected key encoding sec1 can only be used for EC keys.'
     });
   }
 
@@ -1612,7 +1509,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }, {
       name: 'Error',
       code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS',
-      message: `The selected key encoding ${type} does not support encryption.`
     });
   }
 }
@@ -1647,10 +1543,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       {
         name: 'TypeError',
         code: 'ERR_INVALID_ARG_TYPE',
-        message:
-          'The "options.mgf1HashAlgorithm" property must be of type string.' +
-          common.invalidArgTypeHelper(mgf1HashAlgorithm)
-
       }
     );
   }
@@ -1687,11 +1579,9 @@ for (const type of ['pkcs1', 'pkcs8']) {
     }, common.hasOpenSSL3 ? {
       name: 'Error',
       code: 'ERR_OSSL_CRYPTO_INTERRUPTED_OR_CANCELLED',
-      message: 'error:07880109:common libcrypto routines::interrupted or cancelled'
     } : {
       name: 'TypeError',
       code: 'ERR_MISSING_PASSPHRASE',
-      message: 'Passphrase required for encrypted key'
     });
   }));
 }

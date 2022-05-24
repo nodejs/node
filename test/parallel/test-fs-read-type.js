@@ -15,8 +15,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "buffer" argument must be an instance of Buffer, ' +
-             'TypedArray, or DataView. Received type number (4)'
   }
 );
 
@@ -56,8 +54,6 @@ assert.throws(() => {
 }, {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
-  message: 'The value of "offset" is out of range. It must be an integer. ' +
-           'Received NaN'
 });
 
 assert.throws(() => {
@@ -70,8 +66,6 @@ assert.throws(() => {
 }, {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
-  message: 'The value of "length" is out of range. ' +
-           'It must be >= 0. Received -1'
 });
 
 [true, () => {}, {}, ''].forEach((value) => {
@@ -128,8 +122,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "buffer" argument must be an instance of Buffer, ' +
-             'TypedArray, or DataView. Received type number (4)'
   }
 );
 
@@ -166,8 +158,6 @@ assert.throws(() => {
 }, {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
-  message: 'The value of "offset" is out of range. It must be an integer. ' +
-           'Received NaN'
 });
 
 assert.throws(() => {
@@ -179,8 +169,6 @@ assert.throws(() => {
 }, {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
-  message: 'The value of "length" is out of range. ' +
-           'It must be >= 0. Received -1'
 });
 
 assert.throws(() => {
@@ -192,8 +180,6 @@ assert.throws(() => {
 }, {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
-  message: 'The value of "length" is out of range. ' +
-           'It must be <= 4. Received 5'
 });
 
 [true, () => {}, {}, ''].forEach((value) => {

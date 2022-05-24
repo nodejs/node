@@ -61,7 +61,6 @@ server.listen(common.PIPE, common.mustCall(function() {
         assert.strictEqual(error, undefined);
         server.close(common.expectsError({
           code: 'ERR_SERVER_NOT_RUNNING',
-          message: 'Server is not running.',
           name: 'Error'
         }));
       }));

@@ -58,7 +58,6 @@ const jsonModuleJob = new ModuleJob(loader, stubJsonModule.module,
   const errorObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: /^The "url" argument must be of type string/
   };
 
   [{}, [], true, 1].forEach((value) => {
@@ -76,7 +75,6 @@ const jsonModuleJob = new ModuleJob(loader, stubJsonModule.module,
   const errorObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: /^The "type" argument must be of type string/
   };
 
   [{}, [], true, 1].forEach((value) => {
@@ -94,7 +92,6 @@ const jsonModuleJob = new ModuleJob(loader, stubJsonModule.module,
     throws(() => moduleMap.set('', undefined, value), {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: /^The "job" argument must be an instance of ModuleJob/
     });
   });
 }

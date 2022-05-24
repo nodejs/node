@@ -65,7 +65,6 @@ assert.throws(() => {
 }, {
   name: 'TypeError',
   code: 'ERR_UNKNOWN_ENCODING',
-  message: 'Unknown encoding: {}'
 });
 
 (function checkVariableCaseEncoding() {

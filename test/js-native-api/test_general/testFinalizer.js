@@ -14,11 +14,11 @@ test_general.addFinalizerOnly(finalized, callback);
 
 // Ensure attached items cannot be retrieved.
 assert.throws(() => test_general.unwrap(finalized),
-              { name: 'Error', message: 'Invalid argument' });
+              { name: 'Error' });
 
 // Ensure attached items cannot be removed.
 assert.throws(() => test_general.removeWrap(finalized),
-              { name: 'Error', message: 'Invalid argument' });
+              { name: 'Error' });
 finalized = null;
 global.gc();
 

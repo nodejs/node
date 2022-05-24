@@ -23,8 +23,6 @@ if (!common.hasIntl)
       }, {
         code: 'ERR_ENCODING_INVALID_ENCODED_DATA',
         name: 'TypeError',
-        message:
-          `The encoded data was not valid for encoding ${testCase.encoding}`
       }
     );
   });
@@ -42,8 +40,6 @@ if (!common.hasIntl)
     }, {
       code: 'ERR_ENCODING_INVALID_ENCODED_DATA',
       name: 'TypeError',
-      message:
-        'The encoded data was not valid for encoding utf-16le'
     }
   );
 
@@ -54,8 +50,6 @@ if (!common.hasIntl)
     }, {
       code: 'ERR_ENCODING_INVALID_ENCODED_DATA',
       name: 'TypeError',
-      message:
-        'The encoded data was not valid for encoding utf-16le'
     }
   );
 }

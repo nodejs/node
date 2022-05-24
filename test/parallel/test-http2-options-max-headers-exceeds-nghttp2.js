@@ -25,7 +25,6 @@ server.listen(0, common.mustCall(() => {
   client.on('error', common.expectsError({
     code: 'ERR_HTTP2_SESSION_ERROR',
     name: 'Error',
-    message: 'Session closed with error code 9'
   }));
 
   const req = client.request({
@@ -42,7 +41,6 @@ server.listen(0, common.mustCall(() => {
   req.on('error', common.expectsError({
     code: 'ERR_HTTP2_SESSION_ERROR',
     name: 'Error',
-    message: 'Session closed with error code 9'
   }));
   req.end();
 }));

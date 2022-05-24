@@ -40,7 +40,6 @@ const { subtle } = webcrypto;
         hash: 'SHA-256'
       }, false, ['deriveBits']), {
         name: 'SyntaxError',
-        message: 'Unsupported key usage for an HMAC key'
       });
     await assert.rejects(
       subtle.importKey('raw', keyData, {
@@ -49,7 +48,6 @@ const { subtle } = webcrypto;
         length: 0
       }, false, ['sign', 'verify']), {
         name: 'DataError',
-        message: 'Zero-length key is not supported'
       });
     await assert.rejects(
       subtle.importKey('raw', keyData, {
@@ -58,7 +56,6 @@ const { subtle } = webcrypto;
         length: 1
       }, false, ['sign', 'verify']), {
         name: 'DataError',
-        message: 'Invalid key length'
       });
     await assert.rejects(
       subtle.importKey('jwk', null, {
@@ -66,7 +63,6 @@ const { subtle } = webcrypto;
         hash: 'SHA-256',
       }, false, ['sign', 'verify']), {
         name: 'DataError',
-        message: 'Invalid JWK keyData'
       });
   }
 

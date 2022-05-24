@@ -40,15 +40,12 @@ assert.throws(() => {
   process.setuid({});
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
-  message: 'The "id" argument must be one of type ' +
-    'number or string. Received an instance of Object'
 });
 
 assert.throws(() => {
   process.setuid('fhqwhgadshgnsdhjsdbkhsdabkfabkveyb');
 }, {
   code: 'ERR_UNKNOWN_CREDENTIAL',
-  message: 'User identifier does not exist: fhqwhgadshgnsdhjsdbkhsdabkfabkveyb'
 });
 
 // Passing -0 shouldn't crash the process

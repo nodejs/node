@@ -41,7 +41,6 @@ const sampleBuffer = fixtures.readSync('/pss-vectors.json');
   }, {
     code: 'ERR_BROTLI_INVALID_PARAM',
     name: 'RangeError',
-    message: '10000 is not a valid Brotli parameter'
   });
 
   // Test that accidentally using duplicate keys fails.
@@ -55,7 +54,6 @@ const sampleBuffer = fixtures.readSync('/pss-vectors.json');
   }, {
     code: 'ERR_BROTLI_INVALID_PARAM',
     name: 'RangeError',
-    message: '00 is not a valid Brotli parameter'
   });
 
   assert.throws(() => {
@@ -68,7 +66,6 @@ const sampleBuffer = fixtures.readSync('/pss-vectors.json');
   }, {
     code: 'ERR_ZLIB_INITIALIZATION_FAILED',
     name: 'Error',
-    message: 'Initialization failed'
   });
 }
 
@@ -79,8 +76,6 @@ const sampleBuffer = fixtures.readSync('/pss-vectors.json');
   }, {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "options.flush" is out of range. It must be >= 0 ' +
-      'and <= 3. Received 4',
   });
 
   assert.throws(() => {
@@ -88,7 +83,5 @@ const sampleBuffer = fixtures.readSync('/pss-vectors.json');
   }, {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "options.finishFlush" is out of range. It must be ' +
-      '>= 0 and <= 3. Received 4',
   });
 }

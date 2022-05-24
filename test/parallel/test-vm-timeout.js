@@ -31,7 +31,6 @@ assert.throws(
   },
   {
     code: 'ERR_SCRIPT_EXECUTION_TIMEOUT',
-    message: 'Script execution timed out after 100ms'
   });
 
 // Timeout of 1000ms, script finishes first
@@ -51,7 +50,6 @@ assert.throws(
   },
   {
     code: 'ERR_SCRIPT_EXECUTION_TIMEOUT',
-    message: 'Script execution timed out after 10ms'
   });
 
 // Nested vm timeouts, outer timeout is shorter and fires first.
@@ -67,7 +65,6 @@ assert.throws(
   },
   {
     code: 'ERR_SCRIPT_EXECUTION_TIMEOUT',
-    message: 'Script execution timed out after 100ms'
   });
 
 // Nested vm timeouts, inner script throws an error.

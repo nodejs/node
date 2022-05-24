@@ -43,7 +43,6 @@ try {
 const bufferInvalidTypeMsg = {
   code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
-  message: /^The "size" argument must be of type number/,
 };
 assert.throws(() => SlowBuffer(), bufferInvalidTypeMsg);
 assert.throws(() => SlowBuffer({}), bufferInvalidTypeMsg);
@@ -54,7 +53,6 @@ assert.throws(() => SlowBuffer(true), bufferInvalidTypeMsg);
 const bufferMaxSizeMsg = {
   code: 'ERR_INVALID_ARG_VALUE',
   name: 'RangeError',
-  message: /^The argument 'size' is invalid\. Received [^"]*$/
 };
 assert.throws(() => SlowBuffer(NaN), bufferMaxSizeMsg);
 assert.throws(() => SlowBuffer(Infinity), bufferMaxSizeMsg);

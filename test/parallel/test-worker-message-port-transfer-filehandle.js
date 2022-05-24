@@ -79,7 +79,6 @@ const { once } = require('events');
   assert.throws(() => {
     port1.postMessage(fh, [fh]);
   }, {
-    message: 'Cannot transfer FileHandle while in use',
     name: 'DataCloneError'
   });
 
@@ -96,7 +95,6 @@ const { once } = require('events');
   assert.throws(() => {
     port1.postMessage(fh, [fh]);
   }, {
-    message: 'Cannot transfer FileHandle while in use',
     name: 'DataCloneError'
   });
   await closePromise;

@@ -17,7 +17,7 @@ function createConnection() {
 {
   const req = http.get({ createConnection });
 
-  req.on('error', common.expectsError({ name: 'Error', message: 'Oops' }));
+  req.on('error', common.expectsError({ name: 'Error' }));
   req.abort();
 }
 
@@ -27,6 +27,6 @@ function createConnection() {
 
   const req = http.get({ agent: new CustomAgent() });
 
-  req.on('error', common.expectsError({ name: 'Error', message: 'Oops' }));
+  req.on('error', common.expectsError({ name: 'Error' }));
   req.abort();
 }

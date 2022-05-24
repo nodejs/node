@@ -184,7 +184,6 @@ const {
   assert.throws(() => mapToHeaders(headers), {
     code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
     name: 'TypeError',
-    message: 'Header field ":status" must only have a single value'
   });
 }
 
@@ -247,10 +246,8 @@ const {
   HTTP2_HEADER_USER_AGENT,
   HTTP2_HEADER_X_CONTENT_TYPE_OPTIONS,
 ].forEach((name) => {
-  const msg = `Header field "${name}" must only have a single value`;
   assert.throws(() => mapToHeaders({ [name]: [1, 2, 3] }), {
     code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
-    message: msg
   });
 });
 
@@ -307,24 +304,18 @@ const {
   assert.throws(() => mapToHeaders({ [name]: 'abc' }), {
     code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
     name: 'TypeError',
-    message: 'HTTP/1 Connection specific headers are forbidden: ' +
-             `"${name.toLowerCase()}"`
   });
 });
 
 assert.throws(() => mapToHeaders({ [HTTP2_HEADER_TE]: ['abc'] }), {
   code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
   name: 'TypeError',
-  message: 'HTTP/1 Connection specific headers are forbidden: ' +
-           `"${HTTP2_HEADER_TE}"`
 });
 
 assert.throws(
   () => mapToHeaders({ [HTTP2_HEADER_TE]: ['abc', 'trailers'] }), {
     code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
     name: 'TypeError',
-    message: 'HTTP/1 Connection specific headers are forbidden: ' +
-             `"${HTTP2_HEADER_TE}"`
   });
 
 // These should not throw

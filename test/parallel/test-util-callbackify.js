@@ -252,8 +252,6 @@ const values = [
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "original" argument must be of type function.' +
-               common.invalidArgTypeHelper(value)
     });
   });
 }
@@ -274,8 +272,6 @@ const values = [
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The last argument must be of type function.' +
-               common.invalidArgTypeHelper(value)
     });
   });
 }

@@ -7,6 +7,5 @@ const unknownBuiltinModule = 'node:unknown-builtin-module';
 import(unknownBuiltinModule)
 .then(assert.fail, expectsError({
   code: 'ERR_UNKNOWN_BUILTIN_MODULE',
-  message: `No such built-in module: ${unknownBuiltinModule}`
 }))
 .then(mustCall());

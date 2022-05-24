@@ -31,7 +31,6 @@ server.on('stream', common.mustCall((stream, headers) => {
     {
       code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
       name: 'TypeError',
-      message: 'HTTP/1 Connection specific headers are forbidden: "connection"'
     }
   );
 

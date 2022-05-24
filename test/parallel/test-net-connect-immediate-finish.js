@@ -52,7 +52,6 @@ client.once('error', common.mustCall((error) => {
     errno: mockedErrorCode,
     syscall: mockedSysCall,
     hostname: addresses.INVALID_HOST,
-    message: 'getaddrinfo ENOTFOUND something.invalid'
   });
 }));
 

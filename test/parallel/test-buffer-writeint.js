@@ -7,8 +7,6 @@ const assert = require('assert');
 const errorOutOfBounds = {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
-  message: new RegExp('^The value of "value" is out of range\\. ' +
-                      'It must be >= -\\d+ and <= \\d+\\. Received .+$')
 };
 
 // Test 8 bit
@@ -194,8 +192,6 @@ const errorOutOfBounds = {
         () => data[fn](23, 0, byteLength),
         {
           code: 'ERR_OUT_OF_RANGE',
-          message: 'The value of "byteLength" is out of range. ' +
-                   `It must be >= 1 and <= 6. Received ${byteLength}`
         }
       );
     });
@@ -206,8 +202,6 @@ const errorOutOfBounds = {
         {
           code: 'ERR_OUT_OF_RANGE',
           name: 'RangeError',
-          message: 'The value of "byteLength" is out of range. ' +
-                   `It must be an integer. Received ${byteLength}`
         });
     });
   });
@@ -217,21 +211,12 @@ const errorOutOfBounds = {
     ['writeIntBE', 'writeIntLE'].forEach((fn) => {
       const min = -(2 ** (i * 8 - 1));
       const max = 2 ** (i * 8 - 1) - 1;
-      let range = `>= ${min} and <= ${max}`;
-      if (i > 4) {
-        range = `>= -(2 ** ${i * 8 - 1}) and < 2 ** ${i * 8 - 1}`;
-      }
       [min - 1, max + 1].forEach((val) => {
-        const received = i > 4 ?
-          String(val).replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1_') :
-          val;
         assert.throws(() => {
           data[fn](val, 0, i);
         }, {
           code: 'ERR_OUT_OF_RANGE',
           name: 'RangeError',
-          message: 'The value of "value" is out of range. ' +
-                   `It must be ${range}. Received ${received}`
         });
       });
 
@@ -250,8 +235,6 @@ const errorOutOfBounds = {
           {
             code: 'ERR_OUT_OF_RANGE',
             name: 'RangeError',
-            message: 'The value of "offset" is out of range. ' +
-                     `It must be >= 0 and <= ${8 - i}. Received ${offset}`
           });
       });
 
@@ -261,8 +244,6 @@ const errorOutOfBounds = {
           {
             code: 'ERR_OUT_OF_RANGE',
             name: 'RangeError',
-            message: 'The value of "offset" is out of range. ' +
-                     `It must be an integer. Received ${offset}`
           });
       });
     });

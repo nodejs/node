@@ -47,7 +47,6 @@ server.listen(0, common.mustCall(() => {
       assert.strictEqual(req.socket.listenerCount('end'), 1);
       common.expectsError({
         code: 'HPE_INVALID_CONSTANT',
-        message: 'Parse Error: Expected HTTP/'
       })(e);
       countdown.dec();
     }));

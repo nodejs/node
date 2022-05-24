@@ -158,8 +158,6 @@ assert.throws(
   },
   {
     code: 'ERR_OUT_OF_RANGE',
-    message: 'The value of "start" is out of range. It must be <= "end"' +
-             ' (here: 2). Received 10',
     name: 'RangeError'
   });
 

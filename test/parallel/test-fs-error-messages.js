@@ -70,9 +70,6 @@ function re(literals, ...values) {
 {
   const validateError = (err) => {
     assert.strictEqual(nonexistentFile, err.path);
-    assert.strictEqual(
-      err.message,
-      `ENOENT: no such file or directory, stat '${nonexistentFile}'`);
     assert.strictEqual(err.errno, UV_ENOENT);
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'stat');
@@ -91,9 +88,6 @@ function re(literals, ...values) {
 {
   const validateError = (err) => {
     assert.strictEqual(nonexistentFile, err.path);
-    assert.strictEqual(
-      err.message,
-      `ENOENT: no such file or directory, lstat '${nonexistentFile}'`);
     assert.strictEqual(err.errno, UV_ENOENT);
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'lstat');
@@ -110,7 +104,6 @@ function re(literals, ...values) {
 // fstat
 {
   const validateError = (err) => {
-    assert.strictEqual(err.message, 'EBADF: bad file descriptor, fstat');
     assert.strictEqual(err.errno, UV_EBADF);
     assert.strictEqual(err.code, 'EBADF');
     assert.strictEqual(err.syscall, 'fstat');
@@ -131,9 +124,6 @@ function re(literals, ...values) {
 {
   const validateError = (err) => {
     assert.strictEqual(nonexistentFile, err.path);
-    assert.strictEqual(
-      err.message,
-      `ENOENT: no such file or directory, lstat '${nonexistentFile}'`);
     assert.strictEqual(err.errno, UV_ENOENT);
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'lstat');
@@ -152,9 +142,6 @@ function re(literals, ...values) {
 {
   const validateError = (err) => {
     assert.strictEqual(nonexistentFile, err.path);
-    assert.strictEqual(
-      err.message,
-      `ENOENT: no such file or directory, realpath '${nonexistentFile}'`);
     assert.strictEqual(err.errno, UV_ENOENT);
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'realpath');
@@ -173,9 +160,6 @@ function re(literals, ...values) {
 {
   const validateError = (err) => {
     assert.strictEqual(nonexistentFile, err.path);
-    assert.strictEqual(
-      err.message,
-      `ENOENT: no such file or directory, readlink '${nonexistentFile}'`);
     assert.strictEqual(err.errno, UV_ENOENT);
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'readlink');
@@ -197,9 +181,6 @@ function re(literals, ...values) {
     // Could be resolved to an absolute path
     assert.ok(err.dest.endsWith('foo'),
               `expect ${err.dest} to end with 'foo'`);
-    const regexp = new RegExp('^ENOENT: no such file or directory, link ' +
-                              re`'${nonexistentFile}' -> ` + '\'.*foo\'');
-    assert.match(err.message, regexp);
     assert.strictEqual(err.errno, UV_ENOENT);
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'link');
@@ -219,10 +200,6 @@ function re(literals, ...values) {
   const validateError = (err) => {
     assert.strictEqual(existingFile, err.path);
     assert.strictEqual(existingFile2, err.dest);
-    assert.strictEqual(
-      err.message,
-      `EEXIST: file already exists, link '${existingFile}' -> ` +
-      `'${existingFile2}'`);
     assert.strictEqual(err.errno, UV_EEXIST);
     assert.strictEqual(err.code, 'EEXIST');
     assert.strictEqual(err.syscall, 'link');
@@ -242,10 +219,6 @@ function re(literals, ...values) {
   const validateError = (err) => {
     assert.strictEqual(existingFile, err.path);
     assert.strictEqual(existingFile2, err.dest);
-    assert.strictEqual(
-      err.message,
-      `EEXIST: file already exists, symlink '${existingFile}' -> ` +
-      `'${existingFile2}'`);
     assert.strictEqual(err.errno, UV_EEXIST);
     assert.strictEqual(err.code, 'EEXIST');
     assert.strictEqual(err.syscall, 'symlink');
@@ -264,9 +237,6 @@ function re(literals, ...values) {
 {
   const validateError = (err) => {
     assert.strictEqual(nonexistentFile, err.path);
-    assert.strictEqual(
-      err.message,
-      `ENOENT: no such file or directory, unlink '${nonexistentFile}'`);
     assert.strictEqual(err.errno, UV_ENOENT);
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'unlink');
@@ -288,9 +258,6 @@ function re(literals, ...values) {
     // Could be resolved to an absolute path
     assert.ok(err.dest.endsWith('foo'),
               `expect ${err.dest} to end with 'foo'`);
-    const regexp = new RegExp('ENOENT: no such file or directory, rename ' +
-                              re`'${nonexistentFile}' -> ` + '\'.*foo\'');
-    assert.match(err.message, regexp);
     assert.strictEqual(err.errno, UV_ENOENT);
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'rename');
@@ -314,10 +281,6 @@ function re(literals, ...values) {
     assert.strictEqual(err.syscall, 'rename');
     // Could be ENOTEMPTY, EEXIST, or EPERM, depending on the platform
     if (err.code === 'ENOTEMPTY') {
-      assert.strictEqual(
-        err.message,
-        `ENOTEMPTY: directory not empty, rename '${existingDir}' -> ` +
-        `'${existingDir2}'`);
       assert.strictEqual(err.errno, UV_ENOTEMPTY);
     } else if (err.code === 'EXDEV') {  // Not on the same mounted filesystem
       assert.strictEqual(
@@ -325,16 +288,8 @@ function re(literals, ...values) {
         `EXDEV: cross-device link not permitted, rename '${existingDir}' -> ` +
             `'${existingDir2}'`);
     } else if (err.code === 'EEXIST') {  // smartos and aix
-      assert.strictEqual(
-        err.message,
-        `EEXIST: file already exists, rename '${existingDir}' -> ` +
-        `'${existingDir2}'`);
       assert.strictEqual(err.errno, UV_EEXIST);
     } else {  // windows
-      assert.strictEqual(
-        err.message,
-        `EPERM: operation not permitted, rename '${existingDir}' -> ` +
-        `'${existingDir2}'`);
       assert.strictEqual(err.errno, UV_EPERM);
       assert.strictEqual(err.code, 'EPERM');
     }
@@ -353,9 +308,6 @@ function re(literals, ...values) {
 {
   const validateError = (err) => {
     assert.strictEqual(nonexistentFile, err.path);
-    assert.strictEqual(
-      err.message,
-      `ENOENT: no such file or directory, rmdir '${nonexistentFile}'`);
     assert.strictEqual(err.errno, UV_ENOENT);
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'rmdir');
@@ -376,14 +328,8 @@ function re(literals, ...values) {
     assert.strictEqual(existingFile, err.path);
     assert.strictEqual(err.syscall, 'rmdir');
     if (err.code === 'ENOTDIR') {
-      assert.strictEqual(
-        err.message,
-        `ENOTDIR: not a directory, rmdir '${existingFile}'`);
       assert.strictEqual(err.errno, UV_ENOTDIR);
     } else {  // windows
-      assert.strictEqual(
-        err.message,
-        `ENOENT: no such file or directory, rmdir '${existingFile}'`);
       assert.strictEqual(err.errno, UV_ENOENT);
       assert.strictEqual(err.code, 'ENOENT');
     }
@@ -402,9 +348,6 @@ function re(literals, ...values) {
 {
   const validateError = (err) => {
     assert.strictEqual(existingFile, err.path);
-    assert.strictEqual(
-      err.message,
-      `EEXIST: file already exists, mkdir '${existingFile}'`);
     assert.strictEqual(err.errno, UV_EEXIST);
     assert.strictEqual(err.code, 'EEXIST');
     assert.strictEqual(err.syscall, 'mkdir');
@@ -423,9 +366,6 @@ function re(literals, ...values) {
 {
   const validateError = (err) => {
     assert.strictEqual(nonexistentFile, err.path);
-    assert.strictEqual(
-      err.message,
-      `ENOENT: no such file or directory, chmod '${nonexistentFile}'`);
     assert.strictEqual(err.errno, UV_ENOENT);
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'chmod');
@@ -444,9 +384,6 @@ function re(literals, ...values) {
 {
   const validateError = (err) => {
     assert.strictEqual(nonexistentFile, err.path);
-    assert.strictEqual(
-      err.message,
-      `ENOENT: no such file or directory, open '${nonexistentFile}'`);
     assert.strictEqual(err.errno, UV_ENOENT);
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'open');
@@ -465,7 +402,6 @@ function re(literals, ...values) {
 // close
 {
   const validateError = (err) => {
-    assert.strictEqual(err.message, 'EBADF: bad file descriptor, close');
     assert.strictEqual(err.errno, UV_EBADF);
     assert.strictEqual(err.code, 'EBADF');
     assert.strictEqual(err.syscall, 'close');
@@ -486,9 +422,6 @@ function re(literals, ...values) {
 {
   const validateError = (err) => {
     assert.strictEqual(nonexistentFile, err.path);
-    assert.strictEqual(
-      err.message,
-      `ENOENT: no such file or directory, open '${nonexistentFile}'`);
     assert.strictEqual(err.errno, UV_ENOENT);
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'open');
@@ -507,9 +440,6 @@ function re(literals, ...values) {
 {
   const validateError = (err) => {
     assert.strictEqual(nonexistentFile, err.path);
-    assert.strictEqual(
-      err.message,
-      `ENOENT: no such file or directory, scandir '${nonexistentFile}'`);
     assert.strictEqual(err.errno, UV_ENOENT);
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'scandir');
@@ -530,10 +460,8 @@ function re(literals, ...values) {
     assert.strictEqual(err.syscall, 'ftruncate');
     // Could be EBADF or EINVAL, depending on the platform
     if (err.code === 'EBADF') {
-      assert.strictEqual(err.message, 'EBADF: bad file descriptor, ftruncate');
       assert.strictEqual(err.errno, UV_EBADF);
     } else {
-      assert.strictEqual(err.message, 'EINVAL: invalid argument, ftruncate');
       assert.strictEqual(err.errno, UV_EINVAL);
       assert.strictEqual(err.code, 'EINVAL');
     }
@@ -553,7 +481,6 @@ function re(literals, ...values) {
 // fdatasync
 {
   const validateError = (err) => {
-    assert.strictEqual(err.message, 'EBADF: bad file descriptor, fdatasync');
     assert.strictEqual(err.errno, UV_EBADF);
     assert.strictEqual(err.code, 'EBADF');
     assert.strictEqual(err.syscall, 'fdatasync');
@@ -573,7 +500,6 @@ function re(literals, ...values) {
 // fsync
 {
   const validateError = (err) => {
-    assert.strictEqual(err.message, 'EBADF: bad file descriptor, fsync');
     assert.strictEqual(err.errno, UV_EBADF);
     assert.strictEqual(err.code, 'EBADF');
     assert.strictEqual(err.syscall, 'fsync');
@@ -594,9 +520,6 @@ function re(literals, ...values) {
 if (!common.isWindows) {
   const validateError = (err) => {
     assert.strictEqual(nonexistentFile, err.path);
-    assert.strictEqual(
-      err.message,
-      `ENOENT: no such file or directory, chown '${nonexistentFile}'`);
     assert.strictEqual(err.errno, UV_ENOENT);
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'chown');
@@ -617,9 +540,6 @@ if (!common.isWindows) {
 if (!common.isAIX) {
   const validateError = (err) => {
     assert.strictEqual(nonexistentFile, err.path);
-    assert.strictEqual(
-      err.message,
-      `ENOENT: no such file or directory, utime '${nonexistentFile}'`);
     assert.strictEqual(err.errno, UV_ENOENT);
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'utime');
@@ -640,11 +560,6 @@ if (!common.isAIX) {
   const validateError = (err) => {
     const pathPrefix = new RegExp('^' + re`${nonexistentDir}`);
     assert.match(err.path, pathPrefix);
-
-    const prefix = new RegExp('^ENOENT: no such file or directory, mkdtemp ' +
-                              re`'${nonexistentDir}`);
-    assert.match(err.message, prefix);
-
     assert.strictEqual(err.errno, UV_ENOENT);
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'mkdtemp');
@@ -662,7 +577,6 @@ if (!common.isAIX) {
 // Check copyFile with invalid modes.
 {
   const validateError = {
-    message: /"mode".+must be an integer >= 0 && <= 7\. Received -1/,
     code: 'ERR_OUT_OF_RANGE'
   };
 
@@ -680,16 +594,10 @@ if (!common.isAIX) {
 {
   const validateError = (err) => {
     if (err.code === 'ENOENT') {  // Could be ENOENT or EEXIST
-      assert.strictEqual(err.message,
-                         'ENOENT: no such file or directory, copyfile ' +
-                         `'${existingFile}' -> '${existingFile2}'`);
       assert.strictEqual(err.errno, UV_ENOENT);
       assert.strictEqual(err.code, 'ENOENT');
       assert.strictEqual(err.syscall, 'copyfile');
     } else {
-      assert.strictEqual(err.message,
-                         'EEXIST: file already exists, copyfile ' +
-                         `'${existingFile}' -> '${existingFile2}'`);
       assert.strictEqual(err.errno, UV_EEXIST);
       assert.strictEqual(err.code, 'EEXIST');
       assert.strictEqual(err.syscall, 'copyfile');
@@ -709,9 +617,6 @@ if (!common.isAIX) {
 // copyFile: the source does not exist.
 {
   const validateError = (err) => {
-    assert.strictEqual(err.message,
-                       'ENOENT: no such file or directory, copyfile ' +
-                       `'${nonexistentFile}' -> '${existingFile2}'`);
     assert.strictEqual(err.errno, UV_ENOENT);
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'copyfile');
@@ -730,7 +635,6 @@ if (!common.isAIX) {
 // read
 {
   const validateError = (err) => {
-    assert.strictEqual(err.message, 'EBADF: bad file descriptor, read');
     assert.strictEqual(err.errno, UV_EBADF);
     assert.strictEqual(err.code, 'EBADF');
     assert.strictEqual(err.syscall, 'read');
@@ -751,7 +655,6 @@ if (!common.isAIX) {
 // fchmod
 {
   const validateError = (err) => {
-    assert.strictEqual(err.message, 'EBADF: bad file descriptor, fchmod');
     assert.strictEqual(err.errno, UV_EBADF);
     assert.strictEqual(err.code, 'EBADF');
     assert.strictEqual(err.syscall, 'fchmod');
@@ -771,7 +674,6 @@ if (!common.isAIX) {
 // fchown
 if (!common.isWindows) {
   const validateError = (err) => {
-    assert.strictEqual(err.message, 'EBADF: bad file descriptor, fchown');
     assert.strictEqual(err.errno, UV_EBADF);
     assert.strictEqual(err.code, 'EBADF');
     assert.strictEqual(err.syscall, 'fchown');
@@ -792,7 +694,6 @@ if (!common.isWindows) {
 // write buffer
 {
   const validateError = (err) => {
-    assert.strictEqual(err.message, 'EBADF: bad file descriptor, write');
     assert.strictEqual(err.errno, UV_EBADF);
     assert.strictEqual(err.code, 'EBADF');
     assert.strictEqual(err.syscall, 'write');
@@ -813,7 +714,6 @@ if (!common.isWindows) {
 // write string
 {
   const validateError = (err) => {
-    assert.strictEqual(err.message, 'EBADF: bad file descriptor, write');
     assert.strictEqual(err.errno, UV_EBADF);
     assert.strictEqual(err.code, 'EBADF');
     assert.strictEqual(err.syscall, 'write');
@@ -834,7 +734,6 @@ if (!common.isWindows) {
 // futimes
 if (!common.isAIX) {
   const validateError = (err) => {
-    assert.strictEqual(err.message, 'EBADF: bad file descriptor, futime');
     assert.strictEqual(err.errno, UV_EBADF);
     assert.strictEqual(err.code, 'EBADF');
     assert.strictEqual(err.syscall, 'futime');

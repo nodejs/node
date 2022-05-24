@@ -89,12 +89,10 @@ assert.throws(() => {
 }, {
   code: 'ERR_UNKNOWN_ENCODING',
   name: 'TypeError',
-  message: 'Unknown encoding: 0'
 });
 assert.throws(() => {
   rangeBuffer.toString(null, 1, 2);
 }, {
   code: 'ERR_UNKNOWN_ENCODING',
   name: 'TypeError',
-  message: 'Unknown encoding: null'
 });

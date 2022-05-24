@@ -26,7 +26,6 @@ const server = net.createServer(common.mustCall((s) => {
     tlsSocket.exportKeyingMaterial(128, 'label');
   }, {
     name: 'Error',
-    message: 'TLS socket connection must be securely established',
     code: 'ERR_TLS_INVALID_STATE'
   });
 

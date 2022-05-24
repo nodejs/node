@@ -17,7 +17,6 @@ server.on('session', common.mustCall((session) => {
   session.on('error', common.expectsError({
     code: 'ERR_HTTP2_ERROR',
     constructor: NghttpError,
-    message: 'Received bad client magic byte string'
   }));
 }));
 

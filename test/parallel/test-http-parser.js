@@ -100,7 +100,7 @@ function expectBody(expected) {
 
   assert.throws(
     () => { parser.execute(request, 0, request.length); },
-    { name: 'Error', message: 'hello world' }
+    { name: 'Error' }
   );
 }
 

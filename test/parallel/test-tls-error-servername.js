@@ -28,8 +28,6 @@ const client = connect({
     client.setServername(value);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "name" argument must be of type string.' +
-             common.invalidArgTypeHelper(value)
   });
 });
 
@@ -44,5 +42,4 @@ assert.throws(() => {
   server.setServername('localhost');
 }, {
   code: 'ERR_TLS_SNI_FROM_SERVER',
-  message: 'Cannot issue SNI from a TLS server-side socket'
 });

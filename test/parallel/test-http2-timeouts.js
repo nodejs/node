@@ -21,9 +21,6 @@ server.on('stream', common.mustCall((stream) => {
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message:
-        'The "msecs" argument must be of type number. Received type string' +
-        " ('100')"
     }
   );
   assert.throws(

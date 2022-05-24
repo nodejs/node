@@ -80,8 +80,6 @@ assert.strictEqual(buffer.readFloatLE(0), -Infinity);
       {
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError',
-        message: 'The value of "offset" is out of range. ' +
-                 `It must be >= 0 and <= 0. Received ${offset}`
       });
   });
 
@@ -90,7 +88,6 @@ assert.strictEqual(buffer.readFloatLE(0), -Infinity);
     {
       code: 'ERR_BUFFER_OUT_OF_BOUNDS',
       name: 'RangeError',
-      message: 'Attempt to access memory outside buffer bounds'
     });
 
   [NaN, 1.01].forEach((offset) => {
@@ -99,8 +96,6 @@ assert.strictEqual(buffer.readFloatLE(0), -Infinity);
       {
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError',
-        message: 'The value of "offset" is out of range. ' +
-                 `It must be an integer. Received ${offset}`
       });
   });
 });

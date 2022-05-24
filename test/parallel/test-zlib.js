@@ -31,8 +31,6 @@ const fixtures = require('../common/fixtures');
 assert.throws(() => zlib.gzipSync(Buffer.alloc(0), { windowBits: 8 }), {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
-  message: 'The value of "options.windowBits" is out of range. ' +
-           'It must be >= 9 and <= 15. Received 8',
 });
 
 let zlibPairs = [

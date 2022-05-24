@@ -90,8 +90,6 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "cipher" argument must be of type string. ' +
-               'Received null'
     });
 
   assert.throws(
@@ -127,8 +125,6 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "cipher" argument must be of type string. ' +
-               'Received null'
     });
 
   assert.throws(
@@ -243,7 +239,6 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_CRYPTO_INVALID_STATE',
       name: 'Error',
-      message: 'Invalid state for operation getAuthTag'
     }
   );
 
@@ -261,7 +256,6 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_CRYPTO_INVALID_STATE',
       name: 'Error',
-      message: 'Invalid state for operation setAAD'
     });
 
   assert.throws(
@@ -269,7 +263,6 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_CRYPTO_INVALID_STATE',
       name: 'Error',
-      message: 'Invalid state for operation setAuthTag'
     });
 
   assert.throws(
@@ -277,7 +270,6 @@ testCipher2(Buffer.from('0123456789abcdef'));
     {
       code: 'ERR_CRYPTO_INVALID_STATE',
       name: 'Error',
-      message: 'Invalid state for operation setAutoPadding'
     }
   );
 }

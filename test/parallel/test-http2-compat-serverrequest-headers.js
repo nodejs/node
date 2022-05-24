@@ -51,7 +51,6 @@ const h2 = require('http2');
         {
           code: 'ERR_INVALID_ARG_VALUE',
           name: 'TypeError',
-          message: "The argument 'method' is invalid. Received '   '"
         }
       );
       assert.throws(
@@ -59,8 +58,6 @@ const h2 = require('http2');
         {
           code: 'ERR_INVALID_ARG_TYPE',
           name: 'TypeError',
-          message: 'The "method" argument must be of type string. ' +
-                  'Received type boolean (true)'
         }
       );
 

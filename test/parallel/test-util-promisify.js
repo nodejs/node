@@ -203,7 +203,5 @@ const stat = promisify(fs.stat);
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "original" argument must be of type function.' +
-               common.invalidArgTypeHelper(input)
     });
 });

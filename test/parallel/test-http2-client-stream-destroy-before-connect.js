@@ -19,8 +19,6 @@ server.on('stream', (stream) => {
   // system specific timings.
   stream.on('error', (err) => {
     assert.strictEqual(err.code, 'ERR_HTTP2_STREAM_ERROR');
-    assert.strictEqual(err.message,
-                       'Stream closed with error code NGHTTP2_INTERNAL_ERROR');
   });
   stream.respond();
   stream.end();
@@ -39,7 +37,6 @@ server.listen(0, common.mustCall(() => {
 
   req.on('error', common.expectsError({
     name: 'Error',
-    message: 'test'
   }));
 
   req.on('close', common.mustCall(() => {

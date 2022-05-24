@@ -28,7 +28,6 @@ async function main() {
     } else {
       const expected = {
         code: 'ERR_HTTP2_TOO_MANY_INVALID_FRAMES',
-        message: 'Too many invalid HTTP/2 frames'
       };
       stream.on('error', common.expectsError(expected));
       client.on('error', common.expectsError(expected));

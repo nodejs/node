@@ -28,8 +28,6 @@ const originalFs = { fs };
       () => fs.createWriteStream(file, opts), {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
-        message: `The "options.fs.${fn}" property must be of type function. ` +
-        'Received null'
       },
       `createWriteStream options.fs.${fn} should throw if isn't a function`
     );
@@ -46,8 +44,6 @@ const originalFs = { fs };
     () => fs.createWriteStream(file, opts), {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "options.fs.writev" property must be of type function. ' +
-        'Received type string (\'not a fn\')'
     },
     'createWriteStream options.fs.writev should throw if isn\'t a function'
   );
@@ -64,8 +60,6 @@ const originalFs = { fs };
       () => fs.createReadStream(file, opts), {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError',
-        message: `The "options.fs.${fn}" property must be of type function. ` +
-        'Received null'
       },
       `createReadStream options.fs.${fn} should throw if isn't a function`
     );

@@ -13,7 +13,6 @@ const net = require('net');
     const option = {
       [invalidKey]: true
     };
-    const message = `The property 'options.${invalidKey}' is not supported. Received true`;
 
     assert.throws(() => {
       const socket = new net.Socket(option);
@@ -21,7 +20,6 @@ const net = require('net');
     }, {
       code: 'ERR_INVALID_ARG_VALUE',
       name: 'TypeError',
-      message: new RegExp(message)
     });
   });
 }

@@ -11,21 +11,21 @@ const assert = require('assert');
 // Test CryptoKey constructor
 {
   assert.throws(() => new CryptoKey(), {
-    name: 'TypeError', message: 'Illegal constructor', code: 'ERR_ILLEGAL_CONSTRUCTOR'
+    name: 'TypeError', code: 'ERR_ILLEGAL_CONSTRUCTOR'
   });
 }
 
 // Test SubtleCrypto constructor
 {
   assert.throws(() => new SubtleCrypto(), {
-    name: 'TypeError', message: 'Illegal constructor', code: 'ERR_ILLEGAL_CONSTRUCTOR'
+    name: 'TypeError', code: 'ERR_ILLEGAL_CONSTRUCTOR'
   });
 }
 
 // Test Crypto constructor
 {
   assert.throws(() => new Crypto(), {
-    name: 'TypeError', message: 'Illegal constructor', code: 'ERR_ILLEGAL_CONSTRUCTOR'
+    name: 'TypeError', code: 'ERR_ILLEGAL_CONSTRUCTOR'
   });
 }
 

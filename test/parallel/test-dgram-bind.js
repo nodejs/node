@@ -32,7 +32,6 @@ socket.on('listening', common.mustCall(() => {
   }, {
     code: 'ERR_SOCKET_ALREADY_BOUND',
     name: 'Error',
-    message: /^Socket is already bound$/
   });
 
   socket.close();

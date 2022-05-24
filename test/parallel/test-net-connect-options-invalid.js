@@ -14,14 +14,12 @@ const net = require('net');
       port: 8080,
       [invalidKey]: true
     };
-    const message = `The property 'options.${invalidKey}' is not supported. Received true`;
 
     assert.throws(() => {
       net.createConnection(option);
     }, {
       code: 'ERR_INVALID_ARG_VALUE',
       name: 'TypeError',
-      message: new RegExp(message)
     });
   });
 }

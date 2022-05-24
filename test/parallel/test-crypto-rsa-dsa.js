@@ -28,8 +28,6 @@ const dsaPkcs8KeyPem = fixtures.readKey('dsa_private_pkcs8.pem');
 const ec = new TextEncoder();
 
 const openssl1DecryptError = {
-  message: 'error:06065064:digital envelope routines:EVP_DecryptFinal_ex:' +
-    'bad decrypt',
   code: 'ERR_OSSL_EVP_BAD_DECRYPT',
   reason: 'bad decrypt',
   function: 'EVP_DecryptFinal_ex',

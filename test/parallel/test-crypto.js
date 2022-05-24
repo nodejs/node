@@ -180,8 +180,6 @@ testImmutability(crypto.getCurves);
 const encodingError = {
   code: 'ERR_INVALID_ARG_VALUE',
   name: 'TypeError',
-  message: "The argument 'encoding' is invalid for data of length 1." +
-           " Received 'hex'",
 };
 
 // Regression tests for https://github.com/nodejs/node-v0.x-archive/pull/5725:
@@ -236,11 +234,9 @@ assert.throws(() => {
     assert.ok(!('opensslErrorStack' in err));
   assert.throws(() => { throw err; }, common.hasOpenSSL3 ? {
     name: 'Error',
-    message: 'error:02000070:rsa routines::digest too big for rsa key',
     library: 'rsa routines',
   } : {
     name: 'Error',
-    message: /routines:RSA_sign:digest too big for rsa key$/,
     library: 'rsa routines',
     function: 'RSA_sign',
     reason: 'digest too big for rsa key',
@@ -262,8 +258,6 @@ if (!common.hasOpenSSL3) {
   }, (err) => {
     // Do the standard checks, but then do some custom checks afterwards.
     assert.throws(() => { throw err; }, {
-      message: 'error:0D0680A8:asn1 encoding routines:asn1_check_tlen:' +
-               'wrong tag',
       library: 'asn1 encoding routines',
       function: 'asn1_check_tlen',
       reason: 'wrong tag',

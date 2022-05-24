@@ -38,29 +38,24 @@ assert.throws(() => {
 }, {
   code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
-  message: 'The "time" argument must be an instance of Array. Received type ' +
-           'number (1)'
 });
 assert.throws(() => {
   process.hrtime([]);
 }, {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
-  message: 'The value of "time" is out of range. It must be 2. Received 0'
 });
 assert.throws(() => {
   process.hrtime([1]);
 }, {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
-  message: 'The value of "time" is out of range. It must be 2. Received 1'
 });
 assert.throws(() => {
   process.hrtime([1, 2, 3]);
 }, {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
-  message: 'The value of "time" is out of range. It must be 2. Received 3'
 });
 
 function validateTuple(tuple) {

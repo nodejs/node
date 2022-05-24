@@ -9,21 +9,16 @@ const crypto = require('crypto');
 assert.throws(() => crypto.diffieHellman(), {
   name: 'TypeError',
   code: 'ERR_INVALID_ARG_TYPE',
-  message: 'The "options" argument must be of type object. Received undefined'
 });
 
 assert.throws(() => crypto.diffieHellman(null), {
   name: 'TypeError',
   code: 'ERR_INVALID_ARG_TYPE',
-  message: 'The "options" argument must be of type object. Received null'
 });
 
 assert.throws(() => crypto.diffieHellman([]), {
   name: 'TypeError',
   code: 'ERR_INVALID_ARG_TYPE',
-  message:
-    'The "options" argument must be of type object. ' +
-    'Received an instance of Array',
 });
 
 function test({ publicKey: alicePublicKey, privateKey: alicePrivateKey },
@@ -105,13 +100,11 @@ const bobPublicKey = crypto.createPublicKey({
 assert.throws(() => crypto.diffieHellman({ privateKey: alicePrivateKey }), {
   name: 'TypeError',
   code: 'ERR_INVALID_ARG_VALUE',
-  message: "The property 'options.publicKey' is invalid. Received undefined"
 });
 
 assert.throws(() => crypto.diffieHellman({ publicKey: alicePublicKey }), {
   name: 'TypeError',
   code: 'ERR_INVALID_ARG_VALUE',
-  message: "The property 'options.privateKey' is invalid. Received undefined"
 });
 
 const privateKey = Buffer.from(
@@ -242,5 +235,4 @@ assert.throws(() => {
 }, {
   name: 'Error',
   code: 'ERR_CRYPTO_INCOMPATIBLE_KEY',
-  message: 'Incompatible key types for Diffie-Hellman: x448 and x25519'
 });

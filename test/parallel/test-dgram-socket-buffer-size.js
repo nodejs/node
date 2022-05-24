@@ -85,7 +85,6 @@ function getExpectedError(type) {
   const errorObj = {
     code: 'ERR_SOCKET_BAD_BUFFER_SIZE',
     name: 'TypeError',
-    message: /^Buffer size must be a positive integer$/
   };
 
   const badBufferSizes = [-1, Infinity, 'Doh!'];
@@ -132,8 +131,6 @@ function getExpectedError(type) {
   const errorObj = {
     code: 'ERR_SOCKET_BUFFER_SIZE',
     name: 'SystemError',
-    message: 'Could not get or set buffer size: uv_recv_buffer_size ' +
-             'returned EINVAL (invalid argument)',
     info
   };
   const socket = dgram.createSocket('udp4');
@@ -155,8 +152,6 @@ function getExpectedError(type) {
   const errorObj = {
     code: 'ERR_SOCKET_BUFFER_SIZE',
     name: 'SystemError',
-    message: 'Could not get or set buffer size: uv_send_buffer_size ' +
-             'returned EINVAL (invalid argument)',
     info
   };
   const socket = dgram.createSocket('udp4');

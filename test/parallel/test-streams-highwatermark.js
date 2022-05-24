@@ -3,7 +3,6 @@ const common = require('../common');
 
 const assert = require('assert');
 const stream = require('stream');
-const { inspect } = require('util');
 
 {
   // This test ensures that the stream implementation correctly handles values
@@ -27,8 +26,6 @@ const { inspect } = require('util');
       }, {
         name: 'TypeError',
         code: 'ERR_INVALID_ARG_VALUE',
-        message: "The property 'options.highWaterMark' is invalid. " +
-          `Received ${inspect(invalidHwm)}`
       });
     }
   }
@@ -80,8 +77,5 @@ const { inspect } = require('util');
 
   assert.throws(() => readable.read(hwm), common.expectsError({
     code: 'ERR_OUT_OF_RANGE',
-    message: 'The value of "size" is out of range.' +
-             ' It must be <= 1GiB. Received ' +
-             hwm,
   }));
 }

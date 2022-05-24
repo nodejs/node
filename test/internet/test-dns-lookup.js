@@ -15,7 +15,6 @@ assert.rejects(
   }),
   {
     code: 'ENOTFOUND',
-    message: `getaddrinfo ENOTFOUND ${addresses.NOT_FOUND}`
   }
 );
 
@@ -27,7 +26,6 @@ assert.rejects(
   }),
   {
     code: 'ENOTFOUND',
-    message: `getaddrinfo ENOTFOUND ${addresses.NOT_FOUND}`
   }
 );
 

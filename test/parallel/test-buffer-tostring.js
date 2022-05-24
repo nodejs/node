@@ -30,7 +30,6 @@ for (let i = 1; i < 10; i++) {
   const error = common.expectsError({
     code: 'ERR_UNKNOWN_ENCODING',
     name: 'TypeError',
-    message: `Unknown encoding: ${encoding}`
   });
   assert.ok(!Buffer.isEncoding(encoding));
   assert.throws(() => Buffer.from('foo').toString(encoding), error);

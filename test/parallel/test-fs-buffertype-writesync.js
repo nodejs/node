@@ -11,6 +11,6 @@ const fs = require('fs');
 ].forEach((value) => {
   assert.throws(
     () => fs.writeSync(1, value),
-    { message: /"buffer"/, code: 'ERR_INVALID_ARG_TYPE' }
+    { code: 'ERR_INVALID_ARG_TYPE' }
   );
 });

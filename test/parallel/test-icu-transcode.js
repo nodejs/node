@@ -46,8 +46,6 @@ assert.throws(
   {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "source" argument must be an instance of Buffer ' +
-             'or Uint8Array. Received null'
   }
 );
 

@@ -67,7 +67,6 @@ dns.lookup('::1', common.mustSucceed((result, addressType) => {
   const err = {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: `The argument 'rrtype' is invalid. Received '${val}'`,
   };
 
   assert.throws(

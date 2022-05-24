@@ -27,7 +27,6 @@ assert.strictEqual(typeof PRIORITY_HIGHEST, 'number');
 [null, true, false, 'foo', {}, [], /x/].forEach((pid) => {
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: /The "pid" argument must be of type number\./
   };
 
   assert.throws(() => {
@@ -43,7 +42,6 @@ assert.strictEqual(typeof PRIORITY_HIGHEST, 'number');
 [NaN, Infinity, -Infinity, 3.14, 2 ** 32].forEach((pid) => {
   const errObj = {
     code: 'ERR_OUT_OF_RANGE',
-    message: /The value of "pid" is out of range\./
   };
 
   assert.throws(() => {
@@ -61,7 +59,6 @@ assert.strictEqual(typeof PRIORITY_HIGHEST, 'number');
     os.setPriority(0, priority);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: /The "priority" argument must be of type number\./
   });
 });
 
@@ -79,7 +76,6 @@ assert.strictEqual(typeof PRIORITY_HIGHEST, 'number');
     os.setPriority(0, priority);
   }, {
     code: 'ERR_OUT_OF_RANGE',
-    message: /The value of "priority" is out of range\./
   });
 });
 

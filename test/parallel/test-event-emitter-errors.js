@@ -11,7 +11,6 @@ assert.throws(
   {
     code: 'ERR_UNHANDLED_ERROR',
     name: 'Error',
-    message: "Unhandled error. ('Accepts a string')"
   }
 );
 
@@ -20,7 +19,6 @@ assert.throws(
   {
     code: 'ERR_UNHANDLED_ERROR',
     name: 'Error',
-    message: "Unhandled error. ({ message: 'Error!' })"
   }
 );
 
@@ -32,6 +30,5 @@ assert.throws(
   {
     code: 'ERR_UNHANDLED_ERROR',
     name: 'Error',
-    message: 'Unhandled error. ([object Object])'
   }
 );

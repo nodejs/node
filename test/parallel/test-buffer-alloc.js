@@ -1064,19 +1064,13 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "target" argument must be an instance of Buffer or ' +
-             'Uint8Array. Received undefined'
   });
 
 assert.throws(() => Buffer.from(), {
   name: 'TypeError',
-  message: 'The first argument must be of type string or an instance of ' +
-  'Buffer, ArrayBuffer, or Array or an Array-like Object. Received undefined'
 });
 assert.throws(() => Buffer.from(null), {
   name: 'TypeError',
-  message: 'The first argument must be of type string or an instance of ' +
-  'Buffer, ArrayBuffer, or Array or an Array-like Object. Received null'
 });
 
 // Test prototype getters don't throw
@@ -1105,7 +1099,6 @@ assert.strictEqual(SlowBuffer.prototype.offset, undefined);
   const errMsg = common.expectsError({
     code: 'ERR_BUFFER_OUT_OF_BOUNDS',
     name: 'RangeError',
-    message: '"offset" is outside of buffer bounds'
   });
   assert.throws(() => Buffer.from(new ArrayBuffer(0), -1 >>> 0), errMsg);
 }

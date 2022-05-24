@@ -13,7 +13,6 @@ assert.throws(
   {
     name: 'Error',
     code: 'ERR_METHOD_NOT_IMPLEMENTED',
-    message: 'The _transform() method is not implemented'
   }
 );
 

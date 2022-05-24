@@ -1,6 +1,5 @@
 // Flags: --expose-internals
 'use strict';
-const common = require('../common');
 const assert = require('assert');
 const { codes: { ERR_OUT_OF_RANGE } } = require('internal/errors');
 const { internalBinding } = require('internal/test/binding');
@@ -199,7 +198,6 @@ assert.throws(
   {
     code: 'ERR_UNKNOWN_ENCODING',
     name: 'TypeError',
-    message: 'Unknown encoding: node rocks!'
   }
 );
 
@@ -211,8 +209,6 @@ assert.throws(
     () => buf1.fill(...args),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "encoding" argument must be of type ' +
-      `string.${common.invalidArgTypeHelper(args[3])}`
     }
   );
 });
@@ -222,7 +218,6 @@ assert.throws(
   {
     code: 'ERR_UNKNOWN_ENCODING',
     name: 'TypeError',
-    message: 'Unknown encoding: foo'
   }
 );
 
@@ -360,8 +355,6 @@ assert.throws(
     Buffer.alloc(1).fill(Buffer.alloc(1), 0, end);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "end" argument must be of type number. Received an ' +
-             'instance of Object'
   });
 }
 
@@ -383,7 +376,6 @@ assert.throws(() => {
 }, {
   code: 'ERR_BUFFER_OUT_OF_BOUNDS',
   name: 'RangeError',
-  message: 'Attempt to access memory outside buffer bounds'
 });
 
 assert.deepStrictEqual(

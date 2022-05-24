@@ -16,7 +16,6 @@ server.listen(0, common.mustCall(function() {
 
     conn.write(Buffer.from('kaboom'), common.expectsError({
       code: 'ERR_STREAM_DESTROYED',
-      message: 'Cannot call write after a stream was destroyed',
       name: 'Error'
     }));
     server.close();

@@ -529,6 +529,5 @@ assert.strictEqual(
     util.formatWithOptions(invalidOptions, { a: true });
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: /"inspectOptions".+object/
   });
 });

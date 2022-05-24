@@ -57,7 +57,6 @@ check(false, false, false);
   });
 
   [0, 'true', null, {}, [], () => {}].forEach((colorMode) => {
-    const received = util.inspect(colorMode);
     assert.throws(
       () => {
         new Console({
@@ -67,7 +66,6 @@ check(false, false, false);
         });
       },
       {
-        message: `The argument 'colorMode' is invalid. Received ${received}`,
         code: 'ERR_INVALID_ARG_VALUE'
       }
     );
@@ -86,8 +84,6 @@ check(false, false, false);
         });
       },
       {
-        message: 'Option "options.inspectOptions.color" cannot be used in ' +
-                 'combination with option "colorMode"',
         code: 'ERR_INCOMPATIBLE_OPTION_PAIR'
       }
     );

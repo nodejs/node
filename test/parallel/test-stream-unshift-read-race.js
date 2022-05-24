@@ -76,7 +76,6 @@ function pushError() {
   }, {
     code: 'ERR_STREAM_PUSH_AFTER_EOF',
     name: 'Error',
-    message: 'stream.push() after EOF'
   });
 }
 

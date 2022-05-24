@@ -59,7 +59,6 @@ fs.readdir(__filename, {
     {
       code: 'ENOTDIR',
       name: 'Error',
-      message: `ENOTDIR: not a directory, scandir '${__filename}'`
     }
   );
 }));

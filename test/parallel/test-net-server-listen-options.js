@@ -64,14 +64,12 @@ const listenOnPort = [
                     {
                       code: 'ERR_INVALID_ARG_VALUE',
                       name: 'TypeError',
-                      message: /^The argument 'options' must have the property "port" or "path"\. Received .+$/,
                     });
     } else {
       assert.throws(fn,
                     {
                       code: 'ERR_INVALID_ARG_VALUE',
                       name: 'TypeError',
-                      message: /^The argument 'options' is invalid\. Received .+$/,
                     });
     }
   }

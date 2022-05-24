@@ -135,7 +135,6 @@ function repeat(fn) {
     {
       name: 'Error',
       code: 'ERR_INTERNAL_ASSERTION',
-      message: /^handle must be a FSEvent/,
     }
   );
   oldhandle.close(); // clean up
@@ -157,7 +156,6 @@ function repeat(fn) {
     {
       name: 'Error',
       code: 'ERR_INTERNAL_ASSERTION',
-      message: /^handle must be a FSEvent/,
     }
   );
   oldhandle.close(); // clean up

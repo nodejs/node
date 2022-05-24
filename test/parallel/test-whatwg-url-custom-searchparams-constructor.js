@@ -17,12 +17,10 @@ function makeIterableFunc(array) {
   const iterableError = {
     code: 'ERR_ARG_NOT_ITERABLE',
     name: 'TypeError',
-    message: 'Query pairs must be iterable'
   };
   const tupleError = {
     code: 'ERR_INVALID_TUPLE',
     name: 'TypeError',
-    message: 'Each query pair must be an iterable [name, value] tuple'
   };
 
   let params;

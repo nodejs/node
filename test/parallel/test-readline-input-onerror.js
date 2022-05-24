@@ -21,7 +21,6 @@ const f = path.join(__dirname, 'file.txt');
 // catch-able SymbolAsyncIterator `errorListener` error
 processLineByLine_SymbolAsyncError(f).catch(common.expectsError({
   code: 'ENOENT',
-  message: `ENOENT: no such file or directory, open '${f}'`
 }));
 
 async function processLineByLine_InterfaceErrorEvent(filename) {
@@ -32,7 +31,6 @@ async function processLineByLine_InterfaceErrorEvent(filename) {
   });
   rl.on('error', common.expectsError({
     code: 'ENOENT',
-    message: `ENOENT: no such file or directory, open '${f}'`
   }));
 }
 

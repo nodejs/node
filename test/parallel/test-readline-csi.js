@@ -133,7 +133,6 @@ assert.throws(
   {
     name: 'TypeError',
     code: 'ERR_INVALID_CURSOR_POS',
-    message: 'Cannot set cursor row without setting its column'
   });
 assert.strictEqual(writable.data, '');
 

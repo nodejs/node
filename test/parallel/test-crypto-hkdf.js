@@ -17,61 +17,50 @@ const {
 {
   assert.throws(() => hkdf(), {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: /The "digest" argument must be of type string/
   });
 
   [1, {}, [], false, Infinity].forEach((i) => {
     assert.throws(() => hkdf(i, 'a'), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "digest" argument must be of type string/
     });
     assert.throws(() => hkdfSync(i, 'a'), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "digest" argument must be of type string/
     });
   });
 
   [1, {}, [], false, Infinity].forEach((i) => {
     assert.throws(() => hkdf('sha256', i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "ikm" argument must be /
     });
     assert.throws(() => hkdfSync('sha256', i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "ikm" argument must be /
     });
   });
 
   [1, {}, [], false, Infinity].forEach((i) => {
     assert.throws(() => hkdf('sha256', 'secret', i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "salt" argument must be /
     });
     assert.throws(() => hkdfSync('sha256', 'secret', i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "salt" argument must be /
     });
   });
 
   [1, {}, [], false, Infinity].forEach((i) => {
     assert.throws(() => hkdf('sha256', 'secret', 'salt', i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "info" argument must be /
     });
     assert.throws(() => hkdfSync('sha256', 'secret', 'salt', i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "info" argument must be /
     });
   });
 
   ['test', {}, [], false].forEach((i) => {
     assert.throws(() => hkdf('sha256', 'secret', 'salt', 'info', i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "length" argument must be of type number/
     });
     assert.throws(() => hkdfSync('sha256', 'secret', 'salt', 'info', i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "length" argument must be of type number/
     });
   });
 

@@ -30,8 +30,6 @@ const specificTests = [
     error: {
       code: 'ERR_HTTP2_OUT_OF_STREAMS',
       name: 'Error',
-      message: 'No stream ID is available because ' +
-               'maximum stream ID has been reached'
     },
     type: 'stream'
   },
@@ -40,7 +38,6 @@ const specificTests = [
     error: {
       code: 'ERR_HTTP2_STREAM_SELF_DEPENDENCY',
       name: 'Error',
-      message: 'A stream cannot depend on itself'
     },
     type: 'stream'
   },

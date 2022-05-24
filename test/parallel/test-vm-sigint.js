@@ -28,7 +28,6 @@ if (process.argv[2] === 'child') {
     () => { vm[method](script, ...args, options); },
     {
       code: 'ERR_SCRIPT_EXECUTION_INTERRUPTED',
-      message: 'Script execution was interrupted by `SIGINT`'
     });
   return;
 }

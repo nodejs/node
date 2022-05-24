@@ -210,21 +210,18 @@ const http = require('http');
     () => finished(rs, 'foo'),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /callback/
     }
   );
   assert.throws(
     () => finished(rs, 'foo', () => {}),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /options/
     }
   );
   assert.throws(
     () => finished(rs, {}, 'foo'),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /callback/
     }
   );
 

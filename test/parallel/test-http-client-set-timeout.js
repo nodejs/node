@@ -34,7 +34,6 @@ server.listen(0, mustCall(() => {
   req.on('error', expectsError({
     name: 'Error',
     code: 'ECONNRESET',
-    message: 'socket hang up'
   }));
 
   req.on('close', mustCall(() => {

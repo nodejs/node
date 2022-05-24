@@ -95,7 +95,6 @@ const { MessageChannel, MessagePort } = require('worker_threads');
   const err = {
     constructor: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'Optional transferList argument must be an iterable'
   };
 
   assert.throws(() => port1.postMessage(5, 0), err);
@@ -106,7 +105,6 @@ const { MessageChannel, MessagePort } = require('worker_threads');
   const err2 = {
     constructor: TypeError,
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'Optional options.transfer argument must be an iterable'
   };
 
   assert.throws(() => port1.postMessage(5, { transfer: null }), err2);

@@ -127,7 +127,5 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "callback" argument must be of type function. ' +
-             'Received undefined'
   }
 );

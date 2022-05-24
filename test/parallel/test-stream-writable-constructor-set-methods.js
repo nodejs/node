@@ -14,7 +14,6 @@ assert.throws(
   {
     name: 'Error',
     code: 'ERR_METHOD_NOT_IMPLEMENTED',
-    message: 'The _write() method is not implemented'
   }
 );
 

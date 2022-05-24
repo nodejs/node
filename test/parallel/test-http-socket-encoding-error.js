@@ -14,8 +14,6 @@ server.on('connection', common.mustCall((socket) => {
     {
       code: 'ERR_HTTP_SOCKET_ENCODING',
       name: 'Error',
-      message: 'Changing the socket encoding is not ' +
-        'allowed per RFC7230 Section 3.'
     }
   );
 

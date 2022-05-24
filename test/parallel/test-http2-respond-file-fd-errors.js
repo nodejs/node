@@ -7,7 +7,6 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const http2 = require('http2');
 const fs = require('fs');
-const { inspect } = require('util');
 
 const optionsWithTypeError = {
   offset: 'number',
@@ -44,8 +43,6 @@ server.on('stream', common.mustCall((stream) => {
       {
         name: 'TypeError',
         code: 'ERR_INVALID_ARG_TYPE',
-        message: 'The "fd" argument must be of type number or an instance of' +
-                 ` FileHandle.${common.invalidArgTypeHelper(types[type])}`
       }
     );
   });
@@ -66,8 +63,6 @@ server.on('stream', common.mustCall((stream) => {
         {
           name: 'TypeError',
           code: 'ERR_INVALID_ARG_VALUE',
-          message: `The property 'options.${option}' is invalid. ` +
-            `Received ${inspect(types[type])}`
         }
       );
     });
@@ -82,7 +77,6 @@ server.on('stream', common.mustCall((stream) => {
     {
       code: 'ERR_HTTP2_PAYLOAD_FORBIDDEN',
       name: 'Error',
-      message: `Responses with ${status} status must not have a payload`
     }
   ));
 
@@ -95,7 +89,6 @@ server.on('stream', common.mustCall((stream) => {
     {
       code: 'ERR_HTTP2_HEADERS_SENT',
       name: 'Error',
-      message: 'Response has already been initiated.'
     }
   );
 
@@ -108,7 +101,6 @@ server.on('stream', common.mustCall((stream) => {
     {
       code: 'ERR_HTTP2_INVALID_STREAM',
       name: 'Error',
-      message: 'The stream has been destroyed'
     }
   );
 }));

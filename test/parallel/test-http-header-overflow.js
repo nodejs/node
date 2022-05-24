@@ -26,7 +26,6 @@ server.on('connection', mustCall((socket) => {
   const legacy = getOptionValue('--http-parser') === 'legacy';
   socket.on('error', expectsError({
     name: 'Error',
-    message: 'Parse Error: Header overflow',
     code: 'HPE_HEADER_OVERFLOW',
     bytesParsed: maxHeaderSize + PAYLOAD_GET.length - (legacy ? -1 : 0),
     rawPacket: Buffer.from(PAYLOAD)

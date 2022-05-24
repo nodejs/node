@@ -36,7 +36,6 @@ const invalidThenableFunc = () => {
   const errObj = {
     code: 'ERR_ASSERTION',
     name: 'AssertionError',
-    message: 'Failed'
   };
 
   // `assert.rejects` accepts a function or a promise
@@ -72,9 +71,6 @@ const invalidThenableFunc = () => {
   promises.push(assert.rejects(
     () => assert.rejects(Promise.reject(err), validate),
     {
-      message: 'The "validate" validation function is expected to ' +
-               "return \"true\". Received 'baz'\n\nCaught error:\n\n" +
-               'Error: foobar',
       code: 'ERR_ASSERTION',
       actual: err,
       expected: validate,
@@ -103,8 +99,6 @@ const invalidThenableFunc = () => {
   promises.push(assert.rejects(promise, {
     name: 'TypeError',
     code: 'ERR_INVALID_RETURN_VALUE',
-    message: 'Expected instance of Promise to be returned ' +
-             'from the "promiseFn" function but got type undefined.'
   }));
 
   promise = assert.rejects(Promise.resolve(), common.mustNotCall());
@@ -125,8 +119,6 @@ promises.push(assert.rejects(
   assert.rejects('fail', {}),
   {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "promiseFn" argument must be of type function or an ' +
-             "instance of Promise. Received type string ('fail')"
   }
 ));
 
@@ -161,8 +153,6 @@ promises.push(assert.rejects(
   /* eslint-disable no-restricted-syntax */
   let promise = assert.doesNotReject(() => new Map(), common.mustNotCall());
   promises.push(assert.rejects(promise, {
-    message: 'Expected instance of Promise to be returned ' +
-             'from the "promiseFn" function but got instance of Map.',
     code: 'ERR_INVALID_RETURN_VALUE',
     name: 'TypeError'
   }));
@@ -202,8 +192,6 @@ promises.push(assert.rejects(
     assert(err instanceof assert.AssertionError,
            `${err.name} is not instance of AssertionError`);
     assert.strictEqual(err.code, 'ERR_ASSERTION');
-    assert.strictEqual(err.message,
-                       'Got unwanted rejection.\nActual message: "Failed"');
     assert.strictEqual(err.operator, 'doesNotReject');
     assert.ok(err.stack);
     assert.ok(!err.stack.includes('at Function.doesNotReject'));
@@ -225,8 +213,6 @@ promises.push(assert.rejects(
     assert.doesNotReject(123),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: 'The "promiseFn" argument must be of type ' +
-               'function or an instance of Promise. Received type number (123)'
     }
   ));
   /* eslint-enable no-restricted-syntax */

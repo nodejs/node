@@ -11,7 +11,6 @@ const assert = require('assert');
     }));
     req.on('error', common.mustCall(function(err) {
       assert.strictEqual(err.code, 'ECONNRESET');
-      assert.strictEqual(err.message, 'aborted');
       server.close();
     }));
     assert.strictEqual(req.aborted, false);
@@ -28,7 +27,6 @@ const assert = require('assert');
       }));
       res.on('error', common.expectsError({
         code: 'ECONNRESET',
-        message: 'aborted'
       }));
       req.abort();
     }));

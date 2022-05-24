@@ -40,8 +40,6 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   }, {
     name: 'RangeError',
     code: 'ERR_OUT_OF_RANGE',
-    message: 'The value of "key.byteLength" is out of range. ' +
-             'It must be > 0. Received 0'
   });
 }
 
@@ -52,7 +50,6 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.throws(() => new KeyObject(TYPE), {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_VALUE',
-    message: `The argument 'type' is invalid. Received '${TYPE}'`
   });
 }
 
@@ -61,9 +58,6 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.throws(() => new KeyObject('secret', ''), {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_TYPE',
-    message:
-      'The "handle" argument must be of type object. Received type ' +
-      "string ('')"
   });
 }
 
@@ -71,9 +65,6 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.throws(() => KeyObject.from('invalid_key'), {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_TYPE',
-    message:
-      'The "key" argument must be an instance of CryptoKey. Received type ' +
-      "string ('invalid_key')"
   });
 }
 
@@ -109,7 +100,6 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.throws(() => createPublicKey(publicKey), {
     name: 'TypeError',
     code: 'ERR_CRYPTO_INVALID_KEY_OBJECT_TYPE',
-    message: 'Invalid key object type public, expected private.'
   });
 
   // Constructing a private key from a public key should be impossible, even
@@ -206,7 +196,6 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     assert.throws(() => publicKey.export(opt), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "options" argument must be of type object/
     });
   }
 
@@ -229,7 +218,6 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.throws(() => {
     privateKey.export({ format: 'jwk', passphrase: 'secret' });
   }, {
-    message: 'The selected key encoding jwk does not support encryption.',
     code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS'
   });
 
@@ -306,7 +294,6 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   }, common.hasOpenSSL3 ? {
     message: 'error:1E08010C:DECODER routines::unsupported',
   } : {
-    message: 'error:0909006C:PEM routines:get_name:no start line',
     code: 'ERR_OSSL_PEM_NO_START_LINE',
     reason: 'no start line',
     library: 'PEM routines',
@@ -318,7 +305,6 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     createPrivateKey({ key: Buffer.alloc(0), format: 'der', type: 'spki' });
   }, {
     code: 'ERR_INVALID_ARG_VALUE',
-    message: "The property 'options.type' is invalid. Received 'spki'"
   });
 
   // Unlike SPKI, PKCS#1 is a valid encoding for private keys (and public keys),
@@ -330,10 +316,8 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     });
     createPrivateKey({ key, format: 'der', type: 'pkcs1' });
   }, common.hasOpenSSL3 ? {
-    message: /error:1E08010C:DECODER routines::unsupported/,
     library: 'DECODER routines'
   } : {
-    message: /asn1 encoding/,
     library: 'asn1 encoding routines'
   });
 }
@@ -518,12 +502,9 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   // Reading an encrypted key without a passphrase should fail.
   assert.throws(() => createPrivateKey(privateDsa), common.hasOpenSSL3 ? {
     name: 'Error',
-    message: 'error:07880109:common libcrypto routines::interrupted or ' +
-             'cancelled',
   } : {
     name: 'TypeError',
     code: 'ERR_MISSING_PASSPHRASE',
-    message: 'Passphrase required for encrypted key'
   });
 
   // Reading an encrypted key with a passphrase that exceeds OpenSSL's buffer
@@ -776,7 +757,6 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   }, {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_VALUE',
-    message: "The property 'options.cipher' is invalid. Received undefined"
   });
 }
 
@@ -813,13 +793,11 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     () => publicKey.export({ format: 'jwk' }),
     {
       code: 'ERR_CRYPTO_JWK_UNSUPPORTED_CURVE',
-      message: `Unsupported JWK EC curve: ${namedCurve}.`
     });
   assert.throws(
     () => privateKey.export({ format: 'jwk' }),
     {
       code: 'ERR_CRYPTO_JWK_UNSUPPORTED_CURVE',
-      message: `Unsupported JWK EC curve: ${namedCurve}.`
     });
 }
 
@@ -833,7 +811,6 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.throws(() => keyObject.equals(0), {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "otherKeyObject" argument must be an instance of KeyObject. Received type number (0)'
   });
 
   assert(keyObject.equals(keyObject));

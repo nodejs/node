@@ -14,7 +14,6 @@ const server = createServer();
 server.on('connection', mustCall((socket) => {
   socket.on('error', expectsError({
     name: 'Error',
-    message: 'Parse Error: Invalid method encountered',
     code: 'HPE_INVALID_METHOD',
     bytesParsed: 1,
     rawPacket: Buffer.from('FOO /\r\n')

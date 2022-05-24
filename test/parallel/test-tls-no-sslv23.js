@@ -10,7 +10,6 @@ assert.throws(function() {
   tls.createSecureContext({ secureProtocol: 'blargh' });
 }, {
   code: 'ERR_TLS_INVALID_PROTOCOL_METHOD',
-  message: 'Unknown method: blargh',
 });
 
 const errMessageSSLv2 = /SSLv2 methods disabled/;

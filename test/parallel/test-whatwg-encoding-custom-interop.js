@@ -48,7 +48,6 @@ assert(TextEncoder);
   const expectedError = {
     code: 'ERR_INVALID_THIS',
     name: 'TypeError',
-    message: 'Value of "this" must be of type TextEncoder'
   };
 
   inspectFn.call(instance, Infinity, {});

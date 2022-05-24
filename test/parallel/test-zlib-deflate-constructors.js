@@ -18,8 +18,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "options.chunkSize" property must be of type number. ' +
-             "Received type string ('test')"
   }
 );
 
@@ -28,8 +26,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "options.chunkSize" is out of range. It must ' +
-             'be a finite number. Received -Infinity'
   }
 );
 
@@ -38,8 +34,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "options.chunkSize" is out of range. It must ' +
-             'be >= 64. Received 0'
   }
 );
 
@@ -52,8 +46,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "options.windowBits" property must be of type number. ' +
-             "Received type string ('test')"
   }
 );
 
@@ -62,8 +54,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "options.windowBits" is out of range. It must ' +
-             'be a finite number. Received -Infinity'
   }
 );
 
@@ -72,8 +62,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "options.windowBits" is out of range. It must ' +
-             'be a finite number. Received Infinity'
   }
 );
 
@@ -82,8 +70,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "options.windowBits" is out of range. It must ' +
-             'be >= 8 and <= 15. Received 0'
   }
 );
 
@@ -93,8 +79,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "options.level" property must be of type number. ' +
-             "Received type string ('test')"
   }
 );
 
@@ -103,8 +87,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "options.level" is out of range. It must ' +
-             'be a finite number. Received -Infinity'
   }
 );
 
@@ -113,8 +95,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "options.level" is out of range. It must ' +
-             'be a finite number. Received Infinity'
   }
 );
 
@@ -123,8 +103,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "options.level" is out of range. It must ' +
-             'be >= -1 and <= 9. Received -2'
   }
 );
 
@@ -134,8 +112,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "level" argument must be of type number. ' +
-             "Received type string ('test')"
   }
 );
 
@@ -144,8 +120,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "level" is out of range. It must ' +
-             'be a finite number. Received -Infinity'
   }
 );
 
@@ -154,8 +128,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "level" is out of range. It must ' +
-             'be a finite number. Received Infinity'
   }
 );
 
@@ -164,8 +136,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "level" is out of range. It must ' +
-             'be >= -1 and <= 9. Received -2'
   }
 );
 
@@ -175,8 +145,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "options.memLevel" property must be of type number. ' +
-             "Received type string ('test')"
   }
 );
 
@@ -185,8 +153,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "options.memLevel" is out of range. It must ' +
-             'be a finite number. Received -Infinity'
   }
 );
 
@@ -195,8 +161,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "options.memLevel" is out of range. It must ' +
-             'be a finite number. Received Infinity'
   }
 );
 
@@ -205,8 +169,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "options.memLevel" is out of range. It must ' +
-             'be >= 1 and <= 9. Received -2'
   }
 );
 
@@ -223,8 +185,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "options.strategy" property must be of type number. ' +
-             "Received type string ('test')"
   }
 );
 
@@ -233,8 +193,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "options.strategy" is out of range. It must ' +
-             'be a finite number. Received -Infinity'
   }
 );
 
@@ -243,8 +201,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "options.strategy" is out of range. It must ' +
-             'be a finite number. Received Infinity'
   }
 );
 
@@ -253,8 +209,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "options.strategy" is out of range. It must ' +
-             'be >= 0 and <= 4. Received -2'
   }
 );
 
@@ -264,8 +218,6 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "strategy" argument must be of type number. ' +
-             "Received type string ('test')"
   }
 );
 
@@ -274,8 +226,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "strategy" is out of range. It must ' +
-             'be a finite number. Received -Infinity'
   }
 );
 
@@ -284,8 +234,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "strategy" is out of range. It must ' +
-             'be a finite number. Received Infinity'
   }
 );
 
@@ -294,8 +242,6 @@ assert.throws(
   {
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
-    message: 'The value of "strategy" is out of range. It must ' +
-             'be >= 0 and <= 4. Received -2'
   }
 );
 
@@ -305,8 +251,5 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "options.dictionary" property must be an instance of Buffer' +
-             ', TypedArray, DataView, or ArrayBuffer. Received type string ' +
-             "('not a buffer')"
   }
 );

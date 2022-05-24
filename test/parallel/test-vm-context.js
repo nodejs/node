@@ -65,12 +65,10 @@ assert.strictEqual(gh1140Exception.toString(), 'Error');
 const nonContextualObjectError = {
   code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
-  message: /must be of type object/
 };
 const contextifiedObjectError = {
   code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError',
-  message: /The "contextifiedObject" argument must be an vm\.Context/
 };
 
 [

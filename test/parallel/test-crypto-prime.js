@@ -44,11 +44,9 @@ const pCheckPrime = promisify(checkPrime);
 [-1, 0, 2 ** 31, 2 ** 31 + 1, 2 ** 32 - 1, 2 ** 32].forEach((size) => {
   assert.throws(() => generatePrime(size, common.mustNotCall()), {
     code: 'ERR_OUT_OF_RANGE',
-    message: />= 1 && <= 2147483647/
   });
   assert.throws(() => generatePrimeSync(size), {
     code: 'ERR_OUT_OF_RANGE',
-    message: />= 1 && <= 2147483647/
   });
 });
 
@@ -78,20 +76,14 @@ const pCheckPrime = promisify(checkPrime);
 
   assert.throws(() => generatePrime(20, { add: -1n }, common.mustNotCall()), {
     code: 'ERR_OUT_OF_RANGE',
-    message: 'The value of "options.add" is out of range. It must be >= 0. ' +
-             'Received -1n'
   });
 
   assert.throws(() => generatePrime(20, { rem: -1n }, common.mustNotCall()), {
     code: 'ERR_OUT_OF_RANGE',
-    message: 'The value of "options.rem" is out of range. It must be >= 0. ' +
-             'Received -1n'
   });
 
   assert.throws(() => checkPrime(-1n, common.mustNotCall()), {
     code: 'ERR_OUT_OF_RANGE',
-    message: 'The value of "candidate" is out of range. It must be >= 0. ' +
-             'Received -1n'
   });
 }
 
@@ -191,7 +183,6 @@ generatePrime(
       generatePrimeSync(64, { add });
     }, {
       code: 'ERR_OUT_OF_RANGE',
-      message: 'invalid options.add'
     });
   }
 
@@ -201,7 +192,6 @@ generatePrime(
       generatePrimeSync(64, { add: 7n, rem });
     }, {
       code: 'ERR_OUT_OF_RANGE',
-      message: 'invalid options.rem'
     });
   }
 

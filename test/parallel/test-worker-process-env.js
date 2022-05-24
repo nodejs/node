@@ -28,9 +28,6 @@ if (!workerData && process.argv[2] !== 'child') {
   }, {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "options.env" property must be of type object or ' +
-      'one of undefined, null, or worker_threads.SHARE_ENV. Received type ' +
-      'number (42)'
   });
 } else if (workerData === 'runInWorker') {
   // Env vars from the parent thread are inherited.
@@ -48,8 +45,6 @@ if (!workerData && process.argv[2] !== 'child') {
     {
       code: 'ERR_INVALID_OBJECT_DEFINE_PROPERTY',
       name: 'TypeError',
-      message: '\'process.env\' only accepts a configurable, ' +
-          'writable, and enumerable data descriptor'
     }
   );
 

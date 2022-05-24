@@ -52,7 +52,6 @@ const server = https.createServer(options, function() {
   });
 
   req.on('error', common.expectsError({
-    message: 'socket hang up',
     code: 'ECONNRESET',
     name: 'Error'
   }));
