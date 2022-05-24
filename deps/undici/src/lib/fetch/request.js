@@ -516,10 +516,6 @@ class Request {
   }
 
   get [Symbol.toStringTag] () {
-    if (!(this instanceof Request)) {
-      throw new TypeError('Illegal invocation')
-    }
-
     return this.constructor.name
   }
 
