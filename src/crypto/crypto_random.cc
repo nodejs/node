@@ -222,9 +222,9 @@ bool CheckPrimeTraits::DeriveBits(
             ctx.get(),
             nullptr);
   if (ret < 0) return false;
-  char* data = MallocOpenSSL<char>(1);
-  data[0] = ret;
-  *out = ByteSource::Allocated(data, 1);
+  ByteSource::Builder buf(1);
+  buf.data<char>()[0] = ret;
+  *out = std::move(buf).release();
   return true;
 }
 
@@ -233,7 +233,7 @@ Maybe<bool> CheckPrimeTraits::EncodeOutput(
     const CheckPrimeConfig& params,
     ByteSource* out,
     v8::Local<v8::Value>* result) {
-  *result = out->get()[0] ? True(env->isolate()) : False(env->isolate());
+  *result = out->data<char>()[0] ? True(env->isolate()) : False(env->isolate());
   return Just(true);
 }
 

@@ -223,7 +223,7 @@ WebCryptoCipherStatus RSA_Cipher(
 
   size_t label_len = params.label.size();
   if (label_len > 0) {
-    void* label = OPENSSL_memdup(params.label.get(), label_len);
+    void* label = OPENSSL_memdup(params.label.data<char>(), label_len);
     CHECK_NOT_NULL(label);
     if (EVP_PKEY_CTX_set0_rsa_oaep_label(
       ctx.get(),
@@ -244,22 +244,17 @@ WebCryptoCipherStatus RSA_Cipher(
     return WebCryptoCipherStatus::FAILED;
   }
 
-  char* data = MallocOpenSSL<char>(out_len);
-  ByteSource buf = ByteSource::Allocated(data, out_len);
-  unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
+  ByteSource::Builder buf(out_len);
 
-  if (cipher(
-          ctx.get(),
-          ptr,
-          &out_len,
-          in.data<unsigned char>(),
-          in.size()) <= 0) {
+  if (cipher(ctx.get(),
+             buf.data<unsigned char>(),
+             &out_len,
+             in.data<unsigned char>(),
+             in.size()) <= 0) {
     return WebCryptoCipherStatus::FAILED;
   }
 
-  buf.Resize(out_len);
-
-  *out = std::move(buf);
+  *out = std::move(buf).release(out_len);
   return WebCryptoCipherStatus::OK;
 }
 }  // namespace

@@ -525,8 +525,7 @@ MaybeLocal<Value> GetSerialNumber(Environment* env, X509* cert) {
     if (bn) {
       char* data = BN_bn2hex(bn.get());
       ByteSource buf = ByteSource::Allocated(data, strlen(data));
-      if (buf)
-        return OneByteString(env->isolate(), buf.get());
+      if (buf) return OneByteString(env->isolate(), buf.data<unsigned char>());
     }
   }
 

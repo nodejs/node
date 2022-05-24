@@ -606,18 +606,13 @@ ByteSource StatelessDiffieHellmanThreadsafe(
       EVP_PKEY_derive(ctx.get(), nullptr, &out_size) <= 0)
     return ByteSource();
 
-  char* buf = MallocOpenSSL<char>(out_size);
-  ByteSource out = ByteSource::Allocated(buf, out_size);
-
-  if (EVP_PKEY_derive(
-          ctx.get(),
-          reinterpret_cast<unsigned char*>(buf),
-          &out_size) <= 0) {
+  ByteSource::Builder out(out_size);
+  if (EVP_PKEY_derive(ctx.get(), out.data<unsigned char>(), &out_size) <= 0) {
     return ByteSource();
   }
 
-  ZeroPadDiffieHellmanSecret(out_size, buf, out.size());
-  return out;
+  ZeroPadDiffieHellmanSecret(out_size, out.data<char>(), out.size());
+  return std::move(out).release();
 }
 }  // namespace
 

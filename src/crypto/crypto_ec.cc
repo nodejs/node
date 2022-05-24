@@ -486,12 +486,9 @@ Maybe<bool> ECDHBitsTraits::AdditionalConfig(
   return Just(true);
 }
 
-bool ECDHBitsTraits::DeriveBits(
-    Environment* env,
-    const ECDHBitsConfig& params,
-    ByteSource* out) {
-
-  char* data = nullptr;
+bool ECDHBitsTraits::DeriveBits(Environment* env,
+                                const ECDHBitsConfig& params,
+                                ByteSource* out) {
   size_t len = 0;
   ManagedEVPPKey m_privkey = params.private_->GetAsymmetricKey();
   ManagedEVPPKey m_pubkey = params.public_->GetAsymmetricKey();
@@ -513,14 +510,13 @@ bool ECDHBitsTraits::DeriveBits(
         return false;
       }
 
-      data = MallocOpenSSL<char>(len);
+      ByteSource::Builder buf(len);
 
-      if (EVP_PKEY_derive(
-              ctx.get(),
-              reinterpret_cast<unsigned char*>(data),
-              &len) <= 0) {
+      if (EVP_PKEY_derive(ctx.get(), buf.data<unsigned char>(), &len) <= 0) {
         return false;
       }
+
+      *out = std::move(buf).release(len);
 
       break;
     }
@@ -543,22 +539,18 @@ bool ECDHBitsTraits::DeriveBits(
       const EC_POINT* pub = EC_KEY_get0_public_key(public_key);
       int field_size = EC_GROUP_get_degree(group);
       len = (field_size + 7) / 8;
-      data = MallocOpenSSL<char>(len);
-      CHECK_NOT_NULL(data);
+      ByteSource::Builder buf(len);
       CHECK_NOT_NULL(pub);
       CHECK_NOT_NULL(private_key);
-      if (ECDH_compute_key(
-              data,
-              len,
-              pub,
-              private_key,
-              nullptr) <= 0) {
+      if (ECDH_compute_key(buf.data<char>(), len, pub, private_key, nullptr) <=
+          0) {
         return false;
       }
+
+      *out = std::move(buf).release();
     }
   }
-  ByteSource buf = ByteSource::Allocated(data, len);
-  *out = std::move(buf);
+
   return true;
 }
 
@@ -646,7 +638,6 @@ WebCryptoKeyExportStatus EC_Raw_Export(
 
   const EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(m_pkey.get());
 
-  unsigned char* data;
   size_t len = 0;
 
   if (ec_key == nullptr) {
@@ -666,9 +657,10 @@ WebCryptoKeyExportStatus EC_Raw_Export(
     // Get the size of the raw key data
     if (fn(m_pkey.get(), nullptr, &len) == 0)
       return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-    data = MallocOpenSSL<unsigned char>(len);
-    if (fn(m_pkey.get(), data, &len) == 0)
+    ByteSource::Builder data(len);
+    if (fn(m_pkey.get(), data.data<unsigned char>(), &len) == 0)
       return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
+    *out = std::move(data).release(len);
   } else {
     if (key_data->GetKeyType() != kKeyTypePublic)
       return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
@@ -680,16 +672,15 @@ WebCryptoKeyExportStatus EC_Raw_Export(
     len = EC_POINT_point2oct(group, point, form, nullptr, 0, nullptr);
     if (len == 0)
       return WebCryptoKeyExportStatus::FAILED;
-    data = MallocOpenSSL<unsigned char>(len);
-    size_t check_len =
-        EC_POINT_point2oct(group, point, form, data, len, nullptr);
+    ByteSource::Builder data(len);
+    size_t check_len = EC_POINT_point2oct(
+        group, point, form, data.data<unsigned char>(), len, nullptr);
     if (check_len == 0)
       return WebCryptoKeyExportStatus::FAILED;
 
     CHECK_EQ(len, check_len);
+    *out = std::move(data).release();
   }
-
-  *out = ByteSource::Allocated(reinterpret_cast<char*>(data), len);
 
   return WebCryptoKeyExportStatus::OK;
 }
@@ -853,38 +844,27 @@ Maybe<bool> ExportJWKEdKey(
   if (!EVP_PKEY_get_raw_public_key(pkey.get(), nullptr, &len))
     return Nothing<bool>();
 
-  unsigned char* data = MallocOpenSSL<unsigned char>(len);
-  ByteSource out = ByteSource::Allocated(reinterpret_cast<char*>(data), len);
+  ByteSource::Builder out(len);
 
   if (key->GetKeyType() == kKeyTypePrivate) {
-    if (!EVP_PKEY_get_raw_private_key(pkey.get(), data, &len) ||
+    if (!EVP_PKEY_get_raw_private_key(
+            pkey.get(), out.data<unsigned char>(), &len) ||
         !StringBytes::Encode(
-            env->isolate(),
-            reinterpret_cast<const char*>(data),
-            len,
-            BASE64URL,
-            &error).ToLocal(&encoded) ||
-        !target->Set(
-            env->context(),
-            env->jwk_d_string(),
-            encoded).IsJust()) {
+             env->isolate(), out.data<const char>(), len, BASE64URL, &error)
+             .ToLocal(&encoded) ||
+        !target->Set(env->context(), env->jwk_d_string(), encoded).IsJust()) {
       if (!error.IsEmpty())
         env->isolate()->ThrowException(error);
       return Nothing<bool>();
     }
   }
 
-  if (!EVP_PKEY_get_raw_public_key(pkey.get(), data, &len) ||
+  if (!EVP_PKEY_get_raw_public_key(
+          pkey.get(), out.data<unsigned char>(), &len) ||
       !StringBytes::Encode(
-          env->isolate(),
-          reinterpret_cast<const char*>(data),
-          len,
-          BASE64URL,
-          &error).ToLocal(&encoded) ||
-      !target->Set(
-          env->context(),
-          env->jwk_x_string(),
-          encoded).IsJust()) {
+           env->isolate(), out.data<const char>(), len, BASE64URL, &error)
+           .ToLocal(&encoded) ||
+      !target->Set(env->context(), env->jwk_x_string(), encoded).IsJust()) {
     if (!error.IsEmpty())
       env->isolate()->ThrowException(error);
     return Nothing<bool>();
