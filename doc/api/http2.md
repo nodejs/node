@@ -1479,6 +1479,9 @@ the client should send the request body.
 added: v8.4.0
 -->
 
+* `headers` {HTTP/2 Headers Object}
+* `flags` {number}
+
 The `'headers'` event is emitted when an additional block of headers is received
 for a stream, such as when a block of `1xx` informational headers is received.
 The listener callback is passed the [HTTP/2 Headers Object][] and flags
@@ -1496,6 +1499,9 @@ stream.on('headers', (headers, flags) => {
 added: v8.4.0
 -->
 
+* `headers` {HTTP/2 Headers Object}
+* `flags` {number}
+
 The `'push'` event is emitted when response headers for a Server Push stream
 are received. The listener callback is passed the [HTTP/2 Headers Object][] and
 flags associated with the headers.
@@ -1511,6 +1517,9 @@ stream.on('push', (headers, flags) => {
 <!-- YAML
 added: v8.4.0
 -->
+
+* `headers` {HTTP/2 Headers Object}
+* `flags` {number}
 
 The `'response'` event is emitted when a response `HEADERS` frame has been
 received for this stream from the connected HTTP/2 server. The listener is
@@ -1652,10 +1661,10 @@ server.on('stream', (stream) => {
 });
 ```
 
-When the `options.waitForTrailers` option is set, the `'wantTrailers'` event
-will be emitted immediately after queuing the last chunk of payload data to be
-sent. The `http2stream.sendTrailers()` method can then be used to sent trailing
-header fields to the peer.
+Initiates a response. When the `options.waitForTrailers` option is set, the
+`'wantTrailers'` event will be emitted immediately after queuing the last chunk
+of payload data to be sent. The `http2stream.sendTrailers()` method can then be
+used to sent trailing header fields to the peer.
 
 When `options.waitForTrailers` is set, the `Http2Stream` will not automatically
 close when the final `DATA` frame is transmitted. User code must call either
@@ -1973,6 +1982,8 @@ per session. See the [Compatibility API][].
 added: v8.4.0
 -->
 
+* `session` {ServerHttp2Session}
+
 The `'session'` event is emitted when a new `Http2Session` is created by the
 `Http2Server`.
 
@@ -1981,6 +1992,9 @@ The `'session'` event is emitted when a new `Http2Session` is created by the
 <!-- YAML
 added: v8.4.0
 -->
+
+* `error` {Error}
+* `session` {ServerHttp2Session}
 
 The `'sessionError'` event is emitted when an `'error'` event is emitted by
 an `Http2Session` object associated with the `Http2Server`.
@@ -2188,6 +2202,8 @@ per session. See the [Compatibility API][].
 added: v8.4.0
 -->
 
+* `session` {ServerHttp2Session}
+
 The `'session'` event is emitted when a new `Http2Session` is created by the
 `Http2SecureServer`.
 
@@ -2196,6 +2212,9 @@ The `'session'` event is emitted when a new `Http2Session` is created by the
 <!-- YAML
 added: v8.4.0
 -->
+
+* `error` {Error}
+* `session` {ServerHttp2Session}
 
 The `'sessionError'` event is emitted when an `'error'` event is emitted by
 an `Http2Session` object associated with the `Http2SecureServer`.
@@ -2257,6 +2276,8 @@ a given number of milliseconds set using `http2secureServer.setTimeout()`.
 <!-- YAML
 added: v8.4.0
 -->
+
+* `socket` {stream.Duplex}
 
 The `'unknownProtocol'` event is emitted when a connecting client fails to
 negotiate an allowed protocol (i.e. HTTP/2 or HTTP/1.1). The event handler
