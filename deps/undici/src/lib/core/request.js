@@ -4,8 +4,8 @@ const {
   InvalidArgumentError,
   NotSupportedError
 } = require('./errors')
-const util = require('./util')
 const assert = require('assert')
+const util = require('./util')
 
 const kHandler = Symbol('handler')
 
@@ -38,11 +38,13 @@ class Request {
     method,
     body,
     headers,
+    query,
     idempotent,
     blocking,
     upgrade,
     headersTimeout,
-    bodyTimeout
+    bodyTimeout,
+    throwOnError
   }, handler) {
     if (typeof path !== 'string') {
       throw new InvalidArgumentError('path must be a string')
@@ -69,6 +71,8 @@ class Request {
     this.headersTimeout = headersTimeout
 
     this.bodyTimeout = bodyTimeout
+
+    this.throwOnError = throwOnError === true
 
     this.method = method
 
@@ -97,7 +101,7 @@ class Request {
 
     this.upgrade = upgrade || null
 
-    this.path = path
+    this.path = query ? util.buildURL(path, query) : path
 
     this.origin = origin
 

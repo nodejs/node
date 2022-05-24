@@ -5,7 +5,7 @@ const { AbortError } = require('../core/errors')
 const { extractBody, cloneBody, mixinBody } = require('./body')
 const util = require('../core/util')
 const { kEnumerableProperty } = util
-const { responseURL, isValidReasonPhrase, toUSVString, isCancelled, isAborted } = require('./util')
+const { responseURL, isValidReasonPhrase, toUSVString, isCancelled, isAborted, serializeJavascriptValueToJSONString } = require('./util')
 const {
   redirectStatus,
   nullBodyStatus,
@@ -32,6 +32,50 @@ class Response {
     responseObject[kHeaders][kHeadersList] = responseObject[kState].headersList
     responseObject[kHeaders][kGuard] = 'immutable'
     responseObject[kHeaders][kRealm] = relevantRealm
+    return responseObject
+  }
+
+  // https://fetch.spec.whatwg.org/#dom-response-json
+  static json (data, init = {}) {
+    if (arguments.length === 0) {
+      throw new TypeError(
+        'Failed to execute \'json\' on \'Response\': 1 argument required, but 0 present.'
+      )
+    }
+
+    if (init === null || typeof init !== 'object') {
+      throw new TypeError(
+        `Failed to execute 'json' on 'Response': init must be a RequestInit, found ${typeof init}.`
+      )
+    }
+
+    init = {
+      status: 200,
+      statusText: '',
+      headers: new HeadersList(),
+      ...init
+    }
+
+    // 1. Let bytes the result of running serialize a JavaScript value to JSON bytes on data.
+    const bytes = new TextEncoder('utf-8').encode(
+      serializeJavascriptValueToJSONString(data)
+    )
+
+    // 2. Let body be the result of extracting bytes.
+    const body = extractBody(bytes)
+
+    // 3. Let responseObject be the result of creating a Response object, given a new response,
+    //    "response", and this’s relevant Realm.
+    const relevantRealm = { settingsObject: {} }
+    const responseObject = new Response()
+    responseObject[kRealm] = relevantRealm
+    responseObject[kHeaders][kGuard] = 'response'
+    responseObject[kHeaders][kRealm] = relevantRealm
+
+    // 4. Perform initialize a response given responseObject, init, and (body, "application/json").
+    initializeResponse(responseObject, init, { body: body[0], type: 'application/json' })
+
+    // 5. Return responseObject.
     return responseObject
   }
 
@@ -105,34 +149,10 @@ class Response {
     // TODO
     this[kRealm] = { settingsObject: {} }
 
-    // 1. If init["status"] is not in the range 200 to 599, inclusive, then
-    // throw a RangeError.
-    if ('status' in init && init.status !== undefined) {
-      if (!Number.isFinite(init.status)) {
-        throw new TypeError()
-      }
-
-      if (init.status < 200 || init.status > 599) {
-        throw new RangeError(
-          `Failed to construct 'Response': The status provided (${init.status}) is outside the range [200, 599].`
-        )
-      }
-    }
-
-    if ('statusText' in init && init.statusText !== undefined) {
-      // 2. If init["statusText"] does not match the reason-phrase token
-      // production, then throw a TypeError.
-      // See, https://datatracker.ietf.org/doc/html/rfc7230#section-3.1.2:
-      //   reason-phrase  = *( HTAB / SP / VCHAR / obs-text )
-      if (!isValidReasonPhrase(String(init.statusText))) {
-        throw new TypeError('Invalid statusText')
-      }
-    }
-
-    // 3. Set this’s response to a new response.
+    // 1. Set this’s response to a new response.
     this[kState] = makeResponse({})
 
-    // 4. Set this’s headers to a new Headers object with this’s relevant
+    // 2. Set this’s headers to a new Headers object with this’s relevant
     // Realm, whose header list is this’s response’s header list and guard
     // is "response".
     this[kHeaders] = new Headers()
@@ -140,48 +160,20 @@ class Response {
     this[kHeaders][kHeadersList] = this[kState].headersList
     this[kHeaders][kRealm] = this[kRealm]
 
-    // 5. Set this’s response’s status to init["status"].
-    if ('status' in init && init.status !== undefined) {
-      this[kState].status = init.status
-    }
+    // 3. Let bodyWithType be null.
+    let bodyWithType = null
 
-    // 6. Set this’s response’s status message to init["statusText"].
-    if ('statusText' in init && init.statusText !== undefined) {
-      this[kState].statusText = String(init.statusText)
-    }
-
-    // 7. If init["headers"] exists, then fill this’s headers with init["headers"].
-    if ('headers' in init) {
-      fill(this[kState].headersList, init.headers)
-    }
-
-    // 8. If body is non-null, then:
+    // 4. If body is non-null, then set bodyWithType to the result of extracting body.
     if (body != null) {
-      // 1. If init["status"] is a null body status, then throw a TypeError.
-      if (nullBodyStatus.includes(init.status)) {
-        throw new TypeError('Response with null body status cannot have body')
-      }
-
-      // 2. Let Content-Type be null.
-      // 3. Set this’s response’s body and Content-Type to the result of
-      // extracting body.
-      const [extractedBody, contentType] = extractBody(body)
-      this[kState].body = extractedBody
-
-      // 4. If Content-Type is non-null and this’s response’s header list does
-      // not contain `Content-Type`, then append `Content-Type`/Content-Type
-      // to this’s response’s header list.
-      if (contentType && !this.headers.has('content-type')) {
-        this.headers.append('content-type', contentType)
-      }
+      const [extractedBody, type] = extractBody(body)
+      bodyWithType = { body: extractedBody, type }
     }
+
+    // 5. Perform initialize a response given this, init, and bodyWithType.
+    initializeResponse(this, init, bodyWithType)
   }
 
   get [Symbol.toStringTag] () {
-    if (!(this instanceof Response)) {
-      throw new TypeError('Illegal invocation')
-    }
-
     return this.constructor.name
   }
 
@@ -475,6 +467,57 @@ function makeAppropriateNetworkError (fetchParams) {
   return isAborted(fetchParams)
     ? makeNetworkError(new AbortError())
     : makeNetworkError(fetchParams.controller.terminated.reason)
+}
+
+// https://whatpr.org/fetch/1392.html#initialize-a-response
+function initializeResponse (response, init, body) {
+  // 1. If init["status"] is not in the range 200 to 599, inclusive, then
+  //    throw a RangeError.
+  if (init.status != null && (init.status < 200 || init.status > 599)) {
+    throw new RangeError('init["status"] must be in the range of 200 to 599, inclusive.')
+  }
+
+  // 2. If init["statusText"] does not match the reason-phrase token production,
+  //    then throw a TypeError.
+  if ('statusText' in init && init.statusText != null) {
+    // See, https://datatracker.ietf.org/doc/html/rfc7230#section-3.1.2:
+    //   reason-phrase  = *( HTAB / SP / VCHAR / obs-text )
+    if (!isValidReasonPhrase(String(init.statusText))) {
+      throw new TypeError('Invalid statusText')
+    }
+  }
+
+  // 3. Set response’s response’s status to init["status"].
+  if ('status' in init && init.status != null) {
+    response[kState].status = init.status
+  }
+
+  // 4. Set response’s response’s status message to init["statusText"].
+  if ('statusText' in init && init.statusText != null) {
+    response[kState].statusText = init.statusText
+  }
+
+  // 5. If init["headers"] exists, then fill response’s headers with init["headers"].
+  if ('headers' in init && init.headers != null) {
+    fill(response[kState].headersList, init.headers)
+  }
+
+  // 6. If body was given, then:
+  if (body) {
+    // 1. If response's status is a null body status, then throw a TypeError.
+    if (nullBodyStatus.includes(response.status)) {
+      throw new TypeError()
+    }
+
+    // 2. Set response's body to body's body.
+    response[kState].body = body.body
+
+    // 3. If body's type is non-null and response's header list does not contain
+    //    `Content-Type`, then append (`Content-Type`, body's type) to response's header list.
+    if (body.type != null && !response[kState].headersList.has('Content-Type')) {
+      response[kState].headersList.append('content-type', body.type)
+    }
+  }
 }
 
 module.exports = {

@@ -31,7 +31,6 @@ const {
   coarsenedSharedCurrentTime,
   createDeferredPromise,
   isBlobLike,
-  CORBCheck,
   sameOrigin,
   isCancelled,
   isAborted
@@ -52,7 +51,6 @@ const EE = require('events')
 const { Readable, pipeline } = require('stream')
 const { isErrored, isReadable } = require('../core/util')
 const { dataURLProcessor } = require('./dataURL')
-const { kIsMockActive } = require('../mock/mock-symbols')
 const { TransformStream } = require('stream/web')
 
 /** @type {import('buffer').resolveObjectURL} */
@@ -588,18 +586,8 @@ async function mainFetch (fetchParams, recursive = false) {
         // 2. Set request’s response tainting to "opaque".
         request.responseTainting = 'opaque'
 
-        // 3. Let noCorsResponse be the result of running scheme fetch given
-        // fetchParams.
-        const noCorsResponse = await schemeFetch(fetchParams)
-
-        // 4. If noCorsResponse is a filtered response or the CORB check with
-        // request and noCorsResponse returns allowed, then return noCorsResponse.
-        if (noCorsResponse.status === 0 || CORBCheck(request, noCorsResponse) === 'allowed') {
-          return noCorsResponse
-        }
-
-        // 5. Return a new response whose status is noCorsResponse’s status.
-        return makeResponse({ status: noCorsResponse.status })
+        // 3. Return the result of running scheme fetch given fetchParams.
+        return await schemeFetch(fetchParams)
       }
 
       // request’s current URL’s scheme is not an HTTP(S) scheme
@@ -1923,7 +1911,7 @@ async function httpNetworkFetch (
         path: url.pathname + url.search,
         origin: url.origin,
         method: request.method,
-        body: fetchParams.controller.dispatcher[kIsMockActive] ? request.body && request.body.source : body,
+        body: fetchParams.controller.dispatcher.isMockActive ? request.body && request.body.source : body,
         headers: [...request.headersList].flat(),
         maxRedirections: 0,
         bodyTimeout: 300_000,

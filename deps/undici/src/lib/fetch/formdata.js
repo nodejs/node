@@ -6,6 +6,8 @@ const { File, FileLike } = require('./file')
 const { Blob } = require('buffer')
 
 class FormData {
+  static name = 'FormData'
+
   constructor (...args) {
     if (args.length > 0 && !(args[0]?.constructor?.name === 'HTMLFormElement')) {
       throw new TypeError(
@@ -182,10 +184,6 @@ class FormData {
   }
 
   get [Symbol.toStringTag] () {
-    if (!(this instanceof FormData)) {
-      throw new TypeError('Illegal invocation')
-    }
-
     return this.constructor.name
   }
 
@@ -269,4 +267,4 @@ function makeEntry (name, value, filename) {
   return entry
 }
 
-module.exports = { FormData: globalThis.FormData ?? FormData }
+module.exports = { FormData }

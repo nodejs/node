@@ -6,7 +6,6 @@ const {
   kMockAgent,
   kOriginalDispatch,
   kOrigin,
-  kIsMockActive,
   kGetNetConnect
 } = require('./mock-symbols')
 
@@ -302,7 +301,7 @@ function buildMockDispatch () {
   const originalDispatch = this[kOriginalDispatch]
 
   return function dispatch (opts, handler) {
-    if (agent[kIsMockActive]) {
+    if (agent.isMockActive) {
       try {
         mockDispatch.call(this, opts, handler)
       } catch (error) {

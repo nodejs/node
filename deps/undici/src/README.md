@@ -198,7 +198,7 @@ You can pass an optional dispatcher to `fetch` as:
 
 ```js
 import { fetch, Agent } from 'undici'
-  
+
 const res = await fetch('https://example.com', {
   // Mocks are also supported
   dispatcher: new Agent({
@@ -375,6 +375,7 @@ Refs: https://fetch.spec.whatwg.org/#atomic-http-redirect-handling
 * [__Daniele Belardi__](https://github.com/dnlup), <https://www.npmjs.com/~dnlup>
 * [__Ethan Arrowood__](https://github.com/ethan-arrowood), <https://www.npmjs.com/~ethan_arrowood>
 * [__Matteo Collina__](https://github.com/mcollina), <https://www.npmjs.com/~matteo.collina>
+* [__Matthew Aitken__](https://github.com/KhafraDev), <https://www.npmjs.com/~khaf>
 * [__Robert Nagy__](https://github.com/ronag), <https://www.npmjs.com/~ronag>
 * [__Szymon Marczak__](https://github.com/szmarczak), <https://www.npmjs.com/~szmarczak>
 * [__Tomas Della Vedova__](https://github.com/delvedor), <https://www.npmjs.com/~delvedor>

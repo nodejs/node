@@ -69,10 +69,6 @@ class File extends Blob {
   }
 
   get [Symbol.toStringTag] () {
-    if (!(this instanceof File)) {
-      throw new TypeError('Illegal invocation')
-    }
-
     return this.constructor.name
   }
 }
@@ -190,10 +186,6 @@ class FileLike {
   }
 
   get [Symbol.toStringTag] () {
-    if (!(this instanceof FileLike)) {
-      throw new TypeError('Illegal invocation')
-    }
-
     return 'File'
   }
 }

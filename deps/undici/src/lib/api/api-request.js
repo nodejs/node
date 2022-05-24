@@ -3,7 +3,8 @@
 const Readable = require('./readable')
 const {
   InvalidArgumentError,
-  RequestAbortedError
+  RequestAbortedError,
+  ResponseStatusCodeError
 } = require('../core/errors')
 const util = require('../core/util')
 const { AsyncResource } = require('async_hooks')
@@ -15,7 +16,7 @@ class RequestHandler extends AsyncResource {
       throw new InvalidArgumentError('invalid opts')
     }
 
-    const { signal, method, opaque, body, onInfo, responseHeaders } = opts
+    const { signal, method, opaque, body, onInfo, responseHeaders, throwOnError } = opts
 
     try {
       if (typeof callback !== 'function') {
@@ -51,6 +52,7 @@ class RequestHandler extends AsyncResource {
     this.trailers = {}
     this.context = null
     this.onInfo = onInfo || null
+    this.throwOnError = throwOnError
 
     if (util.isStream(body)) {
       body.on('error', (err) => {
@@ -70,7 +72,7 @@ class RequestHandler extends AsyncResource {
     this.context = context
   }
 
-  onHeaders (statusCode, rawHeaders, resume) {
+  onHeaders (statusCode, rawHeaders, resume, statusMessage) {
     const { callback, opaque, abort, context } = this
 
     if (statusCode < 200) {
@@ -89,6 +91,13 @@ class RequestHandler extends AsyncResource {
     const headers = this.responseHeaders === 'raw' ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders)
 
     if (callback !== null) {
+      if (this.throwOnError && statusCode >= 400) {
+        this.runInAsyncScope(callback, null,
+          new ResponseStatusCodeError(`Response status code ${statusCode}${statusMessage ? `: ${statusMessage}` : ''}`, statusCode, headers)
+        )
+        return
+      }
+
       this.runInAsyncScope(callback, null, null, {
         statusCode,
         headers,

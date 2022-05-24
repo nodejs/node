@@ -101,19 +101,19 @@ type RequestDestination =
   | 'xslt'
 
 export interface RequestInit {
-  readonly method?: string
-  readonly keepalive?: boolean
-  readonly headers?: HeadersInit
-  readonly body?: BodyInit
-  readonly redirect?: RequestRedirect
-  readonly integrity?: string
-  readonly signal?: AbortSignal
-  readonly credentials?: RequestCredentials
-  readonly mode?: RequestMode
-  readonly referrer?: string
-  readonly referrerPolicy?: ReferrerPolicy
-  readonly window?: null
-  readonly dispatcher?: Dispatcher
+  method?: string
+  keepalive?: boolean
+  headers?: HeadersInit
+  body?: BodyInit
+  redirect?: RequestRedirect
+  integrity?: string
+  signal?: AbortSignal
+  credentials?: RequestCredentials
+  mode?: RequestMode
+  referrer?: string
+  referrerPolicy?: ReferrerPolicy
+  window?: null
+  dispatcher?: Dispatcher
 }
 
 export type ReferrerPolicy =
@@ -199,5 +199,6 @@ export declare class Response implements BodyMixin {
   readonly clone: () => Response
 
   static error (): Response
+  static json(data: any, init?: ResponseInit): Response
   static redirect (url: string | URL, status: ResponseRedirectStatus): Response
 }
