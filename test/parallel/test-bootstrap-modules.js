@@ -138,6 +138,8 @@ const expectedModules = new Set([
   'NativeModule internal/util/debuglog',
   'NativeModule internal/util/inspect',
   'NativeModule internal/util/iterable_weak_map',
+  'NativeModule internal/util/parse_args/utils',
+  'NativeModule internal/util/parse_args/parse_args',
   'NativeModule internal/util/types',
   'NativeModule internal/validators',
   'NativeModule internal/vm/module',

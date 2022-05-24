@@ -2355,6 +2355,40 @@ The `package.json` [`"exports"`][] field does not export the requested subpath.
 Because exports are encapsulated, private internal modules that are not exported
 cannot be imported through the package resolution, unless using an absolute URL.
 
+<a id="ERR_PARSE_ARGS_INVALID_OPTION_VALUE"></a>
+
+### `ERR_PARSE_ARGS_INVALID_OPTION_VALUE`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When `strict` set to `true`, thrown by [`util.parseArgs()`][] if a {boolean}
+value is provided for an option of type {string}, or if a {string}
+value is provided for an option of type {boolean}.
+
+<a id="ERR_PARSE_ARGS_UNEXPECTED_POSITIONAL"></a>
+
+### `ERR_PARSE_ARGS_UNEXPECTED_POSITIONAL`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Thrown by [`util.parseArgs()`][], when a postional argument is provided and
+`allowPositionals` is set to `false`.
+
+<a id="ERR_PARSE_ARGS_UNKNOWN_OPTION"></a>
+
+### `ERR_PARSE_ARGS_UNKNOWN_OPTION`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When `strict` set to `true`, thrown by [`util.parseArgs()`][] if an argument
+is not configured in `options`.
+
 <a id="ERR_PERFORMANCE_INVALID_TIMESTAMP"></a>
 
 ### `ERR_PERFORMANCE_INVALID_TIMESTAMP`
@@ -3466,6 +3500,7 @@ The native call from `process.cpuUsage` could not be processed.
 [`subprocess.send()`]: child_process.md#subprocesssendmessage-sendhandle-options-callback
 [`url.parse()`]: url.md#urlparseurlstring-parsequerystring-slashesdenotehost
 [`util.getSystemErrorName(error.errno)`]: util.md#utilgetsystemerrornameerr
+[`util.parseArgs()`]: util.md#utilparseargsconfig
 [`zlib`]: zlib.md
 [crypto digest algorithm]: crypto.md#cryptogethashes
 [debugger]: debugger.md
