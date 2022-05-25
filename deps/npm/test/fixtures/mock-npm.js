@@ -224,6 +224,10 @@ class MockNpm {
     }
   }
 
+  get global () {
+    return this.config.get('global') || this.config.get('location') === 'global'
+  }
+
   output (...msg) {
     if (this.base.output) {
       return this.base.output(msg)

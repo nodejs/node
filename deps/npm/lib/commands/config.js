@@ -276,7 +276,7 @@ ${defData}
       msg.push('')
     }
 
-    if (!this.npm.config.get('global')) {
+    if (!this.npm.global) {
       const pkgPath = resolve(this.npm.prefix, 'package.json')
       const pkg = await rpj(pkgPath).catch(() => ({}))
 

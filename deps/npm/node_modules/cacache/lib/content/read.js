@@ -1,42 +1,35 @@
 'use strict'
 
-const util = require('util')
-
-const fs = require('fs')
+const fs = require('@npmcli/fs')
 const fsm = require('fs-minipass')
 const ssri = require('ssri')
 const contentPath = require('./path')
 const Pipeline = require('minipass-pipeline')
 
-const lstat = util.promisify(fs.lstat)
-const readFile = util.promisify(fs.readFile)
-const copyFile = util.promisify(fs.copyFile)
-
 module.exports = read
 
 const MAX_SINGLE_READ_SIZE = 64 * 1024 * 1024
-function read (cache, integrity, opts = {}) {
+async function read (cache, integrity, opts = {}) {
   const { size } = opts
-  return withContentSri(cache, integrity, (cpath, sri) => {
+  const { stat, cpath, sri } = await withContentSri(cache, integrity, async (cpath, sri) => {
     // get size
-    return lstat(cpath).then(stat => ({ stat, cpath, sri }))
-  }).then(({ stat, cpath, sri }) => {
-    if (typeof size === 'number' && stat.size !== size) {
-      throw sizeError(size, stat.size)
-    }
-
-    if (stat.size > MAX_SINGLE_READ_SIZE) {
-      return readPipeline(cpath, stat.size, sri, new Pipeline()).concat()
-    }
-
-    return readFile(cpath, null).then((data) => {
-      if (!ssri.checkData(data, sri)) {
-        throw integrityError(sri, cpath)
-      }
-
-      return data
-    })
+    const stat = await fs.lstat(cpath)
+    return { stat, cpath, sri }
   })
+  if (typeof size === 'number' && stat.size !== size) {
+    throw sizeError(size, stat.size)
+  }
+
+  if (stat.size > MAX_SINGLE_READ_SIZE) {
+    return readPipeline(cpath, stat.size, sri, new Pipeline()).concat()
+  }
+
+  const data = await fs.readFile(cpath, { encoding: null })
+  if (!ssri.checkData(data, sri)) {
+    throw integrityError(sri, cpath)
+  }
+
+  return data
 }
 
 const readPipeline = (cpath, size, sri, stream) => {
@@ -58,7 +51,7 @@ module.exports.sync = readSync
 function readSync (cache, integrity, opts = {}) {
   const { size } = opts
   return withContentSriSync(cache, integrity, (cpath, sri) => {
-    const data = fs.readFileSync(cpath)
+    const data = fs.readFileSync(cpath, { encoding: null })
     if (typeof size === 'number' && size !== data.length) {
       throw sizeError(size, data.length)
     }
@@ -77,16 +70,19 @@ module.exports.readStream = readStream
 function readStream (cache, integrity, opts = {}) {
   const { size } = opts
   const stream = new Pipeline()
-  withContentSri(cache, integrity, (cpath, sri) => {
-    // just lstat to ensure it exists
-    return lstat(cpath).then((stat) => ({ stat, cpath, sri }))
-  }).then(({ stat, cpath, sri }) => {
+  // Set all this up to run on the stream and then just return the stream
+  Promise.resolve().then(async () => {
+    const { stat, cpath, sri } = await withContentSri(cache, integrity, async (cpath, sri) => {
+      // just lstat to ensure it exists
+      const stat = await fs.lstat(cpath)
+      return { stat, cpath, sri }
+    })
     if (typeof size === 'number' && size !== stat.size) {
       return stream.emit('error', sizeError(size, stat.size))
     }
 
     readPipeline(cpath, stat.size, sri, stream)
-  }, er => stream.emit('error', er))
+  }).catch(err => stream.emit('error', err))
 
   return stream
 }
@@ -96,7 +92,7 @@ module.exports.copy.sync = copySync
 
 function copy (cache, integrity, dest) {
   return withContentSri(cache, integrity, (cpath, sri) => {
-    return copyFile(cpath, dest)
+    return fs.copyFile(cpath, dest)
   })
 }
 
@@ -108,14 +104,17 @@ function copySync (cache, integrity, dest) {
 
 module.exports.hasContent = hasContent
 
-function hasContent (cache, integrity) {
+async function hasContent (cache, integrity) {
   if (!integrity) {
-    return Promise.resolve(false)
+    return false
   }
 
-  return withContentSri(cache, integrity, (cpath, sri) => {
-    return lstat(cpath).then((stat) => ({ size: stat.size, sri, stat }))
-  }).catch((err) => {
+  try {
+    return await withContentSri(cache, integrity, async (cpath, sri) => {
+      const stat = await fs.lstat(cpath)
+      return { size: stat.size, sri, stat }
+    })
+  } catch (err) {
     if (err.code === 'ENOENT') {
       return false
     }
@@ -128,7 +127,7 @@ function hasContent (cache, integrity) {
         return false
       }
     }
-  })
+  }
 }
 
 module.exports.hasContent.sync = hasContentSync
@@ -159,61 +158,47 @@ function hasContentSync (cache, integrity) {
   })
 }
 
-function withContentSri (cache, integrity, fn) {
-  const tryFn = () => {
-    const sri = ssri.parse(integrity)
-    // If `integrity` has multiple entries, pick the first digest
-    // with available local data.
-    const algo = sri.pickAlgorithm()
-    const digests = sri[algo]
+async function withContentSri (cache, integrity, fn) {
+  const sri = ssri.parse(integrity)
+  // If `integrity` has multiple entries, pick the first digest
+  // with available local data.
+  const algo = sri.pickAlgorithm()
+  const digests = sri[algo]
 
-    if (digests.length <= 1) {
-      const cpath = contentPath(cache, digests[0])
-      return fn(cpath, digests[0])
-    } else {
-      // Can't use race here because a generic error can happen before
-      // a ENOENT error, and can happen before a valid result
-      return Promise
-        .all(digests.map((meta) => {
-          return withContentSri(cache, meta, fn)
-            .catch((err) => {
-              if (err.code === 'ENOENT') {
-                return Object.assign(
-                  new Error('No matching content found for ' + sri.toString()),
-                  { code: 'ENOENT' }
-                )
-              }
-              return err
-            })
-        }))
-        .then((results) => {
-          // Return the first non error if it is found
-          const result = results.find((r) => !(r instanceof Error))
-          if (result) {
-            return result
-          }
-
-          // Throw the No matching content found error
-          const enoentError = results.find((r) => r.code === 'ENOENT')
-          if (enoentError) {
-            throw enoentError
-          }
-
-          // Throw generic error
-          throw results.find((r) => r instanceof Error)
-        })
+  if (digests.length <= 1) {
+    const cpath = contentPath(cache, digests[0])
+    return fn(cpath, digests[0])
+  } else {
+    // Can't use race here because a generic error can happen before
+    // a ENOENT error, and can happen before a valid result
+    const results = await Promise.all(digests.map(async (meta) => {
+      try {
+        return await withContentSri(cache, meta, fn)
+      } catch (err) {
+        if (err.code === 'ENOENT') {
+          return Object.assign(
+            new Error('No matching content found for ' + sri.toString()),
+            { code: 'ENOENT' }
+          )
+        }
+        return err
+      }
+    }))
+    // Return the first non error if it is found
+    const result = results.find((r) => !(r instanceof Error))
+    if (result) {
+      return result
     }
+
+    // Throw the No matching content found error
+    const enoentError = results.find((r) => r.code === 'ENOENT')
+    if (enoentError) {
+      throw enoentError
+    }
+
+    // Throw generic error
+    throw results.find((r) => r instanceof Error)
   }
-
-  return new Promise((resolve, reject) => {
-    try {
-      tryFn()
-        .then(resolve)
-        .catch(reject)
-    } catch (err) {
-      reject(err)
-    }
-  })
 }
 
 function withContentSriSync (cache, integrity, fn) {

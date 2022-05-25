@@ -117,6 +117,9 @@ Not supported by all npm commands\.
 Default: false
 .IP \(bu 2
 Type: Boolean
+.IP \(bu 2
+DEPRECATED: \fB\-\-global\fP, \fB\-\-local\fP are deprecated\. Use \fB\-\-location=global\fP
+instead\.
 
 .RE
 .P
@@ -155,6 +158,20 @@ Type: "global", "user", or "project"
 .RE
 .P
 When passed to \fBnpm config\fP this refers to which config file to use\.
+.P
+When set to "global" mode, packages are installed into the \fBprefix\fP folder
+instead of the current working directory\. See
+npm help folders for more on the differences in behavior\.
+.RS 0
+.IP \(bu 2
+packages are installed into the \fB{prefix}/lib/node_modules\fP folder, instead
+of the current working directory\.
+.IP \(bu 2
+bin files are linked to \fB{prefix}/bin\fP
+.IP \(bu 2
+man pages are linked to \fB{prefix}/share/man\fP
+
+.RE
 .SS \fBlong\fP
 .RS 0
 .IP \(bu 2

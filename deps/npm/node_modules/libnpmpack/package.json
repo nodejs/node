@@ -1,6 +1,6 @@
 {
   "name": "libnpmpack",
-  "version": "4.0.3",
+  "version": "4.1.0",
   "description": "Programmatic API for the bits behind npm pack",
   "author": "GitHub Inc.",
   "main": "lib/index.js",
@@ -40,7 +40,7 @@
   "dependencies": {
     "@npmcli/run-script": "^3.0.0",
     "npm-package-arg": "^9.0.1",
-    "pacote": "^13.0.5"
+    "pacote": "^13.5.0"
   },
   "engines": {
     "node": "^12.13.0 || ^14.15.0 || >=16.0.0"
