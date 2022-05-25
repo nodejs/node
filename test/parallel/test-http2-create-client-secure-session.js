@@ -91,3 +91,9 @@ verifySecureSession(
   loadKey('agent1-cert.pem'),
   loadKey('ca1-cert.pem'),
   { servername: 'agent1' });
+
+verifySecureSession(
+  loadKey('agent8-key.pem'),
+  loadKey('agent8-cert.pem'),
+  loadKey('fake-startcom-root-cert.pem'),
+  { servername: '' });
