@@ -69,7 +69,7 @@ Run "npm help bin" for more info
 `
 
 exports[`test/lib/load-all-commands.js TAP load each command birthday > must match snapshot 1`] = `
-Birthday
+Birthday, deprecated
 
 Usage:
 npm birthday
@@ -113,7 +113,7 @@ Run "npm help cache" for more info
 `
 
 exports[`test/lib/load-all-commands.js TAP load each command ci > must match snapshot 1`] = `
-Install a project with a clean slate
+Clean install a project
 
 Usage:
 npm ci
@@ -802,7 +802,7 @@ Run "npm help set" for more info
 `
 
 exports[`test/lib/load-all-commands.js TAP load each command set-script > must match snapshot 1`] = `
-Set tasks in the scripts section of package.json
+Set tasks in the scripts section of package.json, deprecated
 
 Usage:
 npm set-script [<script>] [<command>]

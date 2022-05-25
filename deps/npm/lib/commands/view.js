@@ -91,7 +91,7 @@ class View extends BaseCommand {
     const local = /^\.@/.test(pkg) || pkg === '.'
 
     if (local) {
-      if (this.npm.config.get('global')) {
+      if (this.npm.global) {
         throw new Error('Cannot use view command in global mode.')
       }
       const dir = this.npm.prefix

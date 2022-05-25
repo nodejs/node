@@ -1,6 +1,6 @@
 .TH "NPM\-CI" "1" "May 2022" "" ""
 .SH "NAME"
-\fBnpm-ci\fR \- Install a project with a clean slate
+\fBnpm-ci\fR \- Clean install a project
 .SS Synopsis
 .P
 .RS 2
@@ -17,16 +17,7 @@ it's meant to be used in automated environments such as test platforms,
 continuous integration, and deployment \-\- or any situation where you want
 to make sure you're doing a clean install of your dependencies\.
 .P
-\fBnpm ci\fP will be significantly faster when:
-.RS 0
-.IP \(bu 2
-There is a \fBpackage\-lock\.json\fP or \fBnpm\-shrinkwrap\.json\fP file\.
-.IP \(bu 2
-The \fBnode_modules\fP folder is missing or empty\.
-
-.RE
-.P
-In short, the main differences between using \fBnpm install\fP and \fBnpm ci\fP are:
+The main differences between using \fBnpm install\fP and \fBnpm ci\fP are:
 .RS 0
 .IP \(bu 2
 The project \fBmust\fR have an existing \fBpackage\-lock\.json\fP or

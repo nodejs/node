@@ -148,7 +148,7 @@ class DistTag extends BaseCommand {
 
   async list (spec, opts) {
     if (!spec) {
-      if (this.npm.config.get('global')) {
+      if (this.npm.global) {
         throw this.usageError()
       }
       const { name } = await readPackage(path.resolve(this.npm.prefix, 'package.json'))

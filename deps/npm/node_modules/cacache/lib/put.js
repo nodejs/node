@@ -14,20 +14,16 @@ const putOpts = (opts) => ({
 
 module.exports = putData
 
-function putData (cache, key, data, opts = {}) {
+async function putData (cache, key, data, opts = {}) {
   const { memoize } = opts
   opts = putOpts(opts)
-  return write(cache, data, opts).then((res) => {
-    return index
-      .insert(cache, key, res.integrity, { ...opts, size: res.size })
-      .then((entry) => {
-        if (memoize) {
-          memo.put(cache, entry, data, opts)
-        }
+  const res = await write(cache, data, opts)
+  const entry = await index.insert(cache, key, res.integrity, { ...opts, size: res.size })
+  if (memoize) {
+    memo.put(cache, entry, data, opts)
+  }
 
-        return res.integrity
-      })
-  })
+  return res.integrity
 }
 
 module.exports.stream = putStream
@@ -68,17 +64,14 @@ function putStream (cache, key, opts = {}) {
   // last but not least, we write the index and emit hash and size,
   // and memoize if we're doing that
   pipeline.push(new Flush({
-    flush () {
+    async flush () {
       if (!error) {
-        return index
-          .insert(cache, key, integrity, { ...opts, size })
-          .then((entry) => {
-            if (memoize && memoData) {
-              memo.put(cache, entry, memoData, opts)
-            }
-            pipeline.emit('integrity', integrity)
-            pipeline.emit('size', size)
-          })
+        const entry = await index.insert(cache, key, integrity, { ...opts, size })
+        if (memoize && memoData) {
+          memo.put(cache, entry, memoData, opts)
+        }
+        pipeline.emit('integrity', integrity)
+        pipeline.emit('size', size)
       }
     },
   }))
