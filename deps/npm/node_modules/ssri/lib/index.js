@@ -30,6 +30,10 @@ const getOptString = options => !options || !options.length
 
 const _onEnd = Symbol('_onEnd')
 const _getOptions = Symbol('_getOptions')
+const _emittedSize = Symbol('_emittedSize')
+const _emittedIntegrity = Symbol('_emittedIntegrity')
+const _emittedVerified = Symbol('_emittedVerified')
+
 class IntegrityStream extends MiniPass {
   constructor (opts) {
     super()
@@ -61,6 +65,22 @@ class IntegrityStream extends MiniPass {
     this.algorithm = this.goodSri ? this.sri.pickAlgorithm(this.opts) : null
     this.digests = this.goodSri ? this.sri[this.algorithm] : null
     this.optString = getOptString(options)
+  }
+
+  on (ev, handler) {
+    if (ev === 'size' && this[_emittedSize]) {
+      return handler(this[_emittedSize])
+    }
+
+    if (ev === 'integrity' && this[_emittedIntegrity]) {
+      return handler(this[_emittedIntegrity])
+    }
+
+    if (ev === 'verified' && this[_emittedVerified]) {
+      return handler(this[_emittedVerified])
+    }
+
+    return super.on(ev, handler)
   }
 
   emit (ev, data) {
@@ -103,9 +123,14 @@ class IntegrityStream extends MiniPass {
       err.sri = this.sri
       this.emit('error', err)
     } else {
+      this[_emittedSize] = this.size
       this.emit('size', this.size)
+      this[_emittedIntegrity] = newSri
       this.emit('integrity', newSri)
-      match && this.emit('verified', match)
+      if (match) {
+        this[_emittedVerified] = match
+        this.emit('verified', match)
+      }
     }
   }
 }

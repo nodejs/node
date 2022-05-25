@@ -44,7 +44,7 @@ t.test('completion', async t => {
 
   registry.whoami({ statusCode: 404, body: {} })
 
-  t.rejects(testComp([], []), { code: 'ENEEDAUTH' })
+  t.rejects(testComp([], []), { code: 'EINVALIDTYPE' })
 })
 
 t.test('no args', async t => {

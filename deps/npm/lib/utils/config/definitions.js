@@ -811,6 +811,9 @@ define('global', {
   default: false,
   type: Boolean,
   short: 'g',
+  deprecated: `
+    \`--global\`, \`--local\` are deprecated. Use \`--location=global\` instead.
+  `,
   description: `
     Operates in "global" mode, so that packages are installed into the
     \`prefix\` folder instead of the current working directory.  See
@@ -1179,11 +1182,23 @@ define('location', {
   `,
   description: `
     When passed to \`npm config\` this refers to which config file to use.
+
+    When set to "global" mode, packages are installed into the \`prefix\` folder
+    instead of the current working directory. See
+    [folders](/configuring-npm/folders) for more on the differences in behavior.
+
+    * packages are installed into the \`{prefix}/lib/node_modules\` folder,
+      instead of the current working directory.
+    * bin files are linked to \`{prefix}/bin\`
+    * man pages are linked to \`{prefix}/share/man\`
   `,
   flatten: (key, obj, flatOptions) => {
     flatten(key, obj, flatOptions)
     if (flatOptions.global) {
       flatOptions.location = 'global'
+    }
+    if (obj.location === 'global') {
+      flatOptions.global = true
     }
   },
 })

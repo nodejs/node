@@ -137,7 +137,7 @@ npm command-line interface
 <section id="content">
 <header class="title">
 <h1 id="npm-ci">npm-ci</h1>
-<span class="description">Install a project with a clean slate</span>
+<span class="description">Clean install a project</span>
 </header>
 
 <section id="table_of_contents">
@@ -161,12 +161,7 @@ aliases: clean-install, ic, install-clean, isntall-clean
 it's meant to be used in automated environments such as test platforms,
 continuous integration, and deployment -- or any situation where you want
 to make sure you're doing a clean install of your dependencies.</p>
-<p><code>npm ci</code> will be significantly faster when:</p>
-<ul>
-<li>There is a <code>package-lock.json</code> or <code>npm-shrinkwrap.json</code> file.</li>
-<li>The <code>node_modules</code> folder is missing or empty.</li>
-</ul>
-<p>In short, the main differences between using <code>npm install</code> and <code>npm ci</code> are:</p>
+<p>The main differences between using <code>npm install</code> and <code>npm ci</code> are:</p>
 <ul>
 <li>The project <strong>must</strong> have an existing <code>package-lock.json</code> or
 <code>npm-shrinkwrap.json</code>.</li>

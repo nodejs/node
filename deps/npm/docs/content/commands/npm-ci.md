@@ -1,7 +1,7 @@
 ---
 title: npm-ci
 section: 1
-description: Install a project with a clean slate
+description: Clean install a project
 ---
 
 ### Synopsis
@@ -28,12 +28,7 @@ it's meant to be used in automated environments such as test platforms,
 continuous integration, and deployment -- or any situation where you want
 to make sure you're doing a clean install of your dependencies.
 
-`npm ci` will be significantly faster when:
-
-- There is a `package-lock.json` or `npm-shrinkwrap.json` file.
-- The `node_modules` folder is missing or empty.
-
-In short, the main differences between using `npm install` and `npm ci` are:
+The main differences between using `npm install` and `npm ci` are:
 
 * The project **must** have an existing `package-lock.json` or
   `npm-shrinkwrap.json`.

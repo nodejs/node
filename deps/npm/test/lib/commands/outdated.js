@@ -343,7 +343,9 @@ t.test('should return if no outdated deps', async t => {
   })
 
   await outdated(testDir, {
-    global: false,
+    config: {
+      global: false,
+    },
   }).exec([])
   t.equal(logs.length, 0, 'no logs')
 })
@@ -369,7 +371,9 @@ t.test('throws if error with a dep', async t => {
 
   await t.rejects(
     outdated(testDir, {
-      global: false,
+      config: {
+        global: false,
+      },
     }).exec([]),
     'There is an error with this package.'
   )
@@ -388,7 +392,9 @@ t.test('should skip missing non-prod deps', async t => {
   })
 
   await outdated(testDir, {
-    global: false,
+    config: {
+      global: false,
+    },
   }).exec([])
   t.equal(logs.length, 0, 'no logs')
 })

@@ -45,7 +45,7 @@ class Fund extends ArboristWorkspaceCmd {
       throw err
     }
 
-    if (this.npm.config.get('global')) {
+    if (this.npm.global) {
       const err = new Error('`npm fund` does not support global packages')
       err.code = 'EFUNDGLOBAL'
       throw err

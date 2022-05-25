@@ -44,7 +44,11 @@ class Pack extends BaseCommand {
     // noise generated during packing
     const tarballs = []
     for (const { arg, manifest } of manifests) {
-      const tarballData = await libpack(arg, this.npm.flatOptions)
+      const tarballData = await libpack(arg, {
+        ...this.npm.flatOptions,
+        prefix: this.npm.localPrefix,
+        workspaces: this.workspacePaths,
+      })
       const pkgContents = await getContents(manifest, tarballData)
       tarballs.push(pkgContents)
     }

@@ -80,7 +80,12 @@ class Publish extends BaseCommand {
     }
 
     // we pass dryRun: true to libnpmpack so it doesn't write the file to disk
-    const tarballData = await pack(spec, { ...opts, dryRun: true })
+    const tarballData = await pack(spec, {
+      ...opts,
+      dryRun: true,
+      prefix: this.npm.localPrefix,
+      workspaces: this.workspacePaths,
+    })
     const pkgContents = await getContents(manifest, tarballData)
 
     // The purpose of re-reading the manifest is in case it changed,
