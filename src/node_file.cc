@@ -768,7 +768,7 @@ void AfterStringPtr(uv_fs_t* req) {
   }
 }
 
-void AfterScanDirWithTypes(uv_fs_t* req) {
+void AfterScanDir(uv_fs_t* req) {
   FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
 
@@ -1616,7 +1616,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
               args,
               "scandir",
               encoding,
-              AfterScanDirWithTypes,
+              AfterScanDir,
               uv_fs_scandir,
               *path,
               0 /*flags*/);
