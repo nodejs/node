@@ -336,6 +336,9 @@ class V8_EXPORT_PRIVATE Scanner {
       AstValueFactory* ast_value_factory) const;
 
   double DoubleValue();
+  base::Vector<const uint8_t> BigIntLiteral() const {
+    return literal_one_byte_string();
+  }
 
   const char* CurrentLiteralAsCString(Zone* zone) const;
 
