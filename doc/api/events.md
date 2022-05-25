@@ -1587,6 +1587,10 @@ changes:
 
 <!-- YAML
 added: v14.5.0
+changes:
+  - version: v15.4.0
+    pr-url: https://github.com/nodejs/node/pull/36258
+    description: add support for `signal` option.
 -->
 
 * `type` {string}
@@ -1599,6 +1603,8 @@ added: v14.5.0
     **Default:** `false`.
   * `capture` {boolean} Not directly used by Node.js. Added for API
     completeness. **Default:** `false`.
+  * `signal` {AbortSignal} The listener will be removed when the given
+    AbortSignal object's `abort()` method is called.
 
 Adds a new handler for the `type` event. Any given `listener` is added
 only once per `type` and per `capture` option value.
