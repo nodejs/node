@@ -130,7 +130,7 @@ t.test('warns when overwriting', async t => {
   })
 
   await setScript.exec(['arg1', 'arg2'])
-  t.hasStrict(WARN_OUTPUT[0], ['set-script', 'Script "arg1" was overwritten'], 'warning was logged')
+  t.hasStrict(WARN_OUTPUT[1], ['set-script', 'Script "arg1" was overwritten'], 'warning was logged')
 })
 
 t.test('workspaces', async t => {

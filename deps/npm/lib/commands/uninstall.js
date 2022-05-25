@@ -21,13 +21,12 @@ class Uninstall extends ArboristWorkspaceCmd {
 
   async exec (args) {
     // the /path/to/node_modules/..
-    const global = this.npm.config.get('global')
-    const path = global
+    const path = this.npm.global
       ? resolve(this.npm.globalDir, '..')
       : this.npm.localPrefix
 
     if (!args.length) {
-      if (!global) {
+      if (!this.npm.global) {
         throw new Error('Must provide a package name to remove')
       } else {
         let pkg
