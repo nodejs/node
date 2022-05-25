@@ -50,7 +50,7 @@ class Diff extends BaseCommand {
     // node_modules is sometimes under ./lib, and in global mode we're only ever
     // walking through node_modules (because we will have been given a package
     // name already)
-    if (this.npm.config.get('global')) {
+    if (this.npm.global) {
       this.top = resolve(this.npm.globalDir, '..')
     } else {
       this.top = this.prefix

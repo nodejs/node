@@ -34,6 +34,8 @@ Print the folder where npm will install executables.
 
 * Default: false
 * Type: Boolean
+* DEPRECATED: `--global`, `--local` are deprecated. Use `--location=global`
+  instead.
 
 Operates in "global" mode, so that packages are installed into the `prefix`
 folder instead of the current working directory. See
