@@ -27,7 +27,7 @@ class Outdated extends ArboristWorkspaceCmd {
 
   async exec (args) {
     const global = path.resolve(this.npm.globalDir, '..')
-    const where = this.npm.config.get('global')
+    const where = this.npm.global
       ? global
       : this.npm.prefix
 
@@ -140,7 +140,7 @@ class Outdated extends ArboristWorkspaceCmd {
 
   getEdgesOut (node) {
     // TODO: normalize usage of edges and avoid looping through nodes here
-    if (this.npm.config.get('global')) {
+    if (this.npm.global) {
       for (const child of node.children.values()) {
         this.trackEdge(child)
       }
@@ -166,7 +166,7 @@ class Outdated extends ArboristWorkspaceCmd {
   }
 
   getWorkspacesEdges (node) {
-    if (this.npm.config.get('global')) {
+    if (this.npm.global) {
       return
     }
 

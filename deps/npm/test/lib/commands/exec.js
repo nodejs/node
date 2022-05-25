@@ -473,7 +473,7 @@ t.test('npm exec foo, not present locally but in central loc', async t => {
   await exec.exec(['foo', 'one arg', 'two arg'])
   t.strictSame(MKDIRPS, [installDir], 'need to make install dir')
   t.match(ARB_CTOR, [{ path }])
-  t.match(ARB_REIFY, [], 'no need to install again, already there')
+  t.strictSame(ARB_REIFY, [], 'no need to install again, already there')
   t.equal(PROGRESS_ENABLED, true, 'progress re-enabled')
   const PATH = `${resolve(installDir, 'node_modules', '.bin')}${delimiter}${process.env.PATH}`
   t.match(RUN_SCRIPTS, [

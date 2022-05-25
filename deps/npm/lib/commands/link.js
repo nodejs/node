@@ -43,7 +43,7 @@ class Link extends ArboristWorkspaceCmd {
   }
 
   async exec (args) {
-    if (this.npm.config.get('global')) {
+    if (this.npm.global) {
       throw Object.assign(
         new Error(
           'link should never be --global.\n' +

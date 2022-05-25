@@ -15,7 +15,7 @@ class Bin extends BaseCommand {
   async exec (args) {
     const b = this.npm.bin
     this.npm.output(b)
-    if (this.npm.config.get('global') && !path.split(delimiter).includes(b)) {
+    if (this.npm.global && !path.split(delimiter).includes(b)) {
       log.error('bin', '(not in PATH env variable)')
     }
   }

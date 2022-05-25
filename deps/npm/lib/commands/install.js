@@ -106,7 +106,7 @@ class Install extends ArboristWorkspaceCmd {
     // the /path/to/node_modules/..
     const globalTop = resolve(this.npm.globalDir, '..')
     const ignoreScripts = this.npm.config.get('ignore-scripts')
-    const isGlobalInstall = this.npm.config.get('global')
+    const isGlobalInstall = this.npm.global
     const where = isGlobalInstall ? globalTop : this.npm.prefix
     const forced = this.npm.config.get('force')
     const scriptShell = this.npm.config.get('script-shell') || undefined

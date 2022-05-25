@@ -50,7 +50,7 @@ class Owner extends BaseCommand {
 
     // reaches registry in order to autocomplete rm
     if (argv[2] === 'rm') {
-      if (this.npm.config.get('global')) {
+      if (this.npm.global) {
         return []
       }
       const { name } = await readJson(resolve(this.npm.prefix, 'package.json'))
@@ -126,7 +126,7 @@ class Owner extends BaseCommand {
 
   async getPkg (prefix, pkg) {
     if (!pkg) {
-      if (this.npm.config.get('global')) {
+      if (this.npm.global) {
         throw this.usageError()
       }
       const { name } = await readJson(resolve(prefix, 'package.json'))
