@@ -804,7 +804,8 @@ void AfterScanDir(uv_fs_t* req) {
     }
     name_v.push_back(filename);
 
-    if (with_file_types) type_v.emplace_back(Integer::New(isolate, ent.type));
+    if (with_file_types)
+      type_v.emplace_back(Integer::New(isolate, ent.type));
   }
 
   if (with_file_types) {
