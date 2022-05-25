@@ -420,9 +420,9 @@ if "%use_x64_node_exe%"=="true" (
     set exit_code=1
     goto exit
   )
-  %x64_node_exe% tools\license2rtf.js < LICENSE > %config%\license.rtf
+  %x64_node_exe% tools\license2rtf.mjs < LICENSE > %config%\license.rtf
 ) else (
-  %node_exe% tools\license2rtf.js < LICENSE > %config%\license.rtf
+  %node_exe% tools\license2rtf.mjs < LICENSE > %config%\license.rtf
 )
 
 if errorlevel 1 echo Failed to generate license.rtf&goto exit

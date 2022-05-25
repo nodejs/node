@@ -1,8 +1,7 @@
-'use strict';
-
-const assert = require('assert');
-const Stream = require('stream');
-
+import assert from 'node:assert';
+import Stream from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import { stdin, stdout } from 'node:process';
 
 /*
  * This filter consumes a stream of characters and emits one string per line.
@@ -287,19 +286,14 @@ class RtfGenerator extends Stream {
   }
 }
 
-
-const stdin = process.stdin;
-const stdout = process.stdout;
-const lineSplitter = new LineSplitter();
-const paragraphParser = new ParagraphParser();
-const unwrapper = new Unwrapper();
-const rtfGenerator = new RtfGenerator();
-
 stdin.setEncoding('utf-8');
 stdin.resume();
 
-stdin.pipe(lineSplitter);
-lineSplitter.pipe(paragraphParser);
-paragraphParser.pipe(unwrapper);
-unwrapper.pipe(rtfGenerator);
-rtfGenerator.pipe(stdout);
+await pipeline(
+  stdin,
+  new LineSplitter(),
+  new ParagraphParser(),
+  new Unwrapper(),
+  new RtfGenerator(),
+  stdout,
+);
