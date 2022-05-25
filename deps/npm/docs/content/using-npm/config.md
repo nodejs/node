@@ -687,23 +687,6 @@ results in no commit being made at all.
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
 
-#### `global`
-
-* Default: false
-* Type: Boolean
-
-Operates in "global" mode, so that packages are installed into the `prefix`
-folder instead of the current working directory. See
-[folders](/configuring-npm/folders) for more on the differences in behavior.
-
-* packages are installed into the `{prefix}/lib/node_modules` folder, instead
-  of the current working directory.
-* bin files are linked to `{prefix}/bin`
-* man pages are linked to `{prefix}/share/man`
-
-<!-- automatically generated, do not edit manually -->
-<!-- see lib/utils/config/definitions.js -->
-
 #### `global-style`
 
 * Default: false
@@ -1000,6 +983,15 @@ npm registry. Must be IPv4 in versions of Node prior to 0.12.
 * Type: "global", "user", or "project"
 
 When passed to `npm config` this refers to which config file to use.
+
+When set to "global" mode, packages are installed into the `prefix` folder
+instead of the current working directory. See
+[folders](/configuring-npm/folders) for more on the differences in behavior.
+
+* packages are installed into the `{prefix}/lib/node_modules` folder, instead
+  of the current working directory.
+* bin files are linked to `{prefix}/bin`
+* man pages are linked to `{prefix}/share/man`
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
@@ -1937,6 +1929,25 @@ What authentication strategy to use with `adduser`/`login`.
 * DEPRECATED: Please use --include=dev instead.
 
 Alias for `--include=dev`.
+
+<!-- automatically generated, do not edit manually -->
+<!-- see lib/utils/config/definitions.js -->
+
+#### `global`
+
+* Default: false
+* Type: Boolean
+* DEPRECATED: `--global`, `--local` are deprecated. Use `--location=global`
+  instead.
+
+Operates in "global" mode, so that packages are installed into the `prefix`
+folder instead of the current working directory. See
+[folders](/configuring-npm/folders) for more on the differences in behavior.
+
+* packages are installed into the `{prefix}/lib/node_modules` folder, instead
+  of the current working directory.
+* bin files are linked to `{prefix}/bin`
+* man pages are linked to `{prefix}/share/man`
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->

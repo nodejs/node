@@ -39,7 +39,7 @@ class Update extends ArboristWorkspaceCmd {
   async exec (args) {
     const update = args.length === 0 ? true : args
     const global = path.resolve(this.npm.globalDir, '..')
-    const where = this.npm.config.get('global')
+    const where = this.npm.global
       ? global
       : this.npm.prefix
 
