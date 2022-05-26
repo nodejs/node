@@ -29,6 +29,35 @@ Object.prototype.blep = 'blop';
     Object.getOwnPropertyNames(kEnumerableProperty),
     [ 'enumerable' ]
   );
+
+  assert.throws(
+    () => Object.setPrototypeOf(kEnumerableProperty, { value: undefined }),
+    TypeError
+  );
+  assert.throws(
+    () => delete kEnumerableProperty.enumerable,
+    TypeError
+  );
+  assert.throws(
+    () => kEnumerableProperty.enumerable = false,
+    TypeError
+  );
+  assert.throws(
+    () => Object.assign(kEnumerableProperty, { enumerable: false }),
+    TypeError
+  );
+  assert.throws(
+    () => kEnumerableProperty.value = undefined,
+    TypeError
+  );
+  assert.throws(
+    () => Object.assign(kEnumerableProperty, { value: undefined }),
+    TypeError
+  );
+  assert.throws(
+    () => Object.defineProperty(kEnumerableProperty, 'value', {}),
+    TypeError
+  );
 }
 
 {
