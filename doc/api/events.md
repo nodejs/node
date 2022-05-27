@@ -1146,7 +1146,7 @@ const ac = new AbortController();
     // if concurrent execution is required.
     console.log(event); // prints ['bar'] [42]
   }
-  // Unreachable here
+  // Reached after the AbortSignal fired
 })();
 
 process.nextTick(() => ac.abort());
