@@ -2510,7 +2510,6 @@ of the ECMAScript Language Specification.
 added:
   - v17.5.0
   - v16.15.0
-napiVersion: 8
 -->
 
 > Stability: 1 - Experimental
