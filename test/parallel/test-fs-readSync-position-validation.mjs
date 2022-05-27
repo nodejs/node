@@ -1,4 +1,4 @@
-import '../common/index.mjs';
+import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import fs from 'fs';
 import assert from 'assert';
@@ -18,7 +18,7 @@ function testValid(position, allowedErrors = []) {
   try {
     fdSync = fs.openSync(filepath, 'r');
     fs.readSync(fdSync, buffer, offset, length, position);
-    fs.readSync(fdSync, buffer, { offset, length, position });
+    fs.readSync(fdSync, buffer, common.mustNotMutateObjectDeep({ offset, length, position }));
   } catch (err) {
     if (!allowedErrors.includes(err.code)) {
       assert.fail(err);
@@ -37,7 +37,7 @@ function testInvalid(code, position, internalCatch = false) {
       { code }
     );
     assert.throws(
-      () => fs.readSync(fdSync, buffer, { offset, length, position }),
+      () => fs.readSync(fdSync, buffer, common.mustNotMutateObjectDeep({ offset, length, position })),
       { code }
     );
   } finally {
