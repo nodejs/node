@@ -23,7 +23,7 @@ const int Deoptimizer::kLazyDeoptExitSize = 3 * kInstrSize;
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   float float_val = static_cast<float>(double_registers_[n].get_scalar());
-  return Float32::FromBits(bit_cast<uint32_t>(float_val));
+  return Float32::FromBits(base::bit_cast<uint32_t>(float_val));
 }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {

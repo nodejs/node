@@ -7,13 +7,13 @@ Checks basic ES6 modules support.
         endLine : 5
         executionContextId : <executionContextId>
         hasSourceURL : false
-        hash : 395a588e3dc4c9155d342cb169bcd60d5b96c1a1
+        hash : 691860c2718c7dc1093d2933a3a71fe62c25948d592f2cadeee30f2f130c0a00
         isLiveEdit : false
         isModule : true
         length : 83
         scriptId : <scriptId>
         scriptLanguage : JavaScript
-        sourceMapURL : 
+        sourceMapURL :
         startColumn : 0
         startLine : 0
         url : module1
@@ -27,13 +27,13 @@ Checks basic ES6 modules support.
         endLine : 5
         executionContextId : <executionContextId>
         hasSourceURL : false
-        hash : 15448dfe629fbe4306eae7194754692706c6d6ba
+        hash : 406cbebea0b200671431320fca58b34225270aa55c47756656a50ef999b24825
         isLiveEdit : false
         isModule : true
         length : 84
         scriptId : <scriptId>
         scriptLanguage : JavaScript
-        sourceMapURL : 
+        sourceMapURL :
         startColumn : 0
         startLine : 0
         url : module2
@@ -47,13 +47,13 @@ Checks basic ES6 modules support.
         endLine : 11
         executionContextId : <executionContextId>
         hasSourceURL : false
-        hash : 2e8186096446efdc472a6e0559ea22216a664cb5
+        hash : d719e141b8fa8c07426816ce46ddf65ed0474667b2588300d3e9ec491017e989
         isLiveEdit : false
         isModule : true
         length : 286
         scriptId : <scriptId>
         scriptLanguage : JavaScript
-        sourceMapURL : 
+        sourceMapURL :
         startColumn : 0
         startLine : 0
         url : module3
@@ -79,12 +79,13 @@ console.log(239)
         callFrames : [
             [0] : {
                 callFrameId : <callFrameId>
+                canBeRestarted : false
                 functionLocation : {
                     columnNumber : 0
                     lineNumber : 0
                     scriptId : <scriptId>
                 }
-                functionName : 
+                functionName :
                 location : {
                     columnNumber : 0
                     lineNumber : 9
@@ -123,7 +124,7 @@ console.log(239)
                 this : {
                     type : undefined
                 }
-                url : 
+                url :
             }
         ]
         hitBreakpoints : [
@@ -209,12 +210,12 @@ console.log(239)
         endLine : 0
         executionContextId : <executionContextId>
         hasSourceURL : false
-        hash : 021647ffab1f4e4e82675bc4cd924d3481abe278
+        hash : d10b36aa74a59bcf4a88185837f658afaf3646eff2bb16c3928d0e9335e945d2
         isModule : true
         length : 1
         scriptId : <scriptId>
         scriptLanguage : JavaScript
-        sourceMapURL : 
+        sourceMapURL :
         startColumn : 0
         startLine : 0
         url : module4

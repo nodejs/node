@@ -1817,6 +1817,20 @@ void TurboAssembler::Jump(Address destination, RelocInfo::Mode rmode) {
   jmp(kScratchRegister);
 }
 
+void TurboAssembler::Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode) {
+  DCHECK_IMPLIES(
+      options().isolate_independent_code,
+      Builtins::IsIsolateIndependentBuiltin(FromCodeT(*code_object)));
+  if (options().inline_offheap_trampolines) {
+    Builtin builtin = Builtin::kNoBuiltinId;
+    if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin)) {
+      TailCallBuiltin(builtin);
+      return;
+    }
+  }
+  jmp(code_object, rmode);
+}
+
 void TurboAssembler::Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode,
                           Condition cc) {
   DCHECK_IMPLIES(
@@ -1826,10 +1840,7 @@ void TurboAssembler::Jump(Handle<CodeT> code_object, RelocInfo::Mode rmode,
     Builtin builtin = Builtin::kNoBuiltinId;
     if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin)) {
       Label skip;
-      if (cc != always) {
-        if (cc == never) return;
-        j(NegateCondition(cc), &skip, Label::kNear);
-      }
+      j(NegateCondition(cc), &skip, Label::kNear);
       TailCallBuiltin(builtin);
       bind(&skip);
       return;
@@ -2330,6 +2341,24 @@ void MacroAssembler::CmpInstanceTypeRange(Register map,
   DCHECK_LT(lower_limit, higher_limit);
   movzxwl(instance_type_out, FieldOperand(map, Map::kInstanceTypeOffset));
   CompareRange(instance_type_out, lower_limit, higher_limit);
+}
+
+void MacroAssembler::TestCodeTIsMarkedForDeoptimization(Register codet,
+                                                        Register scratch) {
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    testl(FieldOperand(codet, CodeDataContainer::kKindSpecificFlagsOffset),
+          Immediate(1 << Code::kMarkedForDeoptimizationBit));
+  } else {
+    LoadTaggedPointerField(scratch,
+                           FieldOperand(codet, Code::kCodeDataContainerOffset));
+    testl(FieldOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset),
+          Immediate(1 << Code::kMarkedForDeoptimizationBit));
+  }
+}
+
+Immediate MacroAssembler::ClearedValue() const {
+  return Immediate(
+      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
 }
 
 void TurboAssembler::AssertNotSmi(Register object) {

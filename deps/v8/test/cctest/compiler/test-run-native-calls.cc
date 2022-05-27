@@ -12,10 +12,9 @@
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-linkage.h"
-
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/graph-and-builders.h"
+#include "test/cctest/compiler/test-codegen.h"
 #include "test/cctest/compiler/value-helper.h"
 
 namespace v8 {

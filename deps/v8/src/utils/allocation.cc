@@ -253,8 +253,9 @@ VirtualMemory::VirtualMemory(v8::PageAllocator* page_allocator, size_t size,
   size_t page_size = page_allocator_->AllocatePageSize();
   alignment = RoundUp(alignment, page_size);
   PageAllocator::Permission permissions =
-      jit == kMapAsJittable ? PageAllocator::kNoAccessWillJitLater
-                            : PageAllocator::kNoAccess;
+      jit == JitPermission::kMapAsJittable
+          ? PageAllocator::kNoAccessWillJitLater
+          : PageAllocator::kNoAccess;
   Address address = reinterpret_cast<Address>(AllocatePages(
       page_allocator_, hint, RoundUp(size, page_size), alignment, permissions));
   if (address != kNullAddress) {
@@ -277,8 +278,25 @@ void VirtualMemory::Reset() {
 bool VirtualMemory::SetPermissions(Address address, size_t size,
                                    PageAllocator::Permission access) {
   CHECK(InVM(address, size));
-  bool result =
-      v8::internal::SetPermissions(page_allocator_, address, size, access);
+  bool result = page_allocator_->SetPermissions(
+      reinterpret_cast<void*>(address), size, access);
+  DCHECK(result);
+  return result;
+}
+
+bool VirtualMemory::RecommitPages(Address address, size_t size,
+                                  PageAllocator::Permission access) {
+  CHECK(InVM(address, size));
+  bool result = page_allocator_->RecommitPages(reinterpret_cast<void*>(address),
+                                               size, access);
+  DCHECK(result);
+  return result;
+}
+
+bool VirtualMemory::DiscardSystemPages(Address address, size_t size) {
+  CHECK(InVM(address, size));
+  bool result = page_allocator_->DiscardSystemPages(
+      reinterpret_cast<void*>(address), size);
   DCHECK(result);
   return result;
 }
@@ -378,7 +396,7 @@ bool VirtualMemoryCage::InitReservation(
                   RoundUp(params.base_alignment, allocate_page_size));
     VirtualMemory reservation(params.page_allocator, params.reservation_size,
                               reinterpret_cast<void*>(hint),
-                              params.base_alignment);
+                              params.base_alignment, params.jit);
     if (!reservation.IsReserved()) return false;
 
     reservation_ = std::move(reservation);
@@ -396,9 +414,9 @@ bool VirtualMemoryCage::InitReservation(
     for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
       // Reserve a region of twice the size so that there is an aligned address
       // within it that's usable as the cage base.
-      VirtualMemory padded_reservation(params.page_allocator,
-                                       params.reservation_size * 2,
-                                       reinterpret_cast<void*>(hint));
+      VirtualMemory padded_reservation(
+          params.page_allocator, params.reservation_size * 2,
+          reinterpret_cast<void*>(hint), 1, params.jit);
       if (!padded_reservation.IsReserved()) return false;
 
       // Find properly aligned sub-region inside the reservation.
@@ -432,9 +450,9 @@ bool VirtualMemoryCage::InitReservation(
         // of reserved address space regions.
         padded_reservation.Free();
 
-        VirtualMemory reservation(params.page_allocator,
-                                  params.reservation_size,
-                                  reinterpret_cast<void*>(address));
+        VirtualMemory reservation(
+            params.page_allocator, params.reservation_size,
+            reinterpret_cast<void*>(address), 1, params.jit);
         if (!reservation.IsReserved()) return false;
 
         // The reservation could still be somewhere else but we can accept it
@@ -459,10 +477,21 @@ bool VirtualMemoryCage::InitReservation(
                     params.base_bias_size,
                 params.page_size);
   size_ = allocatable_base + allocatable_size - base_;
+
+  const base::PageFreeingMode page_freeing_mode =
+      V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT &&
+              params.jit == JitPermission::kMapAsJittable
+          // On MacOS on ARM64 ("Apple M1"/Apple Silicon) setting permission to
+          // none might fail if the pages were allocated with RWX permissions,
+          // so use kDiscard mode instead.
+          ? base::PageFreeingMode::kDiscard
+          : base::PageFreeingMode::kMakeInaccessible;
+
   page_allocator_ = std::make_unique<base::BoundedPageAllocator>(
       params.page_allocator, allocatable_base, allocatable_size,
       params.page_size,
-      base::PageInitializationMode::kAllocatedPagesCanBeUninitialized);
+      base::PageInitializationMode::kAllocatedPagesCanBeUninitialized,
+      page_freeing_mode);
   return true;
 }
 

@@ -2296,7 +2296,7 @@ void Simulator::set_fpu_register_float(int fpureg, float value) {
 
 void Simulator::set_fpu_register_double(int fpureg, double value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  *bit_cast<double*>(&FPUregisters_[fpureg]) = value;
+  *base::bit_cast<double*>(&FPUregisters_[fpureg]) = value;
 }
 
 // Get the register from the architecture state. This function does handle
@@ -2347,12 +2347,12 @@ float Simulator::get_fpu_register_float(int fpureg) const {
   if (!is_boxed_float(FPUregisters_[fpureg])) {
     return std::numeric_limits<float>::quiet_NaN();
   }
-  return *bit_cast<float*>(const_cast<int64_t*>(&FPUregisters_[fpureg]));
+  return *base::bit_cast<float*>(const_cast<int64_t*>(&FPUregisters_[fpureg]));
 }
 
 double Simulator::get_fpu_register_double(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return *bit_cast<double*>(&FPUregisters_[fpureg]);
+  return *base::bit_cast<double*>(&FPUregisters_[fpureg]);
 }
 
 #ifdef CAN_USE_RVV_INSTRUCTIONS
@@ -3906,7 +3906,7 @@ void Simulator::DecodeRVRFPType() {
     case RO_FMV_W_X: {
       if (instr_.Funct3Value() == 0b000) {
         // since FMV preserves source bit-pattern, no need to canonize
-        set_frd(bit_cast<float>((uint32_t)rs1()));
+        set_frd(base::bit_cast<float>((uint32_t)rs1()));
       } else {
         UNSUPPORTED();
       }
@@ -4072,7 +4072,7 @@ void Simulator::DecodeRVRFPType() {
         }
 #ifdef V8_TARGET_ARCH_64_BIT
         case 0b000: {  // RO_FMV_X_D
-          set_rd(bit_cast<int64_t>(drs1()));
+          set_rd(base::bit_cast<int64_t>(drs1()));
           break;
         }
 #endif /* V8_TARGET_ARCH_64_BIT */
@@ -4140,7 +4140,7 @@ void Simulator::DecodeRVRFPType() {
     case RO_FMV_D_X: {
       if (instr_.Funct3Value() == 0b000 && instr_.Rs2Value() == 0b00000) {
         // Since FMV preserves source bit-pattern, no need to canonize
-        set_drd(bit_cast<double>(rs1()));
+        set_drd(base::bit_cast<double>(rs1()));
       } else {
         UNSUPPORTED();
       }

@@ -198,6 +198,19 @@ Object CallSiteInfo::GetScriptSourceMappingURL() const {
   return ReadOnlyRoots(GetIsolate()).null_value();
 }
 
+// static
+Handle<String> CallSiteInfo::GetScriptHash(Handle<CallSiteInfo> info) {
+  Handle<Script> script;
+  Isolate* isolate = info->GetIsolate();
+  if (!GetScript(isolate, info).ToHandle(&script)) {
+    return isolate->factory()->empty_string();
+  }
+  if (script->HasValidSource()) {
+    return script->GetScriptHash(/*forceForInspector:*/ false);
+  }
+  return isolate->factory()->empty_string();
+}
+
 namespace {
 
 MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {

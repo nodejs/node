@@ -321,7 +321,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* ProtectedLoad(MachineType type, Node* object, Node* offset);
 
   Node* Retain(Node* buffer);
-  Node* UnsafePointerAdd(Node* base, Node* external);
+  Node* IntPtrAdd(Node* a, Node* b);
 
   Node* DeoptimizeIf(DeoptimizeReason reason, FeedbackSource const& feedback,
                      Node* condition, Node* frame_state);

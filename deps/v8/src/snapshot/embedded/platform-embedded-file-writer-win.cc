@@ -364,15 +364,6 @@ void PlatformEmbeddedFileWriterWin::SectionText() {
   }
 }
 
-void PlatformEmbeddedFileWriterWin::SectionData() {
-  if (target_arch_ == EmbeddedTargetArch::kArm64) {
-    fprintf(fp_, "  AREA |.data|, DATA, ALIGN=%d, READWRITE\n",
-            ARM64_DATA_ALIGNMENT_POWER);
-  } else {
-    fprintf(fp_, ".DATA\n");
-  }
-}
-
 void PlatformEmbeddedFileWriterWin::SectionRoData() {
   if (target_arch_ == EmbeddedTargetArch::kArm64) {
     fprintf(fp_, "  AREA |.rodata|, DATA, ALIGN=%d, READONLY\n",
@@ -387,13 +378,6 @@ void PlatformEmbeddedFileWriterWin::DeclareUint32(const char* name,
   DeclareSymbolGlobal(name);
   fprintf(fp_, "%s%s %s %d\n", SYMBOL_PREFIX, name, DirectiveAsString(kLong),
           value);
-}
-
-void PlatformEmbeddedFileWriterWin::DeclarePointerToSymbol(const char* name,
-                                                           const char* target) {
-  DeclareSymbolGlobal(name);
-  fprintf(fp_, "%s%s %s %s%s\n", SYMBOL_PREFIX, name,
-          DirectiveAsString(PointerSizeDirective()), SYMBOL_PREFIX, target);
 }
 
 void PlatformEmbeddedFileWriterWin::StartPdataSection() {
@@ -584,10 +568,6 @@ void PlatformEmbeddedFileWriterWin::SectionText() {
   fprintf(fp_, ".section .text$hot,\"xr\"\n");
 }
 
-void PlatformEmbeddedFileWriterWin::SectionData() {
-  fprintf(fp_, ".section .data\n");
-}
-
 void PlatformEmbeddedFileWriterWin::SectionRoData() {
   fprintf(fp_, ".section .rdata\n");
 }
@@ -599,14 +579,6 @@ void PlatformEmbeddedFileWriterWin::DeclareUint32(const char* name,
   IndentedDataDirective(kLong);
   fprintf(fp_, "%d", value);
   Newline();
-}
-
-void PlatformEmbeddedFileWriterWin::DeclarePointerToSymbol(const char* name,
-                                                           const char* target) {
-  DeclareSymbolGlobal(name);
-  DeclareLabel(name);
-  fprintf(fp_, "  %s %s%s\n", DirectiveAsString(PointerSizeDirective()),
-          SYMBOL_PREFIX, target);
 }
 
 void PlatformEmbeddedFileWriterWin::StartPdataSection() {

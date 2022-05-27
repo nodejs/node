@@ -4149,8 +4149,8 @@ JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
   // some other function (and same for the {arg_array}).
   FrameState outer_state{frame_state.outer_frame_state()};
   FrameStateInfo outer_info = outer_state.frame_state_info();
-  if (outer_info.type() == FrameStateType::kArgumentsAdaptor) {
-    // Need to take the parameters from the arguments adaptor.
+  if (outer_info.type() == FrameStateType::kInlinedExtraArguments) {
+    // Need to take the parameters from the inlined extra arguments frame state.
     frame_state = outer_state;
   }
   // Add the actual parameters to the {node}, skipping the receiver.
@@ -6996,13 +6996,13 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
         jsgraph()->Constant(native_context().promise_function());
 
     // Allocate shared context for the closures below.
-    context = etrue =
-        graph()->NewNode(javascript()->CreateFunctionContext(
-                             native_context().scope_info(),
-                             PromiseBuiltins::kPromiseFinallyContextLength -
-                                 Context::MIN_CONTEXT_SLOTS,
-                             FUNCTION_SCOPE),
-                         context, etrue, if_true);
+    context = etrue = graph()->NewNode(
+        javascript()->CreateFunctionContext(
+            native_context().scope_info(),
+            int{PromiseBuiltins::kPromiseFinallyContextLength} -
+                Context::MIN_CONTEXT_SLOTS,
+            FUNCTION_SCOPE),
+        context, etrue, if_true);
     etrue = graph()->NewNode(
         simplified()->StoreField(
             AccessBuilder::ForContextSlot(PromiseBuiltins::kOnFinallySlot)),
@@ -7777,8 +7777,18 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
   MapInference inference(broker(), receiver, effect);
   if (!inference.HaveMaps() ||
       !inference.AllOfInstanceTypesAre(instance_type)) {
-    return NoChange();
+    return inference.NoChange();
   }
+
+  // TODO(v8:11111): We skip this optimization for RAB/GSAB for now. Should
+  // have some optimization here eventually.
+  for (const auto& map : inference.GetMaps()) {
+    if (IsRabGsabTypedArrayElementsKind(map.elements_kind())) {
+      return inference.NoChange();
+    }
+  }
+
+  CHECK(inference.RelyOnMapsViaStability(dependencies()));
 
   // Load the {receiver}s field.
   Node* value = effect = graph()->NewNode(simplified()->LoadField(access),

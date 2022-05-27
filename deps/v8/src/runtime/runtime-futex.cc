@@ -27,7 +27,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsNumWaitersForTesting) {
   size_t index = NumberToSize(args[1]);
   CHECK(!sta->WasDetached());
   CHECK(sta->GetBuffer()->is_shared());
-  CHECK_LT(index, sta->length());
+  CHECK_LT(index, sta->GetLength());
   CHECK_EQ(sta->type(), kExternalInt32Array);
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
@@ -48,7 +48,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsNumUnresolvedAsyncPromisesForTesting) {
   size_t index = NumberToSize(args[1]);
   CHECK(!sta->WasDetached());
   CHECK(sta->GetBuffer()->is_shared());
-  CHECK_LT(index, sta->length());
+  CHECK_LT(index, sta->GetLength());
   CHECK_EQ(sta->type(), kExternalInt32Array);
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();

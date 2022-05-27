@@ -23,6 +23,8 @@ namespace internal {
 
 class StringConstantBase;
 
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BranchHint);
+
 namespace compiler {
 
 // Forward declarations.
@@ -39,9 +41,6 @@ class Node;
 // should be treated.
 enum class BranchSemantics { kJS, kMachine };
 
-// Prediction hint for branches.
-enum class BranchHint : uint8_t { kNone, kTrue, kFalse };
-
 inline BranchHint NegateBranchHint(BranchHint hint) {
   switch (hint) {
     case BranchHint::kNone:
@@ -53,10 +52,6 @@ inline BranchHint NegateBranchHint(BranchHint hint) {
   }
   UNREACHABLE();
 }
-
-inline size_t hash_value(BranchHint hint) { return static_cast<size_t>(hint); }
-
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BranchHint);
 
 enum class TrapId : uint32_t {
 #define DEF_ENUM(Name, ...) k##Name,
@@ -507,10 +502,10 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Int32Constant(int32_t);
   const Operator* Int64Constant(int64_t);
   const Operator* TaggedIndexConstant(int32_t value);
-  const Operator* Float32Constant(volatile float);
-  const Operator* Float64Constant(volatile double);
+  const Operator* Float32Constant(float);
+  const Operator* Float64Constant(double);
   const Operator* ExternalConstant(const ExternalReference&);
-  const Operator* NumberConstant(volatile double);
+  const Operator* NumberConstant(double);
   const Operator* PointerConstant(intptr_t);
   const Operator* HeapConstant(const Handle<HeapObject>&);
   const Operator* CompressedHeapConstant(const Handle<HeapObject>&);
@@ -610,7 +605,7 @@ class FrameState : public CommonNodeWrapperBase {
     DCHECK_EQ(node->opcode(), IrOpcode::kFrameState);
   }
 
-  FrameStateInfo frame_state_info() const {
+  const FrameStateInfo& frame_state_info() const {
     return FrameStateInfoOf(node()->op());
   }
 

@@ -78,7 +78,13 @@ class V8_EXPORT UnboundScript {
    * Returns zero based line number of the code_pos location in the script.
    * -1 will be returned if no information available.
    */
-  int GetLineNumber(int code_pos);
+  int GetLineNumber(int code_pos = 0);
+
+  /**
+   * Returns zero based column number of the code_pos location in the script.
+   * -1 will be returned if no information available.
+   */
+  int GetColumnNumber(int code_pos = 0);
 
   static const int kNoScriptId = 0;
 };
@@ -650,6 +656,7 @@ class V8_EXPORT ScriptCompiler {
    * It is possible to specify multiple context extensions (obj in the above
    * example).
    */
+  V8_DEPRECATED("Use CompileFunction")
   static V8_WARN_UNUSED_RESULT MaybeLocal<Function> CompileFunctionInContext(
       Local<Context> context, Source* source, size_t arguments_count,
       Local<String> arguments[], size_t context_extension_count,

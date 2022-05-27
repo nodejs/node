@@ -450,6 +450,8 @@ class LiftoffAssembler : public TurboAssembler {
 
   LiftoffRegister LoadToRegister(VarState slot, LiftoffRegList pinned);
 
+  LiftoffRegister LoadToRegister(VarState slot, LiftoffRegister dst);
+
   LiftoffRegister PopToRegister(LiftoffRegList pinned = {}) {
     DCHECK(!cache_state_.stack_state.empty());
     VarState slot = cache_state_.stack_state.back();
@@ -459,6 +461,25 @@ class LiftoffAssembler : public TurboAssembler {
       return slot.reg();
     }
     return LoadToRegister(slot, pinned);
+  }
+
+  void PopToFixedRegister(LiftoffRegister reg) {
+    DCHECK(!cache_state_.stack_state.empty());
+    VarState slot = cache_state_.stack_state.back();
+    cache_state_.stack_state.pop_back();
+    if (slot.is_reg()) {
+      cache_state_.dec_used(slot.reg());
+      if (slot.reg() == reg) return;
+      if (cache_state_.is_used(reg)) {
+        SpillOneRegister(reg);
+      }
+      Move(reg, slot.reg(), slot.kind());
+      return;
+    }
+    if (cache_state_.is_used(reg)) {
+      SpillOneRegister(reg);
+    }
+    LoadToRegister(slot, reg);
   }
 
   // Use this to pop a value into a register that has no other uses, so it
@@ -1051,6 +1072,13 @@ class LiftoffAssembler : public TurboAssembler {
                                  bool is_swizzle);
   inline void emit_i8x16_swizzle(LiftoffRegister dst, LiftoffRegister lhs,
                                  LiftoffRegister rhs);
+  inline void emit_i8x16_relaxed_swizzle(LiftoffRegister dst,
+                                         LiftoffRegister lhs,
+                                         LiftoffRegister rhs);
+  inline void emit_s128_relaxed_laneselect(LiftoffRegister dst,
+                                           LiftoffRegister src1,
+                                           LiftoffRegister src2,
+                                           LiftoffRegister mask);
   inline void emit_i8x16_popcnt(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i8x16_splat(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i16x8_splat(LiftoffRegister dst, LiftoffRegister src);
@@ -1452,6 +1480,14 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_f64x2_replace_lane(LiftoffRegister dst, LiftoffRegister src1,
                                       LiftoffRegister src2,
                                       uint8_t imm_lane_idx);
+  inline void emit_f32x4_qfma(LiftoffRegister dst, LiftoffRegister src1,
+                              LiftoffRegister src2, LiftoffRegister src3);
+  inline void emit_f32x4_qfms(LiftoffRegister dst, LiftoffRegister src1,
+                              LiftoffRegister src2, LiftoffRegister src3);
+  inline void emit_f64x2_qfma(LiftoffRegister dst, LiftoffRegister src1,
+                              LiftoffRegister src2, LiftoffRegister src3);
+  inline void emit_f64x2_qfms(LiftoffRegister dst, LiftoffRegister src1,
+                              LiftoffRegister src2, LiftoffRegister src3);
 
   inline void StackCheck(Label* ool_code, Register limit_address);
 

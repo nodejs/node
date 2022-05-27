@@ -49,7 +49,7 @@ class X64OperandGenerator final : public OperandGenerator {
       }
       case IrOpcode::kNumberConstant: {
         const double value = OpParameter<double>(node->op());
-        return bit_cast<int64_t>(value) == 0;
+        return base::bit_cast<int64_t>(value) == 0;
       }
       default:
         return false;
@@ -303,7 +303,8 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
     case MachineRepresentation::kSimd128:
       opcode = kX64Movdqu;
       break;
-    case MachineRepresentation::kNone:  // Fall through.
+    case MachineRepresentation::kSimd256:  // Fall through.
+    case MachineRepresentation::kNone:     // Fall through.
     case MachineRepresentation::kMapWord:
       UNREACHABLE();
   }
@@ -340,7 +341,8 @@ ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
       return kX64MovqEncodeSandboxedPointer;
     case MachineRepresentation::kSimd128:
       return kX64Movdqu;
-    case MachineRepresentation::kNone:  // Fall through.
+    case MachineRepresentation::kSimd256:  // Fall through.
+    case MachineRepresentation::kNone:     // Fall through.
     case MachineRepresentation::kMapWord:
       UNREACHABLE();
   }
@@ -1937,6 +1939,11 @@ void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
       ->MarkAsCall();
 }
 
+void InstructionSelector::EmitMoveParamToFPR(Node* node, int index) {}
+
+void InstructionSelector::EmitMoveFPRToParam(InstructionOperand* op,
+                                             LinkageLocation location) {}
+
 void InstructionSelector::EmitPrepareArguments(
     ZoneVector<PushParameter>* arguments, const CallDescriptor* call_descriptor,
     Node* node) {
@@ -2838,7 +2845,7 @@ void InstructionSelector::VisitFloat64InsertLowWord32(Node* node) {
   Node* right = node->InputAt(1);
   Float64Matcher mleft(left);
   if (mleft.HasResolvedValue() &&
-      (bit_cast<uint64_t>(mleft.ResolvedValue()) >> 32) == 0u) {
+      (base::bit_cast<uint64_t>(mleft.ResolvedValue()) >> 32) == 0u) {
     Emit(kSSEFloat64LoadLowWord32, g.DefineAsRegister(node), g.Use(right));
     return;
   }
@@ -3146,8 +3153,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(F32x4Abs)               \
   V(F32x4Neg)               \
   V(F32x4Sqrt)              \
-  V(F32x4RecipApprox)       \
-  V(F32x4RecipSqrtApprox)   \
   V(F32x4DemoteF64x2Zero)   \
   V(I64x2BitMask)           \
   V(I64x2SConvertI32x4Low)  \

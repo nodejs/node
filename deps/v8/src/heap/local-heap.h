@@ -146,8 +146,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
       AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kTaggedAligned);
 
-  inline void CreateFillerObjectAt(Address addr, int size,
-                                   ClearRecordedSlots clear_slots_mode);
+  void NotifyObjectSizeChange(HeapObject object, int old_size, int new_size,
+                              ClearRecordedSlots clear_recorded_slots);
 
   bool is_main_thread() const { return is_main_thread_; }
   bool deserialization_complete() const {

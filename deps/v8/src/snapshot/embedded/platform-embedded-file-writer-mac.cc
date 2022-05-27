@@ -29,8 +29,6 @@ const char* DirectiveAsString(DataDirective directive) {
 
 void PlatformEmbeddedFileWriterMac::SectionText() { fprintf(fp_, ".text\n"); }
 
-void PlatformEmbeddedFileWriterMac::SectionData() { fprintf(fp_, ".data\n"); }
-
 void PlatformEmbeddedFileWriterMac::SectionRoData() {
   fprintf(fp_, ".const_data\n");
 }
@@ -42,13 +40,6 @@ void PlatformEmbeddedFileWriterMac::DeclareUint32(const char* name,
   IndentedDataDirective(kLong);
   fprintf(fp_, "%d", value);
   Newline();
-}
-
-void PlatformEmbeddedFileWriterMac::DeclarePointerToSymbol(const char* name,
-                                                           const char* target) {
-  DeclareSymbolGlobal(name);
-  DeclareLabel(name);
-  fprintf(fp_, "  %s _%s\n", DirectiveAsString(PointerSizeDirective()), target);
 }
 
 void PlatformEmbeddedFileWriterMac::DeclareSymbolGlobal(const char* name) {
@@ -79,7 +70,7 @@ void PlatformEmbeddedFileWriterMac::AlignToCodeAlignment() {
 #endif
 }
 
-void PlatformEmbeddedFileWriterMac::PaddingAfterCode() {
+void PlatformEmbeddedFileWriterMac::AlignToPageSizeIfNeeded() {
 #if V8_TARGET_ARCH_ARM64
   // ARM64 macOS has a 16kiB page size. Since we want to remap builtins on the
   // heap, make sure that the trailing part of the page doesn't contain anything

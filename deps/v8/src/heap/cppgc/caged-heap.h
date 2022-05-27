@@ -42,6 +42,10 @@ class CagedHeap final {
   CagedHeap(const CagedHeap&) = delete;
   CagedHeap& operator=(const CagedHeap&) = delete;
 
+#if defined(CPPGC_YOUNG_GENERATION)
+  void EnableGenerationalGC();
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+
   AllocatorType& allocator() { return *bounded_allocator_; }
   const AllocatorType& allocator() const { return *bounded_allocator_; }
 

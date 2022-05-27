@@ -167,7 +167,10 @@ bool Snapshot::Initialize(Isolate* isolate) {
 
   const v8::StartupData* blob = isolate->snapshot_blob();
   SnapshotImpl::CheckVersion(blob);
-  if (FLAG_verify_snapshot_checksum) CHECK(VerifyChecksum(blob));
+  if (Snapshot::ShouldVerifyChecksum(blob)) {
+    CHECK(VerifyChecksum(blob));
+  }
+
   base::Vector<const byte> startup_data =
       SnapshotImpl::ExtractStartupData(blob);
   base::Vector<const byte> read_only_data =
@@ -596,12 +599,18 @@ uint32_t SnapshotImpl::ExtractNumContexts(const v8::StartupData* data) {
   return num_contexts;
 }
 
+uint32_t Snapshot::GetExpectedChecksum(const v8::StartupData* data) {
+  return SnapshotImpl::GetHeaderValue(data, SnapshotImpl::kChecksumOffset);
+}
+uint32_t Snapshot::CalculateChecksum(const v8::StartupData* data) {
+  return Checksum(SnapshotImpl::ChecksummedContent(data));
+}
+
 bool Snapshot::VerifyChecksum(const v8::StartupData* data) {
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
-  uint32_t expected =
-      SnapshotImpl::GetHeaderValue(data, SnapshotImpl::kChecksumOffset);
-  uint32_t result = Checksum(SnapshotImpl::ChecksummedContent(data));
+  uint32_t expected = GetExpectedChecksum(data);
+  uint32_t result = CalculateChecksum(data);
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     PrintF("[Verifying snapshot checksum took %0.3f ms]\n", ms);

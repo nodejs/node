@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt --no-lazy-feedback-allocation
+// Flags: --allow-natives-syntax --turbofan --no-always-turbofan --no-lazy-feedback-allocation
 
 // TODO(v8:10195): Fix these tests s.t. we assert deoptimization occurs when
 // expected (e.g. in a %DeoptimizeNow call), then remove

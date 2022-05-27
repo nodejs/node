@@ -48,6 +48,9 @@ void LocalIsolate::RegisterDeserializerStarted() {
 void LocalIsolate::RegisterDeserializerFinished() {
   return isolate_->RegisterDeserializerFinished();
 }
+bool LocalIsolate::has_active_deserializer() const {
+  return isolate_->has_active_deserializer();
+}
 
 int LocalIsolate::GetNextScriptId() { return isolate_->GetNextScriptId(); }
 

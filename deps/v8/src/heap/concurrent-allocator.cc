@@ -38,9 +38,8 @@ void StressConcurrentAllocatorTask::RunInternal() {
         kSmallObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
         AllocationAlignment::kTaggedAligned);
     if (!result.IsFailure()) {
-      heap->CreateFillerObjectAtBackground(
-          result.ToAddress(), kSmallObjectSize,
-          ClearFreedMemoryMode::kDontClearFreedMemory);
+      heap->CreateFillerObjectAtBackground(result.ToAddress(),
+                                           kSmallObjectSize);
     } else {
       local_heap.TryPerformCollection();
     }
@@ -49,9 +48,8 @@ void StressConcurrentAllocatorTask::RunInternal() {
                                     AllocationOrigin::kRuntime,
                                     AllocationAlignment::kTaggedAligned);
     if (!result.IsFailure()) {
-      heap->CreateFillerObjectAtBackground(
-          result.ToAddress(), kMediumObjectSize,
-          ClearFreedMemoryMode::kDontClearFreedMemory);
+      heap->CreateFillerObjectAtBackground(result.ToAddress(),
+                                           kMediumObjectSize);
     } else {
       local_heap.TryPerformCollection();
     }
@@ -60,9 +58,8 @@ void StressConcurrentAllocatorTask::RunInternal() {
                                     AllocationOrigin::kRuntime,
                                     AllocationAlignment::kTaggedAligned);
     if (!result.IsFailure()) {
-      heap->CreateFillerObjectAtBackground(
-          result.ToAddress(), kLargeObjectSize,
-          ClearFreedMemoryMode::kDontClearFreedMemory);
+      heap->CreateFillerObjectAtBackground(result.ToAddress(),
+                                           kLargeObjectSize);
     } else {
       local_heap.TryPerformCollection();
     }

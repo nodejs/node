@@ -482,12 +482,8 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
       dependencies()->FieldTypeDependencyOffTheRecord(
           map, descriptor, descriptors_field_type_ref.value()));
 
-  PropertyConstness constness;
-  if (details.IsReadOnly() && !details.IsConfigurable()) {
-    constness = PropertyConstness::kConst;
-  } else {
-    constness = dependencies()->DependOnFieldConstness(map, descriptor);
-  }
+  PropertyConstness constness =
+      dependencies()->DependOnFieldConstness(map, descriptor);
 
   // Note: FindFieldOwner may be called multiple times throughout one
   // compilation. This is safe since its result is fixed for a given map and
@@ -829,16 +825,14 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     // Don't search on the prototype chain for special indices in case of
     // integer indexed exotic objects (see ES6 section 9.4.5).
     if (map.object()->IsJSTypedArrayMap() && name.IsString()) {
-      if (broker()->IsMainThread()) {
-        if (IsSpecialIndex(String::cast(*name.object()))) {
-          return Invalid();
-        }
-      } else {
-        // TODO(jgruber): We are being conservative here since we can't access
-        // string contents from background threads. Should that become possible
-        // in the future, remove this bailout.
+      // TODO(jgruber,v8:12790): Extend this to other strings in read-only
+      // space. When doing so, make sure there are no unexpected regressions on
+      // jetstream2.
+      if (!broker()->IsMainThread() &&
+          *name.object() != ReadOnlyRoots(isolate()).length_string()) {
         return Invalid();
       }
+      if (IsSpecialIndex(String::cast(*name.object()))) return Invalid();
     }
 
     // Don't search on the prototype when storing in literals, or performing a

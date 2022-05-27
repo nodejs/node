@@ -84,6 +84,7 @@ export class TimelineTrackStackedBase extends TimelineTrackBase {
     const ratio = currentWidth / this._originalContentWidth;
     this._scalableContentNode.style.transform = `scale(${ratio}, 1)`;
     this.style.setProperty('--txt-scale', `scale(${1 / ratio}, 1)`);
+    return ratio;
   }
 
   async _drawContent() {

@@ -494,6 +494,8 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
     }
     bool is_per_context_mode = local_marking_worklists.IsPerContextMode();
     bool done = false;
+    CodePageHeaderModificationScope rwx_write_scope(
+        "Marking a Code object requires write access to the Code page header");
     while (!done) {
       size_t current_marked_bytes = 0;
       int objects_processed = 0;

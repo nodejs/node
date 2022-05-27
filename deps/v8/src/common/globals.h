@@ -86,12 +86,16 @@ namespace internal {
 #endif
 
 // Helper macros to enable handling of direct C calls in the simulator.
-#if defined(USE_SIMULATOR) && defined(V8_TARGET_ARCH_ARM64)
+#if defined(USE_SIMULATOR) &&                                           \
+    (defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_MIPS64) || \
+     defined(V8_TARGET_ARCH_LOONG64))
 #define V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
 #define V8_IF_USE_SIMULATOR(V) , V
 #else
 #define V8_IF_USE_SIMULATOR(V)
-#endif  // defined(USE_SIMULATOR) && defined(V8_TARGET_ARCH_ARM64)
+#endif  // defined(USE_SIMULATOR) && \
+        // (defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_MIPS64) || \
+        // defined(V8_TARGET_ARCH_LOONG64))
 
 // Minimum stack size in KB required by compilers.
 constexpr int kStackSpaceRequiredForCompilation = 40;
@@ -147,6 +151,47 @@ using CodeT = CodeDataContainer;
 #define V8_EXTERNAL_CODE_SPACE_BOOL false
 class Code;
 using CodeT = Code;
+#endif
+
+// V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT controls how V8 sets permissions for
+// executable pages.
+// In particular,
+// 1) when memory region is reserved for code range, the whole region is
+//    committed with RWX permissions and then the whole region is discarded,
+// 2) since reconfiguration of RWX page permissions is not allowed on MacOS on
+//    ARM64 ("Apple M1"/Apple Silicon), there must be no attempts to change
+//    them,
+// 3) the request to set RWX permissions in the execeutable page region just
+//    commits the pages without changing permissions (see (1), they were already
+//    allocated as RWX and then deommitted),
+// 4) in order to make executable pages inaccessible one must use
+//    OS::DiscardSystemPages() instead of using OS::DecommitPages() or setting
+//    permissions to kNoAccess because the latter two are not allowed by the
+//    MacOS (see (2)).
+// 5) since code space page headers are allocated as RWX pages it's also
+//   necessary to switch between W^X modes when updating the data in the
+//   page headers (i.e. when marking, updating stats, wiring pages in
+//   lists, etc.). The new CodePageHeaderModificationScope class is used
+//   in the respective places. On unrelated configurations it's a no-op.
+//
+// This is applicable only to MacOS on ARM64 ("Apple M1"/Apple Silicon) which
+// has a APRR/MAP_JIT machinery for fast W^X permission switching (see
+// pthread_jit_write_protect).
+//
+// This approach doesn't work and shouldn't be used for V8 configuration with
+// enabled pointer compression and disabled external code space because
+// a) the pointer compression cage has to be reserved with MAP_JIT flag which
+//    is too expensive,
+// b) in case of shared pointer compression cage if the code range will be
+//    deleted while the cage is still alive then attempt to configure
+//    permissions of pages that were previously set to RWX will fail.
+//
+#if V8_HAS_PTHREAD_JIT_WRITE_PROTECT && \
+    !(defined(V8_COMPRESS_POINTERS) && !defined(V8_EXTERNAL_CODE_SPACE))
+// TODO(v8:12797): enable fast W^X permissions switching on Apple Silicon.
+#define V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT false
+#else
+#define V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT false
 #endif
 
 // Determine whether tagged pointers are 8 bytes (used in Torque layouts for
@@ -402,6 +447,9 @@ constexpr int kOneByteSize = kCharSize;
 // 128 bit SIMD value size.
 constexpr int kSimd128Size = 16;
 
+// 256 bit SIMD value size.
+constexpr int kSimd256Size = 32;
+
 // Maximum ordinal used for tracking asynchronous module evaluation order.
 constexpr unsigned kMaxModuleAsyncEvaluatingOrdinal = (1 << 30) - 1;
 
@@ -522,13 +570,11 @@ constexpr int kNoDeoptimizationId = -1;
 // Deoptimize bailout kind:
 // - Eager: a check failed in the optimized code and deoptimization happens
 //   immediately.
-// - Unused: replaces "Soft" for ABI compatibility.
 // - Lazy: the code has been marked as dependent on some assumption which
 //   is checked elsewhere and can trigger deoptimization the next time the
 //   code is executed.
 enum class DeoptimizeKind : uint8_t {
   kEager,
-  kUnused,
   kLazy,
 };
 constexpr DeoptimizeKind kFirstDeoptimizeKind = DeoptimizeKind::kEager;
@@ -542,8 +588,6 @@ constexpr const char* ToString(DeoptimizeKind kind) {
   switch (kind) {
     case DeoptimizeKind::kEager:
       return "Eager";
-    case DeoptimizeKind::kUnused:
-      return "Unused";
     case DeoptimizeKind::kLazy:
       return "Lazy";
   }
@@ -989,7 +1033,9 @@ enum class InlineCacheState {
   GENERIC,
 };
 
-inline size_t hash_value(InlineCacheState mode) { return bit_cast<int>(mode); }
+inline size_t hash_value(InlineCacheState mode) {
+  return base::bit_cast<int>(mode);
+}
 
 // Printing support.
 inline const char* InlineCacheState2String(InlineCacheState state) {
@@ -1102,6 +1148,9 @@ constexpr int kIeeeDoubleExponentWordOffset = 0;
 #define DOUBLE_POINTER_ALIGN(value) \
   (((value) + ::i::kDoubleAlignmentMask) & ~::i::kDoubleAlignmentMask)
 
+// Prediction hint for branches.
+enum class BranchHint : uint8_t { kNone, kTrue, kFalse };
+
 // Defines hints about receiver values based on structural knowledge.
 enum class ConvertReceiverMode : unsigned {
   kNullOrUndefined,     // Guaranteed to be null or undefined.
@@ -1110,7 +1159,7 @@ enum class ConvertReceiverMode : unsigned {
 };
 
 inline size_t hash_value(ConvertReceiverMode mode) {
-  return bit_cast<unsigned>(mode);
+  return base::bit_cast<unsigned>(mode);
 }
 
 inline std::ostream& operator<<(std::ostream& os, ConvertReceiverMode mode) {
@@ -1141,7 +1190,7 @@ enum class CreateArgumentsType : uint8_t {
 };
 
 inline size_t hash_value(CreateArgumentsType type) {
-  return bit_cast<uint8_t>(type);
+  return base::bit_cast<uint8_t>(type);
 }
 
 inline std::ostream& operator<<(std::ostream& os, CreateArgumentsType type) {
@@ -1422,7 +1471,7 @@ enum class InterpreterPushArgsMode : unsigned {
 };
 
 inline size_t hash_value(InterpreterPushArgsMode mode) {
-  return bit_cast<unsigned>(mode);
+  return base::bit_cast<unsigned>(mode);
 }
 
 inline std::ostream& operator<<(std::ostream& os,

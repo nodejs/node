@@ -68,13 +68,14 @@ using Atomic64 = intptr_t;
 #endif  // defined(V8_HOST_ARCH_64_BIT)
 #endif  // V8_OS_STARBOARD
 
-// Use AtomicWord for a machine-sized pointer.  It will use the Atomic32 or
+// Use AtomicWord for a machine-sized pointer. It will use the Atomic32 or
 // Atomic64 routines below, depending on your architecture.
-#if defined(V8_OS_STARBOARD)
-using AtomicWord = SbAtomicPtr;
+#if defined(V8_HOST_ARCH_64_BIT)
+using AtomicWord = Atomic64;
 #else
-using AtomicWord = intptr_t;
+using AtomicWord = Atomic32;
 #endif
+STATIC_ASSERT(sizeof(void*) == sizeof(AtomicWord));
 
 namespace helper {
 template <typename T>
@@ -465,11 +466,5 @@ inline int Relaxed_Memcmp(volatile const Atomic8* s1,
 
 }  // namespace base
 }  // namespace v8
-
-// On some platforms we need additional declarations to make
-// AtomicWord compatible with our other Atomic* types.
-#if defined(V8_OS_DARWIN) || defined(V8_OS_OPENBSD) || defined(V8_OS_AIX)
-#include "src/base/atomicops_internals_atomicword_compat.h"
-#endif
 
 #endif  // V8_BASE_ATOMICOPS_H_

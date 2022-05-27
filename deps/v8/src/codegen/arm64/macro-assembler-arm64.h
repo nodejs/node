@@ -1838,6 +1838,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     DecodeField<Field>(reg, reg);
   }
 
+  void JumpIfCodeTIsMarkedForDeoptimization(
+      Register codet, Register scratch, Label* if_marked_for_deoptimization);
+  Operand ClearedValue() const;
+
   Operand ReceiverOperand(const Register arg_count);
 
   // ---- SMI and Number Utilities ----

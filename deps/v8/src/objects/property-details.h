@@ -306,11 +306,11 @@ class PropertyDetails {
     return PropertyDetails(PropertyKind::kData, NONE, cell_type);
   }
 
-  bool operator==(PropertyDetails const& other) {
+  bool operator==(PropertyDetails const& other) const {
     return value_ == other.value_;
   }
 
-  bool operator!=(PropertyDetails const& other) {
+  bool operator!=(PropertyDetails const& other) const {
     return value_ != other.value_;
   }
 
@@ -392,8 +392,6 @@ class PropertyDetails {
   PropertyCellType cell_type() const {
     return PropertyCellTypeField::decode(value_);
   }
-
-  bool operator==(const PropertyDetails& b) const { return value_ == b.value_; }
 
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.

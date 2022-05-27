@@ -410,6 +410,20 @@ Reduction TypedOptimization::ReduceReferenceEqual(Node* node) {
       return Replace(jsgraph()->FalseConstant());
     }
   }
+  if (rhs_type.Is(Type::Boolean()) && rhs_type.IsHeapConstant() &&
+      lhs_type.Is(Type::Boolean())) {
+    base::Optional<bool> maybe_result =
+        rhs_type.AsHeapConstant()->Ref().TryGetBooleanValue();
+    if (maybe_result.has_value()) {
+      if (maybe_result.value()) {
+        return Replace(node->InputAt(0));
+      } else {
+        node->TrimInputCount(1);
+        NodeProperties::ChangeOp(node, simplified()->BooleanNot());
+        return Changed(node);
+      }
+    }
+  }
   return NoChange();
 }
 

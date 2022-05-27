@@ -184,8 +184,6 @@ class V8_EXPORT V8 {
    * V8 was disposed.
    */
   static void DisposePlatform();
-  V8_DEPRECATED("Use DisposePlatform()")
-  static void ShutdownPlatform() { DisposePlatform(); }
 
 #ifdef V8_SANDBOX
   //
@@ -206,7 +204,7 @@ class V8_EXPORT V8 {
    * as part of V8::Initialize, at which point this function should be removed.
    */
   static bool InitializeSandbox();
-  V8_DEPRECATE_SOON("Use InitializeSandbox()")
+  V8_DEPRECATED("Use InitializeSandbox()")
   static bool InitializeVirtualMemoryCage() { return InitializeSandbox(); }
 
   /**
@@ -224,7 +222,7 @@ class V8_EXPORT V8 {
    * This function must only be called after initializing the sandbox.
    */
   static VirtualAddressSpace* GetSandboxAddressSpace();
-  V8_DEPRECATE_SOON("Use GetSandboxAddressSpace()")
+  V8_DEPRECATED("Use GetSandboxAddressSpace()")
   static PageAllocator* GetVirtualMemoryCagePageAllocator();
 
   /**
@@ -234,7 +232,7 @@ class V8_EXPORT V8 {
    * this returns zero.
    */
   static size_t GetSandboxSizeInBytes();
-  V8_DEPRECATE_SOON("Use GetSandboxSizeInBytes()")
+  V8_DEPRECATED("Use GetSandboxSizeInBytes()")
   static size_t GetVirtualMemoryCageSizeInBytes() {
     return GetSandboxSizeInBytes();
   }
@@ -248,7 +246,7 @@ class V8_EXPORT V8 {
    * insecure sandbox is being used, in which case it will return false.
    */
   static bool IsSandboxConfiguredSecurely();
-  V8_DEPRECATE_SOON("Use IsSandboxConfiguredSecurely()")
+  V8_DEPRECATED("Use IsSandboxConfiguredSecurely()")
   static bool IsUsingSecureVirtualMemoryCage() {
     return IsSandboxConfiguredSecurely();
   }
@@ -273,7 +271,7 @@ class V8_EXPORT V8 {
    * exceptions in V8-generated code.
    */
   static void SetUnhandledExceptionCallback(
-      UnhandledExceptionCallback unhandled_exception_callback);
+      UnhandledExceptionCallback callback);
 #endif
 
   /**
@@ -281,8 +279,7 @@ class V8_EXPORT V8 {
    * v8 has encountered a fatal failure to allocate memory and is about to
    * terminate.
    */
-
-  static void SetFatalMemoryErrorCallback(OOMErrorCallback oom_error_callback);
+  static void SetFatalMemoryErrorCallback(LegacyOOMErrorCallback callback);
 
   /**
    * Get statistics about the shared memory usage.

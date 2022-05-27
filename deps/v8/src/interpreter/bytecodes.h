@@ -340,7 +340,7 @@ namespace interpreter {
   /* Control Flow -- carefully ordered for efficient checks */                 \
   /* - [Unconditional jumps] */                                                \
   V(JumpLoop, ImplicitRegisterUse::kNone, OperandType::kUImm,                  \
-    OperandType::kImm)                                                         \
+    OperandType::kImm, OperandType::kIdx)                                      \
   /* - [Forward jumps] */                                                      \
   V(Jump, ImplicitRegisterUse::kNone, OperandType::kUImm)                      \
   /* - [Start constant jumps] */                                               \

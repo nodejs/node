@@ -2873,27 +2873,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   i.InputSimd128Register(1), kScratchDoubleReg);
       break;
     }
-      // vector unary ops
-    case kS390_F32x4RecipApprox: {
-      __ mov(kScratchReg, Operand(1));
-      __ ConvertIntToFloat(kScratchDoubleReg, kScratchReg);
-      __ vrep(kScratchDoubleReg, kScratchDoubleReg, Operand(0), Condition(2));
-      __ vfd(i.OutputSimd128Register(), kScratchDoubleReg,
-             i.InputSimd128Register(0), Condition(0), Condition(0),
-             Condition(2));
-      break;
-    }
-    case kS390_F32x4RecipSqrtApprox: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vfsq(dst, i.InputSimd128Register(0), Condition(0), Condition(0),
-              Condition(2));
-      __ mov(kScratchReg, Operand(1));
-      __ ConvertIntToFloat(kScratchDoubleReg, kScratchReg);
-      __ vrep(kScratchDoubleReg, kScratchDoubleReg, Operand(0), Condition(2));
-      __ vfd(dst, kScratchDoubleReg, dst, Condition(0), Condition(0),
-             Condition(2));
-      break;
-    }
     // vector boolean unops
     case kS390_V128AnyTrue: {
       __ V128AnyTrue(i.OutputRegister(), i.InputSimd128Register(0),

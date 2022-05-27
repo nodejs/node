@@ -8,6 +8,7 @@
 #include "src/base/macros.h"
 #include "src/base/sanitizer/asan.h"
 #include "src/heap/cppgc/gc-info-table.h"
+#include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-page.h"
 
 namespace cppgc {
@@ -38,7 +39,9 @@ void HeapObjectHeader::Finalize() {
 
 HeapObjectName HeapObjectHeader::GetName() const {
   const GCInfo& gc_info = GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex());
-  return gc_info.name(ObjectStart());
+  return gc_info.name(
+      ObjectStart(),
+      BasePage::FromPayload(this)->heap().name_of_unnamed_object());
 }
 
 }  // namespace internal

@@ -275,7 +275,7 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
   for (ContextChainElement& element : context_chain_) {
     if (!element.materialized_object.is_null()) {
       Handle<FixedArray> keys =
-          KeyAccumulator::GetKeys(element.materialized_object,
+          KeyAccumulator::GetKeys(isolate_, element.materialized_object,
                                   KeyCollectionMode::kOwnOnly,
                                   ENUMERABLE_STRINGS)
               .ToHandleChecked();

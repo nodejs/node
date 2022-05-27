@@ -490,7 +490,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       // Compute the operand for the load of the upper half.
       Operand upper_src_op =
           offset_reg == no_reg
-              ? Operand(src_addr, bit_cast<int32_t>(offset_imm + 4))
+              ? Operand(src_addr, base::bit_cast<int32_t>(offset_imm + 4))
               : Operand(src_addr, offset_reg, times_1, offset_imm + 4);
       // The high word has to be mov'ed first, such that this is the protected
       // instruction. The mov of the low word cannot segfault.
@@ -558,7 +558,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       // Compute the operand for the store of the upper half.
       Operand upper_dst_op =
           offset_reg == no_reg
-              ? Operand(dst_addr, bit_cast<int32_t>(offset_imm + 4))
+              ? Operand(dst_addr, base::bit_cast<int32_t>(offset_imm + 4))
               : Operand(dst_addr, offset_reg, times_1, offset_imm + 4);
       // The high word has to be mov'ed first, such that this is the protected
       // instruction. The mov of the low word cannot segfault.
@@ -2907,6 +2907,21 @@ void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
                scratch);
 }
 
+void LiftoffAssembler::emit_i8x16_relaxed_swizzle(LiftoffRegister dst,
+                                                  LiftoffRegister lhs,
+                                                  LiftoffRegister rhs) {
+  Register tmp = GetUnusedRegister(RegClass::kGpReg, {}).gp();
+  I8x16Swizzle(dst.fp(), lhs.fp(), rhs.fp(), liftoff::kScratchDoubleReg, tmp,
+               true);
+}
+
+void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
+                                                    LiftoffRegister src1,
+                                                    LiftoffRegister src2,
+                                                    LiftoffRegister mask) {
+  Pblendvb(dst.fp(), src2.fp(), src1.fp(), mask.fp());
+}
+
 void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,
                                          LiftoffRegister src) {
   Register scratch = GetUnusedRegister(RegClass::kGpReg, {}).gp();
@@ -4453,6 +4468,38 @@ void LiftoffAssembler::emit_f64x2_replace_lane(LiftoffRegister dst,
                                                LiftoffRegister src2,
                                                uint8_t imm_lane_idx) {
   F64x2ReplaceLane(dst.fp(), src1.fp(), src2.fp(), imm_lane_idx);
+}
+
+void LiftoffAssembler::emit_f32x4_qfma(LiftoffRegister dst,
+                                       LiftoffRegister src1,
+                                       LiftoffRegister src2,
+                                       LiftoffRegister src3) {
+  F32x4Qfma(dst.fp(), src1.fp(), src2.fp(), src3.fp(),
+            liftoff::kScratchDoubleReg);
+}
+
+void LiftoffAssembler::emit_f32x4_qfms(LiftoffRegister dst,
+                                       LiftoffRegister src1,
+                                       LiftoffRegister src2,
+                                       LiftoffRegister src3) {
+  F32x4Qfms(dst.fp(), src1.fp(), src2.fp(), src3.fp(),
+            liftoff::kScratchDoubleReg);
+}
+
+void LiftoffAssembler::emit_f64x2_qfma(LiftoffRegister dst,
+                                       LiftoffRegister src1,
+                                       LiftoffRegister src2,
+                                       LiftoffRegister src3) {
+  F64x2Qfma(dst.fp(), src1.fp(), src2.fp(), src3.fp(),
+            liftoff::kScratchDoubleReg);
+}
+
+void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
+                                       LiftoffRegister src1,
+                                       LiftoffRegister src2,
+                                       LiftoffRegister src3) {
+  F64x2Qfms(dst.fp(), src1.fp(), src2.fp(), src3.fp(),
+            liftoff::kScratchDoubleReg);
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {

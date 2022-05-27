@@ -2246,7 +2246,8 @@ void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
 }
 
 void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
-  LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt);
+  LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt,
+                           feedback_spec());
   if (stmt->cond()->ToBooleanIsFalse()) {
     // Since we know that the condition is false, we don't create a loop.
     // Therefore, we don't create a LoopScope (and thus we don't create a header
@@ -2268,7 +2269,8 @@ void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
 }
 
 void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
-  LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt);
+  LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt,
+                           feedback_spec());
 
   if (stmt->cond()->ToBooleanIsFalse()) {
     // If the condition is false there is no need to generate the loop.
@@ -2291,7 +2293,8 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
     Visit(stmt->init());
   }
 
-  LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt);
+  LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt,
+                           feedback_spec());
   if (stmt->cond() && stmt->cond()->ToBooleanIsFalse()) {
     // If the condition is known to be false there is no need to generate
     // body, next or condition blocks. Init block should be generated.
@@ -2343,7 +2346,8 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // The loop
   {
-    LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt);
+    LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt,
+                             feedback_spec());
     LoopScope loop_scope(this, &loop_builder);
     builder()->SetExpressionAsStatementPosition(stmt->each());
     builder()->ForInContinue(index, cache_length);
@@ -2416,7 +2420,8 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
       [&]() {
         Register next_result = register_allocator()->NewRegister();
 
-        LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt);
+        LoopBuilder loop_builder(builder(), block_coverage_builder_, stmt,
+                                 feedback_spec());
         LoopScope loop_scope(this, &loop_builder);
 
         builder()->LoadTrue().StoreAccumulatorInRegister(done);
@@ -2515,7 +2520,7 @@ void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   DCHECK_EQ(expr->scope()->outer_scope(), current_scope());
   uint8_t flags = CreateClosureFlags::Encode(
       expr->pretenure(), closure_scope()->is_function_scope(),
-      info()->flags().might_always_opt());
+      info()->flags().might_always_turbofan());
   size_t entry = builder()->AllocateDeferredConstantPoolEntry();
   builder()->CreateClosure(entry, GetCachedCreateClosureSlot(expr), flags);
   function_literals_.push_back(std::make_pair(expr, entry));
@@ -3322,7 +3327,7 @@ void BytecodeGenerator::BuildFillArrayWithIterator(
   DCHECK(index.is_valid());
   DCHECK(value.is_valid());
 
-  LoopBuilder loop_builder(builder(), nullptr, nullptr);
+  LoopBuilder loop_builder(builder(), nullptr, nullptr, feedback_spec());
   LoopScope loop_scope(this, &loop_builder);
 
   // Call the iterator's .next() method. Break from the loop if the `done`
@@ -4853,7 +4858,7 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
       //   - One for awaiting the iterator result yielded by the delegated
       //     iterator
 
-      LoopBuilder loop_builder(builder(), nullptr, nullptr);
+      LoopBuilder loop_builder(builder(), nullptr, nullptr, feedback_spec());
       LoopScope loop_scope(this, &loop_builder);
 
       {
@@ -6157,6 +6162,14 @@ void BytecodeGenerator::BuildLiteralCompareNil(
   }
 }
 
+void BytecodeGenerator::BuildLiteralStrictCompareBoolean(Literal* literal) {
+  DCHECK(literal->IsBooleanLiteral());
+  Register result = register_allocator()->NewRegister();
+  builder()->StoreAccumulatorInRegister(result);
+  builder()->LoadBoolean(literal->AsBooleanLiteral());
+  builder()->CompareReference(result);
+}
+
 void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Expression* sub_expr;
   Literal* literal;
@@ -6172,6 +6185,11 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     } else {
       builder()->CompareTypeOf(literal_flag);
     }
+  } else if (expr->IsLiteralStrictCompareBoolean(&sub_expr, &literal)) {
+    DCHECK(expr->op() == Token::EQ_STRICT);
+    VisitForAccumulatorValue(sub_expr);
+    builder()->SetExpressionPosition(expr);
+    BuildLiteralStrictCompareBoolean(literal);
   } else if (expr->IsLiteralCompareUndefined(&sub_expr)) {
     VisitForAccumulatorValue(sub_expr);
     builder()->SetExpressionPosition(expr);
@@ -6182,7 +6200,6 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     BuildLiteralCompareNil(expr->op(), BytecodeArrayBuilder::kNullValue);
   } else {
     if (expr->op() == Token::IN && expr->left()->IsPrivateName()) {
-      DCHECK(FLAG_harmony_private_brand_checks);
       Variable* var = expr->left()->AsVariableProxy()->var();
       if (IsPrivateMethodOrAccessorVariableMode(var->mode())) {
         BuildPrivateMethodIn(var, expr->right());
@@ -6337,16 +6354,11 @@ void BytecodeGenerator::BuildGetIterator(IteratorType hint) {
           feedback_index(feedback_spec()->AddCallICSlot());
 
       // Let method be GetMethod(obj, @@iterator) and
-      // iterator be Call(method, obj).
+      // iterator be Call(method, obj). If iterator is
+      // not JSReceiver, then throw TypeError.
       builder()->StoreAccumulatorInRegister(obj).GetIterator(
           obj, load_feedback_index, call_feedback_index);
     }
-
-    // If Type(iterator) is not Object, throw a TypeError exception.
-    BytecodeLabel no_type_error;
-    builder()->JumpIfJSReceiver(&no_type_error);
-    builder()->CallRuntime(Runtime::kThrowSymbolIteratorInvalid);
-    builder()->Bind(&no_type_error);
   }
 }
 

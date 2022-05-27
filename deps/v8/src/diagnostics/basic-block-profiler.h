@@ -43,6 +43,7 @@ class BasicBlockProfilerData {
   void SetSchedule(const std::ostringstream& os);
   void SetBlockId(size_t offset, int32_t id);
   void SetHash(int hash);
+  void AddBranch(int32_t true_block_id, int32_t false_block_id);
 
   // Copy the data from this object into an equivalent object stored on the JS
   // heap, so that it can survive snapshotting and relocation. This must
@@ -63,6 +64,7 @@ class BasicBlockProfilerData {
   // These vectors are indexed by reverse post-order block number.
   std::vector<int32_t> block_ids_;
   std::vector<uint32_t> counts_;
+  std::vector<std::pair<int32_t, int32_t>> branches_;
   std::string function_name_;
   std::string schedule_;
   std::string code_;

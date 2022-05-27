@@ -17,7 +17,7 @@ namespace maglev {
 class BasicBlock;
 class ControlNode;
 class Graph;
-class MaglevCompilationUnit;
+class MaglevCompilationInfo;
 class MaglevGraphLabeller;
 class Node;
 class NodeBase;
@@ -28,9 +28,9 @@ class MaglevPrintingVisitor {
  public:
   explicit MaglevPrintingVisitor(std::ostream& os);
 
-  void PreProcessGraph(MaglevCompilationUnit*, Graph* graph);
-  void PostProcessGraph(MaglevCompilationUnit*, Graph* graph) {}
-  void PreProcessBasicBlock(MaglevCompilationUnit*, BasicBlock* block);
+  void PreProcessGraph(MaglevCompilationInfo*, Graph* graph);
+  void PostProcessGraph(MaglevCompilationInfo*, Graph* graph) {}
+  void PreProcessBasicBlock(MaglevCompilationInfo*, BasicBlock* block);
   void Process(Phi* phi, const ProcessingState& state);
   void Process(Node* node, const ProcessingState& state);
   void Process(ControlNode* node, const ProcessingState& state);
@@ -44,7 +44,7 @@ class MaglevPrintingVisitor {
   std::vector<BasicBlock*> targets_;
 };
 
-void PrintGraph(std::ostream& os, MaglevCompilationUnit* compilation_unit,
+void PrintGraph(std::ostream& os, MaglevCompilationInfo* compilation_info,
                 Graph* const graph);
 
 class PrintNode {

@@ -1,0 +1,22 @@
+Checks that restarting every frame on the stack works.
+
+---- Restarting at frame index 0 ----
+Paused at (after evaluation):
+  console.log('A');
+  #debugger;
+  return 'Magic value';
+
+Pause stack:
+  A:3 (canBeRestarted = true)
+  B:8 (canBeRestarted = true)
+  C:13 (canBeRestarted = true)
+  D:18 (canBeRestarted = true)
+  E:22 (canBeRestarted = true)
+  F:26 (canBeRestarted = true)
+
+Restarting function "A" ...
+Failed to restart function "A":
+{
+    code : -32000
+    message : Frame restarting not supported
+}

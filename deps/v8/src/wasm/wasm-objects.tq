@@ -103,7 +103,7 @@ extern class WasmContinuationObject extends Struct {
 extern class WasmSuspenderObject extends JSObject {
   continuation: WasmContinuationObject|Undefined;
   parent: WasmSuspenderObject|Undefined;
-  resume: JSObject;
+  resume: JSObject|Undefined;
   state: Smi;  // 0: Inactive, 1: Active, 2: Suspended.
 }
 

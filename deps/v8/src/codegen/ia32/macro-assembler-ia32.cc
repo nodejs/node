@@ -422,8 +422,8 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (FLAG_debug_code) {
-    mov(value, Immediate(bit_cast<int32_t>(kZapValue)));
-    mov(slot_address, Immediate(bit_cast<int32_t>(kZapValue)));
+    mov(value, Immediate(base::bit_cast<int32_t>(kZapValue)));
+    mov(slot_address, Immediate(base::bit_cast<int32_t>(kZapValue)));
   }
 }
 
@@ -569,8 +569,8 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
   // turned on to provoke errors.
   if (FLAG_debug_code) {
     ASM_CODE_COMMENT_STRING(this, "Clobber slot_address and value");
-    mov(slot_address, Immediate(bit_cast<int32_t>(kZapValue)));
-    mov(value, Immediate(bit_cast<int32_t>(kZapValue)));
+    mov(slot_address, Immediate(base::bit_cast<int32_t>(kZapValue)));
+    mov(value, Immediate(base::bit_cast<int32_t>(kZapValue)));
   }
 }
 
@@ -731,6 +731,18 @@ void MacroAssembler::CmpInstanceTypeRange(Register map,
   DCHECK_LT(lower_limit, higher_limit);
   movzx_w(instance_type_out, FieldOperand(map, Map::kInstanceTypeOffset));
   CompareRange(instance_type_out, lower_limit, higher_limit, scratch);
+}
+
+void MacroAssembler::TestCodeTIsMarkedForDeoptimization(Register codet,
+                                                        Register scratch) {
+  mov(scratch, FieldOperand(codet, Code::kCodeDataContainerOffset));
+  test(FieldOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset),
+       Immediate(1 << Code::kMarkedForDeoptimizationBit));
+}
+
+Immediate MacroAssembler::ClearedValue() const {
+  return Immediate(
+      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
 }
 
 void MacroAssembler::AssertSmi(Register object) {

@@ -77,9 +77,10 @@ using compiler::Node;
 // the trap occurs if the runtime context is not available to throw a JavaScript
 // exception.
 #define CHECK_TRAP32(x) \
-  CHECK_EQ(0xDEADBEEF, (bit_cast<uint32_t>(x)) & 0xFFFFFFFF)
-#define CHECK_TRAP64(x) \
-  CHECK_EQ(0xDEADBEEFDEADBEEF, (bit_cast<uint64_t>(x)) & 0xFFFFFFFFFFFFFFFF)
+  CHECK_EQ(0xDEADBEEF, (base::bit_cast<uint32_t>(x)) & 0xFFFFFFFF)
+#define CHECK_TRAP64(x)        \
+  CHECK_EQ(0xDEADBEEFDEADBEEF, \
+           (base::bit_cast<uint64_t>(x)) & 0xFFFFFFFFFFFFFFFF)
 #define CHECK_TRAP(x) CHECK_TRAP32(x)
 
 #define WASM_WRAPPER_RETURN_VALUE 8754

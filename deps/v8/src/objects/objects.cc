@@ -123,7 +123,9 @@
 #include "src/strings/string-stream.h"
 #include "src/strings/unicode-decoder.h"
 #include "src/strings/unicode-inl.h"
+#include "src/utils/hex-format.h"
 #include "src/utils/ostreams.h"
+#include "src/utils/sha-256.h"
 #include "src/utils/utils-inl.h"
 #include "src/zone/zone.h"
 
@@ -5042,6 +5044,47 @@ Object Script::GetNameOrSourceURL() {
   return name();
 }
 
+Handle<String> Script::GetScriptHash(bool forceForInspector) {
+  auto isolate = GetIsolate();
+
+  if (origin_options().IsOpaque() && !forceForInspector) {
+    return isolate->factory()->empty_string();
+  }
+
+  Object maybe_source_hash = source_hash();
+  if (maybe_source_hash.IsString()) {
+    Handle<String> precomputed(String::cast(maybe_source_hash), isolate);
+    if (precomputed->length() > 0) {
+      return precomputed;
+    }
+  }
+
+  Handle<Object> src(source(), isolate);
+  if (!src->IsString()) {
+    return isolate->factory()->empty_string();
+  }
+
+  Handle<String> src_text = Handle<String>::cast(src);
+  char formatted_hash[kSizeOfFormattedSha256Digest];
+  // std::unique_ptr<UChar[]> buffer(new UChar[src->Length()]);
+  // int written = src->Write(isolate,
+  // reinterpret_cast<uint16_t*>(buffer.get()), 0, source->Length()); size_t
+  // writtenSizeInBytes = sizeof(UChar) * written;
+
+  std::unique_ptr<char[]> string_val = src_text->ToCString();
+  size_t len = strlen(string_val.get());
+  uint8_t hash[kSizeOfSha256Digest];
+  SHA256_hash(string_val.get(), len, hash);
+  FormatBytesToHex(formatted_hash, kSizeOfFormattedSha256Digest, hash,
+                   kSizeOfSha256Digest);
+  formatted_hash[kSizeOfSha256Digest * 2] = '\0';
+
+  Handle<String> result =
+      isolate->factory()->NewStringFromAsciiChecked(formatted_hash);
+  set_source_hash(*result);
+  return result;
+}
+
 template <typename IsolateT>
 MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     Handle<Script> script, IsolateT* isolate,
@@ -6213,7 +6256,7 @@ int Dictionary<Derived, Shape>::NumberOfEnumerableProperties() {
     if (k.FilterKey(ENUMERABLE_STRINGS)) continue;
     PropertyDetails details = this->DetailsAt(i);
     PropertyAttributes attr = details.attributes();
-    if ((attr & ONLY_ENUMERABLE) == 0) result++;
+    if ((int{attr} & ONLY_ENUMERABLE) == 0) result++;
   }
   return result;
 }
@@ -6981,7 +7024,7 @@ void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
   }
 
   // weak_cell is now removed from the unregister token map, so clear its
-  // unregister token-related fields for heap verification.
+  // unregister token-related fields.
   weak_cell.set_unregister_token(undefined);
   weak_cell.set_key_list_prev(undefined);
   weak_cell.set_key_list_next(undefined);

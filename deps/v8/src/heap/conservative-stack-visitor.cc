@@ -37,25 +37,26 @@ bool ConservativeStackVisitor::CheckPage(Address address, MemoryChunk* page) {
     return false;
   }
 
-  // TODO(jakehughes) Pinning is only required for the marking visitor. Other
-  // visitors (such as verify visitor) could work without pining. This should
-  // be moved to delegate_
-  page->SetFlag(BasicMemoryChunk::Flag::PINNED);
-
-  Object ptr = HeapObject::FromAddress(base_ptr);
-  FullObjectSlot root = FullObjectSlot(&ptr);
-  delegate_->VisitRootPointer(Root::kHandleScope, nullptr, root);
-  DCHECK(root == FullObjectSlot(reinterpret_cast<Address>(&base_ptr)));
+  Object root = obj;
+  delegate_->VisitRootPointer(Root::kHandleScope, nullptr,
+                              FullObjectSlot(&root));
+  // Check that the delegate visitor did not modify the root slot.
+  DCHECK_EQ(root, obj);
   return true;
 }
 
 void ConservativeStackVisitor::VisitConservativelyIfPointer(
     const void* pointer) {
   auto address = reinterpret_cast<Address>(pointer);
+  // TODO(v8:12851): Let's figure out what this meant to do...
+  // This condition is always true, as the LAB invariant requires
+  // start <= top <= limit
+#if 0
   if (address > isolate_->heap()->old_space()->top() ||
       address < isolate_->heap()->old_space()->limit()) {
     return;
   }
+#endif
 
   for (Page* page : *isolate_->heap()->old_space()) {
     if (CheckPage(address, page)) {

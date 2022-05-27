@@ -52,7 +52,7 @@
 #include "src/objects/js-promise.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator.h"
-#include "src/objects/js-shadow-realms.h"
+#include "src/objects/js-shadow-realm.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-relative-time-format.h"
 #include "src/objects/js-segment-iterator.h"
@@ -378,8 +378,8 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
   Handle<FixedArray> keys;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, keys,
-      KeyAccumulator::GetKeys(from, KeyCollectionMode::kOwnOnly, ALL_PROPERTIES,
-                              GetKeysConversion::kKeepNumbers),
+      KeyAccumulator::GetKeys(isolate, from, KeyCollectionMode::kOwnOnly,
+                              ALL_PROPERTIES, GetKeysConversion::kKeepNumbers),
       Nothing<bool>());
 
   if (!from->HasFastProperties() && target->HasFastProperties() &&
@@ -1026,7 +1026,7 @@ MaybeHandle<Object> JSReceiver::DefineProperties(Isolate* isolate,
   Handle<FixedArray> keys;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, keys,
-      KeyAccumulator::GetKeys(props, KeyCollectionMode::kOwnOnly,
+      KeyAccumulator::GetKeys(isolate, props, KeyCollectionMode::kOwnOnly,
                               ALL_PROPERTIES),
       Object);
   // 6. Let descriptors be an empty List.
@@ -1871,7 +1871,8 @@ Maybe<bool> JSReceiver::SetIntegrityLevel(Handle<JSReceiver> receiver,
 
   Handle<FixedArray> keys;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, keys, JSReceiver::OwnPropertyKeys(receiver), Nothing<bool>());
+      isolate, keys, JSReceiver::OwnPropertyKeys(isolate, receiver),
+      Nothing<bool>());
 
   PropertyDescriptor no_conf;
   no_conf.set_configurable(false);
@@ -1922,7 +1923,8 @@ Maybe<bool> GenericTestIntegrityLevel(Handle<JSReceiver> receiver,
 
   Handle<FixedArray> keys;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, keys, JSReceiver::OwnPropertyKeys(receiver), Nothing<bool>());
+      isolate, keys, JSReceiver::OwnPropertyKeys(isolate, receiver),
+      Nothing<bool>());
 
   for (int i = 0; i < keys->length(); ++i) {
     Handle<Object> key(keys->get(i), isolate);
@@ -2151,8 +2153,8 @@ MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
   Handle<FixedArray> keys;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, keys,
-      KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly, key_filter,
-                              GetKeysConversion::kConvertToString),
+      KeyAccumulator::GetKeys(isolate, object, KeyCollectionMode::kOwnOnly,
+                              key_filter, GetKeysConversion::kConvertToString),
       MaybeHandle<FixedArray>());
 
   values_or_entries = isolate->factory()->NewFixedArray(keys->length());
@@ -2190,18 +2192,18 @@ MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
   return FixedArray::ShrinkOrEmpty(isolate, values_or_entries, length);
 }
 
-MaybeHandle<FixedArray> JSReceiver::GetOwnValues(Handle<JSReceiver> object,
+MaybeHandle<FixedArray> JSReceiver::GetOwnValues(Isolate* isolate,
+                                                 Handle<JSReceiver> object,
                                                  PropertyFilter filter,
                                                  bool try_fast_path) {
-  return GetOwnValuesOrEntries(object->GetIsolate(), object, filter,
-                               try_fast_path, false);
+  return GetOwnValuesOrEntries(isolate, object, filter, try_fast_path, false);
 }
 
-MaybeHandle<FixedArray> JSReceiver::GetOwnEntries(Handle<JSReceiver> object,
+MaybeHandle<FixedArray> JSReceiver::GetOwnEntries(Isolate* isolate,
+                                                  Handle<JSReceiver> object,
                                                   PropertyFilter filter,
                                                   bool try_fast_path) {
-  return GetOwnValuesOrEntries(object->GetIsolate(), object, filter,
-                               try_fast_path, true);
+  return GetOwnValuesOrEntries(isolate, object, filter, try_fast_path, true);
 }
 
 Maybe<bool> JSReceiver::SetPrototype(Isolate* isolate,
@@ -2265,8 +2267,6 @@ MaybeHandle<JSObject> JSObject::New(Handle<JSFunction> constructor,
                              : NameDictionary::kInitialCapacity;
   Handle<JSObject> result = isolate->factory()->NewFastOrSlowJSObjectFromMap(
       initial_map, initial_capacity, AllocationType::kYoung, site);
-  isolate->counters()->constructed_objects()->Increment();
-  isolate->counters()->constructed_objects_runtime()->Increment();
   return result;
 }
 
@@ -2296,7 +2296,6 @@ void JSObject::EnsureWritableFastElements(Handle<JSObject> object) {
   Handle<FixedArray> writable_elems = isolate->factory()->CopyFixedArrayWithMap(
       elems, isolate->factory()->fixed_array_map());
   object->set_elements(*writable_elems);
-  isolate->counters()->cow_arrays_converted()->Increment();
 }
 
 int JSObject::GetHeaderSize(InstanceType type,
@@ -3123,9 +3122,8 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
   DCHECK_GE(instance_size_delta, 0);
 
   if (instance_size_delta > 0) {
-    Address address = object->address();
-    heap->CreateFillerObjectAt(address + new_instance_size, instance_size_delta,
-                               ClearRecordedSlots::kYes);
+    heap->NotifyObjectSizeChange(*object, old_instance_size, new_instance_size,
+                                 ClearRecordedSlots::kYes);
   }
 
   // We are storing the new map using release store after creating a filler for
@@ -3222,8 +3220,8 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
   DCHECK_GE(instance_size_delta, 0);
 
   if (instance_size_delta > 0) {
-    heap->CreateFillerObjectAt(object->address() + new_instance_size,
-                               instance_size_delta, ClearRecordedSlots::kYes);
+    heap->NotifyObjectSizeChange(*object, old_instance_size, new_instance_size,
+                                 ClearRecordedSlots::kYes);
   }
 
   // We are storing the new map using release store after creating a filler for
@@ -3245,8 +3243,6 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
       object->FastPropertyAtPut(index, Smi::zero());
     }
   }
-
-  isolate->counters()->props_to_dictionary()->Increment();
 
 #ifdef DEBUG
   if (FLAG_trace_normalization) {
@@ -3879,8 +3875,6 @@ Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
   } else {
     object->set_elements(*dictionary);
   }
-
-  isolate->counters()->elements_to_dictionary()->Increment();
 
 #ifdef DEBUG
   if (FLAG_trace_normalization) {

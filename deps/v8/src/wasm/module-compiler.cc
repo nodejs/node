@@ -25,6 +25,7 @@
 #include "src/tracing/trace-event.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/identity-map.h"
+#include "src/wasm/assembler-buffer-cache.h"
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/streaming-decoder.h"
@@ -119,16 +120,22 @@ class CompilationUnitQueues {
     // Add one first queue, to add units to.
     queues_.emplace_back(std::make_unique<QueueImpl>(0));
 
+#if !defined(__cpp_lib_atomic_value_initialization) || \
+    __cpp_lib_atomic_value_initialization < 201911L
     for (auto& atomic_counter : num_units_) {
       std::atomic_init(&atomic_counter, size_t{0});
     }
+#endif
 
     top_tier_compiled_ =
         std::make_unique<std::atomic<bool>[]>(num_declared_functions);
 
+#if !defined(__cpp_lib_atomic_value_initialization) || \
+    __cpp_lib_atomic_value_initialization < 201911L
     for (int i = 0; i < num_declared_functions; i++) {
       std::atomic_init(&top_tier_compiled_.get()[i], false);
     }
+#endif
   }
 
   Queue* GetQueueForTask(int task_id) {
@@ -297,7 +304,10 @@ class CompilationUnitQueues {
 
   struct BigUnitsQueue {
     BigUnitsQueue() {
+#if !defined(__cpp_lib_atomic_value_initialization) || \
+    __cpp_lib_atomic_value_initialization < 201911L
       for (auto& atomic : has_units) std::atomic_init(&atomic, false);
+#endif
     }
 
     base::Mutex mutex;
@@ -952,8 +962,7 @@ ExecutionTierPair GetRequestedExecutionTiers(
   result.baseline_tier = WasmCompilationUnit::GetBaselineExecutionTier(module);
 
   bool dynamic_tiering =
-      Impl(native_module->compilation_state())->dynamic_tiering() ==
-      DynamicTiering::kEnabled;
+      Impl(native_module->compilation_state())->dynamic_tiering();
   bool tier_up_enabled = !dynamic_tiering && FLAG_wasm_tier_up;
   if (module->origin != kWasmOrigin || !tier_up_enabled ||
       V8_UNLIKELY(FLAG_wasm_tier_up_filter >= 0 &&
@@ -1087,7 +1096,6 @@ void SetCompileError(ErrorThrower* thrower, ModuleWireBytes wire_bytes,
 
 DecodeResult ValidateSingleFunction(const WasmModule* module, int func_index,
                                     base::Vector<const uint8_t> code,
-                                    Counters* counters,
                                     AccountingAllocator* allocator,
                                     WasmFeatures enabled_features) {
   const WasmFunction* func = &module->functions[func_index];
@@ -1125,8 +1133,8 @@ void ValidateSequentially(
     ModuleWireBytes wire_bytes{native_module->wire_bytes()};
     const WasmFunction* func = &module->functions[func_index];
     base::Vector<const uint8_t> code = wire_bytes.GetFunctionBytes(func);
-    DecodeResult result = ValidateSingleFunction(
-        module, func_index, code, counters, allocator, enabled_features);
+    DecodeResult result = ValidateSingleFunction(module, func_index, code,
+                                                 allocator, enabled_features);
     if (result.failed()) {
       SetCompileError(thrower, wire_bytes, func, module, result.error());
     }
@@ -1174,11 +1182,12 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
   WasmCompilationUnit baseline_unit{func_index, tiers.baseline_tier,
                                     kNoDebugging};
   CompilationEnv env = native_module->CreateCompilationEnv();
-  WasmEngine* engine = GetWasmEngine();
+  // TODO(wasm): Use an assembler buffer cache for lazy compilation.
+  AssemblerBufferCache* assembler_buffer_cache = nullptr;
   WasmFeatures detected_features;
   WasmCompilationResult result = baseline_unit.ExecuteCompilation(
       &env, compilation_state->GetWireBytesStorage().get(), counters,
-      &detected_features);
+      assembler_buffer_cache, &detected_features);
   compilation_state->OnCompilationStopped(detected_features);
   if (!thread_ticks.IsNull()) {
     native_module->UpdateCPUDuration(
@@ -1190,17 +1199,7 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
   // {--wasm-lazy-validation} is enabled. Otherwise, the module was fully
   // verified before starting its execution.
   CHECK_IMPLIES(result.failed(), FLAG_wasm_lazy_validation);
-  const WasmFunction* func = &module->functions[func_index];
   if (result.failed()) {
-    ErrorThrower thrower(isolate, nullptr);
-    base::Vector<const uint8_t> code =
-        compilation_state->GetWireBytesStorage()->GetCode(func->code);
-    DecodeResult decode_result =
-        ValidateSingleFunction(module, func_index, code, counters,
-                               engine->allocator(), enabled_features);
-    CHECK(decode_result.failed());
-    SetCompileError(&thrower, ModuleWireBytes(native_module->wire_bytes()),
-                    func, module, decode_result.error());
     return false;
   }
 
@@ -1244,6 +1243,28 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
   return true;
 }
 
+void ThrowLazyCompilationError(Isolate* isolate,
+                               const NativeModule* native_module,
+                               int func_index) {
+  const WasmModule* module = native_module->module();
+
+  CompilationStateImpl* compilation_state =
+      Impl(native_module->compilation_state());
+  const WasmFunction* func = &module->functions[func_index];
+  base::Vector<const uint8_t> code =
+      compilation_state->GetWireBytesStorage()->GetCode(func->code);
+
+  WasmEngine* engine = GetWasmEngine();
+  auto enabled_features = native_module->enabled_features();
+  DecodeResult decode_result = ValidateSingleFunction(
+      module, func_index, code, engine->allocator(), enabled_features);
+
+  CHECK(decode_result.failed());
+  wasm::ErrorThrower thrower(isolate, nullptr);
+  SetCompileError(&thrower, ModuleWireBytes(native_module->wire_bytes()), func,
+                  module, decode_result.error());
+}
+
 class TransitiveTypeFeedbackProcessor {
  public:
   TransitiveTypeFeedbackProcessor(const WasmModule* module,
@@ -1261,13 +1282,14 @@ class TransitiveTypeFeedbackProcessor {
   }
 
  private:
+  static constexpr uint32_t kNonDirectCall = 0xFFFFFFFF;
   void Process(int func_index);
+  std::vector<uint32_t> GetCallDirectTargets(int func_index);
 
   void EnqueueCallees(std::vector<CallSiteFeedback> feedback) {
     for (size_t i = 0; i < feedback.size(); i++) {
       int func = feedback[i].function_index;
-      // TODO(jkummerow): Find a way to get the target function ID for
-      // direct calls (which currently requires decoding the function).
+      // Nothing to do for non-inlineable (e.g. megamorphic) calls.
       if (func == -1) continue;
       // Don't spend time on calls that have never been executed.
       if (feedback[i].absolute_call_frequency == 0) continue;
@@ -1286,6 +1308,44 @@ class TransitiveTypeFeedbackProcessor {
   std::unordered_set<int> queue_;
 };
 
+// For every recorded position of a call instruction in the given function,
+// extracts the bytes that constitute the target function index if the call
+// is a call_direct. We don't know the type of call, so this will produce
+// bogus bytes for other types of calls.
+std::vector<uint32_t> TransitiveTypeFeedbackProcessor::GetCallDirectTargets(
+    int func_index) {
+  WasmModuleObject module_object = instance_->module_object();
+  const NativeModule* native_module = module_object.native_module();
+  base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
+  const WasmModule* module = native_module->module();
+  const WasmFunction* func = &module->functions[func_index];
+  const byte* func_start = wire_bytes.begin() + func->code.offset();
+  Decoder decoder(wire_bytes);
+
+  std::map<WasmCodePosition, int> positions =
+      module->type_feedback.feedback_for_function[func_index].positions;
+  size_t num_calls = positions.size();
+  std::vector<uint32_t> result(num_calls);
+
+  for (auto entry : positions) {
+    int position = entry.first;
+    int call_index = entry.second;
+    const byte* pc = func_start + position;
+    uint8_t call = decoder.read_u8<Decoder::kNoValidation>(pc);
+    if (call != kExprCallFunction) {
+      result[call_index] = kNonDirectCall;
+      continue;
+    }
+    static constexpr int kCallDirectInstructionLength = 1;
+    pc += kCallDirectInstructionLength;
+    uint32_t length_dummy;
+    uint32_t immediate =
+        decoder.read_u32v<Decoder::kNoValidation>(pc, &length_dummy);
+    result[call_index] = immediate;
+  }
+  return result;
+}
+
 void TransitiveTypeFeedbackProcessor::Process(int func_index) {
   int which_vector = declared_function_index(instance_->module(), func_index);
   Object maybe_feedback = instance_->feedback_vectors().get(which_vector);
@@ -1294,6 +1354,7 @@ void TransitiveTypeFeedbackProcessor::Process(int func_index) {
   std::vector<CallSiteFeedback> result(feedback.length() / 2);
   int imported_functions =
       static_cast<int>(instance_->module()->num_imported_functions);
+  std::vector<uint32_t> call_direct_targets = GetCallDirectTargets(func_index);
   for (int i = 0; i < feedback.length(); i += 2) {
     Object value = feedback.get(i);
     if (value.IsWasmInternalFunction() &&
@@ -1366,21 +1427,23 @@ void TransitiveTypeFeedbackProcessor::Process(int func_index) {
                i / 2, best_frequency);
       }
     } else if (value.IsSmi()) {
-      // Direct call, just collecting call count.
-      int count = Smi::cast(value).value();
-      if (FLAG_trace_wasm_speculative_inlining) {
-        PrintF("[Function #%d call_direct #%d: frequency %d]\n", func_index,
-               i / 2, count);
+      // Uninitialized, or a direct call collecting call count.
+      uint32_t target = call_direct_targets[i / 2];
+      if (target != kNonDirectCall) {
+        int count = Smi::cast(value).value();
+        if (FLAG_trace_wasm_speculative_inlining) {
+          PrintF("[Function #%d call_direct #%d: frequency %d]\n", func_index,
+                 i / 2, count);
+        }
+        result[i / 2] = {static_cast<int>(target), count};
+        continue;
       }
-      result[i / 2] = {-1, count};
-      continue;
     }
     // If we fall through to here, then this call isn't eligible for inlining.
     // Possible reasons: uninitialized or megamorphic feedback; or monomorphic
     // or polymorphic that didn't meet our requirements.
     if (FLAG_trace_wasm_speculative_inlining) {
-      PrintF("[Function #%d call_ref #%d *not* inlineable]\n", func_index,
-             i / 2);
+      PrintF("[Function #%d call #%d *not* inlineable]\n", func_index, i / 2);
     }
     result[i / 2] = {-1, -1};
   }
@@ -1538,6 +1601,20 @@ CompilationExecutionResult ExecuteCompilationUnits(
   }
   TRACE_COMPILE("ExecuteCompilationUnits (task id %d)\n", task_id);
 
+  // If PKU is enabled, use an assembler buffer cache to avoid many expensive
+  // buffer allocations. Otherwise, malloc/free is efficient enough to prefer
+  // that bit of overhead over the memory consumption increase by the cache.
+  base::Optional<AssemblerBufferCache> optional_assembler_buffer_cache;
+  AssemblerBufferCache* assembler_buffer_cache = nullptr;
+  // Also, open a CodeSpaceWriteScope now to have (thread-local) write access to
+  // the assembler buffers.
+  base::Optional<CodeSpaceWriteScope> write_scope_for_assembler_buffers;
+  if (GetWasmCodeManager()->MemoryProtectionKeysEnabled()) {
+    optional_assembler_buffer_cache.emplace();
+    assembler_buffer_cache = &*optional_assembler_buffer_cache;
+    write_scope_for_assembler_buffers.emplace(nullptr);
+  }
+
   std::vector<WasmCompilationResult> results_to_publish;
   while (true) {
     ExecutionTier current_tier = unit->tier();
@@ -1545,8 +1622,9 @@ CompilationExecutionResult ExecuteCompilationUnits(
     TRACE_EVENT0("v8.wasm", event_name);
     while (unit->tier() == current_tier) {
       // (asynchronous): Execute the compilation.
-      WasmCompilationResult result = unit->ExecuteCompilation(
-          &env.value(), wire_bytes.get(), counters, &detected_features);
+      WasmCompilationResult result =
+          unit->ExecuteCompilation(&env.value(), wire_bytes.get(), counters,
+                                   assembler_buffer_cache, &detected_features);
       results_to_publish.emplace_back(std::move(result));
 
       bool yield = delegate && delegate->ShouldYield();
@@ -1930,9 +2008,7 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
 
   // Create a new {NativeModule} first.
   const bool include_liftoff = module->origin == kWasmOrigin && FLAG_liftoff;
-  DynamicTiering dynamic_tiering = isolate->IsWasmDynamicTieringEnabled()
-                                       ? DynamicTiering::kEnabled
-                                       : DynamicTiering::kDisabled;
+  DynamicTiering dynamic_tiering{isolate->IsWasmDynamicTieringEnabled()};
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
           module.get(), include_liftoff, dynamic_tiering);
@@ -2006,9 +2082,7 @@ AsyncCompileJob::AsyncCompileJob(
     : isolate_(isolate),
       api_method_name_(api_method_name),
       enabled_features_(enabled),
-      dynamic_tiering_(isolate_->IsWasmDynamicTieringEnabled()
-                           ? DynamicTiering::kEnabled
-                           : DynamicTiering::kDisabled),
+      dynamic_tiering_(DynamicTiering{isolate_->IsWasmDynamicTieringEnabled()}),
       wasm_lazy_compilation_(FLAG_wasm_lazy_compilation),
       start_time_(base::TimeTicks::Now()),
       bytes_copy_(std::move(bytes_copy)),
@@ -2523,9 +2597,8 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
                 strategy == CompileStrategy::kLazy ||
                 strategy == CompileStrategy::kLazyBaselineEagerTopTier;
             if (validate_lazily_compiled_function) {
-              DecodeResult function_result =
-                  ValidateSingleFunction(module, func_index, code, counters_,
-                                         allocator, enabled_features);
+              DecodeResult function_result = ValidateSingleFunction(
+                  module, func_index, code, allocator, enabled_features);
               if (function_result.failed()) {
                 result = ModuleResult(function_result.error());
                 break;
@@ -2884,9 +2957,8 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(
   if (validate_lazily_compiled_function) {
     // The native module does not own the wire bytes until {SetWireBytes} is
     // called in {OnFinishedStream}. Validation must use {bytes} parameter.
-    DecodeResult result =
-        ValidateSingleFunction(module, func_index, bytes, async_counters_.get(),
-                               allocator_, enabled_features);
+    DecodeResult result = ValidateSingleFunction(module, func_index, bytes,
+                                                 allocator_, enabled_features);
 
     if (result.failed()) {
       FinishAsyncCompileJobWithError(result.error());
@@ -3610,16 +3682,14 @@ void CompilationStateImpl::TriggerCallbacks(
     triggered_events.Add(CompilationEvent::kFinishedExportWrappers);
     if (outstanding_baseline_units_ == 0) {
       triggered_events.Add(CompilationEvent::kFinishedBaselineCompilation);
-      if (dynamic_tiering_ == DynamicTiering::kDisabled &&
-          outstanding_top_tier_functions_ == 0) {
+      if (!dynamic_tiering_ && outstanding_top_tier_functions_ == 0) {
         triggered_events.Add(CompilationEvent::kFinishedTopTierCompilation);
       }
     }
   }
 
-  if (dynamic_tiering_ == DynamicTiering::kEnabled &&
-      static_cast<size_t>(FLAG_wasm_caching_threshold) <
-          bytes_since_last_chunk_) {
+  if (dynamic_tiering_ && static_cast<size_t>(FLAG_wasm_caching_threshold) <
+                              bytes_since_last_chunk_) {
     triggered_events.Add(CompilationEvent::kFinishedCompilationChunk);
     bytes_since_last_chunk_ = 0;
   }

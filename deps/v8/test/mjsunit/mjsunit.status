@@ -31,6 +31,7 @@
   # tested standalone.
   'modules-skip*': [SKIP],
   'harmony/modules-skip*': [SKIP],
+  'harmony/shadowrealm-skip*': [SKIP],
   'regress/modules-skip*': [SKIP],
   'wasm/exceptions-utils': [SKIP],
   'wasm/wasm-module-builder': [SKIP],
@@ -47,15 +48,10 @@
   'temporal/calendar-date-add': [FAIL],
   'temporal/calendar-date-from-fields': [FAIL],
   'temporal/calendar-date-until': [FAIL],
-  'temporal/calendar-day': [FAIL],
-  'temporal/calendar-fields': [FAIL],
-  'temporal/calendar-month': [FAIL],
-  'temporal/calendar-month-code': [FAIL],
   'temporal/calendar-month-day-from-fields': [FAIL],
   'temporal/calendar-week-of-year': [FAIL],
   'temporal/calendar-year-month-from-fields': [FAIL],
   'temporal/duration-add': [FAIL],
-  'temporal/duration-from': [FAIL],
   'temporal/duration-to-json': [FAIL],
   'temporal/duration-with': [FAIL],
   'temporal/instant-add': [FAIL],
@@ -132,12 +128,9 @@
   # https://crbug.com/v8/10948
   'wasm/atomics': [PASS, ['arch == arm and not simulator_run', SKIP]],
 
-  # https://crbug.com/v8/12472 Stack overflow during regexp node generation.
+  # crbug.com/v8/12472 Stack overflow during regexp node generation.
   'regress/regress-crbug-595657': [SKIP],
   'regress/regress-475705': [SKIP],
-
-  # https://crbug.com/v8/12697
-  'math-abs': [SKIP],
 
   ##############################################################################
   # Tests where variants make no sense.
@@ -269,6 +262,11 @@
   # Needs deterministic test helpers for concurrent maglev tiering.
   # TODO(jgruber,v8:7700): Implement ASAP.
   'maglev/18': [SKIP],
+
+  # Stress variants cause operators that are currently still unsupported by
+  # TurboShaft.
+  # TODO(v8:12783)
+  'turboshaft/simple': [PASS, NO_VARIANTS],
 }],  # ALWAYS
 
 ##############################################################################
@@ -728,6 +726,9 @@
 
   # BUG(v8:11745) The test allocates too much memory, making it slow on TSAN.
   'compiler/regress-crbug-11564': [SKIP],
+
+  # BUG(v8:12822): Flakes on TSAN.
+  'regress/regress-crbug-1239907': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################
@@ -1083,13 +1084,6 @@
 
   # https://crbug.com/v8/9984
   'compiler/opt-higher-order-functions': [SKIP],
-
-  # BUG(v8:11656) Skipped until we make progress on NumFuzz.
-  'baseline/test-osr': [SKIP],
-
-  # BUG(v8:12013) Skipped until we remove flakes on NumFuzz.
-  'compiler/concurrent-inlining-1': [SKIP],
-  'compiler/inlined-call-polymorphic': [SKIP],
 }],  # 'deopt_fuzzer'
 
 ##############################################################################
@@ -1126,16 +1120,27 @@
   'regress/regress-v8-9267-*': [SKIP],
   'shared-function-tier-up-turbo': [SKIP],
 
-  # BUG(v8:11656) Skipped until we make progress on NumFuzz.
-  'baseline/test-osr': [SKIP],
-
   # BUG(v8:11826) Skipped until we remove flakes on NumFuzz.
   'regress/wasm/regress-1231950': [SKIP],
-
-  # BUG(v8:12013) Skipped until we remove flakes on NumFuzz.
-  'compiler/concurrent-inlining-1': [SKIP],
-  'compiler/inlined-call-polymorphic': [SKIP],
 }],  # 'gc_fuzzer'
+
+##############################################################################
+['gc_fuzzer or deopt_fuzzer', {
+    # BUG(v8:12013) Skipped until we remove flakes on NumFuzz.
+    'compiler/concurrent-inlining-1': [SKIP],
+    'compiler/inlined-call-polymorphic': [SKIP],
+
+    # BUG(v8:11656) Skipped until we make progress on NumFuzz.
+    'baseline/test-osr': [SKIP],
+
+    # BUG(v8:12826) Skipped until we remove flakes on NumFuzz.
+    'turboshaft/simple': [SKIP],
+
+    # BUG(v8:12842) Skipped until we remove flakes on NumFuzz.
+    'compiler/regress-1224277': [SKIP],
+    'regress/regress-1220974': [SKIP],
+    'regress/regress-992389': [SKIP],
+}], # gc_fuzzer or deopt_fuzzer
 
 ##############################################################################
 ['endurance_fuzzer', {
@@ -1164,6 +1169,7 @@
   'd8/d8-worker-shutdown': [SKIP],
   'd8/d8-worker-shutdown-gc': [SKIP],
   'harmony/futex': [SKIP],
+  'typedarray-growablesharedarraybuffer-atomics': [SKIP],
 
   # BUG(v8:7166).
   'd8/enable-tracing': [SKIP],

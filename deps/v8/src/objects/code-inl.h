@@ -729,6 +729,14 @@ void Code::set_inlined_bytecode_size(unsigned size) {
   RELAXED_WRITE_UINT_FIELD(*this, kInlinedBytecodeSizeOffset, size);
 }
 
+BytecodeOffset Code::osr_offset() const {
+  return BytecodeOffset(RELAXED_READ_INT32_FIELD(*this, kOsrOffsetOffset));
+}
+
+void Code::set_osr_offset(BytecodeOffset offset) {
+  RELAXED_WRITE_INT32_FIELD(*this, kOsrOffsetOffset, offset.ToInt());
+}
+
 bool Code::uses_safepoint_table() const {
   return is_turbofanned() || is_maglevved() || is_wasm_code();
 }
@@ -1187,48 +1195,10 @@ void BytecodeArray::set_incoming_new_target_or_generator_register(
   }
 }
 
-int BytecodeArray::osr_urgency() const {
-  return OsrUrgencyBits::decode(osr_urgency_and_install_target());
-}
-
-void BytecodeArray::set_osr_urgency(int urgency) {
-  DCHECK(0 <= urgency && urgency <= BytecodeArray::kMaxOsrUrgency);
-  STATIC_ASSERT(BytecodeArray::kMaxOsrUrgency <= OsrUrgencyBits::kMax);
-  uint32_t value = osr_urgency_and_install_target();
-  set_osr_urgency_and_install_target(OsrUrgencyBits::update(value, urgency));
-}
-
 BytecodeArray::Age BytecodeArray::bytecode_age() const {
   // Bytecode is aged by the concurrent marker.
   static_assert(kBytecodeAgeSize == kUInt16Size);
   return static_cast<Age>(RELAXED_READ_INT16_FIELD(*this, kBytecodeAgeOffset));
-}
-
-void BytecodeArray::reset_osr_urgency() { set_osr_urgency(0); }
-
-void BytecodeArray::RequestOsrAtNextOpportunity() {
-  set_osr_urgency(kMaxOsrUrgency);
-}
-
-int BytecodeArray::osr_install_target() {
-  return OsrInstallTargetBits::decode(osr_urgency_and_install_target());
-}
-
-void BytecodeArray::set_osr_install_target(BytecodeOffset jump_loop_offset) {
-  DCHECK_LE(jump_loop_offset.ToInt(), length());
-  set_osr_urgency_and_install_target(OsrInstallTargetBits::update(
-      osr_urgency_and_install_target(), OsrInstallTargetFor(jump_loop_offset)));
-}
-
-void BytecodeArray::reset_osr_install_target() {
-  uint32_t value = osr_urgency_and_install_target();
-  set_osr_urgency_and_install_target(
-      OsrInstallTargetBits::update(value, kNoOsrInstallTarget));
-}
-
-void BytecodeArray::reset_osr_urgency_and_install_target() {
-  set_osr_urgency_and_install_target(OsrUrgencyBits::encode(0) |
-                                     OsrInstallTargetBits::encode(0));
 }
 
 void BytecodeArray::set_bytecode_age(BytecodeArray::Age age) {

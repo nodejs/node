@@ -534,19 +534,29 @@ def relative_parents(path, level=0):
 
 
 def main(args):
-  # Print arguments for better debugging on the bots
   # Get a clean parent path relative to PWD
-  gcmole_dir = relative_parents(Path(args[0]))
+  default_root_dir = relative_parents(Path(__file__), level=2)
+  if len(args) >= 1:
+    default_gcmole_dir = relative_parents(Path(args[0]))
+  if default_gcmole_dir or not default_gcmole_dir.exists():
+    default_gcmole_dir = default_root_dir / 'tools' / 'gcmole'
 
   parser = optparse.OptionParser()
   archs = list(ARCHITECTURES.keys())
   parser.add_option(
+      "--v8-root-dir",
+      metavar="DIR",
+      default=default_root_dir,
+      help="V8 checkout directory. Default: '{}'".format(
+          default_root_dir.absolute()))
+  parser.add_option(
       "--v8-target-cpu",
       type="choice",
+      default="x64",
       choices=archs,
       help="Tested CPU architecture. Choices: {}".format(archs),
       metavar="CPU")
-  default_clang_bin_dir = gcmole_dir / 'gcmole-tools/bin'
+  default_clang_bin_dir = default_gcmole_dir / 'gcmole-tools/bin'
   parser.add_option(
       "--clang-bin-dir",
       metavar="DIR",
@@ -556,13 +566,7 @@ def main(args):
       "--clang-plugins-dir",
       metavar="DIR",
       help="Containing dir for libgcmole.so."
-      "Default: env['CLANG_PLUGINS'] or '{}'".format(gcmole_dir))
-  default_root_dir = relative_parents(gcmole_dir, 1)
-  parser.add_option(
-      "--v8-root-dir",
-      metavar="DIR",
-      default=default_root_dir,
-      help="V8 checkout directory. Default: '{}'".format(default_root_dir))
+      "Default: env['CLANG_PLUGINS'] or '{}'".format(default_gcmole_dir))
   parser.add_option(
       "--v8-build-dir",
       metavar="BUILD_DIR",
@@ -626,14 +630,14 @@ def main(args):
 
   if not options.v8_target_cpu:
     # Backwards compatibility
-    if len(args[0]) > 0 and args[0] in archs:
+    if len(args) > 0 and args[0] in archs:
       options.v8_target_cpu = args[0]
       log("Using --v8-target-cpu={}", options.v8_target_cpu)
     else:
       parser.error("Missing --v8-target-cpu option")
 
-  options.is_bot = False
-  verify_and_convert_dirs(parser, options, gcmole_dir, default_clang_bin_dir)
+  verify_and_convert_dirs(parser, options, default_gcmole_dir,
+                          default_clang_bin_dir)
   verify_clang_plugin(parser, options)
   prepare_gcmole_files(options)
   verify_build_config(parser, options)
@@ -648,29 +652,32 @@ def main(args):
   sys.exit(1 if any_errors_found else 0)
 
 
-def verify_and_convert_dirs(parser, options, gcmole_dir, default_clang_bin_dir):
+def verify_and_convert_dirs(parser, options, default_tools_gcmole_dir,
+                            default_clang_bin_dir):
   # Verify options for setting directors and convert the input strings to Path
   # objects.
   options.v8_root_dir = Path(options.v8_root_dir)
 
   if not options.clang_bin_dir:
+    # Backwards compatibility
     if os.getenv("CLANG_BIN"):
       options.clang_bin_dir = Path(os.getenv("CLANG_BIN"))
       options.is_bot = True
     else:
       options.clang_bin_dir = default_clang_bin_dir
       if not (options.clang_bin_dir / 'clang++').exists():
-        options.clang_bin_dir = Path(gcmole_dir,
+        options.clang_bin_dir = Path(options.v8_root_dir,
                                      "tools/gcmole/bootstrap/build/bin")
     log("Using --clang-bin-dir={}", options.clang_bin_dir)
   else:
     options.clang_bin_dir = Path(options.clang_bin_dir)
 
   if not options.clang_plugins_dir:
+    # Backwards compatibility
     if os.getenv("CLANG_PLUGINS"):
       options.clang_plugins_dir = Path(os.getenv("CLANG_PLUGINS"))
     else:
-      options.clang_plugins_dir = gcmole_dir.resolve()
+      options.clang_plugins_dir = default_tools_gcmole_dir.resolve()
     log("Using --clang-plugins-dir={}", options.clang_plugins_dir)
   else:
     options.clang_plugins_dir = Path(options.clang_plugins_dir)

@@ -23,13 +23,6 @@ namespace v8 {
 namespace internal {
 
 // -----------------------------------------------------------------------------
-// Stack checks.
-
-void Builtins::Generate_StackCheck(MacroAssembler* masm) {
-  masm->TailCallRuntime(Runtime::kStackGuard);
-}
-
-// -----------------------------------------------------------------------------
 // TurboFan support builtins.
 
 TF_BUILTIN(CopyFastSmiOrObjectElements, CodeStubAssembler) {
@@ -1085,6 +1078,11 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
                SmiFromInt32(argc),  // additional stack argument 2
                target,              // additional stack argument 3
                new_target);         // additional stack argument 4
+}
+
+TF_BUILTIN(NewHeapNumber, CodeStubAssembler) {
+  auto val = UncheckedParameter<Float64T>(Descriptor::kValue);
+  Return(ChangeFloat64ToTagged(val));
 }
 
 TF_BUILTIN(AllocateInYoungGeneration, CodeStubAssembler) {

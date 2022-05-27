@@ -1445,6 +1445,21 @@ UNINITIALIZED_TEST(DisasmX64YMMRegister) {
             vcmpnlepd(ymm5, ymm4, Operand(rbx, rcx, times_4, 10000)));
     COMPARE("c5dcc2e90d           vcmpps ymm5,ymm4,ymm1, (ge)",
             vcmpgeps(ymm5, ymm4, ymm1));
+
+    // SSE2_UNOP
+    COMPARE("c5fd51ca             vsqrtpd ymm1,ymm2", vsqrtpd(ymm1, ymm2));
+    COMPARE("c5fd518c8b10270000   vsqrtpd ymm1,[rbx+rcx*4+0x2710]",
+            vsqrtpd(ymm1, Operand(rbx, rcx, times_4, 10000)));
+    COMPARE("c5fd5adc             vcvtpd2ps xmm3,ymm4", vcvtpd2ps(xmm3, ymm4));
+    COMPARE("c5fd5aa48b10270000   vcvtpd2ps xmm4,[rbx+rcx*4+0x2710]",
+            vcvtpd2ps(xmm4, Operand256(rbx, rcx, times_4, 10000)));
+    COMPARE("c5fd5bdc             vcvtps2dq ymm3,ymm4", vcvtps2dq(ymm3, ymm4));
+    COMPARE("c5fd5bac8b10270000   vcvtps2dq ymm5,[rbx+rcx*4+0x2710]",
+            vcvtps2dq(ymm5, Operand(rbx, rcx, times_4, 10000)));
+    COMPARE("c4c17de6f8           vcvttpd2dq xmm7,ymm8",
+            vcvttpd2dq(xmm7, ymm8));
+    COMPARE("c57de68c8b10270000   vcvttpd2dq xmm9,[rbx+rcx*4+0x2710]",
+            vcvttpd2dq(xmm9, Operand256(rbx, rcx, times_4, 10000)));
   }
 
   if (!CpuFeatures::IsSupported(AVX2)) return;

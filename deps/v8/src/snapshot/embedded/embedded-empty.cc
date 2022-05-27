@@ -8,12 +8,12 @@
 
 #include "src/base/macros.h"
 
-extern "C" const uint8_t* v8_Default_embedded_blob_code_;
+extern "C" const uint8_t v8_Default_embedded_blob_code_[];
 extern "C" uint32_t v8_Default_embedded_blob_code_size_;
-extern "C" const uint8_t* v8_Default_embedded_blob_data_;
+extern "C" const uint8_t v8_Default_embedded_blob_data_[];
 extern "C" uint32_t v8_Default_embedded_blob_data_size_;
 
-const uint8_t* v8_Default_embedded_blob_code_ = nullptr;
+const uint8_t v8_Default_embedded_blob_code_[1] = {0};
 uint32_t v8_Default_embedded_blob_code_size_ = 0;
-const uint8_t* v8_Default_embedded_blob_data_ = nullptr;
+const uint8_t v8_Default_embedded_blob_data_[1] = {0};
 uint32_t v8_Default_embedded_blob_data_size_ = 0;

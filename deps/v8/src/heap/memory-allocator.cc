@@ -489,6 +489,13 @@ void MemoryAllocator::PreFreeMemory(MemoryChunk* chunk) {
 }
 
 void MemoryAllocator::PerformFreeMemory(MemoryChunk* chunk) {
+  base::Optional<CodePageHeaderModificationScope> rwx_write_scope;
+  if (chunk->executable() == EXECUTABLE) {
+    rwx_write_scope.emplace(
+        "We are going to modify the chunk's header, so ensure we have write "
+        "access to Code page headers");
+  }
+
   DCHECK(chunk->IsFlagSet(MemoryChunk::UNREGISTERED));
   DCHECK(chunk->IsFlagSet(MemoryChunk::PRE_FREED));
   DCHECK(!chunk->InReadOnlySpace());
@@ -673,28 +680,57 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
   const Address code_area = start + code_area_offset;
   const Address post_guard_page = start + chunk_size - guard_size;
 
-  // Commit the non-executable header, from start to pre-code guard page.
-  if (vm->SetPermissions(start, pre_guard_offset, PageAllocator::kReadWrite)) {
-    // Create the pre-code guard page, following the header.
-    if (vm->SetPermissions(pre_guard_page, page_size,
-                           PageAllocator::kNoAccess)) {
-      // Commit the executable code body.
-      if (vm->SetPermissions(code_area, area_size,
-                             MemoryChunk::GetCodeModificationPermission())) {
-        // Create the post-code guard page.
-        if (vm->SetPermissions(post_guard_page, page_size,
-                               PageAllocator::kNoAccess)) {
-          UpdateAllocatedSpaceLimits(start, code_area + area_size);
-          return true;
-        }
+  bool jitless = unmapper_.heap_->isolate()->jitless();
 
-        vm->SetPermissions(code_area, area_size, PageAllocator::kNoAccess);
+  if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT && !jitless) {
+    DCHECK(unmapper_.heap_->isolate()->RequiresCodeRange());
+    // Commit the header, from start to pre-code guard page.
+    // We have to commit it as executable becase otherwise we'll not be able
+    // to change permissions to anything else.
+    if (vm->RecommitPages(start, pre_guard_offset,
+                          PageAllocator::kReadWriteExecute)) {
+      // Create the pre-code guard page, following the header.
+      if (vm->DiscardSystemPages(pre_guard_page, page_size)) {
+        // Commit the executable code body.
+        if (vm->RecommitPages(code_area, area_size,
+                              PageAllocator::kReadWriteExecute)) {
+          // Create the post-code guard page.
+          if (vm->DiscardSystemPages(post_guard_page, page_size)) {
+            UpdateAllocatedSpaceLimits(start, code_area + area_size);
+            return true;
+          }
+
+          vm->DiscardSystemPages(code_area, area_size);
+        }
       }
+      vm->DiscardSystemPages(start, pre_guard_offset);
     }
 
-    vm->SetPermissions(start, pre_guard_offset, PageAllocator::kNoAccess);
-  }
+  } else {
+    // Commit the non-executable header, from start to pre-code guard page.
+    if (vm->SetPermissions(start, pre_guard_offset,
+                           PageAllocator::kReadWrite)) {
+      // Create the pre-code guard page, following the header.
+      if (vm->SetPermissions(pre_guard_page, page_size,
+                             PageAllocator::kNoAccess)) {
+        // Commit the executable code body.
+        if (vm->SetPermissions(
+                code_area, area_size,
+                jitless ? PageAllocator::kReadWrite
+                        : MemoryChunk::GetCodeModificationPermission())) {
+          // Create the post-code guard page.
+          if (vm->SetPermissions(post_guard_page, page_size,
+                                 PageAllocator::kNoAccess)) {
+            UpdateAllocatedSpaceLimits(start, code_area + area_size);
+            return true;
+          }
 
+          vm->SetPermissions(code_area, area_size, PageAllocator::kNoAccess);
+        }
+      }
+      vm->SetPermissions(start, pre_guard_offset, PageAllocator::kNoAccess);
+    }
+  }
   return false;
 }
 

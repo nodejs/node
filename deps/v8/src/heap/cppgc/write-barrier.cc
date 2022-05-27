@@ -21,7 +21,7 @@ namespace cppgc {
 namespace internal {
 
 // static
-AtomicEntryFlag WriteBarrier::incremental_or_concurrent_marking_flag_;
+AtomicEntryFlag WriteBarrier::write_barrier_enabled_;
 
 namespace {
 
@@ -188,19 +188,51 @@ bool WriteBarrierTypeForNonCagedHeapPolicy::IsMarking(HeapHandle& heap_handle) {
 bool WriteBarrierTypeForCagedHeapPolicy::IsMarking(
     const HeapHandle& heap_handle, WriteBarrier::Params& params) {
   const auto& heap_base = internal::HeapBase::From(heap_handle);
-  if (const MarkerBase* marker = heap_base.marker()) {
-    return marker->IsMarking();
-  }
+  const bool is_marking = heap_base.marker() && heap_base.marker()->IsMarking();
   // Also set caged heap start here to avoid another call immediately after
   // checking IsMarking().
 #if defined(CPPGC_YOUNG_GENERATION)
-  params.start =
-      reinterpret_cast<uintptr_t>(&heap_base.caged_heap().local_data());
+  params.start = reinterpret_cast<uintptr_t>(heap_base.caged_heap().base());
 #endif  // !CPPGC_YOUNG_GENERATION
-  return false;
+  return is_marking;
 }
 
 #endif  // CPPGC_CAGED_HEAP
+
+#if defined(CPPGC_YOUNG_GENERATION)
+
+// static
+YoungGenerationEnabler& YoungGenerationEnabler::Instance() {
+  static v8::base::LeakyObject<YoungGenerationEnabler> instance;
+  return *instance.get();
+}
+
+void YoungGenerationEnabler::Enable() {
+  auto& instance = Instance();
+  v8::base::LockGuard _(&instance.mutex_);
+  if (++instance.is_enabled_ == 1) {
+    // Enter the flag so that the check in the write barrier will always trigger
+    // when young generation is enabled.
+    WriteBarrier::FlagUpdater::Enter();
+  }
+}
+
+void YoungGenerationEnabler::Disable() {
+  auto& instance = Instance();
+  v8::base::LockGuard _(&instance.mutex_);
+  DCHECK_LT(0, instance.is_enabled_);
+  if (--instance.is_enabled_ == 0) {
+    WriteBarrier::FlagUpdater::Exit();
+  }
+}
+
+bool YoungGenerationEnabler::IsEnabled() {
+  auto& instance = Instance();
+  v8::base::LockGuard _(&instance.mutex_);
+  return instance.is_enabled_;
+}
+
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 
 }  // namespace internal
 }  // namespace cppgc

@@ -80,7 +80,7 @@ class RegisterDump {
   }
 
   inline float sreg(unsigned code) const {
-    return bit_cast<float>(sreg_bits(code));
+    return base::bit_cast<float>(sreg_bits(code));
   }
 
   inline uint64_t dreg_bits(unsigned code) const {
@@ -89,7 +89,7 @@ class RegisterDump {
   }
 
   inline double dreg(unsigned code) const {
-    return bit_cast<double>(dreg_bits(code));
+    return base::bit_cast<double>(dreg_bits(code));
   }
 
   inline vec128_t qreg(unsigned code) const { return dump_.q_[code]; }

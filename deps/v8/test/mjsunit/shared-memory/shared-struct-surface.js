@@ -52,3 +52,24 @@ let S = new SharedStructType(['field']);
   }
   assertThrows(() => { new SharedStructType(field_names); });
 })();
+
+(function TestOwnPropertyEnumeration() {
+  let s = new S();
+  s.field = 42;
+
+  assertArrayEquals(['field'], Reflect.ownKeys(s));
+
+  let propDescs = Object.getOwnPropertyDescriptors(s);
+  let desc = propDescs['field'];
+  assertEquals(true, desc.writable);
+  assertEquals(false, desc.configurable);
+  assertEquals(true, desc.enumerable);
+  assertEquals(42, desc.value);
+
+  let vals = Object.values(s);
+  assertArrayEquals([42], vals);
+
+  let entries = Object.entries(s);
+  assertEquals(1, entries.length);
+  assertArrayEquals(['field', 42], entries[0]);
+})();

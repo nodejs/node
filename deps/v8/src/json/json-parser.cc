@@ -161,7 +161,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
       Handle<FixedArray> contents;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate_, contents,
-          KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly,
+          KeyAccumulator::GetKeys(isolate_, object, KeyCollectionMode::kOwnOnly,
                                   ENUMERABLE_STRINGS,
                                   GetKeysConversion::kConvertToString),
           Object);
@@ -608,7 +608,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
           }
 
           uint64_t bits =
-              bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(value)));
+              base::bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(value)));
           // Allocate simple heapnumber with immortal map, with non-pointer
           // payload, so we can skip notifying object layout change.
 

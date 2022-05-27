@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --noanalyze-environment-liveness --opt
+// Flags: --noanalyze-environment-liveness --turbofan
 // The functions used for testing backtraces. They are at the top to make the
 // testing of source line/column easier.
 

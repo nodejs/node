@@ -7,6 +7,7 @@
 
 #include "src/compiler/bytecode-analysis.h"
 #include "src/maglev/maglev-basic-block.h"
+#include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
@@ -25,13 +26,13 @@ namespace maglev {
 // It expects a NodeProcessor class with:
 //
 //   // A function that processes the graph before the nodes are walked.
-//   void PreProcessGraph(MaglevCompilationUnit*, Graph* graph);
+//   void PreProcessGraph(MaglevCompilationInfo*, Graph* graph);
 //
 //   // A function that processes the graph after the nodes are walked.
-//   void PostProcessGraph(MaglevCompilationUnit*, Graph* graph);
+//   void PostProcessGraph(MaglevCompilationInfo*, Graph* graph);
 //
 //   // A function that processes each basic block before its nodes are walked.
-//   void PreProcessBasicBlock(MaglevCompilationUnit*, BasicBlock* block);
+//   void PreProcessBasicBlock(MaglevCompilationInfo*, BasicBlock* block);
 //
 //   // Process methods for each Node type. The GraphProcessor switches over
 //   // the Node's opcode, casts it to the appropriate FooNode, and dispatches
@@ -45,9 +46,9 @@ class GraphProcessor;
 
 class ProcessingState {
  public:
-  explicit ProcessingState(MaglevCompilationUnit* compilation_unit,
+  explicit ProcessingState(MaglevCompilationInfo* compilation_info,
                            BlockConstIterator block_it)
-      : compilation_unit_(compilation_unit), block_it_(block_it) {}
+      : compilation_info_(compilation_info), block_it_(block_it) {}
 
   // Disallow copies, since the underlying frame states stay mutable.
   ProcessingState(const ProcessingState&) = delete;
@@ -56,17 +57,14 @@ class ProcessingState {
   BasicBlock* block() const { return *block_it_; }
   BasicBlock* next_block() const { return *(block_it_ + 1); }
 
-  MaglevCompilationUnit* compilation_unit() const { return compilation_unit_; }
-
-  int register_count() const { return compilation_unit_->register_count(); }
-  int parameter_count() const { return compilation_unit_->parameter_count(); }
+  MaglevCompilationInfo* compilation_info() const { return compilation_info_; }
 
   MaglevGraphLabeller* graph_labeller() const {
-    return compilation_unit_->graph_labeller();
+    return compilation_info_->graph_labeller();
   }
 
  private:
-  MaglevCompilationUnit* compilation_unit_;
+  MaglevCompilationInfo* compilation_info_;
   BlockConstIterator block_it_;
 };
 
@@ -74,20 +72,20 @@ template <typename NodeProcessor>
 class GraphProcessor {
  public:
   template <typename... Args>
-  explicit GraphProcessor(MaglevCompilationUnit* compilation_unit,
+  explicit GraphProcessor(MaglevCompilationInfo* compilation_info,
                           Args&&... args)
-      : compilation_unit_(compilation_unit),
+      : compilation_info_(compilation_info),
         node_processor_(std::forward<Args>(args)...) {}
 
   void ProcessGraph(Graph* graph) {
     graph_ = graph;
 
-    node_processor_.PreProcessGraph(compilation_unit_, graph);
+    node_processor_.PreProcessGraph(compilation_info_, graph);
 
     for (block_it_ = graph->begin(); block_it_ != graph->end(); ++block_it_) {
       BasicBlock* block = *block_it_;
 
-      node_processor_.PreProcessBasicBlock(compilation_unit_, block);
+      node_processor_.PreProcessBasicBlock(compilation_info_, block);
 
       if (block->has_phi()) {
         for (Phi* phi : *block->phis()) {
@@ -104,7 +102,7 @@ class GraphProcessor {
       ProcessNodeBase(block->control_node(), GetCurrentState());
     }
 
-    node_processor_.PostProcessGraph(compilation_unit_, graph);
+    node_processor_.PostProcessGraph(compilation_info_, graph);
   }
 
   NodeProcessor& node_processor() { return node_processor_; }
@@ -112,7 +110,7 @@ class GraphProcessor {
 
  private:
   ProcessingState GetCurrentState() {
-    return ProcessingState(compilation_unit_, block_it_);
+    return ProcessingState(compilation_info_, block_it_);
   }
 
   void ProcessNodeBase(NodeBase* node, const ProcessingState& state) {
@@ -129,12 +127,7 @@ class GraphProcessor {
 
   void PreProcess(NodeBase* node, const ProcessingState& state) {}
 
-  int register_count() const { return compilation_unit_->register_count(); }
-  const compiler::BytecodeAnalysis& bytecode_analysis() const {
-    return compilation_unit_->bytecode_analysis();
-  }
-
-  MaglevCompilationUnit* const compilation_unit_;
+  MaglevCompilationInfo* const compilation_info_;
   NodeProcessor node_processor_;
   Graph* graph_;
   BlockConstIterator block_it_;
@@ -149,9 +142,9 @@ class NodeMultiProcessor;
 template <>
 class NodeMultiProcessor<> {
  public:
-  void PreProcessGraph(MaglevCompilationUnit*, Graph* graph) {}
-  void PostProcessGraph(MaglevCompilationUnit*, Graph* graph) {}
-  void PreProcessBasicBlock(MaglevCompilationUnit*, BasicBlock* block) {}
+  void PreProcessGraph(MaglevCompilationInfo*, Graph* graph) {}
+  void PostProcessGraph(MaglevCompilationInfo*, Graph* graph) {}
+  void PreProcessBasicBlock(MaglevCompilationInfo*, BasicBlock* block) {}
   void Process(NodeBase* node, const ProcessingState& state) {}
 };
 
@@ -166,18 +159,18 @@ class NodeMultiProcessor<Processor, Processors...>
     processor_.Process(node, state);
     Base::Process(node, state);
   }
-  void PreProcessGraph(MaglevCompilationUnit* unit, Graph* graph) {
-    processor_.PreProcessGraph(unit, graph);
-    Base::PreProcessGraph(unit, graph);
+  void PreProcessGraph(MaglevCompilationInfo* info, Graph* graph) {
+    processor_.PreProcessGraph(info, graph);
+    Base::PreProcessGraph(info, graph);
   }
-  void PostProcessGraph(MaglevCompilationUnit* unit, Graph* graph) {
+  void PostProcessGraph(MaglevCompilationInfo* info, Graph* graph) {
     // Post process in reverse order because that kind of makes sense.
-    Base::PostProcessGraph(unit, graph);
-    processor_.PostProcessGraph(unit, graph);
+    Base::PostProcessGraph(info, graph);
+    processor_.PostProcessGraph(info, graph);
   }
-  void PreProcessBasicBlock(MaglevCompilationUnit* unit, BasicBlock* block) {
-    processor_.PreProcessBasicBlock(unit, block);
-    Base::PreProcessBasicBlock(unit, block);
+  void PreProcessBasicBlock(MaglevCompilationInfo* info, BasicBlock* block) {
+    processor_.PreProcessBasicBlock(info, block);
+    Base::PreProcessBasicBlock(info, block);
   }
 
  private:

@@ -74,8 +74,8 @@ enum CodeCacheType { kLazy, kEager, kAfterExecute };
 
 void DisableAlwaysOpt() {
   // Isolates prepared for serialization do not optimize. The only exception is
-  // with the flag --always-opt.
-  FLAG_always_opt = false;
+  // with the flag --always-turbofan.
+  FLAG_always_turbofan = false;
 }
 
 // A convenience struct to simplify management of the blobs required to
@@ -205,23 +205,22 @@ static StartupBlobs Serialize(v8::Isolate* isolate) {
     v8::Context::New(isolate);
   }
 
-  Isolate* internal_isolate = reinterpret_cast<Isolate*>(isolate);
-  internal_isolate->heap()->CollectAllAvailableGarbage(
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  i_isolate->heap()->CollectAllAvailableGarbage(
       i::GarbageCollectionReason::kTesting);
 
-  SafepointScope safepoint(internal_isolate->heap());
-  HandleScope scope(internal_isolate);
+  SafepointScope safepoint(i_isolate->heap());
+  HandleScope scope(i_isolate);
 
   DisallowGarbageCollection no_gc;
-  ReadOnlySerializer read_only_serializer(internal_isolate,
+  ReadOnlySerializer read_only_serializer(i_isolate,
                                           Snapshot::kDefaultSerializerFlags);
   read_only_serializer.SerializeReadOnlyRoots();
 
   SharedHeapSerializer shared_space_serializer(
-      internal_isolate, Snapshot::kDefaultSerializerFlags,
-      &read_only_serializer);
+      i_isolate, Snapshot::kDefaultSerializerFlags, &read_only_serializer);
 
-  StartupSerializer ser(internal_isolate, Snapshot::kDefaultSerializerFlags,
+  StartupSerializer ser(i_isolate, Snapshot::kDefaultSerializerFlags,
                         &read_only_serializer, &shared_space_serializer);
   ser.SerializeStrongReferences(no_gc);
 
@@ -1992,7 +1991,7 @@ TEST(CodeSerializerLargeCodeObject) {
 
   // The serializer only tests the shared code, which is always the unoptimized
   // code. Don't even bother generating optimized code to avoid timeouts.
-  FLAG_always_opt = false;
+  FLAG_always_turbofan = false;
 
   base::Vector<const char> source = ConstructSource(
       base::StaticCharVector("var j=1; if (j == 0) {"),
@@ -2040,7 +2039,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   if (!FLAG_incremental_marking) return;
   if (!FLAG_compact) return;
   ManualGCScope manual_gc_scope;
-  FLAG_always_opt = false;
+  FLAG_always_turbofan = false;
   const char* filter_flag = "--turbo-filter=NOTHING";
   FlagList::SetFlagsFromString(filter_flag, strlen(filter_flag));
   FLAG_manual_evacuation_candidates_selection = true;
@@ -2490,7 +2489,7 @@ TEST(CodeSerializerExternalScriptName) {
 
 static bool toplevel_test_code_event_found = false;
 
-static void SerializerCodeEventListener(const v8::JitCodeEvent* event) {
+static void SerializerLogEventListener(const v8::JitCodeEvent* event) {
   if (event->type == v8::JitCodeEvent::CODE_ADDED &&
       (memcmp(event->name.str, "Script:~ test", 13) == 0 ||
        memcmp(event->name.str, "Script: test", 12) == 0)) {
@@ -2558,7 +2557,7 @@ TEST(CodeSerializerIsolates) {
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate2 = v8::Isolate::New(create_params);
   isolate2->SetJitCodeEventHandler(v8::kJitCodeEventDefault,
-                                   SerializerCodeEventListener);
+                                   SerializerLogEventListener);
   toplevel_test_code_event_found = false;
   {
     v8::Isolate::Scope iscope(isolate2);
@@ -2604,7 +2603,7 @@ TEST(CodeSerializerIsolatesEager) {
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate2 = v8::Isolate::New(create_params);
   isolate2->SetJitCodeEventHandler(v8::kJitCodeEventDefault,
-                                   SerializerCodeEventListener);
+                                   SerializerLogEventListener);
   toplevel_test_code_event_found = false;
   {
     v8::Isolate::Scope iscope(isolate2);
@@ -2638,8 +2637,8 @@ TEST(CodeSerializerIsolatesEager) {
 TEST(CodeSerializerAfterExecute) {
   // We test that no compilations happen when running this code. Forcing
   // to always optimize breaks this test.
-  bool prev_always_opt_value = FLAG_always_opt;
-  FLAG_always_opt = false;
+  bool prev_always_turbofan_value = FLAG_always_turbofan;
+  FLAG_always_turbofan = false;
   const char* js_source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache =
       CompileRunAndProduceCache(js_source, CodeCacheType::kAfterExecute);
@@ -2669,8 +2668,6 @@ TEST(CodeSerializerAfterExecute) {
 
     Handle<SharedFunctionInfo> sfi = v8::Utils::OpenHandle(*script);
     CHECK(sfi->HasBytecodeArray());
-    BytecodeArray bytecode = sfi->GetBytecodeArray(i_isolate2);
-    CHECK_EQ(bytecode.osr_urgency(), 0);
 
     {
       DisallowCompilation no_compile_expected(i_isolate2);
@@ -2687,7 +2684,7 @@ TEST(CodeSerializerAfterExecute) {
   isolate2->Dispose();
 
   // Restore the flags.
-  FLAG_always_opt = prev_always_opt_value;
+  FLAG_always_turbofan = prev_always_turbofan_value;
 }
 
 TEST(CodeSerializerFlagChange) {
@@ -2718,6 +2715,7 @@ TEST(CodeSerializerFlagChange) {
 }
 
 TEST(CodeSerializerBitFlip) {
+  i::FLAG_verify_snapshot_checksum = true;
   const char* js_source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache = CompileRunAndProduceCache(js_source);
 

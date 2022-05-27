@@ -640,6 +640,16 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void EmitPrepareResults(ZoneVector<compiler::PushParameter>* results,
                           const CallDescriptor* call_descriptor, Node* node);
 
+  // In LOONG64, calling convention uses free GP param register to pass
+  // floating-point arguments when no FP param register is available. But
+  // gap does not support moving from FPR to GPR, so we add EmitMoveFPRToParam
+  // to complete movement.
+  void EmitMoveFPRToParam(InstructionOperand* op, LinkageLocation location);
+  // Moving floating-point param from GP param register to FPR to participate in
+  // subsequent operations, whether CallCFunction or normal floating-point
+  // operations.
+  void EmitMoveParamToFPR(Node* node, int index);
+
   bool CanProduceSignalingNaN(Node* node);
 
   void AddOutputToSelectContinuation(OperandGenerator* g, int first_input_index,

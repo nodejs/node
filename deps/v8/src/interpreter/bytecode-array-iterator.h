@@ -83,6 +83,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   void SetOffset(int offset);
   void Reset() { SetOffset(0); }
 
+  // Whether the given offset is reachable in this bytecode array.
+  static bool IsValidOffset(Handle<BytecodeArray> bytecode_array, int offset);
+
   void ApplyDebugBreak();
 
   inline Bytecode current_bytecode() const {

@@ -63,13 +63,6 @@ enum class WeakCallbackType {
    * Passes the first two internal fields of the object back to the callback.
    */
   kInternalFields,
-  /**
-   * Passes a user-defined void* parameter back to the callback. Will do so
-   * before the object is actually reclaimed, allowing it to be resurrected. In
-   * this case it is not possible to set a second-pass callback.
-   */
-  kFinalizer V8_ENUM_DEPRECATED("Resurrecting finalizers are deprecated "
-                                "and will not be supported going forward.")
 };
 
 template <class T>

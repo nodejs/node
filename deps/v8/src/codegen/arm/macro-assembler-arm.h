@@ -872,6 +872,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     DecodeField<Field>(reg, reg);
   }
 
+  void TestCodeTIsMarkedForDeoptimization(Register codet, Register scratch);
+  Operand ClearedValue() const;
+
  private:
   // Helper functions for generating invokes.
   void InvokePrologue(Register expected_parameter_count,

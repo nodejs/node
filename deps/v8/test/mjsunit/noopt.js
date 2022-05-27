@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --noopt --no-always-opt
+// Flags: --allow-natives-syntax --noturbofan --no-always-turbofan
 
 
-// Check that --noopt actually works.
+// Check that --noturbofan actually works.
 
 function f() {
   return 42;

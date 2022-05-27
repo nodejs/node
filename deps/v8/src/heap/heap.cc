@@ -18,6 +18,7 @@
 #include "src/base/logging.h"
 #include "src/base/once.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/platform/wrappers.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/builtins/accessors.h"
 #include "src/codegen/assembler-inl.h"
@@ -34,7 +35,6 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/array-buffer-sweeper.h"
-#include "src/heap/base/stack.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/code-range.h"
@@ -102,17 +102,18 @@
 #include "src/tracing/trace-event.h"
 #include "src/utils/utils-inl.h"
 #include "src/utils/utils.h"
-
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-#include "src/heap/conservative-stack-visitor.h"
-#endif
-
-#include "src/base/platform/wrappers.h"
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+CodePageCollectionMemoryModificationScopeForTesting::
+    CodePageCollectionMemoryModificationScopeForTesting(Heap* heap)
+    : CodePageCollectionMemoryModificationScope(heap) {}
+
+CodePageCollectionMemoryModificationScopeForTesting::
+    ~CodePageCollectionMemoryModificationScopeForTesting() = default;
 
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
 Isolate* Heap::GetIsolateFromWritableObject(HeapObject object) {
@@ -210,8 +211,8 @@ Heap::Heap()
       safepoint_(std::make_unique<IsolateSafepoint>(this)),
       external_string_table_(this),
       allocation_type_for_in_place_internalizable_strings_(
-          isolate()->OwnsStringTable() ? AllocationType::kOld
-                                       : AllocationType::kSharedOld),
+          isolate()->OwnsStringTables() ? AllocationType::kOld
+                                        : AllocationType::kSharedOld),
       collection_barrier_(new CollectionBarrier(this)) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size() & (Page::kPageSize - 1));
@@ -1474,8 +1475,6 @@ void Heap::GarbageCollectionEpilogue(GarbageCollector collector) {
   isolate_->counters()->alive_after_last_gc()->Set(
       static_cast<int>(SizeOfObjects()));
 
-  isolate_->string_table()->UpdateCountersIfOwnedBy(isolate_);
-
   if (CommittedMemory() > 0) {
     isolate_->counters()->external_fragmentation_total()->AddSample(
         static_cast<int>(100 - (SizeOfObjects() * 100.0) / CommittedMemory()));
@@ -1502,18 +1501,15 @@ void Heap::GarbageCollectionEpilogue(GarbageCollector collector) {
   last_gc_time_ = MonotonicallyIncreasingTimeInMs();
 }
 
-class V8_NODISCARD GCCallbacksScope {
- public:
-  explicit GCCallbacksScope(Heap* heap) : heap_(heap) {
-    heap_->gc_callbacks_depth_++;
-  }
-  ~GCCallbacksScope() { heap_->gc_callbacks_depth_--; }
+GCCallbacksScope::GCCallbacksScope(Heap* heap) : heap_(heap) {
+  heap_->gc_callbacks_depth_++;
+}
 
-  bool CheckReenter() { return heap_->gc_callbacks_depth_ == 1; }
+GCCallbacksScope::~GCCallbacksScope() { heap_->gc_callbacks_depth_--; }
 
- private:
-  Heap* heap_;
-};
+bool GCCallbacksScope::CheckReenter() const {
+  return heap_->gc_callbacks_depth_ == 1;
+}
 
 void Heap::HandleGCRequest() {
   if (IsStressingScavenge() && stress_scavenge_observer_->HasRequestedGC()) {
@@ -1843,18 +1839,18 @@ bool Heap::CollectGarbage(AllocationSpace space,
       base::Optional<TimedHistogramScope> histogram_timer_scope;
       base::Optional<OptionalTimedHistogramScope>
           histogram_timer_priority_scope;
-      if (record_gc_phases_info.type_timer) {
-        histogram_timer_scope.emplace(record_gc_phases_info.type_timer,
+      TRACE_EVENT0("v8", record_gc_phases_info.trace_event_name());
+      if (record_gc_phases_info.type_timer()) {
+        histogram_timer_scope.emplace(record_gc_phases_info.type_timer(),
                                       isolate_);
-        TRACE_EVENT0("v8", record_gc_phases_info.type_timer->name());
       }
-      if (record_gc_phases_info.type_priority_timer) {
+      if (record_gc_phases_info.type_priority_timer()) {
         OptionalTimedHistogramScopeMode mode =
             isolate_->IsMemorySavingsModeActive()
                 ? OptionalTimedHistogramScopeMode::DONT_TAKE_TIME
                 : OptionalTimedHistogramScopeMode::TAKE_TIME;
         histogram_timer_priority_scope.emplace(
-            record_gc_phases_info.type_priority_timer, isolate_, mode);
+            record_gc_phases_info.type_priority_timer(), isolate_, mode);
       }
 
       if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
@@ -1871,7 +1867,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
 
       if (collector == GarbageCollector::MARK_COMPACTOR ||
           collector == GarbageCollector::SCAVENGER) {
-        tracer()->RecordGCPhasesHistograms(record_gc_phases_info.mode);
+        tracer()->RecordGCPhasesHistograms(record_gc_phases_info.mode());
       }
     }
 
@@ -1931,9 +1927,8 @@ bool Heap::CollectGarbage(AllocationSpace space,
     {
       AllowGarbageCollection allow_gc;
       AllowJavascriptExecution allow_js(isolate());
-      freed_global_handles +=
-          isolate_->global_handles()->PostGarbageCollectionProcessing(
-              collector, gc_callback_flags);
+      isolate_->global_handles()->PostGarbageCollectionProcessing(
+          collector, gc_callback_flags);
     }
     gc_post_processing_depth_--;
   }
@@ -2706,8 +2701,6 @@ void Heap::EvacuateYoungGeneration() {
     DCHECK(CanPromoteYoungAndExpandOldGeneration(0));
   }
 
-  mark_compact_collector()->sweeper()->EnsureIterabilityCompleted();
-
   // Move pages from new->old generation.
   PageRange range(new_space()->first_allocatable_address(), new_space()->top());
   for (auto it = range.begin(); it != range.end();) {
@@ -2788,8 +2781,6 @@ void Heap::Scavenge() {
   IncrementalMarking::PauseBlackAllocationScope pause_black_allocation(
       incremental_marking());
 
-  mark_compact_collector()->sweeper()->EnsureIterabilityCompleted();
-
   SetGCState(SCAVENGE);
 
   // Flip the semispaces.  After flipping, to space is empty, from space has
@@ -2840,6 +2831,7 @@ void Heap::UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk,
 
 void Heap::UnprotectAndRegisterMemoryChunk(HeapObject object,
                                            UnprotectMemoryOrigin origin) {
+  if (!write_protect_code_memory()) return;
   UnprotectAndRegisterMemoryChunk(MemoryChunk::FromHeapObject(object), origin);
 }
 
@@ -3218,8 +3210,7 @@ size_t Heap::GetCodeRangeReservedAreaSize() {
 }
 
 HeapObject Heap::PrecedeWithFiller(HeapObject object, int filler_size) {
-  CreateFillerObjectAt(object.address(), filler_size,
-                       ClearFreedMemoryMode::kDontClearFreedMemory);
+  CreateFillerObjectAt(object.address(), filler_size);
   return HeapObject::FromAddress(object.address() + filler_size);
 }
 
@@ -3234,8 +3225,7 @@ HeapObject Heap::AlignWithFiller(HeapObject object, int object_size,
     filler_size -= pre_filler;
   }
   if (filler_size) {
-    CreateFillerObjectAt(object.address() + object_size, filler_size,
-                         ClearFreedMemoryMode::kDontClearFreedMemory);
+    CreateFillerObjectAt(object.address() + object_size, filler_size);
   }
   return object;
 }
@@ -3262,7 +3252,6 @@ void* Heap::AllocateExternalBackingStore(
       result = allocate(byte_length);
       if (result) return result;
     }
-    isolate()->counters()->gc_last_resort_from_handles()->Increment();
     CollectAllAvailableGarbage(
         GarbageCollectionReason::kExternalMemoryPressure);
   }
@@ -3307,9 +3296,9 @@ void Heap::FlushNumberStringCache() {
 
 namespace {
 
-HeapObject CreateFillerObjectAtImpl(Heap* heap, Address addr, int size,
-                                    ClearFreedMemoryMode clear_memory_mode) {
-  if (size == 0) return HeapObject();
+void CreateFillerObjectAtImpl(Heap* heap, Address addr, int size,
+                              ClearFreedMemoryMode clear_memory_mode) {
+  if (size == 0) return;
   HeapObject filler = HeapObject::FromAddress(addr);
   ReadOnlyRoots roots(heap);
   if (size == kTaggedSize) {
@@ -3338,8 +3327,6 @@ HeapObject CreateFillerObjectAtImpl(Heap* heap, Address addr, int size,
   DCHECK((filler.map_slot().contains_map_value(kNullAddress) &&
           !heap->deserialization_complete()) ||
          filler.map(heap->isolate()).IsMap());
-
-  return filler;
 }
 
 #ifdef DEBUG
@@ -3357,42 +3344,46 @@ void VerifyNoNeedToClearSlots(Address start, Address end) {}
 
 }  // namespace
 
-HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
-                                      ClearFreedMemoryMode clear_memory_mode) {
+void Heap::CreateFillerObjectAtBackground(Address addr, int size) {
   // TODO(leszeks): Verify that no slots need to be recorded.
-  HeapObject filler =
-      CreateFillerObjectAtImpl(this, addr, size, clear_memory_mode);
-  VerifyNoNeedToClearSlots(addr, addr + size);
-  return filler;
+  // Do not verify whether slots are cleared here: the concurrent thread is not
+  // allowed to access the main thread's remembered set.
+  CreateFillerObjectAtRaw(addr, size,
+                          ClearFreedMemoryMode::kDontClearFreedMemory,
+                          ClearRecordedSlots::kNo, VerifyNoSlotsRecorded::kNo);
 }
 
-void Heap::CreateFillerObjectAtBackground(
-    Address addr, int size, ClearFreedMemoryMode clear_memory_mode) {
-  CreateFillerObjectAtImpl(this, addr, size, clear_memory_mode);
+void Heap::CreateFillerObjectAtSweeper(Address addr, int size) {
   // Do not verify whether slots are cleared here: the concurrent sweeper is not
   // allowed to access the main thread's remembered set.
+  CreateFillerObjectAtRaw(addr, size,
+                          ClearFreedMemoryMode::kDontClearFreedMemory,
+                          ClearRecordedSlots::kNo, VerifyNoSlotsRecorded::kNo);
 }
 
-HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
-                                      ClearRecordedSlots clear_slots_mode) {
+void Heap::CreateFillerObjectAt(Address addr, int size) {
+  CreateFillerObjectAtRaw(addr, size,
+                          ClearFreedMemoryMode::kDontClearFreedMemory,
+                          ClearRecordedSlots::kNo, VerifyNoSlotsRecorded::kYes);
+}
+
+void Heap::CreateFillerObjectAtRaw(
+    Address addr, int size, ClearFreedMemoryMode clear_memory_mode,
+    ClearRecordedSlots clear_slots_mode,
+    VerifyNoSlotsRecorded verify_no_slots_recorded) {
   // TODO(mlippautz): It would be nice to DCHECK that we never call this
   // with {addr} pointing into large object space; however we currently
   // initialize LO allocations with a filler, see
   // LargeObjectSpace::AllocateLargePage.
-  if (size == 0) return HeapObject();
-  HeapObject filler = CreateFillerObjectAtImpl(
-      this, addr, size,
-      clear_slots_mode == ClearRecordedSlots::kYes
-          ? ClearFreedMemoryMode::kClearFreedMemory
-          : ClearFreedMemoryMode::kDontClearFreedMemory);
+  if (size == 0) return;
+  CreateFillerObjectAtImpl(this, addr, size, clear_memory_mode);
   if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     if (clear_slots_mode == ClearRecordedSlots::kYes) {
       ClearRecordedSlotRange(addr, addr + size);
-    } else {
+    } else if (verify_no_slots_recorded == VerifyNoSlotsRecorded::kYes) {
       VerifyNoNeedToClearSlots(addr, addr + size);
     }
   }
-  return filler;
 }
 
 bool Heap::CanMoveObjectStart(HeapObject object) {
@@ -3546,10 +3537,11 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
-  CreateFillerObjectAt(old_start, bytes_to_trim,
-                       MayContainRecordedSlots(object)
-                           ? ClearRecordedSlots::kYes
-                           : ClearRecordedSlots::kNo);
+  CreateFillerObjectAtRaw(
+      old_start, bytes_to_trim, ClearFreedMemoryMode::kClearFreedMemory,
+      MayContainRecordedSlots(object) ? ClearRecordedSlots::kYes
+                                      : ClearRecordedSlots::kNo,
+      VerifyNoSlotsRecorded::kYes);
 
   // Initialize header of the trimmed array. Since left trimming is only
   // performed on pages which are not concurrently swept creating a filler
@@ -3653,10 +3645,10 @@ void Heap::CreateFillerForArray(T object, int elements_to_trim,
   // we still do it.
   // We do not create a filler for objects in a large object space.
   if (!IsLargeObject(object)) {
-    HeapObject filler = CreateFillerObjectAt(
-        new_end, bytes_to_trim,
+    NotifyObjectSizeChange(
+        object, old_size, old_size - bytes_to_trim,
         clear_slots ? ClearRecordedSlots::kYes : ClearRecordedSlots::kNo);
-    DCHECK(!filler.is_null());
+    HeapObject filler = HeapObject::FromAddress(new_end);
     // Clear the mark bits of the black area that belongs now to the filler.
     // This is an optimization. The sweeper will release black fillers anyway.
     if (incremental_marking()->black_allocation() &&
@@ -3969,6 +3961,8 @@ void Heap::NotifyObjectLayoutChange(
       MayContainRecordedSlots(object)) {
     MemoryChunk::FromHeapObject(object)
         ->RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object);
+    MemoryChunk::FromHeapObject(object)
+        ->RegisterObjectWithInvalidatedSlots<OLD_TO_SHARED>(object);
   }
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -3976,6 +3970,27 @@ void Heap::NotifyObjectLayoutChange(
     pending_layout_change_object_ = object;
   }
 #endif
+}
+
+void Heap::NotifyObjectSizeChange(HeapObject object, int old_size, int new_size,
+                                  ClearRecordedSlots clear_recorded_slots) {
+  DCHECK_LE(new_size, old_size);
+  if (new_size == old_size) return;
+
+  const bool is_background = LocalHeap::Current() != nullptr;
+  DCHECK_IMPLIES(is_background,
+                 clear_recorded_slots == ClearRecordedSlots::kNo);
+
+  const VerifyNoSlotsRecorded verify_no_slots_recorded =
+      is_background ? VerifyNoSlotsRecorded::kNo : VerifyNoSlotsRecorded::kYes;
+
+  const ClearFreedMemoryMode clear_memory_mode =
+      ClearFreedMemoryMode::kDontClearFreedMemory;
+
+  const Address filler = object.address() + new_size;
+  const int filler_size = old_size - new_size;
+  CreateFillerObjectAtRaw(filler, filler_size, clear_memory_mode,
+                          clear_recorded_slots, verify_no_slots_recorded);
 }
 
 #ifdef VERIFY_HEAP
@@ -4052,7 +4067,9 @@ void Heap::VerifySafeMapTransition(HeapObject object, Map new_map) {
   }
   if (object.IsString(cage_base) &&
       (new_map == ReadOnlyRoots(this).thin_string_map() ||
-       new_map == ReadOnlyRoots(this).thin_one_byte_string_map())) {
+       new_map == ReadOnlyRoots(this).thin_one_byte_string_map() ||
+       new_map == ReadOnlyRoots(this).shared_thin_string_map() ||
+       new_map == ReadOnlyRoots(this).shared_thin_one_byte_string_map())) {
     // When transitioning a string to ThinString,
     // Heap::NotifyObjectLayoutChange doesn't need to be invoked because only
     // tagged fields are introduced.
@@ -4487,7 +4504,7 @@ bool Heap::Contains(HeapObject value) const {
     return false;
   }
   return HasBeenSetUp() &&
-         ((new_space_ && new_space_->ToSpaceContains(value)) ||
+         ((new_space_ && new_space_->Contains(value)) ||
           old_space_->Contains(value) || code_space_->Contains(value) ||
           (map_space_ && map_space_->Contains(value)) ||
           lo_space_->Contains(value) || code_lo_space_->Contains(value) ||
@@ -4514,7 +4531,7 @@ bool Heap::SharedHeapContains(HeapObject value) const {
 }
 
 bool Heap::ShouldBeInSharedOldSpace(HeapObject value) {
-  if (isolate()->OwnsStringTable()) return false;
+  if (isolate()->OwnsStringTables()) return false;
   if (ReadOnlyHeap::Contains(value)) return false;
   if (Heap::InYoungGeneration(value)) return false;
   if (value.IsExternalString()) return false;
@@ -4535,7 +4552,7 @@ bool Heap::InSpace(HeapObject value, AllocationSpace space) const {
 
   switch (space) {
     case NEW_SPACE:
-      return new_space_->ToSpaceContains(value);
+      return new_space_->Contains(value);
     case OLD_SPACE:
       return old_space_->Contains(value);
     case CODE_SPACE:
@@ -4565,7 +4582,7 @@ bool Heap::InSpaceSlow(Address addr, AllocationSpace space) const {
 
   switch (space) {
     case NEW_SPACE:
-      return new_space_->ToSpaceContainsSlow(addr);
+      return new_space_->ContainsSlow(addr);
     case OLD_SPACE:
       return old_space_->ContainsSlow(addr);
     case CODE_SPACE:
@@ -4869,7 +4886,7 @@ void Heap::IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
 
   if (!options.contains(SkipRoot::kOldGeneration) &&
       !options.contains(SkipRoot::kUnserializable) &&
-      isolate()->OwnsStringTable()) {
+      isolate()->OwnsStringTables()) {
     // Do not visit for the following reasons.
     // - Serialization, since the string table is custom serialized.
     // - If we are skipping old generation, since all internalized strings
@@ -5042,7 +5059,6 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
       v->Synchronize(VisitorSynchronization::kStackRoots);
     }
 
-#ifndef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
     // Iterate over main thread handles in handle scopes.
     if (!options.contains(SkipRoot::kMainThreadHandles)) {
       // Clear main thread handles with stale references to left-trimmed
@@ -5052,7 +5068,6 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
 
       isolate_->handle_scope_implementer()->Iterate(v);
     }
-#endif
 
     // Iterate local handles for all local heaps.
     safepoint_->Iterate(v);
@@ -6181,9 +6196,14 @@ void Heap::TearDown() {
   shared_map_space_ = nullptr;
   shared_map_allocator_.reset();
 
-  for (int i = FIRST_MUTABLE_SPACE; i <= LAST_MUTABLE_SPACE; i++) {
-    delete space_[i];
-    space_[i] = nullptr;
+  {
+    CodePageHeaderModificationScope rwx_write_scope(
+        "Deletion of CODE_SPACE and CODE_LO_SPACE requires write access to "
+        "Code page headers");
+    for (int i = FIRST_MUTABLE_SPACE; i <= LAST_MUTABLE_SPACE; i++) {
+      delete space_[i];
+      space_[i] = nullptr;
+    }
   }
 
   isolate()->read_only_heap()->OnHeapTearDown(this);
@@ -6410,7 +6430,14 @@ void Heap::ClearRecordedSlot(HeapObject object, ObjectSlot slot) {
   if (!page->InYoungGeneration()) {
     DCHECK_EQ(page->owner_identity(), OLD_SPACE);
 
+    // We only need to remove that slot when sweeping is still in progress.
+    // Because in that case, a concurrent sweeper could find that memory and
+    // reuse it for subsequent allocations. The runtime could install another
+    // property at this slot but without unboxed doubles this will always be a
+    // tagged pointer.
     if (!page->SweepingDone()) {
+      // No need to update old-to-old here since that remembered set is gone
+      // after a full GC and not re-recorded until sweeping is finished.
       RememberedSet<OLD_TO_NEW>::Remove(page, slot.address());
     }
   }
@@ -7540,6 +7567,19 @@ EmbedderStackStateScope::EmbedderStackStateScope(
 
 EmbedderStackStateScope::~EmbedderStackStateScope() {
   local_tracer_->embedder_stack_state_ = old_stack_state_;
+}
+
+CppClassNamesAsHeapObjectNameScope::CppClassNamesAsHeapObjectNameScope(
+    v8::CppHeap* heap)
+    : cpp_heap_(CppHeap::From(heap)),
+      saved_heap_object_name_value_(cpp_heap_->name_of_unnamed_object()) {
+  cpp_heap_->set_name_of_unnamed_object(
+      cppgc::internal::HeapObjectNameForUnnamedObject::
+          kUseClassNameIfSupported);
+}
+
+CppClassNamesAsHeapObjectNameScope::~CppClassNamesAsHeapObjectNameScope() {
+  cpp_heap_->set_name_of_unnamed_object(saved_heap_object_name_value_);
 }
 
 }  // namespace internal

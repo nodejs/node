@@ -1699,14 +1699,14 @@ void EncodeExceptionValues(v8::Isolate* isolate,
       case i::wasm::kF32: {
         float f32 = 0;
         if (!ToF32(value, context, &f32)) return;
-        int32_t i32 = bit_cast<int32_t>(f32);
+        int32_t i32 = base::bit_cast<int32_t>(f32);
         i::EncodeI32ExceptionValue(values_out, &index, i32);
         break;
       }
       case i::wasm::kF64: {
         double f64 = 0;
         if (!ToF64(value, context, &f64)) return;
-        int64_t i64 = bit_cast<int64_t>(f64);
+        int64_t i64 = base::bit_cast<int64_t>(f64);
         i::EncodeI64ExceptionValue(values_out, &index, i64);
         break;
       }
@@ -2320,14 +2320,14 @@ void WebAssemblyExceptionGetArg(
     case i::wasm::kF32: {
       uint32_t f32_bits = 0;
       DecodeI32ExceptionValue(values, &decode_index, &f32_bits);
-      float f32 = bit_cast<float>(f32_bits);
+      float f32 = base::bit_cast<float>(f32_bits);
       result = v8::Number::New(isolate, f32);
       break;
     }
     case i::wasm::kF64: {
       uint64_t f64_bits = 0;
       DecodeI64ExceptionValue(values, &decode_index, &f64_bits);
-      double f64 = bit_cast<double>(f64_bits);
+      double f64 = base::bit_cast<double>(f64_bits);
       result = v8::Number::New(isolate, f64);
       break;
     }
@@ -2851,9 +2851,9 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   context->set_wasm_table_constructor(*table_constructor);
   InstallGetter(isolate, table_proto, "length", WebAssemblyTableGetLength);
   InstallFunc(isolate, table_proto, "grow", WebAssemblyTableGrow, 1);
+  InstallFunc(isolate, table_proto, "set", WebAssemblyTableSet, 1);
   InstallFunc(isolate, table_proto, "get", WebAssemblyTableGet, 1, false, NONE,
               SideEffectType::kHasNoSideEffect);
-  InstallFunc(isolate, table_proto, "set", WebAssemblyTableSet, 2);
   if (enabled_features.has_type_reflection()) {
     InstallFunc(isolate, table_proto, "type", WebAssemblyTableType, 0, false,
                 NONE, SideEffectType::kHasNoSideEffect);

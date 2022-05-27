@@ -430,6 +430,17 @@ class PageAllocator {
                               Permission permissions) = 0;
 
   /**
+   * Recommits discarded pages in the given range with given permissions.
+   * Discarded pages must be recommitted with their original permissions
+   * before they are used again.
+   */
+  virtual bool RecommitPages(void* address, size_t length,
+                             Permission permissions) {
+    // TODO(v8:12797): make it pure once it's implemented on Chromium side.
+    return false;
+  }
+
+  /**
    * Frees memory in the given [address, address + size) range. address and size
    * should be operating system page-aligned. The next write to this
    * memory area brings the memory transparently back. This should be treated as
@@ -698,6 +709,10 @@ class VirtualAddressSpace {
   /**
    * Sets permissions of all allocated pages in the given range.
    *
+   * This operation can fail due to OOM, in which case false is returned. If
+   * the operation fails for a reason other than OOM, this function will
+   * terminate the process as this implies a bug in the client.
+   *
    * \param address The start address of the range. Must be aligned to
    * page_size().
    *
@@ -706,7 +721,7 @@ class VirtualAddressSpace {
    *
    * \param permissions The new permissions for the range.
    *
-   * \returns true on success, false otherwise.
+   * \returns true on success, false on OOM.
    */
   virtual V8_WARN_UNUSED_RESULT bool SetPagePermissions(
       Address address, size_t size, PagePermissions permissions) = 0;
@@ -819,6 +834,24 @@ class VirtualAddressSpace {
   // example by combining them into some form of page operation method that
   // takes a command enum as parameter.
   //
+
+  /**
+   * Recommits discarded pages in the given range with given permissions.
+   * Discarded pages must be recommitted with their original permissions
+   * before they are used again.
+   *
+   * \param address The start address of the range. Must be aligned to
+   * page_size().
+   *
+   * \param size The size in bytes of the range. Must be a multiple
+   * of page_size().
+   *
+   * \param permissions The permissions for the range that the pages must have.
+   *
+   * \returns true on success, false otherwise.
+   */
+  virtual V8_WARN_UNUSED_RESULT bool RecommitPages(
+      Address address, size_t size, PagePermissions permissions) = 0;
 
   /**
    * Frees memory in the given [address, address + size) range. address and

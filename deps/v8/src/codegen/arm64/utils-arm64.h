@@ -70,7 +70,7 @@ T ReverseBytes(T value, int block_bytes_log2) {
 
 // NaN tests.
 inline bool IsSignallingNaN(double num) {
-  uint64_t raw = bit_cast<uint64_t>(num);
+  uint64_t raw = base::bit_cast<uint64_t>(num);
   if (std::isnan(num) && ((raw & kDQuietNanMask) == 0)) {
     return true;
   }
@@ -78,7 +78,7 @@ inline bool IsSignallingNaN(double num) {
 }
 
 inline bool IsSignallingNaN(float num) {
-  uint32_t raw = bit_cast<uint32_t>(num);
+  uint32_t raw = base::bit_cast<uint32_t>(num);
   if (std::isnan(num) && ((raw & kSQuietNanMask) == 0)) {
     return true;
   }
@@ -98,13 +98,13 @@ inline bool IsQuietNaN(T num) {
 // Convert the NaN in 'num' to a quiet NaN.
 inline double ToQuietNaN(double num) {
   DCHECK(std::isnan(num));
-  return bit_cast<double>(bit_cast<uint64_t>(num) | kDQuietNanMask);
+  return base::bit_cast<double>(base::bit_cast<uint64_t>(num) | kDQuietNanMask);
 }
 
 inline float ToQuietNaN(float num) {
   DCHECK(std::isnan(num));
-  return bit_cast<float>(bit_cast<uint32_t>(num) |
-                         static_cast<uint32_t>(kSQuietNanMask));
+  return base::bit_cast<float>(base::bit_cast<uint32_t>(num) |
+                               static_cast<uint32_t>(kSQuietNanMask));
 }
 
 // Fused multiply-add.

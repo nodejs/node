@@ -110,12 +110,10 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
         // Not enough room to create another FixedArray, so create a filler.
         if (allocation == i::AllocationType::kOld) {
           heap->CreateFillerObjectAt(
-              *heap->old_space()->allocation_top_address(), free_memory,
-              ClearRecordedSlots::kNo);
+              *heap->old_space()->allocation_top_address(), free_memory);
         } else {
           heap->CreateFillerObjectAt(
-              *heap->new_space()->allocation_top_address(), free_memory,
-              ClearRecordedSlots::kNo);
+              *heap->new_space()->allocation_top_address(), free_memory);
         }
         break;
       }
@@ -203,7 +201,7 @@ void SimulateFullSpace(v8::internal::PagedSpace* space) {
   // FLAG_stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
   CHECK(!FLAG_stress_concurrent_allocation);
-  CodePageCollectionMemoryModificationScope modification_scope(space->heap());
+  CodePageCollectionMemoryModificationScopeForTesting code_scope(space->heap());
   i::MarkCompactCollector* collector = space->heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
     collector->EnsureSweepingCompleted(
@@ -239,8 +237,7 @@ void ForceEvacuationCandidate(Page* page) {
   if (top < limit && Page::FromAllocationAreaAddress(top) == page) {
     // Create filler object to keep page iterable if it was iterable.
     int remaining = static_cast<int>(limit - top);
-    space->heap()->CreateFillerObjectAt(top, remaining,
-                                        ClearRecordedSlots::kNo);
+    space->heap()->CreateFillerObjectAt(top, remaining);
     base::MutexGuard guard(space->mutex());
     space->FreeLinearAllocationArea();
   }

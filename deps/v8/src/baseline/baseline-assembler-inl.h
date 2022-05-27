@@ -132,6 +132,11 @@ void BaselineAssembler::StoreRegister(interpreter::Register output,
   Move(output, value);
 }
 
+template <typename Field>
+void BaselineAssembler::DecodeField(Register reg) {
+  __ DecodeField<Field>(reg);
+}
+
 SaveAccumulatorScope::SaveAccumulatorScope(BaselineAssembler* assembler)
     : assembler_(assembler) {
   assembler_->Push(kInterpreterAccumulatorRegister);

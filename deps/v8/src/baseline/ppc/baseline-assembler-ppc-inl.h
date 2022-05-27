@@ -532,21 +532,113 @@ void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,
   __ StoreTaggedField(value, FieldMemOperand(target, offset), r0);
 }
 
+void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
+                                                Register feedback_vector,
+                                                FeedbackSlot slot,
+                                                Label* on_result,
+                                                Label::Distance) {
+  Label fallthrough;
+  LoadTaggedPointerField(scratch_and_result, feedback_vector,
+                         FeedbackVector::OffsetOfElementAt(slot.ToInt()));
+  __ LoadWeakValue(scratch_and_result, scratch_and_result, &fallthrough);
+
+  // Is it marked_for_deoptimization? If yes, clear the slot.
+  {
+    ScratchRegisterScope temps(this);
+    Register scratch = temps.AcquireScratch();
+    __ TestCodeTIsMarkedForDeoptimization(scratch_and_result, scratch, r0);
+    __ beq(on_result, cr0);
+    __ mov(scratch, __ ClearedValue());
+    StoreTaggedFieldNoWriteBarrier(
+        feedback_vector, FeedbackVector::OffsetOfElementAt(slot.ToInt()),
+        scratch);
+  }
+
+  __ bind(&fallthrough);
+  Move(scratch_and_result, 0);
+}
+
 void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
     int32_t weight, Label* skip_interrupt_label) {
-  UNIMPLEMENTED();
+  ASM_CODE_COMMENT(masm_);
+  ScratchRegisterScope scratch_scope(this);
+  Register feedback_cell = scratch_scope.AcquireScratch();
+  LoadFunction(feedback_cell);
+  LoadTaggedPointerField(feedback_cell, feedback_cell,
+                         JSFunction::kFeedbackCellOffset);
+
+  Register interrupt_budget = scratch_scope.AcquireScratch();
+  __ LoadU32(
+      interrupt_budget,
+      FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset), r0);
+  // Remember to set flags as part of the add!
+  __ AddS32(interrupt_budget, interrupt_budget, Operand(weight), r0);
+  __ StoreU32(
+      interrupt_budget,
+      FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset), r0);
+  if (skip_interrupt_label) {
+    // Use compare flags set by add
+    DCHECK_LT(weight, 0);
+    __ b(ge, skip_interrupt_label);
+  }
 }
 
 void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
     Register weight, Label* skip_interrupt_label) {
-  UNIMPLEMENTED();
+  ASM_CODE_COMMENT(masm_);
+  ScratchRegisterScope scratch_scope(this);
+  Register feedback_cell = scratch_scope.AcquireScratch();
+  LoadFunction(feedback_cell);
+  LoadTaggedPointerField(feedback_cell, feedback_cell,
+                         JSFunction::kFeedbackCellOffset);
+
+  Register interrupt_budget = scratch_scope.AcquireScratch();
+  __ LoadU32(
+      interrupt_budget,
+      FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset), r0);
+  // Remember to set flags as part of the add!
+  __ AddS32(interrupt_budget, interrupt_budget, weight);
+  __ StoreU32(
+      interrupt_budget,
+      FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset), r0);
+  if (skip_interrupt_label) __ b(ge, skip_interrupt_label);
 }
 
-void BaselineAssembler::AddSmi(Register lhs, Smi rhs) { UNIMPLEMENTED(); }
+void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
+  if (rhs.value() == 0) return;
+  __ LoadSmiLiteral(r0, rhs);
+  if (SmiValuesAre31Bits()) {
+    __ AddS32(lhs, lhs, r0);
+  } else {
+    __ AddS64(lhs, lhs, r0);
+  }
+}
 
 void BaselineAssembler::Switch(Register reg, int case_value_base,
                                Label** labels, int num_labels) {
-  UNIMPLEMENTED();
+  ASM_CODE_COMMENT(masm_);
+  Label fallthrough, jump_table;
+  if (case_value_base != 0) {
+    __ AddS64(reg, reg, Operand(-case_value_base));
+  }
+
+  // Mostly copied from code-generator-arm.cc
+  JumpIf(Condition::kUnsignedGreaterThanEqual, reg, Operand(num_labels),
+         &fallthrough);
+  // Ensure to emit the constant pool first if necessary.
+  int entry_size_log2 = 3;
+  __ ShiftLeftU32(reg, reg, Operand(entry_size_log2));
+  __ mov_label_addr(ip, &jump_table);
+  __ AddS64(reg, reg, ip);
+  __ Jump(reg);
+  __ b(&fallthrough);
+  __ bind(&jump_table);
+  Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
+  for (int i = 0; i < num_labels; ++i) {
+    __ b(labels[i]);
+    __ nop();
+  }
+  __ bind(&fallthrough);
 }
 
 void BaselineAssembler::Word32And(Register output, Register lhs, int rhs) {
@@ -557,13 +649,63 @@ void BaselineAssembler::Word32And(Register output, Register lhs, int rhs) {
 
 #define __ basm.
 
-void BaselineAssembler::EmitReturn(MacroAssembler* masm) { UNIMPLEMENTED(); }
+void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
+  ASM_CODE_COMMENT(masm);
+  BaselineAssembler basm(masm);
+
+  Register weight = BaselineLeaveFrameDescriptor::WeightRegister();
+  Register params_size = BaselineLeaveFrameDescriptor::ParamsSizeRegister();
+
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Update Interrupt Budget");
+
+    Label skip_interrupt_label;
+    __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, &skip_interrupt_label);
+    {
+      __ masm()->SmiTag(params_size);
+      __ Push(params_size, kInterpreterAccumulatorRegister);
+
+      __ LoadContext(kContextRegister);
+      __ LoadFunction(kJSFunctionRegister);
+      __ Push(kJSFunctionRegister);
+      __ CallRuntime(Runtime::kBytecodeBudgetInterrupt, 1);
+
+      __ Pop(kInterpreterAccumulatorRegister, params_size);
+      __ masm()->SmiUntag(params_size);
+    }
+
+    __ Bind(&skip_interrupt_label);
+  }
+
+  BaselineAssembler::ScratchRegisterScope temps(&basm);
+  Register actual_params_size = temps.AcquireScratch();
+  // Compute the size of the actual parameters + receiver (in bytes).
+  __ Move(actual_params_size,
+          MemOperand(fp, StandardFrameConstants::kArgCOffset));
+
+  // If actual is bigger than formal, then we should use it to free up the stack
+  // arguments.
+  Label corrected_args_count;
+  JumpIfHelper(__ masm(), Condition::kGreaterThanEqual, params_size,
+               actual_params_size, &corrected_args_count);
+  __ masm()->mr(params_size, actual_params_size);
+  __ Bind(&corrected_args_count);
+
+  // Leave the frame (also dropping the register file).
+  __ masm()->LeaveFrame(StackFrame::BASELINE);
+
+  // Drop receiver + arguments.
+  __ masm()->DropArguments(params_size, TurboAssembler::kCountIsInteger,
+                           TurboAssembler::kCountIncludesReceiver);
+  __ masm()->Ret();
+}
 
 #undef __
 
 inline void EnsureAccumulatorPreservedScope::AssertEqualToAccumulator(
     Register reg) {
-  UNIMPLEMENTED();
+  assembler_->masm()->CmpU64(reg, kInterpreterAccumulatorRegister);
+  assembler_->masm()->Assert(eq, AbortReason::kUnexpectedValue);
 }
 
 }  // namespace baseline

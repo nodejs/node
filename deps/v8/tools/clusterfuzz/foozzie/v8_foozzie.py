@@ -28,60 +28,60 @@ import v8_suppressions
 PYTHON3 = sys.version_info >= (3, 0)
 
 CONFIGS = dict(
-  default=[],
-  ignition=[
-    '--turbo-filter=~',
-    '--no-opt',
-    '--no-sparkplug',
-    '--liftoff',
-    '--no-wasm-tier-up',
-  ],
-  ignition_asm=[
-    '--turbo-filter=~',
-    '--no-opt',
-    '--no-sparkplug',
-    '--validate-asm',
-    '--stress-validate-asm',
-  ],
-  ignition_eager=[
-    '--turbo-filter=~',
-    '--no-opt',
-    '--no-sparkplug',
-    '--no-lazy',
-    '--no-lazy-inner-functions',
-  ],
-  ignition_no_ic=[
-    '--turbo-filter=~',
-    '--no-opt',
-    '--no-sparkplug',
-    '--liftoff',
-    '--no-wasm-tier-up',
-    '--no-use-ic',
-    '--no-lazy-feedback-allocation',
-  ],
-  ignition_turbo=[],
-  ignition_turbo_no_ic=[
-    '--no-use-ic',
-  ],
-  ignition_turbo_opt=[
-    '--always-opt',
-    '--no-liftoff',
-  ],
-  ignition_turbo_opt_eager=[
-    '--always-opt',
-    '--no-lazy',
-    '--no-lazy-inner-functions',
-  ],
-  jitless=[
-    '--jitless',
-  ],
-  slow_path=[
-    '--force-slow-path',
-  ],
-  slow_path_opt=[
-    '--always-opt',
-    '--force-slow-path',
-  ],
+    default=[],
+    ignition=[
+        '--turbo-filter=~',
+        '--no-turbofan',
+        '--no-sparkplug',
+        '--liftoff',
+        '--no-wasm-tier-up',
+    ],
+    ignition_asm=[
+        '--turbo-filter=~',
+        '--no-turbofan',
+        '--no-sparkplug',
+        '--validate-asm',
+        '--stress-validate-asm',
+    ],
+    ignition_eager=[
+        '--turbo-filter=~',
+        '--no-turbofan',
+        '--no-sparkplug',
+        '--no-lazy',
+        '--no-lazy-inner-functions',
+    ],
+    ignition_no_ic=[
+        '--turbo-filter=~',
+        '--no-turbofan',
+        '--no-sparkplug',
+        '--liftoff',
+        '--no-wasm-tier-up',
+        '--no-use-ic',
+        '--no-lazy-feedback-allocation',
+    ],
+    ignition_turbo=[],
+    ignition_turbo_no_ic=[
+        '--no-use-ic',
+    ],
+    ignition_turbo_opt=[
+        '--always-turbofan',
+        '--no-liftoff',
+    ],
+    ignition_turbo_opt_eager=[
+        '--always-turbofan',
+        '--no-lazy',
+        '--no-lazy-inner-functions',
+    ],
+    jitless=[
+        '--jitless',
+    ],
+    slow_path=[
+        '--force-slow-path',
+    ],
+    slow_path_opt=[
+        '--always-turbofan',
+        '--force-slow-path',
+    ],
 )
 
 BASELINE_CONFIG = 'ignition'
@@ -173,6 +173,12 @@ KNOWN_FAILURES = {
 # Flags that are already crashy during smoke tests should not be used.
 DISALLOWED_FLAGS = [
   '--gdbjit',
+
+  # TODO(https://crbug.com/1324097): Enable once maglev is more stable.
+  '--maglev',
+
+  # The flag is unpredictably chatty.
+  '--no-use-map-space',
 ]
 
 

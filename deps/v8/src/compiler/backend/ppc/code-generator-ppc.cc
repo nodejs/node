@@ -504,40 +504,48 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     DCHECK_EQ(LeaveRC, i.OutputRCBit());         \
   } while (0)
 
-#define ASSEMBLE_STORE_FLOAT(asm_instr, asm_instrx)      \
-  do {                                                   \
-    size_t index = 0;                                    \
-    AddressingMode mode = kMode_None;                    \
-    MemOperand operand = i.MemoryOperand(&mode, &index); \
-    DoubleRegister value = i.InputDoubleRegister(index); \
-    bool is_atomic = i.InputInt32(3);                    \
-    if (is_atomic) __ lwsync();                          \
-    /* removed frsp as instruction-selector checked */   \
-    /* value to be kFloat32 */                           \
-    if (mode == kMode_MRI) {                             \
-      __ asm_instr(value, operand);                      \
-    } else {                                             \
-      __ asm_instrx(value, operand);                     \
-    }                                                    \
-    if (is_atomic) __ sync();                            \
-    DCHECK_EQ(LeaveRC, i.OutputRCBit());                 \
+#define ASSEMBLE_STORE_FLOAT(asm_instr, asm_instrp, asm_instrx) \
+  do {                                                          \
+    size_t index = 0;                                           \
+    AddressingMode mode = kMode_None;                           \
+    MemOperand operand = i.MemoryOperand(&mode, &index);        \
+    DoubleRegister value = i.InputDoubleRegister(index);        \
+    bool is_atomic = i.InputInt32(3);                           \
+    if (is_atomic) __ lwsync();                                 \
+    /* removed frsp as instruction-selector checked */          \
+    /* value to be kFloat32 */                                  \
+    if (mode == kMode_MRI) {                                    \
+      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {              \
+        __ asm_instrp(value, operand);                          \
+      } else {                                                  \
+        __ asm_instr(value, operand);                           \
+      }                                                         \
+    } else {                                                    \
+      __ asm_instrx(value, operand);                            \
+    }                                                           \
+    if (is_atomic) __ sync();                                   \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                        \
   } while (0)
 
-#define ASSEMBLE_STORE_INTEGER(asm_instr, asm_instrx)    \
-  do {                                                   \
-    size_t index = 0;                                    \
-    AddressingMode mode = kMode_None;                    \
-    MemOperand operand = i.MemoryOperand(&mode, &index); \
-    Register value = i.InputRegister(index);             \
-    bool is_atomic = i.InputInt32(3);                    \
-    if (is_atomic) __ lwsync();                          \
-    if (mode == kMode_MRI) {                             \
-      __ asm_instr(value, operand);                      \
-    } else {                                             \
-      __ asm_instrx(value, operand);                     \
-    }                                                    \
-    if (is_atomic) __ sync();                            \
-    DCHECK_EQ(LeaveRC, i.OutputRCBit());                 \
+#define ASSEMBLE_STORE_INTEGER(asm_instr, asm_instrp, asm_instrx) \
+  do {                                                            \
+    size_t index = 0;                                             \
+    AddressingMode mode = kMode_None;                             \
+    MemOperand operand = i.MemoryOperand(&mode, &index);          \
+    Register value = i.InputRegister(index);                      \
+    bool is_atomic = i.InputInt32(3);                             \
+    if (is_atomic) __ lwsync();                                   \
+    if (mode == kMode_MRI) {                                      \
+      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {                \
+        __ asm_instrp(value, operand);                            \
+      } else {                                                    \
+        __ asm_instr(value, operand);                             \
+      }                                                           \
+    } else {                                                      \
+      __ asm_instrx(value, operand);                              \
+    }                                                             \
+    if (is_atomic) __ sync();                                     \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                          \
   } while (0)
 
 #define ASSEMBLE_STORE_INTEGER_RR(asm_instr)             \
@@ -2004,24 +2012,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_StoreWord8:
-      ASSEMBLE_STORE_INTEGER(stb, stbx);
+      ASSEMBLE_STORE_INTEGER(stb, pstb, stbx);
       break;
     case kPPC_StoreWord16:
-      ASSEMBLE_STORE_INTEGER(sth, sthx);
+      ASSEMBLE_STORE_INTEGER(sth, psth, sthx);
       break;
     case kPPC_StoreWord32:
-      ASSEMBLE_STORE_INTEGER(stw, stwx);
+      ASSEMBLE_STORE_INTEGER(stw, pstw, stwx);
       break;
 #if V8_TARGET_ARCH_PPC64
     case kPPC_StoreWord64:
-      ASSEMBLE_STORE_INTEGER(std, stdx);
+      ASSEMBLE_STORE_INTEGER(std, pstd, stdx);
       break;
 #endif
     case kPPC_StoreFloat32:
-      ASSEMBLE_STORE_FLOAT(stfs, stfsx);
+      ASSEMBLE_STORE_FLOAT(stfs, pstfs, stfsx);
       break;
     case kPPC_StoreDouble:
-      ASSEMBLE_STORE_FLOAT(stfd, stfdx);
+      ASSEMBLE_STORE_FLOAT(stfd, pstfd, stfdx);
       break;
     case kPPC_StoreSimd128: {
       size_t index = 0;
@@ -2831,14 +2839,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kPPC_F32x4Neg: {
       __ xvnegsp(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kPPC_F32x4RecipApprox: {
-      __ xvresp(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kPPC_F32x4RecipSqrtApprox: {
-      __ xvrsqrtesp(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kPPC_F32x4Sqrt: {
@@ -3777,7 +3777,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_StoreCompressTagged: {
-      ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedField);
+      ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedField,
+                             StoreTaggedField);
       break;
     }
     case kPPC_LoadDecompressTaggedSigned: {

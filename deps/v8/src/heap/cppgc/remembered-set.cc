@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "include/cppgc/visitor.h"
+#include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/marking-state.h"
@@ -76,14 +77,17 @@ void VisitRememberedSourceObjects(
 }  // namespace
 
 void OldToNewRememberedSet::AddSlot(void* slot) {
+  DCHECK(heap_.generational_gc_supported());
   remembered_slots_.insert(slot);
 }
 
 void OldToNewRememberedSet::AddSourceObject(HeapObjectHeader& hoh) {
+  DCHECK(heap_.generational_gc_supported());
   remembered_source_objects_.insert(&hoh);
 }
 
 void OldToNewRememberedSet::AddWeakCallback(WeakCallbackItem item) {
+  DCHECK(heap_.generational_gc_supported());
   // TODO(1029379): WeakCallbacks are also executed for weak collections.
   // Consider splitting weak-callbacks in custom weak callbacks and ones for
   // collections.
@@ -92,6 +96,7 @@ void OldToNewRememberedSet::AddWeakCallback(WeakCallbackItem item) {
 
 void OldToNewRememberedSet::InvalidateRememberedSlotsInRange(void* begin,
                                                              void* end) {
+  DCHECK(heap_.generational_gc_supported());
   // TODO(1029379): The 2 binary walks can be optimized with a custom algorithm.
   auto from = remembered_slots_.lower_bound(begin),
        to = remembered_slots_.lower_bound(end);
@@ -108,28 +113,38 @@ void OldToNewRememberedSet::InvalidateRememberedSlotsInRange(void* begin,
 
 void OldToNewRememberedSet::InvalidateRememberedSourceObject(
     HeapObjectHeader& header) {
+  DCHECK(heap_.generational_gc_supported());
   remembered_source_objects_.erase(&header);
 }
 
 void OldToNewRememberedSet::Visit(Visitor& visitor,
                                   MutatorMarkingState& marking_state) {
+  DCHECK(heap_.generational_gc_supported());
   VisitRememberedSlots(remembered_slots_, heap_, marking_state);
   VisitRememberedSourceObjects(remembered_source_objects_, visitor);
 }
 
 void OldToNewRememberedSet::ExecuteCustomCallbacks(LivenessBroker broker) {
+  DCHECK(heap_.generational_gc_supported());
   for (const auto& callback : remembered_weak_callbacks_) {
     callback.callback(broker, callback.parameter);
   }
 }
 
 void OldToNewRememberedSet::ReleaseCustomCallbacks() {
+  DCHECK(heap_.generational_gc_supported());
   remembered_weak_callbacks_.clear();
 }
 
 void OldToNewRememberedSet::Reset() {
+  DCHECK(heap_.generational_gc_supported());
   remembered_slots_.clear();
   remembered_source_objects_.clear();
+}
+
+bool OldToNewRememberedSet::IsEmpty() const {
+  return remembered_slots_.empty() && remembered_source_objects_.empty() &&
+         remembered_weak_callbacks_.empty();
 }
 
 }  // namespace internal

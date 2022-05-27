@@ -64,10 +64,16 @@ struct OtherType<Large> {
 
 class MinorGCTest : public testing::TestWithHeap {
  public:
-  MinorGCTest() {
+  MinorGCTest() : testing::TestWithHeap() {
+    // Enable young generation flag and run GC. After the first run the heap
+    // will enable minor GC.
+    Heap::From(GetHeap())->EnableGenerationalGC();
     CollectMajor();
+
     SimpleGCedBase::destructed_objects = 0;
   }
+
+  ~MinorGCTest() override { Heap::From(GetHeap())->Terminate(); }
 
   static size_t DestructedObjects() {
     return SimpleGCedBase::destructed_objects;
@@ -103,9 +109,9 @@ TYPED_TEST_SUITE(MinorGCTestForType, ObjectTypes);
 namespace {
 template <typename... Args>
 void RunMinorGCAndExpectObjectsPromoted(MinorGCTest& test, Args*... args) {
-  ([args] { EXPECT_TRUE(IsHeapObjectYoung(args)); }(), ...);
+  EXPECT_TRUE((IsHeapObjectYoung(args) && ...));
   test.CollectMinor();
-  ([args] { EXPECT_TRUE(IsHeapObjectOld(args)); }(), ...);
+  EXPECT_TRUE((IsHeapObjectOld(args) && ...));
 }
 
 struct ExpectRememberedSlotsAdded final {
@@ -340,7 +346,7 @@ TYPED_TEST(MinorGCTestForType, OmitGenerationalBarrierForSentinels) {
   {
     ExpectNoRememberedSlotsAdded _(*this);
     // Try issuing generational barrier for sentinel.
-    old->next = static_cast<Type*>(kSentinelPointer);
+    old->next = kSentinelPointer;
   }
 }
 

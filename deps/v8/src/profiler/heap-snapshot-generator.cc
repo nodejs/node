@@ -380,15 +380,18 @@ const char* HeapEntry::TypeAsString() const {
     case kSymbol: return "/symbol/";
     case kBigInt:
       return "/bigint/";
+    case kObjectShape:
+      return "/object shape/";
     default: return "???";
   }
 }
 
-HeapSnapshot::HeapSnapshot(HeapProfiler* profiler, bool global_objects_as_roots,
-                           bool capture_numeric_value)
+HeapSnapshot::HeapSnapshot(HeapProfiler* profiler,
+                           v8::HeapProfiler::HeapSnapshotMode snapshot_mode,
+                           v8::HeapProfiler::NumericsMode numerics_mode)
     : profiler_(profiler),
-      treat_global_objects_as_roots_(global_objects_as_roots),
-      capture_numeric_value_(capture_numeric_value) {
+      snapshot_mode_(snapshot_mode),
+      numerics_mode_(numerics_mode) {
   // It is very important to keep objects that form a heap snapshot
   // as small as possible. Check assumptions about data structure sizes.
   STATIC_ASSERT(kSystemPointerSize != 4 || sizeof(HeapGraphEdge) == 12);
@@ -955,6 +958,17 @@ HeapEntry::Type V8HeapExplorer::GetSystemEntryType(HeapObject object) {
     return HeapEntry::kArray;
   }
 
+  // Maps in read-only space are for internal V8 data, not user-defined object
+  // shapes.
+  if ((InstanceTypeChecker::IsMap(type) &&
+       !BasicMemoryChunk::FromHeapObject(object)->InReadOnlySpace()) ||
+      InstanceTypeChecker::IsDescriptorArray(type) ||
+      InstanceTypeChecker::IsTransitionArray(type) ||
+      InstanceTypeChecker::IsPrototypeInfo(type) ||
+      InstanceTypeChecker::IsEnumCache(type)) {
+    return HeapEntry::kObjectShape;
+  }
+
   return HeapEntry::kHidden;
 }
 
@@ -1098,6 +1112,8 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry, HeapObject obj) {
     ExtractFeedbackCellReferences(entry, FeedbackCell::cast(obj));
   } else if (obj.IsPropertyCell()) {
     ExtractPropertyCellReferences(entry, PropertyCell::cast(obj));
+  } else if (obj.IsPrototypeInfo()) {
+    ExtractPrototypeInfoReferences(entry, PrototypeInfo::cast(obj));
   } else if (obj.IsAllocationSite()) {
     ExtractAllocationSiteReferences(entry, AllocationSite::cast(obj));
   } else if (obj.IsArrayBoilerplateDescription()) {
@@ -1110,6 +1126,10 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry, HeapObject obj) {
     ExtractFeedbackVectorReferences(entry, FeedbackVector::cast(obj));
   } else if (obj.IsDescriptorArray()) {
     ExtractDescriptorArrayReferences(entry, DescriptorArray::cast(obj));
+  } else if (obj.IsEnumCache()) {
+    ExtractEnumCacheReferences(entry, EnumCache::cast(obj));
+  } else if (obj.IsTransitionArray()) {
+    ExtractTransitionArrayReferences(entry, TransitionArray::cast(obj));
   } else if (obj.IsWeakFixedArray()) {
     ExtractWeakArrayReferences(WeakFixedArray::kHeaderSize, entry,
                                WeakFixedArray::cast(obj));
@@ -1412,6 +1432,8 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
   TagObject(map.dependent_code(), "(dependent code)");
   SetInternalReference(entry, "dependent_code", map.dependent_code(),
                        Map::kDependentCodeOffset);
+  TagObject(map.prototype_validity_cell(), "(prototype validity cell)",
+            HeapEntry::kObjectShape);
 }
 
 void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
@@ -1554,6 +1576,14 @@ void V8HeapExplorer::ExtractPropertyCellReferences(HeapEntry* entry,
   TagObject(cell.dependent_code(), "(dependent code)");
   SetInternalReference(entry, "dependent_code", cell.dependent_code(),
                        PropertyCell::kDependentCodeOffset);
+}
+
+void V8HeapExplorer::ExtractPrototypeInfoReferences(HeapEntry* entry,
+                                                    PrototypeInfo info) {
+  TagObject(info.prototype_chain_enum_cache(), "(prototype chain enum cache)",
+            HeapEntry::kObjectShape);
+  TagObject(info.prototype_users(), "(prototype users)",
+            HeapEntry::kObjectShape);
 }
 
 void V8HeapExplorer::ExtractAllocationSiteReferences(HeapEntry* entry,
@@ -1720,6 +1750,20 @@ void V8HeapExplorer::ExtractDescriptorArrayReferences(HeapEntry* entry,
     } else if (object->GetHeapObjectIfStrong(&heap_object)) {
       SetInternalReference(entry, i, heap_object, offset);
     }
+  }
+}
+
+void V8HeapExplorer::ExtractEnumCacheReferences(HeapEntry* entry,
+                                                EnumCache cache) {
+  TagObject(cache.keys(), "(enum cache)", HeapEntry::kObjectShape);
+  TagObject(cache.indices(), "(enum cache)", HeapEntry::kObjectShape);
+}
+
+void V8HeapExplorer::ExtractTransitionArrayReferences(
+    HeapEntry* entry, TransitionArray transitions) {
+  if (transitions.HasPrototypeTransitions()) {
+    TagObject(transitions.GetPrototypeTransitions(), "(prototype transitions)",
+              HeapEntry::kObjectShape);
   }
 }
 
@@ -2248,7 +2292,7 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
 
   // For full heap snapshots we do not emit user roots but rather rely on
   // regular GC roots to retain objects.
-  if (!snapshot_->treat_global_objects_as_roots()) return;
+  if (snapshot_->expose_internals()) return;
 
   // Add a shortcut to JS global object reference at snapshot root.
   // That allows the user to easily find global objects. They are
@@ -3015,7 +3059,8 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
             JSON_S("concatenated string") ","
             JSON_S("sliced string") ","
             JSON_S("symbol") ","
-            JSON_S("bigint")) ","
+            JSON_S("bigint") ","
+            JSON_S("object shape")) ","
         JSON_S("string") ","
         JSON_S("number") ","
         JSON_S("number") ","

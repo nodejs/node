@@ -90,7 +90,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 110
+bytecode array length: 104
 bytecodes: [
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
@@ -112,24 +112,22 @@ bytecodes: [
   /*  101 S> */ B(CreateArrayLiteral), U8(4), U8(1), U8(37),
                 B(Star6),
   /*  101 E> */ B(GetIterator), R(6), U8(2), U8(4),
-                B(Mov), R(4), R(1),
-                B(JumpIfJSReceiver), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star5),
                 B(GetNamedProperty), R(5), U8(5), U8(6),
                 B(Star4),
+                B(Mov), R(0), R(1),
                 B(CallProperty0), R(4), R(5), U8(15),
                 B(Star6),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(6), U8(1),
                 B(GetNamedProperty), R(6), U8(6), U8(17),
-                B(JumpIfToBooleanTrue), U8(18),
+                B(JumpIfToBooleanTrue), U8(19),
                 B(GetNamedProperty), R(6), U8(7), U8(8),
                 B(StaInArrayLiteral), R(3), R(2), U8(13),
                 B(Ldar), R(2),
                 B(Inc), U8(12),
                 B(Star2),
-                B(JumpLoop), U8(31), I8(0),
+                B(JumpLoop), U8(31), I8(0), U8(19),
                 B(LdaSmi), I8(4),
                 B(StaInArrayLiteral), R(3), R(2), U8(13),
                 B(Mov), R(3), R(2),

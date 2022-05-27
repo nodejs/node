@@ -156,13 +156,13 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
 
   // Register holding the current input position as negative offset from
   // the end of the string.
-  static constexpr Register current_input_offset() { return s1; }
+  static constexpr Register current_input_offset() { return s2; }
 
   // The register containing the current character after LoadCurrentCharacter.
-  static constexpr Register current_character() { return s2; }
+  static constexpr Register current_character() { return s5; }
 
   // Register holding address of the end of the input string.
-  static constexpr Register end_of_input_address() { return t2; }
+  static constexpr Register end_of_input_address() { return s6; }
 
   // Register holding the frame address. Local variables, parameters and
   // regexp registers are addressed relative to this.
@@ -170,10 +170,10 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
 
   // The register containing the backtrack stack top. Provides a meaningful
   // name to the register.
-  static constexpr Register backtrack_stackpointer() { return t0; }
+  static constexpr Register backtrack_stackpointer() { return s7; }
 
   // Register holding pointer to the current code object.
-  static constexpr Register code_pointer() { return s4; }
+  static constexpr Register code_pointer() { return s1; }
 
   // Byte size of chars in the string to match (decided by the Mode argument).
   inline int char_size() const { return static_cast<int>(mode_); }
@@ -200,8 +200,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
 
   void LoadRegExpStackPointerFromMemory(Register dst);
   void StoreRegExpStackPointerToMemory(Register src, Register scratch);
-  void PushRegExpBasePointer(Register scratch1, Register scratch2);
-  void PopRegExpBasePointer(Register scratch1, Register scratch2);
+  void PushRegExpBasePointer(Register stack_pointer, Register scratch);
+  void PopRegExpBasePointer(Register stack_pointer_out, Register scratch);
 
   Isolate* isolate() const { return masm_->isolate(); }
 

@@ -180,10 +180,13 @@ declare_args() {
   #      chrome --no-sandbox --disable-extensions
   #        --js-flags="--turbo-profiling-log-builtins --logfile=path/to/v8.log"
   #        "http://localhost/test-suite"
-  # 3. Optionally repeat step 2 for additional workloads, and concatenate all of
-  #    the resulting log files into a single file.
-  # 4. Build again with v8_builtins_profiling_log_file set to the file created
-  #    in steps 2-3.
+  # 3. Run tools/get_hints.py to produce the branch hints, selecting min_count
+  #    and threshold_ratio as you wish.
+  # 4. Optionally repeat steps 2-3 for additional workloads, and use
+  #    tools/combine_hints.py to combine the hints produced in step 3 into a
+  #    single file.
+  # 5. Build again with v8_builtins_profiling_log_file set to the file created
+  #    in step 3 or 4.
   v8_builtins_profiling_log_file = ""
 
   # Enables various testing features.
@@ -418,7 +421,7 @@ if (v8_enable_zone_compression == "") {
 }
 if (v8_enable_short_builtin_calls == "") {
   v8_enable_short_builtin_calls =
-      v8_current_cpu == "x64" || (!is_android && v8_current_cpu == "arm64")
+      v8_current_cpu == "x64" || v8_current_cpu == "arm64"
 }
 if (v8_enable_external_code_space == "") {
   v8_enable_external_code_space =
@@ -498,6 +501,18 @@ if (v8_enable_sandbox == "") {
       v8_enable_external_code_space
 }
 
+# Enable sandboxed pointers on desktop when the sandbox is enabled.
+if (v8_enable_sandbox) {
+  # When sanitizers are enabled, PartitionAlloc forwards allocations to malloc
+  # instead of allocating from its Pools and so isn't compatible with the
+  # sandbox. As such, disable the sandbox there. See https://crbug.com/1323174
+  if (!is_asan && !is_hwasan && !is_lsan && !is_tsan && !is_msan) {
+    v8_enable_sandboxed_pointers =
+        target_os != "fuchsia" && target_os != "android" &&
+        target_os != "chromeos"
+  }
+}
+
 # Enable all available sandbox features if sandbox future is enabled.
 if (v8_enable_sandbox_future) {
   v8_enable_sandboxed_pointers = true
@@ -563,9 +578,6 @@ if (v8_enable_single_generation == true) {
       v8_enable_unconditional_write_barriers || v8_disable_write_barriers,
       "Requires unconditional write barriers or none (which disables incremental marking)")
 }
-
-assert(!v8_enable_conservative_stack_scanning || v8_enable_single_generation,
-       "Conservative stack scanning requires single generation")
 
 if (v8_fuchsia_use_vmex_resource) {
   assert(target_os == "fuchsia", "VMEX resource only available on Fuchsia")
@@ -787,6 +799,9 @@ if (cppgc_enable_object_names) {
 }
 if (cppgc_enable_caged_heap) {
   enabled_external_cppgc_defines += [ "CPPGC_CAGED_HEAP" ]
+
+  # Always enable young generation compile time flag if caged heap is enabled.
+  cppgc_enable_young_generation = true
 }
 if (cppgc_enable_young_generation) {
   enabled_external_cppgc_defines += [ "CPPGC_YOUNG_GENERATION" ]
@@ -1470,7 +1485,7 @@ config("toolchain") {
 
 # For code that is hot during mksnapshot. In fast-mksnapshot builds, we
 # optimize some files even in debug builds to speed up mksnapshot times.
-config("always_optimize") {
+config("always_turbofanimize") {
   configs = [ ":internal_config" ]
 
   # TODO(crbug.com/621335) Rework this so that we don't have the confusion
@@ -1786,7 +1801,7 @@ torque_files = [
   "src/objects/js-proxy.tq",
   "src/objects/js-regexp-string-iterator.tq",
   "src/objects/js-regexp.tq",
-  "src/objects/js-shadow-realms.tq",
+  "src/objects/js-shadow-realm.tq",
   "src/objects/js-struct.tq",
   "src/objects/js-temporal-objects.tq",
   "src/objects/js-weak-refs.tq",
@@ -2365,7 +2380,7 @@ v8_source_set("v8_initializers") {
     "src/builtins/builtins-proxy-gen.h",
     "src/builtins/builtins-regexp-gen.cc",
     "src/builtins/builtins-regexp-gen.h",
-    "src/builtins/builtins-shadowrealm-gen.cc",
+    "src/builtins/builtins-shadow-realm-gen.cc",
     "src/builtins/builtins-sharedarraybuffer-gen.cc",
     "src/builtins/builtins-string-gen.cc",
     "src/builtins/builtins-string-gen.h",
@@ -2750,6 +2765,8 @@ v8_header_set("v8_internal_headers") {
     "src/common/allow-deprecated.h",
     "src/common/assert-scope.h",
     "src/common/checks.h",
+    "src/common/code-memory-access-inl.h",
+    "src/common/code-memory-access.h",
     "src/common/high-allocation-throughput-scope.h",
     "src/common/message-template.h",
     "src/common/operation.h",
@@ -2874,6 +2891,12 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/simplified-operator.h",
     "src/compiler/state-values-utils.h",
     "src/compiler/store-store-elimination.h",
+    "src/compiler/turboshaft/assembler.h",
+    "src/compiler/turboshaft/deopt-data.h",
+    "src/compiler/turboshaft/graph-builder.h",
+    "src/compiler/turboshaft/graph.h",
+    "src/compiler/turboshaft/operations.h",
+    "src/compiler/turboshaft/recreate-schedule.h",
     "src/compiler/type-cache.h",
     "src/compiler/type-narrowing-reducer.h",
     "src/compiler/typed-optimization.h",
@@ -3108,8 +3131,8 @@ v8_header_set("v8_internal_headers") {
     "src/logging/counters-scopes.h",
     "src/logging/counters.h",
     "src/logging/local-logger.h",
+    "src/logging/log-file.h",
     "src/logging/log-inl.h",
-    "src/logging/log-utils.h",
     "src/logging/log.h",
     "src/logging/metrics.h",
     "src/logging/runtime-call-stats-scope.h",
@@ -3207,8 +3230,8 @@ v8_header_set("v8_internal_headers") {
     "src/objects/js-regexp.h",
     "src/objects/js-segments-inl.h",
     "src/objects/js-segments.h",
-    "src/objects/js-shadow-realms-inl.h",
-    "src/objects/js-shadow-realms.h",
+    "src/objects/js-shadow-realm-inl.h",
+    "src/objects/js-shadow-realm.h",
     "src/objects/js-struct-inl.h",
     "src/objects/js-struct.h",
     "src/objects/js-temporal-objects-inl.h",
@@ -3251,8 +3274,6 @@ v8_header_set("v8_internal_headers") {
     "src/objects/option-utils.h",
     "src/objects/ordered-hash-table-inl.h",
     "src/objects/ordered-hash-table.h",
-    "src/objects/osr-optimized-code-cache-inl.h",
-    "src/objects/osr-optimized-code-cache.h",
     "src/objects/primitive-heap-object-inl.h",
     "src/objects/primitive-heap-object.h",
     "src/objects/promise-inl.h",
@@ -3442,12 +3463,14 @@ v8_header_set("v8_internal_headers") {
     "src/utils/bit-vector.h",
     "src/utils/boxed-float.h",
     "src/utils/detachable-vector.h",
+    "src/utils/hex-format.h",
     "src/utils/identity-map.h",
     "src/utils/locked-queue-inl.h",
     "src/utils/locked-queue.h",
     "src/utils/memcopy.h",
     "src/utils/ostreams.h",
     "src/utils/scoped-list.h",
+    "src/utils/sha-256.h",
     "src/utils/utils-inl.h",
     "src/utils/utils.h",
     "src/utils/version.h",
@@ -3507,12 +3530,14 @@ v8_header_set("v8_internal_headers") {
       "src/compiler/int64-lowering.h",
       "src/compiler/wasm-compiler.h",
       "src/compiler/wasm-escape-analysis.h",
+      "src/compiler/wasm-graph-assembler.h",
       "src/compiler/wasm-inlining.h",
       "src/compiler/wasm-loop-peeling.h",
       "src/debug/debug-wasm-objects-inl.h",
       "src/debug/debug-wasm-objects.h",
       "src/trap-handler/trap-handler-internal.h",
       "src/trap-handler/trap-handler.h",
+      "src/wasm/assembler-buffer-cache.h",
       "src/wasm/baseline/liftoff-assembler-defs.h",
       "src/wasm/baseline/liftoff-assembler.h",
       "src/wasm/baseline/liftoff-compiler.h",
@@ -3991,6 +4016,8 @@ v8_compiler_sources = [
   "src/compiler/value-numbering-reducer.cc",
   "src/compiler/verifier.cc",
   "src/compiler/zone-stats.cc",
+  "src/utils/hex-format.cc",
+  "src/utils/sha-256.cc",
 ]
 
 if (v8_enable_webassembly) {
@@ -3998,6 +4025,7 @@ if (v8_enable_webassembly) {
     "src/compiler/int64-lowering.cc",
     "src/compiler/wasm-compiler.cc",
     "src/compiler/wasm-escape-analysis.cc",
+    "src/compiler/wasm-graph-assembler.cc",
     "src/compiler/wasm-inlining.cc",
     "src/compiler/wasm-loop-peeling.cc",
   ]
@@ -4026,7 +4054,7 @@ v8_source_set("v8_compiler_opt") {
   if (is_debug && !v8_optimized_debug && v8_enable_fast_mksnapshot) {
     # The :no_optimize config is added to v8_add_configs in v8.gni.
     remove_configs = [ "//build/config/compiler:no_optimize" ]
-    configs = [ ":always_optimize" ]
+    configs = [ ":always_turbofanimize" ]
   } else {
     # Without this else branch, gn fails to generate build files for non-debug
     # builds (because we try to remove a config that is not present).
@@ -4040,6 +4068,34 @@ v8_source_set("v8_compiler") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = v8_compiler_sources
+
+  public_deps = [
+    ":generate_bytecode_builtins_list",
+    ":run_torque",
+    ":v8_internal_headers",
+    ":v8_maybe_icu",
+    ":v8_tracing",
+  ]
+
+  deps = [
+    ":v8_base_without_compiler",
+    ":v8_libbase",
+    ":v8_shared_internal_headers",
+  ]
+
+  configs = [ ":internal_config" ]
+}
+
+# The src/compiler files with default optimization behavior.
+v8_source_set("v8_turboshaft") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  sources = [
+    "src/compiler/turboshaft/graph-builder.cc",
+    "src/compiler/turboshaft/graph.cc",
+    "src/compiler/turboshaft/operations.cc",
+    "src/compiler/turboshaft/recreate-schedule.cc",
+  ]
 
   public_deps = [
     ":generate_bytecode_builtins_list",
@@ -4122,7 +4178,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/builtins/builtins-object.cc",
     "src/builtins/builtins-reflect.cc",
     "src/builtins/builtins-regexp.cc",
-    "src/builtins/builtins-shadow-realms.cc",
+    "src/builtins/builtins-shadow-realm.cc",
     "src/builtins/builtins-sharedarraybuffer.cc",
     "src/builtins/builtins-string.cc",
     "src/builtins/builtins-struct.cc",
@@ -4131,6 +4187,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/builtins/builtins-trace.cc",
     "src/builtins/builtins-typed-array.cc",
     "src/builtins/builtins-weak-refs.cc",
+    "src/builtins/builtins-web-snapshots.cc",
     "src/builtins/builtins.cc",
     "src/builtins/constants-table-builder.cc",
     "src/codegen/aligned-slot-allocator.cc",
@@ -4163,6 +4220,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/codegen/turbo-assembler.cc",
     "src/codegen/unoptimized-compilation-info.cc",
     "src/common/assert-scope.cc",
+    "src/common/code-memory-access.cc",
     "src/compiler-dispatcher/lazy-compile-dispatcher.cc",
     "src/compiler-dispatcher/optimizing-compile-dispatcher.cc",
     "src/date/date.cc",
@@ -4316,7 +4374,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/libsampler/sampler.cc",
     "src/logging/counters.cc",
     "src/logging/local-logger.cc",
-    "src/logging/log-utils.cc",
+    "src/logging/log-file.cc",
     "src/logging/log.cc",
     "src/logging/metrics.cc",
     "src/logging/runtime-call-stats.cc",
@@ -4366,7 +4424,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/objects.cc",
     "src/objects/option-utils.cc",
     "src/objects/ordered-hash-table.cc",
-    "src/objects/osr-optimized-code-cache.cc",
     "src/objects/property-descriptor.cc",
     "src/objects/property.cc",
     "src/objects/scope-info.cc",
@@ -4458,6 +4515,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/runtime/runtime-shadow-realm.cc",
     "src/runtime/runtime-strings.cc",
     "src/runtime/runtime-symbol.cc",
+    "src/runtime/runtime-temporal.cc",
     "src/runtime/runtime-test.cc",
     "src/runtime/runtime-trace.cc",
     "src/runtime/runtime-typedarray.cc",
@@ -4544,6 +4602,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/trap-handler/handler-inside.cc",
       "src/trap-handler/handler-outside.cc",
       "src/trap-handler/handler-shared.cc",
+      "src/wasm/assembler-buffer-cache.cc",
       "src/wasm/baseline/liftoff-assembler.cc",
       "src/wasm/baseline/liftoff-compiler.cc",
       "src/wasm/canonical-types.cc",
@@ -4966,6 +5025,7 @@ group("v8_base") {
   public_deps = [
     ":v8_base_without_compiler",
     ":v8_compiler",
+    ":v8_turboshaft",
   ]
 }
 
@@ -5057,7 +5117,7 @@ v8_source_set("torque_base") {
   if (is_debug && !v8_optimized_debug && v8_enable_fast_torque) {
     # The :no_optimize config is added to v8_add_configs in v8.gni.
     remove_configs += [ "//build/config/compiler:no_optimize" ]
-    configs += [ ":always_optimize" ]
+    configs += [ ":always_turbofanimize" ]
   }
 }
 
@@ -5101,7 +5161,6 @@ v8_component("v8_libbase") {
     "src/base/address-region.h",
     "src/base/atomic-utils.h",
     "src/base/atomicops.h",
-    "src/base/atomicops_internals_atomicword_compat.h",
     "src/base/base-export.h",
     "src/base/bit-field.h",
     "src/base/bits-iterator.h",
@@ -5243,6 +5302,7 @@ v8_component("v8_libbase") {
     sources += [
       "src/base/debug/stack_trace_posix.cc",
       "src/base/platform/platform-linux.cc",
+      "src/base/platform/platform-linux.h",
     ]
 
     libs = [
@@ -5874,6 +5934,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
       ":v8_maybe_icu",
       ":v8_shared_internal_headers",
       ":v8_tracing",
+      ":v8_turboshaft",
       "//build/win:default_exe_manifest",
     ]
   }

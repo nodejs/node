@@ -207,20 +207,12 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
       receiver->SetProperties(ReadOnlyRoots(isolate).empty_fixed_array());
     } else {
       ClearField(isolate, JSObject::cast(*receiver), index);
-      // We must clear any recorded slot for the deleted property, because
-      // subsequent object modifications might put a raw double there.
-      // Slot clearing is the reason why this entire function cannot currently
-      // be implemented in the DeleteProperty stub.
       if (index.is_inobject()) {
         // We need to clear the recorded slot in this case because in-object
         // slack tracking might not be finished. This ensures that we don't
         // have recorded slots in free space.
         isolate->heap()->ClearRecordedSlot(*receiver,
                                            receiver->RawField(index.offset()));
-        if (!FLAG_enable_third_party_heap) {
-          MemoryChunk* chunk = MemoryChunk::FromHeapObject(*receiver);
-          chunk->InvalidateRecordedSlots(*receiver);
-        }
       }
     }
   }
@@ -292,7 +284,7 @@ RUNTIME_FUNCTION(Runtime_ObjectKeys) {
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, keys,
-      KeyAccumulator::GetKeys(receiver, KeyCollectionMode::kOwnOnly,
+      KeyAccumulator::GetKeys(isolate, receiver, KeyCollectionMode::kOwnOnly,
                               ENUMERABLE_STRINGS,
                               GetKeysConversion::kConvertToString));
   return *keys;
@@ -314,7 +306,7 @@ RUNTIME_FUNCTION(Runtime_ObjectGetOwnPropertyNames) {
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, keys,
-      KeyAccumulator::GetKeys(receiver, KeyCollectionMode::kOwnOnly,
+      KeyAccumulator::GetKeys(isolate, receiver, KeyCollectionMode::kOwnOnly,
                               SKIP_SYMBOLS,
                               GetKeysConversion::kConvertToString));
   return *keys;
@@ -336,13 +328,13 @@ RUNTIME_FUNCTION(Runtime_ObjectGetOwnPropertyNamesTryFast) {
   if (nod != 0 && map->NumberOfEnumerableProperties() == nod) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, keys,
-        KeyAccumulator::GetKeys(receiver, KeyCollectionMode::kOwnOnly,
+        KeyAccumulator::GetKeys(isolate, receiver, KeyCollectionMode::kOwnOnly,
                                 ENUMERABLE_STRINGS,
                                 GetKeysConversion::kConvertToString));
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, keys,
-        KeyAccumulator::GetKeys(receiver, KeyCollectionMode::kOwnOnly,
+        KeyAccumulator::GetKeys(isolate, receiver, KeyCollectionMode::kOwnOnly,
                                 SKIP_SYMBOLS,
                                 GetKeysConversion::kConvertToString));
   }
@@ -660,8 +652,8 @@ RUNTIME_FUNCTION(Runtime_ObjectValues) {
   Handle<FixedArray> values;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, values,
-      JSReceiver::GetOwnValues(receiver, PropertyFilter::ENUMERABLE_STRINGS,
-                               true));
+      JSReceiver::GetOwnValues(isolate, receiver,
+                               PropertyFilter::ENUMERABLE_STRINGS, true));
   return *isolate->factory()->NewJSArrayWithElements(values);
 }
 
@@ -674,8 +666,8 @@ RUNTIME_FUNCTION(Runtime_ObjectValuesSkipFastPath) {
   Handle<FixedArray> value;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, value,
-      JSReceiver::GetOwnValues(receiver, PropertyFilter::ENUMERABLE_STRINGS,
-                               false));
+      JSReceiver::GetOwnValues(isolate, receiver,
+                               PropertyFilter::ENUMERABLE_STRINGS, false));
   return *isolate->factory()->NewJSArrayWithElements(value);
 }
 
@@ -688,8 +680,8 @@ RUNTIME_FUNCTION(Runtime_ObjectEntries) {
   Handle<FixedArray> entries;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, entries,
-      JSReceiver::GetOwnEntries(receiver, PropertyFilter::ENUMERABLE_STRINGS,
-                                true));
+      JSReceiver::GetOwnEntries(isolate, receiver,
+                                PropertyFilter::ENUMERABLE_STRINGS, true));
   return *isolate->factory()->NewJSArrayWithElements(entries);
 }
 
@@ -702,8 +694,8 @@ RUNTIME_FUNCTION(Runtime_ObjectEntriesSkipFastPath) {
   Handle<FixedArray> entries;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, entries,
-      JSReceiver::GetOwnEntries(receiver, PropertyFilter::ENUMERABLE_STRINGS,
-                                false));
+      JSReceiver::GetOwnEntries(isolate, receiver,
+                                PropertyFilter::ENUMERABLE_STRINGS, false));
   return *isolate->factory()->NewJSArrayWithElements(entries);
 }
 
@@ -1027,8 +1019,8 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyKeys) {
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, keys,
-      KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly, filter,
-                              GetKeysConversion::kConvertToString));
+      KeyAccumulator::GetKeys(isolate, object, KeyCollectionMode::kOwnOnly,
+                              filter, GetKeysConversion::kConvertToString));
 
   return *isolate->factory()->NewJSArrayWithElements(keys);
 }

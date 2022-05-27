@@ -785,6 +785,8 @@ TEST(CanonicalHandleScope) {
 
 TEST(GCShortCutting) {
   if (FLAG_single_generation) return;
+  // We don't create ThinStrings immediately when using the forwarding table.
+  if (FLAG_always_use_string_forwarding_table) return;
   ManualGCScope manual_gc_scope;
   IdentityMapTester t;
   Isolate* isolate = CcTest::i_isolate();

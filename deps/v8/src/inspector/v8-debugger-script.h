@@ -90,8 +90,7 @@ class V8DebuggerScript {
       std::vector<v8::debug::BreakLocation>* locations) = 0;
   virtual void resetBlackboxedStateCache() = 0;
 
-  static const int kNoOffset = -1;
-  virtual int offset(int lineNumber, int columnNumber) const = 0;
+  virtual v8::Maybe<int> offset(int lineNumber, int columnNumber) const = 0;
   virtual v8::debug::Location location(int offset) const = 0;
 
   virtual bool setBreakpoint(const String16& condition,

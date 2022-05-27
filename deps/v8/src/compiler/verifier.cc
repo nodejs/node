@@ -924,7 +924,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kAbortCSADcheck:
     case IrOpcode::kDebugBreak:
     case IrOpcode::kRetain:
-    case IrOpcode::kUnsafePointerAdd:
     case IrOpcode::kRuntimeAbort:
       CheckNotTyped(node);
       break;

@@ -188,11 +188,13 @@ inline bool SetPermissions(v8::PageAllocator* page_allocator, Address address,
 // could be released, false otherwise.
 V8_EXPORT_PRIVATE bool OnCriticalMemoryPressure(size_t length);
 
+// Defines whether the address space reservation is going to be used for
+// allocating executable pages.
+enum class JitPermission { kNoJit, kMapAsJittable };
+
 // Represents and controls an area of reserved memory.
 class VirtualMemory final {
  public:
-  enum JitPermission { kNoJit, kMapAsJittable };
-
   // Empty VirtualMemory object, controlling no reserved memory.
   V8_EXPORT_PRIVATE VirtualMemory();
 
@@ -205,7 +207,7 @@ class VirtualMemory final {
   // This may not be at the position returned by address().
   V8_EXPORT_PRIVATE VirtualMemory(v8::PageAllocator* page_allocator,
                                   size_t size, void* hint, size_t alignment = 1,
-                                  JitPermission jit = kNoJit);
+                                  JitPermission jit = JitPermission::kNoJit);
 
   // Construct a virtual memory by assigning it some already mapped address
   // and size.
@@ -266,6 +268,20 @@ class VirtualMemory final {
   // multiples of CommitPageSize(). Returns true on success, otherwise false.
   V8_EXPORT_PRIVATE bool SetPermissions(Address address, size_t size,
                                         PageAllocator::Permission access);
+
+  // Recommits discarded pages in the given range with given permissions.
+  // Discarded pages must be recommitted with their original permissions
+  // before they are used again. |address| and |size| must be multiples of
+  // CommitPageSize(). Returns true on success, otherwise false.
+  V8_EXPORT_PRIVATE bool RecommitPages(Address address, size_t size,
+                                       PageAllocator::Permission access);
+
+  // Frees memory in the given [address, address + size) range. address and size
+  // should be operating system page-aligned. The next write to this
+  // memory area brings the memory transparently back. This should be treated as
+  // a hint to the OS that the pages are no longer needed. It does not guarantee
+  // that the pages will be discarded immediately or at all.
+  V8_EXPORT_PRIVATE bool DiscardSystemPages(Address address, size_t size);
 
   // Releases memory after |free_start|. Returns the number of bytes released.
   V8_EXPORT_PRIVATE size_t Release(Address free_start);
@@ -374,6 +390,7 @@ class VirtualMemoryCage {
     size_t base_bias_size;
     size_t page_size;
     Address requested_start_hint;
+    JitPermission jit;
 
     static constexpr size_t kAnyBaseAlignment = 1;
   };

@@ -355,10 +355,10 @@ class PageIteratorImpl
   explicit PageIteratorImpl(PAGE_TYPE* p) : p_(p) {}
   PageIteratorImpl(const PageIteratorImpl<PAGE_TYPE>& other) : p_(other.p_) {}
   PAGE_TYPE* operator*() { return p_; }
-  bool operator==(const PageIteratorImpl<PAGE_TYPE>& rhs) {
+  bool operator==(const PageIteratorImpl<PAGE_TYPE>& rhs) const {
     return rhs.p_ == p_;
   }
-  bool operator!=(const PageIteratorImpl<PAGE_TYPE>& rhs) {
+  bool operator!=(const PageIteratorImpl<PAGE_TYPE>& rhs) const {
     return rhs.p_ != p_;
   }
   inline PageIteratorImpl<PAGE_TYPE>& operator++();
@@ -560,7 +560,7 @@ class SpaceWithLinearArea : public Space {
                                 int* out_max_aligned_size) = 0;
 
 #if DEBUG
-  V8_EXPORT_PRIVATE void VerifyTop() const;
+  V8_EXPORT_PRIVATE virtual void VerifyTop() const;
 #endif  // DEBUG
 
   LinearAllocationArea* const allocation_info_;

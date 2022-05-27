@@ -298,7 +298,7 @@ TEST_F(CommonOperatorTest, Float32Constant) {
     TRACED_FOREACH(float, v2, kFloatValues) {
       const Operator* op1 = common()->Float32Constant(v1);
       const Operator* op2 = common()->Float32Constant(v2);
-      EXPECT_EQ(bit_cast<uint32_t>(v1) == bit_cast<uint32_t>(v2),
+      EXPECT_EQ(base::bit_cast<uint32_t>(v1) == base::bit_cast<uint32_t>(v2),
                 op1->Equals(op2));
     }
   }
@@ -319,7 +319,7 @@ TEST_F(CommonOperatorTest, Float64Constant) {
     TRACED_FOREACH(double, v2, kFloatValues) {
       const Operator* op1 = common()->Float64Constant(v1);
       const Operator* op2 = common()->Float64Constant(v2);
-      EXPECT_EQ(bit_cast<uint64_t>(v1) == bit_cast<uint64_t>(v2),
+      EXPECT_EQ(base::bit_cast<uint64_t>(v1) == base::bit_cast<uint64_t>(v2),
                 op1->Equals(op2));
     }
   }
@@ -340,7 +340,7 @@ TEST_F(CommonOperatorTest, NumberConstant) {
     TRACED_FOREACH(double, v2, kFloatValues) {
       const Operator* op1 = common()->NumberConstant(v1);
       const Operator* op2 = common()->NumberConstant(v2);
-      EXPECT_EQ(bit_cast<uint64_t>(v1) == bit_cast<uint64_t>(v2),
+      EXPECT_EQ(base::bit_cast<uint64_t>(v1) == base::bit_cast<uint64_t>(v2),
                 op1->Equals(op2));
     }
   }

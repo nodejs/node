@@ -12,7 +12,7 @@
 namespace v8 {
 namespace internal {
 
-CodeEntry::CodeEntry(CodeEventListener::LogEventsAndTags tag, const char* name,
+CodeEntry::CodeEntry(LogEventListener::LogEventsAndTags tag, const char* name,
                      const char* resource_name, int line_number,
                      int column_number,
                      std::unique_ptr<SourcePositionTable> line_info,

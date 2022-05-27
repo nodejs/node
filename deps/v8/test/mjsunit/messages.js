@@ -543,7 +543,17 @@ test(function() {
 // kInvalidCountValue
 test(function() {
   "a".repeat(-1);
-}, "Invalid count value", RangeError);
+}, "Invalid count value: -1", RangeError);
+
+// kInvalidCountValue
+test(function() {
+  "a".repeat(Infinity);
+}, "Invalid count value: Infinity", RangeError);
+
+// kInvalidCountValue
+test(function() {
+  "a".repeat(-Infinity);
+}, "Invalid count value: -Infinity", RangeError);
 
 // kInvalidArrayBufferLength
 test(function() {

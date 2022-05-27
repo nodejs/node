@@ -131,6 +131,8 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   params.page_size = MemoryChunk::kPageSize;
   params.requested_start_hint =
       GetCodeRangeAddressHint()->GetAddressHint(requested, allocate_page_size);
+  params.jit =
+      FLAG_jitless ? JitPermission::kNoJit : JitPermission::kMapAsJittable;
 
   if (!VirtualMemoryCage::InitReservation(params)) return false;
 
@@ -155,7 +157,14 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
       return false;
     }
   }
-
+  if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT &&
+      params.jit == JitPermission::kMapAsJittable) {
+    void* base = reinterpret_cast<void*>(page_allocator_->begin());
+    size_t size = page_allocator_->size();
+    CHECK(params.page_allocator->SetPermissions(
+        base, size, PageAllocator::kReadWriteExecute));
+    CHECK(params.page_allocator->DiscardSystemPages(base, size));
+  }
   return true;
 }
 
@@ -234,19 +243,31 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
     }
   }
 
-  if (!page_allocator()->SetPermissions(embedded_blob_code_copy, code_size,
-                                        PageAllocator::kReadWrite)) {
-    V8::FatalProcessOutOfMemory(isolate,
-                                "Re-embedded builtins: set permissions");
-  }
-  memcpy(embedded_blob_code_copy, embedded_blob_code, embedded_blob_code_size);
+  if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT) {
+    if (!page_allocator()->RecommitPages(embedded_blob_code_copy, code_size,
+                                         PageAllocator::kReadWriteExecute)) {
+      V8::FatalProcessOutOfMemory(isolate,
+                                  "Re-embedded builtins: recommit pages");
+    }
+    RwxMemoryWriteScope rwx_write_scope(
+        "Enable write access to copy the blob code into the code range");
+    memcpy(embedded_blob_code_copy, embedded_blob_code,
+           embedded_blob_code_size);
+  } else {
+    if (!page_allocator()->SetPermissions(embedded_blob_code_copy, code_size,
+                                          PageAllocator::kReadWrite)) {
+      V8::FatalProcessOutOfMemory(isolate,
+                                  "Re-embedded builtins: set permissions");
+    }
+    memcpy(embedded_blob_code_copy, embedded_blob_code,
+           embedded_blob_code_size);
 
-  if (!page_allocator()->SetPermissions(embedded_blob_code_copy, code_size,
-                                        PageAllocator::kReadExecute)) {
-    V8::FatalProcessOutOfMemory(isolate,
-                                "Re-embedded builtins: set permissions");
+    if (!page_allocator()->SetPermissions(embedded_blob_code_copy, code_size,
+                                          PageAllocator::kReadExecute)) {
+      V8::FatalProcessOutOfMemory(isolate,
+                                  "Re-embedded builtins: set permissions");
+    }
   }
-
   embedded_blob_code_copy_.store(embedded_blob_code_copy,
                                  std::memory_order_release);
   return embedded_blob_code_copy;

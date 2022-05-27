@@ -2143,7 +2143,7 @@ snippet: "
 "
 frame size: 158
 parameter count: 1
-bytecode array length: 574
+bytecode array length: 575
 bytecodes: [
   /*   43 S> */ B(LdaZero),
                 B(Star0),
@@ -2467,7 +2467,7 @@ bytecodes: [
                 B(Wide), B(Star), R16(128),
   /* 2166 S> */ B(LdaSmi), I8(64),
   /* 2166 E> */ B(Wide), B(TestLessThan), R16(128), U16(0),
-                B(JumpIfFalse), U8(29),
+                B(JumpIfFalse), U8(30),
   /* 2183 S> */ B(Wide), B(Ldar), R16(128),
   /* 2189 E> */ B(Add), R(1), U8(1),
                 B(Wide), B(Mov), R16(1), R16(157),
@@ -2475,7 +2475,7 @@ bytecodes: [
   /* 2176 S> */ B(Wide), B(Ldar), R16(128),
                 B(Inc), U8(2),
                 B(Wide), B(Star), R16(128),
-  /* 2146 E> */ B(JumpLoop), U8(34), I8(0),
+  /* 2146 E> */ B(JumpLoop), U8(34), I8(0), U8(3),
   /* 2195 S> */ B(Wide), B(Ldar), R16(128),
   /* 2207 S> */ B(Return),
 ]
@@ -2649,7 +2649,7 @@ snippet: "
 "
 frame size: 163
 parameter count: 1
-bytecode array length: 605
+bytecode array length: 606
 bytecodes: [
   /*   43 S> */ B(LdaZero),
                 B(Star0),
@@ -2970,14 +2970,14 @@ bytecodes: [
   /* 2146 S> */ B(LdaZero),
                 B(Star1),
   /* 2162 S> */ B(Ldar), R(0),
-                B(JumpIfUndefinedOrNull), U8(70),
+                B(JumpIfUndefinedOrNull), U8(71),
                 B(Wide), B(ToObject), R16(157),
                 B(Wide), B(ForInEnumerate), R16(157),
                 B(Wide), B(ForInPrepare), R16(158), U16(0),
                 B(LdaZero),
                 B(Wide), B(Star), R16(161),
   /* 2154 S> */ B(Wide), B(ForInContinue), R16(161), R16(160),
-                B(JumpIfFalse), U8(43),
+                B(JumpIfFalse), U8(44),
                 B(Wide), B(ForInNext), R16(157), R16(161), R16(158), U16(0),
                 B(JumpIfUndefined), U8(20),
                 B(Wide), B(Star), R16(128),
@@ -2987,7 +2987,7 @@ bytecodes: [
                 B(Star1),
   /* 2172 E> */ B(Wide), B(ForInStep), R16(161),
                 B(Wide), B(Star), R16(161),
-  /* 2149 E> */ B(JumpLoop), U8(46), I8(0),
+  /* 2149 E> */ B(JumpLoop), U8(46), I8(0), U8(2),
   /* 2181 S> */ B(Ldar), R(1),
   /* 2191 S> */ B(Return),
 ]

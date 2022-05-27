@@ -33,13 +33,13 @@ TranslationArrayIterator::TranslationArrayIterator(TranslationArray buffer,
 
     uLongf uncompressed_size = size * kTranslationArrayElementSize;
 
-    CHECK_EQ(
-        zlib_internal::UncompressHelper(
-            zlib_internal::ZRAW,
-            bit_cast<Bytef*>(uncompressed_contents_.data()), &uncompressed_size,
-            buffer_.GetDataStartAddress() + kCompressedDataOffset,
-            buffer_.DataSize()),
-        Z_OK);
+    CHECK_EQ(zlib_internal::UncompressHelper(
+                 zlib_internal::ZRAW,
+                 base::bit_cast<Bytef*>(uncompressed_contents_.data()),
+                 &uncompressed_size,
+                 buffer_.GetDataStartAddress() + kCompressedDataOffset,
+                 buffer_.DataSize()),
+             Z_OK);
     DCHECK(index >= 0 && index < size);
   } else {
     DCHECK(index >= 0 && index < buffer.length());
@@ -83,7 +83,7 @@ Handle<TranslationArray> TranslationArrayBuilder::ToTranslationArray(
     CHECK_EQ(
         zlib_internal::CompressHelper(
             zlib_internal::ZRAW, compressed_data.data(), &compressed_data_size,
-            bit_cast<const Bytef*>(contents_for_compression_.data()),
+            base::bit_cast<const Bytef*>(contents_for_compression_.data()),
             input_size, Z_DEFAULT_COMPRESSION, nullptr, nullptr),
         Z_OK);
 
@@ -161,9 +161,9 @@ void TranslationArrayBuilder::BeginConstructStubFrame(
   DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 3);
 }
 
-void TranslationArrayBuilder::BeginArgumentsAdaptorFrame(int literal_id,
+void TranslationArrayBuilder::BeginInlinedExtraArguments(int literal_id,
                                                          unsigned height) {
-  auto opcode = TranslationOpcode::ARGUMENTS_ADAPTOR_FRAME;
+  auto opcode = TranslationOpcode::INLINED_EXTRA_ARGUMENTS;
   Add(opcode);
   Add(literal_id);
   Add(height);

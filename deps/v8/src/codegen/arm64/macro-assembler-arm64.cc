@@ -353,7 +353,7 @@ void TurboAssembler::Mov(const Register& rd, const Operand& operand,
     if (root_array_available_ && options().isolate_independent_code) {
       if (operand.ImmediateRMode() == RelocInfo::EXTERNAL_REFERENCE) {
         Address addr = static_cast<Address>(operand.ImmediateValue());
-        ExternalReference reference = bit_cast<ExternalReference>(addr);
+        ExternalReference reference = base::bit_cast<ExternalReference>(addr);
         IndirectLoadExternalReference(rd, reference);
         return;
       } else if (RelocInfo::IsEmbeddedObjectMode(operand.ImmediateRMode())) {
@@ -2483,6 +2483,29 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   // Continue here if InvokePrologue does handle the invocation due to
   // mismatched parameter counts.
   Bind(&done);
+}
+
+void MacroAssembler::JumpIfCodeTIsMarkedForDeoptimization(
+    Register codet, Register scratch, Label* if_marked_for_deoptimization) {
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    Ldr(scratch.W(),
+        FieldMemOperand(codet, CodeDataContainer::kKindSpecificFlagsOffset));
+    Tbnz(scratch.W(), Code::kMarkedForDeoptimizationBit,
+         if_marked_for_deoptimization);
+
+  } else {
+    LoadTaggedPointerField(
+        scratch, FieldMemOperand(codet, Code::kCodeDataContainerOffset));
+    Ldr(scratch.W(),
+        FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
+    Tbnz(scratch.W(), Code::kMarkedForDeoptimizationBit,
+         if_marked_for_deoptimization);
+  }
+}
+
+Operand MacroAssembler::ClearedValue() const {
+  return Operand(
+      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
 }
 
 Operand MacroAssembler::ReceiverOperand(Register arg_count) {

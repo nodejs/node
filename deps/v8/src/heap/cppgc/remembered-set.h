@@ -45,6 +45,8 @@ class V8_EXPORT_PRIVATE OldToNewRememberedSet final {
 
   void Reset();
 
+  bool IsEmpty() const;
+
  private:
   friend class MinorGCTest;
 

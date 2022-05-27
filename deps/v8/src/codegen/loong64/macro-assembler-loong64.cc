@@ -1888,9 +1888,10 @@ void TurboAssembler::Move(FPURegister dst, uint32_t src) {
 
 void TurboAssembler::Move(FPURegister dst, uint64_t src) {
   // Handle special values first.
-  if (src == bit_cast<uint64_t>(0.0) && has_double_zero_reg_set_) {
+  if (src == base::bit_cast<uint64_t>(0.0) && has_double_zero_reg_set_) {
     fmov_d(dst, kDoubleRegZero);
-  } else if (src == bit_cast<uint64_t>(-0.0) && has_double_zero_reg_set_) {
+  } else if (src == base::bit_cast<uint64_t>(-0.0) &&
+             has_double_zero_reg_set_) {
     Neg_d(dst, kDoubleRegZero);
   } else {
     UseScratchRegisterScope temps(this);
@@ -2977,6 +2978,22 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch1,
   Branch(stack_overflow, le, scratch1, Operand(scratch2));
 }
 
+void MacroAssembler::TestCodeTIsMarkedForDeoptimizationAndJump(Register codet,
+                                                               Register scratch,
+                                                               Condition cond,
+                                                               Label* target) {
+  Ld_d(scratch, FieldMemOperand(codet, Code::kCodeDataContainerOffset));
+  Ld_wu(scratch,
+        FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
+  And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
+  Branch(target, cond, scratch, Operand(zero_reg));
+}
+
+Operand MacroAssembler::ClearedValue() const {
+  return Operand(
+      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
+}
+
 void MacroAssembler::InvokePrologue(Register expected_parameter_count,
                                     Register actual_parameter_count,
                                     Label* done, InvokeType type) {
@@ -3892,15 +3909,24 @@ void TurboAssembler::Float64MinOutOfLine(FPURegister dst, FPURegister src1,
 }
 
 static const int kRegisterPassedArguments = 8;
+static const int kFPRegisterPassedArguments = 8;
 
 int TurboAssembler::CalculateStackPassedWords(int num_reg_arguments,
                                               int num_double_arguments) {
   int stack_passed_words = 0;
-  num_reg_arguments += 2 * num_double_arguments;
 
   // Up to eight simple arguments are passed in registers a0..a7.
   if (num_reg_arguments > kRegisterPassedArguments) {
     stack_passed_words += num_reg_arguments - kRegisterPassedArguments;
+  }
+  if (num_double_arguments > kFPRegisterPassedArguments) {
+    int num_count = num_double_arguments - kFPRegisterPassedArguments;
+    if (num_reg_arguments >= kRegisterPassedArguments) {
+      stack_passed_words += num_count;
+    } else if (num_count > kRegisterPassedArguments - num_reg_arguments) {
+      stack_passed_words +=
+          num_count - (kRegisterPassedArguments - num_reg_arguments);
+    }
   }
   return stack_passed_words;
 }

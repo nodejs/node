@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import {formatBytes} from '../helper.mjs';
+
 import {LogEntry} from './log.mjs';
 
 class CodeString {
@@ -26,12 +27,19 @@ export class DeoptLogEntry extends LogEntry {
       type, time, entry, deoptReason, deoptLocation, scriptOffset,
       instructionStart, codeSize, inliningId) {
     super(type, time);
+    /** @type {CodeEntry} */
     this._entry = entry;
+    /** @type {string} */
     this._reason = deoptReason;
+    /** @type {SourcePosition} */
     this._location = deoptLocation;
+    /** @type {number} */
     this._scriptOffset = scriptOffset;
+    /** @type {number} */
     this._instructionStart = instructionStart;
+    /** @type {number} */
     this._codeSize = codeSize;
+    /** @type {string} */
     this._inliningId = inliningId;
     this.fileSourcePosition = undefined;
   }
@@ -67,8 +75,10 @@ export class DeoptLogEntry extends LogEntry {
 class CodeLikeLogEntry extends LogEntry {
   constructor(type, time, profilerEntry) {
     super(type, time);
+    /** @type {CodeEntry} */
     this._entry = profilerEntry;
     profilerEntry.logEntry = this;
+    /** @type {LogEntry[]} */
     this._relatedEntries = [];
   }
 
@@ -86,11 +96,19 @@ class CodeLikeLogEntry extends LogEntry {
 }
 
 export class CodeLogEntry extends CodeLikeLogEntry {
-  constructor(type, time, kindName, kind, profilerEntry) {
+  constructor(type, time, kindName, kind, name, profilerEntry) {
     super(type, time, profilerEntry);
     this._kind = kind;
+    /** @type {string} */
     this._kindName = kindName;
+    /** @type {?FeedbackVectorEntry} */
     this._feedbackVector = undefined;
+    /** @type {string} */
+    this._name = name;
+  }
+
+  get name() {
+    return this._name;
   }
 
   get kind() {
@@ -149,7 +167,7 @@ export class CodeLogEntry extends CodeLikeLogEntry {
     const dict = super.toolTipDict;
     dict.size = formatBytes(dict.size);
     dict.source = new CodeString(dict.source);
-    dict.code = new CodeString(dict.code);
+    if (dict.code) dict.code = new CodeString(dict.code);
     return dict;
   }
 
@@ -215,9 +233,9 @@ export class FeedbackVectorEntry extends LogEntry {
   }
 }
 
-export class SharedLibLogEntry extends CodeLikeLogEntry {
-  constructor(profilerEntry) {
-    super('SHARED_LIB', 0, profilerEntry);
+export class BaseCPPLogEntry extends CodeLikeLogEntry {
+  constructor(prefix, profilerEntry) {
+    super(prefix, 0, profilerEntry);
   }
 
   get name() {
@@ -230,5 +248,17 @@ export class SharedLibLogEntry extends CodeLikeLogEntry {
 
   static get propertyNames() {
     return ['name'];
+  }
+}
+
+export class CPPCodeLogEntry extends BaseCPPLogEntry {
+  constructor(profilerEntry) {
+    super('CPP', profilerEntry);
+  }
+}
+
+export class SharedLibLogEntry extends BaseCPPLogEntry {
+  constructor(profilerEntry) {
+    super('SHARED_LIB', profilerEntry);
   }
 }

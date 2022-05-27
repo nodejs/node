@@ -77,9 +77,6 @@ struct WrapperDescriptor final {
 };
 
 struct V8_EXPORT CppHeapCreateParams {
-  CppHeapCreateParams(const CppHeapCreateParams&) = delete;
-  CppHeapCreateParams& operator=(const CppHeapCreateParams&) = delete;
-
   std::vector<std::unique_ptr<cppgc::CustomSpaceBase>> custom_spaces;
   WrapperDescriptor wrapper_descriptor;
 };

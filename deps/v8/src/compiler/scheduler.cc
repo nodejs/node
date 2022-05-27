@@ -468,21 +468,9 @@ class CFGBuilder : public ZoneObject {
 
     BranchHint hint_from_profile = BranchHint::kNone;
     if (const ProfileDataFromFile* profile_data = scheduler_->profile_data()) {
-      double block_zero_count =
-          profile_data->GetCounter(successor_blocks[0]->id().ToSize());
-      double block_one_count =
-          profile_data->GetCounter(successor_blocks[1]->id().ToSize());
-      // If a branch is visited a non-trivial number of times and substantially
-      // more often than its alternative, then mark it as likely.
-      constexpr double kMinimumCount = 100000;
-      constexpr double kThresholdRatio = 4000;
-      if (block_zero_count > kMinimumCount &&
-          block_zero_count / kThresholdRatio > block_one_count) {
-        hint_from_profile = BranchHint::kTrue;
-      } else if (block_one_count > kMinimumCount &&
-                 block_one_count / kThresholdRatio > block_zero_count) {
-        hint_from_profile = BranchHint::kFalse;
-      }
+      hint_from_profile =
+          profile_data->GetHint(successor_blocks[0]->id().ToSize(),
+                                successor_blocks[1]->id().ToSize());
     }
 
     // Consider branch hints.

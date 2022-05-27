@@ -628,7 +628,8 @@ WASM_EXEC_TEST(Float32Neg) {
   BUILD(r, WASM_F32_NEG(WASM_LOCAL_GET(0)));
 
   FOR_FLOAT32_INPUTS(i) {
-    CHECK_EQ(0x80000000, bit_cast<uint32_t>(i) ^ bit_cast<uint32_t>(r.Call(i)));
+    CHECK_EQ(0x80000000,
+             base::bit_cast<uint32_t>(i) ^ base::bit_cast<uint32_t>(r.Call(i)));
   }
 }
 
@@ -638,7 +639,7 @@ WASM_EXEC_TEST(Float64Neg) {
 
   FOR_FLOAT64_INPUTS(i) {
     CHECK_EQ(0x8000000000000000,
-             bit_cast<uint64_t>(i) ^ bit_cast<uint64_t>(r.Call(i)));
+             base::bit_cast<uint64_t>(i) ^ base::bit_cast<uint64_t>(r.Call(i)));
   }
 }
 
@@ -1118,7 +1119,7 @@ WASM_EXEC_TEST(I32ReinterpretF32) {
 
   FOR_FLOAT32_INPUTS(i) {
     float input = i;
-    int32_t expected = bit_cast<int32_t, float>(input);
+    int32_t expected = base::bit_cast<int32_t, float>(input);
     r.builder().WriteMemory(&memory[0], input);
     CHECK_EQ(expected, r.Call());
   }
@@ -1134,7 +1135,7 @@ WASM_EXEC_TEST(F32ReinterpretI32) {
 
   FOR_INT32_INPUTS(i) {
     int32_t input = i;
-    float expected = bit_cast<float, int32_t>(input);
+    float expected = base::bit_cast<float, int32_t>(input);
     r.builder().WriteMemory(&memory[0], input);
     float result = r.Call();
     if (std::isnan(expected)) {
@@ -2283,8 +2284,8 @@ WASM_EXEC_TEST(MixedGlobals) {
 
   CHECK_EQ(static_cast<int32_t>(0xEE55CCAA), *var_int32);
   CHECK_EQ(static_cast<uint32_t>(0xEE55CCAA), *var_uint32);
-  CHECK_EQ(bit_cast<float>(0xEE55CCAA), *var_float);
-  CHECK_EQ(bit_cast<double>(0x99112233EE55CCAAULL), *var_double);
+  CHECK_EQ(base::bit_cast<float>(0xEE55CCAA), *var_float);
+  CHECK_EQ(base::bit_cast<double>(0x99112233EE55CCAAULL), *var_double);
 
   USE(unused);
 }

@@ -36,6 +36,7 @@
     "assume ref.cast always succeeds and skip the related type check "         \
     "(unsafe)",                                                                \
     false)                                                                     \
+  V(ref_cast_nop, "enable unsafe ref.cast_nop instruction", false)             \
   V(skip_null_checks,                                                          \
     "skip null checks for call.ref and array and struct operations (unsafe)",  \
     false)                                                                     \

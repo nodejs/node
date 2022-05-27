@@ -41,6 +41,14 @@
 #include "src/utils/allocation.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
+namespace cppgc {
+namespace internal {
+
+enum class HeapObjectNameForUnnamedObject : uint8_t;
+
+}  // namespace internal
+}  // namespace cppgc
+
 namespace v8 {
 
 namespace debug {
@@ -96,12 +104,14 @@ class MemoryChunk;
 class MemoryMeasurement;
 class MemoryReducer;
 class MinorMarkCompactCollector;
+class NopRwxMemoryWriteScope;
 class ObjectIterator;
 class ObjectStats;
 class Page;
 class PagedSpace;
 class ReadOnlyHeap;
 class RootVisitor;
+class RwxMemoryWriteScope;
 class SafepointScope;
 class ScavengeJob;
 class Scavenger;
@@ -520,14 +530,14 @@ class Heap {
                  WriteBarrierMode mode);
 
   // Initialize a filler object to keep the ability to iterate over the heap
-  // when introducing gaps within pages. If slots could have been recorded in
-  // the freed area, then pass ClearRecordedSlots::kYes as the mode. Otherwise,
-  // pass ClearRecordedSlots::kNo. Clears memory if clearing slots.
-  V8_EXPORT_PRIVATE HeapObject CreateFillerObjectAt(
-      Address addr, int size, ClearRecordedSlots clear_slots_mode);
+  // when introducing gaps within pages. This method will verify that no slots
+  // are recorded in this free memory.
+  V8_EXPORT_PRIVATE void CreateFillerObjectAt(Address addr, int size);
 
-  void CreateFillerObjectAtBackground(Address addr, int size,
-                                      ClearFreedMemoryMode clear_memory_mode);
+  // Initialize a filler object at a specific address. Unlike
+  // `CreateFillerObjectAt` this method will not perform slot verification since
+  // this would race on background threads.
+  void CreateFillerObjectAtBackground(Address addr, int size);
 
   template <typename T>
   void CreateFillerForArray(T object, int elements_to_trim, int bytes_to_trim);
@@ -611,7 +621,19 @@ class Heap {
   // Dump heap statistics in JSON format.
   void DumpJSONHeapStatistics(std::stringstream& stream);
 
-  bool write_protect_code_memory() const { return write_protect_code_memory_; }
+  bool write_protect_code_memory() const {
+    if (V8_HAS_PTHREAD_JIT_WRITE_PROTECT) {
+      // On MacOS on ARM64 ("Apple M1"/Apple Silicon) code modification
+      // protection must be used. It can be achieved by one of the following
+      // approaches:
+      // 1) switching memory protection between RW-RX as on other architectures
+      //    => return true,
+      // 2) fast W^X machinery (see V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT) which
+      //    doesn not require memory protection changes => return false.
+      return !V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT;
+    }
+    return write_protect_code_memory_;
+  }
 
   uintptr_t code_space_memory_modification_scope_depth() {
     return code_space_memory_modification_scope_depth_;
@@ -1076,7 +1098,7 @@ class Heap {
       int gc_flags, GarbageCollectionReason gc_reason,
       GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags);
 
-  void StartIncrementalMarkingIfAllocationLimitIsReached(
+  V8_EXPORT_PRIVATE void StartIncrementalMarkingIfAllocationLimitIsReached(
       int gc_flags,
       GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags);
   void StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
@@ -1108,7 +1130,6 @@ class Heap {
 
   // The runtime uses this function to notify potentially unsafe object layout
   // changes that require special synchronization with the concurrent marker.
-  // The old size is the size of the object before layout change.
   // By default recorded slots in the object are invalidated. Pass
   // InvalidateRecordedSlots::kNo if this is not necessary or to perform this
   // manually.
@@ -1116,6 +1137,12 @@ class Heap {
       HeapObject object, const DisallowGarbageCollection&,
       InvalidateRecordedSlots invalidate_recorded_slots =
           InvalidateRecordedSlots::kYes);
+
+  // The runtime uses this function to inform the GC of object size changes. The
+  // GC will fill this area with a filler object and might clear recorded slots
+  // in that area.
+  void NotifyObjectSizeChange(HeapObject, int old_size, int new_size,
+                              ClearRecordedSlots clear_recorded_slots);
 
 #ifdef VERIFY_HEAP
   // This function checks that either
@@ -1367,7 +1394,9 @@ class Heap {
     return promoted_objects_size_ + semi_space_copied_object_size_;
   }
 
-  inline void IncrementNodesDiedInNewSpace() { nodes_died_in_new_space_++; }
+  inline void IncrementNodesDiedInNewSpace(int count) {
+    nodes_died_in_new_space_ += count;
+  }
 
   inline void IncrementNodesCopiedInNewSpace() { nodes_copied_in_new_space_++; }
 
@@ -1631,6 +1660,13 @@ class Heap {
   // over all objects.
   void MakeHeapIterable();
 
+  V8_EXPORT_PRIVATE bool CanPromoteYoungAndExpandOldGeneration(size_t size);
+  V8_EXPORT_PRIVATE bool CanExpandOldGeneration(size_t size);
+
+  inline bool ShouldReduceMemory() const {
+    return (current_gc_flags_ & kReduceMemoryFootprintMask) != 0;
+  }
+
  private:
   class AllocationTrackerForDebugging;
 
@@ -1746,10 +1782,6 @@ class Heap {
 
   void set_current_gc_flags(int flags) { current_gc_flags_ = flags; }
 
-  inline bool ShouldReduceMemory() const {
-    return (current_gc_flags_ & kReduceMemoryFootprintMask) != 0;
-  }
-
   int NumberOfScavengeTasks();
 
   // Checks whether a global GC is necessary
@@ -1795,14 +1827,19 @@ class Heap {
   V8_EXPORT_PRIVATE void ZapCodeObject(Address start_address,
                                        int size_in_bytes);
 
-  // Initialize a filler object to keep the ability to iterate over the heap
-  // when introducing gaps within pages. If the memory after the object header
-  // of the filler should be cleared, pass in kClearFreedMemory. The default is
-  // kDontClearFreedMemory.
-  V8_EXPORT_PRIVATE HeapObject
-  CreateFillerObjectAt(Address addr, int size,
-                       ClearFreedMemoryMode clear_memory_mode =
-                           ClearFreedMemoryMode::kDontClearFreedMemory);
+  enum class VerifyNoSlotsRecorded { kYes, kNo };
+
+  // This method is used by the sweeper on free memory ranges to make the page
+  // iterable again. Unlike `CreateFillerObjectAt` this method will not verify
+  // slots since the sweeper can run concurrently.
+  void CreateFillerObjectAtSweeper(Address addr, int size);
+
+  // Creates a filler object in the specificed memory area. This method is the
+  // internal method used by all CreateFillerObjectAtXXX-methods.
+  void CreateFillerObjectAtRaw(Address addr, int size,
+                               ClearFreedMemoryMode clear_memory_mode,
+                               ClearRecordedSlots clear_slots_mode,
+                               VerifyNoSlotsRecorded verify_no_slots_recorded);
 
   // Range write barrier implementation.
   template <int kModeMask, typename TSlot>
@@ -1984,10 +2021,8 @@ class Heap {
 
   bool always_allocate() { return always_allocate_scope_count_ != 0; }
 
-  V8_EXPORT_PRIVATE bool CanExpandOldGeneration(size_t size);
   V8_EXPORT_PRIVATE bool CanExpandOldGenerationBackground(LocalHeap* local_heap,
                                                           size_t size);
-  V8_EXPORT_PRIVATE bool CanPromoteYoungAndExpandOldGeneration(size_t size);
 
   bool ShouldExpandOldGenerationOnSlowAllocation(
       LocalHeap* local_heap = nullptr);
@@ -2533,6 +2568,17 @@ class V8_NODISCARD AlwaysAllocateScope {
   Heap* heap_;
 };
 
+class V8_NODISCARD GCCallbacksScope final {
+ public:
+  explicit GCCallbacksScope(Heap* heap);
+  ~GCCallbacksScope();
+
+  bool CheckReenter() const;
+
+ private:
+  Heap* const heap_;
+};
+
 // Like AlwaysAllocateScope if the heap argument to the constructor is
 // non-null. No-op otherwise.
 //
@@ -2579,6 +2625,55 @@ class V8_NODISCARD CodePageCollectionMemoryModificationScope {
  private:
   Heap* heap_;
 };
+
+// Same as the CodePageCollectionMemoryModificationScope but without inlining
+// the code. This is a workaround for component build issue (crbug/1316800),
+// when a thread_local value can't be properly exported.
+class V8_EXPORT_PRIVATE V8_NODISCARD
+    CodePageCollectionMemoryModificationScopeForTesting
+    : public CodePageCollectionMemoryModificationScope {
+ public:
+  V8_NOINLINE explicit CodePageCollectionMemoryModificationScopeForTesting(
+      Heap* heap);
+  V8_NOINLINE ~CodePageCollectionMemoryModificationScopeForTesting();
+};
+
+// The CodePageHeaderModificationScope enables write access to Code space page
+// headers.
+// On most of the configurations it's a no-op because Code space page headers
+// are configured as writable and permissions are never changed.
+// However, on MacOS on ARM64 ("Apple M1"/Apple Silicon) the situation is
+// different. In order to be able to use fast W^X permissions switching
+// machinery (APRR/MAP_JIT) it's necessary to configure executable memory as
+// readable writable executable (RWX). Also, on MacOS on ARM64 reconfiguration
+// of RWX page permissions to anything else is prohibited.
+// So, in order to be able to allocate large code pages over freed regular
+// code pages and vice versa we have to allocate Code page headers as RWX too
+// and switch them to writable mode when it's necessary to modify the code page
+// header.
+// The scope can be used from any thread and affects only current thread, see
+// RwxMemoryWriteScope for details about semantics of the scope.
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT
+using CodePageHeaderModificationScope = RwxMemoryWriteScope;
+#else
+// When write protection of code page headers is not required the scope is
+// a no-op.
+using CodePageHeaderModificationScope = NopRwxMemoryWriteScope;
+#endif  // V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT
+
+// The CodeTPageHeaderModificationScope enables write access to CodeT objects
+// page headers.
+#if V8_EXTERNAL_CODE_SPACE
+// When V8_EXTERNAL_CODE_SPACE is enabled this scope is no-op because CodeT
+// objects are data objects and thus the page header is always in writable
+// state.
+using CodeTPageHeaderModificationScope = NopRwxMemoryWriteScope;
+#else
+// When V8_EXTERNAL_CODE_SPACE is disabled this scope is an alias to
+// CodePageHeaderModificationScope because in CodeT is a Code object and thus
+// write access to the page headers might be required.
+using CodeTPageHeaderModificationScope = CodePageHeaderModificationScope;
+#endif  // V8_EXTERNAL_CODE_SPACE
 
 // The CodePageMemoryModificationScope does not check if tansitions to
 // writeable and back to executable are actually allowed, i.e. the MemoryChunk
@@ -2804,6 +2899,17 @@ class V8_EXPORT_PRIVATE V8_NODISCARD EmbedderStackStateScope final {
 
   LocalEmbedderHeapTracer* const local_tracer_;
   const EmbedderHeapTracer::EmbedderStackState old_stack_state_;
+};
+
+class V8_NODISCARD CppClassNamesAsHeapObjectNameScope final {
+ public:
+  explicit CppClassNamesAsHeapObjectNameScope(v8::CppHeap* heap);
+  ~CppClassNamesAsHeapObjectNameScope();
+
+ private:
+  CppHeap* const cpp_heap_;
+  const cppgc::internal::HeapObjectNameForUnnamedObject
+      saved_heap_object_name_value_;
 };
 
 }  // namespace internal

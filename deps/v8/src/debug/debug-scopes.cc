@@ -956,8 +956,8 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
     if (context_->extension_object().is_null()) return;
     Handle<JSObject> extension(context_->extension_object(), isolate_);
     Handle<FixedArray> keys =
-        KeyAccumulator::GetKeys(extension, KeyCollectionMode::kOwnOnly,
-                                ENUMERABLE_STRINGS)
+        KeyAccumulator::GetKeys(isolate_, extension,
+                                KeyCollectionMode::kOwnOnly, ENUMERABLE_STRINGS)
             .ToHandleChecked();
 
     for (int i = 0; i < keys->length(); i++) {

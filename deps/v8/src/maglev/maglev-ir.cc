@@ -7,6 +7,7 @@
 #include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/codegen/interface-descriptors-inl.h"
+#include "src/codegen/interface-descriptors.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/register.h"
 #include "src/compiler/backend/instruction.h"
@@ -85,6 +86,10 @@ void UseFixed(Input& input, Register reg) {
   input.SetUnallocated(compiler::UnallocatedOperand::FIXED_REGISTER, reg.code(),
                        GetVirtualRegister(input.node()));
 }
+void UseFixed(Input& input, DoubleRegister reg) {
+  input.SetUnallocated(compiler::UnallocatedOperand::FIXED_FP_REGISTER,
+                       reg.code(), GetVirtualRegister(input.node()));
+}
 
 // ---
 // Code gen helpers.
@@ -100,7 +105,7 @@ void PushInput(MaglevCodeGenState* code_gen_state, const Input& input) {
     __ Push(operand.GetRegister());
   } else {
     DCHECK(operand.IsStackSlot());
-    __ Push(GetStackSlot(operand));
+    __ Push(code_gen_state->GetStackSlot(operand));
   }
 }
 
@@ -113,14 +118,14 @@ template <typename T, typename Enable = void>
 struct CopyForDeferredHelper {
   template <typename U>
   struct No_Copy_Helper_Implemented_For_Type;
-  static void Copy(MaglevCompilationUnit* compilation_unit,
+  static void Copy(MaglevCompilationInfo* compilation_info,
                    No_Copy_Helper_Implemented_For_Type<T>);
 };
 
 // Helper for copies by value.
 template <typename T, typename Enable = void>
 struct CopyForDeferredByValue {
-  static T Copy(MaglevCompilationUnit* compilation_unit, T node) {
+  static T Copy(MaglevCompilationInfo* compilation_info, T node) {
     return node;
   }
 };
@@ -139,10 +144,10 @@ template <typename T>
 struct CopyForDeferredHelper<
     T, typename std::enable_if<std::is_enum<T>::value>::type>
     : public CopyForDeferredByValue<T> {};
-// MaglevCompilationUnits are copied by value.
+// MaglevCompilationInfos are copied by value.
 template <>
-struct CopyForDeferredHelper<MaglevCompilationUnit*>
-    : public CopyForDeferredByValue<MaglevCompilationUnit*> {};
+struct CopyForDeferredHelper<MaglevCompilationInfo*>
+    : public CopyForDeferredByValue<MaglevCompilationInfo*> {};
 // Machine registers are copied by value.
 template <>
 struct CopyForDeferredHelper<Register>
@@ -151,36 +156,25 @@ struct CopyForDeferredHelper<Register>
 template <>
 struct CopyForDeferredHelper<BytecodeOffset>
     : public CopyForDeferredByValue<BytecodeOffset> {};
-
-// InterpreterFrameState is cloned.
-template <>
-struct CopyForDeferredHelper<const InterpreterFrameState*> {
-  static const InterpreterFrameState* Copy(
-      MaglevCompilationUnit* compilation_unit,
-      const InterpreterFrameState* frame_state) {
-    return compilation_unit->zone()->New<InterpreterFrameState>(
-        *compilation_unit, *frame_state);
-  }
-};
 // EagerDeoptInfo pointers are copied by value.
 template <>
 struct CopyForDeferredHelper<EagerDeoptInfo*>
     : public CopyForDeferredByValue<EagerDeoptInfo*> {};
 
 template <typename T>
-T CopyForDeferred(MaglevCompilationUnit* compilation_unit, T&& value) {
-  return CopyForDeferredHelper<T>::Copy(compilation_unit,
+T CopyForDeferred(MaglevCompilationInfo* compilation_info, T&& value) {
+  return CopyForDeferredHelper<T>::Copy(compilation_info,
                                         std::forward<T>(value));
 }
 
 template <typename T>
-T CopyForDeferred(MaglevCompilationUnit* compilation_unit, T& value) {
-  return CopyForDeferredHelper<T>::Copy(compilation_unit, value);
+T CopyForDeferred(MaglevCompilationInfo* compilation_info, T& value) {
+  return CopyForDeferredHelper<T>::Copy(compilation_info, value);
 }
 
 template <typename T>
-T CopyForDeferred(MaglevCompilationUnit* compilation_unit, const T& value) {
-  return CopyForDeferredHelper<T>::Copy(compilation_unit, value);
+T CopyForDeferred(MaglevCompilationInfo* compilation_info, const T& value) {
+  return CopyForDeferredHelper<T>::Copy(compilation_info, value);
 }
 
 template <typename Function, typename FunctionPointer = Function>
@@ -213,10 +207,10 @@ class DeferredCodeInfoImpl final : public DeferredCodeInfo {
   static constexpr size_t kSize = FunctionArgumentsTupleHelper<Function>::kSize;
 
   template <typename... InArgs>
-  explicit DeferredCodeInfoImpl(MaglevCompilationUnit* compilation_unit,
+  explicit DeferredCodeInfoImpl(MaglevCompilationInfo* compilation_info,
                                 FunctionPointer function, InArgs&&... args)
       : function(function),
-        args(CopyForDeferred(compilation_unit, std::forward<InArgs>(args))...) {
+        args(CopyForDeferred(compilation_info, std::forward<InArgs>(args))...) {
   }
 
   DeferredCodeInfoImpl(DeferredCodeInfoImpl&&) = delete;
@@ -244,8 +238,8 @@ void JumpToDeferredIf(Condition cond, MaglevCodeGenState* code_gen_state,
                       Function&& deferred_code_gen, Args&&... args) {
   using DeferredCodeInfoT = DeferredCodeInfoImpl<Function>;
   DeferredCodeInfoT* deferred_code =
-      code_gen_state->compilation_unit()->zone()->New<DeferredCodeInfoT>(
-          code_gen_state->compilation_unit(), deferred_code_gen,
+      code_gen_state->compilation_info()->zone()->New<DeferredCodeInfoT>(
+          code_gen_state->compilation_info(), deferred_code_gen,
           std::forward<Args>(args)...);
 
   code_gen_state->PushDeferredCode(deferred_code);
@@ -265,6 +259,19 @@ void RegisterEagerDeopt(MaglevCodeGenState* code_gen_state,
   if (deopt_info->deopt_entry_label.is_unused()) {
     code_gen_state->PushEagerDeopt(deopt_info);
   }
+}
+
+void EmitEagerDeopt(MaglevCodeGenState* code_gen_state,
+                    EagerDeoptInfo* deopt_info) {
+  RegisterEagerDeopt(code_gen_state, deopt_info);
+  __ RecordComment("-- Jump to eager deopt");
+  __ jmp(&deopt_info->deopt_entry_label);
+}
+
+template <typename NodeT>
+void EmitEagerDeopt(MaglevCodeGenState* code_gen_state, NodeT* node) {
+  STATIC_ASSERT(NodeT::kProperties.can_eager_deopt());
+  EmitEagerDeopt(code_gen_state, node->eager_deopt_info());
 }
 
 void EmitEagerDeoptIf(Condition cond, MaglevCodeGenState* code_gen_state,
@@ -347,15 +354,32 @@ void NodeBase::Print(std::ostream& os,
   UNREACHABLE();
 }
 
+namespace {
+size_t GetInputLocationsArraySize(const MaglevCompilationUnit& compilation_unit,
+                                  const CheckpointedInterpreterState& state) {
+  size_t size = state.register_frame->size(compilation_unit);
+  const CheckpointedInterpreterState* parent = state.parent;
+  const MaglevCompilationUnit* parent_unit = compilation_unit.caller();
+  while (parent != nullptr) {
+    size += parent->register_frame->size(*parent_unit);
+    parent = parent->parent;
+    parent_unit = parent_unit->caller();
+  }
+  return size;
+}
+}  // namespace
+
 DeoptInfo::DeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
                      CheckpointedInterpreterState state)
-    : state(state),
+    : unit(compilation_unit),
+      state(state),
       input_locations(zone->NewArray<InputLocation>(
-          state.register_frame->size(compilation_unit))) {
+          GetInputLocationsArraySize(compilation_unit, state))) {
   // Default initialise if we're printing the graph, to avoid printing junk
   // values.
   if (FLAG_print_maglev_graph) {
-    for (size_t i = 0; i < state.register_frame->size(compilation_unit); ++i) {
+    for (size_t i = 0; i < GetInputLocationsArraySize(compilation_unit, state);
+         ++i) {
       new (&input_locations[i]) InputLocation();
     }
   }
@@ -374,6 +398,19 @@ void SmiConstant::GenerateCode(MaglevCodeGenState* code_gen_state,
 }
 void SmiConstant::PrintParams(std::ostream& os,
                               MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << value() << ")";
+}
+
+void Float64Constant::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                   const ProcessingState& state) {
+  DefineAsRegister(vreg_state, this);
+}
+void Float64Constant::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
+  __ Move(ToDoubleRegister(result()), value());
+}
+void Float64Constant::PrintParams(std::ostream& os,
+                                  MaglevGraphLabeller* graph_labeller) const {
   os << "(" << value() << ")";
 }
 
@@ -468,6 +505,52 @@ void RootConstant::PrintParams(std::ostream& os,
   os << "(" << RootsTable::name(index()) << ")";
 }
 
+void CreateEmptyArrayLiteral::AllocateVreg(
+    MaglevVregAllocationState* vreg_state, const ProcessingState& state) {
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void CreateEmptyArrayLiteral::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                           const ProcessingState& state) {
+  using D = CreateEmptyArrayLiteralDescriptor;
+  __ Move(kContextRegister, code_gen_state->native_context().object());
+  __ Move(D::GetRegisterParameter(D::kSlot), Smi::FromInt(feedback().index()));
+  __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
+  __ CallBuiltin(Builtin::kCreateEmptyArrayLiteral);
+}
+
+void CreateObjectLiteral::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                       const ProcessingState& state) {
+  UseRegister(boilerplate_descriptor());
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void CreateObjectLiteral::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                       const ProcessingState& state) {
+  __ Move(kContextRegister, code_gen_state->native_context().object());
+  __ Push(feedback().vector);
+  __ Push(Smi::FromInt(feedback().index()));
+  __ Push(ToRegister(boilerplate_descriptor()));
+  __ Push(Smi::FromInt(flags()));
+  __ CallRuntime(Runtime::kCreateObjectLiteral);
+}
+
+void CreateShallowObjectLiteral::AllocateVreg(
+    MaglevVregAllocationState* vreg_state, const ProcessingState& state) {
+  using D = CreateShallowObjectLiteralDescriptor;
+  UseFixed(boilerplate_descriptor(), D::GetRegisterParameter(D::kDesc));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void CreateShallowObjectLiteral::GenerateCode(
+    MaglevCodeGenState* code_gen_state, const ProcessingState& state) {
+  using D = CreateShallowObjectLiteralDescriptor;
+  DCHECK_EQ(ToRegister(boilerplate_descriptor()),
+            D::GetRegisterParameter(D::kDesc));
+  __ Move(kContextRegister, code_gen_state->native_context().object());
+  __ Move(D::GetRegisterParameter(D::kFlags), Smi::FromInt(flags()));
+  __ Move(D::GetRegisterParameter(D::kSlot), Smi::FromInt(feedback().index()));
+  __ Move(D::GetRegisterParameter(D::kMaybeFeedbackVector), feedback().vector);
+  __ CallBuiltin(Builtin::kCreateShallowObjectLiteral);
+}
+
 void CheckMaps::AllocateVreg(MaglevVregAllocationState* vreg_state,
                              const ProcessingState& state) {
   UseRegister(actual_map_input());
@@ -525,53 +608,53 @@ void CheckMaps::PrintParams(std::ostream& os,
   os << "(" << *map().object() << ")";
 }
 
-void LoadField::AllocateVreg(MaglevVregAllocationState* vreg_state,
-                             const ProcessingState& state) {
+void LoadTaggedField::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                   const ProcessingState& state) {
   UseRegister(object_input());
   DefineAsRegister(vreg_state, this);
 }
-void LoadField::GenerateCode(MaglevCodeGenState* code_gen_state,
-                             const ProcessingState& state) {
-  // os << "kField, is in object = "
-  //    << LoadHandler::IsInobjectBits::decode(raw_handler)
-  //    << ", is double = " << LoadHandler::IsDoubleBits::decode(raw_handler)
-  //    << ", field index = " <<
-  //    LoadHandler::FieldIndexBits::decode(raw_handler);
-
+void LoadTaggedField::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
   Register object = ToRegister(object_input());
-  Register res = ToRegister(result());
-  int handler = this->handler();
-
-  if (LoadHandler::IsInobjectBits::decode(handler)) {
-    Operand input_field_operand = FieldOperand(
-        object, LoadHandler::FieldIndexBits::decode(handler) * kTaggedSize);
-    __ DecompressAnyTagged(res, input_field_operand);
-  } else {
-    Operand property_array_operand =
-        FieldOperand(object, JSReceiver::kPropertiesOrHashOffset);
-    __ DecompressAnyTagged(res, property_array_operand);
-
-    __ AssertNotSmi(res);
-
-    Operand input_field_operand = FieldOperand(
-        res, LoadHandler::FieldIndexBits::decode(handler) * kTaggedSize);
-    __ DecompressAnyTagged(res, input_field_operand);
-  }
-
-  if (LoadHandler::IsDoubleBits::decode(handler)) {
-    // TODO(leszeks): Copy out the value, either as a double or a HeapNumber.
-    UNSUPPORTED("LoadField double property");
-  }
+  __ AssertNotSmi(object);
+  __ DecompressAnyTagged(ToRegister(result()), FieldOperand(object, offset()));
 }
-void LoadField::PrintParams(std::ostream& os,
-                            MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << std::hex << handler() << std::dec << ")";
+void LoadTaggedField::PrintParams(std::ostream& os,
+                                  MaglevGraphLabeller* graph_labeller) const {
+  os << "(0x" << std::hex << offset() << std::dec << ")";
+}
+
+void LoadDoubleField::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                   const ProcessingState& state) {
+  UseRegister(object_input());
+  DefineAsRegister(vreg_state, this);
+  set_temporaries_needed(1);
+}
+void LoadDoubleField::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
+  Register tmp = temporaries().PopFirst();
+  Register object = ToRegister(object_input());
+  __ AssertNotSmi(object);
+  __ DecompressAnyTagged(tmp, FieldOperand(object, offset()));
+  __ AssertNotSmi(tmp);
+  __ Movsd(ToDoubleRegister(result()),
+           FieldOperand(tmp, HeapNumber::kValueOffset));
+}
+void LoadDoubleField::PrintParams(std::ostream& os,
+                                  MaglevGraphLabeller* graph_labeller) const {
+  os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
 void StoreField::AllocateVreg(MaglevVregAllocationState* vreg_state,
                               const ProcessingState& state) {
-  UseRegister(object_input());
+  UseFixed(object_input(), WriteBarrierDescriptor::ObjectRegister());
   UseRegister(value_input());
+  // We need the slot address to be free, and an additional scratch register
+  // for the value.
+  // TODO(leszeks): Add input clobbering to remove the need for this
+  // unconditional value scratch register.
+  RequireSpecificTemporary(WriteBarrierDescriptor::SlotAddressRegister());
+  set_temporaries_needed(2);
 }
 void StoreField::GenerateCode(MaglevCodeGenState* code_gen_state,
                               const ProcessingState& state) {
@@ -579,10 +662,19 @@ void StoreField::GenerateCode(MaglevCodeGenState* code_gen_state,
   Register value = ToRegister(value_input());
 
   if (StoreHandler::IsInobjectBits::decode(this->handler())) {
-    Operand operand = FieldOperand(
-        object,
-        StoreHandler::FieldIndexBits::decode(this->handler()) * kTaggedSize);
-    __ StoreTaggedField(operand, value);
+    RegList temps = temporaries();
+    DCHECK(temporaries().has(WriteBarrierDescriptor::SlotAddressRegister()));
+    temps.clear(WriteBarrierDescriptor::SlotAddressRegister());
+    int offset =
+        StoreHandler::FieldIndexBits::decode(this->handler()) * kTaggedSize;
+    __ StoreTaggedField(FieldOperand(object, offset), value);
+    // TODO(leszeks): Add input clobbering to remove the need for this
+    // unconditional value scratch register.
+    Register value_scratch = temps.PopFirst();
+    __ movq(value_scratch, value);
+    __ RecordWriteField(object, offset, value_scratch,
+                        WriteBarrierDescriptor::SlotAddressRegister(),
+                        SaveFPRegsMode::kSave);
   } else {
     // TODO(victorgomes): Out-of-object properties.
     UNSUPPORTED("StoreField out-of-object property");
@@ -617,26 +709,64 @@ void LoadNamedGeneric::PrintParams(std::ostream& os,
   os << "(" << name_ << ")";
 }
 
+void SetNamedGeneric::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                   const ProcessingState& state) {
+  using D = StoreWithVectorDescriptor;
+  UseFixed(context(), kContextRegister);
+  UseFixed(object_input(), D::GetRegisterParameter(D::kReceiver));
+  UseFixed(value_input(), D::GetRegisterParameter(D::kValue));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void SetNamedGeneric::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
+  using D = StoreWithVectorDescriptor;
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(object_input()), D::GetRegisterParameter(D::kReceiver));
+  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kValue));
+  __ Move(D::GetRegisterParameter(D::kName), name().object());
+  __ Move(D::GetRegisterParameter(D::kSlot),
+          Smi::FromInt(feedback().slot.ToInt()));
+  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
+  __ CallBuiltin(Builtin::kStoreIC);
+}
+void SetNamedGeneric::PrintParams(std::ostream& os,
+                                  MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << name_ << ")";
+}
+
 void GapMove::AllocateVreg(MaglevVregAllocationState* vreg_state,
                            const ProcessingState& state) {
   UNREACHABLE();
 }
 void GapMove::GenerateCode(MaglevCodeGenState* code_gen_state,
                            const ProcessingState& state) {
-  if (source().IsAnyRegister()) {
+  if (source().IsRegister()) {
     Register source_reg = ToRegister(source());
     if (target().IsAnyRegister()) {
+      DCHECK(target().IsRegister());
       __ movq(ToRegister(target()), source_reg);
     } else {
-      __ movq(ToMemOperand(target()), source_reg);
+      __ movq(code_gen_state->ToMemOperand(target()), source_reg);
+    }
+  } else if (source().IsDoubleRegister()) {
+    DoubleRegister source_reg = ToDoubleRegister(source());
+    if (target().IsAnyRegister()) {
+      DCHECK(target().IsDoubleRegister());
+      __ Movsd(ToDoubleRegister(target()), source_reg);
+    } else {
+      __ Movsd(code_gen_state->ToMemOperand(target()), source_reg);
     }
   } else {
-    MemOperand source_op = ToMemOperand(source());
-    if (target().IsAnyRegister()) {
+    DCHECK(source().IsAnyStackSlot());
+    MemOperand source_op = code_gen_state->ToMemOperand(source());
+    if (target().IsRegister()) {
       __ movq(ToRegister(target()), source_op);
+    } else if (target().IsDoubleRegister()) {
+      __ Movsd(ToDoubleRegister(target()), source_op);
     } else {
+      DCHECK(target().IsAnyStackSlot());
       __ movq(kScratchRegister, source_op);
-      __ movq(ToMemOperand(target()), kScratchRegister);
+      __ movq(code_gen_state->ToMemOperand(target()), kScratchRegister);
     }
   }
 }
@@ -723,9 +853,9 @@ void CheckedSmiUntag::GenerateCode(MaglevCodeGenState* code_gen_state,
   // TODO(leszeks): Consider optimizing away this test and using the carry bit
   // of the `sarl` for cases where the deopt uses the value from a different
   // register.
-  __ testb(value, Immediate(1));
-  EmitEagerDeoptIf(not_zero, code_gen_state, this);
-  __ sarl(value, Immediate(1));
+  Condition is_smi = __ CheckSmi(value);
+  EmitEagerDeoptIf(NegateCondition(is_smi), code_gen_state, this);
+  __ SmiToInt32(value);
 }
 
 void CheckedSmiTag::AllocateVreg(MaglevVregAllocationState* vreg_state,
@@ -767,6 +897,73 @@ void Int32AddWithOverflow::GenerateCode(MaglevCodeGenState* code_gen_state,
   Register right = ToRegister(right_input());
   __ addl(left, right);
   EmitEagerDeoptIf(overflow, code_gen_state, this);
+}
+
+void Float64Box::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                              const ProcessingState& state) {
+  using D = NewHeapNumberDescriptor;
+  UseFixed(input(), D::GetDoubleRegisterParameter(D::kValue));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void Float64Box::GenerateCode(MaglevCodeGenState* code_gen_state,
+                              const ProcessingState& state) {
+  // TODO(victorgomes): Inline heap number allocation.
+  __ CallBuiltin(Builtin::kNewHeapNumber);
+}
+
+void CheckedFloat64Unbox::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                       const ProcessingState& state) {
+  UseRegister(input());
+  DefineAsRegister(vreg_state, this);
+}
+void CheckedFloat64Unbox::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                       const ProcessingState& state) {
+  Register value = ToRegister(input());
+  Label is_not_smi, done;
+  // Check if Smi.
+  __ JumpIfNotSmi(value, &is_not_smi);
+  // If Smi, convert to Float64.
+  __ SmiToInt32(value);
+  __ Cvtlsi2sd(ToDoubleRegister(result()), value);
+  // TODO(v8:7700): Add a constraint to the register allocator to indicate that
+  // the value in the input register is "trashed" by this node. Currently we
+  // have the invariant that the input register should not be mutated when it is
+  // not the same as the output register or the function does not call a
+  // builtin. So, we recover the Smi value here.
+  __ SmiTag(value);
+  __ jmp(&done);
+  __ bind(&is_not_smi);
+  // Check if HeapNumber, deopt otherwise.
+  __ CompareRoot(FieldOperand(value, HeapObject::kMapOffset),
+                 RootIndex::kHeapNumberMap);
+  EmitEagerDeoptIf(not_equal, code_gen_state, this);
+  __ Movsd(ToDoubleRegister(result()),
+           FieldOperand(value, HeapNumber::kValueOffset));
+  __ bind(&done);
+}
+
+void ChangeInt32ToFloat64::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                        const ProcessingState& state) {
+  UseRegister(input());
+  DefineAsRegister(vreg_state, this);
+}
+void ChangeInt32ToFloat64::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                        const ProcessingState& state) {
+  __ Cvtlsi2sd(ToDoubleRegister(result()), ToRegister(input()));
+}
+
+void Float64Add::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                              const ProcessingState& state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineSameAsFirst(vreg_state, this);
+}
+
+void Float64Add::GenerateCode(MaglevCodeGenState* code_gen_state,
+                              const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  __ Addsd(left, right);
 }
 
 void Phi::AllocateVreg(MaglevVregAllocationState* vreg_state,
@@ -832,14 +1029,79 @@ void Call::GenerateCode(MaglevCodeGenState* code_gen_state,
       break;
   }
 
-  lazy_deopt_info()->deopting_call_return_pc = __ pc_offset_for_safepoint();
-  code_gen_state->PushLazyDeopt(lazy_deopt_info());
-
-  SafepointTableBuilder::Safepoint safepoint =
-      code_gen_state->safepoint_table_builder()->DefineSafepoint(
-          code_gen_state->masm());
-  code_gen_state->DefineSafepointStackSlots(safepoint);
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
 }
+
+void Construct::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                             const ProcessingState& state) {
+  using D = ConstructStubDescriptor;
+  UseFixed(function(), D::GetRegisterParameter(D::kTarget));
+  UseFixed(new_target(), D::GetRegisterParameter(D::kNewTarget));
+  UseFixed(context(), kContextRegister);
+  for (int i = 0; i < num_args(); i++) {
+    UseAny(arg(i));
+  }
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void Construct::GenerateCode(MaglevCodeGenState* code_gen_state,
+                             const ProcessingState& state) {
+  using D = ConstructStubDescriptor;
+  DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kTarget));
+  DCHECK_EQ(ToRegister(new_target()), D::GetRegisterParameter(D::kNewTarget));
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+
+  for (int i = num_args() - 1; i >= 0; --i) {
+    PushInput(code_gen_state, arg(i));
+  }
+
+  uint32_t arg_count = num_args();
+  __ Move(D::GetRegisterParameter(D::kActualArgumentsCount),
+          Immediate(arg_count));
+
+  __ CallBuiltin(Builtin::kConstruct);
+
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+}
+
+namespace {
+
+void AttemptOnStackReplacement(MaglevCodeGenState* code_gen_state,
+                               int32_t loop_depth, FeedbackSlot feedback_slot) {
+  // TODO(v8:7700): Implement me. See also
+  // InterpreterAssembler::OnStackReplacement.
+}
+
+void UpdateInterruptBudgetAndMaybeCallRuntime(
+    MaglevCodeGenState* code_gen_state, Register scratch,
+    int32_t relative_jump_bytecode_offset) {
+  Label out;
+  // TODO(v8:7700): Remove once regalloc is fixed. See crrev.com/c/3625978.
+  __ Push(scratch);
+  __ movq(scratch, MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
+  __ LoadTaggedPointerField(
+      scratch, FieldOperand(scratch, JSFunction::kFeedbackCellOffset));
+  __ addl(FieldOperand(scratch, FeedbackCell::kInterruptBudgetOffset),
+          Immediate(relative_jump_bytecode_offset));
+  __ j(greater_equal, &out);
+
+  __ Move(kContextRegister, code_gen_state->native_context().object());
+  __ Push(MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
+  __ CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck, 1);
+
+  __ bind(&out);
+  // TODO(v8:7700): Remove once regalloc is fixed. See crrev.com/c/3625978.
+  __ Pop(scratch);
+}
+
+void UpdateInterruptBudgetAndMaybeCallRuntime(
+    MaglevCodeGenState* code_gen_state, Register scratch,
+    base::Optional<uint32_t> relative_jump_bytecode_offset) {
+  if (!relative_jump_bytecode_offset.has_value()) return;
+  UpdateInterruptBudgetAndMaybeCallRuntime(
+      code_gen_state, scratch, relative_jump_bytecode_offset.value());
+}
+
+}  // namespace
 
 // ---
 // Control nodes
@@ -854,7 +1116,20 @@ void Return::GenerateCode(MaglevCodeGenState* code_gen_state,
 
   // We're not going to continue execution, so we can use an arbitrary register
   // here instead of relying on temporaries from the register allocator.
-  Register actual_params_size = r8;
+  Register scratch = r8;
+
+  UpdateInterruptBudgetAndMaybeCallRuntime(code_gen_state, scratch,
+                                           relative_jump_bytecode_offset_);
+
+  // Read the formal number of parameters from the top level compilation unit
+  // (i.e. the outermost, non inlined function).
+  int formal_params_size = code_gen_state->compilation_info()
+                               ->toplevel_compilation_unit()
+                               ->parameter_count();
+
+  // We're not going to continue execution, so we can use an arbitrary register
+  // here instead of relying on temporaries from the register allocator.
+  Register actual_params_size = scratch;
 
   // Compute the size of the actual parameters + receiver (in bytes).
   // TODO(leszeks): Consider making this an input into Return to re-use the
@@ -869,12 +1144,11 @@ void Return::GenerateCode(MaglevCodeGenState* code_gen_state,
   // If actual is bigger than formal, then we should use it to free up the stack
   // arguments.
   Label drop_dynamic_arg_size;
-  __ cmpq(actual_params_size, Immediate(code_gen_state->parameter_count()));
+  __ cmpq(actual_params_size, Immediate(formal_params_size));
   __ j(greater, &drop_dynamic_arg_size);
 
   // Drop receiver + arguments according to static formal arguments size.
-  __ Ret(code_gen_state->parameter_count() * kSystemPointerSize,
-         kScratchRegister);
+  __ Ret(formal_params_size * kSystemPointerSize, kScratchRegister);
 
   __ bind(&drop_dynamic_arg_size);
   // Drop receiver + arguments according to dynamic arguments size.
@@ -887,13 +1161,47 @@ void Deopt::AllocateVreg(MaglevVregAllocationState* vreg_state,
                          const ProcessingState& state) {}
 void Deopt::GenerateCode(MaglevCodeGenState* code_gen_state,
                          const ProcessingState& state) {
-  EmitEagerDeoptIf(always, code_gen_state, this);
+  EmitEagerDeopt(code_gen_state, this);
 }
 
 void Jump::AllocateVreg(MaglevVregAllocationState* vreg_state,
-                        const ProcessingState& state) {}
+                        const ProcessingState& state) {
+  set_temporaries_needed(1);
+}
 void Jump::GenerateCode(MaglevCodeGenState* code_gen_state,
                         const ProcessingState& state) {
+  UpdateInterruptBudgetAndMaybeCallRuntime(
+      code_gen_state, temporaries().PopFirst(), relative_jump_bytecode_offset_);
+
+  // Avoid emitting a jump to the next block.
+  if (target() != state.next_block()) {
+    __ jmp(target()->label());
+  }
+}
+
+void JumpToInlined::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                 const ProcessingState& state) {}
+void JumpToInlined::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                 const ProcessingState& state) {
+  // Avoid emitting a jump to the next block.
+  if (target() != state.next_block()) {
+    __ jmp(target()->label());
+  }
+}
+void JumpToInlined::PrintParams(std::ostream& os,
+                                MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << Brief(*unit()->shared_function_info().object()) << ")";
+}
+
+void JumpFromInlined::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                   const ProcessingState& state) {
+  set_temporaries_needed(1);
+}
+void JumpFromInlined::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
+  UpdateInterruptBudgetAndMaybeCallRuntime(
+      code_gen_state, temporaries().PopFirst(), relative_jump_bytecode_offset_);
+
   // Avoid emitting a jump to the next block.
   if (target() != state.next_block()) {
     __ jmp(target()->label());
@@ -901,9 +1209,16 @@ void Jump::GenerateCode(MaglevCodeGenState* code_gen_state,
 }
 
 void JumpLoop::AllocateVreg(MaglevVregAllocationState* vreg_state,
-                            const ProcessingState& state) {}
+                            const ProcessingState& state) {
+  set_temporaries_needed(1);
+}
 void JumpLoop::GenerateCode(MaglevCodeGenState* code_gen_state,
                             const ProcessingState& state) {
+  AttemptOnStackReplacement(code_gen_state, loop_depth_, feedback_slot_);
+  UpdateInterruptBudgetAndMaybeCallRuntime(code_gen_state,
+                                           temporaries().PopFirst(),
+                                           -relative_jump_bytecode_offset_);
+
   __ jmp(target()->label());
 }
 

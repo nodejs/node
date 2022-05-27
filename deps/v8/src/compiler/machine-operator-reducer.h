@@ -37,15 +37,15 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   friend class Word32Adapter;
   friend class Word64Adapter;
 
-  Node* Float32Constant(volatile float value);
-  Node* Float64Constant(volatile double value);
+  Node* Float32Constant(float value);
+  Node* Float64Constant(double value);
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
   Node* Uint32Constant(uint32_t value) {
-    return Int32Constant(bit_cast<int32_t>(value));
+    return Int32Constant(base::bit_cast<int32_t>(value));
   }
   Node* Uint64Constant(uint64_t value) {
-    return Int64Constant(bit_cast<int64_t>(value));
+    return Int64Constant(base::bit_cast<int64_t>(value));
   }
   Node* Float64Mul(Node* lhs, Node* rhs);
   Node* Float64PowHalf(Node* value);
@@ -65,10 +65,10 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Node* TruncateInt64ToInt32(Node* value);
 
   Reduction ReplaceBool(bool value) { return ReplaceInt32(value ? 1 : 0); }
-  Reduction ReplaceFloat32(volatile float value) {
+  Reduction ReplaceFloat32(float value) {
     return Replace(Float32Constant(value));
   }
-  Reduction ReplaceFloat64(volatile double value) {
+  Reduction ReplaceFloat64(double value) {
     return Replace(Float64Constant(value));
   }
   Reduction ReplaceInt32(int32_t value) {

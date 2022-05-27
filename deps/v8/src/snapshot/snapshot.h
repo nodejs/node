@@ -105,12 +105,17 @@ class Snapshot : public AllStatic {
 
   static bool HasContextSnapshot(Isolate* isolate, size_t index);
   static bool EmbedsScript(Isolate* isolate);
+  V8_EXPORT_PRIVATE static uint32_t GetExpectedChecksum(
+      const v8::StartupData* data);
+  V8_EXPORT_PRIVATE static uint32_t CalculateChecksum(
+      const v8::StartupData* data);
   V8_EXPORT_PRIVATE static bool VerifyChecksum(const v8::StartupData* data);
   static bool ExtractRehashability(const v8::StartupData* data);
   static bool VersionIsValid(const v8::StartupData* data);
 
   // To be implemented by the snapshot source.
   static const v8::StartupData* DefaultSnapshotBlob();
+  static bool ShouldVerifyChecksum(const v8::StartupData* data);
 
 #ifdef DEBUG
   static bool SnapshotIsValid(const v8::StartupData* snapshot_blob);

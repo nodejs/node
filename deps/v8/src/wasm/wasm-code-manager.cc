@@ -213,8 +213,8 @@ bool WasmCode::ShouldBeLogged(Isolate* isolate) {
   // The return value is cached in {WasmEngine::IsolateData::log_codes}. Ensure
   // to call {WasmEngine::EnableCodeLogging} if this return value would change
   // for any isolate. Otherwise we might lose code events.
-  return isolate->logger()->is_listening_to_code_events() ||
-         isolate->code_event_dispatcher()->IsListeningToCodeEvents() ||
+  return isolate->v8_file_logger()->is_listening_to_code_events() ||
+         isolate->log_event_dispatcher()->is_listening_to_code_events() ||
          isolate->is_profiling();
 }
 
@@ -288,7 +288,7 @@ void WasmCode::LogCode(Isolate* isolate, const char* source_url,
   }
 
   int code_offset = module->functions[index_].code.offset();
-  PROFILE(isolate, CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this, name,
+  PROFILE(isolate, CodeCreateEvent(LogEventListener::FUNCTION_TAG, this, name,
                                    source_url, code_offset, script_id));
 }
 
@@ -1999,7 +1999,7 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
   // will have to determine whether we set kMapAsJittable or not.
   DCHECK(!FLAG_jitless);
   VirtualMemory mem(page_allocator, size, hint, allocate_page_size,
-                    VirtualMemory::kMapAsJittable);
+                    JitPermission::kMapAsJittable);
   if (!mem.IsReserved()) return {};
   TRACE_HEAP("VMem alloc: 0x%" PRIxPTR ":0x%" PRIxPTR " (%zu)\n", mem.address(),
              mem.end(), mem.size());
@@ -2020,8 +2020,13 @@ namespace {
 // separate code spaces being allocated (compile time and runtime overhead),
 // choosing them too large results in over-reservation (virtual address space
 // only).
-// In doubt, choose the numbers slightly too large, because over-reservation is
-// less critical than multiple separate code spaces (especially on 64-bit).
+// In doubt, choose the numbers slightly too large on 64-bit systems (where
+// {kNeedsFarJumpsBetweenCodeSpaces} is {true}). Over-reservation is less
+// critical in a 64-bit address space, but separate code spaces cause overhead.
+// On 32-bit systems (where {kNeedsFarJumpsBetweenCodeSpaces} is {false}), the
+// opposite is true: Multiple code spaces are cheaper, and address space is
+// scarce, hence choose numbers slightly too small.
+//
 // Numbers can be determined by running benchmarks with
 // --trace-wasm-compilation-times, and piping the output through
 // tools/wasm/code-size-factors.py.
@@ -2033,13 +2038,13 @@ constexpr size_t kLiftoffCodeSizeMultiplier = 4;
 constexpr size_t kImportSize = 640;
 #elif V8_TARGET_ARCH_IA32
 constexpr size_t kTurbofanFunctionOverhead = 20;
-constexpr size_t kTurbofanCodeSizeMultiplier = 4;
+constexpr size_t kTurbofanCodeSizeMultiplier = 3;
 constexpr size_t kLiftoffFunctionOverhead = 48;
-constexpr size_t kLiftoffCodeSizeMultiplier = 5;
-constexpr size_t kImportSize = 320;
+constexpr size_t kLiftoffCodeSizeMultiplier = 3;
+constexpr size_t kImportSize = 600;
 #elif V8_TARGET_ARCH_ARM
 constexpr size_t kTurbofanFunctionOverhead = 44;
-constexpr size_t kTurbofanCodeSizeMultiplier = 4;
+constexpr size_t kTurbofanCodeSizeMultiplier = 3;
 constexpr size_t kLiftoffFunctionOverhead = 96;
 constexpr size_t kLiftoffCodeSizeMultiplier = 5;
 constexpr size_t kImportSize = 550;
@@ -2110,7 +2115,7 @@ size_t WasmCodeManager::EstimateNativeModuleCodeSize(
   // With dynamic tiering we don't expect to compile more than 25% with
   // TurboFan. If there is no liftoff though then all code will get generated
   // by TurboFan.
-  if (include_liftoff && dynamic_tiering == DynamicTiering::kEnabled) {
+  if (include_liftoff && dynamic_tiering) {
     size_of_turbofan /= 4;
   }
 
@@ -2182,6 +2187,49 @@ void WasmCodeManager::InitializeMemoryProtectionKeyPermissionsIfSupported()
   }
 }
 
+base::AddressRegion WasmCodeManager::AllocateAssemblerBufferSpace(int size) {
+#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
+  if (MemoryProtectionKeysEnabled()) {
+    auto* page_allocator = GetPlatformPageAllocator();
+    size_t page_size = page_allocator->AllocatePageSize();
+    size = RoundUp(size, page_size);
+    void* mapped = AllocatePages(page_allocator, nullptr, size, page_size,
+                                 PageAllocator::kNoAccess);
+    if (V8_UNLIKELY(!mapped)) {
+      constexpr auto format = base::StaticCharVector(
+          "Cannot allocate %d more bytes for assembler buffers");
+      constexpr int kMaxMessageLength =
+          format.size() - 3 + std::numeric_limits<size_t>::digits10;
+      base::EmbeddedVector<char, kMaxMessageLength + 1> message;
+      SNPrintF(message, format.begin(), size);
+      V8::FatalProcessOutOfMemory(nullptr, message.begin());
+      UNREACHABLE();
+    }
+    auto region =
+        base::AddressRegionOf(reinterpret_cast<uint8_t*>(mapped), size);
+    CHECK(SetPermissionsAndMemoryProtectionKey(page_allocator, region,
+                                               PageAllocator::kReadWrite,
+                                               memory_protection_key_));
+    return region;
+  }
+#endif  // defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
+  DCHECK(!MemoryProtectionKeysEnabled());
+  return base::AddressRegionOf(new uint8_t[size], size);
+}
+
+void WasmCodeManager::FreeAssemblerBufferSpace(base::AddressRegion region) {
+#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
+  if (MemoryProtectionKeysEnabled()) {
+    auto* page_allocator = GetPlatformPageAllocator();
+    FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
+              region.size());
+    return;
+  }
+#endif  // defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
+  DCHECK(!MemoryProtectionKeysEnabled());
+  delete[] reinterpret_cast<uint8_t*>(region.begin());
+}
+
 std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, size_t code_size_estimate,
     std::shared_ptr<const WasmModule> module) {
@@ -2233,11 +2281,10 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   size_t size = code_space.size();
   Address end = code_space.end();
   std::shared_ptr<NativeModule> ret;
-  DynamicTiering dynamic_tiering = isolate->IsWasmDynamicTieringEnabled()
-                                       ? DynamicTiering::kEnabled
-                                       : DynamicTiering::kDisabled;
-  new NativeModule(enabled, dynamic_tiering, std::move(code_space),
-                   std::move(module), isolate->async_counters(), &ret);
+  new NativeModule(enabled,
+                   DynamicTiering{isolate->IsWasmDynamicTieringEnabled()},
+                   std::move(code_space), std::move(module),
+                   isolate->async_counters(), &ret);
   // The constructor initialized the shared_ptr.
   DCHECK_NOT_NULL(ret);
   TRACE_HEAP("New NativeModule %p: Mem: 0x%" PRIxPTR ",+%zu\n", ret.get(),

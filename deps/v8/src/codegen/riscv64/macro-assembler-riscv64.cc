@@ -400,7 +400,7 @@ void TurboAssembler::Add64(Register rd, Register rs, const Operand& rt) {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
       BlockTrampolinePoolScope block_trampoline_pool(this);
-      Li(scratch, rt.immediate());
+      li(scratch, rt);
       add(rd, rs, scratch);
     }
   }
@@ -485,13 +485,13 @@ void TurboAssembler::Sub64(Register rd, Register rs, const Operand& rt) {
       DCHECK(rt.immediate() != std::numeric_limits<int32_t>::min());
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      Li(scratch, -rt.immediate());
+      li(scratch, Operand(-rt.immediate()));
       add(rd, rs, scratch);
     } else {
       // li handles the relocation.
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      Li(scratch, rt.immediate());
+      li(scratch, rt);
       sub(rd, rs, scratch);
     }
   }
@@ -2415,13 +2415,14 @@ void TurboAssembler::InsertLowWordF64(FPURegister dst, Register src_low) {
 
 void TurboAssembler::LoadFPRImmediate(FPURegister dst, uint32_t src) {
   // Handle special values first.
-  if (src == bit_cast<uint32_t>(0.0f) && has_single_zero_reg_set_) {
+  if (src == base::bit_cast<uint32_t>(0.0f) && has_single_zero_reg_set_) {
     if (dst != kDoubleRegZero) fmv_s(dst, kDoubleRegZero);
-  } else if (src == bit_cast<uint32_t>(-0.0f) && has_single_zero_reg_set_) {
+  } else if (src == base::bit_cast<uint32_t>(-0.0f) &&
+             has_single_zero_reg_set_) {
     Neg_s(dst, kDoubleRegZero);
   } else {
     if (dst == kDoubleRegZero) {
-      DCHECK(src == bit_cast<uint32_t>(0.0f));
+      DCHECK(src == base::bit_cast<uint32_t>(0.0f));
       fmv_w_x(dst, zero_reg);
       has_single_zero_reg_set_ = true;
       has_double_zero_reg_set_ = false;
@@ -2436,13 +2437,14 @@ void TurboAssembler::LoadFPRImmediate(FPURegister dst, uint32_t src) {
 
 void TurboAssembler::LoadFPRImmediate(FPURegister dst, uint64_t src) {
   // Handle special values first.
-  if (src == bit_cast<uint64_t>(0.0) && has_double_zero_reg_set_) {
+  if (src == base::bit_cast<uint64_t>(0.0) && has_double_zero_reg_set_) {
     if (dst != kDoubleRegZero) fmv_d(dst, kDoubleRegZero);
-  } else if (src == bit_cast<uint64_t>(-0.0) && has_double_zero_reg_set_) {
+  } else if (src == base::bit_cast<uint64_t>(-0.0) &&
+             has_double_zero_reg_set_) {
     Neg_d(dst, kDoubleRegZero);
   } else {
     if (dst == kDoubleRegZero) {
-      DCHECK(src == bit_cast<uint64_t>(0.0));
+      DCHECK(src == base::bit_cast<uint64_t>(0.0));
       fmv_d_x(dst, zero_reg);
       has_double_zero_reg_set_ = true;
       has_single_zero_reg_set_ = false;
@@ -4562,6 +4564,21 @@ void TurboAssembler::JumpIfSmi(Register value, Label* smi_label) {
   Register scratch = temps.Acquire();
   andi(scratch, value, kSmiTagMask);
   Branch(smi_label, eq, scratch, Operand(zero_reg));
+}
+
+void MacroAssembler::JumpIfCodeTIsMarkedForDeoptimization(
+    Register codet, Register scratch, Label* if_marked_for_deoptimization) {
+  LoadTaggedPointerField(
+      scratch, FieldMemOperand(codet, Code::kCodeDataContainerOffset));
+  Lw(scratch,
+     FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
+  And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
+  Branch(if_marked_for_deoptimization, ne, scratch, Operand(zero_reg));
+}
+
+Operand MacroAssembler::ClearedValue() const {
+  return Operand(
+      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
 }
 
 void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {

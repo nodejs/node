@@ -1257,7 +1257,7 @@ FieldAccess AccessBuilder::ForFeedbackVectorInvocationCount() {
 FieldAccess AccessBuilder::ForFeedbackVectorFlags() {
   FieldAccess access = {
       kTaggedBase,        FeedbackVector::kFlagsOffset, Handle<Name>(),
-      MaybeHandle<Map>(), TypeCache::Get()->kUint32,    MachineType::Uint32(),
+      MaybeHandle<Map>(), TypeCache::Get()->kUint16,    MachineType::Uint16(),
       kNoWriteBarrier};
   return access;
 }

@@ -3570,7 +3570,7 @@ uint32_t Assembler::FPToImm8(double imm) {
   DCHECK(IsImmFP64(imm));
   // bits: aBbb.bbbb.bbcd.efgh.0000.0000.0000.0000
   //       0000.0000.0000.0000.0000.0000.0000.0000
-  uint64_t bits = bit_cast<uint64_t>(imm);
+  uint64_t bits = base::bit_cast<uint64_t>(imm);
   // bit7: a000.0000
   uint64_t bit7 = ((bits >> 63) & 0x1) << 7;
   // bit6: 0b00.0000
@@ -4235,7 +4235,7 @@ bool Assembler::IsImmConditionalCompare(int64_t immediate) {
 bool Assembler::IsImmFP32(float imm) {
   // Valid values will have the form:
   // aBbb.bbbc.defg.h000.0000.0000.0000.0000
-  uint32_t bits = bit_cast<uint32_t>(imm);
+  uint32_t bits = base::bit_cast<uint32_t>(imm);
   // bits[19..0] are cleared.
   if ((bits & 0x7FFFF) != 0) {
     return false;
@@ -4259,7 +4259,7 @@ bool Assembler::IsImmFP64(double imm) {
   // Valid values will have the form:
   // aBbb.bbbb.bbcd.efgh.0000.0000.0000.0000
   // 0000.0000.0000.0000.0000.0000.0000.0000
-  uint64_t bits = bit_cast<uint64_t>(imm);
+  uint64_t bits = base::bit_cast<uint64_t>(imm);
   // bits[47..0] are cleared.
   if ((bits & 0xFFFFFFFFFFFFL) != 0) {
     return false;

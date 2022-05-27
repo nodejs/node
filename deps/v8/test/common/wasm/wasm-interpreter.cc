@@ -2437,8 +2437,6 @@ class WasmInterpreterInternals {
       UNOP_CASE(F32x4Abs, f32x4, float4, 4, std::abs(a))
       UNOP_CASE(F32x4Neg, f32x4, float4, 4, -a)
       UNOP_CASE(F32x4Sqrt, f32x4, float4, 4, std::sqrt(a))
-      UNOP_CASE(F32x4RecipApprox, f32x4, float4, 4, base::Recip(a))
-      UNOP_CASE(F32x4RecipSqrtApprox, f32x4, float4, 4, base::RecipSqrt(a))
       UNOP_CASE(F32x4Ceil, f32x4, float4, 4,
                 (AixFpOpWorkaround<float, &ceilf>(a)))
       UNOP_CASE(F32x4Floor, f32x4, float4, 4,

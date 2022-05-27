@@ -6,6 +6,7 @@
 
 #include <set>
 
+#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/date/date.h"
 #include "src/execution/isolate.h"
@@ -57,54 +58,94 @@ enum class Unit {
  */
 
 // Struct
-struct DateTimeRecordCommon {
+struct DateRecordCommon {
   int32_t year;
   int32_t month;
   int32_t day;
+};
+
+struct TimeRecordCommon {
   int32_t hour;
   int32_t minute;
   int32_t second;
   int32_t millisecond;
   int32_t microsecond;
   int32_t nanosecond;
+};
+
+struct DateTimeRecordCommon {
+  DateRecordCommon date;
+  TimeRecordCommon time;
 };
 
 struct DateRecord {
-  int32_t year;
-  int32_t month;
-  int32_t day;
+  DateRecordCommon date;
   Handle<String> calendar;
-};
-
-struct InstantRecord : public DateTimeRecordCommon {
-  Handle<String> offset_string;
-};
-
-struct DateTimeRecord : public DateTimeRecordCommon {
-  Handle<String> calendar;
-};
-
-struct DurationRecord {
-  int64_t years;
-  int64_t months;
-  int64_t weeks;
-  int64_t days;
-  int64_t hours;
-  int64_t minutes;
-  int64_t seconds;
-  int64_t milliseconds;
-  int64_t microseconds;
-  int64_t nanoseconds;
 };
 
 struct TimeRecord {
-  int32_t hour;
-  int32_t minute;
-  int32_t second;
-  int32_t millisecond;
-  int32_t microsecond;
-  int32_t nanosecond;
+  TimeRecordCommon time;
   Handle<String> calendar;
+};
+
+struct DateTimeRecord {
+  DateRecordCommon date;
+  TimeRecordCommon time;
+  Handle<String> calendar;
+};
+
+struct InstantRecord {
+  DateRecordCommon date;
+  TimeRecordCommon time;
+  Handle<String> offset_string;
+};
+
+// #sec-temporal-time-duration-records
+struct TimeDurationRecord {
+  double days;
+  double hours;
+  double minutes;
+  double seconds;
+  double milliseconds;
+  double microseconds;
+  double nanoseconds;
+
+  // #sec-temporal-createtimedurationrecord
+  static Maybe<TimeDurationRecord> Create(Isolate* isolate, double days,
+                                          double hours, double minutes,
+                                          double seconds, double milliseconds,
+                                          double microseconds,
+                                          double nanoseconds);
+};
+
+// #sec-temporal-duration-records
+// Cannot reuse DateDurationRecord here due to duplicate days.
+struct DurationRecord {
+  double years;
+  double months;
+  double weeks;
+  TimeDurationRecord time_duration;
+  // #sec-temporal-createdurationrecord
+  static Maybe<DurationRecord> Create(Isolate* isolate, double years,
+                                      double months, double weeks, double days,
+                                      double hours, double minutes,
+                                      double seconds, double milliseconds,
+                                      double microseconds, double nanoseconds);
+};
+
+// #sec-temporal-isvalidduration
+bool IsValidDuration(Isolate* isolate, const DurationRecord& dur);
+
+// #sec-temporal-date-duration-records
+struct DateDurationRecord {
+  double years;
+  double months;
+  double weeks;
+  double days;
+  // #sec-temporal-createdatedurationrecord
+  static Maybe<DateDurationRecord> Create(Isolate* isolate, double years,
+                                          double months, double weeks,
+                                          double days);
 };
 
 struct TimeZoneRecord {
@@ -136,6 +177,9 @@ V8_WARN_UNUSED_RESULT Maybe<DateRecord> ParseTemporalDateString(
 // #sec-temporal-parsetemporaltimestring
 Maybe<TimeRecord> ParseTemporalTimeString(Isolate* isolate,
                                           Handle<String> iso_string);
+// #sec-temporal-parsetemporaldurationstring
+V8_WARN_UNUSED_RESULT Maybe<DurationRecord> ParseTemporalDurationString(
+    Isolate* isolate, Handle<String> iso_string);
 
 // #sec-temporal-parsetemporaltimezone
 V8_WARN_UNUSED_RESULT MaybeHandle<String> ParseTemporalTimeZone(
@@ -154,78 +198,67 @@ V8_WARN_UNUSED_RESULT Maybe<int64_t> ParseTimeZoneOffsetString(
 V8_WARN_UNUSED_RESULT MaybeHandle<BigInt> ParseTemporalInstant(
     Isolate* isolate, Handle<String> iso_string);
 
-void BalanceISODate(Isolate* isolate, int32_t* year, int32_t* month,
-                    int32_t* day);
+DateRecordCommon BalanceISODate(Isolate* isolate, const DateRecordCommon& date);
 
 // Math and Misc
 
 V8_WARN_UNUSED_RESULT MaybeHandle<BigInt> AddInstant(
-    Isolate* isolate, Handle<BigInt> epoch_nanoseconds, int64_t hours,
-    int64_t minutes, int64_t seconds, int64_t milliseconds,
-    int64_t microseconds, int64_t nanoseconds);
+    Isolate* isolate, Handle<BigInt> epoch_nanoseconds,
+    const TimeDurationRecord& addend);
 
 // #sec-temporal-balanceduration
-V8_WARN_UNUSED_RESULT Maybe<bool> BalanceDuration(
-    Isolate* isolate, int64_t* days, int64_t* hours, int64_t* minutes,
-    int64_t* seconds, int64_t* milliseconds, int64_t* microseconds,
-    int64_t* nanoseconds, Unit largest_unit, Handle<Object> relative_to,
-    const char* method_name);
+V8_WARN_UNUSED_RESULT Maybe<TimeDurationRecord> BalanceDuration(
+    Isolate* isolate, Unit largest_unit, Handle<Object> relative_to,
+    const TimeDurationRecord& duration, const char* method_name);
 
 V8_WARN_UNUSED_RESULT Maybe<DurationRecord> DifferenceISODateTime(
-    Isolate* isolate, int32_t y1, int32_t mon1, int32_t d1, int32_t h1,
-    int32_t min1, int32_t s1, int32_t ms1, int32_t mus1, int32_t ns1,
-    int32_t y2, int32_t mon2, int32_t d2, int32_t h2, int32_t min2, int32_t s2,
-    int32_t ms2, int32_t mus2, int32_t ns2, Handle<JSReceiver> calendar,
+    Isolate* isolate, const DateTimeRecordCommon& date_time1,
+    const DateTimeRecordCommon& date_time2, Handle<JSReceiver> calendar,
     Unit largest_unit, Handle<Object> relative_to, const char* method_name);
 
 // #sec-temporal-adddatetime
 V8_WARN_UNUSED_RESULT Maybe<DateTimeRecordCommon> AddDateTime(
-    Isolate* isolate, int32_t year, int32_t month, int32_t day, int32_t hour,
-    int32_t minute, int32_t second, int32_t millisecond, int32_t microsecond,
-    int32_t nanosecond, Handle<JSReceiver> calendar, const DurationRecord& dur,
+    Isolate* isolate, const DateTimeRecordCommon& date_time,
+    Handle<JSReceiver> calendar, const DurationRecord& addend,
     Handle<Object> options);
 
 // #sec-temporal-addzoneddatetime
 V8_WARN_UNUSED_RESULT MaybeHandle<BigInt> AddZonedDateTime(
     Isolate* isolate, Handle<BigInt> eopch_nanoseconds,
     Handle<JSReceiver> time_zone, Handle<JSReceiver> calendar,
-    const DurationRecord& duration, const char* method_name);
+    const DurationRecord& addend, const char* method_name);
 
 V8_WARN_UNUSED_RESULT MaybeHandle<BigInt> AddZonedDateTime(
     Isolate* isolate, Handle<BigInt> eopch_nanoseconds,
     Handle<JSReceiver> time_zone, Handle<JSReceiver> calendar,
-    const DurationRecord& duration, Handle<JSReceiver> options,
+    const DurationRecord& addend, Handle<JSReceiver> options,
     const char* method_name);
 
 // #sec-temporal-isvalidepochnanoseconds
 bool IsValidEpochNanoseconds(Isolate* isolate,
                              Handle<BigInt> epoch_nanoseconds);
 
-// #sec-temporal-isvalidduration
-bool IsValidDuration(Isolate* isolate, const DurationRecord& dur);
+struct NanosecondsToDaysResult {
+  double days;
+  double nanoseconds;
+  int64_t day_length;
+};
 
 // #sec-temporal-nanosecondstodays
-V8_WARN_UNUSED_RESULT Maybe<bool> NanosecondsToDays(
+V8_WARN_UNUSED_RESULT Maybe<NanosecondsToDaysResult> NanosecondsToDays(
     Isolate* isolate, Handle<BigInt> nanoseconds,
-    Handle<Object> relative_to_obj, int64_t* result_days,
-    int64_t* result_nanoseconds, int64_t* result_day_length,
-    const char* method_name);
+    Handle<Object> relative_to_obj, const char* method_name);
 
-V8_WARN_UNUSED_RESULT Maybe<bool> NanosecondsToDays(
-    Isolate* isolate, int64_t nanoseconds, Handle<Object> relative_to_obj,
-    int64_t* result_days, int64_t* resultj_nanoseconds,
-    int64_t* result_day_length, const char* method_name);
+V8_WARN_UNUSED_RESULT Maybe<NanosecondsToDaysResult> NanosecondsToDays(
+    Isolate* isolate, double nanoseconds, Handle<Object> relative_to_obj,
+    const char* method_name);
 
 // #sec-temporal-interpretisodatetimeoffset
 enum class OffsetBehaviour { kOption, kExact, kWall };
 
 V8_WARN_UNUSED_RESULT
-MaybeHandle<BigInt> GetEpochFromISOParts(Isolate* isolate, int32_t year,
-                                         int32_t month, int32_t day,
-                                         int32_t hour, int32_t minute,
-                                         int32_t second, int32_t millisecond,
-                                         int32_t microsecond,
-                                         int32_t nanosecond);
+Handle<BigInt> GetEpochFromISOParts(Isolate* isolate,
+                                    const DateTimeRecordCommon& date_time);
 
 int32_t DurationSign(Isolate* isolaet, const DurationRecord& dur);
 
@@ -235,42 +268,36 @@ int32_t ISODaysInMonth(Isolate* isolate, int32_t year, int32_t month);
 // #sec-temporal-isodaysinyear
 int32_t ISODaysInYear(Isolate* isolate, int32_t year);
 
-bool IsValidTime(Isolate* isolate, int32_t hour, int32_t minute, int32_t second,
-                 int32_t millisecond, int32_t microsecond, int32_t nanosecond);
+bool IsValidTime(Isolate* isolate, const TimeRecordCommon& time);
 
 // #sec-temporal-isvalidisodate
-bool IsValidISODate(Isolate* isolate, int32_t year, int32_t month, int32_t day);
+bool IsValidISODate(Isolate* isolate, const DateRecordCommon& date);
 
 // #sec-temporal-compareisodate
-int32_t CompareISODate(Isolate* isolate, int32_t y1, int32_t m1, int32_t d1,
-                       int32_t y2, int32_t m2, int32_t d2);
+int32_t CompareISODate(Isolate* isolate, const DateRecordCommon& date1,
+                       const DateRecordCommon& date2);
 
 // #sec-temporal-balanceisoyearmonth
 void BalanceISOYearMonth(Isolate* isolate, int32_t* year, int32_t* month);
 
 // #sec-temporal-balancetime
 V8_WARN_UNUSED_RESULT DateTimeRecordCommon
-BalanceTime(Isolate* isolate, int64_t hour, int64_t minute, int64_t second,
-            int64_t millisecond, int64_t microsecond, int64_t nanosecond);
+BalanceTime(const TimeRecordCommon& time);
 
 // #sec-temporal-differencetime
-V8_WARN_UNUSED_RESULT DurationRecord
-DifferenceTime(Isolate* isolate, int32_t h1, int32_t min1, int32_t s1,
-               int32_t ms1, int32_t mus1, int32_t ns1, int32_t h2, int32_t min2,
-               int32_t s2, int32_t ms2, int32_t mus2, int32_t ns2);
+V8_WARN_UNUSED_RESULT Maybe<TimeDurationRecord> DifferenceTime(
+    Isolate* isolate, const TimeRecordCommon& time1,
+    const TimeRecordCommon& time2);
 
 // #sec-temporal-addtime
 V8_WARN_UNUSED_RESULT DateTimeRecordCommon
-AddTime(Isolate* isolate, int64_t hour, int64_t minute, int64_t second,
-        int64_t millisecond, int64_t microsecond, int64_t nanosecond,
-        int64_t hours, int64_t minutes, int64_t seconds, int64_t milliseconds,
-        int64_t microseconds, int64_t nanoseconds);
+AddTime(Isolate* isolate, const TimeRecordCommon& time,
+        const TimeDurationRecord& addend);
 
 // #sec-temporal-totaldurationnanoseconds
-int64_t TotalDurationNanoseconds(Isolate* isolate, int64_t days, int64_t hours,
-                                 int64_t minutes, int64_t seconds,
-                                 int64_t milliseconds, int64_t microseconds,
-                                 int64_t nanoseconds, int64_t offset_shift);
+double TotalDurationNanoseconds(Isolate* isolate,
+                                const TimeDurationRecord& duration,
+                                double offset_shift);
 
 // #sec-temporal-totemporaltimerecord
 Maybe<TimeRecord> ToTemporalTimeRecord(Isolate* isolate,
@@ -324,12 +351,7 @@ MaybeHandle<Object> ToIntegerThrowOnInfinity(Isolate* isolate,
 MaybeHandle<Object> ToPositiveInteger(Isolate* isolate,
                                       Handle<Object> argument);
 
-inline int64_t floor_divide(int64_t a, int64_t b) {
-  return (((a) / (b)) + ((((a) < 0) && (((a) % (b)) != 0)) ? -1 : 0));
-}
-inline int64_t modulo(int64_t a, int64_t b) {
-  return ((((a) % (b)) + (b)) % (b));
-}
+inline double modulo(double a, int32_t b) { return a - std::floor(a / b) * b; }
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
@@ -348,12 +370,12 @@ inline int64_t modulo(int64_t a, int64_t b) {
 // (false)
 #endif  // DEBUG
 
-#define NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR()        \
+#define NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR()       \
   NewTypeError(                                     \
       MessageTemplate::kInvalidArgumentForTemporal, \
       isolate->factory()->NewStringFromStaticChars(TEMPORAL_DEBUG_INFO))
 
-#define NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR()        \
+#define NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR()       \
   NewRangeError(                                     \
       MessageTemplate::kInvalidTimeValueForTemporal, \
       isolate->factory()->NewStringFromStaticChars(TEMPORAL_DEBUG_INFO))
@@ -367,10 +389,8 @@ MaybeHandle<String> DefaultTimeZone(Isolate* isolate) {
 }
 
 // #sec-temporal-isodatetimewithinlimits
-bool ISODateTimeWithinLimits(Isolate* isolate, int32_t year, int32_t month,
-                             int32_t day, int32_t hour, int32_t minute,
-                             int32_t second, int32_t millisecond,
-                             int32_t microsecond, int32_t nanosecond) {
+bool ISODateTimeWithinLimits(Isolate* isolate,
+                             const DateTimeRecordCommon& date_time) {
   TEMPORAL_ENTER_FUNC();
   /**
    * Note: It is really overkill to decide within the limit by following the
@@ -388,17 +408,17 @@ bool ISODateTimeWithinLimits(Isolate* isolate, int32_t year, int32_t month,
    * Therefore 9999000 days before Jan 1 1970 is around Auguest 23, -25407 and
    * 9999000 days after Jan 1 1970 is around April 9, 29346.
    */
-  if (year > -25407 && year < 29346) return true;
-  if (year < -25407 || year > 29346) return false;
-  if (year == -25407) {
-    if (month > 8) return true;
-    if (month < 8) return false;
-    return (day > 23);
+  if (date_time.date.year > -25407 && date_time.date.year < 29346) return true;
+  if (date_time.date.year < -25407 || date_time.date.year > 29346) return false;
+  if (date_time.date.year == -25407) {
+    if (date_time.date.month > 8) return true;
+    if (date_time.date.month < 8) return false;
+    return (date_time.date.day > 23);
   } else {
-    DCHECK_EQ(year, 29346);
-    if (month > 4) return false;
-    if (month < 4) return true;
-    return (day > 23);
+    DCHECK_EQ(date_time.date.year, 29346);
+    if (date_time.date.month > 4) return false;
+    if (date_time.date.month < 4) return true;
+    return (date_time.date.day > 23);
   }
   // 1. Assert: year, month, day, hour, minute, second, millisecond,
   // microsecond, and nanosecond are integers.
@@ -437,7 +457,7 @@ bool ISOYearMonthWithinLimits(int32_t year, int32_t month) {
       Handle<T>::cast(isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
 
 #define THROW_INVALID_RANGE(T) \
-  THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), T);
+  THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), T);
 
 #define CONSTRUCTOR(name)                                                    \
   Handle<JSFunction>(                                                        \
@@ -492,8 +512,7 @@ MaybeHandle<JSTemporalCalendar> CreateTemporalCalendar(
 // #sec-temporal-createtemporaldate
 MaybeHandle<JSTemporalPlainDate> CreateTemporalDate(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
-    int32_t iso_year, int32_t iso_month, int32_t iso_day,
-    Handle<JSReceiver> calendar) {
+    const DateRecordCommon& date, Handle<JSReceiver> calendar) {
   TEMPORAL_ENTER_FUNC();
   // 1. Assert: isoYear is an integer.
   // 2. Assert: isoMonth is an integer.
@@ -501,13 +520,12 @@ MaybeHandle<JSTemporalPlainDate> CreateTemporalDate(
   // 4. Assert: Type(calendar) is Object.
   // 5. If ! IsValidISODate(isoYear, isoMonth, isoDay) is false, throw a
   // RangeError exception.
-  if (!IsValidISODate(isolate, iso_year, iso_month, iso_day)) {
+  if (!IsValidISODate(isolate, date)) {
     THROW_INVALID_RANGE(JSTemporalPlainDate);
   }
   // 6. If ! ISODateTimeWithinLimits(isoYear, isoMonth, isoDay, 12, 0, 0, 0, 0,
   // 0) is false, throw a RangeError exception.
-  if (!ISODateTimeWithinLimits(isolate, iso_year, iso_month, iso_day, 12, 0, 0,
-                               0, 0, 0)) {
+  if (!ISODateTimeWithinLimits(isolate, {date, {12, 0, 0, 0, 0, 0}})) {
     THROW_INVALID_RANGE(JSTemporalPlainDate);
   }
   // 7. If newTarget is not present, set it to %Temporal.PlainDate%.
@@ -519,11 +537,11 @@ MaybeHandle<JSTemporalPlainDate> CreateTemporalDate(
                                    JSTemporalPlainDate)
   object->set_year_month_day(0);
   // 9. Set object.[[ISOYear]] to isoYear.
-  object->set_iso_year(iso_year);
+  object->set_iso_year(date.year);
   // 10. Set object.[[ISOMonth]] to isoMonth.
-  object->set_iso_month(iso_month);
+  object->set_iso_month(date.month);
   // 11. Set object.[[ISODay]] to isoDay.
-  object->set_iso_day(iso_day);
+  object->set_iso_day(date.day);
   // 12. Set object.[[Calendar]] to calendar.
   object->set_calendar(*calendar);
   // 13. Return object.
@@ -531,40 +549,34 @@ MaybeHandle<JSTemporalPlainDate> CreateTemporalDate(
 }
 
 MaybeHandle<JSTemporalPlainDate> CreateTemporalDate(
-    Isolate* isolate, int32_t iso_year, int32_t iso_month, int32_t iso_day,
+    Isolate* isolate, const DateRecordCommon& date,
     Handle<JSReceiver> calendar) {
   TEMPORAL_ENTER_FUNC();
   return CreateTemporalDate(isolate, CONSTRUCTOR(plain_date),
-                            CONSTRUCTOR(plain_date), iso_year, iso_month,
-                            iso_day, calendar);
+                            CONSTRUCTOR(plain_date), date, calendar);
 }
 
 // #sec-temporal-createtemporaldatetime
 MaybeHandle<JSTemporalPlainDateTime> CreateTemporalDateTime(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
-    int32_t iso_year, int32_t iso_month, int32_t iso_day, int32_t hour,
-    int32_t minute, int32_t second, int32_t millisecond, int32_t microsecond,
-    int32_t nanosecond, Handle<JSReceiver> calendar) {
+    const DateTimeRecordCommon& date_time, Handle<JSReceiver> calendar) {
   TEMPORAL_ENTER_FUNC();
   // 1. Assert: isoYear, isoMonth, isoDay, hour, minute, second, millisecond,
   // microsecond, and nanosecond are integers.
   // 2. Assert: Type(calendar) is Object.
   // 3. If ! IsValidISODate(isoYear, isoMonth, isoDay) is false, throw a
   // RangeError exception.
-  if (!IsValidISODate(isolate, iso_year, iso_month, iso_day)) {
+  if (!IsValidISODate(isolate, date_time.date)) {
     THROW_INVALID_RANGE(JSTemporalPlainDateTime);
   }
   // 4. If ! IsValidTime(hour, minute, second, millisecond, microsecond,
   // nanosecond) is false, throw a RangeError exception.
-  if (!IsValidTime(isolate, hour, minute, second, millisecond, microsecond,
-                   nanosecond)) {
+  if (!IsValidTime(isolate, date_time.time)) {
     THROW_INVALID_RANGE(JSTemporalPlainDateTime);
   }
   // 5. If ! ISODateTimeWithinLimits(isoYear, isoMonth, isoDay, hour, minute,
   // second, millisecond, microsecond, nanosecond) is false, then
-  if (!ISODateTimeWithinLimits(isolate, iso_year, iso_month, iso_day, hour,
-                               minute, second, millisecond, microsecond,
-                               nanosecond)) {
+  if (!ISODateTimeWithinLimits(isolate, date_time)) {
     // a. Throw a RangeError exception.
     THROW_INVALID_RANGE(JSTemporalPlainDateTime);
   }
@@ -581,23 +593,23 @@ MaybeHandle<JSTemporalPlainDateTime> CreateTemporalDateTime(
   object->set_hour_minute_second(0);
   object->set_second_parts(0);
   // 8. Set object.[[ISOYear]] to isoYear.
-  object->set_iso_year(iso_year);
+  object->set_iso_year(date_time.date.year);
   // 9. Set object.[[ISOMonth]] to isoMonth.
-  object->set_iso_month(iso_month);
+  object->set_iso_month(date_time.date.month);
   // 10. Set object.[[ISODay]] to isoDay.
-  object->set_iso_day(iso_day);
+  object->set_iso_day(date_time.date.day);
   // 11. Set object.[[ISOHour]] to hour.
-  object->set_iso_hour(hour);
+  object->set_iso_hour(date_time.time.hour);
   // 12. Set object.[[ISOMinute]] to minute.
-  object->set_iso_minute(minute);
+  object->set_iso_minute(date_time.time.minute);
   // 13. Set object.[[ISOSecond]] to second.
-  object->set_iso_second(second);
+  object->set_iso_second(date_time.time.second);
   // 14. Set object.[[ISOMillisecond]] to millisecond.
-  object->set_iso_millisecond(millisecond);
+  object->set_iso_millisecond(date_time.time.millisecond);
   // 15. Set object.[[ISOMicrosecond]] to microsecond.
-  object->set_iso_microsecond(microsecond);
+  object->set_iso_microsecond(date_time.time.microsecond);
   // 16. Set object.[[ISONanosecond]] to nanosecond.
-  object->set_iso_nanosecond(nanosecond);
+  object->set_iso_nanosecond(date_time.time.nanosecond);
   // 17. Set object.[[Calendar]] to calendar.
   object->set_calendar(*calendar);
   // 18. Return object.
@@ -605,14 +617,12 @@ MaybeHandle<JSTemporalPlainDateTime> CreateTemporalDateTime(
 }
 
 MaybeHandle<JSTemporalPlainDateTime> CreateTemporalDateTimeDefaultTarget(
-    Isolate* isolate, int32_t iso_year, int32_t iso_month, int32_t iso_day,
-    int32_t hour, int32_t minute, int32_t second, int32_t millisecond,
-    int32_t microsecond, int32_t nanosecond, Handle<JSReceiver> calendar) {
+    Isolate* isolate, const DateTimeRecordCommon& date_time,
+    Handle<JSReceiver> calendar) {
   TEMPORAL_ENTER_FUNC();
   return CreateTemporalDateTime(isolate, CONSTRUCTOR(plain_date_time),
-                                CONSTRUCTOR(plain_date_time), iso_year,
-                                iso_month, iso_day, hour, minute, second,
-                                millisecond, microsecond, nanosecond, calendar);
+                                CONSTRUCTOR(plain_date_time), date_time,
+                                calendar);
 }
 
 }  // namespace
@@ -620,12 +630,9 @@ MaybeHandle<JSTemporalPlainDateTime> CreateTemporalDateTimeDefaultTarget(
 namespace temporal {
 
 MaybeHandle<JSTemporalPlainDateTime> CreateTemporalDateTime(
-    Isolate* isolate, int32_t iso_year, int32_t iso_month, int32_t iso_day,
-    int32_t hour, int32_t minute, int32_t second, int32_t millisecond,
-    int32_t microsecond, int32_t nanosecond, Handle<JSReceiver> calendar) {
-  return CreateTemporalDateTimeDefaultTarget(
-      isolate, iso_year, iso_month, iso_day, hour, minute, second, millisecond,
-      microsecond, nanosecond, calendar);
+    Isolate* isolate, const DateTimeRecordCommon& date_time,
+    Handle<JSReceiver> calendar) {
+  return CreateTemporalDateTimeDefaultTarget(isolate, date_time, calendar);
 }
 
 }  // namespace temporal
@@ -634,13 +641,11 @@ namespace {
 // #sec-temporal-createtemporaltime
 MaybeHandle<JSTemporalPlainTime> CreateTemporalTime(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
-    int32_t hour, int32_t minute, int32_t second, int32_t millisecond,
-    int32_t microsecond, int32_t nanosecond) {
+    const TimeRecordCommon& time) {
   TEMPORAL_ENTER_FUNC();
   // 2. If ! IsValidTime(hour, minute, second, millisecond, microsecond,
   // nanosecond) is false, throw a RangeError exception.
-  if (!IsValidTime(isolate, hour, minute, second, millisecond, microsecond,
-                   nanosecond)) {
+  if (!IsValidTime(isolate, time)) {
     THROW_INVALID_RANGE(JSTemporalPlainTime);
   }
 
@@ -657,17 +662,17 @@ MaybeHandle<JSTemporalPlainTime> CreateTemporalTime(
   object->set_hour_minute_second(0);
   object->set_second_parts(0);
   // 5. Set object.[[ISOHour]] to hour.
-  object->set_iso_hour(hour);
+  object->set_iso_hour(time.hour);
   // 6. Set object.[[ISOMinute]] to minute.
-  object->set_iso_minute(minute);
+  object->set_iso_minute(time.minute);
   // 7. Set object.[[ISOSecond]] to second.
-  object->set_iso_second(second);
+  object->set_iso_second(time.second);
   // 8. Set object.[[ISOMillisecond]] to millisecond.
-  object->set_iso_millisecond(millisecond);
+  object->set_iso_millisecond(time.millisecond);
   // 9. Set object.[[ISOMicrosecond]] to microsecond.
-  object->set_iso_microsecond(microsecond);
+  object->set_iso_microsecond(time.microsecond);
   // 10. Set object.[[ISONanosecond]] to nanosecond.
-  object->set_iso_nanosecond(nanosecond);
+  object->set_iso_nanosecond(time.nanosecond);
   // 11. Set object.[[Calendar]] to ? GetISO8601Calendar().
   object->set_calendar(*calendar);
 
@@ -676,12 +681,10 @@ MaybeHandle<JSTemporalPlainTime> CreateTemporalTime(
 }
 
 MaybeHandle<JSTemporalPlainTime> CreateTemporalTime(
-    Isolate* isolate, int32_t hour, int32_t minute, int32_t second,
-    int32_t millisecond, int32_t microsecond, int32_t nanosecond) {
+    Isolate* isolate, const TimeRecordCommon& time) {
   TEMPORAL_ENTER_FUNC();
   return CreateTemporalTime(isolate, CONSTRUCTOR(plain_time),
-                            CONSTRUCTOR(plain_time), hour, minute, second,
-                            millisecond, microsecond, nanosecond);
+                            CONSTRUCTOR(plain_time), time);
 }
 
 // #sec-temporal-createtemporalmonthday
@@ -694,7 +697,7 @@ MaybeHandle<JSTemporalPlainMonthDay> CreateTemporalMonthDay(
   // 2. Assert: Type(calendar) is Object.
   // 3. If ! IsValidISODate(referenceISOYear, isoMonth, isoDay) is false, throw
   // a RangeError exception.
-  if (!IsValidISODate(isolate, reference_iso_year, iso_month, iso_day)) {
+  if (!IsValidISODate(isolate, {reference_iso_year, iso_month, iso_day})) {
     THROW_INVALID_RANGE(JSTemporalPlainMonthDay);
   }
   // 4. If newTarget is not present, set it to %Temporal.PlainMonthDay%.
@@ -716,6 +719,15 @@ MaybeHandle<JSTemporalPlainMonthDay> CreateTemporalMonthDay(
   return object;
 }
 
+MaybeHandle<JSTemporalPlainMonthDay> CreateTemporalMonthDay(
+    Isolate* isolate, int32_t iso_month, int32_t iso_day,
+    Handle<JSReceiver> calendar, int32_t reference_iso_year) {
+  TEMPORAL_ENTER_FUNC();
+  return CreateTemporalMonthDay(isolate, CONSTRUCTOR(plain_month_day),
+                                CONSTRUCTOR(plain_month_day), iso_month,
+                                iso_day, calendar, reference_iso_year);
+}
+
 // #sec-temporal-createtemporalyearmonth
 MaybeHandle<JSTemporalPlainYearMonth> CreateTemporalYearMonth(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
@@ -726,7 +738,7 @@ MaybeHandle<JSTemporalPlainYearMonth> CreateTemporalYearMonth(
   // 2. Assert: Type(calendar) is Object.
   // 3. If ! IsValidISODate(isoYear, isoMonth, referenceISODay) is false, throw
   // a RangeError exception.
-  if (!IsValidISODate(isolate, iso_year, iso_month, reference_iso_day)) {
+  if (!IsValidISODate(isolate, {iso_year, iso_month, reference_iso_day})) {
     THROW_INVALID_RANGE(JSTemporalPlainYearMonth);
   }
   // 4. If ! ISOYearMonthWithinLimits(isoYear, isoMonth) is false, throw a
@@ -751,6 +763,15 @@ MaybeHandle<JSTemporalPlainYearMonth> CreateTemporalYearMonth(
   object->set_iso_day(reference_iso_day);
   // 11. Return object.
   return object;
+}
+
+MaybeHandle<JSTemporalPlainYearMonth> CreateTemporalYearMonth(
+    Isolate* isolate, int32_t iso_year, int32_t iso_month,
+    Handle<JSReceiver> calendar, int32_t reference_iso_day) {
+  TEMPORAL_ENTER_FUNC();
+  return CreateTemporalYearMonth(isolate, CONSTRUCTOR(plain_year_month),
+                                 CONSTRUCTOR(plain_year_month), iso_year,
+                                 iso_month, calendar, reference_iso_day);
 }
 
 // #sec-temporal-createtemporalzoneddatetime
@@ -780,6 +801,7 @@ MaybeHandle<JSTemporalZonedDateTime> CreateTemporalZonedDateTime(
   // 10. Return object.
   return object;
 }
+
 MaybeHandle<JSTemporalZonedDateTime> CreateTemporalZonedDateTime(
     Isolate* isolate, Handle<BigInt> epoch_nanoseconds,
     Handle<JSReceiver> time_zone, Handle<JSReceiver> calendar) {
@@ -789,20 +811,82 @@ MaybeHandle<JSTemporalZonedDateTime> CreateTemporalZonedDateTime(
                                      epoch_nanoseconds, time_zone, calendar);
 }
 
+inline double NormalizeMinusZero(double v) { return IsMinusZero(v) ? 0 : v; }
+
+// #sec-temporal-createdatedurationrecord
+Maybe<DateDurationRecord> DateDurationRecord::Create(
+    Isolate* isolate, double years, double months, double weeks, double days) {
+  // 1. If ! IsValidDuration(years, months, weeks, days, 0, 0, 0, 0, 0, 0) is
+  // false, throw a RangeError exception.
+  if (!IsValidDuration(isolate,
+                       {years, months, weeks, {days, 0, 0, 0, 0, 0, 0}})) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<DateDurationRecord>());
+  }
+  // 2. Return the Record { [[Years]]: ℝ(𝔽(years)), [[Months]]: ℝ(𝔽(months)),
+  // [[Weeks]]: ℝ(𝔽(weeks)), [[Days]]: ℝ(𝔽(days)) }.
+  DateDurationRecord record = {years, months, weeks, days};
+  return Just(record);
+}
+
+// #sec-temporal-createtimedurationrecord
+Maybe<TimeDurationRecord> TimeDurationRecord::Create(
+    Isolate* isolate, double days, double hours, double minutes, double seconds,
+    double milliseconds, double microseconds, double nanoseconds) {
+  // 1. If ! IsValidDuration(0, 0, 0, days, hours, minutes, seconds,
+  // milliseconds, microseconds, nanoseconds) is false, throw a RangeError
+  // exception.
+  TimeDurationRecord record = {days,         hours,        minutes,    seconds,
+                               milliseconds, microseconds, nanoseconds};
+  if (!IsValidDuration(isolate, {0, 0, 0, record})) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<TimeDurationRecord>());
+  }
+  // 2. Return the Record { [[Days]]: ℝ(𝔽(days)), [[Hours]]: ℝ(𝔽(hours)),
+  // [[Minutes]]: ℝ(𝔽(minutes)), [[Seconds]]: ℝ(𝔽(seconds)), [[Milliseconds]]:
+  // ℝ(𝔽(milliseconds)), [[Microseconds]]: ℝ(𝔽(microseconds)), [[Nanoseconds]]:
+  // ℝ(𝔽(nanoseconds)) }.
+  return Just(record);
+}
+
+// #sec-temporal-createdurationrecord
+Maybe<DurationRecord> DurationRecord::Create(
+    Isolate* isolate, double years, double months, double weeks, double days,
+    double hours, double minutes, double seconds, double milliseconds,
+    double microseconds, double nanoseconds) {
+  // 1. If ! IsValidDuration(years, months, weeks, days, hours, minutes,
+  // seconds, milliseconds, microseconds, nanoseconds) is false, throw a
+  // RangeError exception.
+  DurationRecord record = {
+      years,
+      months,
+      weeks,
+      {days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds}};
+  if (!IsValidDuration(isolate, record)) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<DurationRecord>());
+  }
+  // 2. Return the Record { [[Years]]: ℝ(𝔽(years)), [[Months]]: ℝ(𝔽(months)),
+  // [[Weeks]]: ℝ(𝔽(weeks)), [[Days]]: ℝ(𝔽(days)), [[Hours]]: ℝ(𝔽(hours)),
+  // [[Minutes]]: ℝ(𝔽(minutes)), [[Seconds]]: ℝ(𝔽(seconds)), [[Milliseconds]]:
+  // ℝ(𝔽(milliseconds)), [[Microseconds]]: ℝ(𝔽(microseconds)), [[Nanoseconds]]:
+  // ℝ(𝔽(nanoseconds)) }.
+  return Just(record);
+}
+
 // #sec-temporal-createtemporalduration
 MaybeHandle<JSTemporalDuration> CreateTemporalDuration(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
-    int64_t years, int64_t months, int64_t weeks, int64_t days, int64_t hours,
-    int64_t minutes, int64_t seconds, int64_t milliseconds,
-    int64_t microseconds, int64_t nanoseconds) {
+    const DurationRecord& duration) {
   TEMPORAL_ENTER_FUNC();
   Factory* factory = isolate->factory();
   // 1. If ! IsValidDuration(years, months, weeks, days, hours, minutes,
   // seconds, milliseconds, microseconds, nanoseconds) is false, throw a
   // RangeError exception.
-  if (!IsValidDuration(isolate,
-                       {years, months, weeks, days, hours, minutes, seconds,
-                        milliseconds, microseconds, nanoseconds})) {
+  if (!IsValidDuration(isolate, duration)) {
     THROW_INVALID_RANGE(JSTemporalDuration);
   }
 
@@ -811,47 +895,56 @@ MaybeHandle<JSTemporalDuration> CreateTemporalDuration(
   // "%Temporal.Duration.prototype%", « [[InitializedTemporalDuration]],
   // [[Years]], [[Months]], [[Weeks]], [[Days]], [[Hours]], [[Minutes]],
   // [[Seconds]], [[Milliseconds]], [[Microseconds]], [[Nanoseconds]] »).
+  const TimeDurationRecord& time_duration = duration.time_duration;
+  Handle<Object> years = factory->NewNumber(NormalizeMinusZero(duration.years));
+  Handle<Object> months =
+      factory->NewNumber(NormalizeMinusZero(duration.months));
+  Handle<Object> weeks = factory->NewNumber(NormalizeMinusZero(duration.weeks));
+  Handle<Object> days =
+      factory->NewNumber(NormalizeMinusZero(time_duration.days));
+  Handle<Object> hours =
+      factory->NewNumber(NormalizeMinusZero(time_duration.hours));
+  Handle<Object> minutes =
+      factory->NewNumber(NormalizeMinusZero(time_duration.minutes));
+  Handle<Object> seconds =
+      factory->NewNumber(NormalizeMinusZero(time_duration.seconds));
+  Handle<Object> milliseconds =
+      factory->NewNumber(NormalizeMinusZero(time_duration.milliseconds));
+  Handle<Object> microseconds =
+      factory->NewNumber(NormalizeMinusZero(time_duration.microseconds));
+  Handle<Object> nanoseconds =
+      factory->NewNumber(NormalizeMinusZero(time_duration.nanoseconds));
   ORDINARY_CREATE_FROM_CONSTRUCTOR(object, target, new_target,
                                    JSTemporalDuration)
-#define SET_FROM_INT64(obj, p)                            \
-  do {                                                    \
-    Handle<Object> item = factory->NewNumberFromInt64(p); \
-    object->set_##p(*item);                               \
-  } while (false)
-  // 4. Set object.[[Years]] to years.
-  SET_FROM_INT64(object, years);
-  // 5. Set object.[[Months]] to months.
-  SET_FROM_INT64(object, months);
-  // 6. Set object.[[Weeks]] to weeks.
-  SET_FROM_INT64(object, weeks);
-  // 7. Set object.[[Days]] to days.
-  SET_FROM_INT64(object, days);
-  // 8. Set object.[[Hours]] to hours.
-  SET_FROM_INT64(object, hours);
-  // 9. Set object.[[Minutes]] to minutes.
-  SET_FROM_INT64(object, minutes);
-  // 10. Set object.[[Seconds]] to seconds.
-  SET_FROM_INT64(object, seconds);
-  // 11. Set object.[[Milliseconds]] to milliseconds.
-  SET_FROM_INT64(object, milliseconds);
-  // 12. Set object.[[Microseconds]] to microseconds.
-  SET_FROM_INT64(object, microseconds);
-  // 13. Set object.[[Nanoseconds]] to nanoseconds.
-  SET_FROM_INT64(object, nanoseconds);
-#undef SET_FROM_INT64
+  // 4. Set object.[[Years]] to ℝ(𝔽(years)).
+  object->set_years(*years);
+  // 5. Set object.[[Months]] to ℝ(𝔽(months)).
+  object->set_months(*months);
+  // 6. Set object.[[Weeks]] to ℝ(𝔽(weeks)).
+  object->set_weeks(*weeks);
+  // 7. Set object.[[Days]] to ℝ(𝔽(days)).
+  object->set_days(*days);
+  // 8. Set object.[[Hours]] to ℝ(𝔽(hours)).
+  object->set_hours(*hours);
+  // 9. Set object.[[Minutes]] to ℝ(𝔽(minutes)).
+  object->set_minutes(*minutes);
+  // 10. Set object.[[Seconds]] to ℝ(𝔽(seconds)).
+  object->set_seconds(*seconds);
+  // 11. Set object.[[Milliseconds]] to ℝ(𝔽(milliseconds)).
+  object->set_milliseconds(*milliseconds);
+  // 12. Set object.[[Microseconds]] to ℝ(𝔽(microseconds)).
+  object->set_microseconds(*microseconds);
+  // 13. Set object.[[Nanoseconds]] to ℝ(𝔽(nanoseconds)).
+  object->set_nanoseconds(*nanoseconds);
   // 14. Return object.
   return object;
 }
 
 MaybeHandle<JSTemporalDuration> CreateTemporalDuration(
-    Isolate* isolate, int64_t years, int64_t months, int64_t weeks,
-    int64_t days, int64_t hours, int64_t minutes, int64_t seconds,
-    int64_t milliseconds, int64_t microseconds, int64_t nanoseconds) {
+    Isolate* isolate, const DurationRecord& duration) {
   TEMPORAL_ENTER_FUNC();
   return CreateTemporalDuration(isolate, CONSTRUCTOR(duration),
-                                CONSTRUCTOR(duration), years, months, weeks,
-                                days, hours, minutes, seconds, milliseconds,
-                                microseconds, nanoseconds);
+                                CONSTRUCTOR(duration), duration);
 }
 
 }  // namespace
@@ -925,11 +1018,8 @@ MaybeHandle<JSTemporalTimeZone> CreateTemporalTimeZone(
     return CreateTemporalTimeZoneUTC(isolate, target, new_target);
   }
 #ifdef V8_INTL_SUPPORT
-  int32_t time_zone_index;
-  Maybe<bool> maybe_time_zone_index =
-      Intl::GetTimeZoneIndex(isolate, identifier, &time_zone_index);
-  MAYBE_RETURN(maybe_time_zone_index, Handle<JSTemporalTimeZone>());
-  if (maybe_time_zone_index.FromJust()) {
+  int32_t time_zone_index = Intl::GetTimeZoneIndex(isolate, identifier);
+  if (time_zone_index >= 0) {
     return CreateTemporalTimeZoneFromIndex(isolate, target, new_target,
                                            time_zone_index);
   }
@@ -942,10 +1032,11 @@ MaybeHandle<JSTemporalTimeZone> CreateTemporalTimeZone(
   // a. Assert: ! CanonicalizeTimeZoneName(identifier) is identifier.
   // b. Set object.[[OffsetNanoseconds]] to undefined.
   // 6. Return object.
-  Maybe<int64_t> maybe_offset_nanoseconds =
-      ParseTimeZoneOffsetString(isolate, identifier, false);
-  MAYBE_RETURN(maybe_offset_nanoseconds, Handle<JSTemporalTimeZone>());
-  int64_t offset_nanoseconds = maybe_offset_nanoseconds.FromJust();
+  int64_t offset_nanoseconds;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, offset_nanoseconds,
+      ParseTimeZoneOffsetString(isolate, identifier, false),
+      Handle<JSTemporalTimeZone>());
 
   ORDINARY_CREATE_FROM_CONSTRUCTOR(object, target, new_target,
                                    JSTemporalTimeZone)
@@ -995,34 +1086,28 @@ MaybeHandle<JSTemporalTimeZone> SystemTimeZone(Isolate* isolate) {
   return temporal::CreateTemporalTimeZone(isolate, default_time_zone);
 }
 
-Maybe<DateTimeRecordCommon> GetISOPartsFromEpoch(
-    Isolate* isolate, Handle<BigInt> epoch_nanoseconds) {
+DateTimeRecordCommon GetISOPartsFromEpoch(Isolate* isolate,
+                                          Handle<BigInt> epoch_nanoseconds) {
   TEMPORAL_ENTER_FUNC();
   DateTimeRecordCommon result;
   // 1. Let remainderNs be epochNanoseconds modulo 10^6.
   Handle<BigInt> million = BigInt::FromInt64(isolate, 1000000);
-  Handle<BigInt> remainder_ns;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, remainder_ns,
-      BigInt::Remainder(isolate, epoch_nanoseconds, million),
-      Nothing<DateTimeRecordCommon>());
+  Handle<BigInt> remainder_ns =
+      BigInt::Remainder(isolate, epoch_nanoseconds, million).ToHandleChecked();
   // Need to do some remainder magic to negative remainder.
   if (remainder_ns->IsNegative()) {
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, remainder_ns, BigInt::Add(isolate, remainder_ns, million),
-        Nothing<DateTimeRecordCommon>());
+    remainder_ns =
+        BigInt::Add(isolate, remainder_ns, million).ToHandleChecked();
   }
 
   // 2. Let epochMilliseconds be (epochNanoseconds − remainderNs) / 10^6.
-  Handle<BigInt> bigint;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, bigint,
-      BigInt::Subtract(isolate, epoch_nanoseconds, remainder_ns),
-      Nothing<DateTimeRecordCommon>());
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, bigint,
-                                   BigInt::Divide(isolate, bigint, million),
-                                   Nothing<DateTimeRecordCommon>());
-  int64_t epoch_milliseconds = bigint->AsInt64();
+  int64_t epoch_milliseconds =
+      BigInt::Divide(isolate,
+                     BigInt::Subtract(isolate, epoch_nanoseconds, remainder_ns)
+                         .ToHandleChecked(),
+                     million)
+          .ToHandleChecked()
+          ->AsInt64();
   int year = 0;
   int month = 0;
   int day = 0;
@@ -1035,76 +1120,64 @@ Maybe<DateTimeRecordCommon> GetISOPartsFromEpoch(
                                        &wday, &hour, &min, &sec, &ms);
 
   // 3. Let year be ! YearFromTime(epochMilliseconds).
-  result.year = year;
+  result.date.year = year;
   // 4. Let month be ! MonthFromTime(epochMilliseconds) + 1.
-  result.month = month + 1;
-  DCHECK_GE(result.month, 1);
-  DCHECK_LE(result.month, 12);
+  result.date.month = month + 1;
+  DCHECK_GE(result.date.month, 1);
+  DCHECK_LE(result.date.month, 12);
   // 5. Let day be ! DateFromTime(epochMilliseconds).
-  result.day = day;
-  DCHECK_GE(result.day, 1);
-  DCHECK_LE(result.day, 31);
+  result.date.day = day;
+  DCHECK_GE(result.date.day, 1);
+  DCHECK_LE(result.date.day, 31);
   // 6. Let hour be ! HourFromTime(epochMilliseconds).
-  result.hour = hour;
-  DCHECK_GE(result.hour, 0);
-  DCHECK_LE(result.hour, 23);
+  result.time.hour = hour;
+  DCHECK_GE(result.time.hour, 0);
+  DCHECK_LE(result.time.hour, 23);
   // 7. Let minute be ! MinFromTime(epochMilliseconds).
-  result.minute = min;
-  DCHECK_GE(result.minute, 0);
-  DCHECK_LE(result.minute, 59);
+  result.time.minute = min;
+  DCHECK_GE(result.time.minute, 0);
+  DCHECK_LE(result.time.minute, 59);
   // 8. Let second be ! SecFromTime(epochMilliseconds).
-  result.second = sec;
-  DCHECK_GE(result.second, 0);
-  DCHECK_LE(result.second, 59);
+  result.time.second = sec;
+  DCHECK_GE(result.time.second, 0);
+  DCHECK_LE(result.time.second, 59);
   // 9. Let millisecond be ! msFromTime(epochMilliseconds).
-  result.millisecond = ms;
-  DCHECK_GE(result.millisecond, 0);
-  DCHECK_LE(result.millisecond, 999);
+  result.time.millisecond = ms;
+  DCHECK_GE(result.time.millisecond, 0);
+  DCHECK_LE(result.time.millisecond, 999);
   // 10. Let microsecond be floor(remainderNs / 1000) modulo 1000.
   int64_t remainder = remainder_ns->AsInt64();
-  result.microsecond = (remainder / 1000) % 1000;
-  DCHECK_GE(result.microsecond, 0);
-  DCHECK_LE(result.microsecond, 999);
+  result.time.microsecond = (remainder / 1000) % 1000;
+  DCHECK_GE(result.time.microsecond, 0);
+  DCHECK_LE(result.time.microsecond, 999);
   // 11. Let nanosecond be remainderNs modulo 1000.
-  result.nanosecond = remainder % 1000;
-  DCHECK_GE(result.nanosecond, 0);
-  DCHECK_LE(result.nanosecond, 999);
-  return Just(result);
+  result.time.nanosecond = remainder % 1000;
+  DCHECK_GE(result.time.nanosecond, 0);
+  DCHECK_LE(result.time.nanosecond, 999);
+  return result;
 }
 
 // #sec-temporal-balanceisodatetime
-DateTimeRecordCommon BalanceISODateTime(Isolate* isolate, int32_t year,
-                                        int32_t month, int32_t day,
-                                        int32_t hour, int32_t minute,
-                                        int32_t second, int32_t millisecond,
-                                        int32_t microsecond,
-                                        int64_t nanosecond) {
+DateTimeRecordCommon BalanceISODateTime(Isolate* isolate,
+                                        const DateTimeRecordCommon& date_time) {
   TEMPORAL_ENTER_FUNC();
   // 1. Assert: year, month, day, hour, minute, second, millisecond,
   // microsecond, and nanosecond are integers.
   // 2. Let balancedTime be ! BalanceTime(hour, minute, second, millisecond,
   // microsecond, nanosecond).
-  DateTimeRecordCommon balanced_time = BalanceTime(
-      isolate, hour, minute, second, millisecond, microsecond, nanosecond);
+  DateTimeRecordCommon balanced_time = BalanceTime(date_time.time);
   // 3. Let balancedDate be ! BalanceISODate(year, month, day +
   // balancedTime.[[Days]]).
-  day += balanced_time.day;
-  BalanceISODate(isolate, &year, &month, &day);
+  DateRecordCommon added_date = date_time.date;
+  added_date.day += balanced_time.date.day;
+  DateRecordCommon balanced_date = BalanceISODate(isolate, added_date);
   // 4. Return the Record { [[Year]]: balancedDate.[[Year]], [[Month]]:
   // balancedDate.[[Month]], [[Day]]: balancedDate.[[Day]], [[Hour]]:
   // balancedTime.[[Hour]], [[Minute]]: balancedTime.[[Minute]], [[Second]]:
   // balancedTime.[[Second]], [[Millisecond]]: balancedTime.[[Millisecond]],
   // [[Microsecond]]: balancedTime.[[Microsecond]], [[Nanosecond]]:
   // balancedTime.[[Nanosecond]] }.
-  return {year,
-          month,
-          day,
-          balanced_time.hour,
-          balanced_time.minute,
-          balanced_time.second,
-          balanced_time.millisecond,
-          balanced_time.microsecond,
-          balanced_time.nanosecond};
+  return {balanced_date, balanced_time.time};
 }
 
 }  // namespace
@@ -1116,32 +1189,39 @@ MaybeHandle<JSTemporalPlainDateTime> BuiltinTimeZoneGetPlainDateTimeFor(
     const char* method_name) {
   TEMPORAL_ENTER_FUNC();
   // 1. Let offsetNanoseconds be ? GetOffsetNanosecondsFor(timeZone, instant).
-  Maybe<int64_t> maybe_offset_nanoseconds =
-      GetOffsetNanosecondsFor(isolate, time_zone, instant, method_name);
-  MAYBE_RETURN(maybe_offset_nanoseconds, Handle<JSTemporalPlainDateTime>());
+  int64_t offset_nanoseconds;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, offset_nanoseconds,
+      GetOffsetNanosecondsFor(isolate, time_zone, instant, method_name),
+      Handle<JSTemporalPlainDateTime>());
   // 2. Let result be ! GetISOPartsFromEpoch(instant.[[Nanoseconds]]).
-  Maybe<DateTimeRecordCommon> maybe_result = GetISOPartsFromEpoch(
+  DateTimeRecordCommon result = GetISOPartsFromEpoch(
       isolate, Handle<BigInt>(instant->nanoseconds(), isolate));
-  MAYBE_RETURN(maybe_result, Handle<JSTemporalPlainDateTime>());
-  int64_t offset_nanoseconds = maybe_offset_nanoseconds.FromJust();
 
   // 3. Set result to ! BalanceISODateTime(result.[[Year]], result.[[Month]],
   // result.[[Day]], result.[[Hour]], result.[[Minute]], result.[[Second]],
   // result.[[Millisecond]], result.[[Microsecond]], result.[[Nanosecond]] +
   // offsetNanoseconds).
-  DateTimeRecordCommon result = maybe_result.FromJust();
-  result = BalanceISODateTime(isolate, result.year, result.month, result.day,
-                              result.hour, result.minute, result.second,
-                              result.millisecond, result.microsecond,
-                              offset_nanoseconds + result.nanosecond);
+
+  // Note: Since offsetNanoseconds is bounded 86400x 10^9, the
+  // result of result.[[Nanosecond]] + offsetNanoseconds may overflow int32_t
+  // Therefore we distribute the sum to other fields below to make sure it won't
+  // overflow each of the int32_t fields. But it will leave each field to be
+  // balanced by BalanceISODateTime
+  result.time.nanosecond += offset_nanoseconds % 1000;
+  result.time.microsecond += (offset_nanoseconds / 1000) % 1000;
+  result.time.millisecond += (offset_nanoseconds / 1000000L) % 1000;
+  result.time.second += (offset_nanoseconds / 1000000000L) % 60;
+  result.time.minute += (offset_nanoseconds / 60000000000L) % 60;
+  result.time.hour += (offset_nanoseconds / 3600000000000L) % 24;
+  result.date.day += (offset_nanoseconds / 86400000000000L);
+
+  result = BalanceISODateTime(isolate, result);
   // 4. Return ? CreateTemporalDateTime(result.[[Year]], result.[[Month]],
   // result.[[Day]], result.[[Hour]], result.[[Minute]], result.[[Second]],
   // result.[[Millisecond]], result.[[Microsecond]], result.[[Nanosecond]],
   // calendar).
-  return temporal::CreateTemporalDateTime(
-      isolate, result.year, result.month, result.day, result.hour,
-      result.minute, result.second, result.millisecond, result.microsecond,
-      result.nanosecond, calendar);
+  return temporal::CreateTemporalDateTime(isolate, result, calendar);
 }
 
 }  // namespace temporal
@@ -1234,7 +1314,7 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
     // c. Assert: disambiguation is "reject".
     DCHECK_EQ(disambiguation, Disambiguation::kReject);
     // d. Throw a RangeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                     JSTemporalInstant);
   }
   // 5. Assert: n = 0.
@@ -1242,7 +1322,7 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
   // 6. If disambiguation is "reject", then
   if (disambiguation == Disambiguation::kReject) {
     // a. Throw a RangeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                     JSTemporalInstant);
   }
   // 7. Let epochNanoseconds be ! GetEpochFromISOParts(dateTime.[[ISOYear]],
@@ -1250,15 +1330,12 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
   // dateTime.[[ISOMinute]], dateTime.[[ISOSecond]],
   // dateTime.[[ISOMillisecond]], dateTime.[[ISOMicrosecond]],
   // dateTime.[[ISONanosecond]]).
-  Handle<BigInt> epoch_nanoseconds;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, epoch_nanoseconds,
-      GetEpochFromISOParts(
-          isolate, date_time->iso_year(), date_time->iso_month(),
-          date_time->iso_day(), date_time->iso_hour(), date_time->iso_minute(),
-          date_time->iso_second(), date_time->iso_millisecond(),
-          date_time->iso_microsecond(), date_time->iso_nanosecond()),
-      JSTemporalInstant);
+  Handle<BigInt> epoch_nanoseconds = GetEpochFromISOParts(
+      isolate,
+      {{date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
+       {date_time->iso_hour(), date_time->iso_minute(), date_time->iso_second(),
+        date_time->iso_millisecond(), date_time->iso_microsecond(),
+        date_time->iso_nanosecond()}});
 
   // 8. Let dayBefore be ! CreateTemporalInstant(epochNanoseconds − 8.64 ×
   // 10^13).
@@ -1286,17 +1363,20 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
       temporal::CreateTemporalInstant(isolate, day_after_ns),
       JSTemporalInstant);
   // 10. Let offsetBefore be ? GetOffsetNanosecondsFor(timeZone, dayBefore).
-  Maybe<int64_t> maybe_offset_before =
-      GetOffsetNanosecondsFor(isolate, time_zone, day_before, method_name);
-  MAYBE_RETURN(maybe_offset_before, Handle<JSTemporalInstant>());
+  int64_t offset_before;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, offset_before,
+      GetOffsetNanosecondsFor(isolate, time_zone, day_before, method_name),
+      Handle<JSTemporalInstant>());
   // 11. Let offsetAfter be ? GetOffsetNanosecondsFor(timeZone, dayAfter).
-  Maybe<int64_t> maybe_offset_after =
-      GetOffsetNanosecondsFor(isolate, time_zone, day_after, method_name);
-  MAYBE_RETURN(maybe_offset_after, Handle<JSTemporalInstant>());
+  int64_t offset_after;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, offset_after,
+      GetOffsetNanosecondsFor(isolate, time_zone, day_after, method_name),
+      Handle<JSTemporalInstant>());
 
   // 12. Let nanoseconds be offsetAfter − offsetBefore.
-  int64_t nanoseconds =
-      maybe_offset_after.FromJust() - maybe_offset_before.FromJust();
+  double nanoseconds = offset_after - offset_before;
 
   // 13. If disambiguation is "earlier", then
   if (disambiguation == Disambiguation::kEarlier) {
@@ -1307,17 +1387,20 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
     // dateTime.[[ISOMicrosecond]], dateTime.[[ISONanosecond]],
     // dateTime.[[Calendar]], 0, 0, 0, 0, 0, 0, 0, 0, 0, −nanoseconds,
     // undefined).
-    Maybe<DateTimeRecordCommon> maybe_earlier = AddDateTime(
-        isolate, date_time->iso_year(), date_time->iso_month(),
-        date_time->iso_day(), date_time->iso_hour(), date_time->iso_minute(),
-        date_time->iso_second(), date_time->iso_millisecond(),
-        date_time->iso_microsecond(), date_time->iso_nanosecond(),
-        handle(date_time->calendar(), isolate),
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, -nanoseconds},
-        isolate->factory()->undefined_value());
-    MAYBE_RETURN(maybe_earlier, Handle<JSTemporalInstant>());
-    DateTimeRecordCommon earlier = maybe_earlier.FromJust();
-
+    DateTimeRecordCommon earlier;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, earlier,
+        AddDateTime(
+            isolate,
+            {{date_time->iso_year(), date_time->iso_month(),
+              date_time->iso_day()},
+             {date_time->iso_hour(), date_time->iso_minute(),
+              date_time->iso_second(), date_time->iso_millisecond(),
+              date_time->iso_microsecond(), date_time->iso_nanosecond()}},
+            handle(date_time->calendar(), isolate),
+            {0, 0, 0, {0, 0, 0, 0, 0, 0, -nanoseconds}},
+            isolate->factory()->undefined_value()),
+        Handle<JSTemporalInstant>());
     // See https://github.com/tc39/proposal-temporal/issues/1816
     // b. Let earlierDateTime be ? CreateTemporalDateTime(earlier.[[Year]],
     // earlier.[[Month]], earlier.[[Day]], earlier.[[Hour]], earlier.[[Minute]],
@@ -1327,10 +1410,7 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, earlier_date_time,
         temporal::CreateTemporalDateTime(
-            isolate, earlier.year, earlier.month, earlier.day, earlier.hour,
-            earlier.minute, earlier.second, earlier.millisecond,
-            earlier.microsecond, earlier.nanosecond,
-            handle(date_time->calendar(), isolate)),
+            isolate, earlier, handle(date_time->calendar(), isolate)),
         JSTemporalInstant);
 
     // c. Set possibleInstants to ? GetPossibleInstantsFor(timeZone,
@@ -1342,7 +1422,7 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
 
     // d. If possibleInstants is empty, throw a RangeError exception.
     if (possible_instants->length() == 0) {
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                       JSTemporalInstant);
     }
     // e. Return possibleInstants[0].
@@ -1358,16 +1438,19 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
   // dateTime.[[ISOSecond]], dateTime.[[ISOMillisecond]],
   // dateTime.[[ISOMicrosecond]], dateTime.[[ISONanosecond]],
   // dateTime.[[Calendar]], 0, 0, 0, 0, 0, 0, 0, 0, 0, nanoseconds, undefined).
-  Maybe<DateTimeRecordCommon> maybe_later = AddDateTime(
-      isolate, date_time->iso_year(), date_time->iso_month(),
-      date_time->iso_day(), date_time->iso_hour(), date_time->iso_minute(),
-      date_time->iso_second(), date_time->iso_millisecond(),
-      date_time->iso_microsecond(), date_time->iso_nanosecond(),
-      handle(date_time->calendar(), isolate),
-      {0, 0, 0, 0, 0, 0, 0, 0, 0, nanoseconds},
-      isolate->factory()->undefined_value());
-  MAYBE_RETURN(maybe_later, Handle<JSTemporalInstant>());
-  DateTimeRecordCommon later = maybe_later.FromJust();
+  DateTimeRecordCommon later;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, later,
+      AddDateTime(isolate,
+                  {{date_time->iso_year(), date_time->iso_month(),
+                    date_time->iso_day()},
+                   {date_time->iso_hour(), date_time->iso_minute(),
+                    date_time->iso_second(), date_time->iso_millisecond(),
+                    date_time->iso_microsecond(), date_time->iso_nanosecond()}},
+                  handle(date_time->calendar(), isolate),
+                  {0, 0, 0, {0, 0, 0, 0, 0, 0, nanoseconds}},
+                  isolate->factory()->undefined_value()),
+      Handle<JSTemporalInstant>());
 
   // See https://github.com/tc39/proposal-temporal/issues/1816
   // 16. Let laterDateTime be ? CreateTemporalDateTime(later.[[Year]],
@@ -1378,10 +1461,8 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
   Handle<JSTemporalPlainDateTime> later_date_time;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, later_date_time,
-      temporal::CreateTemporalDateTime(
-          isolate, later.year, later.month, later.day, later.hour, later.minute,
-          later.second, later.millisecond, later.microsecond, later.nanosecond,
-          handle(date_time->calendar(), isolate)),
+      temporal::CreateTemporalDateTime(isolate, later,
+                                       handle(date_time->calendar(), isolate)),
       JSTemporalInstant);
   // 17. Set possibleInstants to ? GetPossibleInstantsFor(timeZone,
   // laterDateTime).
@@ -1393,7 +1474,7 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
   n = possible_instants->length();
   // 19. If n = 0, throw a RangeError exception.
   if (n == 0) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                     JSTemporalInstant);
   }
   // 20. Return possibleInstants[n − 1].
@@ -1488,7 +1569,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> PrepareTemporalFieldsOrPartial(
           (required == RequiredFields::kTimeZoneAndOffset &&
            String::Equals(isolate, property, factory->offset_string()))) {
         // 1. Throw a TypeError exception.
-        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(),
+        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
                         JSObject);
       }
       // ii. Else,
@@ -1548,7 +1629,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> PrepareTemporalFieldsOrPartial(
     // 5. If any is false, then
     if (!any) {
       // a. Throw a TypeError exception.
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(), JSObject);
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(), JSObject);
     }
   }
   // 4. Return result.
@@ -1585,7 +1666,7 @@ MaybeHandle<T> FromFields(Isolate* isolate, Handle<JSReceiver> calendar,
       T);
   if ((!result->IsHeapObject()) ||
       HeapObject::cast(*result).map().instance_type() != type) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(), T);
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(), T);
   }
   return Handle<T>::cast(result);
 }
@@ -1621,13 +1702,32 @@ MaybeHandle<JSTemporalPlainMonthDay> MonthDayFromFields(
 }
 
 // #sec-temporal-totemporaloverflow
-Maybe<ShowOverflow> ToTemporalOverflow(Isolate* isolate,
-                                       Handle<JSReceiver> options,
+Maybe<ShowOverflow> ToTemporalOverflow(Isolate* isolate, Handle<Object> options,
                                        const char* method_name) {
+  // 1. If options is undefined, return "constrain".
+  if (options->IsUndefined()) {
+    return Just(ShowOverflow::kConstrain);
+  }
+  DCHECK(options->IsJSReceiver());
+  // 2. Return ? GetOption(options, "overflow", « String », « "constrain",
+  // "reject" », "constrain").
   return GetStringOption<ShowOverflow>(
-      isolate, options, "overflow", method_name, {"constrain", "reject"},
+      isolate, Handle<JSReceiver>::cast(options), "overflow", method_name,
+      {"constrain", "reject"},
       {ShowOverflow::kConstrain, ShowOverflow::kReject},
       ShowOverflow::kConstrain);
+}
+
+// #sec-temporal-totemporaldisambiguation
+Maybe<Disambiguation> ToTemporalDisambiguation(Isolate* isolate,
+                                               Handle<JSReceiver> options,
+                                               const char* method_name) {
+  return GetStringOption<Disambiguation>(
+      isolate, options, "disambiguation", method_name,
+      {"compatible", "earlier", "later", "reject"},
+      {Disambiguation::kCompatible, Disambiguation::kEarlier,
+       Disambiguation::kLater, Disambiguation::kReject},
+      Disambiguation::kCompatible);
 }
 
 // #sec-temporal-builtintimezonegetinstantfor
@@ -1685,7 +1785,6 @@ MaybeHandle<JSTemporalInstant> ToTemporalInstant(Isolate* isolate,
 }  // namespace
 
 namespace temporal {
-
 // #sec-temporal-totemporalcalendar
 MaybeHandle<JSReceiver> ToTemporalCalendar(
     Isolate* isolate, Handle<Object> temporal_calendar_like,
@@ -1716,11 +1815,12 @@ MaybeHandle<JSReceiver> ToTemporalCalendar(
 
     // b. If ? HasProperty(temporalCalendarLike, "calendar") is false, return
     // temporalCalendarLike.
-    Maybe<bool> maybe_has =
-        JSReceiver::HasProperty(isolate, obj, factory->calendar_string());
-
-    MAYBE_RETURN(maybe_has, Handle<JSReceiver>());
-    if (!maybe_has.FromJust()) {
+    bool has;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, has,
+        JSReceiver::HasProperty(isolate, obj, factory->calendar_string()),
+        Handle<JSReceiver>());
+    if (!has) {
       return obj;
     }
     // c.  Set temporalCalendarLike to ? Get(temporalCalendarLike, "calendar").
@@ -1732,10 +1832,11 @@ MaybeHandle<JSReceiver> ToTemporalCalendar(
     if (temporal_calendar_like->IsJSReceiver()) {
       obj = Handle<JSReceiver>::cast(temporal_calendar_like);
       // and ? HasProperty(temporalCalendarLike, "calendar") is false,
-      maybe_has =
-          JSReceiver::HasProperty(isolate, obj, factory->calendar_string());
-      MAYBE_RETURN(maybe_has, Handle<JSReceiver>());
-      if (!maybe_has.FromJust()) {
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, has,
+          JSReceiver::HasProperty(isolate, obj, factory->calendar_string()),
+          Handle<JSReceiver>());
+      if (!has) {
         // return temporalCalendarLike.
         return obj;
       }
@@ -1780,12 +1881,13 @@ MaybeHandle<JSReceiver> ToTemporalCalendarWithISODefault(
 // #sec-temporal-totemporaldate
 MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
                                                 Handle<Object> item_obj,
-                                                Handle<JSReceiver> options,
+                                                Handle<Object> options,
                                                 const char* method_name) {
   TEMPORAL_ENTER_FUNC();
 
   Factory* factory = isolate->factory();
-  // 2. Assert: Type(options) is Object.
+  // 2. Assert: Type(options) is Object or Undefined.
+  DCHECK(options->IsJSReceiver() || options->IsUndefined());
   // 3. If Type(item) is Object, then
   if (item_obj->IsJSReceiver()) {
     Handle<JSReceiver> item = Handle<JSReceiver>::cast(item_obj);
@@ -1822,8 +1924,9 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
       // plainDateTime.[[ISOMonth]], plainDateTime.[[ISODay]],
       // plainDateTime.[[Calendar]]).
       return CreateTemporalDate(
-          isolate, plain_date_time->iso_year(), plain_date_time->iso_month(),
-          plain_date_time->iso_day(),
+          isolate,
+          {plain_date_time->iso_year(), plain_date_time->iso_month(),
+           plain_date_time->iso_day()},
           Handle<JSReceiver>(plain_date_time->calendar(), isolate));
     }
 
@@ -1833,9 +1936,10 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
     if (item->IsJSTemporalPlainDateTime()) {
       Handle<JSTemporalPlainDateTime> date_time =
           Handle<JSTemporalPlainDateTime>::cast(item);
-      return CreateTemporalDate(isolate, date_time->iso_year(),
-                                date_time->iso_month(), date_time->iso_day(),
-                                handle(date_time->calendar(), isolate));
+      return CreateTemporalDate(
+          isolate,
+          {date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
+          handle(date_time->calendar(), isolate));
     }
 
     // d. Let calendar be ? GetTemporalCalendarWithISODefault(item).
@@ -1865,9 +1969,11 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
     return DateFromFields(isolate, calendar, fields, options);
   }
   // 4. Perform ? ToTemporalOverflow(options).
-  Maybe<ShowOverflow> maybe_overflow =
-      ToTemporalOverflow(isolate, options, method_name);
-  MAYBE_RETURN(maybe_overflow, Handle<JSTemporalPlainDate>());
+  ShowOverflow overflow;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+      Handle<JSTemporalPlainDate>());
+  USE(overflow);
 
   // 5. Let string be ? ToString(item).
   Handle<String> string;
@@ -1875,13 +1981,14 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
                              Object::ToString(isolate, item_obj),
                              JSTemporalPlainDate);
   // 6. Let result be ? ParseTemporalDateString(string).
-  Maybe<DateRecord> maybe_result = ParseTemporalDateString(isolate, string);
-  MAYBE_RETURN(maybe_result, MaybeHandle<JSTemporalPlainDate>());
-  DateRecord result = maybe_result.FromJust();
+  DateRecord result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result, ParseTemporalDateString(isolate, string),
+      Handle<JSTemporalPlainDate>());
 
   // 7. Assert: ! IsValidISODate(result.[[Year]], result.[[Month]],
   // result.[[Day]]) is true.
-  DCHECK(IsValidISODate(isolate, result.year, result.month, result.day));
+  DCHECK(IsValidISODate(isolate, result.date));
   // 8. Let calendar be ? ToTemporalCalendarWithISODefault(result.[[Calendar]]).
   Handle<Object> calendar_string;
   if (result.calendar->length() == 0) {
@@ -1896,8 +2003,48 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
       JSTemporalPlainDate);
   // 9. Return ? CreateTemporalDate(result.[[Year]], result.[[Month]],
   // result.[[Day]], calendar).
-  return CreateTemporalDate(isolate, result.year, result.month, result.day,
-                            calendar);
+  return CreateTemporalDate(isolate, result.date, calendar);
+}
+
+MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
+                                                Handle<Object> item_obj,
+                                                const char* method_name) {
+  // 1. If options is not present, set options to undefined.
+  return ToTemporalDate(isolate, item_obj,
+                        isolate->factory()->undefined_value(), method_name);
+}
+
+// #sec-isintegralnumber
+bool IsIntegralNumber(Isolate* isolate, Handle<Object> argument) {
+  // 1. If Type(argument) is not Number, return false.
+  if (!argument->IsNumber()) return false;
+  // 2. If argument is NaN, +∞𝔽, or -∞𝔽, return false.
+  double number = argument->Number();
+  if (!std::isfinite(number)) return false;
+  // 3. If floor(abs(ℝ(argument))) ≠ abs(ℝ(argument)), return false.
+  if (std::floor(std::abs(number)) != std::abs(number)) return false;
+  // 4. Return true.
+  return true;
+}
+
+// #sec-temporal-tointegerwithoutrounding
+Maybe<double> ToIntegerWithoutRounding(Isolate* isolate,
+                                       Handle<Object> argument) {
+  // 1. Let number be ? ToNumber(argument).
+  Handle<Object> number;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, number, Object::ToNumber(isolate, argument), Nothing<double>());
+  // 2. If number is NaN, +0𝔽, or −0𝔽 return 0.
+  if (number->IsNaN() || number->Number() == 0) {
+    return Just(static_cast<double>(0));
+  }
+  // 3. If IsIntegralNumber(number) is false, throw a RangeError exception.
+  if (!IsIntegralNumber(isolate, number)) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<double>());
+  }
+  // 4. Return ℝ(number).
+  return Just(number->Number());
 }
 
 }  // namespace
@@ -1905,39 +2052,43 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
 namespace temporal {
 
 // #sec-temporal-regulatetime
-Maybe<bool> RegulateTime(Isolate* isolate, TimeRecord* time,
-                         ShowOverflow overflow) {
+Maybe<TimeRecord> RegulateTime(Isolate* isolate, const TimeRecord& time,
+                               ShowOverflow overflow) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Assert: hour, minute, second, millisecond, microsecond and nanosecond
   // are integers.
   // 2. Assert: overflow is either "constrain" or "reject".
   switch (overflow) {
-    case ShowOverflow::kConstrain:
+    case ShowOverflow::kConstrain: {
+      TimeRecord result(time);
       // 3. If overflow is "constrain", then
       // a. Return ! ConstrainTime(hour, minute, second, millisecond,
       // microsecond, nanosecond).
-      time->hour = std::max(std::min(time->hour, 23), 0);
-      time->minute = std::max(std::min(time->minute, 59), 0);
-      time->second = std::max(std::min(time->second, 59), 0);
-      time->millisecond = std::max(std::min(time->millisecond, 999), 0);
-      time->microsecond = std::max(std::min(time->microsecond, 999), 0);
-      time->nanosecond = std::max(std::min(time->nanosecond, 999), 0);
-      return Just(true);
+      result.time.hour = std::max(std::min(result.time.hour, 23), 0);
+      result.time.minute = std::max(std::min(result.time.minute, 59), 0);
+      result.time.second = std::max(std::min(result.time.second, 59), 0);
+      result.time.millisecond =
+          std::max(std::min(result.time.millisecond, 999), 0);
+      result.time.microsecond =
+          std::max(std::min(result.time.microsecond, 999), 0);
+      result.time.nanosecond =
+          std::max(std::min(result.time.nanosecond, 999), 0);
+      return Just(result);
+    }
     case ShowOverflow::kReject:
       // 4. If overflow is "reject", then
       // a. If ! IsValidTime(hour, minute, second, millisecond, microsecond,
       // nanosecond) is false, throw a RangeError exception.
-      if (!IsValidTime(isolate, time->hour, time->minute, time->second,
-                       time->millisecond, time->microsecond,
-                       time->nanosecond)) {
-        THROW_NEW_ERROR_RETURN_VALUE(
-            isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), Nothing<bool>());
+      if (!IsValidTime(isolate, time.time)) {
+        THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                     NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                     Nothing<TimeRecord>());
       }
       // b. Return the new Record { [[Hour]]: hour, [[Minute]]: minute,
       // [[Second]]: second, [[Millisecond]]: millisecond, [[Microsecond]]:
       // microsecond, [[Nanosecond]]: nanosecond }.
-      return Just(true);
+      return Just(time);
   }
 }
 
@@ -1987,10 +2138,11 @@ MaybeHandle<JSTemporalPlainTime> ToTemporalTime(Isolate* isolate,
       // plainDateTime.[[ISOMillisecond]], plainDateTime.[[ISOMicrosecond]],
       // plainDateTime.[[ISONanosecond]]).
       return CreateTemporalTime(
-          isolate, plain_date_time->iso_hour(), plain_date_time->iso_minute(),
-          plain_date_time->iso_second(), plain_date_time->iso_millisecond(),
-          plain_date_time->iso_microsecond(),
-          plain_date_time->iso_nanosecond());
+          isolate,
+          {plain_date_time->iso_hour(), plain_date_time->iso_minute(),
+           plain_date_time->iso_second(), plain_date_time->iso_millisecond(),
+           plain_date_time->iso_microsecond(),
+           plain_date_time->iso_nanosecond()});
     }
     // c. If item has an [[InitializedTemporalDateTime]] internal slot, then
     if (item->IsJSTemporalPlainDateTime()) {
@@ -2000,9 +2152,9 @@ MaybeHandle<JSTemporalPlainTime> ToTemporalTime(Isolate* isolate,
       Handle<JSTemporalPlainDateTime> date_time =
           Handle<JSTemporalPlainDateTime>::cast(item);
       return CreateTemporalTime(
-          isolate, date_time->iso_hour(), date_time->iso_minute(),
-          date_time->iso_second(), date_time->iso_millisecond(),
-          date_time->iso_microsecond(), date_time->iso_nanosecond());
+          isolate, {date_time->iso_hour(), date_time->iso_minute(),
+                    date_time->iso_second(), date_time->iso_millisecond(),
+                    date_time->iso_microsecond(), date_time->iso_nanosecond()});
     }
     // d. Let calendar be ? GetTemporalCalendarWithISODefault(item).
     Handle<JSReceiver> calendar;
@@ -2017,20 +2169,19 @@ MaybeHandle<JSTemporalPlainTime> ToTemporalTime(Isolate* isolate,
                                JSTemporalPlainTime);
     if (!String::Equals(isolate, factory->iso8601_string(), identifier)) {
       // i. Throw a RangeError exception.
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                       JSTemporalPlainTime);
     }
     // f. Let result be ? ToTemporalTimeRecord(item).
-    Maybe<TimeRecord> maybe_time_result =
-        ToTemporalTimeRecord(isolate, item, method_name);
-    MAYBE_RETURN(maybe_time_result, Handle<JSTemporalPlainTime>());
-    result = maybe_time_result.FromJust();
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result, ToTemporalTimeRecord(isolate, item, method_name),
+        Handle<JSTemporalPlainTime>());
     // g. Set result to ? RegulateTime(result.[[Hour]], result.[[Minute]],
     // result.[[Second]], result.[[Millisecond]], result.[[Microsecond]],
     // result.[[Nanosecond]], overflow).
-    Maybe<bool> maybe_regulate_time = RegulateTime(isolate, &result, overflow);
-    MAYBE_RETURN(maybe_regulate_time, Handle<JSTemporalPlainTime>());
-    DCHECK(maybe_regulate_time.FromJust());
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result, RegulateTime(isolate, result, overflow),
+        Handle<JSTemporalPlainTime>());
   } else {
     // 4. Else,
     // a. Let string be ? ToString(item).
@@ -2039,30 +2190,153 @@ MaybeHandle<JSTemporalPlainTime> ToTemporalTime(Isolate* isolate,
                                Object::ToString(isolate, item_obj),
                                JSTemporalPlainTime);
     // b. Let result be ? ParseTemporalTimeString(string).
-    Maybe<TimeRecord> maybe_result = ParseTemporalTimeString(isolate, string);
-    MAYBE_RETURN(maybe_result, MaybeHandle<JSTemporalPlainTime>());
-    result = maybe_result.FromJust();
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result, ParseTemporalTimeString(isolate, string),
+        Handle<JSTemporalPlainTime>());
     // c. Assert: ! IsValidTime(result.[[Hour]], result.[[Minute]],
     // result.[[Second]], result.[[Millisecond]], result.[[Microsecond]],
     // result.[[Nanosecond]]) is true.
-    DCHECK(IsValidTime(isolate, result.hour, result.minute, result.second,
-                       result.millisecond, result.microsecond,
-                       result.nanosecond));
+    DCHECK(IsValidTime(isolate, result.time));
     // d. If result.[[Calendar]] is not one of undefined or "iso8601", then
     if ((result.calendar->length() > 0) /* not undefined */ &&
         !String::Equals(isolate, result.calendar,
                         isolate->factory()->iso8601_string())) {
       // i. Throw a RangeError exception.
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                       JSTemporalPlainTime);
     }
   }
   // 5. Return ? CreateTemporalTime(result.[[Hour]], result.[[Minute]],
   // result.[[Second]], result.[[Millisecond]], result.[[Microsecond]],
   // result.[[Nanosecond]]).
-  return CreateTemporalTime(isolate, result.hour, result.minute, result.second,
-                            result.millisecond, result.microsecond,
-                            result.nanosecond);
+  return CreateTemporalTime(isolate, result.time);
+}
+
+// #sec-temporal-totemporaldurationrecord
+Maybe<DurationRecord> ToTemporalDurationRecord(
+    Isolate* isolate, Handle<Object> temporal_duration_like,
+    const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 1. If Type(temporalDurationLike) is not Object, then
+  if (!temporal_duration_like->IsJSReceiver()) {
+    // a. Let string be ? ToString(temporalDurationLike).
+    Handle<String> string;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, string, Object::ToString(isolate, temporal_duration_like),
+        Nothing<DurationRecord>());
+    // b. Let result be ? ParseTemporalDurationString(string).
+    return ParseTemporalDurationString(isolate, string);
+  }
+  // 2. If temporalDurationLike has an [[InitializedTemporalDuration]] internal
+  // slot, then
+  if (temporal_duration_like->IsJSTemporalDuration()) {
+    // a. Return ! CreateDurationRecord(temporalDurationLike.[[Years]],
+    // temporalDurationLike.[[Months]], temporalDurationLike.[[Weeks]],
+    // temporalDurationLike.[[Days]], temporalDurationLike.[[Hours]],
+    // temporalDurationLike.[[Minutes]], temporalDurationLike.[[Seconds]],
+    // temporalDurationLike.[[Milliseconds]],
+    // temporalDurationLike.[[Microseconds]],
+    // temporalDurationLike.[[Nanoseconds]]).
+    Handle<JSTemporalDuration> duration =
+        Handle<JSTemporalDuration>::cast(temporal_duration_like);
+    return DurationRecord::Create(
+        isolate, duration->years().Number(), duration->months().Number(),
+        duration->weeks().Number(), duration->days().Number(),
+        duration->hours().Number(), duration->minutes().Number(),
+        duration->seconds().Number(), duration->milliseconds().Number(),
+        duration->microseconds().Number(), duration->nanoseconds().Number());
+  }
+  // 3. Let result be a new Record with all the internal slots given in the
+  // Internal Slot column in Table 7.
+  // 4. Let any be false.
+  bool any = false;
+
+  // 5. For each row of Table 7, except the header row, in table order, do
+  DurationRecord record;
+  Factory* factory = isolate->factory();
+  std::array<std::pair<Handle<String>, double*>, 10> table7 = {
+      {{factory->days_string(), &record.time_duration.days},
+       {factory->hours_string(), &record.time_duration.hours},
+       {factory->microseconds_string(), &record.time_duration.microseconds},
+       {factory->milliseconds_string(), &record.time_duration.milliseconds},
+       {factory->minutes_string(), &record.time_duration.minutes},
+       {factory->months_string(), &record.months},
+       {factory->nanoseconds_string(), &record.time_duration.nanoseconds},
+       {factory->seconds_string(), &record.time_duration.seconds},
+       {factory->weeks_string(), &record.weeks},
+       {factory->years_string(), &record.years}}};
+
+  for (const auto& row : table7) {
+    Handle<Object> val;
+    // a. Let prop be the Property value of the current row.
+    // b. Let val be ? Get(temporalDurationLike, prop).
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, val,
+        Object::GetPropertyOrElement(isolate, temporal_duration_like,
+                                     row.first),
+        Nothing<DurationRecord>());
+    // c. If val is undefined, then
+    if (val->IsUndefined()) {
+      // i. Set result's internal slot whose name is the Internal Slot
+      // value of the current row to 0.
+      *(row.second) = 0;
+      // d. Else,
+    } else {
+      // i. Set any to true.
+      any = true;
+      // ii. Let val be 𝔽(? ToIntegerWithoutRounding(val)).
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, *(row.second), ToIntegerWithoutRounding(isolate, val),
+          Nothing<DurationRecord>());
+      // iii. Set result's field whose name is the Field Name value of the
+      // current row to val.
+    }
+  }
+
+  // 6. If any is false, then
+  if (!any) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                                 Nothing<DurationRecord>());
+  }
+  // 7. If ! IsValidDuration(result.[[Years]], result.[[Months]],
+  // result.[[Weeks]] result.[[Days]], result.[[Hours]], result.[[Minutes]],
+  // result.[[Seconds]], result.[[Milliseconds]], result.[[Microseconds]],
+  // result.[[Nanoseconds]]) is false, then
+  if (!IsValidDuration(isolate, record)) {
+    // a. Throw a RangeError exception.
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<DurationRecord>());
+  }
+  // 8. Return result.
+  return Just(record);
+}
+
+// #sec-temporal-totemporalduration
+MaybeHandle<JSTemporalDuration> ToTemporalDuration(Isolate* isolate,
+                                                   Handle<Object> item,
+                                                   const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+
+  DurationRecord result;
+  // 1. If Type(item) is Object and item has an [[InitializedTemporalDuration]]
+  // internal slot, then
+  if (item->IsJSTemporalDuration()) {
+    // a. Return item.
+    return Handle<JSTemporalDuration>::cast(item);
+  }
+  // 2. Let result be ? ToTemporalDurationRecord(item).
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result, ToTemporalDurationRecord(isolate, item, method_name),
+      Handle<JSTemporalDuration>());
+
+  // 3. Return ? CreateTemporalDuration(result.[[Years]], result.[[Months]],
+  // result.[[Weeks]], result.[[Days]], result.[[Hours]], result.[[Minutes]],
+  // result.[[Seconds]], result.[[Milliseconds]], result.[[Microseconds]],
+  // result.[[Nanoseconds]]).
+  return CreateTemporalDuration(isolate, result);
 }
 
 // #sec-temporal-totemporaltimezone
@@ -2084,10 +2358,12 @@ MaybeHandle<JSReceiver> ToTemporalTimeZone(
     }
     Handle<JSReceiver> obj = Handle<JSReceiver>::cast(temporal_time_zone_like);
     // b. If ? HasProperty(temporalTimeZoneLike, "timeZone") is false,
-    Maybe<bool> maybe_has =
-        JSReceiver::HasProperty(isolate, obj, factory->timeZone_string());
-    MAYBE_RETURN(maybe_has, Handle<JSReceiver>());
-    if (!maybe_has.FromJust()) {
+    bool has;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, has,
+        JSReceiver::HasProperty(isolate, obj, factory->timeZone_string()),
+        Handle<JSReceiver>());
+    if (!has) {
       // return temporalTimeZoneLike.
       return obj;
     }
@@ -2101,10 +2377,11 @@ MaybeHandle<JSReceiver> ToTemporalTimeZone(
     if (temporal_time_zone_like->IsJSReceiver()) {
       // is Object and ? HasProperty(temporalTimeZoneLike, "timeZone") is false,
       obj = Handle<JSReceiver>::cast(temporal_time_zone_like);
-      maybe_has =
-          JSReceiver::HasProperty(isolate, obj, factory->timeZone_string());
-      MAYBE_RETURN(maybe_has, Handle<JSReceiver>());
-      if (!maybe_has.FromJust()) {
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, has,
+          JSReceiver::HasProperty(isolate, obj, factory->timeZone_string()),
+          Handle<JSReceiver>());
+      if (!has) {
         // return temporalTimeZoneLike.
         return obj;
       }
@@ -2267,10 +2544,11 @@ MaybeHandle<String> BuiltinTimeZoneGetOffsetStringFor(
     Handle<JSTemporalInstant> instant, const char* method_name) {
   TEMPORAL_ENTER_FUNC();
   // 1. Let offsetNanoseconds be ? GetOffsetNanosecondsFor(timeZone, instant).
-  Maybe<int64_t> maybe_offset_nanoseconds =
-      GetOffsetNanosecondsFor(isolate, time_zone, instant, method_name);
-  MAYBE_RETURN(maybe_offset_nanoseconds, Handle<String>());
-  int64_t offset_nanoseconds = maybe_offset_nanoseconds.FromJust();
+  int64_t offset_nanoseconds;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, offset_nanoseconds,
+      GetOffsetNanosecondsFor(isolate, time_zone, instant, method_name),
+      Handle<String>());
 
   // 2. Return ! FormatTimeZoneOffsetString(offsetNanoseconds).
   return FormatTimeZoneOffsetString(isolate, offset_nanoseconds);
@@ -2284,36 +2562,38 @@ Maybe<DateTimeRecord> ParseISODateTime(Isolate* isolate,
 
   DateTimeRecord result;
   // 5. Set year to ! ToIntegerOrInfinity(year).
-  result.year = parsed.date_year;
+  result.date.year = parsed.date_year;
   // 6. If month is undefined, then
   if (parsed.date_month_is_undefined()) {
     // a. Set month to 1.
-    result.month = 1;
+    result.date.month = 1;
     // 7. Else,
   } else {
     // a. Set month to ! ToIntegerOrInfinity(month).
-    result.month = parsed.date_month;
+    result.date.month = parsed.date_month;
   }
 
   // 8. If day is undefined, then
   if (parsed.date_day_is_undefined()) {
     // a. Set day to 1.
-    result.day = 1;
+    result.date.day = 1;
     // 9. Else,
   } else {
     // a. Set day to ! ToIntegerOrInfinity(day).
-    result.day = parsed.date_day;
+    result.date.day = parsed.date_day;
   }
   // 10. Set hour to ! ToIntegerOrInfinity(hour).
-  result.hour = parsed.time_hour_is_undefined() ? 0 : parsed.time_hour;
+  result.time.hour = parsed.time_hour_is_undefined() ? 0 : parsed.time_hour;
   // 11. Set minute to ! ToIntegerOrInfinity(minute).
-  result.minute = parsed.time_minute_is_undefined() ? 0 : parsed.time_minute;
+  result.time.minute =
+      parsed.time_minute_is_undefined() ? 0 : parsed.time_minute;
   // 12. Set second to ! ToIntegerOrInfinity(second).
-  result.second = parsed.time_second_is_undefined() ? 0 : parsed.time_second;
+  result.time.second =
+      parsed.time_second_is_undefined() ? 0 : parsed.time_second;
   // 13. If second is 60, then
-  if (result.second == 60) {
+  if (result.time.second == 60) {
     // a. Set second to 59.
-    result.second = 59;
+    result.time.second = 59;
   }
   // 14. If fraction is not undefined, then
   if (!parsed.time_nanosecond_is_undefined()) {
@@ -2321,33 +2601,34 @@ Maybe<DateTimeRecord> ParseISODateTime(Isolate* isolate,
     // fraction and the string "000000000".
     // b. Let millisecond be the String value equal to the substring of fraction
     // from 0 to 3. c. Set millisecond to ! ToIntegerOrInfinity(millisecond).
-    result.millisecond = parsed.time_nanosecond / 1000000;
+    result.time.millisecond = parsed.time_nanosecond / 1000000;
     // d. Let microsecond be the String value equal to the substring of fraction
     // from 3 to 6. e. Set microsecond to ! ToIntegerOrInfinity(microsecond).
-    result.microsecond = (parsed.time_nanosecond / 1000) % 1000;
+    result.time.microsecond = (parsed.time_nanosecond / 1000) % 1000;
     // f. Let nanosecond be the String value equal to the substring of fraction
     // from 6 to 9. g. Set nanosecond to ! ToIntegerOrInfinity(nanosecond).
-    result.nanosecond = (parsed.time_nanosecond % 1000);
+    result.time.nanosecond = (parsed.time_nanosecond % 1000);
     // 15. Else,
   } else {
     // a. Let millisecond be 0.
-    result.millisecond = 0;
+    result.time.millisecond = 0;
     // b. Let microsecond be 0.
-    result.microsecond = 0;
+    result.time.microsecond = 0;
     // c. Let nanosecond be 0.
-    result.nanosecond = 0;
+    result.time.nanosecond = 0;
   }
   // 16. If ! IsValidISODate(year, month, day) is false, throw a RangeError
   // exception.
-  if (!IsValidISODate(isolate, result.year, result.month, result.day)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+  if (!IsValidISODate(isolate, result.date)) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<DateTimeRecord>());
   }
   // 17. If ! IsValidTime(hour, minute, second, millisecond, microsecond,
   // nanosecond) is false, throw a RangeError exception.
-  if (!IsValidTime(isolate, result.hour, result.minute, result.second,
-                   result.millisecond, result.microsecond, result.nanosecond)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+  if (!IsValidTime(isolate, result.time)) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<DateTimeRecord>());
   }
   // 18. Return the Record { [[Year]]: year, [[Month]]: month, [[Day]]: day,
@@ -2371,32 +2652,28 @@ Maybe<DateRecord> ParseTemporalDateString(Isolate* isolate,
   // 1. Assert: Type(isoString) is String.
   // 2. If isoString does not satisfy the syntax of a TemporalDateString
   // (see 13.33), then
-  Maybe<ParsedISO8601Result> maybe_parsed =
+  base::Optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalDateString(isolate, iso_string);
-  if (maybe_parsed.IsNothing()) {
+  if (!parsed.has_value()) {
     // a. Throw a *RangeError* exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
-                                 Nothing<DateRecord>());
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<DateRecord>());
   }
-  MAYBE_RETURN(maybe_parsed, Nothing<DateRecord>());
-
-  ParsedISO8601Result parsed = maybe_parsed.FromJust();
   // 3. If _isoString_ contains a |UTCDesignator|, then
-  if (parsed.utc_designator) {
+  if (parsed->utc_designator) {
     // a. Throw a *RangeError* exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
-                                 Nothing<DateRecord>());
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<DateRecord>());
   }
   // 3. Let result be ? ParseISODateTime(isoString).
-  Maybe<DateTimeRecord> maybe_result =
-      ParseISODateTime(isolate, iso_string, parsed);
-
-  MAYBE_RETURN(maybe_result, Nothing<DateRecord>());
-  DateTimeRecord result = maybe_result.FromJust();
+  DateTimeRecord result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result, ParseISODateTime(isolate, iso_string, *parsed),
+      Nothing<DateRecord>());
   // 4. Return the Record { [[Year]]: result.[[Year]], [[Month]]:
   // result.[[Month]], [[Day]]: result.[[Day]], [[Calendar]]:
   // result.[[Calendar]] }.
-  DateRecord ret = {result.year, result.month, result.day, result.calendar};
+  DateRecord ret = {result.date, result.calendar};
   return Just(ret);
 }
 
@@ -2408,34 +2685,31 @@ Maybe<TimeRecord> ParseTemporalTimeString(Isolate* isolate,
   // 1. Assert: Type(isoString) is String.
   // 2. If isoString does not satisfy the syntax of a TemporalTimeString
   // (see 13.33), then
-  Maybe<ParsedISO8601Result> maybe_parsed =
+  base::Optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalTimeString(isolate, iso_string);
-  ParsedISO8601Result parsed;
-  if (!maybe_parsed.To(&parsed)) {
+  if (!parsed.has_value()) {
     // a. Throw a *RangeError* exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
-                                 Nothing<TimeRecord>());
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<TimeRecord>());
   }
 
   // 3. If _isoString_ contains a |UTCDesignator|, then
-  if (parsed.utc_designator) {
+  if (parsed->utc_designator) {
     // a. Throw a *RangeError* exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
-                                 Nothing<TimeRecord>());
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<TimeRecord>());
   }
 
   // 3. Let result be ? ParseISODateTime(isoString).
-  Maybe<DateTimeRecord> maybe_result =
-      ParseISODateTime(isolate, iso_string, parsed);
-  MAYBE_RETURN(maybe_result, Nothing<TimeRecord>());
-  DateTimeRecord result = maybe_result.FromJust();
+  DateTimeRecord result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result, ParseISODateTime(isolate, iso_string, *parsed),
+      Nothing<TimeRecord>());
   // 4. Return the Record { [[Hour]]: result.[[Hour]], [[Minute]]:
   // result.[[Minute]], [[Second]]: result.[[Second]], [[Millisecond]]:
   // result.[[Millisecond]], [[Microsecond]]: result.[[Microsecond]],
   // [[Nanosecond]]: result.[[Nanosecond]], [[Calendar]]: result.[[Calendar]] }.
-  TimeRecord ret = {result.hour,        result.minute,      result.second,
-                    result.millisecond, result.microsecond, result.nanosecond,
-                    result.calendar};
+  TimeRecord ret = {result.time, result.calendar};
   return Just(ret);
 }
 
@@ -2447,25 +2721,26 @@ Maybe<InstantRecord> ParseTemporalInstantString(Isolate* isolate,
   // 1. Assert: Type(isoString) is String.
   // 2. If isoString does not satisfy the syntax of a TemporalInstantString
   // (see 13.33), then
-  Maybe<ParsedISO8601Result> maybe_parsed =
+  base::Optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalInstantString(isolate, iso_string);
-  if (maybe_parsed.IsNothing()) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+  if (!parsed.has_value()) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<InstantRecord>());
   }
 
   // 3. Let result be ! ParseISODateTime(isoString).
-  Maybe<DateTimeRecord> maybe_result =
-      ParseISODateTime(isolate, iso_string, maybe_parsed.FromJust());
-
-  MAYBE_RETURN(maybe_result, Nothing<InstantRecord>());
-  DateTimeRecord result = maybe_result.FromJust();
+  DateTimeRecord result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result, ParseISODateTime(isolate, iso_string, *parsed),
+      Nothing<InstantRecord>());
 
   // 4. Let timeZoneResult be ? ParseTemporalTimeZoneString(isoString).
-  Maybe<TimeZoneRecord> maybe_time_zone_result =
-      ParseTemporalTimeZoneString(isolate, iso_string);
-  MAYBE_RETURN(maybe_time_zone_result, Nothing<InstantRecord>());
-  TimeZoneRecord time_zone_result = maybe_time_zone_result.FromJust();
+  TimeZoneRecord time_zone_result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, time_zone_result,
+      ParseTemporalTimeZoneString(isolate, iso_string),
+      Nothing<InstantRecord>());
   // 5. Let offsetString be timeZoneResult.[[OffsetString]].
   Handle<String> offset_string = time_zone_result.offset_string;
   // 6. If timeZoneResult.[[Z]] is true, then
@@ -2484,17 +2759,7 @@ Maybe<InstantRecord> ParseTemporalInstantString(Isolate* isolate,
   // [[Microsecond]]: result.[[Microsecond]],
   // [[Nanosecond]]: result.[[Nanosecond]],
   // [[TimeZoneOffsetString]]: offsetString }.
-  InstantRecord record;
-  record.year = result.year;
-  record.month = result.month;
-  record.day = result.day;
-  record.hour = result.hour;
-  record.minute = result.minute;
-  record.second = result.second;
-  record.millisecond = result.millisecond;
-  record.microsecond = result.microsecond;
-  record.nanosecond = result.nanosecond;
-  record.offset_string = offset_string;
+  InstantRecord record({result.date, result.time, offset_string});
   return Just(record);
 }
 
@@ -2506,10 +2771,10 @@ MaybeHandle<BigInt> ParseTemporalInstant(Isolate* isolate,
   Factory* factory = isolate->factory();
   // 1. Assert: Type(isoString) is String.
   // 2. Let result be ? ParseTemporalInstantString(isoString).
-  Maybe<InstantRecord> maybe_result =
-      ParseTemporalInstantString(isolate, iso_string);
-  MAYBE_RETURN(maybe_result, Handle<BigInt>());
-  InstantRecord result = maybe_result.FromJust();
+  InstantRecord result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result, ParseTemporalInstantString(isolate, iso_string),
+      Handle<BigInt>());
 
   // 3. Let offsetString be result.[[TimeZoneOffsetString]].
   // 4. Assert: offsetString is not undefined.
@@ -2518,14 +2783,8 @@ MaybeHandle<BigInt> ParseTemporalInstant(Isolate* isolate,
   // 5. Let utc be ? GetEpochFromISOParts(result.[[Year]], result.[[Month]],
   // result.[[Day]], result.[[Hour]], result.[[Minute]], result.[[Second]],
   // result.[[Millisecond]], result.[[Microsecond]], result.[[Nanosecond]]).
-  Handle<BigInt> utc;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, utc,
-      GetEpochFromISOParts(isolate, result.year, result.month, result.day,
-                           result.hour, result.minute, result.second,
-                           result.millisecond, result.microsecond,
-                           result.nanosecond),
-      BigInt);
+  Handle<BigInt> utc =
+      GetEpochFromISOParts(isolate, {result.date, result.time});
 
   // 6. If utc < −8.64 × 10^21 or utc > 8.64 × 10^21, then
   if ((BigInt::CompareToNumber(utc, factory->NewNumber(-8.64e21)) ==
@@ -2533,17 +2792,178 @@ MaybeHandle<BigInt> ParseTemporalInstant(Isolate* isolate,
       (BigInt::CompareToNumber(utc, factory->NewNumber(8.64e21)) ==
        ComparisonResult::kGreaterThan)) {
     // a. Throw a RangeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), BigInt);
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), BigInt);
   }
   // 7. Let offsetNanoseconds be ? ParseTimeZoneOffsetString(offsetString).
-  Maybe<int64_t> maybe_offset_nanoseconds =
-      ParseTimeZoneOffsetString(isolate, result.offset_string);
-  MAYBE_RETURN(maybe_offset_nanoseconds, Handle<BigInt>());
-  int64_t offset_nanoseconds = maybe_offset_nanoseconds.FromJust();
+  int64_t offset_nanoseconds;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, offset_nanoseconds,
+      ParseTimeZoneOffsetString(isolate, result.offset_string),
+      Handle<BigInt>());
 
   // 8. Return utc − offsetNanoseconds.
   return BigInt::Subtract(isolate, utc,
                           BigInt::FromInt64(isolate, offset_nanoseconds));
+}
+
+// #sec-temporal-createdurationrecord
+Maybe<DurationRecord> CreateDurationRecord(Isolate* isolate,
+                                           const DurationRecord& duration) {
+  //   1. If ! IsValidDuration(years, months, weeks, days, hours, minutes,
+  //   seconds, milliseconds, microseconds, nanoseconds) is false, throw a
+  //   RangeError exception.
+  if (!IsValidDuration(isolate, duration)) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<DurationRecord>());
+  }
+  // 2. Return the Record { [[Years]]: ℝ(𝔽(years)), [[Months]]: ℝ(𝔽(months)),
+  // [[Weeks]]: ℝ(𝔽(weeks)), [[Days]]: ℝ(𝔽(days)), [[Hours]]: ℝ(𝔽(hours)),
+  // [[Minutes]]: ℝ(𝔽(minutes)), [[Seconds]]: ℝ(𝔽(seconds)), [[Milliseconds]]:
+  // ℝ(𝔽(milliseconds)), [[Microseconds]]: ℝ(𝔽(microseconds)), [[Nanoseconds]]:
+  // ℝ(𝔽(nanoseconds)) }.
+  return Just(duration);
+}
+
+inline int64_t IfEmptyReturnZero(int64_t value) {
+  return value == ParsedISO8601Duration::kEmpty ? 0 : value;
+}
+
+// #sec-temporal-parsetemporaldurationstring
+Maybe<DurationRecord> ParseTemporalDurationString(Isolate* isolate,
+                                                  Handle<String> iso_string) {
+  TEMPORAL_ENTER_FUNC();
+  // In this funciton, we use 'double' as type for all mathematical values
+  // except the three three units < seconds. For all others, we use 'double'
+  // because in
+  // https://tc39.es/proposal-temporal/#sec-properties-of-temporal-duration-instances
+  // they are "A float64-representable integer representing the number" in the
+  // internal slots.
+  // For milliseconds_mv, microseconds_mv, and nanoseconds_mv, we use int32_t
+  // instead because their maximum number during calculation is 999999999,
+  // which can be encoded in 30 bits and the parsed.seconds_fraction return from
+  // the ISO8601 parser are stored in an integer, in the unit of nanoseconds.
+  // Therefore, use "int32_t" will avoid rounding error for the final
+  // calculating of nanoseconds_mv.
+  //
+  // 1. Let duration be ParseText(StringToCodePoints(isoString),
+  // TemporalDurationString).
+  // 2. If duration is a List of errors, throw a RangeError exception.
+  // 3. Let each of sign, years, months, weeks, days, hours, fHours, minutes,
+  // fMinutes, seconds, and fSeconds be the source text matched by the
+  // respective Sign, DurationYears, DurationMonths, DurationWeeks,
+  // DurationDays, DurationWholeHours, DurationHoursFraction,
+  // DurationWholeMinutes, DurationMinutesFraction, DurationWholeSeconds, and
+  // DurationSecondsFraction Parse Node enclosed by duration, or an empty
+  // sequence of code points if not present.
+  base::Optional<ParsedISO8601Duration> parsed =
+      TemporalParser::ParseTemporalDurationString(isolate, iso_string);
+  if (!parsed.has_value()) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<DurationRecord>());
+  }
+  // 4. Let yearsMV be ! ToIntegerOrInfinity(CodePointsToString(years)).
+  double years_mv = IfEmptyReturnZero(parsed->years);
+  // 5. Let monthsMV be ! ToIntegerOrInfinity(CodePointsToString(months)).
+  double months_mv = IfEmptyReturnZero(parsed->months);
+  // 6. Let weeksMV be ! ToIntegerOrInfinity(CodePointsToString(weeks)).
+  double weeks_mv = IfEmptyReturnZero(parsed->weeks);
+  // 7. Let daysMV be ! ToIntegerOrInfinity(CodePointsToString(days)).
+  double days_mv = IfEmptyReturnZero(parsed->days);
+  // 8. Let hoursMV be ! ToIntegerOrInfinity(CodePointsToString(hours)).
+  double hours_mv = IfEmptyReturnZero(parsed->whole_hours);
+  // 9. If fHours is not empty, then
+  double minutes_mv;
+  if (parsed->hours_fraction != ParsedISO8601Duration::kEmpty) {
+    // a. If any of minutes, fMinutes, seconds, fSeconds is not empty, throw a
+    // RangeError exception.
+    if (parsed->whole_minutes != ParsedISO8601Duration::kEmpty ||
+        parsed->minutes_fraction != ParsedISO8601Duration::kEmpty ||
+        parsed->whole_seconds != ParsedISO8601Duration::kEmpty ||
+        parsed->seconds_fraction != ParsedISO8601Duration::kEmpty) {
+      THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                   NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                   Nothing<DurationRecord>());
+    }
+    // b. Let fHoursDigits be the substring of CodePointsToString(fHours)
+    // from 1. c. Let fHoursScale be the length of fHoursDigits. d. Let
+    // minutesMV be ! ToIntegerOrInfinity(fHoursDigits) / 10^fHoursScale × 60.
+    minutes_mv = IfEmptyReturnZero(parsed->hours_fraction) * 60.0 / 1e9;
+    // 10. Else,
+  } else {
+    // a. Let minutesMV be ! ToIntegerOrInfinity(CodePointsToString(minutes)).
+    minutes_mv = IfEmptyReturnZero(parsed->whole_minutes);
+  }
+  double seconds_mv;
+  // 11. If fMinutes is not empty, then
+  if (parsed->minutes_fraction != ParsedISO8601Duration::kEmpty) {
+    // a. If any of seconds, fSeconds is not empty, throw a RangeError
+    // exception.
+    if (parsed->whole_seconds != ParsedISO8601Duration::kEmpty ||
+        parsed->seconds_fraction != ParsedISO8601Duration::kEmpty) {
+      THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                   NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                   Nothing<DurationRecord>());
+    }
+    // b. Let fMinutesDigits be the substring of CodePointsToString(fMinutes)
+    // from 1. c. Let fMinutesScale be the length of fMinutesDigits. d. Let
+    // secondsMV be ! ToIntegerOrInfinity(fMinutesDigits) / 10^fMinutesScale
+    // × 60.
+    seconds_mv = IfEmptyReturnZero(parsed->minutes_fraction) * 60.0 / 1e9;
+    // 12. Else if seconds is not empty, then
+  } else if (parsed->whole_seconds != ParsedISO8601Duration::kEmpty) {
+    // a. Let secondsMV be ! ToIntegerOrInfinity(CodePointsToString(seconds)).
+    seconds_mv = parsed->whole_seconds;
+    // 13. Else,
+  } else {
+    // a. Let secondsMV be remainder(minutesMV, 1) × 60.
+    seconds_mv = (minutes_mv - std::floor(minutes_mv)) * 60.0;
+  }
+  int32_t milliseconds_mv;
+  int32_t nanoseconds_mv;
+  // 14. If fSeconds is not empty, then
+  if (parsed->seconds_fraction != ParsedISO8601Duration::kEmpty) {
+    // a. Let fSecondsDigits be the substring of CodePointsToString(fSeconds)
+    // from 1. b. Let fSecondsScale be the length of fSecondsDigits. c. Let
+    // millisecondsMV be ! ToIntegerOrInfinity(fSecondsDigits) /
+    // 10^fSecondsScale × 1000.
+    DCHECK_LE(IfEmptyReturnZero(parsed->seconds_fraction), 1e9);
+    nanoseconds_mv =
+        static_cast<int32_t>(IfEmptyReturnZero(parsed->seconds_fraction));
+    // 15. Else,
+  } else {
+    // a. Let millisecondsMV be remainder(secondsMV, 1) × 1000.
+    nanoseconds_mv = (seconds_mv - std::floor(seconds_mv)) * 1000000000;
+  }
+  milliseconds_mv = nanoseconds_mv / 1000000;
+  // 16. Let microsecondsMV be remainder(millisecondsMV, 1) × 1000.
+  int32_t microseconds_mv = (nanoseconds_mv / 1000) % 1000;
+  // 17. Let nanosecondsMV be remainder(microsecondsMV, 1) × 1000.
+  nanoseconds_mv = nanoseconds_mv % 1000;
+
+  DCHECK_LE(milliseconds_mv, 1000);
+  DCHECK_LE(microseconds_mv, 1000);
+  DCHECK_LE(nanoseconds_mv, 1000);
+  // 18. If sign contains the code point 0x002D (HYPHEN-MINUS) or 0x2212 (MINUS
+  // SIGN), then a. Let factor be −1.
+  // 19. Else,
+  // a. Let factor be 1.
+  double factor = parsed->sign;
+
+  // 20. Return ? CreateDurationRecord(yearsMV × factor, monthsMV × factor,
+  // weeksMV × factor, daysMV × factor, hoursMV × factor, floor(minutesMV) ×
+  // factor, floor(secondsMV) × factor, floor(millisecondsMV) × factor,
+  // floor(microsecondsMV) × factor, floor(nanosecondsMV) × factor).
+
+  return CreateDurationRecord(
+      isolate,
+      {years_mv * factor,
+       months_mv * factor,
+       weeks_mv * factor,
+       {days_mv * factor, hours_mv * factor, std::floor(minutes_mv) * factor,
+        std::floor(seconds_mv) * factor, milliseconds_mv * factor,
+        microseconds_mv * factor, nanoseconds_mv * factor}});
 }
 
 // #sec-temporal-parsetemporaltimezonestring
@@ -2554,27 +2974,26 @@ Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(Isolate* isolate,
   // 1. Assert: Type(isoString) is String.
   // 2. If isoString does not satisfy the syntax of a TemporalTimeZoneString
   // (see 13.33), then
-  Maybe<ParsedISO8601Result> maybe_parsed =
+  base::Optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalTimeZoneString(isolate, iso_string);
-  MAYBE_RETURN(maybe_parsed, Nothing<TimeZoneRecord>());
-  if (maybe_parsed.IsNothing()) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+  if (!parsed.has_value()) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<TimeZoneRecord>());
   }
-  ParsedISO8601Result parsed = maybe_parsed.FromJust();
   // 3. Let z, sign, hours, minutes, seconds, fraction and name be the parts of
   // isoString produced respectively by the UTCDesignator,
   // TimeZoneUTCOffsetSign, TimeZoneUTCOffsetHour, TimeZoneUTCOffsetMinute,
   // TimeZoneUTCOffsetSecond, TimeZoneUTCOffsetFraction, and TimeZoneIANAName
   // productions, or undefined if not present.
   // 4. If z is not undefined, then
-  if (parsed.utc_designator) {
+  if (parsed->utc_designator) {
     // a. Return the Record { [[Z]]: true, [[OffsetString]]: undefined,
     // [[Name]]: name }.
-    if (parsed.tzi_name_length > 0) {
+    if (parsed->tzi_name_length > 0) {
       Handle<String> name = isolate->factory()->NewSubString(
-          iso_string, parsed.tzi_name_start,
-          parsed.tzi_name_start + parsed.tzi_name_length);
+          iso_string, parsed->tzi_name_start,
+          parsed->tzi_name_start + parsed->tzi_name_length);
       TimeZoneRecord ret({true, isolate->factory()->empty_string(), name});
       return Just(ret);
     }
@@ -2588,29 +3007,29 @@ Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(Isolate* isolate,
   // 6. Else,
   Handle<String> offset_string;
   bool offset_string_is_defined = false;
-  if (!parsed.tzuo_hour_is_undefined()) {
+  if (!parsed->tzuo_hour_is_undefined()) {
     // a. Assert: sign is not undefined.
-    DCHECK(!parsed.tzuo_sign_is_undefined());
+    DCHECK(!parsed->tzuo_sign_is_undefined());
     // b. Set hours to ! ToIntegerOrInfinity(hours).
-    int32_t hours = parsed.tzuo_hour;
+    int32_t hours = parsed->tzuo_hour;
     // c. If sign is the code unit 0x002D (HYPHEN-MINUS) or the code unit 0x2212
     // (MINUS SIGN), then i. Set sign to −1. d. Else, i. Set sign to 1.
-    int32_t sign = parsed.tzuo_sign;
+    int32_t sign = parsed->tzuo_sign;
     // e. Set minutes to ! ToIntegerOrInfinity(minutes).
     int32_t minutes =
-        parsed.tzuo_minute_is_undefined() ? 0 : parsed.tzuo_minute;
+        parsed->tzuo_minute_is_undefined() ? 0 : parsed->tzuo_minute;
     // f. Set seconds to ! ToIntegerOrInfinity(seconds).
     int32_t seconds =
-        parsed.tzuo_second_is_undefined() ? 0 : parsed.tzuo_second;
+        parsed->tzuo_second_is_undefined() ? 0 : parsed->tzuo_second;
     // g. If fraction is not undefined, then
     int32_t nanoseconds;
-    if (!parsed.tzuo_nanosecond_is_undefined()) {
+    if (!parsed->tzuo_nanosecond_is_undefined()) {
       // i. Set fraction to the string-concatenation of the previous value of
       // fraction and the string "000000000".
       // ii. Let nanoseconds be the String value equal to the substring of
       // fraction from 0 to 9. iii. Set nanoseconds to !
       // ToIntegerOrInfinity(nanoseconds).
-      nanoseconds = parsed.tzuo_nanosecond;
+      nanoseconds = parsed->tzuo_nanosecond;
       // h. Else,
     } else {
       // i. Let nanoseconds be 0.
@@ -2630,15 +3049,15 @@ Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(Isolate* isolate,
   }
   // 7. If name is not undefined, then
   Handle<String> name;
-  if (parsed.tzi_name_length > 0) {
+  if (parsed->tzi_name_length > 0) {
     name = isolate->factory()->NewSubString(
-        iso_string, parsed.tzi_name_start,
-        parsed.tzi_name_start + parsed.tzi_name_length);
+        iso_string, parsed->tzi_name_start,
+        parsed->tzi_name_start + parsed->tzi_name_length);
 
     // a. If ! IsValidTimeZoneName(name) is false, throw a RangeError exception.
     if (!IsValidTimeZoneName(isolate, name)) {
       THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                   NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+                                   NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                    Nothing<TimeZoneRecord>());
     }
     // b. Set name to ! CanonicalizeTimeZoneName(name).
@@ -2670,10 +3089,10 @@ MaybeHandle<String> ParseTemporalTimeZone(Isolate* isolate,
   TEMPORAL_ENTER_FUNC();
 
   // 2. Let result be ? ParseTemporalTimeZoneString(string).
-  Maybe<TimeZoneRecord> maybe_result =
-      ParseTemporalTimeZoneString(isolate, string);
-  MAYBE_RETURN(maybe_result, Handle<String>());
-  TimeZoneRecord result = maybe_result.FromJust();
+  TimeZoneRecord result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result, ParseTemporalTimeZoneString(isolate, string),
+      Handle<String>());
 
   // 3. If result.[[Name]] is not undefined, return result.[[Name]].
   if (result.name->length() > 0) {
@@ -2691,51 +3110,51 @@ MaybeHandle<String> ParseTemporalTimeZone(Isolate* isolate,
 
 Maybe<int64_t> ParseTimeZoneOffsetString(Isolate* isolate,
                                          Handle<String> iso_string,
-                                         bool throwIfNotSatisfy) {
+                                         bool throw_if_not_satisfy) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Assert: Type(offsetString) is String.
   // 2. If offsetString does not satisfy the syntax of a
   // TimeZoneNumericUTCOffset (see 13.33), then
-  Maybe<ParsedISO8601Result> maybe_parsed =
+  base::Optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, iso_string);
-  MAYBE_RETURN(maybe_parsed, Nothing<int64_t>());
-  if (throwIfNotSatisfy && maybe_parsed.IsNothing()) {
+  if (throw_if_not_satisfy && !parsed.has_value()) {
     /* a. Throw a RangeError exception. */
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
-                                 Nothing<int64_t>());
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<int64_t>());
   }
-  ParsedISO8601Result parsed = maybe_parsed.FromJust();
   // 3. Let sign, hours, minutes, seconds, and fraction be the parts of
   // offsetString produced respectively by the TimeZoneUTCOffsetSign,
   // TimeZoneUTCOffsetHour, TimeZoneUTCOffsetMinute, TimeZoneUTCOffsetSecond,
   // and TimeZoneUTCOffsetFraction productions, or undefined if not present.
   // 4. If either hours or sign are undefined, throw a RangeError exception.
-  if (parsed.tzuo_hour_is_undefined() || parsed.tzuo_sign_is_undefined()) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
-                                 Nothing<int64_t>());
+  if (parsed->tzuo_hour_is_undefined() || parsed->tzuo_sign_is_undefined()) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<int64_t>());
   }
   // 5. If sign is the code unit 0x002D (HYPHEN-MINUS) or 0x2212 (MINUS SIGN),
   // then a. Set sign to −1.
   // 6. Else,
   // a. Set sign to 1.
-  int64_t sign = parsed.tzuo_sign;
+  int64_t sign = parsed->tzuo_sign;
 
   // 7. Set hours to ! ToIntegerOrInfinity(hours).
-  int64_t hours = parsed.tzuo_hour;
+  int64_t hours = parsed->tzuo_hour;
   // 8. Set minutes to ! ToIntegerOrInfinity(minutes).
-  int64_t minutes = parsed.tzuo_minute_is_undefined() ? 0 : parsed.tzuo_minute;
+  int64_t minutes =
+      parsed->tzuo_minute_is_undefined() ? 0 : parsed->tzuo_minute;
   // 9. Set seconds to ! ToIntegerOrInfinity(seconds).
-  int64_t seconds = parsed.tzuo_second_is_undefined() ? 0 : parsed.tzuo_second;
+  int64_t seconds =
+      parsed->tzuo_second_is_undefined() ? 0 : parsed->tzuo_second;
   // 10. If fraction is not undefined, then
   int64_t nanoseconds;
-  if (!parsed.tzuo_nanosecond_is_undefined()) {
+  if (!parsed->tzuo_nanosecond_is_undefined()) {
     // a. Set fraction to the string-concatenation of the previous value of
     // fraction and the string "000000000".
     // b. Let nanoseconds be the String value equal to the substring of fraction
     // consisting of the code units with indices 0 (inclusive) through 9
     // (exclusive). c. Set nanoseconds to ! ToIntegerOrInfinity(nanoseconds).
-    nanoseconds = parsed.tzuo_nanosecond;
+    nanoseconds = parsed->tzuo_nanosecond;
     // 11. Else,
   } else {
     // a. Let nanoseconds be 0.
@@ -2751,9 +3170,9 @@ Maybe<bool> IsValidTimeZoneNumericUTCOffsetString(Isolate* isolate,
                                                   Handle<String> iso_string) {
   TEMPORAL_ENTER_FUNC();
 
-  Maybe<ParsedISO8601Result> maybe_parsed =
+  base::Optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, iso_string);
-  return Just(maybe_parsed.IsJust());
+  return Just(parsed.has_value());
 }
 
 // #sec-temporal-parsetemporalcalendarstring
@@ -2764,23 +3183,21 @@ MaybeHandle<String> ParseTemporalCalendarString(Isolate* isolate,
   // 1. Assert: Type(isoString) is String.
   // 2. If isoString does not satisfy the syntax of a TemporalCalendarString
   // (see 13.33), then a. Throw a RangeError exception.
-  Maybe<ParsedISO8601Result> maybe_parsed =
+  base::Optional<ParsedISO8601Result> parsed =
       TemporalParser::ParseTemporalCalendarString(isolate, iso_string);
-  MAYBE_RETURN(maybe_parsed, Handle<String>());
-  if (maybe_parsed.IsNothing()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), String);
+  if (!parsed.has_value()) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), String);
   }
-  ParsedISO8601Result parsed = maybe_parsed.FromJust();
   // 3. Let id be the part of isoString produced by the CalendarName production,
   // or undefined if not present.
   // 4. If id is undefined, then
-  if (parsed.calendar_name_length == 0) {
+  if (parsed->calendar_name_length == 0) {
     // a. Return "iso8601".
     return isolate->factory()->iso8601_string();
   }
   Handle<String> id = isolate->factory()->NewSubString(
-      iso_string, parsed.calendar_name_start,
-      parsed.calendar_name_start + parsed.calendar_name_length);
+      iso_string, parsed->calendar_name_start,
+      parsed->calendar_name_start + parsed->calendar_name_length);
   // 5. If ! IsBuiltinCalendar(id) is false, then
   if (!IsBuiltinCalendar(isolate, id)) {
     // a. Throw a RangeError exception.
@@ -2836,7 +3253,8 @@ MaybeHandle<JSTemporalPlainDate> CalendarDateAdd(Isolate* isolate,
 MaybeHandle<JSTemporalPlainDate> CalendarDateAdd(
     Isolate* isolate, Handle<JSReceiver> calendar, Handle<Object> date,
     Handle<Object> duration, Handle<Object> options, Handle<Object> date_add) {
-  // 1. Assert: Type(calendar) is Object.
+  // 1. Assert: Type(options) is Object or Undefined.
+  DCHECK(options->IsJSReceiver() || options->IsUndefined());
   // 2. If dateAdd is not present, set dateAdd to ? GetMethod(calendar,
   // "dateAdd").
   if (date_add->IsUndefined()) {
@@ -2854,7 +3272,7 @@ MaybeHandle<JSTemporalPlainDate> CalendarDateAdd(
       JSTemporalPlainDate);
   // 4. Perform ? RequireInternalSlot(addedDate, [[InitializedTemporalDate]]).
   if (!added_date->IsJSTemporalPlainDate()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(),
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
                     JSTemporalPlainDate);
   }
   // 5. Return addedDate.
@@ -2892,7 +3310,7 @@ MaybeHandle<JSTemporalDuration> CalendarDateUntil(
   // 4. Perform ? RequireInternalSlot(duration,
   // [[InitializedTemporalDuration]]).
   if (!duration->IsJSTemporalDuration()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(),
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
                     JSTemporalDuration);
   }
   // 5. Return duration.
@@ -2912,7 +3330,7 @@ MaybeHandle<JSReceiver> DefaultMergeFields(
   Handle<FixedArray> original_keys;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, original_keys,
-      KeyAccumulator::GetKeys(fields, KeyCollectionMode::kOwnOnly,
+      KeyAccumulator::GetKeys(isolate, fields, KeyCollectionMode::kOwnOnly,
                               ENUMERABLE_STRINGS,
                               GetKeysConversion::kConvertToString),
       JSReceiver);
@@ -2945,8 +3363,8 @@ MaybeHandle<JSReceiver> DefaultMergeFields(
   Handle<FixedArray> new_keys;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, new_keys,
-      KeyAccumulator::GetKeys(additional_fields, KeyCollectionMode::kOwnOnly,
-                              ENUMERABLE_STRINGS,
+      KeyAccumulator::GetKeys(isolate, additional_fields,
+                              KeyCollectionMode::kOwnOnly, ENUMERABLE_STRINGS,
                               GetKeysConversion::kConvertToString),
       JSReceiver);
   bool new_keys_has_month_or_month_code = false;
@@ -2964,9 +3382,9 @@ MaybeHandle<JSReceiver> DefaultMergeFields(
     // b. If propValue is not undefined, then
     if (!prop_value->IsUndefined()) {
       // 1. Perform ! CreateDataPropertyOrThrow(merged, nextKey, propValue).
-      Maybe<bool> maybe_created = JSReceiver::CreateDataProperty(
-          isolate, merged, next_key_string, prop_value, Just(kThrowOnError));
-      MAYBE_RETURN(maybe_created, Handle<JSReceiver>());
+      CHECK(JSReceiver::CreateDataProperty(isolate, merged, next_key_string,
+                                           prop_value, Just(kDontThrow))
+                .FromJust());
     }
     new_keys_has_month_or_month_code |=
         String::Equals(isolate, factory->month_string(), next_key_string) ||
@@ -3041,24 +3459,24 @@ Maybe<int64_t> GetOffsetNanosecondsFor(Isolate* isolate,
 
   // 4. If Type(offsetNanoseconds) is not Number, throw a TypeError exception.
   if (!offset_nanoseconds_obj->IsNumber()) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(),
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
                                  Nothing<int64_t>());
   }
 
   // 5. If ! IsIntegralNumber(offsetNanoseconds) is false, throw a RangeError
   // exception.
-  double offset_nanoseconds = offset_nanoseconds_obj->Number();
-  if ((offset_nanoseconds - std::floor(offset_nanoseconds) != 0)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
-                                 Nothing<int64_t>());
+  if (!IsIntegralNumber(isolate, offset_nanoseconds_obj)) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<int64_t>());
   }
+  double offset_nanoseconds = offset_nanoseconds_obj->Number();
 
   // 6. Set offsetNanoseconds to ℝ(offsetNanoseconds).
   int64_t offset_nanoseconds_int = static_cast<int64_t>(offset_nanoseconds);
   // 7. If abs(offsetNanoseconds) > 86400 × 10^9, throw a RangeError exception.
   if (std::abs(offset_nanoseconds_int) > 86400e9) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
-                                 Nothing<int64_t>());
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<int64_t>());
   }
   // 8. Return offsetNanoseconds.
   return Just(offset_nanoseconds_int);
@@ -3075,7 +3493,7 @@ MaybeHandle<Object> ToPositiveInteger(Isolate* isolate,
   // 2. If integer ≤ 0, then
   if (NumberToInt32(*argument) <= 0) {
     // a. Throw a RangeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), Object);
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Object);
   }
   return argument;
 }
@@ -3107,26 +3525,27 @@ MaybeHandle<Object> InvokeCalendarMethod(Isolate* isolate,
   return result;
 }
 
-#define CALENDAR_ABSTRACT_OPERATION_INT_ACTION(Name, name, Action)             \
-  MaybeHandle<Object> Calendar##Name(Isolate* isolate,                         \
-                                     Handle<JSReceiver> calendar,              \
-                                     Handle<JSReceiver> date_like) {           \
-    /* 1. Assert: Type(calendar) is Object.   */                               \
-    /* 2. Let result be ? Invoke(calendar, property, « dateLike »). */       \
-    Handle<Object> result;                                                     \
-    ASSIGN_RETURN_ON_EXCEPTION(                                                \
-        isolate, result,                                                       \
-        InvokeCalendarMethod(isolate, calendar,                                \
-                             isolate->factory()->name##_string(), date_like),  \
-        Object);                                                               \
-    /* 3. If result is undefined, throw a RangeError exception. */             \
-    if (result->IsUndefined()) {                                               \
-      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), Object); \
-    }                                                                          \
-    /* 4. Return ? Action(result). */                                          \
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, result, Action(isolate, result),       \
-                               Object);                                        \
-    return Handle<Smi>(Smi::FromInt(result->Number()), isolate);               \
+#define CALENDAR_ABSTRACT_OPERATION_INT_ACTION(Name, name, Action)            \
+  MaybeHandle<Object> Calendar##Name(Isolate* isolate,                        \
+                                     Handle<JSReceiver> calendar,             \
+                                     Handle<JSReceiver> date_like) {          \
+    /* 1. Assert: Type(calendar) is Object.   */                              \
+    /* 2. Let result be ? Invoke(calendar, property, « dateLike »). */      \
+    Handle<Object> result;                                                    \
+    ASSIGN_RETURN_ON_EXCEPTION(                                               \
+        isolate, result,                                                      \
+        InvokeCalendarMethod(isolate, calendar,                               \
+                             isolate->factory()->name##_string(), date_like), \
+        Object);                                                              \
+    /* 3. If result is undefined, throw a RangeError exception. */            \
+    if (result->IsUndefined()) {                                              \
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),        \
+                      Object);                                                \
+    }                                                                         \
+    /* 4. Return ? Action(result). */                                         \
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, result, Action(isolate, result),      \
+                               Object);                                       \
+    return Handle<Smi>(Smi::FromInt(result->Number()), isolate);              \
   }
 
 // #sec-temporal-calendaryear
@@ -3149,7 +3568,7 @@ MaybeHandle<Object> CalendarMonthCode(Isolate* isolate,
       Object);
   /* 3. If result is undefined, throw a RangeError exception. */
   if (result->IsUndefined()) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), Object);
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Object);
   }
   // 4. Return ? ToString(result).
   return Object::ToString(isolate, result);
@@ -3335,12 +3754,12 @@ Maybe<TimeRecord> ToTemporalTimeRecord(Isolate* isolate,
   bool any = false;
   // 4. For each row of Table 3, except the header row, in table order, do
   std::array<std::pair<Handle<String>, int32_t*>, 6> table3 = {
-      {{factory->hour_string(), &result.hour},
-       {factory->microsecond_string(), &result.microsecond},
-       {factory->millisecond_string(), &result.millisecond},
-       {factory->minute_string(), &result.minute},
-       {factory->nanosecond_string(), &result.nanosecond},
-       {factory->second_string(), &result.second}}};
+      {{factory->hour_string(), &result.time.hour},
+       {factory->microsecond_string(), &result.time.microsecond},
+       {factory->millisecond_string(), &result.time.millisecond},
+       {factory->minute_string(), &result.time.minute},
+       {factory->nanosecond_string(), &result.time.nanosecond},
+       {factory->second_string(), &result.time.second}}};
   for (const auto& row : table3) {
     Handle<Object> value;
     // a. Let property be the Property value of the current row.
@@ -3366,7 +3785,7 @@ Maybe<TimeRecord> ToTemporalTimeRecord(Isolate* isolate,
   // 5. If _any_ is *false*, then
   if (!any) {
     // a. Throw a *TypeError* exception.
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(),
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
                                  Nothing<TimeRecord>());
   }
   // 4. Return result.
@@ -3399,6 +3818,66 @@ MaybeHandle<JSObject> MergeLargestUnitOption(Isolate* isolate,
   return merged;
 }
 
+// #sec-temporal-tolargesttemporalunit
+Maybe<Unit> ToLargestTemporalUnit(Isolate* isolate,
+                                  Handle<JSReceiver> normalized_options,
+                                  std::set<Unit> disallowed_units,
+                                  Unit fallback, Unit auto_value,
+                                  const char* method) {
+  // 1. Assert: disallowedUnits does not contain fallback or "auto".
+  DCHECK_EQ(disallowed_units.find(fallback), disallowed_units.end());
+  DCHECK_EQ(disallowed_units.find(Unit::kAuto), disallowed_units.end());
+  // 2. Assert: If autoValue is present, fallback is "auto", and disallowedUnits
+  // does not contain autoValue.
+  DCHECK(auto_value == Unit::kNotPresent || fallback == Unit::kAuto);
+  DCHECK(auto_value == Unit::kNotPresent ||
+         disallowed_units.find(auto_value) == disallowed_units.end());
+  // 3. Let largestUnit be ? GetOption(normalizedOptions, "largestUnit", «
+  // String », « "auto", "year", "years", "month", "months", "week", "weeks",
+  // "day", "days", "hour", "hours", "minute", "minutes", "second", "seconds",
+  // "millisecond", "milliseconds", "microsecond", "microseconds", "nanosecond",
+  // "nanoseconds" », fallback).
+  Unit largest_unit;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, largest_unit,
+      GetStringOption<Unit>(
+          isolate, normalized_options, "largestUnit", method,
+          {"auto",         "year",        "years",        "month",
+           "months",       "week",        "weeks",        "day",
+           "days",         "hour",        "hours",        "minute",
+           "minutes",      "second",      "seconds",      "millisecond",
+           "milliseconds", "microsecond", "microseconds", "nanosecond",
+           "nanoseconds"},
+          {Unit::kAuto,        Unit::kYear,        Unit::kYear,
+           Unit::kMonth,       Unit::kMonth,       Unit::kWeek,
+           Unit::kWeek,        Unit::kDay,         Unit::kDay,
+           Unit::kHour,        Unit::kHour,        Unit::kMinute,
+           Unit::kMinute,      Unit::kSecond,      Unit::kSecond,
+           Unit::kMillisecond, Unit::kMillisecond, Unit::kMicrosecond,
+           Unit::kMicrosecond, Unit::kNanosecond,  Unit::kNanosecond},
+          fallback),
+      Nothing<Unit>());
+  // 4. If largestUnit is "auto" and autoValue is present, then
+  if (largest_unit == Unit::kAuto && auto_value != Unit::kNotPresent) {
+    // a. Return autoValue.
+    return Just(auto_value);
+  }
+  // 5. If largestUnit is in the Plural column of Table 12, then
+  // a. Set largestUnit to the corresponding Singular value of the same row.
+  // 6. If disallowedUnits contains largestUnit, then
+  if (disallowed_units.find(largest_unit) != disallowed_units.end()) {
+    // a. Throw a RangeError exception.
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidUnit,
+                      isolate->factory()->NewStringFromAsciiChecked(method),
+                      isolate->factory()->largestUnit_string()),
+        Nothing<Unit>());
+  }
+  // 7. Return largestUnit.
+  return Just(largest_unit);
+}
+
 // #sec-temporal-tointegerthrowoninfinity
 MaybeHandle<Object> ToIntegerThrowOnInfinity(Isolate* isolate,
                                              Handle<Object> argument) {
@@ -3410,7 +3889,7 @@ MaybeHandle<Object> ToIntegerThrowOnInfinity(Isolate* isolate,
   // 2. If integer is +∞ or -∞, throw a RangeError exception.
   if (!std::isfinite(argument->Number())) {
     // a. Throw a RangeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), Object);
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Object);
   }
   return argument;
 }
@@ -3463,21 +3942,23 @@ Handle<String> UnitToString(Isolate* isolate, Unit unit) {
       return ReadOnlyRoots(isolate).microsecond_string_handle();
     case Unit::kNanosecond:
       return ReadOnlyRoots(isolate).nanosecond_string_handle();
-    default:
+    case Unit::kNotPresent:
+    case Unit::kAuto:
       UNREACHABLE();
   }
 }
 
 // #sec-temporal-balanceisodate
-void BalanceISODate(Isolate* isolate, int32_t* year, int32_t* month,
-                    int32_t* day) {
+DateRecordCommon BalanceISODate(Isolate* isolate,
+                                const DateRecordCommon& date) {
   TEMPORAL_ENTER_FUNC();
 
+  DateRecordCommon result = date;
   // 1. Assert: year, month, and day are integers.
   // 2. Let balancedYearMonth be ! BalanceISOYearMonth(year, month).
   // 3. Set month to balancedYearMonth.[[Month]].
   // 4. Set year to balancedYearMonth.[[Year]].
-  BalanceISOYearMonth(isolate, year, month);
+  BalanceISOYearMonth(isolate, &(result.year), &(result.month));
   // 5. NOTE: To deal with negative numbers of days whose absolute value is
   // greater than the number of days in a year, the following section subtracts
   // years and adds days until the number of days is greater than −366 or −365.
@@ -3485,14 +3966,14 @@ void BalanceISODate(Isolate* isolate, int32_t* year, int32_t* month,
   // a. Let testYear be year.
   // 7. Else,
   // a. Let testYear be year − 1.
-  int32_t test_year = (*month > 2) ? *year : *year - 1;
+  int32_t test_year = (date.month > 2) ? date.year : date.year - 1;
   // 8. Repeat, while day < −1 × ! ISODaysInYear(testYear),
   int32_t iso_days_in_year;
-  while (*day < -(iso_days_in_year = ISODaysInYear(isolate, test_year))) {
+  while (result.day < -(iso_days_in_year = ISODaysInYear(isolate, test_year))) {
     // a. Set day to day + ! ISODaysInYear(testYear).
-    *day += iso_days_in_year;
+    result.day += iso_days_in_year;
     // b. Set year to year − 1.
-    (*year)--;
+    (result.year)--;
     // c. Set testYear to testYear − 1.
     test_year--;
   }
@@ -3500,13 +3981,13 @@ void BalanceISODate(Isolate* isolate, int32_t* year, int32_t* month,
   // year, the following section adds years and subtracts days until the number
   // of days is less than 366 or 365.
   // 10. Let testYear be year + 1.
-  test_year = (*year) + 1;
+  test_year = (result.year) + 1;
   // 11. Repeat, while day > ! ISODaysInYear(testYear),
-  while (*day > (iso_days_in_year = ISODaysInYear(isolate, test_year))) {
+  while (result.day > (iso_days_in_year = ISODaysInYear(isolate, test_year))) {
     // a. Set day to day − ! ISODaysInYear(testYear).
-    *day -= iso_days_in_year;
+    result.day -= iso_days_in_year;
     // b. Set year to year + 1.
-    (*year)++;
+    result.year++;
     // c. Set testYear to testYear + 1.
     test_year++;
   }
@@ -3514,40 +3995,41 @@ void BalanceISODate(Isolate* isolate, int32_t* year, int32_t* month,
   // greater than the number of days in the current month, the following section
   // subtracts months and adds days until the number of days is greater than 0.
   // 13. Repeat, while day < 1,
-  while (*day < 1) {
+  while (result.day < 1) {
     // a. Set balancedYearMonth to ! BalanceISOYearMonth(year, month − 1).
     // b. Set year to balancedYearMonth.[[Year]].
     // c. Set month to balancedYearMonth.[[Month]].
-    *month -= 1;
-    BalanceISOYearMonth(isolate, year, month);
+    result.month -= 1;
+    BalanceISOYearMonth(isolate, &(result.year), &(result.month));
     // d. Set day to day + ! ISODaysInMonth(year, month).
-    *day += ISODaysInMonth(isolate, *year, *month);
+    result.day += ISODaysInMonth(isolate, result.year, result.month);
   }
   // 14. NOTE: To deal with numbers of days greater than the number of days in
   // the current month, the following section adds months and subtracts days
   // until the number of days is less than the number of days in the month.
   // 15. Repeat, while day > ! ISODaysInMonth(year, month),
   int32_t iso_days_in_month;
-  while (*day > (iso_days_in_month = ISODaysInMonth(isolate, *year, *month))) {
+  while (result.day > (iso_days_in_month = ISODaysInMonth(isolate, result.year,
+                                                          result.month))) {
     // a. Set day to day − ! ISODaysInMonth(year, month).
-    *day -= iso_days_in_month;
+    result.day -= iso_days_in_month;
     // b. Set balancedYearMonth to ! BalanceISOYearMonth(year, month + 1).
     // c. Set year to balancedYearMonth.[[Year]].
     // d. Set month to balancedYearMonth.[[Month]].
-    *month += 1;
-    BalanceISOYearMonth(isolate, year, month);
+    result.month += 1;
+    BalanceISOYearMonth(isolate, &(result.year), &(result.month));
   }
   // 16. Return the new Record { [[Year]]: year, [[Month]]: month, [[Day]]: day
   // }.
-  return;
+  return result;
 }
 
 // #sec-temporal-adddatetime
-Maybe<DateTimeRecordCommon> AddDateTime(
-    Isolate* isolate, int32_t year, int32_t month, int32_t day, int32_t hour,
-    int32_t minute, int32_t second, int32_t millisecond, int32_t microsecond,
-    int32_t nanosecond, Handle<JSReceiver> calendar, const DurationRecord& dur,
-    Handle<Object> options) {
+Maybe<DateTimeRecordCommon> AddDateTime(Isolate* isolate,
+                                        const DateTimeRecordCommon& date_time,
+                                        Handle<JSReceiver> calendar,
+                                        const DurationRecord& dur,
+                                        Handle<Object> options) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Assert: year, month, day, hour, minute, second, millisecond,
@@ -3555,24 +4037,28 @@ Maybe<DateTimeRecordCommon> AddDateTime(
   // 2. Let timeResult be ! AddTime(hour, minute, second, millisecond,
   // microsecond, nanosecond, hours, minutes, seconds, milliseconds,
   // microseconds, nanoseconds).
+  const TimeDurationRecord& time = dur.time_duration;
   DateTimeRecordCommon time_result =
-      AddTime(isolate, hour, minute, second, millisecond, microsecond,
-              nanosecond, dur.hours, dur.minutes, dur.seconds, dur.milliseconds,
-              dur.microseconds, dur.nanoseconds);
+      AddTime(isolate, date_time.time,
+              {0, time.hours, time.minutes, time.seconds, time.milliseconds,
+               time.microseconds, time.nanoseconds});
 
   // 3. Let datePart be ? CreateTemporalDate(year, month, day, calendar).
   Handle<JSTemporalPlainDate> date_part;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, date_part,
-      CreateTemporalDate(isolate, year, month, day, calendar),
+      isolate, date_part, CreateTemporalDate(isolate, date_time.date, calendar),
       Nothing<DateTimeRecordCommon>());
   // 4. Let dateDuration be ? CreateTemporalDuration(years, months, weeks, days
   // + timeResult.[[Days]], 0, 0, 0, 0, 0, 0).
   Handle<JSTemporalDuration> date_duration;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, date_duration,
-      CreateTemporalDuration(isolate, dur.years, dur.months, dur.weeks,
-                             dur.days + time_result.day, 0, 0, 0, 0, 0, 0),
+      CreateTemporalDuration(
+          isolate,
+          {dur.years,
+           dur.months,
+           dur.weeks,
+           {dur.time_duration.days + time_result.date.day, 0, 0, 0, 0, 0, 0}}),
       Nothing<DateTimeRecordCommon>());
   // 5. Let addedDate be ? CalendarDateAdd(calendar, datePart, dateDuration,
   // options).
@@ -3587,32 +4073,28 @@ Maybe<DateTimeRecordCommon> AddDateTime(
   // timeResult.[[Second]], [[Millisecond]]: timeResult.[[Millisecond]],
   // [[Microsecond]]: timeResult.[[Microsecond]], [[Nanosecond]]:
   // timeResult.[[Nanosecond]], }.
-  time_result.year = added_date->iso_year();
-  time_result.month = added_date->iso_month();
-  time_result.day = added_date->iso_day();
+  time_result.date = {added_date->iso_year(), added_date->iso_month(),
+                      added_date->iso_day()};
   return Just(time_result);
 }
 
-Maybe<bool> BalanceDuration(Isolate* isolate, int64_t* days, int64_t* hours,
-                            int64_t* minutes, int64_t* seconds,
-                            int64_t* milliseconds, int64_t* microseconds,
-                            int64_t* nanoseconds, Unit largest_unit,
-                            const char* method_name) {
+Maybe<TimeDurationRecord> BalanceDuration(Isolate* isolate, Unit largest_unit,
+                                          const TimeDurationRecord& duration,
+                                          const char* method_name) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. If relativeTo is not present, set relativeTo to undefined.
-  return BalanceDuration(isolate, days, hours, minutes, seconds, milliseconds,
-                         microseconds, nanoseconds, largest_unit,
-                         isolate->factory()->undefined_value(), method_name);
+  return BalanceDuration(isolate, largest_unit,
+                         isolate->factory()->undefined_value(), duration,
+                         method_name);
 }
 
-Maybe<bool> BalanceDuration(Isolate* isolate, int64_t* days, int64_t* hours,
-                            int64_t* minutes, int64_t* seconds,
-                            int64_t* milliseconds, int64_t* microseconds,
-                            int64_t* nanoseconds, Unit largest_unit,
-                            Handle<Object> relative_to_obj,
-                            const char* method_name) {
+Maybe<TimeDurationRecord> BalanceDuration(Isolate* isolate, Unit largest_unit,
+                                          Handle<Object> relative_to_obj,
+                                          const TimeDurationRecord& value,
+                                          const char* method_name) {
   TEMPORAL_ENTER_FUNC();
+  TimeDurationRecord duration = value;
 
   // 2. If Type(relativeTo) is Object and relativeTo has an
   // [[InitializedTemporalZonedDateTime]] internal slot, then
@@ -3629,51 +4111,48 @@ Maybe<bool> BalanceDuration(Isolate* isolate, int64_t* days, int64_t* hours,
                          Handle<BigInt>(relative_to->nanoseconds(), isolate),
                          Handle<JSReceiver>(relative_to->time_zone(), isolate),
                          Handle<JSReceiver>(relative_to->calendar(), isolate),
-                         {0, 0, 0, *days, *hours, *minutes, *seconds,
-                          *milliseconds, *microseconds, *nanoseconds},
-                         method_name),
-        Nothing<bool>());
+                         {0, 0, 0, duration}, method_name),
+        Nothing<TimeDurationRecord>());
     // b. Set nanoseconds to endNs − relativeTo.[[Nanoseconds]].
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, end_ns,
         BigInt::Subtract(isolate, end_ns,
                          Handle<BigInt>(relative_to->nanoseconds(), isolate)),
-        Nothing<bool>());
-    *nanoseconds = end_ns->AsInt64();
+        Nothing<TimeDurationRecord>());
+    duration.nanoseconds = end_ns->AsInt64();
     // 3. Else,
   } else {
     // a. Set nanoseconds to ℤ(! TotalDurationNanoseconds(days, hours, minutes,
     // seconds, milliseconds, microseconds, nanoseconds, 0)).
-    *nanoseconds =
-        TotalDurationNanoseconds(isolate, *days, *hours, *minutes, *seconds,
-                                 *milliseconds, *microseconds, *nanoseconds, 0);
+    duration.nanoseconds = TotalDurationNanoseconds(isolate, duration, 0);
   }
   // 4. If largestUnit is one of "year", "month", "week", or "day", then
   if (largest_unit == Unit::kYear || largest_unit == Unit::kMonth ||
       largest_unit == Unit::kWeek || largest_unit == Unit::kDay) {
-    int64_t result_day_length;
     // a. Let result be ? NanosecondsToDays(nanoseconds, relativeTo).
-    Maybe<bool> maybe_result =
-        NanosecondsToDays(isolate, *nanoseconds, relative_to_obj, days,
-                          nanoseconds, &result_day_length, method_name);
-    MAYBE_RETURN(maybe_result, Nothing<bool>());
-    DCHECK(maybe_result.FromJust());
+    NanosecondsToDaysResult result;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result,
+        NanosecondsToDays(isolate, duration.nanoseconds, relative_to_obj,
+                          method_name),
+        Nothing<TimeDurationRecord>());
+    duration.days = result.days;
     // b. Set days to result.[[Days]].
     // c. Set nanoseconds to result.[[Nanoseconds]].
+    duration.nanoseconds = result.nanoseconds;
     // 5. Else,
   } else {
     // a. Set days to 0.
-    *days = 0;
+    duration.days = 0;
   }
   // 6. Set hours, minutes, seconds, milliseconds, and microseconds to 0.
-  *hours = *minutes = *seconds = *milliseconds = *microseconds = 0;
-  // 7. Set nanoseconds to ℝ(nanoseconds).
-
-  // 8. If nanoseconds < 0, let sign be −1; else, let sign be 1.
-  int32_t sign = (*nanoseconds < 0) ? -1 : 1;
-  // 9. Set nanoseconds to abs(nanoseconds).
-  *nanoseconds = std::abs(*nanoseconds);
-  // 10. If largestUnit is "year", "month", "week", "day", or "hour", then
+  duration.hours = duration.minutes = duration.seconds = duration.milliseconds =
+      duration.microseconds = 0;
+  // 7. If nanoseconds < 0, let sign be −1; else, let sign be 1.
+  int32_t sign = (duration.nanoseconds < 0) ? -1 : 1;
+  // 8. Set nanoseconds to abs(nanoseconds).
+  duration.nanoseconds = std::abs(duration.nanoseconds);
+  // 9 If largestUnit is "year", "month", "week", "day", or "hour", then
   switch (largest_unit) {
     case Unit::kYear:
     case Unit::kMonth:
@@ -3681,95 +4160,93 @@ Maybe<bool> BalanceDuration(Isolate* isolate, int64_t* days, int64_t* hours,
     case Unit::kDay:
     case Unit::kHour:
       // a. Set microseconds to floor(nanoseconds / 1000).
-      *microseconds = floor_divide(*nanoseconds, 1000);
+      duration.microseconds = std::floor(duration.nanoseconds / 1000);
       // b. Set nanoseconds to nanoseconds modulo 1000.
-      *nanoseconds = modulo(*nanoseconds, 1000);
+      duration.nanoseconds = modulo(duration.nanoseconds, 1000);
       // c. Set milliseconds to floor(microseconds / 1000).
-      *milliseconds = floor_divide(*microseconds, 1000);
+      duration.milliseconds = std::floor(duration.microseconds / 1000);
       // d. Set microseconds to microseconds modulo 1000.
-      *microseconds = modulo(*microseconds, 1000);
+      duration.microseconds = modulo(duration.microseconds, 1000);
       // e. Set seconds to floor(milliseconds / 1000).
-      *seconds = floor_divide(*milliseconds, 1000);
+      duration.seconds = std::floor(duration.milliseconds / 1000);
       // f. Set milliseconds to milliseconds modulo 1000.
-      *milliseconds = modulo(*milliseconds, 1000);
+      duration.milliseconds = modulo(duration.milliseconds, 1000);
       // g. Set minutes to floor(seconds, 60).
-      *minutes = floor_divide(*seconds, 60);
+      duration.minutes = std::floor(duration.seconds / 60);
       // h. Set seconds to seconds modulo 60.
-      *seconds = modulo(*seconds, 60);
+      duration.seconds = modulo(duration.seconds, 60);
       // i. Set hours to floor(minutes / 60).
-      *hours = floor_divide(*minutes, 60);
+      duration.hours = std::floor(duration.minutes / 60);
       // j. Set minutes to minutes modulo 60.
-      *minutes = modulo(*minutes, 60);
+      duration.minutes = modulo(duration.minutes, 60);
       break;
-    // 11. Else if largestUnit is "minute", then
+    // 10. Else if largestUnit is "minute", then
     case Unit::kMinute:
       // a. Set microseconds to floor(nanoseconds / 1000).
-      *microseconds = floor_divide(*nanoseconds, 1000);
+      duration.microseconds = std::floor(duration.nanoseconds / 1000);
       // b. Set nanoseconds to nanoseconds modulo 1000.
-      *nanoseconds = modulo(*nanoseconds, 1000);
+      duration.nanoseconds = modulo(duration.nanoseconds, 1000);
       // c. Set milliseconds to floor(microseconds / 1000).
-      *milliseconds = floor_divide(*microseconds, 1000);
+      duration.milliseconds = std::floor(duration.microseconds / 1000);
       // d. Set microseconds to microseconds modulo 1000.
-      *microseconds = modulo(*microseconds, 1000);
+      duration.microseconds = modulo(duration.microseconds, 1000);
       // e. Set seconds to floor(milliseconds / 1000).
-      *seconds = floor_divide(*milliseconds, 1000);
+      duration.seconds = std::floor(duration.milliseconds / 1000);
       // f. Set milliseconds to milliseconds modulo 1000.
-      *milliseconds = modulo(*milliseconds, 1000);
+      duration.milliseconds = modulo(duration.milliseconds, 1000);
       // g. Set minutes to floor(seconds / 60).
-      *minutes = floor_divide(*seconds, 60);
+      duration.minutes = std::floor(duration.seconds / 60);
       // h. Set seconds to seconds modulo 60.
-      *seconds = modulo(*seconds, 60);
+      duration.seconds = modulo(duration.seconds, 60);
       break;
-    // 12. Else if largestUnit is "second", then
+    // 11. Else if largestUnit is "second", then
     case Unit::kSecond:
       // a. Set microseconds to floor(nanoseconds / 1000).
-      *microseconds = floor_divide(*nanoseconds, 1000);
+      duration.microseconds = std::floor(duration.nanoseconds / 1000);
       // b. Set nanoseconds to nanoseconds modulo 1000.
-      *nanoseconds = modulo(*nanoseconds, 1000);
+      duration.nanoseconds = modulo(duration.nanoseconds, 1000);
       // c. Set milliseconds to floor(microseconds / 1000).
-      *milliseconds = floor_divide(*microseconds, 1000);
+      duration.milliseconds = std::floor(duration.microseconds / 1000);
       // d. Set microseconds to microseconds modulo 1000.
-      *microseconds = modulo(*microseconds, 1000);
+      duration.microseconds = modulo(duration.microseconds, 1000);
       // e. Set seconds to floor(milliseconds / 1000).
-      *seconds = floor_divide(*milliseconds, 1000);
+      duration.seconds = std::floor(duration.milliseconds / 1000);
       // f. Set milliseconds to milliseconds modulo 1000.
-      *milliseconds = modulo(*milliseconds, 1000);
+      duration.milliseconds = modulo(duration.milliseconds, 1000);
       break;
-    // 13. Else if largestUnit is "millisecond", then
+    // 12. Else if largestUnit is "millisecond", then
     case Unit::kMillisecond:
       // a. Set microseconds to floor(nanoseconds / 1000).
-      *microseconds = floor_divide(*nanoseconds, 1000);
+      duration.microseconds = std::floor(duration.nanoseconds / 1000);
       // b. Set nanoseconds to nanoseconds modulo 1000.
-      *nanoseconds = modulo(*nanoseconds, 1000);
+      duration.nanoseconds = modulo(duration.nanoseconds, 1000);
       // c. Set milliseconds to floor(microseconds / 1000).
-      *milliseconds = floor_divide(*microseconds, 1000);
+      duration.milliseconds = std::floor(duration.microseconds / 1000);
       // d. Set microseconds to microseconds modulo 1000.
-      *microseconds = modulo(*microseconds, 1000);
+      duration.microseconds = modulo(duration.microseconds, 1000);
       break;
-    // 14. Else if largestUnit is "microsecond", then
+    // 13. Else if largestUnit is "microsecond", then
     case Unit::kMicrosecond:
       // a. Set microseconds to floor(nanoseconds / 1000).
-      *microseconds = floor_divide(*nanoseconds, 1000);
+      duration.microseconds = std::floor(duration.nanoseconds / 1000);
       // b. Set nanoseconds to nanoseconds modulo 1000.
-      *nanoseconds = modulo(*nanoseconds, 1000);
+      duration.nanoseconds = modulo(duration.nanoseconds, 1000);
       break;
     // 15. Else,
-    default:
+    case Unit::kNanosecond:
       // a. Assert: largestUnit is "nanosecond".
-      DCHECK_EQ(largest_unit, Unit::kNanosecond);
       break;
+    case Unit::kAuto:
+    case Unit::kNotPresent:
+      UNREACHABLE();
   }
-  // 16. Return the new Record { [[Days]]: 𝔽(days), [[Hours]]: 𝔽(hours × sign),
-  // [[Minutes]]: 𝔽(minutes × sign), [[Seconds]]: 𝔽(seconds × sign),
-  // [[Milliseconds]]: 𝔽(milliseconds × sign), [[Microseconds]]: 𝔽(microseconds
-  // × sign), [[Nanoseconds]]: 𝔽(nanoseconds × sign) }.
-  *hours *= sign;
-  *minutes *= sign;
-  *seconds *= sign;
-  *milliseconds *= sign;
-  *microseconds *= sign;
-  *nanoseconds *= sign;
-  return Just(true);
+  // 15. Return ? CreateTimeDurationRecord(days, hours × sign, minutes × sign,
+  // seconds × sign, milliseconds × sign, microseconds × sign, nanoseconds ×
+  // sign).
+  return TimeDurationRecord::Create(
+      isolate, duration.days, duration.hours * sign, duration.minutes * sign,
+      duration.seconds * sign, duration.milliseconds * sign,
+      duration.microseconds * sign, duration.nanoseconds * sign);
 }
 
 // #sec-temporal-addinstant
@@ -3797,14 +4274,13 @@ MaybeHandle<BigInt> AddZonedDateTime(Isolate* isolate,
                                      const char* method_name) {
   TEMPORAL_ENTER_FUNC();
 
+  TimeDurationRecord time_duration = duration.time_duration;
   // 2. If all of years, months, weeks, and days are 0, then
   if (duration.years == 0 && duration.months == 0 && duration.weeks == 0 &&
-      duration.days == 0) {
+      time_duration.days == 0) {
     // a. Return ! AddInstant(epochNanoseconds, hours, minutes, seconds,
     // milliseconds, microseconds, nanoseconds).
-    return AddInstant(isolate, epoch_nanoseconds, duration.hours,
-                      duration.minutes, duration.seconds, duration.milliseconds,
-                      duration.microseconds, duration.nanoseconds);
+    return AddInstant(isolate, epoch_nanoseconds, time_duration);
   }
   // 3. Let instant be ! CreateTemporalInstant(epochNanoseconds).
   Handle<JSTemporalInstant> instant;
@@ -3825,17 +4301,21 @@ MaybeHandle<BigInt> AddZonedDateTime(Isolate* isolate,
   Handle<JSTemporalPlainDate> date_part;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, date_part,
-      CreateTemporalDate(isolate, temporal_date_time->iso_year(),
-                         temporal_date_time->iso_month(),
-                         temporal_date_time->iso_day(), calendar),
+      CreateTemporalDate(
+          isolate,
+          {temporal_date_time->iso_year(), temporal_date_time->iso_month(),
+           temporal_date_time->iso_day()},
+          calendar),
       BigInt);
   // 6. Let dateDuration be ? CreateTemporalDuration(years, months, weeks, days,
   // 0, 0, 0, 0, 0, 0).
   Handle<JSTemporalDuration> date_duration;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, date_duration,
-      CreateTemporalDuration(isolate, duration.years, duration.months,
-                             duration.weeks, duration.days, 0, 0, 0, 0, 0, 0),
+      CreateTemporalDuration(isolate, {duration.years,
+                                       duration.months,
+                                       duration.weeks,
+                                       {time_duration.days, 0, 0, 0, 0, 0, 0}}),
       BigInt);
   // 7. Let addedDate be ? CalendarDateAdd(calendar, datePart, dateDuration,
   // options).
@@ -3854,12 +4334,15 @@ MaybeHandle<BigInt> AddZonedDateTime(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, intermediate_date_time,
       temporal::CreateTemporalDateTime(
-          isolate, added_date->iso_year(), added_date->iso_month(),
-          added_date->iso_day(), temporal_date_time->iso_hour(),
-          temporal_date_time->iso_minute(), temporal_date_time->iso_second(),
-          temporal_date_time->iso_millisecond(),
-          temporal_date_time->iso_microsecond(),
-          temporal_date_time->iso_nanosecond(), calendar),
+          isolate,
+          {{added_date->iso_year(), added_date->iso_month(),
+            added_date->iso_day()},
+           {temporal_date_time->iso_hour(), temporal_date_time->iso_minute(),
+            temporal_date_time->iso_second(),
+            temporal_date_time->iso_millisecond(),
+            temporal_date_time->iso_microsecond(),
+            temporal_date_time->iso_nanosecond()}},
+          calendar),
       BigInt);
   // 9. Let intermediateInstant be ? BuiltinTimeZoneGetInstantFor(timeZone,
   // intermediateDateTime, "compatible").
@@ -3871,28 +4354,25 @@ MaybeHandle<BigInt> AddZonedDateTime(Isolate* isolate,
       BigInt);
   // 10. Return ! AddInstant(intermediateInstant.[[Nanoseconds]], hours,
   // minutes, seconds, milliseconds, microseconds, nanoseconds).
+  time_duration.days = 0;
   return AddInstant(
       isolate, Handle<BigInt>(intermediate_instant->nanoseconds(), isolate),
-      duration.hours, duration.minutes, duration.seconds, duration.milliseconds,
-      duration.microseconds, duration.nanoseconds);
+      time_duration);
 }
 
 // #sec-temporal-nanosecondstodays
-Maybe<bool> NanosecondsToDays(Isolate* isolate, int64_t nanoseconds,
-                              Handle<Object> relative_to_obj,
-                              int64_t* result_days, int64_t* result_nanoseconds,
-                              int64_t* result_day_length,
-                              const char* method_name) {
+Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
+                                                 double nanoseconds,
+                                                 Handle<Object> relative_to_obj,
+                                                 const char* method_name) {
   return NanosecondsToDays(isolate, BigInt::FromInt64(isolate, nanoseconds),
-                           relative_to_obj, result_days, result_nanoseconds,
-                           result_day_length, method_name);
+                           relative_to_obj, method_name);
 }
 
-Maybe<bool> NanosecondsToDays(Isolate* isolate, Handle<BigInt> nanoseconds,
-                              Handle<Object> relative_to_obj,
-                              int64_t* result_days, int64_t* result_nanoseconds,
-                              int64_t* result_day_length,
-                              const char* method_name) {
+Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
+                                                 Handle<BigInt> nanoseconds,
+                                                 Handle<Object> relative_to_obj,
+                                                 const char* method_name) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Assert: Type(nanoseconds) is BigInt.
@@ -3900,17 +4380,15 @@ Maybe<bool> NanosecondsToDays(Isolate* isolate, Handle<BigInt> nanoseconds,
   // 3. Let sign be ! ℝ(Sign(𝔽(nanoseconds))).
   ComparisonResult compare_result =
       BigInt::CompareToBigInt(nanoseconds, BigInt::FromInt64(isolate, 0));
-  int64_t sign = COMPARE_RESULT_TO_SIGN(compare_result);
+  double sign = COMPARE_RESULT_TO_SIGN(compare_result);
   // 4. Let dayLengthNs be 8.64 × 10^13.
   Handle<BigInt> day_length_ns = BigInt::FromInt64(isolate, 86400000000000LLU);
   // 5. If sign is 0, then
   if (sign == 0) {
     // a. Return the new Record { [[Days]]: 0, [[Nanoseconds]]: 0,
     // [[DayLength]]: dayLengthNs }.
-    *result_days = 0;
-    *result_nanoseconds = 0;
-    *result_day_length = day_length_ns->AsInt64();
-    return Just(true);
+    NanosecondsToDaysResult result({0, 0, day_length_ns->AsInt64()});
+    return Just(result);
   }
   // 6. If Type(relativeTo) is not Object or relativeTo does not have an
   // [[InitializedTemporalZonedDateTime]] internal slot, then
@@ -3922,7 +4400,8 @@ Maybe<bool> NanosecondsToDays(Isolate* isolate, Handle<BigInt> nanoseconds,
     Handle<BigInt> days_bigint;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, days_bigint,
-        BigInt::Divide(isolate, nanoseconds, day_length_ns), Nothing<bool>());
+        BigInt::Divide(isolate, nanoseconds, day_length_ns),
+        Nothing<NanosecondsToDaysResult>());
 
     if (sign < 0) {
       nanoseconds = BigInt::UnaryMinus(isolate, nanoseconds);
@@ -3931,11 +4410,12 @@ Maybe<bool> NanosecondsToDays(Isolate* isolate, Handle<BigInt> nanoseconds,
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, nanoseconds,
         BigInt::Remainder(isolate, nanoseconds, day_length_ns),
-        Nothing<bool>());
-    *result_days = days_bigint->AsInt64();
-    *result_nanoseconds = nanoseconds->AsInt64() * sign;
-    *result_day_length = day_length_ns->AsInt64();
-    return Just(true);
+        Nothing<NanosecondsToDaysResult>());
+    NanosecondsToDaysResult result(
+        {static_cast<double>(days_bigint->AsInt64()),
+         static_cast<double>(nanoseconds->AsInt64() * sign),
+         day_length_ns->AsInt64()});
+    return Just(result);
   }
   Handle<JSTemporalZonedDateTime> relative_to =
       Handle<JSTemporalZonedDateTime>::cast(relative_to_obj);
@@ -3947,7 +4427,7 @@ Maybe<bool> NanosecondsToDays(Isolate* isolate, Handle<BigInt> nanoseconds,
       isolate, start_instant,
       temporal::CreateTemporalInstant(
           isolate, Handle<BigInt>(relative_to->nanoseconds(), isolate)),
-      Nothing<bool>());
+      Nothing<NanosecondsToDaysResult>());
 
   // 9. Let startDateTime be ?
   // BuiltinTimeZoneGetPlainDateTimeFor(relativeTo.[[TimeZone]],
@@ -3961,19 +4441,19 @@ Maybe<bool> NanosecondsToDays(Isolate* isolate, Handle<BigInt> nanoseconds,
       isolate, start_date_time,
       temporal::BuiltinTimeZoneGetPlainDateTimeFor(
           isolate, time_zone, start_instant, calendar, method_name),
-      Nothing<bool>());
+      Nothing<NanosecondsToDaysResult>());
 
   // 10. Let endNs be startNs + nanoseconds.
   Handle<BigInt> end_ns;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, end_ns,
                                    BigInt::Add(isolate, start_ns, nanoseconds),
-                                   Nothing<bool>());
+                                   Nothing<NanosecondsToDaysResult>());
 
   // 11. Let endInstant be ! CreateTemporalInstant(ℤ(endNs)).
   Handle<JSTemporalInstant> end_instant;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, end_instant, temporal::CreateTemporalInstant(isolate, end_ns),
-      Nothing<bool>());
+      Nothing<NanosecondsToDaysResult>());
   // 12. Let endDateTime be ?
   // BuiltinTimeZoneGetPlainDateTimeFor(relativeTo.[[TimeZone]],
   // endInstant, relativeTo.[[Calendar]]).
@@ -3982,7 +4462,7 @@ Maybe<bool> NanosecondsToDays(Isolate* isolate, Handle<BigInt> nanoseconds,
       isolate, end_date_time,
       temporal::BuiltinTimeZoneGetPlainDateTimeFor(
           isolate, time_zone, end_instant, calendar, method_name),
-      Nothing<bool>());
+      Nothing<NanosecondsToDaysResult>());
 
   // 13. Let dateDifference be ?
   // DifferenceISODateTime(startDateTime.[[ISOYear]],
@@ -3995,22 +4475,27 @@ Maybe<bool> NanosecondsToDays(Isolate* isolate, Handle<BigInt> nanoseconds,
   // endDateTime.[[ISOSecond]], endDateTime.[[ISOMillisecond]],
   // endDateTime.[[ISOMicrosecond]], endDateTime.[[ISONanosecond]],
   // relativeTo.[[Calendar]], "day").
-  Maybe<DurationRecord> maybe_date_difference = DifferenceISODateTime(
-      isolate, start_date_time->iso_year(), start_date_time->iso_month(),
-      start_date_time->iso_day(), start_date_time->iso_hour(),
-      start_date_time->iso_minute(), start_date_time->iso_second(),
-      start_date_time->iso_millisecond(), start_date_time->iso_microsecond(),
-      start_date_time->iso_nanosecond(), end_date_time->iso_year(),
-      end_date_time->iso_month(), end_date_time->iso_day(),
-      end_date_time->iso_hour(), end_date_time->iso_minute(),
-      end_date_time->iso_second(), end_date_time->iso_millisecond(),
-      end_date_time->iso_microsecond(), end_date_time->iso_nanosecond(),
-      calendar, Unit::kDay, relative_to, method_name);
-  MAYBE_RETURN(maybe_date_difference, Nothing<bool>());
+  DurationRecord date_difference;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, date_difference,
+      DifferenceISODateTime(
+          isolate,
+          {{start_date_time->iso_year(), start_date_time->iso_month(),
+            start_date_time->iso_day()},
+           {start_date_time->iso_hour(), start_date_time->iso_minute(),
+            start_date_time->iso_second(), start_date_time->iso_millisecond(),
+            start_date_time->iso_microsecond(),
+            start_date_time->iso_nanosecond()}},
+          {{end_date_time->iso_year(), end_date_time->iso_month(),
+            end_date_time->iso_day()},
+           {end_date_time->iso_hour(), end_date_time->iso_minute(),
+            end_date_time->iso_second(), end_date_time->iso_millisecond(),
+            end_date_time->iso_microsecond(), end_date_time->iso_nanosecond()}},
+          calendar, Unit::kDay, relative_to, method_name),
+      Nothing<NanosecondsToDaysResult>());
 
-  DurationRecord date_difference = maybe_date_difference.FromJust();
   // 14. Let days be dateDifference.[[Days]].
-  int64_t days = date_difference.days;
+  double days = date_difference.time_duration.days;
 
   // 15. Let intermediateNs be ℝ(? AddZonedDateTime(ℤ(startNs),
   // relativeTo.[[TimeZone]], relativeTo.[[Calendar]], 0, 0, 0, days, 0, 0, 0,
@@ -4019,8 +4504,8 @@ Maybe<bool> NanosecondsToDays(Isolate* isolate, Handle<BigInt> nanoseconds,
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, intermediate_ns,
       AddZonedDateTime(isolate, start_ns, time_zone, calendar,
-                       {0, 0, 0, days, 0, 0, 0, 0, 0, 0}, method_name),
-      Nothing<bool>());
+                       {0, 0, 0, {days, 0, 0, 0, 0, 0, 0}}, method_name),
+      Nothing<NanosecondsToDaysResult>());
 
   // 16. If sign is 1, then
   if (sign == 1) {
@@ -4035,15 +4520,15 @@ Maybe<bool> NanosecondsToDays(Isolate* isolate, Handle<BigInt> nanoseconds,
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, intermediate_ns,
           AddZonedDateTime(isolate, start_ns, time_zone, calendar,
-                           {0, 0, 0, days, 0, 0, 0, 0, 0, 0}, method_name),
-          Nothing<bool>());
+                           {0, 0, 0, {days, 0, 0, 0, 0, 0, 0}}, method_name),
+          Nothing<NanosecondsToDaysResult>());
     }
   }
 
   // 17. Set nanoseconds to endNs − intermediateNs.
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, nanoseconds, BigInt::Subtract(isolate, end_ns, intermediate_ns),
-      Nothing<bool>());
+      Nothing<NanosecondsToDaysResult>());
 
   // 18. Let done be false.
   bool done = false;
@@ -4057,15 +4542,15 @@ Maybe<bool> NanosecondsToDays(Isolate* isolate, Handle<BigInt> nanoseconds,
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, one_day_farther_ns,
         AddZonedDateTime(isolate, intermediate_ns, time_zone, calendar,
-                         {0, 0, 0, sign, 0, 0, 0, 0, 0, 0}, method_name),
-        Nothing<bool>());
+                         {0, 0, 0, {sign, 0, 0, 0, 0, 0, 0}}, method_name),
+        Nothing<NanosecondsToDaysResult>());
 
     // b. Set dayLengthNs to oneDayFartherNs − intermediateNs.
     Handle<BigInt> day_length_ns;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, day_length_ns,
         BigInt::Subtract(isolate, one_day_farther_ns, intermediate_ns),
-        Nothing<bool>());
+        Nothing<NanosecondsToDaysResult>());
 
     // c. If (nanoseconds − dayLengthNs) × sign ≥ 0, then
     compare_result = BigInt::CompareToBigInt(nanoseconds, day_length_ns);
@@ -4074,7 +4559,7 @@ Maybe<bool> NanosecondsToDays(Isolate* isolate, Handle<BigInt> nanoseconds,
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, nanoseconds,
           BigInt::Subtract(isolate, nanoseconds, day_length_ns),
-          Nothing<bool>());
+          Nothing<NanosecondsToDaysResult>());
 
       // ii. Set intermediateNs to oneDayFartherNs.
       intermediate_ns = one_day_farther_ns;
@@ -4090,17 +4575,15 @@ Maybe<bool> NanosecondsToDays(Isolate* isolate, Handle<BigInt> nanoseconds,
 
   // 20. Return the new Record { [[Days]]: days, [[Nanoseconds]]: nanoseconds,
   // [[DayLength]]: abs(dayLengthNs) }.
-  *result_days = days;
-  *result_nanoseconds = nanoseconds->AsInt64();
-  *result_day_length = std::abs(day_length_ns->AsInt64());
-  return Just(true);
+  NanosecondsToDaysResult result({days,
+                                  static_cast<double>(nanoseconds->AsInt64()),
+                                  std::abs(day_length_ns->AsInt64())});
+  return Just(result);
 }
 
 Maybe<DurationRecord> DifferenceISODateTime(
-    Isolate* isolate, int32_t y1, int32_t mon1, int32_t d1, int32_t h1,
-    int32_t min1, int32_t s1, int32_t ms1, int32_t mus1, int32_t ns1,
-    int32_t y2, int32_t mon2, int32_t d2, int32_t h2, int32_t min2, int32_t s2,
-    int32_t ms2, int32_t mus2, int32_t ns2, Handle<JSReceiver> calendar,
+    Isolate* isolate, const DateTimeRecordCommon& date_time1,
+    const DateTimeRecordCommon& date_time2, Handle<JSReceiver> calendar,
     Unit largest_unit, Handle<Object> options_obj, const char* method_name) {
   TEMPORAL_ENTER_FUNC();
 
@@ -4118,68 +4601,61 @@ Maybe<DurationRecord> DifferenceISODateTime(
   }
   // 3. Let timeDifference be ! DifferenceTime(h1, min1, s1, ms1, mus1, ns1, h2,
   // min2, s2, ms2, mus2, ns2).
-  DurationRecord time_difference = DifferenceTime(
-      isolate, h1, min1, s1, ms1, mus1, ns1, h2, min2, s2, ms2, mus2, ns2);
+  TimeDurationRecord time_difference;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, time_difference,
+      DifferenceTime(isolate, date_time1.time, date_time2.time),
+      Nothing<DurationRecord>());
 
-  result.hours = time_difference.hours;
-  result.minutes = time_difference.minutes;
-  result.seconds = time_difference.seconds;
-  result.milliseconds = time_difference.milliseconds;
-  result.microseconds = time_difference.microseconds;
-  result.nanoseconds = time_difference.nanoseconds;
+  result.time_duration = time_difference;
+  result.time_duration.days = 0;
 
   // 4. Let timeSign be ! DurationSign(0, 0, 0, timeDifference.[[Days]],
   // timeDifference.[[Hours]], timeDifference.[[Minutes]],
   // timeDifference.[[Seconds]], timeDifference.[[Milliseconds]],
   // timeDifference.[[Microseconds]], timeDifference.[[Nanoseconds]]).
-  int32_t time_sign = DurationSign(isolate, time_difference);
+  double time_sign = DurationSign(isolate, {0, 0, 0, time_difference});
   // 5. Let dateSign be ! CompareISODate(y2, mon2, d2, y1, mon1, d1).
-  int32_t date_sign = CompareISODate(isolate, y2, mon2, d2, y1, mon1, d1);
+  double date_sign = CompareISODate(isolate, date_time2.date, date_time1.date);
   // 6. Let balanceResult be ! BalanceISODate(y1, mon1, d1 +
   // timeDifference.[[Days]]).
-  int32_t balanced_year = y1;
-  int32_t balanced_month = mon1;
-  int32_t balanced_day = d1 + static_cast<int32_t>(time_difference.days);
-  BalanceISODate(isolate, &balanced_year, &balanced_month, &balanced_day);
+  DateRecordCommon balanced = BalanceISODate(
+      isolate,
+      {date_time1.date.year, date_time1.date.month,
+       date_time1.date.day + static_cast<int32_t>(time_difference.days)});
 
   // 7. If timeSign is -dateSign, then
   if (time_sign == -date_sign) {
     // a. Set balanceResult be ! BalanceISODate(balanceResult.[[Year]],
     // balanceResult.[[Month]], balanceResult.[[Day]] - timeSign).
-    balanced_day -= time_sign;
-    BalanceISODate(isolate, &balanced_year, &balanced_month, &balanced_day);
+    balanced.day -= time_sign;
+    balanced = BalanceISODate(isolate, balanced);
     // b. Set timeDifference to ? BalanceDuration(-timeSign,
     // timeDifference.[[Hours]], timeDifference.[[Minutes]],
     // timeDifference.[[Seconds]], timeDifference.[[Milliseconds]],
     // timeDifference.[[Microseconds]], timeDifference.[[Nanoseconds]],
     // largestUnit).
-    result.days = -time_sign;
-    result.hours = time_difference.hours;
-    result.minutes = time_difference.minutes;
-    result.seconds = time_difference.seconds;
-    result.milliseconds = time_difference.milliseconds;
-    result.microseconds = time_difference.microseconds;
-    result.nanoseconds = time_difference.nanoseconds;
 
-    Maybe<bool> maybe_time_difference = BalanceDuration(
-        isolate, &(result.days), &(result.hours), &(result.minutes),
-        &(result.seconds), &(result.milliseconds), &(result.microseconds),
-        &(result.nanoseconds), largest_unit, method_name);
-    MAYBE_RETURN(maybe_time_difference, Nothing<DurationRecord>());
-    DCHECK(maybe_time_difference.FromJust());
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result.time_duration,
+        BalanceDuration(
+            isolate, largest_unit,
+            {-time_sign, time_difference.hours, time_difference.minutes,
+             time_difference.seconds, time_difference.milliseconds,
+             time_difference.microseconds, time_difference.nanoseconds},
+            method_name),
+        Nothing<DurationRecord>());
   }
   // 8. Let date1 be ? CreateTemporalDate(balanceResult.[[Year]],
   // balanceResult.[[Month]], balanceResult.[[Day]], calendar).
   Handle<JSTemporalPlainDate> date1;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, date1,
-      CreateTemporalDate(isolate, balanced_year, balanced_month, balanced_day,
-                         calendar),
+      isolate, date1, CreateTemporalDate(isolate, balanced, calendar),
       Nothing<DurationRecord>());
   // 9. Let date2 be ? CreateTemporalDate(y2, mon2, d2, calendar).
   Handle<JSTemporalPlainDate> date2;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, date2, CreateTemporalDate(isolate, y2, mon2, d2, calendar),
+      isolate, date2, CreateTemporalDate(isolate, date_time2.date, calendar),
       Nothing<DurationRecord>());
   // 10. Let dateLargestUnit be ! LargerOfTwoTemporalUnits("day", largestUnit).
   Unit date_largest_unit =
@@ -4203,14 +4679,20 @@ Maybe<DurationRecord> DifferenceISODateTime(
   // timeDifference.[[Seconds]], timeDifference.[[Milliseconds]],
   // timeDifference.[[Microseconds]], timeDifference.[[Nanoseconds]],
   // largestUnit).
-  result.days = NumberToInt64(date_difference->days());
 
-  Maybe<bool> maybe_balance_result = BalanceDuration(
-      isolate, &(result.days), &(result.hours), &(result.minutes),
-      &(result.seconds), &(result.milliseconds), &(result.microseconds),
-      &(result.nanoseconds), largest_unit, method_name);
-  MAYBE_RETURN(maybe_balance_result, Nothing<DurationRecord>());
-  DCHECK(maybe_balance_result.FromJust());
+  TimeDurationRecord balance_result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, balance_result,
+      BalanceDuration(
+          isolate, largest_unit,
+          {date_difference->days().Number(), time_difference.hours,
+           time_difference.minutes, time_difference.seconds,
+           time_difference.milliseconds, time_difference.microseconds,
+           time_difference.nanoseconds},
+          method_name),
+      Nothing<DurationRecord>());
+
+  result.time_duration = balance_result;
   // 14. Return the Record { [[Years]]: dateDifference.[[Years]], [[Months]]:
   // dateDifference.[[Months]], [[Weeks]]: dateDifference.[[Weeks]], [[Days]]:
   // balanceResult.[[Days]], [[Hours]]: balanceResult.[[Hours]], [[Minutes]]:
@@ -4218,18 +4700,16 @@ Maybe<DurationRecord> DifferenceISODateTime(
   // [[Milliseconds]]: balanceResult.[[Milliseconds]], [[Microseconds]]:
   // balanceResult.[[Microseconds]], [[Nanoseconds]]:
   // balanceResult.[[Nanoseconds]] }.
-  result.years = NumberToInt64(date_difference->years());
-  result.months = NumberToInt64(date_difference->months());
-  result.weeks = NumberToInt64(date_difference->weeks());
+  result.years = date_difference->years().Number();
+  result.months = date_difference->months().Number();
+  result.weeks = date_difference->weeks().Number();
   return Just(result);
 }
 
 // #sec-temporal-addinstant
 MaybeHandle<BigInt> AddInstant(Isolate* isolate,
-                               Handle<BigInt> epoch_nanoseconds, int64_t hours,
-                               int64_t minutes, int64_t seconds,
-                               int64_t milliseconds, int64_t microseconds,
-                               int64_t nanoseconds) {
+                               Handle<BigInt> epoch_nanoseconds,
+                               const TimeDurationRecord& addend) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Assert: hours, minutes, seconds, milliseconds, microseconds, and
@@ -4241,12 +4721,12 @@ MaybeHandle<BigInt> AddInstant(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result,
       BigInt::Add(isolate, epoch_nanoseconds,
-                  BigInt::FromInt64(isolate, nanoseconds)),
+                  BigInt::FromInt64(isolate, addend.nanoseconds)),
       BigInt);
   Handle<BigInt> temp;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, temp,
-      BigInt::Multiply(isolate, BigInt::FromInt64(isolate, microseconds),
+      BigInt::Multiply(isolate, BigInt::FromInt64(isolate, addend.microseconds),
                        BigInt::FromInt64(isolate, 1000)),
       BigInt);
   ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
@@ -4254,7 +4734,7 @@ MaybeHandle<BigInt> AddInstant(Isolate* isolate,
 
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, temp,
-      BigInt::Multiply(isolate, BigInt::FromInt64(isolate, milliseconds),
+      BigInt::Multiply(isolate, BigInt::FromInt64(isolate, addend.milliseconds),
                        BigInt::FromInt64(isolate, 1000000)),
       BigInt);
   ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
@@ -4262,7 +4742,7 @@ MaybeHandle<BigInt> AddInstant(Isolate* isolate,
 
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, temp,
-      BigInt::Multiply(isolate, BigInt::FromInt64(isolate, seconds),
+      BigInt::Multiply(isolate, BigInt::FromInt64(isolate, addend.seconds),
                        BigInt::FromInt64(isolate, 1000000000)),
       BigInt);
   ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
@@ -4270,7 +4750,7 @@ MaybeHandle<BigInt> AddInstant(Isolate* isolate,
 
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, temp,
-      BigInt::Multiply(isolate, BigInt::FromInt64(isolate, minutes),
+      BigInt::Multiply(isolate, BigInt::FromInt64(isolate, addend.minutes),
                        BigInt::FromInt64(isolate, 1000000000)),
       BigInt);
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -4281,7 +4761,7 @@ MaybeHandle<BigInt> AddInstant(Isolate* isolate,
 
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, temp,
-      BigInt::Multiply(isolate, BigInt::FromInt64(isolate, hours),
+      BigInt::Multiply(isolate, BigInt::FromInt64(isolate, addend.hours),
                        BigInt::FromInt64(isolate, 1000000000)),
       BigInt);
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -4294,7 +4774,7 @@ MaybeHandle<BigInt> AddInstant(Isolate* isolate,
   // 3. If ! IsValidEpochNanoseconds(result) is false, throw a RangeError
   // exception.
   if (!IsValidEpochNanoseconds(isolate, result)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), BigInt);
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), BigInt);
   }
   // 4. Return result.
   return result;
@@ -4313,49 +4793,45 @@ bool IsValidEpochNanoseconds(Isolate* isolate,
   return !(ns < -86400 * 1e17 || ns > 86400 * 1e17);
 }
 
-MaybeHandle<BigInt> GetEpochFromISOParts(Isolate* isolate, int32_t year,
-                                         int32_t month, int32_t day,
-                                         int32_t hour, int32_t minute,
-                                         int32_t second, int32_t millisecond,
-                                         int32_t microsecond,
-                                         int32_t nanosecond) {
+Handle<BigInt> GetEpochFromISOParts(Isolate* isolate,
+                                    const DateTimeRecordCommon& date_time) {
   TEMPORAL_ENTER_FUNC();
   // 1. Assert: year, month, day, hour, minute, second, millisecond,
   // microsecond, and nanosecond are integers.
   // 2. Assert: ! IsValidISODate(year, month, day) is true.
-  DCHECK(IsValidISODate(isolate, year, month, day));
+  DCHECK(IsValidISODate(isolate, date_time.date));
   // 3. Assert: ! IsValidTime(hour, minute, second, millisecond, microsecond,
   // nanosecond) is true.
-  DCHECK(IsValidTime(isolate, hour, minute, second, millisecond, microsecond,
-                     nanosecond));
+  DCHECK(IsValidTime(isolate, date_time.time));
   // 4. Let date be ! MakeDay(𝔽(year), 𝔽(month − 1), 𝔽(day)).
-  double date = MakeDay(year, month - 1, day);
+  double date = MakeDay(date_time.date.year, date_time.date.month - 1,
+                        date_time.date.day);
   // 5. Let time be ! MakeTime(𝔽(hour), 𝔽(minute), 𝔽(second), 𝔽(millisecond)).
-  double time = MakeTime(hour, minute, second, millisecond);
+  double time = MakeTime(date_time.time.hour, date_time.time.minute,
+                         date_time.time.second, date_time.time.millisecond);
   // 6. Let ms be ! MakeDate(date, time).
   double ms = MakeDate(date, time);
   // 7. Assert: ms is finite.
   // 8. Return ℝ(ms) × 10^6 + microsecond × 10^3 + nanosecond.
-  Handle<BigInt> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
-      BigInt::FromNumber(isolate, isolate->factory()->NewNumber(ms)), BigInt);
-
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
-      BigInt::Multiply(isolate, result, BigInt::FromInt64(isolate, 1000000)),
-      BigInt);
-
-  Handle<BigInt> temp;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, temp,
-      BigInt::Multiply(isolate, BigInt::FromInt64(isolate, microsecond),
-                       BigInt::FromInt64(isolate, 1000)),
-      BigInt);
-
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                             BigInt::Add(isolate, result, temp), BigInt);
-  return BigInt::Add(isolate, result, BigInt::FromInt64(isolate, nanosecond));
+  return BigInt::Add(
+             isolate,
+             BigInt::Add(
+                 isolate,
+                 BigInt::Multiply(
+                     isolate,
+                     BigInt::FromNumber(isolate,
+                                        isolate->factory()->NewNumber(ms))
+                         .ToHandleChecked(),
+                     BigInt::FromInt64(isolate, 1000000))
+                     .ToHandleChecked(),
+                 BigInt::Multiply(
+                     isolate,
+                     BigInt::FromInt64(isolate, date_time.time.microsecond),
+                     BigInt::FromInt64(isolate, 1000))
+                     .ToHandleChecked())
+                 .ToHandleChecked(),
+             BigInt::FromInt64(isolate, date_time.time.nanosecond))
+      .ToHandleChecked();
 }
 
 // #sec-temporal-durationsign
@@ -4372,20 +4848,21 @@ int32_t DurationSign(Isolate* isolaet, const DurationRecord& dur) {
   if (dur.months > 0) return 1;
   if (dur.weeks < 0) return -1;
   if (dur.weeks > 0) return 1;
-  if (dur.days < 0) return -1;
-  if (dur.days > 0) return 1;
-  if (dur.hours < 0) return -1;
-  if (dur.hours > 0) return 1;
-  if (dur.minutes < 0) return -1;
-  if (dur.minutes > 0) return 1;
-  if (dur.seconds < 0) return -1;
-  if (dur.seconds > 0) return 1;
-  if (dur.milliseconds < 0) return -1;
-  if (dur.milliseconds > 0) return 1;
-  if (dur.microseconds < 0) return -1;
-  if (dur.microseconds > 0) return 1;
-  if (dur.nanoseconds < 0) return -1;
-  if (dur.nanoseconds > 0) return 1;
+  const TimeDurationRecord& time = dur.time_duration;
+  if (time.days < 0) return -1;
+  if (time.days > 0) return 1;
+  if (time.hours < 0) return -1;
+  if (time.hours > 0) return 1;
+  if (time.minutes < 0) return -1;
+  if (time.minutes > 0) return 1;
+  if (time.seconds < 0) return -1;
+  if (time.seconds > 0) return 1;
+  if (time.milliseconds < 0) return -1;
+  if (time.milliseconds > 0) return 1;
+  if (time.microseconds < 0) return -1;
+  if (time.microseconds > 0) return 1;
+  if (time.nanoseconds < 0) return -1;
+  if (time.nanoseconds > 0) return 1;
   return 0;
 }
 
@@ -4401,14 +4878,15 @@ bool IsValidDuration(Isolate* isolate, const DurationRecord& dur) {
   // finite, return false. b. If v < 0 and sign > 0, return false. c. If v > 0
   // and sign < 0, return false.
   // 3. Return true.
+  const TimeDurationRecord& time = dur.time_duration;
   return !((sign > 0 && (dur.years < 0 || dur.months < 0 || dur.weeks < 0 ||
-                         dur.days < 0 || dur.hours < 0 || dur.minutes < 0 ||
-                         dur.seconds < 0 || dur.milliseconds < 0 ||
-                         dur.microseconds < 0 || dur.nanoseconds < 0)) ||
+                         time.days < 0 || time.hours < 0 || time.minutes < 0 ||
+                         time.seconds < 0 || time.milliseconds < 0 ||
+                         time.microseconds < 0 || time.nanoseconds < 0)) ||
            (sign < 0 && (dur.years > 0 || dur.months > 0 || dur.weeks > 0 ||
-                         dur.days > 0 || dur.hours > 0 || dur.minutes > 0 ||
-                         dur.seconds > 0 || dur.milliseconds > 0 ||
-                         dur.microseconds > 0 || dur.nanoseconds > 0)));
+                         time.days > 0 || time.hours > 0 || time.minutes > 0 ||
+                         time.seconds > 0 || time.milliseconds > 0 ||
+                         time.microseconds > 0 || time.nanoseconds > 0)));
 }
 
 // #sec-temporal-isisoleapyear
@@ -4452,239 +4930,320 @@ int32_t ISODaysInYear(Isolate* isolate, int32_t year) {
   return IsISOLeapYear(isolate, year) ? 366 : 365;
 }
 
-bool IsValidTime(Isolate* isolate, int32_t hour, int32_t minute, int32_t second,
-                 int32_t millisecond, int32_t microsecond, int32_t nanosecond) {
+bool IsValidTime(Isolate* isolate, const TimeRecordCommon& time) {
   TEMPORAL_ENTER_FUNC();
 
   // 2. If hour < 0 or hour > 23, then
   // a. Return false.
-  if (hour < 0 || hour > 23) return false;
+  if (time.hour < 0 || time.hour > 23) return false;
   // 3. If minute < 0 or minute > 59, then
   // a. Return false.
-  if (minute < 0 || minute > 59) return false;
+  if (time.minute < 0 || time.minute > 59) return false;
   // 4. If second < 0 or second > 59, then
   // a. Return false.
-  if (second < 0 || second > 59) return false;
+  if (time.second < 0 || time.second > 59) return false;
   // 5. If millisecond < 0 or millisecond > 999, then
   // a. Return false.
-  if (millisecond < 0 || millisecond > 999) return false;
+  if (time.millisecond < 0 || time.millisecond > 999) return false;
   // 6. If microsecond < 0 or microsecond > 999, then
   // a. Return false.
-  if (microsecond < 0 || microsecond > 999) return false;
+  if (time.microsecond < 0 || time.microsecond > 999) return false;
   // 7. If nanosecond < 0 or nanosecond > 999, then
   // a. Return false.
-  if (nanosecond < 0 || nanosecond > 999) return false;
+  if (time.nanosecond < 0 || time.nanosecond > 999) return false;
   // 8. Return true.
   return true;
 }
 
 // #sec-temporal-isvalidisodate
-bool IsValidISODate(Isolate* isolate, int32_t year, int32_t month,
-                    int32_t day) {
+bool IsValidISODate(Isolate* isolate, const DateRecordCommon& date) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Assert: year, month, and day are integers.
   // 2. If month < 1 or month > 12, then
   // a. Return false.
-  if (month < 1 || month > 12) return false;
+  if (date.month < 1 || date.month > 12) return false;
   // 3. Let daysInMonth be ! ISODaysInMonth(year, month).
   // 4. If day < 1 or day > daysInMonth, then
   // a. Return false.
-  if (day < 1 || day > ISODaysInMonth(isolate, year, month)) return false;
+  if (date.day < 1 ||
+      date.day > ISODaysInMonth(isolate, date.year, date.month)) {
+    return false;
+  }
   // 5. Return true.
   return true;
 }
 
 // #sec-temporal-compareisodate
-int32_t CompareISODate(Isolate* isolate, int32_t y1, int32_t m1, int32_t d1,
-                       int32_t y2, int32_t m2, int32_t d2) {
+int32_t CompareISODate(Isolate* isolate, const DateRecordCommon& date1,
+                       const DateRecordCommon& date2) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Assert: y1, m1, d1, y2, m2, and d2 are integers.
   // 2. If y1 > y2, return 1.
-  if (y1 > y2) return 1;
+  if (date1.year > date2.year) return 1;
   // 3. If y1 < y2, return -1.
-  if (y1 < y2) return -1;
+  if (date1.year < date2.year) return -1;
   // 4. If m1 > m2, return 1.
-  if (m1 > m2) return 1;
+  if (date1.month > date2.month) return 1;
   // 5. If m1 < m2, return -1.
-  if (m1 < m2) return -1;
+  if (date1.month < date2.month) return -1;
   // 6. If d1 > d2, return 1.
-  if (d1 > d2) return 1;
+  if (date1.day > date2.day) return 1;
   // 7. If d1 < d2, return -1.
-  if (d1 < d2) return -1;
+  if (date1.day < date2.day) return -1;
   // 8. Return 0.
   return 0;
 }
 
+inline int32_t floor_divid(int32_t a, int32_t b) {
+  return (((a) / (b)) + ((((a) < 0) && (((a) % (b)) != 0)) ? -1 : 0));
+}
 // #sec-temporal-balanceisoyearmonth
 void BalanceISOYearMonth(Isolate* isolate, int32_t* year, int32_t* month) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Assert: year and month are integers.
   // 2. Set year to year + floor((month - 1) / 12).
-  *year += floor_divide((*month - 1), 12);
+  *year += floor_divid((*month - 1), 12);
   // 3. Set month to (month − 1) modulo 12 + 1.
   *month = static_cast<int32_t>(modulo(*month - 1, 12)) + 1;
 
   // 4. Return the new Record { [[Year]]: year, [[Month]]: month }.
 }
 // #sec-temporal-balancetime
-DateTimeRecordCommon BalanceTime(Isolate* isolate, int64_t hour, int64_t minute,
-                                 int64_t second, int64_t millisecond,
-                                 int64_t microsecond, int64_t nanosecond) {
+DateTimeRecordCommon BalanceTime(const TimeRecordCommon& input) {
   TEMPORAL_ENTER_FUNC();
+  TimeRecordCommon time(input);
 
   // 1. Assert: hour, minute, second, millisecond, microsecond, and nanosecond
   // are integers.
   // 2. Set microsecond to microsecond + floor(nanosecond / 1000).
-  microsecond += floor_divide(nanosecond, 1000L);
+  time.microsecond += std::floor(time.nanosecond / 1000);
   // 3. Set nanosecond to nanosecond modulo 1000.
-  nanosecond = modulo(nanosecond, 1000L);
+  time.nanosecond = modulo(time.nanosecond, 1000);
   // 4. Set millisecond to millisecond + floor(microsecond / 1000).
-  millisecond += floor_divide(microsecond, 1000L);
+  time.millisecond += std::floor(time.microsecond / 1000);
   // 5. Set microsecond to microsecond modulo 1000.
-  microsecond = modulo(microsecond, 1000L);
+  time.microsecond = modulo(time.microsecond, 1000);
   // 6. Set second to second + floor(millisecond / 1000).
-  second += floor_divide(millisecond, 1000L);
+  time.second += std::floor(time.millisecond / 1000);
   // 7. Set millisecond to millisecond modulo 1000.
-  millisecond = modulo(millisecond, 1000L);
+  time.millisecond = modulo(time.millisecond, 1000);
   // 8. Set minute to minute + floor(second / 60).
-  minute += floor_divide(second, 60L);
+  time.minute += std::floor(time.second / 60);
   // 9. Set second to second modulo 60.
-  second = modulo(second, 60L);
+  time.second = modulo(time.second, 60);
   // 10. Set hour to hour + floor(minute / 60).
-  hour += floor_divide(minute, 60L);
+  time.hour += std::floor(time.minute / 60);
   // 11. Set minute to minute modulo 60.
-  minute = modulo(minute, 60L);
+  time.minute = modulo(time.minute, 60);
   // 12. Let days be floor(hour / 24).
-  int64_t days = floor_divide(hour, 24L);
+  DateRecordCommon date = {0, 0,
+                           static_cast<int32_t>(std::floor(time.hour / 24))};
   // 13. Set hour to hour modulo 24.
-  hour = modulo(hour, 24L);
+  time.hour = modulo(time.hour, 24);
   // 14. Return the new Record { [[Days]]: days, [[Hour]]: hour, [[Minute]]:
   // minute, [[Second]]: second, [[Millisecond]]: millisecond, [[Microsecond]]:
   // microsecond, [[Nanosecond]]: nanosecond }.
-  return {0,
-          0,
-          static_cast<int32_t>(days),
-          static_cast<int32_t>(hour),
-          static_cast<int32_t>(minute),
-          static_cast<int32_t>(second),
-          static_cast<int32_t>(millisecond),
-          static_cast<int32_t>(microsecond),
-          static_cast<int32_t>(nanosecond)};
+  return {date, time};
 }
 
 // #sec-temporal-differencetime
-DurationRecord DifferenceTime(Isolate* isolate, int32_t h1, int32_t min1,
-                              int32_t s1, int32_t ms1, int32_t mus1,
-                              int32_t ns1, int32_t h2, int32_t min2, int32_t s2,
-                              int32_t ms2, int32_t mus2, int32_t ns2) {
+Maybe<TimeDurationRecord> DifferenceTime(Isolate* isolate,
+                                         const TimeRecordCommon& time1,
+                                         const TimeRecordCommon& time2) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Assert: h1, min1, s1, ms1, mus1, ns1, h2, min2, s2, ms2, mus2, and ns2
   // are integers.
-  DurationRecord dur;
+  TimeDurationRecord dur;
   // 2. Let hours be h2 − h1.
-  dur.hours = h2 - h1;
+  dur.hours = time2.hour - time1.hour;
   // 3. Let minutes be min2 − min1.
-  dur.minutes = min2 - min1;
+  dur.minutes = time2.minute - time1.minute;
   // 4. Let seconds be s2 − s1.
-  dur.seconds = s2 - s1;
+  dur.seconds = time2.second - time1.second;
   // 5. Let milliseconds be ms2 − ms1.
-  dur.milliseconds = ms2 - ms1;
+  dur.milliseconds = time2.millisecond - time1.millisecond;
   // 6. Let microseconds be mus2 − mus1.
-  dur.microseconds = mus2 - mus1;
+  dur.microseconds = time2.microsecond - time1.microsecond;
   // 7. Let nanoseconds be ns2 − ns1.
-  dur.nanoseconds = ns2 - ns1;
+  dur.nanoseconds = time2.nanosecond - time1.nanosecond;
   // 8. Let sign be ! DurationSign(0, 0, 0, 0, hours, minutes, seconds,
   // milliseconds, microseconds, nanoseconds).
-  double sign = DurationSign(isolate, dur);
+  double sign = DurationSign(
+      isolate, {0,
+                0,
+                0,
+                {0, dur.hours, dur.minutes, dur.seconds, dur.milliseconds,
+                 dur.microseconds, dur.nanoseconds}});
 
-  // See https://github.com/tc39/proposal-temporal/pull/1885
   // 9. Let bt be ! BalanceTime(hours × sign, minutes × sign, seconds × sign,
   // milliseconds × sign, microseconds × sign, nanoseconds × sign).
-  DateTimeRecordCommon bt = BalanceTime(
-      isolate, dur.hours * sign, dur.minutes * sign, dur.seconds * sign,
-      dur.milliseconds * sign, dur.microseconds * sign, dur.nanoseconds * sign);
+  DateTimeRecordCommon bt =
+      BalanceTime({static_cast<int32_t>(dur.hours * sign),
+                   static_cast<int32_t>(dur.minutes * sign),
+                   static_cast<int32_t>(dur.seconds * sign),
+                   static_cast<int32_t>(dur.milliseconds * sign),
+                   static_cast<int32_t>(dur.microseconds * sign),
+                   static_cast<int32_t>(dur.nanoseconds * sign)});
 
-  // 10. Return the new Record { [[Days]]: bt.[[Days]] × sign, [[Hours]]:
-  // bt.[[Hour]] × sign, [[Minutes]]: bt.[[Minute]] × sign, [[Seconds]]:
-  // bt.[[Second]] × sign, [[Milliseconds]]: bt.[[Millisecond]] × sign,
-  // [[Microseconds]]: bt.[[Microsecond]] × sign, [[Nanoseconds]]:
-  // bt.[[Nanosecond]] × sign }.
-  return {0,
-          0,
-          0,
-          static_cast<int64_t>(bt.day * sign),
-          static_cast<int64_t>(bt.hour * sign),
-          static_cast<int64_t>(bt.minute * sign),
-          static_cast<int64_t>(bt.second * sign),
-          static_cast<int64_t>(bt.millisecond * sign),
-          static_cast<int64_t>(bt.microsecond * sign),
-          static_cast<int64_t>(bt.nanosecond * sign)};
+  // 9. Return ! CreateTimeDurationRecord(bt.[[Days]] × sign, bt.[[Hour]] ×
+  // sign, bt.[[Minute]] × sign, bt.[[Second]] × sign, bt.[[Millisecond]] ×
+  // sign, bt.[[Microsecond]] × sign, bt.[[Nanosecond]] × sign).
+  return TimeDurationRecord::Create(
+      isolate, bt.date.day * sign, bt.time.hour * sign, bt.time.minute * sign,
+      bt.time.second * sign, bt.time.millisecond * sign,
+      bt.time.microsecond * sign, bt.time.nanosecond * sign);
 }
 
 // #sec-temporal-addtime
-DateTimeRecordCommon AddTime(Isolate* isolate, int64_t hour, int64_t minute,
-                             int64_t second, int64_t millisecond,
-                             int64_t microsecond, int64_t nanosecond,
-                             int64_t hours, int64_t minutes, int64_t seconds,
-                             int64_t milliseconds, int64_t microseconds,
-                             int64_t nanoseconds) {
+DateTimeRecordCommon AddTime(Isolate* isolate, const TimeRecordCommon& time,
+                             const TimeDurationRecord& addend) {
   TEMPORAL_ENTER_FUNC();
 
+  DCHECK_EQ(addend.days, 0);
   // 1. Assert: hour, minute, second, millisecond, microsecond, nanosecond,
   // hours, minutes, seconds, milliseconds, microseconds, and nanoseconds are
   // integers.
   // 2. Let hour be hour + hours.
-  return BalanceTime(isolate, hour + hours,
-                     // 3. Let minute be minute + minutes.
-                     minute + minutes,
-                     // 4. Let second be second + seconds.
-                     second + seconds,
-                     // 5. Let millisecond be millisecond + milliseconds.
-                     millisecond + milliseconds,
-                     // 6. Let microsecond be microsecond + microseconds.
-                     microsecond + microseconds,
-                     // 7. Let nanosecond be nanosecond + nanoseconds.
-                     nanosecond + nanoseconds);
+  return BalanceTime(
+      {time.hour + static_cast<int32_t>(addend.hours),
+       // 3. Let minute be minute + minutes.
+       time.minute + static_cast<int32_t>(addend.minutes),
+       // 4. Let second be second + seconds.
+       time.second + static_cast<int32_t>(addend.seconds),
+       // 5. Let millisecond be millisecond + milliseconds.
+       time.millisecond + static_cast<int32_t>(addend.milliseconds),
+       // 6. Let microsecond be microsecond + microseconds.
+       time.microsecond + static_cast<int32_t>(addend.microseconds),
+       // 7. Let nanosecond be nanosecond + nanoseconds.
+       time.nanosecond + static_cast<int32_t>(addend.nanoseconds)});
   // 8. Return ! BalanceTime(hour, minute, second, millisecond, microsecond,
   // nanosecond).
 }
 
 // #sec-temporal-totaldurationnanoseconds
-int64_t TotalDurationNanoseconds(Isolate* isolate, int64_t days, int64_t hours,
-                                 int64_t minutes, int64_t seconds,
-                                 int64_t milliseconds, int64_t microseconds,
-                                 int64_t nanoseconds, int64_t offset_shift) {
+double TotalDurationNanoseconds(Isolate* isolate,
+                                const TimeDurationRecord& value,
+                                double offset_shift) {
   TEMPORAL_ENTER_FUNC();
+
+  TimeDurationRecord duration(value);
 
   // 1. Assert: offsetShift is an integer.
   // 2. Set nanoseconds to ℝ(nanoseconds).
   // 3. If days ≠ 0, then
-  if (days != 0) {
+  if (duration.days != 0) {
     // a. Set nanoseconds to nanoseconds − offsetShift.
-    nanoseconds -= offset_shift;
+    duration.nanoseconds -= offset_shift;
   }
 
   // 4. Set hours to ℝ(hours) + ℝ(days) × 24.
-  hours += days * 24;
+  duration.hours += duration.days * 24;
 
   // 5. Set minutes to ℝ(minutes) + hours × 60.
-  minutes += hours * 60;
+  duration.minutes += duration.hours * 60;
 
   // 6. Set seconds to ℝ(seconds) + minutes × 60.
-  seconds += minutes * 60;
+  duration.seconds += duration.minutes * 60;
 
   // 7. Set milliseconds to ℝ(milliseconds) + seconds × 1000.
-  milliseconds += seconds * 1000;
+  duration.milliseconds += duration.seconds * 1000;
 
   // 8. Set microseconds to ℝ(microseconds) + milliseconds × 1000.
-  microseconds += milliseconds * 1000;
+  duration.microseconds += duration.milliseconds * 1000;
 
   // 9. Return nanoseconds + microseconds × 1000.
-  return nanoseconds + microseconds * 1000;
+  return duration.nanoseconds + duration.microseconds * 1000;
+}
+
+Maybe<DateRecordCommon> RegulateISODate(Isolate* isolate, ShowOverflow overflow,
+                                        const DateRecordCommon& date);
+Maybe<int32_t> ResolveISOMonth(Isolate* isolate, Handle<JSReceiver> fields);
+
+// #sec-temporal-isomonthdayfromfields
+Maybe<DateRecordCommon> ISOMonthDayFromFields(Isolate* isolate,
+                                              Handle<JSReceiver> fields,
+                                              Handle<JSReceiver> options,
+                                              const char* method_name) {
+  Factory* factory = isolate->factory();
+  // 1. Assert: Type(fields) is Object.
+  // 2. Let overflow be ? ToTemporalOverflow(options).
+  ShowOverflow overflow;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+      Nothing<DateRecordCommon>());
+
+  // 3. Set fields to ? PrepareTemporalFields(fields, « "day", "month",
+  // "monthCode", "year" », «»).
+  Handle<FixedArray> field_names = factory->NewFixedArray(4);
+  field_names->set(0, ReadOnlyRoots(isolate).day_string());
+  field_names->set(1, ReadOnlyRoots(isolate).month_string());
+  field_names->set(2, ReadOnlyRoots(isolate).monthCode_string());
+  field_names->set(3, ReadOnlyRoots(isolate).year_string());
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, fields,
+      PrepareTemporalFields(isolate, fields, field_names,
+                            RequiredFields::kNone),
+      Nothing<DateRecordCommon>());
+  // 4. Let month be ! Get(fields, "month").
+  Handle<Object> month_obj =
+      Object::GetPropertyOrElement(isolate, fields, factory->month_string())
+          .ToHandleChecked();
+  // 5. Let monthCode be ! Get(fields, "monthCode").
+  Handle<Object> month_code_obj =
+      Object::GetPropertyOrElement(isolate, fields, factory->monthCode_string())
+          .ToHandleChecked();
+  // 6. Let year be ! Get(fields, "year").
+  Handle<Object> year_obj =
+      Object::GetPropertyOrElement(isolate, fields, factory->year_string())
+          .ToHandleChecked();
+  // 7. If month is not undefined, and monthCode and year are both undefined,
+  // then
+  if (!month_obj->IsUndefined(isolate) &&
+      month_code_obj->IsUndefined(isolate) && year_obj->IsUndefined(isolate)) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                                 Nothing<DateRecordCommon>());
+  }
+  // 8. Set month to ? ResolveISOMonth(fields).
+  DateRecordCommon result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, result.month,
+                                         ResolveISOMonth(isolate, fields),
+                                         Nothing<DateRecordCommon>());
+
+  // 9. Let day be ! Get(fields, "day").
+  Handle<Object> day_obj =
+      Object::GetPropertyOrElement(isolate, fields, factory->day_string())
+          .ToHandleChecked();
+  // 10. If day is undefined, throw a TypeError exception.
+  if (day_obj->IsUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                                 Nothing<DateRecordCommon>());
+  }
+  result.day = FastD2I(floor(day_obj->Number()));
+  // 11. Let referenceISOYear be 1972 (the first leap year after the Unix
+  // epoch).
+  int32_t reference_iso_year = 1972;
+  // 12. If monthCode is undefined, then
+  if (month_code_obj->IsUndefined(isolate)) {
+    result.year = FastD2I(floor(year_obj->Number()));
+    // a. Let result be ? RegulateISODate(year, month, day, overflow).
+  } else {
+    // 13. Else,
+    // a. Let result be ? RegulateISODate(referenceISOYear, month, day,
+    // overflow).
+    result.year = reference_iso_year;
+  }
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result, RegulateISODate(isolate, overflow, result),
+      Nothing<DateRecordCommon>());
+  // 14. Return the new Record { [[Month]]: result.[[Month]], [[Day]]:
+  // result.[[Day]], [[ReferenceISOYear]]: referenceISOYear }.
+  result.year = reference_iso_year;
+  return Just(result);
 }
 
 }  // namespace
@@ -4706,80 +5265,96 @@ MaybeHandle<JSTemporalDuration> JSTemporalDuration::Constructor(
                                      method_name)),
                     JSTemporalDuration);
   }
-  // 2. Let y be ? ToIntegerThrowOnInfinity(years).
-  Handle<Object> number_years;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_years,
-                             ToIntegerThrowOnInfinity(isolate, years),
-                             JSTemporalDuration);
-  int64_t y = NumberToInt64(*number_years);
+  // 2. Let y be ? ToIntegerWithoutRounding(years).
+  double y;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, y, ToIntegerWithoutRounding(isolate, years),
+      Handle<JSTemporalDuration>());
 
-  // 3. Let mo be ? ToIntegerThrowOnInfinity(months).
-  Handle<Object> number_months;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_months,
-                             ToIntegerThrowOnInfinity(isolate, months),
-                             JSTemporalDuration);
-  int64_t mo = NumberToInt64(*number_months);
+  // 3. Let mo be ? ToIntegerWithoutRounding(months).
+  double mo;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, mo, ToIntegerWithoutRounding(isolate, months),
+      Handle<JSTemporalDuration>());
 
-  // 4. Let w be ? ToIntegerThrowOnInfinity(weeks).
-  Handle<Object> number_weeks;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_weeks,
-                             ToIntegerThrowOnInfinity(isolate, weeks),
-                             JSTemporalDuration);
-  int64_t w = NumberToInt64(*number_weeks);
+  // 4. Let w be ? ToIntegerWithoutRounding(weeks).
+  double w;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, w, ToIntegerWithoutRounding(isolate, weeks),
+      Handle<JSTemporalDuration>());
 
-  // 5. Let d be ? ToIntegerThrowOnInfinity(days).
-  Handle<Object> number_days;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_days,
-                             ToIntegerThrowOnInfinity(isolate, days),
-                             JSTemporalDuration);
-  int64_t d = NumberToInt64(*number_days);
+  // 5. Let d be ? ToIntegerWithoutRounding(days).
+  double d;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, d, ToIntegerWithoutRounding(isolate, days),
+      Handle<JSTemporalDuration>());
 
-  // 6. Let h be ? ToIntegerThrowOnInfinity(hours).
-  Handle<Object> number_hours;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_hours,
-                             ToIntegerThrowOnInfinity(isolate, hours),
-                             JSTemporalDuration);
-  int64_t h = NumberToInt64(*number_hours);
+  // 6. Let h be ? ToIntegerWithoutRounding(hours).
+  double h;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, h, ToIntegerWithoutRounding(isolate, hours),
+      Handle<JSTemporalDuration>());
 
-  // 7. Let m be ? ToIntegerThrowOnInfinity(minutes).
-  Handle<Object> number_minutes;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_minutes,
-                             ToIntegerThrowOnInfinity(isolate, minutes),
-                             JSTemporalDuration);
-  int64_t m = NumberToInt64(*number_minutes);
+  // 7. Let m be ? ToIntegerWithoutRounding(minutes).
+  double m;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, m, ToIntegerWithoutRounding(isolate, minutes),
+      Handle<JSTemporalDuration>());
 
-  // 8. Let s be ? ToIntegerThrowOnInfinity(seconds).
-  Handle<Object> number_seconds;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_seconds,
-                             ToIntegerThrowOnInfinity(isolate, seconds),
-                             JSTemporalDuration);
-  int64_t s = NumberToInt64(*number_seconds);
+  // 8. Let s be ? ToIntegerWithoutRounding(seconds).
+  double s;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, s, ToIntegerWithoutRounding(isolate, seconds),
+      Handle<JSTemporalDuration>());
 
-  // 9. Let ms be ? ToIntegerThrowOnInfinity(milliseconds).
-  Handle<Object> number_milliseconds;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_milliseconds,
-                             ToIntegerThrowOnInfinity(isolate, milliseconds),
-                             JSTemporalDuration);
-  int64_t ms = NumberToInt64(*number_milliseconds);
+  // 9. Let ms be ? ToIntegerWithoutRounding(milliseconds).
+  double ms;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, ms, ToIntegerWithoutRounding(isolate, milliseconds),
+      Handle<JSTemporalDuration>());
 
-  // 10. Let mis be ? ToIntegerThrowOnInfinity(microseconds).
-  Handle<Object> number_microseconds;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_microseconds,
-                             ToIntegerThrowOnInfinity(isolate, microseconds),
-                             JSTemporalDuration);
-  int64_t mis = NumberToInt64(*number_microseconds);
+  // 10. Let mis be ? ToIntegerWithoutRounding(microseconds).
+  double mis;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, mis, ToIntegerWithoutRounding(isolate, microseconds),
+      Handle<JSTemporalDuration>());
 
-  // 11. Let ns be ? ToIntegerThrowOnInfinity(nanoseconds).
-  Handle<Object> number_nanoseconds;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_nanoseconds,
-                             ToIntegerThrowOnInfinity(isolate, nanoseconds),
-                             JSTemporalDuration);
-  int64_t ns = NumberToInt64(*number_nanoseconds);
+  // 11. Let ns be ? ToIntegerWithoutRounding(nanoseconds).
+  double ns;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, ns, ToIntegerWithoutRounding(isolate, nanoseconds),
+      Handle<JSTemporalDuration>());
 
   // 12. Return ? CreateTemporalDuration(y, mo, w, d, h, m, s, ms, mis, ns,
   // NewTarget).
-  return CreateTemporalDuration(isolate, target, new_target, y, mo, w, d, h, m,
-                                s, ms, mis, ns);
+  return CreateTemporalDuration(isolate, target, new_target,
+                                {y, mo, w, {d, h, m, s, ms, mis, ns}});
+}
+
+// #sec-temporal.duration.from
+MaybeHandle<JSTemporalDuration> JSTemporalDuration::From(Isolate* isolate,
+                                                         Handle<Object> item) {
+  //  1. If Type(item) is Object and item has an [[InitializedTemporalDuration]]
+  //  internal slot, then
+  if (item->IsJSTemporalDuration()) {
+    // a. Return ? CreateTemporalDuration(item.[[Years]], item.[[Months]],
+    // item.[[Weeks]], item.[[Days]], item.[[Hours]], item.[[Minutes]],
+    // item.[[Seconds]], item.[[Milliseconds]], item.[[Microseconds]],
+    // item.[[Nanoseconds]]).
+    Handle<JSTemporalDuration> duration =
+        Handle<JSTemporalDuration>::cast(item);
+    return CreateTemporalDuration(
+        isolate,
+        {duration->years().Number(),
+         duration->months().Number(),
+         duration->weeks().Number(),
+         {duration->days().Number(), duration->hours().Number(),
+          duration->minutes().Number(), duration->seconds().Number(),
+          duration->milliseconds().Number(), duration->microseconds().Number(),
+          duration->nanoseconds().Number()}});
+  }
+  // 2. Return ? ToTemporalDuration(item).
+  return temporal::ToTemporalDuration(isolate, item, "Temporal.Duration.from");
 }
 
 // #sec-get-temporal.duration.prototype.sign
@@ -4794,14 +5369,14 @@ MaybeHandle<Smi> JSTemporalDuration::Sign(Isolate* isolate,
   // duration.[[Microseconds]], duration.[[Nanoseconds]]).
   return Handle<Smi>(
       Smi::FromInt(DurationSign(
-          isolate,
-          {NumberToInt64(duration->years()), NumberToInt64(duration->months()),
-           NumberToInt64(duration->weeks()), NumberToInt64(duration->days()),
-           NumberToInt64(duration->hours()), NumberToInt64(duration->minutes()),
-           NumberToInt64(duration->seconds()),
-           NumberToInt64(duration->milliseconds()),
-           NumberToInt64(duration->microseconds()),
-           NumberToInt64(duration->nanoseconds())})),
+          isolate, {duration->years().Number(),
+                    duration->months().Number(),
+                    duration->weeks().Number(),
+                    {duration->days().Number(), duration->hours().Number(),
+                     duration->minutes().Number(), duration->seconds().Number(),
+                     duration->milliseconds().Number(),
+                     duration->microseconds().Number(),
+                     duration->nanoseconds().Number()}})),
       isolate);
 }
 
@@ -4819,13 +5394,13 @@ MaybeHandle<Oddball> JSTemporalDuration::Blank(
   // 5. Return false.
   int32_t sign = DurationSign(
       isolate,
-      {NumberToInt64(duration->years()), NumberToInt64(duration->months()),
-       NumberToInt64(duration->weeks()), NumberToInt64(duration->days()),
-       NumberToInt64(duration->hours()), NumberToInt64(duration->minutes()),
-       NumberToInt64(duration->seconds()),
-       NumberToInt64(duration->milliseconds()),
-       NumberToInt64(duration->microseconds()),
-       NumberToInt64(duration->nanoseconds())});
+      {duration->years().Number(),
+       duration->months().Number(),
+       duration->weeks().Number(),
+       {duration->days().Number(), duration->hours().Number(),
+        duration->minutes().Number(), duration->seconds().Number(),
+        duration->milliseconds().Number(), duration->microseconds().Number(),
+        duration->nanoseconds().Number()}});
   return sign == 0 ? isolate->factory()->true_value()
                    : isolate->factory()->false_value();
 }
@@ -4844,13 +5419,14 @@ MaybeHandle<JSTemporalDuration> CreateNegatedTemporalDuration(
   // −duration.[[Nanoseconds]]).
 
   return CreateTemporalDuration(
-      isolate, -NumberToInt64(duration->years()),
-      -NumberToInt64(duration->months()), -NumberToInt64(duration->weeks()),
-      -NumberToInt64(duration->days()), -NumberToInt64(duration->hours()),
-      -NumberToInt64(duration->minutes()), -NumberToInt64(duration->seconds()),
-      -NumberToInt64(duration->milliseconds()),
-      -NumberToInt64(duration->microseconds()),
-      -NumberToInt64(duration->nanoseconds()));
+      isolate,
+      {-duration->years().Number(),
+       -duration->months().Number(),
+       -duration->weeks().Number(),
+       {-duration->days().Number(), -duration->hours().Number(),
+        -duration->minutes().Number(), -duration->seconds().Number(),
+        -duration->milliseconds().Number(), -duration->microseconds().Number(),
+        -duration->nanoseconds().Number()}});
 }
 
 }  // namespace
@@ -4877,17 +5453,17 @@ MaybeHandle<JSTemporalDuration> JSTemporalDuration::Abs(
   // abs(duration.[[Hours]]), abs(duration.[[Minutes]]),
   // abs(duration.[[Seconds]]), abs(duration.[[Milliseconds]]),
   // abs(duration.[[Microseconds]]), abs(duration.[[Nanoseconds]])).
-  return CreateTemporalDuration(
-      isolate, std::abs(NumberToInt64(duration->years())),
-      std::abs(NumberToInt64(duration->months())),
-      std::abs(NumberToInt64(duration->weeks())),
-      std::abs(NumberToInt64(duration->days())),
-      std::abs(NumberToInt64(duration->hours())),
-      std::abs(NumberToInt64(duration->minutes())),
-      std::abs(NumberToInt64(duration->seconds())),
-      std::abs(NumberToInt64(duration->milliseconds())),
-      std::abs(NumberToInt64(duration->microseconds())),
-      std::abs(NumberToInt64(duration->nanoseconds())));
+  return CreateTemporalDuration(isolate,
+                                {std::abs(duration->years().Number()),
+                                 std::abs(duration->months().Number()),
+                                 std::abs(duration->weeks().Number()),
+                                 {std::abs(duration->days().Number()),
+                                  std::abs(duration->hours().Number()),
+                                  std::abs(duration->minutes().Number()),
+                                  std::abs(duration->seconds().Number()),
+                                  std::abs(duration->milliseconds().Number()),
+                                  std::abs(duration->microseconds().Number()),
+                                  std::abs(duration->nanoseconds().Number())}});
 }
 
 // #sec-temporal.calendar
@@ -4921,8 +5497,7 @@ MaybeHandle<JSTemporalCalendar> JSTemporalCalendar::Constructor(
 namespace {
 
 // #sec-temporal-toisodayofyear
-int32_t ToISODayOfYear(Isolate* isolate, int32_t year, int32_t month,
-                       int32_t day) {
+int32_t ToISODayOfYear(Isolate* isolate, const DateRecordCommon& date) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Assert: year is an integer.
@@ -4932,8 +5507,9 @@ int32_t ToISODayOfYear(Isolate* isolate, int32_t year, int32_t month,
   // 5. Return date's ordinal date in the year according to ISO-8601.
   // Note: In ISO 8601, Jan: month=1, Dec: month=12,
   // In DateCache API, Jan: month=0, Dec: month=11 so we need to - 1 for month.
-  return day + isolate->date_cache()->DaysFromYearMonth(year, month - 1) -
-         isolate->date_cache()->DaysFromYearMonth(year, 0);
+  return date.day +
+         isolate->date_cache()->DaysFromYearMonth(date.year, date.month - 1) -
+         isolate->date_cache()->DaysFromYearMonth(date.year, 0);
 }
 
 bool IsPlainDatePlainDateTimeOrPlainYearMonth(
@@ -4967,8 +5543,8 @@ int32_t ToISODayOfWeek(Isolate* isolate, int32_t year, int32_t month,
 }
 
 // #sec-temporal-regulateisodate
-Maybe<bool> RegulateISODate(Isolate* isolate, ShowOverflow overflow,
-                            int32_t year, int32_t* month, int32_t* day) {
+Maybe<DateRecordCommon> RegulateISODate(Isolate* isolate, ShowOverflow overflow,
+                                        const DateRecordCommon& date) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. Assert: year, month, and day are integers.
@@ -4978,48 +5554,73 @@ Maybe<bool> RegulateISODate(Isolate* isolate, ShowOverflow overflow,
     case ShowOverflow::kReject:
       // a. If ! IsValidISODate(year, month, day) is false, throw a RangeError
       // exception.
-      if (!IsValidISODate(isolate, year, *month, *day)) {
-        THROW_NEW_ERROR_RETURN_VALUE(
-            isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(), Nothing<bool>());
+      if (!IsValidISODate(isolate, date)) {
+        THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                     NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                     Nothing<DateRecordCommon>());
       }
       // b. Return the Record { [[Year]]: year, [[Month]]: month, [[Day]]: day
       // }.
-      return Just(true);
+      return Just(date);
     // 4. If overflow is "constrain", then
     case ShowOverflow::kConstrain:
+      DateRecordCommon result(date);
       // a. Set month to ! ConstrainToRange(month, 1, 12).
-      *month = std::max(std::min(*month, 12), 1);
+      result.month = std::max(std::min(result.month, 12), 1);
       // b. Set day to ! ConstrainToRange(day, 1, ! ISODaysInMonth(year,
       // month)).
-      *day = std::max(std::min(*day, ISODaysInMonth(isolate, year, *month)), 1);
+      result.day =
+          std::max(std::min(result.day,
+                            ISODaysInMonth(isolate, result.year, result.month)),
+                   1);
       // c. Return the Record { [[Year]]: year, [[Month]]: month, [[Day]]: day
       // }.
-      return Just(true);
+      return Just(result);
+  }
+}
+
+// #sec-temporal-regulateisoyearmonth
+Maybe<int32_t> RegulateISOYearMonth(Isolate* isolate, ShowOverflow overflow,
+                                    int32_t month) {
+  // 1. Assert: year and month are integers.
+  // 2. Assert: overflow is either "constrain" or "reject".
+  switch (overflow) {
+    // 3. If overflow is "constrain", then
+    case ShowOverflow::kConstrain:
+      // a. Return ! ConstrainISOYearMonth(year, month).
+      return Just(std::max(std::min(month, 12), 1));
+    // 4. If overflow is "reject", then
+    case ShowOverflow::kReject:
+      // a. If ! IsValidISOMonth(month) is false, throw a RangeError exception.
+      if (month < 1 || 12 < month) {
+        THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                     NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                     Nothing<int32_t>());
+      }
+      // b. Return the new Record { [[Year]]: year, [[Month]]: month }.
+      return Just(month);
+    default:
+      UNREACHABLE();
   }
 }
 
 // #sec-temporal-resolveisomonth
 Maybe<int32_t> ResolveISOMonth(Isolate* isolate, Handle<JSReceiver> fields) {
   Factory* factory = isolate->factory();
-  // 1. Let month be ? Get(fields, "month").
-  Handle<Object> month_obj;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, month_obj,
-      Object::GetPropertyOrElement(isolate, fields, factory->month_string()),
-      Nothing<int32_t>());
-  // 2. Let monthCode be ? Get(fields, "monthCode").
-  Handle<Object> month_code_obj;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, month_code_obj,
-      Object::GetPropertyOrElement(isolate, fields,
-                                   factory->monthCode_string()),
-      Nothing<int32_t>());
+  // 1. Let month be ! Get(fields, "month").
+  Handle<Object> month_obj =
+      Object::GetPropertyOrElement(isolate, fields, factory->month_string())
+          .ToHandleChecked();
+  // 2. Let monthCode be ! Get(fields, "monthCode").
+  Handle<Object> month_code_obj =
+      Object::GetPropertyOrElement(isolate, fields, factory->monthCode_string())
+          .ToHandleChecked();
   // 3. If monthCode is undefined, then
   if (month_code_obj->IsUndefined(isolate)) {
     // a. If month is undefined, throw a TypeError exception.
     if (month_obj->IsUndefined(isolate)) {
       THROW_NEW_ERROR_RETURN_VALUE(
-          isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(), Nothing<int32_t>());
+          isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(), Nothing<int32_t>());
     }
     // b. Return month.
     // Note: In Temporal spec, "month" in fields is always converted by
@@ -5080,17 +5681,18 @@ Maybe<int32_t> ResolveISOMonth(Isolate* isolate, Handle<JSReceiver> fields) {
 }
 
 // #sec-temporal-isodatefromfields
-Maybe<bool> ISODateFromFields(Isolate* isolate, Handle<JSReceiver> fields,
-                              Handle<JSReceiver> options,
-                              const char* method_name, int32_t* year,
-                              int32_t* month, int32_t* day) {
+Maybe<DateRecordCommon> ISODateFromFields(Isolate* isolate,
+                                          Handle<JSReceiver> fields,
+                                          Handle<JSReceiver> options,
+                                          const char* method_name) {
   Factory* factory = isolate->factory();
 
   // 1. Assert: Type(fields) is Object.
   // 2. Let overflow be ? ToTemporalOverflow(options).
-  Maybe<ShowOverflow> maybe_overflow =
-      ToTemporalOverflow(isolate, options, method_name);
-  MAYBE_RETURN(maybe_overflow, Nothing<bool>());
+  ShowOverflow overflow;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+      Nothing<DateRecordCommon>());
   // 3. Set fields to ? PrepareTemporalFields(fields, « "day", "month",
   // "monthCode", "year" », «»).
   Handle<FixedArray> field_names = factory->NewFixedArray(4);
@@ -5102,51 +5704,400 @@ Maybe<bool> ISODateFromFields(Isolate* isolate, Handle<JSReceiver> fields,
       isolate, fields,
       PrepareTemporalFields(isolate, fields, field_names,
                             RequiredFields::kNone),
-      Nothing<bool>());
+      Nothing<DateRecordCommon>());
 
-  // 4. Let year be ? Get(fields, "year").
-  Handle<Object> year_obj;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, year_obj,
-      Object::GetPropertyOrElement(isolate, fields, factory->year_string()),
-      Nothing<bool>());
+  // 4. Let year be ! Get(fields, "year").
+  Handle<Object> year_obj =
+      Object::GetPropertyOrElement(isolate, fields, factory->year_string())
+          .ToHandleChecked();
   // 5. If year is undefined, throw a TypeError exception.
   if (year_obj->IsUndefined(isolate)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(),
-                                 Nothing<bool>());
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                                 Nothing<DateRecordCommon>());
   }
   // Note: "year" in fields is always converted by
   // ToIntegerThrowOnInfinity inside the PrepareTemporalFields above.
   // Therefore the year_obj is always an integer.
   DCHECK(year_obj->IsSmi() || year_obj->IsHeapNumber());
-  *year = FastD2I(year_obj->Number());
 
   // 6. Let month be ? ResolveISOMonth(fields).
-  Maybe<int32_t> maybe_month = ResolveISOMonth(isolate, fields);
-  MAYBE_RETURN(maybe_month, Nothing<bool>());
-  *month = maybe_month.FromJust();
+  int32_t month;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, month,
+                                         ResolveISOMonth(isolate, fields),
+                                         Nothing<DateRecordCommon>());
 
-  // 7. Let day be ? Get(fields, "day").
-  Handle<Object> day_obj;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, day_obj,
-      Object::GetPropertyOrElement(isolate, fields, factory->day_string()),
-      Nothing<bool>());
+  // 7. Let day be ! Get(fields, "day").
+  Handle<Object> day_obj =
+      Object::GetPropertyOrElement(isolate, fields, factory->day_string())
+          .ToHandleChecked();
   // 8. If day is undefined, throw a TypeError exception.
   if (day_obj->IsUndefined(isolate)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALD_ARG_TYPE_ERROR(),
-                                 Nothing<bool>());
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                                 Nothing<DateRecordCommon>());
   }
   // Note: "day" in fields is always converted by
   // ToIntegerThrowOnInfinity inside the PrepareTemporalFields above.
   // Therefore the day_obj is always an integer.
   DCHECK(day_obj->IsSmi() || day_obj->IsHeapNumber());
-  *day = FastD2I(day_obj->Number());
   // 9. Return ? RegulateISODate(year, month, day, overflow).
-  return RegulateISODate(isolate, maybe_overflow.FromJust(), *year, month, day);
+  return RegulateISODate(
+      isolate, overflow,
+      {FastD2I(year_obj->Number()), month, FastD2I(day_obj->Number())});
+}
+
+// #sec-temporal-addisodate
+Maybe<DateRecordCommon> AddISODate(Isolate* isolate,
+                                   const DateRecordCommon& date,
+                                   const DateDurationRecord& duration,
+                                   ShowOverflow overflow) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 1. Assert: year, month, day, years, months, weeks, and days are integers.
+  // 2. Assert: overflow is either "constrain" or "reject".
+  DCHECK(overflow == ShowOverflow::kConstrain ||
+         overflow == ShowOverflow::kReject);
+  // 3. Let intermediate be ! BalanceISOYearMonth(year + years, month + months).
+  DateRecordCommon intermediate = date;
+  intermediate.year += static_cast<int32_t>(duration.years);
+  intermediate.month += static_cast<int32_t>(duration.months);
+  BalanceISOYearMonth(isolate, &intermediate.year, &intermediate.month);
+  // 4. Let intermediate be ? RegulateISODate(intermediate.[[Year]],
+  // intermediate.[[Month]], day, overflow).
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, intermediate, RegulateISODate(isolate, overflow, intermediate),
+      Nothing<DateRecordCommon>());
+
+  // 5. Set days to days + 7 × weeks.
+  // 6. Let d be intermediate.[[Day]] + days.
+  intermediate.day += duration.days + 7 * duration.weeks;
+  // 7. Let intermediate be ! BalanceISODate(intermediate.[[Year]],
+  // intermediate.[[Month]], d).
+  intermediate = BalanceISODate(isolate, intermediate);
+  // 8. Return ? RegulateISODate(intermediate.[[Year]], intermediate.[[Month]],
+  // intermediate.[[Day]], overflow).
+  return RegulateISODate(isolate, overflow, intermediate);
+}
+
+// #sec-temporal-differenceisodate
+Maybe<DateDurationRecord> DifferenceISODate(Isolate* isolate,
+                                            const DateRecordCommon& date1,
+                                            const DateRecordCommon& date2,
+                                            Unit largest_unit,
+                                            const char* method) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 1. Assert: largestUnit is one of "year", "month", "week", or "day".
+  DCHECK(largest_unit == Unit::kYear || largest_unit == Unit::kMonth ||
+         largest_unit == Unit::kWeek || largest_unit == Unit::kDay);
+  // 2. If largestUnit is "year" or "month", then
+  switch (largest_unit) {
+    case Unit::kYear:
+    case Unit::kMonth: {
+      // a. Let sign be -(! CompareISODate(y1, m1, d1, y2, m2, d2)).
+      int32_t sign = -CompareISODate(isolate, date1, date2);
+      // b. If sign is 0, return ! CreateDateDurationRecord(0, 0, 0, 0).
+      if (sign == 0) {
+        return DateDurationRecord::Create(isolate, 0, 0, 0, 0);
+      }
+
+      // c. Let start be the new Record { [[Year]]: y1, [[Month]]: m1, [[Day]]:
+      // d1
+      // }.
+      DateRecordCommon start = date1;
+      // d. Let end be the new Record { [[Year]]: y2, [[Month]]: m2, [[Day]]:
+      // d2 }.
+      DateRecordCommon end = date2;
+      // e. Let years be end.[[Year]] − start.[[Year]].
+      double years = end.year - start.year;
+      // f. Let mid be ! AddISODate(y1, m1, d1, years, 0, 0, 0, "constrain").
+      DateRecordCommon mid;
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, mid,
+          AddISODate(isolate, date1, {years, 0, 0, 0},
+                     ShowOverflow::kConstrain),
+          Nothing<DateDurationRecord>());
+
+      // g. Let midSign be -(! CompareISODate(mid.[[Year]], mid.[[Month]],
+      // mid.[[Day]], y2, m2, d2)).
+      int32_t mid_sign = -CompareISODate(isolate, mid, date2);
+
+      // h. If midSign is 0, then
+      if (mid_sign == 0) {
+        // i. If largestUnit is "year", return ! CreateDateDurationRecord(years,
+        // 0, 0, 0).
+        if (largest_unit == Unit::kYear) {
+          return DateDurationRecord::Create(isolate, years, 0, 0, 0);
+        }
+        // ii. Return ! CreateDateDurationRecord(0, years × 12, 0, 0).
+        return DateDurationRecord::Create(isolate, 0, years * 12, 0, 0);
+      }
+      // i. Let months be end.[[Month]] − start.[[Month]].
+      double months = end.month - start.month;
+      // j. If midSign is not equal to sign, then
+      if (mid_sign != sign) {
+        // i. Set years to years - sign.
+        years -= sign;
+        // ii. Set months to months + sign × 12.
+        months += sign * 12;
+      }
+      // k. Set mid be ! AddISODate(y1, m1, d1, years, months, 0, 0,
+      // "constrain").
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, mid,
+          AddISODate(isolate, date1, {years, months, 0, 0},
+                     ShowOverflow::kConstrain),
+          Nothing<DateDurationRecord>());
+      // l. Let midSign be -(! CompareISODate(mid.[[Year]], mid.[[Month]],
+      // mid.[[Day]], y2, m2, d2)).
+      mid_sign = -CompareISODate(isolate, mid, date2);
+      // m. If midSign is 0, then
+      if (mid_sign == 0) {
+        // 1. i. If largestUnit is "year", return !
+        // CreateDateDurationRecord(years, months, 0, 0).
+        if (largest_unit == Unit::kYear) {
+          return DateDurationRecord::Create(isolate, years, months, 0, 0);
+        }
+        // ii. Return ! CreateDateDurationRecord(0, months + years × 12, 0, 0).
+        return DateDurationRecord::Create(isolate, 0, months + years * 12, 0,
+                                          0);
+      }
+      // n. If midSign is not equal to sign, then
+      if (mid_sign != sign) {
+        // i. Set months to months - sign.
+        months -= sign;
+        // ii. If months is equal to -sign, then
+        if (months == -sign) {
+          // 1. Set years to years - sign.
+          years -= sign;
+          // 2. Set months to 11 × sign.
+          months = 11 * sign;
+        }
+        // iii. Set mid be ! AddISODate(y1, m1, d1, years, months, 0, 0,
+        // "constrain").
+        MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            isolate, mid,
+            AddISODate(isolate, date1, {years, months, 0, 0},
+                       ShowOverflow::kConstrain),
+            Nothing<DateDurationRecord>());
+        // iv. Let midSign be -(! CompareISODate(mid.[[Year]], mid.[[Month]],
+        // mid.[[Day]], y2, m2, d2)).
+        mid_sign = -CompareISODate(isolate, mid, date2);
+      }
+      // o. Let days be 0.
+      double days = 0;
+      // p. If mid.[[Month]] = end.[[Month]], then
+      if (mid.month == end.month) {
+        // i. Assert: mid.[[Year]] = end.[[Year]].
+        CHECK_EQ(mid.year, end.year);
+        // ii. Set days to end.[[Day]] - mid.[[Day]].
+        days = end.day - mid.day;
+      } else if (sign < 0) {
+        // q. Else if sign < 0, set days to -mid.[[Day]] - (!
+        // ISODaysInMonth(end.[[Year]], end.[[Month]]) - end.[[Day]]).
+        days =
+            -mid.day - (ISODaysInMonth(isolate, end.year, end.month) - end.day);
+      } else {
+        // r. Else, set days to end.[[Day]] + (! ISODaysInMonth(mid.[[Year]],
+        // mid.[[Month]]) - mid.[[Day]]).
+        days =
+            end.day + (ISODaysInMonth(isolate, mid.year, mid.month) - mid.day);
+      }
+      // s. If largestUnit is "month", then
+      if (largest_unit == Unit::kMonth) {
+        // i. Set months to months + years × 12.
+        months += years * 12;
+        // ii. Set years to 0.
+        years = 0;
+      }
+      // t. Return ! CreateDateDurationRecord(years, months, 0, days).
+      return DateDurationRecord::Create(isolate, years, months, 0, days);
+    }
+      // 3. If largestUnit is "day" or "week", then
+    case Unit::kDay:
+    case Unit::kWeek: {
+      DateRecordCommon smaller, greater;
+      // a. If ! CompareISODate(y1, m1, d1, y2, m2, d2) < 0, then
+      int32_t sign;
+      if (CompareISODate(isolate, date1, date2) < 0) {
+        // i. Let smaller be the Record { [[Year]]: y1, [[Month]]: m1, [[Day]]:
+        // d1
+        // }.
+        smaller = date1;
+        // ii. Let greater be the Record { [[Year]]: y2, [[Month]]: m2, [[Day]]:
+        // d2
+        // }.
+        greater = date2;
+        // iii. Let sign be 1.
+        sign = 1;
+      } else {
+        // b. Else,
+        // i. Let smaller be the new Record { [[Year]]: y2, [[Month]]: m2,
+        // [[Day]]: d2 }.
+        smaller = date2;
+        // ii. Let greater be the new Record { [[Year]]: y1, [[Month]]: m1,
+        // [[Day]]: d1 }.
+        greater = date1;
+        // iii. Let sign be −1.
+        sign = -1;
+      }
+      // c. Let days be ! ToISODayOfYear(greater.[[Year]], greater.[[Month]],
+      // greater.[[Day]]) − ! ToISODayOfYear(smaller.[[Year]],
+      // smaller.[[Month]], smaller.[[Day]]).
+      int32_t days =
+          ToISODayOfYear(isolate, greater) - ToISODayOfYear(isolate, smaller);
+      // d. Let year be smaller.[[Year]].
+      // e. Repeat, while year < greater.[[Year]],
+      for (int32_t year = smaller.year; year < greater.year; year++) {
+        // i. Set days to days + ! ISODaysInYear(year).
+        // ii. Set year to year + 1.
+        days += ISODaysInYear(isolate, year);
+      }
+      // f. Let weeks be 0.
+      int32_t weeks = 0;
+      // g. If largestUnit is "week", then
+      if (largest_unit == Unit::kWeek) {
+        // i. Set weeks to floor(days / 7).
+        weeks = days / 7;
+        // ii. Set days to days mod 7.
+        days = days % 7;
+      }
+      // h. Return ! CreateDateDurationRecord(0, 0, weeks × sign, days × sign).
+      return DateDurationRecord::Create(isolate, 0, 0, weeks * sign,
+                                        days * sign);
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
+// #sec-temporal-isoyearmonthfromfields
+Maybe<DateRecordCommon> ISOYearMonthFromFields(Isolate* isolate,
+                                               Handle<JSReceiver> fields,
+                                               Handle<JSReceiver> options,
+                                               const char* method_name) {
+  Factory* factory = isolate->factory();
+  // 1. Assert: Type(fields) is Object.
+  // 2. Let overflow be ? ToTemporalOverflow(options).
+  ShowOverflow overflow;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+      Nothing<DateRecordCommon>());
+  // 3. Set fields to ? PrepareTemporalFields(fields, « "month", "monthCode",
+  // "year" », «»).
+  Handle<FixedArray> field_names = factory->NewFixedArray(3);
+  field_names->set(0, ReadOnlyRoots(isolate).month_string());
+  field_names->set(1, ReadOnlyRoots(isolate).monthCode_string());
+  field_names->set(2, ReadOnlyRoots(isolate).year_string());
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, fields,
+      PrepareTemporalFields(isolate, fields, field_names,
+                            RequiredFields::kNone),
+      Nothing<DateRecordCommon>());
+
+  // 4. Let year be ! Get(fields, "year").
+  Handle<Object> year_obj =
+      Object::GetPropertyOrElement(isolate, fields, factory->year_string())
+          .ToHandleChecked();
+  // 5. If year is undefined, throw a TypeError exception.
+  if (year_obj->IsUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                                 Nothing<DateRecordCommon>());
+  }
+  DateRecordCommon result;
+  result.year = FastD2I(floor(year_obj->Number()));
+  // 6. Let month be ? ResolveISOMonth(fields).
+  int32_t month;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, month,
+                                         ResolveISOMonth(isolate, fields),
+                                         Nothing<DateRecordCommon>());
+  // 7. Let result be ? RegulateISOYearMonth(year, month, overflow).
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result.month, RegulateISOYearMonth(isolate, overflow, month),
+      Nothing<DateRecordCommon>());
+  // 8. Return the new Record { [[Year]]: result.[[Year]], [[Month]]:
+  // result.[[Month]], [[ReferenceISODay]]: 1 }.
+  result.day = 1;
+  return Just(result);
 }
 
 }  // namespace
+
+// #sec-temporal.calendar.prototype.dateadd
+MaybeHandle<JSTemporalPlainDate> JSTemporalCalendar::DateAdd(
+    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Handle<Object> date_obj, Handle<Object> duration_obj,
+    Handle<Object> options_obj) {
+  const char* method_name = "Temporal.Calendar.prototype.dateAdd";
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  // 3. Assert: calendar.[[Identifier]] is "iso8601".
+  // 4. Set date to ? ToTemporalDate(date).
+  Handle<JSTemporalPlainDate> date;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, date,
+                             ToTemporalDate(isolate, date_obj, method_name),
+                             JSTemporalPlainDate);
+
+  // 5. Set duration to ? ToTemporalDuration(duration).
+  Handle<JSTemporalDuration> duration;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, duration,
+      temporal::ToTemporalDuration(isolate, duration_obj, method_name),
+      JSTemporalPlainDate);
+
+  // 6. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalPlainDate);
+
+  // 7. Let overflow be ? ToTemporalOverflow(options).
+  ShowOverflow overflow;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+      Handle<JSTemporalPlainDate>());
+
+  // 8. Let balanceResult be ! BalanceDuration(duration.[[Days]],
+  // duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]],
+  // duration.[[Milliseconds]], duration.[[Microseconds]],
+  // duration.[[Nanoseconds]], "day").
+  TimeDurationRecord balance_result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, balance_result,
+      BalanceDuration(
+          isolate, Unit::kDay,
+          {duration->days().Number(), duration->hours().Number(),
+           duration->minutes().Number(), duration->seconds().Number(),
+           duration->milliseconds().Number(), duration->microseconds().Number(),
+           duration->nanoseconds().Number()},
+          method_name),
+      Handle<JSTemporalPlainDate>());
+  DateRecordCommon result;
+  // If calendar.[[Identifier]] is "iso8601", then
+  if (calendar->calendar_index() == 0) {
+    // 9. Let result be ? AddISODate(date.[[ISOYear]], date.[[ISOMonth]],
+    // date.[[ISODay]], duration.[[Years]], duration.[[Months]],
+    // duration.[[Weeks]], balanceResult.[[Days]], overflow).
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result,
+        AddISODate(isolate,
+                   {date->iso_year(), date->iso_month(), date->iso_day()},
+                   {duration->years().Number(), duration->months().Number(),
+                    duration->weeks().Number(), balance_result.days},
+                   overflow),
+        Handle<JSTemporalPlainDate>());
+  } else {
+#ifdef V8_INTL_SUPPORT
+    // TODO(ftang) add code for other calendar.
+    UNIMPLEMENTED();
+#else   // V8_INTL_SUPPORT
+    UNREACHABLE();
+#endif  // V8_INTL_SUPPORT
+  }
+  // 10. Return ? CreateTemporalDate(result.[[Year]], result.[[Month]],
+  // result.[[Day]], calendar).
+  return CreateTemporalDate(isolate, result, calendar);
+}
 
 // #sec-temporal.calendar.prototype.daysinyear
 MaybeHandle<Smi> JSTemporalCalendar::DaysInYear(
@@ -5164,7 +6115,6 @@ MaybeHandle<Smi> JSTemporalCalendar::DaysInYear(
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, temporal_date_like,
         ToTemporalDate(isolate, temporal_date_like,
-                       isolate->factory()->NewJSObjectWithNullProto(),
                        "Temporal.Calendar.prototype.daysInYear"),
         Smi);
   }
@@ -5202,7 +6152,6 @@ MaybeHandle<Smi> JSTemporalCalendar::DaysInMonth(
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, temporal_date_like,
         ToTemporalDate(isolate, temporal_date_like,
-                       isolate->factory()->NewJSObjectWithNullProto(),
                        "Temporal.Calendar.prototype.daysInMonth"),
         Smi);
   }
@@ -5246,7 +6195,6 @@ MaybeHandle<Smi> JSTemporalCalendar::Year(Isolate* isolate,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, temporal_date_like,
         ToTemporalDate(isolate, temporal_date_like,
-                       isolate->factory()->NewJSObjectWithNullProto(),
                        "Temporal.Calendar.prototype.year"),
         Smi);
   }
@@ -5281,14 +6229,13 @@ MaybeHandle<Smi> JSTemporalCalendar::DayOfYear(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, temporal_date,
       ToTemporalDate(isolate, temporal_date_like,
-                     isolate->factory()->NewJSObjectWithNullProto(),
                      "Temporal.Calendar.prototype.dayOfYear"),
       Smi);
   // a. Let value be ! ToISODayOfYear(temporalDate.[[ISOYear]],
   // temporalDate.[[ISOMonth]], temporalDate.[[ISODay]]).
-  int32_t value =
-      ToISODayOfYear(isolate, temporal_date->iso_year(),
-                     temporal_date->iso_month(), temporal_date->iso_day());
+  int32_t value = ToISODayOfYear(
+      isolate, {temporal_date->iso_year(), temporal_date->iso_month(),
+                temporal_date->iso_day()});
   return handle(Smi::FromInt(value), isolate);
 }
 
@@ -5305,7 +6252,6 @@ MaybeHandle<Smi> JSTemporalCalendar::DayOfWeek(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, temporal_date,
       ToTemporalDate(isolate, temporal_date_like,
-                     isolate->factory()->NewJSObjectWithNullProto(),
                      "Temporal.Calendar.prototype.dayOfWeek"),
       Smi);
   // a. Let value be ! ToISODayOfWeek(temporalDate.[[ISOYear]],
@@ -5332,7 +6278,6 @@ MaybeHandle<Smi> JSTemporalCalendar::MonthsInYear(
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, temporal_date_like,
         ToTemporalDate(isolate, temporal_date_like,
-                       isolate->factory()->NewJSObjectWithNullProto(),
                        "Temporal.Calendar.prototype.monthsInYear"),
         Smi);
   }
@@ -5359,7 +6304,6 @@ MaybeHandle<Oddball> JSTemporalCalendar::InLeapYear(
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, temporal_date_like,
         ToTemporalDate(isolate, temporal_date_like,
-                       isolate->factory()->NewJSObjectWithNullProto(),
                        "Temporal.Calendar.prototype.inLeapYear"),
         Oddball);
   }
@@ -5392,7 +6336,6 @@ MaybeHandle<Smi> JSTemporalCalendar::DaysInWeek(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, date,
       ToTemporalDate(isolate, temporal_date_like,
-                     isolate->factory()->NewJSObjectWithNullProto(),
                      "Temporal.Calendar.prototype.daysInWeek"),
       Smi);
   // 5. Return 7𝔽.
@@ -5424,17 +6367,15 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalCalendar::DateFromFields(
       isolate, options, GetOptionsObject(isolate, options_obj, method_name),
       JSTemporalPlainDate);
   if (calendar->calendar_index() == 0) {
-    int32_t year;
-    int32_t month;
-    int32_t day;
     // 6. Let result be ? ISODateFromFields(fields, options).
-    Maybe<bool> maybe_result = ISODateFromFields(
-        isolate, fields, options, method_name, &year, &month, &day);
-    MAYBE_RETURN(maybe_result, Handle<JSTemporalPlainDate>());
-    DCHECK(maybe_result.FromJust());
+    DateRecordCommon result;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result,
+        ISODateFromFields(isolate, fields, options, method_name),
+        Handle<JSTemporalPlainDate>());
     // 7. Return ? CreateTemporalDate(result.[[Year]], result.[[Month]],
     // result.[[Day]], calendar).
-    return CreateTemporalDate(isolate, year, month, day, calendar);
+    return CreateTemporalDate(isolate, result, calendar);
   }
   // TODO(ftang) add intl implementation inside #ifdef V8_INTL_SUPPORT
   UNREACHABLE();
@@ -5466,6 +6407,262 @@ MaybeHandle<JSReceiver> JSTemporalCalendar::MergeFields(
 #ifdef V8_INTL_SUPPORT
   // TODO(ftang) add Intl code.
 #endif  // V8_INTL_SUPPORT
+  UNREACHABLE();
+}
+
+// #sec-temporal.calendar.prototype.dateuntil
+MaybeHandle<JSTemporalDuration> JSTemporalCalendar::DateUntil(
+    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Handle<Object> one_obj, Handle<Object> two_obj,
+    Handle<Object> options_obj) {
+  const char* method_name = "Temporal.Calendar.prototype.dateUntil";
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  // 3. Assert: calendar.[[Identifier]] is "iso8601".
+  // 4. Set one to ? ToTemporalDate(one).
+  Handle<JSTemporalPlainDate> one;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, one,
+                             ToTemporalDate(isolate, one_obj, method_name),
+                             JSTemporalDuration);
+  // 5. Set two to ? ToTemporalDate(two).
+  Handle<JSTemporalPlainDate> two;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, two,
+                             ToTemporalDate(isolate, two_obj, method_name),
+                             JSTemporalDuration);
+  // 6. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalDuration);
+  // 7. Let largestUnit be ? ToLargestTemporalUnit(options, « "hour", "minute",
+  // "second", "millisecond", "microsecond", "nanosecond" », "auto", "day").
+  Unit largest_unit;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, largest_unit,
+      ToLargestTemporalUnit(
+          isolate, options,
+          std::set<Unit>({Unit::kHour, Unit::kMinute, Unit::kSecond,
+                          Unit::kMillisecond, Unit::kMicrosecond,
+                          Unit::kNanosecond}),
+          Unit::kAuto, Unit::kDay, method_name),
+      Handle<JSTemporalDuration>());
+
+  // 8. Let result be ! DifferenceISODate(one.[[ISOYear]], one.[[ISOMonth]],
+  // one.[[ISODay]], two.[[ISOYear]], two.[[ISOMonth]], two.[[ISODay]],
+  // largestUnit).
+  DateDurationRecord result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result,
+      DifferenceISODate(isolate,
+                        {one->iso_year(), one->iso_month(), one->iso_day()},
+                        {two->iso_year(), two->iso_month(), two->iso_day()},
+                        largest_unit, method_name),
+      Handle<JSTemporalDuration>());
+
+  // 9. Return ! CreateTemporalDuration(result.[[Years]], result.[[Months]],
+  // result.[[Weeks]], result.[[Days]], 0, 0, 0, 0, 0, 0).
+  return CreateTemporalDuration(isolate, {result.years,
+                                          result.months,
+                                          result.weeks,
+                                          {result.days, 0, 0, 0, 0, 0, 0}});
+}
+
+// #sec-temporal.calendar.prototype.day
+MaybeHandle<Smi> JSTemporalCalendar::Day(Isolate* isolate,
+                                         Handle<JSTemporalCalendar> calendar,
+                                         Handle<Object> temporal_date_like) {
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  // 3. Assert: calendar.[[Identifier]] is "iso8601".
+  // 4. If Type(temporalDateLike) is not Object or temporalDateLike does not
+  // have an [[InitializedTemporalDate]] or [[InitializedTemporalMonthDay]]
+  // internal slot, then
+  if (!(temporal_date_like->IsJSTemporalPlainDate() ||
+        temporal_date_like->IsJSTemporalPlainDateTime() ||
+        temporal_date_like->IsJSTemporalPlainMonthDay())) {
+    // a. Set temporalDateLike to ? ToTemporalDate(temporalDateLike).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, temporal_date_like,
+        ToTemporalDate(isolate, temporal_date_like,
+                       "Temporal.Calendar.prototype.day"),
+        Smi);
+  }
+
+  // 5. Let day be ! ISODay(temporalDateLike).
+  int32_t day;
+  if (temporal_date_like->IsJSTemporalPlainDate()) {
+    day = Handle<JSTemporalPlainDate>::cast(temporal_date_like)->iso_day();
+  } else if (temporal_date_like->IsJSTemporalPlainDateTime()) {
+    day = Handle<JSTemporalPlainDateTime>::cast(temporal_date_like)->iso_day();
+  } else {
+    DCHECK(temporal_date_like->IsJSTemporalPlainMonthDay());
+    day = Handle<JSTemporalPlainMonthDay>::cast(temporal_date_like)->iso_day();
+  }
+
+  // 6. Return 𝔽(day).
+  return handle(Smi::FromInt(day), isolate);
+}
+
+// #sec-temporal.calendar.prototype.monthcode
+MaybeHandle<String> JSTemporalCalendar::MonthCode(
+    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Handle<Object> temporal_date_like) {
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  // 3. Assert: calendar.[[Identifier]] is "iso8601".
+  // 4. If Type(temporalDateLike) is not Object or temporalDateLike does not
+  // have an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]],
+  // [[InitializedTemporalMonthDay]], or
+  // [[InitializedTemporalYearMonth]] internal slot, then
+  if (!(IsPlainDatePlainDateTimeOrPlainYearMonth(temporal_date_like) ||
+        temporal_date_like->IsJSTemporalPlainMonthDay())) {
+    // a. Set temporalDateLike to ? ToTemporalDate(temporalDateLike).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, temporal_date_like,
+        ToTemporalDate(isolate, temporal_date_like,
+                       "Temporal.Calendar.prototype.monthCode"),
+        String);
+  }
+
+  // 5. Return ! ISOMonthCode(temporalDateLike).
+  int32_t month;
+  if (temporal_date_like->IsJSTemporalPlainDate()) {
+    month = Handle<JSTemporalPlainDate>::cast(temporal_date_like)->iso_month();
+  } else if (temporal_date_like->IsJSTemporalPlainDateTime()) {
+    month =
+        Handle<JSTemporalPlainDateTime>::cast(temporal_date_like)->iso_month();
+  } else if (temporal_date_like->IsJSTemporalPlainMonthDay()) {
+    month =
+        Handle<JSTemporalPlainMonthDay>::cast(temporal_date_like)->iso_month();
+  } else {
+    DCHECK(temporal_date_like->IsJSTemporalPlainYearMonth());
+    month =
+        Handle<JSTemporalPlainYearMonth>::cast(temporal_date_like)->iso_month();
+  }
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendCString((month < 10) ? "M0" : "M");
+  builder.AppendInt(month);
+
+  return builder.Finish();
+}
+
+// #sec-temporal.calendar.prototype.month
+MaybeHandle<Smi> JSTemporalCalendar::Month(Isolate* isolate,
+                                           Handle<JSTemporalCalendar> calendar,
+                                           Handle<Object> temporal_date_like) {
+  // 4. If Type(temporalDateLike) is Object and temporalDateLike has an
+  // [[InitializedTemporalMonthDay]] internal slot, then
+  if (temporal_date_like->IsJSTemporalPlainMonthDay()) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(), Smi);
+  }
+  // 5. If Type(temporalDateLike) is not Object or temporalDateLike does not
+  // have an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]],
+  // or [[InitializedTemporalYearMonth]]
+  // internal slot, then
+  if (!IsPlainDatePlainDateTimeOrPlainYearMonth(temporal_date_like)) {
+    // a. Set temporalDateLike to ? ToTemporalDate(temporalDateLike).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, temporal_date_like,
+        ToTemporalDate(isolate, temporal_date_like,
+                       "Temporal.Calendar.prototype.month"),
+        Smi);
+  }
+
+  // 6. Return ! ISOMonth(temporalDateLike).
+  int32_t month;
+  if (temporal_date_like->IsJSTemporalPlainDate()) {
+    month = Handle<JSTemporalPlainDate>::cast(temporal_date_like)->iso_month();
+  } else if (temporal_date_like->IsJSTemporalPlainDateTime()) {
+    month =
+        Handle<JSTemporalPlainDateTime>::cast(temporal_date_like)->iso_month();
+  } else {
+    DCHECK(temporal_date_like->IsJSTemporalPlainYearMonth());
+    month =
+        Handle<JSTemporalPlainYearMonth>::cast(temporal_date_like)->iso_month();
+  }
+
+  // 7. Return 𝔽(month).
+  return handle(Smi::FromInt(month), isolate);
+}
+
+// #sec-temporal.calendar.prototype.monthdayfromfields
+MaybeHandle<JSTemporalPlainMonthDay> JSTemporalCalendar::MonthDayFromFields(
+    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Handle<Object> fields_obj, Handle<Object> options_obj) {
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  // 3. Assert: calendar.[[Identifier]] is "iso8601".
+  const char* method_name = "Temporal.Calendar.prototype.monthDayFromFields";
+  // 4. If Type(fields) is not Object, throw a TypeError exception.
+  if (!fields_obj->IsJSReceiver()) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kCalledOnNonObject,
+                                 isolate->factory()->NewStringFromAsciiChecked(
+                                     method_name)),
+                    JSTemporalPlainMonthDay);
+  }
+  Handle<JSReceiver> fields = Handle<JSReceiver>::cast(fields_obj);
+  // 5. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalPlainMonthDay);
+  // 6. Let result be ? ISOMonthDayFromFields(fields, options).
+  if (calendar->calendar_index() == 0) {
+    Maybe<DateRecordCommon> maybe_result =
+        ISOMonthDayFromFields(isolate, fields, options, method_name);
+    MAYBE_RETURN(maybe_result, Handle<JSTemporalPlainMonthDay>());
+    DateRecordCommon result = maybe_result.FromJust();
+    // 7. Return ? CreateTemporalMonthDay(result.[[Month]], result.[[Day]],
+    // calendar, result.[[ReferenceISOYear]]).
+    return CreateTemporalMonthDay(isolate, result.month, result.day, calendar,
+                                  result.year);
+  }
+  // TODO(ftang) add intl code inside #ifdef V8_INTL_SUPPORT
+  UNREACHABLE();
+}
+
+// #sec-temporal.calendar.prototype.yearmonthfromfields
+MaybeHandle<JSTemporalPlainYearMonth> JSTemporalCalendar::YearMonthFromFields(
+    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Handle<Object> fields_obj, Handle<Object> options_obj) {
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  // 3. Assert: calendar.[[Identifier]] is "iso8601".
+  const char* method_name = "Temporal.Calendar.prototype.yearMonthFromFields";
+  // 4. If Type(fields) is not Object, throw a TypeError exception.
+  if (!fields_obj->IsJSReceiver()) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kCalledOnNonObject,
+                                 isolate->factory()->NewStringFromAsciiChecked(
+                                     method_name)),
+                    JSTemporalPlainYearMonth);
+  }
+  Handle<JSReceiver> fields = Handle<JSReceiver>::cast(fields_obj);
+  // 5. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalPlainYearMonth);
+  // 6. Let result be ? ISOYearMonthFromFields(fields, options).
+  if (calendar->calendar_index() == 0) {
+    DateRecordCommon result;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result,
+        ISOYearMonthFromFields(isolate, fields, options, method_name),
+        Handle<JSTemporalPlainYearMonth>());
+    // 7. Return ? CreateTemporalYearMonth(result.[[Year]], result.[[Month]],
+    // calendar, result.[[ReferenceISODay]]).
+    return CreateTemporalYearMonth(isolate, result.year, result.month, calendar,
+                                   result.day);
+  }
+  // TODO(ftang) add intl code inside #ifdef V8_INTL_SUPPORT
   UNREACHABLE();
 }
 
@@ -5502,16 +6699,19 @@ MaybeHandle<JSTemporalTimeZone> JSTemporalTimeZone::Constructor(
   Handle<String> canonical;
   // 3. If identifier satisfies the syntax of a TimeZoneNumericUTCOffset
   // (see 13.33), then
-  Maybe<bool> maybe_valid =
-      IsValidTimeZoneNumericUTCOffsetString(isolate, identifier);
-  MAYBE_RETURN(maybe_valid, Handle<JSTemporalTimeZone>());
+  bool valid;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, valid,
+      IsValidTimeZoneNumericUTCOffsetString(isolate, identifier),
+      Handle<JSTemporalTimeZone>());
 
-  if (maybe_valid.FromJust()) {
+  if (valid) {
     // a. Let offsetNanoseconds be ? ParseTimeZoneOffsetString(identifier).
-    Maybe<int64_t> maybe_offset_nanoseconds =
-        ParseTimeZoneOffsetString(isolate, identifier);
-    MAYBE_RETURN(maybe_offset_nanoseconds, Handle<JSTemporalTimeZone>());
-    int64_t offset_nanoseconds = maybe_offset_nanoseconds.FromJust();
+    int64_t offset_nanoseconds;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, offset_nanoseconds,
+        ParseTimeZoneOffsetString(isolate, identifier),
+        Handle<JSTemporalTimeZone>());
 
     // b. Let canonical be ! FormatTimeZoneOffsetString(offsetNanoseconds).
     ASSIGN_RETURN_ON_EXCEPTION(
@@ -5534,6 +6734,256 @@ MaybeHandle<JSTemporalTimeZone> JSTemporalTimeZone::Constructor(
   }
   // 5. Return ? CreateTemporalTimeZone(canonical, NewTarget).
   return CreateTemporalTimeZone(isolate, target, new_target, canonical);
+}
+
+namespace {
+
+MaybeHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
+    Isolate* isolate, Handle<Object> item_obj, Handle<Object> options,
+    const char* method_name);
+
+MaybeHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
+    Isolate* isolate, Handle<Object> item_obj, const char* method_name) {
+  // 1. If options is not present, set options to undefined.
+  return ToTemporalDateTime(isolate, item_obj,
+                            isolate->factory()->undefined_value(), method_name);
+}
+
+}  // namespace
+
+// #sec-temporal.timezone.prototype.getinstantfor
+MaybeHandle<JSTemporalInstant> JSTemporalTimeZone::GetInstantFor(
+    Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+    Handle<Object> date_time_obj, Handle<Object> options_obj) {
+  const char* method_name = "Temporal.TimeZone.prototype.getInstantFor";
+  // 1. Let timeZone be the this value.
+  // 2. Perform ? RequireInternalSlot(timeZone,
+  // [[InitializedTemporalTimeZone]]).
+  // 3. Set dateTime to ? ToTemporalDateTime(dateTime).
+  Handle<JSTemporalPlainDateTime> date_time;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, date_time,
+      ToTemporalDateTime(isolate, date_time_obj, method_name),
+      JSTemporalInstant);
+
+  // 4. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalInstant);
+
+  // 5. Let disambiguation be ? ToTemporalDisambiguation(options).
+  Disambiguation disambiguation;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, disambiguation,
+      ToTemporalDisambiguation(isolate, options, method_name),
+      Handle<JSTemporalInstant>());
+
+  // 6. Return ? BuiltinTimeZoneGetInstantFor(timeZone, dateTime,
+  // disambiguation).
+  return BuiltinTimeZoneGetInstantFor(isolate, time_zone, date_time,
+                                      disambiguation, method_name);
+}
+
+namespace {
+
+// #sec-temporal-getianatimezonenexttransition
+MaybeHandle<Object> GetIANATimeZoneNextTransition(Isolate* isolate,
+                                                  Handle<BigInt> nanoseconds,
+                                                  int32_t time_zone_index) {
+#ifdef V8_INTL_SUPPORT
+  // TODO(ftang) Add support for non UTC timezone
+  DCHECK_EQ(time_zone_index, JSTemporalTimeZone::kUTCTimeZoneIndex);
+  return isolate->factory()->null_value();
+#else   // V8_INTL_SUPPORT
+  return isolate->factory()->null_value();
+#endif  // V8_INTL_SUPPORT
+}
+
+// #sec-temporal-getianatimezoneprevioustransition
+MaybeHandle<Object> GetIANATimeZonePreviousTransition(
+    Isolate* isolate, Handle<BigInt> nanoseconds, int32_t time_zone_index) {
+#ifdef V8_INTL_SUPPORT
+  // TODO(ftang) Add support for non UTC timezone
+  DCHECK_EQ(time_zone_index, JSTemporalTimeZone::kUTCTimeZoneIndex);
+  return isolate->factory()->null_value();
+#else   // V8_INTL_SUPPORT
+  return isolate->factory()->null_value();
+#endif  // V8_INTL_SUPPORT
+}
+
+}  // namespace
+
+// #sec-temporal.timezone.prototype.getplaindatetimefor
+MaybeHandle<JSTemporalPlainDateTime> JSTemporalTimeZone::GetPlainDateTimeFor(
+    Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+    Handle<Object> instant_obj, Handle<Object> calendar_like) {
+  TEMPORAL_ENTER_FUNC();
+  const char* method_name = "Temporal.TimeZone.prototype.getPlainDateTimeFor";
+  // 1. 1. Let timeZone be the this value.
+  // 2. Perform ? RequireInternalSlot(timeZone,
+  // [[InitializedTemporalTimeZone]]).
+  // 3. Set instant to ? ToTemporalInstant(instant).
+  Handle<JSTemporalInstant> instant;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, instant, ToTemporalInstant(isolate, instant_obj, method_name),
+      JSTemporalPlainDateTime);
+  // 4. Let calendar be ? ToTemporalCalendarWithISODefault(calendarLike).
+  Handle<JSReceiver> calendar;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, calendar,
+      ToTemporalCalendarWithISODefault(isolate, calendar_like, method_name),
+      JSTemporalPlainDateTime);
+
+  // 5. Return ? BuiltinTimeZoneGetPlainDateTimeFor(timeZone, instant,
+  // calendar).
+  return temporal::BuiltinTimeZoneGetPlainDateTimeFor(
+      isolate, time_zone, instant, calendar, method_name);
+}
+
+// template for shared code of Temporal.TimeZone.prototype.getNextTransition and
+// Temporal.TimeZone.prototype.getPreviousTransition
+template <MaybeHandle<Object> (*iana_func)(Isolate*, Handle<BigInt>, int32_t)>
+MaybeHandle<Object> GetTransition(Isolate* isolate,
+                                  Handle<JSTemporalTimeZone> time_zone,
+                                  Handle<Object> starting_point_obj,
+                                  const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. Let timeZone be the this value.
+  // 2. Perform ? RequireInternalSlot(timeZone,
+  // [[InitializedTemporalTimeZone]]).
+  // 3. Set startingPoint to ? ToTemporalInstant(startingPoint).
+  Handle<JSTemporalInstant> starting_point;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, starting_point,
+      ToTemporalInstant(isolate, starting_point_obj, method_name), Object);
+  // 4. If timeZone.[[OffsetNanoseconds]] is not undefined, return null.
+  if (time_zone->is_offset()) {
+    return isolate->factory()->null_value();
+  }
+  // 5. Let transition be ?
+  // GetIANATimeZoneNextTransition(startingPoint.[[Nanoseconds]],
+  // timeZone.[[Identifier]]).
+  Handle<Object> transition_obj;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, transition_obj,
+      iana_func(isolate, Handle<BigInt>(starting_point->nanoseconds(), isolate),
+                time_zone->time_zone_index()),
+      Object);
+  // 6. If transition is null, return null.
+  if (transition_obj->IsNull()) {
+    return isolate->factory()->null_value();
+  }
+  DCHECK(transition_obj->IsBigInt());
+  Handle<BigInt> transition = Handle<BigInt>::cast(transition_obj);
+  // 7. Return ! CreateTemporalInstant(transition).
+  return temporal::CreateTemporalInstant(isolate, transition);
+}
+
+// #sec-temporal.timezone.prototype.getnexttransition
+MaybeHandle<Object> JSTemporalTimeZone::GetNextTransition(
+    Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+    Handle<Object> starting_point_obj) {
+  return GetTransition<GetIANATimeZoneNextTransition>(
+      isolate, time_zone, starting_point_obj,
+      "Temporal.TimeZone.prototype.getNextTransition");
+}
+// #sec-temporal.timezone.prototype.getprevioustransition
+MaybeHandle<Object> JSTemporalTimeZone::GetPreviousTransition(
+    Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+    Handle<Object> starting_point_obj) {
+  return GetTransition<GetIANATimeZonePreviousTransition>(
+      isolate, time_zone, starting_point_obj,
+      "Temporal.TimeZone.prototype.getPreviousTransition");
+}
+
+// #sec-temporal.timezone.prototype.getpossibleinstantsfor
+// #sec-temporal-getianatimezoneepochvalue
+MaybeHandle<JSArray> GetIANATimeZoneEpochValueAsArrayOfInstant(
+    Isolate* isolate, int32_t time_zone_index,
+    const DateTimeRecordCommon& date_time) {
+  Factory* factory = isolate->factory();
+  // 6. Let possibleInstants be a new empty List.
+  Handle<BigInt> epoch_nanoseconds = GetEpochFromISOParts(isolate, date_time);
+  Handle<FixedArray> fixed_array;
+  if (time_zone_index == JSTemporalTimeZone::kUTCTimeZoneIndex) {
+    fixed_array = factory->NewFixedArray(1);
+    // 7. For each value epochNanoseconds in possibleEpochNanoseconds, do
+    // a. Let instant be ! CreateTemporalInstant(epochNanoseconds).
+    Handle<JSTemporalInstant> instant =
+        temporal::CreateTemporalInstant(isolate, epoch_nanoseconds)
+            .ToHandleChecked();
+    // b. Append instant to possibleInstants.
+    fixed_array->set(0, *instant);
+  } else {
+#ifdef V8_INTL_SUPPORT
+    // TODO(ftang) put in 402 version of implementation calling intl classes.
+    UNIMPLEMENTED();
+#else
+    UNREACHABLE();
+#endif  // V8_INTL_SUPPORT
+  }
+
+  // 8. Return ! CreateArrayFromList(possibleInstants).
+  return factory->NewJSArrayWithElements(fixed_array);
+}
+
+// #sec-temporal.timezone.prototype.getpossibleinstantsfor
+MaybeHandle<JSArray> JSTemporalTimeZone::GetPossibleInstantsFor(
+    Isolate* isolate, Handle<JSTemporalTimeZone> time_zone,
+    Handle<Object> date_time_obj) {
+  Factory* factory = isolate->factory();
+  // 1. Let timeZone be the this value.
+  // 2. Perform ? RequireInternalSlot(timeZone,
+  // [[InitializedTemporalTimezone]]).
+  // 3. Set dateTime to ? ToTemporalDateTime(dateTime).
+  Handle<JSTemporalPlainDateTime> date_time;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, date_time,
+      ToTemporalDateTime(isolate, date_time_obj,
+                         "Temporal.TimeZone.prototype.getPossibleInstantsFor"),
+      JSArray);
+  DateTimeRecordCommon date_time_record = {
+      {date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
+      {date_time->iso_hour(), date_time->iso_minute(), date_time->iso_second(),
+       date_time->iso_millisecond(), date_time->iso_microsecond(),
+       date_time->iso_nanosecond()}};
+  // 4. If timeZone.[[OffsetNanoseconds]] is not undefined, then
+  if (time_zone->is_offset()) {
+    // a. Let epochNanoseconds be ! GetEpochFromISOParts(dateTime.[[ISOYear]],
+    // dateTime.[[ISOMonth]], dateTime.[[ISODay]], dateTime.[[ISOHour]],
+    // dateTime.[[ISOMinute]], dateTime.[[ISOSecond]],
+    // dateTime.[[ISOMillisecond]], dateTime.[[ISOMicrosecond]],
+    // dateTime.[[ISONanosecond]]).
+    Handle<BigInt> epoch_nanoseconds =
+        GetEpochFromISOParts(isolate, date_time_record);
+    // b. Let instant be ! CreateTemporalInstant(epochNanoseconds −
+    // timeZone.[[OffsetNanoseconds]]).
+    Handle<JSTemporalInstant> instant =
+        temporal::CreateTemporalInstant(
+            isolate,
+            BigInt::Subtract(
+                isolate, epoch_nanoseconds,
+                BigInt::FromInt64(isolate, time_zone->offset_nanoseconds()))
+                .ToHandleChecked())
+            .ToHandleChecked();
+    // c. Return ! CreateArrayFromList(« instant »).
+    Handle<FixedArray> fixed_array = factory->NewFixedArray(1);
+    fixed_array->set(0, *instant);
+    return factory->NewJSArrayWithElements(fixed_array);
+  }
+
+  // 5. Let possibleEpochNanoseconds be ?
+  // GetIANATimeZoneEpochValue(timeZone.[[Identifier]], dateTime.[[ISOYear]],
+  // dateTime.[[ISOMonth]], dateTime.[[ISODay]], dateTime.[[ISOHour]],
+  // dateTime.[[ISOMinute]], dateTime.[[ISOSecond]],
+  // dateTime.[[ISOMillisecond]], dateTime.[[ISOMicrosecond]],
+  // dateTime.[[ISONanosecond]]).
+
+  // ... Step 5-8 put into GetIANATimeZoneEpochValueAsArrayOfInstant
+  // 8. Return ! CreateArrayFromList(possibleInstants).
+  return GetIANATimeZoneEpochValueAsArrayOfInstant(
+      isolate, time_zone->time_zone_index(), date_time_record);
 }
 
 // #sec-temporal.timezone.prototype.tostring
@@ -5568,7 +7018,7 @@ MaybeHandle<String> JSTemporalTimeZone::id(Isolate* isolate) const {
       Intl::TimeZoneIdFromIndex(offset_milliseconds_or_time_zone_index());
   return isolate->factory()->NewStringFromAsciiChecked(id.c_str());
 #else   // V8_INTL_SUPPORT
-  DCHECK_EQ(0, offset_milliseconds_or_time_zone_index());
+  DCHECK_EQ(kUTCTimeZoneIndex, offset_milliseconds_or_time_zone_index());
   return isolate->factory()->UTC_string();
 #endif  // V8_INTL_SUPPORT
 }
@@ -5609,8 +7059,8 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::Constructor(
       JSTemporalPlainDate);
 
   // 9. Return ? CreateTemporalDate(y, m, d, calendar, NewTarget).
-  return CreateTemporalDate(isolate, target, new_target, iso_year, iso_month,
-                            iso_day, calendar);
+  return CreateTemporalDate(isolate, target, new_target,
+                            {iso_year, iso_month, iso_day}, calendar);
 }
 
 // #sec-temporal.plaindate.prototype.withcalendar
@@ -5629,9 +7079,11 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::WithCalendar(
       JSTemporalPlainDate);
   // 4. Return ? CreateTemporalDate(temporalDate.[[ISOYear]],
   // temporalDate.[[ISOMonth]], temporalDate.[[ISODay]], calendar).
-  return CreateTemporalDate(isolate, temporal_date->iso_year(),
-                            temporal_date->iso_month(),
-                            temporal_date->iso_day(), calendar);
+  return CreateTemporalDate(
+      isolate,
+      {temporal_date->iso_year(), temporal_date->iso_month(),
+       temporal_date->iso_day()},
+      calendar);
 }
 
 // #sec-temporal.now.plaindate
@@ -5647,9 +7099,10 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::Now(
                              JSTemporalPlainDate);
   // 2. Return ! CreateTemporalDate(dateTime.[[ISOYear]], dateTime.[[ISOMonth]],
   // dateTime.[[ISODay]], dateTime.[[Calendar]]).
-  return CreateTemporalDate(isolate, date_time->iso_year(),
-                            date_time->iso_month(), date_time->iso_day(),
-                            Handle<JSReceiver>(date_time->calendar(), isolate));
+  return CreateTemporalDate(
+      isolate,
+      {date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
+      Handle<JSReceiver>(date_time->calendar(), isolate));
 }
 
 // #sec-temporal.now.plaindateiso
@@ -5669,9 +7122,10 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::NowISO(
       JSTemporalPlainDate);
   // 3. Return ! CreateTemporalDate(dateTime.[[ISOYear]], dateTime.[[ISOMonth]],
   // dateTime.[[ISODay]], dateTime.[[Calendar]]).
-  return CreateTemporalDate(isolate, date_time->iso_year(),
-                            date_time->iso_month(), date_time->iso_day(),
-                            Handle<JSReceiver>(date_time->calendar(), isolate));
+  return CreateTemporalDate(
+      isolate,
+      {date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
+      Handle<JSReceiver>(date_time->calendar(), isolate));
 }
 
 // #sec-temporal.plaindate.from
@@ -5687,15 +7141,17 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::From(
   // internal slot, then
   if (item->IsJSTemporalPlainDate()) {
     // a. Perform ? ToTemporalOverflow(options).
-    Maybe<ShowOverflow> maybe_overflow =
-        ToTemporalOverflow(isolate, options, method_name);
-    MAYBE_RETURN(maybe_overflow, Handle<JSTemporalPlainDate>());
+    ShowOverflow overflow;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+        Handle<JSTemporalPlainDate>());
+    USE(overflow);
     // b. Return ? CreateTemporalDate(item.[[ISOYear]], item.[[ISOMonth]],
     // item.[[ISODay]], item.[[Calendar]]).
     Handle<JSTemporalPlainDate> date = Handle<JSTemporalPlainDate>::cast(item);
-    return CreateTemporalDate(isolate, date->iso_year(), date->iso_month(),
-                              date->iso_day(),
-                              Handle<JSReceiver>(date->calendar(), isolate));
+    return CreateTemporalDate(
+        isolate, {date->iso_year(), date->iso_month(), date->iso_day()},
+        Handle<JSReceiver>(date->calendar(), isolate));
   }
   // 3. Return ? ToTemporalDate(item, options).
   return ToTemporalDate(isolate, item, options, method_name);
@@ -5775,9 +7231,259 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Constructor(
 
   // 21. Return ? CreateTemporalDateTime(isoYear, isoMonth, isoDay, hour,
   // minute, second, millisecond, microsecond, nanosecond, calendar, NewTarget).
-  return CreateTemporalDateTime(isolate, target, new_target, iso_year,
-                                iso_month, iso_day, hour, minute, second,
-                                millisecond, microsecond, nanosecond, calendar);
+  return CreateTemporalDateTime(
+      isolate, target, new_target,
+      {{iso_year, iso_month, iso_day},
+       {hour, minute, second, millisecond, microsecond, nanosecond}},
+      calendar);
+}
+
+namespace {
+
+// #sec-temporal-interprettemporaldatetimefields
+Maybe<DateTimeRecord> InterpretTemporalDateTimeFields(
+    Isolate* isolate, Handle<JSReceiver> calendar, Handle<JSReceiver> fields,
+    Handle<Object> options, const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 1. Let timeResult be ? ToTemporalTimeRecord(fields).
+  TimeRecord time_result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, time_result, ToTemporalTimeRecord(isolate, fields, method_name),
+      Nothing<DateTimeRecord>());
+
+  // 2. Let temporalDate be ? DateFromFields(calendar, fields, options).
+  Handle<JSTemporalPlainDate> temporal_date;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, temporal_date,
+      DateFromFields(isolate, calendar, fields, options),
+      Nothing<DateTimeRecord>());
+
+  // 3. Let overflow be ? ToTemporalOverflow(options).
+  ShowOverflow overflow;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+      Nothing<DateTimeRecord>());
+
+  // 4. Let timeResult be ? RegulateTime(timeResult.[[Hour]],
+  // timeResult.[[Minute]], timeResult.[[Second]], timeResult.[[Millisecond]],
+  // timeResult.[[Microsecond]], timeResult.[[Nanosecond]], overflow).
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, time_result,
+      temporal::RegulateTime(isolate, time_result, overflow),
+      Nothing<DateTimeRecord>());
+  // 5. Return the new Record { [[Year]]: temporalDate.[[ISOYear]], [[Month]]:
+  // temporalDate.[[ISOMonth]], [[Day]]: temporalDate.[[ISODay]], [[Hour]]:
+  // timeResult.[[Hour]], [[Minute]]: timeResult.[[Minute]], [[Second]]:
+  // timeResult.[[Second]], [[Millisecond]]: timeResult.[[Millisecond]],
+  // [[Microsecond]]: timeResult.[[Microsecond]], [[Nanosecond]]:
+  // timeResult.[[Nanosecond]] }.
+
+  DateTimeRecord result = {
+      {temporal_date->iso_year(), temporal_date->iso_month(),
+       temporal_date->iso_day()},
+      time_result.time,
+      Handle<String>()};
+  return Just(result);
+}
+
+// #sec-temporal-parsetemporaldatetimestring
+Maybe<DateTimeRecord> ParseTemporalDateTimeString(Isolate* isolate,
+                                                  Handle<String> iso_string) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. Assert: Type(isoString) is String.
+  // 2. If isoString does not satisfy the syntax of a TemporalDateTimeString
+  // (see 13.33), then
+  base::Optional<ParsedISO8601Result> parsed =
+      TemporalParser::ParseTemporalDateTimeString(isolate, iso_string);
+  if (!parsed.has_value()) {
+    // a. Throw a *RangeError* exception.
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<DateTimeRecord>());
+  }
+
+  // 3. If _isoString_ contains a |UTCDesignator|, then
+  if (parsed->utc_designator) {
+    // a. Throw a *RangeError* exception.
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<DateTimeRecord>());
+  }
+
+  // 3. Let result be ? ParseISODateTime(isoString).
+  // 4. Return result.
+  return ParseISODateTime(isolate, iso_string, *parsed);
+}
+
+// #sec-temporal-totemporaldatetime
+MaybeHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
+    Isolate* isolate, Handle<Object> item_obj, Handle<Object> options,
+    const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+  // 2. Assert: Type(options) is Object or Undefined.
+  DCHECK(options->IsJSReceiver() || options->IsUndefined());
+
+  Factory* factory = isolate->factory();
+  Handle<JSReceiver> calendar;
+  DateTimeRecord result;
+  // 2. If Type(item) is Object, then
+  if (item_obj->IsJSReceiver()) {
+    Handle<JSReceiver> item = Handle<JSReceiver>::cast(item_obj);
+    // a. If item has an [[InitializedTemporalDateTime]] internal slot, then
+    // i. Return item.
+    if (item->IsJSTemporalPlainDateTime()) {
+      return Handle<JSTemporalPlainDateTime>::cast(item);
+    }
+    // b. If item has an [[InitializedTemporalZonedDateTime]] internal slot,
+    // then
+    if (item->IsJSTemporalZonedDateTime()) {
+      // i. Let instant be ! CreateTemporalInstant(item.[[Nanoseconds]]).
+      Handle<JSTemporalZonedDateTime> zoned_date_time =
+          Handle<JSTemporalZonedDateTime>::cast(item);
+      Handle<JSTemporalInstant> instant;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, instant,
+          temporal::CreateTemporalInstant(
+              isolate, Handle<BigInt>(zoned_date_time->nanoseconds(), isolate)),
+          JSTemporalPlainDateTime);
+      // ii. Return ?
+      // temporal::BuiltinTimeZoneGetPlainDateTimeFor(item.[[TimeZone]],
+      // instant, item.[[Calendar]]).
+      return temporal::BuiltinTimeZoneGetPlainDateTimeFor(
+          isolate, handle(zoned_date_time->time_zone(), isolate), instant,
+          handle(zoned_date_time->calendar(), isolate), method_name);
+    }
+    // c. If item has an [[InitializedTemporalDate]] internal slot, then
+    if (item->IsJSTemporalPlainDate()) {
+      // i. Return ? CreateTemporalDateTime(item.[[ISOYear]], item.[[ISOMonth]],
+      // item.[[ISODay]], 0, 0, 0, 0, 0, 0, item.[[Calendar]]).
+      Handle<JSTemporalPlainDate> date =
+          Handle<JSTemporalPlainDate>::cast(item);
+      return temporal::CreateTemporalDateTime(
+          isolate,
+          {{date->iso_year(), date->iso_month(), date->iso_day()},
+           {0, 0, 0, 0, 0, 0}},
+          handle(date->calendar(), isolate));
+    }
+    // d. Let calendar be ? GetTemporalCalendarWithISODefault(item).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, calendar,
+        GetTemporalCalendarWithISODefault(isolate, item, method_name),
+        JSTemporalPlainDateTime);
+    // e. Let fieldNames be ? CalendarFields(calendar, « "day", "hour",
+    // "microsecond", "millisecond", "minute", "month", "monthCode",
+    // "nanosecond", "second", "year" »).
+    Handle<FixedArray> field_names = factory->NewFixedArray(10);
+    field_names->set(0, ReadOnlyRoots(isolate).day_string());
+    field_names->set(1, ReadOnlyRoots(isolate).hour_string());
+    field_names->set(2, ReadOnlyRoots(isolate).microsecond_string());
+    field_names->set(3, ReadOnlyRoots(isolate).millisecond_string());
+    field_names->set(4, ReadOnlyRoots(isolate).minute_string());
+    field_names->set(5, ReadOnlyRoots(isolate).month_string());
+    field_names->set(6, ReadOnlyRoots(isolate).monthCode_string());
+    field_names->set(7, ReadOnlyRoots(isolate).nanosecond_string());
+    field_names->set(8, ReadOnlyRoots(isolate).second_string());
+    field_names->set(9, ReadOnlyRoots(isolate).year_string());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, field_names,
+                               CalendarFields(isolate, calendar, field_names),
+                               JSTemporalPlainDateTime);
+    // f. Let fields be ? PrepareTemporalFields(item,
+    // PrepareTemporalFields(item, fieldNames, «»).
+    Handle<JSReceiver> fields;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, fields,
+                               PrepareTemporalFields(isolate, item, field_names,
+                                                     RequiredFields::kNone),
+                               JSTemporalPlainDateTime);
+    // g. Let result be ?
+    // InterpretTemporalDateTimeFields(calendar, fields, options).
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result,
+        InterpretTemporalDateTimeFields(isolate, calendar, fields, options,
+                                        method_name),
+        Handle<JSTemporalPlainDateTime>());
+  } else {
+    // 3. Else,
+    // a. Perform ? ToTemporalOverflow(options).
+    ShowOverflow overflow;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+        Handle<JSTemporalPlainDateTime>());
+    USE(overflow);
+
+    // b. Let string be ? ToString(item).
+    Handle<String> string;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, string,
+                               Object::ToString(isolate, item_obj),
+                               JSTemporalPlainDateTime);
+    // c. Let result be ? ParseTemporalDateTimeString(string).
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result, ParseTemporalDateTimeString(isolate, string),
+        Handle<JSTemporalPlainDateTime>());
+    // d. Assert: ! IsValidISODate(result.[[Year]], result.[[Month]],
+    // result.[[Day]]) is true.
+    DCHECK(IsValidISODate(isolate, result.date));
+    // e. Assert: ! IsValidTime(result.[[Hour]],
+    // result.[[Minute]], result.[[Second]], result.[[Millisecond]],
+    // result.[[Microsecond]], result.[[Nanosecond]]) is true.
+    DCHECK(IsValidTime(isolate, result.time));
+    // f. Let calendar
+    // be ? ToTemporalCalendarWithISODefault(result.[[Calendar]]).
+    Handle<Object> calendar_string;
+    if (result.calendar->length() == 0) {
+      calendar_string = factory->undefined_value();
+    } else {
+      calendar_string = result.calendar;
+    }
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, calendar,
+        ToTemporalCalendarWithISODefault(isolate, calendar_string, method_name),
+        JSTemporalPlainDateTime);
+  }
+  // 4. Return ? CreateTemporalDateTime(result.[[Year]], result.[[Month]],
+  // result.[[Day]], result.[[Hour]], result.[[Minute]], result.[[Second]],
+  // result.[[Millisecond]], result.[[Microsecond]], result.[[Nanosecond]],
+  // calendar).
+  return temporal::CreateTemporalDateTime(isolate, {result.date, result.time},
+                                          calendar);
+}
+
+}  // namespace
+
+// #sec-temporal.plaindatetime.from
+MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::From(
+    Isolate* isolate, Handle<Object> item, Handle<Object> options_obj) {
+  const char* method_name = "Temporal.PlainDateTime.from";
+  // 1. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalPlainDateTime);
+  // 2. If Type(item) is Object and item has an [[InitializedTemporalDateTime]]
+  // internal slot, then
+  if (item->IsJSTemporalPlainDateTime()) {
+    // a. Perform ? ToTemporalOverflow(options).
+    ShowOverflow overflow;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+        Handle<JSTemporalPlainDateTime>());
+    USE(overflow);
+    // b. Return ? CreateTemporalDateTime(item.[[ISYear]], item.[[ISOMonth]],
+    // item.[[ISODay]], item.[[ISOHour]], item.[[ISOMinute]],
+    // item.[[ISOSecond]], item.[[ISOMillisecond]], item.[[ISOMicrosecond]],
+    // item.[[ISONanosecond]], item.[[Calendar]]).
+    Handle<JSTemporalPlainDateTime> date_time =
+        Handle<JSTemporalPlainDateTime>::cast(item);
+    return temporal::CreateTemporalDateTime(
+        isolate,
+        {{date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
+         {date_time->iso_hour(), date_time->iso_minute(),
+          date_time->iso_second(), date_time->iso_millisecond(),
+          date_time->iso_microsecond(), date_time->iso_nanosecond()}},
+        handle(date_time->calendar(), isolate));
+  }
+  // 3. Return ? ToTemporalDateTime(item, options).
+  return ToTemporalDateTime(isolate, item, options, method_name);
 }
 
 // #sec-temporal.plaindatetime.prototype.withcalendar
@@ -5801,10 +7507,12 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::WithCalendar(
   // temporalDateTime.[[ISOMicrosecond]], temporalDateTime.[[ISONanosecond]],
   // calendar).
   return temporal::CreateTemporalDateTime(
-      isolate, date_time->iso_year(), date_time->iso_month(),
-      date_time->iso_day(), date_time->iso_hour(), date_time->iso_minute(),
-      date_time->iso_second(), date_time->iso_millisecond(),
-      date_time->iso_microsecond(), date_time->iso_nanosecond(), calendar);
+      isolate,
+      {{date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
+       {date_time->iso_hour(), date_time->iso_minute(), date_time->iso_second(),
+        date_time->iso_millisecond(), date_time->iso_microsecond(),
+        date_time->iso_nanosecond()}},
+      calendar);
 }
 
 // #sec-temporal.now.plaindatetime
@@ -6049,8 +7757,9 @@ MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::Constructor(
 
   // 14. Return ? CreateTemporalTime(hour, minute, second, millisecond,
   // microsecond, nanosecond, NewTarget).
-  return CreateTemporalTime(isolate, target, new_target, hour, minute, second,
-                            millisecond, microsecond, nanosecond);
+  return CreateTemporalTime(
+      isolate, target, new_target,
+      {hour, minute, second, millisecond, microsecond, nanosecond});
 }
 
 // #sec-temporal.now.plaintimeiso
@@ -6073,9 +7782,9 @@ MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::NowISO(
   // dateTime.[[ISOMillisecond]], dateTime.[[ISOMicrosecond]],
   // dateTime.[[ISONanosecond]]).
   return CreateTemporalTime(
-      isolate, date_time->iso_hour(), date_time->iso_minute(),
-      date_time->iso_second(), date_time->iso_millisecond(),
-      date_time->iso_microsecond(), date_time->iso_nanosecond());
+      isolate, {date_time->iso_hour(), date_time->iso_minute(),
+                date_time->iso_second(), date_time->iso_millisecond(),
+                date_time->iso_microsecond(), date_time->iso_nanosecond()});
 }
 
 // #sec-temporal.plaintime.from
@@ -6088,10 +7797,10 @@ MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::From(
       isolate, options, GetOptionsObject(isolate, options_obj, method_name),
       JSTemporalPlainTime);
   // 2. Let overflow be ? ToTemporalOverflow(options).
-  Maybe<ShowOverflow> maybe_overflow =
-      ToTemporalOverflow(isolate, options, method_name);
-  MAYBE_RETURN(maybe_overflow, Handle<JSTemporalPlainTime>());
-  ShowOverflow overflow = maybe_overflow.FromJust();
+  ShowOverflow overflow;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+      Handle<JSTemporalPlainTime>());
   // 3. If Type(item) is Object and item has an [[InitializedTemporalTime]]
   // internal slot, then
   if (item_obj->IsJSTemporalPlainTime()) {
@@ -6100,9 +7809,10 @@ MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::From(
     // item.[[ISONanosecond]]).
     Handle<JSTemporalPlainTime> item =
         Handle<JSTemporalPlainTime>::cast(item_obj);
-    return CreateTemporalTime(isolate, item->iso_hour(), item->iso_minute(),
-                              item->iso_second(), item->iso_millisecond(),
-                              item->iso_microsecond(), item->iso_nanosecond());
+    return CreateTemporalTime(
+        isolate, {item->iso_hour(), item->iso_minute(), item->iso_second(),
+                  item->iso_millisecond(), item->iso_microsecond(),
+                  item->iso_nanosecond()});
   }
   // 4. Return ? ToTemporalTime(item, overflow).
   return temporal::ToTemporalTime(isolate, item_obj, overflow, method_name);
@@ -6174,7 +7884,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Constructor(
   // 3. If ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
   // RangeError exception.
   if (!IsValidEpochNanoseconds(isolate, epoch_nanoseconds)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                     JSTemporalZonedDateTime);
   }
 
@@ -6430,6 +8140,54 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::Now(Isolate* isolate) {
   return SystemInstant(isolate);
 }
 
+// #sec-get-temporal.zoneddatetime.prototype.offsetnanoseconds
+MaybeHandle<Object> JSTemporalZonedDateTime::OffsetNanoseconds(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. Let zonedDateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(zonedDateTime,
+  // [[InitializedTemporalZonedDateTime]]).
+  // 3. Let timeZone be zonedDateTime.[[TimeZone]].
+  Handle<JSReceiver> time_zone = handle(zoned_date_time->time_zone(), isolate);
+  // 4. Let instant be ! CreateTemporalInstant(zonedDateTime.[[Nanoseconds]]).
+  Handle<JSTemporalInstant> instant;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, instant,
+      temporal::CreateTemporalInstant(
+          isolate, handle(zoned_date_time->nanoseconds(), isolate)),
+      Object);
+  // 5. Return 𝔽(? GetOffsetNanosecondsFor(timeZone, instant)).
+  int64_t result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result,
+      GetOffsetNanosecondsFor(
+          isolate, time_zone, instant,
+          "Temporal.ZonedDateTime.prototype.offsetNanoseconds"),
+      Handle<Object>());
+  return isolate->factory()->NewNumberFromInt64(result);
+}
+
+// #sec-get-temporal.zoneddatetime.prototype.offset
+MaybeHandle<String> JSTemporalZonedDateTime::Offset(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. Let zonedDateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(zonedDateTime,
+  // [[InitializedTemporalZonedDateTime]]).
+  // 3. Let instant be ! CreateTemporalInstant(zonedDateTime.[[Nanoseconds]]).
+  Handle<JSTemporalInstant> instant;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, instant,
+      temporal::CreateTemporalInstant(
+          isolate, handle(zoned_date_time->nanoseconds(), isolate)),
+      String);
+  // 4. Return ? BuiltinTimeZoneGetOffsetStringFor(zonedDateTime.[[TimeZone]],
+  // instant).
+  return BuiltinTimeZoneGetOffsetStringFor(
+      isolate, handle(zoned_date_time->time_zone(), isolate), instant,
+      "Temporal.ZonedDateTime.prototype.offset");
+}
+
 // #sec-temporal.instant
 MaybeHandle<JSTemporalInstant> JSTemporalInstant::Constructor(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
@@ -6453,7 +8211,7 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::Constructor(
   // 3. If ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
   // RangeError exception.
   if (!IsValidEpochNanoseconds(isolate, epoch_nanoseconds)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                     JSTemporalInstant);
   }
   // 4. Return ? CreateTemporalInstant(epochNanoseconds, NewTarget).
@@ -6484,7 +8242,7 @@ MaybeHandle<JSTemporalInstant> ScaleNumberToNanosecondsVerifyAndMake(
   // 3. If ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
   // RangeError exception.
   if (!IsValidEpochNanoseconds(isolate, epoch_nanoseconds)) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALD_ARG_RANGE_ERROR(),
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                     JSTemporalInstant);
   }
   return temporal::CreateTemporalInstant(isolate, epoch_nanoseconds);
@@ -6564,5 +8322,39 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::From(Isolate* isolate,
   return ToTemporalInstant(isolate, item, method_name);
 }
 
+namespace temporal {
+
+// Step iii and iv of #sec-temporal.calendar.prototype.fields
+MaybeHandle<Oddball> IsInvalidTemporalCalendarField(
+    Isolate* isolate, Handle<String> next_value,
+    Handle<FixedArray> fields_name) {
+  Factory* factory = isolate->factory();
+  // iii. iii. If fieldNames contains nextValue, then
+  for (int i = 0; i < fields_name->length(); i++) {
+    Object item = fields_name->get(i);
+    CHECK(item.IsString());
+    if (String::Equals(isolate, next_value,
+                       handle(String::cast(item), isolate))) {
+      return isolate->factory()->true_value();
+    }
+  }
+  // iv. If nextValue is not one of "year", "month", "monthCode", "day", "hour",
+  // "minute", "second", "millisecond", "microsecond", "nanosecond", then
+  if (!(String::Equals(isolate, next_value, factory->year_string()) ||
+        String::Equals(isolate, next_value, factory->month_string()) ||
+        String::Equals(isolate, next_value, factory->monthCode_string()) ||
+        String::Equals(isolate, next_value, factory->day_string()) ||
+        String::Equals(isolate, next_value, factory->hour_string()) ||
+        String::Equals(isolate, next_value, factory->minute_string()) ||
+        String::Equals(isolate, next_value, factory->second_string()) ||
+        String::Equals(isolate, next_value, factory->millisecond_string()) ||
+        String::Equals(isolate, next_value, factory->microsecond_string()) ||
+        String::Equals(isolate, next_value, factory->nanosecond_string()))) {
+    return isolate->factory()->true_value();
+  }
+  return isolate->factory()->false_value();
+}
+
+}  // namespace temporal
 }  // namespace internal
 }  // namespace v8

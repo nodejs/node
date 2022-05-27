@@ -140,6 +140,8 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Load and untag constant at |index| in the constant pool.
   TNode<IntPtrT> LoadAndUntagConstantPoolEntry(TNode<WordT> index);
 
+  TNode<JSFunction> LoadFunctionClosure();
+
   // Load the FeedbackVector for the current function. The retuned node could be
   // undefined.
   TNode<HeapObject> LoadFeedbackVector();
@@ -234,8 +236,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Updates the profiler interrupt budget for a return.
   void UpdateInterruptBudgetOnReturn();
 
-  // Returns the OSR urgency and install target from the bytecode header.
-  TNode<Int16T> LoadOsrUrgencyAndInstallTarget();
+  TNode<Int8T> LoadOsrState(TNode<FeedbackVector> feedback_vector);
 
   // Dispatch to the bytecode.
   void Dispatch();
@@ -263,8 +264,17 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
       TNode<FixedArrayBase> parameters_and_registers,
       TNode<IntPtrT> formal_parameter_count, TNode<UintPtrT> register_count);
 
-  // Perform OnStackReplacement.
-  void OnStackReplacement(TNode<Context> context, TNode<IntPtrT> relative_jump);
+  // Attempts to OSR.
+  enum OnStackReplacementParams {
+    kBaselineCodeIsCached,
+    kDefault,
+  };
+  void OnStackReplacement(TNode<Context> context,
+                          TNode<FeedbackVector> feedback_vector,
+                          TNode<IntPtrT> relative_jump,
+                          TNode<Int32T> loop_depth,
+                          TNode<IntPtrT> feedback_slot, TNode<Int8T> osr_state,
+                          OnStackReplacementParams params);
 
   // The BytecodeOffset() is the offset from the ByteCodeArray pointer; to
   // translate into runtime `BytecodeOffset` (defined in utils.h as the offset

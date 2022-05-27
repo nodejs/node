@@ -542,7 +542,9 @@ class V8_EXPORT HeapGraphNode {
     kConsString = 10,    // Concatenated string. A pair of pointers to strings.
     kSlicedString = 11,  // Sliced string. A fragment of another string.
     kSymbol = 12,        // A Symbol (ES6).
-    kBigInt = 13         // BigInt.
+    kBigInt = 13,        // BigInt.
+    kObjectShape = 14,   // Internal data used for tracking the shapes (or
+                         // "hidden classes") of JS objects.
   };
 
   /** Returns node type (see HeapGraphNode::Type). */
@@ -975,14 +977,71 @@ class V8_EXPORT HeapProfiler {
     virtual ~ObjectNameResolver() = default;
   };
 
+  enum class HeapSnapshotMode {
+    /**
+     * Heap snapshot for regular developers.
+     */
+    kRegular,
+    /**
+     * Heap snapshot is exposing internals that may be useful for experts.
+     */
+    kExposeInternals,
+  };
+
+  enum class NumericsMode {
+    /**
+     * Numeric values are hidden as they are values of the corresponding
+     * objects.
+     */
+    kHideNumericValues,
+    /**
+     * Numeric values are exposed in artificial fields.
+     */
+    kExposeNumericValues
+  };
+
+  struct HeapSnapshotOptions final {
+    // Manually define default constructor here to be able to use it in
+    // `TakeSnapshot()` below.
+    // NOLINTNEXTLINE
+    HeapSnapshotOptions() {}
+
+    /**
+     * The control used to report intermediate progress to.
+     */
+    ActivityControl* control = nullptr;
+    /**
+     * The resolver used by the snapshot generator to get names for V8 objects.
+     */
+    ObjectNameResolver* global_object_name_resolver = nullptr;
+    /**
+     * Mode for taking the snapshot, see `HeapSnapshotMode`.
+     */
+    HeapSnapshotMode snapshot_mode = HeapSnapshotMode::kRegular;
+    /**
+     * Mode for dealing with numeric values, see `NumericsMode`.
+     */
+    NumericsMode numerics_mode = NumericsMode::kHideNumericValues;
+  };
+
   /**
-   * Takes a heap snapshot and returns it.
+   * Takes a heap snapshot.
+   *
+   * \returns the snapshot.
    */
   const HeapSnapshot* TakeHeapSnapshot(
-      ActivityControl* control = nullptr,
+      const HeapSnapshotOptions& options = HeapSnapshotOptions());
+
+  /**
+   * Takes a heap snapshot. See `HeapSnapshotOptions` for details on the
+   * parameters.
+   *
+   * \returns the snapshot.
+   */
+  const HeapSnapshot* TakeHeapSnapshot(
+      ActivityControl* control,
       ObjectNameResolver* global_object_name_resolver = nullptr,
-      bool treat_global_objects_as_roots = true,
-      bool capture_numeric_value = false);
+      bool hide_internals = true, bool capture_numeric_value = false);
 
   /**
    * Starts tracking of heap objects population statistics. After calling

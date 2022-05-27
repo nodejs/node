@@ -1,0 +1,16 @@
+Checks that restart frame fails when embedder frames would be unwound
+Paused at (after evaluation):
+function breaker() {
+  #debugger;
+}
+
+Pause stack:
+  breaker:2 (canBeRestarted = true)
+  entrypoint:5 (canBeRestarted = false)
+
+Restarting function "entrypoint" ...
+Failed to restart function "entrypoint":
+{
+    code : -32000
+    message : Frame restarting not supported
+}

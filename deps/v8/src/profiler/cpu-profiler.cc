@@ -81,8 +81,8 @@ ProfilingScope::ProfilingScope(Isolate* isolate, ProfilerListener* listener)
   wasm::GetWasmEngine()->EnableCodeLogging(isolate_);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  Logger* logger = isolate_->logger();
-  logger->AddCodeEventListener(listener_);
+  V8FileLogger* logger = isolate_->v8_file_logger();
+  logger->AddLogEventListener(listener_);
   // Populate the ProfilerCodeObserver with the initial functions and
   // callbacks on the heap.
   DCHECK(isolate_->heap()->HasBeenSetUp());
@@ -95,7 +95,7 @@ ProfilingScope::ProfilingScope(Isolate* isolate, ProfilerListener* listener)
 }
 
 ProfilingScope::~ProfilingScope() {
-  isolate_->logger()->RemoveCodeEventListener(listener_);
+  isolate_->v8_file_logger()->RemoveLogEventListener(listener_);
 
   size_t profiler_count = isolate_->num_cpu_profilers();
   DCHECK_GT(profiler_count, 0);
@@ -398,7 +398,7 @@ void ProfilerCodeObserver::CreateEntriesForRuntimeCallStats() {
   for (int i = 0; i < RuntimeCallStats::kNumberOfCounters; ++i) {
     RuntimeCallCounter* counter = rcs->GetCounter(i);
     DCHECK(counter->name());
-    auto entry = code_entries_.Create(CodeEventListener::FUNCTION_TAG,
+    auto entry = code_entries_.Create(LogEventListener::FUNCTION_TAG,
                                       counter->name(), "native V8Runtime");
     code_map_.AddCode(reinterpret_cast<Address>(counter), entry, 1);
   }

@@ -4667,9 +4667,9 @@ class WasmOpcodeLengthTest : public TestWithZone {
 
   // Helper to check for prefixed opcodes, which can have multiple bytes.
   void ExpectLengthPrefixed(unsigned operands, WasmOpcode opcode) {
-    uint8_t prefix = (opcode >> 8) & 0xff;
+    uint8_t prefix = WasmOpcodes::ExtractPrefix(opcode);
     DCHECK(WasmOpcodes::IsPrefixOpcode(static_cast<WasmOpcode>(prefix)));
-    uint8_t index = opcode & 0xff;
+    uint16_t index = ExtractPrefixedOpcodeBytes(opcode);
     uint8_t encoded[2] = {0, 0};
     uint8_t* p = encoded;
     unsigned len = static_cast<unsigned>(LEBHelper::sizeof_u32v(index));

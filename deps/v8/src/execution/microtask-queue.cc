@@ -179,6 +179,8 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
                      processed_microtask_count);
   }
 
+  DCHECK_IMPLIES(isolate->has_scheduled_exception(),
+                 maybe_result.is_null() && maybe_exception.is_null());
   // If execution is terminating, clean up and propagate that to TryCatch scope.
   if (maybe_result.is_null() && maybe_exception.is_null()) {
     delete[] ring_buffer_;

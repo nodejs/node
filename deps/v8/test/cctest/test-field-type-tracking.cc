@@ -2897,12 +2897,13 @@ void TestStoreToConstantField_NaN(const char* store_func_source,
   CompileRun(store_func_source);
 
   uint64_t nan_bits = uint64_t{0x7FF8000000000001};
-  double nan_double1 = bit_cast<double>(nan_bits);
-  double nan_double2 = bit_cast<double>(nan_bits | 0x12300);
+  double nan_double1 = base::bit_cast<double>(nan_bits);
+  double nan_double2 = base::bit_cast<double>(nan_bits | 0x12300);
   CHECK(std::isnan(nan_double1));
   CHECK(std::isnan(nan_double2));
   CHECK_NE(nan_double1, nan_double2);
-  CHECK_NE(bit_cast<uint64_t>(nan_double1), bit_cast<uint64_t>(nan_double2));
+  CHECK_NE(base::bit_cast<uint64_t>(nan_double1),
+           base::bit_cast<uint64_t>(nan_double2));
 
   Handle<Object> nan1 = isolate->factory()->NewNumber(nan_double1);
   Handle<Object> nan2 = isolate->factory()->NewNumber(nan_double2);

@@ -50,6 +50,14 @@ int GetScriptLineNumber(const JitCodeEvent* event) {
                    1;
 }
 
+int GetScriptColumnNumber(const JitCodeEvent* event) {
+  auto sfi = GetSharedFunctionInfo(event);
+  return sfi.is_null()
+             ? -1  // invalid sentinel number
+             : Script::cast(sfi.script()).GetColumnNumber(sfi.StartPosition()) +
+                   1;
+}
+
 void Register() {
   DCHECK(!TraceLoggingProviderEnabled(g_v8Provider, 0, 0));
   TraceLoggingRegister(g_v8Provider);
@@ -125,8 +133,7 @@ void EventHandler(const JitCodeEvent* event) {
                (uint16_t)0,  // MethodFlags
                (uint16_t)0,  // MethodAddressRangeId
                (uint64_t)script_id, (uint32_t)GetScriptLineNumber(event),
-               (uint32_t)0,  // Line & Column
-               method_name);
+               (uint32_t)GetScriptColumnNumber(event), method_name);
 }
 
 }  // namespace ETWJITInterface

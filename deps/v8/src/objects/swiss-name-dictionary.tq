@@ -285,8 +285,7 @@ macro SwissNameDictionaryFindEntrySIMD(table: SwissNameDictionary, key: Name):
 
 @export
 macro SwissNameDictionaryFindEntryPortable(
-    table: SwissNameDictionary, key: Name): never labels
-Found(intptr),
+    table: SwissNameDictionary, key: Name): never labels Found(intptr),
     NotFound {
   FindEntry<GroupPortableLoader>(table, key)
       otherwise Found, NotFound;

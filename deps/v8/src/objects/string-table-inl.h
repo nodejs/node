@@ -24,6 +24,37 @@ uint32_t StringTableKey::hash() const {
   return Name::HashBits::decode(raw_hash_field_);
 }
 
+int StringForwardingTable::Size() { return next_free_index_; }
+
+// static
+uint32_t StringForwardingTable::BlockForIndex(int index,
+                                              uint32_t* index_in_block) {
+  DCHECK_GE(index, 0);
+  DCHECK_NOT_NULL(index_in_block);
+  // The block is the leftmost set bit of the index, corrected by the size
+  // of the first block.
+  const uint32_t block = kBitsPerInt -
+                         base::bits::CountLeadingZeros(
+                             static_cast<uint32_t>(index + kInitialBlockSize)) -
+                         kInitialBlockSizeHighestBit - 1;
+  *index_in_block = IndexInBlock(index, block);
+  return block;
+}
+
+// static
+uint32_t StringForwardingTable::IndexInBlock(int index, uint32_t block) {
+  DCHECK_GE(index, 0);
+  // Clear out the leftmost set bit (the block) to get the index within the
+  // block.
+  return static_cast<uint32_t>(index + kInitialBlockSize) &
+         ~(1u << (block + kInitialBlockSizeHighestBit));
+}
+
+// static
+uint32_t StringForwardingTable::CapacityForBlock(uint32_t block) {
+  return 1u << (block + kInitialBlockSizeHighestBit);
+}
+
 }  // namespace internal
 }  // namespace v8
 

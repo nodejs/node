@@ -157,6 +157,7 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   inline bool IsMaybeUnfinalized(Isolate* isolate) const;
 
   Object GetNameOrSourceURL();
+  Handle<String> GetScriptHash(bool forceForInspector);
 
   // Retrieve source position from where eval was called.
   static int GetEvalPosition(Isolate* isolate, Handle<Script> script);

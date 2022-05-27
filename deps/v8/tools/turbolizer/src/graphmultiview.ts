@@ -40,6 +40,7 @@ export class GraphMultiView extends View {
   }
 
   hide() {
+    this.container.className = "";
     this.hideCurrentPhase();
     super.hide();
   }

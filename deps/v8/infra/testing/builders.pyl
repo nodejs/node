@@ -156,10 +156,10 @@
       {'name': 'mozilla', 'variant': 'extra'},
       {'name': 'optimize_for_size'},
       {'name': 'test262', 'shards': 4},
-      {'name': 'test262', 'variant': 'extra', 'shards': 3},
-      {'name': 'v8testing', 'shards': 2},
-      {'name': 'v8testing', 'suffix': 'isolates', 'test_args': ['--isolates'], 'shards': 2},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
+      {'name': 'test262', 'variant': 'extra', 'shards': 6},
+      {'name': 'v8testing', 'shards': 4},
+      {'name': 'v8testing', 'suffix': 'isolates', 'test_args': ['--isolates'], 'shards': 4},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 4},
     ],
   },
   'v8_linux_optional_rel_ng_triggered': {
@@ -314,9 +314,9 @@
       'os': 'Ubuntu-18.04',
     },
     'tests': [
-      {'name': 'test262', 'shards': 7},
-      {'name': 'v8testing', 'shards': 3},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
+      {'name': 'test262', 'shards': 12},
+      {'name': 'v8testing', 'shards': 5},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 5},
       {'name': 'v8testing', 'variant': 'slow_path'},
     ],
   },
@@ -408,6 +408,8 @@
       {'name': 'webkit', 'variant': 'stress_sampling'},
       # Stress snapshot.
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
+      # Maglev.
+      {'name': 'mjsunit', 'variant': 'maglev'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
       # Wasm write protect code space.
@@ -1231,15 +1233,6 @@
       },
     ],
   },
-  'V8 Linux64 - dict tracking - debug': {
-    'swarming_dimensions': {
-      'cpu': 'x86-64-avx2',
-      'os': 'Ubuntu-18.04',
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 3},
-    ],
-  },
   'V8 Linux64 - disable runtime call stats': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-18.04',
@@ -1260,6 +1253,8 @@
       {'name': 'webkit', 'variant': 'stress_sampling'},
       # Stress snapshot.
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
+      # Maglev.
+      {'name': 'mjsunit', 'variant': 'maglev'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
       # Wasm write protect code space.
@@ -1322,6 +1317,8 @@
       {'name': 'webkit', 'variant': 'stress_sampling'},
       # Stress snapshot.
       {'name': 'mjsunit', 'variant': 'stress_snapshot'},
+      # Maglev.
+      {'name': 'mjsunit', 'variant': 'maglev'},
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
       # Wasm write protect code space.

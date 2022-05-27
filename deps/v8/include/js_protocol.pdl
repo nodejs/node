@@ -113,6 +113,11 @@ domain Debugger
       Runtime.RemoteObject this
       # The value being returned, if the function is at return point.
       optional Runtime.RemoteObject returnValue
+      # Valid only while the VM is paused and indicates whether this frame
+      # can be restarted or not. Note that a `true` value here does not
+      # guarantee that Debugger#restartFrame with this CallFrameId will be
+      # successful, but it is very likely.
+      experimental optional boolean canBeRestarted
 
   # Scope description.
   type Scope extends object
@@ -554,7 +559,7 @@ domain Debugger
       integer endColumn
       # Specifies script creation context.
       Runtime.ExecutionContextId executionContextId
-      # Content hash of the script.
+      # Content hash of the script, SHA-256.
       string hash
       # Embedder-specific auxiliary data.
       optional object executionContextAuxData
@@ -593,7 +598,7 @@ domain Debugger
       integer endColumn
       # Specifies script creation context.
       Runtime.ExecutionContextId executionContextId
-      # Content hash of the script.
+      # Content hash of the script, SHA-256.
       string hash
       # Embedder-specific auxiliary data.
       optional object executionContextAuxData
@@ -708,18 +713,24 @@ experimental domain HeapProfiler
       # If true 'reportHeapSnapshotProgress' events will be generated while snapshot is being taken
       # when the tracking is stopped.
       optional boolean reportProgress
-      optional boolean treatGlobalObjectsAsRoots
+      # Deprecated in favor of `exposeInternals`.
+      deprecated optional boolean treatGlobalObjectsAsRoots
       # If true, numerical values are included in the snapshot
       optional boolean captureNumericValue
+      # If true, exposes internals of the snapshot.
+      experimental optional boolean exposeInternals
 
   command takeHeapSnapshot
     parameters
       # If true 'reportHeapSnapshotProgress' events will be generated while snapshot is being taken.
       optional boolean reportProgress
-      # If true, a raw snapshot without artificial roots will be generated
-      optional boolean treatGlobalObjectsAsRoots
+      # If true, a raw snapshot without artificial roots will be generated.
+      # Deprecated in favor of `exposeInternals`.
+      deprecated optional boolean treatGlobalObjectsAsRoots
       # If true, numerical values are included in the snapshot
       optional boolean captureNumericValue
+      # If true, exposes internals of the snapshot.
+      experimental optional boolean exposeInternals
 
   event addHeapSnapshotChunk
     parameters
@@ -1342,7 +1353,9 @@ domain Runtime
       optional string objectGroup
       # Whether to throw an exception if side effect cannot be ruled out during evaluation.
       experimental optional boolean throwOnSideEffect
-      # Whether the result should be serialized according to https://w3c.github.io/webdriver-bidi.
+      # Whether the result should contain `webDriverValue`, serialized according to
+      # https://w3c.github.io/webdriver-bidi. This is mutually exclusive with `returnByValue`, but
+      # resulting `objectId` is still provided.
       experimental optional boolean generateWebDriverValue
     returns
       # Call result.

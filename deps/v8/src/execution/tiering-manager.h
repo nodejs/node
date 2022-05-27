@@ -49,8 +49,7 @@ class TieringManager {
 
   OptimizationDecision ShouldOptimize(JSFunction function, CodeKind code_kind,
                                       JavaScriptFrame* frame);
-  void Optimize(JSFunction function, CodeKind code_kind,
-                OptimizationDecision decision);
+  void Optimize(JSFunction function, OptimizationDecision decision);
   void Baseline(JSFunction function, OptimizationReason reason);
 
   class V8_NODISCARD OnInterruptTickScope final {

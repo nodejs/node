@@ -216,7 +216,7 @@ void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
         Label process(this);
         if (can_shrink) {
           // If `index` is out of bounds, Get returns undefined.
-          CheckJSTypedArrayIndex(index, typed_array, &detached);
+          CheckJSTypedArrayIndex(typed_array, index, &detached);
         } else {
           GotoIf(IsDetachedBuffer(array_buffer), &detached);
         }

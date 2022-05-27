@@ -94,25 +94,22 @@ class V8ValueStringBuilder {
     if (value.IsEmpty()) return true;
     if ((ignoreOptions & IgnoreNull) && value->IsNull()) return true;
     if ((ignoreOptions & IgnoreUndefined) && value->IsUndefined()) return true;
+    if (value->IsBigIntObject()) {
+      value = value.As<v8::BigIntObject>()->ValueOf();
+    } else if (value->IsBooleanObject()) {
+      value =
+          v8::Boolean::New(m_isolate, value.As<v8::BooleanObject>()->ValueOf());
+    } else if (value->IsNumberObject()) {
+      value =
+          v8::Number::New(m_isolate, value.As<v8::NumberObject>()->ValueOf());
+    } else if (value->IsStringObject()) {
+      value = value.As<v8::StringObject>()->ValueOf();
+    } else if (value->IsSymbolObject()) {
+      value = value.As<v8::SymbolObject>()->ValueOf();
+    }
     if (value->IsString()) return append(value.As<v8::String>());
-    if (value->IsStringObject())
-      return append(value.As<v8::StringObject>()->ValueOf());
     if (value->IsBigInt()) return append(value.As<v8::BigInt>());
-    if (value->IsBigIntObject())
-      return append(value.As<v8::BigIntObject>()->ValueOf());
     if (value->IsSymbol()) return append(value.As<v8::Symbol>());
-    if (value->IsSymbolObject())
-      return append(value.As<v8::SymbolObject>()->ValueOf());
-    if (value->IsNumberObject()) {
-      m_builder.append(
-          String16::fromDouble(value.As<v8::NumberObject>()->ValueOf(), 6));
-      return true;
-    }
-    if (value->IsBooleanObject()) {
-      m_builder.append(value.As<v8::BooleanObject>()->ValueOf() ? "true"
-                                                                : "false");
-      return true;
-    }
     if (value->IsArray()) return append(value.As<v8::Array>());
     if (value->IsProxy()) {
       m_builder.append("[object Proxy]");

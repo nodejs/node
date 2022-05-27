@@ -107,7 +107,6 @@ AllocationResult HeapAllocator::AllocateRawWithRetryOrFailSlowPath(
       AllocateRawWithLightRetrySlowPath(size, allocation, origin, alignment);
   if (!result.IsFailure()) return result;
 
-  heap_->isolate()->counters()->gc_last_resort_from_handles()->Increment();
   if (IsSharedAllocationType(allocation)) {
     heap_->CollectSharedGarbage(GarbageCollectionReason::kLastResort);
 

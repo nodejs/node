@@ -4343,7 +4343,7 @@ UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
 }
 
 TEST(DebugCoverage) {
-  i::FLAG_always_opt = false;
+  i::FLAG_always_turbofan = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -4398,7 +4398,7 @@ v8::debug::Coverage::ScriptData GetScriptDataAndDeleteCoverage(
 }  // namespace
 
 TEST(DebugCoverageWithCoverageOutOfScope) {
-  i::FLAG_always_opt = false;
+  i::FLAG_always_turbofan = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -4469,7 +4469,7 @@ v8::debug::Coverage::FunctionData GetFunctionDataAndDeleteCoverage(
 }  // namespace
 
 TEST(DebugCoverageWithScriptDataOutOfScope) {
-  i::FLAG_always_opt = false;
+  i::FLAG_always_turbofan = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -4776,26 +4776,40 @@ TEST(SourceInfo) {
   CHECK_EQ(script->GetSourceLocation(start_d).GetColumnNumber(), 10);
 
   // Test offsets.
-  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(1, 10)), start_a);
-  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(2, 13)), start_b);
-  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(3, 0)), start_b + 5);
-  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(3, 2)), start_b + 7);
-  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(4, 0)), start_b + 16);
-  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(5, 12)), start_c);
-  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(6, 0)), start_c + 6);
-  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(7, 0)), start_c + 19);
-  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(8, 0)), start_c + 35);
-  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(9, 0)), start_c + 48);
-  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(10, 0)), start_c + 64);
-  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(11, 0)), start_c + 70);
-  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(12, 10)), start_d);
-  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(13, 0)), start_d + 6);
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(1, 10)),
+           v8::Just(start_a));
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(2, 13)),
+           v8::Just(start_b));
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(3, 0)),
+           v8::Just(start_b + 5));
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(3, 2)),
+           v8::Just(start_b + 7));
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(4, 0)),
+           v8::Just(start_b + 16));
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(5, 12)),
+           v8::Just(start_c));
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(6, 0)),
+           v8::Just(start_c + 6));
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(7, 0)),
+           v8::Just(start_c + 19));
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(8, 0)),
+           v8::Just(start_c + 35));
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(9, 0)),
+           v8::Just(start_c + 48));
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(10, 0)),
+           v8::Just(start_c + 64));
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(11, 0)),
+           v8::Just(start_c + 70));
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(12, 10)),
+           v8::Just(start_d));
+  CHECK_EQ(script->GetSourceOffset(v8::debug::Location(13, 0)),
+           v8::Just(start_d + 6));
   for (int i = 1; i <= num_lines_d; ++i) {
     CHECK_EQ(script->GetSourceOffset(v8::debug::Location(start_line_d + i, 0)),
-             6 + (i * line_length_d) + start_d);
+             v8::Just(6 + (i * line_length_d) + start_d));
   }
   CHECK_EQ(script->GetSourceOffset(v8::debug::Location(start_line_d + 17, 0)),
-           start_d + 158);
+           v8::Nothing<int>());
 
   // Make sure invalid inputs work properly.
   const int last_position = static_cast<int>(strlen(source)) - 1;

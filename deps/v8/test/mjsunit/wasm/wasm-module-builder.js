@@ -505,6 +505,7 @@ let kExprRefTestStatic = 0x44;
 let kExprRefCastStatic = 0x45;
 let kExprBrOnCastStatic = 0x46;
 let kExprBrOnCastStaticFail = 0x47;
+let kExprRefCastNopStatic = 0x48;
 let kExprRefIsFunc = 0x50;
 let kExprRefIsData = 0x51;
 let kExprRefIsI31 = 0x52;

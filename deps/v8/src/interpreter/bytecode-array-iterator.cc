@@ -41,6 +41,16 @@ void BytecodeArrayIterator::SetOffset(int offset) {
   UpdateOperandScale();
 }
 
+// static
+bool BytecodeArrayIterator::IsValidOffset(Handle<BytecodeArray> bytecode_array,
+                                          int offset) {
+  for (BytecodeArrayIterator it(bytecode_array); !it.done(); it.Advance()) {
+    if (it.current_offset() == offset) return true;
+    if (it.current_offset() > offset) break;
+  }
+  return false;
+}
+
 void BytecodeArrayIterator::ApplyDebugBreak() {
   // Get the raw bytecode from the bytecode array. This may give us a
   // scaling prefix, which we can patch with the matching debug-break

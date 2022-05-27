@@ -145,8 +145,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32F32x4SConvertI32x4:
     case kIA32F32x4UConvertI32x4:
     case kIA32F32x4Sqrt:
-    case kIA32F32x4RecipApprox:
-    case kIA32F32x4RecipSqrtApprox:
     case kIA32F32x4Add:
     case kIA32F32x4Sub:
     case kIA32F32x4Mul:

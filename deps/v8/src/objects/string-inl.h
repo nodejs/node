@@ -179,27 +179,6 @@ bool StringShape::IsShared() const {
          (FLAG_shared_string_table && IsInternalized());
 }
 
-bool StringShape::CanMigrateInParallel() const {
-  switch (representation_encoding_and_shared_tag()) {
-    case kSeqOneByteStringTag | kSharedStringTag:
-    case kSeqTwoByteStringTag | kSharedStringTag:
-      // Shared SeqStrings can migrate to ThinStrings.
-      return true;
-    case kThinStringTag | kOneByteStringTag | kSharedStringTag:
-    case kThinStringTag | kTwoByteStringTag | kSharedStringTag:
-      // Shared ThinStrings do not migrate.
-      return false;
-    default:
-      // TODO(v8:12007): Set is_shared to true on internalized string when
-      // FLAG_shared_string_table is removed.
-      //
-      // If you crashed here, you probably added a new shared string
-      // type. Explicitly handle all shared string cases above.
-      DCHECK((FLAG_shared_string_table && IsInternalized()) || !IsShared());
-      return false;
-  }
-}
-
 StringRepresentationTag StringShape::representation_tag() const {
   uint32_t tag = (type_ & kStringRepresentationMask);
   return static_cast<StringRepresentationTag>(tag);

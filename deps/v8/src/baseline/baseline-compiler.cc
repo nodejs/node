@@ -1925,49 +1925,35 @@ void BaselineCompiler::VisitCreateRestParameter() {
 }
 
 void BaselineCompiler::VisitJumpLoop() {
-  Label osr_not_armed, osr;
+  Label osr_not_armed;
   {
-    BaselineAssembler::ScratchRegisterScope scope(&basm_);
-    Register osr_urgency_and_install_target = scope.AcquireScratch();
-
     ASM_CODE_COMMENT_STRING(&masm_, "OSR Check Armed");
-    __ LoadRegister(osr_urgency_and_install_target,
-                    interpreter::Register::bytecode_array());
-    __ LoadWord16FieldZeroExtend(
-        osr_urgency_and_install_target, osr_urgency_and_install_target,
-        BytecodeArray::kOsrUrgencyAndInstallTargetOffset);
-    int loop_depth = iterator().GetImmediateOperand(1);
-    __ JumpIfImmediate(Condition::kUnsignedLessThanEqual,
-                       osr_urgency_and_install_target, loop_depth,
-                       &osr_not_armed, Label::kNear);
+    using D = BaselineOnStackReplacementDescriptor;
+    BaselineAssembler::ScratchRegisterScope temps(&basm_);
+    Register feedback_vector = temps.AcquireScratch();
+    Register osr_state = temps.AcquireScratch();
+    LoadFeedbackVector(feedback_vector);
+    __ LoadWord8Field(osr_state, feedback_vector,
+                      FeedbackVector::kOsrStateOffset);
+    const int loop_depth = iterator().GetImmediateOperand(1);
+    static_assert(FeedbackVector::MaybeHasOptimizedOsrCodeBit::encode(true) >
+                  FeedbackVector::kMaxOsrUrgency);
+    __ JumpIfByte(Condition::kUnsignedLessThanEqual, osr_state, loop_depth,
+                  &osr_not_armed, Label::kNear);
 
-    // TODO(jgruber): Move the extended checks into the
-    // BaselineOnStackReplacement builtin.
+    Label osr;
+    Register maybe_target_code = D::MaybeTargetCodeRegister();
+    DCHECK(!AreAliased(maybe_target_code, feedback_vector, osr_state));
+    __ TryLoadOptimizedOsrCode(maybe_target_code, feedback_vector,
+                               iterator().GetSlotOperand(2), &osr,
+                               Label::kNear);
+    __ DecodeField<FeedbackVector::OsrUrgencyBits>(osr_state);
+    __ JumpIfByte(Condition::kUnsignedLessThanEqual, osr_state, loop_depth,
+                  &osr_not_armed, Label::kNear);
 
-    // OSR based on urgency, i.e. is the OSR urgency greater than the current
-    // loop depth?
-    STATIC_ASSERT(BytecodeArray::OsrUrgencyBits::kShift == 0);
-    Register scratch2 = scope.AcquireScratch();
-    __ Word32And(scratch2, osr_urgency_and_install_target,
-                 BytecodeArray::OsrUrgencyBits::kMask);
-    __ JumpIfImmediate(Condition::kUnsignedGreaterThan, scratch2, loop_depth,
-                       &osr, Label::kNear);
-
-    // OSR based on the install target offset, i.e. does the current bytecode
-    // offset match the install target offset?
-    static constexpr int kShift = BytecodeArray::OsrInstallTargetBits::kShift;
-    static constexpr int kMask = BytecodeArray::OsrInstallTargetBits::kMask;
-    const int encoded_current_offset =
-        BytecodeArray::OsrInstallTargetFor(
-            BytecodeOffset{iterator().current_offset()})
-        << kShift;
-    __ Word32And(scratch2, osr_urgency_and_install_target, kMask);
-    __ JumpIfImmediate(Condition::kNotEqual, scratch2, encoded_current_offset,
-                       &osr_not_armed, Label::kNear);
+    __ Bind(&osr);
+    CallBuiltin<Builtin::kBaselineOnStackReplacement>(maybe_target_code);
   }
-
-  __ Bind(&osr);
-  CallBuiltin<Builtin::kBaselineOnStackReplacement>();
 
   __ Bind(&osr_not_armed);
   Label* label = &labels_[iterator().GetJumpTargetOffset()]->unlinked;

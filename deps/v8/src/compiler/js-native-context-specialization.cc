@@ -1454,6 +1454,44 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
   Effect effect = n.effect();
   Control control = n.control();
 
+  Node* iterator_exception_node = nullptr;
+  Node* if_exception_merge = nullptr;
+  Node* if_exception_effect_phi = nullptr;
+  Node* if_exception_phi = nullptr;
+  bool has_exception_node =
+      NodeProperties::IsExceptionalCall(node, &iterator_exception_node);
+  int exception_node_index = 0;
+  if (has_exception_node) {
+    DCHECK_NOT_NULL(iterator_exception_node);
+    // If there exists an IfException node for the iterator node, we need
+    // to merge all the desugared nodes exception. The iterator node will be
+    // desugared to LoadNamed, Call, CallRuntime, we can pre-allocate the
+    // nodes with 4 inputs here and we use dead_node as a placeholder for the
+    // input, which will be replaced.
+    // We use dead_node as a placeholder for the original exception node before
+    // it's uses are rewired.
+
+    Node* dead_node = jsgraph()->Dead();
+    if_exception_merge = graph()->NewNode(common()->Merge(4), dead_node,
+                                          dead_node, dead_node, dead_node);
+    if_exception_effect_phi =
+        graph()->NewNode(common()->EffectPhi(4), dead_node, dead_node,
+                         dead_node, dead_node, if_exception_merge);
+    if_exception_phi = graph()->NewNode(
+        common()->Phi(MachineRepresentation::kTagged, 4), dead_node, dead_node,
+        dead_node, dead_node, if_exception_merge);
+    // Rewire the original exception node uses.
+    ReplaceWithValue(iterator_exception_node, if_exception_phi,
+                     if_exception_effect_phi, if_exception_merge);
+    if_exception_merge->ReplaceInput(exception_node_index,
+                                     iterator_exception_node);
+    if_exception_effect_phi->ReplaceInput(exception_node_index,
+                                          iterator_exception_node);
+    if_exception_phi->ReplaceInput(exception_node_index,
+                                   iterator_exception_node);
+    exception_node_index++;
+  }
+
   // Load iterator property operator
   NameRef iterator_symbol = MakeRef(broker(), factory()->iterator_symbol());
   const Operator* load_op =
@@ -1474,32 +1512,15 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
   effect = load_property;
   control = load_property;
 
-  // Handle exception path for the load named property
-  Node* iterator_exception_node = nullptr;
-  if (NodeProperties::IsExceptionalCall(node, &iterator_exception_node)) {
-    // If there exists an exception node for the given iterator_node, create a
-    // pair of IfException/IfSuccess nodes on the current control path. The uses
-    // of new exception node are merged with the original exception node. The
-    // IfSuccess node is returned as a control path for further reduction.
-    Node* exception_node =
+  // Merge the exception path for LoadNamed.
+  if (has_exception_node) {
+    Node* if_exception =
         graph()->NewNode(common()->IfException(), effect, control);
-    Node* if_success = graph()->NewNode(common()->IfSuccess(), control);
-
-    // Use dead_node as a placeholder for the original exception node until
-    // its uses are rewired to the nodes merging the exceptions
-    Node* dead_node = jsgraph()->Dead();
-    Node* merge_node =
-        graph()->NewNode(common()->Merge(2), dead_node, exception_node);
-    Node* effect_phi = graph()->NewNode(common()->EffectPhi(2), dead_node,
-                                        exception_node, merge_node);
-    Node* phi =
-        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                         dead_node, exception_node, merge_node);
-    ReplaceWithValue(iterator_exception_node, phi, effect_phi, merge_node);
-    phi->ReplaceInput(0, iterator_exception_node);
-    effect_phi->ReplaceInput(0, iterator_exception_node);
-    merge_node->ReplaceInput(0, iterator_exception_node);
-    control = if_success;
+    if_exception_merge->ReplaceInput(exception_node_index, if_exception);
+    if_exception_phi->ReplaceInput(exception_node_index, if_exception);
+    if_exception_effect_phi->ReplaceInput(exception_node_index, if_exception);
+    exception_node_index++;
+    control = graph()->NewNode(common()->IfSuccess(), control);
   }
 
   // Eager deopt of call iterator property
@@ -1521,11 +1542,73 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
       JSCallNode::ArityForArgc(0), CallFrequency(), p.callFeedback(),
       ConvertReceiverMode::kNotNullOrUndefined, mode,
       CallFeedbackRelation::kTarget);
-  Node* call_property =
+  // Lazy deopt to check the call result is JSReceiver.
+  Node* call_lazy_deopt_frame_state = CreateStubBuiltinContinuationFrameState(
+      jsgraph(), Builtin::kCallIteratorWithFeedbackLazyDeoptContinuation,
+      context, nullptr, 0, frame_state, ContinuationFrameStateMode::LAZY);
+  Node* call_property = effect = control =
       graph()->NewNode(call_op, load_property, receiver, n.feedback_vector(),
-                       context, frame_state, effect, control);
+                       context, call_lazy_deopt_frame_state, effect, control);
 
-  return Replace(call_property);
+  // Merge the exception path for Call.
+  if (has_exception_node) {
+    Node* if_exception =
+        graph()->NewNode(common()->IfException(), effect, control);
+    if_exception_merge->ReplaceInput(exception_node_index, if_exception);
+    if_exception_phi->ReplaceInput(exception_node_index, if_exception);
+    if_exception_effect_phi->ReplaceInput(exception_node_index, if_exception);
+    exception_node_index++;
+    control = graph()->NewNode(common()->IfSuccess(), control);
+  }
+
+  // If the result is not JSReceiver, throw invalid iterator exception.
+  Node* is_receiver =
+      graph()->NewNode(simplified()->ObjectIsReceiver(), call_property);
+  Node* branch_node = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                       is_receiver, control);
+  {
+    Node* if_not_receiver = graph()->NewNode(common()->IfFalse(), branch_node);
+    Node* effect_not_receiver = effect;
+    Node* control_not_receiver = if_not_receiver;
+    Node* call_runtime = effect_not_receiver = control_not_receiver =
+        graph()->NewNode(
+            javascript()->CallRuntime(Runtime::kThrowSymbolIteratorInvalid, 0),
+            context, frame_state, effect_not_receiver, control_not_receiver);
+    // Merge the exception path for CallRuntime.
+    if (has_exception_node) {
+      Node* if_exception = graph()->NewNode(
+          common()->IfException(), effect_not_receiver, control_not_receiver);
+      if_exception_merge->ReplaceInput(exception_node_index, if_exception);
+      if_exception_phi->ReplaceInput(exception_node_index, if_exception);
+      if_exception_effect_phi->ReplaceInput(exception_node_index, if_exception);
+      exception_node_index++;
+      control_not_receiver =
+          graph()->NewNode(common()->IfSuccess(), control_not_receiver);
+    }
+    Node* throw_node =
+        graph()->NewNode(common()->Throw(), call_runtime, control_not_receiver);
+    NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
+  }
+  Node* if_receiver = graph()->NewNode(common()->IfTrue(), branch_node);
+  ReplaceWithValue(node, call_property, effect, if_receiver);
+
+  if (has_exception_node) {
+    DCHECK_EQ(exception_node_index, if_exception_merge->InputCount());
+    DCHECK_EQ(exception_node_index, if_exception_effect_phi->InputCount() - 1);
+    DCHECK_EQ(exception_node_index, if_exception_phi->InputCount() - 1);
+#ifdef DEBUG
+    for (Node* input : if_exception_merge->inputs()) {
+      DCHECK(!input->IsDead());
+    }
+    for (Node* input : if_exception_effect_phi->inputs()) {
+      DCHECK(!input->IsDead());
+    }
+    for (Node* input : if_exception_phi->inputs()) {
+      DCHECK(!input->IsDead());
+    }
+#endif
+  }
+  return Replace(if_receiver);
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSSetNamedProperty(Node* node) {
@@ -2533,6 +2616,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
       case MachineRepresentation::kWord64:
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kSimd128:
+      case MachineRepresentation::kSimd256:
       case MachineRepresentation::kMapWord:
         UNREACHABLE();
     }

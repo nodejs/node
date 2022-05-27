@@ -233,18 +233,79 @@ class SemiSpaceObjectIterator : public ObjectIterator {
   Address limit_;
 };
 
+class NewSpaceBase : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
+ public:
+  using iterator = PageIterator;
+  using const_iterator = ConstPageIterator;
+
+  NewSpaceBase(Heap* heap, LinearAllocationArea* allocation_info);
+
+  inline bool Contains(Object o) const;
+  inline bool Contains(HeapObject o) const;
+
+  void ResetParkedAllocationBuffers();
+
+#if DEBUG
+  void VerifyTop() const override;
+#endif  // DEBUG
+
+  Address original_top_acquire() const {
+    return original_top_.load(std::memory_order_acquire);
+  }
+  Address original_limit_relaxed() const {
+    return original_limit_.load(std::memory_order_relaxed);
+  }
+
+  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawSynchronized(
+      int size_in_bytes, AllocationAlignment alignment,
+      AllocationOrigin origin = AllocationOrigin::kRuntime);
+
+  void MoveOriginalTopForward() {
+    base::SharedMutexGuard<base::kExclusive> guard(&pending_allocation_mutex_);
+    DCHECK_GE(top(), original_top_);
+    DCHECK_LE(top(), original_limit_);
+    original_top_.store(top(), std::memory_order_release);
+  }
+
+  void MaybeFreeUnusedLab(LinearAllocationArea info);
+
+  base::SharedMutex* pending_allocation_mutex() {
+    return &pending_allocation_mutex_;
+  }
+
+  // Creates a filler object in the linear allocation area.
+  void MakeLinearAllocationAreaIterable();
+
+  // Creates a filler object in the linear allocation area and closes it.
+  void FreeLinearAllocationArea() override;
+
+ protected:
+  static const int kAllocationBufferParkingThreshold = 4 * KB;
+
+  base::Mutex mutex_;
+
+  // The top and the limit at the time of setting the linear allocation area.
+  // These values can be accessed by background tasks. Protected by
+  // pending_allocation_mutex_.
+  std::atomic<Address> original_top_;
+  std::atomic<Address> original_limit_;
+
+  // Protects original_top_ and original_limit_.
+  base::SharedMutex pending_allocation_mutex_;
+
+  ParkedAllocationBuffersVector parked_allocation_buffers_;
+
+  bool SupportsAllocationObserver() const override { return true; }
+};
+
 // -----------------------------------------------------------------------------
 // The young generation space.
 //
 // The new space consists of a contiguous pair of semispaces.  It simply
 // forwards most functions to the appropriate semispace.
 
-class V8_EXPORT_PRIVATE NewSpace final
-    : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
+class V8_EXPORT_PRIVATE NewSpace final : public NewSpaceBase {
  public:
-  using iterator = PageIterator;
-  using const_iterator = ConstPageIterator;
-
   NewSpace(Heap* heap, v8::PageAllocator* page_allocator,
            size_t initial_semispace_capacity, size_t max_semispace_capacity,
            LinearAllocationArea* allocation_info);
@@ -252,10 +313,6 @@ class V8_EXPORT_PRIVATE NewSpace final
   ~NewSpace() override;
 
   inline bool ContainsSlow(Address a) const;
-  inline bool Contains(Object o) const;
-  inline bool Contains(HeapObject o) const;
-
-  void ResetParkedAllocationBuffers();
 
   // Flip the pair of spaces.
   void Flip();
@@ -380,15 +437,8 @@ class V8_EXPORT_PRIVATE NewSpace final
   }
 
 #if DEBUG
-  void VerifyTop() const;
+  void VerifyTop() const final;
 #endif  // DEBUG
-
-  Address original_top_acquire() const {
-    return original_top_.load(std::memory_order_acquire);
-  }
-  Address original_limit_relaxed() const {
-    return original_limit_.load(std::memory_order_relaxed);
-  }
 
   // Return the address of the first allocatable address in the active
   // semispace. This may be the address where the first object resides.
@@ -399,10 +449,6 @@ class V8_EXPORT_PRIVATE NewSpace final
   // Set the age mark in the active semispace.
   void set_age_mark(Address mark) { to_space_.set_age_mark(mark); }
 
-  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawSynchronized(
-      int size_in_bytes, AllocationAlignment alignment,
-      AllocationOrigin origin = AllocationOrigin::kRuntime);
-
   // Reset the allocation pointer to the beginning of the active semispace.
   void ResetLinearAllocationArea();
 
@@ -412,10 +458,6 @@ class V8_EXPORT_PRIVATE NewSpace final
   // allocation_info_.limit to be lower than the actual limit and and increasing
   // it in steps to guarantee that the observers are notified periodically.
   void UpdateInlineAllocationLimit(size_t size_in_bytes) override;
-
-  inline bool ToSpaceContainsSlow(Address a) const;
-  inline bool ToSpaceContains(Object o) const;
-  inline bool FromSpaceContains(Object o) const;
 
   // Try to switch the active semispace to a new, empty, page.
   // Returns false if this isn't possible or reasonable (i.e., there
@@ -469,53 +511,18 @@ class V8_EXPORT_PRIVATE NewSpace final
   SemiSpace& from_space() { return from_space_; }
   SemiSpace& to_space() { return to_space_; }
 
-  void MoveOriginalTopForward() {
-    base::SharedMutexGuard<base::kExclusive> guard(&pending_allocation_mutex_);
-    DCHECK_GE(top(), original_top_);
-    DCHECK_LE(top(), original_limit_);
-    original_top_.store(top(), std::memory_order_release);
-  }
-
-  void MaybeFreeUnusedLab(LinearAllocationArea info);
-
-  base::SharedMutex* pending_allocation_mutex() {
-    return &pending_allocation_mutex_;
-  }
-
-  // Creates a filler object in the linear allocation area.
-  void MakeLinearAllocationAreaIterable();
-
-  // Creates a filler object in the linear allocation area and closes it.
-  void FreeLinearAllocationArea() override;
-
  private:
-  static const int kAllocationBufferParkingThreshold = 4 * KB;
-
   // Update linear allocation area to match the current to-space page.
   void UpdateLinearAllocationArea(Address known_top = 0);
-
-  base::Mutex mutex_;
-
-  // The top and the limit at the time of setting the linear allocation area.
-  // These values can be accessed by background tasks. Protected by
-  // pending_allocation_mutex_.
-  std::atomic<Address> original_top_;
-  std::atomic<Address> original_limit_;
-
-  // Protects original_top_ and original_limit_.
-  base::SharedMutex pending_allocation_mutex_;
 
   // The semispaces.
   SemiSpace to_space_;
   SemiSpace from_space_;
   VirtualMemory reservation_;
 
-  ParkedAllocationBuffersVector parked_allocation_buffers_;
-
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
                         AllocationOrigin origin,
                         int* out_max_aligned_size) final;
-  bool SupportsAllocationObserver() const override { return true; }
 
   friend class SemiSpaceObjectIterator;
 };

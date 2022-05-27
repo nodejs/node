@@ -335,7 +335,7 @@ void ProgramOptions::PrintHeader(std::ostream* stream) const {
 
 V8InitializationScope::V8InitializationScope(const char* exec_path)
     : platform_(v8::platform::NewDefaultPlatform()) {
-  i::FLAG_always_opt = false;
+  i::FLAG_always_turbofan = false;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_enable_lazy_source_positions = false;
 

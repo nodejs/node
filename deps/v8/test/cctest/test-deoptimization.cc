@@ -50,26 +50,26 @@ using ::v8::internal::JSFunction;
 
 // Utility class to set the following runtime flags when constructed and return
 // to their default state when destroyed:
-//   --allow-natives-syntax --always-opt --noturbo-inlining
+//   --allow-natives-syntax --always-turbofan --noturbo-inlining
 class AlwaysOptimizeAllowNativesSyntaxNoInlining {
  public:
   AlwaysOptimizeAllowNativesSyntaxNoInlining()
-      : always_opt_(i::FLAG_always_opt),
+      : always_turbofan_(i::FLAG_always_turbofan),
         allow_natives_syntax_(i::FLAG_allow_natives_syntax),
         turbo_inlining_(i::FLAG_turbo_inlining) {
-    i::FLAG_always_opt = true;
+    i::FLAG_always_turbofan = true;
     i::FLAG_allow_natives_syntax = true;
     i::FLAG_turbo_inlining = false;
   }
 
   ~AlwaysOptimizeAllowNativesSyntaxNoInlining() {
-    i::FLAG_always_opt = always_opt_;
+    i::FLAG_always_turbofan = always_turbofan_;
     i::FLAG_allow_natives_syntax = allow_natives_syntax_;
     i::FLAG_turbo_inlining = turbo_inlining_;
   }
 
  private:
-  bool always_opt_;
+  bool always_turbofan_;
   bool allow_natives_syntax_;
   bool turbo_inlining_;
 };
@@ -418,7 +418,7 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationADDString) {
     {
       // Compile function f and collect to type feedback to insert binary op
       // stub call in the optimized code.
-      i::FLAG_prepare_always_opt = true;
+      i::FLAG_prepare_always_turbofan = true;
       CompileRun(
           "var count = 0;"
           "var result = 0;"
@@ -434,7 +434,7 @@ UNINITIALIZED_TEST(DeoptimizeBinaryOperationADDString) {
           "};");
 
       // Compile an optimized version of f.
-      i::FLAG_always_opt = true;
+      i::FLAG_always_turbofan = true;
       CompileRun(f_source);
       CompileRun("f('a+', new X());");
       CHECK(!i_isolate->use_optimizer() ||
@@ -487,7 +487,7 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
   AllowNativesSyntaxNoInlining options;
   // Compile function f and collect to type feedback to insert binary op stub
   // call in the optimized code.
-  i::FLAG_prepare_always_opt = true;
+  i::FLAG_prepare_always_turbofan = true;
   CompileConstructorWithDeoptimizingValueOf();
   CompileRun(f_source);
   CompileRun("for (var i = 0; i < 5; i++) {"
@@ -495,7 +495,7 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
              "};");
 
   // Compile an optimized version of f.
-  i::FLAG_always_opt = true;
+  i::FLAG_always_turbofan = true;
   CompileRun(f_source);
   CompileRun("f(7, new X());");
   CHECK(!i_isolate->use_optimizer() ||
@@ -682,7 +682,7 @@ UNINITIALIZED_TEST(DeoptimizeCompare) {
       AllowNativesSyntaxNoInlining options;
       // Compile function f and collect to type feedback to insert compare ic
       // call in the optimized code.
-      i::FLAG_prepare_always_opt = true;
+      i::FLAG_prepare_always_turbofan = true;
       CompileRun(
           "var count = 0;"
           "var result = 0;"
@@ -698,7 +698,7 @@ UNINITIALIZED_TEST(DeoptimizeCompare) {
           "};");
 
       // Compile an optimized version of f.
-      i::FLAG_always_opt = true;
+      i::FLAG_always_turbofan = true;
       CompileRun(f_source);
       CompileRun("f('a', new X());");
       CHECK(!i_isolate->use_optimizer() ||
@@ -750,7 +750,7 @@ UNINITIALIZED_TEST(DeoptimizeLoadICStoreIC) {
       AllowNativesSyntaxNoInlining options;
       // Compile functions and collect to type feedback to insert ic
       // calls in the optimized code.
-      i::FLAG_prepare_always_opt = true;
+      i::FLAG_prepare_always_turbofan = true;
       CompileRun(
           "var count = 0;"
           "var result = 0;"
@@ -783,7 +783,7 @@ UNINITIALIZED_TEST(DeoptimizeLoadICStoreIC) {
           "};");
 
       // Compile an optimized version of the functions.
-      i::FLAG_always_opt = true;
+      i::FLAG_always_turbofan = true;
       CompileRun(f1_source);
       CompileRun(g1_source);
       CompileRun(f2_source);
@@ -851,7 +851,7 @@ UNINITIALIZED_TEST(DeoptimizeLoadICStoreICNested) {
       AllowNativesSyntaxNoInlining options;
       // Compile functions and collect to type feedback to insert ic
       // calls in the optimized code.
-      i::FLAG_prepare_always_opt = true;
+      i::FLAG_prepare_always_turbofan = true;
       CompileRun(
           "var count = 0;"
           "var result = 0;"
@@ -888,7 +888,7 @@ UNINITIALIZED_TEST(DeoptimizeLoadICStoreICNested) {
           "};");
 
       // Compile an optimized version of the functions.
-      i::FLAG_always_opt = true;
+      i::FLAG_always_turbofan = true;
       CompileRun(f1_source);
       CompileRun(g1_source);
       CompileRun(f2_source);

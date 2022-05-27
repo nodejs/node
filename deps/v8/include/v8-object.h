@@ -594,8 +594,6 @@ class V8_EXPORT Object : public Value {
   /**
    * Returns the context in which the object was created.
    */
-  V8_DEPRECATED("Use MaybeLocal<Context> GetCreationContext()")
-  Local<Context> CreationContext();
   MaybeLocal<Context> GetCreationContext();
 
   /**
@@ -604,10 +602,6 @@ class V8_EXPORT Object : public Value {
   Local<Context> GetCreationContextChecked();
 
   /** Same as above, but works for Persistents */
-  V8_DEPRECATED(
-      "Use MaybeLocal<Context> GetCreationContext(const "
-      "PersistentBase<Object>& object)")
-  static Local<Context> CreationContext(const PersistentBase<Object>& object);
   V8_INLINE static MaybeLocal<Context> GetCreationContext(
       const PersistentBase<Object>& object) {
     return object.val_->GetCreationContext();

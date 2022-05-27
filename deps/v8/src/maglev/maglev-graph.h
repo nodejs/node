@@ -41,15 +41,22 @@ class Graph final : public ZoneObject {
 
   void Add(BasicBlock* block) { blocks_.push_back(block); }
 
-  uint32_t stack_slots() const { return stack_slots_; }
-  void set_stack_slots(uint32_t stack_slots) {
-    DCHECK_EQ(kMaxUInt32, stack_slots_);
+  uint32_t tagged_stack_slots() const { return tagged_stack_slots_; }
+  uint32_t untagged_stack_slots() const { return untagged_stack_slots_; }
+  void set_tagged_stack_slots(uint32_t stack_slots) {
+    DCHECK_EQ(kMaxUInt32, tagged_stack_slots_);
     DCHECK_NE(kMaxUInt32, stack_slots);
-    stack_slots_ = stack_slots;
+    tagged_stack_slots_ = stack_slots;
+  }
+  void set_untagged_stack_slots(uint32_t stack_slots) {
+    DCHECK_EQ(kMaxUInt32, untagged_stack_slots_);
+    DCHECK_NE(kMaxUInt32, stack_slots);
+    untagged_stack_slots_ = stack_slots;
   }
 
  private:
-  uint32_t stack_slots_ = kMaxUInt32;
+  uint32_t tagged_stack_slots_ = kMaxUInt32;
+  uint32_t untagged_stack_slots_ = kMaxUInt32;
   ZoneVector<BasicBlock*> blocks_;
 };
 

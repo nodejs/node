@@ -292,7 +292,7 @@ void PPCDebugger::Debug() {
           } else if (strcmp(arg1, "allf") == 0) {
             for (int i = 0; i < DoubleRegister::kNumRegisters; i++) {
               dvalue = GetFPDoubleRegisterValue(i);
-              uint64_t as_words = bit_cast<uint64_t>(dvalue);
+              uint64_t as_words = base::bit_cast<uint64_t>(dvalue);
               PrintF("%3s: %f 0x%08x %08x\n",
                      RegisterName(DoubleRegister::from_code(i)), dvalue,
                      static_cast<uint32_t>(as_words >> 32),
@@ -315,7 +315,7 @@ void PPCDebugger::Debug() {
               PrintF("%s: 0x%08" V8PRIxPTR " %" V8PRIdPTR "\n", arg1, value,
                      value);
             } else if (GetFPDoubleValue(arg1, &dvalue)) {
-              uint64_t as_words = bit_cast<uint64_t>(dvalue);
+              uint64_t as_words = base::bit_cast<uint64_t>(dvalue);
               PrintF("%s: %f 0x%08x %08x\n", arg1, dvalue,
                      static_cast<uint32_t>(as_words >> 32),
                      static_cast<uint32_t>(as_words & 0xFFFFFFFF));
@@ -644,13 +644,13 @@ static bool AllOnOnePage(uintptr_t start, int size) {
 
 static bool is_snan(float input) {
   uint32_t kQuietNanFPBit = 1 << 22;
-  uint32_t InputAsUint = bit_cast<uint32_t>(input);
+  uint32_t InputAsUint = base::bit_cast<uint32_t>(input);
   return isnan(input) && ((InputAsUint & kQuietNanFPBit) == 0);
 }
 
 static bool is_snan(double input) {
   uint64_t kQuietNanDPBit = 1L << 51;
-  uint64_t InputAsUint = bit_cast<uint64_t>(input);
+  uint64_t InputAsUint = base::bit_cast<uint64_t>(input);
   return isnan(input) && ((InputAsUint & kQuietNanDPBit) == 0);
 }
 
@@ -1145,7 +1145,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         SimulatorRuntimeDirectGetterCall target =
             reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
         if (!ABI_PASSES_HANDLES_IN_REGS) {
-          arg[0] = bit_cast<intptr_t>(arg[0]);
+          arg[0] = base::bit_cast<intptr_t>(arg[0]);
         }
         target(arg[0], arg[1]);
       } else if (redirection->type() ==
@@ -1164,7 +1164,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         SimulatorRuntimeProfilingGetterCall target =
             reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
         if (!ABI_PASSES_HANDLES_IN_REGS) {
-          arg[0] = bit_cast<intptr_t>(arg[0]);
+          arg[0] = base::bit_cast<intptr_t>(arg[0]);
         }
         target(arg[0], arg[1], Redirection::ReverseRedirection(arg[2]));
       } else {
@@ -1550,7 +1550,8 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       // Read prefix value.
       uint64_t prefix_value = instr->Bits(17, 0);
       // Read suffix (next instruction).
-      Instruction* next_instr = bit_cast<Instruction*>(get_pc() + kInstrSize);
+      Instruction* next_instr =
+          base::bit_cast<Instruction*>(get_pc() + kInstrSize);
       uint16_t suffix_value = next_instr->Bits(15, 0);
       int64_t im_val = SIGN_EXT_IMM34((prefix_value << 16) | suffix_value);
       switch (next_instr->OpcodeBase()) {
@@ -1648,6 +1649,71 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
           intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
           int64_t dptr = ReadDW(ra_val + im_val);
           set_d_register(frt, dptr);
+          break;
+        }
+        // Prefixed STB.
+        case STB: {
+          int ra = next_instr->RAValue();
+          int rs = next_instr->RSValue();
+          intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+          WriteB(ra_val + im_val, get_register(rs));
+          break;
+        }
+        // Prefixed STH.
+        case STH: {
+          int ra = next_instr->RAValue();
+          int rs = next_instr->RSValue();
+          intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+          WriteH(ra_val + im_val, get_register(rs));
+          break;
+        }
+        // Prefixed STW.
+        case STW: {
+          int ra = next_instr->RAValue();
+          int rs = next_instr->RSValue();
+          intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+          WriteW(ra_val + im_val, get_register(rs));
+          break;
+        }
+        // Prefixed STD.
+        case PPSTD: {
+          int ra = next_instr->RAValue();
+          int rs = next_instr->RSValue();
+          intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+          WriteDW(ra_val + im_val, get_register(rs));
+          break;
+        }
+        // Prefixed STFS.
+        case STFS: {
+          int frs = next_instr->RSValue();
+          int ra = next_instr->RAValue();
+          intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+          float frs_val = static_cast<float>(get_double_from_d_register(frs));
+          int32_t* p;
+#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+          // Conversion using double changes sNan to qNan on ia32/x64
+          int32_t sval = 0;
+          int64_t dval = get_d_register(frs);
+          if ((dval & 0x7FF0000000000000) == 0x7FF0000000000000) {
+            sval = ((dval & 0xC000000000000000) >> 32) |
+                   ((dval & 0x07FFFFFFE0000000) >> 29);
+            p = &sval;
+          } else {
+            p = reinterpret_cast<int32_t*>(&frs_val);
+          }
+#else
+          p = reinterpret_cast<int32_t*>(&frs_val);
+#endif
+          WriteW(ra_val + im_val, *p);
+          break;
+        }
+        // Prefixed STFD.
+        case STFD: {
+          int frs = next_instr->RSValue();
+          int ra = next_instr->RAValue();
+          intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
+          int64_t frs_val = get_d_register(frs);
+          WriteDW(ra_val + im_val, frs_val);
           break;
         }
         default:
@@ -4155,7 +4221,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     case STVX: {
       DECODE_VX_INSTRUCTION(vrs, ra, rb, S)
       GET_ADDRESS(ra, rb, ra_val, rb_val)
-      __int128 vrs_val = bit_cast<__int128>(get_simd_register(vrs).int8);
+      __int128 vrs_val = base::bit_cast<__int128>(get_simd_register(vrs).int8);
       WriteQW((ra_val + rb_val) & 0xFFFFFFFFFFFFFFF0, vrs_val);
       break;
     }
@@ -4187,7 +4253,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       DECODE_VX_INSTRUCTION(vrs, ra, rb, S)
       GET_ADDRESS(ra, rb, ra_val, rb_val)
       intptr_t addr = ra_val + rb_val;
-      __int128 vrs_val = bit_cast<__int128>(get_simd_register(vrs).int8);
+      __int128 vrs_val = base::bit_cast<__int128>(get_simd_register(vrs).int8);
       WriteQW(addr, vrs_val);
       break;
     }
@@ -4242,9 +4308,9 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     case XXBRQ: {
       int t = instr->RTValue();
       int b = instr->RBValue();
-      __int128 xb_val = bit_cast<__int128>(get_simd_register(b).int8);
+      __int128 xb_val = base::bit_cast<__int128>(get_simd_register(b).int8);
       __int128 xb_val_reversed = __builtin_bswap128(xb_val);
-      simdr_t simdr_xb = bit_cast<simdr_t>(xb_val_reversed);
+      simdr_t simdr_xb = base::bit_cast<simdr_t>(xb_val_reversed);
       set_simd_register(t, simdr_xb);
       break;
     }
@@ -4887,9 +4953,9 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int b = instr->RBValue();
       uint64_t double_bits = get_d_register(b);
       // Value is at the high 32 bits of the register.
-      float f =
-          bit_cast<float, uint32_t>(static_cast<uint32_t>(double_bits >> 32));
-      double_bits = bit_cast<uint64_t, double>(static_cast<double>(f));
+      float f = base::bit_cast<float, uint32_t>(
+          static_cast<uint32_t>(double_bits >> 32));
+      double_bits = base::bit_cast<uint64_t, double>(static_cast<double>(f));
       // Preserve snan.
       if (is_snan(f)) {
         double_bits &= 0xFFF7FFFFFFFFFFFFU;  // Clear bit 51.
@@ -4902,7 +4968,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int b = instr->RBValue();
       double b_val = get_double_from_d_register(b);
       uint64_t float_bits = static_cast<uint64_t>(
-          bit_cast<uint32_t, float>(static_cast<float>(b_val)));
+          base::bit_cast<uint32_t, float>(static_cast<float>(b_val)));
       // Preserve snan.
       if (is_snan(b_val)) {
         float_bits &= 0xFFBFFFFFU;  // Clear bit 22.
@@ -5059,11 +5125,14 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int vra = instr->RAValue();
       int vrb = instr->RBValue();
       int vrc = instr->RCValue();
-      unsigned __int128 src_1 = bit_cast<__int128>(get_simd_register(vra).int8);
-      unsigned __int128 src_2 = bit_cast<__int128>(get_simd_register(vrb).int8);
-      unsigned __int128 src_3 = bit_cast<__int128>(get_simd_register(vrc).int8);
+      unsigned __int128 src_1 =
+          base::bit_cast<__int128>(get_simd_register(vra).int8);
+      unsigned __int128 src_2 =
+          base::bit_cast<__int128>(get_simd_register(vrb).int8);
+      unsigned __int128 src_3 =
+          base::bit_cast<__int128>(get_simd_register(vrc).int8);
       unsigned __int128 tmp = (src_1 & ~src_3) | (src_2 & src_3);
-      simdr_t* result = bit_cast<simdr_t*>(&tmp);
+      simdr_t* result = base::bit_cast<simdr_t*>(&tmp);
       set_simd_register(vrt, *result);
       break;
     }
@@ -5093,7 +5162,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       DECODE_VX_INSTRUCTION(t, a, b, T)
       uint16_t result_bits = 0;
       unsigned __int128 src_bits =
-          bit_cast<__int128>(get_simd_register(a).int8);
+          base::bit_cast<__int128>(get_simd_register(a).int8);
       for (int i = 0; i < kSimd128Size; i++) {
         result_bits <<= 1;
         uint8_t selected_bit_index = get_simd_register_by_lane<uint8_t>(b, i);
@@ -5372,7 +5441,7 @@ void Simulator::CallInternal(Address entry) {
   // Prepare to execute the code at entry
   if (ABI_USES_FUNCTION_DESCRIPTORS) {
     // entry is the function descriptor
-    set_pc(*(bit_cast<intptr_t*>(entry)));
+    set_pc(*(base::bit_cast<intptr_t*>(entry)));
   } else {
     // entry is the instruction address
     set_pc(static_cast<intptr_t>(entry));

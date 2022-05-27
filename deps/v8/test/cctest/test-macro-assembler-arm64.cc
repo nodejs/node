@@ -57,6 +57,8 @@ TEST(EmbeddedObj) {
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
                       buffer->CreateView());
 
+  AssemblerBufferWriteScope rw_scope(*buffer);
+
   Handle<HeapObject> old_array = isolate->factory()->NewFixedArray(2000);
   Handle<HeapObject> my_array = isolate->factory()->NewFixedArray(1000);
   __ Mov(w4, Immediate(my_array, RelocInfo::COMPRESSED_EMBEDDED_OBJECT));
@@ -99,6 +101,8 @@ TEST(DeoptExitSizeIsFixed) {
   auto buffer = AllocateAssemblerBuffer();
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
                       buffer->CreateView());
+
+  AssemblerBufferWriteScope rw_scope(*buffer);
 
   STATIC_ASSERT(static_cast<int>(kFirstDeoptimizeKind) == 0);
   for (int i = 0; i < kDeoptimizeKindCount; i++) {

@@ -45,7 +45,10 @@ enum BoundsCheckStrategy : int8_t {
   kNoBoundsChecks
 };
 
-enum class DynamicTiering { kEnabled, kDisabled };
+enum DynamicTiering : bool {
+  kDynamicTiering = true,
+  kNoDynamicTiering = false
+};
 
 // The {CompilationEnv} encapsulates the module data that is used during
 // compilation. CompilationEnvs are shareable across multiple compilations.

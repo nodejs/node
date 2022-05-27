@@ -236,6 +236,8 @@ class Expression : public AstNode {
   // True iff the expression is the null literal.
   bool IsNullLiteral() const;
 
+  bool IsBooleanLiteral() const;
+
   // True iff the expression is the hole literal.
   bool IsTheHoleLiteral() const;
 
@@ -953,6 +955,11 @@ class Literal final : public Expression {
   Smi AsSmiLiteral() const {
     DCHECK_EQ(kSmi, type());
     return Smi::FromInt(smi_);
+  }
+
+  bool AsBooleanLiteral() const {
+    DCHECK_EQ(kBoolean, type());
+    return boolean_;
   }
 
   // Returns true if literal represents a Number.
@@ -1963,6 +1970,7 @@ class CompareOperation final : public Expression {
 
   // Match special cases.
   bool IsLiteralCompareTypeof(Expression** expr, Literal** literal);
+  bool IsLiteralStrictCompareBoolean(Expression** expr, Literal** literal);
   bool IsLiteralCompareUndefined(Expression** expr);
   bool IsLiteralCompareNull(Expression** expr);
 

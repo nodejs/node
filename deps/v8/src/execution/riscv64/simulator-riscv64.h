@@ -101,8 +101,8 @@ using reg_t = uint64_t;
 #define zext_xlen(x) (((reg_t)(x) << (64 - xlen)) >> (64 - xlen))
 
 #define BIT(n) (0x1LL << n)
-#define QUIET_BIT_S(nan) (bit_cast<int32_t>(nan) & BIT(22))
-#define QUIET_BIT_D(nan) (bit_cast<int64_t>(nan) & BIT(51))
+#define QUIET_BIT_S(nan) (base::bit_cast<int32_t>(nan) & BIT(22))
+#define QUIET_BIT_D(nan) (base::bit_cast<int64_t>(nan) & BIT(51))
 static inline bool isSnan(float fp) { return !QUIET_BIT_S(fp); }
 static inline bool isSnan(double fp) { return !QUIET_BIT_D(fp); }
 #undef QUIET_BIT_S
@@ -157,7 +157,7 @@ inline double fsgnj64(double rs1, double rs2, bool n, bool x) {
 
 inline bool is_boxed_float(int64_t v) { return (uint32_t)((v >> 32) + 1) == 0; }
 inline int64_t box_float(float v) {
-  return (0xFFFFFFFF00000000 | bit_cast<int32_t>(v));
+  return (0xFFFFFFFF00000000 | base::bit_cast<int32_t>(v));
 }
 
 // -----------------------------------------------------------------------------

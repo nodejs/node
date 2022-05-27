@@ -221,7 +221,7 @@ Handle<BigInt> MutableBigInt::NewFromDouble(Isolate* isolate, double value) {
   if (value == 0) return Zero(isolate);
 
   bool sign = value < 0;  // -0 was already handled above.
-  uint64_t double_bits = bit_cast<uint64_t>(value);
+  uint64_t double_bits = base::bit_cast<uint64_t>(value);
   int raw_exponent =
       static_cast<int>(double_bits >> base::Double::kPhysicalSignificandSize) &
       0x7FF;
@@ -327,7 +327,7 @@ void MutableBigInt::Canonicalize(MutableBigInt result) {
       // We do not create a filler for objects in large object space.
       // TODO(hpayer): We should shrink the large object page if the size
       // of the object changed significantly.
-      heap->CreateFillerObjectAt(new_end, size_delta, ClearRecordedSlots::kNo);
+      heap->CreateFillerObjectAt(new_end, size_delta);
     }
     result.set_length(new_length, kReleaseStore);
 
@@ -833,7 +833,7 @@ ComparisonResult BigInt::CompareToDouble(Handle<BigInt> x, double y) {
     DCHECK(!y_sign);
     return ComparisonResult::kLessThan;
   }
-  uint64_t double_bits = bit_cast<uint64_t>(y);
+  uint64_t double_bits = base::bit_cast<uint64_t>(y);
   int raw_exponent =
       static_cast<int>(double_bits >> base::Double::kPhysicalSignificandSize) &
       0x7FF;
@@ -999,8 +999,8 @@ MaybeHandle<String> BigInt::ToString(Isolate* isolate, Handle<BigInt> bigint,
     int needed_size = SeqOneByteString::SizeFor(chars_written);
     if (needed_size < string_size && !isolate->heap()->IsLargeObject(*result)) {
       Address new_end = result->address() + needed_size;
-      isolate->heap()->CreateFillerObjectAt(
-          new_end, (string_size - needed_size), ClearRecordedSlots::kNo);
+      isolate->heap()->CreateFillerObjectAt(new_end,
+                                            (string_size - needed_size));
     }
   }
 #if DEBUG
@@ -1137,7 +1137,7 @@ double MutableBigInt::ToDouble(Handle<BigIntBase> x) {
   uint64_t sign_bit = x->sign() ? (static_cast<uint64_t>(1) << 63) : 0;
   exponent = (exponent + 0x3FF) << base::Double::kPhysicalSignificandSize;
   uint64_t double_bits = sign_bit | exponent | mantissa;
-  return bit_cast<double>(double_bits);
+  return base::bit_cast<double>(double_bits);
 }
 
 // This is its own function to simplify control flow. The meaning of the

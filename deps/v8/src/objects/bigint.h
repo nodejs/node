@@ -127,7 +127,7 @@ class FreshlyAllocatedBigInt : public BigIntBase {
  public:
   inline static FreshlyAllocatedBigInt cast(Object object);
   inline static FreshlyAllocatedBigInt unchecked_cast(Object o) {
-    return bit_cast<FreshlyAllocatedBigInt>(o);
+    return base::bit_cast<FreshlyAllocatedBigInt>(o);
   }
 
   // Clear uninitialized padding space.

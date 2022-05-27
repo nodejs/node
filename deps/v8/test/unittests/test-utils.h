@@ -11,8 +11,10 @@
 #include "include/libplatform/libplatform.h"
 #include "include/v8-array-buffer.h"
 #include "include/v8-context.h"
+#include "include/v8-extension.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-primitive.h"
+#include "include/v8-template.h"
 #include "src/api/api-inl.h"
 #include "src/base/macros.h"
 #include "src/base/utils/random-number-generator.h"
@@ -101,14 +103,48 @@ class WithIsolateScopeMixin : public TMixin {
     return reinterpret_cast<v8::internal::Isolate*>(this->v8_isolate());
   }
 
+  i::Handle<i::String> MakeName(const char* str, int suffix) {
+    v8::base::EmbeddedVector<char, 128> buffer;
+    v8::base::SNPrintF(buffer, "%s%d", str, suffix);
+    return MakeString(buffer.begin());
+  }
+
+  i::Handle<i::String> MakeString(const char* str) {
+    i::Factory* factory = i_isolate()->factory();
+    return factory->InternalizeUtf8String(str);
+  }
+
   Local<Value> RunJS(const char* source) {
     return RunJS(
         v8::String::NewFromUtf8(this->v8_isolate(), source).ToLocalChecked());
   }
 
+  MaybeLocal<Value> TryRunJS(const char* source) {
+    return TryRunJS(
+        v8::String::NewFromUtf8(this->v8_isolate(), source).ToLocalChecked());
+  }
+
+  static MaybeLocal<Value> TryRunJS(Isolate* isolate, Local<String> source) {
+    auto context = isolate->GetCurrentContext();
+    v8::Local<v8::Value> result;
+    Local<Script> script =
+        v8::Script::Compile(context, source).ToLocalChecked();
+    return script->Run(context);
+  }
+
   Local<Value> RunJS(v8::String::ExternalOneByteStringResource* source) {
     return RunJS(v8::String::NewExternalOneByte(this->v8_isolate(), source)
                      .ToLocalChecked());
+  }
+
+  Local<Script> CompileWithOrigin(Local<String> source,
+                                  Local<String> origin_url,
+                                  bool is_shared_cross_origin) {
+    Isolate* isolate = Isolate::GetCurrent();
+    ScriptOrigin origin(isolate, origin_url, 0, 0, is_shared_cross_origin);
+    ScriptCompiler::Source script_source(source, origin);
+    return ScriptCompiler::Compile(isolate->GetCurrentContext(), &script_source)
+        .ToLocalChecked();
   }
 
   void CollectGarbage(i::AllocationSpace space) {
@@ -137,10 +173,11 @@ class WithIsolateScopeMixin : public TMixin {
 
  private:
   Local<Value> RunJS(Local<String> source) {
-    auto context = this->v8_isolate()->GetCurrentContext();
-    Local<Script> script =
-        v8::Script::Compile(context, source).ToLocalChecked();
-    return script->Run(context).ToLocalChecked();
+    return TryRunJS(source).ToLocalChecked();
+  }
+
+  MaybeLocal<Value> TryRunJS(Local<String> source) {
+    return TryRunJS(this->v8_isolate(), source);
   }
 
   v8::Isolate::Scope isolate_scope_;
@@ -190,6 +227,62 @@ using TestWithContext =                    //
             WithIsolateMixin<              //
                 WithDefaultPlatformMixin<  //
                     ::testing::Test>>>>;
+
+class PrintExtension : public v8::Extension {
+ public:
+  PrintExtension() : v8::Extension("v8/print", "native function print();") {}
+  v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate, v8::Local<v8::String> name) override {
+    return v8::FunctionTemplate::New(isolate, PrintExtension::Print);
+  }
+  static void Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    for (int i = 0; i < args.Length(); i++) {
+      if (i != 0) printf(" ");
+      v8::HandleScope scope(args.GetIsolate());
+      v8::String::Utf8Value str(args.GetIsolate(), args[i]);
+      if (*str == nullptr) return;
+      printf("%s", *str);
+    }
+    printf("\n");
+  }
+};
+
+template <typename TMixin>
+class WithPrintExtensionMixin : public TMixin {
+ public:
+  WithPrintExtensionMixin() = default;
+  ~WithPrintExtensionMixin() override = default;
+  WithPrintExtensionMixin(const WithPrintExtensionMixin&) = delete;
+  WithPrintExtensionMixin& operator=(const WithPrintExtensionMixin&) = delete;
+
+  static void SetUpTestSuite() {
+    v8::RegisterExtension(std::make_unique<PrintExtension>());
+    TMixin::SetUpTestSuite();
+  }
+
+  static void TearDownTestSuite() { TMixin::TearDownTestSuite(); }
+
+  static constexpr const char* kPrintExtensionName = "v8/print";
+};
+
+// Run a ScriptStreamingTask in a separate thread.
+class StreamerThread : public v8::base::Thread {
+ public:
+  static void StartThreadForTaskAndJoin(
+      v8::ScriptCompiler::ScriptStreamingTask* task) {
+    StreamerThread thread(task);
+    CHECK(thread.Start());
+    thread.Join();
+  }
+
+  explicit StreamerThread(v8::ScriptCompiler::ScriptStreamingTask* task)
+      : Thread(Thread::Options()), task_(task) {}
+
+  void Run() override { task_->Run(); }
+
+ private:
+  v8::ScriptCompiler::ScriptStreamingTask* task_;
+};
 
 namespace internal {
 
@@ -322,6 +415,33 @@ class V8_NODISCARD ManualGCScope final : private SaveFlags {
  public:
   explicit ManualGCScope(i::Isolate* isolate);
   ~ManualGCScope() = default;
+};
+
+static inline uint16_t* AsciiToTwoByteString(const char* source) {
+  size_t array_length = strlen(source) + 1;
+  uint16_t* converted = NewArray<uint16_t>(array_length);
+  for (size_t i = 0; i < array_length; i++) converted[i] = source[i];
+  return converted;
+}
+
+class TestTransitionsAccessor : public TransitionsAccessor {
+ public:
+  TestTransitionsAccessor(Isolate* isolate, Map map)
+      : TransitionsAccessor(isolate, map) {}
+  TestTransitionsAccessor(Isolate* isolate, Handle<Map> map)
+      : TransitionsAccessor(isolate, *map) {}
+
+  // Expose internals for tests.
+  bool IsUninitializedEncoding() { return encoding() == kUninitialized; }
+  bool IsWeakRefEncoding() { return encoding() == kWeakRef; }
+
+  bool IsFullTransitionArrayEncoding() {
+    return encoding() == kFullTransitionArray;
+  }
+
+  int Capacity() { return TransitionsAccessor::Capacity(); }
+
+  TransitionArray transitions() { return TransitionsAccessor::transitions(); }
 };
 
 }  // namespace internal

@@ -150,10 +150,6 @@ class Symbol;
   V(Map, shared_string_map, SharedStringMap)                                   \
   V(Map, shared_thin_one_byte_string_map, SharedThinOneByteStringMap)          \
   V(Map, shared_thin_string_map, SharedThinStringMap)                          \
-  V(Map, seq_string_migration_sentinel_map,                                    \
-    TwoByteSeqStringMigrationSentinelMap)                                      \
-  V(Map, one_byte_seq_string_migration_sentinel_map,                           \
-    OneByteSeqStringMigrationSentinelMap)                                      \
   /* Oddball maps */                                                           \
   V(Map, undefined_map, UndefinedMap)                                          \
   V(Map, the_hole_map, TheHoleMap)                                             \
@@ -292,7 +288,13 @@ class Symbol;
     PromiseThrowerFinallySharedFun)                                            \
   V(SharedFunctionInfo, promise_value_thunk_finally_shared_fun,                \
     PromiseValueThunkFinallySharedFun)                                         \
-  V(SharedFunctionInfo, proxy_revoke_shared_fun, ProxyRevokeSharedFun)
+  V(SharedFunctionInfo, proxy_revoke_shared_fun, ProxyRevokeSharedFun)         \
+  V(SharedFunctionInfo, shadow_realm_import_value_fulfilled_sfi,               \
+    ShadowRealmImportValueFulfilledSFI)                                        \
+  V(SharedFunctionInfo, source_text_module_execute_async_module_fulfilled_sfi, \
+    SourceTextModuleExecuteAsyncModuleFulfilledSFI)                            \
+  V(SharedFunctionInfo, source_text_module_execute_async_module_rejected_sfi,  \
+    SourceTextModuleExecuteAsyncModuleRejectedSFI)
 
 // These root references can be updated by the mutator.
 #define STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)                                 \

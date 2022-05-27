@@ -116,8 +116,8 @@ MaybeHandle<Object> JSReceiver::GetProperty(Isolate* isolate,
 
 // static
 V8_WARN_UNUSED_RESULT MaybeHandle<FixedArray> JSReceiver::OwnPropertyKeys(
-    Handle<JSReceiver> object) {
-  return KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly,
+    Isolate* isolate, Handle<JSReceiver> object) {
+  return KeyAccumulator::GetKeys(isolate, object, KeyCollectionMode::kOwnOnly,
                                  ALL_PROPERTIES,
                                  GetKeysConversion::kConvertToString);
 }
@@ -458,12 +458,13 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
   FieldIndex index = FieldIndex::ForDescriptor(map(), descriptor);
   if (details.representation().IsDouble()) {
     // Manipulating the signaling NaN used for the hole and uninitialized
-    // double field sentinel in C++, e.g. with bit_cast or value()/set_value(),
-    // will change its value on ia32 (the x87 stack is used to return values
-    // and stores to the stack silently clear the signalling bit).
+    // double field sentinel in C++, e.g. with base::bit_cast or
+    // value()/set_value(), will change its value on ia32 (the x87 stack is used
+    // to return values and stores to the stack silently clear the signalling
+    // bit).
     uint64_t bits;
     if (value.IsSmi()) {
-      bits = bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(value)));
+      bits = base::bit_cast<uint64_t>(static_cast<double>(Smi::ToInt(value)));
     } else if (value.IsUninitialized()) {
       bits = kHoleNanInt64;
     } else {

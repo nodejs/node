@@ -163,7 +163,9 @@ int InspectorIsolateData::ConnectSession(
     v8_inspector::V8Inspector::Channel* channel) {
   v8::SealHandleScope seal_handle_scope(isolate());
   int session_id = ++last_session_id_;
-  sessions_[session_id] = inspector_->connect(context_group_id, channel, state);
+  sessions_[session_id] =
+      inspector_->connect(context_group_id, channel, state,
+                          v8_inspector::V8Inspector::kFullyTrusted);
   context_group_by_session_[sessions_[session_id].get()] = context_group_id;
   return session_id;
 }

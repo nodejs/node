@@ -1571,7 +1571,7 @@ class DictionaryElementsAccessor
     if (filter != ALL_PROPERTIES) {
       PropertyDetails details = dictionary.DetailsAt(entry);
       PropertyAttributes attr = details.attributes();
-      if ((attr & filter) != 0) return InternalIndex::NotFound();
+      if ((int{attr} & filter) != 0) return InternalIndex::NotFound();
     }
     return entry;
   }
@@ -1592,7 +1592,7 @@ class DictionaryElementsAccessor
     DCHECK_LE(raw_key.Number(), kMaxUInt32);
     PropertyDetails details = dictionary->DetailsAt(entry);
     PropertyAttributes attr = details.attributes();
-    if ((attr & filter) != 0) return kMaxUInt32;
+    if ((int{attr} & filter) != 0) return kMaxUInt32;
     return static_cast<uint32_t>(raw_key.Number());
   }
 

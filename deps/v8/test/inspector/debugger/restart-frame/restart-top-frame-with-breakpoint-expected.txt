@@ -1,0 +1,15 @@
+Checks that restarting the top frame works with breakpoints
+Paused at (after evaluation):
+  const x = 1;
+  const y = #2;
+}
+
+Pause stack:
+  foo:3 (canBeRestarted = true)
+
+Restarting function "foo" ...
+Failed to restart function "foo":
+{
+    code : -32000
+    message : Frame restarting not supported
+}

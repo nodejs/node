@@ -39,4 +39,6 @@ extern class WeakCell extends HeapObject {
   key_list_next: Undefined|WeakCell;
 }
 
-extern class JSWeakRef extends JSObject { target: Undefined|JSReceiver; }
+extern class JSWeakRef extends JSObject {
+  target: Undefined|JSReceiver;
+}

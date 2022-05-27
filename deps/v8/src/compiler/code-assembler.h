@@ -523,18 +523,19 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Int32T> Int32Constant(int32_t value);
   TNode<Int64T> Int64Constant(int64_t value);
   TNode<Uint64T> Uint64Constant(uint64_t value) {
-    return Unsigned(Int64Constant(bit_cast<int64_t>(value)));
+    return Unsigned(Int64Constant(base::bit_cast<int64_t>(value)));
   }
   TNode<IntPtrT> IntPtrConstant(intptr_t value);
   TNode<Uint32T> Uint32Constant(uint32_t value) {
-    return Unsigned(Int32Constant(bit_cast<int32_t>(value)));
+    return Unsigned(Int32Constant(base::bit_cast<int32_t>(value)));
   }
   TNode<UintPtrT> UintPtrConstant(uintptr_t value) {
-    return Unsigned(IntPtrConstant(bit_cast<intptr_t>(value)));
+    return Unsigned(IntPtrConstant(base::bit_cast<intptr_t>(value)));
   }
   TNode<TaggedIndex> TaggedIndexConstant(intptr_t value);
   TNode<RawPtrT> PointerConstant(void* value) {
-    return ReinterpretCast<RawPtrT>(IntPtrConstant(bit_cast<intptr_t>(value)));
+    return ReinterpretCast<RawPtrT>(
+        IntPtrConstant(base::bit_cast<intptr_t>(value)));
   }
   TNode<Number> NumberConstant(double value);
   TNode<Smi> SmiConstant(Smi value);

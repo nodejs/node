@@ -49,7 +49,7 @@ class Arm64OperandGenerator final : public OperandGenerator {
   InstructionOperand UseRegisterOrImmediateZero(Node* node) {
     if ((IsIntegerConstant(node) && (GetIntegerConstantValue(node) == 0)) ||
         (IsFloatConstant(node) &&
-         (bit_cast<int64_t>(GetFloatConstantValue(node)) == 0))) {
+         (base::bit_cast<int64_t>(GetFloatConstantValue(node)) == 0))) {
       return UseImmediate(node);
     }
     return UseRegister(node);
@@ -847,6 +847,7 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kArm64LdrQ;
       immediate_mode = kNoImmediate;
       break;
+    case MachineRepresentation::kSimd256:  // Fall through.
     case MachineRepresentation::kMapWord:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
@@ -955,6 +956,7 @@ void InstructionSelector::VisitStore(Node* node) {
         opcode = kArm64StrQ;
         immediate_mode = kNoImmediate;
         break;
+      case MachineRepresentation::kSimd256:  // Fall through.
       case MachineRepresentation::kMapWord:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
@@ -2071,6 +2073,11 @@ void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
   Emit(opcode, g.DefineAsFixed(node, d0), g.UseFixed(node->InputAt(0), d0))
       ->MarkAsCall();
 }
+
+void InstructionSelector::EmitMoveParamToFPR(Node* node, int index) {}
+
+void InstructionSelector::EmitMoveFPRToParam(InstructionOperand* op,
+                                             LinkageLocation location) {}
 
 void InstructionSelector::EmitPrepareArguments(
     ZoneVector<PushParameter>* arguments, const CallDescriptor* call_descriptor,
@@ -3472,8 +3479,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F64x2PromoteLowF32x4, kArm64F64x2PromoteLowF32x4)           \
   V(F32x4SConvertI32x4, kArm64F32x4SConvertI32x4)               \
   V(F32x4UConvertI32x4, kArm64F32x4UConvertI32x4)               \
-  V(F32x4RecipApprox, kArm64F32x4RecipApprox)                   \
-  V(F32x4RecipSqrtApprox, kArm64F32x4RecipSqrtApprox)           \
   V(F32x4DemoteF64x2Zero, kArm64F32x4DemoteF64x2Zero)           \
   V(I64x2BitMask, kArm64I64x2BitMask)                           \
   V(I32x4SConvertF32x4, kArm64I32x4SConvertF32x4)               \
@@ -3530,19 +3535,17 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I8x16ShrS, 8)             \
   V(I8x16ShrU, 8)
 
-#define SIMD_BINOP_LIST(V)                              \
-  V(I32x4Mul, kArm64I32x4Mul)                           \
-  V(I32x4DotI16x8S, kArm64I32x4DotI16x8S)               \
-  V(I16x8SConvertI32x4, kArm64I16x8SConvertI32x4)       \
-  V(I16x8Mul, kArm64I16x8Mul)                           \
-  V(I16x8UConvertI32x4, kArm64I16x8UConvertI32x4)       \
-  V(I16x8Q15MulRSatS, kArm64I16x8Q15MulRSatS)           \
-  V(I8x16SConvertI16x8, kArm64I8x16SConvertI16x8)       \
-  V(I8x16UConvertI16x8, kArm64I8x16UConvertI16x8)       \
-  V(S128And, kArm64S128And)                             \
-  V(S128Or, kArm64S128Or)                               \
-  V(S128Xor, kArm64S128Xor)                             \
-  V(S128AndNot, kArm64S128AndNot)
+#define SIMD_BINOP_LIST(V)                        \
+  V(I32x4Mul, kArm64I32x4Mul)                     \
+  V(I32x4DotI16x8S, kArm64I32x4DotI16x8S)         \
+  V(I16x8SConvertI32x4, kArm64I16x8SConvertI32x4) \
+  V(I16x8Mul, kArm64I16x8Mul)                     \
+  V(I16x8UConvertI32x4, kArm64I16x8UConvertI32x4) \
+  V(I16x8Q15MulRSatS, kArm64I16x8Q15MulRSatS)     \
+  V(I8x16SConvertI16x8, kArm64I8x16SConvertI16x8) \
+  V(I8x16UConvertI16x8, kArm64I8x16UConvertI16x8) \
+  V(S128Or, kArm64S128Or)                         \
+  V(S128Xor, kArm64S128Xor)
 
 #define SIMD_BINOP_LANE_SIZE_LIST(V)                   \
   V(F64x2Min, kArm64FMin, 64)                          \
@@ -3605,6 +3608,108 @@ void InstructionSelector::VisitS128Const(Node* node) {
     Emit(kArm64S128Const, g.DefineAsRegister(node), g.UseImmediate(val[0]),
          g.UseImmediate(val[1]), g.UseImmediate(val[2]),
          g.UseImmediate(val[3]));
+  }
+}
+
+namespace {
+
+struct BicImmParam {
+  BicImmParam(uint32_t imm, uint8_t lane_size, uint8_t shift_amount)
+      : imm(imm), lane_size(lane_size), shift_amount(shift_amount) {}
+  uint8_t imm;
+  uint8_t lane_size;
+  uint8_t shift_amount;
+};
+
+struct BicImmResult {
+  BicImmResult(base::Optional<BicImmParam> param, Node* const_node,
+               Node* other_node)
+      : param(param), const_node(const_node), other_node(other_node) {}
+  base::Optional<BicImmParam> param;
+  Node* const_node;
+  Node* other_node;
+};
+
+base::Optional<BicImmParam> BicImm16bitHelper(uint16_t val) {
+  uint8_t byte0 = val & 0xFF;
+  uint8_t byte1 = val >> 8;
+  // Cannot use Bic if both bytes are not 0x00
+  if (byte0 == 0x00) {
+    return BicImmParam(byte1, 16, 8);
+  }
+  if (byte1 == 0x00) {
+    return BicImmParam(byte0, 16, 0);
+  }
+  return base::nullopt;
+}
+
+base::Optional<BicImmParam> BicImm32bitHelper(uint32_t val) {
+  for (int i = 0; i < 4; i++) {
+    // All bytes are 0 but one
+    if ((val & (0xFF << (8 * i))) == val) {
+      return BicImmParam(static_cast<uint8_t>(val >> i * 8), 32, i * 8);
+    }
+  }
+  // Low and high 2 bytes are equal
+  if ((val >> 16) == (0xFFFF & val)) {
+    return BicImm16bitHelper(0xFFFF & val);
+  }
+  return base::nullopt;
+}
+
+base::Optional<BicImmParam> BicImmConstHelper(Node* const_node, bool not_imm) {
+  const int kUint32Immediates = 4;
+  uint32_t val[kUint32Immediates];
+  STATIC_ASSERT(sizeof(val) == kSimd128Size);
+  memcpy(val, S128ImmediateParameterOf(const_node->op()).data(), kSimd128Size);
+  // If 4 uint32s are not the same, cannot emit Bic
+  if (!(val[0] == val[1] && val[1] == val[2] && val[2] == val[3])) {
+    return base::nullopt;
+  }
+  return BicImm32bitHelper(not_imm ? ~val[0] : val[0]);
+}
+
+base::Optional<BicImmResult> BicImmHelper(Node* or_node, bool not_imm) {
+  Node* left = or_node->InputAt(0);
+  Node* right = or_node->InputAt(1);
+  if (left->opcode() == IrOpcode::kS128Const) {
+    return BicImmResult(BicImmConstHelper(left, not_imm), left, right);
+  }
+  if (right->opcode() == IrOpcode::kS128Const) {
+    return BicImmResult(BicImmConstHelper(right, not_imm), right, left);
+  }
+  return base::nullopt;
+}
+
+bool TryEmitS128AndNotImm(InstructionSelector* selector, Node* node,
+                          bool not_imm) {
+  Arm64OperandGenerator g(selector);
+  base::Optional<BicImmResult> result = BicImmHelper(node, not_imm);
+  if (!result.has_value()) return false;
+  base::Optional<BicImmParam> param = result->param;
+  if (param.has_value()) {
+    if (selector->CanCover(node, result->other_node)) {
+      selector->Emit(
+          kArm64S128AndNot | LaneSizeField::encode(param->lane_size),
+          g.DefineSameAsFirst(node), g.UseRegister(result->other_node),
+          g.UseImmediate(param->imm), g.UseImmediate(param->shift_amount));
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
+void InstructionSelector::VisitS128AndNot(Node* node) {
+  if (!TryEmitS128AndNotImm(this, node, false)) {
+    VisitRRR(this, kArm64S128AndNot, node);
+  }
+}
+
+void InstructionSelector::VisitS128And(Node* node) {
+  if (!TryEmitS128AndNotImm(this, node, true)) {
+    VisitRRR(this, kArm64S128And, node);
   }
 }
 

@@ -40,6 +40,9 @@ class BaselineAssembler {
   inline void Trap();
   inline void DebugBreak();
 
+  template <typename Field>
+  inline void DecodeField(Register reg);
+
   inline void Bind(Label* label);
   // Binds the label without marking it as a valid jump target.
   // This is only useful, when the position is already marked as a valid jump
@@ -166,6 +169,13 @@ class BaselineAssembler {
   inline void LoadFixedArrayElement(Register output, Register array,
                                     int32_t index);
   inline void LoadPrototype(Register prototype, Register object);
+
+  // Falls through and sets scratch_and_result to 0 on failure, jumps to
+  // on_result on success.
+  inline void TryLoadOptimizedOsrCode(Register scratch_and_result,
+                                      Register feedback_vector,
+                                      FeedbackSlot slot, Label* on_result,
+                                      Label::Distance distance);
 
   // Loads the feedback cell from the function, and sets flags on add so that
   // we can compare afterward.

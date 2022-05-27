@@ -268,8 +268,6 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
 
   MaybeHandle<Map> GetInPlaceInternalizedStringMap(Map from_string_map);
 
-  Handle<Map> GetStringMigrationSentinelMap(InstanceType from_string_type);
-
   AllocationType RefineAllocationTypeForInPlaceInternalizableString(
       AllocationType allocation, Map string_map);
 

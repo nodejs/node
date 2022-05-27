@@ -920,30 +920,35 @@ void SourceTextModule::ExecuteAsyncModule(Isolate* isolate,
   // 4. Let capability be ! NewPromiseCapability(%Promise%).
   Handle<JSPromise> capability = isolate->factory()->NewJSPromise();
 
+  Handle<Context> execute_async_module_context =
+      isolate->factory()->NewBuiltinContext(
+          isolate->native_context(),
+          ExecuteAsyncModuleContextSlots::kContextLength);
+  execute_async_module_context->set(ExecuteAsyncModuleContextSlots::kModule,
+                                    *module);
+
   // 5. Let stepsFulfilled be the steps of a CallAsyncModuleFulfilled
-  Handle<JSFunction> steps_fulfilled(
-      isolate->native_context()->call_async_module_fulfilled(), isolate);
-
-  base::ScopedVector<Handle<Object>> empty_argv(0);
-
   // 6. Let onFulfilled be CreateBuiltinFunction(stepsFulfilled,
   //                                             «[[Module]]»).
   // 7. Set onFulfilled.[[Module]] to module.
-  Handle<JSBoundFunction> on_fulfilled =
-      isolate->factory()
-          ->NewJSBoundFunction(steps_fulfilled, module, empty_argv)
-          .ToHandleChecked();
+  Handle<JSFunction> on_fulfilled =
+      Factory::JSFunctionBuilder{
+          isolate,
+          isolate->factory()
+              ->source_text_module_execute_async_module_fulfilled_sfi(),
+          execute_async_module_context}
+          .Build();
 
   // 8. Let stepsRejected be the steps of a CallAsyncModuleRejected.
-  Handle<JSFunction> steps_rejected(
-      isolate->native_context()->call_async_module_rejected(), isolate);
-
   // 9. Let onRejected be CreateBuiltinFunction(stepsRejected, «[[Module]]»).
   // 10. Set onRejected.[[Module]] to module.
-  Handle<JSBoundFunction> on_rejected =
-      isolate->factory()
-          ->NewJSBoundFunction(steps_rejected, module, empty_argv)
-          .ToHandleChecked();
+  Handle<JSFunction> on_rejected =
+      Factory::JSFunctionBuilder{
+          isolate,
+          isolate->factory()
+              ->source_text_module_execute_async_module_rejected_sfi(),
+          execute_async_module_context}
+          .Build();
 
   // 11. Perform ! PerformPromiseThen(capability.[[Promise]],
   //                                  onFulfilled, onRejected).

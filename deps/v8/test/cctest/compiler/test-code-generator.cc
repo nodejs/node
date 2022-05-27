@@ -16,8 +16,8 @@
 #include "src/objects/smi.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
-#include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/function-tester.h"
+#include "test/cctest/compiler/test-codegen.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler.h"
@@ -998,13 +998,14 @@ class CodeGeneratorTester {
       i++;
     }
 
-    static constexpr size_t kMaxUnoptimizedFrameHeight = 0;
-    static constexpr size_t kMaxPushedArgumentCount = 0;
+    constexpr size_t kMaxUnoptimizedFrameHeight = 0;
+    constexpr size_t kMaxPushedArgumentCount = 0;
+    constexpr wasm::AssemblerBufferCache* kNoBufferCache = nullptr;
     generator_ = new CodeGenerator(
         environment->main_zone(), &frame_, &linkage_,
         environment->instructions(), &info_, environment->main_isolate(),
         base::Optional<OsrHelper>(), kNoSourcePosition, nullptr,
-        AssemblerOptions::Default(environment->main_isolate()),
+        AssemblerOptions::Default(environment->main_isolate()), kNoBufferCache,
         Builtin::kNoBuiltinId, kMaxUnoptimizedFrameHeight,
         kMaxPushedArgumentCount);
 
@@ -1078,9 +1079,11 @@ class CodeGeneratorTester {
 #if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_S390) || \
     defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64)
     // Only folding register pushes is supported on ARM.
-    bool supported = ((push_type & CodeGenerator::kRegisterPush) == push_type);
+    bool supported =
+        ((int{push_type} & CodeGenerator::kRegisterPush) == push_type);
 #elif defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
-    bool supported = ((push_type & CodeGenerator::kScalarPush) == push_type);
+    bool supported =
+        ((int{push_type} & CodeGenerator::kScalarPush) == push_type);
 #else
     bool supported = false;
 #endif

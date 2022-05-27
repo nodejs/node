@@ -2202,6 +2202,11 @@ TNode<MaybeObject> CodeStubAssembler::MakeWeak(TNode<HeapObject> value) {
       WordOr(BitcastTaggedToWord(value), IntPtrConstant(kWeakHeapObjectTag))));
 }
 
+TNode<MaybeObject> CodeStubAssembler::ClearedValue() {
+  return ReinterpretCast<MaybeObject>(
+      BitcastWordToTagged(IntPtrConstant(kClearedWeakHeapObjectLower32)));
+}
+
 template <>
 TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(TNode<FixedArray> array) {
   return LoadAndUntagFixedArrayBaseLength(array);
@@ -5137,8 +5142,8 @@ void CodeStubAssembler::CopyFixedArrayElements(
     if (if_hole == &store_double_hole) {
       BIND(&store_double_hole);
       // Don't use doubles to store the hole double, since manipulating the
-      // signaling NaN used for the hole in C++, e.g. with bit_cast, will
-      // change its value on ia32 (the x87 stack is used to return values
+      // signaling NaN used for the hole in C++, e.g. with base::bit_cast,
+      // will change its value on ia32 (the x87 stack is used to return values
       // and stores to the stack silently clear the signalling bit).
       //
       // TODO(danno): When we have a Float32/Float64 wrapper class that
@@ -6165,6 +6170,12 @@ void CodeStubAssembler::SetPendingMessage(TNode<HeapObject> message) {
   StoreFullTaggedNoWriteBarrier(pending_message, message);
 }
 
+TNode<BoolT> CodeStubAssembler::IsExecutionTerminating() {
+  TNode<HeapObject> pending_message = GetPendingMessage();
+  return TaggedEqual(pending_message,
+                     LoadRoot(RootIndex::kTerminationException));
+}
+
 TNode<BoolT> CodeStubAssembler::InstanceTypeEqual(TNode<Int32T> instance_type,
                                                   int type) {
   return Word32Equal(instance_type, Int32Constant(type));
@@ -6518,6 +6529,10 @@ TNode<BoolT> CodeStubAssembler::IsJSProxy(TNode<HeapObject> object) {
 
 TNode<BoolT> CodeStubAssembler::IsJSStringIterator(TNode<HeapObject> object) {
   return HasInstanceType(object, JS_STRING_ITERATOR_TYPE);
+}
+
+TNode<BoolT> CodeStubAssembler::IsJSShadowRealm(TNode<HeapObject> object) {
+  return HasInstanceType(object, JS_SHADOW_REALM_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSRegExpStringIterator(
@@ -8071,8 +8086,10 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
 
     BIND(&if_string);
     {
-      Label if_thinstring(this), if_has_cached_index(this);
+      Label if_thinstring(this), if_has_cached_index(this),
+          if_forwarding_index(this);
 
+      // TODO(v8:12007): LoadNameRawHashField() should be an acquire load.
       TNode<Uint32T> raw_hash_field = LoadNameRawHashField(CAST(key));
       GotoIf(IsClearWord32(raw_hash_field,
                            Name::kDoesNotContainCachedArrayIndexMask),
@@ -8088,6 +8105,12 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
       GotoIf(InstanceTypeEqual(var_instance_type.value(),
                                THIN_ONE_BYTE_STRING_TYPE),
              &if_thinstring);
+
+      // Check if the hash field encodes a string forwarding index.
+      GotoIf(IsEqualInWord32<Name::HashFieldTypeBits>(
+                 raw_hash_field, Name::HashFieldType::kForwardingIndex),
+             &if_forwarding_index);
+
       // Finally, check if |key| is internalized.
       STATIC_ASSERT(kNotInternalizedTag != 0);
       GotoIf(IsSetWord32(var_instance_type.value(), kIsNotInternalizedMask),
@@ -8100,6 +8123,21 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
       {
         *var_unique =
             LoadObjectField<String>(CAST(key), ThinString::kActualOffset);
+        Goto(if_keyisunique);
+      }
+      BIND(&if_forwarding_index);
+      {
+        TNode<ExternalReference> function =
+            ExternalConstant(ExternalReference::string_from_forward_table());
+        const TNode<ExternalReference> isolate_ptr =
+            ExternalConstant(ExternalReference::isolate_address(isolate()));
+        TNode<Object> result = CAST(CallCFunction(
+            function, MachineType::AnyTagged(),
+            std::make_pair(MachineType::Pointer(), isolate_ptr),
+            std::make_pair(MachineType::Int32(),
+                           DecodeWord32<Name::HashBits>(raw_hash_field))));
+
+        *var_unique = CAST(result);
         Goto(if_keyisunique);
       }
 
@@ -10446,20 +10484,28 @@ TNode<HeapObject> CodeStubAssembler::LoadFeedbackCellValue(
 
 TNode<HeapObject> CodeStubAssembler::LoadFeedbackVector(
     TNode<JSFunction> closure) {
-  TVARIABLE(HeapObject, maybe_vector, LoadFeedbackCellValue(closure));
-  Label done(this);
+  TVARIABLE(HeapObject, maybe_vector);
+  Label if_no_feedback_vector(this), out(this);
 
+  maybe_vector = LoadFeedbackVector(closure, &if_no_feedback_vector);
+  Goto(&out);
+
+  BIND(&if_no_feedback_vector);
   // If the closure doesn't have a feedback vector allocated yet, return
-  // undefined. FeedbackCell can contain Undefined / FixedArray (for lazy
+  // undefined. The FeedbackCell can contain Undefined / FixedArray (for lazy
   // allocations) / FeedbackVector.
-  GotoIf(IsFeedbackVector(maybe_vector.value()), &done);
-
-  // In all other cases return Undefined.
   maybe_vector = UndefinedConstant();
-  Goto(&done);
+  Goto(&out);
 
-  BIND(&done);
+  BIND(&out);
   return maybe_vector.value();
+}
+
+TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVector(
+    TNode<JSFunction> closure, Label* if_no_feedback_vector) {
+  TNode<HeapObject> maybe_vector = LoadFeedbackCellValue(closure);
+  GotoIfNot(IsFeedbackVector(maybe_vector), if_no_feedback_vector);
+  return CAST(maybe_vector);
 }
 
 TNode<ClosureFeedbackCellArray> CodeStubAssembler::LoadClosureFeedbackArray(
@@ -14265,7 +14311,7 @@ TNode<BoolT> CodeStubAssembler::IsJSArrayBufferViewDetachedOrOutOfBoundsBoolean(
 }
 
 void CodeStubAssembler::CheckJSTypedArrayIndex(
-    TNode<UintPtrT> index, TNode<JSTypedArray> typed_array,
+    TNode<JSTypedArray> typed_array, TNode<UintPtrT> index,
     Label* detached_or_out_of_bounds) {
   TNode<UintPtrT> len = LoadJSTypedArrayLengthAndCheckDetached(
       typed_array, detached_or_out_of_bounds);
@@ -14551,6 +14597,22 @@ TNode<BoolT> CodeStubAssembler::IsElementsKindLessThanOrEqual(
   return Int32LessThanOrEqual(target_kind, Int32Constant(reference_kind));
 }
 
+TNode<Int32T> CodeStubAssembler::GetNonRabGsabElementsKind(
+    TNode<Int32T> elements_kind) {
+  Label is_rab_gsab(this), end(this);
+  TVARIABLE(Int32T, result);
+  result = elements_kind;
+  Branch(Int32GreaterThanOrEqual(elements_kind,
+                                 Int32Constant(RAB_GSAB_UINT8_ELEMENTS)),
+         &is_rab_gsab, &end);
+  BIND(&is_rab_gsab);
+  result = Int32Sub(elements_kind,
+                    Int32Constant(RAB_GSAB_UINT8_ELEMENTS - UINT8_ELEMENTS));
+  Goto(&end);
+  BIND(&end);
+  return result.value();
+}
+
 TNode<BoolT> CodeStubAssembler::IsDebugActive() {
   TNode<Uint8T> is_debug_active = Load<Uint8T>(
       ExternalConstant(ExternalReference::debug_is_active_address(isolate())));
@@ -14772,6 +14834,12 @@ TNode<RawPtrT> CodeStubAssembler::GetCodeEntry(TNode<CodeT> code) {
   return ReinterpretCast<RawPtrT>(
       IntPtrAdd(object, IntPtrConstant(Code::kHeaderSize - kHeapObjectTag)));
 #endif
+}
+
+TNode<BoolT> CodeStubAssembler::IsMarkedForDeoptimization(TNode<CodeT> codet) {
+  return IsSetWord32<Code::MarkedForDeoptimizationField>(
+      LoadObjectField<Int32T>(CodeDataContainerFromCodeT(codet),
+                              CodeDataContainer::kKindSpecificFlagsOffset));
 }
 
 TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(

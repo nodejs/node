@@ -171,8 +171,8 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (FLAG_debug_code) {
-    li(value, Operand(bit_cast<int64_t>(kZapValue + 4)));
-    li(dst, Operand(bit_cast<int64_t>(kZapValue + 8)));
+    li(value, Operand(base::bit_cast<int64_t>(kZapValue + 4)));
+    li(dst, Operand(base::bit_cast<int64_t>(kZapValue + 8)));
   }
 }
 
@@ -326,9 +326,9 @@ void MacroAssembler::RecordWrite(Register object, Register address,
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (FLAG_debug_code) {
-    li(address, Operand(bit_cast<int64_t>(kZapValue + 12)));
-    li(value, Operand(bit_cast<int64_t>(kZapValue + 16)));
-    li(slot_address, Operand(bit_cast<int64_t>(kZapValue + 20)));
+    li(address, Operand(base::bit_cast<int64_t>(kZapValue + 12)));
+    li(value, Operand(base::bit_cast<int64_t>(kZapValue + 16)));
+    li(slot_address, Operand(base::bit_cast<int64_t>(kZapValue + 20)));
   }
 }
 
@@ -2976,9 +2976,10 @@ void TurboAssembler::Move(FPURegister dst, uint32_t src) {
 
 void TurboAssembler::Move(FPURegister dst, uint64_t src) {
   // Handle special values first.
-  if (src == bit_cast<uint64_t>(0.0) && has_double_zero_reg_set_) {
+  if (src == base::bit_cast<uint64_t>(0.0) && has_double_zero_reg_set_) {
     mov_d(dst, kDoubleRegZero);
-  } else if (src == bit_cast<uint64_t>(-0.0) && has_double_zero_reg_set_) {
+  } else if (src == base::bit_cast<uint64_t>(-0.0) &&
+             has_double_zero_reg_set_) {
     Neg_d(dst, kDoubleRegZero);
   } else {
     uint32_t lo = src & 0xFFFFFFFF;
@@ -4860,6 +4861,22 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch1,
   Branch(stack_overflow, le, scratch1, Operand(scratch2));
 }
 
+void MacroAssembler::TestCodeTIsMarkedForDeoptimizationAndJump(Register codet,
+                                                               Register scratch,
+                                                               Condition cond,
+                                                               Label* target) {
+  Ld(scratch, FieldMemOperand(codet, Code::kCodeDataContainerOffset));
+  Lwu(scratch,
+      FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
+  And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
+  Branch(target, cond, scratch, Operand(zero_reg));
+}
+
+Operand MacroAssembler::ClearedValue() const {
+  return Operand(
+      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
+}
+
 void MacroAssembler::InvokePrologue(Register expected_parameter_count,
                                     Register actual_parameter_count,
                                     Label* done, InvokeType type) {
@@ -5898,12 +5915,11 @@ static const int kRegisterPassedArguments = 8;
 int TurboAssembler::CalculateStackPassedWords(int num_reg_arguments,
                                               int num_double_arguments) {
   int stack_passed_words = 0;
-  num_reg_arguments += 2 * num_double_arguments;
+  int num_args = num_reg_arguments + num_double_arguments;
 
-  // O32: Up to four simple arguments are passed in registers a0..a3.
-  // N64: Up to eight simple arguments are passed in registers a0..a7.
-  if (num_reg_arguments > kRegisterPassedArguments) {
-    stack_passed_words += num_reg_arguments - kRegisterPassedArguments;
+  // Up to eight arguments are passed in FPURegisters and GPRegisters.
+  if (num_args > kRegisterPassedArguments) {
+    stack_passed_words = num_args - kRegisterPassedArguments;
   }
   stack_passed_words += kCArgSlotCount;
   return stack_passed_words;

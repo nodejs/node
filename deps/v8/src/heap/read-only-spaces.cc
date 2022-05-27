@@ -375,8 +375,7 @@ void ReadOnlySpace::RepairFreeSpacesAfterDeserialization() {
     // Put a filler object in the gap between the end of the allocated objects
     // and the end of the allocatable area.
     if (start < end) {
-      heap()->CreateFillerObjectAt(start, static_cast<int>(end - start),
-                                   ClearRecordedSlots::kNo);
+      heap()->CreateFillerObjectAt(start, static_cast<int>(end - start));
     }
   }
 }
@@ -606,8 +605,7 @@ void ReadOnlySpace::FreeLinearAllocationArea() {
   heap()->incremental_marking()->marking_state()->bitmap(page)->ClearRange(
       page->AddressToMarkbitIndex(top_), page->AddressToMarkbitIndex(limit_));
 
-  heap()->CreateFillerObjectAt(top_, static_cast<int>(limit_ - top_),
-                               ClearRecordedSlots::kNo);
+  heap()->CreateFillerObjectAt(top_, static_cast<int>(limit_ - top_));
 
   BasicMemoryChunk::UpdateHighWaterMark(top_);
 
@@ -634,8 +632,7 @@ void ReadOnlySpace::EnsureSpaceForAllocation(int size_in_bytes) {
   pages_.push_back(static_cast<ReadOnlyPage*>(chunk));
 
   heap()->CreateFillerObjectAt(chunk->area_start(),
-                               static_cast<int>(chunk->area_size()),
-                               ClearRecordedSlots::kNo);
+                               static_cast<int>(chunk->area_size()));
 
   top_ = chunk->area_start();
   limit_ = chunk->area_end();
@@ -739,8 +736,7 @@ size_t ReadOnlyPage::ShrinkToHighWaterMark() {
     }
     heap()->CreateFillerObjectAt(
         filler.address(),
-        static_cast<int>(area_end() - filler.address() - unused),
-        ClearRecordedSlots::kNo);
+        static_cast<int>(area_end() - filler.address() - unused));
     heap()->memory_allocator()->PartialFreeMemory(
         this, address() + size() - unused, unused, area_end() - unused);
     if (filler.address() != area_end()) {
@@ -754,8 +750,7 @@ size_t ReadOnlyPage::ShrinkToHighWaterMark() {
 void ReadOnlySpace::ShrinkPages() {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
   BasicMemoryChunk::UpdateHighWaterMark(top_);
-  heap()->CreateFillerObjectAt(top_, static_cast<int>(limit_ - top_),
-                               ClearRecordedSlots::kNo);
+  heap()->CreateFillerObjectAt(top_, static_cast<int>(limit_ - top_));
 
   for (ReadOnlyPage* chunk : pages_) {
     DCHECK(chunk->IsFlagSet(Page::NEVER_EVACUATE));

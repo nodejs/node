@@ -2138,14 +2138,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Sqrtps(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kIA32F32x4RecipApprox: {
-      __ Rcpps(i.OutputSimd128Register(), i.InputOperand(0));
-      break;
-    }
-    case kIA32F32x4RecipSqrtApprox: {
-      __ Rsqrtps(i.OutputSimd128Register(), i.InputOperand(0));
-      break;
-    }
     case kIA32F32x4Add: {
       __ Addps(i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputOperand(1));

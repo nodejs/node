@@ -208,6 +208,11 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
+  // The parameters of the called function we are going to compile have been
+  // spilled on the stack. Some of these parameters may be references. As we
+  // don't know which parameters are references, we have to make sure that no GC
+  // is triggered during the compilation of the function.
+  base::Optional<DisallowGarbageCollection> no_gc(base::in_place);
   ClearThreadInWasmScope wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -223,6 +228,14 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   isolate->set_context(instance->native_context());
   bool success = wasm::CompileLazy(isolate, instance, func_index);
   if (!success) {
+    {
+      // Compilation of function failed. We have to allocate the exception
+      // object. This allocation may trigger a GC, but that's okay, because the
+      // parameters on the stack will not be used anymore anyways.
+      no_gc.reset();
+      wasm::ThrowLazyCompilationError(
+          isolate, instance->module_object().native_module(), func_index);
+    }
     DCHECK(isolate->has_pending_exception());
     return ReadOnlyRoots(isolate).exception();
   }
@@ -555,33 +568,20 @@ RUNTIME_FUNCTION(Runtime_WasmTableFill) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
-  ClearThreadInWasmScope flag_scope(isolate);
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  FrameFinder<WasmFrame> frame_finder(
-      isolate, {StackFrame::EXIT, StackFrame::WASM_DEBUG_BREAK});
-  WasmFrame* frame = frame_finder.frame();
-  auto instance = handle(frame->wasm_instance(), isolate);
-  auto script = handle(instance->module_object().script(), isolate);
+namespace {
+// Returns true if any breakpoint was hit, false otherwise.
+bool ExecuteWasmDebugBreaks(Isolate* isolate,
+                            Handle<WasmInstanceObject> instance,
+                            WasmFrame* frame) {
+  Handle<Script> script{instance->module_object().script(), isolate};
   auto* debug_info = instance->module_object().native_module()->GetDebugInfo();
-  isolate->set_context(instance->native_context());
-
-  // Stepping can repeatedly create code, and code GC requires stack guards to
-  // be executed on all involved isolates. Proactively do this here.
-  StackLimitCheck check(isolate);
-  if (check.InterruptRequested()) {
-    Object interrupt_object = isolate->stack_guard()->HandleInterrupts();
-    // Interrupt handling can create an exception, including the
-    // termination exception.
-    if (interrupt_object.IsException(isolate)) return interrupt_object;
-    DCHECK(interrupt_object.IsUndefined(isolate));
-  }
 
   // Enter the debugger.
   DebugScope debug_scope(isolate->debug());
+
+  // Check for instrumentation breakpoints first, but still execute regular
+  // breakpoints afterwards.
   bool paused_on_instrumentation = false;
-  // Check for instrumentation breakpoint.
   DCHECK_EQ(script->break_on_entry(), !!instance->break_on_entry());
   if (script->break_on_entry()) {
     MaybeHandle<FixedArray> maybe_on_entry_breakpoints =
@@ -609,7 +609,7 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
     isolate->debug()->ClearStepping();
     isolate->debug()->OnDebugBreak(isolate->factory()->empty_fixed_array(),
                                    step_action);
-    return ReadOnlyRoots(isolate).undefined_value();
+    return true;
   }
 
   // Check whether we hit a breakpoint.
@@ -624,19 +624,43 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
       // We hit one or several breakpoints. Notify the debug listeners.
       isolate->debug()->OnDebugBreak(breakpoints, step_action);
     }
-    return ReadOnlyRoots(isolate).undefined_value();
+    return true;
   }
 
-  // We only hit the instrumentation breakpoint, and there is no other reason to
-  // break.
-  if (paused_on_instrumentation) {
-    return ReadOnlyRoots(isolate).undefined_value();
+  return paused_on_instrumentation;
+}
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  FrameFinder<WasmFrame> frame_finder(
+      isolate, {StackFrame::EXIT, StackFrame::WASM_DEBUG_BREAK});
+  WasmFrame* frame = frame_finder.frame();
+  auto instance = handle(frame->wasm_instance(), isolate);
+  isolate->set_context(instance->native_context());
+
+  if (!ExecuteWasmDebugBreaks(isolate, instance, frame)) {
+    // We did not hit a breakpoint. If we are in stepping code, but the user did
+    // not request stepping, clear this (to save further calls into this runtime
+    // function).
+    auto* debug_info =
+        instance->module_object().native_module()->GetDebugInfo();
+    debug_info->ClearStepping(frame);
   }
 
-  // We did not hit a breakpoint. If we are in stepping code, but the user did
-  // not request stepping, clear this (to save further calls into this runtime
-  // function).
-  debug_info->ClearStepping(frame);
+  // Execute a stack check before leaving this function. This is to handle any
+  // interrupts set by the debugger (e.g. termination), but also to execute Wasm
+  // code GC to get rid of temporarily created Wasm code.
+  StackLimitCheck check(isolate);
+  if (check.InterruptRequested()) {
+    Object interrupt_object = isolate->stack_guard()->HandleInterrupts();
+    // Interrupt handling can create an exception, including the
+    // termination exception.
+    if (interrupt_object.IsException(isolate)) return interrupt_object;
+    DCHECK(interrupt_object.IsUndefined(isolate));
+  }
 
   return ReadOnlyRoots(isolate).undefined_value();
 }

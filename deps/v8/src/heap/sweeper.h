@@ -23,11 +23,10 @@ class Page;
 class PagedSpace;
 class Space;
 
-enum FreeSpaceTreatmentMode { IGNORE_FREE_SPACE, ZAP_FREE_SPACE };
+enum class FreeSpaceTreatmentMode { kIgnoreFreeSpace, kZapFreeSpace };
 
 class Sweeper {
  public:
-  using IterabilityList = std::vector<Page*>;
   using SweepingList = std::vector<Page*>;
   using SweptList = std::vector<Page*>;
 
@@ -92,8 +91,7 @@ class Sweeper {
 
   void ScheduleIncrementalSweepingTask();
 
-  int RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
-               FreeSpaceTreatmentMode free_space_mode,
+  int RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
                SweepingMode sweeping_mode, const base::MutexGuard& page_guard);
 
   // After calling this function sweeping is considered to be in progress
@@ -110,13 +108,8 @@ class Sweeper {
 
   Page* GetSweptPageSafe(PagedSpace* space);
 
-  void AddPageForIterability(Page* page);
-  void StartIterabilityTasks();
-  void EnsureIterabilityCompleted();
-
  private:
   class IncrementalSweeperTask;
-  class IterabilityTask;
   class SweeperJob;
 
   static const int kNumberOfSweepingSpaces =
@@ -134,17 +127,17 @@ class Sweeper {
   // FreeSpaceTreatmentMode this function may add the free memory to a free
   // list, make the memory iterable, clear it, and return the free memory to
   // the operating system.
-  size_t FreeAndProcessFreedMemory(Address free_start, Address free_end,
-                                   Page* page, Space* space,
-                                   FreeListRebuildingMode free_list_mode,
-                                   FreeSpaceTreatmentMode free_space_mode);
+  size_t FreeAndProcessFreedMemory(
+      Address free_start, Address free_end, Page* page, Space* space,
+      FreeSpaceTreatmentMode free_space_treatment_mode);
 
   // Helper function for RawSweep. Handle remembered set entries in the freed
   // memory which require clearing.
   void CleanupRememberedSetEntriesForFreedMemory(
       Address free_start, Address free_end, Page* page, bool record_free_ranges,
       TypedSlotSet::FreeRangesMap* free_ranges_map, SweepingMode sweeping_mode,
-      InvalidatedSlotsCleanup* old_to_new_cleanup);
+      InvalidatedSlotsCleanup* invalidated_old_to_new_cleanup,
+      InvalidatedSlotsCleanup* invalidated_old_to_shared_cleanup);
 
   // Helper function for RawSweep. Clears invalid typed slots in the given free
   // ranges.
@@ -154,8 +147,7 @@ class Sweeper {
 
   // Helper function for RawSweep. Clears the mark bits and ensures consistency
   // of live bytes.
-  void ClearMarkBitsAndHandleLivenessStatistics(
-      Page* page, size_t live_bytes, FreeListRebuildingMode free_list_mode);
+  void ClearMarkBitsAndHandleLivenessStatistics(Page* page, size_t live_bytes);
 
   // Can only be called on the main thread when no tasks are running.
   bool IsDoneSweeping() const {
@@ -181,12 +173,6 @@ class Sweeper {
 
   void PrepareToBeSweptPage(AllocationSpace space, Page* page);
 
-  void MakeIterable(Page* page);
-
-  bool IsValidIterabilitySpace(AllocationSpace space) {
-    return space == NEW_SPACE || space == RO_SPACE;
-  }
-
   static bool IsValidSweepingSpace(AllocationSpace space) {
     return space >= FIRST_GROWABLE_PAGED_SPACE &&
            space <= LAST_GROWABLE_PAGED_SPACE;
@@ -208,13 +194,6 @@ class Sweeper {
   // Main thread can finalize sweeping, while background threads allocation slow
   // path checks this flag to see whether it could support concurrent sweeping.
   std::atomic<bool> sweeping_in_progress_;
-
-  // Pages that are only made iterable but have their free lists ignored.
-  IterabilityList iterability_list_;
-  CancelableTaskManager::Id iterability_task_id_;
-  base::Semaphore iterability_task_semaphore_;
-  bool iterability_in_progress_;
-  bool iterability_task_started_;
   bool should_reduce_memory_;
 };
 

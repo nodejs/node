@@ -8,9 +8,9 @@
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
 
-#include "src/heap/heap-write-barrier.h"
-
+#include "src/common/code-memory-access-inl.h"
 #include "src/common/globals.h"
+#include "src/heap/heap-write-barrier.h"
 #include "src/objects/code.h"
 #include "src/objects/compressed-slots-inl.h"
 #include "src/objects/fixed-array.h"
@@ -224,6 +224,14 @@ base::Optional<Heap*> WriteBarrier::GetHeapIfMarking(HeapObject object) {
 void WriteBarrier::Marking(HeapObject host, ObjectSlot slot, Object value) {
   DCHECK(!HasWeakHeapObjectTag(value));
   if (!value.IsHeapObject()) return;
+  Marking(host, HeapObjectSlot(slot), HeapObject::cast(value));
+}
+
+void WriteBarrier::Marking(HeapObject host, ObjectSlot slot, Code value) {
+  DCHECK(!HasWeakHeapObjectTag(value));
+  if (!value.IsHeapObject()) return;
+  CodePageHeaderModificationScope rwx_write_scope(
+      "Marking a Code object requires write access to the Code page header");
   Marking(host, HeapObjectSlot(slot), HeapObject::cast(value));
 }
 

@@ -322,7 +322,7 @@ void ScavengerCollector::CollectGarbage() {
       TRACE_GC(
           heap_->tracer(),
           GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY);
-      isolate_->global_handles()->IdentifyWeakUnmodifiedObjects(
+      isolate_->global_handles()->ComputeWeaknessForYoungObjects(
           &JSObject::IsUnmodifiedApiObject);
     }
     {
@@ -366,16 +366,10 @@ void ScavengerCollector::CollectGarbage() {
       // Scavenge weak global handles.
       TRACE_GC(heap_->tracer(),
                GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS);
-      isolate_->global_handles()->MarkYoungWeakDeadObjectsPending(
-          &IsUnscavengedHeapObjectSlot);
-      isolate_->global_handles()->IterateYoungWeakDeadObjectsForFinalizers(
-          &root_scavenge_visitor);
-      scavengers[kMainThreadId]->Process();
-
+      isolate_->global_handles()->ProcessWeakYoungObjects(
+          &root_scavenge_visitor, &IsUnscavengedHeapObjectSlot);
       DCHECK(copied_list.IsEmpty());
       DCHECK(promotion_list.IsEmpty());
-      isolate_->global_handles()->IterateYoungWeakObjectsForPhantomHandles(
-          &root_scavenge_visitor, &IsUnscavengedHeapObjectSlot);
     }
 
     {
@@ -403,6 +397,10 @@ void ScavengerCollector::CollectGarbage() {
 
     if (V8_UNLIKELY(FLAG_track_retaining_path)) {
       heap_->UpdateRetainersAfterScavenge();
+    }
+
+    if (V8_UNLIKELY(FLAG_always_use_string_forwarding_table)) {
+      isolate_->string_forwarding_table()->UpdateAfterScavenge();
     }
   }
 
@@ -451,6 +449,8 @@ void ScavengerCollector::CollectGarbage() {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SWEEP_ARRAY_BUFFERS);
     SweepArrayBufferExtensions();
   }
+
+  isolate_->global_handles()->UpdateListOfYoungNodes();
 
   // Update how much has survived scavenge.
   heap_->IncrementYoungSurvivorsCounter(heap_->SurvivedYoungObjectSize());
@@ -517,6 +517,7 @@ void ScavengerCollector::HandleSurvivingNewLargeObjects() {
     heap_->lo_space()->PromoteNewLargeObject(page);
   }
   surviving_new_large_objects_.clear();
+  heap_->new_lo_space()->set_objects_size(0);
 }
 
 void ScavengerCollector::MergeSurvivingNewLargeObjects(

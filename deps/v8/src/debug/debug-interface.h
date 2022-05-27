@@ -135,6 +135,7 @@ enum class BreakReason : uint8_t {
 typedef base::EnumSet<BreakReason> BreakReasons;
 
 void PrepareStep(Isolate* isolate, StepAction action);
+bool PrepareRestartFrame(Isolate* isolate, int callFrameOrdinal);
 void ClearStepping(Isolate* isolate);
 V8_EXPORT_PRIVATE void BreakRightNow(
     Isolate* isolate, base::EnumSet<BreakReason> break_reason = {});
@@ -207,6 +208,7 @@ class V8_EXPORT_PRIVATE Script {
   MaybeLocal<String> Name() const;
   MaybeLocal<String> SourceURL() const;
   MaybeLocal<String> SourceMappingURL() const;
+  MaybeLocal<String> GetSha256Hash() const;
   Maybe<int> ContextId() const;
   Local<ScriptSource> Source() const;
   bool IsModule() const;
@@ -214,7 +216,10 @@ class V8_EXPORT_PRIVATE Script {
       const debug::Location& start, const debug::Location& end,
       bool restrict_to_function,
       std::vector<debug::BreakLocation>* locations) const;
-  int GetSourceOffset(const debug::Location& location) const;
+  enum class GetSourceOffsetMode { kStrict, kClamp };
+  Maybe<int> GetSourceOffset(
+      const debug::Location& location,
+      GetSourceOffsetMode mode = GetSourceOffsetMode::kStrict) const;
   v8::debug::Location GetSourceLocation(int offset) const;
   bool SetScriptSource(v8::Local<v8::String> newSource, bool preview,
                        LiveEditResult* result) const;
@@ -534,6 +539,7 @@ class V8_EXPORT_PRIVATE StackTraceIterator {
   virtual debug::Location GetSourceLocation() const = 0;
   virtual v8::Local<v8::Function> GetFunction() const = 0;
   virtual std::unique_ptr<ScopeIterator> GetScopeIterator() const = 0;
+  virtual bool CanBeRestarted() const = 0;
 
   virtual v8::MaybeLocal<v8::Value> Evaluate(v8::Local<v8::String> source,
                                              bool throw_on_side_effect) = 0;

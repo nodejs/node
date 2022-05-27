@@ -812,9 +812,14 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       // We mark the receiver as escaping due to the non-standard `.getThis`
       // API.
       FrameState frame_state{current->CurrentNode()};
-      if (frame_state.frame_state_info().type() !=
-          FrameStateType::kUnoptimizedFunction)
+      FrameStateType type = frame_state.frame_state_info().type();
+      // This needs to be kept in sync with the frame types supported in
+      // `OptimizedFrame::Summarize`.
+      if (type != FrameStateType::kUnoptimizedFunction &&
+          type != FrameStateType::kJavaScriptBuiltinContinuation &&
+          type != FrameStateType::kJavaScriptBuiltinContinuationWithCatch) {
         break;
+      }
       StateValuesAccess::iterator it =
           StateValuesAccess(frame_state.parameters()).begin();
       if (!it.done()) {

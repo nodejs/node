@@ -5,7 +5,7 @@
 #include "src/codegen/external-reference.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/codegen-tester.h"
+#include "test/cctest/compiler/test-codegen.h"
 #include "test/cctest/compiler/value-helper.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -677,6 +677,50 @@ ReturnType func_mixed_double_int(double arg0, double arg1, double arg2,
 
 SIGNATURE_TEST(RunCallWithMixedSignatureDoubleInt, MIXED_SIGNATURE_DOUBLE_INT,
                func_mixed_double_int)
+
+#define MIXED_SIGNATURE_DOUBLE_INT_ALT(V)                                     \
+  V(double, 0, 0.5)                                                           \
+  , V(int64_t, 1, 1), V(double, 2, 2.5), V(int64_t, 3, 3), V(double, 4, 4.5), \
+      V(int64_t, 5, 5), V(double, 6, 6.5), V(int64_t, 7, 7),                  \
+      V(double, 8, 8.5), V(int64_t, 9, 9), V(double, 10, 10.5),               \
+      V(int64_t, 11, 11), V(double, 12, 12.5), V(int64_t, 13, 13),            \
+      V(double, 14, 14.5), V(int64_t, 15, 15), V(double, 16, 16.5),           \
+      V(int64_t, 17, 17), V(double, 18, 18.5), V(int64_t, 19, 19)
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+Int64OrDoubleUnion func_mixed_double_int_alt(
+    Int64OrDoubleUnion arg0, Int64OrDoubleUnion arg1, Int64OrDoubleUnion arg2,
+    Int64OrDoubleUnion arg3, Int64OrDoubleUnion arg4, Int64OrDoubleUnion arg5,
+    Int64OrDoubleUnion arg6, Int64OrDoubleUnion arg7, Int64OrDoubleUnion arg8,
+    Int64OrDoubleUnion arg9, Int64OrDoubleUnion arg10, Int64OrDoubleUnion arg11,
+    Int64OrDoubleUnion arg12, Int64OrDoubleUnion arg13,
+    Int64OrDoubleUnion arg14, Int64OrDoubleUnion arg15,
+    Int64OrDoubleUnion arg16, Int64OrDoubleUnion arg17,
+    Int64OrDoubleUnion arg18, Int64OrDoubleUnion arg19) {
+#else
+ReturnType func_mixed_double_int_alt(double arg0, int64_t arg1, double arg2,
+                                     int64_t arg3, double arg4, int64_t arg5,
+                                     double arg6, int64_t arg7, double arg8,
+                                     int64_t arg9, double arg10, int64_t arg11,
+                                     double arg12, int64_t arg13, double arg14,
+                                     int64_t arg15, double arg16, int64_t arg17,
+                                     double arg18, int64_t arg19) {
+#endif
+  bool result = true;
+  MIXED_SIGNATURE_DOUBLE_INT_ALT(CHECK_ARG_I);
+  CHECK(result);
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  Int64OrDoubleUnion ret;
+  ret.int64_t_value = 42;
+  return ret;
+#else
+  return 42;
+#endif
+}
+
+SIGNATURE_TEST(RunCallWithMixedSignatureDoubleIntAlt,
+               MIXED_SIGNATURE_DOUBLE_INT_ALT, func_mixed_double_int_alt)
 
 #define MIXED_SIGNATURE_INT_DOUBLE(V)                                         \
   V(int64_t, 0, 0), V(int64_t, 1, 1), V(int64_t, 2, 2), V(int64_t, 3, 3),     \

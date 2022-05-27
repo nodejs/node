@@ -154,7 +154,6 @@ class Builtins {
   Handle<CodeT> NonPrimitiveToPrimitive(
       ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
   Handle<CodeT> OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint);
-  Handle<CodeT> JSConstructStubGeneric();
 
   // Used by CreateOffHeapTrampolines in isolate.cc.
   void set_code(Builtin builtin, CodeT code);

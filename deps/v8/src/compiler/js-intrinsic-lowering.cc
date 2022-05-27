@@ -279,7 +279,7 @@ Reduction JSIntrinsicLowering::ReduceIsJSReceiver(Node* node) {
 }
 
 Reduction JSIntrinsicLowering::ReduceTurbofanStaticAssert(Node* node) {
-  if (FLAG_always_opt) {
+  if (FLAG_always_turbofan) {
     // Ignore static asserts, as we most likely won't have enough information
     RelaxEffectsAndControls(node);
   } else {

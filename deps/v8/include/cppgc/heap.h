@@ -59,7 +59,7 @@ class V8_EXPORT Heap {
   };
 
   /**
-   * Specifies supported marking types
+   * Specifies supported marking types.
    */
   enum class MarkingType : uint8_t {
     /**
@@ -79,7 +79,7 @@ class V8_EXPORT Heap {
   };
 
   /**
-   * Specifies supported sweeping types
+   * Specifies supported sweeping types.
    */
   enum class SweepingType : uint8_t {
     /**

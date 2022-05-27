@@ -206,10 +206,10 @@ class V8_EXPORT_PRIVATE LoadElimination final
     }
     static IndexRange Invalid() { return IndexRange(); }
 
-    bool operator==(const IndexRange& other) {
+    bool operator==(const IndexRange& other) const {
       return begin_ == other.begin_ && end_ == other.end_;
     }
-    bool operator!=(const IndexRange& other) { return !(*this == other); }
+    bool operator!=(const IndexRange& other) const { return !(*this == other); }
 
     struct Iterator {
       int i;

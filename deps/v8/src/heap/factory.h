@@ -916,6 +916,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       return *this;
     }
 
+    CodeBuilder& set_osr_offset(BytecodeOffset offset) {
+      DCHECK_IMPLIES(!offset.IsNone(), CodeKindCanOSR(kind_));
+      osr_offset_ = offset;
+      return *this;
+    }
+
     CodeBuilder& set_source_position_table(Handle<ByteArray> table) {
       DCHECK_NE(kind_, CodeKind::BASELINE);
       DCHECK(!table.is_null());
@@ -993,6 +999,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     MaybeHandle<Object> self_reference_;
     Builtin builtin_ = Builtin::kNoBuiltinId;
     uint32_t inlined_bytecode_size_ = 0;
+    BytecodeOffset osr_offset_ = BytecodeOffset::None();
     int32_t kind_specific_flags_ = 0;
     // Either source_position_table for non-baseline code
     // or bytecode_offset_table for baseline code.

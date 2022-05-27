@@ -181,8 +181,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64F64x2PromoteLowF32x4:
     case kArm64F32x4SConvertI32x4:
     case kArm64F32x4UConvertI32x4:
-    case kArm64F32x4RecipApprox:
-    case kArm64F32x4RecipSqrtApprox:
     case kArm64F32x4Qfma:
     case kArm64F32x4Qfms:
     case kArm64F32x4Pmin:

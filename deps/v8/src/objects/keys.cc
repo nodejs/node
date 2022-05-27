@@ -88,9 +88,9 @@ static Handle<FixedArray> CombineKeys(Isolate* isolate,
 
 // static
 MaybeHandle<FixedArray> KeyAccumulator::GetKeys(
-    Handle<JSReceiver> object, KeyCollectionMode mode, PropertyFilter filter,
-    GetKeysConversion keys_conversion, bool is_for_in, bool skip_indices) {
-  Isolate* isolate = object->GetIsolate();
+    Isolate* isolate, Handle<JSReceiver> object, KeyCollectionMode mode,
+    PropertyFilter filter, GetKeysConversion keys_conversion, bool is_for_in,
+    bool skip_indices) {
   FastKeyAccumulator accumulator(isolate, object, mode, filter, is_for_in,
                                  skip_indices);
   return accumulator.GetKeys(keys_conversion);
@@ -758,7 +758,7 @@ base::Optional<int> CollectOwnPropertyNamesInternal(
     bool is_shadowing_key = false;
     PropertyDetails details = descs->GetDetails(i);
 
-    if ((details.attributes() & filter) != 0) {
+    if ((int{details.attributes()} & filter) != 0) {
       if (mode == KeyCollectionMode::kIncludePrototypes) {
         is_shadowing_key = true;
       } else {
@@ -918,7 +918,7 @@ ExceptionStatus CollectKeysFromDictionary(Handle<Dictionary> dictionary,
       if (!raw_dictionary.ToKey(roots, i, &key)) continue;
       if (key.FilterKey(filter)) continue;
       PropertyDetails details = raw_dictionary.DetailsAt(i);
-      if ((details.attributes() & filter) != 0) {
+      if ((int{details.attributes()} & filter) != 0) {
         AllowGarbageCollection gc;
         // This might allocate, but {key} is not used afterwards.
         keys->AddShadowingKey(key, &gc);
@@ -1261,9 +1261,9 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
   bool extensible_target = maybe_extensible.FromJust();
   // 11. Let targetKeys be ? target.[[OwnPropertyKeys]]().
   Handle<FixedArray> target_keys;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, target_keys,
-                                   JSReceiver::OwnPropertyKeys(target),
-                                   Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate_, target_keys, JSReceiver::OwnPropertyKeys(isolate_, target),
+      Nothing<bool>());
   // 12, 13. (Assert)
   // 14. Let targetConfigurableKeys be an empty List.
   // To save memory, we're re-using target_keys and will modify it in-place.
@@ -1355,7 +1355,7 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyTargetKeys(
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate_, keys,
       KeyAccumulator::GetKeys(
-          target, KeyCollectionMode::kOwnOnly, ALL_PROPERTIES,
+          isolate_, target, KeyCollectionMode::kOwnOnly, ALL_PROPERTIES,
           GetKeysConversion::kConvertToString, is_for_in_, skip_indices_),
       Nothing<bool>());
   Maybe<bool> result = AddKeysFromJSProxy(proxy, keys);

@@ -754,8 +754,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     Mthc1(src_high, dst);
   }
 
-  void Move(FPURegister dst, float imm) { Move(dst, bit_cast<uint32_t>(imm)); }
-  void Move(FPURegister dst, double imm) { Move(dst, bit_cast<uint64_t>(imm)); }
+  void Move(FPURegister dst, float imm) {
+    Move(dst, base::bit_cast<uint32_t>(imm));
+  }
+  void Move(FPURegister dst, double imm) {
+    Move(dst, base::bit_cast<uint64_t>(imm));
+  }
   void Move(FPURegister dst, uint32_t src);
   void Move(FPURegister dst, uint64_t src);
 
@@ -930,6 +934,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Swap two registers.  If the scratch register is omitted then a slightly
   // less efficient form using xor instead of mov is emitted.
   void Swap(Register reg1, Register reg2, Register scratch = no_reg);
+
+  void TestCodeTIsMarkedForDeoptimizationAndJump(Register codet,
+                                                 Register scratch,
+                                                 Condition cond, Label* target);
+  Operand ClearedValue() const;
 
   void PushRoot(RootIndex index) {
     UseScratchRegisterScope temps(this);

@@ -5,6 +5,8 @@
 // Platform-specific code for Linux goes here. For the POSIX-compatible
 // parts, the implementation is in platform-posix.cc.
 
+#include "src/base/platform/platform-linux.h"
+
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
@@ -21,13 +23,19 @@
 #include <errno.h>
 #include <fcntl.h>  // open
 #include <stdarg.h>
-#include <strings.h>    // index
-#include <sys/mman.h>   // mmap & munmap & mremap
-#include <sys/stat.h>   // open
+#include <strings.h>   // index
+#include <sys/mman.h>  // mmap & munmap & mremap
+#include <sys/stat.h>  // open
+#include <sys/sysmacros.h>
 #include <sys/types.h>  // mmap & munmap
 #include <unistd.h>     // sysconf
 
 #include <cmath>
+#include <cstdio>
+#include <memory>
+
+#include "src/base/logging.h"
+#include "src/base/memory.h"
 
 #undef MAP_TYPE
 
@@ -41,83 +49,6 @@ namespace base {
 
 TimezoneCache* OS::CreateTimezoneCache() {
   return new PosixDefaultTimezoneCache();
-}
-
-std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
-  std::vector<SharedLibraryAddress> result;
-  // This function assumes that the layout of the file is as follows:
-  // hex_start_addr-hex_end_addr rwxp <unused data> [binary_file_name]
-  // If we encounter an unexpected situation we abort scanning further entries.
-  FILE* fp = fopen("/proc/self/maps", "r");
-  if (fp == nullptr) return result;
-
-  // Allocate enough room to be able to store a full file name.
-  const int kLibNameLen = FILENAME_MAX + 1;
-  char* lib_name = reinterpret_cast<char*>(malloc(kLibNameLen));
-
-  // This loop will terminate once the scanning hits an EOF.
-  while (true) {
-    uintptr_t start, end, offset;
-    char attr_r, attr_w, attr_x, attr_p;
-    // Parse the addresses and permission bits at the beginning of the line.
-    if (fscanf(fp, "%" V8PRIxPTR "-%" V8PRIxPTR, &start, &end) != 2) break;
-    if (fscanf(fp, " %c%c%c%c", &attr_r, &attr_w, &attr_x, &attr_p) != 4) break;
-    if (fscanf(fp, "%" V8PRIxPTR, &offset) != 1) break;
-
-    int c;
-    if (attr_r == 'r' && attr_w != 'w' && attr_x == 'x') {
-      // Found a read-only executable entry. Skip characters until we reach
-      // the beginning of the filename or the end of the line.
-      do {
-        c = getc(fp);
-      } while ((c != EOF) && (c != '\n') && (c != '/') && (c != '['));
-      if (c == EOF) break;  // EOF: Was unexpected, just exit.
-
-      // Process the filename if found.
-      if ((c == '/') || (c == '[')) {
-        // Push the '/' or '[' back into the stream to be read below.
-        ungetc(c, fp);
-
-        // Read to the end of the line. Exit if the read fails.
-        if (fgets(lib_name, kLibNameLen, fp) == nullptr) break;
-
-        // Drop the newline character read by fgets. We do not need to check
-        // for a zero-length string because we know that we at least read the
-        // '/' or '[' character.
-        lib_name[strlen(lib_name) - 1] = '\0';
-      } else {
-        // No library name found, just record the raw address range.
-        snprintf(lib_name, kLibNameLen, "%08" V8PRIxPTR "-%08" V8PRIxPTR, start,
-                 end);
-      }
-
-#ifdef V8_OS_ANDROID
-      size_t lib_name_length = strlen(lib_name);
-      if (lib_name_length < 4 ||
-          strncmp(&lib_name[lib_name_length - 4], ".apk", 4) != 0) {
-        // Only adjust {start} based on {offset} if the file isn't the APK,
-        // since we load the library directly from the APK and don't want to
-        // apply the offset of the .so in the APK as the libraries offset.
-        start -= offset;
-      }
-#else
-      // Adjust {start} based on {offset}.
-      start -= offset;
-#endif
-
-      result.push_back(SharedLibraryAddress(lib_name, start, end));
-    } else {
-      // Entry not describing executable data. Skip to end of line to set up
-      // reading the next entry.
-      do {
-        c = getc(fp);
-      } while ((c != EOF) && (c != '\n'));
-      if (c == EOF) break;
-    }
-  }
-  free(lib_name);
-  fclose(fp);
-  return result;
 }
 
 void OS::SignalCodeMovingGC() {
@@ -204,6 +135,216 @@ std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
 
   fclose(fp);
   return result;
+}
+
+//  static
+base::Optional<MemoryRegion> MemoryRegion::FromMapsLine(const char* line) {
+  MemoryRegion region;
+  uint8_t dev_major = 0, dev_minor = 0;
+  uintptr_t inode = 0;
+  int path_index = 0;
+  uintptr_t offset = 0;
+  // The format is:
+  // address           perms offset  dev   inode   pathname
+  // 08048000-08056000 r-xp 00000000 03:0c 64593   /usr/sbin/gpm
+  //
+  // The final %n term captures the offset in the input string, which is used
+  // to determine the path name. It *does not* increment the return value.
+  // Refer to man 3 sscanf for details.
+  if (sscanf(line,
+             "%" V8PRIxPTR "-%" V8PRIxPTR " %4c %" V8PRIxPTR
+             " %hhx:%hhx %" V8PRIdPTR " %n",
+             &region.start, &region.end, region.permissions, &offset,
+             &dev_major, &dev_minor, &inode, &path_index) < 7) {
+    return base::nullopt;
+  }
+  region.permissions[4] = '\0';
+  region.inode = inode;
+  region.offset = offset;
+  region.dev = makedev(dev_major, dev_minor);
+  region.pathname.assign(line + path_index);
+
+  return region;
+}
+
+namespace {
+// Parses /proc/self/maps.
+std::unique_ptr<std::vector<MemoryRegion>> ParseProcSelfMaps(
+    FILE* fp, std::function<bool(const MemoryRegion&)> predicate,
+    bool early_stopping) {
+  auto result = std::make_unique<std::vector<MemoryRegion>>();
+
+  if (!fp) fp = fopen("/proc/self/maps", "r");
+  if (!fp) return nullptr;
+
+  // Allocate enough room to be able to store a full file name.
+  // 55ac243aa000-55ac243ac000 r--p 00000000 fe:01 31594735 /usr/bin/head
+  const int kMaxLineLength = 2 * FILENAME_MAX;
+  std::unique_ptr<char[]> line = std::make_unique<char[]>(kMaxLineLength);
+
+  // This loop will terminate once the scanning hits an EOF.
+  bool error = false;
+  while (true) {
+    error = true;
+
+    // Read to the end of the line. Exit if the read fails.
+    if (fgets(line.get(), kMaxLineLength, fp) == nullptr) {
+      if (feof(fp)) error = false;
+      break;
+    }
+
+    size_t line_length = strlen(line.get());
+    // Empty line at the end.
+    if (!line_length) {
+      error = false;
+      break;
+    }
+    // Line was truncated.
+    if (line.get()[line_length - 1] != '\n') break;
+    line.get()[line_length - 1] = '\0';
+
+    base::Optional<MemoryRegion> region =
+        MemoryRegion::FromMapsLine(line.get());
+    if (!region) {
+      break;
+    }
+
+    error = false;
+
+    if (predicate(*region)) {
+      result->push_back(std::move(*region));
+      if (early_stopping) break;
+    }
+  }
+
+  fclose(fp);
+  if (!error && result->size()) return result;
+
+  return nullptr;
+}
+
+MemoryRegion FindEnclosingMapping(uintptr_t target_start, size_t size) {
+  auto result = ParseProcSelfMaps(
+      nullptr,
+      [=](const MemoryRegion& region) {
+        return region.start <= target_start && target_start + size < region.end;
+      },
+      true);
+  if (result)
+    return (*result)[0];
+  else
+    return {};
+}
+}  // namespace
+
+// static
+std::vector<OS::SharedLibraryAddress> GetSharedLibraryAddresses(FILE* fp) {
+  auto regions = ParseProcSelfMaps(
+      fp,
+      [](const MemoryRegion& region) {
+        if (region.permissions[0] == 'r' && region.permissions[1] == '-' &&
+            region.permissions[2] == 'x') {
+          return true;
+        }
+        return false;
+      },
+      false);
+
+  if (!regions) return {};
+
+  std::vector<OS::SharedLibraryAddress> result;
+  for (const MemoryRegion& region : *regions) {
+    uintptr_t start = region.start;
+#ifdef V8_OS_ANDROID
+    if (region.pathname.size() < 4 ||
+        region.pathname.compare(region.pathname.size() - 4, 4, ".apk") != 0) {
+      // Only adjust {start} based on {offset} if the file isn't the APK,
+      // since we load the library directly from the APK and don't want to
+      // apply the offset of the .so in the APK as the libraries offset.
+      start -= region.offset;
+    }
+#else
+    start -= region.offset;
+#endif
+    result.emplace_back(region.pathname, start, region.end);
+  }
+  return result;
+}
+
+// static
+std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
+  return ::v8::base::GetSharedLibraryAddresses(nullptr);
+}
+
+// static
+bool OS::RemapPages(const void* address, size_t size, void* new_address,
+                    MemoryPermission access) {
+  uintptr_t address_addr = reinterpret_cast<uintptr_t>(address);
+
+  DCHECK(IsAligned(address_addr, AllocatePageSize()));
+  DCHECK(
+      IsAligned(reinterpret_cast<uintptr_t>(new_address), AllocatePageSize()));
+  DCHECK(IsAligned(size, AllocatePageSize()));
+
+  MemoryRegion enclosing_region = FindEnclosingMapping(address_addr, size);
+  // Not found.
+  if (!enclosing_region.start) return false;
+
+  // Anonymous mapping?
+  if (enclosing_region.pathname.empty()) return false;
+
+  // Since the file is already in use for executable code, this is most likely
+  // to fail due to sandboxing, e.g. if open() is blocked outright.
+  //
+  // In Chromium on Android, the sandbox allows openat() but prohibits
+  // open(). However, the libc uses openat() in its open() wrapper, and the
+  // SELinux restrictions allow us to read from the path we want to look at,
+  // so we are in the clear.
+  //
+  // Note that this may not be allowed by the sandbox on Linux (and Chrome
+  // OS). On these systems, consider using mremap() with the MREMAP_DONTUNMAP
+  // flag. However, since we need it on non-anonymous mapping, this would only
+  // be available starting with version 5.13.
+  int fd = open(enclosing_region.pathname.c_str(), O_RDONLY);
+  if (fd == -1) return false;
+
+  // Now we have a file descriptor to the same path the data we want to remap
+  // comes from. But... is it the *same* file? This is not guaranteed (e.g. in
+  // case of updates), so to avoid hard-to-track bugs, check that the
+  // underlying file is the same using the device number and the inode. Inodes
+  // are not unique across filesystems, and can be reused. The check works
+  // here though, since we have the problems:
+  // - Inode uniqueness: check device numbers.
+  // - Inode reuse: the initial file is still open, since we are running code
+  //   from it. So its inode cannot have been reused.
+  struct stat stat_buf;
+  if (fstat(fd, &stat_buf)) {
+    close(fd);
+    return false;
+  }
+
+  // Not the same file.
+  if (stat_buf.st_dev != enclosing_region.dev ||
+      stat_buf.st_ino != enclosing_region.inode) {
+    close(fd);
+    return false;
+  }
+
+  size_t offset_in_mapping = address_addr - enclosing_region.start;
+  size_t offset_in_file = enclosing_region.offset + offset_in_mapping;
+  int protection = GetProtectionFromMemoryPermission(access);
+
+  void* mapped_address = mmap(new_address, size, protection,
+                              MAP_FIXED | MAP_PRIVATE, fd, offset_in_file);
+  // mmap() keeps the file open.
+  close(fd);
+
+  if (mapped_address != new_address) {
+    // Should not happen, MAP_FIXED should always map where we want.
+    UNREACHABLE();
+  }
+
+  return true;
 }
 
 }  // namespace base

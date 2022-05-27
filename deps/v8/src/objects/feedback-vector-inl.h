@@ -71,6 +71,7 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
     case FeedbackSlotKind::kBinaryOp:
     case FeedbackSlotKind::kLiteral:
     case FeedbackSlotKind::kTypeProfile:
+    case FeedbackSlotKind::kJumpLoop:
       return 1;
 
     case FeedbackSlotKind::kCall:
@@ -93,10 +94,8 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
       return 2;
 
     case FeedbackSlotKind::kInvalid:
-    case FeedbackSlotKind::kKindsNumber:
       UNREACHABLE();
   }
-  return 1;
 }
 
 Handle<FeedbackCell> ClosureFeedbackCellArray::GetFeedbackCell(int index) {
@@ -122,6 +121,32 @@ RELAXED_INT32_ACCESSORS(FeedbackVector, invocation_count,
 
 void FeedbackVector::clear_invocation_count(RelaxedStoreTag tag) {
   set_invocation_count(0, tag);
+}
+
+int FeedbackVector::osr_urgency() const {
+  return OsrUrgencyBits::decode(osr_state());
+}
+
+void FeedbackVector::set_osr_urgency(int urgency) {
+  DCHECK(0 <= urgency && urgency <= FeedbackVector::kMaxOsrUrgency);
+  STATIC_ASSERT(FeedbackVector::kMaxOsrUrgency <= OsrUrgencyBits::kMax);
+  set_osr_state(OsrUrgencyBits::update(osr_state(), urgency));
+}
+
+void FeedbackVector::reset_osr_urgency() { set_osr_urgency(0); }
+
+void FeedbackVector::RequestOsrAtNextOpportunity() {
+  set_osr_urgency(kMaxOsrUrgency);
+}
+
+void FeedbackVector::reset_osr_state() { set_osr_state(0); }
+
+bool FeedbackVector::maybe_has_optimized_osr_code() const {
+  return MaybeHasOptimizedOsrCodeBit::decode(osr_state());
+}
+
+void FeedbackVector::set_maybe_has_optimized_osr_code(bool value) {
+  set_osr_state(MaybeHasOptimizedOsrCodeBit::update(osr_state(), value));
 }
 
 CodeT FeedbackVector::optimized_code() const {
@@ -154,6 +179,22 @@ bool FeedbackVector::maybe_has_optimized_code() const {
 
 void FeedbackVector::set_maybe_has_optimized_code(bool value) {
   set_flags(MaybeHasOptimizedCodeBit::update(flags(), value));
+}
+
+base::Optional<CodeT> FeedbackVector::GetOptimizedOsrCode(Isolate* isolate,
+                                                          FeedbackSlot slot) {
+  MaybeObject maybe_code = Get(isolate, slot);
+  if (maybe_code->IsCleared()) return {};
+
+  CodeT codet = CodeT::cast(maybe_code->GetHeapObject());
+  if (codet.marked_for_deoptimization()) {
+    // Clear the cached Code object if deoptimized.
+    // TODO(jgruber): Add tracing.
+    Set(slot, HeapObjectReference::ClearedValue(isolate));
+    return {};
+  }
+
+  return codet;
 }
 
 // Conversion from an integer index to either a slot or an ic slot.

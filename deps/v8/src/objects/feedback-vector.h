@@ -61,9 +61,13 @@ enum class FeedbackSlotKind : uint8_t {
   kForIn,
   kInstanceOf,
   kCloneObject,
+  kJumpLoop,
 
-  kKindsNumber  // Last value indicating number of kinds.
+  kLast = kJumpLoop  // Always update this if the list above changes.
 };
+
+static constexpr int kFeedbackSlotKindCount =
+    static_cast<int>(FeedbackSlotKind::kLast) + 1;
 
 using MapAndHandler = std::pair<Handle<Map>, MaybeObjectHandle>;
 using MapAndFeedback = std::pair<Handle<Map>, MaybeObjectHandle>;
@@ -193,6 +197,7 @@ class FeedbackVector
     : public TorqueGeneratedFeedbackVector<FeedbackVector, HeapObject> {
  public:
   NEVER_READ_ONLY_SPACE
+  DEFINE_TORQUE_GENERATED_OSR_STATE()
   DEFINE_TORQUE_GENERATED_FEEDBACK_VECTOR_FLAGS()
   STATIC_ASSERT(TieringState::kLastTieringState <= TieringStateBits::kMax);
 
@@ -220,6 +225,27 @@ class FeedbackVector
   DECL_RELAXED_INT32_ACCESSORS(invocation_count)
   inline void clear_invocation_count(RelaxedStoreTag tag);
 
+  // The [osr_urgency] controls when OSR is attempted, and is incremented as
+  // the function becomes hotter. When the current loop depth is less than the
+  // osr_urgency, JumpLoop calls into runtime to attempt OSR optimization.
+  static constexpr int kMaxOsrUrgency = 6;
+  STATIC_ASSERT(kMaxOsrUrgency <= OsrUrgencyBits::kMax);
+  inline int osr_urgency() const;
+  inline void set_osr_urgency(int urgency);
+  inline void reset_osr_urgency();
+  inline void RequestOsrAtNextOpportunity();
+
+  // Whether this vector may contain cached optimized osr code for *any* slot.
+  // Represented internally as a bit that can be efficiently checked by
+  // generated code. May diverge from the state of the world; the invariant is
+  // that if `maybe_has_optimized_osr_code` is false, no optimized osr code
+  // exists.
+  inline bool maybe_has_optimized_osr_code() const;
+  inline void set_maybe_has_optimized_osr_code(bool value);
+
+  // The `osr_state` contains the osr_urgency and maybe_has_optimized_osr_code.
+  inline void reset_osr_state();
+
   inline CodeT optimized_code() const;
   // Whether maybe_optimized_code contains a cached Code object.
   inline bool has_optimized_code() const;
@@ -228,10 +254,16 @@ class FeedbackVector
   // the world, thus 'maybe'.
   inline bool maybe_has_optimized_code() const;
   inline void set_maybe_has_optimized_code(bool value);
-  void SetOptimizedCode(Handle<CodeT> code);
+  void SetOptimizedCode(CodeT code);
   void EvictOptimizedCodeMarkedForDeoptimization(SharedFunctionInfo shared,
                                                  const char* reason);
   void ClearOptimizedCode();
+
+  // Optimized OSR'd code is cached in JumpLoop feedback vector slots. The
+  // slots either contain a Code object or the ClearedValue.
+  inline base::Optional<CodeT> GetOptimizedOsrCode(Isolate* isolate,
+                                                   FeedbackSlot slot);
+  void SetOptimizedOsrCode(FeedbackSlot slot, CodeT code);
 
   inline TieringState tiering_state() const;
   void set_tiering_state(TieringState state);
@@ -470,6 +502,10 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
     return AddSlot(FeedbackSlotKind::kCloneObject);
   }
 
+  FeedbackSlot AddJumpLoopSlot() {
+    return AddSlot(FeedbackSlotKind::kJumpLoop);
+  }
+
 #ifdef OBJECT_PRINT
   // For gdb debugging.
   void Print();
@@ -581,8 +617,7 @@ class FeedbackMetadata : public HeapObject {
   inline int length() const;
 
   static const int kFeedbackSlotKindBits = 5;
-  STATIC_ASSERT(static_cast<int>(FeedbackSlotKind::kKindsNumber) <
-                (1 << kFeedbackSlotKindBits));
+  STATIC_ASSERT(kFeedbackSlotKindCount <= (1 << kFeedbackSlotKindBits));
 
   void SetKind(FeedbackSlot slot, FeedbackSlotKind kind);
 
@@ -619,7 +654,6 @@ class FeedbackMetadataIterator {
   // Returns slot kind of the last slot returned by Next().
   FeedbackSlotKind kind() const {
     DCHECK_NE(FeedbackSlotKind::kInvalid, slot_kind_);
-    DCHECK_NE(FeedbackSlotKind::kKindsNumber, slot_kind_);
     return slot_kind_;
   }
 

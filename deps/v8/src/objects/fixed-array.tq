@@ -25,7 +25,9 @@ extern class WeakFixedArray extends HeapObject {
   @cppRelaxedLoad objects[length]: MaybeObject;
 }
 
-extern class ByteArray extends FixedArrayBase { bytes[length]: uint8; }
+extern class ByteArray extends FixedArrayBase {
+  bytes[length]: uint8;
+}
 
 @hasSameInstanceTypeAsParent
 @doNotGenerateCast

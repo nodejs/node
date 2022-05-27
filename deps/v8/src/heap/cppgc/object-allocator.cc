@@ -30,31 +30,20 @@ void MarkRangeAsYoung(BasePage* page, Address begin, Address end) {
 #if defined(CPPGC_YOUNG_GENERATION)
   DCHECK_LT(begin, end);
 
-  static constexpr auto kEntrySize = AgeTable::kCardSizeInBytes;
+  if (!page->heap().generational_gc_supported()) return;
 
-  const uintptr_t offset_begin = CagedHeap::OffsetFromAddress(begin);
-  const uintptr_t offset_end = CagedHeap::OffsetFromAddress(end);
-
-  const uintptr_t young_offset_begin = (begin == page->PayloadStart())
-                                           ? RoundDown(offset_begin, kEntrySize)
-                                           : RoundUp(offset_begin, kEntrySize);
-  const uintptr_t young_offset_end = (end == page->PayloadEnd())
-                                         ? RoundUp(offset_end, kEntrySize)
-                                         : RoundDown(offset_end, kEntrySize);
+  // Then, if the page is newly allocated, force the first and last cards to be
+  // marked as young.
+  const bool new_page =
+      (begin == page->PayloadStart()) && (end == page->PayloadEnd());
 
   auto& age_table = page->heap().caged_heap().local_data().age_table;
-  for (auto offset = young_offset_begin; offset < young_offset_end;
-       offset += AgeTable::kCardSizeInBytes) {
-    age_table.SetAge(offset, AgeTable::Age::kYoung);
-  }
-
-  // Set to kUnknown the first and the last regions of the newly allocated
-  // linear buffer.
-  if (begin != page->PayloadStart() && !IsAligned(offset_begin, kEntrySize))
-    age_table.SetAge(offset_begin, AgeTable::Age::kMixed);
-  if (end != page->PayloadEnd() && !IsAligned(offset_end, kEntrySize))
-    age_table.SetAge(offset_end, AgeTable::Age::kMixed);
-#endif
+  age_table.SetAgeForRange(CagedHeap::OffsetFromAddress(begin),
+                           CagedHeap::OffsetFromAddress(end),
+                           AgeTable::Age::kYoung,
+                           new_page ? AgeTable::AdjacentCardsPolicy::kIgnore
+                                    : AgeTable::AdjacentCardsPolicy::kConsider);
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 }
 
 void AddToFreeList(NormalPageSpace& space, Address start, size_t size) {

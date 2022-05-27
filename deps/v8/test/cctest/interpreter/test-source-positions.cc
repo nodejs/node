@@ -111,14 +111,14 @@ class OptimizedBytecodeSourcePositionTester final {
   explicit OptimizedBytecodeSourcePositionTester(Isolate* isolate)
       : isolate_(isolate) {
     SaveOptimizationFlags();
-    saved_flag_always_opt_ = FLAG_always_opt;
-    FLAG_always_opt = false;
+    saved_flag_always_turbofan_ = FLAG_always_turbofan;
+    FLAG_always_turbofan = false;
     FLAG_enable_lazy_source_positions = false;
   }
 
   ~OptimizedBytecodeSourcePositionTester() {
     RestoreOptimizationFlags();
-    FLAG_always_opt = saved_flag_always_opt_;
+    FLAG_always_turbofan = saved_flag_always_turbofan_;
   }
 
   bool SourcePositionsMatch(int optimization_bitmap, const char* function_body,
@@ -142,7 +142,7 @@ class OptimizedBytecodeSourcePositionTester final {
 
   Isolate* isolate_;
   int saved_optimization_bitmap_;
-  bool saved_flag_always_opt_;
+  bool saved_flag_always_turbofan_;
 };
 
 // static

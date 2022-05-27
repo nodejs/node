@@ -154,14 +154,16 @@ class Decoder {
     // Prefixed opcodes all use LEB128 encoding.
     index = read_u32v<validate>(pc + 1, length, "prefixed opcode index");
     *length += 1;  // Prefix byte.
-    // Only support opcodes that go up to 0xFF (when decoded). Anything
-    // bigger will need 1 more byte, and the '<< 8' below will be wrong.
-    if (validate && V8_UNLIKELY(index > 0xff)) {
+    // Only support opcodes that go up to 0xFFF (when decoded). Anything
+    // bigger will need more than 2 bytes, and the '<< 12' below will be wrong.
+    if (validate && V8_UNLIKELY(index > 0xfff)) {
       errorf(pc, "Invalid prefixed opcode %d", index);
       // If size validation fails.
       index = 0;
       *length = 0;
     }
+
+    if (index > 0xff) return static_cast<WasmOpcode>((*pc) << 12 | index);
 
     return static_cast<WasmOpcode>((*pc) << 8 | index);
   }

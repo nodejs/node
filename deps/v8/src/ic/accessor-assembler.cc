@@ -2632,7 +2632,6 @@ void AccessorAssembler::GenericElementLoad(
 
   // Unimplemented elements kinds fall back to a runtime call.
   Label* unimplemented_elements_kind = slow;
-  IncrementCounter(isolate()->counters()->ic_keyed_load_generic_smi(), 1);
   EmitElementLoad(lookup_start_object, elements_kind, index,
                   is_jsarray_condition, &if_element_hole, &rebox_double,
                   &var_double_value, unimplemented_elements_kind, &if_oob, slow,
@@ -2673,7 +2672,6 @@ void AccessorAssembler::GenericElementLoad(
     Comment("load string character");
     TNode<IntPtrT> length = LoadStringLengthAsWord(CAST(lookup_start_object));
     GotoIfNot(UintPtrLessThan(index, length), slow);
-    IncrementCounter(isolate()->counters()->ic_keyed_load_generic_smi(), 1);
     TailCallBuiltin(Builtin::kStringCharAt, NoContextConstant(),
                     lookup_start_object, index);
   }
@@ -2788,7 +2786,6 @@ void AccessorAssembler::GenericPropertyLoad(
     TNode<Object> value = CallGetterIfAccessor(
         var_value.value(), lookup_start_object, var_details.value(),
         p->context(), p->receiver(), p->name(), slow);
-    IncrementCounter(isolate()->counters()->ic_keyed_load_generic_symbol(), 1);
     Return(value);
   }
 
@@ -3640,7 +3637,6 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
   BIND(&if_runtime);
   {
     Comment("KeyedLoadGeneric_slow");
-    IncrementCounter(isolate()->counters()->ic_keyed_load_generic_slow(), 1);
     // TODO(jkummerow): Should we use the GetProperty TF stub instead?
     TailCallRuntime(Runtime::kGetProperty, p->context(),
                     p->receiver_and_lookup_start_object(), var_name.value());

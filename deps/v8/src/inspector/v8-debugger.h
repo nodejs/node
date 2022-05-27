@@ -75,6 +75,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
                               V8DebuggerScript* script,
                               std::unique_ptr<protocol::Debugger::Location>,
                               const String16& targetCallFramess);
+  bool restartFrame(int targetContextGroupId, int callFrameOrdinal);
 
   // Each script inherits debug data from v8::Context where it has been
   // compiled.

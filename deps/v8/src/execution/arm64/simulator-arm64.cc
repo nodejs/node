@@ -3453,7 +3453,7 @@ bool Simulator::PrintValue(const char* desc) {
   if (desc[0] == 'v') {
     PrintF(stream_, "%s %s:%s 0x%016" PRIx64 "%s (%s%s:%s %g%s %s:%s %g%s)\n",
            clr_vreg_name, VRegNameForCode(i), clr_vreg_value,
-           bit_cast<uint64_t>(dreg(i)), clr_normal, clr_vreg_name,
+           base::bit_cast<uint64_t>(dreg(i)), clr_normal, clr_vreg_name,
            DRegNameForCode(i), clr_vreg_value, dreg(i), clr_vreg_name,
            SRegNameForCode(i), clr_vreg_value, sreg(i), clr_normal);
     return true;
@@ -5273,10 +5273,10 @@ void Simulator::VisitNEONModifiedImmediate(Instruction* instr) {
       } else {  // cmode_0 == 1, cmode == 0xF.
         if (op_bit == 0) {
           vform = q ? kFormat4S : kFormat2S;
-          imm = bit_cast<uint32_t>(instr->ImmNEONFP32());
+          imm = base::bit_cast<uint32_t>(instr->ImmNEONFP32());
         } else if (q == 1) {
           vform = kFormat2D;
-          imm = bit_cast<uint64_t>(instr->ImmNEONFP64());
+          imm = base::bit_cast<uint64_t>(instr->ImmNEONFP64());
         } else {
           DCHECK((q == 0) && (op_bit == 1) && (cmode == 0xF));
           VisitUnallocated(instr);

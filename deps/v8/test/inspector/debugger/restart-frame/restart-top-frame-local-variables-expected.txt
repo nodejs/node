@@ -1,0 +1,45 @@
+Checks that after restarting the top frame, local variables are reset
+Paused at (after evaluation):
+  let z = 'some let';
+  #debugger;
+}
+
+Pause stack:
+  foo:5 (canBeRestarted = true)
+
+Evaluating x:
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : some var
+        }
+    }
+}
+Evaluating y:
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : some const
+        }
+    }
+}
+Evaluating z:
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : some let
+        }
+    }
+}
+Restarting function "foo" ...
+Failed to restart function "foo":
+{
+    code : -32000
+    message : Frame restarting not supported
+}

@@ -143,7 +143,7 @@ static JITCodeLineInfo* UntagLineInfo(void* ptr) {
 
 // The parameter str is a mixed pattern which contains the
 // function name and some other info. It comes from all the
-// Logger::CodeCreateEvent(...) function. This function get the
+// V8FileLogger::CodeCreateEvent(...) function. This function get the
 // pure function name from the input parameter.
 static std::string GetFunctionNameFromMixedName(const char* str, int length) {
   int index = 0;

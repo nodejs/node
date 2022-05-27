@@ -48,34 +48,34 @@ extern "C" {
 #endif
 
 extern const float16 kFP16PositiveInfinity =
-    bit_cast<float16>(integer_constants::kFP16PositiveInfinity);
+    base::bit_cast<float16>(integer_constants::kFP16PositiveInfinity);
 extern const float16 kFP16NegativeInfinity =
-    bit_cast<float16>(integer_constants::kFP16NegativeInfinity);
+    base::bit_cast<float16>(integer_constants::kFP16NegativeInfinity);
 V8_EXPORT_PRIVATE extern const float kFP32PositiveInfinity =
-    bit_cast<float>(integer_constants::kFP32PositiveInfinity);
+    base::bit_cast<float>(integer_constants::kFP32PositiveInfinity);
 V8_EXPORT_PRIVATE extern const float kFP32NegativeInfinity =
-    bit_cast<float>(integer_constants::kFP32NegativeInfinity);
+    base::bit_cast<float>(integer_constants::kFP32NegativeInfinity);
 V8_EXPORT_PRIVATE extern const double kFP64PositiveInfinity =
-    bit_cast<double>(integer_constants::kFP64PositiveInfinity);
+    base::bit_cast<double>(integer_constants::kFP64PositiveInfinity);
 V8_EXPORT_PRIVATE extern const double kFP64NegativeInfinity =
-    bit_cast<double>(integer_constants::kFP64NegativeInfinity);
+    base::bit_cast<double>(integer_constants::kFP64NegativeInfinity);
 
 V8_EXPORT_PRIVATE extern const double kFP64SignallingNaN =
-    bit_cast<double>(integer_constants::kFP64SignallingNaN);
+    base::bit_cast<double>(integer_constants::kFP64SignallingNaN);
 V8_EXPORT_PRIVATE extern const float kFP32SignallingNaN =
-    bit_cast<float>(integer_constants::kFP32SignallingNaN);
+    base::bit_cast<float>(integer_constants::kFP32SignallingNaN);
 
 V8_EXPORT_PRIVATE extern const double kFP64QuietNaN =
-    bit_cast<double>(integer_constants::kFP64QuietNaN);
+    base::bit_cast<double>(integer_constants::kFP64QuietNaN);
 V8_EXPORT_PRIVATE extern const float kFP32QuietNaN =
-    bit_cast<float>(integer_constants::kFP32QuietNaN);
+    base::bit_cast<float>(integer_constants::kFP32QuietNaN);
 
 V8_EXPORT_PRIVATE extern const double kFP64DefaultNaN =
-    bit_cast<double>(integer_constants::kFP64DefaultNaN);
+    base::bit_cast<double>(integer_constants::kFP64DefaultNaN);
 V8_EXPORT_PRIVATE extern const float kFP32DefaultNaN =
-    bit_cast<float>(integer_constants::kFP32DefaultNaN);
+    base::bit_cast<float>(integer_constants::kFP32DefaultNaN);
 extern const float16 kFP16DefaultNaN =
-    bit_cast<float16>(integer_constants::kFP16DefaultNaN);
+    base::bit_cast<float16>(integer_constants::kFP16DefaultNaN);
 
 #if defined(V8_OS_WIN)
 }  // end of extern "C"

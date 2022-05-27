@@ -242,7 +242,7 @@ class ConcurrentStringThreadBase : public v8::base::Thread {
                              base::Semaphore* sema_ready,
                              base::Semaphore* sema_execute_start,
                              base::Semaphore* sema_execute_complete)
-      : v8::base::Thread(base::Thread::Options(name)),  // typeid(this).name?
+      : v8::base::Thread(base::Thread::Options(name)),
         test_(test),
         shared_strings_(shared_strings),
         sema_ready_(sema_ready),
@@ -305,15 +305,11 @@ class ConcurrentInternalizationThread final
     CHECK(input_string->IsShared());
     Handle<String> interned = factory->InternalizeString(input_string);
     CHECK(interned->IsShared());
+    CHECK(interned->IsInternalizedString());
     if (hit_or_miss_ == kTestMiss) {
       CHECK_EQ(*input_string, *interned);
     } else {
-      // TODO(v8:12007): In-place internalization currently do not migrate
-      // shared strings to ThinStrings. This is triviailly threadsafe for
-      // character access but bad for performance, as run-time
-      // internalizations do not speed up comparisons for shared strings.
-      CHECK(!input_string->IsThinString());
-      CHECK_NE(*input_string, *interned);
+      CHECK(input_string->HasForwardingIndex());
       CHECK(String::Equals(i_isolate, input_string, interned));
     }
   }
@@ -575,7 +571,7 @@ UNINITIALIZED_TEST(StringShare) {
     CheckSharedStringIsEqualCopy(shared_two_byte, young_two_byte_seq);
   }
 
-  {
+  if (!FLAG_always_use_string_forwarding_table) {
     // Thin strings
     Handle<String> one_byte_seq1 =
         factory->NewStringFromAsciiChecked(raw_one_byte);
@@ -698,6 +694,53 @@ UNINITIALIZED_TEST(PromotionScavenge) {
     // sharing.
     CHECK(!heap->Contains(*one_byte_seq));
     CHECK(heap->SharedHeapContains(*one_byte_seq));
+  }
+}
+
+UNINITIALIZED_TEST(SharedStringsTransitionDuringGC) {
+  if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
+  if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
+
+  FLAG_shared_string_table = true;
+
+  MultiClientIsolateTest test;
+
+  constexpr int kStrings = 4096;
+
+  v8::Isolate* isolate = test.NewClientIsolate();
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Factory* factory = i_isolate->factory();
+
+  HandleScope scope(i_isolate);
+
+  // Run two times to test that everything is reset correctly during GC.
+  for (int run = 0; run < 2; run++) {
+    Handle<FixedArray> shared_strings =
+        CreateSharedOneByteStrings(i_isolate, factory, kStrings, run == 0);
+
+    // Check strings are in the forwarding table after internalization.
+    for (int i = 0; i < shared_strings->length(); i++) {
+      Handle<String> input_string(String::cast(shared_strings->get(i)),
+                                  i_isolate);
+      Handle<String> interned = factory->InternalizeString(input_string);
+      CHECK(input_string->IsShared());
+      CHECK(!input_string->IsThinString());
+      CHECK(input_string->HasForwardingIndex());
+      CHECK(String::Equals(i_isolate, input_string, interned));
+    }
+
+    // Trigger garbage collection on the shared isolate.
+    i_isolate->heap()->CollectSharedGarbage(GarbageCollectionReason::kTesting);
+
+    // Check that GC cleared the forwarding table.
+    CHECK_EQ(i_isolate->string_forwarding_table()->Size(), 0);
+
+    // Check all strings are transitioned to ThinStrings
+    for (int i = 0; i < shared_strings->length(); i++) {
+      Handle<String> input_string(String::cast(shared_strings->get(i)),
+                                  i_isolate);
+      CHECK(input_string->IsThinString());
+    }
   }
 }
 

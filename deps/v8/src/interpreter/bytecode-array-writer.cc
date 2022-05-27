@@ -467,15 +467,32 @@ void BytecodeArrayWriter::EmitJumpLoop(BytecodeNode* node,
 
   CHECK_GE(current_offset, loop_header->offset());
   CHECK_LE(current_offset, static_cast<size_t>(kMaxUInt32));
-  // Label has been bound already so this is a backwards jump.
+
+  // Update the actual jump offset now that we know the bytecode offset of both
+  // the target loop header and this JumpLoop bytecode.
+  //
+  // The label has been bound already so this is a backwards jump.
   uint32_t delta =
       static_cast<uint32_t>(current_offset - loop_header->offset());
-  OperandScale operand_scale = Bytecodes::ScaleForUnsignedOperand(delta);
-  if (operand_scale > OperandScale::kSingle) {
-    // Adjust for scaling byte prefix for wide jump offset.
-    delta += 1;
+  // This JumpLoop bytecode itself may have a kWide or kExtraWide prefix; if
+  // so, bump the delta to account for it.
+  const bool emits_prefix_bytecode =
+      Bytecodes::OperandScaleRequiresPrefixBytecode(node->operand_scale()) ||
+      Bytecodes::OperandScaleRequiresPrefixBytecode(
+          Bytecodes::ScaleForUnsignedOperand(delta));
+  if (emits_prefix_bytecode) {
+    static constexpr int kPrefixBytecodeSize = 1;
+    delta += kPrefixBytecodeSize;
+    DCHECK_EQ(Bytecodes::Size(Bytecode::kWide, OperandScale::kSingle),
+              kPrefixBytecodeSize);
+    DCHECK_EQ(Bytecodes::Size(Bytecode::kExtraWide, OperandScale::kSingle),
+              kPrefixBytecodeSize);
   }
   node->update_operand0(delta);
+  DCHECK_EQ(
+      Bytecodes::OperandScaleRequiresPrefixBytecode(node->operand_scale()),
+      emits_prefix_bytecode);
+
   EmitBytecode(node);
 }
 

@@ -18,12 +18,16 @@
 #include "src/compiler/osr.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/objects/code-kind.h"
+
+#if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
-namespace v8 {
-namespace internal {
+namespace v8::internal::wasm {
+class AssemblerBufferCache;
+}
 
-namespace compiler {
+namespace v8::internal::compiler {
 
 // Forward declarations.
 class DeoptimizationExit;
@@ -75,8 +79,10 @@ class DeoptimizationLiteral {
 
   bool operator==(const DeoptimizationLiteral& other) const {
     return kind_ == other.kind_ && object_.equals(other.object_) &&
-           bit_cast<uint64_t>(number_) == bit_cast<uint64_t>(other.number_) &&
-           bit_cast<intptr_t>(string_) == bit_cast<intptr_t>(other.string_);
+           base::bit_cast<uint64_t>(number_) ==
+               base::bit_cast<uint64_t>(other.number_) &&
+           base::bit_cast<intptr_t>(string_) ==
+               base::bit_cast<intptr_t>(other.string_);
   }
 
   Handle<Object> Reify(Isolate* isolate) const;
@@ -119,16 +125,14 @@ struct TurbolizerInstructionStartInfo {
 // Generates native code for a sequence of instructions.
 class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
  public:
-  explicit CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
-                         InstructionSequence* instructions,
-                         OptimizedCompilationInfo* info, Isolate* isolate,
-                         base::Optional<OsrHelper> osr_helper,
-                         int start_source_position,
-                         JumpOptimizationInfo* jump_opt,
-                         const AssemblerOptions& options, Builtin builtin,
-                         size_t max_unoptimized_frame_height,
-                         size_t max_pushed_argument_count,
-                         const char* debug_name = nullptr);
+  explicit CodeGenerator(
+      Zone* codegen_zone, Frame* frame, Linkage* linkage,
+      InstructionSequence* instructions, OptimizedCompilationInfo* info,
+      Isolate* isolate, base::Optional<OsrHelper> osr_helper,
+      int start_source_position, JumpOptimizationInfo* jump_opt,
+      const AssemblerOptions& options, wasm::AssemblerBufferCache* buffer_cache,
+      Builtin builtin, size_t max_unoptimized_frame_height,
+      size_t max_pushed_argument_count, const char* debug_name = nullptr);
 
   // Generate native code. After calling AssembleCode, call FinalizeCode to
   // produce the actual code object. If an error occurs during either phase,
@@ -462,7 +466,9 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   int osr_pc_offset_;
   int optimized_out_literal_id_;
   SourcePositionTableBuilder source_position_table_builder_;
+#if V8_ENABLE_WEBASSEMBLY
   ZoneVector<trap_handler::ProtectedInstructionData> protected_instructions_;
+#endif  // V8_ENABLE_WEBASSEMBLY
   CodeGenResult result_;
   ZoneVector<int> block_starts_;
   TurbolizerCodeOffsetsInfo offsets_info_;
@@ -471,8 +477,6 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   const char* debug_name_ = nullptr;
 };
 
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::compiler
 
 #endif  // V8_COMPILER_BACKEND_CODE_GENERATOR_H_

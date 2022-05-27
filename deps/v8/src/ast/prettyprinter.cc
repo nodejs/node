@@ -343,6 +343,10 @@ void CallPrinter::VisitAssignment(Assignment* node) {
     }
   }
   if (!was_found) {
+    if (found_) {
+      Find(node->target(), true);
+      return;
+    }
     Find(node->target());
     if (node->target()->IsArrayLiteral()) {
       // Special case the visit for destructuring array assignment.

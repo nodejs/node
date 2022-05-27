@@ -227,10 +227,7 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
 }
 
 HEAP_TEST(ObjectStartBitmap) {
-  if (!FLAG_single_generation || !FLAG_conservative_stack_scanning) return;
-
 #if V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope sc(CcTest::isolate());
@@ -239,28 +236,67 @@ HEAP_TEST(ObjectStartBitmap) {
   heap::SealCurrentObjects(heap);
 
   auto* factory = isolate->factory();
-  HeapObject obj = *factory->NewStringFromStaticChars("hello");
-  HeapObject obj2 = *factory->NewStringFromStaticChars("world");
-  Page* page = Page::FromAddress(obj.ptr());
 
-  CHECK(page->object_start_bitmap()->CheckBit(obj.address()));
-  CHECK(page->object_start_bitmap()->CheckBit(obj2.address()));
+  // TODO(v8:12851): Using handles because conservative stack scanning currently
+  // does not work.
+  Handle<String> h1 = factory->NewStringFromStaticChars("hello");
+  Handle<String> h2 = factory->NewStringFromStaticChars("world");
 
-  Address obj_inner_ptr = obj.ptr() + 2;
-  CHECK(page->object_start_bitmap()->FindBasePtr(obj_inner_ptr) ==
-        obj.address());
+  HeapObject obj1 = *h1;
+  HeapObject obj2 = *h2;
+  Page* page1 = Page::FromAddress(obj1.ptr());
+  Page* page2 = Page::FromAddress(obj2.ptr());
 
-  Address obj2_inner_ptr = obj2.ptr() + 2;
-  CHECK(page->object_start_bitmap()->FindBasePtr(obj2_inner_ptr) ==
-        obj2.address());
+  CHECK(page1->object_start_bitmap()->CheckBit(obj1.address()));
+  CHECK(page2->object_start_bitmap()->CheckBit(obj2.address()));
+
+  for (int k = 0; k < obj1.Size(); ++k) {
+    Address obj1_inner_ptr = obj1.address() + k;
+    CHECK_EQ(obj1.address(),
+             page1->object_start_bitmap()->FindBasePtr(obj1_inner_ptr));
+  }
+  for (int k = 0; k < obj2.Size(); ++k) {
+    Address obj2_inner_ptr = obj2.address() + k;
+    CHECK_EQ(obj2.address(),
+             page2->object_start_bitmap()->FindBasePtr(obj2_inner_ptr));
+  }
 
   CcTest::CollectAllGarbage();
 
-  CHECK((obj).IsString());
-  CHECK((obj2).IsString());
-  CHECK(page->object_start_bitmap()->CheckBit(obj.address()));
-  CHECK(page->object_start_bitmap()->CheckBit(obj2.address()));
+  obj1 = *h1;
+  obj2 = *h2;
+  page1 = Page::FromAddress(obj1.ptr());
+  page2 = Page::FromAddress(obj2.ptr());
 
+  CHECK(obj1.IsString());
+  CHECK(obj2.IsString());
+
+  // TODO(v8:12851): Bits set in the object_start_bitmap are currently not
+  // preserved when objects are evacuated. For this reason, in the following
+  // checks, FindBasePtr is expected to return null after garbage collection.
+  for (int k = 0; k < obj1.Size(); ++k) {
+    Address obj1_inner_ptr = obj1.address() + k;
+    CHECK_EQ(kNullAddress,
+             page1->object_start_bitmap()->FindBasePtr(obj1_inner_ptr));
+  }
+  for (int k = 0; k < obj2.Size(); ++k) {
+    Address obj2_inner_ptr = obj2.address() + k;
+    CHECK_EQ(kNullAddress,
+             page2->object_start_bitmap()->FindBasePtr(obj2_inner_ptr));
+  }
+
+  obj1 = *h1;
+  obj2 = *h2;
+  page1 = Page::FromAddress(obj1.ptr());
+  page2 = Page::FromAddress(obj2.ptr());
+
+  CHECK(obj1.IsString());
+  CHECK(obj2.IsString());
+
+  // TODO(v8:12851): Bits set in the object_start_bitmap are currently not
+  // preserved when objects are evacuated.
+  CHECK(!page1->object_start_bitmap()->CheckBit(obj1.address()));
+  CHECK(!page2->object_start_bitmap()->CheckBit(obj2.address()));
 #endif
 }
 
@@ -269,7 +305,6 @@ HEAP_TEST(ObjectStartBitmap) {
 static Handle<Map> CreateMap(Isolate* isolate) {
   return isolate->factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
 }
-
 
 TEST(MapCompact) {
   FLAG_max_map_space_pages = 16;
@@ -427,8 +462,7 @@ TEST(Regress5829) {
   Address old_end = array->address() + array->Size();
   // Right trim the array without clearing the mark bits.
   array->set_length(9);
-  heap->CreateFillerObjectAt(old_end - kTaggedSize, kTaggedSize,
-                             ClearRecordedSlots::kNo);
+  heap->CreateFillerObjectAt(old_end - kTaggedSize, kTaggedSize);
   heap->old_space()->FreeLinearAllocationArea();
   Page* page = Page::FromAddress(array->address());
   IncrementalMarking::MarkingState* marking_state = marking->marking_state();

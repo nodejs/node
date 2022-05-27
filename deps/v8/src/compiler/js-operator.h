@@ -95,12 +95,13 @@ class CallFrequency final {
   }
 
   bool operator==(CallFrequency const& that) const {
-    return bit_cast<uint32_t>(this->value_) == bit_cast<uint32_t>(that.value_);
+    return base::bit_cast<uint32_t>(this->value_) ==
+           base::bit_cast<uint32_t>(that.value_);
   }
   bool operator!=(CallFrequency const& that) const { return !(*this == that); }
 
   friend size_t hash_value(CallFrequency const& f) {
-    return bit_cast<uint32_t>(f.value_);
+    return base::bit_cast<uint32_t>(f.value_);
   }
 
   static constexpr float kNoFeedbackCallFrequency = -1;

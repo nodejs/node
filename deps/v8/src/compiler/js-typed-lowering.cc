@@ -1625,22 +1625,21 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
     if (!function.map().is_constructor()) return NoChange();
 
     // Patch {node} to an indirect call via the {function}s construct stub.
-    bool use_builtin_construct_stub = function.shared().construct_as_builtin();
-    CodeTRef code = MakeRef(
-        broker(), use_builtin_construct_stub
-                      ? BUILTIN_CODE(isolate(), JSBuiltinsConstructStub)
-                      : BUILTIN_CODE(isolate(), JSConstructStubGeneric));
+    Callable callable = Builtins::CallableFor(
+        isolate(), function.shared().construct_as_builtin()
+                       ? Builtin::kJSBuiltinsConstructStub
+                       : Builtin::kJSConstructStubGeneric);
     STATIC_ASSERT(JSConstructNode::TargetIndex() == 0);
     STATIC_ASSERT(JSConstructNode::NewTargetIndex() == 1);
     node->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(graph()->zone(), 0, jsgraph()->Constant(code));
+    node->InsertInput(graph()->zone(), 0,
+                      jsgraph()->HeapConstant(callable.code()));
     node->InsertInput(graph()->zone(), 3,
                       jsgraph()->Constant(JSParameterCount(arity)));
     node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
-    node->InsertInput(graph()->zone(), 5, jsgraph()->UndefinedConstant());
     NodeProperties::ChangeOp(
         node, common()->Call(Linkage::GetStubCallDescriptor(
-                  graph()->zone(), ConstructStubDescriptor{}, 1 + arity,
+                  graph()->zone(), callable.descriptor(), 1 + arity,
                   CallDescriptor::kNeedsFrameState)));
     return Changed(node);
   }

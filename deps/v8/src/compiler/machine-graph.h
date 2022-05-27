@@ -31,13 +31,13 @@ class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
   // Creates a Int32Constant node, usually canonicalized.
   Node* Int32Constant(int32_t value);
   Node* Uint32Constant(uint32_t value) {
-    return Int32Constant(bit_cast<int32_t>(value));
+    return Int32Constant(base::bit_cast<int32_t>(value));
   }
 
   // Creates a Int64Constant node, usually canonicalized.
   Node* Int64Constant(int64_t value);
   Node* Uint64Constant(uint64_t value) {
-    return Int64Constant(bit_cast<int64_t>(value));
+    return Int64Constant(base::bit_cast<int64_t>(value));
   }
 
   // Creates a Int32Constant/Int64Constant node, depending on the word size of
@@ -63,7 +63,7 @@ class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
   Node* PointerConstant(intptr_t value);
   template <typename T>
   Node* PointerConstant(T* value) {
-    return PointerConstant(bit_cast<intptr_t>(value));
+    return PointerConstant(base::bit_cast<intptr_t>(value));
   }
 
   // Creates an ExternalConstant node, usually canonicalized.

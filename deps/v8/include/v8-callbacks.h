@@ -216,7 +216,14 @@ using AddHistogramSampleCallback = void (*)(void* histogram, int sample);
 
 using FatalErrorCallback = void (*)(const char* location, const char* message);
 
-using OOMErrorCallback = void (*)(const char* location, bool is_heap_oom);
+using LegacyOOMErrorCallback = void (*)(const char* location, bool is_heap_oom);
+
+// TODO(chromium:1323177): Add a parameter for details, once this is deprecated
+// for at least one branch.
+using OOMErrorCallback V8_DEPRECATED(
+    "Use LegacyOOMErrorCallback; OOMErrorCallback will be changed "
+    "(https://crbug.com/1323177)") = void (*)(const char* location,
+                                              bool is_heap_oom);
 
 using MessageCallback = void (*)(Local<Message> message, Local<Value> data);
 
@@ -233,6 +240,8 @@ enum class CrashKeyId {
   kMapSpaceFirstPageAddress,
   kCodeSpaceFirstPageAddress,
   kDumpType,
+  kSnapshotChecksumCalculated,
+  kSnapshotChecksumExpected,
 };
 
 using AddCrashKeyCallback = void (*)(CrashKeyId id, const std::string& value);

@@ -66,19 +66,6 @@ size_t LargeObjectSpace::Available() const {
   return 0;
 }
 
-Address LargePage::GetAddressToShrink(Address object_address,
-                                      size_t object_size) {
-  if (executable() == EXECUTABLE) {
-    return 0;
-  }
-  size_t used_size = ::RoundUp((object_address - address()) + object_size,
-                               MemoryAllocator::GetCommitPageSize());
-  if (used_size < CommittedPhysicalMemory()) {
-    return address() + used_size;
-  }
-  return 0;
-}
-
 void LargePage::ClearOutOfLiveRangeSlots(Address free_start) {
   RememberedSet<OLD_TO_NEW>::RemoveRange(this, free_start, area_end(),
                                          SlotSet::FREE_EMPTY_BUCKETS);
@@ -221,8 +208,7 @@ LargePage* LargeObjectSpace::AllocateLargePage(int object_size,
 
   HeapObject object = page->GetObject();
 
-  heap()->CreateFillerObjectAt(object.address(), object_size,
-                               ClearRecordedSlots::kNo);
+  heap()->CreateFillerObjectAt(object.address(), object_size);
   return page;
 }
 
@@ -243,22 +229,6 @@ LargePage* CodeLargeObjectSpace::FindPage(Address a) {
     return page;
   }
   return nullptr;
-}
-
-void OldLargeObjectSpace::ClearMarkingStateOfLiveObjects() {
-  IncrementalMarking::NonAtomicMarkingState* marking_state =
-      heap()->incremental_marking()->non_atomic_marking_state();
-  LargeObjectSpaceObjectIterator it(this);
-  for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
-    if (marking_state->IsBlackOrGrey(obj)) {
-      Marking::MarkWhite(marking_state->MarkBitFrom(obj));
-      MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
-      RememberedSet<OLD_TO_NEW>::FreeEmptyBuckets(chunk);
-      chunk->ProgressBar().ResetIfEnabled();
-      marking_state->SetLiveBytes(chunk, 0);
-    }
-    DCHECK(marking_state->IsWhite(obj));
-  }
 }
 
 void CodeLargeObjectSpace::InsertChunkMapEntries(LargePage* page) {
@@ -283,10 +253,9 @@ void OldLargeObjectSpace::PromoteNewLargeObject(LargePage* page) {
   DCHECK(page->IsFlagSet(MemoryChunk::FROM_PAGE));
   DCHECK(!page->IsFlagSet(MemoryChunk::TO_PAGE));
   PtrComprCageBase cage_base(heap()->isolate());
-  size_t object_size = static_cast<size_t>(page->GetObject().Size(cage_base));
-  static_cast<LargeObjectSpace*>(page->owner())->RemovePage(page, object_size);
+  static_cast<LargeObjectSpace*>(page->owner())->RemovePage(page);
   page->ClearFlag(MemoryChunk::FROM_PAGE);
-  AddPage(page, object_size);
+  AddPage(page, static_cast<size_t>(page->GetObject().Size(cage_base)));
 }
 
 void LargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
@@ -299,52 +268,52 @@ void LargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
   page->SetOldGenerationPageFlags(!is_off_thread() &&
                                   heap()->incremental_marking()->IsMarking());
 }
-
-void LargeObjectSpace::RemovePage(LargePage* page, size_t object_size) {
+void LargeObjectSpace::RemovePage(LargePage* page) {
   size_ -= static_cast<int>(page->size());
   AccountUncommitted(page->size());
-  objects_size_ -= object_size;
   page_count_--;
   memory_chunk_list_.Remove(page);
   page->set_owner(nullptr);
 }
 
-void LargeObjectSpace::FreeUnmarkedObjects() {
-  LargePage* current = first_page();
-  IncrementalMarking::NonAtomicMarkingState* marking_state =
-      heap()->incremental_marking()->non_atomic_marking_state();
-  // Right-trimming does not update the objects_size_ counter. We are lazily
-  // updating it after every GC.
-  size_t surviving_object_size = 0;
-  PtrComprCageBase cage_base(heap()->isolate());
-  while (current) {
-    LargePage* next_current = current->next_page();
-    HeapObject object = current->GetObject();
-    DCHECK(!marking_state->IsGrey(object));
-    size_t size = static_cast<size_t>(object.Size(cage_base));
-    if (marking_state->IsBlack(object)) {
-      Address free_start;
-      surviving_object_size += size;
-      if ((free_start = current->GetAddressToShrink(object.address(), size)) !=
-          0) {
-        DCHECK(!current->IsFlagSet(Page::IS_EXECUTABLE));
-        current->ClearOutOfLiveRangeSlots(free_start);
-        const size_t bytes_to_free =
-            current->size() - (free_start - current->address());
-        heap()->memory_allocator()->PartialFreeMemory(
-            current, free_start, bytes_to_free,
-            current->area_start() + object.Size(cage_base));
-        size_ -= bytes_to_free;
-        AccountUncommitted(bytes_to_free);
-      }
-    } else {
-      RemovePage(current, size);
-      heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kConcurrently,
-                                       current);
-    }
-    current = next_current;
+namespace {
+
+// Returns the `GetCommitPageSize()`-aligned end of the payload that can be
+// used to shrink down an object. Returns kNullAddress if shrinking is not
+// supported.
+Address GetEndOfPayload(LargePage* page, Address object_address,
+                        size_t object_size) {
+  if (page->executable() == EXECUTABLE) {
+    return kNullAddress;
   }
-  objects_size_ = surviving_object_size;
+  const size_t used_committed_size =
+      ::RoundUp((object_address - page->address()) + object_size,
+                MemoryAllocator::GetCommitPageSize());
+  return (used_committed_size < page->size())
+             ? page->address() + used_committed_size
+             : kNullAddress;
+}
+
+}  // namespace
+
+void LargeObjectSpace::ShrinkPageToObjectSize(LargePage* page,
+                                              HeapObject object,
+                                              size_t object_size) {
+#ifdef DEBUG
+  PtrComprCageBase cage_base(heap()->isolate());
+  DCHECK_EQ(object, page->GetObject());
+  DCHECK_EQ(object_size, page->GetObject().Size(cage_base));
+#endif  // DEBUG
+  Address free_start = GetEndOfPayload(page, object.address(), object_size);
+  if (free_start != kNullAddress) {
+    DCHECK(!page->IsFlagSet(Page::IS_EXECUTABLE));
+    page->ClearOutOfLiveRangeSlots(free_start);
+    const size_t bytes_to_free = page->size() - (free_start - page->address());
+    heap()->memory_allocator()->PartialFreeMemory(
+        page, free_start, bytes_to_free, page->area_start() + object_size);
+    size_ -= bytes_to_free;
+    AccountUncommitted(bytes_to_free);
+  }
 }
 
 bool LargeObjectSpace::Contains(HeapObject object) const {
@@ -559,17 +528,16 @@ void NewLargeObjectSpace::FreeDeadObjects(
     LargePage* page = *it;
     it++;
     HeapObject object = page->GetObject();
-    size_t size = static_cast<size_t>(object.Size(cage_base));
     if (is_dead(object)) {
       freed_pages = true;
-      RemovePage(page, size);
+      RemovePage(page);
       heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kConcurrently,
                                        page);
       if (FLAG_concurrent_marking && is_marking) {
         heap()->concurrent_marking()->ClearMemoryChunkData(page);
       }
     } else {
-      surviving_object_size += size;
+      surviving_object_size += static_cast<size_t>(object.Size(cage_base));
     }
   }
   // Right-trimming does not update the objects_size_ counter. We are lazily
@@ -605,10 +573,10 @@ void CodeLargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
   InsertChunkMapEntries(page);
 }
 
-void CodeLargeObjectSpace::RemovePage(LargePage* page, size_t object_size) {
+void CodeLargeObjectSpace::RemovePage(LargePage* page) {
   RemoveChunkMapEntries(page);
   heap()->isolate()->RemoveCodeMemoryChunk(page);
-  OldLargeObjectSpace::RemovePage(page, object_size);
+  OldLargeObjectSpace::RemovePage(page);
 }
 
 }  // namespace internal

@@ -42,6 +42,35 @@ V8_JSON = {
   ]
 }
 
+V8_VARIANTS_JSON = {
+    'path': ['.'],
+    'owners': ['username@chromium.org'],
+    'binary': 'd7',
+    'timeout': 60,
+    'flags': ['--flag'],
+    'main': 'run.js',
+    'run_count': 1,
+    'results_regexp': '%s: (.+)$',
+    'variants': [{
+        'name': 'default',
+        'flags': [],
+    }, {
+        'name': 'VariantA',
+        'flags': ['--variant-a-flag'],
+    }, {
+        'name': 'VariantB',
+        'flags': ['--variant-b-flag'],
+    }],
+    'tests': [
+        {
+            'name': 'Richards',
+        },
+        {
+            'name': 'DeltaBlue',
+        },
+    ]
+}
+
 V8_NESTED_SUITES_JSON = {
   'path': ['.'],
   'owners': ['username@chromium.org'],
@@ -138,14 +167,17 @@ class PerfTest(unittest.TestCase):
     with open(self._test_input, 'w') as f:
       f.write(json.dumps(json_content))
 
-  def _MockCommand(self, *args, **kwargs):
+  def _MockCommand(self, raw_dirs, raw_outputs, *args, **kwargs):
     on_bots = kwargs.pop('on_bots', False)
     # Fake output for each test run.
-    test_outputs = [Output(stdout=arg,
-                           timed_out=kwargs.get('timed_out', False),
-                           exit_code=kwargs.get('exit_code', 0),
-                           duration=42)
-                    for arg in args[1]]
+    test_outputs = [
+        Output(
+            stdout=output,
+            timed_out=kwargs.get('timed_out', False),
+            exit_code=kwargs.get('exit_code', 0),
+            duration=42) for output in raw_outputs
+    ]
+
     def create_cmd(*args, **kwargs):
       cmd = mock.MagicMock()
       def execute(*args, **kwargs):
@@ -168,9 +200,16 @@ class PerfTest(unittest.TestCase):
         mock.MagicMock(side_effect=return_values)).start()
 
     # Check that d8 is called from the correct cwd for each test run.
-    dirs = [os.path.join(TEST_WORKSPACE, arg) for arg in args[0]]
-    def chdir(*args, **kwargs):
-      self.assertEqual(dirs.pop(), args[0])
+    dirs = [os.path.join(TEST_WORKSPACE, dir) for dir in raw_dirs]
+
+    def chdir(dir, *args, **kwargs):
+      if not dirs:
+        raise Exception("Missing test chdir '%s'" % dir)
+      expected_dir = dirs.pop()
+      self.assertEqual(
+          expected_dir, dir,
+          "Unexpected chdir: expected='%s' got='%s'" % (expected_dir, dir))
+
     os.chdir = mock.MagicMock(side_effect=chdir)
 
     subprocess.check_call = mock.MagicMock()
@@ -189,6 +228,12 @@ class PerfTest(unittest.TestCase):
   def _LoadResults(self, file_name=None):
     with open(file_name or self._test_output) as f:
       return json.load(f)
+
+  def _VerifyResultTraces(self, traces, file_name=None):
+    sorted_expected = sorted(traces, key=SORT_KEY)
+    sorted_results = sorted(
+        self._LoadResults(file_name)['traces'], key=SORT_KEY)
+    self.assertListEqual(sorted_expected, sorted_results)
 
   def _VerifyResults(self, suite, units, traces, file_name=None):
     self.assertListEqual(sorted([
@@ -243,6 +288,60 @@ class PerfTest(unittest.TestCase):
     self._VerifyErrors([])
     self._VerifyMock(
         os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js')
+
+  def testOneRunVariants(self):
+    self._WriteTestInput(V8_VARIANTS_JSON)
+    self._MockCommand(['.', '.', '.'], [
+        'x\nRichards: 3.3\nDeltaBlue: 3000\ny\n',
+        'x\nRichards: 2.2\nDeltaBlue: 2000\ny\n',
+        'x\nRichards: 1.1\nDeltaBlue: 1000\ny\n'
+    ])
+    self.assertEqual(0, self._CallMain())
+    self._VerifyResultTraces([
+        {
+            'units': 'score',
+            'graphs': ['test', 'default', 'Richards'],
+            'results': [1.1],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'default', 'DeltaBlue'],
+            'results': [1000],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'VariantA', 'Richards'],
+            'results': [2.2],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'VariantA', 'DeltaBlue'],
+            'results': [2000],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'VariantB', 'Richards'],
+            'results': [3.3],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'VariantB', 'DeltaBlue'],
+            'results': [3000],
+            'stddev': ''
+        },
+    ])
+    self._VerifyErrors([])
+    self._VerifyMockMultiple(
+        (os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js'),
+        (os.path.join('out', 'x64.release',
+                      'd7'), '--flag', '--variant-a-flag', 'run.js'),
+        (os.path.join('out', 'x64.release',
+                      'd7'), '--flag', '--variant-b-flag', 'run.js'))
 
   def testOneRunWithTestFlags(self):
     test_input = dict(V8_JSON)
@@ -378,6 +477,7 @@ class PerfTest(unittest.TestCase):
         (os.path.join('out', 'x64.release', 'd8'),
          '--flag', '--flag2', 'run.js'))
 
+
   def testOneRunStdDevRegExp(self):
     test_input = dict(V8_JSON)
     test_input['stddev_regexp'] = r'^%s-stddev: (.+)$'
@@ -482,6 +582,37 @@ class PerfTest(unittest.TestCase):
         ['Regexp "^Richards: (.+)$" did not match for test test/Richards.'])
     self._VerifyMock(
         os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js')
+
+  def testFilterInvalidRegexp(self):
+    self._WriteTestInput(V8_JSON)
+    self._MockCommand(['.'], ['x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n'])
+    self.assertNotEqual(0, self._CallMain("--filter=((("))
+    self._VerifyMock(os.path.join('out', 'Release', 'd7'), '--flag', 'run.js')
+
+  def testFilterRegexpMatchAll(self):
+    self._WriteTestInput(V8_JSON)
+    self._MockCommand(['.'], ['x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n'])
+    self.assertEqual(0, self._CallMain("--filter=test"))
+    self._VerifyResults('test', 'score', [
+        {
+            'name': 'Richards',
+            'results': [1.234],
+            'stddev': ''
+        },
+        {
+            'name': 'DeltaBlue',
+            'results': [10657567.0],
+            'stddev': ''
+        },
+    ])
+    self._VerifyMock(
+        os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js')
+
+  def testFilterRegexpSkipAll(self):
+    self._WriteTestInput(V8_JSON)
+    self._MockCommand(['.'], ['x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n'])
+    self.assertEqual(0, self._CallMain("--filter=NonExistingName"))
+    self._VerifyResults('test', 'score', [])
 
   def testOneRunCrashed(self):
     test_input = dict(V8_JSON)

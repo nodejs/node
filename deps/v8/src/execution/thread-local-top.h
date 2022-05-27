@@ -13,10 +13,6 @@
 #include "src/objects/contexts.h"
 #include "src/utils/utils.h"
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-#include "src/heap/base/stack.h"
-#endif
-
 namespace v8 {
 
 class TryCatch;
@@ -33,11 +29,7 @@ class ThreadLocalTop {
   // TODO(all): This is not particularly beautiful. We should probably
   // refactor this to really consist of just Addresses and 32-bit
   // integer fields.
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  static constexpr uint32_t kSizeInBytes = 26 * kSystemPointerSize;
-#else
   static constexpr uint32_t kSizeInBytes = 25 * kSystemPointerSize;
-#endif
 
   // Does early low-level initialization that does not depend on the
   // isolate being present.
@@ -154,10 +146,6 @@ class ThreadLocalTop {
 
   // Address of the thread-local "thread in wasm" flag.
   Address thread_in_wasm_flag_address_;
-
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  ::heap::base::Stack stack_;
-#endif
 };
 
 }  // namespace internal

@@ -85,7 +85,13 @@ class SnapshotFileWriter {
   static void WriteSnapshotFileSuffix(FILE* fp) {
     fprintf(fp, "const v8::StartupData* Snapshot::DefaultSnapshotBlob() {\n");
     fprintf(fp, "  return &blob;\n");
-    fprintf(fp, "}\n\n");
+    fprintf(fp, "}\n");
+    fprintf(fp, "\n");
+    fprintf(
+        fp,
+        "bool Snapshot::ShouldVerifyChecksum(const v8::StartupData* data) {\n");
+    fprintf(fp, "  return true;\n");
+    fprintf(fp, "}\n");
     fprintf(fp, "}  // namespace internal\n");
     fprintf(fp, "}  // namespace v8\n");
   }

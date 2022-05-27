@@ -212,7 +212,7 @@ void RegExpMacroAssemblerX64::CheckGreedyLoop(Label* on_equal) {
   __ cmpl(rdi, Operand(backtrack_stackpointer(), 0));
   __ j(not_equal, &fallthrough);
   Drop();
-  BranchOrBacktrack(no_condition, on_equal);
+  BranchOrBacktrack(on_equal);
   __ bind(&fallthrough);
 }
 
@@ -1104,11 +1104,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   return Handle<HeapObject>::cast(code);
 }
 
-
-void RegExpMacroAssemblerX64::GoTo(Label* to) {
-  BranchOrBacktrack(no_condition, to);
-}
-
+void RegExpMacroAssemblerX64::GoTo(Label* to) { BranchOrBacktrack(to); }
 
 void RegExpMacroAssemblerX64::IfRegisterGE(int reg,
                                            int comparand,
@@ -1318,24 +1314,18 @@ void RegExpMacroAssemblerX64::CheckPosition(int cp_offset,
   }
 }
 
+void RegExpMacroAssemblerX64::BranchOrBacktrack(Label* to) {
+  if (to == nullptr) {
+    Backtrack();
+    return;
+  }
+  __ jmp(to);
+}
 
 void RegExpMacroAssemblerX64::BranchOrBacktrack(Condition condition,
                                                 Label* to) {
-  if (condition < 0) {  // No condition
-    if (to == nullptr) {
-      Backtrack();
-      return;
-    }
-    __ jmp(to);
-    return;
-  }
-  if (to == nullptr) {
-    __ j(condition, &backtrack_label_);
-    return;
-  }
-  __ j(condition, to);
+  __ j(condition, to ? to : &backtrack_label_);
 }
-
 
 void RegExpMacroAssemblerX64::SafeCall(Label* to) {
   __ call(to);

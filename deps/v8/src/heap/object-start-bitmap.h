@@ -99,45 +99,43 @@ Address ObjectStartBitmap::FindBasePtr(Address maybe_inner_ptr) const {
   DCHECK_GT(object_start_bit_map_.size(), cell_index);
   const size_t bit = object_start_number & kCellMask;
   // check if maybe_inner_ptr is the base pointer
-  uint32_t byte = load(cell_index) & ((1 << (bit + 1)) - 1);
-  while (!byte && cell_index) {
-    DCHECK_LT(0u, cell_index);
+  uint32_t byte =
+      load(cell_index) & static_cast<uint32_t>((1 << (bit + 1)) - 1);
+  while (byte == 0 && cell_index > 0) {
     byte = load(--cell_index);
   }
-  const int leading_zeroes = v8::base::bits::CountLeadingZeros(byte);
-  if (leading_zeroes == kBitsPerCell) {
+  if (byte == 0) {
+    DCHECK_EQ(0, cell_index);
     return kNullAddress;
   }
-
+  const int leading_zeroes = v8::base::bits::CountLeadingZeros(byte);
+  DCHECK_GT(kBitsPerCell, leading_zeroes);
   object_start_number =
       (cell_index * kBitsPerCell) + (kBitsPerCell - 1) - leading_zeroes;
-  Address base_ptr = StartIndexToAddress(object_start_number);
-  return base_ptr;
+  return StartIndexToAddress(object_start_number);
 }
 
 void ObjectStartBitmap::SetBit(Address base_ptr) {
   size_t cell_index, object_bit;
   ObjectStartIndexAndBit(base_ptr, &cell_index, &object_bit);
-  store(cell_index,
-        static_cast<uint32_t>(load(cell_index) | (1 << object_bit)));
+  store(cell_index, load(cell_index) | static_cast<uint32_t>(1 << object_bit));
 }
 
 void ObjectStartBitmap::ClearBit(Address base_ptr) {
   size_t cell_index, object_bit;
   ObjectStartIndexAndBit(base_ptr, &cell_index, &object_bit);
   store(cell_index,
-        static_cast<uint32_t>(load(cell_index) & ~(1 << object_bit)));
+        load(cell_index) & static_cast<uint32_t>(~(1 << object_bit)));
 }
 
 bool ObjectStartBitmap::CheckBit(Address base_ptr) const {
   size_t cell_index, object_bit;
   ObjectStartIndexAndBit(base_ptr, &cell_index, &object_bit);
-  return load(cell_index) & (1 << object_bit);
+  return (load(cell_index) & static_cast<uint32_t>(1 << object_bit)) != 0;
 }
 
 void ObjectStartBitmap::store(size_t cell_index, uint32_t value) {
   object_start_bit_map_[cell_index] = value;
-  return;
 }
 
 uint32_t ObjectStartBitmap::load(size_t cell_index) const {
@@ -165,15 +163,17 @@ Address ObjectStartBitmap::StartIndexToAddress(
 template <typename Callback>
 inline void ObjectStartBitmap::Iterate(Callback callback) const {
   for (size_t cell_index = 0; cell_index < kReservedForBitmap; cell_index++) {
-    uint32_t value = object_start_bit_map_[cell_index];
-    while (value) {
-      const int trailing_zeroes = v8::base::bits::CountTrailingZeros(value);
+    uint32_t value = load(cell_index);
+    while (value != 0) {
+      const int trailing_zeroes =
+          v8::base::bits::CountTrailingZerosNonZero(value);
+      DCHECK_GT(kBitsPerCell, trailing_zeroes);
       const size_t object_start_number =
           (cell_index * kBitsPerCell) + trailing_zeroes;
       const Address object_address = StartIndexToAddress(object_start_number);
       callback(object_address);
       // Clear current object bit in temporary value to advance iteration.
-      value &= ~(1 << (object_start_number & kCellMask));
+      value &= value - 1;
     }
   }
 }

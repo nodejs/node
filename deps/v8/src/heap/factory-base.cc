@@ -247,7 +247,6 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
   instance.set_parameter_count(parameter_count);
   instance.set_incoming_new_target_or_generator_register(
       interpreter::Register::invalid_value());
-  instance.reset_osr_urgency_and_install_target();
   instance.set_bytecode_age(BytecodeArray::kNoAgeBytecodeAge);
   instance.set_constant_pool(*constant_pool);
   instance.set_handler_table(read_only_roots().empty_byte_array(),
@@ -292,6 +291,7 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
                                   SKIP_WRITE_BARRIER);
     raw.set_flags(0);
     raw.set_host_defined_options(roots.empty_fixed_array(), SKIP_WRITE_BARRIER);
+    raw.set_source_hash(roots.undefined_value(), SKIP_WRITE_BARRIER);
 #ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
     raw.set_script_or_modules(roots.empty_array_list());
 #endif
@@ -301,7 +301,8 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
     impl()->AddToScriptList(script);
   }
 
-  LOG(isolate(), ScriptEvent(Logger::ScriptEventType::kCreate, script_id));
+  LOG(isolate(),
+      ScriptEvent(V8FileLogger::ScriptEventType::kCreate, script_id));
   return script;
 }
 
@@ -1065,25 +1066,6 @@ MaybeHandle<Map> FactoryBase<Impl>::GetInPlaceInternalizedStringMap(
       break;
   }
   DCHECK_EQ(!map.is_null(), String::IsInPlaceInternalizable(instance_type));
-  return map;
-}
-
-template <typename Impl>
-Handle<Map> FactoryBase<Impl>::GetStringMigrationSentinelMap(
-    InstanceType from_string_type) {
-  Handle<Map> map;
-  switch (from_string_type) {
-    case SHARED_STRING_TYPE:
-      map = read_only_roots().seq_string_migration_sentinel_map_handle();
-      break;
-    case SHARED_ONE_BYTE_STRING_TYPE:
-      map =
-          read_only_roots().one_byte_seq_string_migration_sentinel_map_handle();
-      break;
-    default:
-      UNREACHABLE();
-  }
-  DCHECK_EQ(map->instance_type(), from_string_type);
   return map;
 }
 

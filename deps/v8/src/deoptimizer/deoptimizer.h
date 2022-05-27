@@ -55,6 +55,13 @@ class Deoptimizer : public Malloced {
   Handle<Code> compiled_code() const;
   DeoptimizeKind deopt_kind() const { return deopt_kind_; }
 
+  // Where the deopt exit occurred *in the outermost frame*, i.e in the
+  // function we generated OSR'd code for. If the deopt occurred in an inlined
+  // function, this would point at the corresponding outermost Call bytecode.
+  BytecodeOffset bytecode_offset_in_outermost_frame() const {
+    return bytecode_offset_in_outermost_frame_;
+  }
+
   static Deoptimizer* New(Address raw_function, DeoptimizeKind kind,
                           Address from, int fp_to_sp_delta, Isolate* isolate);
   static Deoptimizer* Grab(Isolate* isolate);
@@ -142,7 +149,7 @@ class Deoptimizer : public Malloced {
   void DoComputeOutputFrames();
   void DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
                                  int frame_index, bool goto_catch_handler);
-  void DoComputeArgumentsAdaptorFrame(TranslatedFrame* translated_frame,
+  void DoComputeInlinedExtraArguments(TranslatedFrame* translated_frame,
                                       int frame_index);
   void DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
                                    int frame_index);
@@ -188,16 +195,20 @@ class Deoptimizer : public Malloced {
   static void TraceDeoptAll(Isolate* isolate);
   static void TraceDeoptMarked(Isolate* isolate);
 
+  bool is_restart_frame() const { return restart_frame_index_ >= 0; }
+
   Isolate* isolate_;
   JSFunction function_;
   Code compiled_code_;
   unsigned deopt_exit_index_;
+  BytecodeOffset bytecode_offset_in_outermost_frame_ = BytecodeOffset::None();
   DeoptimizeKind deopt_kind_;
   Address from_;
   int fp_to_sp_delta_;
   bool deoptimizing_throw_;
   int catch_handler_data_;
   int catch_handler_pc_offset_;
+  int restart_frame_index_;
 
   // Input frame description.
   FrameDescription* input_;

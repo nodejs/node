@@ -893,9 +893,10 @@ TEST_F(Int64LoweringTest, F64ReinterpretI64) {
 }
 
 TEST_F(Int64LoweringTest, I64ReinterpretF64) {
-  LowerGraph(graph()->NewNode(machine()->BitcastFloat64ToInt64(),
-                              Float64Constant(bit_cast<double>(value(0)))),
-             MachineRepresentation::kWord64);
+  LowerGraph(
+      graph()->NewNode(machine()->BitcastFloat64ToInt64(),
+                       Float64Constant(base::bit_cast<double>(value(0)))),
+      MachineRepresentation::kWord64);
 
   Capture<Node*> stack_slot;
   Matcher<Node*> stack_slot_matcher =
@@ -906,7 +907,7 @@ TEST_F(Int64LoweringTest, I64ReinterpretF64) {
       StoreRepresentation(MachineRepresentation::kFloat64,
                           WriteBarrierKind::kNoWriteBarrier),
       AllOf(CaptureEq(&stack_slot), stack_slot_matcher), IsInt32Constant(0),
-      IsFloat64Constant(bit_cast<double>(value(0))), start(), start());
+      IsFloat64Constant(base::bit_cast<double>(value(0))), start(), start());
 
   EXPECT_THAT(
       graph()->end()->InputAt(1),

@@ -147,6 +147,8 @@ class JSModuleNamespace
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> GetExport(Isolate* isolate,
                                                       Handle<String> name);
 
+  bool HasExport(Isolate* isolate, Handle<String> name);
+
   // Return the (constant) property attributes for the referenced property,
   // which is assumed to correspond to an export. If the export is
   // uninitialized, schedule an exception and return Nothing.

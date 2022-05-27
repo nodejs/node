@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_SOURCE_TEXT_MODULE_H_
 #define V8_OBJECTS_SOURCE_TEXT_MODULE_H_
 
+#include "src/objects/contexts.h"
 #include "src/objects/module.h"
 #include "src/objects/promise.h"
 #include "src/zone/zone-containers.h"
@@ -76,6 +77,11 @@ class SourceTextModule
                              FixedBodyDescriptor<kCodeOffset, kSize, kSize>>;
 
   static constexpr unsigned kFirstAsyncEvaluatingOrdinal = 2;
+
+  enum ExecuteAsyncModuleContextSlots {
+    kModule = Context::MIN_CONTEXT_SLOTS,
+    kContextLength,
+  };
 
  private:
   friend class Factory;

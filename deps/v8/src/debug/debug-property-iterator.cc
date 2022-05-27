@@ -184,8 +184,9 @@ bool DebugPropertyIterator::FillKeysForCurrentPrototypeAndStage() {
   }
   PropertyFilter filter =
       stage_ == kEnumerableStrings ? ENUMERABLE_STRINGS : ALL_PROPERTIES;
-  if (KeyAccumulator::GetKeys(receiver, KeyCollectionMode::kOwnOnly, filter,
-                              GetKeysConversion::kConvertToString, false,
+  if (KeyAccumulator::GetKeys(isolate_, receiver, KeyCollectionMode::kOwnOnly,
+                              filter, GetKeysConversion::kConvertToString,
+                              false,
                               skip_indices_ || receiver->IsJSTypedArray())
           .ToHandle(&current_keys_)) {
     current_keys_length_ = current_keys_->length();

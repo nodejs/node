@@ -868,7 +868,8 @@ DWORD GetFileViewAccessFromMemoryPermission(OS::MemoryPermission access) {
 void* VirtualAllocWrapper(void* address, size_t size, DWORD flags,
                           DWORD protect) {
   if (VirtualAlloc2) {
-    return VirtualAlloc2(nullptr, address, size, flags, protect, NULL, 0);
+    return VirtualAlloc2(GetCurrentProcess(), address, size, flags, protect,
+                         NULL, 0);
   } else {
     return VirtualAlloc(address, size, flags, protect);
   }
@@ -925,6 +926,13 @@ void* AllocateInternal(void* hint, size_t size, size_t alignment,
   }
   DCHECK_IMPLIES(base, base == aligned_base);
   return reinterpret_cast<void*>(base);
+}
+
+void CheckIsOOMError(int error) {
+  // We expect one of ERROR_NOT_ENOUGH_MEMORY or ERROR_COMMITMENT_LIMIT. We'd
+  // still like to get the actual error code when its not one of the expected
+  // errors, so use the construct below to achieve that.
+  if (error != ERROR_NOT_ENOUGH_MEMORY) CHECK_EQ(ERROR_COMMITMENT_LIMIT, error);
 }
 
 }  // namespace
@@ -997,7 +1005,19 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
     return VirtualFree(address, size, MEM_DECOMMIT) != 0;
   }
   DWORD protect = GetProtectionFromMemoryPermission(access);
-  return VirtualAllocWrapper(address, size, MEM_COMMIT, protect) != nullptr;
+  void* result = VirtualAllocWrapper(address, size, MEM_COMMIT, protect);
+
+  // Any failure that's not OOM likely indicates a bug in the caller (e.g.
+  // using an invalid mapping) so attempt to catch that here to facilitate
+  // debugging of these failures.
+  if (!result) CheckIsOOMError(GetLastError());
+
+  return result != nullptr;
+}
+
+// static
+bool OS::RecommitPages(void* address, size_t size, MemoryPermission access) {
+  return SetPermissions(address, size, access);
 }
 
 // static
@@ -1247,7 +1267,8 @@ bool AddressSpaceReservation::Allocate(void* address, size_t size,
                     ? MEM_RESERVE | MEM_REPLACE_PLACEHOLDER
                     : MEM_RESERVE | MEM_COMMIT | MEM_REPLACE_PLACEHOLDER;
   DWORD protect = GetProtectionFromMemoryPermission(access);
-  return VirtualAlloc2(nullptr, address, size, flags, protect, nullptr, 0);
+  return VirtualAlloc2(GetCurrentProcess(), address, size, flags, protect,
+                       nullptr, 0);
 }
 
 bool AddressSpaceReservation::Free(void* address, size_t size) {
@@ -1264,21 +1285,28 @@ bool AddressSpaceReservation::AllocateShared(void* address, size_t size,
 
   DWORD protect = GetProtectionFromMemoryPermission(access);
   HANDLE file_mapping = FileMappingFromSharedMemoryHandle(handle);
-  return MapViewOfFile3(file_mapping, nullptr, address, offset, size,
-                        MEM_REPLACE_PLACEHOLDER, protect, nullptr, 0);
+  return MapViewOfFile3(file_mapping, GetCurrentProcess(), address, offset,
+                        size, MEM_REPLACE_PLACEHOLDER, protect, nullptr, 0);
 }
 
 bool AddressSpaceReservation::FreeShared(void* address, size_t size) {
   DCHECK(Contains(address, size));
   CHECK(UnmapViewOfFile2);
 
-  return UnmapViewOfFile2(nullptr, address, MEM_PRESERVE_PLACEHOLDER);
+  return UnmapViewOfFile2(GetCurrentProcess(), address,
+                          MEM_PRESERVE_PLACEHOLDER);
 }
 
 bool AddressSpaceReservation::SetPermissions(void* address, size_t size,
                                              OS::MemoryPermission access) {
   DCHECK(Contains(address, size));
   return OS::SetPermissions(address, size, access);
+}
+
+bool AddressSpaceReservation::RecommitPages(void* address, size_t size,
+                                            OS::MemoryPermission access) {
+  DCHECK(Contains(address, size));
+  return OS::RecommitPages(address, size, access);
 }
 
 bool AddressSpaceReservation::DiscardSystemPages(void* address, size_t size) {

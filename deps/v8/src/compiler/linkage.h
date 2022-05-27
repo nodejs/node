@@ -66,6 +66,11 @@ class LinkageLocation {
                       a.machine_type_.representation()));
   }
 
+  static LinkageLocation ForNullRegister(
+      int32_t reg, MachineType type = MachineType::None()) {
+    return LinkageLocation(REGISTER, reg, type);
+  }
+
   static LinkageLocation ForAnyRegister(
       MachineType type = MachineType::None()) {
     return LinkageLocation(REGISTER, ANY_REGISTER, type);
@@ -140,6 +145,9 @@ class LinkageLocation {
            LocationField::kShift;
   }
 
+  bool IsNullRegister() const {
+    return IsRegister() && GetLocation() < ANY_REGISTER;
+  }
   NO_INLINE_FOR_ARM64_MSVC bool IsRegister() const {
     return TypeField::decode(bit_field_) == REGISTER;
   }

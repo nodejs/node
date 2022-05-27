@@ -25,8 +25,8 @@ namespace wasm {
 // Helper Functions.
 bool IsSameNan(float expected, float actual) {
   // Sign is non-deterministic.
-  uint32_t expected_bits = bit_cast<uint32_t>(expected) & ~0x80000000;
-  uint32_t actual_bits = bit_cast<uint32_t>(actual) & ~0x80000000;
+  uint32_t expected_bits = base::bit_cast<uint32_t>(expected) & ~0x80000000;
+  uint32_t actual_bits = base::bit_cast<uint32_t>(actual) & ~0x80000000;
   // Some implementations convert signaling NaNs to quiet NaNs.
   return (expected_bits == actual_bits) ||
          ((expected_bits | 0x00400000) == actual_bits);
@@ -34,8 +34,9 @@ bool IsSameNan(float expected, float actual) {
 
 bool IsSameNan(double expected, double actual) {
   // Sign is non-deterministic.
-  uint64_t expected_bits = bit_cast<uint64_t>(expected) & ~0x8000000000000000;
-  uint64_t actual_bits = bit_cast<uint64_t>(actual) & ~0x8000000000000000;
+  uint64_t expected_bits =
+      base::bit_cast<uint64_t>(expected) & ~0x8000000000000000;
+  uint64_t actual_bits = base::bit_cast<uint64_t>(actual) & ~0x8000000000000000;
   // Some implementations convert signaling NaNs to quiet NaNs.
   return (expected_bits == actual_bits) ||
          ((expected_bits | 0x0008000000000000) == actual_bits);
@@ -343,8 +344,7 @@ uint32_t TestingModuleBuilder::AddPassiveElementSegment(
 
 CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
   return {test_module_.get(), native_module_->bounds_checks(),
-          runtime_exception_support_, enabled_features_,
-          DynamicTiering::kDisabled};
+          runtime_exception_support_, enabled_features_, kNoDynamicTiering};
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
@@ -360,12 +360,10 @@ const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
 
 Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   const bool kUsesLiftoff = true;
-  DynamicTiering dynamic_tiering = FLAG_wasm_dynamic_tiering
-                                       ? DynamicTiering::kEnabled
-                                       : DynamicTiering::kDisabled;
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
-          test_module_.get(), kUsesLiftoff, dynamic_tiering);
+          test_module_.get(), kUsesLiftoff,
+          DynamicTiering{FLAG_wasm_dynamic_tiering});
   auto native_module = GetWasmEngine()->NewNativeModule(
       isolate_, enabled_features_, test_module_, code_size_estimate);
   native_module->SetWireBytes(base::OwnedVector<const uint8_t>());
@@ -585,8 +583,10 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   if (builder_->test_execution_tier() ==
       TestExecutionTier::kLiftoffForFuzzing) {
     result.emplace(ExecuteLiftoffCompilation(
-        &env, func_body, function_->func_index, kForDebugging,
+        &env, func_body,
         LiftoffOptions{}
+            .set_func_index(function_->func_index)
+            .set_for_debugging(kForDebugging)
             .set_max_steps(builder_->max_steps_ptr())
             .set_nondeterminism(builder_->non_determinism_ptr())));
   } else {
@@ -594,7 +594,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
                              for_debugging);
     result.emplace(unit.ExecuteCompilation(
         &env, native_module->compilation_state()->GetWireBytesStorage().get(),
-        nullptr, nullptr));
+        nullptr, nullptr, nullptr));
   }
   WasmCode* code = native_module->PublishCode(
       native_module->AddCompiledCode(std::move(*result)));

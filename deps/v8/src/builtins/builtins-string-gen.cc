@@ -345,19 +345,18 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
 
   TVARIABLE(String, result);
   Label check_right(this), runtime(this, Label::kDeferred), cons(this),
-      done(this, &result), done_native(this, &result);
-  Counters* counters = isolate()->counters();
+      done(this, &result);
 
   TNode<Uint32T> left_length = LoadStringLengthAsWord32(left);
   GotoIfNot(Word32Equal(left_length, Uint32Constant(0)), &check_right);
   result = right;
-  Goto(&done_native);
+  Goto(&done);
 
   BIND(&check_right);
   TNode<Uint32T> right_length = LoadStringLengthAsWord32(right);
   GotoIfNot(Word32Equal(right_length, Uint32Constant(0)), &cons);
   result = left;
-  Goto(&done_native);
+  Goto(&done);
 
   BIND(&cons);
   {
@@ -378,7 +377,7 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
 
     result =
         AllocateConsString(new_length, var_left.value(), var_right.value());
-    Goto(&done_native);
+    Goto(&done);
 
     BIND(&non_cons);
 
@@ -412,7 +411,7 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
     CopyStringCharacters(var_right.value(), result.value(), IntPtrConstant(0),
                          word_left_length, word_right_length,
                          String::ONE_BYTE_ENCODING, String::ONE_BYTE_ENCODING);
-    Goto(&done_native);
+    Goto(&done);
 
     BIND(&two_byte);
     {
@@ -426,7 +425,7 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
                            word_left_length, word_right_length,
                            String::TWO_BYTE_ENCODING,
                            String::TWO_BYTE_ENCODING);
-      Goto(&done_native);
+      Goto(&done);
     }
 
     BIND(&slow);
@@ -440,12 +439,6 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
   BIND(&runtime);
   {
     result = CAST(CallRuntime(Runtime::kStringAdd, context, left, right));
-    Goto(&done);
-  }
-
-  BIND(&done_native);
-  {
-    IncrementCounter(counters->string_add_native(), 1);
     Goto(&done);
   }
 
@@ -1672,10 +1665,6 @@ TNode<String> StringBuiltinsAssembler::SubString(TNode<String> string,
              &next);
 
       // Allocate new sliced string.
-
-      Counters* counters = isolate()->counters();
-      IncrementCounter(counters->sub_string_native(), 1);
-
       Label one_byte_slice(this), two_byte_slice(this);
       Branch(IsOneByteStringInstanceType(to_direct.instance_type()),
              &one_byte_slice, &two_byte_slice);
@@ -1705,10 +1694,6 @@ TNode<String> StringBuiltinsAssembler::SubString(TNode<String> string,
 
     var_result = AllocAndCopyStringCharacters(direct_string, instance_type,
                                               offset, substr_length);
-
-    Counters* counters = isolate()->counters();
-    IncrementCounter(counters->sub_string_native(), 1);
-
     Goto(&end);
   }
 
@@ -1720,9 +1705,6 @@ TNode<String> StringBuiltinsAssembler::SubString(TNode<String> string,
 
     var_result = AllocAndCopyStringCharacters(
         fake_sequential_string, instance_type, offset, substr_length);
-
-    Counters* counters = isolate()->counters();
-    IncrementCounter(counters->sub_string_native(), 1);
 
     Goto(&end);
   }
@@ -1749,10 +1731,6 @@ TNode<String> StringBuiltinsAssembler::SubString(TNode<String> string,
     GotoIf(UintPtrGreaterThan(from, IntPtrConstant(0)), &runtime);
 
     // Return the original string (substr_length == string_length).
-
-    Counters* counters = isolate()->counters();
-    IncrementCounter(counters->sub_string_native(), 1);
-
     var_result = string;
     Goto(&end);
   }

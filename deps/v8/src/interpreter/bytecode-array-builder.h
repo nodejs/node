@@ -428,7 +428,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   BytecodeArrayBuilder& Jump(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpLoop(BytecodeLoopHeader* loop_header,
-                                 int loop_depth, int position);
+                                 int loop_depth, int position,
+                                 int feedback_slot);
 
   BytecodeArrayBuilder& JumpIfTrue(ToBooleanMode mode, BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfFalse(ToBooleanMode mode, BytecodeLabel* label);
@@ -594,8 +595,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BYTECODE_LIST(DECLARE_BYTECODE_OUTPUT)
 #undef DECLARE_OPERAND_TYPE_INFO
 
-  V8_INLINE void OutputJumpLoop(BytecodeLoopHeader* loop_header,
-                                int loop_depth);
+  V8_INLINE void OutputJumpLoop(BytecodeLoopHeader* loop_header, int loop_depth,
+                                int feedback_slot);
   V8_INLINE void OutputSwitchOnSmiNoFeedback(BytecodeJumpTable* jump_table);
 
   bool RegisterIsValid(Register reg) const;

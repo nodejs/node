@@ -52,7 +52,7 @@ class V8_NODISCARD InitializedIgnitionHandleScope
     : public InitializedHandleScope {
  public:
   InitializedIgnitionHandleScope() {
-    i::FLAG_always_opt = false;
+    i::FLAG_always_turbofan = false;
     i::FLAG_allow_natives_syntax = true;
     i::FLAG_enable_lazy_source_positions = false;
   }
@@ -1159,6 +1159,62 @@ TEST(CompareTypeOf) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("CompareTypeOf.golden")));
+}
+
+TEST(CompareBoolean) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+
+  std::string snippets[] = {
+      "var a = 1;\n"
+      "return a === true;\n",
+
+      "var a = true;\n"
+      "return true === a;\n",
+
+      "var a = false;\n"
+      "return true !== a;\n",
+
+      "var a = 1;\n"
+      "return true === a ? 1 : 2;\n",
+
+      "var a = true;\n"
+      "return false === a ? 1 : 2;\n",
+
+      "var a = 1;\n"
+      "return true !== a ? 1 : 2;\n",
+
+      "var a = false;\n"
+      "return false !== null ? 1 : 2;\n",
+
+      "var a = 0;\n"
+      "if (a !== true) {\n"
+      "  return 1;\n"
+      "}\n",
+
+      "var a = true;\n"
+      "var b = 0;\n"
+      "while (a !== true) {\n"
+      "  b++;\n"
+      "}\n",
+
+      "(0 === true) ? 1 : 2;\n",
+
+      "(0 !== true) ? 1 : 2;\n",
+
+      "(false === 0) ? 1 : 2;\n",
+
+      "(0 === true || 0 === false) ? 1 : 2;\n",
+
+      "if (0 === true || 0 === false) return 1;\n",
+
+      "if (!('false' === false)) return 1;\n",
+
+      "if (!('false' !== false)) return 1;\n",
+  };
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("CompareBoolean.golden")));
 }
 
 TEST(CompareNil) {

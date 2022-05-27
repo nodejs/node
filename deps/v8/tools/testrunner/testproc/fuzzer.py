@@ -11,7 +11,7 @@ from . import base
 # Extra flags randomly added to all fuzz tests with numfuzz. List of tuples
 # (probability, flag).
 EXTRA_FLAGS = [
-    (0.1, '--always-opt'),
+    (0.1, '--always-turbofan'),
     (0.1, '--assert-types'),
     (0.1, '--interrupt-budget-for-feedback-allocation=0'),
     (0.1, '--cache=code'),
@@ -36,14 +36,14 @@ EXTRA_FLAGS = [
     (0.1, '--no-enable-popcnt'),
     (0.3, '--no-lazy-feedback-allocation'),
     (0.1, '--no-liftoff'),
-    (0.1, '--no-opt'),
+    (0.1, '--no-turbofan'),
     (0.2, '--no-regexp-tier-up'),
+    (0.25, '--no-use-map-space'),
     (0.1, '--no-wasm-tier-up'),
     (0.1, '--regexp-interpret-all'),
     (0.1, '--regexp-tier-up-ticks=10'),
     (0.1, '--regexp-tier-up-ticks=100'),
     (0.1, '--stress-background-compile'),
-    (0.1, '--stress-concurrent-inlining'),
     (0.1, '--stress-flush-code'),
     (0.1, '--stress-lazy-source-positions'),
     (0.1, '--stress-wasm-code-gc'),

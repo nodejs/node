@@ -15,18 +15,18 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 22
+bytecode array length: 23
 bytecodes: [
   /*   30 S> */ B(LdaZero),
                 B(Star0),
   /*   35 S> */ B(LdaSmi), I8(10),
   /*   35 E> */ B(TestLessThan), R(0), U8(0),
-                B(JumpIfFalse), U8(13),
+                B(JumpIfFalse), U8(14),
   /*   56 S> */ B(Mov), R(0), R(1),
   /*   43 S> */ B(Ldar), R(1),
                 B(Inc), U8(1),
                 B(Star0),
-  /*   17 E> */ B(JumpLoop), U8(15), I8(0),
+  /*   17 E> */ B(JumpLoop), U8(15), I8(0), U8(2),
                 B(LdaUndefined),
   /*   61 S> */ B(Return),
 ]
@@ -44,7 +44,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 149
+bytecode array length: 151
 bytecodes: [
   /*   10 E> */ B(CreateFunctionContext), U8(0), U8(4),
                 B(PushContext), R(4),
@@ -88,10 +88,10 @@ bytecodes: [
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(6),
                 B(PopContext), R(6),
-                B(Jump), U8(68),
+                B(Jump), U8(70),
                 B(LdaSmi), I8(1),
                 B(TestEqual), R(2), U8(3),
-                B(JumpIfFalse), U8(45),
+                B(JumpIfFalse), U8(46),
   /*   48 S> */ B(LdaLookupGlobalSlot), U8(3), U8(4), U8(3),
                 B(Star7),
                 B(LdaConstant), U8(4),
@@ -112,14 +112,14 @@ bytecodes: [
                 B(Star2),
                 B(LdaCurrentContextSlot), U8(2),
                 B(Star0),
-  /*   17 E> */ B(JumpLoop), U8(47), I8(1),
+  /*   17 E> */ B(JumpLoop), U8(47), I8(1), U8(8),
                 B(LdaSmi), I8(1),
-                B(TestEqual), R(2), U8(8),
+                B(TestEqual), R(2), U8(9),
                 B(JumpIfFalse), U8(6),
                 B(PopContext), R(6),
-                B(Jump), U8(7),
+                B(Jump), U8(8),
                 B(PopContext), R(6),
-                B(JumpLoop), U8(110), I8(0),
+                B(JumpLoop), U8(111), I8(0), U8(10),
                 B(PopContext), R(5),
                 B(LdaUndefined),
   /*   61 S> */ B(Return),
@@ -143,7 +143,7 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 94
+bytecode array length: 96
 bytecodes: [
   /*   30 S> */ B(LdaZero),
                 B(Star3),
@@ -174,10 +174,10 @@ bytecodes: [
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(6),
                 B(PopContext), R(4),
-                B(Jump), U8(41),
+                B(Jump), U8(43),
                 B(LdaSmi), I8(1),
                 B(TestEqual), R(2), U8(3),
-                B(JumpIfFalse), U8(18),
+                B(JumpIfFalse), U8(19),
   /*   48 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
                 B(Star5),
   /*   74 E> */ B(CallUndefinedReceiver0), R(5), U8(4),
@@ -185,14 +185,14 @@ bytecodes: [
                 B(Star2),
                 B(LdaCurrentContextSlot), U8(2),
                 B(Star0),
-  /*   17 E> */ B(JumpLoop), U8(20), I8(1),
+  /*   17 E> */ B(JumpLoop), U8(20), I8(1), U8(6),
                 B(LdaSmi), I8(1),
-                B(TestEqual), R(2), U8(6),
+                B(TestEqual), R(2), U8(7),
                 B(JumpIfFalse), U8(6),
                 B(PopContext), R(4),
-                B(Jump), U8(7),
+                B(Jump), U8(8),
                 B(PopContext), R(4),
-                B(JumpLoop), U8(83), I8(0),
+                B(JumpLoop), U8(84), I8(0), U8(8),
                 B(LdaUndefined),
   /*   80 S> */ B(Return),
 ]
@@ -212,7 +212,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 37
+bytecode array length: 38
 bytecodes: [
   /*   37 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
                 B(Star3),
@@ -222,14 +222,14 @@ bytecodes: [
                 B(Star1),
   /*   55 S> */ B(LdaZero),
   /*   55 E> */ B(TestGreaterThan), R(1), U8(5),
-                B(JumpIfFalse), U8(16),
+                B(JumpIfFalse), U8(17),
   /*   75 S> */ B(Ldar), R(1),
   /*   77 E> */ B(Add), R(0), U8(6),
                 B(Star2),
   /*   62 S> */ B(Ldar), R(1),
                 B(Dec), U8(7),
                 B(Star1),
-  /*   17 E> */ B(JumpLoop), U8(17), I8(0),
+  /*   17 E> */ B(JumpLoop), U8(17), I8(0), U8(8),
                 B(LdaUndefined),
   /*   84 S> */ B(Return),
 ]
@@ -250,7 +250,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 61
+bytecode array length: 62
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
                 B(Mov), R(closure), R(3),
@@ -270,12 +270,12 @@ bytecodes: [
                 B(Star1),
   /*   36 S> */ B(LdaSmi), I8(10),
   /*   36 E> */ B(TestLessThan), R(1), U8(0),
-                B(JumpIfFalse), U8(13),
+                B(JumpIfFalse), U8(14),
   /*   57 S> */ B(Mov), R(1), R(2),
   /*   44 S> */ B(Ldar), R(2),
                 B(Inc), U8(1),
                 B(Star1),
-  /*   18 E> */ B(JumpLoop), U8(15), I8(0),
+  /*   18 E> */ B(JumpLoop), U8(15), I8(0), U8(2),
                 B(LdaUndefined),
   /*   62 S> */ B(Return),
 ]
@@ -296,7 +296,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 91
+bytecode array length: 92
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(2),
@@ -316,7 +316,7 @@ bytecodes: [
                 B(Star1),
   /*   36 S> */ B(LdaSmi), I8(10),
   /*   36 E> */ B(TestLessThan), R(1), U8(0),
-                B(JumpIfFalse), U8(43),
+                B(JumpIfFalse), U8(44),
   /*   47 S> */ B(LdaFalse),
                 B(Star3),
                 B(Mov), R(1), R(2),
@@ -333,7 +333,7 @@ bytecodes: [
   /*   44 S> */ B(Ldar), R(1),
                 B(Inc), U8(1),
                 B(Star1),
-  /*   18 E> */ B(JumpLoop), U8(45), I8(0),
+  /*   18 E> */ B(JumpLoop), U8(45), I8(0), U8(2),
                 B(LdaUndefined),
   /*   56 S> */ B(Return),
 ]
@@ -357,7 +357,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 66
+bytecode array length: 67
 bytecodes: [
                 B(Mov), R(closure), R(3),
                 B(Mov), R(this), R(4),
@@ -368,12 +368,12 @@ bytecodes: [
                 B(Star1),
   /*   41 S> */ B(LdaSmi), I8(10),
   /*   41 E> */ B(TestLessThan), R(1), U8(0),
-                B(JumpIfFalse), U8(13),
+                B(JumpIfFalse), U8(14),
   /*   62 S> */ B(Mov), R(1), R(2),
   /*   49 S> */ B(Ldar), R(2),
                 B(Inc), U8(1),
                 B(Star1),
-  /*   23 E> */ B(JumpLoop), U8(15), I8(0),
+  /*   23 E> */ B(JumpLoop), U8(15), I8(0), U8(2),
                 B(LdaUndefined),
                 B(Star5),
                 B(Mov), R(0), R(4),
@@ -396,7 +396,7 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [14, 44, 44],
+  [14, 45, 45],
 ]
 
 ---
@@ -408,7 +408,7 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 100
+bytecode array length: 101
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
                 B(Mov), R(closure), R(2),
@@ -420,7 +420,7 @@ bytecodes: [
                 B(Star1),
   /*   41 S> */ B(LdaSmi), I8(10),
   /*   41 E> */ B(TestLessThan), R(1), U8(0),
-                B(JumpIfFalse), U8(43),
+                B(JumpIfFalse), U8(44),
   /*   52 S> */ B(Mov), R(0), R(3),
                 B(Mov), R(1), R(4),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionAwaitUncaught), R(3), U8(2),
@@ -437,7 +437,7 @@ bytecodes: [
   /*   49 S> */ B(Ldar), R(1),
                 B(Inc), U8(1),
                 B(Star1),
-  /*   23 E> */ B(JumpLoop), U8(45), I8(0),
+  /*   23 E> */ B(JumpLoop), U8(45), I8(0), U8(2),
                 B(LdaUndefined),
                 B(Star4),
                 B(Mov), R(0), R(3),
@@ -461,6 +461,6 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [18, 78, 78],
+  [18, 79, 79],
 ]
 

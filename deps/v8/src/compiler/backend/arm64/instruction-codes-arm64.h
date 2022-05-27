@@ -237,8 +237,6 @@ namespace compiler {
   V(Arm64F64x2PromoteLowF32x4)                       \
   V(Arm64F32x4SConvertI32x4)                         \
   V(Arm64F32x4UConvertI32x4)                         \
-  V(Arm64F32x4RecipApprox)                           \
-  V(Arm64F32x4RecipSqrtApprox)                       \
   V(Arm64F32x4Qfma)                                  \
   V(Arm64F32x4Qfms)                                  \
   V(Arm64F32x4Pmin)                                  \

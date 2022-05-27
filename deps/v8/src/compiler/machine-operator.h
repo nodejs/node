@@ -410,7 +410,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Comment(const char* msg);
   const Operator* AbortCSADcheck();
   const Operator* DebugBreak();
-  const Operator* UnsafePointerAdd();
 
   const Operator* Word32And();
   const Operator* Word32Or();
@@ -732,8 +731,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* F32x4Abs();
   const Operator* F32x4Neg();
   const Operator* F32x4Sqrt();
-  const Operator* F32x4RecipApprox();
-  const Operator* F32x4RecipSqrtApprox();
   const Operator* F32x4Add();
   const Operator* F32x4Sub();
   const Operator* F32x4Mul();

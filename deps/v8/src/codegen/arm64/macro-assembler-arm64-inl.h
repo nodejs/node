@@ -671,7 +671,7 @@ void TurboAssembler::Fmov(VRegister vd, double imm) {
   if (IsImmFP64(imm)) {
     fmov(vd, imm);
   } else {
-    uint64_t bits = bit_cast<uint64_t>(imm);
+    uint64_t bits = base::bit_cast<uint64_t>(imm);
     if (vd.IsScalar()) {
       if (bits == 0) {
         fmov(vd, xzr);
@@ -698,7 +698,7 @@ void TurboAssembler::Fmov(VRegister vd, float imm) {
   if (IsImmFP32(imm)) {
     fmov(vd, imm);
   } else {
-    uint32_t bits = bit_cast<uint32_t>(imm);
+    uint32_t bits = base::bit_cast<uint32_t>(imm);
     if (vd.IsScalar()) {
       if (bits == 0) {
         fmov(vd, wzr);

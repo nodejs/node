@@ -4884,7 +4884,7 @@ THREADED_TEST(NamedPropertyHandlerGetterAttributes) {
 
 
 THREADED_TEST(Regress256330) {
-  if (!i::FLAG_opt) return;
+  if (!i::FLAG_turbofan) return;
   i::FLAG_allow_natives_syntax = true;
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());

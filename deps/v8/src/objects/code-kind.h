@@ -100,7 +100,7 @@ inline constexpr bool CodeKindCanTierUp(CodeKind kind) {
 // TODO(jgruber): Rename or remove this predicate. Currently it means 'is this
 // kind stored either in the FeedbackVector cache, or in the OSR cache?'.
 inline constexpr bool CodeKindIsStoredInOptimizedCodeCache(CodeKind kind) {
-  return kind == CodeKind::TURBOFAN;
+  return kind == CodeKind::MAGLEV || kind == CodeKind::TURBOFAN;
 }
 
 inline CodeKind CodeKindForTopTier() { return CodeKind::TURBOFAN; }

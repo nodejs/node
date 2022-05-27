@@ -51,6 +51,7 @@ struct PtrComprCageReservationParams
         RoundUp(size_t{1} << kPageSizeBits, page_allocator->AllocatePageSize());
     requested_start_hint =
         reinterpret_cast<Address>(page_allocator->GetRandomMmapAddr());
+    jit = JitPermission::kNoJit;
   }
 };
 #endif  // V8_COMPRESS_POINTERS

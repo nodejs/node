@@ -229,8 +229,7 @@ constexpr auto ConstructStubDescriptor::registers() {
   // a1: target
   // a3: new target
   // a0: number of arguments
-  // a2: allocation site or undefined
-  return RegisterArray(a1, a3, a0, a2);
+  return RegisterArray(a1, a3, a0);
 }
 
 // static

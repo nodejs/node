@@ -27,6 +27,12 @@ T GlobalHandleVector<T>::Pop() {
   return obj;
 }
 
+// static
+Object GlobalHandles::Acquire(Address* location) {
+  return Object(reinterpret_cast<std::atomic<Address>*>(location)->load(
+      std::memory_order_acquire));
+}
+
 }  // namespace internal
 }  // namespace v8
 

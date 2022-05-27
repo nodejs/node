@@ -187,23 +187,23 @@ TEST(CodeEvents) {
   ProfilerListener profiler_listener(isolate, processor,
                                      *code_observer.code_entries(),
                                      *code_observer.weak_code_registry());
-  isolate->logger()->AddCodeEventListener(&profiler_listener);
+  isolate->v8_file_logger()->AddLogEventListener(&profiler_listener);
 
   // Enqueue code creation events.
   const char* aaa_str = "aaa";
   i::Handle<i::String> aaa_name = factory->NewStringFromAsciiChecked(aaa_str);
-  profiler_listener.CodeCreateEvent(i::Logger::FUNCTION_TAG, aaa_code,
+  profiler_listener.CodeCreateEvent(i::V8FileLogger::FUNCTION_TAG, aaa_code,
                                     aaa_name);
-  profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment_code,
+  profiler_listener.CodeCreateEvent(i::V8FileLogger::BUILTIN_TAG, comment_code,
                                     "comment");
-  profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment2_code,
+  profiler_listener.CodeCreateEvent(i::V8FileLogger::BUILTIN_TAG, comment2_code,
                                     "comment2");
   profiler_listener.CodeMoveEvent(*comment2_code, *moved_code);
 
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(processor, aaa_code->InstructionStart());
 
-  isolate->logger()->RemoveCodeEventListener(&profiler_listener);
+  isolate->v8_file_logger()->RemoveLogEventListener(&profiler_listener);
   processor->StopSynchronously();
 
   // Check the state of the symbolizer.
@@ -255,11 +255,14 @@ TEST(TickEvents) {
   ProfilerListener profiler_listener(isolate, processor,
                                      *code_observer->code_entries(),
                                      *code_observer->weak_code_registry());
-  isolate->logger()->AddCodeEventListener(&profiler_listener);
+  isolate->v8_file_logger()->AddLogEventListener(&profiler_listener);
 
-  profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame1_code, "bbb");
-  profiler_listener.CodeCreateEvent(i::Logger::STUB_TAG, frame2_code, "ccc");
-  profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame3_code, "ddd");
+  profiler_listener.CodeCreateEvent(i::V8FileLogger::BUILTIN_TAG, frame1_code,
+                                    "bbb");
+  profiler_listener.CodeCreateEvent(i::V8FileLogger::STUB_TAG, frame2_code,
+                                    "ccc");
+  profiler_listener.CodeCreateEvent(i::V8FileLogger::BUILTIN_TAG, frame3_code,
+                                    "ddd");
 
   EnqueueTickSampleEvent(processor, frame1_code->raw_instruction_start());
   EnqueueTickSampleEvent(processor,
@@ -271,7 +274,7 @@ TEST(TickEvents) {
                          frame2_code->raw_instruction_end() - 1,
                          frame1_code->raw_instruction_end() - 1);
 
-  isolate->logger()->RemoveCodeEventListener(&profiler_listener);
+  isolate->v8_file_logger()->RemoveLogEventListener(&profiler_listener);
   processor->StopSynchronously();
   CpuProfile* profile = profiles->StopProfiling(id);
   CHECK(profile);
@@ -415,7 +418,7 @@ TEST(Issue1398) {
                                      *code_observer->code_entries(),
                                      *code_observer->weak_code_registry());
 
-  profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, code, "bbb");
+  profiler_listener.CodeCreateEvent(i::V8FileLogger::BUILTIN_TAG, code, "bbb");
 
   v8::internal::TickSample sample;
   sample.pc = reinterpret_cast<void*>(code->InstructionStart());
@@ -1226,7 +1229,7 @@ TEST(BoundFunctionCall) {
 // This tests checks distribution of the samples through the source lines.
 static void TickLines(bool optimize) {
 #ifndef V8_LITE_MODE
-  FLAG_opt = optimize;
+  FLAG_turbofan = optimize;
 #endif  // V8_LITE_MODE
   CcTest::InitializeVM();
   LocalContext env;
@@ -1293,7 +1296,7 @@ static void TickLines(bool optimize) {
   // LogCompiledFunctions so that source positions are collected everywhere.
   // This would normally happen automatically with CpuProfiler::StartProfiling
   // but doesn't because it's constructed with a symbolizer and a processor.
-  isolate->logger()->LogCompiledFunctions();
+  isolate->v8_file_logger()->LogCompiledFunctions();
   CHECK(processor->Start());
   ProfilerListener profiler_listener(isolate, processor,
                                      *code_observer->code_entries(),
@@ -1303,7 +1306,7 @@ static void TickLines(bool optimize) {
   i::Handle<i::String> str = factory->NewStringFromAsciiChecked(func_name);
   int line = 1;
   int column = 1;
-  profiler_listener.CodeCreateEvent(i::Logger::FUNCTION_TAG, code,
+  profiler_listener.CodeCreateEvent(i::V8FileLogger::FUNCTION_TAG, code,
                                     handle(func->shared(), isolate), str, line,
                                     column);
 
@@ -2285,7 +2288,7 @@ TEST(FunctionDetails) {
 }
 
 TEST(FunctionDetailsInlining) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_turbofan) return;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -2493,7 +2496,7 @@ const char* GetBranchDeoptReason(v8::Local<v8::Context> context,
 
 // deopt at top function
 TEST(CollectDeoptEvents) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_turbofan) return;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -2608,7 +2611,7 @@ TEST(CollectDeoptEvents) {
 }
 
 TEST(SourceLocation) {
-  i::FLAG_always_opt = true;
+  i::FLAG_always_turbofan = true;
   LocalContext env;
   v8::HandleScope scope(CcTest::isolate());
 
@@ -2631,7 +2634,7 @@ static const char* inlined_source =
 
 // deopt at the first level inlined function
 TEST(DeoptAtFirstLevelInlinedSource) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_turbofan) return;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -2703,7 +2706,7 @@ TEST(DeoptAtFirstLevelInlinedSource) {
 
 // deopt at the second level inlined function
 TEST(DeoptAtSecondLevelInlinedSource) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_turbofan) return;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -2781,7 +2784,7 @@ TEST(DeoptAtSecondLevelInlinedSource) {
 
 // deopt in untracked function
 TEST(DeoptUntrackedFunction) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
+  if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_turbofan) return;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -4294,7 +4297,7 @@ UNINITIALIZED_TEST(DetailedSourcePositionAPI_Inlining) {
   i::FLAG_detailed_line_info = false;
   i::FLAG_turbo_inlining = true;
   i::FLAG_stress_inline = true;
-  i::FLAG_always_opt = false;
+  i::FLAG_always_turbofan = false;
   i::FLAG_allow_natives_syntax = true;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -4442,12 +4445,12 @@ TEST(FastApiCPUProfiler) {
   // None of the following configurations include JSCallReducer.
   if (i::FLAG_jitless) return;
 
-  FLAG_SCOPE(opt);
+  FLAG_SCOPE(turbofan);
   FLAG_SCOPE(turbo_fast_api_calls);
   FLAG_SCOPE(allow_natives_syntax);
-  // Disable --always_opt, otherwise we haven't generated the necessary
+  // Disable --always_turbofan, otherwise we haven't generated the necessary
   // feedback to go down the "best optimization" path for the fast call.
-  FLAG_VALUE_SCOPE(always_opt, false);
+  FLAG_VALUE_SCOPE(always_turbofan, false);
   FLAG_VALUE_SCOPE(prof_browser_mode, false);
 
   CcTest::InitializeVM();
@@ -4539,8 +4542,8 @@ TEST(FastApiCPUProfiler) {
 
 TEST(BytecodeFlushEventsEagerLogging) {
 #ifndef V8_LITE_MODE
-  FLAG_opt = false;
-  FLAG_always_opt = false;
+  FLAG_turbofan = false;
+  FLAG_always_turbofan = false;
   i::FLAG_optimize_for_size = false;
 #endif  // V8_LITE_MODE
 #if ENABLE_SPARKPLUG

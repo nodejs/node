@@ -303,7 +303,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
   // Relocation exists if we either have no isolate (wasm code),
   // or we have an isolate and it is not an off-heap instruction stream.
   if (!isolate || !OffHeapInstructionStream::PcIsOffHeap(
-                      isolate, bit_cast<Address>(begin))) {
+                      isolate, base::bit_cast<Address>(begin))) {
     it = new RelocIterator(code);
   } else {
     // No relocation information when printing code stubs.

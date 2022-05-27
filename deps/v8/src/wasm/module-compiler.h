@@ -78,6 +78,11 @@ WasmCode* CompileImportWrapper(
 // also lazy.
 bool CompileLazy(Isolate*, Handle<WasmInstanceObject>, int func_index);
 
+// Throws the compilation error after failed lazy compilation.
+void ThrowLazyCompilationError(Isolate* isolate,
+                               const NativeModule* native_module,
+                               int func_index);
+
 V8_EXPORT_PRIVATE void TriggerTierUp(Isolate*, NativeModule*, int func_index,
                                      Handle<WasmInstanceObject> instance);
 

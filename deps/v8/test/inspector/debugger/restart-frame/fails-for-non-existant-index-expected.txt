@@ -1,0 +1,17 @@
+Checks that requesting to restart a non-existant frame fails cleanly
+Paused at (after evaluation):
+
+    (function foo() { #debugger; })();
+  
+
+Pause stack:
+  foo:1 (canBeRestarted = true)
+
+Attempting to restart frame with non-existent index 2
+{
+    error : {
+        code : -32000
+        message : Frame restarting not supported
+    }
+    id : <messageId>
+}

@@ -153,9 +153,8 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   size_t Free(Address start, size_t size_in_bytes, SpaceAccountingMode mode) {
     if (size_in_bytes == 0) return 0;
-    heap()->CreateFillerObjectAtBackground(
-        start, static_cast<int>(size_in_bytes),
-        ClearFreedMemoryMode::kDontClearFreedMemory);
+    heap()->CreateFillerObjectAtBackground(start,
+                                           static_cast<int>(size_in_bytes));
     if (mode == SpaceAccountingMode::kSpaceAccounted) {
       return AccountedFree(start, size_in_bytes);
     } else {
@@ -441,7 +440,7 @@ class V8_EXPORT_PRIVATE PagedSpace
 // -----------------------------------------------------------------------------
 // Compaction space that is used temporarily during compaction.
 
-class V8_EXPORT_PRIVATE CompactionSpace : public PagedSpace {
+class V8_EXPORT_PRIVATE CompactionSpace final : public PagedSpace {
  public:
   CompactionSpace(Heap* heap, AllocationSpace id, Executability executable,
                   CompactionSpaceKind compaction_space_kind)
@@ -502,7 +501,7 @@ class CompactionSpaceCollection : public Malloced {
 // -----------------------------------------------------------------------------
 // Old generation regular object space.
 
-class OldSpace : public PagedSpace {
+class OldSpace final : public PagedSpace {
  public:
   // Creates an old space object. The constructor does not allocate pages
   // from OS.
@@ -525,7 +524,7 @@ class OldSpace : public PagedSpace {
 // -----------------------------------------------------------------------------
 // Old generation code object space.
 
-class CodeSpace : public PagedSpace {
+class CodeSpace final : public PagedSpace {
  public:
   // Creates an old space object. The constructor does not allocate pages
   // from OS.
@@ -540,7 +539,7 @@ class CodeSpace : public PagedSpace {
 // -----------------------------------------------------------------------------
 // Old space for all map objects
 
-class MapSpace : public PagedSpace {
+class MapSpace final : public PagedSpace {
  public:
   // Creates a map space object.
   explicit MapSpace(Heap* heap)

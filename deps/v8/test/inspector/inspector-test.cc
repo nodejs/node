@@ -510,6 +510,9 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
     inspector->Set(isolate, "newExceptionWithMetaData",
                    v8::FunctionTemplate::New(
                        isolate, &InspectorExtension::newExceptionWithMetaData));
+    inspector->Set(isolate, "callbackForTests",
+                   v8::FunctionTemplate::New(
+                       isolate, &InspectorExtension::CallbackForTests));
     global->Set(isolate, "inspector", inspector);
   }
 
@@ -770,6 +773,21 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
     CHECK(data->AssociateExceptionData(error, args[1].As<v8::String>(),
                                        args[2].As<v8::String>()));
     args.GetReturnValue().Set(error);
+  }
+
+  static void CallbackForTests(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsFunction()) {
+      FATAL("Internal error: callbackForTests(function).");
+    }
+
+    v8::Isolate* isolate = args.GetIsolate();
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
+    v8::Local<v8::Function> callback = v8::Local<v8::Function>::Cast(args[0]);
+    v8::MaybeLocal<v8::Value> result =
+        callback->Call(context, v8::Undefined(isolate), 0, nullptr);
+    args.GetReturnValue().Set(result.ToLocalChecked());
   }
 };
 

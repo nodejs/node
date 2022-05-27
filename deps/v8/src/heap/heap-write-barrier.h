@@ -48,6 +48,7 @@ inline bool IsReadOnlyHeapObject(HeapObject object);
 class V8_EXPORT_PRIVATE WriteBarrier {
  public:
   static inline void Marking(HeapObject host, ObjectSlot, Object value);
+  static inline void Marking(HeapObject host, ObjectSlot, Code value);
   static inline void Marking(HeapObject host, HeapObjectSlot, HeapObject value);
   static inline void Marking(HeapObject host, MaybeObjectSlot,
                              MaybeObject value);

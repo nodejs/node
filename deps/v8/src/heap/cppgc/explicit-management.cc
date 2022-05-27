@@ -68,10 +68,12 @@ void ExplicitManagementImpl::FreeUnreferencedObject(HeapHandle& heap_handle,
   }
 #if defined(CPPGC_YOUNG_GENERATION)
   auto& heap_base = HeapBase::From(heap_handle);
-  heap_base.remembered_set().InvalidateRememberedSlotsInRange(
-      object, reinterpret_cast<uint8_t*>(object) + object_size);
-  // If this object was registered as remembered, remove it.
-  heap_base.remembered_set().InvalidateRememberedSourceObject(header);
+  if (heap_base.generational_gc_supported()) {
+    heap_base.remembered_set().InvalidateRememberedSlotsInRange(
+        object, reinterpret_cast<uint8_t*>(object) + object_size);
+    // If this object was registered as remembered, remove it.
+    heap_base.remembered_set().InvalidateRememberedSourceObject(header);
+  }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 }
 
@@ -122,8 +124,11 @@ bool Shrink(HeapObjectHeader& header, BasePage& base_page, size_t new_size,
     header.SetAllocatedSize(new_size);
   }
 #if defined(CPPGC_YOUNG_GENERATION)
-  base_page.heap().remembered_set().InvalidateRememberedSlotsInRange(
-      free_start, free_start + size_delta);
+  auto& heap = base_page.heap();
+  if (heap.generational_gc_supported()) {
+    heap.remembered_set().InvalidateRememberedSlotsInRange(
+        free_start, free_start + size_delta);
+  }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
   // Return success in any case, as we want to avoid that embedders start
   // copying memory because of small deltas.

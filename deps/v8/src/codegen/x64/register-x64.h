@@ -60,13 +60,13 @@ enum RegisterCode {
 
 class Register : public RegisterBase<Register, kRegAfterLast> {
  public:
-  bool is_byte_register() const { return code() <= 3; }
+  constexpr bool is_byte_register() const { return code() <= 3; }
   // Return the high bit of the register code as a 0 or 1.  Used often
   // when constructing the REX prefix byte.
-  int high_bit() const { return code() >> 3; }
+  constexpr int high_bit() const { return code() >> 3; }
   // Return the 3 low bits of the register code.  Used when encoding registers
   // in modR/M, SIB, and opcode bytes.
-  int low_bits() const { return code() & 0x7; }
+  constexpr int low_bits() const { return code() & 0x7; }
 
  private:
   friend class RegisterBase<Register, kRegAfterLast>;

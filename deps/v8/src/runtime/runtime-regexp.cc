@@ -664,6 +664,8 @@ V8_WARN_UNUSED_RESULT static Object StringReplaceGlobalRegExpWithString(
   // from. Global regexps can match any number of times, so we guess
   // conservatively.
   int expected_parts = (compiled_replacement.parts() + 1) * 4 + 1;
+  // TODO(v8:12843): improve the situation where the expected_parts exceeds
+  // the maximum size of the backing store.
   ReplacementStringBuilder builder(isolate->heap(), subject, expected_parts);
 
   int prev = 0;
@@ -792,7 +794,7 @@ V8_WARN_UNUSED_RESULT static Object StringReplaceGlobalRegExpWithEmptyString(
   // TODO(hpayer): We should shrink the large object page if the size
   // of the object changed significantly.
   if (!heap->IsLargeObject(*answer)) {
-    heap->CreateFillerObjectAt(end_of_string, delta, ClearRecordedSlots::kNo);
+    heap->CreateFillerObjectAt(end_of_string, delta);
   }
   return *answer;
 }

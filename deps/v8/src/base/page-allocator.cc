@@ -149,6 +149,12 @@ bool PageAllocator::SetPermissions(void* address, size_t size,
       address, size, static_cast<base::OS::MemoryPermission>(access));
 }
 
+bool PageAllocator::RecommitPages(void* address, size_t size,
+                                  PageAllocator::Permission access) {
+  return base::OS::RecommitPages(
+      address, size, static_cast<base::OS::MemoryPermission>(access));
+}
+
 bool PageAllocator::DiscardSystemPages(void* address, size_t size) {
   return base::OS::DiscardSystemPages(address, size);
 }

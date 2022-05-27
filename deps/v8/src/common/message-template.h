@@ -42,6 +42,7 @@ namespace internal {
     "await can not be used when evaluating code "                              \
     "while paused in the debugger")                                            \
   T(AtomicsWaitNotAllowed, "Atomics.wait cannot be called in this context")    \
+  T(BadRoundingType, "RoundingType is not fractionDigits")                     \
   T(BadSortComparisonFunction,                                                 \
     "The comparison function must be either a function or undefined")          \
   T(BigIntFromNumber,                                                          \
@@ -105,6 +106,7 @@ namespace internal {
   T(ImportOutsideModule, "Cannot use import statement outside a module")       \
   T(ImportMetaOutsideModule, "Cannot use 'import.meta' outside a module")      \
   T(ImportMissingSpecifier, "import() requires a specifier")                   \
+  T(ImportShadowRealmRejected, "Cannot import in the ShadowRealm")             \
   T(IncompatibleMethodReceiver, "Method % called on incompatible receiver %")  \
   T(InstanceofNonobjectProto,                                                  \
     "Function has non-object prototype '%' in instanceof check")               \
@@ -355,7 +357,7 @@ namespace internal {
   T(InvalidAtomicAccessIndex, "Invalid atomic access index")                   \
   T(InvalidCalendar, "Invalid calendar specified: %")                          \
   T(InvalidCodePoint, "Invalid code point %")                                  \
-  T(InvalidCountValue, "Invalid count value")                                  \
+  T(InvalidCountValue, "Invalid count value: %")                               \
   T(InvalidDataViewAccessorOffset,                                             \
     "Offset is outside the bounds of the DataView")                            \
   T(InvalidDataViewLength, "Invalid DataView length %")                        \
@@ -375,6 +377,8 @@ namespace internal {
   T(InvalidTypedArrayLength, "Invalid typed array length: %")                  \
   T(LetInLexicalBinding, "let is disallowed as a lexically bound name")        \
   T(LocaleMatcher, "Illegal value for localeMatcher:%")                        \
+  T(MaximumFractionDigitsNotEqualMinimumFractionDigits,                        \
+    "maximumFractionDigits not equal to minimumFractionDigits")                \
   T(NormalizationForm, "The normalization form should be one of %.")           \
   T(OutOfMemory, "%: Out of memory")                                           \
   T(ParameterOfFunctionOutOfRange,                                             \

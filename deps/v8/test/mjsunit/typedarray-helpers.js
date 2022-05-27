@@ -11,6 +11,7 @@ const ctors = [
   Int8Array,
   Uint16Array,
   Int16Array,
+  Uint32Array,
   Int32Array,
   Float32Array,
   Float64Array,
@@ -26,6 +27,19 @@ const floatCtors = [
   Float32Array,
   Float64Array,
   MyFloat32Array
+];
+
+const intCtors = [
+  Uint8Array,
+  Int8Array,
+  Uint16Array,
+  Int16Array,
+  Uint32Array,
+  Int32Array,
+  BigUint64Array,
+  BigInt64Array,
+  MyUint8Array,
+  MyBigInt64Array,
 ];
 
 // Each element of the following array is [getter, setter, size, isBigInt].
@@ -251,4 +265,46 @@ function ObjectDefinePropertiesHelper(ta, index, value) {
     values[index] = {value: value};
   }
   Object.defineProperties(ta, values);
+}
+
+function TestAtomicsOperations(ta, index) {
+  const one = IsBigIntTypedArray(ta) ? 1n : 1;
+  const two = IsBigIntTypedArray(ta) ? 2n : 2;
+  const three = IsBigIntTypedArray(ta) ? 3n : 3;
+
+  Atomics.store(ta, index, one);
+  assertEquals(one, Atomics.load(ta, index));
+  assertEquals(one, Atomics.exchange(ta, index, two));
+  assertEquals(two, Atomics.load(ta, index));
+  assertEquals(two, Atomics.compareExchange(ta, index, two, three));
+  assertEquals(three, Atomics.load(ta, index));
+
+  assertEquals(three, Atomics.sub(ta, index, two));  // 3 - 2 = 1
+  assertEquals(one, Atomics.load(ta, index));
+
+  assertEquals(one, Atomics.add(ta, index, one));  // 1 + 1 = 2
+  assertEquals(two, Atomics.load(ta, index));
+
+  assertEquals(two, Atomics.or(ta, index, one));  // 2 | 1 = 3
+  assertEquals(three, Atomics.load(ta, index));
+
+  assertEquals(three, Atomics.xor(ta, index, one));  // 3 ^ 1 = 2
+  assertEquals(two, Atomics.load(ta, index));
+
+  assertEquals(two, Atomics.and(ta, index, three));  // 2 & 3 = 2
+  assertEquals(two, Atomics.load(ta, index));
+}
+
+function AssertAtomicsOperationsThrow(ta, index, error) {
+  const one = IsBigIntTypedArray(ta) ? 1n : 1;
+  assertThrows(() => { Atomics.store(ta, index, one); }, error);
+  assertThrows(() => { Atomics.load(ta, index); }, error);
+  assertThrows(() => { Atomics.exchange(ta, index, one); }, error);
+  assertThrows(() => { Atomics.compareExchange(ta, index, one, one); },
+               error);
+  assertThrows(() => { Atomics.add(ta, index, one); }, error);
+  assertThrows(() => { Atomics.sub(ta, index, one); }, error);
+  assertThrows(() => { Atomics.and(ta, index, one); }, error);
+  assertThrows(() => { Atomics.or(ta, index, one); }, error);
+  assertThrows(() => { Atomics.xor(ta, index, one); }, error);
 }

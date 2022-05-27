@@ -59,10 +59,10 @@ class RiscvOperandConverter final : public InstructionOperandConverter {
           DCHECK_EQ(0, InputInt32(index));
           break;
         case Constant::kFloat32:
-          DCHECK_EQ(0, bit_cast<int32_t>(InputFloat32(index)));
+          DCHECK_EQ(0, base::bit_cast<int32_t>(InputFloat32(index)));
           break;
         case Constant::kFloat64:
-          DCHECK_EQ(0, bit_cast<int64_t>(InputDouble(index)));
+          DCHECK_EQ(0, base::bit_cast<int64_t>(InputDouble(index)));
           break;
         default:
           UNREACHABLE();
@@ -2074,9 +2074,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvS128AndNot: {
       (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
-      __ vnot_vv(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ vnot_vv(kSimd128ScratchReg, i.InputSimd128Register(1));
       __ vand_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.OutputSimd128Register());
+                 kSimd128ScratchReg);
       break;
     }
     case kRiscvS128Const: {
@@ -3175,16 +3175,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmv_vv(i.OutputSimd128Register(), kSimd128ScratchReg);
       break;
     }
-    case kRiscvF32x4RecipApprox: {
-      __ VU.set(kScratchReg, E32, m1);
-      __ vfrec7_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kRiscvF32x4RecipSqrtApprox: {
-      __ VU.set(kScratchReg, E32, m1);
-      __ vfrsqrt7_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
     case kRiscvF32x4Qfma: {
       __ VU.set(kScratchReg, E32, m1);
       __ vfmadd_vv(i.InputSimd128Register(1), i.InputSimd128Register(2),
@@ -3454,7 +3444,6 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
 #define __ tasm->
   RiscvOperandConverter i(gen, instr);
 
-  Condition cc = kNoCondition;
   // RISC-V does not have condition code flags, so compare and branch are
   // implemented differently than on the other arch's. The compare operations
   // emit riscv64 pseudo-instructions, which are handled here by branch
@@ -3463,11 +3452,11 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
   // they are tested here.
 
   if (instr->arch_opcode() == kRiscvTst) {
-    cc = FlagsConditionToConditionTst(condition);
+    Condition cc = FlagsConditionToConditionTst(condition);
     __ Branch(tlabel, cc, kScratchReg, Operand(zero_reg));
   } else if (instr->arch_opcode() == kRiscvAdd64 ||
              instr->arch_opcode() == kRiscvSub64) {
-    cc = FlagsConditionToConditionOvf(condition);
+    Condition cc = FlagsConditionToConditionOvf(condition);
     __ Sra64(kScratchReg, i.OutputRegister(), 32);
     __ Sra64(kScratchReg2, i.OutputRegister(), 31);
     __ Branch(tlabel, cc, kScratchReg2, Operand(kScratchReg));
@@ -3497,17 +3486,17 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
         UNSUPPORTED_COND(kRiscvMulOvf32, condition);
     }
   } else if (instr->arch_opcode() == kRiscvCmp) {
-    cc = FlagsConditionToConditionCmp(condition);
+    Condition cc = FlagsConditionToConditionCmp(condition);
     __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
   } else if (instr->arch_opcode() == kRiscvCmpZero) {
-    cc = FlagsConditionToConditionCmp(condition);
+    Condition cc = FlagsConditionToConditionCmp(condition);
     if (i.InputOrZeroRegister(0) == zero_reg && IsInludeEqual(cc)) {
       __ Branch(tlabel);
     } else if (i.InputOrZeroRegister(0) != zero_reg) {
       __ Branch(tlabel, cc, i.InputRegister(0), Operand(zero_reg));
     }
   } else if (instr->arch_opcode() == kArchStackPointerGreaterThan) {
-    cc = FlagsConditionToConditionCmp(condition);
+    Condition cc = FlagsConditionToConditionCmp(condition);
     Register lhs_register = sp;
     uint32_t offset;
     if (gen->ShouldApplyOffsetToStackCheck(instr, &offset)) {
@@ -3616,13 +3605,12 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   // last output of the instruction.
   DCHECK_NE(0u, instr->OutputCount());
   Register result = i.OutputRegister(instr->OutputCount() - 1);
-  Condition cc = kNoCondition;
   // RISC-V does not have condition code flags, so compare and branch are
   // implemented differently than on the other arch's. The compare operations
   // emit riscv64 pseudo-instructions, which are checked and handled here.
 
   if (instr->arch_opcode() == kRiscvTst) {
-    cc = FlagsConditionToConditionTst(condition);
+    Condition cc = FlagsConditionToConditionTst(condition);
     if (cc == eq) {
       __ Sltu(result, kScratchReg, 1);
     } else {
@@ -3631,7 +3619,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     return;
   } else if (instr->arch_opcode() == kRiscvAdd64 ||
              instr->arch_opcode() == kRiscvSub64) {
-    cc = FlagsConditionToConditionOvf(condition);
+    Condition cc = FlagsConditionToConditionOvf(condition);
     // Check for overflow creates 1 or 0 for result.
     __ Srl64(kScratchReg, i.OutputRegister(), 63);
     __ Srl32(kScratchReg2, i.OutputRegister(), 31);
@@ -3647,7 +3635,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     // Overflow occurs if overflow register is not zero
     __ Sgtu(result, kScratchReg, zero_reg);
   } else if (instr->arch_opcode() == kRiscvCmp) {
-    cc = FlagsConditionToConditionCmp(condition);
+    Condition cc = FlagsConditionToConditionCmp(condition);
     switch (cc) {
       case eq:
       case ne: {
@@ -3732,7 +3720,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     }
     return;
   } else if (instr->arch_opcode() == kRiscvCmpZero) {
-    cc = FlagsConditionToConditionCmp(condition);
+    Condition cc = FlagsConditionToConditionCmp(condition);
     switch (cc) {
       case eq: {
         Register left = i.InputOrZeroRegister(0);
@@ -3784,7 +3772,6 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     }
     return;
   } else if (instr->arch_opcode() == kArchStackPointerGreaterThan) {
-    cc = FlagsConditionToConditionCmp(condition);
     Register lhs_register = sp;
     uint32_t offset;
     if (ShouldApplyOffsetToStackCheck(instr, &offset)) {
@@ -4167,10 +4154,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     } else if (src.type() == Constant::kFloat32) {
       if (destination->IsFPStackSlot()) {
         MemOperand dst = g.ToMemOperand(destination);
-        if (bit_cast<int32_t>(src.ToFloat32()) == 0) {
+        if (base::bit_cast<int32_t>(src.ToFloat32()) == 0) {
           __ Sw(zero_reg, dst);
         } else {
-          __ li(kScratchReg, Operand(bit_cast<int32_t>(src.ToFloat32())));
+          __ li(kScratchReg, Operand(base::bit_cast<int32_t>(src.ToFloat32())));
           __ Sw(kScratchReg, dst);
         }
       } else {

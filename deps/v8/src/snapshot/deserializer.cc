@@ -334,7 +334,7 @@ template <typename IsolateT>
 void Deserializer<IsolateT>::LogScriptEvents(Script script) {
   DisallowGarbageCollection no_gc;
   LOG(isolate(),
-      ScriptEvent(Logger::ScriptEventType::kDeserialize, script.id()));
+      ScriptEvent(V8FileLogger::ScriptEventType::kDeserialize, script.id()));
   LOG(isolate(), ScriptDetails(script));
 }
 
@@ -557,10 +557,6 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
     return PostProcessNewJSReceiver(raw_map, Handle<JSReceiver>::cast(obj),
                                     JSReceiver::cast(raw_obj), instance_type,
                                     space);
-  } else if (InstanceTypeChecker::IsBytecodeArray(instance_type)) {
-    // TODO(mythria): Remove these once we store the default values for these
-    // fields in the serializer.
-    BytecodeArray::cast(raw_obj).reset_osr_urgency();
   } else if (InstanceTypeChecker::IsDescriptorArray(instance_type)) {
     DCHECK(InstanceTypeChecker::IsStrongDescriptorArray(instance_type));
     Handle<DescriptorArray> descriptors = Handle<DescriptorArray>::cast(obj);
@@ -1151,7 +1147,7 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
       }
 
       // Advance to the end of the code object.
-      return (Code::kDataStart - HeapObject::kHeaderSize) / kTaggedSize +
+      return (int{Code::kDataStart} - HeapObject::kHeaderSize) / kTaggedSize +
              size_in_tagged;
     }
 

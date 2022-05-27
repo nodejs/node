@@ -1537,14 +1537,17 @@ int DisassemblerX64::AVXInstruction(byte* data) {
 
         SSE2_INSTRUCTION_LIST(DECLARE_SSE_AVX_DIS_CASE)
 #undef DECLARE_SSE_AVX_DIS_CASE
-#define DECLARE_SSE_UNOP_AVX_DIS_CASE(instruction, notUsed1, notUsed2, opcode) \
-  case 0x##opcode: {                                                           \
-    AppendToBuffer("v" #instruction " %s,", NameOfAVXRegister(regop));         \
-    current += PrintRightAVXOperand(current);                                  \
-    break;                                                                     \
+#define DECLARE_SSE_UNOP_AVX_DIS_CASE(instruction, opcode, SIMDRegister)  \
+  case 0x##opcode: {                                                      \
+    AppendToBuffer("v" #instruction " %s,", NameOf##SIMDRegister(regop)); \
+    current += PrintRightAVXOperand(current);                             \
+    break;                                                                \
   }
-
-        SSE2_UNOP_INSTRUCTION_LIST(DECLARE_SSE_UNOP_AVX_DIS_CASE)
+        DECLARE_SSE_UNOP_AVX_DIS_CASE(ucomisd, 2E, AVXRegister)
+        DECLARE_SSE_UNOP_AVX_DIS_CASE(sqrtpd, 51, AVXRegister)
+        DECLARE_SSE_UNOP_AVX_DIS_CASE(cvtpd2ps, 5A, XMMRegister)
+        DECLARE_SSE_UNOP_AVX_DIS_CASE(cvtps2dq, 5B, AVXRegister)
+        DECLARE_SSE_UNOP_AVX_DIS_CASE(cvttpd2dq, E6, XMMRegister)
 #undef DECLARE_SSE_UNOP_AVX_DIS_CASE
       default:
         UnimplementedInstruction();

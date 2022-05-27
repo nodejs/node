@@ -52,12 +52,9 @@ void Locker::Initialize(v8::Isolate* isolate) {
 
 bool Locker::IsLocked(v8::Isolate* isolate) {
   DCHECK_NOT_NULL(isolate);
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  return internal_isolate->thread_manager()->IsLockedByCurrentThread();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  return i_isolate->thread_manager()->IsLockedByCurrentThread();
 }
-
-// static
-bool Locker::IsActive() { return WasEverUsed(); }
 
 // static
 bool Locker::WasEverUsed() {

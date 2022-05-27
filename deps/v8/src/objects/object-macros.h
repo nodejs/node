@@ -155,7 +155,7 @@
 #define DECL_CAST(Type)                                 \
   V8_INLINE static Type cast(Object object);            \
   V8_INLINE static Type unchecked_cast(Object object) { \
-    return bit_cast<Type>(object);                      \
+    return base::bit_cast<Type>(object);                \
   }
 
 #define CAST_ACCESSOR(Type) \

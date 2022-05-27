@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_GRAPH_VERIFIER_H_
 #define V8_MAGLEV_MAGLEV_GRAPH_VERIFIER_H_
 
+#include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-ir.h"
 
@@ -15,10 +16,13 @@ namespace maglev {
 std::ostream& operator<<(std::ostream& os, const ValueRepresentation& repr) {
   switch (repr) {
     case ValueRepresentation::kTagged:
-      os << "TaggedValue";
+      os << "Tagged";
       break;
-    case ValueRepresentation::kUntagged:
-      os << "UntaggedValue";
+    case ValueRepresentation::kInt32:
+      os << "Int32";
+      break;
+    case ValueRepresentation::kFloat64:
+      os << "Float64";
       break;
   }
   return os;
@@ -30,25 +34,26 @@ class Graph;
 // are expected to be tagged/untagged. Add more verification later.
 class MaglevGraphVerifier {
  public:
-  void PreProcessGraph(MaglevCompilationUnit* compilation_unit, Graph* graph) {
-    if (compilation_unit->has_graph_labeller()) {
-      graph_labeller_ = compilation_unit->graph_labeller();
+  void PreProcessGraph(MaglevCompilationInfo* compilation_info, Graph* graph) {
+    if (compilation_info->has_graph_labeller()) {
+      graph_labeller_ = compilation_info->graph_labeller();
     }
   }
 
-  void PostProcessGraph(MaglevCompilationUnit*, Graph* graph) {}
-  void PreProcessBasicBlock(MaglevCompilationUnit*, BasicBlock* block) {}
+  void PostProcessGraph(MaglevCompilationInfo*, Graph* graph) {}
+  void PreProcessBasicBlock(MaglevCompilationInfo*, BasicBlock* block) {}
 
-  void CheckValueInputIs(NodeBase* node, int i, ValueRepresentation repr) {
+  void CheckValueInputIs(NodeBase* node, int i, ValueRepresentation expected) {
     ValueNode* input = node->input(i).node();
-    if (input->value_representation() != repr) {
+    ValueRepresentation got = input->properties().value_representation();
+    if (got != expected) {
       std::ostringstream str;
       str << "Type representation error: node ";
       if (graph_labeller_) {
         str << "#" << graph_labeller_->NodeId(node) << " : ";
       }
       str << node->opcode() << " (input @" << i << " = " << input->opcode()
-          << ") type " << input->value_representation() << " is not " << repr;
+          << ") type " << got << " is not " << expected;
       FATAL("%s", str.str().c_str());
     }
   }
@@ -58,6 +63,7 @@ class MaglevGraphVerifier {
       case Opcode::kConstant:
       case Opcode::kSmiConstant:
       case Opcode::kInt32Constant:
+      case Opcode::kFloat64Constant:
       case Opcode::kRootConstant:
       case Opcode::kInitialValue:
       case Opcode::kRegisterInput:
@@ -65,6 +71,9 @@ class MaglevGraphVerifier {
       case Opcode::kDeopt:
       case Opcode::kJump:
       case Opcode::kJumpLoop:
+      case Opcode::kJumpToInlined:
+      case Opcode::kJumpFromInlined:
+      case Opcode::kCreateEmptyArrayLiteral:
         // No input.
         DCHECK_EQ(node->input_count(), 0);
         break;
@@ -72,7 +81,9 @@ class MaglevGraphVerifier {
       case Opcode::kGenericIncrement:
       case Opcode::kGenericDecrement:
       case Opcode::kCheckedSmiUntag:
-      case Opcode::kLoadField:
+      case Opcode::kGenericBitwiseNot:
+      case Opcode::kLoadTaggedField:
+      case Opcode::kLoadDoubleField:
       case Opcode::kLoadGlobal:
       // TODO(victorgomes): Can we check that the input is actually a map?
       case Opcode::kCheckMaps:
@@ -80,13 +91,20 @@ class MaglevGraphVerifier {
       case Opcode::kBranchIfTrue:
       case Opcode::kBranchIfToBooleanTrue:
       case Opcode::kReturn:
-        // Generic tagged unary operations.
+      case Opcode::kCheckedFloat64Unbox:
+      case Opcode::kCreateObjectLiteral:
+      case Opcode::kCreateShallowObjectLiteral:
         DCHECK_EQ(node->input_count(), 1);
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
         break;
       case Opcode::kCheckedSmiTag:
-        // Untagged unary operations.
-        CheckValueInputIs(node, 0, ValueRepresentation::kUntagged);
+      case Opcode::kChangeInt32ToFloat64:
+        DCHECK_EQ(node->input_count(), 1);
+        CheckValueInputIs(node, 0, ValueRepresentation::kInt32);
+        break;
+      case Opcode::kFloat64Box:
+        DCHECK_EQ(node->input_count(), 1);
+        CheckValueInputIs(node, 0, ValueRepresentation::kFloat64);
         break;
       case Opcode::kGenericAdd:
       case Opcode::kGenericSubtract:
@@ -100,7 +118,6 @@ class MaglevGraphVerifier {
       case Opcode::kGenericShiftLeft:
       case Opcode::kGenericShiftRight:
       case Opcode::kGenericShiftRightLogical:
-      case Opcode::kGenericBitwiseNot:
       // TODO(victorgomes): Can we use the fact that these nodes return a
       // Boolean?
       case Opcode::kGenericEqual:
@@ -112,17 +129,28 @@ class MaglevGraphVerifier {
       // TODO(victorgomes): Can we check that first input is an Object?
       case Opcode::kStoreField:
       case Opcode::kLoadNamedGeneric:
-        // Generic tagged binary operations.
         DCHECK_EQ(node->input_count(), 2);
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
         CheckValueInputIs(node, 1, ValueRepresentation::kTagged);
         break;
+      case Opcode::kSetNamedGeneric:
+        DCHECK_EQ(node->input_count(), 3);
+        CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
+        CheckValueInputIs(node, 1, ValueRepresentation::kTagged);
+        CheckValueInputIs(node, 2, ValueRepresentation::kTagged);
+        break;
       case Opcode::kInt32AddWithOverflow:
-        // Untagged binary operations.
-        CheckValueInputIs(node, 0, ValueRepresentation::kUntagged);
-        CheckValueInputIs(node, 1, ValueRepresentation::kUntagged);
+        DCHECK_EQ(node->input_count(), 2);
+        CheckValueInputIs(node, 0, ValueRepresentation::kInt32);
+        CheckValueInputIs(node, 1, ValueRepresentation::kInt32);
+        break;
+      case Opcode::kFloat64Add:
+        DCHECK_EQ(node->input_count(), 2);
+        CheckValueInputIs(node, 0, ValueRepresentation::kFloat64);
+        CheckValueInputIs(node, 1, ValueRepresentation::kFloat64);
         break;
       case Opcode::kCall:
+      case Opcode::kConstruct:
       case Opcode::kPhi:
         // All inputs should be tagged.
         for (int i = 0; i < node->input_count(); i++) {

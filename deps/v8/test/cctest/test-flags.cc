@@ -201,7 +201,9 @@ TEST(FlagsJitlessImplications) {
     // Double-check implications work as expected. Our implication system is
     // fairly primitive and can break easily depending on the implication
     // definition order in flag-definitions.h.
-    CHECK(!FLAG_opt);
+    CHECK(!FLAG_turbofan);
+    CHECK(!FLAG_maglev);
+    CHECK(!FLAG_sparkplug);
 #if V8_ENABLE_WEBASSEMBLY
     CHECK(!FLAG_validate_asm);
     CHECK(!FLAG_asm_wasm_lazy_compilation);

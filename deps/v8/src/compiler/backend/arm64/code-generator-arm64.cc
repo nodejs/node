@@ -44,7 +44,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
 
   CPURegister InputFloat32OrZeroRegister(size_t index) {
     if (instr_->InputAt(index)->IsImmediate()) {
-      DCHECK_EQ(0, bit_cast<int32_t>(InputFloat32(index)));
+      DCHECK_EQ(0, base::bit_cast<int32_t>(InputFloat32(index)));
       return wzr;
     }
     DCHECK(instr_->InputAt(index)->IsFPRegister());
@@ -53,7 +53,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
 
   CPURegister InputFloat64OrZeroRegister(size_t index) {
     if (instr_->InputAt(index)->IsImmediate()) {
-      DCHECK_EQ(0, bit_cast<int64_t>(InputDouble(index)));
+      DCHECK_EQ(0, base::bit_cast<int64_t>(InputDouble(index)));
       return xzr;
     }
     DCHECK(instr_->InputAt(index)->IsDoubleRegister());
@@ -2298,8 +2298,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
       SIMD_UNOP_CASE(kArm64F32x4SConvertI32x4, Scvtf, 4S);
       SIMD_UNOP_CASE(kArm64F32x4UConvertI32x4, Ucvtf, 4S);
-      SIMD_UNOP_CASE(kArm64F32x4RecipApprox, Frecpe, 4S);
-      SIMD_UNOP_CASE(kArm64F32x4RecipSqrtApprox, Frsqrte, 4S);
     case kArm64FMulElement: {
       VectorFormat s_f =
           ScalarFormatFromLaneSize(LaneSizeField::decode(opcode));
@@ -2657,7 +2655,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
       SIMD_DESTRUCTIVE_BINOP_CASE(kArm64S128Select, Bsl, 16B);
-      SIMD_BINOP_CASE(kArm64S128AndNot, Bic, 16B);
+    case kArm64S128AndNot:
+      if (instr->InputAt(1)->IsImmediate()) {
+        VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
+        VRegister dst = i.OutputSimd128Register().Format(f);
+        DCHECK_EQ(dst, i.InputSimd128Register(0).Format(f));
+        __ Bic(dst, i.InputInt32(1), i.InputInt8(2));
+      } else {
+        __ Bic(i.OutputSimd128Register().V16B(),
+               i.InputSimd128Register(0).V16B(),
+               i.InputSimd128Register(1).V16B());
+      }
+      break;
     case kArm64Ssra: {
       int8_t laneSize = LaneSizeField::decode(opcode);
       VectorFormat f = VectorFormatFillQ(laneSize);
@@ -3444,7 +3453,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         MoveConstantToRegister(temp, src);
         __ Str(temp, dst);
       } else if (destination->IsFloatStackSlot()) {
-        if (bit_cast<int32_t>(src.ToFloat32()) == 0) {
+        if (base::bit_cast<int32_t>(src.ToFloat32()) == 0) {
           __ Str(wzr, dst);
         } else {
           UseScratchRegisterScope scope(tasm());

@@ -358,7 +358,7 @@ void RunF128CompareOpConstImmTest(
     uint8_t const_buffer[kSimd128Size];
     for (size_t i = 0; i < kSimd128Size / sizeof(FloatType); i++) {
       WriteLittleEndianValue<FloatType>(
-          bit_cast<FloatType*>(&const_buffer[0]) + i, x);
+          base::bit_cast<FloatType*>(&const_buffer[0]) + i, x);
     }
     BUILD(r,
           WASM_LOCAL_SET(temp,
@@ -665,7 +665,7 @@ void RunICompareOpConstImmTest(TestExecutionTier execution_tier,
     uint8_t const_buffer[kSimd128Size];
     for (size_t i = 0; i < kSimd128Size / sizeof(ScalarType); i++) {
       WriteLittleEndianValue<ScalarType>(
-          bit_cast<ScalarType*>(&const_buffer[0]) + i, x);
+          base::bit_cast<ScalarType*>(&const_buffer[0]) + i, x);
     }
     BUILD(r,
           WASM_LOCAL_SET(temp,
@@ -1545,6 +1545,56 @@ WASM_SIMD_TEST(S128And) {
                     [](int32_t x, int32_t y) { return x & y; });
 }
 
+template <typename ScalarType>
+using BinOp = ScalarType (*)(ScalarType, ScalarType);
+template <typename ScalarType>
+void RunS128ConstBinOpTest(TestExecutionTier execution_tier,
+                           WasmOpcode binop_opcode, WasmOpcode splat_opcode,
+                           BinOp<ScalarType> expected_op) {
+  for (ScalarType x : compiler::ValueHelper::GetVector<ScalarType>()) {
+    WasmRunner<int32_t, ScalarType> r(execution_tier);
+    // Global to hold output.
+    ScalarType* g1 = r.builder().template AddGlobal<ScalarType>(kWasmS128);
+    ScalarType* g2 = r.builder().template AddGlobal<ScalarType>(kWasmS128);
+    // Build a function to splat one argument into a local,
+    // and execute the op with a const as the second argument
+    byte value = 0;
+    byte temp1 = r.AllocateLocal(kWasmS128);
+    uint8_t const_buffer[16];
+    for (size_t i = 0; i < kSimd128Size / sizeof(ScalarType); i++) {
+      WriteLittleEndianValue<ScalarType>(
+          base::bit_cast<ScalarType*>(&const_buffer[0]) + i, x);
+    }
+    BUILD(
+        r,
+        WASM_LOCAL_SET(temp1,
+                       WASM_SIMD_OPN(splat_opcode, WASM_LOCAL_GET(value))),
+        WASM_GLOBAL_SET(0, WASM_SIMD_BINOP(binop_opcode, WASM_LOCAL_GET(temp1),
+                                           WASM_SIMD_CONSTANT(const_buffer))),
+        WASM_GLOBAL_SET(
+            1, WASM_SIMD_BINOP(binop_opcode, WASM_SIMD_CONSTANT(const_buffer),
+                               WASM_LOCAL_GET(temp1))),
+        WASM_ONE);
+    for (ScalarType y : compiler::ValueHelper::GetVector<ScalarType>()) {
+      r.Call(y);
+      ScalarType expected1 = expected_op(y, x);
+      ScalarType expected2 = expected_op(x, y);
+      for (size_t i = 0; i < kSimd128Size / sizeof(ScalarType); i++) {
+        CHECK_EQ(expected1, LANE(g1, i));
+        CHECK_EQ(expected2, LANE(g2, i));
+      }
+    }
+  }
+}
+
+WASM_SIMD_TEST(S128AndImm) {
+  RunS128ConstBinOpTest<int32_t>(execution_tier, kExprS128And, kExprI32x4Splat,
+                                 [](int32_t x, int32_t y) { return x & y; });
+  RunS128ConstBinOpTest<int16_t>(
+      execution_tier, kExprS128And, kExprI16x8Splat,
+      [](int16_t x, int16_t y) { return static_cast<int16_t>(x & y); });
+}
+
 WASM_SIMD_TEST(S128Or) {
   RunI32x4BinOpTest(execution_tier, kExprS128Or,
                     [](int32_t x, int32_t y) { return x | y; });
@@ -1559,6 +1609,15 @@ WASM_SIMD_TEST(S128Xor) {
 WASM_SIMD_TEST(S128AndNot) {
   RunI32x4BinOpTest(execution_tier, kExprS128AndNot,
                     [](int32_t x, int32_t y) { return x & ~y; });
+}
+
+WASM_SIMD_TEST(S128AndNotImm) {
+  RunS128ConstBinOpTest<int32_t>(execution_tier, kExprS128AndNot,
+                                 kExprI32x4Splat,
+                                 [](int32_t x, int32_t y) { return x & ~y; });
+  RunS128ConstBinOpTest<int16_t>(
+      execution_tier, kExprS128AndNot, kExprI16x8Splat,
+      [](int16_t x, int16_t y) { return static_cast<int16_t>(x & ~y); });
 }
 
 WASM_SIMD_TEST(I32x4Eq) {

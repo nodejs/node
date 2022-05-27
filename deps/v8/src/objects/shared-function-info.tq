@@ -147,10 +147,15 @@ extern class UncompiledDataWithPreparseDataAndJob extends
   job: RawPtr;
 }
 
+@useParentTypeChecker
+type PodArrayOfIntegerPairs extends ByteArray
+    constexpr 'PodArray<std::pair<int32_t, int32_t>>';
+
 @export
 class OnHeapBasicBlockProfilerData extends HeapObject {
-  block_ids: ByteArray;  // Stored as 4-byte ints
-  counts: ByteArray;     // Stored as 4-byte unsigned ints
+  block_ids: ByteArray;              // Stored as 4-byte ints
+  counts: ByteArray;                 // Stored as 4-byte unsigned ints
+  branches: PodArrayOfIntegerPairs;  // Stored as pairs of 4-byte ints
   name: String;
   schedule: String;
   code: String;

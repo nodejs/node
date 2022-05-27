@@ -208,23 +208,30 @@ class UnifiedHeapConcurrentMarker
       cppgc::internal::MarkingWorklists& marking_worklists,
       cppgc::internal::IncrementalMarkingSchedule& incremental_marking_schedule,
       cppgc::Platform* platform,
-      UnifiedHeapMarkingState& unified_heap_marking_state)
+      UnifiedHeapMarkingState& unified_heap_marking_state,
+      CppHeap::CollectionType collection_type)
       : cppgc::internal::ConcurrentMarkerBase(
             heap, marking_worklists, incremental_marking_schedule, platform),
-        v8_heap_(v8_heap) {}
+        v8_heap_(v8_heap),
+        collection_type_(collection_type) {}
 
   std::unique_ptr<cppgc::Visitor> CreateConcurrentMarkingVisitor(
       cppgc::internal::ConcurrentMarkingState&) const final;
 
  private:
   Heap* const v8_heap_;
+  CppHeap::CollectionType collection_type_;
 };
 
 std::unique_ptr<cppgc::Visitor>
 UnifiedHeapConcurrentMarker::CreateConcurrentMarkingVisitor(
     cppgc::internal::ConcurrentMarkingState& marking_state) const {
-  return std::make_unique<ConcurrentUnifiedHeapMarkingVisitor>(heap(), v8_heap_,
-                                                               marking_state);
+  if (collection_type_ == CppHeap::CollectionType::kMajor)
+    return std::make_unique<ConcurrentUnifiedHeapMarkingVisitor>(
+        heap(), v8_heap_, marking_state);
+  else
+    return std::make_unique<ConcurrentMinorGCMarkingVisitor>(heap(), v8_heap_,
+                                                             marking_state);
 }
 
 void FatalOutOfMemoryHandlerImpl(const std::string& reason,
@@ -289,7 +296,7 @@ UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
                                     *marking_visitor_) {
   concurrent_marker_ = std::make_unique<UnifiedHeapConcurrentMarker>(
       heap_, v8_heap, marking_worklists_, schedule_, platform_,
-      mutator_unified_heap_marking_state_);
+      mutator_unified_heap_marking_state_, config.collection_type);
 }
 
 void UnifiedHeapMarker::AddObject(void* object) {
@@ -546,7 +553,8 @@ void CppHeap::InitializeTracing(CollectionType collection_type,
   collection_type_ = collection_type;
 
 #if defined(CPPGC_YOUNG_GENERATION)
-  if (*collection_type_ == CollectionType::kMajor)
+  if (generational_gc_supported() &&
+      *collection_type_ == CollectionType::kMajor)
     cppgc::internal::SequentialUnmarker unmarker(raw_heap());
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
@@ -629,6 +637,15 @@ bool CppHeap::FinishConcurrentMarkingIfNeeded() {
 void CppHeap::TraceEpilogue() {
   CHECK(in_atomic_pause_);
   CHECK(marking_done_);
+
+#if defined(CPPGC_YOUNG_GENERATION)
+  // Check if the young generation was enabled via flag. We must enable young
+  // generation before calling the custom weak callbacks to make sure that the
+  // callbacks for old objects are registered in the remembered set.
+  if (FLAG_cppgc_young_generation) {
+    EnableGenerationalGC();
+  }
+#endif  // defined(CPPGC_YOUNG_GENERATION)
   {
     cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(*this);
     marker_->LeaveAtomicPause();
@@ -672,6 +689,7 @@ void CppHeap::TraceEpilogue() {
                    SweepingType::kAtomic == sweeping_config.sweeping_type);
     sweeper().Start(sweeping_config);
   }
+
   in_atomic_pause_ = false;
   collection_type_.reset();
   sweeper().NotifyDoneIfNeeded();
@@ -680,6 +698,7 @@ void CppHeap::TraceEpilogue() {
 void CppHeap::RunMinorGC(StackState stack_state) {
   DCHECK(!sweeper_.IsSweepingInProgress());
 
+  if (!generational_gc_supported()) return;
   if (in_no_gc_scope()) return;
   // Minor GC does not support nesting in full GCs.
   if (IsMarking()) return;

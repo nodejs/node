@@ -395,19 +395,19 @@ inline int32_t signed_bitextract_32(int msb, int lsb, uint32_t x) {
 }
 
 // Check number width.
-inline bool is_intn(int64_t x, unsigned n) {
+inline constexpr bool is_intn(int64_t x, unsigned n) {
   DCHECK((0 < n) && (n < 64));
   int64_t limit = static_cast<int64_t>(1) << (n - 1);
   return (-limit <= x) && (x < limit);
 }
 
-inline bool is_uintn(int64_t x, unsigned n) {
+inline constexpr bool is_uintn(int64_t x, unsigned n) {
   DCHECK((0 < n) && (n < (sizeof(x) * kBitsPerByte)));
   return !(x >> n);
 }
 
 template <class T>
-inline T truncate_to_intn(T x, unsigned n) {
+inline constexpr T truncate_to_intn(T x, unsigned n) {
   DCHECK((0 < n) && (n < (sizeof(x) * kBitsPerByte)));
   return (x & ((static_cast<T>(1) << n) - 1));
 }
@@ -424,16 +424,16 @@ inline T truncate_to_intn(T x, unsigned n) {
 // clang-format on
 
 #define DECLARE_IS_INT_N(N) \
-  inline bool is_int##N(int64_t x) { return is_intn(x, N); }
-#define DECLARE_IS_UINT_N(N)    \
-  template <class T>            \
-  inline bool is_uint##N(T x) { \
-    return is_uintn(x, N);      \
+  inline constexpr bool is_int##N(int64_t x) { return is_intn(x, N); }
+#define DECLARE_IS_UINT_N(N)              \
+  template <class T>                      \
+  inline constexpr bool is_uint##N(T x) { \
+    return is_uintn(x, N);                \
   }
-#define DECLARE_TRUNCATE_TO_INT_N(N) \
-  template <class T>                 \
-  inline T truncate_to_int##N(T x) { \
-    return truncate_to_intn(x, N);   \
+#define DECLARE_TRUNCATE_TO_INT_N(N)           \
+  template <class T>                           \
+  inline constexpr T truncate_to_int##N(T x) { \
+    return truncate_to_intn(x, N);             \
   }
 INT_1_TO_63_LIST(DECLARE_IS_INT_N)
 INT_1_TO_63_LIST(DECLARE_IS_UINT_N)

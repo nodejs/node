@@ -139,6 +139,75 @@ class CSSVariables {
   }
 }
 
+class UserSettingsObject {
+  value: boolean;
+  resetFunction: (boolean) => void;
+}
+
+// Manages the user's setting options regarding how the grid is displayed.
+class UserSettings {
+  static readonly SESSION_STORAGE_PREFIX = "ranges-setting-";
+  settings: Map<string, UserSettingsObject>;
+
+  constructor() {
+    this.settings = new Map<string, UserSettingsObject>();
+  }
+
+  addSetting(settingName: string, value: boolean, resetFunction: (boolean) => void) {
+    this.settings.set(settingName, {value, resetFunction});
+  }
+
+  getToggleElement(settingName: string, settingLabel: string) {
+    const toggleEl = createElement("label", "range-toggle-setting", settingLabel);
+    const toggleInput = createElement("input", "range-toggle-setting") as HTMLInputElement;
+    toggleInput.id = "range-toggle-" + settingName;
+    toggleInput.setAttribute("type", "checkbox");
+    toggleInput.oninput = () => {
+      toggleInput.disabled = true;
+      this.set(settingName, toggleInput.checked);
+      this.reset(settingName);
+      toggleInput.disabled = false;
+    };
+    toggleEl.insertBefore(toggleInput, toggleEl.firstChild);
+    return toggleEl;
+  }
+
+  reset(settingName: string) {
+    const settingObject = this.settings.get(settingName);
+    window.sessionStorage.setItem(UserSettings.SESSION_STORAGE_PREFIX + settingName,
+                                  settingObject.value.toString());
+    settingObject.resetFunction(settingObject.value);
+  }
+
+  get(settingName: string) {
+    return this.settings.get(settingName).value;
+  }
+
+  set(settingName: string, value: boolean) {
+    this.settings.get(settingName).value = value;
+  }
+
+  resetFromSessionStorage() {
+    this.settings.forEach((settingObject: UserSettingsObject,
+                           settingName: string) => {
+      const storedString =
+                window.sessionStorage.getItem(UserSettings.SESSION_STORAGE_PREFIX + settingName);
+      if (storedString) {
+        const storedValue = storedString == "true" ? true : false;
+        this.set(settingName, storedValue);
+        if (storedValue) {
+          const toggle =
+            (document.getElementById("range-toggle-" + settingName) as HTMLInputElement);
+          if (!toggle.checked) {
+            toggle.checked = storedValue;
+            settingObject.resetFunction(storedValue);
+          }
+        }
+      }
+    });
+  }
+}
+
 // Store the required data from the blocks JSON.
 class BlocksData {
   blockBorders: Set<number>;
@@ -185,13 +254,13 @@ class Divs {
   yAxis: HTMLElement;
   grid: HTMLElement;
 
-  constructor() {
+  constructor(userSettings: UserSettings) {
     this.container = document.getElementById("ranges");
     this.resizerBar = document.getElementById("resizer-ranges");
     this.snapper = document.getElementById("show-hide-ranges");
 
     this.content = document.createElement("div");
-    this.content.appendChild(this.elementForTitle());
+    this.content.appendChild(this.elementForTitle(userSettings));
 
     this.showOnLoad = document.createElement("div");
     this.showOnLoad.style.visibility = "hidden";
@@ -209,7 +278,7 @@ class Divs {
     this.registerHeaders.appendChild(this.registers);
   }
 
-  elementForTitle() {
+  elementForTitle(userSettings: UserSettings) {
     const titleEl = createElement("div", "range-title-div");
     const titleBar = createElement("div", "range-title");
     titleBar.appendChild(createElement("div", "", "Live Ranges"));
@@ -220,6 +289,7 @@ class Divs {
       + "\nand j, the index of the interval within the LiveRange, to give i:j.";
     titleEl.appendChild(titleBar);
     titleEl.appendChild(titleHelp);
+    titleEl.appendChild(userSettings.getToggleElement("landscapeMode", "Landscape Mode"));
     return titleEl;
   }
 }
@@ -862,6 +932,7 @@ export class RangeView {
   isShown: boolean;
   numPositions: number;
   cssVariables: CSSVariables;
+  userSettings: UserSettings;
   divs: Divs;
   rowConstructor: RowConstructor;
   phaseChangeHandler: PhaseChangeHandler;
@@ -881,8 +952,11 @@ export class RangeView {
       this.gridAccessor = new GridAccessor(this.sequenceView);
       this.intervalsAccessor = new IntervalElementsAccessor(this.sequenceView);
       this.cssVariables = new CSSVariables();
+      this.userSettings = new UserSettings();
+      // Indicates whether the RangeView is displayed beside or below the SequenceView.
+      this.userSettings.addSetting("landscapeMode", false, this.resetLandscapeMode.bind(this));
       this.blocksData = new BlocksData(blocks);
-      this.divs = new Divs();
+      this.divs = new Divs(this.userSettings);
       this.scrollHandler = new ScrollHandler(this.divs);
       this.numPositions = this.sequenceView.numInstructions * Constants.POSITIONS_PER_INSTRUCTION;
       this.rowConstructor = new RowConstructor(this);
@@ -909,6 +983,7 @@ export class RangeView {
       window.dispatchEvent(new Event('resize'));
 
       setTimeout(() => {
+        this.userSettings.resetFromSessionStorage();
         this.scrollHandler.restoreScroll();
         this.scrollHandler.syncHidden();
         this.divs.showOnLoad.style.visibility = "visible";
@@ -934,5 +1009,16 @@ export class RangeView {
 
   onresize() {
     if (this.isShown) this.scrollHandler.syncHidden();
+  }
+
+  resetLandscapeMode(isInLandscapeMode: boolean) {
+    // Used to communicate the setting to Resizer.
+    this.divs.container.dataset.landscapeMode = isInLandscapeMode.toString();
+
+    window.dispatchEvent(new Event('resize'));
+    // Required to adjust scrollbar spacing.
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 100);
   }
 }

@@ -67,10 +67,13 @@ Handle<WasmModuleObject> CompileReferenceModule(Zone* zone, Isolate* isolate,
     base::Vector<const uint8_t> func_code = wire_bytes.GetFunctionBytes(&func);
     FunctionBody func_body(func.sig, func.code.offset(), func_code.begin(),
                            func_code.end());
-    auto result = ExecuteLiftoffCompilation(
-        &env, func_body, func.func_index, kForDebugging,
-        LiftoffOptions{}.set_max_steps(max_steps).set_nondeterminism(
-            nondeterminism));
+    auto result =
+        ExecuteLiftoffCompilation(&env, func_body,
+                                  LiftoffOptions{}
+                                      .set_func_index(func.func_index)
+                                      .set_for_debugging(kForDebugging)
+                                      .set_max_steps(max_steps)
+                                      .set_nondeterminism(nondeterminism));
     native_module->PublishCode(
         native_module->AddCompiledCode(std::move(result)));
   }

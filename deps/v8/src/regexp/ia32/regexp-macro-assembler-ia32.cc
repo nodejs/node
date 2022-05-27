@@ -201,7 +201,7 @@ void RegExpMacroAssemblerIA32::CheckGreedyLoop(Label* on_equal) {
   __ cmp(edi, Operand(backtrack_stackpointer(), 0));
   __ j(not_equal, &fallthrough);
   __ add(backtrack_stackpointer(), Immediate(kSystemPointerSize));  // Pop.
-  BranchOrBacktrack(no_condition, on_equal);
+  BranchOrBacktrack(on_equal);
   __ bind(&fallthrough);
 }
 
@@ -296,7 +296,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     // Restore original values before failing.
     __ pop(backtrack_stackpointer());
     __ pop(edi);
-    BranchOrBacktrack(no_condition, on_no_match);
+    BranchOrBacktrack(on_no_match);
 
     __ bind(&success);
     // Restore original value before continuing.
@@ -434,7 +434,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReference(int start_reg,
   __ bind(&fail);
   // Restore backtrack stackpointer.
   __ pop(backtrack_stackpointer());
-  BranchOrBacktrack(no_condition, on_no_match);
+  BranchOrBacktrack(on_no_match);
 
   __ bind(&success);
   // Move current character position to position after match.
@@ -1053,11 +1053,7 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   return Handle<HeapObject>::cast(code);
 }
 
-
-void RegExpMacroAssemblerIA32::GoTo(Label* to) {
-  BranchOrBacktrack(no_condition, to);
-}
-
+void RegExpMacroAssemblerIA32::GoTo(Label* to) { BranchOrBacktrack(to); }
 
 void RegExpMacroAssemblerIA32::IfRegisterGE(int reg,
                                             int comparand,
@@ -1252,24 +1248,18 @@ void RegExpMacroAssemblerIA32::CheckPosition(int cp_offset,
   }
 }
 
+void RegExpMacroAssemblerIA32::BranchOrBacktrack(Label* to) {
+  if (to == nullptr) {
+    Backtrack();
+    return;
+  }
+  __ jmp(to);
+}
 
 void RegExpMacroAssemblerIA32::BranchOrBacktrack(Condition condition,
                                                  Label* to) {
-  if (condition < 0) {  // No condition
-    if (to == nullptr) {
-      Backtrack();
-      return;
-    }
-    __ jmp(to);
-    return;
-  }
-  if (to == nullptr) {
-    __ j(condition, &backtrack_label_);
-    return;
-  }
-  __ j(condition, to);
+  __ j(condition, to ? to : &backtrack_label_);
 }
-
 
 void RegExpMacroAssemblerIA32::SafeCall(Label* to) {
   Label return_to;

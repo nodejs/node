@@ -107,9 +107,11 @@ class AllocationSite : public Struct {
   // it may be that in new space there are AllocationMementos hanging around
   // which point to the AllocationSite. If we scavenge these AllocationSites
   // too soon, those AllocationMementos will end up pointing to garbage
-  // addresses. The garbage collector marks such AllocationSites as zombies
-  // when it discovers there are no roots, allowing the subsequent collection
-  // pass to recognize zombies and discard them later.
+  // addresses. The concrete case happens when evacuating new space in the full
+  // GC which happens after sweeping has been started already. To mitigate this
+  // problem the garbage collector marks such AllocationSites as zombies when it
+  // discovers there are no roots, allowing the subsequent collection pass to
+  // recognize zombies and discard them later.
   inline bool IsZombie() const;
 
   inline bool IsMaybeTenure() const;

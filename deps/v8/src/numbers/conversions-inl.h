@@ -183,7 +183,7 @@ bool DoubleToUint32IfEqualToSelf(double value, uint32_t* uint32_value) {
   // exponent and remaining significand bits are valid, and only then check the
   // value in the bottom 32 bits.
 
-  uint64_t result = bit_cast<uint64_t>(shifted_value);
+  uint64_t result = base::bit_cast<uint64_t>(shifted_value);
   if ((result >> 32) == kValidTopBits) {
     *uint32_value = result & kBottomBitMask;
     return FastUI2D(result & kBottomBitMask) == value;

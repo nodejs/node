@@ -45,10 +45,12 @@ class RegisterBase {
     return reg_code_;
   }
 
-  inline constexpr bool operator==(SubType other) const {
+  inline constexpr bool operator==(
+      const RegisterBase<SubType, kAfterLastRegister>& other) const {
     return reg_code_ == other.reg_code_;
   }
-  inline constexpr bool operator!=(SubType other) const {
+  inline constexpr bool operator!=(
+      const RegisterBase<SubType, kAfterLastRegister>& other) const {
     return reg_code_ != other.reg_code_;
   }
 

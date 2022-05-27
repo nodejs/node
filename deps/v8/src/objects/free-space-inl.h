@@ -39,11 +39,11 @@ void FreeSpace::set_next(FreeSpace next) {
 FreeSpace FreeSpace::cast(HeapObject o) {
   SLOW_DCHECK((!GetHeapFromWritableObject(o)->deserialization_complete()) ||
               o.IsFreeSpace());
-  return bit_cast<FreeSpace>(o);
+  return base::bit_cast<FreeSpace>(o);
 }
 
 FreeSpace FreeSpace::unchecked_cast(const Object o) {
-  return bit_cast<FreeSpace>(o);
+  return base::bit_cast<FreeSpace>(o);
 }
 
 bool FreeSpace::IsValid() {

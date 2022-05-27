@@ -869,7 +869,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSReceiverSlow(
   if (contents.is_null()) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, contents,
-        KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly,
+        KeyAccumulator::GetKeys(isolate_, object, KeyCollectionMode::kOwnOnly,
                                 ENUMERABLE_STRINGS,
                                 GetKeysConversion::kConvertToString),
         EXCEPTION);

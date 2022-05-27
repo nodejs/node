@@ -20,11 +20,9 @@
 ['system == macos and arch == arm64 and not simulator_run', {
   # Throwing C++ exceptions doesn't work; probably because the unittests
   # binary is built with -fno-exceptions?
-  'LanguageServerJson.LexerError': [SKIP],
-  'LanguageServerJson.ParserError': [SKIP],
-  'Torque.DoubleUnderScorePrefixIllegalForIdentifiers': [SKIP],
-  'Torque.Enums': [SKIP],
-  'Torque.ImportNonExistentFile': [SKIP],
+  'LanguageServerJson.*': [SKIP],
+  'LanguageServer.*': [SKIP],
+  'Torque.*': [SKIP],
 
   # Test uses fancy signal handling. Needs investigation.
   'MemoryAllocationPermissionsTest.DoTest': [SKIP],
@@ -34,6 +32,11 @@
   'RuntimeCallStatsTest.BasicJavaScript': [SKIP],
   'RuntimeCallStatsTest.FunctionLengthGetter': [SKIP],
 }],  # system == macos and arch == arm64 and not simulator_run
+
+# TODO(v8:12824): Enable this test once this is resolved.
+['arch == arm64 and msan', {
+  'WeakContainerTest.ConservativeGCTracesWeakContainer': [SKIP],
+}],  # arch == arm64 and msan
 
 ##############################################################################
 # TODO(v8:7777): Change this once wasm is supported in jitless mode.
@@ -86,6 +89,12 @@
 }],  # tsan == True
 
 ##############################################################################
+['variant == stress_js_bg_compile_wasm_code_gc', {
+  # The test relies on deterministic allocation during compilation.
+  'CompilerTest.DeepEagerCompilationPeakMemory': [SKIP],
+}],  # variant == stress_js_bg_compile_wasm_code_gc
+
+##############################################################################
 ['not pointer_compression', {
   # Tests are irrelevant without pointer compression
   'DecompressionOptimizerTest.*': [SKIP],
@@ -107,6 +116,23 @@
 ['is_clang == False and arch == riscv64',{
   'LoggingTest.SourceLocation':[SKIP]  # issue-174
 }],
+
+##############################################################################
+['lite_mode', {
+  # TODO(mythria): Code logging tests that currently fail with lazy feedback
+  # allocation. Fix logging to work without feedback vectors and enable these
+  # tests in lite_mode.
+  'LogExternalInterpretedFramesNativeStackTest.ExternalLogEventListenerWithInterpretedFramesNativeStack': [SKIP],
+  'LogInterpretedFramesNativeStackTest.LogInterpretedFramesNativeStack': [SKIP],
+  'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
+}], # lite_mode
+
+['variant == jitless', {
+  # --interpreted-frames-native-stack tests
+  'LogExternalInterpretedFramesNativeStackTest.ExternalLogEventListenerWithInterpretedFramesNativeStack': [SKIP],
+  'LogInterpretedFramesNativeStackTest.LogInterpretedFramesNativeStack': [SKIP],
+  'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
+}], # jitless
 
 ################################################################################
 ['third_party_heap', {
@@ -131,11 +157,72 @@
   'SpacesTest.WriteBarrierInYoungGenerationFromSpace': [SKIP],
   # Requires a second isolate
   'ValueSerializerTest.DecodeArrayBufferOOM': [SKIP],
+  'LogExternalLogEventListenerInnerFunctionTest.ExternalLogEventListenerInnerFunctions': [SKIP],
+  'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
   # Performs GC
   'APIExceptionTest.ExceptionMessageDoesNotKeepContextAlive': [SKIP],
   'LocalHeapTest.GCEpilogue': [SKIP],
   'UnifiedHeapDetachedTest.AllocationBeforeConfigureHeap': [SKIP],
   'UnifiedHeapTest.FindingV8ToBlinkReference': [SKIP],
+
+  # CodeRange tests
+  'CodePagesTest.LargeCodeObjectWithSignalHandler': [SKIP],
+  'CodePagesTest.LargeCodeObject': [SKIP],
+  'CodePagesTest.OptimizedCodeWithCodeRange': [SKIP],
+  'CodePagesTest.Sorted': [SKIP],
+  'CodePagesTest.CodeRangeCorrectContents': [SKIP],
+
 }], # third_party_heap
+
+##############################################################################
+['byteorder == big', {
+  # Peephole optimization not supported on big-endian machines.
+  'RegExpTest.Peephole*': [SKIP],
+}],  # 'byteorder == big'
+
+##############################################################################
+['lite_mode or variant == jitless', {
+
+  # Tests that generate code at runtime.
+  'RegExpTest.MacroAssemblernativeAtStart': [SKIP],
+  'RegExpTest.MacroAssemblerNativeBackReferenceLATIN1': [SKIP],
+  'RegExpTest.MacroAssemblerNativeBackReferenceUC16': [SKIP],
+  'RegExpTest.MacroAssemblerNativeBackRefNoCase': [SKIP],
+  'RegExpTest.MacroAssemblerNativeBacktrack': [SKIP],
+  'RegExpTest.MacroAssemblerNativeLotsOfRegisters': [SKIP],
+  'RegExpTest.MacroAssemblerNativeRegisters': [SKIP],
+  'RegExpTest.MacroAssemblerNativeSimple': [SKIP],
+  'RegExpTest.MacroAssemblerNativeSimpleUC16': [SKIP],
+  'RegExpTest.MacroAssemblerNativeSuccess': [SKIP],
+  'RegExpTest.MacroAssemblerStackOverflow': [SKIP],
+  'RegExpTest.Graph': [SKIP],
+
+  # Tests generated irregexp code.
+  'RegExpTestWithContext.RegExpInterruptReentrantExecution': [SKIP],
+
+  # Tests that generate code at runtime.
+  'CodePagesTest.*': [SKIP],
+}], # lite_mode or variant == jitless
+
+##############################################################################
+['variant == no_wasm_traps', {
+  'APIExceptionTest.*': [SKIP],
+  'LogTest.*': [SKIP],
+  'TestWithIsolate.Issue23768': [SKIP],
+  'LogAllTest.LogAll': [SKIP],
+  'LogInterpretedFramesNativeStackTest.LogInterpretedFramesNativeStack': [SKIP],
+  'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
+  'LogExternalLogEventListenerTest.ExternalLogEventListener': [SKIP],
+  'LogExternalLogEventListenerInnerFunctionTest.ExternalLogEventListenerInnerFunctions': [SKIP],
+  'LogExternalInterpretedFramesNativeStackTest.ExternalLogEventListenerWithInterpretedFramesNativeStack': [SKIP],
+  'LogMapsTest.*': [SKIP],
+  'LogMapsCodeTest.LogMapsDetailsCode': [SKIP],
+  'LogFunctionEventsTest.LogFunctionEvents': [SKIP],
+}],  # variant == no_wasm_traps
+
+##############################################################################
+['no_i18n == True', {
+  'RegExpTestWithContext.UnicodePropertyEscapeCodeSize': [SKIP],
+}],  # no_i18n == True
 
 ]

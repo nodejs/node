@@ -138,6 +138,16 @@
   'test-swiss-name-dictionary-csa/SameH2': [PASS, HEAVY],
 
   'test-intl/StringLocaleCompareFastPath': [['mode != release', SKIP], SLOW, NO_VARIANTS],
+
+  # TODO(12284): Implement relaxed SIMD in Liftoff.
+  'test-run-wasm-relaxed-simd/RunWasm_F32x4RelaxedMin_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F32x4RelaxedMax_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F64x2RelaxedMin_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F64x2RelaxedMax_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedTruncF32x4S_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedTruncF32x4U_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedTruncF64x2SZero_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedTruncF64x2UZero_liftoff': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
@@ -297,8 +307,6 @@
   # BUG(v8:12505). Tests which share Wasm memory buffer with Js Typed arrays.
   'test-api/WasmI32AtomicWaitCallback': [SKIP],
   'test-api/WasmI64AtomicWaitCallback': [SKIP],
-  # Peephole optimization not supported on big-endian machines.
-  'test-regexp/Peephole*': [SKIP],
 }],  # 'byteorder == big'
 
 ##############################################################################
@@ -337,9 +345,6 @@
 
 ##############################################################################
 ['arch == arm', {
-  # BUG(355): Test crashes on ARM.
-  'test-log/ProfLazyMode': [SKIP],
-
   # BUG(1075): Unresolved crashes.
   'test-serialize/StartupSerializerOnce': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
@@ -532,15 +537,6 @@
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
-['variant == stress_js_bg_compile_wasm_code_gc', {
-  # The test relies on deterministic compilation.
-  'test-compiler/DecideToPretenureDuringCompilation': [SKIP],
-
-  # The test relies on deterministic allocation during compilation.
-  'test-compiler/DeepEagerCompilationPeakMemory': [SKIP],
-}],  # variant == stress_js_bg_compile_wasm_code_gc
-
-##############################################################################
 ['variant == no_wasm_traps', {
   'test-accessors/*': [SKIP],
   'test-api-interceptors/*': [SKIP],
@@ -561,7 +557,6 @@
   'test-parsing/*': [SKIP],
   'test-page-promotion/*': [SKIP],
   'test-decls/*': [SKIP],
-  'test-log/*': [SKIP],
   'test-gap-resolver/*': [SKIP],
   'test-dtoa/*': [SKIP],
 }],  # variant == no_wasm_traps
@@ -610,7 +605,7 @@
   'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [SKIP],
 
   # Tests that generate code at runtime.
-  'codegen-tester/*': [SKIP],
+  'test-codegen/*': [SKIP],
   'test-accessor-assembler/*': [SKIP],
   'test-assembler-*': [SKIP],
   'test-atomic-load-store-codegen/*': [SKIP],
@@ -619,25 +614,12 @@
   'test-calls-with-arraylike-or-spread/*': [SKIP],
   'test-code-assembler/*': [SKIP],
   'test-code-generator/*': [SKIP],
-  'test-code-pages/*': [SKIP],
   'test-code-stub-assembler/*': [SKIP],
   'test-debug-helper/GetObjectProperties': [SKIP],
   'test-disasm-x64/DisasmX64': [SKIP],
   'test-js-context-specialization/*': [SKIP],
   'test-macro-assembler-x64/EmbeddedObj': [SKIP],
   'test-multiple-return/*': [SKIP],
-  'test-regexp/MacroAssemblernativeAtStart': [SKIP],
-  'test-regexp/MacroAssemblerNativeBackReferenceLATIN1': [SKIP],
-  'test-regexp/MacroAssemblerNativeBackReferenceUC16': [SKIP],
-  'test-regexp/MacroAssemblerNativeBackRefNoCase': [SKIP],
-  'test-regexp/MacroAssemblerNativeBacktrack': [SKIP],
-  'test-regexp/MacroAssemblerNativeLotsOfRegisters': [SKIP],
-  'test-regexp/MacroAssemblerNativeRegisters': [SKIP],
-  'test-regexp/MacroAssemblerNativeSimple': [SKIP],
-  'test-regexp/MacroAssemblerNativeSimpleUC16': [SKIP],
-  'test-regexp/MacroAssemblerNativeSuccess': [SKIP],
-  'test-regexp/MacroAssemblerStackOverflow': [SKIP],
-  'test-regexp/Graph': [SKIP],
   'test-run-bytecode-graph-builder/*': [SKIP],
   'test-run-calls-to-external-references/*': [SKIP],
   'test-run-deopt/*': [SKIP],
@@ -666,9 +648,6 @@
 
   # Instruction cache flushing is disabled in jitless mode.
   'test-icache/*': [SKIP],
-
-  # Tests generated irregexp code.
-  'test-regexp/RegExpInterruptReentrantExecution': [SKIP],
 }], # lite_mode or variant == jitless
 
 ##############################################################################
@@ -679,9 +658,6 @@
   # TODO(mythria): Code logging tests that currently fail with lazy feedback
   # allocation. Fix logging to work without feedback vectors and enable these
   # tests in lite_mode.
-  'test-log/ExternalCodeEventListenerWithInterpretedFramesNativeStack': [SKIP],
-  'test-log/LogInterpretedFramesNativeStack': [SKIP],
-  'test-log/LogInterpretedFramesNativeStackWithSerialization': [SKIP],
   'test-serialize/CodeSerializerOnePlusOneWithInterpretedFramesNativeStack': [SKIP]
 }], # lite_mode
 
@@ -709,9 +685,6 @@
   'test-verify-type/*': [SKIP],
 
   # --interpreted-frames-native-stack tests
-  'test-log/ExternalCodeEventListenerWithInterpretedFramesNativeStack': [SKIP],
-  'test-log/LogInterpretedFramesNativeStack': [SKIP],
-  'test-log/LogInterpretedFramesNativeStackWithSerialization': [SKIP],
   'test-serialize/CodeSerializerOnePlusOneWithInterpretedFramesNativeStack': [SKIP],
   'test-interpreter/InterpreterWithNativeStack': [SKIP],
 
@@ -724,10 +697,6 @@
   'test-cpu-profiler/MultipleIsolates': [PASS, ['arch == arm64 and system == macos and simulator_run', SKIP]],
 }], # variant == jitless
 
-##############################################################################
-['no_i18n == True', {
-  'test-regexp/UnicodePropertyEscapeCodeSize': [SKIP],
-}],  # no_i18n == True
 
 ################################################################################
 ['variant == stress_snapshot', {
@@ -837,13 +806,10 @@
   'test-api/NestedIsolates': [SKIP],
   'test-api/RunTwoIsolatesOnSingleThread': [SKIP],
   'test-api/VerifyArrayPrototypeGuarantees': [SKIP],
-  'test-compiler/DecideToPretenureDuringCompilation': [SKIP],
   'test-cpu-profiler/MultipleIsolates': [SKIP],
   'test-heap/Regress538257': [SKIP],
   'test-heap/ReinitializeStringHashSeed': [SKIP],
   'test-lockers/*': [SKIP],
-  'test-log/ExternalCodeEventListenerInnerFunctions': [SKIP],
-  'test-log/LogInterpretedFramesNativeStackWithSerialization': [SKIP],
   'test-managed/*': [SKIP],
   'test-mark-compact/RegressJoinThreadsOnIsolateDeinit': [SKIP],
   'test-memory-measurement/RandomizedTimeout': [SKIP],
@@ -1179,12 +1145,6 @@
   'test-weakmaps/Weakness': [SKIP],
   'test-weaksets/WeakSet_Weakness': [SKIP],
   'test-web-snapshots/SFIDeduplicationAfterBytecodeFlushing': [SKIP],
-  # CodeRange tests
-  'test-code-pages/LargeCodeObjectWithSignalHandler': [SKIP],
-  'test-code-pages/LargeCodeObject': [SKIP],
-  'test-code-pages/OptimizedCodeWithCodeRange': [SKIP],
-  'test-code-pages/Sorted': [SKIP],
-  'test-code-pages/CodeRangeCorrectContents': [SKIP],
   # Timeout (too many GCs)
   'test-heap/Regress8014': [SKIP],
   'test-accessors/HandleScopePop': [SKIP],
@@ -1227,5 +1187,18 @@
   # always triggers a concurrent compilation.
   'test-concurrent-shared-function-info/TestConcurrentSharedFunctionInfo': [SKIP],
 }],  # variant == assert_types
+
+['arch != ia32 and arch != x64', {
+  # TODO(12284): Implement relaxed SIMD in Liftoff on missing architectures.
+  'test-run-wasm-relaxed-simd/RunWasm_I8x16RelaxedLaneSelect_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I16x8RelaxedLaneSelect_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedLaneSelect_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I64x2RelaxedLaneSelect_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F32x4Qfma_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F32x4Qfms_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F64x2Qfma_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_F64x2Qfms_liftoff': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I8x16RelaxedSwizzle_liftoff': [SKIP],
+}]
 
 ]

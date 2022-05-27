@@ -253,7 +253,7 @@ void ProfilerListener::CallbackEvent(Handle<Name> name, Address entry_point) {
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
   rec->entry =
-      code_entries_.Create(CodeEventListener::CALLBACK_TAG, GetName(*name));
+      code_entries_.Create(LogEventListener::CALLBACK_TAG, GetName(*name));
   rec->instruction_size = 1;
   DispatchCodeEvent(evt_rec);
 }
@@ -263,7 +263,7 @@ void ProfilerListener::GetterCallbackEvent(Handle<Name> name,
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
-  rec->entry = code_entries_.Create(CodeEventListener::CALLBACK_TAG,
+  rec->entry = code_entries_.Create(LogEventListener::CALLBACK_TAG,
                                     GetConsName("get ", *name));
   rec->instruction_size = 1;
   DispatchCodeEvent(evt_rec);
@@ -274,7 +274,7 @@ void ProfilerListener::SetterCallbackEvent(Handle<Name> name,
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
-  rec->entry = code_entries_.Create(CodeEventListener::CALLBACK_TAG,
+  rec->entry = code_entries_.Create(LogEventListener::CALLBACK_TAG,
                                     GetConsName("set ", *name));
   rec->instruction_size = 1;
   DispatchCodeEvent(evt_rec);
@@ -286,7 +286,7 @@ void ProfilerListener::RegExpCodeCreateEvent(Handle<AbstractCode> code,
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
   rec->entry = code_entries_.Create(
-      CodeEventListener::REG_EXP_TAG, GetConsName("RegExp: ", *source),
+      LogEventListener::REG_EXP_TAG, GetConsName("RegExp: ", *source),
       CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
       CpuProfileNode::kNoColumnNumberInfo, nullptr);
   rec->instruction_size = code->InstructionSize();

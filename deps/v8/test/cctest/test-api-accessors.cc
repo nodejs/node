@@ -25,7 +25,7 @@ static void UnreachableCallback(
 TEST(CachedAccessor) {
   // TurboFan support for fast accessors is not implemented; turbofanned
   // code uses the slow accessor which breaks this test's expectations.
-  v8::internal::FLAG_always_opt = false;
+  v8::internal::FLAG_always_turbofan = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -72,7 +72,7 @@ TEST(CachedAccessor) {
 
 TEST(CachedAccessorTurboFan) {
   i::FLAG_allow_natives_syntax = true;
-  // v8::internal::FLAG_always_opt = false;
+  // v8::internal::FLAG_always_turbofan = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);

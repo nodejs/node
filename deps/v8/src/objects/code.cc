@@ -610,7 +610,6 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   os << "Parameter count " << parameter_count() << "\n";
   os << "Register count " << register_count() << "\n";
   os << "Frame size " << frame_size() << "\n";
-  os << "OSR urgency: " << osr_urgency() << "\n";
   os << "Bytecode age: " << bytecode_age() << "\n";
 
   Address base_address = GetFirstBytecodeAddress();

@@ -1083,7 +1083,7 @@ int Map::NumberOfEnumerableProperties() const {
   int result = 0;
   DescriptorArray descs = instance_descriptors(kRelaxedLoad);
   for (InternalIndex i : IterateOwnDescriptors()) {
-    if ((descs.GetDetails(i).attributes() & ONLY_ENUMERABLE) == 0 &&
+    if ((int{descs.GetDetails(i).attributes()} & ONLY_ENUMERABLE) == 0 &&
         !descs.GetKey(i).FilterKey(ENUMERABLE_STRINGS)) {
       result++;
     }
@@ -1243,7 +1243,6 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
     new_map->set_elements_kind(new_elements_kind);
     if (use_cache) {
       cache->Set(fast_map, new_map);
-      isolate->counters()->maps_normalized()->Increment();
     }
     if (FLAG_log_maps) {
       LOG(isolate, MapEvent("Normalize", fast_map, new_map, reason));

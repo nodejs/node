@@ -67,7 +67,6 @@
       'V8 Linux64 - builder (reclient)': 'release_x64_reclient',
       'V8 Linux64 - builder (reclient compare)': 'release_x64_reclient',
       'V8 Linux64 - debug builder': 'debug_x64',
-      'V8 Linux64 - dict tracking - debug - builder': 'debug_x64_dict_tracking_trybot',
       'V8 Linux64 - external code space - debug - builder': 'debug_x64_external_code_space',
       'V8 Linux64 - custom snapshot - debug builder': 'debug_x64_custom',
       'V8 Linux64 - heap sandbox - debug - builder': 'debug_x64_heap_sandbox',
@@ -173,6 +172,7 @@
       'V8 Android Arm64 - builder - perf': 'official_android_arm64',
       'V8 Linux - builder - perf': 'official_x86',
       'V8 Linux64 - builder - perf': 'official_x64',
+      'V8 Mac Arm64 - builder - perf': 'official_mac_arm64',
     },
     'client.v8.ports': {
       # Arm.
@@ -475,6 +475,8 @@
     'official_android_arm64': [
       'release_bot', 'arm64', 'android', 'minimal_symbols',
       'android_strip_outputs', 'official', 'disable_pgo'],
+    'official_mac_arm64': [
+      'release_bot', 'arm64', 'official', 'disable_pgo'],
 
     # Release configs for x64.
     'release_x64': [

@@ -397,6 +397,19 @@ void TurboAssembler::Ret(int drop, Condition cond) {
   Ret(cond);
 }
 
+void MacroAssembler::TestCodeTIsMarkedForDeoptimization(Register codet,
+                                                        Register scratch) {
+  ldr(scratch, FieldMemOperand(codet, Code::kCodeDataContainerOffset));
+  ldr(scratch,
+      FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
+  tst(scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
+}
+
+Operand MacroAssembler::ClearedValue() const {
+  return Operand(
+      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
+}
+
 void TurboAssembler::Call(Label* target) { bl(target); }
 
 void TurboAssembler::Push(Handle<HeapObject> handle) {

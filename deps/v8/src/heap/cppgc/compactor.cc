@@ -322,7 +322,13 @@ class CompactionState final {
   Pages available_pages_;
 };
 
-void CompactPage(NormalPage* page, CompactionState& compaction_state) {
+enum class StickyBits : uint8_t {
+  kDisabled,
+  kEnabled,
+};
+
+void CompactPage(NormalPage* page, CompactionState& compaction_state,
+                 StickyBits sticky_bits) {
   compaction_state.AddPage(page);
 
   page->object_start_bitmap().Clear();
@@ -360,9 +366,12 @@ void CompactPage(NormalPage* page, CompactionState& compaction_state) {
     }
 
     // Object is marked.
-#if !defined(CPPGC_YOUNG_GENERATION)
+#if defined(CPPGC_YOUNG_GENERATION)
+    if (sticky_bits == StickyBits::kDisabled) header->Unmark();
+#else   // !defined(CPPGC_YOUNG_GENERATION)
     header->Unmark();
-#endif
+#endif  // !defined(CPPGC_YOUNG_GENERATION)
+
     // Potentially unpoison the live object as well as it is the source of
     // the copy.
     ASAN_UNPOISON_MEMORY_REGION(header->ObjectStart(), header->ObjectSize());
@@ -373,8 +382,8 @@ void CompactPage(NormalPage* page, CompactionState& compaction_state) {
   compaction_state.FinishCompactingPage(page);
 }
 
-void CompactSpace(NormalPageSpace* space,
-                  MovableReferences& movable_references) {
+void CompactSpace(NormalPageSpace* space, MovableReferences& movable_references,
+                  StickyBits sticky_bits) {
   using Pages = NormalPageSpace::Pages;
 
 #ifdef V8_USE_ADDRESS_SANITIZER
@@ -417,7 +426,7 @@ void CompactSpace(NormalPageSpace* space,
   CompactionState compaction_state(space, movable_references);
   for (BasePage* page : pages) {
     // Large objects do not belong to this arena.
-    CompactPage(NormalPage::From(page), compaction_state);
+    CompactPage(NormalPage::From(page), compaction_state, sticky_bits);
   }
 
   compaction_state.FinishCompactingSpace();
@@ -508,8 +517,12 @@ Compactor::CompactableSpaceHandling Compactor::CompactSpacesIfEnabled() {
   }
   compaction_worklists_.reset();
 
+  const bool young_gen_enabled = heap_.heap()->generational_gc_supported();
+
   for (NormalPageSpace* space : compactable_spaces_) {
-    CompactSpace(space, movable_references);
+    CompactSpace(
+        space, movable_references,
+        young_gen_enabled ? StickyBits::kEnabled : StickyBits::kDisabled);
   }
 
   enable_for_next_gc_for_testing_ = false;

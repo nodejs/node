@@ -56,8 +56,8 @@ TEST(WrapInsideWrapOnInterrupt) {
   NoopChannel channel;
   const char* state = "{}";
   StringView state_view(reinterpret_cast<const uint8_t*>(state), strlen(state));
-  std::unique_ptr<V8InspectorSession> session =
-      inspector->connect(1, &channel, state_view);
+  std::unique_ptr<V8InspectorSession> session = inspector->connect(
+      1, &channel, state_view, v8_inspector::V8Inspector::kFullyTrusted);
 
   const char* object_group = "";
   StringView object_group_view(reinterpret_cast<const uint8_t*>(object_group),

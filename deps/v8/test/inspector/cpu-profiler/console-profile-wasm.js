@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(v8:10266): Figure out why this fails on tsan with --always-opt.
-// Flags: --no-always-opt --no-turbo-inline-js-wasm-calls
+// TODO(v8:10266): Figure out why this fails on tsan with --always-turbofan.
+// Flags: --no-always-turbofan --no-turbo-inline-js-wasm-calls
 
 let {session, contextGroup, Protocol} = InspectorTest.start(
     'Test that console profiles contain wasm function names.');

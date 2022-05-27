@@ -20,6 +20,26 @@ static constexpr int kAllocatableGeneralRegisterCount =
     ALLOCATABLE_GENERAL_REGISTERS(COUNT);
 #undef COUNT
 
+#define COUNT(V) +1
+static constexpr int kAllocatableDoubleRegisterCount =
+    ALLOCATABLE_DOUBLE_REGISTERS(COUNT);
+#undef COUNT
+
+template <typename T>
+struct AllocatableRegisters;
+
+template <>
+struct AllocatableRegisters<Register> {
+  static constexpr RegList kRegisters = kAllocatableGeneralRegisters;
+  static constexpr int kCount = kAllocatableGeneralRegisterCount;
+};
+
+template <>
+struct AllocatableRegisters<DoubleRegister> {
+  static constexpr DoubleRegList kRegisters = kAllocatableDoubleRegisters;
+  static constexpr int kCount = kAllocatableDoubleRegisterCount;
+};
+
 struct RegisterStateFlags {
   // TODO(v8:7700): Use the good old Flags mechanism.
   static constexpr int kIsMergeShift = 0;

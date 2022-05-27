@@ -32,10 +32,6 @@ void PlatformEmbeddedFileWriterAIX::SectionText() {
   fprintf(fp_, ".csect [GL], 6\n");
 }
 
-void PlatformEmbeddedFileWriterAIX::SectionData() {
-  fprintf(fp_, ".csect .data[RW]\n");
-}
-
 void PlatformEmbeddedFileWriterAIX::SectionRoData() {
   fprintf(fp_, ".csect[RO]\n");
 }
@@ -47,14 +43,6 @@ void PlatformEmbeddedFileWriterAIX::DeclareUint32(const char* name,
   fprintf(fp_, "%s:\n", name);
   IndentedDataDirective(kLong);
   fprintf(fp_, "%d\n", value);
-  Newline();
-}
-
-void PlatformEmbeddedFileWriterAIX::DeclarePointerToSymbol(const char* name,
-                                                           const char* target) {
-  AlignToCodeAlignment();
-  DeclareLabel(name);
-  fprintf(fp_, "  %s %s\n", DirectiveAsString(PointerSizeDirective()), target);
   Newline();
 }
 

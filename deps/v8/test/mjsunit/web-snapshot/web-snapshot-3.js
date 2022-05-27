@@ -102,3 +102,20 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   assertEquals(1, foo[0].a);
   assertEquals(2, foo[2].b);
 })();
+
+(function TestObjectWithDictionaryMap() {
+  function createObjects() {
+    const obj = {};
+    // Create an object with dictionary map.
+    for (let i = 0; i < 2000; i++){
+      obj[`key${i}`] = `value${i}`;
+    }
+    globalThis.foo = obj;
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals(2000, Object.keys(foo).length);
+  assertEquals(2000, Object.values(foo).length);
+  for (let i = 0; i < 2000; i++){
+    assertEquals(`value${i}`, foo[`key${i}`]);
+  }
+})();

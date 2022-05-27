@@ -81,6 +81,9 @@ class V8_BASE_EXPORT VirtualAddressSpace : public VirtualAddressSpaceBase {
       Address hint, size_t size, size_t alignment,
       PagePermissions max_page_permissions) override;
 
+  bool RecommitPages(Address address, size_t size,
+                     PagePermissions access) override;
+
   bool DiscardSystemPages(Address address, size_t size) override;
 
   bool DecommitPages(Address address, size_t size) override;
@@ -125,6 +128,9 @@ class V8_BASE_EXPORT VirtualAddressSubspace : public VirtualAddressSpaceBase {
   std::unique_ptr<v8::VirtualAddressSpace> AllocateSubspace(
       Address hint, size_t size, size_t alignment,
       PagePermissions max_page_permissions) override;
+
+  bool RecommitPages(Address address, size_t size,
+                     PagePermissions permissions) override;
 
   bool DiscardSystemPages(Address address, size_t size) override;
 

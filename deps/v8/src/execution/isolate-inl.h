@@ -15,6 +15,10 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/source-text-module-inl.h"
 
+#ifdef DEBUG
+#include "src/runtime/runtime-utils.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -91,6 +95,34 @@ void Isolate::clear_scheduled_exception() {
 void Isolate::set_scheduled_exception(Object exception) {
   thread_local_top()->scheduled_exception_ = exception;
 }
+
+bool Isolate::is_execution_termination_pending() {
+  return thread_local_top()->pending_exception_ ==
+         i::ReadOnlyRoots(this).termination_exception();
+}
+
+bool Isolate::is_execution_terminating() {
+  return thread_local_top()->scheduled_exception_ ==
+         i::ReadOnlyRoots(this).termination_exception();
+}
+
+#ifdef DEBUG
+Object Isolate::VerifyBuiltinsResult(Object result) {
+  if (has_pending_exception()) {
+    CHECK_EQ(result, ReadOnlyRoots(this).exception());
+  }
+  return result;
+}
+
+ObjectPair Isolate::VerifyBuiltinsResult(ObjectPair pair) {
+#ifdef V8_HOST_ARCH_64_BIT
+  if (has_pending_exception()) {
+    CHECK(pair.x == ReadOnlyRoots(this).exception().ptr());
+  }
+#endif  // V8_HOST_ARCH_64_BIT
+  return pair;
+}
+#endif  // DEBUG
 
 bool Isolate::is_catchable_by_javascript(Object exception) {
   return exception != ReadOnlyRoots(heap()).termination_exception();

@@ -108,6 +108,9 @@ uint32_t Name::CreateHashFieldValue(uint32_t hash, HashFieldType type) {
 }
 
 bool Name::HasHashCode() const { return IsHashFieldComputed(raw_hash_field()); }
+bool Name::HasForwardingIndex() const {
+  return IsForwardingIndex(raw_hash_field(kAcquireLoad));
+}
 
 uint32_t Name::EnsureHash() {
   // Fast case: has hash code already been computed?
@@ -125,10 +128,35 @@ uint32_t Name::EnsureHash(const SharedStringAccessGuardIfNeeded& access_guard) {
   return String::cast(*this).ComputeAndSetHash(access_guard);
 }
 
+void Name::set_raw_hash_field_if_empty(uint32_t hash) {
+  uint32_t result = base::AsAtomic32::Release_CompareAndSwap(
+      reinterpret_cast<uint32_t*>(FIELD_ADDR(*this, kRawHashFieldOffset)),
+      kEmptyHashField, hash);
+  USE(result);
+  // CAS can only fail if the string is shared or we use the forwarding table
+  // for all strings and the hash was already set (by another thread) or it is
+  // a forwarding index (that overwrites the previous hash).
+  // In all cases we don't want overwrite the old value, so we don't handle the
+  // failure case.
+  DCHECK_IMPLIES(result != kEmptyHashField,
+                 (String::cast(*this).IsShared() ||
+                  FLAG_always_use_string_forwarding_table) &&
+                     (result == hash || IsForwardingIndex(hash)));
+}
+
 uint32_t Name::hash() const {
   uint32_t field = raw_hash_field();
   DCHECK(IsHashFieldComputed(field));
   return HashBits::decode(field);
+}
+
+bool Name::TryGetHash(uint32_t* hash) const {
+  uint32_t field = raw_hash_field();
+  if (IsHashFieldComputed(field)) {
+    *hash = HashBits::decode(field);
+    return true;
+  }
+  return false;
 }
 
 DEF_GETTER(Name, IsInterestingSymbol, bool) {

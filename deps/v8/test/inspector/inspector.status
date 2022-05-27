@@ -325,7 +325,15 @@
   'debugger/regression-424142': [SKIP],
   'debugger/remove-breakpoint-at-breakpoint': [SKIP],
   'debugger/resource-name-to-url': [SKIP],
-  'debugger/restart-frame': [SKIP],
+  'debugger/restart-frame/fails-for-non-existant-index': [SKIP],
+  'debugger/restart-frame/fails-for-resumables': [SKIP],
+  'debugger/restart-frame/fails-with-embedder-frames': [SKIP],
+  'debugger/restart-frame/fails-without-mode-param': [SKIP],
+  'debugger/restart-frame/restart-inlined-frame': [SKIP],
+  'debugger/restart-frame/restart-top-frame-debugger-stmt': [SKIP],
+  'debugger/restart-frame/restart-top-frame-local-variables': [SKIP],
+  'debugger/restart-frame/restart-top-frame-with-breakpoint': [SKIP],
+  'debugger/restart-frame/restart-various-frames': [SKIP],
   'debugger/restore-breakpoint': [SKIP],
   'debugger/return-break-locations': [SKIP],
   'debugger/scope-skip-variables-with-empty-name': [SKIP],
@@ -527,5 +535,11 @@
 ['no_i18n == True', {
   'runtime/evaluate-without-side-effects-i18n': [SKIP],
 }],  # no_i18n == True
+
+##############################################################################
+['lite_mode or variant in (nooptimization, jitless, assert_types)', {
+  # Test relies on TurboFan being enabled.
+  'debugger/restart-frame/restart-inlined-frame': [SKIP],
+}], # lite_mode or variant in (nooptimization, jitless, assert_types)
 
 ]

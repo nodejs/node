@@ -425,10 +425,11 @@ Expression* Parser::NewV8RuntimeFunctionForFuzzing(
 
 Parser::Parser(LocalIsolate* local_isolate, ParseInfo* info,
                Handle<Script> script)
-    : ParserBase<Parser>(
-          info->zone(), &scanner_, info->stack_limit(),
-          info->ast_value_factory(), info->pending_error_handler(),
-          info->runtime_call_stats(), info->logger(), info->flags(), true),
+    : ParserBase<Parser>(info->zone(), &scanner_, info->stack_limit(),
+                         info->ast_value_factory(),
+                         info->pending_error_handler(),
+                         info->runtime_call_stats(), info->v8_file_logger(),
+                         info->flags(), true),
       local_isolate_(local_isolate),
       info_(info),
       script_(script),
@@ -2761,7 +2762,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         should_preparse
             ? (is_top_level ? "preparse-no-resolution" : "preparse-resolution")
             : "full-parse";
-    logger_->FunctionEvent(
+    v8_file_logger_->FunctionEvent(
         event_name, flags().script_id(), ms, scope->start_position(),
         scope->end_position(),
         reinterpret_cast<const char*>(function_name->raw_data()),
@@ -3375,8 +3376,6 @@ void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
       isolate->CountUsage(v8::Isolate::kHtmlCommentInExternalScript);
     }
   }
-  isolate->counters()->total_preparse_skipped()->Increment(
-      total_preparse_skipped_);
 }
 
 void Parser::UpdateStatistics(

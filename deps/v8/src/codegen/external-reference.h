@@ -92,6 +92,7 @@ class StatsCounter;
 
 #define EXTERNAL_REFERENCE_LIST(V)                                             \
   V(abort_with_reason, "abort_with_reason")                                    \
+  V(address_of_FLAG_trace_osr, "FLAG_trace_osr")                               \
   V(address_of_builtin_subclassing_flag, "FLAG_builtin_subclassing")           \
   V(address_of_double_abs_constant, "double_absolute_constant")                \
   V(address_of_double_neg_constant, "double_negate_constant")                  \
@@ -187,6 +188,7 @@ class StatsCounter;
   V(string_to_array_index_function, "String::ToArrayIndex")                    \
   V(try_string_to_index_or_lookup_existing,                                    \
     "try_string_to_index_or_lookup_existing")                                  \
+  V(string_from_forward_table, "string_from_forward_table")                    \
   IF_WASM(V, wasm_call_trap_callback_for_testing,                              \
           "wasm::call_trap_callback_for_testing")                              \
   IF_WASM(V, wasm_f32_ceil, "wasm::f32_ceil_wrapper")                          \

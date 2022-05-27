@@ -101,24 +101,22 @@ CompilationJob::Status MaglevCompilationJob::PrepareJobImpl(Isolate* isolate) {
 CompilationJob::Status MaglevCompilationJob::ExecuteJobImpl(
     RuntimeCallStats* stats, LocalIsolate* local_isolate) {
   LocalIsolateScope scope{info(), local_isolate};
-  maglev::MaglevCompiler::Compile(local_isolate,
-                                  info()->toplevel_compilation_unit());
+  maglev::MaglevCompiler::Compile(local_isolate, info());
   // TODO(v8:7700): Actual return codes.
   return CompilationJob::SUCCEEDED;
 }
 
 CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
   Handle<CodeT> codet;
-  if (!maglev::MaglevCompiler::GenerateCode(info()->toplevel_compilation_unit())
-           .ToHandle(&codet)) {
+  if (!maglev::MaglevCompiler::GenerateCode(info()).ToHandle(&codet)) {
     return CompilationJob::FAILED;
   }
-  info()->function()->set_code(*codet);
+  info()->toplevel_compilation_unit()->function().object()->set_code(*codet);
   return CompilationJob::SUCCEEDED;
 }
 
 Handle<JSFunction> MaglevCompilationJob::function() const {
-  return info_->function();
+  return info_->toplevel_compilation_unit()->function().object();
 }
 
 // The JobTask is posted to V8::GetCurrentPlatform(). It's responsible for

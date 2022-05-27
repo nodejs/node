@@ -37,7 +37,7 @@ bool EnterIncrementalMarkingIfNeeded(Marker::MarkingConfig config,
   if (config.marking_type == Marker::MarkingConfig::MarkingType::kIncremental ||
       config.marking_type ==
           Marker::MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
-    WriteBarrier::IncrementalOrConcurrentMarkingFlagUpdater::Enter();
+    WriteBarrier::FlagUpdater::Enter();
 #if defined(CPPGC_CAGED_HEAP)
     heap.caged_heap().local_data().is_incremental_marking_in_progress = true;
 #endif  // defined(CPPGC_CAGED_HEAP)
@@ -51,7 +51,7 @@ bool ExitIncrementalMarkingIfNeeded(Marker::MarkingConfig config,
   if (config.marking_type == Marker::MarkingConfig::MarkingType::kIncremental ||
       config.marking_type ==
           Marker::MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
-    WriteBarrier::IncrementalOrConcurrentMarkingFlagUpdater::Exit();
+    WriteBarrier::FlagUpdater::Exit();
 #if defined(CPPGC_CAGED_HEAP)
     heap.caged_heap().local_data().is_incremental_marking_in_progress = false;
 #endif  // defined(CPPGC_CAGED_HEAP)
@@ -155,7 +155,11 @@ MarkerBase::MarkerBase(HeapBase& heap, cppgc::Platform* platform,
       platform_(platform),
       foreground_task_runner_(platform_->GetForegroundTaskRunner()),
       mutator_marking_state_(heap, marking_worklists_,
-                             heap.compactor().compaction_worklists()) {}
+                             heap.compactor().compaction_worklists()) {
+  DCHECK_IMPLIES(
+      config_.collection_type == MarkingConfig::CollectionType::kMinor,
+      heap_.generational_gc_supported());
+}
 
 MarkerBase::~MarkerBase() {
   // The fixed point iteration may have found not-fully-constructed objects.
@@ -340,19 +344,21 @@ void MarkerBase::ProcessWeakness() {
   // Call weak callbacks on objects that may now be pointing to dead objects.
   LivenessBroker broker = LivenessBrokerFactory::Create();
 #if defined(CPPGC_YOUNG_GENERATION)
-  auto& remembered_set = heap().remembered_set();
-  if (config_.collection_type == MarkingConfig::CollectionType::kMinor) {
-    // Custom callbacks assume that untraced pointers point to not yet freed
-    // objects. They must make sure that upon callback completion no
-    // UntracedMember points to a freed object. This may not hold true if a
-    // custom callback for an old object operates with a reference to a young
-    // object that was freed on a minor collection cycle. To maintain the
-    // invariant that UntracedMembers always point to valid objects, execute
-    // custom callbacks for old objects on each minor collection cycle.
-    remembered_set.ExecuteCustomCallbacks(broker);
-  } else {
-    // For major GCs, just release all the remembered weak callbacks.
-    remembered_set.ReleaseCustomCallbacks();
+  if (heap().generational_gc_supported()) {
+    auto& remembered_set = heap().remembered_set();
+    if (config_.collection_type == MarkingConfig::CollectionType::kMinor) {
+      // Custom callbacks assume that untraced pointers point to not yet freed
+      // objects. They must make sure that upon callback completion no
+      // UntracedMember points to a freed object. This may not hold true if a
+      // custom callback for an old object operates with a reference to a young
+      // object that was freed on a minor collection cycle. To maintain the
+      // invariant that UntracedMembers always point to valid objects, execute
+      // custom callbacks for old objects on each minor collection cycle.
+      remembered_set.ExecuteCustomCallbacks(broker);
+    } else {
+      // For major GCs, just release all the remembered weak callbacks.
+      remembered_set.ReleaseCustomCallbacks();
+    }
   }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
@@ -362,7 +368,8 @@ void MarkerBase::ProcessWeakness() {
   while (local.Pop(&item)) {
     item.callback(broker, item.parameter);
 #if defined(CPPGC_YOUNG_GENERATION)
-    heap().remembered_set().AddWeakCallback(item);
+    if (heap().generational_gc_supported())
+      heap().remembered_set().AddWeakCallback(item);
 #endif  // defined(CPPGC_YOUNG_GENERATION)
   }
 

@@ -2454,9 +2454,13 @@ TEST(IsDebugActive) {
   *debug_is_active = false;
 }
 
+#if !defined(V8_OS_ANDROID)
 // Ensure that the kShortBuiltinCallsOldSpaceSizeThreshold constant can be used
 // for detecting whether the machine has >= 4GB of physical memory by checking
 // the max old space size.
+//
+// Not on Android as short builtins do not depend on RAM on this platform, see
+// comment in isolate.cc.
 TEST(ShortBuiltinCallsThreshold) {
   if (!V8_SHORT_BUILTIN_CALLS_BOOL) return;
 
@@ -2480,6 +2484,7 @@ TEST(ShortBuiltinCallsThreshold) {
   i::Heap::GenerationSizesFromHeapSize(heap_size, &young, &old);
   CHECK_GE(old, kShortBuiltinCallsOldSpaceSizeThreshold);
 }
+#endif  // !defined(V8_OS_ANDROID)
 
 TEST(CallBuiltin) {
   Isolate* isolate(CcTest::InitIsolateOnce());

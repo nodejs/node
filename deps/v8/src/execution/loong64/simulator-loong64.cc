@@ -928,12 +928,12 @@ void Simulator::set_fpu_register_hi_word(int fpureg, int32_t value) {
 
 void Simulator::set_fpu_register_float(int fpureg, float value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  *bit_cast<float*>(&FPUregisters_[fpureg]) = value;
+  *base::bit_cast<float*>(&FPUregisters_[fpureg]) = value;
 }
 
 void Simulator::set_fpu_register_double(int fpureg, double value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  *bit_cast<double*>(&FPUregisters_[fpureg]) = value;
+  *base::bit_cast<double*>(&FPUregisters_[fpureg]) = value;
 }
 
 void Simulator::set_cf_register(int cfreg, bool value) {
@@ -986,12 +986,12 @@ int32_t Simulator::get_fpu_register_hi_word(int fpureg) const {
 
 float Simulator::get_fpu_register_float(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return *bit_cast<float*>(const_cast<int64_t*>(&FPUregisters_[fpureg]));
+  return *base::bit_cast<float*>(const_cast<int64_t*>(&FPUregisters_[fpureg]));
 }
 
 double Simulator::get_fpu_register_double(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return *bit_cast<double*>(&FPUregisters_[fpureg]);
+  return *base::bit_cast<double*>(&FPUregisters_[fpureg]);
 }
 
 bool Simulator::get_cf_register(int cfreg) const {
@@ -2036,6 +2036,132 @@ using SimulatorRuntimeDirectGetterCall = void (*)(int64_t arg0, int64_t arg1);
 using SimulatorRuntimeProfilingGetterCall = void (*)(int64_t arg0, int64_t arg1,
                                                      void* arg2);
 
+using MixedRuntimeCall_0 = AnyCType (*)();
+
+#define BRACKETS(ident, N) ident[N]
+
+#define REP_0(expr, FMT)
+#define REP_1(expr, FMT) FMT(expr, 0)
+#define REP_2(expr, FMT) REP_1(expr, FMT), FMT(expr, 1)
+#define REP_3(expr, FMT) REP_2(expr, FMT), FMT(expr, 2)
+#define REP_4(expr, FMT) REP_3(expr, FMT), FMT(expr, 3)
+#define REP_5(expr, FMT) REP_4(expr, FMT), FMT(expr, 4)
+#define REP_6(expr, FMT) REP_5(expr, FMT), FMT(expr, 5)
+#define REP_7(expr, FMT) REP_6(expr, FMT), FMT(expr, 6)
+#define REP_8(expr, FMT) REP_7(expr, FMT), FMT(expr, 7)
+#define REP_9(expr, FMT) REP_8(expr, FMT), FMT(expr, 8)
+#define REP_10(expr, FMT) REP_9(expr, FMT), FMT(expr, 9)
+#define REP_11(expr, FMT) REP_10(expr, FMT), FMT(expr, 10)
+#define REP_12(expr, FMT) REP_11(expr, FMT), FMT(expr, 11)
+#define REP_13(expr, FMT) REP_12(expr, FMT), FMT(expr, 12)
+#define REP_14(expr, FMT) REP_13(expr, FMT), FMT(expr, 13)
+#define REP_15(expr, FMT) REP_14(expr, FMT), FMT(expr, 14)
+#define REP_16(expr, FMT) REP_15(expr, FMT), FMT(expr, 15)
+#define REP_17(expr, FMT) REP_16(expr, FMT), FMT(expr, 16)
+#define REP_18(expr, FMT) REP_17(expr, FMT), FMT(expr, 17)
+#define REP_19(expr, FMT) REP_18(expr, FMT), FMT(expr, 18)
+#define REP_20(expr, FMT) REP_19(expr, FMT), FMT(expr, 19)
+
+#define GEN_MAX_PARAM_COUNT(V) \
+  V(0)                         \
+  V(1)                         \
+  V(2)                         \
+  V(3)                         \
+  V(4)                         \
+  V(5)                         \
+  V(6)                         \
+  V(7)                         \
+  V(8)                         \
+  V(9)                         \
+  V(10)                        \
+  V(11)                        \
+  V(12)                        \
+  V(13)                        \
+  V(14)                        \
+  V(15)                        \
+  V(16)                        \
+  V(17)                        \
+  V(18)                        \
+  V(19)                        \
+  V(20)
+
+#define MIXED_RUNTIME_CALL(N) \
+  using MixedRuntimeCall_##N = AnyCType (*)(REP_##N(AnyCType arg, CONCAT));
+
+GEN_MAX_PARAM_COUNT(MIXED_RUNTIME_CALL)
+#undef MIXED_RUNTIME_CALL
+
+#define CALL_ARGS(N) REP_##N(args, BRACKETS)
+#define CALL_TARGET_VARARG(N)                                   \
+  if (signature.ParameterCount() == N) { /* NOLINT */           \
+    MixedRuntimeCall_##N target =                               \
+        reinterpret_cast<MixedRuntimeCall_##N>(target_address); \
+    result = target(CALL_ARGS(N));                              \
+  } else /* NOLINT */
+
+// Configuration for C calling convention (see c-linkage.cc).
+#define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
+#define RETURN_REGISTER a0
+#define FP_PARAM_REGISTERS f0, f1, f2, f3, f4, f5, f6, f7
+#define FP_RETURN_REGISTER f0
+
+void Simulator::CallAnyCTypeFunction(Address target_address,
+                                     const EncodedCSignature& signature) {
+  const int64_t* stack_pointer = reinterpret_cast<int64_t*>(get_register(sp));
+  const double* double_stack_pointer =
+      reinterpret_cast<double*>(get_register(sp));
+
+  const Register kParamRegisters[] = {PARAM_REGISTERS};
+  const FPURegister kFPParamRegisters[] = {FP_PARAM_REGISTERS};
+
+  int num_gp_params = 0, num_fp_params = 0, num_stack_params = 0;
+
+  CHECK_LE(signature.ParameterCount(), kMaxCParameters);
+  static_assert(sizeof(AnyCType) == 8, "AnyCType is assumed to be 64-bit.");
+  AnyCType args[kMaxCParameters];
+  for (int i = 0; i < signature.ParameterCount(); ++i) {
+    if (signature.IsFloat(i)) {
+      if (num_fp_params < 8) {
+        args[i].double_value =
+            get_fpu_register_double(kFPParamRegisters[num_fp_params++]);
+      } else if (num_gp_params < 8) {
+        args[i].int64_value = get_register(kParamRegisters[num_gp_params++]);
+      } else {
+        args[i].double_value = double_stack_pointer[num_stack_params++];
+      }
+    } else {
+      if (num_gp_params < 8) {
+        args[i].int64_value = get_register(kParamRegisters[num_gp_params++]);
+      } else {
+        args[i].int64_value = stack_pointer[num_stack_params++];
+      }
+    }
+  }
+  AnyCType result;
+  GEN_MAX_PARAM_COUNT(CALL_TARGET_VARARG)
+  /* else */ {
+    UNREACHABLE();
+  }
+  static_assert(20 == kMaxCParameters,
+                "If you've changed kMaxCParameters, please change the "
+                "GEN_MAX_PARAM_COUNT macro.");
+
+#undef CALL_TARGET_VARARG
+#undef CALL_ARGS
+#undef GEN_MAX_PARAM_COUNT
+
+  if (signature.IsReturnFloat()) {
+    set_fpu_register_double(FP_RETURN_REGISTER, result.double_value);
+  } else {
+    set_register(RETURN_REGISTER, result.int64_value);
+  }
+}
+
+#undef PARAM_REGISTERS
+#undef RETURN_REGISTER
+#undef FP_PARAM_REGISTERS
+#undef FP_RETURN_REGISTER
+
 // Software interrupt instructions are used by the simulator to call into the
 // C-based V8 runtime. They are also used for debugging with simulator.
 void Simulator::SoftwareInterrupt() {
@@ -2045,6 +2171,25 @@ void Simulator::SoftwareInterrupt() {
   // We first check if we met a call_rt_redirected.
   if (instr_.InstructionBits() == rtCallRedirInstr) {
     Redirection* redirection = Redirection::FromInstruction(instr_.instr());
+
+    // This is dodgy but it works because the C entry stubs are never moved.
+    int64_t saved_ra = get_register(ra);
+    intptr_t external =
+        reinterpret_cast<intptr_t>(redirection->external_function());
+
+    Address func_addr =
+        reinterpret_cast<Address>(redirection->external_function());
+    SimulatorData* simulator_data = isolate_->simulator_data();
+    DCHECK_NOT_NULL(simulator_data);
+    const EncodedCSignature& signature =
+        simulator_data->GetSignatureForTarget(func_addr);
+    if (signature.IsValid()) {
+      CHECK_EQ(redirection->type(), ExternalReference::FAST_C_CALL);
+      CallAnyCTypeFunction(external, signature);
+      set_register(ra, saved_ra);
+      set_pc(get_register(ra));
+      return;
+    }
 
     int64_t* stack_pointer = reinterpret_cast<int64_t*>(get_register(sp));
 
@@ -2102,13 +2247,6 @@ void Simulator::SoftwareInterrupt() {
           break;
       }
     }
-
-    // This is dodgy but it works because the C entry stubs are never moved.
-    // See comment in codegen-arm.cc and bug 1242173.
-    int64_t saved_ra = get_register(ra);
-
-    intptr_t external =
-        reinterpret_cast<intptr_t>(redirection->external_function());
 
     // Based on CpuFeatures::IsSupported(FPU), Loong64 will use either hardware
     // FPU, or gcc soft-float routines. Hardware FPU is simulated in this
@@ -5317,35 +5455,40 @@ void Simulator::CallInternal(Address entry) {
   set_register(fp, fp_val);
 }
 
-intptr_t Simulator::CallImpl(Address entry, int argument_count,
-                             const intptr_t* arguments) {
-  constexpr int kRegisterPassedArguments = 8;
-  // Set up arguments.
+void Simulator::CallImpl(Address entry, CallArgument* args) {
+  int index_gp = 0;
+  int index_fp = 0;
 
-  int reg_arg_count = std::min(kRegisterPassedArguments, argument_count);
-  if (reg_arg_count > 0) set_register(a0, arguments[0]);
-  if (reg_arg_count > 1) set_register(a1, arguments[1]);
-  if (reg_arg_count > 2) set_register(a2, arguments[2]);
-  if (reg_arg_count > 3) set_register(a3, arguments[3]);
-  if (reg_arg_count > 4) set_register(a4, arguments[4]);
-  if (reg_arg_count > 5) set_register(a5, arguments[5]);
-  if (reg_arg_count > 6) set_register(a6, arguments[6]);
-  if (reg_arg_count > 7) set_register(a7, arguments[7]);
+  std::vector<int64_t> stack_args(0);
+  for (int i = 0; !args[i].IsEnd(); i++) {
+    CallArgument arg = args[i];
+    if (arg.IsGP() && (index_gp < 8)) {
+      set_register(index_gp + 4, arg.bits());
+      index_gp++;
+    } else if (arg.IsFP() && (index_fp < 8)) {
+      set_fpu_register(index_fp++, arg.bits());
+    } else if (arg.IsFP() && (index_gp < 8)) {
+      set_register(index_gp + 4, arg.bits());
+      index_gp++;
+    } else {
+      DCHECK(arg.IsFP() || arg.IsGP());
+      stack_args.push_back(arg.bits());
+    }
+  }
 
   // Remaining arguments passed on stack.
   int64_t original_stack = get_register(sp);
   // Compute position of stack on entry to generated code.
-  int stack_args_count = argument_count - reg_arg_count;
-  int stack_args_size = stack_args_count * sizeof(*arguments);
+  int64_t stack_args_size = stack_args.size() * sizeof(stack_args[0]);
   int64_t entry_stack = original_stack - stack_args_size;
 
   if (base::OS::ActivationFrameAlignment() != 0) {
     entry_stack &= -base::OS::ActivationFrameAlignment();
   }
   // Store remaining arguments on stack, from low to high memory.
-  intptr_t* stack_argument = reinterpret_cast<intptr_t*>(entry_stack);
-  memcpy(stack_argument, arguments + reg_arg_count,
-         stack_args_count * sizeof(*arguments));
+  char* stack_argument = reinterpret_cast<char*>(entry_stack);
+  memcpy(stack_argument, stack_args.data(),
+         stack_args.size() * sizeof(int64_t));
   set_register(sp, entry_stack);
 
   CallInternal(entry);
@@ -5353,8 +5496,6 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   // Pop stack passed arguments.
   CHECK_EQ(entry_stack, get_register(sp));
   set_register(sp, original_stack);
-
-  return get_register(a0);
 }
 
 double Simulator::CallFP(Address entry, double d0, double d1) {
@@ -5554,6 +5695,7 @@ void Simulator::GlobalMonitor::RemoveLinkedAddress(
 }
 
 #undef SScanF
+#undef BRACKETS
 
 }  // namespace internal
 }  // namespace v8

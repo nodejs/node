@@ -16,7 +16,7 @@
 #include 'src/objects/js-generator.h'
 #include 'src/objects/js-promise.h'
 #include 'src/objects/js-regexp-string-iterator.h'
-#include 'src/objects/js-shadow-realms.h'
+#include 'src/objects/js-shadow-realm.h'
 #include 'src/objects/js-struct.h'
 #include 'src/objects/js-weak-refs.h'
 #include 'src/objects/objects.h'
@@ -389,6 +389,7 @@ extern enum MessageTemplate {
   kInvalidCountValue,
   kConstructorNotFunction,
   kSymbolToString,
+  kSymbolIteratorInvalid,
   kPropertyNotFunction,
   kBigIntTooBig,
   kNotTypedArray,

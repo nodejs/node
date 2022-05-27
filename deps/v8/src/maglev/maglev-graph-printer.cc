@@ -215,9 +215,8 @@ MaglevPrintingVisitor::MaglevPrintingVisitor(std::ostream& os)
           new MaglevPrintingVisitorOstream(os_, &targets_)) {}
 
 void MaglevPrintingVisitor::PreProcessGraph(
-    MaglevCompilationUnit* compilation_unit, Graph* graph) {
-  os_ << "Graph (param count: " << compilation_unit->parameter_count()
-      << ", frame size: " << compilation_unit->register_count() << ")\n\n";
+    MaglevCompilationInfo* compilation_info, Graph* graph) {
+  os_ << "Graph\n\n";
 
   for (BasicBlock* block : *graph) {
     if (block->control_node()->Is<JumpLoop>()) {
@@ -258,8 +257,8 @@ void MaglevPrintingVisitor::PreProcessGraph(
 }
 
 void MaglevPrintingVisitor::PreProcessBasicBlock(
-    MaglevCompilationUnit* compilation_unit, BasicBlock* block) {
-  MaglevGraphLabeller* graph_labeller = compilation_unit->graph_labeller();
+    MaglevCompilationInfo* compilation_info, BasicBlock* block) {
+  MaglevGraphLabeller* graph_labeller = compilation_info->graph_labeller();
 
   size_t loop_position = static_cast<size_t>(-1);
   if (loop_headers_.erase(block) > 0) {
@@ -316,8 +315,7 @@ void PrintEagerDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
   bool first = true;
   int index = 0;
   deopt_info->state.register_frame->ForEachValue(
-      *state.compilation_unit(),
-      [&](ValueNode* node, interpreter::Register reg) {
+      deopt_info->unit, [&](ValueNode* node, interpreter::Register reg) {
         if (first) {
           first = false;
         } else {
@@ -356,8 +354,7 @@ void PrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
   bool first = true;
   int index = 0;
   deopt_info->state.register_frame->ForEachValue(
-      *state.compilation_unit(),
-      [&](ValueNode* node, interpreter::Register reg) {
+      deopt_info->unit, [&](ValueNode* node, interpreter::Register reg) {
         if (first) {
           first = false;
         } else {
@@ -517,9 +514,9 @@ void MaglevPrintingVisitor::Process(ControlNode* control_node,
       ->set_padding(graph_labeller->max_node_id_width() + 4);
 }
 
-void PrintGraph(std::ostream& os, MaglevCompilationUnit* compilation_unit,
+void PrintGraph(std::ostream& os, MaglevCompilationInfo* compilation_info,
                 Graph* const graph) {
-  GraphProcessor<MaglevPrintingVisitor> printer(compilation_unit, os);
+  GraphProcessor<MaglevPrintingVisitor> printer(compilation_info, os);
   printer.ProcessGraph(graph);
 }
 

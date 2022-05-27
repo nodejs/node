@@ -49,6 +49,15 @@ class V8_BASE_EXPORT LsanPageAllocator : public v8::PageAllocator {
     return page_allocator_->SetPermissions(address, size, access);
   }
 
+  bool RecommitPages(void* address, size_t size,
+                     PageAllocator::Permission access) override {
+    return page_allocator_->RecommitPages(address, size, access);
+  }
+
+  bool DiscardSystemPages(void* address, size_t size) override {
+    return page_allocator_->DiscardSystemPages(address, size);
+  }
+
   bool DecommitPages(void* address, size_t size) override {
     return page_allocator_->DecommitPages(address, size);
   }

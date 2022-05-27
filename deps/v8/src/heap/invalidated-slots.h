@@ -33,6 +33,7 @@ class V8_EXPORT_PRIVATE InvalidatedSlotsFilter {
  public:
   static InvalidatedSlotsFilter OldToOld(MemoryChunk* chunk);
   static InvalidatedSlotsFilter OldToNew(MemoryChunk* chunk);
+  static InvalidatedSlotsFilter OldToShared(MemoryChunk* chunk);
 
   inline bool IsValid(Address slot);
 
@@ -60,6 +61,7 @@ class V8_EXPORT_PRIVATE InvalidatedSlotsFilter {
 class V8_EXPORT_PRIVATE InvalidatedSlotsCleanup {
  public:
   static InvalidatedSlotsCleanup OldToNew(MemoryChunk* chunk);
+  static InvalidatedSlotsCleanup OldToShared(MemoryChunk* chunk);
   static InvalidatedSlotsCleanup NoCleanup(MemoryChunk* chunk);
 
   explicit InvalidatedSlotsCleanup(MemoryChunk* chunk,

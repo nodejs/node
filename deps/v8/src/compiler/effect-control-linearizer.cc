@@ -3282,9 +3282,9 @@ Node* EffectControlLinearizer::LowerObjectIsSafeInteger(Node* node) {
 
 namespace {
 
-// There is no (currently) available constexpr version of bit_cast, so we have
-// to make do with constructing the -0.0 bits manually (by setting the sign bit
-// to 1 and everything else to 0).
+// There is no (currently) available constexpr version of base::bit_cast, so
+// we have to make do with constructing the -0.0 bits manually (by setting the
+// sign bit to 1 and everything else to 0).
 // TODO(leszeks): Revisit when upgrading to C++20.
 constexpr int32_t kMinusZeroLoBits = static_cast<int32_t>(0);
 constexpr int32_t kMinusZeroHiBits = static_cast<int32_t>(1) << 31;
@@ -5625,8 +5625,8 @@ Node* EffectControlLinearizer::BuildTypedArrayDataPointer(Node* base,
   if (IntPtrMatcher(base).Is(0)) {
     return external;
   } else {
+    base = __ BitcastTaggedToWord(base);
     if (COMPRESS_POINTERS_BOOL) {
-      base = __ BitcastTaggedToWord(base);
       // Zero-extend Tagged_t to UintPtr according to current compression
       // scheme so that the addition with |external_pointer| (which already
       // contains compensated offset value) will decompress the tagged value.
@@ -5634,7 +5634,7 @@ Node* EffectControlLinearizer::BuildTypedArrayDataPointer(Node* base,
       // details.
       base = ChangeUint32ToUintPtr(base);
     }
-    return __ UnsafePointerAdd(base, external);
+    return __ IntPtrAdd(base, external);
   }
 }
 

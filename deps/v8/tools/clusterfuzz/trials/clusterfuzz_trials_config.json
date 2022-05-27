@@ -23,6 +23,7 @@
     {"app_args": "--no-regexp-tier-up", "app_name": "d8", "probability": 0.2},
     {"app_args": "--no-untrusted-code-mitigations", "app_name": "d8", "probability": 0.1},
     {"app_args": "--no-use-ic", "app_name": "d8", "probability": 0.25},
+    {"app_args": "--no-use-map-space", "app_name": "d8", "probability": 0.25},
     {"app_args": "--no-wasm-generic-wrapper", "app_name": "d8", "probability": 0.1},
     {"app_args": "--regexp-interpret-all", "app_name": "d8", "probability": 0.1},
     {"app_args": "--simulate-errors", "app_name": "d8", "probability": 0.001},

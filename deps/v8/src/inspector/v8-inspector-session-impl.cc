@@ -87,16 +87,16 @@ int V8ContextInfo::executionContextId(v8::Local<v8::Context> context) {
 
 std::unique_ptr<V8InspectorSessionImpl> V8InspectorSessionImpl::create(
     V8InspectorImpl* inspector, int contextGroupId, int sessionId,
-    V8Inspector::Channel* channel, StringView state) {
+    V8Inspector::Channel* channel, StringView state,
+    V8Inspector::ClientTrustLevel clientTrustLevel) {
   return std::unique_ptr<V8InspectorSessionImpl>(new V8InspectorSessionImpl(
-      inspector, contextGroupId, sessionId, channel, state));
+      inspector, contextGroupId, sessionId, channel, state, clientTrustLevel));
 }
 
-V8InspectorSessionImpl::V8InspectorSessionImpl(V8InspectorImpl* inspector,
-                                               int contextGroupId,
-                                               int sessionId,
-                                               V8Inspector::Channel* channel,
-                                               StringView savedState)
+V8InspectorSessionImpl::V8InspectorSessionImpl(
+    V8InspectorImpl* inspector, int contextGroupId, int sessionId,
+    V8Inspector::Channel* channel, StringView savedState,
+    V8Inspector::ClientTrustLevel clientTrustLevel)
     : m_contextGroupId(contextGroupId),
       m_sessionId(sessionId),
       m_inspector(inspector),
@@ -109,7 +109,8 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(V8InspectorImpl* inspector,
       m_heapProfilerAgent(nullptr),
       m_profilerAgent(nullptr),
       m_consoleAgent(nullptr),
-      m_schemaAgent(nullptr) {
+      m_schemaAgent(nullptr),
+      m_clientTrustLevel(clientTrustLevel) {
   m_state->getBoolean("use_binary_protocol", &use_binary_protocol_);
 
   m_runtimeAgent.reset(new V8RuntimeAgentImpl(
@@ -120,28 +121,29 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(V8InspectorImpl* inspector,
       this, this, agentState(protocol::Debugger::Metainfo::domainName)));
   protocol::Debugger::Dispatcher::wire(&m_dispatcher, m_debuggerAgent.get());
 
-  m_profilerAgent.reset(new V8ProfilerAgentImpl(
-      this, this, agentState(protocol::Profiler::Metainfo::domainName)));
-  protocol::Profiler::Dispatcher::wire(&m_dispatcher, m_profilerAgent.get());
-
-  m_heapProfilerAgent.reset(new V8HeapProfilerAgentImpl(
-      this, this, agentState(protocol::HeapProfiler::Metainfo::domainName)));
-  protocol::HeapProfiler::Dispatcher::wire(&m_dispatcher,
-                                           m_heapProfilerAgent.get());
-
   m_consoleAgent.reset(new V8ConsoleAgentImpl(
       this, this, agentState(protocol::Console::Metainfo::domainName)));
   protocol::Console::Dispatcher::wire(&m_dispatcher, m_consoleAgent.get());
 
-  m_schemaAgent.reset(new V8SchemaAgentImpl(
-      this, this, agentState(protocol::Schema::Metainfo::domainName)));
-  protocol::Schema::Dispatcher::wire(&m_dispatcher, m_schemaAgent.get());
+  if (m_clientTrustLevel == V8Inspector::kFullyTrusted) {
+    m_profilerAgent.reset(new V8ProfilerAgentImpl(
+        this, this, agentState(protocol::Profiler::Metainfo::domainName)));
+    protocol::Profiler::Dispatcher::wire(&m_dispatcher, m_profilerAgent.get());
 
+    m_heapProfilerAgent.reset(new V8HeapProfilerAgentImpl(
+        this, this, agentState(protocol::HeapProfiler::Metainfo::domainName)));
+    protocol::HeapProfiler::Dispatcher::wire(&m_dispatcher,
+                                             m_heapProfilerAgent.get());
+
+    m_schemaAgent.reset(new V8SchemaAgentImpl(
+        this, this, agentState(protocol::Schema::Metainfo::domainName)));
+    protocol::Schema::Dispatcher::wire(&m_dispatcher, m_schemaAgent.get());
+  }
   if (savedState.length()) {
     m_runtimeAgent->restore();
     m_debuggerAgent->restore();
-    m_heapProfilerAgent->restore();
-    m_profilerAgent->restore();
+    if (m_heapProfilerAgent) m_heapProfilerAgent->restore();
+    if (m_profilerAgent) m_profilerAgent->restore();
     m_consoleAgent->restore();
   }
 }
@@ -150,8 +152,8 @@ V8InspectorSessionImpl::~V8InspectorSessionImpl() {
   v8::Isolate::Scope scope(m_inspector->isolate());
   discardInjectedScripts();
   m_consoleAgent->disable();
-  m_profilerAgent->disable();
-  m_heapProfilerAgent->disable();
+  if (m_profilerAgent) m_profilerAgent->disable();
+  if (m_heapProfilerAgent) m_heapProfilerAgent->disable();
   m_debuggerAgent->disable();
   m_runtimeAgent->disable();
   m_inspector->disconnect(this);
@@ -499,7 +501,8 @@ V8InspectorSessionImpl::searchInTextByLines(StringView text, StringView query,
 
 void V8InspectorSessionImpl::triggerPreciseCoverageDeltaUpdate(
     StringView occasion) {
-  m_profilerAgent->triggerPreciseCoverageDeltaUpdate(toString16(occasion));
+  if (m_profilerAgent)
+    m_profilerAgent->triggerPreciseCoverageDeltaUpdate(toString16(occasion));
 }
 
 }  // namespace v8_inspector

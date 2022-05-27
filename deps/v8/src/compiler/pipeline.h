@@ -23,11 +23,10 @@ class ProfileDataFromFile;
 class RegisterConfiguration;
 
 namespace wasm {
+class AssemblerBufferCache;
 struct CompilationEnv;
 struct FunctionBody;
-class NativeModule;
 struct WasmCompilationResult;
-class WasmEngine;
 struct WasmModule;
 class WireBytesStorage;
 }  // namespace wasm
@@ -61,7 +60,8 @@ class Pipeline : public AllStatic {
       CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
       NodeOriginTable* node_origins, wasm::FunctionBody function_body,
       const wasm::WasmModule* module, int function_index,
-      std::vector<compiler::WasmLoopInfo>* loop_infos);
+      std::vector<compiler::WasmLoopInfo>* loop_infos,
+      wasm::AssemblerBufferCache* buffer_cache);
 
   // Run the pipeline on a machine graph and generate code.
   static wasm::WasmCompilationResult GenerateCodeForWasmNativeStub(

@@ -226,3 +226,26 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       wrapped_export.apply(null, args);
   combined_promise.then(v => assertEquals(reduce(args), v));
 })();
+
+(function TestStackSwitchReturnFloat() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  import_index = builder.addImport('m', 'import', kSig_f_v);
+  builder.addFunction("test", kSig_f_v)
+      .addBody([
+          kExprCallFunction, import_index, // suspend
+      ]).exportFunc();
+  let suspender = new WebAssembly.Suspender();
+  function js_import() {
+    return Promise.resolve(0.5);
+  };
+  let wasm_js_import = new WebAssembly.Function(
+      {parameters: [], results: ['externref']}, js_import);
+  let suspending_wasm_js_import =
+      suspender.suspendOnReturnedPromise(wasm_js_import);
+
+  let instance = builder.instantiate({m: {import: suspending_wasm_js_import}});
+  let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  let combined_promise = wrapped_export();
+  combined_promise.then(v => assertEquals(0.5, v));
+})();

@@ -4,6 +4,7 @@
 
 #include "src/heap/memory-chunk.h"
 
+#include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
 #include "src/common/globals.h"
@@ -44,6 +45,7 @@ void MemoryChunk::InitializationMemoryFence() {
 
 void MemoryChunk::DecrementWriteUnprotectCounterAndMaybeSetPermissions(
     PageAllocator::Permission permission) {
+  DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
   DCHECK(permission == PageAllocator::kRead ||
          permission == PageAllocator::kReadExecute);
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
@@ -80,6 +82,7 @@ void MemoryChunk::SetReadAndExecutable() {
 }
 
 void MemoryChunk::SetCodeModificationPermissions() {
+  DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
   DCHECK(owner_identity() == CODE_SPACE || owner_identity() == CODE_LO_SPACE);
   // Incrementing the write_unprotect_counter_ and changing the page
@@ -113,8 +116,12 @@ void MemoryChunk::SetDefaultCodePermissions() {
 namespace {
 
 PageAllocator::Permission DefaultWritableCodePermissions() {
-  return FLAG_jitless ? PageAllocator::kReadWrite
-                      : PageAllocator::kReadWriteExecute;
+  DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
+  // On MacOS on ARM64 RWX permissions are allowed to be set only when
+  // fast W^X is enabled (see V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT).
+  return V8_HAS_PTHREAD_JIT_WRITE_PROTECT || FLAG_jitless
+             ? PageAllocator::kReadWrite
+             : PageAllocator::kReadWriteExecute;
 }
 
 }  // namespace
@@ -141,6 +148,7 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
     // Not actually used but initialize anyway for predictability.
     invalidated_slots_[OLD_TO_CODE] = nullptr;
   }
+  invalidated_slots_[OLD_TO_SHARED] = nullptr;
   progress_bar_.Initialize();
   set_concurrent_sweeping_state(ConcurrentSweepingState::kDone);
   page_protection_change_mutex_ = new base::Mutex();
@@ -160,7 +168,7 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
     if (heap->write_protect_code_memory()) {
       write_unprotect_counter_ =
           heap->code_space_memory_modification_scope_depth();
-    } else {
+    } else if (!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT) {
       size_t page_size = MemoryAllocator::GetCommitPageSize();
       DCHECK(IsAligned(area_start_, page_size));
       size_t area_size = RoundUp(area_end_ - area_start_, page_size);
@@ -189,7 +197,7 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
   if (heap->IsShared()) SetFlag(MemoryChunk::IN_SHARED_HEAP);
 
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  chunk->object_start_bitmap_ = ObjectStartBitmap(chunk->area_start());
+  object_start_bitmap_ = ObjectStartBitmap(area_start_);
 #endif
 
 #ifdef DEBUG
@@ -245,10 +253,13 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
   ReleaseSlotSet<OLD_TO_NEW>();
   ReleaseSlotSet<OLD_TO_OLD>();
   if (V8_EXTERNAL_CODE_SPACE_BOOL) ReleaseSlotSet<OLD_TO_CODE>();
+  ReleaseSlotSet<OLD_TO_SHARED>();
   ReleaseTypedSlotSet<OLD_TO_NEW>();
   ReleaseTypedSlotSet<OLD_TO_OLD>();
+  ReleaseTypedSlotSet<OLD_TO_SHARED>();
   ReleaseInvalidatedSlots<OLD_TO_NEW>();
   ReleaseInvalidatedSlots<OLD_TO_OLD>();
+  ReleaseInvalidatedSlots<OLD_TO_SHARED>();
 
   if (young_generation_bitmap_ != nullptr) ReleaseYoungGenerationBitmap();
 
@@ -348,6 +359,7 @@ InvalidatedSlots* MemoryChunk::AllocateInvalidatedSlots() {
 
 template void MemoryChunk::ReleaseInvalidatedSlots<OLD_TO_NEW>();
 template void MemoryChunk::ReleaseInvalidatedSlots<OLD_TO_OLD>();
+template void MemoryChunk::ReleaseInvalidatedSlots<OLD_TO_SHARED>();
 
 template <RememberedSetType type>
 void MemoryChunk::ReleaseInvalidatedSlots() {
@@ -361,15 +373,29 @@ template V8_EXPORT_PRIVATE void
 MemoryChunk::RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(HeapObject object);
 template V8_EXPORT_PRIVATE void
 MemoryChunk::RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(HeapObject object);
+template V8_EXPORT_PRIVATE void MemoryChunk::RegisterObjectWithInvalidatedSlots<
+    OLD_TO_SHARED>(HeapObject object);
 
 template <RememberedSetType type>
 void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object) {
+  DCHECK(!object.IsJSReceiver());
   bool skip_slot_recording;
 
-  if (type == OLD_TO_NEW) {
-    skip_slot_recording = InYoungGeneration();
-  } else {
-    skip_slot_recording = ShouldSkipEvacuationSlotRecording();
+  switch (type) {
+    case OLD_TO_NEW:
+      skip_slot_recording = InYoungGeneration();
+      break;
+
+    case OLD_TO_OLD:
+      skip_slot_recording = ShouldSkipEvacuationSlotRecording();
+      break;
+
+    case OLD_TO_SHARED:
+      skip_slot_recording = InYoungGeneration();
+      break;
+
+    default:
+      UNREACHABLE();
   }
 
   if (skip_slot_recording) {
@@ -381,18 +407,6 @@ void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object) {
   }
 
   invalidated_slots<type>()->insert(object);
-}
-
-void MemoryChunk::InvalidateRecordedSlots(HeapObject object) {
-  if (V8_DISABLE_WRITE_BARRIERS_BOOL) return;
-  if (heap()->incremental_marking()->IsCompacting()) {
-    // We cannot check slot_set_[OLD_TO_OLD] here, since the
-    // concurrent markers might insert slots concurrently.
-    RegisterObjectWithInvalidatedSlots<OLD_TO_OLD>(object);
-  }
-
-  if (slot_set_[OLD_TO_NEW] != nullptr)
-    RegisterObjectWithInvalidatedSlots<OLD_TO_NEW>(object);
 }
 
 template bool MemoryChunk::RegisteredObjectWithInvalidatedSlots<OLD_TO_NEW>(

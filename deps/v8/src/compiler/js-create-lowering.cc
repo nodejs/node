@@ -39,7 +39,7 @@ namespace {
 FrameState GetArgumentsFrameState(FrameState frame_state) {
   FrameState outer_state{NodeProperties::GetFrameStateInput(frame_state)};
   return outer_state.frame_state_info().type() ==
-                 FrameStateType::kArgumentsAdaptor
+                 FrameStateType::kInlinedExtraArguments
              ? outer_state
              : frame_state;
 }

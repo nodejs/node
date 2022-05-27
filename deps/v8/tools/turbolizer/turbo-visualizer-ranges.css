@@ -46,7 +46,13 @@
   display: inline-block;
 }
 
-input.range-toggle-show {
+label.range-toggle-setting {
+  text-align: right;
+  float: right;
+}
+
+input.range-toggle-show,
+input.range-toggle-setting {
   vertical-align: middle;
 }
 

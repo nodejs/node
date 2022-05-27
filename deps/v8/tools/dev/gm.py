@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2017 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -243,7 +243,8 @@ def _Write(filename, content):
     f.write(content)
 
 def _Notify(summary, body):
-  if _Which('notify-send') is not None:
+  if (_Which('notify-send') is not None and
+      os.environ.get("DISPLAY") is not None):
     _Call("notify-send '{}' '{}'".format(summary, body), silent=True)
   else:
     print("{} - {}".format(summary, body))

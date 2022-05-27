@@ -254,6 +254,25 @@ class Deserializer : public SerializerDeserializer {
   const bool should_rehash_;
   std::vector<Handle<HeapObject>> to_rehash_;
 
+  // Do not collect any gc stats during deserialization since objects might
+  // be in an invalid state
+  class V8_NODISCARD DisableGCStats {
+   public:
+    explicit DisableGCStats() {
+      if (V8_LIKELY(!TracingFlags::is_gc_stats_enabled())) return;
+      was_enabled_ = true;
+      TracingFlags::gc_stats = false;
+    }
+    ~DisableGCStats() {
+      if (V8_LIKELY(!was_enabled_)) return;
+      TracingFlags::gc_stats = true;
+    }
+
+   private:
+    bool was_enabled_ = false;
+  };
+  DisableGCStats no_gc_stats_;
+
 #ifdef DEBUG
   uint32_t num_api_references_;
 
@@ -289,7 +308,7 @@ class StringTableInsertionKey final : public StringTableKey {
   void PrepareForInsertion(Isolate* isolate) {
     // When sharing the string table, all string table lookups during snapshot
     // deserialization are hits.
-    DCHECK(isolate->OwnsStringTable() ||
+    DCHECK(isolate->OwnsStringTables() ||
            deserializing_user_code_ ==
                DeserializingUserCodeOption::kIsDeserializingUserCode);
   }

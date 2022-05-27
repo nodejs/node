@@ -626,6 +626,11 @@ LiftoffRegister LiftoffAssembler::LoadToRegister(VarState slot,
                                                  LiftoffRegList pinned) {
   if (slot.is_reg()) return slot.reg();
   LiftoffRegister reg = GetUnusedRegister(reg_class_for(slot.kind()), pinned);
+  return LoadToRegister(slot, reg);
+}
+
+LiftoffRegister LiftoffAssembler::LoadToRegister(VarState slot,
+                                                 LiftoffRegister reg) {
   if (slot.is_const()) {
     LoadConstant(reg, slot.constant());
   } else {

@@ -25,7 +25,12 @@ class SharedStringAccessGuardIfNeeded;
 class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
  public:
   // Tells whether the hash code has been computed.
+  // Note: Use TryGetHash() whenever you want to use the hash, instead of a
+  // combination of HashHashCode() and hash() for thread-safety.
   inline bool HasHashCode() const;
+  // Tells whether the name contains a forwarding index pointing to a row
+  // in the string forwarding table.
+  inline bool HasForwardingIndex() const;
 
   // Returns a hash value used for the property table. Ensures that the hash
   // value is computed.
@@ -39,13 +44,28 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
     return RELAXED_READ_UINT32_FIELD(*this, kRawHashFieldOffset);
   }
 
+  inline uint32_t raw_hash_field(AcquireLoadTag) const {
+    return ACQUIRE_READ_UINT32_FIELD(*this, kRawHashFieldOffset);
+  }
+
   inline void set_raw_hash_field(uint32_t hash) {
     RELAXED_WRITE_UINT32_FIELD(*this, kRawHashFieldOffset, hash);
   }
 
+  inline void set_raw_hash_field(uint32_t hash, ReleaseStoreTag) {
+    RELEASE_WRITE_UINT32_FIELD(*this, kRawHashFieldOffset, hash);
+  }
+
+  // Sets the hash field only if it is empty. Otherwise does nothing.
+  inline void set_raw_hash_field_if_empty(uint32_t hash);
+
   // Returns a hash value used for the property table (same as Hash()), assumes
   // the hash is already computed.
   inline uint32_t hash() const;
+
+  // Returns true if the hash has been computed, and sets the computed hash
+  // as out-parameter.
+  inline bool TryGetHash(uint32_t* hash) const;
 
   // Equality operations.
   inline bool Equals(Name other);

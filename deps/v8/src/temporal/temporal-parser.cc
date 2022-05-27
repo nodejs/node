@@ -5,6 +5,7 @@
 #include "src/temporal/temporal-parser.h"
 
 #include "src/base/bounds.h"
+#include "src/base/optional.h"
 #include "src/objects/string-inl.h"
 #include "src/strings/char-predicates-inl.h"
 
@@ -1020,10 +1021,10 @@ SCAN_FORWARD(DurationSecondsFraction, TimeFraction, int64_t)
   int32_t ScanDurationWhole##Name##FractionDesignator(                    \
       base::Vector<Char> str, int32_t s, ParsedISO8601Duration* r) {      \
     int32_t cur = s;                                                      \
-    int64_t whole = 0;                                                    \
+    int64_t whole = ParsedISO8601Duration::kEmpty;                        \
     cur += ScanDurationWhole##Name(str, cur, &whole);                     \
     if (cur == s) return 0;                                               \
-    int64_t fraction = 0;                                                 \
+    int64_t fraction = ParsedISO8601Duration::kEmpty;                     \
     int32_t len = ScanDuration##Name##Fraction(str, cur, &fraction);      \
     cur += len;                                                           \
     if (str.length() < (cur + 1) || AsciiAlphaToLower(str[cur++]) != (d)) \
@@ -1186,23 +1187,23 @@ SATISIFY(TemporalDurationString, ParsedISO8601Duration)
 
 }  // namespace
 
-#define IMPL_PARSE_METHOD(R, NAME)                                         \
-  Maybe<R> TemporalParser::Parse##NAME(Isolate* isolate,                   \
-                                       Handle<String> iso_string) {        \
-    bool valid;                                                            \
-    R parsed;                                                              \
-    iso_string = String::Flatten(isolate, iso_string);                     \
-    {                                                                      \
-      DisallowGarbageCollection no_gc;                                     \
-      String::FlatContent str_content = iso_string->GetFlatContent(no_gc); \
-      if (str_content.IsOneByte()) {                                       \
-        valid = Satisfy##NAME(str_content.ToOneByteVector(), &parsed);     \
-      } else {                                                             \
-        valid = Satisfy##NAME(str_content.ToUC16Vector(), &parsed);        \
-      }                                                                    \
-    }                                                                      \
-    if (valid) return Just(parsed);                                        \
-    return Nothing<R>();                                                   \
+#define IMPL_PARSE_METHOD(R, NAME)                                           \
+  base::Optional<R> TemporalParser::Parse##NAME(Isolate* isolate,            \
+                                                Handle<String> iso_string) { \
+    bool valid;                                                              \
+    R parsed;                                                                \
+    iso_string = String::Flatten(isolate, iso_string);                       \
+    {                                                                        \
+      DisallowGarbageCollection no_gc;                                       \
+      String::FlatContent str_content = iso_string->GetFlatContent(no_gc);   \
+      if (str_content.IsOneByte()) {                                         \
+        valid = Satisfy##NAME(str_content.ToOneByteVector(), &parsed);       \
+      } else {                                                               \
+        valid = Satisfy##NAME(str_content.ToUC16Vector(), &parsed);          \
+      }                                                                      \
+    }                                                                        \
+    if (valid) return parsed;                                                \
+    return base::nullopt;                                                    \
   }
 
 IMPL_PARSE_METHOD(ParsedISO8601Result, TemporalDateTimeString)

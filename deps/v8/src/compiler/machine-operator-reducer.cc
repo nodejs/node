@@ -172,11 +172,11 @@ MachineOperatorReducer::MachineOperatorReducer(Editor* editor,
 MachineOperatorReducer::~MachineOperatorReducer() = default;
 
 
-Node* MachineOperatorReducer::Float32Constant(volatile float value) {
+Node* MachineOperatorReducer::Float32Constant(float value) {
   return graph()->NewNode(common()->Float32Constant(value));
 }
 
-Node* MachineOperatorReducer::Float64Constant(volatile double value) {
+Node* MachineOperatorReducer::Float64Constant(double value) {
   return mcgraph()->Float64Constant(value);
 }
 
@@ -249,12 +249,12 @@ Node* MachineOperatorReducer::Int32Div(Node* dividend, int32_t divisor) {
   DCHECK_NE(0, divisor);
   DCHECK_NE(std::numeric_limits<int32_t>::min(), divisor);
   base::MagicNumbersForDivision<uint32_t> const mag =
-      base::SignedDivisionByConstant(bit_cast<uint32_t>(divisor));
+      base::SignedDivisionByConstant(base::bit_cast<uint32_t>(divisor));
   Node* quotient = graph()->NewNode(machine()->Int32MulHigh(), dividend,
                                     Uint32Constant(mag.multiplier));
-  if (divisor > 0 && bit_cast<int32_t>(mag.multiplier) < 0) {
+  if (divisor > 0 && base::bit_cast<int32_t>(mag.multiplier) < 0) {
     quotient = Int32Add(quotient, dividend);
-  } else if (divisor < 0 && bit_cast<int32_t>(mag.multiplier) > 0) {
+  } else if (divisor < 0 && base::bit_cast<int32_t>(mag.multiplier) > 0) {
     quotient = Int32Sub(quotient, dividend);
   }
   return Int32Add(Word32Sar(quotient, mag.shift), Word32Shr(dividend, 31));
@@ -2095,9 +2095,9 @@ Reduction MachineOperatorReducer::ReduceFloat64InsertLowWord32(Node* node) {
   Uint32Matcher mrhs(node->InputAt(1));
   if (mlhs.HasResolvedValue() && mrhs.HasResolvedValue()) {
     return ReplaceFloat64(
-        bit_cast<double>((bit_cast<uint64_t>(mlhs.ResolvedValue()) &
-                          uint64_t{0xFFFFFFFF00000000}) |
-                         mrhs.ResolvedValue()));
+        base::bit_cast<double>((base::bit_cast<uint64_t>(mlhs.ResolvedValue()) &
+                                uint64_t{0xFFFFFFFF00000000}) |
+                               mrhs.ResolvedValue()));
   }
   return NoChange();
 }
@@ -2107,8 +2107,9 @@ Reduction MachineOperatorReducer::ReduceFloat64InsertHighWord32(Node* node) {
   Float64Matcher mlhs(node->InputAt(0));
   Uint32Matcher mrhs(node->InputAt(1));
   if (mlhs.HasResolvedValue() && mrhs.HasResolvedValue()) {
-    return ReplaceFloat64(bit_cast<double>(
-        (bit_cast<uint64_t>(mlhs.ResolvedValue()) & uint64_t{0xFFFFFFFF}) |
+    return ReplaceFloat64(base::bit_cast<double>(
+        (base::bit_cast<uint64_t>(mlhs.ResolvedValue()) &
+         uint64_t{0xFFFFFFFF}) |
         (static_cast<uint64_t>(mrhs.ResolvedValue()) << 32)));
   }
   return NoChange();

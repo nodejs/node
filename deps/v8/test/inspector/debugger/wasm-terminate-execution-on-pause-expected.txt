@@ -1,0 +1,24 @@
+Tests termination on pause in Wasm
+
+Running test: testTerminateOnBreakpoint
+Instantiating.
+Waiting for wasm script (ignoring first non-wasm script).
+Setting breakpoint.
+{
+    id : <messageId>
+    result : {
+        actualLocation : {
+            columnNumber : 33
+            lineNumber : 0
+            scriptId : <scriptId>
+        }
+        breakpointId : <breakpointId>
+    }
+}
+Calling wasm export.
+{
+    type : string
+    value : Before Wasm execution
+}
+Paused:
+Script wasm://wasm/8c388106 byte offset 33: Wasm opcode 0x01 (kExprNop)

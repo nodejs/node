@@ -235,7 +235,7 @@ class V8_EXPORT WasmModuleObjectBuilderStreaming final {
       const WasmModuleObjectBuilderStreaming&) = delete;
   WasmModuleObjectBuilderStreaming& operator=(
       WasmModuleObjectBuilderStreaming&&) = default;
-  Isolate* isolate_ = nullptr;
+  Isolate* v8_isolate_ = nullptr;
 
 #if V8_CC_MSVC
   /**

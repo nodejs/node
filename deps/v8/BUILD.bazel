@@ -579,7 +579,6 @@ filegroup(
         "src/base/address-region.h",
         "src/base/atomic-utils.h",
         "src/base/atomicops.h",
-        "src/base/atomicops_internals_atomicword_compat.h",
         "src/base/base-export.h",
         "src/base/bit-field.h",
         "src/base/bits-iterator.h",
@@ -689,6 +688,7 @@ filegroup(
         "@v8//bazel/config:is_linux": [
             "src/base/debug/stack_trace_posix.cc",
             "src/base/platform/platform-linux.cc",
+            "src/base/platform/platform-linux.h",
         ],
         "@v8//bazel/config:is_android": [
             "src/base/debug/stack_trace_android.cc",
@@ -912,7 +912,7 @@ filegroup(
         "src/objects/js-proxy.tq",
         "src/objects/js-regexp-string-iterator.tq",
         "src/objects/js-regexp.tq",
-        "src/objects/js-shadow-realms.tq",
+        "src/objects/js-shadow-realm.tq",
         "src/objects/js-struct.tq",
         "src/objects/js-temporal-objects.tq",
         "src/objects/js-weak-refs.tq",
@@ -1034,6 +1034,15 @@ filegroup(
     ],
 )
 
+# Default setting for v8_enable_pointer_compression when target is x64.
+selects.config_setting_group(
+    name = "is_v8_enable_webassembly_on_non_android_posix_x64",
+    match_all = [
+        ":is_v8_enable_webassembly",
+        "@v8//bazel/config:is_non_android_posix_x64",
+    ],
+)
+
 filegroup(
     name = "v8_base_without_compiler_files",
     srcs = [
@@ -1110,7 +1119,7 @@ filegroup(
         "src/builtins/builtins-promise.h",
         "src/builtins/builtins-reflect.cc",
         "src/builtins/builtins-regexp.cc",
-        "src/builtins/builtins-shadow-realms.cc",
+        "src/builtins/builtins-shadow-realm.cc",
         "src/builtins/builtins-sharedarraybuffer.cc",
         "src/builtins/builtins-string.cc",
         "src/builtins/builtins-struct.cc",
@@ -1121,6 +1130,7 @@ filegroup(
         "src/builtins/builtins-utils-inl.h",
         "src/builtins/builtins-utils.h",
         "src/builtins/builtins-weak-refs.cc",
+        "src/builtins/builtins-web-snapshots.cc",
         "src/builtins/builtins.cc",
         "src/builtins/builtins.h",
         "src/builtins/constants-table-builder.cc",
@@ -1205,6 +1215,9 @@ filegroup(
         "src/common/assert-scope.h",
         "src/common/allow-deprecated.h",
         "src/common/checks.h",
+        "src/common/code-memory-access-inl.h",
+        "src/common/code-memory-access.cc",
+        "src/common/code-memory-access.h",
         "src/common/high-allocation-throughput-scope.h",
         "src/common/message-template.h",
         "src/common/operation.h",
@@ -1595,8 +1608,8 @@ filegroup(
         "src/logging/local-logger.cc",
         "src/logging/local-logger.h",
         "src/logging/log-inl.h",
-        "src/logging/log-utils.cc",
-        "src/logging/log-utils.h",
+        "src/logging/log-file.cc",
+        "src/logging/log-file.h",
         "src/logging/log.cc",
         "src/logging/log.h",
         "src/logging/metrics.cc",
@@ -1714,8 +1727,8 @@ filegroup(
         "src/objects/js-regexp-string-iterator.h",
         "src/objects/js-regexp.cc",
         "src/objects/js-regexp.h",
-        "src/objects/js-shadow-realms.h",
-        "src/objects/js-shadow-realms-inl.h",
+        "src/objects/js-shadow-realm.h",
+        "src/objects/js-shadow-realm-inl.h",
         "src/objects/js-struct.h",
         "src/objects/js-struct-inl.h",
         "src/objects/js-temporal-objects.h",
@@ -1771,9 +1784,6 @@ filegroup(
         "src/objects/ordered-hash-table-inl.h",
         "src/objects/ordered-hash-table.cc",
         "src/objects/ordered-hash-table.h",
-        "src/objects/osr-optimized-code-cache-inl.h",
-        "src/objects/osr-optimized-code-cache.cc",
-        "src/objects/osr-optimized-code-cache.h",
         "src/objects/primitive-heap-object-inl.h",
         "src/objects/primitive-heap-object.h",
         "src/objects/promise-inl.h",
@@ -1994,6 +2004,7 @@ filegroup(
         "src/runtime/runtime-shadow-realm.cc",
         "src/runtime/runtime-strings.cc",
         "src/runtime/runtime-symbol.cc",
+        "src/runtime/runtime-temporal.cc",
         "src/runtime/runtime-test.cc",
         "src/runtime/runtime-trace.cc",
         "src/runtime/runtime-typedarray.cc",
@@ -2097,12 +2108,6 @@ filegroup(
         "src/tracing/traced-value.h",
         "src/tracing/tracing-category-observer.cc",
         "src/tracing/tracing-category-observer.h",
-        "src/trap-handler/handler-inside-posix.h",
-        "src/trap-handler/handler-inside.cc",
-        "src/trap-handler/handler-outside.cc",
-        "src/trap-handler/handler-shared.cc",
-        "src/trap-handler/trap-handler-internal.h",
-        "src/trap-handler/trap-handler.h",
         "src/utils/address-map.cc",
         "src/utils/address-map.h",
         "src/utils/allocation.cc",
@@ -2386,7 +2391,11 @@ filegroup(
         ],
     }) + select({
         # Only for x64 builds and for arm64 with x64 host simulator.
-        "@v8//bazel/config:is_non_android_posix_x64": [
+        ":is_v8_enable_webassembly_on_non_android_posix_x64": [
+            "src/trap-handler/handler-inside-posix.cc",
+            "src/trap-handler/handler-outside-posix.cc",
+        ],
+        "@v8//bazel/config:is_macos_arm64": [
             "src/trap-handler/handler-inside-posix.cc",
             "src/trap-handler/handler-outside-posix.cc",
         ],
@@ -2423,6 +2432,7 @@ filegroup(
             "src/compiler/int64-lowering.h",
             "src/compiler/wasm-compiler.h",
             "src/compiler/wasm-escape-analysis.h",
+            "src/compiler/wasm-graph-assembler.h",
             "src/compiler/wasm-inlining.h",
             "src/compiler/wasm-loop-peeling.h",
             "src/debug/debug-wasm-objects.cc",
@@ -2430,6 +2440,14 @@ filegroup(
             "src/debug/debug-wasm-objects-inl.h",
             "src/runtime/runtime-test-wasm.cc",
             "src/runtime/runtime-wasm.cc",
+            "src/trap-handler/handler-inside-posix.h",
+            "src/trap-handler/handler-inside.cc",
+            "src/trap-handler/handler-outside.cc",
+            "src/trap-handler/handler-shared.cc",
+            "src/trap-handler/trap-handler-internal.h",
+            "src/trap-handler/trap-handler.h",
+            "src/wasm/assembler-buffer-cache.cc",
+            "src/wasm/assembler-buffer-cache.h",
             "src/wasm/baseline/liftoff-assembler.cc",
             "src/wasm/baseline/liftoff-assembler-defs.h",
             "src/wasm/baseline/liftoff-assembler.h",
@@ -2793,6 +2811,16 @@ filegroup(
         "src/compiler/state-values-utils.h",
         "src/compiler/store-store-elimination.cc",
         "src/compiler/store-store-elimination.h",
+        "src/compiler/turboshaft/assembler.h",
+        "src/compiler/turboshaft/deopt-data.h",
+        "src/compiler/turboshaft/graph-builder.cc",
+        "src/compiler/turboshaft/graph-builder.h",
+        "src/compiler/turboshaft/graph.cc",
+        "src/compiler/turboshaft/graph.h",
+        "src/compiler/turboshaft/operations.cc",
+        "src/compiler/turboshaft/operations.h",
+        "src/compiler/turboshaft/recreate-schedule.cc",
+        "src/compiler/turboshaft/recreate-schedule.h",
         "src/compiler/type-cache.cc",
         "src/compiler/type-cache.h",
         "src/compiler/type-narrowing-reducer.cc",
@@ -2816,6 +2844,7 @@ filegroup(
             "src/compiler/wasm-compiler.cc",
             "src/compiler/wasm-loop-peeling.cc",
             "src/compiler/wasm-escape-analysis.cc",
+            "src/compiler/wasm-graph-assembler.cc",
             "src/compiler/wasm-inlining.cc",
         ],
         "//conditions:default": [],
@@ -2863,7 +2892,7 @@ filegroup(
         "src/builtins/builtins-proxy-gen.h",
         "src/builtins/builtins-regexp-gen.cc",
         "src/builtins/builtins-regexp-gen.h",
-        "src/builtins/builtins-shadowrealm-gen.cc",
+        "src/builtins/builtins-shadow-realm-gen.cc",
         "src/builtins/builtins-sharedarraybuffer-gen.cc",
         "src/builtins/builtins-string-gen.cc",
         "src/builtins/builtins-string-gen.h",
@@ -3136,6 +3165,8 @@ filegroup(
         "src/inspector/v8-string-conversions.h",
         "src/inspector/v8-value-utils.cc",
         "src/inspector/v8-value-utils.h",
+        "src/inspector/v8-webdriver-serializer.cc",
+        "src/inspector/v8-webdriver-serializer.h",
         "src/inspector/value-mirror.cc",
         "src/inspector/value-mirror.h",
         ":crdtp_platform_files",
@@ -3596,7 +3627,7 @@ v8_binary_non_pointer_compression(
 
 alias(
     name = "v8ci",
-    actual = "icu/v8",
+    actual = "noicu/v8",
 )
 
 # =================================================

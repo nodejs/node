@@ -192,11 +192,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
         static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
         static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
         &not_create_implicit_receiver);
-    Register scratch = func_info;
-    Register scratch2 = temps.Acquire();
     // If not derived class constructor: Allocate the new receiver object.
-    __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1,
-                        scratch, scratch2);
     __ Call(BUILTIN_CODE(masm->isolate(), FastNewObject),
             RelocInfo::CODE_TARGET);
     __ BranchShort(&post_instantiation_deopt_entry);
@@ -931,13 +927,8 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 
   // Check if the optimized code is marked for deopt. If it is, call the
   // runtime to clear it.
-  __ LoadTaggedPointerField(
-      a5,
-      FieldMemOperand(optimized_code_entry, Code::kCodeDataContainerOffset));
-  __ Lw(a5, FieldMemOperand(a5, CodeDataContainer::kKindSpecificFlagsOffset));
-  __ And(a5, a5, Operand(1 << Code::kMarkedForDeoptimizationBit));
-  __ Branch(&heal_optimized_code_slot, ne, a5, Operand(zero_reg),
-            Label::Distance::kNear);
+  __ JumpIfCodeTIsMarkedForDeoptimization(optimized_code_entry, scratch1,
+                                          &heal_optimized_code_slot);
 
   // Optimized code is good, get it into the closure and link the closure into
   // the optimized functions list, then tail call the optimized code.
@@ -1074,8 +1065,8 @@ static void LoadTieringStateAndJumpIfNeedsProcessing(
   DCHECK(!AreAliased(optimization_state, feedback_vector));
   UseScratchRegisterScope temps(masm);
   Register scratch = temps.Acquire();
-  __ Lw(optimization_state,
-        FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
+  __ Lhu(optimization_state,
+         FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
   __ And(
       scratch, optimization_state,
       Operand(FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
@@ -1114,14 +1105,21 @@ static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
 }
 
 namespace {
-void ResetBytecodeAgeAndOsrState(MacroAssembler* masm,
-                                 Register bytecode_array) {
-  // Reset code age and the OSR state (optimized to a single write).
-  static_assert(BytecodeArray::kOsrStateAndBytecodeAgeAreContiguous32Bits);
+void ResetBytecodeAge(MacroAssembler* masm, Register bytecode_array) {
   STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
-  __ Sw(zero_reg,
-        FieldMemOperand(bytecode_array,
-                        BytecodeArray::kOsrUrgencyAndInstallTargetOffset));
+  __ Sh(zero_reg,
+        FieldMemOperand(bytecode_array, BytecodeArray::kBytecodeAgeOffset));
+}
+
+void ResetFeedbackVectorOsrUrgency(MacroAssembler* masm,
+                                   Register feedback_vector, Register scratch) {
+  DCHECK(!AreAliased(feedback_vector, scratch));
+  __ Lbu(scratch,
+         FieldMemOperand(feedback_vector, FeedbackVector::kOsrStateOffset));
+  __ And(scratch, scratch,
+         Operand(FeedbackVector::MaybeHasOptimizedOsrCodeBit::kMask));
+  __ Sb(scratch,
+        FieldMemOperand(feedback_vector, FeedbackVector::kOsrStateOffset));
 }
 
 }  // namespace
@@ -1152,7 +1150,10 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   Register optimization_state = temps.Acquire();
   LoadTieringStateAndJumpIfNeedsProcessing(
       masm, optimization_state, feedback_vector, &has_optimized_code_or_state);
-
+  {
+    UseScratchRegisterScope temps(masm);
+    ResetFeedbackVectorOsrUrgency(masm, feedback_vector, temps.Acquire());
+  }
   // Increment invocation count for the function.
   {
     UseScratchRegisterScope temps(masm);
@@ -1187,7 +1188,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // the frame, so load it into a register.
     Register bytecode_array = descriptor.GetRegisterParameter(
         BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
-    ResetBytecodeAgeAndOsrState(masm, bytecode_array);
+    ResetBytecodeAge(masm, bytecode_array);
     __ Push(argc, bytecode_array);
 
     // Baseline code frames store the feedback vector where interpreter would
@@ -1313,18 +1314,15 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Branch(&push_stack_frame, ne, a4, Operand(FEEDBACK_VECTOR_TYPE),
             Label::Distance::kNear);
 
-  // Read off the optimization state in the feedback vector, and if there
-  // is optimized code or an tiering state, call that instead.
-  Register optimization_state = a4;
-  __ Lw(optimization_state,
-        FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
-
-  // Check if the optimized code slot is not empty or has a tiering state.
+  // Check the tiering state.
   Label has_optimized_code_or_state;
-
-  __ And(scratch, optimization_state,
-         FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask);
-  __ Branch(&has_optimized_code_or_state, ne, scratch, Operand(zero_reg));
+  Register optimization_state = a4;
+  LoadTieringStateAndJumpIfNeedsProcessing(
+      masm, optimization_state, feedback_vector, &has_optimized_code_or_state);
+  {
+    UseScratchRegisterScope temps(masm);
+    ResetFeedbackVectorOsrUrgency(masm, feedback_vector, temps.Acquire());
+  }
 
   Label not_optimized;
   __ bind(&not_optimized);
@@ -1343,7 +1341,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ PushStandardFrame(closure);
 
-  ResetBytecodeAgeAndOsrState(masm, kInterpreterBytecodeArrayRegister);
+  ResetBytecodeAge(masm, kInterpreterBytecodeArrayRegister);
 
   // Load initial bytecode offset.
   __ li(kInterpreterBytecodeOffsetRegister,
@@ -1867,7 +1865,21 @@ void Generate_OSREntry(MacroAssembler* masm, Register entry_address,
   __ Ret();
 }
 
-void OnStackReplacement(MacroAssembler* masm, bool is_interpreter) {
+enum class OsrSourceTier {
+  kInterpreter,
+  kBaseline,
+};
+
+void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
+                        Register maybe_target_code) {
+  Label jump_to_optimized_code;
+  {
+    // If maybe_target_code is not null, no need to call into runtime. A
+    // precondition here is: if maybe_target_code is a Code object, it must NOT
+    // be marked_for_deoptimization (callers must ensure this).
+    __ Branch(&jump_to_optimized_code, ne, maybe_target_code,
+              Operand(Smi::zero()));
+  }
   ASM_CODE_COMMENT(masm);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
@@ -1876,7 +1888,9 @@ void OnStackReplacement(MacroAssembler* masm, bool is_interpreter) {
 
   // If the code object is null, just return to the caller.
   __ Ret(eq, a0, Operand(Smi::zero()));
-  if (is_interpreter) {
+
+  __ bind(&jump_to_optimized_code);
+  if (source == OsrSourceTier::kInterpreter) {
     // Drop the handler frame that is be sitting on top of the actual
     // JavaScript frame. This is the case then OSR is triggered from bytecode.
     __ LeaveFrame(StackFrame::STUB);
@@ -1901,13 +1915,20 @@ void OnStackReplacement(MacroAssembler* masm, bool is_interpreter) {
 }  // namespace
 
 void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
-  return OnStackReplacement(masm, true);
+  using D = InterpreterOnStackReplacementDescriptor;
+  STATIC_ASSERT(D::kParameterCount == 1);
+  OnStackReplacement(masm, OsrSourceTier::kInterpreter,
+                     D::MaybeTargetCodeRegister());
 }
 
 void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
+  using D = BaselineOnStackReplacementDescriptor;
+  STATIC_ASSERT(D::kParameterCount == 1);
+
   __ Ld(kContextRegister,
-        MemOperand(fp, StandardFrameConstants::kContextOffset));
-  return OnStackReplacement(masm, false);
+        MemOperand(fp, BaselineFrameConstants::kContextOffset));
+  OnStackReplacement(masm, OsrSourceTier::kBaseline,
+                     D::MaybeTargetCodeRegister());
 }
 
 // static
@@ -3668,10 +3689,6 @@ void Builtins::Generate_DeoptimizationEntry_Lazy(MacroAssembler* masm) {
   Generate_DeoptimizationEntry(masm, DeoptimizeKind::kLazy);
 }
 
-void Builtins::Generate_DeoptimizationEntry_Unused(MacroAssembler* masm) {
-  Generate_DeoptimizationEntry(masm, DeoptimizeKind::kUnused);
-}
-
 namespace {
 
 // Restarts execution either at the current or next (in execution order)
@@ -3797,11 +3814,9 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ Pop(kInterpreterAccumulatorRegister);
 
   if (is_osr) {
-    // TODO(pthier): Separate baseline Sparkplug from TF arming and don't disarm
-    // Sparkplug here.
     __ Ld(kInterpreterBytecodeArrayRegister,
           MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
-    ResetBytecodeAgeAndOsrState(masm, kInterpreterBytecodeArrayRegister);
+    ResetBytecodeAge(masm, kInterpreterBytecodeArrayRegister);
     Generate_OSREntry(masm, code_obj,
                       Operand(Code::kHeaderSize - kHeapObjectTag));
   } else {
@@ -3849,6 +3864,23 @@ void Builtins::Generate_BaselineOrInterpreterEnterAtNextBytecode(
 void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
     MacroAssembler* masm) {
   Generate_BaselineOrInterpreterEntry(masm, false, true);
+}
+
+void Builtins::Generate_RestartFrameTrampoline(MacroAssembler* masm) {
+  // Frame is being dropped:
+  // - Look up current function on the frame.
+  // - Leave the frame.
+  // - Restart the frame by calling the function.
+
+  __ Ld(a1, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
+  __ Ld(a0, MemOperand(fp, StandardFrameConstants::kArgCOffset));
+
+  // Pop return address and frame.
+  __ LeaveFrame(StackFrame::INTERPRETED);
+
+  __ li(a2, Operand(kDontAdaptArgumentsSentinel));
+
+  __ InvokeFunction(a1, a2, a0, InvokeType::kJump);
 }
 
 #undef __

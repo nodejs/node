@@ -225,6 +225,9 @@ namespace {
 
 void MarkRoots(Heap* heap) {
   IncrementalMarkingRootMarkingVisitor visitor(heap);
+  CodePageHeaderModificationScope rwx_write_scope(
+      "Marking of builtins table entries require write access to Code page "
+      "header");
   heap->IterateRoots(
       &visitor,
       base::EnumSet<SkipRoot>{SkipRoot::kStack, SkipRoot::kMainThreadHandles,
@@ -304,7 +307,11 @@ void IncrementalMarking::StartBlackAllocation() {
   black_allocation_ = true;
   heap()->old_space()->MarkLinearAllocationAreaBlack();
   if (heap()->map_space()) heap()->map_space()->MarkLinearAllocationAreaBlack();
-  heap()->code_space()->MarkLinearAllocationAreaBlack();
+  {
+    CodePageHeaderModificationScope rwx_write_scope(
+        "Marking Code objects requires write access to the Code page header");
+    heap()->code_space()->MarkLinearAllocationAreaBlack();
+  }
   heap()->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
     local_heap->MarkLinearAllocationAreaBlack();
   });
@@ -318,7 +325,11 @@ void IncrementalMarking::PauseBlackAllocation() {
   DCHECK(IsMarking());
   heap()->old_space()->UnmarkLinearAllocationArea();
   if (heap()->map_space()) heap()->map_space()->UnmarkLinearAllocationArea();
-  heap()->code_space()->UnmarkLinearAllocationArea();
+  {
+    CodePageHeaderModificationScope rwx_write_scope(
+        "Marking Code objects requires write access to the Code page header");
+    heap()->code_space()->UnmarkLinearAllocationArea();
+  }
   heap()->safepoint()->IterateLocalHeaps(
       [](LocalHeap* local_heap) { local_heap->UnmarkLinearAllocationArea(); });
   if (FLAG_trace_incremental_marking) {

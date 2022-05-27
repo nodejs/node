@@ -212,8 +212,6 @@ namespace compiler {
   V(Loong64F32x4Abs)                   \
   V(Loong64F32x4Neg)                   \
   V(Loong64F32x4Sqrt)                  \
-  V(Loong64F32x4RecipApprox)           \
-  V(Loong64F32x4RecipSqrtApprox)       \
   V(Loong64F32x4Add)                   \
   V(Loong64F32x4Sub)                   \
   V(Loong64F32x4Mul)                   \

@@ -22,6 +22,11 @@ InvalidatedSlotsFilter InvalidatedSlotsFilter::OldToNew(MemoryChunk* chunk) {
                                 OLD_TO_NEW);
 }
 
+InvalidatedSlotsFilter InvalidatedSlotsFilter::OldToShared(MemoryChunk* chunk) {
+  return InvalidatedSlotsFilter(
+      chunk, chunk->invalidated_slots<OLD_TO_SHARED>(), OLD_TO_SHARED);
+}
+
 InvalidatedSlotsFilter::InvalidatedSlotsFilter(
     MemoryChunk* chunk, InvalidatedSlots* invalidated_slots,
     RememberedSetType remembered_set_type) {
@@ -46,6 +51,12 @@ InvalidatedSlotsFilter::InvalidatedSlotsFilter(
 
 InvalidatedSlotsCleanup InvalidatedSlotsCleanup::OldToNew(MemoryChunk* chunk) {
   return InvalidatedSlotsCleanup(chunk, chunk->invalidated_slots<OLD_TO_NEW>());
+}
+
+InvalidatedSlotsCleanup InvalidatedSlotsCleanup::OldToShared(
+    MemoryChunk* chunk) {
+  return InvalidatedSlotsCleanup(chunk,
+                                 chunk->invalidated_slots<OLD_TO_SHARED>());
 }
 
 InvalidatedSlotsCleanup InvalidatedSlotsCleanup::NoCleanup(MemoryChunk* chunk) {

@@ -297,6 +297,24 @@ void TurboAssembler::Drop(Register count, Register scratch) {
   add(sp, sp, scratch);
 }
 
+void MacroAssembler::TestCodeTIsMarkedForDeoptimization(Register codet,
+                                                        Register scratch1,
+                                                        Register scratch2) {
+  LoadTaggedPointerField(scratch1,
+                         FieldMemOperand(codet, Code::kCodeDataContainerOffset),
+                         scratch2);
+  LoadS32(
+      scratch1,
+      FieldMemOperand(scratch1, CodeDataContainer::kKindSpecificFlagsOffset),
+      scratch2);
+  TestBit(scratch1, Code::kMarkedForDeoptimizationBit, scratch2);
+}
+
+Operand MacroAssembler::ClearedValue() const {
+  return Operand(
+      static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
+}
+
 void TurboAssembler::Call(Label* target) { b(target, SetLK); }
 
 void TurboAssembler::Push(Handle<HeapObject> handle) {
@@ -577,6 +595,14 @@ void TurboAssembler::StoreTaggedField(const Register& value,
     StoreU32(value, dst_field_operand, scratch);
     RecordComment("]");
   } else {
+    // TODO(miladfarca): move this block into StoreU64.
+    if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+      if (dst_field_operand.rb() == no_reg &&
+          is_int34(dst_field_operand.offset())) {
+        pstd(value, dst_field_operand);
+        return;
+      }
+    }
     StoreU64(value, dst_field_operand, scratch);
   }
 }
@@ -673,8 +699,8 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (FLAG_debug_code) {
-    mov(value, Operand(bit_cast<intptr_t>(kZapValue + 4)));
-    mov(slot_address, Operand(bit_cast<intptr_t>(kZapValue + 8)));
+    mov(value, Operand(base::bit_cast<intptr_t>(kZapValue + 4)));
+    mov(slot_address, Operand(base::bit_cast<intptr_t>(kZapValue + 8)));
   }
 }
 
@@ -824,8 +850,8 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (FLAG_debug_code) {
-    mov(slot_address, Operand(bit_cast<intptr_t>(kZapValue + 12)));
-    mov(value, Operand(bit_cast<intptr_t>(kZapValue + 16)));
+    mov(slot_address, Operand(base::bit_cast<intptr_t>(kZapValue + 12)));
+    mov(value, Operand(base::bit_cast<intptr_t>(kZapValue + 16)));
   }
 }
 
@@ -1227,11 +1253,17 @@ void TurboAssembler::EnterFrame(StackFrame::Type type,
     // This path cannot rely on ip containing code entry.
     PushCommonFrame();
     LoadConstantPoolPointerRegister();
-    mov(ip, Operand(StackFrame::TypeToMarker(type)));
-    push(ip);
+    if (!StackFrame::IsJavaScript(type)) {
+      mov(ip, Operand(StackFrame::TypeToMarker(type)));
+      push(ip);
+    }
   } else {
-    mov(ip, Operand(StackFrame::TypeToMarker(type)));
-    PushCommonFrame(ip);
+    Register scratch = no_reg;
+    if (!StackFrame::IsJavaScript(type)) {
+      scratch = ip;
+      mov(scratch, Operand(StackFrame::TypeToMarker(type)));
+    }
+    PushCommonFrame(scratch);
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (type == StackFrame::WASM) Push(kWasmInstanceRegister);
@@ -3213,8 +3245,9 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Smi smi,
   }
 
 #define MEM_OP_WITH_ALIGN_LIST(V) \
-  V(LoadU64, ld, ldx)             \
   V(LoadS32, lwa, lwax)           \
+  V(LoadU64, ld, ldx)             \
+  V(LoadU64WithUpdate, ldu, ldux) \
   V(StoreU64, std, stdx)          \
   V(StoreU64WithUpdate, stdu, stdux)
 
@@ -3239,7 +3272,6 @@ MEM_OP_WITH_ALIGN_LIST(MEM_OP_WITH_ALIGN_FUNCTION)
   V(LoadF32, DoubleRegister, lfs, lfsx)                \
   V(StoreF64, DoubleRegister, stfd, stfdx)             \
   V(StoreF32, DoubleRegister, stfs, stfsx)             \
-  V(LoadU64WithUpdate, Register, ldu, ldux)            \
   V(LoadF64WithUpdate, DoubleRegister, lfdu, lfdux)    \
   V(LoadF32WithUpdate, DoubleRegister, lfsu, lfsux)    \
   V(StoreF64WithUpdate, DoubleRegister, stfdu, stfdux) \

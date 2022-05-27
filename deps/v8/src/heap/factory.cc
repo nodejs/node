@@ -180,6 +180,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     // this field. We currently assume it's immutable thus a relaxed read (after
     // passing IsPendingAllocation).
     raw_code.set_inlined_bytecode_size(inlined_bytecode_size_);
+    raw_code.set_osr_offset(osr_offset_);
     raw_code.set_code_data_container(*data_container, kReleaseStore);
     if (kind_ == CodeKind::BASELINE) {
       raw_code.set_bytecode_or_interpreter_data(*interpreter_data_);
@@ -390,7 +391,7 @@ Handle<HeapObject> Factory::NewFillerObject(int size,
   Heap* heap = isolate()->heap();
   HeapObject result = allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
       size, allocation, origin, alignment);
-  heap->CreateFillerObjectAt(result.address(), size, ClearRecordedSlots::kNo);
+  heap->CreateFillerObjectAt(result.address(), size);
   return Handle<HeapObject>(result, isolate());
 }
 
@@ -509,6 +510,8 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
   vector.set_length(length);
   vector.set_invocation_count(0);
   vector.set_profiler_ticks(0);
+  vector.set_placeholder0(0);
+  vector.reset_osr_state();
   vector.reset_flags();
   vector.set_closure_feedback_cell_array(*closure_feedback_cell_array);
 
@@ -1184,7 +1187,6 @@ Handle<NativeContext> Factory::NewNativeContext() {
   context.set_math_random_index(Smi::zero());
   context.set_serialized_objects(*empty_fixed_array());
   context.set_microtask_queue(isolate(), nullptr);
-  context.set_osr_code_cache(*OSROptimizedCodeCache::Empty(isolate()));
   context.set_retained_maps(*empty_weak_array_list());
   return handle(context, isolate());
 }
@@ -1413,6 +1415,7 @@ Handle<Script> Factory::CloneScript(Handle<Script> script) {
     new_script.set_eval_from_position(old_script.eval_from_position());
     new_script.set_flags(old_script.flags());
     new_script.set_host_defined_options(old_script.host_defined_options());
+    new_script.set_source_hash(*undefined_value(), SKIP_WRITE_BARRIER);
 #ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
     new_script.set_script_or_modules(*list);
 #endif
@@ -1422,7 +1425,8 @@ Handle<Script> Factory::CloneScript(Handle<Script> script) {
   scripts = WeakArrayList::AddToEnd(isolate(), scripts,
                                     MaybeObjectHandle::Weak(new_script_handle));
   heap->set_script_list(*scripts);
-  LOG(isolate(), ScriptEvent(Logger::ScriptEventType::kCreate, script_id));
+  LOG(isolate(),
+      ScriptEvent(V8FileLogger::ScriptEventType::kCreate, script_id));
   return new_script_handle;
 }
 
@@ -1899,7 +1903,6 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
   DCHECK(!map.is_in_retained_map_list());
   map.clear_padding();
   map.set_elements_kind(elements_kind);
-  isolate()->counters()->maps_created()->Increment();
   if (FLAG_log_maps) LOG(isolate(), MapCreate(map));
   return map;
 }
@@ -2415,7 +2418,6 @@ Handle<BytecodeArray> Factory::CopyBytecodeArray(Handle<BytecodeArray> source) {
   copy.set_handler_table(raw_source.handler_table());
   copy.set_source_position_table(raw_source.source_position_table(kAcquireLoad),
                                  kReleaseStore);
-  copy.set_osr_urgency(raw_source.osr_urgency());
   copy.set_bytecode_age(raw_source.bytecode_age());
   raw_source.CopyBytecodesTo(copy);
   return handle(copy, isolate());
@@ -3218,7 +3220,7 @@ V8_INLINE int NumberToStringCacheHash(Handle<FixedArray> cache, Smi number) {
 
 V8_INLINE int NumberToStringCacheHash(Handle<FixedArray> cache, double number) {
   int mask = (cache->length() >> 1) - 1;
-  int64_t bits = bit_cast<int64_t>(number);
+  int64_t bits = base::bit_cast<int64_t>(number);
   return (static_cast<int>(bits) ^ static_cast<int>(bits >> 32)) & mask;
 }
 

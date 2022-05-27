@@ -241,6 +241,7 @@ Node* RepresentationChanger::GetRepresentationFor(
       return GetWord64RepresentationFor(node, output_rep, output_type, use_node,
                                         use_info);
     case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kSimd256:
     case MachineRepresentation::kNone:
       return node;
     case MachineRepresentation::kCompressed:

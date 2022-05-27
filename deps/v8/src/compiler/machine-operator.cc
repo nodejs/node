@@ -442,8 +442,6 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(F32x4Abs, Operator::kNoProperties, 1, 0, 1)                            \
   V(F32x4Neg, Operator::kNoProperties, 1, 0, 1)                            \
   V(F32x4Sqrt, Operator::kNoProperties, 1, 0, 1)                           \
-  V(F32x4RecipApprox, Operator::kNoProperties, 1, 0, 1)                    \
-  V(F32x4RecipSqrtApprox, Operator::kNoProperties, 1, 0, 1)                \
   V(F32x4Add, Operator::kCommutative, 2, 0, 1)                             \
   V(F32x4Sub, Operator::kNoProperties, 2, 0, 1)                            \
   V(F32x4Mul, Operator::kCommutative, 2, 0, 1)                             \
@@ -668,7 +666,8 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(AnyTagged)               \
   V(CompressedPointer)       \
   V(SandboxedPointer)        \
-  V(AnyCompressed)
+  V(AnyCompressed)           \
+  V(Simd256)
 
 #define MACHINE_REPRESENTATION_LIST(V) \
   V(kFloat32)                          \
@@ -684,7 +683,8 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(kTagged)                           \
   V(kCompressedPointer)                \
   V(kSandboxedPointer)                 \
-  V(kCompressed)
+  V(kCompressed)                       \
+  V(kSimd256)
 
 #define LOAD_TRANSFORM_LIST(V) \
   V(S128Load8Splat)            \
@@ -1269,13 +1269,6 @@ struct MachineOperatorGlobalCache {
   };
   DebugBreakOperator kDebugBreak;
 
-  struct UnsafePointerAddOperator final : public Operator {
-    UnsafePointerAddOperator()
-        : Operator(IrOpcode::kUnsafePointerAdd, Operator::kKontrol,
-                   "UnsafePointerAdd", 2, 1, 1, 1, 1, 0) {}
-  };
-  UnsafePointerAddOperator kUnsafePointerAdd;
-
   struct StackPointerGreaterThanOperator : public Operator1<StackCheckKind> {
     explicit StackPointerGreaterThanOperator(StackCheckKind kind)
         : Operator1<StackCheckKind>(
@@ -1619,10 +1612,6 @@ const Operator* MachineOperatorBuilder::ProtectedStore(
       break;
   }
   UNREACHABLE();
-}
-
-const Operator* MachineOperatorBuilder::UnsafePointerAdd() {
-  return &cache_.kUnsafePointerAdd;
 }
 
 const Operator* MachineOperatorBuilder::StackPointerGreaterThan(

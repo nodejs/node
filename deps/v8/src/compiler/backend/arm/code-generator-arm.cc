@@ -2206,14 +2206,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef S_FROM_Q
       break;
     }
-    case kArmF32x4RecipApprox: {
-      __ vrecpe(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
-    case kArmF32x4RecipSqrtApprox: {
-      __ vrsqrte(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      break;
-    }
     case kArmF32x4Add: {
       __ vadd(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));

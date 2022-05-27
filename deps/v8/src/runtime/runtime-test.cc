@@ -6,6 +6,7 @@
 #include <memory>
 
 #include "include/v8-function.h"
+#include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
 #include "src/base/numbers/double.h"
 #include "src/base/platform/mutex.h"
@@ -242,7 +243,7 @@ bool CanOptimizeFunction<CodeKind::TURBOFAN>(
     return CrashUnlessFuzzingReturnFalse(isolate);
   }
 
-  if (!FLAG_opt) return false;
+  if (!FLAG_turbofan) return false;
 
   if (function->shared().optimization_disabled() &&
       function->shared().disabled_optimization_reason() ==
@@ -346,7 +347,7 @@ bool EnsureFeedbackVector(Isolate* isolate, Handle<JSFunction> function) {
   // If the JSFunction isn't compiled but it has a initialized feedback cell
   // then no need to compile. CompileLazy builtin would handle these cases by
   // installing the code from SFI. Calling compile here may cause another
-  // optimization if FLAG_always_opt is set.
+  // optimization if FLAG_always_turbofan is set.
   bool needs_compilation =
       !function->is_compiled() && !function->has_closure_feedback_cell_array();
   if (needs_compilation &&
@@ -581,7 +582,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   if (!it.done()) function = handle(it.frame()->function(), isolate);
   if (function.is_null()) return CrashUnlessFuzzing(isolate);
 
-  if (V8_UNLIKELY(!FLAG_opt) || V8_UNLIKELY(!FLAG_use_osr)) {
+  if (V8_UNLIKELY(!FLAG_turbofan) || V8_UNLIKELY(!FLAG_use_osr)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -615,20 +616,9 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  // Ensure that the function is marked for non-concurrent optimization, so that
-  // subsequent runs don't also optimize.
-  if (FLAG_trace_osr) {
-    CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintF(scope.file(), "[OSR - OptimizeOsr marking ");
-    function->ShortPrint(scope.file());
-    PrintF(scope.file(), " for non-concurrent optimization]\n");
-  }
   IsCompiledScope is_compiled_scope(
       function->shared().is_compiled_scope(isolate));
   JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
-  function->MarkForOptimization(isolate, CodeKind::TURBOFAN,
-                                ConcurrencyMode::kSynchronous);
-
   isolate->tiering_manager()->RequestOsrAtNextOpportunity(*function);
 
   // If concurrent OSR is enabled, the testing workflow is a bit tricky. We
@@ -727,7 +717,7 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (!isolate->use_optimizer()) {
     status |= static_cast<int>(OptimizationStatus::kNeverOptimize);
   }
-  if (FLAG_always_opt || FLAG_prepare_always_opt) {
+  if (FLAG_always_turbofan || FLAG_prepare_always_turbofan) {
     status |= static_cast<int>(OptimizationStatus::kAlwaysOptimize);
   }
   if (FLAG_deopt_every_n_times) {
@@ -941,7 +931,7 @@ void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap) {
     } else {
       // Not enough room to create another fixed array. Create a filler.
       heap->CreateFillerObjectAt(*heap->new_space()->allocation_top_address(),
-                                 space_remaining, ClearRecordedSlots::kNo);
+                                 space_remaining);
       break;
     }
   }
@@ -1007,10 +997,10 @@ RUNTIME_FUNCTION(Runtime_TakeHeapSnapshot) {
   HeapProfiler* heap_profiler = isolate->heap_profiler();
   // Since this API is intended for V8 devs, we do not treat globals as roots
   // here on purpose.
-  HeapSnapshot* snapshot = heap_profiler->TakeSnapshot(
-      /* control = */ nullptr, /* resolver = */ nullptr,
-      /* treat_global_objects_as_roots = */ false,
-      /* capture_numeric_value = */ true);
+  v8::HeapProfiler::HeapSnapshotOptions options;
+  options.numerics_mode = v8::HeapProfiler::NumericsMode::kExposeNumericValues;
+  options.snapshot_mode = v8::HeapProfiler::HeapSnapshotMode::kExposeInternals;
+  HeapSnapshot* snapshot = heap_profiler->TakeSnapshot(options);
   FileOutputStream stream(filename.c_str());
   HeapSnapshotJSONSerializer serializer(snapshot);
   serializer.Serialize(&stream);
@@ -1547,7 +1537,7 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
   // The {NoopListener} currently does nothing on any callback, but reports
   // {true} on {is_listening_to_code_events()}. Feel free to add assertions to
   // any method to further test the code logging callbacks.
-  class NoopListener final : public CodeEventListener {
+  class NoopListener final : public LogEventListener {
     void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
                          const char* name) final {}
     void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
@@ -1589,7 +1579,7 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
 #if V8_ENABLE_WEBASSEMBLY
   wasm::GetWasmEngine()->EnableCodeLogging(isolate);
 #endif  // V8_ENABLE_WEBASSEMBLY
-  isolate->code_event_dispatcher()->AddListener(noop_listener.get());
+  isolate->log_event_dispatcher()->AddListener(noop_listener.get());
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -1634,94 +1624,6 @@ RUNTIME_FUNCTION(Runtime_IsSharedString) {
   Handle<HeapObject> obj = args.at<HeapObject>(0);
   return isolate->heap()->ToBoolean(obj->IsString() &&
                                     Handle<String>::cast(obj)->IsShared());
-}
-
-RUNTIME_FUNCTION(Runtime_WebSnapshotSerialize) {
-  if (!FLAG_allow_natives_syntax) {
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-  HandleScope scope(isolate);
-  if (args.length() < 1 || args.length() > 2) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kRuntimeWrongNumArgs));
-  }
-  Handle<Object> object = args.at(0);
-  Handle<FixedArray> block_list = isolate->factory()->empty_fixed_array();
-  Handle<JSArray> block_list_js_array;
-  if (args.length() == 2) {
-    if (!args[1].IsJSArray()) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewTypeError(MessageTemplate::kInvalidArgument));
-    }
-    block_list_js_array = args.at<JSArray>(1);
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, block_list,
-        JSReceiver::GetOwnValues(block_list_js_array,
-                                 PropertyFilter::ENUMERABLE_STRINGS));
-  }
-
-  auto snapshot_data = std::make_shared<WebSnapshotData>();
-  WebSnapshotSerializer serializer(isolate);
-  if (!serializer.TakeSnapshot(object, block_list, *snapshot_data)) {
-    DCHECK(isolate->has_pending_exception());
-    return ReadOnlyRoots(isolate).exception();
-  }
-  if (!block_list_js_array.is_null() &&
-      static_cast<uint32_t>(block_list->length()) <
-          serializer.external_objects_count()) {
-    Handle<FixedArray> externals = serializer.GetExternals();
-    Handle<Map> map = JSObject::GetElementsTransitionMap(block_list_js_array,
-                                                         PACKED_ELEMENTS);
-    block_list_js_array->set_elements(*externals);
-    block_list_js_array->set_length(Smi::FromInt(externals->length()));
-    block_list_js_array->set_map(*map);
-  }
-  i::Handle<i::Object> managed_object = Managed<WebSnapshotData>::FromSharedPtr(
-      isolate, snapshot_data->buffer_size, snapshot_data);
-  return *managed_object;
-}
-
-RUNTIME_FUNCTION(Runtime_WebSnapshotDeserialize) {
-  if (!FLAG_allow_natives_syntax) {
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-  HandleScope scope(isolate);
-  if (args.length() == 0 || args.length() > 2) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kRuntimeWrongNumArgs));
-  }
-  if (!args[0].IsForeign()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kInvalidArgument));
-  }
-  Handle<Foreign> foreign_data = args.at<Foreign>(0);
-  Handle<FixedArray> injected_references =
-      isolate->factory()->empty_fixed_array();
-  if (args.length() == 2) {
-    if (!args[1].IsJSArray()) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewTypeError(MessageTemplate::kInvalidArgument));
-    }
-    auto js_array = args.at<JSArray>(1);
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, injected_references,
-        JSReceiver::GetOwnValues(js_array, PropertyFilter::ENUMERABLE_STRINGS));
-  }
-
-  auto data = Managed<WebSnapshotData>::cast(*foreign_data).get();
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  WebSnapshotDeserializer deserializer(v8_isolate, data->buffer,
-                                       data->buffer_size);
-  if (!deserializer.Deserialize(injected_references)) {
-    DCHECK(isolate->has_pending_exception());
-    return ReadOnlyRoots(isolate).exception();
-  }
-  Handle<Object> object;
-  if (!deserializer.value().ToHandle(&object)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kWebSnapshotError));
-  }
-  return *object;
 }
 
 RUNTIME_FUNCTION(Runtime_SharedGC) {

@@ -47,7 +47,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorReducer final
   Reduction ReplaceFloat64(double value);
   Reduction ReplaceInt32(int32_t value);
   Reduction ReplaceUint32(uint32_t value) {
-    return ReplaceInt32(bit_cast<int32_t>(value));
+    return ReplaceInt32(base::bit_cast<int32_t>(value));
   }
   Reduction ReplaceNumber(double value);
   Reduction ReplaceNumber(int32_t value);

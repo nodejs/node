@@ -43,11 +43,15 @@ void Recorder::AddEvent(TraceObject* trace_event) {
   wchar_t* wName = new wchar_t[4096];
   MultiByteToWideChar(CP_ACP, 0, trace_event->name(), -1, wName, 4096);
 
+#if defined(V8_USE_PERFETTO)
+  const wchar_t* wCategoryGroupName = L"";
+#else  // defined(V8_USE_PERFETTO)
   wchar_t* wCategoryGroupName = new wchar_t[4096];
   MultiByteToWideChar(CP_ACP, 0,
                       TracingController::GetCategoryGroupName(
                           trace_event->category_enabled_flag()),
                       -1, wCategoryGroupName, 4096);
+#endif  // !defined(V8_USE_PERFETTO)
 
   TraceLoggingWrite(g_v8LibProvider, "", TraceLoggingValue(wName, "Event Name"),
                     TraceLoggingValue(trace_event->pid(), "pid"),

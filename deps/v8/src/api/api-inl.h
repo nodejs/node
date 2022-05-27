@@ -233,14 +233,6 @@ class V8_NODISCARD InternalEscapableScope : public EscapableHandleScope {
       : EscapableHandleScope(reinterpret_cast<v8::Isolate*>(isolate)) {}
 };
 
-inline bool IsExecutionTerminatingCheck(i::Isolate* isolate) {
-  if (isolate->has_scheduled_exception()) {
-    return isolate->scheduled_exception() ==
-           i::ReadOnlyRoots(isolate).termination_exception();
-  }
-  return false;
-}
-
 template <typename T>
 void CopySmiElementsToTypedBuffer(T* dst, uint32_t length,
                                   i::FixedArray elements) {

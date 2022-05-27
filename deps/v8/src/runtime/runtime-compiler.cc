@@ -172,6 +172,54 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   return Smi::zero();
 }
 
+namespace {
+
+// Whether the deopt exit is contained by the outermost loop containing the
+// osr'd loop. For example:
+//
+//  for (;;) {
+//    for (;;) {
+//    }  // OSR is triggered on this backedge.
+//  }  // This is the outermost loop containing the osr'd loop.
+bool DeoptExitIsInsideOsrLoop(Isolate* isolate, JSFunction function,
+                              BytecodeOffset deopt_exit_offset,
+                              BytecodeOffset osr_offset) {
+  DisallowGarbageCollection no_gc;
+  DCHECK(!deopt_exit_offset.IsNone());
+  DCHECK(!osr_offset.IsNone());
+
+  Handle<BytecodeArray> bytecode_array(
+      function.shared().GetBytecodeArray(isolate), isolate);
+  DCHECK(interpreter::BytecodeArrayIterator::IsValidOffset(
+      bytecode_array, deopt_exit_offset.ToInt()));
+
+  interpreter::BytecodeArrayIterator it(bytecode_array, osr_offset.ToInt());
+  DCHECK_EQ(it.current_bytecode(), interpreter::Bytecode::kJumpLoop);
+
+  for (; !it.done(); it.Advance()) {
+    const int current_offset = it.current_offset();
+    // If we've reached the deopt exit, it's contained in the current loop
+    // (this is covered by IsInRange below, but this check lets us avoid
+    // useless iteration).
+    if (current_offset == deopt_exit_offset.ToInt()) return true;
+    // We're only interested in loop ranges.
+    if (it.current_bytecode() != interpreter::Bytecode::kJumpLoop) continue;
+    // Is the deopt exit contained in the current loop?
+    if (base::IsInRange(deopt_exit_offset.ToInt(), it.GetJumpTargetOffset(),
+                        current_offset)) {
+      return true;
+    }
+    // We've reached nesting level 0, i.e. the current JumpLoop concludes a
+    // top-level loop.
+    const int loop_nesting_level = it.GetImmediateOperand(1);
+    if (loop_nesting_level == 0) return false;
+  }
+
+  UNREACHABLE();
+}
+
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
@@ -186,7 +234,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   // For OSR the optimized code isn't installed on the function, so get the
   // code object from deoptimizer.
   Handle<Code> optimized_code = deoptimizer->compiled_code();
-  DeoptimizeKind type = deoptimizer->deopt_kind();
+  const DeoptimizeKind deopt_kind = deoptimizer->deopt_kind();
 
   // TODO(turbofan): We currently need the native context to materialize
   // the arguments object, but only to get to its map.
@@ -194,6 +242,8 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
 
   // Make sure to materialize objects before causing any allocation.
   deoptimizer->MaterializeHeapObjects();
+  const BytecodeOffset deopt_exit_offset =
+      deoptimizer->bytecode_offset_in_outermost_frame();
   delete deoptimizer;
 
   // Ensure the context register is updated for materialized objects.
@@ -201,8 +251,25 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   JavaScriptFrame* top_frame = top_it.frame();
   isolate->set_context(Context::cast(top_frame->context()));
 
-  // Invalidate the underlying optimized code on eager deopts.
-  if (type == DeoptimizeKind::kEager) {
+  // Lazy deopts don't invalidate the underlying optimized code since the code
+  // object itself is still valid (as far as we know); the called function
+  // caused the deopt, not the function we're currently looking at.
+  if (deopt_kind == DeoptimizeKind::kLazy) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  // Non-OSR'd code is deoptimized unconditionally.
+  //
+  // For OSR'd code, we keep the optimized code around if deoptimization occurs
+  // outside the outermost loop containing the loop that triggered OSR
+  // compilation. The reasoning is that OSR is intended to speed up the
+  // long-running loop; so if the deoptimization occurs outside this loop it is
+  // still worth jumping to the OSR'd code on the next run. The reduced cost of
+  // the loop should pay for the deoptimization costs.
+  const BytecodeOffset osr_offset = optimized_code->osr_offset();
+  if (osr_offset.IsNone() ||
+      DeoptExitIsInsideOsrLoop(isolate, *function, deopt_exit_offset,
+                               osr_offset)) {
     Deoptimizer::DeoptimizeFunction(*function, *optimized_code);
   }
 
@@ -245,37 +312,14 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
   BytecodeOffset osr_offset = BytecodeOffset(frame->GetBytecodeOffset());
   DCHECK(!osr_offset.IsNone());
 
-  ConcurrencyMode mode =
+  const ConcurrencyMode mode =
       V8_LIKELY(isolate->concurrent_recompilation_enabled() &&
                 FLAG_concurrent_osr)
           ? ConcurrencyMode::kConcurrent
           : ConcurrencyMode::kSynchronous;
 
-  Handle<JSFunction> function(frame->function(), isolate);
-  if (IsConcurrent(mode)) {
-    // The synchronous fallback mechanism triggers if we've already got OSR'd
-    // code for the current function but at a different OSR offset - that may
-    // indicate we're having trouble hitting the correct JumpLoop for code
-    // installation. In this case, fall back to synchronous OSR.
-    base::Optional<BytecodeOffset> cached_osr_offset =
-        function->native_context().osr_code_cache().FirstOsrOffsetFor(
-            function->shared());
-    if (cached_osr_offset.has_value() &&
-        cached_osr_offset.value() != osr_offset) {
-      if (V8_UNLIKELY(FLAG_trace_osr)) {
-        CodeTracer::Scope scope(isolate->GetCodeTracer());
-        PrintF(
-            scope.file(),
-            "[OSR - falling back to synchronous compilation due to mismatched "
-            "cached entry. function: %s, requested: %d, cached: %d]\n",
-            function->DebugNameCStr().get(), osr_offset.ToInt(),
-            cached_osr_offset.value().ToInt());
-      }
-      mode = ConcurrencyMode::kSynchronous;
-    }
-  }
-
   Handle<CodeT> result;
+  Handle<JSFunction> function(frame->function(), isolate);
   if (!Compiler::CompileOptimizedOSR(isolate, function, osr_offset, frame, mode)
            .ToHandle(&result)) {
     // An empty result can mean one of two things:
@@ -293,18 +337,12 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
   DCHECK(result->is_turbofanned());  // TODO(v8:7700): Support Maglev.
   DCHECK(CodeKindIsOptimizedJSFunction(result->kind()));
 
+#ifdef DEBUG
   DeoptimizationData data =
       DeoptimizationData::cast(result->deoptimization_data());
   DCHECK_EQ(BytecodeOffset(data.OsrBytecodeOffset().value()), osr_offset);
   DCHECK_GE(data.OsrPcOffset().value(), 0);
-
-  if (FLAG_trace_osr) {
-    CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintF(scope.file(),
-           "[OSR - entry. function: %s, osr offset: %d, pc offset: %d]\n",
-           function->DebugNameCStr().get(), osr_offset.ToInt(),
-           data.OsrPcOffset().value());
-  }
+#endif  // DEBUG
 
   if (function->feedback_vector().invocation_count() <= 1 &&
       !IsNone(function->tiering_state()) &&
@@ -321,26 +359,28 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
     function->reset_tiering_state();
   }
 
-  // TODO(mythria): Once we have OSR code cache we may not need to mark
-  // the function for non-concurrent compilation. We could arm the loops
-  // early so the second execution uses the already compiled OSR code and
-  // the optimization occurs concurrently off main thread.
-  if (!function->HasAvailableOptimizedCode() &&
-      function->feedback_vector().invocation_count() > 1) {
-    // If we're not already optimized, set to optimize non-concurrently on the
-    // next call, otherwise we'd run unoptimized once more and potentially
-    // compile for OSR again.
-    if (FLAG_trace_osr) {
-      CodeTracer::Scope scope(isolate->GetCodeTracer());
-      PrintF(scope.file(),
-             "[OSR - forcing synchronous optimization on next entry. function: "
-             "%s]\n",
-             function->DebugNameCStr().get());
-    }
-    function->set_tiering_state(TieringState::kRequestTurbofan_Synchronous);
-  }
-
   return *result;
+}
+
+RUNTIME_FUNCTION(Runtime_TraceOptimizedOSREntry) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(0, args.length());
+  CHECK(FLAG_trace_osr);
+
+  // Determine the frame that triggered the OSR request.
+  JavaScriptFrameIterator it(isolate);
+  UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
+
+  // Determine the entry point for which this OSR request has been fired.
+  BytecodeOffset osr_offset = BytecodeOffset(frame->GetBytecodeOffset());
+  DCHECK(!osr_offset.IsNone());
+
+  Handle<JSFunction> function(frame->function(), isolate);
+  PrintF(CodeTracer::Scope{isolate->GetCodeTracer()}.file(),
+         "[OSR - entry. function: %s, osr offset: %d]\n",
+         function->DebugNameCStr().get(), osr_offset.ToInt());
+
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 static Object CompileGlobalEval(Isolate* isolate,

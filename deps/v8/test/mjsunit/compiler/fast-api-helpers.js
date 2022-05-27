@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbo-fast-api-calls --expose-fast-api --allow-natives-syntax --opt
+// Flags: --turbo-fast-api-calls --expose-fast-api --allow-natives-syntax --turbofan
 
 // Helper for sequence tests.
 function optimize_and_check(func, fast_count, slow_count, expected) {

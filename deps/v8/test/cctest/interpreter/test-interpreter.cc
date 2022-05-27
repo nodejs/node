@@ -1550,6 +1550,7 @@ TEST(InterpreterJumps) {
 
   FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
   FeedbackSlot slot1 = feedback_spec.AddBinaryOpICSlot();
+  FeedbackSlot slot2 = feedback_spec.AddJumpLoopSlot();
 
   Handle<i::FeedbackMetadata> metadata =
       NewFeedbackMetadata(isolate, &feedback_spec);
@@ -1563,7 +1564,8 @@ TEST(InterpreterJumps) {
       .Jump(&label[0]);
   SetRegister(&builder, reg, 1024, scratch).Bind(&label[0]).Bind(&loop_header);
   IncrementRegister(&builder, reg, 1, scratch, GetIndex(slot)).Jump(&label[1]);
-  SetRegister(&builder, reg, 2048, scratch).JumpLoop(&loop_header, 0, 0);
+  SetRegister(&builder, reg, 2048, scratch)
+      .JumpLoop(&loop_header, 0, 0, slot2.ToInt());
   SetRegister(&builder, reg, 4096, scratch).Bind(&label[1]);
   IncrementRegister(&builder, reg, 2, scratch, GetIndex(slot1))
       .LoadAccumulatorWithRegister(reg)

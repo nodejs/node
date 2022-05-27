@@ -473,9 +473,9 @@ Node* GraphAssembler::Retain(Node* buffer) {
   return AddNode(graph()->NewNode(common()->Retain(), buffer, effect()));
 }
 
-Node* GraphAssembler::UnsafePointerAdd(Node* base, Node* external) {
-  return AddNode(graph()->NewNode(machine()->UnsafePointerAdd(), base, external,
-                                  effect(), control()));
+Node* GraphAssembler::IntPtrAdd(Node* a, Node* b) {
+  return AddNode(graph()->NewNode(
+      machine()->Is64() ? machine()->Int64Add() : machine()->Int32Add(), a, b));
 }
 
 TNode<Number> JSGraphAssembler::PlainPrimitiveToNumber(TNode<Object> value) {

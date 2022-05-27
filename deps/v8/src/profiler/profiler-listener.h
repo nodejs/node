@@ -24,7 +24,7 @@ class CodeEventObserver {
   virtual ~CodeEventObserver() = default;
 };
 
-class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener,
+class V8_EXPORT_PRIVATE ProfilerListener : public LogEventListener,
                                            public WeakCodeRegistry::Listener {
  public:
   ProfilerListener(Isolate*, CodeEventObserver*,

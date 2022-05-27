@@ -97,9 +97,9 @@ class V8_EXPORT_PRIVATE GCTracer {
     V8_INLINE ~Scope();
     Scope(const Scope&) = delete;
     Scope& operator=(const Scope&) = delete;
-    static const char* Name(ScopeId id);
-    static bool NeedsYoungEpoch(ScopeId id);
-    V8_INLINE static constexpr int IncrementalOffset(ScopeId id);
+    static constexpr const char* Name(ScopeId id);
+    static constexpr bool NeedsYoungEpoch(ScopeId id);
+    static constexpr int IncrementalOffset(ScopeId id);
 
    private:
 #if DEBUG
@@ -208,7 +208,8 @@ class V8_EXPORT_PRIVATE GCTracer {
 
     enum class Mode { None, Scavenger, Finalize };
 
-    Mode mode;
+    Mode mode() const { return mode_; }
+    const char* trace_event_name() const { return trace_event_name_; }
 
     // The timer used for a given GC type:
     // - GCScavenger: young generation GC
@@ -216,8 +217,14 @@ class V8_EXPORT_PRIVATE GCTracer {
     // - GCFinalizeMC: finalization of incremental full GC
     // - GCFinalizeMCReduceMemory: finalization of incremental full GC with
     //   memory reduction.
-    TimedHistogram* type_timer;
-    TimedHistogram* type_priority_timer;
+    TimedHistogram* type_timer() const { return type_timer_; }
+    TimedHistogram* type_priority_timer() const { return type_priority_timer_; }
+
+   private:
+    Mode mode_;
+    const char* trace_event_name_;
+    TimedHistogram* type_timer_;
+    TimedHistogram* type_priority_timer_;
   };
 
   static const int kThroughputTimeFrameMs = 5000;

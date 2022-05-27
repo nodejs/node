@@ -16,7 +16,7 @@ snippet: "
 "
 frame size: 19
 parameter count: 1
-bytecode array length: 268
+bytecode array length: 269
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
@@ -64,7 +64,7 @@ bytecodes: [
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(11), U8(1),
                 B(GetNamedProperty), R(11), U8(6), U8(13),
-                B(JumpIfToBooleanTrue), U8(20),
+                B(JumpIfToBooleanTrue), U8(21),
                 B(GetNamedProperty), R(11), U8(7), U8(15),
                 B(Star11),
                 B(LdaFalse),
@@ -72,7 +72,7 @@ bytecodes: [
                 B(Mov), R(11), R(1),
   /*   38 S> */ B(Mov), R(1), R(3),
                 B(Ldar), R(11),
-  /*   23 E> */ B(JumpLoop), U8(70), I8(0),
+  /*   23 E> */ B(JumpLoop), U8(70), I8(0), U8(17),
                 B(LdaSmi), I8(-1),
                 B(Star9),
                 B(Star8),
@@ -86,10 +86,10 @@ bytecodes: [
                 B(Ldar), R(7),
                 B(JumpIfToBooleanTrue), U8(72),
                 B(Mov), R(context), R(14),
-                B(GetNamedProperty), R(6), U8(8), U8(17),
+                B(GetNamedProperty), R(6), U8(8), U8(18),
                 B(JumpIfUndefinedOrNull), U8(63),
                 B(Star15),
-                B(CallProperty0), R(15), R(6), U8(19),
+                B(CallProperty0), R(15), R(6), U8(20),
                 B(Star), R(17),
                 B(Mov), R(0), R(16),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionAwaitUncaught), R(16), U8(2),
@@ -141,7 +141,7 @@ bytecodes: [
 ]
 constant pool: [
   Smi [85],
-  Smi [183],
+  Smi [184],
   ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
   SYMBOL_TYPE,
   SYMBOL_TYPE,
@@ -152,9 +152,9 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [18, 246, 246],
-  [66, 139, 145],
-  [158, 214, 216],
+  [18, 247, 247],
+  [66, 140, 146],
+  [159, 215, 217],
 ]
 
 ---
@@ -238,10 +238,10 @@ bytecodes: [
                 B(Ldar), R(7),
                 B(JumpIfToBooleanTrue), U8(72),
                 B(Mov), R(context), R(14),
-                B(GetNamedProperty), R(6), U8(8), U8(17),
+                B(GetNamedProperty), R(6), U8(8), U8(18),
                 B(JumpIfUndefinedOrNull), U8(63),
                 B(Star15),
-                B(CallProperty0), R(15), R(6), U8(19),
+                B(CallProperty0), R(15), R(6), U8(20),
                 B(Star), R(17),
                 B(Mov), R(0), R(16),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionAwaitUncaught), R(16), U8(2),
@@ -327,7 +327,7 @@ snippet: "
 "
 frame size: 19
 parameter count: 1
-bytecode array length: 284
+bytecode array length: 285
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
@@ -375,7 +375,7 @@ bytecodes: [
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(11), U8(1),
                 B(GetNamedProperty), R(11), U8(6), U8(13),
-                B(JumpIfToBooleanTrue), U8(36),
+                B(JumpIfToBooleanTrue), U8(37),
                 B(GetNamedProperty), R(11), U8(7), U8(15),
                 B(Star11),
                 B(LdaFalse),
@@ -389,8 +389,8 @@ bytecodes: [
   /*   90 S> */ B(LdaSmi), I8(20),
   /*   96 E> */ B(TestEqual), R(3), U8(18),
                 B(JumpIfFalse), U8(4),
-  /*  103 S> */ B(Jump), U8(5),
-  /*   23 E> */ B(JumpLoop), U8(86), I8(0),
+  /*  103 S> */ B(Jump), U8(6),
+  /*   23 E> */ B(JumpLoop), U8(86), I8(0), U8(19),
                 B(LdaSmi), I8(-1),
                 B(Star9),
                 B(Star8),
@@ -404,10 +404,10 @@ bytecodes: [
                 B(Ldar), R(7),
                 B(JumpIfToBooleanTrue), U8(72),
                 B(Mov), R(context), R(14),
-                B(GetNamedProperty), R(6), U8(8), U8(19),
+                B(GetNamedProperty), R(6), U8(8), U8(20),
                 B(JumpIfUndefinedOrNull), U8(63),
                 B(Star15),
-                B(CallProperty0), R(15), R(6), U8(21),
+                B(CallProperty0), R(15), R(6), U8(22),
                 B(Star), R(17),
                 B(Mov), R(0), R(16),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionAwaitUncaught), R(16), U8(2),
@@ -459,7 +459,7 @@ bytecodes: [
 ]
 constant pool: [
   Smi [85],
-  Smi [199],
+  Smi [200],
   ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
   SYMBOL_TYPE,
   SYMBOL_TYPE,
@@ -470,9 +470,9 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [18, 262, 262],
-  [66, 155, 161],
-  [174, 230, 232],
+  [18, 263, 263],
+  [66, 156, 162],
+  [175, 231, 233],
 ]
 
 ---
@@ -485,7 +485,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 198
+bytecode array length: 191
 bytecodes: [
                 B(Mov), R(closure), R(2),
                 B(Mov), R(this), R(3),
@@ -497,8 +497,6 @@ bytecodes: [
   /*   68 S> */ B(CreateArrayLiteral), U8(1), U8(1), U8(37),
                 B(Star5),
                 B(GetIterator), R(5), U8(2), U8(4),
-                B(JumpIfJSReceiver), U8(7),
-                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star4),
                 B(GetNamedProperty), R(4), U8(2), U8(6),
                 B(Star3),
@@ -538,10 +536,10 @@ bytecodes: [
                 B(Ldar), R(5),
                 B(JumpIfToBooleanTrue), U8(35),
                 B(Mov), R(context), R(11),
-                B(GetNamedProperty), R(4), U8(6), U8(18),
+                B(GetNamedProperty), R(4), U8(6), U8(19),
                 B(JumpIfUndefinedOrNull), U8(26),
                 B(Star12),
-                B(CallProperty0), R(12), R(4), U8(20),
+                B(CallProperty0), R(12), R(4), U8(21),
                 B(JumpIfJSReceiver), U8(19),
                 B(Star13),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(13), U8(1),
@@ -594,8 +592,8 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [14, 176, 176],
-  [46, 92, 98],
-  [111, 130, 132],
+  [14, 169, 169],
+  [39, 85, 91],
+  [104, 123, 125],
 ]
 

@@ -153,7 +153,7 @@ void uint64_to_float32_wrapper(Address data) {
     // the second MSB (a.k.a '<< 23'). The encoded exponent itself is
     // ('actual exponent' - 127).
     int32_t multiplier_bits = ((shift_back - 127) & 0xff) << 23;
-    result *= bit_cast<float>(multiplier_bits);
+    result *= base::bit_cast<float>(multiplier_bits);
     WriteUnalignedValue<float>(data, result);
     return;
   }

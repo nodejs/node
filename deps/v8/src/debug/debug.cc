@@ -385,6 +385,7 @@ void Debug::ThreadInit() {
   thread_local_.target_frame_count_ = -1;
   thread_local_.return_value_ = Smi::zero();
   thread_local_.last_breakpoint_id_ = 0;
+  clear_restart_frame();
   clear_suspended_generator();
   base::Relaxed_Store(&thread_local_.current_debug_scope_,
                       static_cast<base::AtomicWord>(0));
@@ -1379,6 +1380,7 @@ void Debug::ClearStepping() {
   thread_local_.last_frame_count_ = -1;
   thread_local_.target_frame_count_ = -1;
   thread_local_.break_on_next_function_call_ = false;
+  clear_restart_frame();
   UpdateHookOnFunctionCall();
 }
 
@@ -2686,8 +2688,7 @@ void Debug::StopSideEffectCheckMode() {
   DCHECK(isolate_->debug_execution_mode() == DebugInfo::kSideEffects);
   if (side_effect_check_failed_) {
     DCHECK(isolate_->has_pending_exception());
-    DCHECK_EQ(ReadOnlyRoots(isolate_).termination_exception(),
-              isolate_->pending_exception());
+    DCHECK(isolate_->is_execution_termination_pending());
     // Convert the termination exception into a regular exception.
     isolate_->CancelTerminateExecution();
     isolate_->Throw(*isolate_->factory()->NewEvalError(
@@ -2909,6 +2910,19 @@ bool Debug::GetTemporaryObjectTrackingDisabled() const {
     return temporary_objects_->disabled;
   }
   return false;
+}
+
+void Debug::PrepareRestartFrame(JavaScriptFrame* frame,
+                                int inlined_frame_index) {
+  if (frame->is_optimized()) Deoptimizer::DeoptimizeFunction(frame->function());
+
+  thread_local_.restart_frame_id_ = frame->id();
+  thread_local_.restart_inline_frame_index_ = inlined_frame_index;
+
+  // TODO(crbug.com/1303521): A full "StepInto" is probably not needed. Get the
+  // necessary bits out of PrepareSTep into a separate method or fold them
+  // into Debug::PrepareRestartFrame.
+  PrepareStep(StepInto);
 }
 
 }  // namespace internal
