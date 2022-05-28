@@ -633,7 +633,7 @@ circularData.foo = circularData;
 port2.postMessage(circularData);
 ```
 
-`transferList` may be a list of [`ArrayBuffer`][], [`MessagePort`][] and
+`transferList` may be a list of [`ArrayBuffer`][], [`MessagePort`][], and
 [`FileHandle`][] objects.
 After transferring, they are not usable on the sending side of the channel
 anymore (even if they are not contained in `value`). Unlike with
@@ -836,8 +836,8 @@ Most Node.js APIs are available inside of it.
 
 Notable differences inside a Worker environment are:
 
-* The [`process.stdin`][], [`process.stdout`][] and [`process.stderr`][]
-  may be redirected by the parent thread.
+* The [`process.stdin`][], [`process.stdout`][], and [`process.stderr`][]
+  streams may be redirected by the parent thread.
 * The [`require('node:worker_threads').isMainThread`][] property is set to `false`.
 * The [`require('node:worker_threads').parentPort`][] message port is available.
 * [`process.exit()`][] does not stop the whole program, just the single thread,
