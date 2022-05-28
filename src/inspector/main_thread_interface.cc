@@ -288,6 +288,12 @@ Deletable* MainThreadInterface::GetObjectIfExists(int id) {
   return iterator->second.get();
 }
 
+
+// v8::Isolate *isolate = v8::Isolate::TryGetCurrent();
+//   CHECK_NOT_NULL(isolate);
+//   uint16_t *buffer;
+//   v8::String::NewFromUtf8(isolate, message.data())->Write(buffer);
+
 std::unique_ptr<StringBuffer> Utf8ToStringView(const std::string& message) {
   icu::UnicodeString utf16 = icu::UnicodeString::fromUTF8(
       icu::StringPiece(message.data(), message.length()));
