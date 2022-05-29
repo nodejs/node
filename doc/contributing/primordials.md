@@ -269,6 +269,61 @@ ReflectApply(func, null, array);
 
 <details>
 
+<summary><code>%Array.prototype.concat%</code> looks up
+         <code>@@isConcatSpreadable</code> property of the passed
+         arguments and the <code>this</code> value.</summary>
+
+```js
+{
+  // Unsafe code example:
+  // 1. Lookup @@isConcatSpreadable property on `array` (user-mutable if
+  //    user-provided).
+  // 2. Lookup @@isConcatSpreadable property on `%Array.prototype%
+  //    (user-mutable).
+  // 2. Lookup @@isConcatSpreadable property on `%Object.prototype%
+  //    (user-mutable).
+  const array = [];
+  ArrayPrototypeConcat(array);
+}
+```
+
+```js
+// User-land
+Object.defineProperty(Object.prototype, Symbol.isConcatSpreadable, {
+  get() {
+    this.push(5);
+    return true;
+  },
+});
+
+// Core
+{
+  // Using ArrayPrototypeConcat does not produce the expected result:
+  const a = [1, 2];
+  const b = [3, 4];
+  console.log(ArrayPrototypeConcat(a, b)); // [1, 2, 5, 3, 4, 5]
+}
+{
+  // Concatenating two arrays can be achieved safely, e.g.:
+  const a = [1, 2];
+  const b = [3, 4];
+  // Using %Array.prototype.push% and `SafeArrayIterator` to get the expected
+  // outcome:
+  const concatArray = [];
+  ArrayPrototypePush(concatArray, ...new SafeArrayIterator(a),
+                     ...new SafeArrayIterator(b));
+  console.log(concatArray); // [1, 2, 3, 4]
+
+  // Or using `ArrayPrototypePushApply` if it's OK to mutate the first array:
+  ArrayPrototypePushApply(a, b);
+  console.log(a); // [1, 2, 3, 4]
+}
+```
+
+</details>
+
+<details>
+
 <summary><code>%Object.fromEntries%</code> iterate over an array</summary>
 
 ```js
