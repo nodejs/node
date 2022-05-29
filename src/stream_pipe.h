@@ -13,10 +13,9 @@ class StreamPipe : public AsyncWrap {
 
   void Unpipe(bool is_in_deletion = false);
 
-  // TODO(RaisinTen): Just like MessagePort, add the following overload:
-  // static StreamPipe* New(StreamBase* source, StreamBase* sink,
-  //                        v8::Local<v8::Object> obj);
-  // so that we can indicate if there is a pending exception/termination.
+  static v8::Maybe<StreamPipe*> New(StreamBase* source,
+                                    StreamBase* sink,
+                                    v8::Local<v8::Object> obj);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Unpipe(const v8::FunctionCallbackInfo<v8::Value>& args);
