@@ -405,7 +405,7 @@ if errorlevel 1 echo "Could not create junction to 'out\%config%'." & exit /B
 if not defined sign goto licensertf
 
 call tools\sign.bat Release\node.exe
-if errorlevel 1 echo Failed to sign exe&goto exit
+if errorlevel 1 echo Failed to sign exe, got error code %errorlevel%&goto exit
 
 :licensertf
 @rem Skip license.rtf generation if not requested.
@@ -426,12 +426,12 @@ if "%use_x64_node_exe%"=="true" (
     set exit_code=1
     goto exit
   )
-  %x64_node_exe% tools\license2rtf.js < LICENSE > %config%\license.rtf
+  %x64_node_exe% tools\license2rtf.mjs < LICENSE > %config%\license.rtf
 ) else (
-  %node_exe% tools\license2rtf.js < LICENSE > %config%\license.rtf
+  %node_exe% tools\license2rtf.mjs < LICENSE > %config%\license.rtf
 )
 
-if errorlevel 1 echo Failed to generate license.rtf&goto exit
+if errorlevel 1 echo Failed to generate license.rtf, got error code %errorlevel%&goto exit
 
 :stage_package
 if not defined stage_package goto install-doctools
@@ -538,7 +538,7 @@ if errorlevel 1 goto exit
 
 if not defined sign goto upload
 call tools\sign.bat node-v%FULLVERSION%-%target_arch%.msi
-if errorlevel 1 echo Failed to sign msi&goto exit
+if errorlevel 1 echo Failed to sign msi, got error code %errorlevel%&goto exit
 
 :upload
 @rem Skip upload if not requested
