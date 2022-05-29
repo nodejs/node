@@ -4935,7 +4935,6 @@ const htmlBlockNames = [
   'p',
   'param',
   'section',
-  'source',
   'summary',
   'table',
   'tbody',
@@ -6712,7 +6711,7 @@ function createTokenizer(parser, initialize, from) {
             construct.name &&
             context.parser.constructs.disable.null.includes(construct.name)
           ) {
-            return nok()
+            return nok(code)
           }
           return construct.tokenize.call(
             fields ? Object.assign(Object.create(context), fields) : context,
@@ -11223,7 +11222,7 @@ function peekDelete() {
   return '~'
 }
 
-function markdownTable(table, options = {}) {
+function markdownTable(table, options) {
   const align = (options.align || []).concat();
   const stringLength = options.stringLength || defaultStringLength;
   const alignments = [];
@@ -21324,7 +21323,7 @@ function translateLevel(level) {
 		has16m: level >= 3,
 	};
 }
-function _supportsColor(haveStream, {streamIsTTY, sniffFlags = true} = {}) {
+function _supportsColor(haveStream, {streamIsTTY, sniffFlags = true}) {
 	const noFlagForceColor = envForceColor();
 	if (noFlagForceColor !== undefined) {
 		flagForceColor = noFlagForceColor;
