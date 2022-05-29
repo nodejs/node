@@ -734,6 +734,54 @@ A hook that returns without calling `next<hookName>()` _and_ without returning
 `shortCircuit: true` also triggers an exception. These errors are to help
 prevent unintentional breaks in the chain.
 
+#### `preImport(specifier, context)`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43245
+    description: Add support for preImport hook.
+-->
+
+> The loaders API is being redesigned. This hook may disappear or its
+> signature may change. Do not rely on the API described below.
+
+* `specifier` {string}
+* `context` {Object}
+  * `conditions` {string\[]} Resolution conditions of the current environment,
+    as defined for the `package.json` imports and exports fields
+  * `dynamic` {boolean} Whether this import is a dynamic `import()` (if *false*,
+    that means it is a host top-level import).
+  * `importAssertions` {Object}
+  * `parentURL` {string|undefined} The module importing this one, or undefined
+    if this is the Node.js entry point
+
+The `preImport` hook allows for tracking and asynchronous setup work for every
+top-level import operation. It has no return value, although it can return
+a promise to to delay the module pipeline operations. No further hooks will
+be called on that module graph until this hook resolves successfully if present.
+
+The `preImport` hook is called for each top-level import operation by the module
+loader, both for the host-called imports (ie for the main entry) and for dynamic
+`import()` imports. These are distinguished by the `dynamic` context.
+
+All `preImport` hooks for all loaders are run asynchronously in parallel, and
+block any further load operations (ie resolve and load) for the module graph
+being imported until they all complete successfully.
+
+Multiple import calls to the same import specifier will re-call the hook
+multiple times. The first error thrown by the `preImport` hooks will be directly
+returned to the specific import operation as the load failure.
+
+```js
+export async function preImport(specifier, context) {
+  if (context.topLevel)
+    console.log(`Top-level load of ${specifier}`);
+  else
+    console.log(`Dynamic import of ${specifier} in ${context.parentURL}`);
+}
+```
+
 #### `resolve(specifier, context, nextResolve)`
 
 <!-- YAML
@@ -758,7 +806,8 @@ changes:
 
 * `specifier` {string}
 * `context` {Object}
-  * `conditions` {string\[]} Export conditions of the relevant `package.json`
+  * `conditions` {string\[]} Resolution conditions of the current environment,
+    as defined for the `package.json` imports and exports fields
   * `importAssertions` {Object}
   * `parentURL` {string|undefined} The module importing this one, or undefined
     if this is the Node.js entry point
@@ -851,7 +900,8 @@ changes:
 
 * `url` {string} The URL returned by the `resolve` chain
 * `context` {Object}
-  * `conditions` {string\[]} Export conditions of the relevant `package.json`
+  * `conditions` {string\[]} Resolution conditions of the current environment,
+    as defined for the `package.json` imports and exports fields
   * `format` {string|null|undefined} The format optionally supplied by the
     `resolve` hook chain
   * `importAssertions` {Object}
