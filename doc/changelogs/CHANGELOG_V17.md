@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#17.9.1">17.9.1</a><br/>
 <a href="#17.9.0">17.9.0</a><br/>
 <a href="#17.8.0">17.8.0</a><br/>
 <a href="#17.7.2">17.7.2</a><br/>
@@ -45,6 +46,30 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="17.9.1"></a>
+
+## 2022-06-01, Version 17.9.1 (Current), @ruyadorno
+
+### Notable Changes
+
+* Upgrade npm to 8.11.0
+
+#### Update to OpenSSL 3.0.3
+
+This update can be treated as a security release as the issues addressed in OpenSSL 3.0.3 slightly affect Node.js 17.
+See <https://nodejs.org/en/blog/vulnerability/openssl-fixes-in-regular-releases-may2022/> for more information on how the May 2022 OpenSSL releases affect other Node.js release lines.
+
+### Commits
+
+* \[[`17fef6ed54`](https://github.com/nodejs/node/commit/17fef6ed54)] - **deps**: upgrade npm to 8.11.0 (npm team) [#43210](https://github.com/nodejs/node/pull/43210)
+* \[[`d0b53c0557`](https://github.com/nodejs/node/commit/d0b53c0557)] - **deps**: upgrade npm to 8.10.0 (npm team) [#43061](https://github.com/nodejs/node/pull/43061)
+* \[[`72630d176f`](https://github.com/nodejs/node/commit/72630d176f)] - **deps**: upgrade npm to 8.9.0 (npm team) [#42968](https://github.com/nodejs/node/pull/42968)
+* \[[`93d58c361e`](https://github.com/nodejs/node/commit/93d58c361e)] - **deps**: upgrade npm to 8.8.0 (npm team) [#42886](https://github.com/nodejs/node/pull/42886)
+* \[[`34e6edd421`](https://github.com/nodejs/node/commit/34e6edd421)] - **deps**: upgrade npm to 8.7.0 (npm team) [#42744](https://github.com/nodejs/node/pull/42744)
+* \[[`02f8b0cdad`](https://github.com/nodejs/node/commit/02f8b0cdad)] - **deps**: upgrade npm to 8.6.0 (npm team) [#42550](https://github.com/nodejs/node/pull/42550)
+* \[[`871eace946`](https://github.com/nodejs/node/commit/871eace946)] - **deps**: update archs files for quictls/openssl-3.0.3 (RafaelGSS) [#43025](https://github.com/nodejs/node/pull/43025)
+* \[[`05fb807ab0`](https://github.com/nodejs/node/commit/05fb807ab0)] - **deps**: upgrade openssl sources to quictls/openssl-3.0.3 (RafaelGSS) [#43025](https://github.com/nodejs/node/pull/43025)
 
 <a id="17.9.0"></a>
 
