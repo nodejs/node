@@ -7,12 +7,12 @@ named exports of a CommonJS module.
 It is used within
 [.../lib/internal/modules/translators](https://github.com/nodejs/node/blob/master/lib/internal/modules/esm/translators.js)
 in which both `internal/deps/cjs-module-lexer/lexer.js` and
-\`internal/deps/cys-module-lexer/dist/lexer.js` are required and used.
+\`internal/deps/cys-module-lexer/dist/lexer.js\` are required and used.
 
 `interanal/deps/cjs-module-lexer/lexer.js`
 is a regular JavaScript implementation that is
 used when WebAssembly is not available on a platform.
-\`internal/deps/cys-module-lexer/dist/lexer.js` is a faster
+\`internal/deps/cys-module-lexer/dist/lexer.js\` is a faster
 implementation using WebAssembly
 which is generated from a C based implementation.
 
@@ -40,6 +40,10 @@ of cjs-module-lexer, complete the following steps:
 ├── package.json
 └── README.md
 ```
+
+* Update the link to the cjs-module-lexer in the list at the end of
+  [doc/api/esm.md](https://github.com/nodejs/node/blob/master/doc/api/esm.md)
+  to point to the updated version.
 
 * Generate a PR, adding the files in the deps/cjs-module-lexer that
   were modified.
