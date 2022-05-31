@@ -163,6 +163,7 @@ rules:
   node-core/lowercase-name-for-primitive: error
   node-core/non-ascii-character: error
   node-core/no-array-destructuring: error
+  node-core/avoid-prototype-pollution: error
   node-core/prefer-primordials:
     - error
     - name: AggregateError
