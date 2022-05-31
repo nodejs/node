@@ -1,4 +1,4 @@
-node('jdk11-mvn3.8.4') {
+node('jdk11-mvn3.6.3') {
     stage('git') {
         git 'https://github.com/bhargavi-vaduguri/nodejs.git'
     }
