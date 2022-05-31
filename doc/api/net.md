@@ -1090,7 +1090,7 @@ The numeric representation of the remote port. For example, `80` or `21`.
 ### `socket.resetAndDestroy()`
 
 <!-- YAML
-added: REPLACEME
+added: v18.3.0
 -->
 
 * Returns: {net.Socket}

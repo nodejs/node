@@ -649,7 +649,7 @@ the end of the file.
 #### `filehandle.write(buffer[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.3.0
 -->
 
 * `buffer` {Buffer|TypedArray|DataView}
@@ -4463,7 +4463,7 @@ the end of the file.
 ### `fs.write(fd, buffer[, options], callback)`
 
 <!-- YAML
-added: REPLACEME
+added: v18.3.0
 -->
 
 * `fd` {integer}
@@ -5865,7 +5865,7 @@ this API: [`fs.write(fd, buffer...)`][].
 ### `fs.writeSync(fd, buffer[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.3.0
 -->
 
 * `fd` {integer}
