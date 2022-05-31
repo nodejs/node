@@ -308,7 +308,10 @@ channel.publish({
 added:
  - v15.1.0
  - v14.17.0
+deprecated: REPLACEME
 -->
+
+> Stability: 0 - Deprecated: Use [`diagnostics_channel.subscribe(name, onMessage)`][]
 
 * `onMessage` {Function} The handler to receive channel messages
   * `message` {any} The message data
@@ -344,6 +347,7 @@ channel.subscribe((message, name) => {
 added:
  - v15.1.0
  - v14.17.0
+deprecated: REPLACEME
 changes:
   - version:
     - v17.1.0
@@ -352,6 +356,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/40433
     description: Added return value. Added to channels without subscribers.
 -->
+
+> Stability: 0 - Deprecated: Use [`diagnostics_channel.unsubscribe(name, onMessage)`][]
 
 * `onMessage` {Function} The previous subscribed handler to remove
 * Returns: {boolean} `true` if the handler was found, `false` otherwise.
@@ -424,5 +430,6 @@ Emitted when server sends a response.
 
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`channel.subscribe(onMessage)`]: #channelsubscribeonmessage
-[`diagnostics_channel.subscribe(name, onMessage)`]: #diagnostics_channelunsubscribename_onmessage
 [`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname
+[`diagnostics_channel.subscribe(name, onMessage)`]: #diagnostics_channelsubscribename-onmessage
+[`diagnostics_channel.unsubscribe(name, onMessage)`]: #diagnostics_channelunsubscribename-onmessage
