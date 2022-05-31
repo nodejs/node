@@ -1023,7 +1023,7 @@ equality.
 ## `util.parseArgs([config])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.3.0
 -->
 
 > Stability: 1 - Experimental

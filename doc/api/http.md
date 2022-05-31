@@ -2372,7 +2372,7 @@ header name:
 ### `message.headersDistinct`
 
 <!-- YAML
-added: REPLACEME
+added: v18.3.0
 -->
 
 * {Object}
@@ -2524,7 +2524,7 @@ The request/response trailers object. Only populated at the `'end'` event.
 ### `message.trailersDistinct`
 
 <!-- YAML
-added: REPLACEME
+added: v18.3.0
 -->
 
 * {Object}
@@ -2647,7 +2647,7 @@ will result in a `TypeError` being thrown.
 ### `outgoingMessage.appendHeader(name, value)`
 
 <!-- YAML
-added: REPLACEME
+added: v18.3.0
 -->
 
 * `name` {string} Header name
