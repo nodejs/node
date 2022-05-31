@@ -45,7 +45,7 @@ of cjs-module-lexer, complete the following steps:
   [doc/api/esm.md](https://github.com/nodejs/node/blob/master/doc/api/esm.md)
   to point to the updated version.
 
-* Generate a PR, adding the files in the deps/cjs-module-lexer that
+* Create a PR, adding the files in the deps/cjs-module-lexer that
   were modified.
 
 If updates are needed to cjs-module-lexer for Node.js, first PR
