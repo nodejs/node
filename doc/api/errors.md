@@ -2076,7 +2076,7 @@ for more information.
 ### `ERR_LOADER_CHAIN_INCOMPLETE`
 
 <!-- YAML
-added: REPLACEME
+added: v16.16.0
 -->
 
 An ESM loader hook returned without calling `next()` and without explicitly
@@ -3307,7 +3307,7 @@ The module must be successfully linked before instantiation.
 
 <!-- YAML
 added: v10.0.0
-removed: REPLACEME
+removed: v16.16.0
 -->
 
 The linker function returned a module for which linking has failed.

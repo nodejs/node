@@ -133,7 +133,7 @@ added: v0.1.90
 * `callback` {Function}
 * Returns: {https.Server}
 
-See [`server.close()`][] in the `node:http` module.
+See \[`server.close()`]\[] in the `node:http` module.
 
 ### `server.headersTimeout`
 
@@ -143,7 +143,7 @@ added: v11.3.0
 
 * {number} **Default:** `60000`
 
-See [`server.headersTimeout`][] in the `node:http` module.
+See \[`server.headersTimeout`]\[] in the `node:http` module.
 
 ### `server.listen()`
 
@@ -200,7 +200,7 @@ added: v8.0.0
 
 * {number} **Default:** `5000` (5 seconds)
 
-See [`server.keepAliveTimeout`][] in the `node:http` module.
+See \[`server.keepAliveTimeout`]\[] in the `node:http` module.
 
 ## `https.createServer([options][, requestListener])`
 

@@ -420,7 +420,7 @@ number of bytes read is zero.
 #### `filehandle.read(buffer[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v16.16.0
 -->
 
 * `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
@@ -649,7 +649,7 @@ the end of the file.
 #### `filehandle.write(buffer[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v16.16.0
 -->
 
 * `buffer` {Buffer|TypedArray|DataView}
@@ -3156,7 +3156,7 @@ above values.
 ### `fs.read(fd, buffer[, options], callback)`
 
 <!-- YAML
-added: REPLACEME
+added: v16.16.0
 -->
 
 * `fd` {integer}
@@ -4247,7 +4247,7 @@ the end of the file.
 ### `fs.write(fd, buffer[, options], callback)`
 
 <!-- YAML
-added: REPLACEME
+added: v16.16.0
 -->
 
 * `fd` {integer}
@@ -4340,7 +4340,7 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: REPLACEME
+  - version: v16.16.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
                  now throws `ERR_INVALID_ARG_TYPE` instead of
@@ -5633,7 +5633,7 @@ this API: [`fs.write(fd, buffer...)`][].
 ### `fs.writeSync(fd, buffer[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v16.16.0
 -->
 
 * `fd` {integer}

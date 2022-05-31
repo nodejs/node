@@ -738,12 +738,13 @@ used to enable FIPS-compliant crypto if Node.js is built
 against FIPS-enabled OpenSSL.
 
 ### `--openssl-legacy-provider`
+
 <!-- YAML
-added: REPLACEME
+added: v16.16.0
 -->
 
 Enable OpenSSL 3.0 legacy provider. For more information please see
-[OSSL_PROVIDER-legacy][].
+[OSSL\_PROVIDER-legacy][OSSL_PROVIDER-legacy].
 
 ### `--pending-deprecation`
 
