@@ -7,14 +7,17 @@ named exports of a CommonJS module.
 It is used within
 [lib/internal/modules/esm/translators](https://github.com/nodejs/node/blob/master/lib/internal/modules/esm/translators.js)
 in which both `internal/deps/cjs-module-lexer/lexer.js` and
-\`internal/deps/cys-module-lexer/dist/lexer.js\` are required and used.
+`internal/deps/cys-module-lexer/dist/lexer.js` are required and used.
 
 `interanal/deps/cjs-module-lexer/lexer.js`
 is a regular JavaScript implementation that is
 used when WebAssembly is not available on a platform.
-\`internal/deps/cjs-module-lexer/dist/lexer.js\` is a faster
-implementation using WebAssembly
-which is generated from a C based implementation.
+`internal/deps/cjs-module-lexer/dist/lexer.js` is a faster
+implementation using WebAssembly which is generated from a
+C based implementation. These two paths
+resolve to the files in `deps/cjs-module-lexer` due to their
+inclusion in the `deps_files` entry in
+[node.gyp](https://github.com/nodejs/node/blob/master/node.gyp).
 
 The two different versions of lexer.js are maintained in the
 [nodejs/cjs-module-lexer](https://github.com/nodejs/cjs-module-lexer) project.
