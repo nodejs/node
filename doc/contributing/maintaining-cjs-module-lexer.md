@@ -12,7 +12,7 @@ in which both `internal/deps/cjs-module-lexer/lexer.js` and
 `interanal/deps/cjs-module-lexer/lexer.js`
 is a regular JavaScript implementation that is
 used when WebAssembly is not available on a platform.
-\`internal/deps/cys-module-lexer/dist/lexer.js\` is a faster
+\`internal/deps/cjs-module-lexer/dist/lexer.js\` is a faster
 implementation using WebAssembly
 which is generated from a C based implementation.
 
