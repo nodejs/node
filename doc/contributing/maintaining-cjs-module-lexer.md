@@ -9,7 +9,7 @@ It is used within
 in which both `internal/deps/cjs-module-lexer/lexer.js` and
 `internal/deps/cys-module-lexer/dist/lexer.js` are required and used.
 
-`interaal/deps/cjs-module-lexer/lexer.js`
+`internal/deps/cjs-module-lexer/lexer.js`
 is a regular JavaScript implementation that is
 used when WebAssembly is not available on a platform.
 `internal/deps/cjs-module-lexer/dist/lexer.js` is a faster
