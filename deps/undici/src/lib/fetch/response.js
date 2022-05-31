@@ -8,9 +8,7 @@ const { kEnumerableProperty } = util
 const { responseURL, isValidReasonPhrase, toUSVString, isCancelled, isAborted, serializeJavascriptValueToJSONString } = require('./util')
 const {
   redirectStatus,
-  nullBodyStatus,
-  forbiddenResponseHeaderNames,
-  corsSafeListedResponseHeaderNames
+  nullBodyStatus
 } = require('./constants')
 const { kState, kHeaders, kGuard, kRealm } = require('./symbols')
 const { kHeadersList } = require('../core/symbols')
@@ -380,28 +378,6 @@ function makeFilteredResponse (response, state) {
   })
 }
 
-function makeFilteredHeadersList (headersList, filter) {
-  return new Proxy(headersList, {
-    get (target, prop) {
-      // Override methods used by Headers class.
-      if (prop === 'get' || prop === 'has') {
-        const defaultReturn = prop === 'has' ? false : null
-        return (name) => filter(name) ? target[prop](name) : defaultReturn
-      } else if (prop === Symbol.iterator) {
-        return function * () {
-          for (const entry of target) {
-            if (filter(entry[0])) {
-              yield entry
-            }
-          }
-        }
-      } else {
-        return target[prop]
-      }
-    }
-  })
-}
-
 // https://fetch.spec.whatwg.org/#concept-filtered-response
 function filterResponse (response, type) {
   // Set response to the following filtered response with response as its
@@ -411,12 +387,10 @@ function filterResponse (response, type) {
     // and header list excludes any headers in internal response’s header list
     // whose name is a forbidden response-header name.
 
+    // Note: undici does not implement forbidden response-header names
     return makeFilteredResponse(response, {
       type: 'basic',
-      headersList: makeFilteredHeadersList(
-        response.headersList,
-        (name) => !forbiddenResponseHeaderNames.includes(name.toLowerCase())
-      )
+      headersList: response.headersList
     })
   } else if (type === 'cors') {
     // A CORS filtered response is a filtered response whose type is "cors"
@@ -424,9 +398,10 @@ function filterResponse (response, type) {
     // list whose name is not a CORS-safelisted response-header name, given
     // internal response’s CORS-exposed header-name list.
 
+    // Note: undici does not implement CORS-safelisted response-header names
     return makeFilteredResponse(response, {
       type: 'cors',
-      headersList: makeFilteredHeadersList(response.headersList, (name) => !corsSafeListedResponseHeaderNames.includes(name))
+      headersList: response.headersList
     })
   } else if (type === 'opaque') {
     // An opaque filtered response is a filtered response whose type is
@@ -449,7 +424,7 @@ function filterResponse (response, type) {
       type: 'opaqueredirect',
       status: 0,
       statusText: '',
-      headersList: makeFilteredHeadersList(response.headersList, () => false),
+      headersList: [],
       body: null
     })
   } else {

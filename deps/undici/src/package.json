@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "5.3.0",
+  "version": "5.4.0",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -67,7 +67,7 @@
     "@sinonjs/fake-timers": "^9.1.2",
     "@types/node": "^17.0.29",
     "abort-controller": "^3.0.0",
-    "busboy": "^0.3.1",
+    "busboy": "^1.6.0",
     "chai": "^4.3.4",
     "chai-as-promised": "^7.1.1",
     "chai-iterator": "^3.0.2",
@@ -77,8 +77,8 @@
     "delay": "^5.0.0",
     "docsify-cli": "^4.4.3",
     "formdata-node": "^4.3.1",
-    "https-pem": "^2.0.0",
-    "husky": "^7.0.2",
+    "https-pem": "^3.0.0",
+    "husky": "^8.0.1",
     "import-fresh": "^3.3.0",
     "jest": "^28.0.1",
     "jsfuzz": "^1.0.15",
