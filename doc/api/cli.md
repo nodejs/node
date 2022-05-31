@@ -442,7 +442,7 @@ To allow polyfills to be added, `--require` runs before freezing intrinsics.
 ### `--force-node-api-uncaught-exceptions-policy`
 
 <!-- YAML
-added: REPLACEME
+added: v18.3.0
 -->
 
 Enforces `uncaughtException` event on Node-API asynchronous callbacks.

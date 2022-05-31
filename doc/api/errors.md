@@ -2360,7 +2360,7 @@ cannot be imported through the package resolution, unless using an absolute URL.
 ### `ERR_PARSE_ARGS_INVALID_OPTION_VALUE`
 
 <!-- YAML
-added: REPLACEME
+added: v18.3.0
 -->
 
 When `strict` set to `true`, thrown by [`util.parseArgs()`][] if a {boolean}
@@ -2372,7 +2372,7 @@ value is provided for an option of type {boolean}.
 ### `ERR_PARSE_ARGS_UNEXPECTED_POSITIONAL`
 
 <!-- YAML
-added: REPLACEME
+added: v18.3.0
 -->
 
 Thrown by [`util.parseArgs()`][], when a postional argument is provided and
@@ -2383,7 +2383,7 @@ Thrown by [`util.parseArgs()`][], when a postional argument is provided and
 ### `ERR_PARSE_ARGS_UNKNOWN_OPTION`
 
 <!-- YAML
-added: REPLACEME
+added: v18.3.0
 -->
 
 When `strict` set to `true`, thrown by [`util.parseArgs()`][] if an argument
