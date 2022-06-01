@@ -11,8 +11,8 @@ functionality. To quote from icu-project.org:
 > widely portable and gives applications the same results on all platforms
 > and between C/C++ and Java software.
 
-If Node.js is configured to used built in ICU (small-icu, full-icu),
-it uses strict subset of ICU which has been copied into
+If Node.js is configured to use its built-in ICU,
+it uses a strict subset of ICU which is in
 [deps/icu-small](https://github.com/nodejs/node/tree/master/deps/icu-small).
 A good description of the different ways Node.js can be build with ICU
 support are covered in [api/intl.html](https://nodejs.org/api/intl.html).
