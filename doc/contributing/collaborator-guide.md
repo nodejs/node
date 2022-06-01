@@ -815,7 +815,7 @@ might impact an LTS release.
 | `lib/zlib`                                                                 | @nodejs/zlib                                                          |
 | `src/async_wrap.*`                                                         | @nodejs/async\_hooks                                                  |
 | `src/node_api.*`                                                           | @nodejs/node-api                                                      |
-| `src/node_crypto.*`                                                        | @nodejs/crypto                                                        |
+| `src/node_crypto.*`, `src/crypto`                                          | @nodejs/crypto                                                        |
 | `test/*`                                                                   | @nodejs/testing                                                       |
 | `tools/node_modules/eslint`, `.eslintrc`                                   | @nodejs/linting                                                       |
 | build                                                                      | @nodejs/build                                                         |
