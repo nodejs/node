@@ -384,8 +384,8 @@ class Request {
     // Realm, whose header list is request’s header list and guard is
     // "request".
     this[kHeaders] = new Headers()
-    this[kHeaders][kGuard] = 'request'
     this[kHeaders][kHeadersList] = request.headersList
+    this[kHeaders][kGuard] = 'request'
     this[kHeaders][kRealm] = this[kRealm]
 
     // 31. If this’s request’s mode is "no-cors", then:
@@ -406,7 +406,7 @@ class Request {
     if (Object.keys(init).length !== 0) {
       // 1. Let headers be a copy of this’s headers and its associated header
       // list.
-      let headers = new Headers(this.headers)
+      let headers = new Headers(this[kHeaders])
 
       // 2. If init["headers"] exists, then set headers to init["headers"].
       if (init.headers !== undefined) {
@@ -414,18 +414,17 @@ class Request {
       }
 
       // 3. Empty this’s headers’s header list.
-      this[kState].headersList = new HeadersList()
-      this[kHeaders][kHeadersList] = this[kState].headersList
+      this[kHeaders][kHeadersList].clear()
 
       // 4. If headers is a Headers object, then for each header in its header
       // list, append header’s name/header’s value to this’s headers.
       if (headers.constructor.name === 'Headers') {
-        for (const [key, val] of headers[kHeadersList] || headers) {
+        for (const [key, val] of headers) {
           this[kHeaders].append(key, val)
         }
       } else {
         // 5. Otherwise, fill this’s headers with headers.
-        fillHeaders(this[kState].headersList, headers)
+        fillHeaders(this[kHeaders], headers)
       }
     }
 
