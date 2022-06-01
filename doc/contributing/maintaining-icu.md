@@ -11,6 +11,12 @@ functionality. To quote from icu-project.org:
 > widely portable and gives applications the same results on all platforms
 > and between C/C++ and Java software.
 
+If Node.js is configured to used built in ICU (small-icu, full-icu),
+it uses strict subset of ICU which has been copied into
+[deps/icu-small](https://github.com/nodejs/node/tree/master/deps/icu-small).
+A good description of the different ways Node.js can be build with ICU
+support are covered in [api/intl.html](https://nodejs.org/api/intl.html).
+
 ## Data dependencies
 
 ICU consumes and includes:
@@ -51,7 +57,7 @@ files.
 
 #### Example: updating the ICU `.dat` file
 
-* Decompress `deps/icu/source/data/in/icudt##l.dat.bz2`, where `##` is
+* Decompress `deps/icu-small/source/data/in/icudt##l.dat.bz2`, where `##` is
   the ICU major version number.
 * Clone the icu/icu-data repository and copy the latest `tzdata` release `le`
   files into the `source/data/in` directory.
