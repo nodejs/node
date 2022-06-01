@@ -31,7 +31,7 @@ of cjs-module-lexer, complete the following steps:
   [wasm-build-steps](https://github.com/nodejs/cjs-module-lexer#wasm-build-steps).
   This will generate the WASM based dist/lexer.js file.
 * Preserving the same directory structure, copy the following files over
-  to deps/cjs-module-lexer directory where you have checked out Node.js
+  to `deps/cjs-module-lexer` directory where you have checked out Node.js.
 
 ```text
 ├── CHANGELOG.md
