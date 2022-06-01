@@ -6,8 +6,8 @@ named exports of a CommonJS module.
 
 It is used within
 [lib/internal/modules/esm/translators](https://github.com/nodejs/node/blob/master/lib/internal/modules/esm/translators.js)
-in which both `internal/deps/cjs-module-lexer/lexer.js` and
-`internal/deps/cjs-module-lexer/dist/lexer.js` are required and used.
+in which both `internal/deps/cjs-module-lexer/lexer` and
+`internal/deps/cjs-module-lexer/dist/lexer` are required and used.
 
 `internal/deps/cjs-module-lexer/lexer`
 is a regular JavaScript implementation that is
