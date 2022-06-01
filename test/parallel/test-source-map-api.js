@@ -99,6 +99,20 @@ const { readFileSync } = require('fs');
   assert.notStrictEqual(payload.sources, sourceMap.payload.sources);
 }
 
+// findEntry() must return empty object instead error when
+// receive a malformed mappings.
+{
+  const payload = JSON.parse(readFileSync(
+    require.resolve('../fixtures/source-map/disk.map'), 'utf8'
+  ));
+  payload.mappings = ';;;;;;;;;';
+
+  const sourceMap = new SourceMap(payload);
+  const result = sourceMap.findEntry(0, 5);
+  assert.strictEqual(typeof result, 'object');
+  assert.strictEqual(Object.keys(result).length, 0);
+}
+
 // Test various known decodings to ensure decodeVLQ works correctly.
 {
   function makeMinimalMap(column) {
