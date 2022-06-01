@@ -288,6 +288,15 @@ const headers = await fetch(url)
   .then(res => res.headers)
 ```
 
+##### Forbidden and Safelisted Header Names
+
+* https://fetch.spec.whatwg.org/#cors-safelisted-response-header-name
+* https://fetch.spec.whatwg.org/#forbidden-header-name
+* https://fetch.spec.whatwg.org/#forbidden-response-header-name
+* https://github.com/wintercg/fetch/issues/6
+
+The [Fetch Standard](https://fetch.spec.whatwg.org) requires implementations to exclude certain headers from requests and responses. In browser environments, some headers are forbidden so the user agent remains in full control over them. In Undici, these constraints are removed to give more control to the user.
+
 ### `undici.upgrade([url, options]): Promise`
 
 Upgrade to a different protocol. See [MDN - HTTP - Protocol upgrade mechanism](https://developer.mozilla.org/en-US/docs/Web/HTTP/Protocol_upgrade_mechanism) for more details.
