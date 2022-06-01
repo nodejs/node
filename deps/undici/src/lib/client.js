@@ -873,6 +873,11 @@ class Parser {
       // have been queued since then.
       util.destroy(socket, new InformationalError('reset'))
       return constants.ERROR.PAUSED
+    } else if (client[kPipelining] === 1) {
+      // We must wait a full event loop cycle to reuse this socket to make sure
+      // that non-spec compliant servers are not closing the connection even if they
+      // said they won't.
+      setImmediate(resume, client)
     } else {
       resume(client)
     }
