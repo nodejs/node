@@ -53,7 +53,6 @@ function launchTarget(...args) {
     assert.ifError(error);
   }
 
-  // test comment
   (async () => {
     try {
       const { childProc, host, port } = await launchTarget('--inspect=0', script);
