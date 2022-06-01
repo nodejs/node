@@ -1,6 +1,6 @@
 # Maintaining cjs-module-lexer
 
-The [cjs-module-lexer](https://github.com/nodejs/node/tree/master/deps/cjs-module-lexer)
+The [cjs-module-lexer](https://github.com/nodejs/node/tree/HEAD/deps/cjs-module-lexer)
 dependency is used within the Node.js ESM implementation to detect the
 named exports of a CommonJS module.
 
