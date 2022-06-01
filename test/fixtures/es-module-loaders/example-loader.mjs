@@ -8,7 +8,7 @@ const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 const baseURL = new URL('file://');
 baseURL.pathname = process.cwd() + '/';
 
-export function resolve(specifier, { parentURL = baseURL }, defaultResolve) {
+export function resolve(specifier, { parentUrl = baseURL }, defaultResolve) {
   if (builtinModules.includes(specifier)) {
     return {
       shortCircuit: true,
@@ -17,11 +17,11 @@ export function resolve(specifier, { parentURL = baseURL }, defaultResolve) {
   }
   if (/^\.{1,2}[/]/.test(specifier) !== true && !specifier.startsWith('file:')) {
     // For node_modules support:
-    // return defaultResolve(specifier, {parentURL}, defaultResolve);
+    // return defaultResolve(specifier, {parentUrl}, defaultResolve);
     throw new Error(
       `imports must be URLs or begin with './', or '../'; '${specifier}' does not`);
   }
-  const resolved = new URL(specifier, parentURL);
+  const resolved = new URL(specifier, parentUrl);
   return {
     shortCircuit: true,
     url: resolved.href

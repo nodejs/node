@@ -16,7 +16,7 @@ const { ESMLoader } = esmLoaderModule;
     Object.create(null),
     { type: 'json' },
   );
-  const parentURL = 'file:///entrypoint.js';
+  const parentUrl = 'file:///entrypoint.js';
   const resolvedURL = 'file:///foo/bar.js';
   const suggestedFormat = 'test';
 
@@ -26,11 +26,11 @@ const { ESMLoader } = esmLoaderModule;
     assert.deepStrictEqual(Object.keys(context), [
       'conditions',
       'importAssertions',
-      'parentURL',
+      'parentUrl',
     ]);
     assert.ok(Array.isArray(context.conditions));
     assert.deepStrictEqual(context.importAssertions, importAssertions);
-    assert.strictEqual(context.parentURL, parentURL);
+    assert.strictEqual(context.parentUrl, parentUrl);
     assert.strictEqual(typeof defaultResolve, 'function');
 
     return {
@@ -76,7 +76,7 @@ const { ESMLoader } = esmLoaderModule;
   // Manually trigger hooks (since ESMLoader is not actually running)
   const job = await esmLoader.getModuleJob(
     originalSpecifier,
-    parentURL,
+    parentUrl,
     importAssertions,
   );
   await job.modulePromise;
