@@ -1,4 +1,4 @@
-.TH "NPM\-ADDUSER" "1" "May 2022" "" ""
+.TH "NPM\-ADDUSER" "1" "June 2022" "" ""
 .SH "NAME"
 \fBnpm-adduser\fR \- Add a registry user account
 .SS Synopsis
@@ -77,6 +77,21 @@ This will also cause \fBnpm init\fP to create a scoped package\.
 npm init \-\-scope=@foo \-\-yes
 .fi
 .RE
+.SS \fBauth\-type\fP
+.RS 0
+.IP \(bu 2
+Default: "legacy"
+.IP \(bu 2
+Type: "legacy", "webauthn", "sso", "saml", or "oauth"
+.IP \(bu 2
+DEPRECATED: The SSO/SAML/OAuth methods are deprecated and will be removed in
+a future version of npm in favor of web\-based login\.
+
+.RE
+.P
+What authentication strategy to use with \fBadduser\fP/\fBlogin\fP\|\.
+.P
+Pass \fBwebauthn\fP to use a web\-based login\.
 .SS See Also
 .RS 0
 .IP \(bu 2

@@ -643,6 +643,26 @@ git+https://isaacs@github.com/npm/cli.git
 git://github.com/npm/cli.git#v1.0.27
 ```
 
+When installing from a `git` repository, the presence of certain fields in the
+`package.json` will cause npm to believe it needs to perform a build. To do so
+your repository will be cloned into a temporary directory, all of its deps
+installed, relevant scripts run, and the resulting directory packed and
+installed.
+
+This flow will occur if your git dependency uses `workspaces`, or if any of the
+following scripts are present:
+
+* `build`
+* `prepare`
+* `prepack`
+* `preinstall`
+* `install`
+* `postinstall`
+
+If your git repository includes pre-built artifacts, you will likely want to
+make sure that none of the above scripts are defined, or your dependency
+will be rebuilt for every installation.
+
 #### GitHub URLs
 
 As of version 1.1.65, you can refer to GitHub urls as just "foo":

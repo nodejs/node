@@ -168,6 +168,11 @@ class Minimatch {
     this.options = options
     this.set = []
     this.pattern = pattern
+    this.windowsPathsNoEscape = !!options.windowsPathsNoEscape ||
+      options.allowWindowsEscape === false
+    if (this.windowsPathsNoEscape) {
+      this.pattern = this.pattern.replace(/\\/g, '/')
+    }
     this.regexp = null
     this.negate = false
     this.comment = false
