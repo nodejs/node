@@ -6,10 +6,6 @@ const { validateHeaderName, validateHeaderValue } = require('http')
 const { kHeadersList } = require('../core/symbols')
 const { kGuard } = require('./symbols')
 const { kEnumerableProperty } = require('../core/util')
-const {
-  forbiddenHeaderNames,
-  forbiddenResponseHeaderNames
-} = require('./constants')
 
 const kHeadersMap = Symbol('headers map')
 const kHeadersSortedMap = Symbol('headers map sorted')
@@ -115,6 +111,11 @@ class HeadersList {
     }
   }
 
+  clear () {
+    this[kHeadersMap].clear()
+    this[kHeadersSortedMap] = null
+  }
+
   append (name, value) {
     this[kHeadersSortedMap] = null
 
@@ -211,22 +212,11 @@ class Headers {
       )
     }
 
-    const normalizedName = normalizeAndValidateHeaderName(String(name))
-
+    // Note: undici does not implement forbidden header names
     if (this[kGuard] === 'immutable') {
       throw new TypeError('immutable')
-    } else if (
-      this[kGuard] === 'request' &&
-      forbiddenHeaderNames.includes(normalizedName)
-    ) {
-      return
     } else if (this[kGuard] === 'request-no-cors') {
       // TODO
-    } else if (
-      this[kGuard] === 'response' &&
-      forbiddenResponseHeaderNames.includes(normalizedName)
-    ) {
-      return
     }
 
     return this[kHeadersList].append(String(name), String(value))
@@ -244,22 +234,11 @@ class Headers {
       )
     }
 
-    const normalizedName = normalizeAndValidateHeaderName(String(name))
-
+    // Note: undici does not implement forbidden header names
     if (this[kGuard] === 'immutable') {
       throw new TypeError('immutable')
-    } else if (
-      this[kGuard] === 'request' &&
-      forbiddenHeaderNames.includes(normalizedName)
-    ) {
-      return
     } else if (this[kGuard] === 'request-no-cors') {
       // TODO
-    } else if (
-      this[kGuard] === 'response' &&
-      forbiddenResponseHeaderNames.includes(normalizedName)
-    ) {
-      return
     }
 
     return this[kHeadersList].delete(String(name))
@@ -307,20 +286,11 @@ class Headers {
       )
     }
 
+    // Note: undici does not implement forbidden header names
     if (this[kGuard] === 'immutable') {
       throw new TypeError('immutable')
-    } else if (
-      this[kGuard] === 'request' &&
-      forbiddenHeaderNames.includes(String(name).toLocaleLowerCase())
-    ) {
-      return
     } else if (this[kGuard] === 'request-no-cors') {
       // TODO
-    } else if (
-      this[kGuard] === 'response' &&
-      forbiddenResponseHeaderNames.includes(String(name).toLocaleLowerCase())
-    ) {
-      return
     }
 
     return this[kHeadersList].set(String(name), String(value))

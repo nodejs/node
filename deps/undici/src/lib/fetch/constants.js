@@ -1,28 +1,5 @@
 'use strict'
 
-const forbiddenHeaderNames = [
-  'accept-charset',
-  'accept-encoding',
-  'access-control-request-headers',
-  'access-control-request-method',
-  'connection',
-  'content-length',
-  'cookie',
-  'cookie2',
-  'date',
-  'dnt',
-  'expect',
-  'host',
-  'keep-alive',
-  'origin',
-  'referer',
-  'te',
-  'trailer',
-  'transfer-encoding',
-  'upgrade',
-  'via'
-]
-
 const corsSafeListedMethods = ['GET', 'HEAD', 'POST']
 
 const nullBodyStatus = [101, 204, 205, 304]
@@ -58,9 +35,6 @@ const requestCache = [
   'only-if-cached'
 ]
 
-// https://fetch.spec.whatwg.org/#forbidden-response-header-name
-const forbiddenResponseHeaderNames = ['set-cookie', 'set-cookie2']
-
 const requestBodyHeader = [
   'content-encoding',
   'content-language',
@@ -86,12 +60,8 @@ const subresource = [
   ''
 ]
 
-const corsSafeListedResponseHeaderNames = [] // TODO
-
 module.exports = {
   subresource,
-  forbiddenResponseHeaderNames,
-  corsSafeListedResponseHeaderNames,
   forbiddenMethods,
   requestBodyHeader,
   referrerPolicy,
@@ -99,7 +69,6 @@ module.exports = {
   requestMode,
   requestCredentials,
   requestCache,
-  forbiddenHeaderNames,
   redirectStatus,
   corsSafeListedMethods,
   nullBodyStatus,

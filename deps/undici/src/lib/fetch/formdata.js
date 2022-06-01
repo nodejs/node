@@ -243,8 +243,8 @@ function makeEntry (name, value, filename) {
   // object, representing the same bytes, whose name attribute value is "blob".
   if (isBlobLike(value) && !isFileLike(value)) {
     value = value instanceof Blob
-      ? new File([value], 'blob')
-      : new FileLike(value, 'blob')
+      ? new File([value], 'blob', value)
+      : new FileLike(value, 'blob', value)
   }
 
   // 4. If value is (now) a File object and filename is given, then set value to a
@@ -256,8 +256,8 @@ function makeEntry (name, value, filename) {
   // creating one more File instance doesn't make much sense....
   if (isFileLike(value) && filename != null) {
     value = value instanceof File
-      ? new File([value], filename)
-      : new FileLike(value, filename)
+      ? new File([value], filename, value)
+      : new FileLike(value, filename, value)
   }
 
   // 5. Set entry’s value to value.

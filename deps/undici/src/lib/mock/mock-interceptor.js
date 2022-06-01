@@ -10,6 +10,7 @@ const {
   kMockDispatch
 } = require('./mock-symbols')
 const { InvalidArgumentError } = require('../core/errors')
+const { buildURL } = require('../core/util')
 
 /**
  * Defines the scope API for an interceptor reply
@@ -70,9 +71,13 @@ class MockInterceptor {
     // As per RFC 3986, clients are not supposed to send URI
     // fragments to servers when they retrieve a document,
     if (typeof opts.path === 'string') {
-      // Matches https://github.com/nodejs/undici/blob/main/lib/fetch/index.js#L1811
-      const parsedURL = new URL(opts.path, 'data://')
-      opts.path = parsedURL.pathname + parsedURL.search
+      if (opts.query) {
+        opts.path = buildURL(opts.path, opts.query)
+      } else {
+        // Matches https://github.com/nodejs/undici/blob/main/lib/fetch/index.js#L1811
+        const parsedURL = new URL(opts.path, 'data://')
+        opts.path = parsedURL.pathname + parsedURL.search
+      }
     }
     if (typeof opts.method === 'string') {
       opts.method = opts.method.toUpperCase()

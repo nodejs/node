@@ -3,7 +3,7 @@ import { Duplex, Readable, Writable } from 'stream'
 import { EventEmitter } from 'events'
 import { IncomingHttpHeaders } from 'http'
 import { Blob } from 'buffer'
-import BodyReadable from './readable'
+import BodyReadable = require('./readable')
 import { FormData } from './formdata'
 
 type AbortSignal = unknown;

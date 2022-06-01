@@ -974,28 +974,6 @@ var require_util = __commonJS({
 var require_constants = __commonJS({
   "lib/fetch/constants.js"(exports2, module2) {
     "use strict";
-    var forbiddenHeaderNames = [
-      "accept-charset",
-      "accept-encoding",
-      "access-control-request-headers",
-      "access-control-request-method",
-      "connection",
-      "content-length",
-      "cookie",
-      "cookie2",
-      "date",
-      "dnt",
-      "expect",
-      "host",
-      "keep-alive",
-      "origin",
-      "referer",
-      "te",
-      "trailer",
-      "transfer-encoding",
-      "upgrade",
-      "via"
-    ];
     var corsSafeListedMethods = ["GET", "HEAD", "POST"];
     var nullBodyStatus = [101, 204, 205, 304];
     var redirectStatus = [301, 302, 303, 307, 308];
@@ -1022,7 +1000,6 @@ var require_constants = __commonJS({
       "force-cache",
       "only-if-cached"
     ];
-    var forbiddenResponseHeaderNames = ["set-cookie", "set-cookie2"];
     var requestBodyHeader = [
       "content-encoding",
       "content-language",
@@ -1044,11 +1021,8 @@ var require_constants = __commonJS({
       "xslt",
       ""
     ];
-    var corsSafeListedResponseHeaderNames = [];
     module2.exports = {
       subresource,
-      forbiddenResponseHeaderNames,
-      corsSafeListedResponseHeaderNames,
       forbiddenMethods,
       requestBodyHeader,
       referrerPolicy,
@@ -1056,7 +1030,6 @@ var require_constants = __commonJS({
       requestMode,
       requestCredentials,
       requestCache,
-      forbiddenHeaderNames,
       redirectStatus,
       corsSafeListedMethods,
       nullBodyStatus,
@@ -1624,10 +1597,10 @@ var require_formdata = __commonJS({
       };
       entry.name = name;
       if (isBlobLike(value) && !isFileLike(value)) {
-        value = value instanceof Blob ? new File([value], "blob") : new FileLike(value, "blob");
+        value = value instanceof Blob ? new File([value], "blob", value) : new FileLike(value, "blob", value);
       }
       if (isFileLike(value) && filename != null) {
-        value = value instanceof File ? new File([value], filename) : new FileLike(value, filename);
+        value = value instanceof File ? new File([value], filename, value) : new FileLike(value, filename, value);
       }
       entry.value = value;
       return entry;
@@ -3346,6 +3319,8 @@ var require_client = __commonJS({
         } else if (socket[kReset] && client[kRunning] === 0) {
           util.destroy(socket, new InformationalError("reset"));
           return constants.ERROR.PAUSED;
+        } else if (client[kPipelining] === 1) {
+          setImmediate(resume, client);
         } else {
           resume(client);
         }
@@ -4230,10 +4205,6 @@ var require_headers = __commonJS({
     var { kHeadersList } = require_symbols();
     var { kGuard } = require_symbols2();
     var { kEnumerableProperty } = require_util();
-    var {
-      forbiddenHeaderNames,
-      forbiddenResponseHeaderNames
-    } = require_constants();
     var kHeadersMap = Symbol("headers map");
     var kHeadersSortedMap = Symbol("headers map sorted");
     function normalizeAndValidateHeaderName(name) {
@@ -4301,6 +4272,10 @@ var require_headers = __commonJS({
           this[kHeadersSortedMap] = null;
         }
       }
+      clear() {
+        this[kHeadersMap].clear();
+        this[kHeadersSortedMap] = null;
+      }
       append(name, value) {
         this[kHeadersSortedMap] = null;
         const normalizedName = normalizeAndValidateHeaderName(name);
@@ -4363,14 +4338,9 @@ var require_headers = __commonJS({
         if (arguments.length < 2) {
           throw new TypeError(`Failed to execute 'append' on 'Headers': 2 arguments required, but only ${arguments.length} present.`);
         }
-        const normalizedName = normalizeAndValidateHeaderName(String(name));
         if (this[kGuard] === "immutable") {
           throw new TypeError("immutable");
-        } else if (this[kGuard] === "request" && forbiddenHeaderNames.includes(normalizedName)) {
-          return;
         } else if (this[kGuard] === "request-no-cors") {
-        } else if (this[kGuard] === "response" && forbiddenResponseHeaderNames.includes(normalizedName)) {
-          return;
         }
         return this[kHeadersList].append(String(name), String(value));
       }
@@ -4381,14 +4351,9 @@ var require_headers = __commonJS({
         if (arguments.length < 1) {
           throw new TypeError(`Failed to execute 'delete' on 'Headers': 1 argument required, but only ${arguments.length} present.`);
         }
-        const normalizedName = normalizeAndValidateHeaderName(String(name));
         if (this[kGuard] === "immutable") {
           throw new TypeError("immutable");
-        } else if (this[kGuard] === "request" && forbiddenHeaderNames.includes(normalizedName)) {
-          return;
         } else if (this[kGuard] === "request-no-cors") {
-        } else if (this[kGuard] === "response" && forbiddenResponseHeaderNames.includes(normalizedName)) {
-          return;
         }
         return this[kHeadersList].delete(String(name));
       }
@@ -4419,11 +4384,7 @@ var require_headers = __commonJS({
         }
         if (this[kGuard] === "immutable") {
           throw new TypeError("immutable");
-        } else if (this[kGuard] === "request" && forbiddenHeaderNames.includes(String(name).toLocaleLowerCase())) {
-          return;
         } else if (this[kGuard] === "request-no-cors") {
-        } else if (this[kGuard] === "response" && forbiddenResponseHeaderNames.includes(String(name).toLocaleLowerCase())) {
-          return;
         }
         return this[kHeadersList].set(String(name), String(value));
       }
@@ -4504,9 +4465,7 @@ var require_response = __commonJS({
     var { responseURL, isValidReasonPhrase, toUSVString, isCancelled, isAborted, serializeJavascriptValueToJSONString } = require_util2();
     var {
       redirectStatus,
-      nullBodyStatus,
-      forbiddenResponseHeaderNames,
-      corsSafeListedResponseHeaderNames
+      nullBodyStatus
     } = require_constants();
     var { kState, kHeaders, kGuard, kRealm } = require_symbols2();
     var { kHeadersList } = require_symbols();
@@ -4724,36 +4683,16 @@ var require_response = __commonJS({
         }
       });
     }
-    function makeFilteredHeadersList(headersList, filter) {
-      return new Proxy(headersList, {
-        get(target, prop) {
-          if (prop === "get" || prop === "has") {
-            const defaultReturn = prop === "has" ? false : null;
-            return (name) => filter(name) ? target[prop](name) : defaultReturn;
-          } else if (prop === Symbol.iterator) {
-            return function* () {
-              for (const entry of target) {
-                if (filter(entry[0])) {
-                  yield entry;
-                }
-              }
-            };
-          } else {
-            return target[prop];
-          }
-        }
-      });
-    }
     function filterResponse(response, type) {
       if (type === "basic") {
         return makeFilteredResponse(response, {
           type: "basic",
-          headersList: makeFilteredHeadersList(response.headersList, (name) => !forbiddenResponseHeaderNames.includes(name.toLowerCase()))
+          headersList: response.headersList
         });
       } else if (type === "cors") {
         return makeFilteredResponse(response, {
           type: "cors",
-          headersList: makeFilteredHeadersList(response.headersList, (name) => !corsSafeListedResponseHeaderNames.includes(name))
+          headersList: response.headersList
         });
       } else if (type === "opaque") {
         return makeFilteredResponse(response, {
@@ -4768,7 +4707,7 @@ var require_response = __commonJS({
           type: "opaqueredirect",
           status: 0,
           statusText: "",
-          headersList: makeFilteredHeadersList(response.headersList, () => false),
+          headersList: [],
           body: null
         });
       } else {
@@ -5019,8 +4958,8 @@ var require_request2 = __commonJS({
           }
         }
         this[kHeaders] = new Headers();
-        this[kHeaders][kGuard] = "request";
         this[kHeaders][kHeadersList] = request.headersList;
+        this[kHeaders][kGuard] = "request";
         this[kHeaders][kRealm] = this[kRealm];
         if (mode === "no-cors") {
           if (!corsSafeListedMethods.includes(request.method)) {
@@ -5029,18 +4968,17 @@ var require_request2 = __commonJS({
           this[kHeaders][kGuard] = "request-no-cors";
         }
         if (Object.keys(init).length !== 0) {
-          let headers = new Headers(this.headers);
+          let headers = new Headers(this[kHeaders]);
           if (init.headers !== void 0) {
             headers = init.headers;
           }
-          this[kState].headersList = new HeadersList();
-          this[kHeaders][kHeadersList] = this[kState].headersList;
+          this[kHeaders][kHeadersList].clear();
           if (headers.constructor.name === "Headers") {
-            for (const [key, val] of headers[kHeadersList] || headers) {
+            for (const [key, val] of headers) {
               this[kHeaders].append(key, val);
             }
           } else {
-            fillHeaders(this[kState].headersList, headers);
+            fillHeaders(this[kHeaders], headers);
           }
         }
         const inputBody = input instanceof Request ? input[kState].body : null;
