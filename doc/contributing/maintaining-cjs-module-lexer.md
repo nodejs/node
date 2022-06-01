@@ -5,7 +5,7 @@ dependency is used within the Node.js ESM implementation to detect the
 named exports of a CommonJS module.
 
 It is used within
-[lib/internal/modules/esm/translators](https://github.com/nodejs/node/blob/master/lib/internal/modules/esm/translators.js)
+[`node:internal/modules/esm/translators`](https://github.com/nodejs/node/blob/HEAD/lib/internal/modules/esm/translators.js)
 in which both `internal/deps/cjs-module-lexer/lexer` and
 `internal/deps/cjs-module-lexer/dist/lexer` are required and used.
 
