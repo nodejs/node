@@ -1839,8 +1839,9 @@ added: v15.0.0
 * Type: {string|ArrayBuffer|Buffer|TypedArray|DataView}
 
 [^1]: Non-standard Node.js-specific extension
+
 [^2]: An experimental implementation of
-[Secure Curves in the Web Cryptography API][] as of 05 May 2022
+    [Secure Curves in the Web Cryptography API][] as of 05 May 2022
 
 [JSON Web Key]: https://tools.ietf.org/html/rfc7517
 [Key usages]: #cryptokeyusages
