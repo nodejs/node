@@ -35,6 +35,8 @@ set projgen=
 set nobuild=
 set sign=
 set nosnapshot=
+set nonpm=
+set nocorepack=
 set cctest_args=
 set test_args=
 set stage_package=
@@ -89,6 +91,8 @@ if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
 if /i "%1"=="nosign"        set "sign="&echo Note: vcbuild no longer signs by default. "nosign" is redundant.&goto arg-ok
 if /i "%1"=="sign"          set sign=1&goto arg-ok
 if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
+if /i "%1"=="nonpm"         set nonpm=1&goto arg-ok
+if /i "%1"=="nocorepack"    set nocorepack=1&goto arg-ok
 if /i "%1"=="noetw"         set noetw=1&goto arg-ok
 if /i "%1"=="ltcg"          set ltcg=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
@@ -184,6 +188,8 @@ if "%*"=="lint" if exist "%node_exe%" goto lint-cpp
 
 if "%config%"=="Debug"      set configure_flags=%configure_flags% --debug
 if defined nosnapshot       set configure_flags=%configure_flags% --without-snapshot
+if defined nonpm            set configure_flags=%configure_flags% --without-npm
+if defined nocorepack       set configure_flags=%configure_flags% --without-corepack
 if defined noetw            set configure_flags=%configure_flags% --without-etw& set noetw_msi_arg=/p:NoETW=1
 if defined ltcg             set configure_flags=%configure_flags% --with-ltcg
 if defined release_urlbase  set configure_flags=%configure_flags% --release-urlbase=%release_urlbase%
@@ -444,22 +450,29 @@ copy /Y ..\README.md %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy README.md && goto package_error
 copy /Y ..\CHANGELOG.md %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy CHANGELOG.md && goto package_error
-robocopy ..\deps\npm %TARGET_NAME%\node_modules\npm /e /xd test > nul
-if errorlevel 8 echo Cannot copy npm package && goto package_error
-robocopy ..\deps\corepack %TARGET_NAME%\node_modules\corepack /e /xd test > nul
-if errorlevel 8 echo Cannot copy corepack package && goto package_error
-copy /Y ..\deps\npm\bin\npm %TARGET_NAME%\ > nul
-if errorlevel 1 echo Cannot copy npm && goto package_error
-copy /Y ..\deps\npm\bin\npm.cmd %TARGET_NAME%\ > nul
-if errorlevel 1 echo Cannot copy npm.cmd && goto package_error
-copy /Y ..\deps\npm\bin\npx %TARGET_NAME%\ > nul
-if errorlevel 1 echo Cannot copy npx && goto package_error
-copy /Y ..\deps\npm\bin\npx.cmd %TARGET_NAME%\ > nul
-if errorlevel 1 echo Cannot copy npx.cmd && goto package_error
-copy /Y ..\deps\corepack\shims\nodewin\corepack %TARGET_NAME%\ > nul
-if errorlevel 1 echo Cannot copy corepack && goto package_error
-copy /Y ..\deps\corepack\shims\nodewin\corepack.cmd %TARGET_NAME%\ > nul
-if errorlevel 1 echo Cannot copy corepack.cmd && goto package_error
+
+if not defined nonpm (
+  robocopy ..\deps\npm %TARGET_NAME%\node_modules\npm /e /xd test > nul
+  if errorlevel 8 echo Cannot copy npm package && goto package_error
+  copy /Y ..\deps\npm\bin\npm %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy npm && goto package_error
+  copy /Y ..\deps\npm\bin\npm.cmd %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy npm.cmd && goto package_error
+  copy /Y ..\deps\npm\bin\npx %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy npx && goto package_error
+  copy /Y ..\deps\npm\bin\npx.cmd %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy npx.cmd && goto package_error
+)
+
+if not defined nocorepack (
+  robocopy ..\deps\corepack %TARGET_NAME%\node_modules\corepack /e /xd test > nul
+  if errorlevel 8 echo Cannot copy corepack package && goto package_error
+  copy /Y ..\deps\corepack\shims\nodewin\corepack %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy corepack && goto package_error
+  copy /Y ..\deps\corepack\shims\nodewin\corepack.cmd %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy corepack.cmd && goto package_error
+)
+
 copy /Y ..\tools\msvs\nodevars.bat %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy nodevars.bat && goto package_error
 copy /Y ..\tools\msvs\install_tools\*.* %TARGET_NAME%\ > nul
@@ -759,7 +772,7 @@ set exit_code=1
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-benchmark/test-internet/test-pummel/test-simple/test-message/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2019/vs2022] [download-all] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-benchmark/test-internet/test-pummel/test-simple/test-message/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [nocorepack] [noetw] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2019/vs2022] [download-all] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build
