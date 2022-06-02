@@ -87,6 +87,8 @@ async function generateEcKey(namedCurve = 'P-521') {
 
 #### Ed25519/Ed448/X25519/X448 key pairs
 
+> Stability: 1 - Experimental
+
 ```js
 const { subtle } = require('node:crypto').webcrypto;
 
@@ -329,11 +331,11 @@ implementation and the APIs supported for each:
 | `'RSA-PSS'`           | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
 | `'RSA-OAEP'`          | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
 | `'ECDSA'`             | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'Ed25519'`           | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'Ed448'`             | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
+| `'Ed25519'`[^2]       | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
+| `'Ed448'`[^2]         | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
 | `'ECDH'`              | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
-| `'X25519'`            | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
-| `'X448'`              | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
+| `'X25519'`[^2]        | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
+| `'X448'`[^2]          | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
 | `'AES-CTR'`           | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
 | `'AES-CBC'`           | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
 | `'AES-GCM'`           | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
@@ -475,11 +477,11 @@ Valid key usages depend on the key algorithm (identified by
 | `'AES-GCM'`           | ✔           | ✔           |          |            |               |                | ✔           | ✔             |
 | `'AES-KW'`            |             |             |          |            |               |                | ✔           | ✔             |
 | `'ECDH'`              |             |             |          |            | ✔             | ✔              |             |               |
-| `'X25519'`            |             |             |          |            | ✔             | ✔              |             |               |
-| `'X448'`              |             |             |          |            | ✔             | ✔              |             |               |
+| `'X25519'`[^2]        |             |             |          |            | ✔             | ✔              |             |               |
+| `'X448'`[^2]          |             |             |          |            | ✔             | ✔              |             |               |
 | `'ECDSA'`             |             |             | ✔        | ✔          |               |                |             |               |
-| `'Ed25519'`           |             |             | ✔        | ✔          |               |                |             |               |
-| `'Ed448'`             |             |             | ✔        | ✔          |               |                |             |               |
+| `'Ed25519'`[^2]       |             |             | ✔        | ✔          |               |                |             |               |
+| `'Ed448'`[^2]         |             |             | ✔        | ✔          |               |                |             |               |
 | `'HDKF'`              |             |             |          |            | ✔             | ✔              |             |               |
 | `'HMAC'`              |             |             | ✔        | ✔          |               |                |             |               |
 | `'PBKDF2'`            |             |             |          |            | ✔             | ✔              |             |               |
@@ -704,8 +706,8 @@ extension that allows converting a {CryptoKey} into a Node.js {KeyObject}.
 | `'AES-KW'`            |          |           | ✔       | ✔       |
 | `'ECDH'`              | ✔        | ✔         | ✔       | ✔       |
 | `'ECDSA'`             | ✔        | ✔         | ✔       | ✔       |
-| `'Ed25519'`           | ✔        | ✔         | ✔       | ✔       |
-| `'Ed448'`             | ✔        | ✔         | ✔       | ✔       |
+| `'Ed25519'`[^2]       | ✔        | ✔         | ✔       | ✔       |
+| `'Ed448'`[^2]         | ✔        | ✔         | ✔       | ✔       |
 | `'HDKF'`              |          |           |         |         |
 | `'HMAC'`              |          |           | ✔       | ✔       |
 | `'PBKDF2'`            |          |           |         |         |
@@ -743,11 +745,11 @@ include:
 * `'RSA-PSS'`
 * `'RSA-OAEP'`
 * `'ECDSA'`
-* `'Ed25519'`
-* `'Ed448'`
+* `'Ed25519'`[^2]
+* `'Ed448'`[^2]
 * `'ECDH'`
-* `'X25519'`
-* `'X448'`
+* `'X25519'`[^2]
+* `'X448'`[^2]
 * `'NODE-DSA'`[^1]
 * `'NODE-DH'`[^1]
 
@@ -806,11 +808,11 @@ The algorithms currently supported include:
 | `'AES-GCM'`           |          |           | ✔       | ✔       |
 | `'AES-KW'`            |          |           | ✔       | ✔       |
 | `'ECDH'`              | ✔        | ✔         | ✔       | ✔       |
-| `'X25519'`            | ✔        | ✔         | ✔       | ✔       |
-| `'X448'`              | ✔        | ✔         | ✔       | ✔       |
+| `'X25519'`[^2]        | ✔        | ✔         | ✔       | ✔       |
+| `'X448'`[^2]          | ✔        | ✔         | ✔       | ✔       |
 | `'ECDSA'`             | ✔        | ✔         | ✔       | ✔       |
-| `'Ed25519'`           | ✔        | ✔         | ✔       | ✔       |
-| `'Ed448'`             | ✔        | ✔         | ✔       | ✔       |
+| `'Ed25519'`[^2]       | ✔        | ✔         | ✔       | ✔       |
+| `'Ed448'`[^2]         | ✔        | ✔         | ✔       | ✔       |
 | `'HDKF'`              |          |           |         | ✔       |
 | `'HMAC'`              |          |           | ✔       | ✔       |
 | `'PBKDF2'`            |          |           |         | ✔       |
@@ -850,8 +852,8 @@ The algorithms currently supported include:
 * `'RSASSA-PKCS1-v1_5'`
 * `'RSA-PSS'`
 * `'ECDSA'`
-* `'Ed25519'`
-* `'Ed448'`
+* `'Ed25519'`[^2]
+* `'Ed448'`[^2]
 * `'HMAC'`
 * `'NODE-DSA'`[^1]
 
@@ -938,8 +940,8 @@ The algorithms currently supported include:
 * `'RSASSA-PKCS1-v1_5'`
 * `'RSA-PSS'`
 * `'ECDSA'`
-* `'Ed25519'`
-* `'Ed448'`
+* `'Ed25519'`[^2]
+* `'Ed448'`[^2]
 * `'HMAC'`
 * `'NODE-DSA'`[^1]
 
@@ -1837,9 +1839,12 @@ added: v15.0.0
 * Type: {string|ArrayBuffer|Buffer|TypedArray|DataView}
 
 [^1]: Non-standard Node.js-specific extension
+[^2]: An experimental implementation of
+[Secure Curves in the Web Cryptography API][] as of 05 May 2022
 
 [JSON Web Key]: https://tools.ietf.org/html/rfc7517
 [Key usages]: #cryptokeyusages
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 4122]: https://www.rfc-editor.org/rfc/rfc4122.txt
+[Secure Curves in the Web Cryptography API]: https://wicg.github.io/webcrypto-secure-curves/
 [Web Crypto API]: https://www.w3.org/TR/WebCryptoAPI/
