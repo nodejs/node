@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "May 2022" "" ""
+.TH "CONFIG" "7" "June 2022" "" ""
 .SH "NAME"
 \fBconfig\fR \- More than you probably want to know about npm configuration
 .SS Description
@@ -739,6 +739,28 @@ Type: Boolean
 .P
 Tag the commit when using the \fBnpm version\fP command\. Setting this to false
 results in no commit being made at all\.
+.SS \fBglobal\fP
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Operates in "global" mode, so that packages are installed into the \fBprefix\fP
+folder instead of the current working directory\. See
+npm help folders for more on the differences in behavior\.
+.RS 0
+.IP \(bu 2
+packages are installed into the \fB{prefix}/lib/node_modules\fP folder, instead
+of the current working directory\.
+.IP \(bu 2
+bin files are linked to \fB{prefix}/bin\fP
+.IP \(bu 2
+man pages are linked to \fB{prefix}/share/man\fP
+
+.RE
 .SS \fBglobal\-style\fP
 .RS 0
 .IP \(bu 2
@@ -1975,14 +1997,16 @@ When set to \fBdev\fP or \fBdevelopment\fP, this is an alias for \fB\-\-include=
 .IP \(bu 2
 Default: "legacy"
 .IP \(bu 2
-Type: "legacy", "sso", "saml", or "oauth"
+Type: "legacy", "webauthn", "sso", "saml", or "oauth"
 .IP \(bu 2
-DEPRECATED: This method of SSO/SAML/OAuth is deprecated and will be removed
-in a future version of npm in favor of web\-based login\.
+DEPRECATED: The SSO/SAML/OAuth methods are deprecated and will be removed in
+a future version of npm in favor of web\-based login\.
 
 .RE
 .P
 What authentication strategy to use with \fBadduser\fP/\fBlogin\fP\|\.
+.P
+Pass \fBwebauthn\fP to use a web\-based login\.
 .SS \fBcache\-max\fP
 .RS 0
 .IP \(bu 2
@@ -2019,31 +2043,6 @@ DEPRECATED: Please use \-\-include=dev instead\.
 .RE
 .P
 Alias for \fB\-\-include=dev\fP\|\.
-.SS \fBglobal\fP
-.RS 0
-.IP \(bu 2
-Default: false
-.IP \(bu 2
-Type: Boolean
-.IP \(bu 2
-DEPRECATED: \fB\-\-global\fP, \fB\-\-local\fP are deprecated\. Use \fB\-\-location=global\fP
-instead\.
-
-.RE
-.P
-Operates in "global" mode, so that packages are installed into the \fBprefix\fP
-folder instead of the current working directory\. See
-npm help folders for more on the differences in behavior\.
-.RS 0
-.IP \(bu 2
-packages are installed into the \fB{prefix}/lib/node_modules\fP folder, instead
-of the current working directory\.
-.IP \(bu 2
-bin files are linked to \fB{prefix}/bin\fP
-.IP \(bu 2
-man pages are linked to \fB{prefix}/share/man\fP
-
-.RE
 .SS \fBinit\.author\.email\fP
 .RS 0
 .IP \(bu 2
