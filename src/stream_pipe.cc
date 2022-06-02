@@ -11,7 +11,10 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Just;
 using v8::Local;
+using v8::Maybe;
+using v8::Nothing;
 using v8::Object;
 using v8::Value;
 
@@ -28,31 +31,6 @@ StreamPipe::StreamPipe(StreamBase* source,
   sink->PushStreamListener(&writable_listener_);
 
   uses_wants_write_ = sink->HasWantsWrite();
-
-  // Set up links between this object and the source/sink objects.
-  // In particular, this makes sure that they are garbage collected as a group,
-  // if that applies to the given streams (for example, Http2Streams use
-  // weak references).
-  if (obj->Set(env()->context(),
-               env()->source_string(),
-               source->GetObject()).IsNothing()) {
-    return;
-  }
-  if (source->GetObject()->Set(env()->context(),
-                               env()->pipe_target_string(),
-                               obj).IsNothing()) {
-      return;
-  }
-  if (obj->Set(env()->context(),
-               env()->sink_string(),
-               sink->GetObject()).IsNothing()) {
-    return;
-  }
-  if (sink->GetObject()->Set(env()->context(),
-                             env()->pipe_source_string(),
-                             obj).IsNothing()) {
-    return;
-  }
 }
 
 StreamPipe::~StreamPipe() {
@@ -261,6 +239,38 @@ void StreamPipe::WritableListener::OnStreamRead(ssize_t nread,
   return previous_listener_->OnStreamRead(nread, buf);
 }
 
+Maybe<StreamPipe*> StreamPipe::New(StreamBase* source,
+                                   StreamBase* sink,
+                                   Local<Object> obj) {
+  std::unique_ptr<StreamPipe> stream_pipe(new StreamPipe(source, sink, obj));
+
+  // Set up links between this object and the source/sink objects.
+  // In particular, this makes sure that they are garbage collected as a group,
+  // if that applies to the given streams (for example, Http2Streams use
+  // weak references).
+  Environment* env = source->stream_env();
+  if (obj->Set(env->context(), env->source_string(), source->GetObject())
+          .IsNothing()) {
+    return Nothing<StreamPipe*>();
+  }
+  if (source->GetObject()
+          ->Set(env->context(), env->pipe_target_string(), obj)
+          .IsNothing()) {
+    return Nothing<StreamPipe*>();
+  }
+  if (obj->Set(env->context(), env->sink_string(), sink->GetObject())
+          .IsNothing()) {
+    return Nothing<StreamPipe*>();
+  }
+  if (sink->GetObject()
+          ->Set(env->context(), env->pipe_source_string(), obj)
+          .IsNothing()) {
+    return Nothing<StreamPipe*>();
+  }
+
+  return Just(stream_pipe.release());
+}
+
 void StreamPipe::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   CHECK(args[0]->IsObject());
@@ -268,7 +278,7 @@ void StreamPipe::New(const FunctionCallbackInfo<Value>& args) {
   StreamBase* source = StreamBase::FromObject(args[0].As<Object>());
   StreamBase* sink = StreamBase::FromObject(args[1].As<Object>());
 
-  new StreamPipe(source, sink, args.This());
+  if (StreamPipe::New(source, sink, args.This()).IsNothing()) return;
 }
 
 void StreamPipe::Start(const FunctionCallbackInfo<Value>& args) {
