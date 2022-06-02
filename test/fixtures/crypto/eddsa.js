@@ -39,16 +39,13 @@ module.exports = function() {
 
   const algorithms = ['Ed25519', 'Ed448'];
 
-  const vectors = [];
-  algorithms.forEach((algorithm) => {
-    vectors.push({
-      publicKeyBuffer: spki[algorithm],
-      privateKeyBuffer: pkcs8[algorithm],
-      name: algorithm,
-      data,
-      signature: signatures[algorithm]
-    });
-  });
+  const vectors = algorithms.map((algorithm) => ({
+    publicKeyBuffer: spki[algorithm],
+    privateKeyBuffer: pkcs8[algorithm],
+    name: algorithm,
+    data,
+    signature: signatures[algorithm],
+  }));
 
   return vectors;
 }
