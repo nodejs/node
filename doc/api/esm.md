@@ -749,7 +749,7 @@ changes:
 * `context` {Object}
   * `conditions` {string\[]} Export conditions of the relevant `package.json`
   * `importAssertions` {Object}
-  * `parentUrl` {string|undefined} The module importing this one, or undefined
+  * `parentURL` {string|undefined} The module importing this one, or undefined
     if this is the Node.js entry point
 * `nextResolve` {Function} The subsequent `resolve` hook in the chain, or the
   Node.js default `resolve` hook after the last user-supplied `resolve` hook
@@ -790,15 +790,15 @@ Node.js module specifier resolution behavior_ when calling `defaultResolve`, the
 
 ```js
 export async function resolve(specifier, context, nextResolve) {
-  const { parentUrl = null } = context;
+  const { parentURL = null } = context;
 
   if (Math.random() > 0.5) { // Some condition.
     // For some or all specifiers, do some custom logic for resolving.
     // Always return an object of the form {url: <string>}.
     return {
       shortCircuit: true,
-      url: parentUrl ?
-        new URL(specifier, parentUrl).href :
+      url: parentURL ?
+        new URL(specifier, parentURL).href :
         new URL(specifier).href,
     };
   }
@@ -1007,7 +1007,7 @@ and there is no security.
 import { get } from 'node:https';
 
 export function resolve(specifier, context, nextResolve) {
-  const { parentUrl = null } = context;
+  const { parentURL = null } = context;
 
   // Normally Node.js would error on specifiers starting with 'https://', so
   // this hook intercepts them and converts them into absolute URLs to be
@@ -1017,10 +1017,10 @@ export function resolve(specifier, context, nextResolve) {
       shortCircuit: true,
       url: specifier
     };
-  } else if (parentUrl && parentUrl.startsWith('https://')) {
+  } else if (parentURL && parentURL.startsWith('https://')) {
     return {
       shortCircuit: true,
-      url: new URL(specifier, parentUrl).href,
+      url: new URL(specifier, parentURL).href,
     };
   }
 
@@ -1083,20 +1083,20 @@ import { cwd } from 'node:process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import CoffeeScript from 'coffeescript';
 
-const baseUrl = pathToFileURL(`${cwd()}/`).href;
+const baseURL = pathToFileURL(`${cwd()}/`).href;
 
 // CoffeeScript files end in .coffee, .litcoffee or .coffee.md.
 const extensionsRegex = /\.coffee$|\.litcoffee$|\.coffee\.md$/;
 
 export async function resolve(specifier, context, nextResolve) {
   if (extensionsRegex.test(specifier)) {
-    const { parentUrl = baseUrl } = context;
+    const { parentURL = baseURL } = context;
 
     // Node.js normally errors on unknown file extensions, so return a URL for
     // specifiers ending in the CoffeeScript file extensions.
     return {
       shortCircuit: true,
-      url: new URL(specifier, parentUrl).href
+      url: new URL(specifier, parentURL).href
     };
   }
 

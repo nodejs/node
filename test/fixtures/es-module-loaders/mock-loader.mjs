@@ -177,7 +177,7 @@ export async function resolve(specifier, context, defaultResolve) {
   }
   doDrainPort();
   const def = await defaultResolve(specifier, context);
-  if (context.parentUrl?.startsWith('mock-facade:')) {
+  if (context.parentURL?.startsWith('mock-facade:')) {
     // Do nothing, let it get the "real" module
   } else if (mockedModuleExports.has(def.url)) {
     return {

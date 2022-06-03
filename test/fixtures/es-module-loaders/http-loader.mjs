@@ -1,17 +1,17 @@
 import { get } from 'http';
 
 export function resolve(specifier, context, nextResolve) {
-  const { parentUrl = null } = context;
+  const { parentURL = null } = context;
 
   if (specifier.startsWith('http://')) {
     return {
       shortCircuit: true,
       url: specifier,
     };
-  } else if (parentUrl?.startsWith('http://')) {
+  } else if (parentURL?.startsWith('http://')) {
     return {
       shortCircuit: true,
-      url: new URL(specifier, parentUrl).href,
+      url: new URL(specifier, parentURL).href,
     };
   }
 
