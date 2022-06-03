@@ -114,6 +114,7 @@ The tools are currently assigned to Tiers as follows:
 | Profiling | V8 --interpreted-frames-native-stack | Yes                           | Yes                     | 2           |
 | Profiling | Linux perf                           | Yes                           | Partial                 | 2           |
 | Profiling | node-clinic                          | No                            | No                      | 3           |
+| Debugger  | Chrome Dev tools                     | No                            | No                      | 3           |
 
 ## Tier 4
 
@@ -132,7 +133,6 @@ The tools are currently assigned to Tiers as follows:
 | Debugger  | V8 Debug protocol (API)   | No                            | Yes                     | 1           |
 | Debugger  | Command line Debug Client | ?                             | Yes                     | 1           |
 | Debugger  | llnode                    | ?                             | No                      | 2           |
-| Debugger  | Chrome Dev tools          | ?                             | No                      | 3           |
 | Tracing   | trace\_events (API)       | No                            | Yes                     | 1           |
 | Tracing   | trace\_gc                 | No                            | Yes                     | 1           |
 | Tracing   | DTrace                    | No                            | Partial                 | 3           |
