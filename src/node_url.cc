@@ -166,6 +166,9 @@ enum url_cb_args {
 // https://infra.spec.whatwg.org/#ascii-tab-or-newline
 CHAR_TEST(8, IsASCIITabOrNewline, (ch == '\t' || ch == '\n' || ch == '\r'))
 
+// https://infra.spec.whatwg.org/#c0-control
+CHAR_TEST(8, IsC0Control, (ch >= '\0' && ch <= '\x1f'))
+
 // https://infra.spec.whatwg.org/#c0-control-or-space
 CHAR_TEST(8, IsC0ControlOrSpace, (ch >= '\0' && ch <= ' '))
 
@@ -191,12 +194,18 @@ T ASCIILowercase(T ch) {
 }
 
 // https://url.spec.whatwg.org/#forbidden-host-code-point
-CHAR_TEST(8, IsForbiddenHostCodePoint,
-          ch == '\0' || ch == '\t' || ch == '\n' || ch == '\r' ||
-          ch == ' ' || ch == '#' || ch == '%' || ch == '/' ||
-          ch == ':' || ch == '?' || ch == '@' || ch == '[' ||
-          ch == '<' || ch == '>' || ch == '\\' || ch == ']' ||
-          ch == '^' || ch == '|')
+CHAR_TEST(8,
+          IsForbiddenHostCodePoint,
+          ch == '\0' || ch == '\t' || ch == '\n' || ch == '\r' || ch == ' ' ||
+              ch == '#' || ch == '/' || ch == ':' || ch == '?' || ch == '@' ||
+              ch == '[' || ch == '<' || ch == '>' || ch == '\\' || ch == ']' ||
+              ch == '^' || ch == '|')
+
+// https://url.spec.whatwg.org/#forbidden-domain-code-point
+CHAR_TEST(8,
+          IsForbiddenDomainCodePoint,
+          IsForbiddenHostCodePoint(ch) || IsC0Control(ch) || ch == '%' ||
+              ch == '\x7f')
 
 // https://url.spec.whatwg.org/#windows-drive-letter
 TWO_CHAR_STRING_TEST(8, IsWindowsDriveLetter,
@@ -484,7 +493,7 @@ void URLHost::ParseOpaqueHost(const char* input, size_t length) {
   output.reserve(length);
   for (size_t i = 0; i < length; i++) {
     const char ch = input[i];
-    if (ch != '%' && IsForbiddenHostCodePoint(ch)) {
+    if (IsForbiddenHostCodePoint(ch)) {
       return;
     } else {
       AppendOrEscape(&output, ch, C0_CONTROL_ENCODE_SET);
@@ -523,7 +532,7 @@ void URLHost::ParseHost(const char* input,
   // If any of the following characters are still present, we have to fail
   for (size_t n = 0; n < decoded.size(); n++) {
     const char ch = decoded[n];
-    if (IsForbiddenHostCodePoint(ch)) {
+    if (IsForbiddenDomainCodePoint(ch)) {
       return;
     }
   }
