@@ -53,21 +53,22 @@ function launchTarget(...args) {
     assert.ifError(error);
   }
 
-  return launchTarget('--inspect=0', script)
-    .then(({ childProc, host, port }) => {
+  (async () => {
+    try {
+      const { childProc, host, port } = await launchTarget('--inspect=0', script);
       target = childProc;
       cli = startCLI([`${host || '127.0.0.1'}:${port}`]);
-      return cli.waitForPrompt();
-    })
-    .then(() => cli.command('sb("alive.js", 3)'))
-    .then(() => cli.waitFor(/break/))
-    .then(() => cli.waitForPrompt())
-    .then(() => {
+      await cli.waitForPrompt();
+      await cli.command('sb("alive.js", 3)');
+      await cli.waitFor(/break/);
+      await cli.waitForPrompt();
       assert.match(
         cli.output,
         /> 3 {3}\+\+x;/,
-        'marks the 3rd line');
-    })
-    .then(() => cleanup())
-    .then(null, cleanup);
+        'marks the 3rd line'
+      );
+    } finally {
+      cleanup();
+    }
+  })().then(common.mustCall());
 }
