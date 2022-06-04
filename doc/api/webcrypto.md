@@ -3,10 +3,10 @@
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43310
     description: Removed proprietary `'node.keyObject'` import/export format.
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43310
     description: Removed proprietary `'NODE-DSA'`, `'NODE-DH'`,
       and `'NODE-SCRYPT'` algorithms.
   - version: REPLACEME
