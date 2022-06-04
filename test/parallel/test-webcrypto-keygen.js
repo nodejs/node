@@ -129,6 +129,40 @@ const vectors = {
       'deriveBits',
     ]
   },
+  'Ed25519': {
+    usages: [
+      'sign',
+      'verify',
+    ],
+    mandatoryUsages: ['sign']
+  },
+  'Ed448': {
+    usages: [
+      'sign',
+      'verify',
+    ],
+    mandatoryUsages: ['sign']
+  },
+  'X25519': {
+    usages: [
+      'deriveKey',
+      'deriveBits',
+    ],
+    mandatoryUsages: [
+      'deriveKey',
+      'deriveBits',
+    ]
+  },
+  'X448': {
+    usages: [
+      'deriveKey',
+      'deriveBits',
+    ],
+    mandatoryUsages: [
+      'deriveKey',
+      'deriveBits',
+    ]
+  },
   'NODE-DSA': {
     algorithm: { modulusLength: 1024, hash: 'SHA-256' },
     usages: [
@@ -664,4 +698,64 @@ assert.throws(() => new CryptoKey(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
   const keyObject = createSecretKey(buffer);
   assert(!isCryptoKey(buffer));
   assert(!isCryptoKey(keyObject));
+}
+
+// Test OKP Key Generation
+{
+  async function test(
+    name,
+    privateUsages,
+    publicUsages = privateUsages) {
+
+    let usages = privateUsages;
+    if (publicUsages !== privateUsages)
+      usages = usages.concat(publicUsages);
+
+    const { publicKey, privateKey } = await subtle.generateKey({
+      name,
+    }, true, usages);
+
+    assert(publicKey);
+    assert(privateKey);
+    assert(isCryptoKey(publicKey));
+    assert(isCryptoKey(privateKey));
+
+    assert.strictEqual(publicKey.type, 'public');
+    assert.strictEqual(privateKey.type, 'private');
+    assert.strictEqual(publicKey.extractable, true);
+    assert.strictEqual(privateKey.extractable, true);
+    assert.deepStrictEqual(publicKey.usages, publicUsages);
+    assert.deepStrictEqual(privateKey.usages, privateUsages);
+    assert.strictEqual(publicKey.algorithm.name, name);
+    assert.strictEqual(privateKey.algorithm.name, name);
+  }
+
+  const kTests = [
+    [
+      'Ed25519',
+      ['sign'],
+      ['verify'],
+    ],
+    [
+      'Ed448',
+      ['sign'],
+      ['verify'],
+    ],
+    [
+      'X25519',
+      ['deriveKey', 'deriveBits'],
+      [],
+    ],
+    [
+      'X448',
+      ['deriveKey', 'deriveBits'],
+      [],
+    ],
+  ];
+
+  const tests = kTests.map((args) => test(...args));
+
+  // Test bad parameters
+
+  Promise.all(tests).then(common.mustCall());
 }

@@ -84,10 +84,10 @@ const customTypesMap = {
   'Crypto': 'webcrypto.html#class-crypto',
   'SubtleCrypto': 'webcrypto.html#class-subtlecrypto',
   'RsaOaepParams': 'webcrypto.html#class-rsaoaepparams',
+  'AlgorithmIdentifier': 'webcrypto.html#class-algorithmidentifier',
   'AesCtrParams': 'webcrypto.html#class-aesctrparams',
   'AesCbcParams': 'webcrypto.html#class-aescbcparams',
   'AesGcmParams': 'webcrypto.html#class-aesgcmparams',
-  'AesKwParams': 'webcrypto.html#class-aeskwparams',
   'EcdhKeyDeriveParams': 'webcrypto.html#class-ecdhkeyderiveparams',
   'HkdfParams': 'webcrypto.html#class-hkdfparams',
   'Pbkdf2Params': 'webcrypto.html#class-pbkdf2params',
@@ -100,26 +100,15 @@ const customTypesMap = {
     'webcrypto.html#class-rsahashedimportparams',
   'EcKeyImportParams': 'webcrypto.html#class-eckeyimportparams',
   'HmacImportParams': 'webcrypto.html#class-hmacimportparams',
-  'AesImportParams': 'webcrypto.html#class-aesimportparams',
-  'Pbkdf2ImportParams': 'webcrypto.html#class-pbkdf2importparams',
-  'HmacParams': 'webcrypto.html#class-hmacparams',
   'EcdsaParams': 'webcrypto.html#class-ecdsaparams',
   'RsaPssParams': 'webcrypto.html#class-rsapssparams',
-  'RsaSignParams': 'webcrypto.html#class-rsasignparams',
-  'NodeDhImportParams': 'webcrypto.html#class-nodedhimportparams',
+  'Ed448Params': 'webcrypto.html#class-ed448params',
   'NodeDhKeyGenParams': 'webcrypto.html#class-nodedhkeygenparams',
   'NodeDhDeriveBitsParams':
     'webcrypto.html#class-nodedhderivebitsparams',
   'NodeDsaImportParams': 'webcrypto.html#class-nodedsaimportparams',
   'NodeDsaKeyGenParams': 'webcrypto.html#class-nodedsakeygenparams',
-  'NodeDsaSignParams': 'webcrypto.html#class-nodedsasignparams',
-  'NodeScryptImportParams':
-    'webcrypto.html#class-nodescryptimportparams',
   'NodeScryptParams': 'webcrypto.html#class-nodescryptparams',
-  'NodeEdKeyImportParams':
-    'webcrypto.html#class-nodeedkeyimportparams',
-  'NodeEdKeyGenParams':
-    'webcrypto.html#class-nodeedkeygenparams',
 
   'dgram.Socket': 'dgram.html#class-dgramsocket',
 
