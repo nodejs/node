@@ -5,6 +5,7 @@
 #include "node_i18n.h"
 #include "util-inl.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <numeric>
@@ -58,7 +59,7 @@ class URLHost {
  public:
   ~URLHost();
 
-  void ParseIPv4Host(const char* input, size_t length, bool* is_ipv4);
+  void ParseIPv4Host(const char* input, size_t length);
   void ParseIPv6Host(const char* input, size_t length);
   void ParseOpaqueHost(const char* input, size_t length);
   void ParseHost(const char* input,
@@ -359,18 +360,21 @@ void URLHost::ParseIPv6Host(const char* input, size_t length) {
   type_ = HostType::H_IPV6;
 }
 
-int64_t ParseNumber(const char* start, const char* end) {
+// https://url.spec.whatwg.org/#ipv4-number-parser
+int64_t ParseIPv4Number(const char* start, const char* end) {
+  if (end - start == 0) return -1;
+
   unsigned R = 10;
   if (end - start >= 2 && start[0] == '0' && (start[1] | 0x20) == 'x') {
     start += 2;
     R = 16;
-  }
-  if (end - start == 0) {
-    return 0;
-  } else if (R == 10 && end - start > 1 && start[0] == '0') {
+  } else if (end - start >= 2 && start[0] == '0') {
     start++;
     R = 8;
   }
+
+  if (end - start == 0) return 0;
+
   const char* p = start;
 
   while (p < end) {
@@ -394,9 +398,33 @@ int64_t ParseNumber(const char* start, const char* end) {
   return strtoll(start, nullptr, R);
 }
 
-void URLHost::ParseIPv4Host(const char* input, size_t length, bool* is_ipv4) {
+// https://url.spec.whatwg.org/#ends-in-a-number-checker
+bool EndsInANumber(const std::string& input) {
+  std::vector<std::string> parts = SplitString(input, '.', false);
+
+  if (parts.empty()) return false;
+
+  if (parts.back().empty()) {
+    if (parts.size() == 1) return false;
+    parts.pop_back();
+  }
+
+  const std::string& last = parts.back();
+
+  // If last is non-empty and contains only ASCII digits, then return true
+  if (!last.empty() && std::all_of(last.begin(), last.end(), ::isdigit)) {
+    return true;
+  }
+
+  const char* last_str = last.c_str();
+  int64_t num = ParseIPv4Number(last_str, last_str + last.size());
+  if (num >= 0) return true;
+
+  return false;
+}
+
+void URLHost::ParseIPv4Host(const char* input, size_t length) {
   CHECK_EQ(type_, HostType::H_FAILED);
-  *is_ipv4 = false;
   const char* pointer = input;
   const char* mark = input;
   const char* end = pointer + length;
@@ -414,7 +442,7 @@ void URLHost::ParseIPv4Host(const char* input, size_t length, bool* is_ipv4) {
       if (++parts > static_cast<int>(arraysize(numbers))) return;
       if (pointer == mark)
         return;
-      int64_t n = ParseNumber(mark, pointer);
+      int64_t n = ParseIPv4Number(mark, pointer);
       if (n < 0)
         return;
 
@@ -429,7 +457,6 @@ void URLHost::ParseIPv4Host(const char* input, size_t length, bool* is_ipv4) {
     pointer++;
   }
   CHECK_GT(parts, 0);
-  *is_ipv4 = true;
 
   // If any but the last item in numbers is greater than 255, return failure.
   // If the last item in numbers is greater than or equal to
@@ -501,11 +528,10 @@ void URLHost::ParseHost(const char* input,
     }
   }
 
-  // Check to see if it's an IPv4 IP address
-  bool is_ipv4;
-  ParseIPv4Host(decoded.c_str(), decoded.length(), &is_ipv4);
-  if (is_ipv4)
-    return;
+  // If domain ends in a number, then return the result of IPv4 parsing domain
+  if (EndsInANumber(decoded)) {
+    return ParseIPv4Host(decoded.c_str(), decoded.length());
+  }
 
   // If the unicode flag is set, run the result through punycode ToUnicode
   if (unicode && !ToUnicode(decoded, &decoded))

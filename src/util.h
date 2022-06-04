@@ -645,7 +645,9 @@ struct FunctionDeleter {
 template <typename T, void (*function)(T*)>
 using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
-std::vector<std::string> SplitString(const std::string& in, char delim);
+std::vector<std::string> SplitString(const std::string& in,
+                                     char delim,
+                                     bool skipEmpty = true);
 
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            std::string_view str,
