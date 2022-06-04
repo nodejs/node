@@ -8,39 +8,37 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const { subtle } = require('crypto').webcrypto;
 
-const vectors = require('../fixtures/crypto/ecdsa')();
+const vectors = require('../fixtures/crypto/eddsa')();
 
 async function testVerify({ name,
-                            hash,
-                            namedCurve,
                             publicKeyBuffer,
                             privateKeyBuffer,
                             signature,
-                            plaintext }) {
+                            data }) {
   const [
     publicKey,
     noVerifyPublicKey,
     privateKey,
     hmacKey,
     rsaKeys,
-    okpKeys,
+    ecKeys,
   ] = await Promise.all([
     subtle.importKey(
       'spki',
       publicKeyBuffer,
-      { name, namedCurve },
+      { name },
       false,
       ['verify']),
     subtle.importKey(
       'spki',
       publicKeyBuffer,
-      { name, namedCurve },
+      { name },
       false,
       [ /* No usages */ ]),
     subtle.importKey(
       'pkcs8',
       privateKeyBuffer,
-      { name, namedCurve },
+      { name },
       false,
       ['sign']),
     subtle.generateKey(
@@ -58,46 +56,47 @@ async function testVerify({ name,
       ['sign']),
     subtle.generateKey(
       {
-        name: 'Ed25519',
+        name: 'ECDSA',
+        namedCurve: 'P-256'
       },
       false,
       ['sign']),
   ]);
 
-  assert(await subtle.verify({ name, hash }, publicKey, signature, plaintext));
+  assert(await subtle.verify({ name }, publicKey, signature, data));
 
   // Test verification with altered buffers
-  const copy = Buffer.from(plaintext);
+  const copy = Buffer.from(data);
   const sigcopy = Buffer.from(signature);
-  const p = subtle.verify({ name, hash }, publicKey, sigcopy, copy);
+  const p = subtle.verify({ name }, publicKey, sigcopy, copy);
   copy[0] = 255 - copy[0];
   sigcopy[0] = 255 - sigcopy[0];
   assert(await p);
 
   // Test failure when using wrong key
   await assert.rejects(
-    subtle.verify({ name, hash }, privateKey, signature, plaintext), {
+    subtle.verify({ name }, privateKey, signature, data), {
       message: /Unable to use this key to verify/
     });
 
   await assert.rejects(
-    subtle.verify({ name, hash }, noVerifyPublicKey, signature, plaintext), {
+    subtle.verify({ name }, noVerifyPublicKey, signature, data), {
       message: /Unable to use this key to verify/
     });
 
   // Test failure when using the wrong algorithms
   await assert.rejects(
-    subtle.verify({ name, hash }, hmacKey, signature, plaintext), {
+    subtle.verify({ name }, hmacKey, signature, data), {
       message: /Unable to use this key to verify/
     });
 
   await assert.rejects(
-    subtle.verify({ name, hash }, rsaKeys.publicKey, signature, plaintext), {
+    subtle.verify({ name }, rsaKeys.publicKey, signature, data), {
       message: /Unable to use this key to verify/
     });
 
   await assert.rejects(
-    subtle.verify({ name, hash }, okpKeys.publicKey, signature, plaintext), {
+    subtle.verify({ name }, ecKeys.publicKey, signature, data), {
       message: /Unable to use this key to verify/
     });
 
@@ -106,70 +105,54 @@ async function testVerify({ name,
     const copy = Buffer.from(signature);
     copy[0] = 255 - copy[0];
     assert(!(await subtle.verify(
-      { name, hash },
+      { name },
       publicKey,
       copy,
-      plaintext)));
+      data)));
     assert(!(await subtle.verify(
-      { name, hash },
+      { name },
       publicKey,
       copy.slice(1),
-      plaintext)));
+      data)));
   }
 
   // Test failure when data is altered
   {
-    const copy = Buffer.from(plaintext);
+    const copy = Buffer.from(data);
     copy[0] = 255 - copy[0];
-    assert(!(await subtle.verify({ name, hash }, publicKey, signature, copy)));
+    assert(!(await subtle.verify({ name }, publicKey, signature, copy)));
   }
-
-  // Test failure when wrong hash is used
-  {
-    const otherhash = hash === 'SHA-1' ? 'SHA-256' : 'SHA-1';
-    assert(!(await subtle.verify({
-      name,
-      hash: otherhash
-    }, publicKey, signature, copy)));
-  }
-
-  await assert.rejects(
-    subtle.verify({ name, hash: 'sha256' }, publicKey, signature, copy), {
-      message: /Unrecognized name/
-    });
 }
 
 async function testSign({ name,
-                          hash,
-                          namedCurve,
                           publicKeyBuffer,
                           privateKeyBuffer,
                           signature,
-                          plaintext }) {
+                          data }) {
   const [
     publicKey,
     noSignPrivateKey,
     privateKey,
     hmacKey,
     rsaKeys,
-    okpKeys,
+    ecKeys,
   ] = await Promise.all([
     subtle.importKey(
       'spki',
       publicKeyBuffer,
-      { name, namedCurve },
+      { name },
       false,
       ['verify']),
     subtle.importKey(
       'pkcs8',
       privateKeyBuffer,
-      { name, namedCurve },
+      { name },
       false,
       [ /* No usages */ ]),
     subtle.importKey(
       'pkcs8',
       privateKeyBuffer,
-      { name, namedCurve },
+      { name },
       false,
       ['sign']),
     subtle.generateKey(
@@ -187,51 +170,52 @@ async function testSign({ name,
       ['sign']),
     subtle.generateKey(
       {
-        name: 'Ed25519',
+        name: 'ECDSA',
+        namedCurve: 'P-256'
       },
       false,
       ['sign']),
   ]);
 
   {
-    const sig = await subtle.sign({ name, hash }, privateKey, plaintext);
+    const sig = await subtle.sign({ name }, privateKey, data);
     assert.strictEqual(sig.byteLength, signature.byteLength);
-    assert(await subtle.verify({ name, hash }, publicKey, sig, plaintext));
+    assert(await subtle.verify({ name }, publicKey, sig, data));
   }
 
   {
-    const copy = Buffer.from(plaintext);
-    const p = subtle.sign({ name, hash }, privateKey, copy);
+    const copy = Buffer.from(data);
+    const p = subtle.sign({ name }, privateKey, copy);
     copy[0] = 255 - copy[0];
     const sig = await p;
-    assert(await subtle.verify({ name, hash }, publicKey, sig, plaintext));
+    assert(await subtle.verify({ name }, publicKey, sig, data));
   }
 
   // Test failure when using wrong key
   await assert.rejects(
-    subtle.sign({ name, hash }, publicKey, plaintext), {
+    subtle.sign({ name }, publicKey, data), {
       message: /Unable to use this key to sign/
     });
 
   // Test failure when no sign usage
   await assert.rejects(
-    subtle.sign({ name, hash }, noSignPrivateKey, plaintext), {
+    subtle.sign({ name }, noSignPrivateKey, data), {
       message: /Unable to use this key to sign/
     });
 
   // Test failure when using the wrong algorithms
   await assert.rejects(
-    subtle.sign({ name, hash }, hmacKey, plaintext), {
+    subtle.sign({ name }, hmacKey, data), {
       message: /Unable to use this key to sign/
     });
 
   await assert.rejects(
-    subtle.sign({ name, hash }, rsaKeys.privateKey, plaintext), {
+    subtle.sign({ name }, rsaKeys.privateKey, data), {
       message: /Unable to use this key to sign/
     });
 
   await assert.rejects(
-    subtle.sign({ name, hash }, okpKeys.privateKey, plaintext), {
+    subtle.sign({ name }, ecKeys.privateKey, data), {
       message: /Unable to use this key to sign/
     });
 }
@@ -246,3 +230,34 @@ async function testSign({ name,
 
   await Promise.all(variations);
 })().then(common.mustCall());
+
+// Ed448 context
+{
+  const vector = vectors.find(({ name }) => name === 'Ed448');
+  Promise.all([
+    subtle.importKey(
+      'pkcs8',
+      vector.privateKeyBuffer,
+      { name: 'Ed448' },
+      false,
+      ['sign']),
+    subtle.importKey(
+      'spki',
+      vector.publicKeyBuffer,
+      { name: 'Ed448' },
+      false,
+      ['verify']),
+  ]).then(async ([privateKey, publicKey]) => {
+    const sig = await subtle.sign({ name: 'Ed448', context: Buffer.alloc(0) }, privateKey, vector.data);
+    assert.deepStrictEqual(Buffer.from(sig), vector.signature);
+    assert.strictEqual(
+      await subtle.verify({ name: 'Ed448', context: Buffer.alloc(0) }, publicKey, sig, vector.data), true);
+
+    await assert.rejects(subtle.sign({ name: 'Ed448', context: Buffer.alloc(1) }, privateKey, vector.data), {
+      message: /Non zero-length context is not yet supported/
+    });
+    await assert.rejects(subtle.verify({ name: 'Ed448', context: Buffer.alloc(1) }, publicKey, sig, vector.data), {
+      message: /Non zero-length context is not yet supported/
+    });
+  }).then(common.mustCall());
+}
