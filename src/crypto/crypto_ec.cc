@@ -45,13 +45,13 @@ int GetCurveFromName(const char* name) {
 
 int GetOKPCurveFromName(const char* name) {
   int nid;
-  if (strcmp(name, "NODE-ED25519") == 0) {
+  if (strcmp(name, "Ed25519") == 0) {
     nid = EVP_PKEY_ED25519;
-  } else if (strcmp(name, "NODE-ED448") == 0) {
+  } else if (strcmp(name, "Ed448") == 0) {
     nid = EVP_PKEY_ED448;
-  } else if (strcmp(name, "NODE-X25519") == 0) {
+  } else if (strcmp(name, "X25519") == 0) {
     nid = EVP_PKEY_X25519;
-  } else if (strcmp(name, "NODE-X448") == 0) {
+  } else if (strcmp(name, "X448") == 0) {
     nid = EVP_PKEY_X448;
   } else {
     nid = NID_undef;
