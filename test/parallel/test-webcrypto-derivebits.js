@@ -132,3 +132,29 @@ if (typeof internalBinding('crypto').ScryptJob === 'function') {
 
   tests.then(common.mustCall());
 }
+
+// Test X25519 and X448 bit derivation
+{
+  async function test(name) {
+    const [alice, bob] = await Promise.all([
+      subtle.generateKey({ name }, true, ['deriveBits']),
+      subtle.generateKey({ name }, true, ['deriveBits']),
+    ]);
+
+    const [secret1, secret2] = await Promise.all([
+      subtle.deriveBits({
+        name, public: alice.publicKey
+      }, bob.privateKey, 128),
+      subtle.deriveBits({
+        name, public: bob.publicKey
+      }, alice.privateKey, 128),
+    ]);
+
+    assert(secret1 instanceof ArrayBuffer);
+    assert(secret2 instanceof ArrayBuffer);
+    assert.deepStrictEqual(secret1, secret2);
+  }
+
+  test('X25519').then(common.mustCall());
+  test('X448').then(common.mustCall());
+}

@@ -14,7 +14,7 @@ const { internalBinding } = require('internal/test/binding');
 // This is only a partial test. The WebCrypto Web Platform Tests
 // will provide much greater coverage.
 
-// Test ECDH bit derivation
+// Test ECDH key derivation
 {
   async function test(namedCurve) {
     const [alice, bob] = await Promise.all([
@@ -48,7 +48,7 @@ const { internalBinding } = require('internal/test/binding');
   test('P-521').then(common.mustCall());
 }
 
-// Test HKDF bit derivation
+// Test HKDF key derivation
 {
   async function test(pass, info, salt, hash, expected) {
     const ec = new TextEncoder();
@@ -85,7 +85,7 @@ const { internalBinding } = require('internal/test/binding');
   tests.then(common.mustCall());
 }
 
-// Test PBKDF2 bit derivation
+// Test PBKDF2 key derivation
 {
   async function test(pass, salt, iterations, hash, expected) {
     const ec = new TextEncoder();
@@ -121,7 +121,7 @@ const { internalBinding } = require('internal/test/binding');
   tests.then(common.mustCall());
 }
 
-// Test Scrypt bit derivation
+// Test Scrypt key derivation
 if (typeof internalBinding('crypto').ScryptJob === 'function') {
   async function test(pass, salt, expected) {
     const ec = new TextEncoder();
@@ -183,4 +183,39 @@ if (typeof internalBinding('crypto').ScryptJob === 'function') {
       }
     }
   })().then(common.mustCall());
+}
+
+// Test X25519 and X448 key derivation
+{
+  async function test(name) {
+    const [alice, bob] = await Promise.all([
+      subtle.generateKey({ name }, true, ['deriveKey']),
+      subtle.generateKey({ name }, true, ['deriveKey']),
+    ]);
+
+    const [secret1, secret2] = await Promise.all([
+      subtle.deriveKey({
+        name, public: alice.publicKey
+      }, bob.privateKey, {
+        name: 'AES-CBC',
+        length: 256
+      }, true, ['encrypt']),
+      subtle.deriveKey({
+        name, public: bob.publicKey
+      }, alice.privateKey, {
+        name: 'AES-CBC',
+        length: 256
+      }, true, ['encrypt']),
+    ]);
+
+    const [raw1, raw2] = await Promise.all([
+      subtle.exportKey('raw', secret1),
+      subtle.exportKey('raw', secret2),
+    ]);
+
+    assert.deepStrictEqual(raw1, raw2);
+  }
+
+  test('X25519').then(common.mustCall());
+  test('X448').then(common.mustCall());
 }

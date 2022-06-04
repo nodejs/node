@@ -104,3 +104,43 @@ const { subtle } = require('crypto').webcrypto;
 
   test('hello world').then(common.mustCall());
 }
+
+// Test Sign/Verify Ed25519
+{
+  async function test(data) {
+    const ec = new TextEncoder();
+    const { publicKey, privateKey } = await subtle.generateKey({
+      name: 'Ed25519',
+    }, true, ['sign', 'verify']);
+
+    const signature = await subtle.sign({
+      name: 'Ed25519',
+    }, privateKey, ec.encode(data));
+
+    assert(await subtle.verify({
+      name: 'Ed25519',
+    }, publicKey, signature, ec.encode(data)));
+  }
+
+  test('hello world').then(common.mustCall());
+}
+
+// Test Sign/Verify Ed448
+{
+  async function test(data) {
+    const ec = new TextEncoder();
+    const { publicKey, privateKey } = await subtle.generateKey({
+      name: 'Ed448',
+    }, true, ['sign', 'verify']);
+
+    const signature = await subtle.sign({
+      name: 'Ed448',
+    }, privateKey, ec.encode(data));
+
+    assert(await subtle.verify({
+      name: 'Ed448',
+    }, publicKey, signature, ec.encode(data)));
+  }
+
+  test('hello world').then(common.mustCall());
+}
