@@ -508,7 +508,7 @@ IdlArray.prototype.is_json_type = function(type)
 {
     /**
      * Checks whether type is a JSON type as per
-     * https://heycam.github.io/webidl/#dfn-json-types
+     * https://webidl.spec.whatwg.org/#dfn-json-types
      */
 
     var idlType = type.idlType;
@@ -637,10 +637,16 @@ function exposure_set(object, default_set) {
     if (exposed && exposed.length) {
         const { rhs } = exposed[0];
         // Could be a list or a string.
-        const set = rhs.type === "identifier-list" ?
+        const set =
+            rhs.type === "*" ?
+            [ "*" ] :
+            rhs.type === "identifier-list" ?
             rhs.value.map(id => id.value) :
             [ rhs.value ];
         result = new Set(set);
+    }
+    if (result && result.has("*")) {
+        return "*";
     }
     if (result && result.has("Worker")) {
         result.delete("Worker");
@@ -652,6 +658,9 @@ function exposure_set(object, default_set) {
 }
 
 function exposed_in(globals) {
+    if (globals === "*") {
+        return true;
+    }
     if ('Window' in self) {
         return globals.has("Window");
     }
@@ -666,6 +675,10 @@ function exposed_in(globals) {
     if ('ServiceWorkerGlobalScope' in self &&
         self instanceof ServiceWorkerGlobalScope) {
         return globals.has("ServiceWorker");
+    }
+    if (Object.getPrototypeOf(self) === Object.prototype) {
+        // ShadowRealm - only exposed with `"*"`.
+        return false;
     }
     throw new IdlHarnessError("Unexpected global object");
 }
@@ -804,6 +817,13 @@ IdlArray.prototype.merge_partials = function()
                     test(function () {
                         const partialExposure = exposure_set(parsed_idl);
                         const memberExposure = exposure_set(this.members[parsed_idl.name]);
+                        if (memberExposure === "*") {
+                            return;
+                        }
+                        if (partialExposure === "*") {
+                            throw new IdlHarnessError(
+                                `Partial ${parsed_idl.name} ${parsed_idl.type} is exposed everywhere, the original ${parsed_idl.type} is not.`);
+                        }
                         partialExposure.forEach(name => {
                             if (!memberExposure || !memberExposure.has(name)) {
                                 throw new IdlHarnessError(
@@ -942,7 +962,7 @@ IdlArray.prototype.assert_type_is = function(value, type)
         return;
     }
 
-    if (type.generic === "sequence")
+    if (type.generic === "sequence" || type.generic == "ObservableArray")
     {
         assert_true(Array.isArray(value), "should be an Array");
         if (!value.length)
@@ -1255,7 +1275,7 @@ IdlInterface.prototype.is_global = function()
 /**
  * Value of the LegacyNamespace extended attribute, if any.
  *
- * https://heycam.github.io/webidl/#LegacyNamespace
+ * https://webidl.spec.whatwg.org/#LegacyNamespace
  */
 IdlInterface.prototype.get_legacy_namespace = function()
 {
@@ -1299,7 +1319,7 @@ IdlInterface.prototype.get_interface_object = function() {
 };
 
 IdlInterface.prototype.get_qualified_name = function() {
-    // https://heycam.github.io/webidl/#qualified-name
+    // https://webidl.spec.whatwg.org/#qualified-name
     var legacyNamespace = this.get_legacy_namespace();
     if (legacyNamespace) {
         return legacyNamespace + "." + this.name;
@@ -1320,7 +1340,7 @@ IdlInterface.prototype.has_default_to_json_regular_operation = function() {
 };
 
 /**
- * Implementation of https://heycam.github.io/webidl/#create-an-inheritance-stack
+ * Implementation of https://webidl.spec.whatwg.org/#create-an-inheritance-stack
  * with the order reversed.
  *
  * The order is reversed so that the base class comes first in the list, because
@@ -1358,7 +1378,7 @@ IdlInterface.prototype.get_reverse_inheritance_stack = function() {
 
 /**
  * Implementation of
- * https://heycam.github.io/webidl/#default-tojson-operation
+ * https://webidl.spec.whatwg.org/#default-tojson-operation
  * for testing purposes.
  *
  * Collects the IDL types of the attributes that meet the criteria
@@ -1524,7 +1544,7 @@ IdlInterface.prototype.test_self = function()
     if (this.should_have_interface_object() && !this.is_callback()) {
         subsetTestByKey(this.name, test, function() {
             // This function tests WebIDL as of 2014-10-25.
-            // https://heycam.github.io/webidl/#es-interface-call
+            // https://webidl.spec.whatwg.org/#es-interface-call
 
             this.assert_interface_object_exists();
 
@@ -1549,7 +1569,7 @@ IdlInterface.prototype.test_self = function()
     if (this.should_have_interface_object()) {
         subsetTestByKey(this.name, test, function() {
             // This function tests WebIDL as of 2015-11-17.
-            // https://heycam.github.io/webidl/#interface-object
+            // https://webidl.spec.whatwg.org/#interface-object
 
             this.assert_interface_object_exists();
 
@@ -1580,7 +1600,7 @@ IdlInterface.prototype.test_self = function()
             if (this.is_callback()) {
                 throw new IdlHarnessError("Invalid IDL: LegacyWindowAlias extended attribute on non-interface " + this.name);
             }
-            if (!this.exposureSet.has("Window")) {
+            if (!(this.exposureSet === "*" || this.exposureSet.has("Window"))) {
                 throw new IdlHarnessError("Invalid IDL: LegacyWindowAlias extended attribute on " + this.name + " which is not exposed in Window");
             }
             // TODO: when testing of [LegacyNoInterfaceObject] interfaces is supported,
@@ -1741,7 +1761,7 @@ IdlInterface.prototype.test_self = function()
     subsetTestByKey(this.name, test, function()
     {
         // This function tests WebIDL as of 2015-01-21.
-        // https://heycam.github.io/webidl/#interface-object
+        // https://webidl.spec.whatwg.org/#interface-object
 
         if (!this.should_have_interface_object()) {
             return;
@@ -1860,7 +1880,7 @@ IdlInterface.prototype.test_self = function()
     // interfaces for any other interface that is declared with one of these
     // attributes, then the interface prototype object must be an immutable
     // prototype exotic object."
-    // https://heycam.github.io/webidl/#interface-prototype-object
+    // https://webidl.spec.whatwg.org/#interface-prototype-object
     if (this.is_global()) {
         this.test_immutable_prototype("interface prototype object", this.get_interface_object().prototype);
     }
@@ -2237,7 +2257,7 @@ IdlInterface.prototype.test_member_operation = function(member)
     a_test.step(function()
     {
         // This function tests WebIDL as of 2015-12-29.
-        // https://heycam.github.io/webidl/#es-operations
+        // https://webidl.spec.whatwg.org/#es-operations
 
         if (!this.should_have_interface_object()) {
             a_test.done();
@@ -2666,7 +2686,7 @@ IdlInterface.prototype.test_primary_interface_of = function(desc, obj, exception
     // attribute must execute the same algorithm as is defined for the
     // [[SetPrototypeOf]] internal method of an immutable prototype exotic
     // object."
-    // https://heycam.github.io/webidl/#platform-object-setprototypeof
+    // https://webidl.spec.whatwg.org/#platform-object-setprototypeof
     if (this.is_global())
     {
         this.test_immutable_prototype("global platform object", obj);
@@ -3332,9 +3352,9 @@ IdlNamespace.prototype.test = function ()
  * idl_test is a promise_test wrapper that handles the fetching of the IDL,
  * avoiding repetitive boilerplate.
  *
- * @param {String|String[]} srcs Spec name(s) for source idl files (fetched from
+ * @param {String[]} srcs Spec name(s) for source idl files (fetched from
  *      /interfaces/{name}.idl).
- * @param {String|String[]} deps Spec name(s) for dependency idl files (fetched
+ * @param {String[]} deps Spec name(s) for dependency idl files (fetched
  *      from /interfaces/{name}.idl). Order is important - dependencies from
  *      each source will only be included if they're already know to be a
  *      dependency (i.e. have already been seen).

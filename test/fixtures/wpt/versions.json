@@ -52,7 +52,7 @@
     "path": "performance-timeline"
   },
   "resources": {
-    "commit": "fbee645164468c030072c46a934e2c876b143f8e",
+    "commit": "c5b428f15acfb17fe59b5a6f04a21c288a76ed36",
     "path": "resources"
   },
   "streams": {
@@ -60,7 +60,7 @@
     "path": "streams"
   },
   "url": {
-    "commit": "77d54aa9e0405f737987b59331f3584e3e1c26f9",
+    "commit": "0e5b126cd0a8da9186b738b8c9278d19b594c51f",
     "path": "url"
   },
   "user-timing": {

@@ -20,7 +20,7 @@ function checkAttribute(output, node, attribute)
 
 function assert_tolerance(actual, expected, message)
 {
-    if (isNaN(expected) || Math.abs(actual - expected) >= 1) {
+    if (isNaN(expected) || isNaN(actual) || Math.abs(actual - expected) >= 1) {
         assert_equals(actual, Number(expected), message);
     }
 }
