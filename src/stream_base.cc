@@ -452,6 +452,8 @@ void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
 
 void StreamBase::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
+  static bool is_registered = false;
+  if (is_registered) return;
   registry->Register(GetFD);
   registry->Register(GetExternal);
   registry->Register(GetBytesRead);
@@ -471,6 +473,7 @@ void StreamBase::RegisterExternalReferences(
   registry->Register(
       BaseObject::InternalFieldSet<StreamBase::kOnReadFunctionField,
                                    &Value::IsFunction>);
+  is_registered = true;
 }
 
 void StreamBase::GetFD(const FunctionCallbackInfo<Value>& args) {
