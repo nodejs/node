@@ -46,7 +46,7 @@ Node.js has many channels on the
 [OpenJS Foundation Slack](https://slack-invite.openjsf.org/). Interesting
 channels are:
 [#nodejs](https://openjs-foundation.slack.com/archives/CK9Q4MB53) for general
-help, questions and discussions.
+help, questions, and discussions.
 [#nodejs-dev](https://openjs-foundation.slack.com/archives/C019Y2T6STH) for
 development of Node.js core specifically.
 
@@ -190,7 +190,7 @@ A good commit message should describe what changed and why.
 
 5. If your commit introduces a breaking change (`semver-major`), it should
    contain an explanation about the reason of the breaking change, which
-   situation would trigger the breaking change and what is the exact change.
+   situation would trigger the breaking change, and what is the exact change.
 
 Sample complete commit message:
 
@@ -336,7 +336,7 @@ say so, or contact one of the other contributors in the project and seek their
 input. Often such comments are the result of the reviewer having only taken a
 short amount of time to review and are not ill-intended. Such issues can often
 be resolved with a bit of patience. That said, reviewers should be expected to
-be helpful in their feedback, and feedback that is simply vague, dismissive and
+be helpful in their feedback, and feedback that is simply vague, dismissive, and
 unhelpful is likely safe to ignore.
 
 ### Step 10: Landing
@@ -393,7 +393,7 @@ Focus first on the most significant aspects of the change:
 When changes are necessary, _request_ them, do not _demand_ them, and do not
 assume that the submitter already knows how to add a test or run a benchmark.
 
-Specific performance optimization techniques, coding styles and conventions
+Specific performance optimization techniques, coding styles, and conventions
 change over time. The first impression you give to a new contributor never does.
 
 Nits (requests for small changes that are not essential) are fine, but try to
