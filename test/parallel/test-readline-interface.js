@@ -1009,7 +1009,7 @@ for (let i = 0; i < 12; i++) {
   // Calling the question callback with abort signal
   {
     const [rli] = getInterface({ terminal });
-    const signal = new AbortController().signal;
+    const { signal } = new AbortController();
     rli.question('foo?', { signal }, common.mustCall((answer) => {
       assert.strictEqual(answer, 'bar');
     }));
@@ -1034,6 +1034,19 @@ for (let i = 0; i < 12; i++) {
     const [rli] = getInterface({ terminal });
     const question = util.promisify(rli.question).bind(rli);
     question('foo?')
+    .then(common.mustCall((answer) => {
+      assert.strictEqual(answer, 'bar');
+    }));
+    rli.write('bar\n');
+    rli.close();
+  }
+
+  // Calling the promisified question with abort signal
+  {
+    const [rli] = getInterface({ terminal });
+    const question = util.promisify(rli.question).bind(rli);
+    const { signal } = new AbortController();
+    question('foo?', { signal })
     .then(common.mustCall((answer) => {
       assert.strictEqual(answer, 'bar');
     }));
