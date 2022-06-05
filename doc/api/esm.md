@@ -178,7 +178,7 @@ import './foo.mjs?query=1'; // loads ./foo.mjs with query of "?query=1"
 import './foo.mjs?query=2'; // loads ./foo.mjs with query of "?query=2"
 ```
 
-The volume root may be referenced via `/`, `//` or `file:///`. Given the
+The volume root may be referenced via `/`, `//`, or `file:///`. Given the
 differences between [URL][] and path resolution (such as percent encoding
 details), it is recommended to use [url.pathToFileURL][] when importing a path.
 
@@ -470,7 +470,7 @@ semantics implemented.
 
 ### Differences between ES modules and CommonJS
 
-#### No `require`, `exports` or `module.exports`
+#### No `require`, `exports`, or `module.exports`
 
 In most cases, the ES module `import` can be used to load CommonJS modules.
 
@@ -1085,7 +1085,7 @@ import CoffeeScript from 'coffeescript';
 
 const baseURL = pathToFileURL(`${cwd()}/`).href;
 
-// CoffeeScript files end in .coffee, .litcoffee or .coffee.md.
+// CoffeeScript files end in .coffee, .litcoffee, or .coffee.md.
 const extensionsRegex = /\.coffee$|\.litcoffee$|\.coffee\.md$/;
 
 export async function resolve(specifier, context, nextResolve) {
@@ -1251,7 +1251,7 @@ The resolver can throw the following errors:
 > 2. If _specifier_ is a valid URL, then
 >    1. Set _resolved_ to the result of parsing and reserializing
 >       _specifier_ as a URL.
-> 3. Otherwise, if _specifier_ starts with _"/"_, _"./"_ or _"../"_, then
+> 3. Otherwise, if _specifier_ starts with _"/"_, _"./"_, or _"../"_, then
 >    1. Set _resolved_ to the URL resolution of _specifier_ relative to
 >       _parentURL_.
 > 4. Otherwise, if _specifier_ starts with _"#"_, then
@@ -1432,14 +1432,14 @@ _internal_, _conditions_)
 >          2. Return **PACKAGE\_RESOLVE**(_target_ + _subpath_,
 >             _packageURL_ + _"/"_).
 >       2. Otherwise, throw an _Invalid Package Target_ error.
->    3. If _target_ split on _"/"_ or _"\\"_ contains any _"."_, _".."_ or
+>    3. If _target_ split on _"/"_ or _"\\"_ contains any _"."_, _".."_, or
 >       _"node\_modules"_ segments after the first segment, case insensitive and
 >       including percent encoded variants, throw an _Invalid Package Target_
 >       error.
 >    4. Let _resolvedTarget_ be the URL resolution of the concatenation of
 >       _packageURL_ and _target_.
 >    5. Assert: _resolvedTarget_ is contained in _packageURL_.
->    6. If _subpath_ split on _"/"_ or _"\\"_ contains any _"."_, _".."_ or
+>    6. If _subpath_ split on _"/"_ or _"\\"_ contains any _"."_, _".."_, or
 >       _"node\_modules"_ segments, case insensitive and including percent
 >       encoded variants, throw an _Invalid Module Specifier_ error.
 >    7. If _pattern_ is **true**, then
