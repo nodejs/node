@@ -205,6 +205,38 @@ testMe.complete('str.len', common.mustCall(function(error, data) {
 
 putIn.run(['.clear']);
 
+// Tab completion should be case-insensitive if member part is lower-case
+putIn.run([
+  'var foo = { barBar: 1, BARbuz: 2, barBLA: 3 };',
+]);
+testMe.complete(
+  'foo.b',
+  common.mustCall(function(error, data) {
+    assert.deepStrictEqual(data, [
+      ['foo.BARbuz', 'foo.barBLA', 'foo.barBar'],
+      'foo.b',
+    ]);
+  })
+);
+
+putIn.run(['.clear']);
+
+// Tab completion should be case-insensitive if member part is upper-case
+putIn.run([
+  'var foo = { barBar: 1, BARbuz: 2, barBLA: 3 };',
+]);
+testMe.complete(
+  'foo.B',
+  common.mustCall(function(error, data) {
+    assert.deepStrictEqual(data, [
+      ['foo.BARbuz', 'foo.barBLA', 'foo.barBar'],
+      'foo.B',
+    ]);
+  })
+);
+
+putIn.run(['.clear']);
+
 // Tab completion should not break on spaces
 const spaceTimeout = setTimeout(function() {
   throw new Error('timeout');
@@ -588,12 +620,27 @@ const testNonGlobal = repl.start({
   useGlobal: false
 });
 
-const builtins = [['Infinity', 'Int16Array', 'Int32Array',
-                   'Int8Array'], 'I'];
+const builtins = [
+  [
+    'if',
+    'import',
+    'in',
+    'instanceof',
+    '',
+    'Infinity',
+    'Int16Array',
+    'Int32Array',
+    'Int8Array',
+    ...(common.hasIntl ? ['Intl'] : []),
+    'inspector',
+    'isFinite',
+    'isNaN',
+    '',
+    'isPrototypeOf',
+  ],
+  'I',
+];
 
-if (common.hasIntl) {
-  builtins[0].push('Intl');
-}
 testNonGlobal.complete('I', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, builtins);
 }));
