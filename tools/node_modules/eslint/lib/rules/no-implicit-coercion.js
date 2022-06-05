@@ -30,9 +30,9 @@ function parseOptions(options) {
 }
 
 /**
- * Checks whether or not a node is a double logical nigating.
+ * Checks whether or not a node is a double logical negating.
  * @param {ASTNode} node An UnaryExpression node to check.
- * @returns {boolean} Whether or not the node is a double logical nigating.
+ * @returns {boolean} Whether or not the node is a double logical negating.
  */
 function isDoubleLogicalNegating(node) {
     return (
