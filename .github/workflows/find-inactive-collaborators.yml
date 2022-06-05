@@ -30,7 +30,9 @@ jobs:
         run: tools/find-inactive-collaborators.mjs
 
       - name: Open pull request
-        uses: gr2m/create-or-update-pull-request-action@v1
+      - uses: gr2m/create-or-update-pull-request-action@466b1b84c3291c6c69bc56377a6de54a1f4a297c
+        # Creates a PR or update the Action's existing PR, or
+        # no-op if the base branch is already up-to-date.
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
         with:
