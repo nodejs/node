@@ -165,6 +165,25 @@ const commonArgs = [
   assert.strictEqual(status, 0);
 }
 
+{ // Verify error thrown for an async resolve hook
+  const { status, stderr, stdout } = spawnSync(
+    process.execPath,
+    [
+      '--loader',
+      fixtures.fileURL('es-module-loaders', 'loader-resolve-async-fn.mjs'),
+      ...commonArgs,
+    ],
+    { encoding: 'utf8' },
+  );
+
+  assert.match(stderr, /ERR_INVALID_RETURN_VALUE/);
+  assert.match(stderr, /Promise/);
+  assert.match(stderr, /loader-resolve-async-fn\.mjs/);
+  assert.match(stderr, /'resolve'/);
+  assert.strictEqual(stdout, '');
+  assert.strictEqual(status, 1);
+}
+
 { // Verify error thrown for incomplete resolve chain, citing errant loader & hook
   const { status, stderr, stdout } = spawnSync(
     process.execPath,
