@@ -852,7 +852,6 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject() || args[0]->IsNull());
 
   Local<Context> context;
-  Environment* eval_env = nullptr;
   std::shared_ptr<v8::MicrotaskQueue> microtask_queue;
 
   if (args[0]->IsObject()) {
@@ -861,14 +860,13 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
     ContextifyContext* contextify_context =
         ContextifyContext::ContextFromContextifiedSandbox(env, sandbox);
     CHECK_NOT_NULL(contextify_context);
+    CHECK_EQ(contextify_context->env(), env);
 
     context = contextify_context->context();
     if (context.IsEmpty()) return;
 
-    eval_env = contextify_context->env();
     microtask_queue = contextify_context->microtask_queue();
   } else {
-    eval_env = env;
     context = env->context();
   }
 
@@ -888,7 +886,7 @@ void ContextifyScript::RunInContext(const FunctionCallbackInfo<Value>& args) {
 
   // Do the eval within the context
   Context::Scope context_scope(context);
-  EvalMachine(eval_env,
+  EvalMachine(env,
               timeout,
               display_errors,
               break_on_sigint,
