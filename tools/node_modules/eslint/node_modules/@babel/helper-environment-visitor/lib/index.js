@@ -4,35 +4,56 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
+exports.requeueComputedKeyAndDecorators = requeueComputedKeyAndDecorators;
 exports.skipAllButComputedKey = skipAllButComputedKey;
 
-var _t = require("@babel/types");
-
-const {
-  VISITOR_KEYS,
-  staticBlock
-} = _t;
-
 function skipAllButComputedKey(path) {
-  if (!path.node.computed) {
-    path.skip();
-    return;
-  }
+  path.skip();
 
-  const keys = VISITOR_KEYS[path.type];
-
-  for (const key of keys) {
-    if (key !== "key") path.skipKey(key);
+  if (path.node.computed) {
+    path.context.maybeQueue(path.get("key"));
   }
 }
 
-const skipKey = (staticBlock ? "StaticBlock|" : "") + "ClassPrivateProperty|TypeAnnotation|FunctionDeclaration|FunctionExpression";
-var _default = {
-  [skipKey]: path => path.skip(),
+function requeueComputedKeyAndDecorators(path) {
+  const {
+    context,
+    node
+  } = path;
 
-  "Method|ClassProperty"(path) {
-    skipAllButComputedKey(path);
+  if (node.computed) {
+    context.maybeQueue(path.get("key"));
+  }
+
+  if (node.decorators) {
+    for (const decorator of path.get("decorators")) {
+      context.maybeQueue(decorator);
+    }
+  }
+}
+
+const visitor = {
+  FunctionParent(path) {
+    if (path.isArrowFunctionExpression()) {
+      return;
+    } else {
+      path.skip();
+
+      if (path.isMethod()) {
+        requeueComputedKeyAndDecorators(path);
+      }
+    }
+  },
+
+  Property(path) {
+    if (path.isObjectProperty()) {
+      return;
+    }
+
+    path.skip();
+    requeueComputedKeyAndDecorators(path);
   }
 
 };
+var _default = visitor;
 exports.default = _default;

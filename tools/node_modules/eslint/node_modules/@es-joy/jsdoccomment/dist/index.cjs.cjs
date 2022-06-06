@@ -353,6 +353,7 @@ const hasSeeWithLink = spec => {
 };
 const defaultNoTypes = ['default', 'defaultvalue', 'see'];
 const defaultNoNames = ['access', 'author', 'default', 'defaultvalue', 'description', 'example', 'exception', 'kind', 'license', 'return', 'returns', 'since', 'summary', 'throws', 'version', 'variation'];
+const optionalBrackets = /^\[(?<name>[^=]*)=[^\]]*\]/u;
 const preserveTypeTokenizer = typeTokenizer('preserve');
 const preserveDescriptionTokenizer = descriptionTokenizer('preserve');
 const plainNameTokenizer = nameTokenizer();
@@ -376,7 +377,7 @@ const getTokenizers = ({
       // const preWS = spec.postTag;
       const remainder = spec.source[0].tokens.description;
       const pos = remainder.search(/(?<![\s,])\s/u);
-      const name = pos === -1 ? remainder : remainder.slice(0, pos);
+      let name = pos === -1 ? remainder : remainder.slice(0, pos);
       const extra = remainder.slice(pos);
       let postName = '',
           description = '',
@@ -386,8 +387,16 @@ const getTokenizers = ({
         [, postName, description, lineEnd] = extra.match(/(\s*)([^\r]*)(\r)?/u);
       }
 
+      if (optionalBrackets.test(name)) {
+        var _name$match, _name$match$groups;
+
+        name = (_name$match = name.match(optionalBrackets)) === null || _name$match === void 0 ? void 0 : (_name$match$groups = _name$match.groups) === null || _name$match$groups === void 0 ? void 0 : _name$match$groups.name;
+        spec.optional = true;
+      } else {
+        spec.optional = false;
+      }
+
       spec.name = name;
-      spec.optional = false;
       const {
         tokens
       } = spec.source[0];

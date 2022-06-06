@@ -125,7 +125,7 @@ function isSafe(loopNode, reference) {
      * The reference is every reference of the upper scope's variable we are
      * looking now.
      *
-     * It's safeafe if the reference matches one of the following condition.
+     * It's safe if the reference matches one of the following condition.
      * - is readonly.
      * - doesn't exist inside a local function and after the border.
      * @param {eslint-scope.Reference} upperRef A reference to check.

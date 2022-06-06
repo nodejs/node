@@ -183,7 +183,7 @@ module.exports = {
         /**
          * Gets the left paren and right paren tokens of a node.
          * @param {ASTNode} node The node with parens
-         * @throws {TypeError} Unexecpted node type.
+         * @throws {TypeError} Unexpected node type.
          * @returns {Object} An object with keys `leftParen` for the left paren token, and `rightParen` for the right paren token.
          * Can also return `null` if an expression has no parens (e.g. a NewExpression with no arguments, or an ArrowFunctionExpression
          * with a single parameter)

@@ -23,7 +23,7 @@ module.exports = {
         schema: [],
 
         messages: {
-            noOcatal: "Octal literals should not be used."
+            noOctal: "Octal literals should not be used."
         }
     },
 
@@ -35,7 +35,7 @@ module.exports = {
                 if (typeof node.value === "number" && /^0[0-9]/u.test(node.raw)) {
                     context.report({
                         node,
-                        messageId: "noOcatal"
+                        messageId: "noOctal"
                     });
                 }
             }

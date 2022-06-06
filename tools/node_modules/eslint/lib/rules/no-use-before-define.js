@@ -21,6 +21,7 @@ function parseOptions(options) {
     let functions = true;
     let classes = true;
     let variables = true;
+    let allowNamedExports = false;
 
     if (typeof options === "string") {
         functions = (options !== "nofunc");
@@ -28,9 +29,10 @@ function parseOptions(options) {
         functions = options.functions !== false;
         classes = options.classes !== false;
         variables = options.variables !== false;
+        allowNamedExports = !!options.allowNamedExports;
     }
 
-    return { functions, classes, variables };
+    return { functions, classes, variables, allowNamedExports };
 }
 
 /**
@@ -240,7 +242,8 @@ module.exports = {
                         properties: {
                             functions: { type: "boolean" },
                             classes: { type: "boolean" },
-                            variables: { type: "boolean" }
+                            variables: { type: "boolean" },
+                            allowNamedExports: { type: "boolean" }
                         },
                         additionalProperties: false
                     }
@@ -270,6 +273,16 @@ module.exports = {
          */
         function shouldCheck(reference) {
             if (reference.init) {
+                return false;
+            }
+
+            const { identifier } = reference;
+
+            if (
+                options.allowNamedExports &&
+                identifier.parent.type === "ExportSpecifier" &&
+                identifier.parent.local === identifier
+            ) {
                 return false;
             }
 

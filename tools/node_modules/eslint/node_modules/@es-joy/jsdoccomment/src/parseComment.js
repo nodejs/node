@@ -29,6 +29,7 @@ export const defaultNoNames = [
   'version', 'variation'
 ];
 
+const optionalBrackets = /^\[(?<name>[^=]*)=[^\]]*\]/u;
 const preserveTypeTokenizer = typeTokenizer('preserve');
 const preserveDescriptionTokenizer = descriptionTokenizer('preserve');
 const plainNameTokenizer = nameTokenizer();
@@ -59,15 +60,21 @@ const getTokenizers = ({
 
         const pos = remainder.search(/(?<![\s,])\s/u);
 
-        const name = pos === -1 ? remainder : remainder.slice(0, pos);
+        let name = pos === -1 ? remainder : remainder.slice(0, pos);
         const extra = remainder.slice(pos);
         let postName = '', description = '', lineEnd = '';
         if (pos > -1) {
           [, postName, description, lineEnd] = extra.match(/(\s*)([^\r]*)(\r)?/u);
         }
 
+        if (optionalBrackets.test(name)) {
+          name = name.match(optionalBrackets)?.groups?.name;
+          spec.optional = true;
+        } else {
+          spec.optional = false;
+        }
+
         spec.name = name;
-        spec.optional = false;
         const {tokens} = spec.source[0];
         tokens.name = name;
         tokens.postName = postName;
