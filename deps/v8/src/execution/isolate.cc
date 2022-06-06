@@ -151,26 +151,6 @@ uint32_t DefaultEmbeddedBlobDataSize() {
   return v8_Default_embedded_blob_data_size_;
 }
 
-#ifdef V8_MULTI_SNAPSHOTS
-extern "C" const uint8_t* v8_Trusted_embedded_blob_code_;
-extern "C" uint32_t v8_Trusted_embedded_blob_code_size_;
-extern "C" const uint8_t* v8_Trusted_embedded_blob_data_;
-extern "C" uint32_t v8_Trusted_embedded_blob_data_size_;
-
-const uint8_t* TrustedEmbeddedBlobCode() {
-  return v8_Trusted_embedded_blob_code_;
-}
-uint32_t TrustedEmbeddedBlobCodeSize() {
-  return v8_Trusted_embedded_blob_code_size_;
-}
-const uint8_t* TrustedEmbeddedBlobData() {
-  return v8_Trusted_embedded_blob_data_;
-}
-uint32_t TrustedEmbeddedBlobDataSize() {
-  return v8_Trusted_embedded_blob_data_size_;
-}
-#endif
-
 namespace {
 // These variables provide access to the current embedded blob without requiring
 // an isolate instance. This is needed e.g. by Code::InstructionStart, which may
@@ -282,9 +262,6 @@ bool Isolate::CurrentEmbeddedBlobIsBinaryEmbedded() {
   const uint8_t* code =
       current_embedded_blob_code_.load(std::memory_order::memory_order_relaxed);
   if (code == nullptr) return false;
-#ifdef V8_MULTI_SNAPSHOTS
-  if (code == TrustedEmbeddedBlobCode()) return true;
-#endif
   return code == DefaultEmbeddedBlobCode();
 }
 
@@ -3406,15 +3383,6 @@ void Isolate::InitializeDefaultEmbeddedBlob() {
   uint32_t code_size = DefaultEmbeddedBlobCodeSize();
   const uint8_t* data = DefaultEmbeddedBlobData();
   uint32_t data_size = DefaultEmbeddedBlobDataSize();
-
-#ifdef V8_MULTI_SNAPSHOTS
-  if (!FLAG_untrusted_code_mitigations) {
-    code = TrustedEmbeddedBlobCode();
-    code_size = TrustedEmbeddedBlobCodeSize();
-    data = TrustedEmbeddedBlobData();
-    data_size = TrustedEmbeddedBlobDataSize();
-  }
-#endif
 
   if (StickyEmbeddedBlobCode() != nullptr) {
     base::MutexGuard guard(current_embedded_blob_refcount_mutex_.Pointer());

@@ -649,7 +649,6 @@
   'test-run-load-store/*': [SKIP],
   'test-run-machops/*': [SKIP],
   'test-run-native-calls/*': [SKIP],
-  'test-run-retpoline/*': [SKIP],
   'test-run-stackcheck/*': [SKIP],
   'test-run-tail-calls/*': [SKIP],
   'test-run-unwinding-info/*': [SKIP],

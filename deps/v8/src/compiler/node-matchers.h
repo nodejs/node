@@ -743,7 +743,6 @@ struct BaseWithIndexAndDisplacementMatcher {
       switch (from->opcode()) {
         case IrOpcode::kLoad:
         case IrOpcode::kLoadImmutable:
-        case IrOpcode::kPoisonedLoad:
         case IrOpcode::kProtectedLoad:
         case IrOpcode::kInt32Add:
         case IrOpcode::kInt64Add:

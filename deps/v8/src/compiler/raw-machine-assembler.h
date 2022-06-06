@@ -52,9 +52,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
           MachineOperatorBuilder::Flag::kNoFlags,
       MachineOperatorBuilder::AlignmentRequirements alignment_requirements =
           MachineOperatorBuilder::AlignmentRequirements::
-              FullUnalignedAccessSupport(),
-      PoisoningMitigationLevel poisoning_level =
-          PoisoningMitigationLevel::kPoisonCriticalOnly);
+              FullUnalignedAccessSupport());
   ~RawMachineAssembler() = default;
 
   RawMachineAssembler(const RawMachineAssembler&) = delete;
@@ -67,7 +65,6 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   CommonOperatorBuilder* common() { return &common_; }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
   CallDescriptor* call_descriptor() const { return call_descriptor_; }
-  PoisoningMitigationLevel poisoning_level() const { return poisoning_level_; }
 
   // Only used for tests: Finalizes the schedule and exports it to be used for
   // code generation. Note that this RawMachineAssembler becomes invalid after
@@ -132,19 +129,11 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
 
   // Memory Operations.
-  Node* Load(MachineType type, Node* base,
-             LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
-    return Load(type, base, IntPtrConstant(0), needs_poisoning);
+  Node* Load(MachineType type, Node* base) {
+    return Load(type, base, IntPtrConstant(0));
   }
-  Node* Load(MachineType type, Node* base, Node* index,
-             LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
+  Node* Load(MachineType type, Node* base, Node* index) {
     const Operator* op = machine()->Load(type);
-    CHECK_NE(PoisoningMitigationLevel::kPoisonAll, poisoning_level_);
-    if (needs_poisoning == LoadSensitivity::kCritical &&
-        poisoning_level_ == PoisoningMitigationLevel::kPoisonCriticalOnly) {
-      op = machine()->PoisonedLoad(type);
-    }
-
     Node* load = AddNode(op, base, index);
     return load;
   }
@@ -174,10 +163,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   bool IsMapOffsetConstantMinusTag(int offset) {
     return offset == HeapObject::kMapOffset - kHeapObjectTag;
   }
-  Node* LoadFromObject(
-      MachineType type, Node* base, Node* offset,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
-    CHECK_EQ(needs_poisoning, LoadSensitivity::kSafe);
+  Node* LoadFromObject(MachineType type, Node* base, Node* offset) {
     DCHECK_IMPLIES(V8_MAP_PACKING_BOOL && IsMapOffsetConstantMinusTag(offset),
                    type == MachineType::MapInHeader());
     ObjectAccess access = {type, WriteBarrierKind::kNoWriteBarrier};
@@ -959,20 +945,6 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return HeapConstant(isolate()->factory()->InternalizeUtf8String(string));
   }
 
-  Node* TaggedPoisonOnSpeculation(Node* value) {
-    if (poisoning_level_ != PoisoningMitigationLevel::kDontPoison) {
-      return AddNode(machine()->TaggedPoisonOnSpeculation(), value);
-    }
-    return value;
-  }
-
-  Node* WordPoisonOnSpeculation(Node* value) {
-    if (poisoning_level_ != PoisoningMitigationLevel::kDontPoison) {
-      return AddNode(machine()->WordPoisonOnSpeculation(), value);
-    }
-    return value;
-  }
-
   // Call a given call descriptor and the given arguments.
   // The call target is passed as part of the {inputs} array.
   Node* CallN(CallDescriptor* call_descriptor, int input_count,
@@ -1136,6 +1108,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
                                   CommonOperatorBuilder* common);
 
   Isolate* isolate_;
+
   Graph* graph_;
   Schedule* schedule_;
   SourcePositionTable* source_positions_;
@@ -1146,7 +1119,6 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* target_parameter_;
   NodeVector parameters_;
   BasicBlock* current_block_;
-  PoisoningMitigationLevel poisoning_level_;
 };
 
 class V8_EXPORT_PRIVATE RawMachineLabel final {

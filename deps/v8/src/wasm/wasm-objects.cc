@@ -1242,21 +1242,13 @@ bool WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
 void WasmInstanceObject::SetRawMemory(byte* mem_start, size_t mem_size) {
   CHECK_LE(mem_size, wasm::max_mem_bytes());
 #if V8_HOST_ARCH_64_BIT
-  uint64_t mem_mask64 = base::bits::RoundUpToPowerOfTwo64(mem_size) - 1;
   set_memory_start(mem_start);
   set_memory_size(mem_size);
-  set_memory_mask(mem_mask64);
 #else
   // Must handle memory > 2GiB specially.
   CHECK_LE(mem_size, size_t{kMaxUInt32});
-  uint32_t mem_mask32 =
-      (mem_size > 2 * size_t{GB})
-          ? 0xFFFFFFFFu
-          : base::bits::RoundUpToPowerOfTwo32(static_cast<uint32_t>(mem_size)) -
-                1;
   set_memory_start(mem_start);
   set_memory_size(mem_size);
-  set_memory_mask(mem_mask32);
 #endif
 }
 

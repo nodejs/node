@@ -460,47 +460,6 @@ void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
-                                   InstructionCode opcode, Instruction* instr,
-                                   Arm64OperandConverter const& i) {
-  const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
-  if (access_mode == kMemoryAccessPoisoned) {
-    Register value = i.OutputRegister();
-    Register poison = value.Is64Bits() ? kSpeculationPoisonRegister
-                                       : kSpeculationPoisonRegister.W();
-    codegen->tasm()->And(value, value, Operand(poison));
-  }
-}
-
-void EmitMaybePoisonedFPLoad(CodeGenerator* codegen, InstructionCode opcode,
-                             Arm64OperandConverter* i, VRegister output_reg) {
-  const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
-  AddressingMode address_mode = AddressingModeField::decode(opcode);
-  if (access_mode == kMemoryAccessPoisoned && address_mode != kMode_Root) {
-    UseScratchRegisterScope temps(codegen->tasm());
-    Register address = temps.AcquireX();
-    switch (address_mode) {
-      case kMode_MRI:  // Fall through.
-      case kMode_MRR:
-        codegen->tasm()->Add(address, i->InputRegister(0), i->InputOperand(1));
-        break;
-      case kMode_Operand2_R_LSL_I:
-        codegen->tasm()->Add(address, i->InputRegister(0),
-                             i->InputOperand2_64(1));
-        break;
-      default:
-        // Note: we don't need poisoning for kMode_Root loads as those loads
-        // target a fixed offset from root register which is set once when
-        // initializing the vm.
-        UNREACHABLE();
-    }
-    codegen->tasm()->And(address, address, Operand(kSpeculationPoisonRegister));
-    codegen->tasm()->Ldr(output_reg, MemOperand(address));
-  } else {
-    codegen->tasm()->Ldr(output_reg, i->MemoryOperand());
-  }
-}
-
 // Handles unary ops that work for float (scalar), double (scalar), or NEON.
 template <typename Fn>
 void EmitFpOrNeonUnop(TurboAssembler* tasm, Fn fn, Instruction* instr,
@@ -712,29 +671,6 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET);
   __ Bind(&not_deoptimized);
-}
-
-void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
-  UseScratchRegisterScope temps(tasm());
-  Register scratch = temps.AcquireX();
-
-  // Set a mask which has all bits set in the normal case, but has all
-  // bits cleared if we are speculatively executing the wrong PC.
-  __ ComputeCodeStartAddress(scratch);
-  __ Cmp(kJavaScriptCallCodeStartRegister, scratch);
-  __ Csetm(kSpeculationPoisonRegister, eq);
-  __ Csdb();
-}
-
-void CodeGenerator::AssembleRegisterArgumentPoisoning() {
-  UseScratchRegisterScope temps(tasm());
-  Register scratch = temps.AcquireX();
-
-  __ Mov(scratch, sp);
-  __ And(kJSFunctionRegister, kJSFunctionRegister, kSpeculationPoisonRegister);
-  __ And(kContextRegister, kContextRegister, kSpeculationPoisonRegister);
-  __ And(scratch, scratch, kSpeculationPoisonRegister);
-  __ Mov(sp, scratch);
 }
 
 // Assembles an instruction after register allocation, producing machine code.
@@ -1814,12 +1750,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Ldrb:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldrb(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64Ldrsb:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldrsb(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64LdrsbW:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
@@ -1832,12 +1766,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Ldrh:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldrh(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64Ldrsh:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldrsh(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64LdrshW:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
@@ -1850,12 +1782,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Ldrsw:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldrsw(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64LdrW:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldr(i.OutputRegister32(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64StrW:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
@@ -1864,19 +1794,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Ldr:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ Ldr(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64LdrDecompressTaggedSigned:
       __ DecompressTaggedSigned(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64LdrDecompressTaggedPointer:
       __ DecompressTaggedPointer(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64LdrDecompressAnyTagged:
       __ DecompressAnyTagged(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64Str:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
@@ -1887,7 +1813,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArm64LdrS:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      EmitMaybePoisonedFPLoad(this, opcode, &i, i.OutputDoubleRegister().S());
+      __ Ldr(i.OutputDoubleRegister().S(), i.MemoryOperand());
       break;
     case kArm64StrS:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
@@ -1895,7 +1821,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArm64LdrD:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      EmitMaybePoisonedFPLoad(this, opcode, &i, i.OutputDoubleRegister());
+      __ Ldr(i.OutputDoubleRegister(), i.MemoryOperand());
       break;
     case kArm64StrD:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
@@ -1915,10 +1841,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64DsbIsb:
       __ Dsb(FullSystem, BarrierAll);
       __ Isb();
-      break;
-    case kArchWordPoisonOnSpeculation:
-      __ And(i.OutputRegister(0), i.InputRegister(0),
-             Operand(kSpeculationPoisonRegister));
       break;
     case kWord32AtomicLoadInt8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldarb, Register32);
@@ -2907,7 +2829,6 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   ArchOpcode opcode = instr->arch_opcode();
 
   if (opcode == kArm64CompareAndBranch32) {
-    DCHECK(FlagsModeField::decode(instr->opcode()) != kFlags_branch_and_poison);
     switch (condition) {
       case kEqual:
         __ Cbz(i.InputRegister32(0), tlabel);
@@ -2919,7 +2840,6 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
         UNREACHABLE();
     }
   } else if (opcode == kArm64CompareAndBranch) {
-    DCHECK(FlagsModeField::decode(instr->opcode()) != kFlags_branch_and_poison);
     switch (condition) {
       case kEqual:
         __ Cbz(i.InputRegister64(0), tlabel);
@@ -2931,7 +2851,6 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
         UNREACHABLE();
     }
   } else if (opcode == kArm64TestAndBranch32) {
-    DCHECK(FlagsModeField::decode(instr->opcode()) != kFlags_branch_and_poison);
     switch (condition) {
       case kEqual:
         __ Tbz(i.InputRegister32(0), i.InputInt5(1), tlabel);
@@ -2943,7 +2862,6 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
         UNREACHABLE();
     }
   } else if (opcode == kArm64TestAndBranch) {
-    DCHECK(FlagsModeField::decode(instr->opcode()) != kFlags_branch_and_poison);
     switch (condition) {
       case kEqual:
         __ Tbz(i.InputRegister64(0), i.InputInt6(1), tlabel);
@@ -2959,19 +2877,6 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
     __ B(cc, tlabel);
   }
   if (!branch->fallthru) __ B(flabel);  // no fallthru to flabel.
-}
-
-void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
-                                            Instruction* instr) {
-  // TODO(jarin) Handle float comparisons (kUnordered[Not]Equal).
-  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual) {
-    return;
-  }
-
-  condition = NegateFlagsCondition(condition);
-  __ CmovX(kSpeculationPoisonRegister, xzr,
-           FlagsConditionToCondition(condition));
-  __ Csdb();
 }
 
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
@@ -3143,7 +3048,6 @@ void CodeGenerator::AssembleConstructFrame() {
       // arguments count was pushed.
       required_slots -=
           unoptimized_frame_slots - TurboAssembler::kExtraSlotClaimedByPrologue;
-      ResetSpeculationPoison();
     }
 
 #if V8_ENABLE_WEBASSEMBLY

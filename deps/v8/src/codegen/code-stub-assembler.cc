@@ -2193,9 +2193,10 @@ TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(
 }
 
 template <typename Array, typename TIndex, typename TValue>
-TNode<TValue> CodeStubAssembler::LoadArrayElement(
-    TNode<Array> array, int array_header_size, TNode<TIndex> index_node,
-    int additional_offset, LoadSensitivity needs_poisoning) {
+TNode<TValue> CodeStubAssembler::LoadArrayElement(TNode<Array> array,
+                                                  int array_header_size,
+                                                  TNode<TIndex> index_node,
+                                                  int additional_offset) {
   // TODO(v8:9708): Do we want to keep both IntPtrT and UintPtrT variants?
   static_assert(std::is_same<TIndex, Smi>::value ||
                     std::is_same<TIndex, UintPtrT>::value ||
@@ -2210,23 +2211,17 @@ TNode<TValue> CodeStubAssembler::LoadArrayElement(
   CSA_ASSERT(this, IsOffsetInBounds(offset, LoadArrayLength(array),
                                     array_header_size));
   constexpr MachineType machine_type = MachineTypeOf<TValue>::value;
-  // TODO(gsps): Remove the Load case once LoadFromObject supports poisoning
-  if (needs_poisoning == LoadSensitivity::kSafe) {
-    return UncheckedCast<TValue>(LoadFromObject(machine_type, array, offset));
-  } else {
-    return UncheckedCast<TValue>(
-        Load(machine_type, array, offset, needs_poisoning));
-  }
+  return UncheckedCast<TValue>(LoadFromObject(machine_type, array, offset));
 }
 
 template V8_EXPORT_PRIVATE TNode<MaybeObject>
 CodeStubAssembler::LoadArrayElement<TransitionArray, IntPtrT>(
-    TNode<TransitionArray>, int, TNode<IntPtrT>, int, LoadSensitivity);
+    TNode<TransitionArray>, int, TNode<IntPtrT>, int);
 
 template <typename TIndex>
 TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
     TNode<FixedArray> object, TNode<TIndex> index, int additional_offset,
-    LoadSensitivity needs_poisoning, CheckBounds check_bounds) {
+    CheckBounds check_bounds) {
   // TODO(v8:9708): Do we want to keep both IntPtrT and UintPtrT variants?
   static_assert(std::is_same<TIndex, Smi>::value ||
                     std::is_same<TIndex, UintPtrT>::value ||
@@ -2238,25 +2233,22 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
   if (NeedsBoundsCheck(check_bounds)) {
     FixedArrayBoundsCheck(object, index, additional_offset);
   }
-  TNode<MaybeObject> element =
-      LoadArrayElement(object, FixedArray::kHeaderSize, index,
-                       additional_offset, needs_poisoning);
+  TNode<MaybeObject> element = LoadArrayElement(object, FixedArray::kHeaderSize,
+                                                index, additional_offset);
   return CAST(element);
 }
 
 template V8_EXPORT_PRIVATE TNode<Object>
 CodeStubAssembler::LoadFixedArrayElement<Smi>(TNode<FixedArray>, TNode<Smi>,
-                                              int, LoadSensitivity,
-                                              CheckBounds);
+                                              int, CheckBounds);
 template V8_EXPORT_PRIVATE TNode<Object>
 CodeStubAssembler::LoadFixedArrayElement<UintPtrT>(TNode<FixedArray>,
                                                    TNode<UintPtrT>, int,
-                                                   LoadSensitivity,
                                                    CheckBounds);
 template V8_EXPORT_PRIVATE TNode<Object>
 CodeStubAssembler::LoadFixedArrayElement<IntPtrT>(TNode<FixedArray>,
                                                   TNode<IntPtrT>, int,
-                                                  LoadSensitivity, CheckBounds);
+                                                  CheckBounds);
 
 void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
                                               TNode<Smi> index,
@@ -2291,9 +2283,8 @@ void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
 TNode<Object> CodeStubAssembler::LoadPropertyArrayElement(
     TNode<PropertyArray> object, TNode<IntPtrT> index) {
   int additional_offset = 0;
-  LoadSensitivity needs_poisoning = LoadSensitivity::kSafe;
   return CAST(LoadArrayElement(object, PropertyArray::kHeaderSize, index,
-                               additional_offset, needs_poisoning));
+                               additional_offset));
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadPropertyArrayLength(
@@ -2648,7 +2639,7 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
 TNode<MaybeObject> CodeStubAssembler::LoadWeakFixedArrayElement(
     TNode<WeakFixedArray> object, TNode<IntPtrT> index, int additional_offset) {
   return LoadArrayElement(object, WeakFixedArray::kHeaderSize, index,
-                          additional_offset, LoadSensitivity::kSafe);
+                          additional_offset);
 }
 
 TNode<Float64T> CodeStubAssembler::LoadFixedDoubleArrayElement(

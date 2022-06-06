@@ -1448,40 +1448,35 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Array is any array-like type that has a fixed header followed by
   // tagged elements.
   template <typename Array, typename TIndex, typename TValue = MaybeObject>
-  TNode<TValue> LoadArrayElement(
-      TNode<Array> array, int array_header_size, TNode<TIndex> index,
-      int additional_offset = 0,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
+  TNode<TValue> LoadArrayElement(TNode<Array> array, int array_header_size,
+                                 TNode<TIndex> index,
+                                 int additional_offset = 0);
 
   template <typename TIndex>
   TNode<Object> LoadFixedArrayElement(
       TNode<FixedArray> object, TNode<TIndex> index, int additional_offset = 0,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe,
       CheckBounds check_bounds = CheckBounds::kAlways);
 
   // This doesn't emit a bounds-check. As part of the security-performance
   // tradeoff, only use it if it is performance critical.
-  TNode<Object> UnsafeLoadFixedArrayElement(
-      TNode<FixedArray> object, TNode<IntPtrT> index, int additional_offset = 0,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
+  TNode<Object> UnsafeLoadFixedArrayElement(TNode<FixedArray> object,
+                                            TNode<IntPtrT> index,
+                                            int additional_offset = 0) {
     return LoadFixedArrayElement(object, index, additional_offset,
-                                 needs_poisoning, CheckBounds::kDebugOnly);
+                                 CheckBounds::kDebugOnly);
   }
 
-  TNode<Object> LoadFixedArrayElement(
-      TNode<FixedArray> object, int index, int additional_offset = 0,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
+  TNode<Object> LoadFixedArrayElement(TNode<FixedArray> object, int index,
+                                      int additional_offset = 0) {
     return LoadFixedArrayElement(object, IntPtrConstant(index),
-                                 additional_offset, needs_poisoning);
+                                 additional_offset);
   }
   // This doesn't emit a bounds-check. As part of the security-performance
   // tradeoff, only use it if it is performance critical.
-  TNode<Object> UnsafeLoadFixedArrayElement(
-      TNode<FixedArray> object, int index, int additional_offset = 0,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
+  TNode<Object> UnsafeLoadFixedArrayElement(TNode<FixedArray> object, int index,
+                                            int additional_offset = 0) {
     return LoadFixedArrayElement(object, IntPtrConstant(index),
-                                 additional_offset, needs_poisoning,
-                                 CheckBounds::kDebugOnly);
+                                 additional_offset, CheckBounds::kDebugOnly);
   }
 
   TNode<Object> LoadPropertyArrayElement(TNode<PropertyArray> object,

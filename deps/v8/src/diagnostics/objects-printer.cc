@@ -1984,7 +1984,6 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   }
   os << "\n - memory_start: " << static_cast<void*>(memory_start());
   os << "\n - memory_size: " << memory_size();
-  os << "\n - memory_mask: " << AsHex(memory_mask());
   os << "\n - imported_function_targets: "
      << static_cast<void*>(imported_function_targets());
   os << "\n - globals_start: " << static_cast<void*>(globals_start());

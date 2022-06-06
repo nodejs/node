@@ -132,7 +132,6 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
 
   // We should not have branches in the middle of a block.
   DCHECK_NE(instr->flags_mode(), kFlags_branch);
-  DCHECK_NE(instr->flags_mode(), kFlags_branch_and_poison);
 
   if (IsFixedRegisterParameter(instr)) {
     if (last_live_in_reg_marker_ != nullptr) {
@@ -297,11 +296,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
       // pointer value and must not be reordered with instructions with side
       // effects.
       return kIsLoadOperation;
-
-    case kArchWordPoisonOnSpeculation:
-      // While poisoning operations have no side effect, they must not be
-      // reordered relative to branches.
-      return kHasSideEffect;
 
     case kArchPrepareCallCFunction:
     case kArchPrepareTailCall:

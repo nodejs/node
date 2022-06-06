@@ -150,7 +150,6 @@ config_setting(
 # v8_can_use_fpu_instructions
 # v8_use_mips_abi_hardfloat
 # v8_enable_gdbjit
-# v8_untrusted_code_mitigations
 # v8_enable_minor_mc
 # v8_check_header_includes
 # v8_enable_shared_ro_heap
@@ -305,9 +304,6 @@ v8_config(
             "V8_HAVE_TARGET_OS",
             "V8_TARGET_OS_MACOSX",
         ],
-    }) + select({
-        ":is_android_x86": [ "DISABLE_UNTRUSTED_CODE_MITIGATIONS" ],
-        "//conditions:default": [],
     }) + select({
         ":is_v8_enable_pointer_compression": [
             "V8_COMPRESS_POINTERS",

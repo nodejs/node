@@ -1547,7 +1547,6 @@ class WasmGraphBuildingInterface {
 
       WRAP_CACHE_FIELD(mem_start);
       WRAP_CACHE_FIELD(mem_size);
-      WRAP_CACHE_FIELD(mem_mask);
 #undef WRAP_CACHE_FIELD
     }
   }

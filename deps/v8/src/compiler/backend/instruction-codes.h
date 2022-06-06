@@ -100,7 +100,6 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchTruncateDoubleToI)                                                 \
   V(ArchStoreWithWriteBarrier)                                             \
   V(ArchStackSlot)                                                         \
-  V(ArchWordPoisonOnSpeculation)                                           \
   V(ArchStackPointerGreaterThan)                                           \
   V(ArchStackCheckOffset)                                                  \
   V(Word32AtomicLoadInt8)                                                  \
@@ -208,12 +207,10 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 enum FlagsMode {
   kFlags_none = 0,
   kFlags_branch = 1,
-  kFlags_branch_and_poison = 2,
-  kFlags_deoptimize = 3,
-  kFlags_deoptimize_and_poison = 4,
-  kFlags_set = 5,
-  kFlags_trap = 6,
-  kFlags_select = 7,
+  kFlags_deoptimize = 2,
+  kFlags_set = 3,
+  kFlags_trap = 4,
+  kFlags_select = 5,
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
@@ -262,7 +259,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 enum MemoryAccessMode {
   kMemoryAccessDirect = 0,
   kMemoryAccessProtected = 1,
-  kMemoryAccessPoisoned = 2
 };
 
 // The InstructionCode is an opaque, target-specific integer that encodes

@@ -141,9 +141,8 @@ class BytecodeGraphBuilder {
   Node* NewIfDefault() { return NewNode(common()->IfDefault()); }
   Node* NewMerge() { return NewNode(common()->Merge(1), true); }
   Node* NewLoop() { return NewNode(common()->Loop(1), true); }
-  Node* NewBranch(Node* condition, BranchHint hint = BranchHint::kNone,
-                  IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck) {
-    return NewNode(common()->Branch(hint, is_safety_check), condition);
+  Node* NewBranch(Node* condition, BranchHint hint = BranchHint::kNone) {
+    return NewNode(common()->Branch(hint), condition);
   }
   Node* NewSwitch(Node* condition, int control_output_count) {
     return NewNode(common()->Switch(control_output_count), condition);
@@ -3959,7 +3958,7 @@ void BytecodeGraphBuilder::BuildJump() {
 }
 
 void BytecodeGraphBuilder::BuildJumpIf(Node* condition) {
-  NewBranch(condition, BranchHint::kNone, IsSafetyCheck::kNoSafetyCheck);
+  NewBranch(condition, BranchHint::kNone);
   {
     SubEnvironment sub_environment(this);
     NewIfTrue();
@@ -3971,7 +3970,7 @@ void BytecodeGraphBuilder::BuildJumpIf(Node* condition) {
 }
 
 void BytecodeGraphBuilder::BuildJumpIfNot(Node* condition) {
-  NewBranch(condition, BranchHint::kNone, IsSafetyCheck::kNoSafetyCheck);
+  NewBranch(condition, BranchHint::kNone);
   {
     SubEnvironment sub_environment(this);
     NewIfFalse();
@@ -3997,8 +3996,7 @@ void BytecodeGraphBuilder::BuildJumpIfNotEqual(Node* comperand) {
 }
 
 void BytecodeGraphBuilder::BuildJumpIfFalse() {
-  NewBranch(environment()->LookupAccumulator(), BranchHint::kNone,
-            IsSafetyCheck::kNoSafetyCheck);
+  NewBranch(environment()->LookupAccumulator(), BranchHint::kNone);
   {
     SubEnvironment sub_environment(this);
     NewIfFalse();
@@ -4012,8 +4010,7 @@ void BytecodeGraphBuilder::BuildJumpIfFalse() {
 }
 
 void BytecodeGraphBuilder::BuildJumpIfTrue() {
-  NewBranch(environment()->LookupAccumulator(), BranchHint::kNone,
-            IsSafetyCheck::kNoSafetyCheck);
+  NewBranch(environment()->LookupAccumulator(), BranchHint::kNone);
   {
     SubEnvironment sub_environment(this);
     NewIfTrue();

@@ -36,9 +36,7 @@ class ArmOperandConverter final : public InstructionOperandConverter {
   SBit OutputSBit() const {
     switch (instr_->flags_mode()) {
       case kFlags_branch:
-      case kFlags_branch_and_poison:
       case kFlags_deoptimize:
-      case kFlags_deoptimize_and_poison:
       case kFlags_set:
       case kFlags_trap:
       case kFlags_select:
@@ -320,35 +318,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
       break;
   }
   UNREACHABLE();
-}
-
-void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
-                                   InstructionCode opcode,
-                                   ArmOperandConverter const& i) {
-  const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
-  if (access_mode == kMemoryAccessPoisoned) {
-    Register value = i.OutputRegister();
-    codegen->tasm()->and_(value, value, Operand(kSpeculationPoisonRegister));
-  }
-}
-
-void ComputePoisonedAddressForLoad(CodeGenerator* codegen,
-                                   InstructionCode opcode,
-                                   ArmOperandConverter const& i,
-                                   Register address) {
-  DCHECK_EQ(kMemoryAccessPoisoned, AccessModeField::decode(opcode));
-  switch (AddressingModeField::decode(opcode)) {
-    case kMode_Offset_RI:
-      codegen->tasm()->mov(address, i.InputImmediate(1));
-      codegen->tasm()->add(address, address, i.InputRegister(0));
-      break;
-    case kMode_Offset_RR:
-      codegen->tasm()->add(address, i.InputRegister(0), i.InputRegister(1));
-      break;
-    default:
-      UNREACHABLE();
-  }
-  codegen->tasm()->and_(address, address, Operand(kSpeculationPoisonRegister));
 }
 
 }  // namespace
@@ -689,25 +658,6 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ tst(scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET, ne);
-}
-
-void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
-  UseScratchRegisterScope temps(tasm());
-  Register scratch = temps.Acquire();
-
-  // Set a mask which has all bits set in the normal case, but has all
-  // bits cleared if we are speculatively executing the wrong PC.
-  __ ComputeCodeStartAddress(scratch);
-  __ cmp(kJavaScriptCallCodeStartRegister, scratch);
-  __ mov(kSpeculationPoisonRegister, Operand(-1), SBit::LeaveCC, eq);
-  __ mov(kSpeculationPoisonRegister, Operand(0), SBit::LeaveCC, ne);
-  __ csdb();
-}
-
-void CodeGenerator::AssembleRegisterArgumentPoisoning() {
-  __ and_(kJSFunctionRegister, kJSFunctionRegister, kSpeculationPoisonRegister);
-  __ and_(kContextRegister, kContextRegister, kSpeculationPoisonRegister);
-  __ and_(sp, sp, kSpeculationPoisonRegister);
 }
 
 // Assembles an instruction after register allocation, producing machine code.
@@ -1619,12 +1569,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmLdrb:
       __ ldrb(i.OutputRegister(), i.InputOffset());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, i);
       break;
     case kArmLdrsb:
       __ ldrsb(i.OutputRegister(), i.InputOffset());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, i);
       break;
     case kArmStrb:
       __ strb(i.InputRegister(0), i.InputOffset(1));
@@ -1632,11 +1580,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArmLdrh:
       __ ldrh(i.OutputRegister(), i.InputOffset());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, i);
       break;
     case kArmLdrsh:
       __ ldrsh(i.OutputRegister(), i.InputOffset());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, i);
       break;
     case kArmStrh:
       __ strh(i.InputRegister(0), i.InputOffset(1));
@@ -1644,22 +1590,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArmLdr:
       __ ldr(i.OutputRegister(), i.InputOffset());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, i);
       break;
     case kArmStr:
       __ str(i.InputRegister(0), i.InputOffset(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVldrF32: {
-      const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
-      if (access_mode == kMemoryAccessPoisoned) {
-        UseScratchRegisterScope temps(tasm());
-        Register address = temps.Acquire();
-        ComputePoisonedAddressForLoad(this, opcode, i, address);
-        __ vldr(i.OutputFloatRegister(), address, 0);
-      } else {
-        __ vldr(i.OutputFloatRegister(), i.InputOffset());
-      }
+      __ vldr(i.OutputFloatRegister(), i.InputOffset());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
@@ -1688,15 +1625,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmVldrF64: {
-      const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
-      if (access_mode == kMemoryAccessPoisoned) {
-        UseScratchRegisterScope temps(tasm());
-        Register address = temps.Acquire();
-        ComputePoisonedAddressForLoad(this, opcode, i, address);
-        __ vldr(i.OutputDoubleRegister(), address, 0);
-      } else {
-        __ vldr(i.OutputDoubleRegister(), i.InputOffset());
-      }
+      __ vldr(i.OutputDoubleRegister(), i.InputOffset());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
@@ -1832,10 +1761,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ isb(SY);
       break;
     }
-    case kArchWordPoisonOnSpeculation:
-      __ and_(i.OutputRegister(0), i.InputRegister(0),
-              Operand(kSpeculationPoisonRegister));
-      break;
     case kArmVmullLow: {
       auto dt = static_cast<NeonDataType>(MiscField::decode(instr->opcode()));
       __ vmull(dt, i.OutputSimd128Register(), i.InputSimd128Register(0).low(),
@@ -3597,20 +3522,6 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   if (!branch->fallthru) __ b(flabel);  // no fallthru to flabel.
 }
 
-void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
-                                            Instruction* instr) {
-  // TODO(jarin) Handle float comparisons (kUnordered[Not]Equal).
-  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual) {
-    return;
-  }
-
-  condition = NegateFlagsCondition(condition);
-  __ eor(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-         Operand(kSpeculationPoisonRegister), SBit::LeaveCC,
-         FlagsConditionToCondition(condition));
-  __ csdb();
-}
-
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
                                             BranchInfo* branch) {
   AssembleArchBranch(instr, branch);
@@ -3805,7 +3716,6 @@ void CodeGenerator::AssembleConstructFrame() {
     __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     required_slots -= osr_helper()->UnoptimizedFrameSlots();
-    ResetSpeculationPoison();
   }
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();

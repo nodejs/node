@@ -1621,8 +1621,7 @@ class WasmInterpreterInternals {
     DCHECK_GE(instance_object_->memory_size(), index);
     // Compute the effective address of the access, making sure to condition
     // the index even in the in-bounds case.
-    return reinterpret_cast<Address>(instance_object_->memory_start()) +
-           (index & instance_object_->memory_mask());
+    return reinterpret_cast<Address>(instance_object_->memory_start()) + index;
   }
 
   template <typename mtype>
