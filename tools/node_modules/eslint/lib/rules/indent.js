@@ -916,18 +916,6 @@ module.exports = {
                 }
 
                 offsets.setDesiredOffsets([firstBodyToken.range[0], lastBodyToken.range[1]], lastParentToken, 1);
-
-                /*
-                 * For blockless nodes with semicolon-first style, don't indent the semicolon.
-                 * e.g.
-                 * if (foo) bar()
-                 * ; [1, 2, 3].map(foo)
-                 */
-                const lastToken = sourceCode.getLastToken(node);
-
-                if (node.type !== "EmptyStatement" && astUtils.isSemicolonToken(lastToken)) {
-                    offsets.setDesiredOffset(lastToken, lastParentToken, 0);
-                }
             }
         }
 
@@ -1268,6 +1256,50 @@ module.exports = {
                 addBlocklessNodeIndent(node.consequent);
                 if (node.alternate && node.alternate.type !== "IfStatement") {
                     addBlocklessNodeIndent(node.alternate);
+                }
+            },
+
+            /*
+             * For blockless nodes with semicolon-first style, don't indent the semicolon.
+             * e.g.
+             * if (foo)
+             *     bar()
+             * ; [1, 2, 3].map(foo)
+             *
+             * Traversal into the node sets indentation of the semicolon, so we need to override it on exit.
+             */
+            ":matches(DoWhileStatement, ForStatement, ForInStatement, ForOfStatement, IfStatement, WhileStatement):exit"(node) {
+                let nodesToCheck;
+
+                if (node.type === "IfStatement") {
+                    nodesToCheck = [node.consequent];
+                    if (node.alternate) {
+                        nodesToCheck.push(node.alternate);
+                    }
+                } else {
+                    nodesToCheck = [node.body];
+                }
+
+                for (const nodeToCheck of nodesToCheck) {
+                    const lastToken = sourceCode.getLastToken(nodeToCheck);
+
+                    if (astUtils.isSemicolonToken(lastToken)) {
+                        const tokenBeforeLast = sourceCode.getTokenBefore(lastToken);
+                        const tokenAfterLast = sourceCode.getTokenAfter(lastToken);
+
+                        // override indentation of `;` only if its line looks like a semicolon-first style line
+                        if (
+                            !astUtils.isTokenOnSameLine(tokenBeforeLast, lastToken) &&
+                            tokenAfterLast &&
+                            astUtils.isTokenOnSameLine(lastToken, tokenAfterLast)
+                        ) {
+                            offsets.setDesiredOffset(
+                                lastToken,
+                                sourceCode.getFirstToken(node),
+                                0
+                            );
+                        }
+                    }
                 }
             },
 
