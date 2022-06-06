@@ -2065,10 +2065,6 @@ Type Typer::Visitor::TypeStringLength(Node* node) {
 
 Type Typer::Visitor::TypeStringSubstring(Node* node) { return Type::String(); }
 
-Type Typer::Visitor::TypePoisonIndex(Node* node) {
-  return Type::Union(Operand(node, 0), typer_->cache_->kSingletonZero, zone());
-}
-
 Type Typer::Visitor::TypeCheckBounds(Node* node) {
   return typer_->operation_typer_.CheckBounds(Operand(node, 0),
                                               Operand(node, 1));

@@ -15,8 +15,7 @@ namespace {
 
 bool IsMachineLoad(Node* const node) {
   const IrOpcode::Value opcode = node->opcode();
-  return opcode == IrOpcode::kLoad || opcode == IrOpcode::kPoisonedLoad ||
-         opcode == IrOpcode::kProtectedLoad ||
+  return opcode == IrOpcode::kLoad || opcode == IrOpcode::kProtectedLoad ||
          opcode == IrOpcode::kUnalignedLoad ||
          opcode == IrOpcode::kLoadImmutable;
 }
@@ -211,10 +210,6 @@ void DecompressionOptimizer::ChangeLoad(Node* const node) {
     case IrOpcode::kLoadImmutable:
       NodeProperties::ChangeOp(node,
                                machine()->LoadImmutable(compressed_load_rep));
-      break;
-    case IrOpcode::kPoisonedLoad:
-      NodeProperties::ChangeOp(node,
-                               machine()->PoisonedLoad(compressed_load_rep));
       break;
     case IrOpcode::kProtectedLoad:
       NodeProperties::ChangeOp(node,

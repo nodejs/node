@@ -229,11 +229,6 @@ void InstructionSelector::VisitLoad(Node* node) {
       UNREACHABLE();
   }
 
-  if (node->opcode() == IrOpcode::kPoisonedLoad &&
-      poisoning_level_ != PoisoningMitigationLevel::kDontPoison) {
-    opcode |= AccessModeField::encode(kMemoryAccessPoisoned);
-  }
-
   bool is_atomic = (node->opcode() == IrOpcode::kWord32AtomicLoad ||
                     node->opcode() == IrOpcode::kWord64AtomicLoad);
 
@@ -251,8 +246,6 @@ void InstructionSelector::VisitLoad(Node* node) {
          g.UseImmediate(is_atomic));
   }
 }
-
-void InstructionSelector::VisitPoisonedLoad(Node* node) { VisitLoad(node); }
 
 void InstructionSelector::VisitProtectedLoad(Node* node) {
   // TODO(eholk)

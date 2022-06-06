@@ -3074,9 +3074,6 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, const char* debug_name,
   compiler::CodeAssemblerState state(
       isolate, &zone, InterpreterDispatchDescriptor{},
       CodeKind::BYTECODE_HANDLER, debug_name,
-      FLAG_untrusted_code_mitigations
-          ? PoisoningMitigationLevel::kPoisonCriticalOnly
-          : PoisoningMitigationLevel::kDontPoison,
       builtin);
 
   switch (bytecode) {

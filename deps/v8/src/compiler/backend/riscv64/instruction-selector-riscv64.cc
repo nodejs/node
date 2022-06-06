@@ -489,15 +489,9 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }
-  if (node->opcode() == IrOpcode::kPoisonedLoad) {
-    CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
-    opcode |= MiscField::encode(kMemoryAccessPoisoned);
-  }
 
   EmitLoad(this, node, opcode);
 }
-
-void InstructionSelector::VisitPoisonedLoad(Node* node) { VisitLoad(node); }
 
 void InstructionSelector::VisitProtectedLoad(Node* node) {
   // TODO(eholk)
@@ -1827,8 +1821,8 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 bool IsNodeUnsigned(Node* n) {
   NodeMatcher m(n);
 
-  if (m.IsLoad() || m.IsUnalignedLoad() || m.IsPoisonedLoad() ||
-      m.IsProtectedLoad() || m.IsWord32AtomicLoad() || m.IsWord64AtomicLoad()) {
+  if (m.IsLoad() || m.IsUnalignedLoad() || m.IsProtectedLoad() ||
+      m.IsWord32AtomicLoad() || m.IsWord64AtomicLoad()) {
     LoadRepresentation load_rep = LoadRepresentationOf(n->op());
     return load_rep.IsUnsigned();
   } else {

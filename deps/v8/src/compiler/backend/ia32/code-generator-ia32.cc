@@ -684,16 +684,6 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ bind(&skip);
 }
 
-void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
-  // TODO(860429): Remove remaining poisoning infrastructure on ia32.
-  UNREACHABLE();
-}
-
-void CodeGenerator::AssembleRegisterArgumentPoisoning() {
-  // TODO(860429): Remove remaining poisoning infrastructure on ia32.
-  UNREACHABLE();
-}
-
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     Instruction* instr) {
@@ -712,11 +702,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
         __ LoadCodeObjectEntry(reg, reg);
-        if (instr->HasCallDescriptorFlag(CallDescriptor::kRetpoline)) {
-          __ RetpolineCall(reg);
-        } else {
-          __ call(reg);
-        }
+        __ call(reg);
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -738,19 +724,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         if (DetermineStubCallMode() == StubCallMode::kCallWasmRuntimeStub) {
           __ wasm_call(wasm_code, constant.rmode());
         } else {
-          if (instr->HasCallDescriptorFlag(CallDescriptor::kRetpoline)) {
-            __ RetpolineCall(wasm_code, constant.rmode());
-          } else {
-            __ call(wasm_code, constant.rmode());
-          }
+          __ call(wasm_code, constant.rmode());
         }
       } else {
-        Register reg = i.InputRegister(0);
-        if (instr->HasCallDescriptorFlag(CallDescriptor::kRetpoline)) {
-          __ RetpolineCall(reg);
-        } else {
-          __ call(reg);
-        }
+        __ call(i.InputRegister(0));
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -762,12 +739,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Address wasm_code = static_cast<Address>(constant.ToInt32());
         __ jmp(wasm_code, constant.rmode());
       } else {
-        Register reg = i.InputRegister(0);
-        if (instr->HasCallDescriptorFlag(CallDescriptor::kRetpoline)) {
-          __ RetpolineJump(reg);
-        } else {
-          __ jmp(reg);
-        }
+        __ jmp(i.InputRegister(0));
       }
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();
@@ -784,11 +756,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
         __ LoadCodeObjectEntry(reg, reg);
-        if (instr->HasCallDescriptorFlag(CallDescriptor::kRetpoline)) {
-          __ RetpolineJump(reg);
-        } else {
-          __ jmp(reg);
-        }
+        __ jmp(reg);
       }
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();
@@ -800,11 +768,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_IMPLIES(
           instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister),
           reg == kJavaScriptCallCodeStartRegister);
-      if (instr->HasCallDescriptorFlag(CallDescriptor::kRetpoline)) {
-        __ RetpolineJump(reg);
-      } else {
-        __ jmp(reg);
-      }
+      __ jmp(reg);
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();
       break;
@@ -1278,9 +1242,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32Bswap:
       __ bswap(i.OutputRegister());
       break;
-    case kArchWordPoisonOnSpeculation:
-      // TODO(860429): Remove remaining poisoning infrastructure on ia32.
-      UNREACHABLE();
     case kIA32MFence:
       __ mfence();
       break;
@@ -4181,12 +4142,6 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
 
   // Add a jump if not falling through to the next block.
   if (!branch->fallthru) __ jmp(flabel);
-}
-
-void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
-                                            Instruction* instr) {
-  // TODO(860429): Remove remaining poisoning infrastructure on ia32.
-  UNREACHABLE();
 }
 
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,

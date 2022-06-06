@@ -375,10 +375,6 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }
-  if (node->opcode() == IrOpcode::kPoisonedLoad) {
-    CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
-    opcode |= AccessModeField::encode(kMemoryAccessPoisoned);
-  }
 
   if (g.CanBeImmediate(index, opcode)) {
     Emit(opcode | AddressingModeField::encode(kMode_MRI),
@@ -392,8 +388,6 @@ void InstructionSelector::VisitLoad(Node* node) {
          g.DefineAsRegister(node), addr_reg, g.TempImmediate(0));
   }
 }
-
-void InstructionSelector::VisitPoisonedLoad(Node* node) { VisitLoad(node); }
 
 void InstructionSelector::VisitProtectedLoad(Node* node) {
   // TODO(eholk)

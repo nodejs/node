@@ -212,7 +212,6 @@ constexpr Register kReturnRegister2 = r8;
 constexpr Register kJSFunctionRegister = rdi;
 constexpr Register kContextRegister = rsi;
 constexpr Register kAllocateSizeRegister = rdx;
-constexpr Register kSpeculationPoisonRegister = r11;
 constexpr Register kInterpreterAccumulatorRegister = rax;
 constexpr Register kInterpreterBytecodeOffsetRegister = r9;
 constexpr Register kInterpreterBytecodeArrayRegister = r12;

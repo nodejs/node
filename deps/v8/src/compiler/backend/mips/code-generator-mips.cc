@@ -313,16 +313,6 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
                  << "\"";                                                      \
   UNIMPLEMENTED();
 
-void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
-                                   InstructionCode opcode, Instruction* instr,
-                                   MipsOperandConverter const& i) {
-  const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
-  if (access_mode == kMemoryAccessPoisoned) {
-    Register value = i.OutputRegister();
-    codegen->tasm()->And(value, value, kSpeculationPoisonRegister);
-  }
-}
-
 }  // namespace
 
 #define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr)          \
@@ -612,31 +602,6 @@ void CodeGenerator::BailoutIfDeoptimized() {
          Operand(1 << Code::kMarkedForDeoptimizationBit));
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET, ne, kScratchReg, Operand(zero_reg));
-}
-
-void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
-  // Calculate a mask which has all bits set in the normal case, but has all
-  // bits cleared if we are speculatively executing the wrong PC.
-  //    difference = (current - expected) | (expected - current)
-  //    poison = ~(difference >> (kBitsPerSystemPointer - 1))
-  __ ComputeCodeStartAddress(kScratchReg);
-  __ Move(kSpeculationPoisonRegister, kScratchReg);
-  __ subu(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-          kJavaScriptCallCodeStartRegister);
-  __ subu(kJavaScriptCallCodeStartRegister, kJavaScriptCallCodeStartRegister,
-          kScratchReg);
-  __ or_(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-         kJavaScriptCallCodeStartRegister);
-  __ sra(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-         kBitsPerSystemPointer - 1);
-  __ nor(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-         kSpeculationPoisonRegister);
-}
-
-void CodeGenerator::AssembleRegisterArgumentPoisoning() {
-  __ And(kJSFunctionRegister, kJSFunctionRegister, kSpeculationPoisonRegister);
-  __ And(kContextRegister, kContextRegister, kSpeculationPoisonRegister);
-  __ And(sp, sp, kSpeculationPoisonRegister);
 }
 
 // Assembles an instruction after register allocation, producing machine code.
@@ -938,10 +903,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kArchWordPoisonOnSpeculation:
-      __ And(i.OutputRegister(), i.InputRegister(0),
-             kSpeculationPoisonRegister);
-      break;
     case kIeee754Float64Acos:
       ASSEMBLE_IEEE754_UNOP(acos);
       break;
@@ -1541,30 +1502,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kMipsLbu:
       __ lbu(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsLb:
       __ lb(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsSb:
       __ sb(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
     case kMipsLhu:
       __ lhu(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsUlhu:
       __ Ulhu(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsLh:
       __ lh(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsUlh:
       __ Ulh(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsSh:
       __ sh(i.InputOrZeroRegister(2), i.MemoryOperand());
@@ -1574,11 +1529,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kMipsLw:
       __ lw(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsUlw:
       __ Ulw(i.OutputRegister(), i.MemoryOperand());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsSw:
       __ sw(i.InputOrZeroRegister(2), i.MemoryOperand());
@@ -3727,85 +3680,6 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
                          branch->fallthru);
 }
 
-void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
-                                            Instruction* instr) {
-  // TODO(jarin) Handle float comparisons (kUnordered[Not]Equal).
-  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual) {
-    return;
-  }
-
-  MipsOperandConverter i(this, instr);
-  condition = NegateFlagsCondition(condition);
-
-  switch (instr->arch_opcode()) {
-    case kMipsCmp: {
-      __ LoadZeroOnCondition(kSpeculationPoisonRegister, i.InputRegister(0),
-                             i.InputOperand(1),
-                             FlagsConditionToConditionCmp(condition));
-    }
-      return;
-    case kMipsTst: {
-      switch (condition) {
-        case kEqual:
-          __ LoadZeroIfConditionZero(kSpeculationPoisonRegister, kScratchReg);
-          break;
-        case kNotEqual:
-          __ LoadZeroIfConditionNotZero(kSpeculationPoisonRegister,
-                                        kScratchReg);
-          break;
-        default:
-          UNREACHABLE();
-      }
-    }
-      return;
-    case kMipsAddOvf:
-    case kMipsSubOvf: {
-      // Overflow occurs if overflow register is negative
-      __ Slt(kScratchReg2, kScratchReg, zero_reg);
-      switch (condition) {
-        case kOverflow:
-          __ LoadZeroIfConditionNotZero(kSpeculationPoisonRegister,
-                                        kScratchReg2);
-          break;
-        case kNotOverflow:
-          __ LoadZeroIfConditionZero(kSpeculationPoisonRegister, kScratchReg2);
-          break;
-        default:
-          UNSUPPORTED_COND(instr->arch_opcode(), condition);
-      }
-    }
-      return;
-    case kMipsMulOvf: {
-      // Overflow occurs if overflow register is not zero
-      switch (condition) {
-        case kOverflow:
-          __ LoadZeroIfConditionNotZero(kSpeculationPoisonRegister,
-                                        kScratchReg);
-          break;
-        case kNotOverflow:
-          __ LoadZeroIfConditionZero(kSpeculationPoisonRegister, kScratchReg);
-          break;
-        default:
-          UNSUPPORTED_COND(instr->arch_opcode(), condition);
-      }
-    }
-      return;
-    case kMipsCmpS:
-    case kMipsCmpD: {
-      bool predicate;
-      FlagsConditionToConditionCmpFPU(&predicate, condition);
-      if (predicate) {
-        __ LoadZeroIfFPUCondition(kSpeculationPoisonRegister);
-      } else {
-        __ LoadZeroIfNotFPUCondition(kSpeculationPoisonRegister);
-      }
-    }
-      return;
-    default:
-      UNREACHABLE();
-  }
-}
-
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
                                             BranchInfo* branch) {
   AssembleArchBranch(instr, branch);
@@ -4130,7 +4004,6 @@ void CodeGenerator::AssembleConstructFrame() {
     __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     required_slots -= osr_helper()->UnoptimizedFrameSlots();
-    ResetSpeculationPoison();
   }
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();

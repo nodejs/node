@@ -4787,22 +4787,14 @@ void LiftoffAssembler::CallIndirect(const ValueKindSig* sig,
   // Since we have more cache registers than parameter registers, the
   // {LiftoffCompiler} should always be able to place {target} in a register.
   DCHECK(target.is_valid());
-  if (FLAG_untrusted_code_mitigations) {
-    RetpolineCall(target);
-  } else {
-    call(target);
-  }
+  call(target);
 }
 
 void LiftoffAssembler::TailCallIndirect(Register target) {
   // Since we have more cache registers than parameter registers, the
   // {LiftoffCompiler} should always be able to place {target} in a register.
   DCHECK(target.is_valid());
-  if (FLAG_untrusted_code_mitigations) {
-    RetpolineJump(target);
-  } else {
-    jmp(target);
-  }
+  jmp(target);
 }
 
 void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {

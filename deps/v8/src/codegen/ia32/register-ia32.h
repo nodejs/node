@@ -161,9 +161,6 @@ constexpr Register kWasmCompileLazyFuncIndexRegister = edi;
 
 constexpr Register kRootRegister = ebx;
 
-// TODO(860429): Remove remaining poisoning infrastructure on ia32.
-constexpr Register kSpeculationPoisonRegister = no_reg;
-
 constexpr DoubleRegister kFPReturnRegister0 = xmm1;  // xmm0 isn't allocatable.
 
 }  // namespace internal

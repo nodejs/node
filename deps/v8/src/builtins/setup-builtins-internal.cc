@@ -158,9 +158,8 @@ Code BuildWithCodeStubAssemblerJS(Isolate* isolate, Builtin builtin,
   Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   const int argc_with_recv =
       (argc == kDontAdaptArgumentsSentinel) ? 0 : argc + 1;
-  compiler::CodeAssemblerState state(
-      isolate, &zone, argc_with_recv, CodeKind::BUILTIN, name,
-      PoisoningMitigationLevel::kDontPoison, builtin);
+  compiler::CodeAssemblerState state(isolate, &zone, argc_with_recv,
+                                     CodeKind::BUILTIN, name, builtin);
   generator(&state);
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(
       &state, BuiltinAssemblerOptions(isolate, builtin),
@@ -183,9 +182,8 @@ Code BuildWithCodeStubAssemblerCS(Isolate* isolate, Builtin builtin,
   CallInterfaceDescriptor descriptor(interface_descriptor);
   // Ensure descriptor is already initialized.
   DCHECK_LE(0, descriptor.GetRegisterParameterCount());
-  compiler::CodeAssemblerState state(
-      isolate, &zone, descriptor, CodeKind::BUILTIN, name,
-      PoisoningMitigationLevel::kDontPoison, builtin);
+  compiler::CodeAssemblerState state(isolate, &zone, descriptor,
+                                     CodeKind::BUILTIN, name, builtin);
   generator(&state);
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(
       &state, BuiltinAssemblerOptions(isolate, builtin),

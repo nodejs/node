@@ -985,15 +985,6 @@ void AdjustStackPointerForTailCall(
   }
 }
 
-void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
-                                   S390OperandConverter const& i) {
-  const MemoryAccessMode access_mode = AccessModeField::decode(instr->opcode());
-  if (access_mode == kMemoryAccessPoisoned) {
-    Register value = i.OutputRegister();
-    codegen->tasm()->AndP(value, kSpeculationPoisonRegister);
-  }
-}
-
 }  // namespace
 
 void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
@@ -1069,25 +1060,6 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ TestBit(ip, Code::kMarkedForDeoptimizationBit);
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET, ne);
-}
-
-void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
-  Register scratch = r1;
-
-  __ ComputeCodeStartAddress(scratch);
-
-  // Calculate a mask which has all bits set in the normal case, but has all
-  // bits cleared if we are speculatively executing the wrong PC.
-  __ mov(kSpeculationPoisonRegister, Operand::Zero());
-  __ mov(r0, Operand(-1));
-  __ CmpS64(kJavaScriptCallCodeStartRegister, scratch);
-  __ LoadOnConditionP(eq, kSpeculationPoisonRegister, r0);
-}
-
-void CodeGenerator::AssembleRegisterArgumentPoisoning() {
-  __ AndP(kJSFunctionRegister, kJSFunctionRegister, kSpeculationPoisonRegister);
-  __ AndP(kContextRegister, kContextRegister, kSpeculationPoisonRegister);
-  __ AndP(sp, sp, kSpeculationPoisonRegister);
 }
 
 // Assembles an instruction after register allocation, producing machine code.
@@ -1395,10 +1367,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 Operand(offset.offset()));
       break;
     }
-    case kArchWordPoisonOnSpeculation:
-      DCHECK_EQ(i.OutputRegister(), i.InputRegister(0));
-      __ AndP(i.InputRegister(0), kSpeculationPoisonRegister);
-      break;
     case kS390_Peek: {
       int reverse_slot = i.InputInt32(0);
       int offset =
@@ -2155,7 +2123,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kS390_LoadWordS8:
       ASSEMBLE_LOAD_INTEGER(LoadS8);
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_BitcastFloat32ToInt32:
       ASSEMBLE_UNARY_OP(R_DInstr(MovFloatToInt), R_MInstr(LoadU32), nullInstr);
@@ -2173,35 +2140,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
     case kS390_LoadWordU8:
       ASSEMBLE_LOAD_INTEGER(LoadU8);
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadWordU16:
       ASSEMBLE_LOAD_INTEGER(LoadU16);
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadWordS16:
       ASSEMBLE_LOAD_INTEGER(LoadS16);
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadWordU32:
       ASSEMBLE_LOAD_INTEGER(LoadU32);
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadWordS32:
       ASSEMBLE_LOAD_INTEGER(LoadS32);
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadReverse16:
       ASSEMBLE_LOAD_INTEGER(lrvh);
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadReverse32:
       ASSEMBLE_LOAD_INTEGER(lrv);
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadReverse64:
       ASSEMBLE_LOAD_INTEGER(lrvg);
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadReverse16RR:
       __ lrvr(i.OutputRegister(), i.InputRegister(0));
@@ -2238,7 +2197,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kS390_LoadWord64:
       ASSEMBLE_LOAD_INTEGER(lg);
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadAndTestWord32: {
       ASSEMBLE_LOADANDTEST32(ltr, lt_z);
@@ -2258,7 +2216,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AddressingMode mode = kMode_None;
       MemOperand operand = i.MemoryOperand(&mode);
       __ vl(i.OutputSimd128Register(), operand, Condition(0));
-      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     }
     case kS390_StoreWord8:
@@ -3541,20 +3498,6 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   if (!branch->fallthru) __ b(flabel);  // no fallthru to flabel.
 }
 
-void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
-                                            Instruction* instr) {
-  // TODO(John) Handle float comparisons (kUnordered[Not]Equal).
-  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual ||
-      condition == kOverflow || condition == kNotOverflow) {
-    return;
-  }
-
-  condition = NegateFlagsCondition(condition);
-  __ mov(r0, Operand::Zero());
-  __ LoadOnConditionP(FlagsConditionToCondition(condition, kArchNop),
-                      kSpeculationPoisonRegister, r0);
-}
-
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
                                             BranchInfo* branch) {
   AssembleArchBranch(instr, branch);
@@ -3781,7 +3724,6 @@ void CodeGenerator::AssembleConstructFrame() {
     __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     required_slots -= osr_helper()->UnoptimizedFrameSlots();
-    ResetSpeculationPoison();
   }
 
   const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();

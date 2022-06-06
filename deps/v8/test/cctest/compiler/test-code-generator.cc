@@ -1002,7 +1002,6 @@ class CodeGeneratorTester {
         environment->main_zone(), &frame_, &linkage_,
         environment->instructions(), &info_, environment->main_isolate(),
         base::Optional<OsrHelper>(), kNoSourcePosition, nullptr,
-        PoisoningMitigationLevel::kDontPoison,
         AssemblerOptions::Default(environment->main_isolate()),
         Builtin::kNoBuiltinId, kMaxUnoptimizedFrameHeight,
         kMaxPushedArgumentCount);
@@ -1056,7 +1055,6 @@ class CodeGeneratorTester {
         AllocatedOperand(LocationOperand::REGISTER,
                          MachineRepresentation::kTagged,
                          kReturnRegister0.code()),
-        ImmediateOperand(ImmediateOperand::INLINE_INT32, -1),  // poison index.
         ImmediateOperand(ImmediateOperand::INLINE_INT32, optional_padding_slot),
         ImmediateOperand(ImmediateOperand::INLINE_INT32, stack_slot_delta)};
     Instruction* tail_call =
@@ -1145,7 +1143,6 @@ class CodeGeneratorTester {
         AllocatedOperand(LocationOperand::REGISTER,
                          MachineRepresentation::kTagged,
                          kReturnRegister0.code()),
-        ImmediateOperand(ImmediateOperand::INLINE_INT32, -1),  // poison index.
         ImmediateOperand(ImmediateOperand::INLINE_INT32, optional_padding_slot),
         ImmediateOperand(ImmediateOperand::INLINE_INT32,
                          first_unused_stack_slot)};

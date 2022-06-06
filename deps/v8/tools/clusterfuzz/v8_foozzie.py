@@ -78,13 +78,6 @@ CONFIGS = dict(
     '--always-opt',
     '--force-slow-path',
   ],
-  trusted=[
-    '--no-untrusted-code-mitigations',
-  ],
-  trusted_opt=[
-    '--always-opt',
-    '--no-untrusted-code-mitigations',
-  ],
 )
 
 BASELINE_CONFIG = 'ignition'

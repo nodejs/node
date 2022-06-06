@@ -2660,10 +2660,6 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
   sub(dst, pc, Operand(pc_offset() + Instruction::kPcLoadDelta));
 }
 
-void TurboAssembler::ResetSpeculationPoisonRegister() {
-  mov(kSpeculationPoisonRegister, Operand(-1));
-}
-
 void TurboAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
                                            DeoptimizeKind kind, Label* ret,
                                            Label*) {

@@ -882,15 +882,6 @@ DEFINE_BOOL(optimize_for_size, false,
             "speed")
 DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, 1)
 
-#ifdef DISABLE_UNTRUSTED_CODE_MITIGATIONS
-#define V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS false
-#else
-#define V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS true
-#endif
-DEFINE_BOOL(untrusted_code_mitigations, V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS,
-            "Enable mitigations for executing untrusted code")
-#undef V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS
-
 // Flags for WebAssembly.
 #if V8_ENABLE_WEBASSEMBLY
 

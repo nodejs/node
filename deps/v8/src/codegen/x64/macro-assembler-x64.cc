@@ -1993,47 +1993,6 @@ void TurboAssembler::JumpCodeTObject(Register code, JumpMode jump_mode) {
   }
 }
 
-void TurboAssembler::RetpolineCall(Register reg) {
-  ASM_CODE_COMMENT(this);
-  Label setup_return, setup_target, inner_indirect_branch, capture_spec;
-
-  jmp(&setup_return);  // Jump past the entire retpoline below.
-
-  bind(&inner_indirect_branch);
-  call(&setup_target);
-
-  bind(&capture_spec);
-  pause();
-  jmp(&capture_spec);
-
-  bind(&setup_target);
-  movq(Operand(rsp, 0), reg);
-  ret(0);
-
-  bind(&setup_return);
-  call(&inner_indirect_branch);  // Callee will return after this instruction.
-}
-
-void TurboAssembler::RetpolineCall(Address destination, RelocInfo::Mode rmode) {
-  Move(kScratchRegister, destination, rmode);
-  RetpolineCall(kScratchRegister);
-}
-
-void TurboAssembler::RetpolineJump(Register reg) {
-  ASM_CODE_COMMENT(this);
-  Label setup_target, capture_spec;
-
-  call(&setup_target);
-
-  bind(&capture_spec);
-  pause();
-  jmp(&capture_spec);
-
-  bind(&setup_target);
-  movq(Operand(rsp, 0), reg);
-  ret(0);
-}
-
 void TurboAssembler::Pmaddwd(XMMRegister dst, XMMRegister src1, Operand src2) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope avx_scope(this, AVX);
@@ -3521,11 +3480,6 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
   int pc = pc_offset();
   // Load effective address to get the address of the current instruction.
   leaq(dst, Operand(&current, -pc));
-}
-
-void TurboAssembler::ResetSpeculationPoisonRegister() {
-  // TODO(turbofan): Perhaps, we want to put an lfence here.
-  Move(kSpeculationPoisonRegister, -1);
 }
 
 void TurboAssembler::CallForDeoptimization(Builtin target, int, Label* exit,

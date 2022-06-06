@@ -41,14 +41,16 @@ class CodeGenerator::JumpTable final : public ZoneObject {
   size_t const target_count_;
 };
 
-CodeGenerator::CodeGenerator(
-    Zone* codegen_zone, Frame* frame, Linkage* linkage,
-    InstructionSequence* instructions, OptimizedCompilationInfo* info,
-    Isolate* isolate, base::Optional<OsrHelper> osr_helper,
-    int start_source_position, JumpOptimizationInfo* jump_opt,
-    PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
-    Builtin builtin, size_t max_unoptimized_frame_height,
-    size_t max_pushed_argument_count, const char* debug_name)
+CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
+                             InstructionSequence* instructions,
+                             OptimizedCompilationInfo* info, Isolate* isolate,
+                             base::Optional<OsrHelper> osr_helper,
+                             int start_source_position,
+                             JumpOptimizationInfo* jump_opt,
+                             const AssemblerOptions& options, Builtin builtin,
+                             size_t max_unoptimized_frame_height,
+                             size_t max_pushed_argument_count,
+                             const char* debug_name)
     : zone_(codegen_zone),
       isolate_(isolate),
       frame_access_state_(nullptr),
@@ -80,7 +82,6 @@ CodeGenerator::CodeGenerator(
           codegen_zone, SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS),
       protected_instructions_(codegen_zone),
       result_(kSuccess),
-      poisoning_level_(poisoning_level),
       block_starts_(codegen_zone),
       instr_starts_(codegen_zone),
       debug_name_(debug_name) {
@@ -284,9 +285,6 @@ void CodeGenerator::AssembleCode() {
     BailoutIfDeoptimized();
   }
 
-  offsets_info_.init_poison = tasm()->pc_offset();
-  InitializeSpeculationPoison();
-
   // Define deoptimization literals for all inlined functions.
   DCHECK_EQ(0u, deoptimization_literals_.size());
   for (OptimizedCompilationInfo::InlinedFunctionHolder& inlined :
@@ -354,8 +352,6 @@ void CodeGenerator::AssembleCode() {
     frame_access_state()->MarkHasFrame(block->needs_frame());
 
     tasm()->bind(GetLabel(current_block_));
-
-    TryInsertBranchPoisoning(block);
 
     if (block->must_construct_frame()) {
       AssembleConstructFrame();
@@ -492,37 +488,6 @@ void CodeGenerator::AssembleCode() {
   tasm()->FinalizeJumpOptimizationInfo();
 
   result_ = kSuccess;
-}
-
-void CodeGenerator::TryInsertBranchPoisoning(const InstructionBlock* block) {
-  // See if our predecessor was a basic block terminated by a branch_and_poison
-  // instruction. If yes, then perform the masking based on the flags.
-  if (block->PredecessorCount() != 1) return;
-  RpoNumber pred_rpo = (block->predecessors())[0];
-  const InstructionBlock* pred = instructions()->InstructionBlockAt(pred_rpo);
-  if (pred->code_start() == pred->code_end()) return;
-  Instruction* instr = instructions()->InstructionAt(pred->code_end() - 1);
-  FlagsMode mode = FlagsModeField::decode(instr->opcode());
-  switch (mode) {
-    case kFlags_branch_and_poison: {
-      BranchInfo branch;
-      RpoNumber target = ComputeBranchInfo(&branch, instr);
-      if (!target.IsValid()) {
-        // Non-trivial branch, add the masking code.
-        FlagsCondition condition = branch.condition;
-        if (branch.false_label == GetLabel(block->rpo_number())) {
-          condition = NegateFlagsCondition(condition);
-        }
-        AssembleBranchPoisoning(condition, instr);
-      }
-      break;
-    }
-    case kFlags_deoptimize_and_poison: {
-      UNREACHABLE();
-    }
-    default:
-      break;
-  }
 }
 
 void CodeGenerator::AssembleArchBinarySearchSwitchRange(
@@ -839,8 +804,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
 
   FlagsCondition condition = FlagsConditionField::decode(instr->opcode());
   switch (mode) {
-    case kFlags_branch:
-    case kFlags_branch_and_poison: {
+    case kFlags_branch: {
       BranchInfo branch;
       RpoNumber target = ComputeBranchInfo(&branch, instr);
       if (target.IsValid()) {
@@ -854,8 +818,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
       AssembleArchBranch(instr, &branch);
       break;
     }
-    case kFlags_deoptimize:
-    case kFlags_deoptimize_and_poison: {
+    case kFlags_deoptimize: {
       // Assemble a conditional eager deoptimization after this instruction.
       InstructionOperandConverter i(this, instr);
       size_t frame_state_offset =
@@ -864,17 +827,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
           DeoptImmedArgsCountField::decode(instr->opcode());
       DeoptimizationExit* const exit = AddDeoptimizationExit(
           instr, frame_state_offset, immediate_args_count);
-      Label continue_label;
       BranchInfo branch;
       branch.condition = condition;
       branch.true_label = exit->label();
-      branch.false_label = &continue_label;
+      branch.false_label = exit->continue_label();
       branch.fallthru = true;
       AssembleArchDeoptBranch(instr, &branch);
-      tasm()->bind(&continue_label);
-      if (mode == kFlags_deoptimize_and_poison) {
-        AssembleBranchPoisoning(NegateFlagsCondition(branch.condition), instr);
-      }
       tasm()->bind(exit->continue_label());
       break;
     }
@@ -898,11 +856,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
     case kFlags_none: {
       break;
     }
-  }
-
-  // TODO(jarin) We should thread the flag through rather than set it.
-  if (instr->IsCall()) {
-    ResetSpeculationPoison();
   }
 
   return kSuccess;
@@ -1087,9 +1040,9 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
 
   if (needs_frame_state) {
     MarkLazyDeoptSite();
-    // If the frame state is present, it starts at argument 2 - after
-    // the code address and the poison-alias index.
-    size_t frame_state_offset = 2;
+    // If the frame state is present, it starts at argument 1 - after
+    // the code address.
+    size_t frame_state_offset = 1;
     FrameStateDescriptor* descriptor =
         GetDeoptimizationEntry(instr, frame_state_offset).descriptor();
     int pc_offset = tasm()->pc_offset_for_safepoint();
@@ -1426,29 +1379,6 @@ DeoptimizationExit* CodeGenerator::AddDeoptimizationExit(
     size_t immediate_args_count) {
   return BuildTranslation(instr, -1, frame_state_offset, immediate_args_count,
                           OutputFrameStateCombine::Ignore());
-}
-
-void CodeGenerator::InitializeSpeculationPoison() {
-  if (poisoning_level_ == PoisoningMitigationLevel::kDontPoison) return;
-
-  // Initialize {kSpeculationPoisonRegister} either by comparing the expected
-  // with the actual call target, or by unconditionally using {-1} initially.
-  // Masking register arguments with it only makes sense in the first case.
-  if (info()->called_with_code_start_register()) {
-    tasm()->RecordComment("-- Prologue: generate speculation poison --");
-    GenerateSpeculationPoisonFromCodeStartRegister();
-    if (info()->poison_register_arguments()) {
-      AssembleRegisterArgumentPoisoning();
-    }
-  } else {
-    ResetSpeculationPoison();
-  }
-}
-
-void CodeGenerator::ResetSpeculationPoison() {
-  if (poisoning_level_ != PoisoningMitigationLevel::kDontPoison) {
-    tasm()->ResetSpeculationPoisonRegister();
-  }
 }
 
 OutOfLineCode::OutOfLineCode(CodeGenerator* gen)

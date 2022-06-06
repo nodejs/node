@@ -858,8 +858,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // This is an alternative to embedding the {CodeObject} handle as a reference.
   void ComputeCodeStartAddress(Register dst);
 
-  void ResetSpeculationPoisonRegister();
-
   // Control-flow integrity:
 
   // Define a function entrypoint. This doesn't emit any code for this

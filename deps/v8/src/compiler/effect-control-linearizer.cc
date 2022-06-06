@@ -36,7 +36,6 @@ namespace internal {
 namespace compiler {
 
 enum class MaintainSchedule { kMaintain, kDiscard };
-enum class MaskArrayIndexEnable { kDoNotMaskArrayIndex, kMaskArrayIndex };
 
 class EffectControlLinearizer {
  public:
@@ -44,13 +43,11 @@ class EffectControlLinearizer {
                           JSGraphAssembler* graph_assembler, Zone* temp_zone,
                           SourcePositionTable* source_positions,
                           NodeOriginTable* node_origins,
-                          MaskArrayIndexEnable mask_array_index,
                           MaintainSchedule maintain_schedule,
                           JSHeapBroker* broker)
       : js_graph_(js_graph),
         schedule_(schedule),
         temp_zone_(temp_zone),
-        mask_array_index_(mask_array_index),
         maintain_schedule_(maintain_schedule),
         source_positions_(source_positions),
         node_origins_(node_origins),
@@ -80,7 +77,6 @@ class EffectControlLinearizer {
   Node* LowerChangeTaggedToUint32(Node* node);
   Node* LowerChangeTaggedToInt64(Node* node);
   Node* LowerChangeTaggedToTaggedSigned(Node* node);
-  Node* LowerPoisonIndex(Node* node);
   Node* LowerCheckInternalizedString(Node* node, Node* frame_state);
   void LowerCheckMaps(Node* node, Node* frame_state);
   void LowerDynamicCheckMaps(Node* node, Node* frame_state);
@@ -338,7 +334,6 @@ class EffectControlLinearizer {
   JSGraph* js_graph_;
   Schedule* schedule_;
   Zone* temp_zone_;
-  MaskArrayIndexEnable mask_array_index_;
   MaintainSchedule maintain_schedule_;
   RegionObservability region_observability_ = RegionObservability::kObservable;
   SourcePositionTable* source_positions_;
@@ -965,9 +960,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kTruncateTaggedToFloat64:
       result = LowerTruncateTaggedToFloat64(node);
-      break;
-    case IrOpcode::kPoisonIndex:
-      result = LowerPoisonIndex(node);
       break;
     case IrOpcode::kCheckClosure:
       result = LowerCheckClosure(node, frame_state);
@@ -1788,14 +1780,6 @@ Node* EffectControlLinearizer::LowerTruncateTaggedToFloat64(Node* node) {
   return done.PhiAt(0);
 }
 
-Node* EffectControlLinearizer::LowerPoisonIndex(Node* node) {
-  Node* index = node->InputAt(0);
-  if (mask_array_index_ == MaskArrayIndexEnable::kMaskArrayIndex) {
-    index = __ Word32PoisonOnSpeculation(index);
-  }
-  return index;
-}
-
 Node* EffectControlLinearizer::LowerCheckClosure(Node* node,
                                                  Node* frame_state) {
   Handle<FeedbackCell> feedback_cell = FeedbackCellOf(node->op());
@@ -1831,8 +1815,7 @@ void EffectControlLinearizer::MigrateInstanceOrDeopt(
       __ Word32And(bitfield3,
                    __ Int32Constant(Map::Bits3::IsDeprecatedBit::kMask)),
       __ Int32Constant(0));
-  __ DeoptimizeIf(reason, feedback_source, is_not_deprecated, frame_state,
-                  IsSafetyCheck::kCriticalSafetyCheck);
+  __ DeoptimizeIf(reason, feedback_source, is_not_deprecated, frame_state);
   Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
   Runtime::FunctionId id = Runtime::kTryMigrateInstance;
   auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
@@ -1842,7 +1825,7 @@ void EffectControlLinearizer::MigrateInstanceOrDeopt(
                          __ Int32Constant(1), __ NoContextConstant());
   Node* check = ObjectIsSmi(result);
   __ DeoptimizeIf(DeoptimizeReason::kInstanceMigrationFailed, feedback_source,
-                  check, frame_state, IsSafetyCheck::kCriticalSafetyCheck);
+                  check, frame_state);
 }
 
 void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
@@ -1886,7 +1869,7 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
       Node* check = __ TaggedEqual(value_map, map);
       if (i == map_count - 1) {
         __ DeoptimizeIfNot(DeoptimizeReason::kWrongMap, p.feedback(), check,
-                           frame_state, IsSafetyCheck::kCriticalSafetyCheck);
+                           frame_state);
       } else {
         auto next_map = __ MakeLabel();
         __ BranchWithCriticalSafetyCheck(check, &done, &next_map);
@@ -1908,7 +1891,7 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
 
       if (i == map_count - 1) {
         __ DeoptimizeIfNot(DeoptimizeReason::kWrongMap, p.feedback(), check,
-                           frame_state, IsSafetyCheck::kCriticalSafetyCheck);
+                           frame_state);
       } else {
         auto next_map = __ MakeLabel();
         __ BranchWithCriticalSafetyCheck(check, &done, &next_map);
@@ -2528,8 +2511,8 @@ Node* EffectControlLinearizer::LowerCheckedUint32Bounds(Node* node,
   Node* check = __ Uint32LessThan(index, limit);
   if (!(params.flags() & CheckBoundsFlag::kAbortOnOutOfBounds)) {
     __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds,
-                       params.check_parameters().feedback(), check, frame_state,
-                       IsSafetyCheck::kCriticalSafetyCheck);
+                       params.check_parameters().feedback(), check,
+                       frame_state);
   } else {
     auto if_abort = __ MakeDeferredLabel();
     auto done = __ MakeLabel();
@@ -2574,8 +2557,8 @@ Node* EffectControlLinearizer::LowerCheckedUint64Bounds(Node* node,
   Node* check = __ Uint64LessThan(index, limit);
   if (!(params.flags() & CheckBoundsFlag::kAbortOnOutOfBounds)) {
     __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds,
-                       params.check_parameters().feedback(), check, frame_state,
-                       IsSafetyCheck::kCriticalSafetyCheck);
+                       params.check_parameters().feedback(), check,
+                       frame_state);
   } else {
     auto if_abort = __ MakeDeferredLabel();
     auto done = __ MakeLabel();
@@ -5776,8 +5759,7 @@ Node* EffectControlLinearizer::LowerLoadTypedElement(Node* node) {
   Node* data_ptr = BuildTypedArrayDataPointer(base, external);
 
   // Perform the actual typed element access.
-  return __ LoadElement(AccessBuilder::ForTypedArrayElement(
-                            array_type, true, LoadSensitivity::kCritical),
+  return __ LoadElement(AccessBuilder::ForTypedArrayElement(array_type, true),
                         data_ptr, index);
 }
 
@@ -6796,26 +6778,13 @@ Node* EffectControlLinearizer::BuildIsClearedWeakReference(Node* maybe_object) {
 
 #undef __
 
-namespace {
-
-MaskArrayIndexEnable MaskArrayForPoisonLevel(
-    PoisoningMitigationLevel poison_level) {
-  return (poison_level != PoisoningMitigationLevel::kDontPoison)
-             ? MaskArrayIndexEnable::kMaskArrayIndex
-             : MaskArrayIndexEnable::kDoNotMaskArrayIndex;
-}
-
-}  // namespace
-
 void LinearizeEffectControl(JSGraph* graph, Schedule* schedule, Zone* temp_zone,
                             SourcePositionTable* source_positions,
                             NodeOriginTable* node_origins,
-                            PoisoningMitigationLevel poison_level,
                             JSHeapBroker* broker) {
   JSGraphAssembler graph_assembler_(graph, temp_zone, base::nullopt, nullptr);
   EffectControlLinearizer linearizer(graph, schedule, &graph_assembler_,
                                      temp_zone, source_positions, node_origins,
-                                     MaskArrayForPoisonLevel(poison_level),
                                      MaintainSchedule::kDiscard, broker);
   linearizer.Run();
 }
@@ -6824,16 +6793,13 @@ void LowerToMachineSchedule(JSGraph* js_graph, Schedule* schedule,
                             Zone* temp_zone,
                             SourcePositionTable* source_positions,
                             NodeOriginTable* node_origins,
-                            PoisoningMitigationLevel poison_level,
                             JSHeapBroker* broker) {
   JSGraphAssembler graph_assembler(js_graph, temp_zone, base::nullopt,
                                    schedule);
   EffectControlLinearizer linearizer(js_graph, schedule, &graph_assembler,
                                      temp_zone, source_positions, node_origins,
-                                     MaskArrayForPoisonLevel(poison_level),
                                      MaintainSchedule::kMaintain, broker);
-  MemoryLowering memory_lowering(js_graph, temp_zone, &graph_assembler,
-                                 poison_level);
+  MemoryLowering memory_lowering(js_graph, temp_zone, &graph_assembler);
   SelectLowering select_lowering(&graph_assembler, js_graph->graph());
   graph_assembler.AddInlineReducer(&memory_lowering);
   graph_assembler.AddInlineReducer(&select_lowering);

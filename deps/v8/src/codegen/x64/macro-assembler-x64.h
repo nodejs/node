@@ -432,16 +432,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   void CallCodeTObject(Register code);
   void JumpCodeTObject(Register code, JumpMode jump_mode = JumpMode::kJump);
 
-  void RetpolineCall(Register reg);
-  void RetpolineCall(Address destination, RelocInfo::Mode rmode);
-
   void Jump(Address destination, RelocInfo::Mode rmode);
   void Jump(const ExternalReference& reference);
   void Jump(Operand op);
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
             Condition cc = always);
-
-  void RetpolineJump(Register reg);
 
   void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
                              DeoptimizeKind kind, Label* ret,
@@ -631,8 +626,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   // Compute the start of the generated instruction stream from the current PC.
   // This is an alternative to embedding the {CodeObject} handle as a reference.
   void ComputeCodeStartAddress(Register dst);
-
-  void ResetSpeculationPoisonRegister();
 
   // Control-flow integrity:
 
