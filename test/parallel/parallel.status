@@ -34,6 +34,7 @@ test-crypto-keygen: SKIP
 # https://github.com/nodejs/node/pull/43054
 test-net-socket-connect-without-cb: SKIP
 test-net-socket-ready-without-cb: SKIP
+test-tcp-wrap-listen: SKIP
 
 [$system==freebsd]
 # https://github.com/nodejs/node/issues/31727
@@ -45,6 +46,7 @@ test-worker-message-port-message-before-close: PASS,FLAKY
 # https://github.com/nodejs/node/pull/43054
 test-net-socket-connect-without-cb: SKIP
 test-net-socket-ready-without-cb: SKIP
+test-tcp-wrap-listen: SKIP
 
 [$system==ibmi]
 # https://github.com/nodejs/node/pull/30819
