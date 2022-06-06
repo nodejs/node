@@ -18,8 +18,7 @@ namespace compiler {
 RawMachineAssembler::RawMachineAssembler(
     Isolate* isolate, Graph* graph, CallDescriptor* call_descriptor,
     MachineRepresentation word, MachineOperatorBuilder::Flags flags,
-    MachineOperatorBuilder::AlignmentRequirements alignment_requirements,
-    PoisoningMitigationLevel poisoning_level)
+    MachineOperatorBuilder::AlignmentRequirements alignment_requirements)
     : isolate_(isolate),
       graph_(graph),
       schedule_(zone()->New<Schedule>(zone())),
@@ -30,8 +29,7 @@ RawMachineAssembler::RawMachineAssembler(
       call_descriptor_(call_descriptor),
       target_parameter_(nullptr),
       parameters_(parameter_count(), zone()),
-      current_block_(schedule()->start()),
-      poisoning_level_(poisoning_level) {
+      current_block_(schedule()->start()) {
   int param_count = static_cast<int>(parameter_count());
   // Add an extra input for the JSFunction parameter to the start node.
   graph->SetStart(graph->NewNode(common_.Start(param_count + 1)));
@@ -472,7 +470,7 @@ void RawMachineAssembler::MarkControlDeferred(Node* control_node) {
         return;
       case IrOpcode::kIfTrue: {
         Node* branch = NodeProperties::GetControlInput(control_node);
-        BranchHint hint = BranchOperatorInfoOf(branch->op()).hint;
+        BranchHint hint = BranchHintOf(branch->op());
         if (hint == BranchHint::kTrue) {
           // The other possibility is also deferred, so the responsible branch
           // has to be before.
@@ -485,7 +483,7 @@ void RawMachineAssembler::MarkControlDeferred(Node* control_node) {
       }
       case IrOpcode::kIfFalse: {
         Node* branch = NodeProperties::GetControlInput(control_node);
-        BranchHint hint = BranchOperatorInfoOf(branch->op()).hint;
+        BranchHint hint = BranchHintOf(branch->op());
         if (hint == BranchHint::kFalse) {
           // The other possibility is also deferred, so the responsible branch
           // has to be before.
@@ -516,11 +514,10 @@ void RawMachineAssembler::MarkControlDeferred(Node* control_node) {
     }
   }
 
-  BranchOperatorInfo info = BranchOperatorInfoOf(responsible_branch->op());
-  if (info.hint == new_branch_hint) return;
-  NodeProperties::ChangeOp(
-      responsible_branch,
-      common()->Branch(new_branch_hint, info.is_safety_check));
+  BranchHint hint = BranchHintOf(responsible_branch->op());
+  if (hint == new_branch_hint) return;
+  NodeProperties::ChangeOp(responsible_branch,
+                           common()->Branch(new_branch_hint));
 }
 
 Node* RawMachineAssembler::TargetParameter() {
@@ -544,9 +541,7 @@ void RawMachineAssembler::Goto(RawMachineLabel* label) {
 void RawMachineAssembler::Branch(Node* condition, RawMachineLabel* true_val,
                                  RawMachineLabel* false_val) {
   DCHECK(current_block_ != schedule()->end());
-  Node* branch = MakeNode(
-      common()->Branch(BranchHint::kNone, IsSafetyCheck::kNoSafetyCheck), 1,
-      &condition);
+  Node* branch = MakeNode(common()->Branch(BranchHint::kNone), 1, &condition);
   BasicBlock* true_block = schedule()->NewBasicBlock();
   BasicBlock* false_block = schedule()->NewBasicBlock();
   schedule()->AddBranch(CurrentBlock(), branch, true_block, false_block);

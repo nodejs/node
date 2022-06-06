@@ -48,8 +48,7 @@ static_assert(
 
 CodeAssemblerState::CodeAssemblerState(
     Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
-    CodeKind kind, const char* name, PoisoningMitigationLevel poisoning_level,
-    Builtin builtin)
+    CodeKind kind, const char* name, Builtin builtin)
     // TODO(rmcilroy): Should we use Linkage::GetBytecodeDispatchDescriptor for
     // bytecode handlers?
     : CodeAssemblerState(
@@ -57,29 +56,26 @@ CodeAssemblerState::CodeAssemblerState(
           Linkage::GetStubCallDescriptor(
               zone, descriptor, descriptor.GetStackParameterCount(),
               CallDescriptor::kNoFlags, Operator::kNoProperties),
-          kind, name, poisoning_level, builtin) {}
+          kind, name, builtin) {}
 
 CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
                                        int parameter_count, CodeKind kind,
-                                       const char* name,
-                                       PoisoningMitigationLevel poisoning_level,
-                                       Builtin builtin)
+                                       const char* name, Builtin builtin)
     : CodeAssemblerState(
           isolate, zone,
           Linkage::GetJSCallDescriptor(zone, false, parameter_count,
                                        CallDescriptor::kCanUseRoots),
-          kind, name, poisoning_level, builtin) {}
+          kind, name, builtin) {}
 
 CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
                                        CallDescriptor* call_descriptor,
                                        CodeKind kind, const char* name,
-                                       PoisoningMitigationLevel poisoning_level,
                                        Builtin builtin)
     : raw_assembler_(new RawMachineAssembler(
           isolate, zone->New<Graph>(zone), call_descriptor,
           MachineType::PointerRepresentation(),
           InstructionSelector::SupportedMachineOperatorFlags(),
-          InstructionSelector::AlignmentRequirements(), poisoning_level)),
+          InstructionSelector::AlignmentRequirements())),
       kind_(kind),
       name_(name),
       builtin_(builtin),
@@ -169,10 +165,6 @@ bool CodeAssembler::Word32ShiftIsSafe() const {
   return raw_assembler()->machine()->Word32ShiftIsSafe();
 }
 
-PoisoningMitigationLevel CodeAssembler::poisoning_level() const {
-  return raw_assembler()->poisoning_level();
-}
-
 // static
 Handle<Code> CodeAssembler::GenerateCode(
     CodeAssemblerState* state, const AssemblerOptions& options,
@@ -187,7 +179,7 @@ Handle<Code> CodeAssembler::GenerateCode(
   code = Pipeline::GenerateCodeForCodeStub(
              rasm->isolate(), rasm->call_descriptor(), graph, state->jsgraph_,
              rasm->source_positions(), state->kind_, state->name_,
-             state->builtin_, rasm->poisoning_level(), options, profile_data)
+             state->builtin_, options, profile_data)
              .ToHandleChecked();
 
   state->code_generated_ = true;
@@ -565,15 +557,6 @@ TNode<RawPtrT> CodeAssembler::LoadParentFramePointer() {
   return UncheckedCast<RawPtrT>(raw_assembler()->LoadParentFramePointer());
 }
 
-TNode<Object> CodeAssembler::TaggedPoisonOnSpeculation(TNode<Object> value) {
-  return UncheckedCast<Object>(
-      raw_assembler()->TaggedPoisonOnSpeculation(value));
-}
-
-TNode<WordT> CodeAssembler::WordPoisonOnSpeculation(TNode<WordT> value) {
-  return UncheckedCast<WordT>(raw_assembler()->WordPoisonOnSpeculation(value));
-}
-
 #define DEFINE_CODE_ASSEMBLER_BINARY_OP(name, ResType, Arg1Type, Arg2Type)   \
   TNode<ResType> CodeAssembler::name(TNode<Arg1Type> a, TNode<Arg2Type> b) { \
     return UncheckedCast<ResType>(raw_assembler()->name(a, b));              \
@@ -677,27 +660,23 @@ TNode<Int32T> CodeAssembler::TruncateFloat32ToInt32(TNode<Float32T> value) {
 CODE_ASSEMBLER_UNARY_OP_LIST(DEFINE_CODE_ASSEMBLER_UNARY_OP)
 #undef DEFINE_CODE_ASSEMBLER_UNARY_OP
 
-Node* CodeAssembler::Load(MachineType type, Node* base,
-                          LoadSensitivity needs_poisoning) {
-  return raw_assembler()->Load(type, base, needs_poisoning);
+Node* CodeAssembler::Load(MachineType type, Node* base) {
+  return raw_assembler()->Load(type, base);
 }
 
-Node* CodeAssembler::Load(MachineType type, Node* base, Node* offset,
-                          LoadSensitivity needs_poisoning) {
-  return raw_assembler()->Load(type, base, offset, needs_poisoning);
+Node* CodeAssembler::Load(MachineType type, Node* base, Node* offset) {
+  return raw_assembler()->Load(type, base, offset);
 }
 
-TNode<Object> CodeAssembler::LoadFullTagged(Node* base,
-                                            LoadSensitivity needs_poisoning) {
-  return BitcastWordToTagged(Load<RawPtrT>(base, needs_poisoning));
+TNode<Object> CodeAssembler::LoadFullTagged(Node* base) {
+  return BitcastWordToTagged(Load<RawPtrT>(base));
 }
 
-TNode<Object> CodeAssembler::LoadFullTagged(Node* base, TNode<IntPtrT> offset,
-                                            LoadSensitivity needs_poisoning) {
+TNode<Object> CodeAssembler::LoadFullTagged(Node* base, TNode<IntPtrT> offset) {
   // Please use LoadFromObject(MachineType::MapInHeader(), object,
   // IntPtrConstant(-kHeapObjectTag)) instead.
   DCHECK(!raw_assembler()->IsMapOffsetConstantMinusTag(offset));
-  return BitcastWordToTagged(Load<RawPtrT>(base, offset, needs_poisoning));
+  return BitcastWordToTagged(Load<RawPtrT>(base, offset));
 }
 
 Node* CodeAssembler::AtomicLoad(MachineType type, TNode<RawPtrT> base,

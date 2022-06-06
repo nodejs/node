@@ -186,7 +186,6 @@ bool WasmGlobalObject::SetFuncRef(Isolate* isolate, Handle<Object> value) {
 // WasmInstanceObject
 PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_start, byte*, kMemoryStartOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_size, size_t, kMemorySizeOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_mask, size_t, kMemoryMaskOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, isolate_root, Address,
                     kIsolateRootOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, stack_limit_address, Address,

@@ -3540,10 +3540,6 @@ void TurboAssembler::ComputeCodeStartAddress(const Register& rd) {
   adr(rd, -pc_offset());
 }
 
-void TurboAssembler::ResetSpeculationPoisonRegister() {
-  Mov(kSpeculationPoisonRegister, -1);
-}
-
 void TurboAssembler::RestoreFPAndLR() {
   static_assert(StandardFrameConstants::kCallerFPOffset + kSystemPointerSize ==
                     StandardFrameConstants::kCallerPCOffset,

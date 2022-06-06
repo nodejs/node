@@ -1169,8 +1169,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return Add64Latency(false) + AndLatency(false) + AssertLatency() +
              Add64Latency(false) + AndLatency(false) + BranchShortLatency() +
              1 + Sub64Latency() + Add64Latency();
-    case kArchWordPoisonOnSpeculation:
-      return AndLatency();
     case kIeee754Float64Acos:
     case kIeee754Float64Acosh:
     case kIeee754Float64Asin:

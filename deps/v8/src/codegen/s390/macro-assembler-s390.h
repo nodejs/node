@@ -1015,7 +1015,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met);
 
-  void ResetSpeculationPoisonRegister();
   void ComputeCodeStartAddress(Register dst);
   void LoadPC(Register dst);
 

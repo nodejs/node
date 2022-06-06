@@ -31,7 +31,6 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
   SimplifiedLowering(JSGraph* jsgraph, JSHeapBroker* broker, Zone* zone,
                      SourcePositionTable* source_position,
                      NodeOriginTable* node_origins,
-                     PoisoningMitigationLevel poisoning_level,
                      TickCounter* tick_counter, Linkage* linkage,
                      ObserveNodeManager* observe_node_manager = nullptr);
   ~SimplifiedLowering() = default;
@@ -82,8 +81,6 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
   // position information via the SourcePositionWrapper like all other reducers.
   SourcePositionTable* source_positions_;
   NodeOriginTable* node_origins_;
-
-  PoisoningMitigationLevel poisoning_level_;
 
   TickCounter* const tick_counter_;
   Linkage* const linkage_;

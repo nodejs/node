@@ -2777,12 +2777,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ cmp(cp, Operand(0));
   __ str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
 
-  // Reset the masking register. This is done independent of the underlying
-  // feature flag {FLAG_untrusted_code_mitigations} to make the snapshot work
-  // with both configurations. It is safe to always do this, because the
-  // underlying register is caller-saved and can be arbitrarily clobbered.
-  __ ResetSpeculationPoisonRegister();
-
   // Clear c_entry_fp, like we do in `LeaveExitFrame`.
   {
     UseScratchRegisterScope temps(masm);

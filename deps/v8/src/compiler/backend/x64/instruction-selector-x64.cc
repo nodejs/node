@@ -471,9 +471,6 @@ void InstructionSelector::VisitLoad(Node* node, Node* value,
   InstructionCode code = opcode | AddressingModeField::encode(mode);
   if (node->opcode() == IrOpcode::kProtectedLoad) {
     code |= AccessModeField::encode(kMemoryAccessProtected);
-  } else if (node->opcode() == IrOpcode::kPoisonedLoad) {
-    CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
-    code |= AccessModeField::encode(kMemoryAccessPoisoned);
   }
   Emit(code, 1, outputs, input_count, inputs, temp_count, temps);
 }
@@ -483,8 +480,6 @@ void InstructionSelector::VisitLoad(Node* node) {
   DCHECK(!load_rep.IsMapWord());
   VisitLoad(node, node, GetLoadOpcode(load_rep));
 }
-
-void InstructionSelector::VisitPoisonedLoad(Node* node) { VisitLoad(node); }
 
 void InstructionSelector::VisitProtectedLoad(Node* node) { VisitLoad(node); }
 
@@ -1502,8 +1497,7 @@ bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(Node* node) {
     }
     case IrOpcode::kLoad:
     case IrOpcode::kLoadImmutable:
-    case IrOpcode::kProtectedLoad:
-    case IrOpcode::kPoisonedLoad: {
+    case IrOpcode::kProtectedLoad: {
       // The movzxbl/movsxbl/movzxwl/movsxwl/movl operations implicitly
       // zero-extend to 64-bit on x64, so the zero-extension is a no-op.
       LoadRepresentation load_rep = LoadRepresentationOf(node->op());

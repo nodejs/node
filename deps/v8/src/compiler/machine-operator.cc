@@ -124,7 +124,6 @@ LoadRepresentation LoadRepresentationOf(Operator const* op) {
          IrOpcode::kWord32AtomicLoad == op->opcode() ||
          IrOpcode::kWord64AtomicLoad == op->opcode() ||
          IrOpcode::kWord32AtomicPairLoad == op->opcode() ||
-         IrOpcode::kPoisonedLoad == op->opcode() ||
          IrOpcode::kUnalignedLoad == op->opcode() ||
          IrOpcode::kLoadImmutable == op->opcode());
   return OpParameter<LoadRepresentation>(op);
@@ -831,13 +830,6 @@ struct MachineOperatorGlobalCache {
                                         Operator::kEliminatable, "Load", 2, 1, \
                                         1, 1, 1, 0, MachineType::Type()) {}    \
   };                                                                           \
-  struct PoisonedLoad##Type##Operator final                                    \
-      : public Operator1<LoadRepresentation> {                                 \
-    PoisonedLoad##Type##Operator()                                             \
-        : Operator1<LoadRepresentation>(                                       \
-              IrOpcode::kPoisonedLoad, Operator::kEliminatable,                \
-              "PoisonedLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}        \
-  };                                                                           \
   struct UnalignedLoad##Type##Operator final                                   \
       : public Operator1<LoadRepresentation> {                                 \
     UnalignedLoad##Type##Operator()                                            \
@@ -861,7 +853,6 @@ struct MachineOperatorGlobalCache {
                                         0, 0, 1, 0, 0, MachineType::Type()) {} \
   };                                                                           \
   Load##Type##Operator kLoad##Type;                                            \
-  PoisonedLoad##Type##Operator kPoisonedLoad##Type;                            \
   UnalignedLoad##Type##Operator kUnalignedLoad##Type;                          \
   ProtectedLoad##Type##Operator kProtectedLoad##Type;                          \
   LoadImmutable##Type##Operator kLoadImmutable##Type;
@@ -1157,30 +1148,6 @@ struct MachineOperatorGlobalCache {
   };
   BitcastMaybeObjectToWordOperator kBitcastMaybeObjectToWord;
 
-  struct TaggedPoisonOnSpeculation : public Operator {
-    TaggedPoisonOnSpeculation()
-        : Operator(IrOpcode::kTaggedPoisonOnSpeculation,
-                   Operator::kEliminatable | Operator::kNoWrite,
-                   "TaggedPoisonOnSpeculation", 1, 1, 1, 1, 1, 0) {}
-  };
-  TaggedPoisonOnSpeculation kTaggedPoisonOnSpeculation;
-
-  struct Word32PoisonOnSpeculation : public Operator {
-    Word32PoisonOnSpeculation()
-        : Operator(IrOpcode::kWord32PoisonOnSpeculation,
-                   Operator::kEliminatable | Operator::kNoWrite,
-                   "Word32PoisonOnSpeculation", 1, 1, 1, 1, 1, 0) {}
-  };
-  Word32PoisonOnSpeculation kWord32PoisonOnSpeculation;
-
-  struct Word64PoisonOnSpeculation : public Operator {
-    Word64PoisonOnSpeculation()
-        : Operator(IrOpcode::kWord64PoisonOnSpeculation,
-                   Operator::kEliminatable | Operator::kNoWrite,
-                   "Word64PoisonOnSpeculation", 1, 1, 1, 1, 1, 0) {}
-  };
-  Word64PoisonOnSpeculation kWord64PoisonOnSpeculation;
-
   struct AbortCSAAssertOperator : public Operator {
     AbortCSAAssertOperator()
         : Operator(IrOpcode::kAbortCSAAssert, Operator::kNoThrow,
@@ -1360,16 +1327,6 @@ const Operator* MachineOperatorBuilder::LoadImmutable(LoadRepresentation rep) {
 #define LOAD(Type)                       \
   if (rep == MachineType::Type()) {      \
     return &cache_.kLoadImmutable##Type; \
-  }
-  MACHINE_TYPE_LIST(LOAD)
-#undef LOAD
-  UNREACHABLE();
-}
-
-const Operator* MachineOperatorBuilder::PoisonedLoad(LoadRepresentation rep) {
-#define LOAD(Type)                      \
-  if (rep == MachineType::Type()) {     \
-    return &cache_.kPoisonedLoad##Type; \
   }
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
@@ -1811,18 +1768,6 @@ const Operator* MachineOperatorBuilder::Word32AtomicPairExchange() {
 
 const Operator* MachineOperatorBuilder::Word32AtomicPairCompareExchange() {
   return &cache_.kWord32AtomicPairCompareExchange;
-}
-
-const Operator* MachineOperatorBuilder::TaggedPoisonOnSpeculation() {
-  return &cache_.kTaggedPoisonOnSpeculation;
-}
-
-const Operator* MachineOperatorBuilder::Word32PoisonOnSpeculation() {
-  return &cache_.kWord32PoisonOnSpeculation;
-}
-
-const Operator* MachineOperatorBuilder::Word64PoisonOnSpeculation() {
-  return &cache_.kWord64PoisonOnSpeculation;
 }
 
 #define EXTRACT_LANE_OP(Type, Sign, lane_count)                      \

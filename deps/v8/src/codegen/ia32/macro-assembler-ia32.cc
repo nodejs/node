@@ -2385,63 +2385,6 @@ void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
   jmp(code_object, rmode);
 }
 
-void TurboAssembler::RetpolineCall(Register reg) {
-  ASM_CODE_COMMENT(this);
-  Label setup_return, setup_target, inner_indirect_branch, capture_spec;
-
-  jmp(&setup_return);  // Jump past the entire retpoline below.
-
-  bind(&inner_indirect_branch);
-  call(&setup_target);
-
-  bind(&capture_spec);
-  pause();
-  jmp(&capture_spec);
-
-  bind(&setup_target);
-  mov(Operand(esp, 0), reg);
-  ret(0);
-
-  bind(&setup_return);
-  call(&inner_indirect_branch);  // Callee will return after this instruction.
-}
-
-void TurboAssembler::RetpolineCall(Address destination, RelocInfo::Mode rmode) {
-  ASM_CODE_COMMENT(this);
-  Label setup_return, setup_target, inner_indirect_branch, capture_spec;
-
-  jmp(&setup_return);  // Jump past the entire retpoline below.
-
-  bind(&inner_indirect_branch);
-  call(&setup_target);
-
-  bind(&capture_spec);
-  pause();
-  jmp(&capture_spec);
-
-  bind(&setup_target);
-  mov(Operand(esp, 0), destination, rmode);
-  ret(0);
-
-  bind(&setup_return);
-  call(&inner_indirect_branch);  // Callee will return after this instruction.
-}
-
-void TurboAssembler::RetpolineJump(Register reg) {
-  ASM_CODE_COMMENT(this);
-  Label setup_target, capture_spec;
-
-  call(&setup_target);
-
-  bind(&capture_spec);
-  pause();
-  jmp(&capture_spec);
-
-  bind(&setup_target);
-  mov(Operand(esp, 0), reg);
-  ret(0);
-}
-
 void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
                                    Condition cc, Label* condition_met,
                                    Label::Distance condition_met_distance) {

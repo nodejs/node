@@ -158,14 +158,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
                       JumpMode jump_mode = JumpMode::kJump);
   void Jump(const ExternalReference& reference);
 
-  void RetpolineCall(Register reg);
-  void RetpolineCall(Address destination, RelocInfo::Mode rmode);
-
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
 
   void LoadMap(Register destination, Register object);
-
-  void RetpolineJump(Register reg);
 
   void Trap();
   void DebugBreak();
@@ -479,9 +474,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public SharedTurboAssembler {
   // Compute the start of the generated instruction stream from the current PC.
   // This is an alternative to embedding the {CodeObject} handle as a reference.
   void ComputeCodeStartAddress(Register dst);
-
-  // TODO(860429): Remove remaining poisoning infrastructure on ia32.
-  void ResetSpeculationPoisonRegister() { UNREACHABLE(); }
 
   // Control-flow integrity:
 

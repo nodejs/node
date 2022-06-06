@@ -547,8 +547,7 @@ class PipelineData {
     code_generator_ = new CodeGenerator(
         codegen_zone(), frame(), linkage, sequence(), info(), isolate(),
         osr_helper_, start_source_position_, jump_optimization_info_,
-        info()->GetPoisoningMitigationLevel(), assembler_options(),
-        info_->builtin(), max_unoptimized_frame_height(),
+        assembler_options(), info_->builtin(), max_unoptimized_frame_height(),
         max_pushed_argument_count(),
         FLAG_trace_turbo_stack_accesses ? debug_name_.get() : nullptr);
   }
@@ -1161,18 +1160,6 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   if (FLAG_turbo_inlining) {
     compilation_info()->set_inlining();
   }
-
-  // This is the bottleneck for computing and setting poisoning level in the
-  // optimizing compiler.
-  PoisoningMitigationLevel load_poisoning =
-      PoisoningMitigationLevel::kDontPoison;
-  if (FLAG_untrusted_code_mitigations) {
-    // For full mitigations, this can be changed to
-    // PoisoningMitigationLevel::kPoisonAll.
-    load_poisoning = PoisoningMitigationLevel::kPoisonCriticalOnly;
-  }
-  compilation_info()->SetPoisoningMitigationLevel(load_poisoning);
-
   if (FLAG_turbo_allocation_folding) {
     compilation_info()->set_allocation_folding();
   }
@@ -1629,10 +1616,10 @@ struct SimplifiedLoweringPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(SimplifiedLowering)
 
   void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
-    SimplifiedLowering lowering(
-        data->jsgraph(), data->broker(), temp_zone, data->source_positions(),
-        data->node_origins(), data->info()->GetPoisoningMitigationLevel(),
-        &data->info()->tick_counter(), linkage, data->observe_node_manager());
+    SimplifiedLowering lowering(data->jsgraph(), data->broker(), temp_zone,
+                                data->source_positions(), data->node_origins(),
+                                &data->info()->tick_counter(), linkage,
+                                data->observe_node_manager());
 
     // RepresentationChanger accesses the heap.
     UnparkedScopeIfNeeded scope(data->broker());
@@ -1797,7 +1784,6 @@ struct EffectControlLinearizationPhase {
       // - introduce effect phis and rewire effects to get SSA again.
       LinearizeEffectControl(data->jsgraph(), schedule, temp_zone,
                              data->source_positions(), data->node_origins(),
-                             data->info()->GetPoisoningMitigationLevel(),
                              data->broker());
     }
     {
@@ -1899,7 +1885,7 @@ struct MemoryOptimizationPhase {
 
     // Optimize allocations and load/store operations.
     MemoryOptimizer optimizer(
-        data->jsgraph(), temp_zone, data->info()->GetPoisoningMitigationLevel(),
+        data->jsgraph(), temp_zone,
         data->info()->allocation_folding()
             ? MemoryLowering::AllocationFolding::kDoAllocationFolding
             : MemoryLowering::AllocationFolding::kDontAllocationFolding,
@@ -1989,7 +1975,6 @@ struct ScheduledEffectControlLinearizationPhase {
     // - lower simplified memory and select nodes to machine level nodes.
     LowerToMachineSchedule(data->jsgraph(), data->schedule(), temp_zone,
                            data->source_positions(), data->node_origins(),
-                           data->info()->GetPoisoningMitigationLevel(),
                            data->broker());
 
     // TODO(rmcilroy) Avoid having to rebuild rpo_order on schedule each time.
@@ -2205,7 +2190,6 @@ struct InstructionSelectionPhase {
         data->assembler_options().enable_root_relative_access
             ? InstructionSelector::kEnableRootsRelativeAddressing
             : InstructionSelector::kDisableRootsRelativeAddressing,
-        data->info()->GetPoisoningMitigationLevel(),
         data->info()->trace_turbo_json()
             ? InstructionSelector::kEnableTraceTurboJson
             : InstructionSelector::kDisableTraceTurboJson);
@@ -2969,16 +2953,11 @@ int HashGraphForPGO(Graph* graph) {
 MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
     JSGraph* jsgraph, SourcePositionTable* source_positions, CodeKind kind,
-    const char* debug_name, Builtin builtin,
-    PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
+    const char* debug_name, Builtin builtin, const AssemblerOptions& options,
     const ProfileDataFromFile* profile_data) {
   OptimizedCompilationInfo info(base::CStrVector(debug_name), graph->zone(),
                                 kind);
   info.set_builtin(builtin);
-
-  if (poisoning_level != PoisoningMitigationLevel::kDontPoison) {
-    info.SetPoisoningMitigationLevel(poisoning_level);
-  }
 
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(isolate->allocator());
@@ -3546,18 +3525,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     config.reset(RegisterConfiguration::RestrictGeneralRegisters(registers));
     AllocateRegistersForTopTier(config.get(), call_descriptor, run_verifier);
   } else {
-    const RegisterConfiguration* config;
-    if (data->info()->GetPoisoningMitigationLevel() !=
-        PoisoningMitigationLevel::kDontPoison) {
-#ifdef V8_TARGET_ARCH_IA32
-    FATAL("Poisoning is not supported on ia32.");
-#else
-      config = RegisterConfiguration::Poisoning();
-#endif  // V8_TARGET_ARCH_IA32
-    } else {
-      config = RegisterConfiguration::Default();
-    }
-
+    const RegisterConfiguration* config = RegisterConfiguration::Default();
     if (data->info()->IsTurboprop() && FLAG_turboprop_mid_tier_reg_alloc) {
       AllocateRegistersForMidTier(config, call_descriptor, run_verifier);
     } else {
@@ -3643,7 +3611,6 @@ std::ostream& operator<<(std::ostream& out,
   out << "\"codeStartRegisterCheck\": "
       << s.offsets_info->code_start_register_check << ", ";
   out << "\"deoptCheck\": " << s.offsets_info->deopt_check << ", ";
-  out << "\"initPoison\": " << s.offsets_info->init_poison << ", ";
   out << "\"blocksStart\": " << s.offsets_info->blocks_start << ", ";
   out << "\"outOfLineCode\": " << s.offsets_info->out_of_line_code << ", ";
   out << "\"deoptimizationExits\": " << s.offsets_info->deoptimization_exits

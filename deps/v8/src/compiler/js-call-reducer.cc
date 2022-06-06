@@ -728,8 +728,7 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
     TNode<HeapObject> elements =
         LoadField<HeapObject>(AccessBuilder::ForJSObjectElements(), o);
     TNode<Object> value = LoadElement<Object>(
-        AccessBuilder::ForFixedArrayElement(kind, LoadSensitivity::kCritical),
-        elements, index);
+        AccessBuilder::ForFixedArrayElement(kind), elements, index);
     return std::make_pair(index, value);
   }
 
@@ -6373,9 +6372,8 @@ Reduction JSCallReducer::ReduceStringPrototypeStringAt(
                                     index, receiver_length, effect, control);
 
   // Return the character from the {receiver} as single character string.
-  Node* masked_index = graph()->NewNode(simplified()->PoisonIndex(), index);
   Node* value = effect = graph()->NewNode(string_access_operator, receiver,
-                                          masked_index, effect, control);
+                                          index, effect, control);
 
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
@@ -6433,11 +6431,9 @@ Reduction JSCallReducer::ReduceStringPrototypeStartsWith(Node* node) {
           Node* etrue = effect;
           Node* vtrue;
           {
-            Node* masked_position = graph()->NewNode(
-                simplified()->PoisonIndex(), unsigned_position);
             Node* string_first = etrue =
                 graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
-                                 masked_position, etrue, if_true);
+                                 unsigned_position, etrue, if_true);
 
             Node* search_first =
                 jsgraph()->Constant(str.GetFirstChar().value());
@@ -6488,10 +6484,8 @@ Reduction JSCallReducer::ReduceStringPrototypeCharAt(Node* node) {
                                     index, receiver_length, effect, control);
 
   // Return the character from the {receiver} as single character string.
-  Node* masked_index = graph()->NewNode(simplified()->PoisonIndex(), index);
-  Node* value = effect =
-      graph()->NewNode(simplified()->StringCharCodeAt(), receiver, masked_index,
-                       effect, control);
+  Node* value = effect = graph()->NewNode(simplified()->StringCharCodeAt(),
+                                          receiver, index, effect, control);
   value = graph()->NewNode(simplified()->StringFromSingleCharCode(), value);
 
   ReplaceWithValue(node, value, effect, control);

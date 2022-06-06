@@ -38,7 +38,8 @@ ALL_VARIANT_FLAGS = {
   "stress_snapshot": [["--stress-snapshot"]],
   # Trigger stress sampling allocation profiler with sample interval = 2^14
   "stress_sampling": [["--stress-sampling-allocation-profiler=16384"]],
-  "trusted": [["--no-untrusted-code-mitigations"]],
+  # TODO(rmcilroy): Remove trusted variant once bots don't use it.
+  "trusted": [[]],
   "no_wasm_traps": [["--no-wasm-trap-handler"]],
   "turboprop": [["--turboprop"]],
   "turboprop_as_toptier": [["--turboprop-as-toptier", "--turboprop"]],

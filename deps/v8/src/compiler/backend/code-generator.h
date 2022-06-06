@@ -103,7 +103,6 @@ class DeoptimizationLiteral {
 struct TurbolizerCodeOffsetsInfo {
   int code_start_register_check = -1;
   int deopt_check = -1;
-  int init_poison = -1;
   int blocks_start = -1;
   int out_of_line_code = -1;
   int deoptimization_exits = -1;
@@ -120,14 +119,16 @@ struct TurbolizerInstructionStartInfo {
 // Generates native code for a sequence of instructions.
 class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
  public:
-  explicit CodeGenerator(
-      Zone* codegen_zone, Frame* frame, Linkage* linkage,
-      InstructionSequence* instructions, OptimizedCompilationInfo* info,
-      Isolate* isolate, base::Optional<OsrHelper> osr_helper,
-      int start_source_position, JumpOptimizationInfo* jump_opt,
-      PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
-      Builtin builtin, size_t max_unoptimized_frame_height,
-      size_t max_pushed_argument_count, const char* debug_name = nullptr);
+  explicit CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
+                         InstructionSequence* instructions,
+                         OptimizedCompilationInfo* info, Isolate* isolate,
+                         base::Optional<OsrHelper> osr_helper,
+                         int start_source_position,
+                         JumpOptimizationInfo* jump_opt,
+                         const AssemblerOptions& options, Builtin builtin,
+                         size_t max_unoptimized_frame_height,
+                         size_t max_pushed_argument_count,
+                         const char* debug_name = nullptr);
 
   // Generate native code. After calling AssembleCode, call FinalizeCode to
   // produce the actual code object. If an error occurs during either phase,
@@ -216,17 +217,6 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // Assemble instructions for the specified block.
   CodeGenResult AssembleBlock(const InstructionBlock* block);
 
-  // Inserts mask update at the beginning of an instruction block if the
-  // predecessor blocks ends with a masking branch.
-  void TryInsertBranchPoisoning(const InstructionBlock* block);
-
-  // Initializes the masking register in the prologue of a function.
-  void InitializeSpeculationPoison();
-  // Reset the masking register during execution of a function.
-  void ResetSpeculationPoison();
-  // Generates a mask from the pc passed in {kJavaScriptCallCodeStartRegister}.
-  void GenerateSpeculationPoisonFromCodeStartRegister();
-
   // Assemble code for the specified instruction.
   CodeGenResult AssembleInstruction(int instruction_index,
                                     const InstructionBlock* block);
@@ -276,17 +266,11 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // contains the expected pointer to the start of the instruction stream.
   void AssembleCodeStartRegisterCheck();
 
-  void AssembleBranchPoisoning(FlagsCondition condition, Instruction* instr);
-
   // When entering a code that is marked for deoptimization, rather continuing
   // with its execution, we jump to a lazy compiled code. We need to do this
   // because this code has already been deoptimized and needs to be unlinked
   // from the JS functions referring it.
   void BailoutIfDeoptimized();
-
-  // Generates code to poison the stack pointer and implicit register arguments
-  // like the context register and the function register.
-  void AssembleRegisterArgumentPoisoning();
 
   // Generates an architecture-specific, descriptor-specific prologue
   // to set up a stack frame.
@@ -484,7 +468,6 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   SourcePositionTableBuilder source_position_table_builder_;
   ZoneVector<trap_handler::ProtectedInstructionData> protected_instructions_;
   CodeGenResult result_;
-  PoisoningMitigationLevel poisoning_level_;
   ZoneVector<int> block_starts_;
   TurbolizerCodeOffsetsInfo offsets_info_;
   ZoneVector<TurbolizerInstructionStartInfo> instr_starts_;

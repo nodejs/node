@@ -852,7 +852,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);
   const Operator* LoadImmutable(LoadRepresentation rep);
-  const Operator* PoisonedLoad(LoadRepresentation rep);
   const Operator* ProtectedLoad(LoadRepresentation rep);
 
   const Operator* LoadTransform(MemoryAccessKind kind,
@@ -878,11 +877,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   const Operator* StackSlot(int size, int alignment = 0);
   const Operator* StackSlot(MachineRepresentation rep, int alignment = 0);
-
-  // Destroy value by masking when misspeculating.
-  const Operator* TaggedPoisonOnSpeculation();
-  const Operator* Word32PoisonOnSpeculation();
-  const Operator* Word64PoisonOnSpeculation();
 
   // Access to the machine stack.
   const Operator* LoadFramePointer();
@@ -980,7 +974,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   V(Word, Ror)                 \
   V(Word, Clz)                 \
   V(Word, Equal)               \
-  V(Word, PoisonOnSpeculation) \
   V(Int, Add)                  \
   V(Int, Sub)                  \
   V(Int, Mul)                  \

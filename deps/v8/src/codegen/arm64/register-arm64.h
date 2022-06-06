@@ -701,8 +701,6 @@ constexpr Register kJSFunctionRegister = x1;
 constexpr Register kContextRegister = cp;
 constexpr Register kAllocateSizeRegister = x1;
 
-constexpr Register kSpeculationPoisonRegister = x23;
-
 constexpr Register kInterpreterAccumulatorRegister = x0;
 constexpr Register kInterpreterBytecodeOffsetRegister = x19;
 constexpr Register kInterpreterBytecodeArrayRegister = x20;

@@ -228,11 +228,6 @@ declare_args() {
                       (is_linux || is_chromeos || is_mac)) ||
                      (v8_current_cpu == "ppc64" && (is_linux || is_chromeos))
 
-  # Enable mitigations for executing untrusted code.
-  # Disabled by default on ia32 due to conflicting requirements with embedded
-  # builtins.
-  v8_untrusted_code_mitigations = false
-
   # Enable minor mark compact.
   v8_enable_minor_mc = true
 
@@ -461,9 +456,6 @@ if (build_with_chromium && v8_current_cpu == "arm64" &&
 assert(!v8_disable_write_barriers || v8_enable_single_generation,
        "Disabling write barriers works only with single generation")
 
-assert(v8_current_cpu != "x86" || !v8_untrusted_code_mitigations,
-       "Untrusted code mitigations are unsupported on ia32")
-
 assert(v8_current_cpu == "arm64" || !v8_control_flow_integrity,
        "Control-flow integrity is only supported on arm64")
 
@@ -479,9 +471,6 @@ assert(!v8_enable_map_packing || !v8_enable_pointer_compression,
 
 assert(!v8_enable_map_packing || v8_current_cpu == "x64",
        "Map packing is only supported on x64")
-
-assert(!v8_use_multi_snapshots || !v8_control_flow_integrity,
-       "Control-flow integrity does not support multisnapshots")
 
 assert(!v8_enable_heap_sandbox || v8_enable_pointer_compression,
        "V8 Heap Sandbox requires pointer compression")
@@ -872,9 +861,6 @@ config("features") {
   if (v8_enable_lazy_source_positions) {
     defines += [ "V8_ENABLE_LAZY_SOURCE_POSITIONS" ]
   }
-  if (v8_use_multi_snapshots) {
-    defines += [ "V8_MULTI_SNAPSHOTS" ]
-  }
   if (v8_use_siphash) {
     defines += [ "V8_USE_SIPHASH" ]
   }
@@ -1170,10 +1156,6 @@ config("toolchain") {
     defines += [ "V8_RUNTIME_CALL_STATS" ]
   }
 
-  if (!v8_untrusted_code_mitigations) {
-    defines += [ "DISABLE_UNTRUSTED_CODE_MITIGATIONS" ]
-  }
-
   if (v8_no_inline) {
     if (is_win) {
       cflags += [ "/Ob0" ]
@@ -1309,8 +1291,6 @@ template("asm_to_inline_asm") {
 if (is_android && enable_java_templates) {
   android_assets("v8_external_startup_data_assets") {
     if (v8_use_external_startup_data) {
-      # We don't support side-by-side snapshots on Android within Chromium.
-      assert(!v8_use_multi_snapshots)
       deps = [ "//v8" ]
       renaming_sources = [ "$root_out_dir/snapshot_blob.bin" ]
       if (current_cpu == "arm" || current_cpu == "x86" ||
@@ -1987,17 +1967,6 @@ if (emit_builtins_as_inline_asm) {
     args = []
   }
 }
-if (v8_use_multi_snapshots) {
-  run_mksnapshot("trusted") {
-    args = [ "--no-untrusted-code-mitigations" ]
-    embedded_variant = "Trusted"
-  }
-  if (emit_builtins_as_inline_asm) {
-    asm_to_inline_asm("trusted") {
-      args = []
-    }
-  }
-}
 
 action("v8_dump_build_config") {
   script = "tools/testrunner/utils/dump_build_config.py"
@@ -2086,16 +2055,6 @@ v8_source_set("v8_snapshot") {
     deps += [ ":v8_base" ]
 
     sources += [ "src/snapshot/snapshot-external.cc" ]
-
-    if (v8_use_multi_snapshots) {
-      public_deps += [ ":run_mksnapshot_trusted" ]
-      if (emit_builtins_as_inline_asm) {
-        deps += [ ":asm_to_inline_asm_trusted" ]
-        sources += [ "$target_gen_dir/embedded_trusted.cc" ]
-      } else {
-        sources += [ "$target_gen_dir/embedded_trusted.S" ]
-      }
-    }
   } else {
     # Also top-level visibility targets can depend on this.
     visibility += [ "//:gn_visibility" ]

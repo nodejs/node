@@ -4670,10 +4670,6 @@ void TurboAssembler::SwapSimd128(MemOperand src, MemOperand dst,
   lay(sp, MemOperand(sp, kSimd128Size));
 }
 
-void TurboAssembler::ResetSpeculationPoisonRegister() {
-  mov(kSpeculationPoisonRegister, Operand(-1));
-}
-
 void TurboAssembler::ComputeCodeStartAddress(Register dst) {
   larl(dst, Operand(-pc_offset() / 2));
 }
