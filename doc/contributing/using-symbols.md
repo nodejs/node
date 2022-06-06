@@ -61,7 +61,7 @@ for different reasons.
 
 ```js
 const s = Symbol.for('hello');
-console.log(s === Symbol.for('hello'));
+console.log(s === Symbol.for('hello')); // true
 ```
 
 In the Node.js runtime we prefix all our global symbols with `nodejs.`,
