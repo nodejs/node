@@ -69,7 +69,7 @@ function getErrorMessage(error) {
     // Lazy loading because this is used only if an error happened.
     const util = require("util");
 
-    // Foolproof -- thirdparty module might throw non-object.
+    // Foolproof -- third-party module might throw non-object.
     if (typeof error !== "object" || error === null) {
         return String(error);
     }

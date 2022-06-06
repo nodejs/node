@@ -136,7 +136,6 @@ module.exports = {};
 
 /**
  * @typedef {Object} RuleMetaDocs
- * @property {string} category The category of the rule.
  * @property {string} description The description of the rule.
  * @property {boolean} recommended If `true` then the rule is included in `eslint:recommended` preset.
  * @property {string} url The URL of the rule documentation.
@@ -147,6 +146,7 @@ module.exports = {};
  * @property {boolean} [deprecated] If `true` then the rule has been deprecated.
  * @property {RuleMetaDocs} docs The document information of the rule.
  * @property {"code"|"whitespace"} [fixable] The autofix type.
+ * @property {boolean} [hasSuggestions] If `true` then the rule provides suggestions.
  * @property {Record<string,string>} [messages] The messages the rule reports.
  * @property {string[]} [replacedBy] The IDs of the alternative rules.
  * @property {Array|Object} schema The option schema of the rule.
