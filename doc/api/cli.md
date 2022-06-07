@@ -1989,9 +1989,9 @@ changes:
 
 The `TZ` environment variable is used to specify the timezone configuration.
 
-While the Node.js support for `TZ` will not handle all of the various
-[ways that `TZ` is handled in other environments][], it will support basic
-[timezone IDs][] (such as `'Etc/UTC'`, `'Europe/Paris'` or `'America/New_York'`.
+While Node.js does not support all of the various [ways that `TZ` is handled in
+other environments][], it does support basic [timezone IDs][] (such as
+`'Etc/UTC'`, `'Europe/Paris'`, or `'America/New_York'`).
 It may support a few other abbreviations or aliases, but these are strongly
 discouraged and not guaranteed.
 
