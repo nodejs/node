@@ -393,14 +393,18 @@ const theData = 'hello';
       tracker.verify();
     });
 
-    parentPort.onmessage = tracker.calls(({ data }) => {
-      assert(isReadableStream(data));
-      const reader = data.getReader();
-      reader.read().then(tracker.calls((result) => {
-        assert(!result.done);
-        assert(result.value instanceof Uint8Array);
-      }));
-      parentPort.close();
+    parentPort.onmessage = tracker.calls({
+      fn: ({ data }) => {
+        assert(isReadableStream(data));
+        const reader = data.getReader();
+        reader.read().then(tracker.calls({
+          fn: (result) => {
+            assert(!result.done);
+            assert(result.value instanceof Uint8Array);
+          }
+        }));
+        parentPort.close();
+      }
     });
     parentPort.onmessageerror = () => assert.fail('should not be called');
   `, { eval: true });

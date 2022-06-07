@@ -8,7 +8,10 @@ const tracker = new assert.CallTracker();
 
 function foo() {}
 
-const callsfoo = tracker.calls(foo, 1);
+const callsfoo = tracker.calls({
+  fn: foo,
+  exact: 1
+});
 
 // Ensures that foo was added to the callChecks array.
 assert.strictEqual(tracker.report()[0].operator, 'foo');

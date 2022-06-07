@@ -10,7 +10,10 @@ const msg = 'Function(s) were not called the expected number of times';
 
 function foo() {}
 
-const callsfoo = tracker.calls(foo, 1);
+const callsfoo = tracker.calls({
+  fn: foo,
+  exact: 1
+});
 
 // Expects an error as callsfoo() was called less than one time.
 assert.throws(

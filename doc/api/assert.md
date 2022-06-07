@@ -249,7 +249,7 @@ const tracker = new assert.CallTracker();
 function func() {}
 
 // callsfunc() must be called exactly 1 time before tracker.verify().
-const callsfunc = tracker.calls(func, 1);
+const callsfunc = tracker.calls({ fn: func, exact: 1 });
 
 callsfunc();
 
@@ -268,7 +268,7 @@ const tracker = new assert.CallTracker();
 function func() {}
 
 // callsfunc() must be called exactly 1 time before tracker.verify().
-const callsfunc = tracker.calls(func, 1);
+const callsfunc = tracker.calls({ fn: func, exact: 1 });
 
 callsfunc();
 
@@ -279,7 +279,7 @@ process.on('exit', () => {
 });
 ```
 
-### `tracker.calls([fn][, exact])`
+### `tracker.calls(options)`
 
 <!-- YAML
 added:
@@ -287,8 +287,9 @@ added:
   - v12.19.0
 -->
 
-* `fn` {Function} **Default:** A no-op function.
-* `exact` {number} **Default:** `1`.
+* `options` {Object}
+  * `fn` {Function} **Default:** A no-op function.
+  * `exact` {number} **Default:** `1`.
 * Returns: {Function} that wraps `fn`.
 
 The wrapper function is expected to be called exactly `exact` times. If the
@@ -306,7 +307,7 @@ function func() {}
 
 // Returns a function that wraps func() that must be called exact times
 // before tracker.verify().
-const callsfunc = tracker.calls(func);
+const callsfunc = tracker.calls({ fn: func });
 ```
 
 ```cjs
@@ -319,7 +320,7 @@ function func() {}
 
 // Returns a function that wraps func() that must be called exact times
 // before tracker.verify().
-const callsfunc = tracker.calls(func);
+const callsfunc = tracker.calls({ fn: func });
 ```
 
 ### `tracker.report()`
@@ -355,7 +356,7 @@ function foo() {}
 
 // Returns a function that wraps func() that must be called exact times
 // before tracker.verify().
-const callsfunc = tracker.calls(func, 2);
+const callsfunc = tracker.calls({ fn: func, exact: 2 });
 
 // Returns an array containing information on callsfunc()
 tracker.report();
@@ -383,7 +384,7 @@ function foo() {}
 
 // Returns a function that wraps func() that must be called exact times
 // before tracker.verify().
-const callsfunc = tracker.calls(func, 2);
+const callsfunc = tracker.calls({ fn: func, exact: 2 });
 
 // Returns an array containing information on callsfunc()
 tracker.report();
@@ -421,7 +422,7 @@ function func() {}
 
 // Returns a function that wraps func() that must be called exact times
 // before tracker.verify().
-const callsfunc = tracker.calls(func, 2);
+const callsfunc = tracker.calls({ fn: func, exact: 2 });
 
 callsfunc();
 
@@ -439,7 +440,7 @@ function func() {}
 
 // Returns a function that wraps func() that must be called exact times
 // before tracker.verify().
-const callsfunc = tracker.calls(func, 2);
+const callsfunc = tracker.calls({ fn: func, exact: 2 });
 
 callsfunc();
 
@@ -2475,7 +2476,7 @@ argument.
 [`assert.throws()`]: #assertthrowsfn-error-message
 [`getColorDepth()`]: tty.md#writestreamgetcolordepthenv
 [`process.on('exit')`]: process.md#event-exit
-[`tracker.calls()`]: #trackercallsfn-exact
+[`tracker.calls()`]: #trackercallsoptions
 [`tracker.verify()`]: #trackerverify
 [enumerable "own" properties]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties
 [prototype-spec]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots

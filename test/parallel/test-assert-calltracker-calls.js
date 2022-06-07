@@ -14,31 +14,46 @@ const err = {
 
 // Ensures calls() throws on invalid input types.
 assert.throws(() => {
-  const callsbar = tracker.calls(bar, '1');
+  const callsbar = tracker.calls({
+    fn: bar,
+    exact: '1'
+  });
   callsbar();
 }, err
 );
 
 assert.throws(() => {
-  const callsbar = tracker.calls(bar, 0.1);
+  const callsbar = tracker.calls({
+    fn: bar,
+    exact: 0.1
+  });
   callsbar();
 }, { code: 'ERR_OUT_OF_RANGE' }
 );
 
 assert.throws(() => {
-  const callsbar = tracker.calls(bar, true);
+  const callsbar = tracker.calls({
+    fn: bar,
+    exact: true
+  });
   callsbar();
 }, err
 );
 
 assert.throws(() => {
-  const callsbar = tracker.calls(bar, () => {});
+  const callsbar = tracker.calls({
+    fn: bar,
+    exact: () => {}
+  });
   callsbar();
 }, err
 );
 
 assert.throws(() => {
-  const callsbar = tracker.calls(bar, null);
+  const callsbar = tracker.calls({
+    fn: bar,
+    exact: null
+  });
   callsbar();
 }, err
 );
@@ -46,7 +61,10 @@ assert.throws(() => {
 // Expects an error as tracker.calls() cannot be called within a process exit
 // handler.
 process.on('exit', () => {
-  assert.throws(() => tracker.calls(bar, 1), {
+  assert.throws(() => tracker.calls({
+    fn: bar,
+    exact: 1
+  }), {
     code: 'ERR_UNAVAILABLE_DURING_EXIT',
   });
 });
@@ -57,7 +75,10 @@ function func() {
   throw new Error(msg);
 }
 
-const callsfunc = tracker.calls(func, 1);
+const callsfunc = tracker.calls({
+  fn: func,
+  exact: 1
+});
 
 // Expects callsfunc() to call func() which throws an error.
 assert.throws(
@@ -67,14 +88,35 @@ assert.throws(
 
 {
   const tracker = new assert.CallTracker();
-  const callsNoop = tracker.calls(1);
+  const callsNoop = tracker.calls({
+    exact: 1
+  });
   callsNoop();
   tracker.verify();
 }
 
 {
   const tracker = new assert.CallTracker();
-  const callsNoop = tracker.calls(undefined, 1);
+  const callsNoop = tracker.calls({
+    fn: bar
+  });
+  callsNoop('abc');
+  tracker.verify();
+}
+
+{
+  const tracker = new assert.CallTracker();
+  const callsNoop = tracker.calls({
+    fn: undefined,
+    exact: 1
+  });
+  callsNoop();
+  tracker.verify();
+}
+
+{
+  const tracker = new assert.CallTracker();
+  const callsNoop = tracker.calls();
   callsNoop();
   tracker.verify();
 }
