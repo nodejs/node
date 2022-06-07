@@ -25,7 +25,7 @@ sockets on other operating systems.
 
 ### Identifying paths for IPC connections
 
-[`net.connect()`][], [`net.createConnection()`][], [`server.listen()`][] and
+[`net.connect()`][], [`net.createConnection()`][], [`server.listen()`][], and
 [`socket.connect()`][] take a `path` parameter to identify IPC endpoints.
 
 On Unix, the local domain is also known as the Unix domain. The path is a
