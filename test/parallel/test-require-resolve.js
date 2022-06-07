@@ -87,9 +87,6 @@ require(fixtures.path('resolve-paths', 'default', 'verify-paths.js'));
 
   assert.throws(
     () => require.resolve('node:unknown'),
-    {
-      code: 'MODULE_NOT_FOUND',
-      message: /^Cannot find module 'node:unknown'/,
-    },
+    { code: 'MODULE_NOT_FOUND' },
   );
 }
