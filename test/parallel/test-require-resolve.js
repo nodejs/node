@@ -80,3 +80,16 @@ require(fixtures.path('resolve-paths', 'default', 'verify-paths.js'));
     assert.strictEqual(resolvedPaths.includes('/node_modules'), false);
   });
 }
+
+{
+  assert.strictEqual(require.resolve('node:test'), 'node:test');
+  assert.strictEqual(require.resolve('node:fs'), 'node:fs');
+
+  assert.throws(
+    () => require.resolve('node:unknown'),
+    {
+      code: 'MODULE_NOT_FOUND',
+      message: /^Cannot find module 'node:unknown'/,
+    },
+  );
+}
