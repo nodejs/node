@@ -260,6 +260,26 @@ async function testImportJwk(
         message: /key is not extractable/
       });
   }
+
+  for (const crv of [undefined, namedCurve === 'P-256' ? 'P-384' : 'P-256']) {
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, x: jwk.x, y: jwk.y, crv },
+        { name, namedCurve },
+        extractable,
+        publicUsages),
+      { message: /Named curve mismatch/ });
+
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, d: jwk.d, x: jwk.x, y: jwk.y, crv },
+        { name, namedCurve },
+        extractable,
+        publicUsages),
+      { message: /Named curve mismatch/ });
+  }
 }
 
 (async function() {
