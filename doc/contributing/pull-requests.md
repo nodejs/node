@@ -319,7 +319,7 @@ There are a number of more advanced mechanisms for managing commits using
 Feel free to post a comment in the pull request to ping reviewers if you are
 awaiting an answer on something. If you encounter words or acronyms that
 seem unfamiliar, refer to this
-[glossary](https://chromium.googlesource.com/chromiumos/docs/+/HEAD/glossary.md).
+[glossary](https://github.com/nodejs/node/blob/HEAD/glossary.md).
 
 #### Approval and request changes workflow
 
