@@ -15,10 +15,12 @@ const storage = {};
 
 if (isBuildingSnapshot()) {
   addSerializeCallback(({ filePath }) => {
+    console.error('serializing', filePath);
     storage[filePath] = zlib.gzipSync(fs.readFileSync(filePath));
   }, { filePath });
 
   addDeserializeCallback(({ filePath }) => {
+    console.error('deserializing', filePath);
     storage[filePath] = zlib.gunzipSync(storage[filePath]);
   }, { filePath });
 
