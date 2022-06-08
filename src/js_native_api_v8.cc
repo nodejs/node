@@ -804,14 +804,14 @@ napi_status NAPI_CDECL napi_create_function(napi_env env,
 }
 
 napi_status NAPI_CDECL
-napi_define_class(napi_env env,
-                  const char* utf8name,
-                  size_t length,
-                  napi_callback constructor,
-                  void* callback_data,
-                  size_t property_count,
-                  const napi_property_descriptor* properties,
-                  napi_value* result) {
+napi_declare_class(napi_env env,
+                   const char* utf8name,
+                   size_t length,
+                   napi_callback constructor,
+                   void* callback_data,
+                   size_t property_count,
+                   const napi_property_descriptor* properties,
+                   napi_value* result) {
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
   CHECK_ARG(env, constructor);
@@ -831,13 +831,11 @@ napi_define_class(napi_env env,
   CHECK_NEW_FROM_UTF8_LEN(env, name_string, utf8name, length);
   tpl->SetClassName(name_string);
 
-  size_t static_property_count = 0;
   for (size_t i = 0; i < property_count; i++) {
     const napi_property_descriptor* p = properties + i;
 
     if ((p->attributes & napi_static) != 0) {
-      // Static properties are handled separately below.
-      static_property_count++;
+      // Static properties are handled after instantiation
       continue;
     }
 
@@ -880,26 +878,82 @@ napi_define_class(napi_env env,
     }
   }
 
-  v8::Local<v8::Context> context = env->context();
-  *result = v8impl::JsValueFromV8LocalValue(
-      scope.Escape(tpl->GetFunction(context).ToLocalChecked()));
-
-  if (static_property_count > 0) {
-    std::vector<napi_property_descriptor> static_descriptors;
-    static_descriptors.reserve(static_property_count);
-
-    for (size_t i = 0; i < property_count; i++) {
-      const napi_property_descriptor* p = properties + i;
-      if ((p->attributes & napi_static) != 0) {
-        static_descriptors.push_back(*p);
-      }
-    }
-
-    STATUS_CALL(napi_define_properties(
-        env, *result, static_descriptors.size(), static_descriptors.data()));
-  }
+  *result = v8impl::JsValueFromV8LocalValue(scope.Escape(tpl));
 
   return GET_RETURN_STATUS(env);
+}
+
+napi_status NAPI_CDECL
+napi_instantiate_class(napi_env env,
+                       napi_value tpl,
+                       size_t property_count,
+                       const napi_property_descriptor* properties,
+                       napi_value* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, result);
+  CHECK_ARG(env, tpl);
+
+  v8::Isolate* isolate = env->isolate;
+  v8::Local<v8::Context> context = env->context();
+  v8::EscapableHandleScope scope(isolate);
+
+  v8::Local<v8::FunctionTemplate> v8tpl =
+      v8impl::V8LocalValueFromJsValue(tpl).As<v8::FunctionTemplate>();
+  *result = v8impl::JsValueFromV8LocalValue(
+      scope.Escape(v8tpl->GetFunction(context).ToLocalChecked()));
+
+  std::vector<napi_property_descriptor> static_descriptors;
+
+  for (size_t i = 0; i < property_count; i++) {
+    const napi_property_descriptor* p = properties + i;
+    if ((p->attributes & napi_static) != 0) {
+      static_descriptors.push_back(*p);
+    }
+  }
+
+  STATUS_CALL(napi_define_properties(
+      env, *result, static_descriptors.size(), static_descriptors.data()));
+
+  return GET_RETURN_STATUS(env);
+}
+
+napi_status NAPI_CDECL
+napi_define_class(napi_env env,
+                  const char* utf8name,
+                  size_t length,
+                  napi_callback constructor,
+                  void* callback_data,
+                  size_t property_count,
+                  const napi_property_descriptor* properties,
+                  napi_value* result) {
+  v8::Isolate* isolate = env->isolate;
+  v8::HandleScope scope(isolate);
+  napi_value tpl;
+  napi_status r = napi_declare_class(env,
+                                     utf8name,
+                                     length,
+                                     constructor,
+                                     callback_data,
+                                     property_count,
+                                     properties,
+                                     &tpl);
+  if (r != napi_ok) return r;
+
+  return napi_instantiate_class(env, tpl, property_count, properties, result);
+}
+
+napi_status NAPI_CDECL napi_class_inherit(napi_env env,
+                                         napi_value parent,
+                                         napi_value child) {
+  v8::Isolate* isolate = env->isolate;
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::FunctionTemplate> v8parent =
+      v8impl::V8LocalValueFromJsValue(parent).As<v8::FunctionTemplate>();
+  v8::Local<v8::FunctionTemplate> v8child =
+      v8impl::V8LocalValueFromJsValue(child).As<v8::FunctionTemplate>();
+  v8child->Inherit(v8parent);
+
+  return napi_ok;
 }
 
 napi_status NAPI_CDECL napi_get_property_names(napi_env env,
