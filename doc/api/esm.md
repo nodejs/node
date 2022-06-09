@@ -120,8 +120,9 @@ This section was moved to [Modules: Packages](packages.md).
 ### Terminology
 
 The _specifier_ of an `import` statement is the string after the `from` keyword,
-e.g. `'path'` in `import { sep } from 'node:path'`. Specifiers are also used in
-`export from` statements, and as the argument to an `import()` expression.
+e.g. `'node:path'` in `import { sep } from 'node:path'`. Specifiers are also
+used in `export from` statements, and as the argument to an `import()`
+expression.
 
 There are three types of specifiers:
 
