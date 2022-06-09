@@ -357,6 +357,12 @@ This function is used to write TAP diagnostics to the output. Any diagnostic
 information is included at the end of the test's results. This function does
 not return a value.
 
+```js
+test('top level test', (t) => {
+  t.diagnostic('A diagnostic message');
+});
+```
+
 ### `context.runOnly(shouldRunOnlyTests)`
 
 <!-- YAML
@@ -369,6 +375,17 @@ If `shouldRunOnlyTests` is truthy, the test context will only run tests that
 have the `only` option set. Otherwise, all tests are run. If Node.js was not
 started with the [`--test-only`][] command-line option, this function is a
 no-op.
+
+```js
+test('top level test', (t) => {
+  // The test context can be set to run subtests with the 'only' option.
+  t.runOnly(true);
+  return Promise.all([
+    t.test('this subtest is now skipped'),
+    t.test('this subtest is run', { only: true }),
+  ]);
+});
+```
 
 ### `context.skip([message])`
 
@@ -383,6 +400,13 @@ This function causes the test's output to indicate the test as skipped. If
 not terminate execution of the test function. This function does not return a
 value.
 
+```js
+test('top level test', (t) => {
+  // Make sure to return here as well if the test contains additional logic.
+  t.skip('this is skipped');
+});
+```
+
 ### `context.todo([message])`
 
 <!-- YAML
@@ -394,6 +418,13 @@ added: v18.0.0
 This function adds a `TODO` directive to the test's output. If `message` is
 provided, it is included in the TAP output. Calling `todo()` does not terminate
 execution of the test function. This function does not return a value.
+
+```js
+test('top level test', (t) => {
+  // This test is marked as `TODO`
+  t.todo('this is a todo');
+});
+```
 
 ### `context.test([name][, options][, fn])`
 
@@ -426,6 +457,18 @@ added: v18.0.0
 
 This function is used to create subtests under the current test. This function
 behaves in the same fashion as the top level [`test()`][] function.
+
+```js
+test('top level test', async (t) => {
+  await t.test(
+    'This is a subtest',
+    { only: false, skip: false, concurrency: 1, todo: false },
+    (t) => {
+      assert.ok('some relevant assertion here');
+    }
+  );
+});
+```
 
 [TAP]: https://testanything.org/
 [`--test-only`]: cli.md#--test-only
