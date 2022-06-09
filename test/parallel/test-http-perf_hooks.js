@@ -66,6 +66,12 @@ process.on('exit', () => {
     } else if (entry.name === 'HttpRequest') {
       numberOfHttpRequests++;
     }
+    assert.strictEqual(typeof entry.detail.req.method, 'string');
+    assert.strictEqual(typeof entry.detail.req.url, 'string');
+    assert.strictEqual(typeof entry.detail.req.headers, 'object');
+    assert.strictEqual(typeof entry.detail.res.statusCode, 'number');
+    assert.strictEqual(typeof entry.detail.res.statusMessage, 'string');
+    assert.strictEqual(typeof entry.detail.res.headers, 'object');
   });
   assert.strictEqual(numberOfHttpClients, 2);
   assert.strictEqual(numberOfHttpRequests, 2);
