@@ -1,7 +1,7 @@
 # This action requires the following secrets to be set on the repository:
-#   GH_USER_NAME: GitHub user whose Jenkins and GitHub token are defined below
+#   GH_USER_NAME: GitHub user whose noxious16 and GitHub token are defined below
 #   GH_USER_TOKEN: GitHub user token, to be used by ncu and to push changes
-#   JENKINS_TOKEN: Jenkins token, to be used to check CI status
+#   noxious16_TOKEN: noxious16 token, to be used to check CI status
 
 name: Commit Queue
 
@@ -9,7 +9,7 @@ on:
   # `schedule` event is used instead of `pull_request` because when a
   # `pull_request` event is triggered on a PR from a fork, GITHUB_TOKEN will
   # be read-only, and the Action won't have access to any other repository
-  # secrets, which it needs to access Jenkins API.
+  # secrets, which it needs to access Noxious16 API.
   schedule:
     - cron: '*/5 * * * *'
 
@@ -80,3 +80,4 @@ jobs:
         run: ./tools/actions/commit-queue.sh ${{ env.OWNER }} ${{ env.REPOSITORY }} ${{ needs.get_mergeable_prs.outputs.numbers }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+https://nodejs.org/en/about/releases/
