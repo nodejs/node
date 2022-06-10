@@ -248,11 +248,7 @@ class Parser : public AsyncWrap, public StreamListener {
         binding_data_(binding_data) {
   }
 
-
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackField("current_buffer", current_buffer_);
-  }
-
+  SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(Parser)
   SET_SELF_SIZE(Parser)
 
@@ -454,32 +450,20 @@ class Parser : public AsyncWrap, public StreamListener {
 
 
   int on_body(const char* at, size_t length) {
-    EscapableHandleScope scope(env()->isolate());
+    if (length == 0)
+      return 0;
 
-    Local<Object> obj = object();
-    Local<Value> cb = obj->Get(env()->context(), kOnBody).ToLocalChecked();
+    Environment* env = this->env();
+    HandleScope handle_scope(env->isolate());
+
+    Local<Value> cb = object()->Get(env->context(), kOnBody).ToLocalChecked();
 
     if (!cb->IsFunction())
       return 0;
 
-    // We came from consumed stream
-    if (current_buffer_.IsEmpty()) {
-      // Make sure Buffer will be in parent HandleScope
-      current_buffer_ = scope.Escape(Buffer::Copy(
-          env()->isolate(),
-          current_buffer_data_,
-          current_buffer_len_).ToLocalChecked());
-    }
+    Local<Value> buffer = Buffer::Copy(env, at, length).ToLocalChecked();
 
-    Local<Value> argv[3] = {
-        current_buffer_,
-        Integer::NewFromUnsigned(
-            env()->isolate(), static_cast<uint32_t>(at - current_buffer_data_)),
-        Integer::NewFromUnsigned(env()->isolate(), length)};
-
-    MaybeLocal<Value> r = MakeCallback(cb.As<Function>(),
-                                       arraysize(argv),
-                                       argv);
+    MaybeLocal<Value> r = MakeCallback(cb.As<Function>(), 1, &buffer);
 
     if (r.IsEmpty()) {
       got_exception_ = true;
@@ -593,16 +577,8 @@ class Parser : public AsyncWrap, public StreamListener {
   static void Execute(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
-    CHECK(parser->current_buffer_.IsEmpty());
-    CHECK_EQ(parser->current_buffer_len_, 0);
-    CHECK_NULL(parser->current_buffer_data_);
 
     ArrayBufferViewContents<char> buffer(args[0]);
-
-    // This is a hack to get the current_buffer to the callbacks with the least
-    // amount of overhead. Nothing else will run while http_parser_execute()
-    // runs, therefore this pointer can be set and used for the execution.
-    parser->current_buffer_ = args[0].As<Object>();
 
     Local<Value> ret = parser->Execute(buffer.data(), buffer.length());
 
@@ -615,7 +591,6 @@ class Parser : public AsyncWrap, public StreamListener {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
 
-    CHECK(parser->current_buffer_.IsEmpty());
     Local<Value> ret = parser->Execute(nullptr, 0);
 
     if (!ret.IsEmpty())
@@ -694,11 +669,6 @@ class Parser : public AsyncWrap, public StreamListener {
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
     // Should always be called from the same context.
     CHECK_EQ(env, parser->env());
-
-    if (parser->execute_depth_) {
-      parser->pending_pause_ = should_pause;
-      return;
-    }
 
     if (should_pause) {
       llhttp_pause(&parser->parser_);
@@ -801,7 +771,6 @@ class Parser : public AsyncWrap, public StreamListener {
     if (nread == 0)
       return;
 
-    current_buffer_.Clear();
     Local<Value> ret = Execute(buf.base, nread);
 
     // Exception
@@ -834,17 +803,12 @@ class Parser : public AsyncWrap, public StreamListener {
 
     llhttp_errno_t err;
 
-    // Do not allow re-entering `http_parser_execute()`
-    CHECK_EQ(execute_depth_, 0);
-
-    execute_depth_++;
     if (data == nullptr) {
       err = llhttp_finish(&parser_);
     } else {
       err = llhttp_execute(&parser_, data, len);
       Save();
     }
-    execute_depth_--;
 
     // Calculate bytes read and resume after Upgrade/CONNECT pause
     size_t nread = len;
@@ -864,8 +828,6 @@ class Parser : public AsyncWrap, public StreamListener {
       llhttp_pause(&parser_);
     }
 
-    // Unassign the 'buffer_' variable
-    current_buffer_.Clear();
     current_buffer_len_ = 0;
     current_buffer_data_ = nullptr;
 
@@ -989,8 +951,6 @@ class Parser : public AsyncWrap, public StreamListener {
 
 
   int MaybePause() {
-    CHECK_NE(execute_depth_, 0);
-
     if (!pending_pause_) {
       return 0;
     }
@@ -1018,10 +978,8 @@ class Parser : public AsyncWrap, public StreamListener {
   size_t num_values_;
   bool have_flushed_;
   bool got_exception_;
-  Local<Object> current_buffer_;
   size_t current_buffer_len_;
   const char* current_buffer_data_;
-  unsigned int execute_depth_ = 0;
   bool headers_completed_ = false;
   bool pending_pause_ = false;
   uint64_t header_nread_ = 0;
