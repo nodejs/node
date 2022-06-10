@@ -60,7 +60,7 @@ changes:
     description: Added the new optional reason argument.
 -->
 
-* `reason` {any} An optional reason, retrievable on the `AbortSignal`s
+* `reason` {any} An optional reason, retrievable on the `AbortSignal`'s
   `reason` property.
 
 Triggers the abort signal, causing the `abortController.signal` to emit
