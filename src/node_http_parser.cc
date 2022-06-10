@@ -593,6 +593,35 @@ class Parser : public AsyncWrap, public StreamListener {
   static void Execute(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
+
+    // If parser.Execute is invoked within one of the callbacks,
+    // like kOnHeadersComplete, it is scheduled before the buffer is
+    // emptied and thus all assertions fails. For this reason we
+    // postpone the actual execution.
+    if (!parser->current_buffer_.IsEmpty()) {
+      ArrayBufferViewContents<char> buffer(args[0]);
+
+      Environment::GetCurrent(args)->SetImmediate(
+        [parser, args, buffer](Environment* env) {
+          CHECK(parser->current_buffer_.IsEmpty());
+          CHECK_EQ(parser->current_buffer_len_, 0);
+          CHECK_NULL(parser->current_buffer_data_);
+
+          // This is a hack to get the current_buffer to the callbacks
+          // with the least amount of overhead. Nothing else will run
+          // while http_parser_execute() runs, therefore this pointer
+          // can be set and used for the execution.
+          parser->current_buffer_ = args[0].As<Object>();
+
+          Local<Value> ret = parser->Execute(buffer.data(), buffer.length());
+
+          if (!ret.IsEmpty())
+            args.GetReturnValue().Set(ret);
+        });
+
+      return;
+    }
+
     CHECK(parser->current_buffer_.IsEmpty());
     CHECK_EQ(parser->current_buffer_len_, 0);
     CHECK_NULL(parser->current_buffer_data_);
