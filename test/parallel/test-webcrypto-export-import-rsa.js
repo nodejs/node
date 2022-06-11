@@ -493,16 +493,6 @@ const testVectors = [
     'RSA-OAEP': ['encrypt', 'decrypt'],
   })) {
     assert.rejects(subtle.importKey(
-      'node.keyObject',
-      ecPublic,
-      { name, hash: 'SHA-256' },
-      true, [publicUsage]), { message: /Invalid key type/ });
-    assert.rejects(subtle.importKey(
-      'node.keyObject',
-      ecPrivate,
-      { name, hash: 'SHA-256' },
-      true, [privateUsage]), { message: /Invalid key type/ });
-    assert.rejects(subtle.importKey(
       'spki',
       ecPublic.export({ format: 'der', type: 'spki' }),
       { name, hash: 'SHA-256' },

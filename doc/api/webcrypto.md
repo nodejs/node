@@ -3,6 +3,13 @@
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43310
+    description: Removed proprietary `'node.keyObject'` import/export format.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43310
+    description: Removed proprietary `'NODE-DSA'`, `'NODE-DH'`,
+      and `'NODE-SCRYPT'` algorithms.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/42507
     description: Added `'Ed25519'`, `'Ed448'`, `'X25519'`, and `'X448'`
       algorithms.
@@ -331,11 +338,11 @@ implementation and the APIs supported for each:
 | `'RSA-PSS'`           | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
 | `'RSA-OAEP'`          | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
 | `'ECDSA'`             | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'Ed25519'`[^2]       | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'Ed448'`[^2]         | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
+| `'Ed25519'`[^1]       | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
+| `'Ed448'`[^1]         | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
 | `'ECDH'`              | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
-| `'X25519'`[^2]        | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
-| `'X448'`[^2]          | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
+| `'X25519'`[^1]        | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
+| `'X448'`[^1]          | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
 | `'AES-CTR'`           | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
 | `'AES-CBC'`           | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
 | `'AES-GCM'`           | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
@@ -347,8 +354,6 @@ implementation and the APIs supported for each:
 | `'SHA-256'`           |               |             |             |           |           |           |             |              |             |        |          | ✔        |
 | `'SHA-384'`           |               |             |             |           |           |           |             |              |             |        |          | ✔        |
 | `'SHA-512'`           |               |             |             |           |           |           |             |              |             |        |          | ✔        |
-| `'NODE-DSA'`[^1]      | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'NODE-DH'`[^1]       | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
 
 ## Class: `Crypto`
 
@@ -412,7 +417,7 @@ added: v15.0.0
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* Type: {AesKeyGenParams|RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams|NodeDsaKeyGenParams|NodeDhKeyGenParams}
+* Type: {AesKeyGenParams|RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -477,20 +482,17 @@ Valid key usages depend on the key algorithm (identified by
 | `'AES-GCM'`           | ✔           | ✔           |          |            |               |                | ✔           | ✔             |
 | `'AES-KW'`            |             |             |          |            |               |                | ✔           | ✔             |
 | `'ECDH'`              |             |             |          |            | ✔             | ✔              |             |               |
-| `'X25519'`[^2]        |             |             |          |            | ✔             | ✔              |             |               |
-| `'X448'`[^2]          |             |             |          |            | ✔             | ✔              |             |               |
+| `'X25519'`[^1]        |             |             |          |            | ✔             | ✔              |             |               |
+| `'X448'`[^1]          |             |             |          |            | ✔             | ✔              |             |               |
 | `'ECDSA'`             |             |             | ✔        | ✔          |               |                |             |               |
-| `'Ed25519'`[^2]       |             |             | ✔        | ✔          |               |                |             |               |
-| `'Ed448'`[^2]         |             |             | ✔        | ✔          |               |                |             |               |
+| `'Ed25519'`[^1]       |             |             | ✔        | ✔          |               |                |             |               |
+| `'Ed448'`[^1]         |             |             | ✔        | ✔          |               |                |             |               |
 | `'HDKF'`              |             |             |          |            | ✔             | ✔              |             |               |
 | `'HMAC'`              |             |             | ✔        | ✔          |               |                |             |               |
 | `'PBKDF2'`            |             |             |          |            | ✔             | ✔              |             |               |
 | `'RSA-OAEP'`          | ✔           | ✔           |          |            |               |                | ✔           | ✔             |
 | `'RSA-PSS'`           |             |             | ✔        | ✔          |               |                |             |               |
 | `'RSASSA-PKCS1-v1_5'` |             |             | ✔        | ✔          |               |                |             |               |
-| `'NODE-DSA'`[^1]      |             |             | ✔        | ✔          |               |                |             |               |
-| `'NODE-DH'`[^1]       |             |             |          |            | ✔             | ✔              |             |               |
-| `'NODE-SCRYPT'`[^1]   |             |             |          |            | ✔             | ✔              |             |               |
 
 ## Class: `CryptoKeyPair`
 
@@ -558,7 +560,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {AlgorithmIdentifier|EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params|NodeDhDeriveBitsParams|NodeScryptParams}
+* `algorithm`: {AlgorithmIdentifier|EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params}
 * `baseKey`: {CryptoKey}
 * `length`: {number}
 * Returns: {Promise} containing {ArrayBuffer}
@@ -576,8 +578,6 @@ The algorithms currently supported include:
 * `'ECDH'`
 * `'HKDF'`
 * `'PBKDF2'`
-* `'NODE-DH'`[^1]
-* `'NODE-SCRYPT'`[^1]
 
 ### `subtle.deriveKey(algorithm, baseKey, derivedKeyAlgorithm, extractable, keyUsages)`
 
@@ -591,7 +591,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {AlgorithmIdentifier|EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params|NodeDhDeriveBitsParams|NodeScryptParams}
+* `algorithm`: {AlgorithmIdentifier|EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params}
 * `baseKey`: {CryptoKey}
 * `derivedKeyAlgorithm`: {HmacKeyGenParams|AesKeyGenParams}
 * `extractable`: {boolean}
@@ -614,8 +614,6 @@ The algorithms currently supported include:
 * `'ECDH'`
 * `'HKDF'`
 * `'PBKDF2'`
-* `'NODE-DH'`[^1]
-* '`NODE-SCRYPT'`[^1]
 
 ### `subtle.digest(algorithm, data)`
 
@@ -677,11 +675,9 @@ changes:
     description: Removed `'NODE-DSA'` JWK export.
 -->
 
-* `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, `'jwk'`, or
-  `'node.keyObject'`.
+* `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
 * `key`: {CryptoKey}
-* Returns: {Promise} containing {ArrayBuffer}, or, if `format` is
-  `'node.keyObject'`, a {KeyObject}.
+* Returns: {Promise} containing {ArrayBuffer}.
 
 Exports the given key into the specified format, if supported.
 
@@ -695,9 +691,6 @@ When `format` is `'jwk'` and the export is successful, the returned promise
 will be resolved with a JavaScript object conforming to the [JSON Web Key][]
 specification.
 
-The special `'node.keyObject'` value for `format` is a Node.js-specific
-extension that allows converting a {CryptoKey} into a Node.js {KeyObject}.
-
 | Key Type              | `'spki'` | `'pkcs8'` | `'jwk'` | `'raw'` |
 | --------------------- | -------- | --------- | ------- | ------- |
 | `'AES-CBC'`           |          |           | ✔       | ✔       |
@@ -706,17 +699,14 @@ extension that allows converting a {CryptoKey} into a Node.js {KeyObject}.
 | `'AES-KW'`            |          |           | ✔       | ✔       |
 | `'ECDH'`              | ✔        | ✔         | ✔       | ✔       |
 | `'ECDSA'`             | ✔        | ✔         | ✔       | ✔       |
-| `'Ed25519'`[^2]       | ✔        | ✔         | ✔       | ✔       |
-| `'Ed448'`[^2]         | ✔        | ✔         | ✔       | ✔       |
+| `'Ed25519'`[^1]       | ✔        | ✔         | ✔       | ✔       |
+| `'Ed448'`[^1]         | ✔        | ✔         | ✔       | ✔       |
 | `'HDKF'`              |          |           |         |         |
 | `'HMAC'`              |          |           | ✔       | ✔       |
 | `'PBKDF2'`            |          |           |         |         |
 | `'RSA-OAEP'`          | ✔        | ✔         | ✔       |         |
 | `'RSA-PSS'`           | ✔        | ✔         | ✔       |         |
 | `'RSASSA-PKCS1-v1_5'` | ✔        | ✔         | ✔       |         |
-| `'NODE-DSA'`[^1]      | ✔        | ✔         |         |         |
-| `'NODE-DH'`[^1]       | ✔        | ✔         |         |         |
-| `'NODE-SCRYPT'`[^1]   |          |           |         |         |
 
 ### `subtle.generateKey(algorithm, extractable, keyUsages)`
 
@@ -726,7 +716,7 @@ added: v15.0.0
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {AlgorithmIdentifier|RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams|AesKeyGenParams|NodeDsaKeyGenParams|NodeDhKeyGenParams}
+* `algorithm`: {AlgorithmIdentifier|RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams|AesKeyGenParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -745,13 +735,11 @@ include:
 * `'RSA-PSS'`
 * `'RSA-OAEP'`
 * `'ECDSA'`
-* `'Ed25519'`[^2]
-* `'Ed448'`[^2]
+* `'Ed25519'`[^1]
+* `'Ed448'`[^1]
 * `'ECDH'`
-* `'X25519'`[^2]
-* `'X448'`[^2]
-* `'NODE-DSA'`[^1]
-* `'NODE-DH'`[^1]
+* `'X25519'`[^1]
+* `'X448'`[^1]
 
 The {CryptoKey} (secret key) generating algorithms supported include:
 
@@ -775,13 +763,12 @@ changes:
     description: Removed `'NODE-DSA'` JWK import.
 -->
 
-* `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, `'jwk'`, or
-  `'node.keyObject'`.
+* `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
 * `keyData`: {ArrayBuffer|TypedArray|DataView|Buffer|KeyObject}
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {AlgorithmIdentifier|RsaHashedImportParams|EcKeyImportParams|HmacImportParams|NodeDsaImportParams}
+* `algorithm`: {AlgorithmIdentifier|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -794,9 +781,6 @@ as the given `format` to create a {CryptoKey} instance using the provided
 `algorithm`, `extractable`, and `keyUsages` arguments. If the import is
 successful, the returned promise will be resolved with the created {CryptoKey}.
 
-The special `'node.keyObject'` value for `format` is a Node.js-specific
-extension that allows converting a Node.js {KeyObject} into a {CryptoKey}.
-
 If importing a `'PBKDF2'` key, `extractable` must be `false`.
 
 The algorithms currently supported include:
@@ -808,20 +792,17 @@ The algorithms currently supported include:
 | `'AES-GCM'`           |          |           | ✔       | ✔       |
 | `'AES-KW'`            |          |           | ✔       | ✔       |
 | `'ECDH'`              | ✔        | ✔         | ✔       | ✔       |
-| `'X25519'`[^2]        | ✔        | ✔         | ✔       | ✔       |
-| `'X448'`[^2]          | ✔        | ✔         | ✔       | ✔       |
+| `'X25519'`[^1]        | ✔        | ✔         | ✔       | ✔       |
+| `'X448'`[^1]          | ✔        | ✔         | ✔       | ✔       |
 | `'ECDSA'`             | ✔        | ✔         | ✔       | ✔       |
-| `'Ed25519'`[^2]       | ✔        | ✔         | ✔       | ✔       |
-| `'Ed448'`[^2]         | ✔        | ✔         | ✔       | ✔       |
+| `'Ed25519'`[^1]       | ✔        | ✔         | ✔       | ✔       |
+| `'Ed448'`[^1]         | ✔        | ✔         | ✔       | ✔       |
 | `'HDKF'`              |          |           |         | ✔       |
 | `'HMAC'`              |          |           | ✔       | ✔       |
 | `'PBKDF2'`            |          |           |         | ✔       |
 | `'RSA-OAEP'`          | ✔        | ✔         | ✔       |         |
 | `'RSA-PSS'`           | ✔        | ✔         | ✔       |         |
 | `'RSASSA-PKCS1-v1_5'` | ✔        | ✔         | ✔       |         |
-| `'NODE-DSA'`[^1]      | ✔        | ✔         |         |         |
-| `'NODE-DH'`[^1]       | ✔        | ✔         |         |         |
-| `'NODE-SCRYPT'`[^1]   |          |           |         | ✔       |
 
 ### `subtle.sign(algorithm, key, data)`
 
@@ -852,10 +833,9 @@ The algorithms currently supported include:
 * `'RSASSA-PKCS1-v1_5'`
 * `'RSA-PSS'`
 * `'ECDSA'`
-* `'Ed25519'`[^2]
-* `'Ed448'`[^2]
+* `'Ed25519'`[^1]
+* `'Ed448'`[^1]
 * `'HMAC'`
-* `'NODE-DSA'`[^1]
 
 ### `subtle.unwrapKey(format, wrappedKey, unwrappingKey, unwrapAlgo, unwrappedKeyAlgo, extractable, keyUsages)`
 
@@ -907,8 +887,6 @@ The unwrapped key algorithms supported include:
 * `'AES-CBC'`
 * `'AES-GCM'`
 * `'AES-KW'`
-* `'NODE-DSA'`[^1]
-* `'NODE-DH'`[^1]
 
 ### `subtle.verify(algorithm, key, signature, data)`
 
@@ -940,10 +918,9 @@ The algorithms currently supported include:
 * `'RSASSA-PKCS1-v1_5'`
 * `'RSA-PSS'`
 * `'ECDSA'`
-* `'Ed25519'`[^2]
-* `'Ed448'`[^2]
+* `'Ed25519'`[^1]
+* `'Ed448'`[^1]
 * `'HMAC'`
-* `'NODE-DSA'`[^1]
 
 ### `subtle.wrapKey(format, key, wrappingKey, wrapAlgo)`
 
@@ -1606,241 +1583,7 @@ added: v15.0.0
 
 The length (in bytes) of the random salt to use.
 
-## Node.js-specific extensions
-
-The Node.js Web Crypto API extends various aspects of the Web Crypto API.
-These extensions are consistently identified by prepending names with the
-`node.` prefix. For instance, the `'node.keyObject'` key format can be
-used with the `subtle.exportKey()` and `subtle.importKey()` methods to
-convert between a WebCrypto {CryptoKey} object and a Node.js {KeyObject}.
-
-Care should be taken when using Node.js-specific extensions as they are
-not supported by other WebCrypto implementations and reduce the portability
-of code to other environments.
-
-### `NODE-DH` Algorithm
-
-<!-- YAML
-added: v15.0.0
--->
-
-The `NODE-DH` algorithm is the common implementation of Diffie-Hellman
-key agreement.
-
-#### Class: `NodeDhKeyGenParams`
-
-<!-- YAML
-added: v15.0.0
--->
-
-##### `nodeDhKeyGenParams.generator`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {number} A custom generator.
-
-##### `nodeDhKeyGenParams.group`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {string} The Diffie-Hellman group name.
-
-##### `nodeDhKeyGenParams.prime`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {Buffer} The prime parameter.
-
-##### `nodeDhKeyGenParams.primeLength`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {number} The length in bits of the prime.
-
-#### Class: NodeDhDeriveBitsParams
-
-<!-- YAML
-added: v15.0.0
--->
-
-##### `nodeDhDeriveBitsParams.public`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {CryptoKey} The other parties public key.
-
-### `NODE-DSA` Algorithm
-
-<!-- YAML
-added: v15.0.0
--->
-
-The `NODE-DSA` algorithm is the common implementation of the DSA digital
-signature algorithm.
-
-#### Class: `NodeDsaImportParams`
-
-<!-- YAML
-added: v15.0.0
--->
-
-##### `nodeDsaImportParams.hash`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {string|Object}
-
-If represented as a {string}, the value must be one of:
-
-* `'SHA-1'`
-* `'SHA-256'`
-* `'SHA-384'`
-* `'SHA-512'`
-
-If represented as an {Object}, the object must have a `name` property
-whose value is one of the above listed values.
-
-##### `nodeDsaImportParams.name`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {string} Must be `'NODE-DSA'`.
-
-#### Class: `NodeDsaKeyGenParams`
-
-<!-- YAML
-added: v15.0.0
--->
-
-##### `nodeDsaKeyGenParams.divisorLength`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {number}
-
-The optional length in bits of the DSA divisor.
-
-##### `nodeDsaKeyGenParams.hash`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {string|Object}
-
-If represented as a {string}, the value must be one of:
-
-* `'SHA-1'`
-* `'SHA-256'`
-* `'SHA-384'`
-* `'SHA-512'`
-
-If represented as an {Object}, the object must have a `name` property
-whose value is one of the above listed values.
-
-##### `nodeDsaKeyGenParams.modulusLength`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {number}
-
-The length in bits of the DSA modulus. As a best practice, this should be
-at least `2048`.
-
-##### `nodeDsaKeyGenParams.name`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {string} Must be `'NODE-DSA'`.
-
-### `NODE-SCRYPT` Algorithm
-
-<!-- YAML
-added: v15.0.0
--->
-
-The `NODE-SCRYPT` algorithm is the common implementation of the scrypt key
-derivation algorithm.
-
-#### Class: `NodeScryptParams`
-
-<!-- YAML
-added: v15.0.0
--->
-
-##### `nodeScryptParams.encoding`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {string} The string encoding when `salt` is a string.
-
-##### `nodeScryptParams.maxmem`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {number} Memory upper bound. It is an error when (approximately)
-  `127 * N * r > maxmem`. **Default:** `32 * 1024 * 1024`.
-
-##### `nodeScryptParams.N`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {number} The CPU/memory cost parameter. Must e a power of two
-  greater than 1. **Default:** `16384`.
-
-##### `nodeScryptParams.p`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {number} Parallelization parameter. **Default:** `1`.
-
-##### `nodeScryptParams.r`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {number} Block size parameter. **Default:** `8`.
-
-##### `nodeScryptParams.salt`
-
-<!-- YAML
-added: v15.0.0
--->
-
-* Type: {string|ArrayBuffer|Buffer|TypedArray|DataView}
-
-[^1]: Non-standard Node.js-specific extension
-
-[^2]: An experimental implementation of
+[^1]: An experimental implementation of
     [Secure Curves in the Web Cryptography API][] as of 05 May 2022
 
 [JSON Web Key]: https://tools.ietf.org/html/rfc7517

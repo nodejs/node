@@ -5,7 +5,6 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { types: { isKeyObject } } = require('util');
 const {
   createCipheriv,
   createDecipheriv,
@@ -23,7 +22,6 @@ const {
   getCurves,
   generateKeySync,
   generateKeyPairSync,
-  webcrypto,
 } = require('crypto');
 
 const fixtures = require('../common/fixtures');
@@ -823,27 +821,6 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
       code: 'ERR_CRYPTO_JWK_UNSUPPORTED_CURVE',
       message: `Unsupported JWK EC curve: ${namedCurve}.`
     });
-}
-
-{
-  const buffer = Buffer.from('Hello World');
-  const keyObject = createSecretKey(buffer);
-  const keyPair = generateKeyPairSync('ec', { namedCurve: 'P-256' });
-  assert(isKeyObject(keyPair.publicKey));
-  assert(isKeyObject(keyPair.privateKey));
-  assert(isKeyObject(keyObject));
-
-  assert(!isKeyObject(buffer));
-
-  webcrypto.subtle.importKey(
-    'node.keyObject',
-    keyPair.publicKey,
-    { name: 'ECDH', namedCurve: 'P-256' },
-    false,
-    [],
-  ).then((cryptoKey) => {
-    assert(!isKeyObject(cryptoKey));
-  });
 }
 
 {
