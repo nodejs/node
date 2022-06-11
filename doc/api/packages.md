@@ -237,7 +237,7 @@ between environments, and **preventing any other entry points besides those
 defined in [`"exports"`][]**. This encapsulation allows module authors to
 clearly define the public interface for their package.
 
-For new packages supporting Node.js 12.+ the [`"exports"`][] field is
+For new packages supporting Node.js 12+ the [`"exports"`][] field is
 recommended. For existing packages or packages supporting Node.js version 12.20
 or below, the [`"main"`][] field is recommended. If both [`"exports"`][] and
 [`"main"`][] are defined, the [`"exports"`][] field takes precedence over
@@ -480,7 +480,7 @@ import internalZ from '#internal/z.js';
 Including the `"*.js"` on both sides of the mapping allows restricting which
 file extensions can be resolved in the case of other files like source maps
 existing, while also retaining file extensions for the consumed subpath as is
-recommend.
+recommended.
 
 This is a direct static replacement without any special handling for file
 extensions. In the previous example, `pkg/features/x.json` would be resolved to
