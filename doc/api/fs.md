@@ -1032,7 +1032,7 @@ async function makeDirectory() {
   return dirCreation;
 }
 
-makeDirectory().catch(console.error)
+makeDirectory().catch(console.error);
 ```
 
 ### `fsPromises.mkdtemp(prefix[, options])`
