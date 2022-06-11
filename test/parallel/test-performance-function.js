@@ -89,6 +89,20 @@ const {
   assert.strictEqual(p.name, 'timerified timerified m');
 }
 
+// Function
+{
+  const f1 = () => 1;
+  const f2 = async () => 2;
+  const h1 = createHistogram();
+  const h2 = createHistogram();
+  const g1 = performance.timerify(f1, { histogram: h1 });
+  const g2 = performance.timerify(f2, { histogram: h2 });
+  g1();
+  g2().then(common.mustCall(() => {
+    assert.strictEqual(h1.count, h2.count);
+  }));
+}
+
 (async () => {
   const histogram = createHistogram();
   const m = (a, b = 1) => {};
