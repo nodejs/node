@@ -225,31 +225,32 @@ in your project's `package.json`.
 ## Package entry points
 
 In a package's `package.json` file, two fields can define entry points for a
-package: [`"main"`][] and [`"exports"`][]. The [`"main"`][] field is supported
-in all versions of Node.js, but its capabilities are limited: it only defines
-the main entry point of the package.
+package: [`"main"`][] and [`"exports"`][]. Both fields apply to both ES module
+and CommonJS module entry points.
 
-The [`"exports"`][] field provides an alternative to [`"main"`][] where the
-package main entry point can be defined while also encapsulating the package,
-**preventing any other entry points besides those defined in [`"exports"`][]**.
-This encapsulation allows module authors to define a public interface for
-their package.
+The [`"main"`][] field is supported in all versions of Node.js, but its
+capabilities are limited: it only defines the main entry point of the package.
 
-If both [`"exports"`][] and [`"main"`][] are defined, the [`"exports"`][] field
-takes precedence over [`"main"`][]. [`"exports"`][] are not specific to ES
-modules or CommonJS; [`"main"`][] is overridden by [`"exports"`][] if it
-exists. As such [`"main"`][] cannot be used as a fallback for CommonJS but it
-can be used as a fallback for legacy versions of Node.js that do not support the
-[`"exports"`][] field.
+The [`"exports"`][] provides a modern alternative to [`"main"`][] allowing
+multiple entry points to be defined, conditional entry resolution support
+between environments, and **preventing any other entry points besides those
+defined in [`"exports"`][]**. This encapsulation allows module authors to
+clearly define the public interface for their package.
+
+For new packages targeting the currently supported versions of Node.js, the
+[`"exports"`][] field is recommended. For packages supporting Node.js 10 and
+below, the [`"main"`][] field is required. If both [`"exports"`][] and
+[`"main"`][] are defined, the [`"exports"`][] field takes precedence over
+[`"main"`][] in supported versions of Node.js.
 
 [Conditional exports][] can be used within [`"exports"`][] to define different
 package entry points per environment, including whether the package is
 referenced via `require` or via `import`. For more information about supporting
-both CommonJS and ES Modules in a single package please consult
+both CommonJS and ES modules in a single package please consult
 [the dual CommonJS/ES module packages section][].
 
-**Warning**: Introducing the [`"exports"`][] field prevents consumers of a
-package from using any entry points that are not defined, including the
+Existing packages introducing the [`"exports"`][] field will prevent consumers
+of the package from using any entry points that are not defined, including the
 [`package.json`][] (e.g. `require('your-package/package.json')`. **This will
 likely be a breaking change.**
 
@@ -261,54 +262,61 @@ a project that previous exported `main`, `lib`,
 
 ```json
 {
-  "name": "my-mod",
+  "name": "my-package",
   "exports": {
     ".": "./lib/index.js",
     "./lib": "./lib/index.js",
     "./lib/index": "./lib/index.js",
     "./lib/index.js": "./lib/index.js",
     "./feature": "./feature/index.js",
+    "./feature/index": "./feature/index.js",
     "./feature/index.js": "./feature/index.js",
     "./package.json": "./package.json"
   }
 }
 ```
 
-Alternatively a project could choose to export entire folders:
+Alternatively a project could choose to export entire folders both with and
+without extensioned subpaths using export patterns:
 
 ```json
 {
-  "name": "my-mod",
+  "name": "my-package",
   "exports": {
     ".": "./lib/index.js",
     "./lib": "./lib/index.js",
     "./lib/*": "./lib/*.js",
+    "./lib/*.js": "./lib/*.js",
     "./feature": "./feature/index.js",
     "./feature/*": "./feature/*.js",
+    "./feature/*.js": "./feature/*.js",
     "./package.json": "./package.json"
   }
 }
 ```
 
-As a last resort, package encapsulation can be disabled entirely by creating an
-export for the root of the package `"./*": "./*"`. This exposes every file
-in the package at the cost of disabling the encapsulation and potential tooling
-benefits this provides. As the ES Module loader in Node.js enforces the use of
-[the full specifier path][], exporting the root rather than being explicit
-about entry is less expressive than either of the prior examples. Not only
-is encapsulation lost but module consumers are unable to
-`import feature from 'my-mod/feature'` as they need to provide the full
-path `import feature from 'my-mod/feature/index.js`.
-
-### Main entry point export
-
-To set the main entry point for a package, it is advisable to define both
-[`"exports"`][] and [`"main"`][] in the package's [`package.json`][] file:
+With the above providing backwards-compatibility for any minor package versions,
+a future major change for the package can then properly restrict the exports
+to only the specific feature exports exposed:
 
 ```json
 {
-  "main": "./main.js",
-  "exports": "./main.js"
+  "name": "my-package",
+  "exports": {
+    ".": "./lib/index.js",
+    "./feature/*.js": "./feature/*.js",
+    "./feature/internal/*": null
+  }
+}
+```
+
+### Main entry point export
+
+When writing a new package, it is recommended to use the [`"exports"`][] field:
+
+```json
+{
+  "exports": "./index.js"
 }
 ```
 
@@ -323,6 +331,18 @@ package. It is not a strong encapsulation since a direct require of any
 absolute subpath of the package such as
 `require('/path/to/node_modules/pkg/subpath.js')` will still load `subpath.js`.
 
+All currently supported versions of Node.js and modern build tools support the
+`"exports"` field. For projects using an older version of Node.js or a related
+build tool, compatibility can be achieved by including the `"main"` field
+alongside `"exports"` pointing to the same module:
+
+```json
+{
+  "main": "./index.js",
+  "exports": "./index.js"
+}
+```
+
 ### Subpath exports
 
 <!-- YAML
@@ -335,10 +355,9 @@ with the main entry point by treating the main entry point as the
 
 ```json
 {
-  "main": "./main.js",
   "exports": {
-    ".": "./main.js",
-    "./submodule": "./src/submodule.js"
+    ".": "./index.js",
+    "./submodule.js": "./src/submodule.js"
   }
 }
 ```
@@ -346,7 +365,7 @@ with the main entry point by treating the main entry point as the
 Now only the defined subpath in [`"exports"`][] can be imported by a consumer:
 
 ```js
-import submodule from 'es-module-package/submodule';
+import submodule from 'es-module-package/submodule.js';
 // Loads ./node_modules/es-module-package/src/submodule.js
 ```
 
@@ -357,6 +376,51 @@ import submodule from 'es-module-package/private-module.js';
 // Throws ERR_PACKAGE_PATH_NOT_EXPORTED
 ```
 
+#### Extensions in subpaths
+
+Package authors should provide either extensioned (`import 'pkg/subpath.js'`) or
+extensionless (`import 'pkg/subpath'`) subpaths in their exports. This ensures
+that there is only one subpath for each exported module so that all dependents
+import the same consistent specifier, keeping the package contract clear for
+consumers and simplifying package subpath completions.
+
+Traditionally, packages tended to use the extensionless style, which has the
+benefits of readability and of masking the true path of the file within the
+package.
+
+With [import maps][] now providing a standard for package resolution in browsers
+and other JavaScript runtimes, using the extensionless style can result in
+bloated import map definitions. Explicit file extensions can avoid this issue by
+enabling the import map to utilize a [packages folder mapping][] to map multiple
+subpaths where possible instead of a separate map entry per package subpath
+export. This also mirrors the requirement of using [the full specifier path][]
+in relative and absolute import specifiers.
+
+### Exports sugar
+
+<!-- YAML
+added: v12.11.0
+-->
+
+If the `"."` export is the only export, the [`"exports"`][] field provides sugar
+for this case being the direct [`"exports"`][] field value.
+
+```json
+{
+  "exports": {
+    ".": "./index.js"
+  }
+}
+```
+
+can be written:
+
+```json
+{
+  "exports": "./index.js"
+}
+```
+
 ### Subpath imports
 
 <!-- YAML
@@ -365,12 +429,12 @@ added:
   - v12.19.0
 -->
 
-In addition to the [`"exports"`][] field, it is possible to define internal
-package import maps that only apply to import specifiers from within the package
-itself.
+In addition to the [`"exports"`][] field, there is a package `"imports"` field
+to create private mappings that only apply to import specifiers from within the
+package itself.
 
-Entries in the imports field must always start with `#` to ensure they are
-disambiguated from package specifiers.
+Entries in the `"imports"` field must always start with `#` to ensure they are
+disambiguated from external package specifiers.
 
 For example, the imports field can be used to gain the benefits of conditional
 exports for internal modules:
@@ -397,8 +461,8 @@ file `./dep-polyfill.js` relative to the package in other environments.
 Unlike the `"exports"` field, the `"imports"` field permits mapping to external
 packages.
 
-The resolution rules for the imports field are otherwise
-analogous to the exports field.
+The resolution rules for the imports field are otherwise analogous to the
+exports field.
 
 ### Subpath patterns
 
@@ -406,6 +470,17 @@ analogous to the exports field.
 added:
   - v14.13.0
   - v12.20.0
+changes:
+  - version:
+    - v16.10.0
+    - v14.19.0
+    pr-url: https://github.com/nodejs/node/pull/40041
+    description: Support pattern trailers in "imports" field.
+  - version:
+    - v16.9.0
+    - v14.19.0
+    pr-url: https://github.com/nodejs/node/pull/39635
+    description: Support pattern trailers.
 -->
 
 For packages with a small number of exports or imports, we recommend
@@ -419,10 +494,10 @@ For these use cases, subpath export patterns can be used instead:
 // ./node_modules/es-module-package/package.json
 {
   "exports": {
-    "./features/*": "./src/features/*.js"
+    "./features/*.js": "./src/features/*.js"
   },
   "imports": {
-    "#internal/*": "./src/internal/*.js"
+    "#internal/*.js": "./src/internal/*.js"
   }
 }
 ```
@@ -434,19 +509,19 @@ All instances of `*` on the right hand side will then be replaced with this
 value, including if it contains any `/` separators.
 
 ```js
-import featureX from 'es-module-package/features/x';
+import featureX from 'es-module-package/features/x.js';
 // Loads ./node_modules/es-module-package/src/features/x.js
 
-import featureY from 'es-module-package/features/y/y';
+import featureY from 'es-module-package/features/y/y.js';
 // Loads ./node_modules/es-module-package/src/features/y/y.js
 
-import internalZ from '#internal/z';
+import internalZ from '#internal/z.js';
 // Loads ./node_modules/es-module-package/src/internal/z.js
 ```
 
-This is a direct static replacement without any special handling for file
-extensions. In the previous example, `pkg/features/x.json` would be resolved to
-`./src/features/x.json.js` in the mapping.
+This is a direct static matching and replacement without any special handling
+for file extensions. Including the `"*.js"` on both sides of the mapping
+restricts the exposed package exports to only JS files.
 
 The property of exports being statically enumerable is maintained with exports
 patterns since the individual exports for a package can be determined by
@@ -460,46 +535,18 @@ To exclude private subfolders from patterns, `null` targets can be used:
 // ./node_modules/es-module-package/package.json
 {
   "exports": {
-    "./features/*": "./src/features/*.js",
+    "./features/*.js": "./src/features/*.js",
     "./features/private-internal/*": null
   }
 }
 ```
 
 ```js
-import featureInternal from 'es-module-package/features/private-internal/m';
+import featureInternal from 'es-module-package/features/private-internal/m.js';
 // Throws: ERR_PACKAGE_PATH_NOT_EXPORTED
 
-import featureX from 'es-module-package/features/x';
+import featureX from 'es-module-package/features/x.js';
 // Loads ./node_modules/es-module-package/src/features/x.js
-```
-
-### Exports sugar
-
-<!-- YAML
-added: v12.11.0
--->
-
-If the `"."` export is the only export, the [`"exports"`][] field provides sugar
-for this case being the direct [`"exports"`][] field value.
-
-If the `"."` export has a fallback array or string value, then the
-[`"exports"`][] field can be set to this value directly.
-
-```json
-{
-  "exports": {
-    ".": "./main.js"
-  }
-}
-```
-
-can be written:
-
-```json
-{
-  "exports": "./main.js"
-}
 ```
 
 ### Conditional exports
@@ -525,10 +572,9 @@ For example, a package that wants to provide different ES module exports for
 ```json
 // package.json
 {
-  "main": "./main-require.cjs",
   "exports": {
-    "import": "./main-module.js",
-    "require": "./main-require.cjs"
+    "import": "./index-module.js",
+    "require": "./index-require.cjs"
   },
   "type": "module"
 }
@@ -576,10 +622,9 @@ Conditional exports can also be extended to exports subpaths, for example:
 
 ```json
 {
-  "main": "./main.js",
   "exports": {
-    ".": "./main.js",
-    "./feature": {
+    ".": "./index.js",
+    "./feature.js": {
       "node": "./feature-node.js",
       "default": "./feature.js"
     }
@@ -587,9 +632,9 @@ Conditional exports can also be extended to exports subpaths, for example:
 }
 ```
 
-Defines a package where `require('pkg/feature')` and `import 'pkg/feature'`
-could provide different implementations between Node.js and other JS
-environments.
+Defines a package where `require('pkg/feature.js')` and
+`import 'pkg/feature.js'` could provide different implementations between
+Node.js and other JS environments.
 
 When using environment branches, always include a `"default"` condition where
 possible. Providing a `"default"` condition ensures that any unknown JS
@@ -608,7 +653,6 @@ use in Node.js but not the browser:
 
 ```json
 {
-  "main": "./main.js",
   "exports": {
     "node": {
       "import": "./feature-node.mjs",
@@ -636,7 +680,7 @@ When running Node.js, custom user conditions can be added with the
 `--conditions` flag:
 
 ```bash
-node --conditions=development main.js
+node --conditions=development index.js
 ```
 
 which would then resolve the `"development"` condition in package imports and
@@ -709,8 +753,8 @@ For example, assuming the `package.json` is:
 {
   "name": "a-package",
   "exports": {
-    ".": "./main.mjs",
-    "./foo": "./foo.js"
+    ".": "./index.mjs",
+    "./foo.js": "./foo.js"
   }
 }
 ```
@@ -719,7 +763,7 @@ Then any module _in that package_ can reference an export in the package itself:
 
 ```js
 // ./a-module.mjs
-import { something } from 'a-package'; // Imports "something" from ./main.mjs.
+import { something } from 'a-package'; // Imports "something" from ./index.mjs.
 ```
 
 Self-referencing is available only if `package.json` has [`"exports"`][], and
@@ -741,7 +785,7 @@ and in a CommonJS one. For example, this code will also work:
 
 ```cjs
 // ./a-module.js
-const { something } = require('a-package/foo'); // Loads from ./foo.js.
+const { something } = require('a-package/foo.js'); // Loads from ./foo.js.
 ```
 
 Finally, self-referencing also works with scoped packages. For example, this
@@ -854,7 +898,6 @@ CommonJS entry point for `require`.
 // ./node_modules/pkg/package.json
 {
   "type": "module",
-  "main": "./index.cjs",
   "exports": {
     "import": "./wrapper.mjs",
     "require": "./index.cjs"
@@ -922,7 +965,6 @@ stateless):
 // ./node_modules/pkg/package.json
 {
   "type": "module",
-  "main": "./index.cjs",
   "exports": {
     ".": "./index.cjs",
     "./module": "./wrapper.mjs"
@@ -939,7 +981,6 @@ points directly:
 // ./node_modules/pkg/package.json
 {
   "type": "module",
-  "main": "./index.cjs",
   "exports": {
     "import": "./index.mjs",
     "require": "./index.cjs"
@@ -1025,7 +1066,6 @@ conditional exports for consumers could be to add an export, e.g.
 // ./node_modules/pkg/package.json
 {
   "type": "module",
-  "main": "./index.cjs",
   "exports": {
     ".": "./index.cjs",
     "./module": "./index.mjs"
@@ -1093,7 +1133,7 @@ added: v0.4.0
 
 ```json
 {
-  "main": "./main.js"
+  "main": "./index.js"
 }
 ```
 
@@ -1107,7 +1147,8 @@ It also defines the script that is used when the [package directory is loaded
 via `require()`](modules.md#folders-as-modules).
 
 ```cjs
-require('./path/to/directory'); // This resolves to ./path/to/directory/main.js.
+// This resolves to ./path/to/directory/index.js.
+require('./path/to/directory');
 ```
 
 ### `"packageManager"`
@@ -1270,7 +1311,7 @@ added:
 
 Entries in the imports field must be strings starting with `#`.
 
-Import maps permit mapping to external packages.
+Package imports permit mapping to external packages.
 
 This field defines [subpath imports][] for the current package.
 
@@ -1294,8 +1335,10 @@ This field defines [subpath imports][] for the current package.
 [`package.json`]: #nodejs-packagejson-field-definitions
 [entry points]: #package-entry-points
 [folders as modules]: modules.md#folders-as-modules
+[import maps]: https://github.com/WICG/import-maps
 [load ECMASCript modules from CommonJS modules]: modules.md#the-mjs-extension
 [loader hooks]: esm.md#loaders
+[packages folder mapping]: https://github.com/WICG/import-maps#packages-via-trailing-slashes
 [self-reference]: #self-referencing-a-package-using-its-name
 [subpath exports]: #subpath-exports
 [subpath imports]: #subpath-imports
