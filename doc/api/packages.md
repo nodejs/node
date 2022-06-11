@@ -660,6 +660,9 @@ is provided below to assist with ecosystem coordination.
 
 * `"types"` - can be used by typing systems to resolve the typing file for
   the given export. _This condition should always be included first._
+* `"source"` - can be used to reference unminified / unoptimized source versions
+  to use for debugging workflows, that will behave identically to any non-source
+  variants.
 * `"deno"` - indicates a variation for the Deno platform.
 * `"browser"` - any web browser environment.
 * `"development"` - can be used to define a development-only environment
