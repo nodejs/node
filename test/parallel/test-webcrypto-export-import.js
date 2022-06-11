@@ -43,13 +43,6 @@ const { subtle } = webcrypto;
         message: 'Unsupported key usage for an HMAC key'
       });
     await assert.rejects(
-      subtle.importKey('node.keyObject', '', {
-        name: 'HMAC',
-        hash: 'SHA-256'
-      }, false, ['sign', 'verify']), {
-        code: 'ERR_INVALID_ARG_TYPE'
-      });
-    await assert.rejects(
       subtle.importKey('raw', keyData, {
         name: 'HMAC',
         hash: 'SHA-256',
