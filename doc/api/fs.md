@@ -1022,12 +1022,12 @@ try {
 
 ```cjs
 const { mkdir } = require('node:fs/promises');
-const { resolve } = require('node:path');
+const { resolve, join } = require('node:path');
 
 async function makeDirectory() {
   try {
-    const projectFolder = resolve('./test/project/');
-    const dirCreation = await mkdir(path, { recursive: true });
+    const projectFolder = join(__dirname, 'test', 'project');
+    const dirCreation = await mkdir(projectFolder, { recursive: true });
 
     console.log(dirCreation);
     return dirCreation;
