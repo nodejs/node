@@ -1021,8 +1021,8 @@ try {
 ```
 
 ```cjs
-const { mkdir } = require('fs/promises');
-const { resolve } = require('path');
+const { mkdir } = require('node:fs/promises');
+const { resolve } = require('node:path');
 
 async function makeDirectory() {
   try {
@@ -1068,7 +1068,7 @@ The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
 
 ```mjs
-import { mkdtemp } from 'fs/promises';
+import { mkdtemp } from 'node:fs/promises';
 
 try {
   await mkdtemp(path.join(os.tmpdir(), 'foo-'));
