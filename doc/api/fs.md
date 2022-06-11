@@ -1008,7 +1008,7 @@ property indicating whether parent directories should be created. Calling
 rejection only when `recursive` is false.
 
 ```mjs
-import { mkdir } from 'fs/promises';
+import { mkdir } from 'node:fs/promises';
 
 try {
   const projectFolder = new URL('./test/project/', import.meta.url);
