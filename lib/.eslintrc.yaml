@@ -160,6 +160,7 @@ rules:
     - name: SubtleCrypto
       message: Use `const { SubtleCrypto } = require('internal/crypto/webcrypto');` instead of the global.
   # Custom rules in tools/eslint-rules
+  node-core/avoid-prototype-pollution: error
   node-core/lowercase-name-for-primitive: error
   node-core/non-ascii-character: error
   node-core/no-array-destructuring: error
