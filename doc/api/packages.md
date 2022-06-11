@@ -237,11 +237,11 @@ between environments, and **preventing any other entry points besides those
 defined in [`"exports"`][]**. This encapsulation allows module authors to
 clearly define the public interface for their package.
 
-For new packages supporting Node.js 12.+ the [`"exports"`] field is recommended.
-For existing packages or packages supporting Node.js version 12.20 or below,
-the [`"main"`][] field is recommended. If both [`"exports"`][] and [`"main"`][]
-are defined, the [`"exports"`][] field takes precedence over [`"main"`][] in
-supported versions of Node.js.
+For new packages supporting Node.js 12.+ the [`"exports"`][] field is
+recommended. For existing packages or packages supporting Node.js version 12.20
+or below, the [`"main"`][] field is recommended. If both [`"exports"`][] and
+[`"main"`][] are defined, the [`"exports"`][] field takes precedence over
+[`"main"`][] in supported versions of Node.js.
 
 [Conditional exports][] can be used within [`"exports"`][] to define different
 package entry points per environment, including whether the package is
@@ -363,6 +363,8 @@ interface, it is recommended (but not required) to use explicit file extensions
 when defining package subpaths so that package consumers write
 `import 'pkg/subpath.js'` instead of `import 'pkg/subpath'` as this simplifies
 interop with other ecosystem tooling patterns such as when using import maps.
+This also mirrors the requirement of using [the full specifier path][] in
+relative and absolute import specifiers.
 
 ### Exports sugar
 
