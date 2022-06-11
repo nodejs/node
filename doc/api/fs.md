@@ -1011,7 +1011,7 @@ rejection only when `recursive` is false.
 import { mkdir } from 'fs/promises';
 
 try {
-  const path = new URL('./test/project', import.meta.url);
+  const projectFolder = new URL('./test/project/', import.meta.url);
   const createDir = await mkdir(path, { recursive: true });
 
   console.log(`created ${createDir}`);
@@ -1026,7 +1026,7 @@ const { resolve } = require('path');
 
 async function makeDirectory() {
   try {
-    const path = resolve('./test/project/lol/hi');
+    const projectFolder = resolve('./test/project/');
     const dirCreation = await mkdir(path, { recursive: true });
 
     console.log(dirCreation);
