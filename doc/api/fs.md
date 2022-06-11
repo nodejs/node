@@ -1025,19 +1025,14 @@ const { mkdir } = require('node:fs/promises');
 const { resolve, join } = require('node:path');
 
 async function makeDirectory() {
-  try {
-    const projectFolder = join(__dirname, 'test', 'project');
-    const dirCreation = await mkdir(projectFolder, { recursive: true });
+  const projectFolder = join(__dirname, 'test', 'project');
+  const dirCreation = await mkdir(projectFolder, { recursive: true });
 
-    console.log(dirCreation);
-    return dirCreation;
-  } catch (err) {
-    console.error(err.message);
-  }
-
+  console.log(dirCreation);
+  return dirCreation;
 }
 
-makeDirectory();
+makeDirectory().catch(console.error)
 ```
 
 ### `fsPromises.mkdtemp(prefix[, options])`
