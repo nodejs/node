@@ -285,16 +285,6 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
     'X448': ['deriveBits', 'deriveBits'],
   })) {
     assert.rejects(subtle.importKey(
-      'node.keyObject',
-      rsaPublic,
-      { name },
-      true, [publicUsage]), { message: /Invalid key type/ });
-    assert.rejects(subtle.importKey(
-      'node.keyObject',
-      rsaPrivate,
-      { name },
-      true, [privateUsage]), { message: /Invalid key type/ });
-    assert.rejects(subtle.importKey(
       'spki',
       rsaPublic.export({ format: 'der', type: 'spki' }),
       { name },

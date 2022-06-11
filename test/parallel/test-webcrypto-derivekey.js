@@ -9,8 +9,6 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const { webcrypto: { subtle }, KeyObject } = require('crypto');
 
-const { internalBinding } = require('internal/test/binding');
-
 // This is only a partial test. The WebCrypto Web Platform Tests
 // will provide much greater coverage.
 
@@ -114,38 +112,6 @@ const { internalBinding } = require('internal/test/binding');
      'f72d1cf4853fffbd16a42751765d11f8dc7939498ee7b7ce7678b4cb16fad880'],
     ['hello', 'there', 5, 'SHA-384',
      '201509b012c9cd2fbe7ea938f0c509b36ecb140f38bf9130e96923f55f46756d'],
-  ];
-
-  const tests = Promise.all(kTests.map((args) => test(...args)));
-
-  tests.then(common.mustCall());
-}
-
-// Test Scrypt key derivation
-if (typeof internalBinding('crypto').ScryptJob === 'function') {
-  async function test(pass, salt, expected) {
-    const ec = new TextEncoder();
-    const key = await subtle.importKey(
-      'raw',
-      ec.encode(pass),
-      { name: 'NODE-SCRYPT' },
-      false, ['deriveKey']);
-    const secret = await subtle.deriveKey({
-      name: 'NODE-SCRYPT',
-      salt: ec.encode(salt),
-    }, key, {
-      name: 'AES-CTR',
-      length: 256
-    }, true, ['encrypt']);
-
-    const raw = await subtle.exportKey('raw', secret);
-
-    assert.strictEqual(Buffer.from(raw).toString('hex'), expected);
-  }
-
-  const kTests = [
-    ['hello', 'there',
-     '30ddda6feabaac788eb81cc38f496cd5d9a165d320c537ea05331fe720db1061'],
   ];
 
   const tests = Promise.all(kTests.map((args) => test(...args)));

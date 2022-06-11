@@ -288,16 +288,6 @@ async function testImportJwk(
     'ECDH': ['deriveBits', 'deriveBits'],
   })) {
     assert.rejects(subtle.importKey(
-      'node.keyObject',
-      rsaPublic,
-      { name, hash: 'SHA-256', namedCurve: 'P-256' },
-      true, [publicUsage]), { message: /Invalid key type/ });
-    assert.rejects(subtle.importKey(
-      'node.keyObject',
-      rsaPrivate,
-      { name, hash: 'SHA-256', namedCurve: 'P-256' },
-      true, [privateUsage]), { message: /Invalid key type/ });
-    assert.rejects(subtle.importKey(
       'spki',
       rsaPublic.export({ format: 'der', type: 'spki' }),
       { name, hash: 'SHA-256', namedCurve: 'P-256' },
