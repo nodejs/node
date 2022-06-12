@@ -128,6 +128,23 @@ module.exports = {
       ...createUnsafeStringMethodReport(context, 'StringPrototypeReplaceAll', 'Symbol.replace'),
       ...createUnsafeStringMethodReport(context, 'StringPrototypeSearch', 'Symbol.search'),
       ...createUnsafeStringMethodReport(context, 'StringPrototypeSplit', 'Symbol.split'),
+
+      'NewExpression[callee.name="Proxy"][arguments.1.type="ObjectExpression"]'(node) {
+        for (const { key, value } of node.arguments[1].properties) {
+          if (
+            key != null && value != null &&
+            ((key.type === 'Identifier' && key.name === '__proto__') ||
+              (key.type === 'Literal' && key.value === '__proto__')) &&
+            value.type === 'Literal' && value.value === null
+          ) {
+            return;
+          }
+        }
+        context.report({
+          node,
+          message: 'Proxy handler must be a null-prototype object'
+        });
+      }
     };
   },
 };
