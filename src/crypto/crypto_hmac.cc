@@ -88,7 +88,7 @@ void Hmac::HmacInit(const FunctionCallbackInfo<Value>& args) {
 
   const node::Utf8Value hash_type(env->isolate(), args[0]);
   ByteSource key = ByteSource::FromSecretKeyBytes(env, args[1]);
-  hmac->HmacInit(*hash_type, key.get(), key.size());
+  hmac->HmacInit(*hash_type, key.data<char>(), key.size());
 }
 
 bool Hmac::HmacUpdate(const char* data, size_t len) {
@@ -241,17 +241,14 @@ bool HmacTraits::DeriveBits(
     return false;
   }
 
-  char* data = MallocOpenSSL<char>(EVP_MAX_MD_SIZE);
-  ByteSource buf = ByteSource::Allocated(data, EVP_MAX_MD_SIZE);
-  unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
+  ByteSource::Builder buf(EVP_MAX_MD_SIZE);
   unsigned int len;
 
-  if (!HMAC_Final(ctx.get(), ptr, &len)) {
+  if (!HMAC_Final(ctx.get(), buf.data<unsigned char>(), &len)) {
     return false;
   }
 
-  buf.Resize(len);
-  *out = std::move(buf);
+  *out = std::move(buf).release(len);
 
   return true;
 }
@@ -267,9 +264,8 @@ Maybe<bool> HmacTraits::EncodeOutput(
       break;
     case SignConfiguration::kVerify:
       *result =
-          out->size() > 0 &&
-          out->size() == params.signature.size() &&
-          memcmp(out->get(), params.signature.get(), out->size()) == 0
+          out->size() > 0 && out->size() == params.signature.size() &&
+                  memcmp(out->data(), params.signature.data(), out->size()) == 0
               ? v8::True(env->isolate())
               : v8::False(env->isolate());
       break;
