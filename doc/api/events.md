@@ -31,7 +31,7 @@ listener. The `eventEmitter.on()` method is used to register listeners, while
 the `eventEmitter.emit()` method is used to trigger the event.
 
 ```mjs
-import EventEmitter from 'node:events';
+import { EventEmitter } from 'node:events';
 
 class MyEmitter extends EventEmitter {}
 
