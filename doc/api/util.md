@@ -1470,6 +1470,33 @@ Returns the `string` after replacing any surrogate code points
 (or equivalently, any unpaired surrogate code units) with the
 Unicode "replacement character" U+FFFD.
 
+## `util.transferableAbortController()`
+
+<!--
+added: REPLACEME
+-->
+
+Creates and returns an {AbortController} instance whose {AbortSignal} is marked
+as transferable and can be used with `structuredClone()` or `postMessage()`.
+
+## `util.transferableAbortSignal(signal)`
+
+<!--
+added: REPLACEME
+-->
+
+* `signal` {AbortSignal}
+* Returns: {AbortSignal}
+
+Marks the given {AbortSignal} as transferable so that it can be used with
+`structuredClone()` and `postMessage()`.
+
+```cjs
+const signal = transferableAbortSignal(AbortSignal.timeout(100));
+const channel = new MessageChannel();
+channel.port2.postMessage(signal, [signal]);
+```
+
 ## `util.types`
 
 <!-- YAML
