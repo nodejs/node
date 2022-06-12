@@ -232,7 +232,7 @@ Setting `events.captureRejections = true` will change the default for all
 new instances of `EventEmitter`.
 
 ```mjs
-import events from 'node:events';
+import * as events from 'node:events';
 
 events.captureRejections = true;
 const ee1 = new events.EventEmitter();
