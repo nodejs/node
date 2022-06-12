@@ -123,3 +123,22 @@ const {
     });
   });
 })().then(common.mustCall());
+
+// Regression tests for https://github.com/nodejs/node/issues/40623
+{
+  assert.strictEqual(performance.timerify(function func() {
+    return 1;
+  })(), 1);
+  assert.strictEqual(performance.timerify(function() {
+    return 1;
+  })(), 1);
+  assert.strictEqual(performance.timerify(() => {
+    return 1;
+  })(), 1);
+  class C {}
+  const wrap = performance.timerify(C);
+  assert.ok(new wrap() instanceof C);
+  assert.throws(() => wrap(), {
+    name: 'TypeError',
+  });
+}
