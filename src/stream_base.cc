@@ -452,6 +452,8 @@ void StreamBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
 
 void StreamBase::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
+  // This function is called by a single thread during start up, so it is safe
+  // to use a local static variable here.
   static bool is_registered = false;
   if (is_registered) return;
   registry->Register(GetFD);
