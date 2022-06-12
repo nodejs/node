@@ -537,8 +537,8 @@ For example, a package that wants to provide different ES module exports for
 // package.json
 {
   "exports": {
-    "import": "./main-module.js",
-    "require": "./main-require.cjs"
+    "import": "./index-module.js",
+    "require": "./index-require.cjs"
   },
   "type": "module"
 }
