@@ -91,6 +91,14 @@ test('handles short-option groups with "short" alias configured', () => {
   assert.deepStrictEqual(result, expected);
 });
 
+test('handles short-option followed by its value', () => {
+  const args = ['-fFILE'];
+  const options = { foo: { short: 'f', type: 'string' } };
+  const expected = { values: { __proto__: null, foo: 'FILE' }, positionals: [] };
+  const result = parseArgs({ strict: false, args, options });
+  assert.deepStrictEqual(result, expected);
+});
+
 test('Everything after a bare `--` is considered a positional argument', () => {
   const args = ['--', 'barepositionals', 'mopositionals'];
   const expected = { values: { __proto__: null }, positionals: ['barepositionals', 'mopositionals'] };
