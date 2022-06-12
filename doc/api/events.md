@@ -273,7 +273,7 @@ changes:
 The `EventEmitter` class is defined and exposed by the `node:events` module:
 
 ```mjs
-import EventEmitter from 'node:events';
+import { EventEmitter } from 'node:events';
 ```
 
 ```cjs
