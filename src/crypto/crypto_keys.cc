@@ -305,7 +305,7 @@ MaybeLocal<Value> WritePrivateKey(
   char* pass = nullptr;
   size_t pass_len = 0;
   if (!config.passphrase_.IsEmpty()) {
-    pass = const_cast<char*>(config.passphrase_->get());
+    pass = const_cast<char*>(config.passphrase_->data<char>());
     pass_len = config.passphrase_->size();
     if (pass == nullptr) {
       // OpenSSL will not actually dereference this pointer, so it can be any
@@ -744,7 +744,7 @@ ManagedEVPPKey ManagedEVPPKey::GetPrivateKeyFromJs(
 
     EVPKeyPointer pkey;
     ParseKeyResult ret =
-        ParsePrivateKey(&pkey, config.Release(), key.get(), key.size());
+        ParsePrivateKey(&pkey, config.Release(), key.data<char>(), key.size());
     return GetParsedKey(env, std::move(pkey), ret,
                         "Failed to read private key");
   } else {
@@ -893,7 +893,7 @@ ManagedEVPPKey KeyObjectData::GetAsymmetricKey() const {
 
 const char* KeyObjectData::GetSymmetricKey() const {
   CHECK_EQ(key_type_, kKeyTypeSecret);
-  return symmetric_key_.get();
+  return symmetric_key_.data<char>();
 }
 
 size_t KeyObjectData::GetSymmetricKeySize() const {

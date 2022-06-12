@@ -89,7 +89,7 @@ int PasswordCallback(char* buf, int size, int rwflag, void* u) {
     size_t len = passphrase->size();
     if (buflen < len)
       return -1;
-    memcpy(buf, passphrase->get(), len);
+    memcpy(buf, passphrase->data(), len);
     return len;
   }
 
@@ -327,12 +327,6 @@ ByteSource::~ByteSource() {
   OPENSSL_clear_free(allocated_data_, size_);
 }
 
-void ByteSource::reset() {
-  OPENSSL_clear_free(allocated_data_, size_);
-  data_ = nullptr;
-  size_ = 0;
-}
-
 ByteSource& ByteSource::operator=(ByteSource&& other) noexcept {
   if (&other != this) {
     OPENSSL_clear_free(allocated_data_, size_);
@@ -371,45 +365,29 @@ MaybeLocal<Uint8Array> ByteSource::ToBuffer(Environment* env) {
   return Buffer::New(env, ab, 0, ab->ByteLength());
 }
 
-const char* ByteSource::get() const {
-  return data_;
-}
-
-size_t ByteSource::size() const {
-  return size_;
-}
-
 ByteSource ByteSource::FromBIO(const BIOPointer& bio) {
   CHECK(bio);
   BUF_MEM* bptr;
   BIO_get_mem_ptr(bio.get(), &bptr);
-  char* data = MallocOpenSSL<char>(bptr->length);
-  memcpy(data, bptr->data, bptr->length);
-  return Allocated(data, bptr->length);
+  ByteSource::Builder out(bptr->length);
+  memcpy(out.data<void>(), bptr->data, bptr->length);
+  return std::move(out).release();
 }
 
 ByteSource ByteSource::FromEncodedString(Environment* env,
                                          Local<String> key,
                                          enum encoding enc) {
   size_t length = 0;
-  size_t actual = 0;
-  char* data = nullptr;
+  ByteSource out;
 
   if (StringBytes::Size(env->isolate(), key, enc).To(&length) && length > 0) {
-    data = MallocOpenSSL<char>(length);
-    actual = StringBytes::Write(env->isolate(), data, length, key, enc);
-
-    CHECK(actual <= length);
-
-    if (actual == 0) {
-      OPENSSL_clear_free(data, length);
-      data = nullptr;
-    } else if (actual < length) {
-      data = reinterpret_cast<char*>(OPENSSL_realloc(data, actual));
-    }
+    ByteSource::Builder buf(length);
+    size_t actual =
+        StringBytes::Write(env->isolate(), buf.data<char>(), length, key, enc);
+    out = std::move(buf).release(actual);
   }
 
-  return Allocated(data, actual);
+  return out;
 }
 
 ByteSource ByteSource::FromStringOrBuffer(Environment* env,
@@ -423,11 +401,11 @@ ByteSource ByteSource::FromString(Environment* env, Local<String> str,
   CHECK(str->IsString());
   size_t size = str->Utf8Length(env->isolate());
   size_t alloc_size = ntc ? size + 1 : size;
-  char* data = MallocOpenSSL<char>(alloc_size);
+  ByteSource::Builder out(alloc_size);
   int opts = String::NO_OPTIONS;
   if (!ntc) opts |= String::NO_NULL_TERMINATION;
-  str->WriteUtf8(env->isolate(), data, alloc_size, nullptr, opts);
-  return Allocated(data, size);
+  str->WriteUtf8(env->isolate(), out.data<char>(), alloc_size, nullptr, opts);
+  return std::move(out).release();
 }
 
 ByteSource ByteSource::FromBuffer(Local<Value> buffer, bool ntc) {
@@ -460,16 +438,11 @@ ByteSource ByteSource::FromSymmetricKeyObjectHandle(Local<Value> handle) {
                  key->Data()->GetSymmetricKeySize());
 }
 
-ByteSource::ByteSource(const char* data, char* allocated_data, size_t size)
-    : data_(data),
-      allocated_data_(allocated_data),
-      size_(size) {}
-
-ByteSource ByteSource::Allocated(char* data, size_t size) {
+ByteSource ByteSource::Allocated(void* data, size_t size) {
   return ByteSource(data, data, size);
 }
 
-ByteSource ByteSource::Foreign(const char* data, size_t size) {
+ByteSource ByteSource::Foreign(const void* data, size_t size) {
   return ByteSource(data, nullptr, size);
 }
 
