@@ -377,7 +377,7 @@ to each.
 Returns `true` if the event had listeners, `false` otherwise.
 
 ```mjs
-import EventEmitter from 'node:events';
+import { EventEmitter } from 'node:events';
 const myEmitter = new EventEmitter();
 
 // First listener
@@ -454,7 +454,7 @@ Returns an array listing the events for which the emitter has registered
 listeners. The values in the array are strings or `Symbol`s.
 
 ```mjs
-import EventEmitter from 'node:events';
+import { EventEmitter } from 'node:events';
 
 const myEE = new EventEmitter();
 myEE.on('foo', () => {});
