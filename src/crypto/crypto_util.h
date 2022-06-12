@@ -29,11 +29,12 @@
 #endif  // OPENSSL_FIPS
 
 #include <algorithm>
-#include <memory>
-#include <string>
-#include <vector>
 #include <climits>
 #include <cstdio>
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
 
 namespace node {
 namespace crypto {
@@ -218,37 +219,74 @@ T* MallocOpenSSL(size_t count) {
   return static_cast<T*>(mem);
 }
 
-template <typename T>
-T* ReallocOpenSSL(T* buf, size_t count) {
-  void* mem = OPENSSL_realloc(buf, MultiplyWithOverflowCheck(count, sizeof(T)));
-  CHECK_IMPLIES(mem == nullptr, count == 0);
-  return static_cast<T*>(mem);
-}
-
 // A helper class representing a read-only byte array. When deallocated, its
 // contents are zeroed.
 class ByteSource {
  public:
+  class Builder {
+   public:
+    // Allocates memory using OpenSSL's memory allocator.
+    explicit Builder(size_t size)
+        : data_(MallocOpenSSL<char>(size)), size_(size) {}
+
+    Builder(Builder&& other) = delete;
+    Builder& operator=(Builder&& other) = delete;
+    Builder(const Builder&) = delete;
+    Builder& operator=(const Builder&) = delete;
+
+    ~Builder() { OPENSSL_clear_free(data_, size_); }
+
+    // Returns the underlying non-const pointer.
+    template <typename T>
+    T* data() {
+      return reinterpret_cast<T*>(data_);
+    }
+
+    // Returns the (allocated) size in bytes.
+    size_t size() const { return size_; }
+
+    // Finalizes the Builder and returns a read-only view that is optionally
+    // truncated.
+    ByteSource release(std::optional<size_t> resize = std::nullopt) && {
+      if (resize) {
+        CHECK_LE(*resize, size_);
+        if (*resize == 0) {
+          OPENSSL_clear_free(data_, size_);
+          data_ = nullptr;
+        }
+        size_ = *resize;
+      }
+      ByteSource out = ByteSource::Allocated(data_, size_);
+      data_ = nullptr;
+      size_ = 0;
+      return out;
+    }
+
+   private:
+    void* data_;
+    size_t size_;
+  };
+
   ByteSource() = default;
   ByteSource(ByteSource&& other) noexcept;
   ~ByteSource();
 
   ByteSource& operator=(ByteSource&& other) noexcept;
 
-  const char* get() const;
+  ByteSource(const ByteSource&) = delete;
+  ByteSource& operator=(const ByteSource&) = delete;
 
-  template <typename T>
-  const T* data() const { return reinterpret_cast<const T*>(get()); }
+  template <typename T = void>
+  const T* data() const {
+    return reinterpret_cast<const T*>(data_);
+  }
 
-  size_t size() const;
+  size_t size() const { return size_; }
 
   operator bool() const { return data_ != nullptr; }
 
   BignumPointer ToBN() const {
-    return BignumPointer(BN_bin2bn(
-        reinterpret_cast<const unsigned char*>(get()),
-        size(),
-        nullptr));
+    return BignumPointer(BN_bin2bn(data<unsigned char>(), size(), nullptr));
   }
 
   // Creates a v8::BackingStore that takes over responsibility for
@@ -260,19 +298,8 @@ class ByteSource {
 
   v8::MaybeLocal<v8::Uint8Array> ToBuffer(Environment* env);
 
-  void reset();
-
-  // Allows an Allocated ByteSource to be truncated.
-  void Resize(size_t newsize) {
-    CHECK_LE(newsize, size_);
-    CHECK_NOT_NULL(allocated_data_);
-    char* new_data_ = ReallocOpenSSL<char>(allocated_data_, newsize);
-    data_ = allocated_data_ = new_data_;
-    size_ = newsize;
-  }
-
-  static ByteSource Allocated(char* data, size_t size);
-  static ByteSource Foreign(const char* data, size_t size);
+  static ByteSource Allocated(void* data, size_t size);
+  static ByteSource Foreign(const void* data, size_t size);
 
   static ByteSource FromEncodedString(Environment* env,
                                       v8::Local<v8::String> value,
@@ -295,18 +322,16 @@ class ByteSource {
 
   static ByteSource FromSymmetricKeyObjectHandle(v8::Local<v8::Value> handle);
 
-  ByteSource(const ByteSource&) = delete;
-  ByteSource& operator=(const ByteSource&) = delete;
-
   static ByteSource FromSecretKeyBytes(
       Environment* env, v8::Local<v8::Value> value);
 
  private:
-  const char* data_ = nullptr;
-  char* allocated_data_ = nullptr;
+  const void* data_ = nullptr;
+  void* allocated_data_ = nullptr;
   size_t size_ = 0;
 
-  ByteSource(const char* data, char* allocated_data, size_t size);
+  ByteSource(const void* data, void* allocated_data, size_t size)
+      : data_(data), allocated_data_(allocated_data), size_(size) {}
 };
 
 enum CryptoJobMode {

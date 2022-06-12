@@ -122,7 +122,7 @@ void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().SetEmptyString();
 
   Local<Value> outString =
-      Encode(env->isolate(), cert.get(), cert.size(), BUFFER);
+      Encode(env->isolate(), cert.data<char>(), cert.size(), BUFFER);
 
   args.GetReturnValue().Set(outString);
 }
