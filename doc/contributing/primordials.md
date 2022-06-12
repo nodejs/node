@@ -705,3 +705,27 @@ class SomeClass {
 ObjectDefineProperty(SomeClass.prototype, 'readOnlyProperty', kEnumerableProperty);
 console.log(new SomeClass().readOnlyProperty); // genuine data
 ```
+
+### Defining a `Proxy` handler
+
+When defining a `Proxy`, the handler object could be at risk of prototype
+pollution when using a plain object literal:
+
+```js
+// User-land
+Object.prototype.get = () => 'Unrelated user-provided data';
+
+// Core
+const objectToProxy = { someProperty: 'genuine value' };
+
+const proxyWithPlainObjectLiteral = new Proxy(objectToProxy, {
+  has() { return false; },
+});
+console.log(proxyWithPlainObjectLiteral.someProperty); // Unrelated user-provided data
+
+const proxyWithNullPrototypeObject = new Proxy(objectToProxy, {
+  __proto__: null,
+  has() { return false; },
+});
+console.log(proxyWithNullPrototypeObject.someProperty); // genuine value
+```
