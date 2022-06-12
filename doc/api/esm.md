@@ -731,6 +731,9 @@ prevent unintentional breaks in the chain.
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43363
+    description: Convert hook from asynchronous to asynchronous.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/42623
     description: Add support for chaining resolve hooks. Each hook must either
       call `nextResolve()` or include a `shortCircuit` property set to `true`
@@ -789,7 +792,7 @@ Node.js module specifier resolution behavior_ when calling `defaultResolve`, the
 `context.conditions` array originally passed into the `resolve` hook.
 
 ```js
-export async function resolve(specifier, context, nextResolve) {
+export function resolve(specifier, context, nextResolve) {
   const { parentURL = null } = context;
 
   if (Math.random() > 0.5) { // Some condition.
@@ -1088,7 +1091,7 @@ const baseURL = pathToFileURL(`${cwd()}/`).href;
 // CoffeeScript files end in .coffee, .litcoffee, or .coffee.md.
 const extensionsRegex = /\.coffee$|\.litcoffee$|\.coffee\.md$/;
 
-export async function resolve(specifier, context, nextResolve) {
+export function resolve(specifier, context, nextResolve) {
   if (extensionsRegex.test(specifier)) {
     const { parentURL = baseURL } = context;
 
