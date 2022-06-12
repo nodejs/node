@@ -11,12 +11,10 @@ assert.strictEqual(
   dirname + 'test-esm-import-meta.mjs',
 );
 
-try {
-  import.meta.resolve('./notfound.mjs');
-  assert.fail();
-} catch (e) {
-  assert.strictEqual(e.code, 'ERR_MODULE_NOT_FOUND');
-}
+assert.throws(
+  () => import.meta.resolve('./notfound.mjs'),
+  { code: 'ERR_MODULE_NOT_FOUND' },
+);
 
 assert.strictEqual(
   import.meta.resolve('../fixtures/empty-with-bom.txt'),
