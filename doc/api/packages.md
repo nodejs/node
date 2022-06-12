@@ -262,7 +262,7 @@ a project that previous exported `main`, `lib`,
 
 ```json
 {
-  "name": "my-mod",
+  "name": "my-package",
   "exports": {
     ".": "./lib/index.js",
     "./lib": "./lib/index.js",
@@ -280,13 +280,13 @@ patterns:
 
 ```json
 {
-  "name": "my-mod",
+  "name": "my-package",
   "exports": {
     ".": "./lib/index.js",
     "./lib": "./lib/index.js",
-    "./lib/*": "./lib/*",
+    "./lib/*.js": "./lib/*.js",
     "./feature": "./feature/index.js",
-    "./feature/*": "./feature/*",
+    "./feature/*.js": "./feature/*.js",
     "./package.json": "./package.json"
   }
 }
@@ -300,7 +300,7 @@ field:
 
 ```json
 {
-  "exports": "./main.js"
+  "exports": "./index.js"
 }
 ```
 
@@ -315,13 +315,14 @@ package. It is not a strong encapsulation since a direct require of any
 absolute subpath of the package such as
 `require('/path/to/node_modules/pkg/subpath.js')` will still load `subpath.js`.
 
-For packages supporting Node.js < 12.7.0 it is necessary to include the `"main"`
-field:
+All modern JS build tools support the `"exports"` field, but if necessary for
+compatibility with specific tooling or Node.js versions < 12.7.0, the `"main"`
+field can be included alongside `"exports"`:
 
 ```json
 {
-  "main": "./main.js",
-  "exports": "./main.js"
+  "main": "./index.js",
+  "exports": "./index.js"
 }
 ```
 
@@ -338,7 +339,7 @@ with the main entry point by treating the main entry point as the
 ```json
 {
   "exports": {
-    ".": "./main.js",
+    ".": "./index.js",
     "./submodule.js": "./src/submodule.js"
   }
 }
@@ -362,8 +363,8 @@ Even though subpaths provide an aribtrary string mapping to the package
 interface, it is recommended (but not required) to use explicit file extensions
 when defining package subpaths so that package consumers write
 `import 'pkg/subpath.js'` instead of `import 'pkg/subpath'` as this simplifies
-interop with other ecosystem tooling patterns such as when using import maps.
-This also mirrors the requirement of using [the full specifier path][] in
+interoperability with other ecosystem tooling patterns such as when using import
+maps. This also mirrors the requirement of using [the full specifier path][] in
 relative and absolute import specifiers.
 
 ### Exports sugar
@@ -378,7 +379,7 @@ for this case being the direct [`"exports"`][] field value.
 ```json
 {
   "exports": {
-    ".": "./main.js"
+    ".": "./index.js"
   }
 }
 ```
@@ -387,7 +388,7 @@ can be written:
 
 ```json
 {
-  "exports": "./main.js"
+  "exports": "./index.js"
 }
 ```
 
@@ -586,7 +587,7 @@ Conditional exports can also be extended to exports subpaths, for example:
 ```json
 {
   "exports": {
-    ".": "./main.js",
+    ".": "./index.js",
     "./feature.js": {
       "node": "./feature-node.js",
       "default": "./feature.js"
@@ -616,7 +617,6 @@ use in Node.js but not the browser:
 
 ```json
 {
-  "main": "./main.js",
   "exports": {
     "node": {
       "import": "./feature-node.mjs",
@@ -644,7 +644,7 @@ When running Node.js, custom user conditions can be added with the
 `--conditions` flag:
 
 ```bash
-node --conditions=development main.js
+node --conditions=development index.js
 ```
 
 which would then resolve the `"development"` condition in package imports and
@@ -717,7 +717,7 @@ For example, assuming the `package.json` is:
 {
   "name": "a-package",
   "exports": {
-    ".": "./main.mjs",
+    ".": "./index.mjs",
     "./foo.js": "./foo.js"
   }
 }
@@ -727,7 +727,7 @@ Then any module _in that package_ can reference an export in the package itself:
 
 ```js
 // ./a-module.mjs
-import { something } from 'a-package'; // Imports "something" from ./main.mjs.
+import { something } from 'a-package'; // Imports "something" from ./index.mjs.
 ```
 
 Self-referencing is available only if `package.json` has [`"exports"`][], and
@@ -1097,7 +1097,7 @@ added: v0.4.0
 
 ```json
 {
-  "main": "./main.js"
+  "main": "./index.js"
 }
 ```
 
@@ -1111,7 +1111,8 @@ It also defines the script that is used when the [package directory is loaded
 via `require()`](modules.md#folders-as-modules).
 
 ```cjs
-require('./path/to/directory'); // This resolves to ./path/to/directory/main.js.
+// This resolves to ./path/to/directory/index.js.
+require('./path/to/directory');
 ```
 
 ### `"packageManager"`
