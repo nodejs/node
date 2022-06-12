@@ -909,6 +909,17 @@ for (let i = 0; i < 12; i++) {
     rli.close();
   }
 
+  // Calling the question callback with abort signal
+  {
+    const [rli] = getInterface({ terminal });
+    const { signal } = new AbortController();
+    rli.question('foo?', { signal }).then(common.mustCall((answer) => {
+      assert.strictEqual(answer, 'bar');
+    }));
+    rli.write('bar\n');
+    rli.close();
+  }
+
   // Aborting a question
   {
     const ac = new AbortController();
