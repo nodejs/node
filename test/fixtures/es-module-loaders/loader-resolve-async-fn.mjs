@@ -1,3 +1,3 @@
-export async function resolve() {
-	return 'whatever';
+export async function resolve(specifier, context, next) {
+  return next(specifier, context);
 }
