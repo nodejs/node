@@ -45,6 +45,10 @@ new RuleTester({
       'ReflectDefineProperty({}, "key", { "__proto__": null })',
       'ObjectDefineProperty({}, "key", { \'__proto__\': null })',
       'ReflectDefineProperty({}, "key", { \'__proto__\': null })',
+      'new Proxy({}, otherObject)',
+      'new Proxy({}, someFactory())',
+      'new Proxy({}, { __proto__: null })',
+      'new Proxy({}, { __proto__: null, ...{} })',
     ],
     invalid: [
       {
@@ -182,6 +186,22 @@ new RuleTester({
       {
         code: 'StringPrototypeSplit("some string", /some regex/)',
         errors: [{ message: /looks up the Symbol\.split property/ }],
+      },
+      {
+        code: 'new Proxy({}, {})',
+        errors: [{ message: /null-prototype/ }]
+      },
+      {
+        code: 'new Proxy({}, { [`__proto__`]: null })',
+        errors: [{ message: /null-prototype/ }]
+      },
+      {
+        code: 'new Proxy({}, { __proto__: Object.prototype })',
+        errors: [{ message: /null-prototype/ }]
+      },
+      {
+        code: 'new Proxy({}, { ...{ __proto__: null } })',
+        errors: [{ message: /null-prototype/ }]
       },
     ]
   });
