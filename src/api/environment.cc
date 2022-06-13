@@ -251,6 +251,8 @@ void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
   auto* allow_wasm_codegen_cb = s.allow_wasm_code_generation_callback ?
     s.allow_wasm_code_generation_callback : AllowWasmCodeGenerationCallback;
   isolate->SetAllowWasmCodeGenerationCallback(allow_wasm_codegen_cb);
+  isolate->SetModifyCodeGenerationFromStringsCallback(
+      ModifyCodeGenerationFromStrings);
 
   if ((s.flags & SHOULD_NOT_SET_PROMISE_REJECTION_CALLBACK) == 0) {
     auto* promise_reject_cb = s.promise_reject_callback ?
@@ -645,6 +647,9 @@ bool InitializeContextForSnapshot(Local<Context> context) {
   Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
 
+  context->AllowCodeGenerationFromStrings(false);
+  context->SetEmbedderData(
+      ContextEmbedderIndex::kAllowCodeGenerationFromStrings, True(isolate));
   context->SetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration,
                            True(isolate));
   return InitializePrimordials(context);
