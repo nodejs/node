@@ -454,6 +454,38 @@ void OnFatalError(const char* location, const char* message) {
   ABORT();
 }
 
+v8::ModifyCodeGenerationFromStringsResult ModifyCodeGenerationFromStrings(
+    v8::Local<v8::Context> context,
+    v8::Local<v8::Value> source,
+    bool is_code_like) {
+  HandleScope scope(context->GetIsolate());
+
+  Environment* env = Environment::GetCurrent(context);
+  if (env->source_maps_enabled()) {
+    // We do not expect the maybe_cache_generated_source_map to throw any more
+    // exceptions. If it does, just ignore it.
+    errors::TryCatchScope try_catch(env);
+    Local<Function> maybe_cache_source_map =
+        env->maybe_cache_generated_source_map();
+    Local<Value> argv[1] = {source};
+
+    MaybeLocal<Value> maybe_cached = maybe_cache_source_map->Call(
+        context, context->Global(), arraysize(argv), argv);
+    if (maybe_cached.IsEmpty()) {
+      DCHECK(try_catch.HasCaught());
+    }
+  }
+
+  Local<Value> allow_code_gen = context->GetEmbedderData(
+      ContextEmbedderIndex::kAllowCodeGenerationFromStrings);
+  bool codegen_allowed =
+      allow_code_gen->IsUndefined() || allow_code_gen->IsTrue();
+  return {
+      codegen_allowed,
+      {},
+  };
+}
+
 namespace errors {
 
 TryCatchScope::~TryCatchScope() {
@@ -836,6 +868,13 @@ static void SetSourceMapsEnabled(const FunctionCallbackInfo<Value>& args) {
   env->set_source_maps_enabled(args[0].As<Boolean>()->Value());
 }
 
+static void SetMaybeCacheGeneratedSourceMap(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsFunction());
+  env->set_maybe_cache_generated_source_map(args[0].As<Function>());
+}
+
 static void SetEnhanceStackForFatalException(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -870,6 +909,7 @@ static void TriggerUncaughtException(const FunctionCallbackInfo<Value>& args) {
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetPrepareStackTraceCallback);
   registry->Register(SetSourceMapsEnabled);
+  registry->Register(SetMaybeCacheGeneratedSourceMap);
   registry->Register(SetEnhanceStackForFatalException);
   registry->Register(NoSideEffectsToString);
   registry->Register(TriggerUncaughtException);
@@ -883,6 +923,9 @@ void Initialize(Local<Object> target,
   env->SetMethod(
       target, "setPrepareStackTraceCallback", SetPrepareStackTraceCallback);
   env->SetMethod(target, "setSourceMapsEnabled", SetSourceMapsEnabled);
+  env->SetMethod(target,
+                 "setMaybeCacheGeneratedSourceMap",
+                 SetMaybeCacheGeneratedSourceMap);
   env->SetMethod(target,
                  "setEnhanceStackForFatalException",
                  SetEnhanceStackForFatalException);
