@@ -9,7 +9,7 @@ const { kBodyUsed } = require('../core/symbols')
 const assert = require('assert')
 const { NotSupportedError } = require('../core/errors')
 const { isErrored } = require('../core/util')
-const { isUint8Array } = require('util/types')
+const { isUint8Array, isArrayBuffer } = require('util/types')
 
 let ReadableStream
 
@@ -61,7 +61,7 @@ function extractBody (object, keepalive = false) {
 
     // Set Content-Type to `application/x-www-form-urlencoded;charset=UTF-8`.
     contentType = 'application/x-www-form-urlencoded;charset=UTF-8'
-  } else if (object instanceof ArrayBuffer || ArrayBuffer.isView(object)) {
+  } else if (isArrayBuffer(object) || ArrayBuffer.isView(object)) {
     // BufferSource
 
     if (object instanceof DataView) {
