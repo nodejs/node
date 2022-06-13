@@ -57,9 +57,6 @@ class View extends BaseCommand {
 
     function getFields (d, f, pref) {
       f = f || []
-      if (!d) {
-        return f
-      }
       pref = pref || []
       Object.keys(d).forEach((k) => {
         if (k.charAt(0) === '_' || k.indexOf('.') !== -1) {
@@ -94,7 +91,7 @@ class View extends BaseCommand {
     const local = /^\.@/.test(pkg) || pkg === '.'
 
     if (local) {
-      if (this.npm.config.get('global')) {
+      if (this.npm.global) {
         throw new Error('Cannot use view command in global mode.')
       }
       const dir = this.npm.prefix

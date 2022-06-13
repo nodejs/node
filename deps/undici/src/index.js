@@ -15,6 +15,7 @@ const MockAgent = require('./lib/mock/mock-agent')
 const MockPool = require('./lib/mock/mock-pool')
 const mockErrors = require('./lib/mock/mock-errors')
 const ProxyAgent = require('./lib/proxy-agent')
+const { getGlobalDispatcher, setGlobalDispatcher } = require('./lib/global')
 
 const nodeVersion = process.versions.node.split('.')
 const nodeMajor = Number(nodeVersion[0])
@@ -31,19 +32,6 @@ module.exports.ProxyAgent = ProxyAgent
 
 module.exports.buildConnector = buildConnector
 module.exports.errors = errors
-
-let globalDispatcher = new Agent()
-
-function setGlobalDispatcher (agent) {
-  if (!agent || typeof agent.dispatch !== 'function') {
-    throw new InvalidArgumentError('Argument agent must implement Agent')
-  }
-  globalDispatcher = agent
-}
-
-function getGlobalDispatcher () {
-  return globalDispatcher
-}
 
 function makeDispatcher (fn) {
   return (url, opts, handler) => {
@@ -98,7 +86,7 @@ if (nodeMajor > 16 || (nodeMajor === 16 && nodeMinor >= 5)) {
     if (!fetchImpl) {
       fetchImpl = require('./lib/fetch')
     }
-    const dispatcher = getGlobalDispatcher()
+    const dispatcher = (arguments[1] && arguments[1].dispatcher) || getGlobalDispatcher()
     return fetchImpl.apply(dispatcher, arguments)
   }
   module.exports.Headers = require('./lib/fetch/headers').Headers

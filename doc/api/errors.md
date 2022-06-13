@@ -1744,7 +1744,7 @@ time.
 > Stability: 1 - Experimental
 
 The `--input-type` flag was used to attempt to execute a file. This flag can
-only be used with input via `--eval`, `--print` or `STDIN`.
+only be used with input via `--eval`, `--print`, or `STDIN`.
 
 <a id="ERR_INSPECTOR_ALREADY_ACTIVATED"></a>
 
@@ -2005,7 +2005,7 @@ performing another operation.
 
 ### `ERR_INVALID_SYNC_FORK_INPUT`
 
-A `Buffer`, `TypedArray`, `DataView` or `string` was provided as stdio input to
+A `Buffer`, `TypedArray`, `DataView`, or `string` was provided as stdio input to
 an asynchronous fork. See the documentation for the [`child_process`][] module
 for more information.
 
@@ -2354,6 +2354,40 @@ package specifier mapping.
 The `package.json` [`"exports"`][] field does not export the requested subpath.
 Because exports are encapsulated, private internal modules that are not exported
 cannot be imported through the package resolution, unless using an absolute URL.
+
+<a id="ERR_PARSE_ARGS_INVALID_OPTION_VALUE"></a>
+
+### `ERR_PARSE_ARGS_INVALID_OPTION_VALUE`
+
+<!-- YAML
+added: v18.3.0
+-->
+
+When `strict` set to `true`, thrown by [`util.parseArgs()`][] if a {boolean}
+value is provided for an option of type {string}, or if a {string}
+value is provided for an option of type {boolean}.
+
+<a id="ERR_PARSE_ARGS_UNEXPECTED_POSITIONAL"></a>
+
+### `ERR_PARSE_ARGS_UNEXPECTED_POSITIONAL`
+
+<!-- YAML
+added: v18.3.0
+-->
+
+Thrown by [`util.parseArgs()`][], when a postional argument is provided and
+`allowPositionals` is set to `false`.
+
+<a id="ERR_PARSE_ARGS_UNKNOWN_OPTION"></a>
+
+### `ERR_PARSE_ARGS_UNKNOWN_OPTION`
+
+<!-- YAML
+added: v18.3.0
+-->
+
+When `strict` set to `true`, thrown by [`util.parseArgs()`][] if an argument
+is not configured in `options`.
 
 <a id="ERR_PERFORMANCE_INVALID_TIMESTAMP"></a>
 
@@ -3466,6 +3500,7 @@ The native call from `process.cpuUsage` could not be processed.
 [`subprocess.send()`]: child_process.md#subprocesssendmessage-sendhandle-options-callback
 [`url.parse()`]: url.md#urlparseurlstring-parsequerystring-slashesdenotehost
 [`util.getSystemErrorName(error.errno)`]: util.md#utilgetsystemerrornameerr
+[`util.parseArgs()`]: util.md#utilparseargsconfig
 [`zlib`]: zlib.md
 [crypto digest algorithm]: crypto.md#cryptogethashes
 [debugger]: debugger.md

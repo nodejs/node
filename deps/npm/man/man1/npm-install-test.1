@@ -1,4 +1,4 @@
-.TH "NPM\-INSTALL\-TEST" "1" "April 2022" "" ""
+.TH "NPM\-INSTALL\-TEST" "1" "May 2022" "" ""
 .SH "NAME"
 \fBnpm-install-test\fR \- Install package(s) and run tests
 .SS Synopsis
@@ -56,6 +56,9 @@ rather than using npm's default semver range operator\.
 Default: false
 .IP \(bu 2
 Type: Boolean
+.IP \(bu 2
+DEPRECATED: \fB\-\-global\fP, \fB\-\-local\fP are deprecated\. Use \fB\-\-location=global\fP
+instead\.
 
 .RE
 .P
@@ -154,10 +157,6 @@ Type: Boolean
 .P
 If set to false, then ignore \fBpackage\-lock\.json\fP files when installing\. This
 will also prevent \fIwriting\fR \fBpackage\-lock\.json\fP if \fBsave\fP is true\.
-.P
-When package package\-locks are disabled, automatic pruning of extraneous
-modules will also be disabled\. To remove extraneous modules with
-package\-locks disabled use \fBnpm prune\fP\|\.
 .P
 This configuration does not affect \fBnpm ci\fP\|\.
 .SS \fBforeground\-scripts\fP

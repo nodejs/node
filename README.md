@@ -286,8 +286,6 @@ For information about the governance of the Node.js project, see
   **Ben Noordhuis** <<info@bnoordhuis.nl>>
 * [BridgeAR](https://github.com/BridgeAR) -
   **Ruben Bridgewater** <<ruben@bridgewater.de>> (he/him)
-* [bzoz](https://github.com/bzoz) -
-  **Bartosz Sosnowski** <<bartosz@janeasystems.com>>
 * [cclauss](https://github.com/cclauss) -
   **Christian Clauss** <<cclauss@me.com>> (he/him)
 * [ChALkeR](https://github.com/ChALkeR) -
@@ -329,7 +327,7 @@ For information about the governance of the Node.js project, see
 * [HarshithaKP](https://github.com/HarshithaKP) -
   **Harshitha K P** <<harshitha014@gmail.com>> (she/her)
 * [himself65](https://github.com/himself65) -
-  **Zeyu Yang** <<himself65@outlook.com>> (he/him)
+  **Zeyu "Alex" Yang** <<himself65@outlook.com>> (he/him)
 * [hiroppy](https://github.com/hiroppy) -
   **Yuta Hiroto** <<hello@hiroppy.me>> (he/him)
 * [iansu](https://github.com/iansu) -
@@ -360,10 +358,10 @@ For information about the governance of the Node.js project, see
   **Shingo Inoue** <<leko.noor@gmail.com>> (he/him)
 * [linkgoron](https://github.com/linkgoron) -
   **Nitzan Uziely** <<linkgoron@gmail.com>>
+* [LiviaMedeiros](https://github.com/LiviaMedeiros) -
+  **LiviaMedeiros** <<livia@cirno.name>>
 * [lpinca](https://github.com/lpinca) -
   **Luigi Pinca** <<luigipinca@gmail.com>> (he/him)
-* [lundibundi](https://github.com/lundibundi) -
-  **Denys Otrishko** <<shishugi@gmail.com>> (he/him)
 * [Lxxyx](https://github.com/Lxxyx) -
   **Zijian Liu** <<lxxyxzj@gmail.com>> (he/him)
 * [marsonya](https://github.com/marsonya) -
@@ -444,8 +442,6 @@ For information about the governance of the Node.js project, see
   **Khaidi Chu** <<i@2333.moe>> (he/him)
 * [yashLadha](https://github.com/yashLadha) -
   **Yash Ladha** <<yash@yashladha.in>> (he/him)
-* [yosuke-furukawa](https://github.com/yosuke-furukawa) -
-  **Yosuke Furukawa** <<yosuke.furukawa@gmail.com>>
 * [ZYSzys](https://github.com/ZYSzys) -
   **Yongsheng Zhang** <<zyszys98@gmail.com>> (he/him)
 
@@ -474,6 +470,8 @@ For information about the governance of the Node.js project, see
   **Christopher Hiller** <<boneskull@boneskull.com>> (he/him)
 * [brendanashworth](https://github.com/brendanashworth) -
   **Brendan Ashworth** <<brendan.ashworth@me.com>>
+* [bzoz](https://github.com/bzoz) -
+  **Bartosz Sosnowski** <<bartosz@janeasystems.com>>
 * [calvinmetcalf](https://github.com/calvinmetcalf) -
   **Calvin Metcalf** <<calvin.metcalf@gmail.com>>
 * [chrisdickinson](https://github.com/chrisdickinson) -
@@ -538,6 +536,8 @@ For information about the governance of the Node.js project, see
   **Lance Ball** <<lball@redhat.com>> (he/him)
 * [lucamaraschi](https://github.com/lucamaraschi) -
   **Luca Maraschi** <<luca.maraschi@gmail.com>> (he/him)
+* [lundibundi](https://github.com/lundibundi) -
+  **Denys Otrishko** <<shishugi@gmail.com>> (he/him)
 * [lxe](https://github.com/lxe) -
   **Aleksey Smolenchuk** <<lxe@lxe.co>>
 * [maclover7](https://github.com/maclover7) -
@@ -632,6 +632,8 @@ For information about the governance of the Node.js project, see
   **Yihong Wang** <<yh.wang@ibm.com>>
 * [yorkie](https://github.com/yorkie) -
   **Yorkie Liu** <<yorkiefixer@gmail.com>>
+* [yosuke-furukawa](https://github.com/yosuke-furukawa) -
+  **Yosuke Furukawa** <<yosuke.furukawa@gmail.com>>
 
 </details>
 
@@ -644,6 +646,8 @@ maintaining the Node.js project.
 
 * [Ayase-252](https://github.com/Ayase-252) -
   **Qingyu Deng** <<i@ayase-lab.com>>
+* [F3n67u](https://github.com/F3n67u) -
+  **Feng Yu** <<F3n67u@outlook.com>> (he/him)
 * [himadriganguly](https://github.com/himadriganguly) -
   **Himadri Ganguly** <<himadri.tech@gmail.com>> (he/him)
 * [iam-frankqiu](https://github.com/iam-frankqiu) -
@@ -675,10 +679,14 @@ Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
   `74F12602B6F1C4E913FAA37AD3A89613643B6201`
 * **James M Snell** <<jasnell@keybase.io>>
   `71DCFD284A79C3B38668286BC97EC7A07EDE3FC1`
+* **Juan José Arboleda** <<soyjuanarbol@gmail.com>>
+  `61FC681DFB92A079F1685E77973F295594EC4689`
 * **Michaël Zasso** <<targos@protonmail.com>>
   `8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600`
 * **Myles Borins** <<myles.borins@gmail.com>>
   `C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8`
+* **RafaelGSS** <<rafael.nunu@hotmail.com>>
+  `890C08DB8579162FEE0DF9DB8BEAB4DFCF555EF4`
 * **Richard Lau** <<rlau@redhat.com>>
   `C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C`
 * **Rod Vagg** <<rod@vagg.org>>
@@ -699,8 +707,10 @@ gpg --keyserver hkps://keys.openpgp.org --recv-keys 141F07595B7B3FFE74309A937405
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 94AE36675C464D64BAFA68DD7434390BDBE9B9C5
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 74F12602B6F1C4E913FAA37AD3A89613643B6201
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 71DCFD284A79C3B38668286BC97EC7A07EDE3FC1
+gpg --keyserver hkps://keys.openpgp.org --recv-keys 61FC681DFB92A079F1685E77973F295594EC4689
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600
 gpg --keyserver hkps://keys.openpgp.org --recv-keys C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8
+gpg --keyserver hkps://keys.openpgp.org --recv-keys 890C08DB8579162FEE0DF9DB8BEAB4DFCF555EF4
 gpg --keyserver hkps://keys.openpgp.org --recv-keys C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C
 gpg --keyserver hkps://keys.openpgp.org --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D
 gpg --keyserver hkps://keys.openpgp.org --recv-keys A48C2BEE680E841632CD4E44F07496B3EB3C1762

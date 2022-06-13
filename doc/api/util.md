@@ -260,7 +260,7 @@ changes:
                  was not a string.
   - version: v11.4.0
     pr-url: https://github.com/nodejs/node/pull/23708
-    description: The `%d`, `%f` and `%i` specifiers now support Symbols
+    description: The `%d`, `%f`, and `%i` specifiers now support Symbols
                  properly.
   - version: v11.4.0
     pr-url: https://github.com/nodejs/node/pull/24806
@@ -586,7 +586,7 @@ changes:
   * `showProxy` {boolean} If `true`, `Proxy` inspection includes
     the [`target` and `handler`][] objects. **Default:** `false`.
   * `maxArrayLength` {integer} Specifies the maximum number of `Array`,
-    [`TypedArray`][], [`WeakMap`][] and [`WeakSet`][] elements to include when
+    [`TypedArray`][], [`WeakMap`][], and [`WeakSet`][] elements to include when
     formatting. Set to `null` or `Infinity` to show all elements. Set to `0` or
     negative to show no elements. **Default:** `100`.
   * `maxStringLength` {integer} Specifies the maximum number of characters to
@@ -1020,6 +1020,86 @@ Otherwise, returns `false`.
 See [`assert.deepStrictEqual()`][] for more information about deep strict
 equality.
 
+## `util.parseArgs([config])`
+
+<!-- YAML
+added: v18.3.0
+-->
+
+> Stability: 1 - Experimental
+
+* `config` {Object} Used to provide arguments for parsing and to configure
+  the parser. `config` supports the following properties:
+  * `args` {string\[]} array of argument strings. **Default:** `process.argv`
+    with `execPath` and `filename` removed.
+  * `options` {Object} Used to describe arguments known to the parser.
+    Keys of `options` are the long names of options and values are an
+    {Object} accepting the following properties:
+    * `type` {string} Type of argument, which must be either `boolean` or `string`.
+    * `multiple` {boolean} Whether this option can be provided multiple
+      times. If `true`, all values will be collected in an array. If
+      `false`, values for the option are last-wins. **Default:** `false`.
+    * `short` {string} A single character alias for the option.
+  * `strict`: {boolean} Should an error be thrown when unknown arguments
+    are encountered, or when arguments are passed that do not match the
+    `type` configured in `options`.
+    **Default:** `true`.
+  * `allowPositionals`: {boolean} Whether this command accepts positional
+    arguments.
+    **Default:** `false` if `strict` is `true`, otherwise `true`.
+
+* Returns: {Object} The parsed command line arguments:
+  * `values` {Object} A mapping of parsed option names with their {string}
+    or {boolean} values.
+  * `positionals` {string\[]} Positional arguments.
+
+Provides a higher level API for command-line argument parsing than interacting
+with `process.argv` directly. Takes a specification for the expected arguments
+and returns a structured object with the parsed options and positionals.
+
+```mjs
+import { parseArgs } from 'node:util';
+const args = ['-f', '--bar', 'b'];
+const options = {
+  foo: {
+    type: 'boolean',
+    short: 'f'
+  },
+  bar: {
+    type: 'string'
+  }
+};
+const {
+  values,
+  positionals
+} = parseArgs({ args, options });
+console.log(values, positionals);
+// Prints: [Object: null prototype] { foo: true, bar: 'b' } []
+```
+
+```cjs
+const { parseArgs } = require('node:util');
+const args = ['-f', '--bar', 'b'];
+const options = {
+  foo: {
+    type: 'boolean',
+    short: 'f'
+  },
+  bar: {
+    type: 'string'
+  }
+};
+const {
+  values,
+  positionals
+} = parseArgs({ args, options });
+console.log(values, positionals);
+// Prints: [Object: null prototype] { foo: true, bar: 'b' } []
+```
+
+`util.parseArgs` is experimental and behavior may change. Join the
+conversation in [pkgjs/parseargs][] to contribute to the design.
+
 ## `util.promisify(original)`
 
 <!-- YAML
@@ -1281,7 +1361,7 @@ changes:
   * `ignoreBOM` {boolean} When `true`, the `TextDecoder` will include the byte
     order mark in the decoded result. When `false`, the byte order mark will
     be removed from the output. This option is only used when `encoding` is
-    `'utf-8'`, `'utf-16be'` or `'utf-16le'`. **Default:** `false`.
+    `'utf-8'`, `'utf-16be'`, or `'utf-16le'`. **Default:** `false`.
 
 Creates a new `TextDecoder` instance. The `encoding` may specify one of the
 supported encodings or an alias.
@@ -1290,7 +1370,7 @@ The `TextDecoder` class is also available on the global object.
 
 ### `textDecoder.decode([input[, options]])`
 
-* `input` {ArrayBuffer|DataView|TypedArray} An `ArrayBuffer`, `DataView` or
+* `input` {ArrayBuffer|DataView|TypedArray} An `ArrayBuffer`, `DataView`, or
   `TypedArray` instance containing the encoded data.
 * `options` {Object}
   * `stream` {boolean} `true` if additional chunks of data are expected.
@@ -2693,5 +2773,6 @@ util.log('Timestamped message.');
 [default sort]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort
 [global symbol registry]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/for
 [list of deprecated APIS]: deprecations.md#list-of-deprecated-apis
+[pkgjs/parseargs]: https://github.com/pkgjs/parseargs
 [semantically incompatible]: https://github.com/nodejs/node/issues/4179
 [util.inspect.custom]: #utilinspectcustom

@@ -1458,7 +1458,7 @@ Stops the server from accepting new connections. See [`net.Server.close()`][].
 ### `server.closeAllConnections()`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 Closes all connections connected to this server.
@@ -1466,7 +1466,7 @@ Closes all connections connected to this server.
 ### `server.closeIdleConnections()`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 Closes all connections connected to this server which are not sending a request
@@ -2222,7 +2222,7 @@ changes:
 An `IncomingMessage` object is created by [`http.Server`][] or
 [`http.ClientRequest`][] and passed as the first argument to the [`'request'`][]
 and [`'response'`][] event respectively. It may be used to access response
-status, headers and data.
+status, headers, and data.
 
 Different from its `socket` value which is a subclass of {stream.Duplex}, the
 `IncomingMessage` itself extends {stream.Readable} and is created separately to
@@ -2366,8 +2366,28 @@ header name:
   `last-modified`, `location`, `max-forwards`, `proxy-authorization`, `referer`,
   `retry-after`, `server`, or `user-agent` are discarded.
 * `set-cookie` is always an array. Duplicates are added to the array.
-* For duplicate `cookie` headers, the values are joined together with '; '.
-* For all other headers, the values are joined together with ', '.
+* For duplicate `cookie` headers, the values are joined together with `; `.
+* For all other headers, the values are joined together with `, `.
+
+### `message.headersDistinct`
+
+<!-- YAML
+added: v18.3.0
+-->
+
+* {Object}
+
+Similar to [`message.headers`][], but there is no join logic and the values are
+always arrays of strings, even for headers received just once.
+
+```js
+// Prints something like:
+//
+// { 'user-agent': ['curl/7.22.0'],
+//   host: ['127.0.0.1:8000'],
+//   accept: ['*/*'] }
+console.log(request.headersDistinct);
+```
 
 ### `message.httpVersion`
 
@@ -2501,6 +2521,18 @@ added: v0.3.0
 
 The request/response trailers object. Only populated at the `'end'` event.
 
+### `message.trailersDistinct`
+
+<!-- YAML
+added: v18.3.0
+-->
+
+* {Object}
+
+Similar to [`message.trailers`][], but there is no join logic and the values are
+always arrays of strings, even for headers received just once.
+Only populated at the `'end'` event.
+
 ### `message.url`
 
 <!-- YAML
@@ -2598,7 +2630,7 @@ Adds HTTP trailers (headers but at the end of the message) to the message.
 Trailers will **only** be emitted if the message is chunked encoded. If not,
 the trailers will be silently discarded.
 
-HTTP requires the  `Trailer` header to be sent to emit trailers,
+HTTP requires the `Trailer` header to be sent to emit trailers,
 with a list of header field names in its value, e.g.
 
 ```js
@@ -2611,6 +2643,28 @@ message.end();
 
 Attempting to set a header field name or value that contains invalid characters
 will result in a `TypeError` being thrown.
+
+### `outgoingMessage.appendHeader(name, value)`
+
+<!-- YAML
+added: v18.3.0
+-->
+
+* `name` {string} Header name
+* `value` {string|string\[]} Header value
+* Returns: {this}
+
+Append a single header value for the header object.
+
+If the value is an array, this is equivalent of calling this method multiple
+times.
+
+If there were no previous value for the header, this is equivalent of calling
+[`outgoingMessage.setHeader(name, value)`][].
+
+Depending of the value of `options.uniqueHeaders` when the client request or the
+server were created, this will end up in the header being sent multiple times or
+a single time with values joined using `; `.
 
 ### `outgoingMessage.connection`
 
@@ -2962,8 +3016,8 @@ added: v0.1.13
 changes:
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41263
-    description: The `requestTimeout`, `headersTimeout`, `keepAliveTimeout` and
-                 `connectionsCheckingInterval` are supported now.
+    description: The `requestTimeout`, `headersTimeout`, `keepAliveTimeout`, and
+                 `connectionsCheckingInterval` options are supported now.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/42163
     description: The `noDelay` option now defaults to `true`.
@@ -3030,6 +3084,9 @@ changes:
   * `keepAliveInitialDelay` {number} If set to a positive number, it sets the
     initial delay before the first keepalive probe is sent on an idle socket.
     **Default:** `0`.
+  * `uniqueHeaders` {Array} A list of response headers that should be sent only
+    once. If the header's value is an array, the items will be joined
+    using `; `.
 
 * `requestListener` {Function}
 
@@ -3264,12 +3321,15 @@ changes:
   * `protocol` {string} Protocol to use. **Default:** `'http:'`.
   * `setHost` {boolean}: Specifies whether or not to automatically add the
     `Host` header. Defaults to `true`.
+  * `signal` {AbortSignal}: An AbortSignal that may be used to abort an ongoing
+    request.
   * `socketPath` {string} Unix domain socket. Cannot be used if one of `host`
     or `port` is specified, as those specify a TCP Socket.
   * `timeout` {number}: A number specifying the socket timeout in milliseconds.
     This will set the timeout before the socket is connected.
-  * `signal` {AbortSignal}: An AbortSignal that may be used to abort an ongoing
-    request.
+  * `uniqueHeaders` {Array} A list of request headers that should be sent
+    only once. If the header's value is an array, the items will be joined
+    using `; `.
 * `callback` {Function}
 * Returns: {http.ClientRequest}
 
@@ -3575,11 +3635,13 @@ try {
 [`http.request()`]: #httprequestoptions-callback
 [`message.headers`]: #messageheaders
 [`message.socket`]: #messagesocket
+[`message.trailers`]: #messagetrailers
 [`net.Server.close()`]: net.md#serverclosecallback
 [`net.Server`]: net.md#class-netserver
 [`net.Socket`]: net.md#class-netsocket
 [`net.createConnection()`]: net.md#netcreateconnectionoptions-connectlistener
 [`new URL()`]: url.md#new-urlinput-base
+[`outgoingMessage.setHeader(name, value)`]: #outgoingmessagesetheadername-value
 [`outgoingMessage.socket`]: #outgoingmessagesocket
 [`removeHeader(name)`]: #requestremoveheadername
 [`request.destroy()`]: #requestdestroyerror

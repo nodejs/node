@@ -1215,6 +1215,7 @@ making it possible to set up chains of piped streams:
 
 ```js
 const fs = require('node:fs');
+const zlib = require('node:zlib');
 const r = fs.createReadStream('file.txt');
 const z = zlib.createGzip();
 const w = fs.createWriteStream('file.txt.gz');
@@ -2237,7 +2238,7 @@ result from the calculation on the previous element. It returns a promise for
 the final value of the reduction.
 
 The reducer function iterates the stream element-by-element which means that
-there is no `concurrency` parameter or parallism. To perform a `reduce`
+there is no `concurrency` parameter or parallelism. To perform a `reduce`
 concurrently, it can be chained to the [`readable.map`][] method.
 
 If no `initial` value is supplied the first chunk of the stream is used as the
@@ -2381,6 +2382,7 @@ or has experienced an error or a premature close event.
 
 ```js
 const { finished } = require('node:stream');
+const fs = require('node:fs');
 
 const rs = fs.createReadStream('archive.tar');
 
@@ -2403,6 +2405,7 @@ The `finished` API provides promise version:
 
 ```js
 const { finished } = require('node:stream/promises');
+const fs = require('node:fs');
 
 const rs = fs.createReadStream('archive.tar');
 
@@ -2501,6 +2504,8 @@ receive an options argument as the last parameter with a
 
 ```js
 const { pipeline } = require('node:stream/promises');
+const fs = require('node:fs');
+const zlib = require('node:zlib');
 
 async function run() {
   await pipeline(
@@ -2519,6 +2524,8 @@ as the last argument:
 
 ```js
 const { pipeline } = require('node:stream/promises');
+const fs = require('node:fs');
+const zlib = require('node:zlib');
 
 async function run() {
   const ac = new AbortController();

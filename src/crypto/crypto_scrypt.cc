@@ -1,7 +1,6 @@
 #include "crypto/crypto_scrypt.h"
-#include "crypto/crypto_util.h"
-#include "allocated_buffer-inl.h"
 #include "async_wrap-inl.h"
+#include "crypto/crypto_util.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
@@ -122,26 +121,23 @@ bool ScryptTraits::DeriveBits(
     Environment* env,
     const ScryptConfig& params,
     ByteSource* out) {
-  char* data = MallocOpenSSL<char>(params.length);
-  ByteSource buf = ByteSource::Allocated(data, params.length);
-  unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
+  ByteSource::Builder buf(params.length);
 
   // Both the pass and salt may be zero-length at this point
 
-  if (!EVP_PBE_scrypt(
-          params.pass.get(),
-          params.pass.size(),
-          params.salt.data<unsigned char>(),
-          params.salt.size(),
-          params.N,
-          params.r,
-          params.p,
-          params.maxmem,
-          ptr,
-          params.length)) {
+  if (!EVP_PBE_scrypt(params.pass.data<char>(),
+                      params.pass.size(),
+                      params.salt.data<unsigned char>(),
+                      params.salt.size(),
+                      params.N,
+                      params.r,
+                      params.p,
+                      params.maxmem,
+                      buf.data<unsigned char>(),
+                      params.length)) {
     return false;
   }
-  *out = std::move(buf);
+  *out = std::move(buf).release();
   return true;
 }
 

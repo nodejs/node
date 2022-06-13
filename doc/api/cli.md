@@ -439,6 +439,18 @@ under this flag.
 
 To allow polyfills to be added, `--require` runs before freezing intrinsics.
 
+### `--force-node-api-uncaught-exceptions-policy`
+
+<!-- YAML
+added: v18.3.0
+-->
+
+Enforces `uncaughtException` event on Node-API asynchronous callbacks.
+
+To prevent from an existing add-on from crashing the process, this flag is not
+enabled by default. In the future, this flag will be enabled by default to
+enforce the correct behavior.
+
 ### `--heapsnapshot-near-heap-limit=max_count`
 
 <!-- YAML
@@ -770,6 +782,21 @@ added: v6.9.0
 Load an OpenSSL configuration file on startup. Among other uses, this can be
 used to enable FIPS-compliant crypto if Node.js is built
 against FIPS-enabled OpenSSL.
+
+### `--openssl-shared-config`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable OpenSSL default configuration section, `openssl_conf` to be read from
+the OpenSSL configuration file. The default configuration file is named
+`openssl.cnf` but this can be changed using the environment variable
+`OPENSSL_CONF`, or by using the command line option `--openssl-config`.
+The location of the default OpenSSL configuration file depends on how OpenSSL
+is being linked to Node.js. Sharing the OpenSSL configuration may have unwanted
+implications and it is recommended to use a configuration section specific to
+Node.js which is `nodejs_conf` and is default when this option is not used.
 
 ### `--openssl-legacy-provider`
 
@@ -1638,6 +1665,7 @@ Node.js options that are allowed are:
 * `--experimental-wasm-modules`
 * `--force-context-aware`
 * `--force-fips`
+* `--force-node-api-uncaught-exceptions-policy`
 * `--frozen-intrinsics`
 * `--heapsnapshot-near-heap-limit`
 * `--heapsnapshot-signal`
@@ -1662,6 +1690,7 @@ Node.js options that are allowed are:
 * `--node-memory-debug`
 * `--openssl-config`
 * `--openssl-legacy-provider`
+* `--openssl-shared-config`
 * `--pending-deprecation`
 * `--policy-integrity`
 * `--preserve-symlinks-main`
@@ -1960,9 +1989,9 @@ changes:
 
 The `TZ` environment variable is used to specify the timezone configuration.
 
-While the Node.js support for `TZ` will not handle all of the various
-[ways that `TZ` is handled in other environments][], it will support basic
-[timezone IDs][] (such as `'Etc/UTC'`, `'Europe/Paris'` or `'America/New_York'`.
+While Node.js does not support all of the various [ways that `TZ` is handled in
+other environments][], it does support basic [timezone IDs][] (such as
+`'Etc/UTC'`, `'Europe/Paris'`, or `'America/New_York'`).
 It may support a few other abbreviations or aliases, but these are strongly
 discouraged and not guaranteed.
 

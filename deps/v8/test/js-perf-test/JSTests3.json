@@ -318,7 +318,6 @@
             {"name": "String-StrictEquals-True"},
             {"name": "String-StrictEquals-False"},
             {"name": "SmiString-StrictEquals"},
-            {"name": "Boolean-StrictEquals"},
             {"name": "Smi-Equals-True"},
             {"name": "Smi-Equals-False"},
             {"name": "Number-Equals-True"},

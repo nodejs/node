@@ -120,7 +120,7 @@ function isStaticBoolean(scope, node) {
 
 /**
  * Test if an AST node will always give the same result when compared to a
- * bolean value. Note that comparison to boolean values is different than
+ * boolean value. Note that comparison to boolean values is different than
  * truthiness.
  * https://262.ecma-international.org/5.1/#sec-11.9.3
  *
@@ -238,7 +238,7 @@ function hasConstantLooseBooleanComparison(scope, node) {
 
 /**
  * Test if an AST node will always give the same result when _strictly_ compared
- * to a bolean value. This can happen if the expression can never be boolean, or
+ * to a boolean value. This can happen if the expression can never be boolean, or
  * if it is always the same boolean value.
  * @param {Scope} scope The scope in which the node was found.
  * @param {ASTNode} node The node to test
@@ -488,7 +488,7 @@ module.exports = {
             }
 
             /*
-             * In theory we could handle short circuting assignment operators,
+             * In theory we could handle short-circuiting assignment operators,
              * for some constant values, but that would require walking the
              * scope to find the value of the variable being assigned. This is
              * dependant on https://github.com/eslint/eslint/issues/13776

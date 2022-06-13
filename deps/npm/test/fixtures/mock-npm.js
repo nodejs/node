@@ -132,7 +132,9 @@ const LoadMockNpm = async (t, {
   })
 
   const npm = init ? new Npm() : null
-  t.teardown(() => npm && npm.unload())
+  t.teardown(() => {
+    npm && npm.unload()
+  })
 
   if (load) {
     await npm.load()
@@ -220,6 +222,10 @@ class MockNpm {
     if (config.loglevel) {
       this.config.set('loglevel', config.loglevel)
     }
+  }
+
+  get global () {
+    return this.config.get('global') || this.config.get('location') === 'global'
   }
 
   output (...msg) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -976,6 +976,10 @@ static X509_STORE *create_cert_store(const char *CApath, const char *CAfile,
     const char *propq = app_get0_propq();
 
     cert_ctx = X509_STORE_new();
+    if (cert_ctx == NULL) {
+        BIO_printf(bio_err, "memory allocation failure\n");
+        return NULL;
+    }
     X509_STORE_set_verify_cb(cert_ctx, verify_cb);
     if (CApath != NULL) {
         lookup = X509_STORE_add_lookup(cert_ctx, X509_LOOKUP_hash_dir());

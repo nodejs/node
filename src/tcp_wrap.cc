@@ -97,6 +97,7 @@ void TCPWrap::Initialize(Local<Object> target,
                       GetSockOrPeerName<TCPWrap, uv_tcp_getpeername>);
   env->SetProtoMethod(t, "setNoDelay", SetNoDelay);
   env->SetProtoMethod(t, "setKeepAlive", SetKeepAlive);
+  env->SetProtoMethod(t, "reset", Reset);
 
 #ifdef _WIN32
   env->SetProtoMethod(t, "setSimultaneousAccepts", SetSimultaneousAccepts);
@@ -134,6 +135,7 @@ void TCPWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetSockOrPeerName<TCPWrap, uv_tcp_getpeername>);
   registry->Register(SetNoDelay);
   registry->Register(SetKeepAlive);
+  registry->Register(Reset);
 #ifdef _WIN32
   registry->Register(SetSimultaneousAccepts);
 #endif
@@ -339,7 +341,29 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args,
 
   args.GetReturnValue().Set(err);
 }
+void TCPWrap::Reset(const FunctionCallbackInfo<Value>& args) {
+  TCPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(
+      &wrap, args.Holder(), args.GetReturnValue().Set(UV_EBADF));
 
+  int err = wrap->Reset(args[0]);
+
+  args.GetReturnValue().Set(err);
+}
+
+int TCPWrap::Reset(Local<Value> close_callback) {
+  if (state_ != kInitialized) return 0;
+
+  int err = uv_tcp_close_reset(&handle_, OnClose);
+  state_ = kClosing;
+  if (!err & !close_callback.IsEmpty() && close_callback->IsFunction() &&
+      !persistent().IsEmpty()) {
+    object()
+        ->Set(env()->context(), env()->handle_onclose_symbol(), close_callback)
+        .Check();
+  }
+  return err;
+}
 
 // also used by udp_wrap.cc
 MaybeLocal<Object> AddressToJS(Environment* env,

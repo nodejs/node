@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -13,7 +13,7 @@ use warnings;
 use File::Spec;
 use File::Compare qw/compare_text/;
 use OpenSSL::Glob;
-use OpenSSL::Test qw/:DEFAULT data_file/;
+use OpenSSL::Test qw/:DEFAULT data_file srctop_file bldtop_dir/;
 use OpenSSL::Test::Utils;
 
 setup("test_ecparam");
@@ -25,7 +25,7 @@ my @valid = glob(data_file("valid", "*.pem"));
 my @noncanon = glob(data_file("noncanon", "*.pem"));
 my @invalid = glob(data_file("invalid", "*.pem"));
 
-plan tests => 11;
+plan tests => 12;
 
 sub checkload {
     my $files = shift; # List of files
@@ -58,6 +58,8 @@ sub checkcompare {
             $in1 ne $in2}), "Original file $_ is the same as new one");
     }
 }
+
+my $no_fips = disabled('fips') || ($ENV{NO_FIPS} // 0);
 
 subtest "Check loading valid parameters by ecparam with -check" => sub {
     plan tests => scalar(@valid);
@@ -112,4 +114,32 @@ subtest "Check ecparam does not change the parameter file on output" => sub {
 subtest "Check pkeyparam does not change the parameter file on output" => sub {
     plan tests => 2 * scalar(@valid);
     checkcompare(\@valid, "pkeyparam");
+};
+
+subtest "Check loading of fips and non-fips params" => sub {
+    plan skip_all => "FIPS is disabled"
+        if $no_fips;
+    plan tests => 3;
+
+    my $fipsconf = srctop_file("test", "fips-and-base.cnf");
+    my $defaultconf = srctop_file("test", "default.cnf");
+
+    $ENV{OPENSSL_CONF} = $fipsconf;
+
+    ok(run(app(['openssl', 'ecparam',
+                '-in', data_file('valid', 'secp384r1-explicit.pem'),
+                '-check'])),
+       "Loading explicitly encoded valid curve");
+
+    ok(run(app(['openssl', 'ecparam',
+                '-in', data_file('valid', 'secp384r1-named.pem'),
+                '-check'])),
+       "Loading named valid curve");
+
+    ok(!run(app(['openssl', 'ecparam',
+                '-in', data_file('valid', 'secp112r1-named.pem'),
+                '-check'])),
+       "Fail loading named non-fips curve");
+
+    $ENV{OPENSSL_CONF} = $defaultconf;
 };

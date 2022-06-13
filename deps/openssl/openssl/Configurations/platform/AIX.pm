@@ -25,5 +25,5 @@ sub staticname {
     return $in_libname
         if $unified_info{attributes}->{libraries}->{$_[1]}->{noinst};
 
-    return platform::BASE->staticname($_[1]) . '_a';
+    return platform::BASE->staticname($_[1]) . ($disabled{shared} ? '' : '_a');
 }

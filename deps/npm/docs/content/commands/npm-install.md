@@ -460,6 +460,8 @@ rather than using npm's default semver range operator.
 
 * Default: false
 * Type: Boolean
+* DEPRECATED: `--global`, `--local` are deprecated. Use `--location=global`
+  instead.
 
 Operates in "global" mode, so that packages are installed into the `prefix`
 folder instead of the current working directory. See
@@ -551,10 +553,6 @@ this warning is treated as a failure.
 
 If set to false, then ignore `package-lock.json` files when installing. This
 will also prevent _writing_ `package-lock.json` if `save` is true.
-
-When package package-locks are disabled, automatic pruning of extraneous
-modules will also be disabled. To remove extraneous modules with
-package-locks disabled use `npm prune`.
 
 This configuration does not affect `npm ci`.
 

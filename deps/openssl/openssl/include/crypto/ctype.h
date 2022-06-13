@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -80,4 +80,6 @@ int ossl_ascii_isdigit(const char inchar);
 # define ossl_isbase64(c)       (ossl_ctype_check((c), CTYPE_MASK_base64))
 # define ossl_isasn1print(c)    (ossl_ctype_check((c), CTYPE_MASK_asn1print))
 
+int ossl_init_casecmp(void);
+void ossl_deinit_casecmp(void);
 #endif

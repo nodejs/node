@@ -129,17 +129,40 @@ const vectors = {
       'deriveBits',
     ]
   },
-  'NODE-DSA': {
-    algorithm: { modulusLength: 1024, hash: 'SHA-256' },
+  'Ed25519': {
     usages: [
       'sign',
       'verify',
     ],
-    mandatoryUsages: [
+    mandatoryUsages: ['sign']
+  },
+  'Ed448': {
+    usages: [
       'sign',
       'verify',
+    ],
+    mandatoryUsages: ['sign']
+  },
+  'X25519': {
+    usages: [
+      'deriveKey',
+      'deriveBits',
+    ],
+    mandatoryUsages: [
+      'deriveKey',
+      'deriveBits',
     ]
-  }
+  },
+  'X448': {
+    usages: [
+      'deriveKey',
+      'deriveBits',
+    ],
+    mandatoryUsages: [
+      'deriveKey',
+      'deriveBits',
+    ]
+  },
 };
 
 // Test invalid algorithms
@@ -535,21 +558,29 @@ const vectors = {
   tests.then(common.mustCall());
 }
 
-// Test NODE-DSA key generation
+// End user code cannot create CryptoKey directly
+assert.throws(() => new CryptoKey(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
+
+{
+  const buffer = Buffer.from('Hello World');
+  const keyObject = createSecretKey(buffer);
+  assert(!isCryptoKey(buffer));
+  assert(!isCryptoKey(keyObject));
+}
+
+// Test OKP Key Generation
 {
   async function test(
     name,
-    modulusLength,
-    hash,
     privateUsages,
     publicUsages = privateUsages) {
+
     let usages = privateUsages;
     if (publicUsages !== privateUsages)
       usages = usages.concat(publicUsages);
+
     const { publicKey, privateKey } = await subtle.generateKey({
       name,
-      modulusLength,
-      hash
     }, true, usages);
 
     assert(publicKey);
@@ -564,104 +595,35 @@ const vectors = {
     assert.deepStrictEqual(publicKey.usages, publicUsages);
     assert.deepStrictEqual(privateKey.usages, privateUsages);
     assert.strictEqual(publicKey.algorithm.name, name);
-    assert.strictEqual(publicKey.algorithm.modulusLength, modulusLength);
-    assert.strictEqual(publicKey.algorithm.hash.name, hash);
     assert.strictEqual(privateKey.algorithm.name, name);
-    assert.strictEqual(privateKey.algorithm.modulusLength, modulusLength);
-    assert.strictEqual(privateKey.algorithm.hash.name, hash);
-
-    // Missing parameters
-    await assert.rejects(
-      subtle.generateKey({ name, hash }, true, usages), {
-        code: 'ERR_INVALID_ARG_TYPE'
-      });
-
-    await assert.rejects(
-      subtle.generateKey({ name, modulusLength }, true, usages), {
-        code: 'ERR_MISSING_OPTION'
-      });
-
-    await Promise.all(['', true, {}].map((modulusLength) => {
-      return assert.rejects(subtle.generateKey({
-        name,
-        modulusLength,
-        hash
-      }, true, usages), {
-        code: 'ERR_INVALID_ARG_TYPE'
-      });
-    }));
-
-    await Promise.all([true, {}, 1, []].map((hash) => {
-      return assert.rejects(subtle.generateKey({
-        name,
-        modulusLength,
-        hash
-      }, true, usages), {
-        message: /Unrecognized name/
-      });
-    }));
-
-    await Promise.all(['', {}, 1, []].map((extractable) => {
-      return assert.rejects(subtle.generateKey({
-        name,
-        modulusLength,
-        hash
-      }, extractable, usages), {
-        code: 'ERR_INVALID_ARG_TYPE'
-      });
-    }));
-
-    await Promise.all(['', {}, 1, false].map((usages) => {
-      return assert.rejects(subtle.generateKey({
-        name,
-        modulusLength,
-        hash
-      }, true, usages), {
-        code: 'ERR_INVALID_ARG_TYPE'
-      });
-    }));
   }
 
   const kTests = [
     [
-      'NODE-DSA',
-      1024,
-      'SHA-256',
+      'Ed25519',
       ['sign'],
       ['verify'],
+    ],
+    [
+      'Ed448',
+      ['sign'],
+      ['verify'],
+    ],
+    [
+      'X25519',
+      ['deriveKey', 'deriveBits'],
+      [],
+    ],
+    [
+      'X448',
+      ['deriveKey', 'deriveBits'],
+      [],
     ],
   ];
 
   const tests = kTests.map((args) => test(...args));
 
+  // Test bad parameters
+
   Promise.all(tests).then(common.mustCall());
-}
-
-// Test NODE-DH key generation
-(async function() {
-  const { publicKey, privateKey } =
-    await subtle.generateKey({
-      name: 'NODE-DH',
-      group: 'modp15'
-    }, true, ['deriveKey']);
-  assert(publicKey);
-  assert(privateKey);
-  assert(isCryptoKey(publicKey));
-  assert(isCryptoKey(privateKey));
-  assert.strictEqual(publicKey.type, 'public');
-  assert.strictEqual(privateKey.type, 'private');
-  assert.strictEqual(publicKey.algorithm.name, 'NODE-DH');
-  assert.strictEqual(privateKey.algorithm.name, 'NODE-DH');
-  assert.strictEqual(publicKey.algorithm.group, 'modp15');
-  assert.strictEqual(privateKey.algorithm.group, 'modp15');
-})().then(common.mustCall());
-
-// End user code cannot create CryptoKey directly
-assert.throws(() => new CryptoKey(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
-
-{
-  const buffer = Buffer.from('Hello World');
-  const keyObject = createSecretKey(buffer);
-  assert(!isCryptoKey(buffer));
-  assert(!isCryptoKey(keyObject));
 }

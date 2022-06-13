@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,7 +15,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "e_os.h" /* strcasecmp */
 #include "internal/cryptlib.h"
 #include <openssl/evp.h>
 #include <openssl/objects.h>
@@ -1170,17 +1169,17 @@ EVP_PKEY *EVP_PKEY_Q_keygen(OSSL_LIB_CTX *libctx, const char *propq,
 
     va_start(args, type);
 
-    if (strcasecmp(type, "RSA") == 0) {
+    if (OPENSSL_strcasecmp(type, "RSA") == 0) {
         bits = va_arg(args, size_t);
         params[0] = OSSL_PARAM_construct_size_t(OSSL_PKEY_PARAM_RSA_BITS, &bits);
-    } else if (strcasecmp(type, "EC") == 0) {
+    } else if (OPENSSL_strcasecmp(type, "EC") == 0) {
         name = va_arg(args, char *);
         params[0] = OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME,
                                                      name, 0);
-    } else if (strcasecmp(type, "ED25519") != 0
-               && strcasecmp(type, "X25519") != 0
-               && strcasecmp(type, "ED448") != 0
-               && strcasecmp(type, "X448") != 0) {
+    } else if (OPENSSL_strcasecmp(type, "ED25519") != 0
+               && OPENSSL_strcasecmp(type, "X25519") != 0
+               && OPENSSL_strcasecmp(type, "ED448") != 0
+               && OPENSSL_strcasecmp(type, "X448") != 0) {
         ERR_raise(ERR_LIB_EVP, ERR_R_PASSED_INVALID_ARGUMENT);
         goto end;
     }

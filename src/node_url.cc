@@ -411,11 +411,7 @@ void URLHost::ParseIPv4Host(const char* input, size_t length, bool* is_ipv4) {
     const char ch = pointer < end ? pointer[0] : kEOL;
     int64_t remaining = end - pointer - 1;
     if (ch == '.' || ch == kEOL) {
-      // If parts’s size is greater than 4, validation error, return failure.
-      if (++parts > static_cast<int>(arraysize(numbers))) {
-        *is_ipv4 = true;
-        return;
-      }
+      if (++parts > static_cast<int>(arraysize(numbers))) return;
       if (pointer == mark)
         return;
       int64_t n = ParseNumber(mark, pointer);

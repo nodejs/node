@@ -132,6 +132,8 @@ int OPENSSL_hexstr2buf_ex(unsigned char *buf, size_t buf_n, size_t *buflen,
                           const char *str, const char sep);
 unsigned char *OPENSSL_hexstr2buf(const char *str, long *buflen);
 int OPENSSL_hexchar2int(unsigned char c);
+int OPENSSL_strcasecmp(const char *s1, const char *s2);
+int OPENSSL_strncasecmp(const char *s1, const char *s2, size_t n);
 
 # define OPENSSL_MALLOC_MAX_NELEMS(type)  (((1U<<(sizeof(int)*8-1))-1)/sizeof(type))
 

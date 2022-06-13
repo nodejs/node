@@ -7,15 +7,13 @@ const path = require('path')
 
 module.exports.mkdir = mktmpdir
 
-function mktmpdir (cache, opts = {}) {
+async function mktmpdir (cache, opts = {}) {
   const { tmpPrefix } = opts
   const tmpDir = path.join(cache, 'tmp')
-  return fs.mkdir(tmpDir, { recursive: true, owner: 'inherit' })
-    .then(() => {
-      // do not use path.join(), it drops the trailing / if tmpPrefix is unset
-      const target = `${tmpDir}${path.sep}${tmpPrefix || ''}`
-      return fs.mkdtemp(target, { owner: 'inherit' })
-    })
+  await fs.mkdir(tmpDir, { recursive: true, owner: 'inherit' })
+  // do not use path.join(), it drops the trailing / if tmpPrefix is unset
+  const target = `${tmpDir}${path.sep}${tmpPrefix || ''}`
+  return fs.mkdtemp(target, { owner: 'inherit' })
 }
 
 module.exports.withTmp = withTmp

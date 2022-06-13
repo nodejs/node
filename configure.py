@@ -181,6 +181,12 @@ parser.add_argument("--link-module",
          "e.g. /root/x/y.js will be referenced via require('root/x/y'). "
          "Can be used multiple times")
 
+parser.add_argument("--openssl-conf-name",
+    action="store",
+    dest="openssl_conf_name",
+    default='nodejs_conf',
+    help="The OpenSSL config appname (config section name) used by Node.js")
+
 parser.add_argument('--openssl-default-cipher-list',
     action='store',
     dest='openssl_default_cipher_list',
@@ -1249,7 +1255,7 @@ def configure_node(o):
     o['variables']['node_use_node_snapshot'] = b(
       not cross_compiling and not options.shared)
 
-  if options.without_node_code_cache or options.node_builtin_modules_path:
+  if options.without_node_code_cache or options.without_node_snapshot or options.node_builtin_modules_path:
     o['variables']['node_use_node_code_cache'] = 'false'
   else:
     # TODO(refack): fix this when implementing embedded code-cache when cross-compiling.
@@ -1488,6 +1494,8 @@ def configure_openssl(o):
   if options.openssl_no_asm:
     variables['openssl_no_asm'] = 1
 
+  o['defines'] += ['NODE_OPENSSL_CONF_NAME=' + options.openssl_conf_name]
+
   if options.without_ssl:
     def without_ssl_error(option):
       error('--without-ssl is incompatible with %s' % option)
@@ -1664,7 +1672,7 @@ def configure_intl(o):
     o['variables']['icu_small'] = b(True)
     locs = set(options.with_icu_locales.split(','))
     locs.add('root')  # must have root
-    o['variables']['icu_locales'] = ','.join(str(loc) for loc in locs)
+    o['variables']['icu_locales'] = ','.join(str(loc) for loc in sorted(locs))
     # We will check a bit later if we can use the canned deps/icu-small
     o['variables']['icu_default_data'] = options.with_icu_default_data_dir or ''
   elif with_intl == 'full-icu':

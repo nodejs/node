@@ -4,7 +4,8 @@
     "opera": "80",
     "edge": "94",
     "firefox": "93",
-    "node": "16.11"
+    "node": "16.11",
+    "electron": "15.0"
   },
   "proposal-private-property-in-object": {
     "chrome": "91",

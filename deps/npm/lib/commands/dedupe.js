@@ -22,7 +22,7 @@ class Dedupe extends ArboristWorkspaceCmd {
   ]
 
   async exec (args) {
-    if (this.npm.config.get('global')) {
+    if (this.npm.global) {
       const er = new Error('`npm dedupe` does not work in global mode.')
       er.code = 'EDEDUPEGLOBAL'
       throw er

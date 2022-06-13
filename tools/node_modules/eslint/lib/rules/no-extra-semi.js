@@ -98,7 +98,7 @@ module.exports = {
                         "WithStatement"
                     ];
 
-                if (allowedParentTypes.indexOf(parent.type) === -1) {
+                if (!allowedParentTypes.includes(parent.type)) {
                     report(node);
                 }
             },

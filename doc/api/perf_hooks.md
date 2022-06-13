@@ -15,6 +15,7 @@ Node.js supports the following [Web Performance APIs][]:
 * [High Resolution Time][]
 * [Performance Timeline][]
 * [User Timing][]
+* [Resource Timing][]
 
 ```js
 const { PerformanceObserver, performance } = require('node:perf_hooks');
@@ -64,7 +65,18 @@ added: v16.7.0
 * `name` {string}
 
 If `name` is not provided, removes all `PerformanceMeasure` objects from the
-Performance Timeline. If `name` is provided, removes only the named mark.
+Performance Timeline. If `name` is provided, removes only the named measure.
+
+### `performance.clearResourceTimings([name])`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* `name` {string}
+
+If `name` is not provided, removes all `PerformanceResourceTiming` objects from
+the Resource Timeline. If `name` is provided, removes only the named resource.
 
 ### `performance.eventLoopUtilization([utilization1[, utilization2]])`
 
@@ -184,7 +196,7 @@ changes:
 * `options` {Object}
   * `detail` {any} Additional optional detail to include with the mark.
   * `startTime` {number} An optional timestamp to be used as the mark time.
-    **Defaults**: `performance.now()`.
+    **Default**: `performance.now()`.
 
 Creates a new `PerformanceMark` entry in the Performance Timeline. A
 `PerformanceMark` is a subclass of `PerformanceEntry` whose
@@ -197,6 +209,31 @@ and can be queried with `performance.getEntries`,
 `performance.getEntriesByName`, and `performance.getEntriesByType`. When the
 observation is performed, the entries should be cleared from the global
 Performance Timeline manually with `performance.clearMarks`.
+
+### `performance.markResourceTiming(timingInfo, requestedUrl, initiatorType, global, cacheMode)`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* `timingInfo` {Object} [Fetch Timing Info][]
+* `requestedUrl` {string} The resource url
+* `initiatorType` {string} The initiator name, e.g: 'fetch'
+* `global` {Object}
+* `cacheMode` {string} The cache mode must be an empty string ('') or 'local'
+
+_This property is an extension by Node.js. It is not available in Web browsers._
+
+Creates a new `PerformanceResourceTiming` entry in the Resource Timeline. A
+`PerformanceResourceTiming` is a subclass of `PerformanceEntry` whose
+`performanceEntry.entryType` is always `'resource'`. Performance resources
+are used to mark moments in the Resource Timeline.
+
+The created `PerformanceMark` entry is put in the global Resource Timeline
+and can be queried with `performance.getEntries`,
+`performance.getEntriesByName`, and `performance.getEntriesByType`. When the
+observation is performed, the entries should be cleared from the global
+Performance Timeline manually with `performance.clearResourceTimings`.
 
 ### `performance.measure(name[, startMarkOrOptions[, endMark]])`
 
@@ -652,6 +689,188 @@ added: v8.5.0
 
 The high resolution millisecond timestamp at which the V8 platform was
 initialized.
+
+## Class: `PerformanceResourceTiming`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* Extends: {PerformanceEntry}
+
+Provides detailed network timing data regarding the loading of an application's
+resources.
+
+The constructor of this class is not exposed to users directly.
+
+### `performanceResourceTiming.workerStart`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp at immediately before dispatching
+the `fetch` request. If the resource is not intercepted by a worker the property
+will always return 0.
+
+### `performanceResourceTiming.redirectStart`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp that represents the start time
+of the fetch which initiates the redirect.
+
+### `performanceResourceTiming.redirectEnd`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp that will be created immediately after
+receiving the last byte of the response of the last redirect.
+
+### `performanceResourceTiming.fetchStart`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp immediately before the Node.js starts
+to fetch the resource.
+
+### `performanceResourceTiming.domainLookupStart`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp immediately before the Node.js starts
+the domain name lookup for the resource.
+
+### `performanceResourceTiming.domainLookupEnd`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp representing the time immediately
+after the Node.js finished the domain name lookup for the resource.
+
+### `performanceResourceTiming.connectStart`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp representing the time immediately
+before Node.js starts to establish the connection to the server to retrieve
+the resource.
+
+### `performanceResourceTiming.connectEnd`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp representing the time immediately
+after Node.js finishes establishing the connection to the server to retrieve
+the resource.
+
+### `performanceResourceTiming.secureConnectionStart`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp representing the time immediately
+before Node.js starts the handshake process to secure the current connection.
+
+### `performanceResourceTiming.requestStart`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp representing the time immediately
+before Node.js receives the first byte of the response from the server.
+
+### `performanceResourceTiming.responseEnd`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+The high resolution millisecond timestamp representing the time immediately
+after Node.js receives the last byte of the resource or immediately before
+the transport connection is closed, whichever comes first.
+
+### `performanceResourceTiming.transferSize`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+A number representing the size (in octets) of the fetched resource. The size
+includes the response header fields plus the response payload body.
+
+### `performanceResourceTiming.encodedBodySize`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+A number representing the size (in octets) received from the fetch
+(HTTP or cache), of the payload body, before removing any applied
+content-codings.
+
+### `performanceResourceTiming.decodedBodySize`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+* {number}
+
+A number representing the size (in octets) received from the fetch
+(HTTP or cache), of the message body, after removing any applied
+content-codings.
+
+### `performanceResourceTiming.toJSON()`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+Returns a `object` that is the JSON representation of the
+`PerformanceResourceTiming` object
 
 ## Class: `perf_hooks.PerformanceObserver`
 
@@ -1367,8 +1586,10 @@ dns.promises.resolve('localhost');
 ```
 
 [Async Hooks]: async_hooks.md
+[Fetch Timing Info]: https://fetch.spec.whatwg.org/#fetch-timing-info
 [High Resolution Time]: https://www.w3.org/TR/hr-time-2
 [Performance Timeline]: https://w3c.github.io/performance-timeline/
+[Resource Timing]: https://www.w3.org/TR/resource-timing-2/
 [User Timing]: https://www.w3.org/TR/user-timing/
 [Web Performance APIs]: https://w3c.github.io/perf-timing-primer/
 [Worker threads]: worker_threads.md#worker-threads

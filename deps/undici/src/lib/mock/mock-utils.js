@@ -6,9 +6,9 @@ const {
   kMockAgent,
   kOriginalDispatch,
   kOrigin,
-  kIsMockActive,
   kGetNetConnect
 } = require('./mock-symbols')
+const { buildURL } = require('../core/util')
 
 function matchValue (match, value) {
   if (typeof match === 'string') {
@@ -99,10 +99,12 @@ function getResponseData (data) {
 }
 
 function getMockDispatch (mockDispatches, key) {
+  const resolvedPath = key.query ? buildURL(key.path, key.query) : key.path
+
   // Match path
-  let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path }) => matchValue(path, key.path))
+  let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path }) => matchValue(path, resolvedPath))
   if (matchedMockDispatches.length === 0) {
-    throw new MockNotMatchedError(`Mock dispatch not matched for path '${key.path}'`)
+    throw new MockNotMatchedError(`Mock dispatch not matched for path '${resolvedPath}'`)
   }
 
   // Match method
@@ -147,12 +149,13 @@ function deleteMockDispatch (mockDispatches, key) {
 }
 
 function buildKey (opts) {
-  const { path, method, body, headers } = opts
+  const { path, method, body, headers, query } = opts
   return {
     path,
     method,
     body,
-    headers
+    headers,
+    query
   }
 }
 
@@ -229,8 +232,7 @@ function getStatusText (statusCode) {
     case 508: return 'Loop Detected'
     case 510: return 'Not Extended'
     case 511: return 'Network Authentication Required'
-    default:
-      throw new ReferenceError(`Unknown status code "${statusCode}"!`)
+    default: return 'unknown'
   }
 }
 
@@ -303,7 +305,7 @@ function buildMockDispatch () {
   const originalDispatch = this[kOriginalDispatch]
 
   return function dispatch (opts, handler) {
-    if (agent[kIsMockActive]) {
+    if (agent.isMockActive) {
       try {
         mockDispatch.call(this, opts, handler)
       } catch (error) {

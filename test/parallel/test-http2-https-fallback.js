@@ -12,6 +12,7 @@ const { createSecureServer, connect } = require('http2');
 const { get } = require('https');
 const { parse } = require('url');
 const { connect: tls } = require('tls');
+const { Duplex } = require('stream');
 
 const countdown = (count, done) => () => --count === 0 && done();
 
@@ -115,6 +116,7 @@ function onSession(session, next) {
   );
 
   server.once('unknownProtocol', common.mustCall((socket) => {
+    strictEqual(socket instanceof Duplex, true);
     socket.destroy();
   }));
 

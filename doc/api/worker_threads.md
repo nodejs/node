@@ -237,7 +237,7 @@ changes:
 Receive a single message from a given `MessagePort`. If no message is available,
 `undefined` is returned, otherwise an object with a single `message` property
 that contains the message payload, corresponding to the oldest message in the
-`MessagePort`’s queue.
+`MessagePort`'s queue.
 
 ```js
 const { MessageChannel, receiveMessageOnPort } = require('node:worker_threads');
@@ -336,7 +336,7 @@ added: v10.5.0
 -->
 
 An arbitrary JavaScript value that contains a clone of the data passed
-to this thread’s `Worker` constructor.
+to this thread's `Worker` constructor.
 
 The data is cloned as if using [`postMessage()`][`port.postMessage()`],
 according to the [HTML structured clone algorithm][].
@@ -633,7 +633,7 @@ circularData.foo = circularData;
 port2.postMessage(circularData);
 ```
 
-`transferList` may be a list of [`ArrayBuffer`][], [`MessagePort`][] and
+`transferList` may be a list of [`ArrayBuffer`][], [`MessagePort`][], and
 [`FileHandle`][] objects.
 After transferring, they are not usable on the sending side of the channel
 anymore (even if they are not contained in `value`). Unlike with
@@ -836,8 +836,8 @@ Most Node.js APIs are available inside of it.
 
 Notable differences inside a Worker environment are:
 
-* The [`process.stdin`][], [`process.stdout`][] and [`process.stderr`][]
-  may be redirected by the parent thread.
+* The [`process.stdin`][], [`process.stdout`][], and [`process.stderr`][]
+  streams may be redirected by the parent thread.
 * The [`require('node:worker_threads').isMainThread`][] property is set to `false`.
 * The [`require('node:worker_threads').parentPort`][] message port is available.
 * [`process.exit()`][] does not stop the whole program, just the single thread,
@@ -939,7 +939,7 @@ changes:
     description: The `resourceLimits` option was introduced.
 -->
 
-* `filename` {string|URL} The path to the Worker’s main script or module. Must
+* `filename` {string|URL} The path to the Worker's main script or module. Must
   be either an absolute path or a relative path (i.e. relative to the
   current working directory) starting with `./` or `../`, or a WHATWG `URL`
   object using `file:` or `data:` protocol.
@@ -955,7 +955,7 @@ changes:
   * `env` {Object} If set, specifies the initial value of `process.env` inside
     the Worker thread. As a special value, [`worker.SHARE_ENV`][] may be used
     to specify that the parent thread and the child thread should share their
-    environment variables; in that case, changes to one thread’s `process.env`
+    environment variables; in that case, changes to one thread's `process.env`
     object affect the other thread as well. **Default:** `process.env`.
   * `eval` {boolean} If `true` and the first argument is a `string`, interpret
     the first argument to the constructor as a script that is executed once the

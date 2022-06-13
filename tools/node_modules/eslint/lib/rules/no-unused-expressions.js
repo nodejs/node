@@ -124,7 +124,7 @@ module.exports = {
              */
             return (parent.type === "Program" || parent.type === "BlockStatement" &&
                     (/Function/u.test(grandparent.type))) &&
-                    directives(parent).indexOf(node) >= 0;
+                    directives(parent).includes(node);
         }
 
         /**

@@ -1745,7 +1745,7 @@ static int handle_opt_geninfo(OSSL_CMP_CTX *ctx)
     valptr[0] = '\0';
     valptr++;
 
-    if (strncasecmp(valptr, "int:", 4) != 0) {
+    if (OPENSSL_strncasecmp(valptr, "int:", 4) != 0) {
         CMP_err("missing 'int:' in -geninfo option");
         return 0;
     }

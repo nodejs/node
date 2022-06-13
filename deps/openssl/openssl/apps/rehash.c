@@ -214,7 +214,7 @@ static int handle_symlink(const char *filename, const char *fullpath)
         return -1;
     for (type = OSSL_NELEM(suffixes) - 1; type > 0; type--) {
         const char *suffix = suffixes[type];
-        if (strncasecmp(suffix, &filename[i], strlen(suffix)) == 0)
+        if (OPENSSL_strncasecmp(suffix, &filename[i], strlen(suffix)) == 0)
             break;
     }
     i += strlen(suffixes[type]);
@@ -249,7 +249,7 @@ static int do_file(const char *filename, const char *fullpath, enum Hash h)
     if ((ext = strrchr(filename, '.')) == NULL)
         goto end;
     for (i = 0; i < OSSL_NELEM(extensions); i++) {
-        if (strcasecmp(extensions[i], ext + 1) == 0)
+        if (OPENSSL_strcasecmp(extensions[i], ext + 1) == 0)
             break;
     }
     if (i >= OSSL_NELEM(extensions))

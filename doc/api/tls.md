@@ -1606,7 +1606,7 @@ changes:
   * `socket` {stream.Duplex} Establish secure connection on a given socket
     rather than creating a new socket. Typically, this is an instance of
     [`net.Socket`][], but any `Duplex` stream is allowed.
-    If this option is specified, `path`, `host` and `port` are ignored,
+    If this option is specified, `path`, `host`, and `port` are ignored,
     except for certificate validation. Usually, a socket is already connected
     when passed to `tls.connect()`, but it can be connected later.
     Connection/disconnection/destruction of `socket` is the user's
@@ -1641,8 +1641,8 @@ changes:
     More information can be found in the [RFC 4279][].
   * `ALPNProtocols`: {string\[]|Buffer\[]|TypedArray\[]|DataView\[]|Buffer|
     TypedArray|DataView}
-    An array of strings, `Buffer`s or `TypedArray`s or `DataView`s, or a
-    single `Buffer` or `TypedArray` or `DataView` containing the supported ALPN
+    An array of strings, `Buffer`s, `TypedArray`s, or `DataView`s, or a
+    single `Buffer`, `TypedArray`, or `DataView` containing the supported ALPN
     protocols. `Buffer`s should have the format `[len][name][len][name]...`
     e.g. `'\x08http/1.1\x08http/1.0'`, where the `len` byte is the length of the
     next protocol name. Passing an array is usually much simpler, e.g.
@@ -2028,8 +2028,8 @@ changes:
 * `options` {Object}
   * `ALPNProtocols`: {string\[]|Buffer\[]|TypedArray\[]|DataView\[]|Buffer|
     TypedArray|DataView}
-    An array of strings, `Buffer`s or `TypedArray`s or `DataView`s, or a single
-    `Buffer` or `TypedArray` or `DataView` containing the supported ALPN
+    An array of strings, `Buffer`s, `TypedArray`s, or `DataView`s, or a single
+    `Buffer`, `TypedArray`, or `DataView` containing the supported ALPN
     protocols. `Buffer`s should have the format `[len][name][len][name]...`
     e.g. `0x05hello0x05world`, where the first byte is the length of the next
     protocol name. Passing an array is usually much simpler, e.g.
@@ -2088,7 +2088,7 @@ changes:
     in TLS 1.3. Upon failing to set pskIdentityHint `'tlsClientError'` will be
     emitted with `'ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED'` code.
   * ...: Any [`tls.createSecureContext()`][] option can be provided. For
-    servers, the identity options (`pfx`, `key`/`cert` or `pskCallback`)
+    servers, the identity options (`pfx`, `key`/`cert`, or `pskCallback`)
     are usually required.
   * ...: Any [`net.createServer()`][] option can be provided.
 * `secureConnectionListener` {Function}

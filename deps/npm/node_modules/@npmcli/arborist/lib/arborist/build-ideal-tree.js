@@ -329,6 +329,7 @@ Try using the package name instead, e.g:
         ? Shrinkwrap.reset({
           path: this.path,
           lockfileVersion: this.options.lockfileVersion,
+          resolveOptions: this.options,
         }).then(meta => Object.assign(root, { meta }))
         : this.loadVirtual({ root }))
 
@@ -388,6 +389,7 @@ Try using the package name instead, e.g:
     const meta = new Shrinkwrap({
       path: this.path,
       lockfileVersion: this.options.lockfileVersion,
+      resolveOptions: this.options,
     })
     meta.reset()
     root.meta = meta

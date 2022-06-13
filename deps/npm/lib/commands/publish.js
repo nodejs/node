@@ -7,7 +7,6 @@ const runScript = require('@npmcli/run-script')
 const pacote = require('pacote')
 const npa = require('npm-package-arg')
 const npmFetch = require('npm-registry-fetch')
-const chalk = require('chalk')
 const replaceInfo = require('../utils/replace-info.js')
 
 const otplease = require('../utils/otplease.js')
@@ -81,7 +80,12 @@ class Publish extends BaseCommand {
     }
 
     // we pass dryRun: true to libnpmpack so it doesn't write the file to disk
-    const tarballData = await pack(spec, { ...opts, dryRun: true })
+    const tarballData = await pack(spec, {
+      ...opts,
+      dryRun: true,
+      prefix: this.npm.localPrefix,
+      workspaces: this.workspacePaths,
+    })
     const pkgContents = await getContents(manifest, tarballData)
 
     // The purpose of re-reading the manifest is in case it changed,
@@ -151,8 +155,6 @@ class Publish extends BaseCommand {
     const results = {}
     const json = this.npm.config.get('json')
     const { silent } = this.npm
-    const noop = a => a
-    const color = this.npm.color ? chalk : { green: noop, bold: noop }
     await this.setWorkspaces(filters)
 
     for (const [name, workspace] of this.workspaces.entries()) {
@@ -164,9 +166,9 @@ class Publish extends BaseCommand {
           log.warn(
             'publish',
             `Skipping workspace ${
-              color.green(name)
+              this.npm.chalk.green(name)
             }, marked as ${
-              color.bold('private')
+              this.npm.chalk.bold('private')
             }`
           )
           continue

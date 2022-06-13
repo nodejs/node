@@ -33,7 +33,7 @@ env:
 jobs:
   coverage-windows:
     if: github.event.pull_request.draft == false
-    runs-on: windows-latest
+    runs-on: windows-2019
     steps:
       - uses: actions/checkout@v3
         with:
@@ -61,6 +61,6 @@ jobs:
       - name: Clean tmp
         run: npx rimraf ./coverage/tmp
       - name: Upload
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v3
         with:
           directory: ./coverage

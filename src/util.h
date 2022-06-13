@@ -26,6 +26,8 @@
 
 #include "v8.h"
 
+#include "node.h"
+
 #include <climits>
 #include <cstddef>
 #include <cstdio>
@@ -110,8 +112,8 @@ struct AssertionInfo {
   const char* message;
   const char* function;
 };
-[[noreturn]] void Assert(const AssertionInfo& info);
-[[noreturn]] void Abort();
+[[noreturn]] void NODE_EXTERN_PRIVATE Assert(const AssertionInfo& info);
+[[noreturn]] void NODE_EXTERN_PRIVATE Abort();
 void DumpBacktrace(FILE* fp);
 
 // Windows 8+ does not like abort() in Release mode

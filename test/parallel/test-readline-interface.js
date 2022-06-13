@@ -131,11 +131,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
       input,
       tabSize: 0
     }),
-    {
-      message: 'The value of "tabSize" is out of range. ' +
-                'It must be >= 1 && < 4294967296. Received 0',
-      code: 'ERR_OUT_OF_RANGE'
-    }
+    { code: 'ERR_OUT_OF_RANGE' }
   );
 
   assert.throws(
@@ -1010,6 +1006,17 @@ for (let i = 0; i < 12; i++) {
     rli.close();
   }
 
+  // Calling the question callback with abort signal
+  {
+    const [rli] = getInterface({ terminal });
+    const { signal } = new AbortController();
+    rli.question('foo?', { signal }, common.mustCall((answer) => {
+      assert.strictEqual(answer, 'bar');
+    }));
+    rli.write('bar\n');
+    rli.close();
+  }
+
   // Calling the question multiple times
   {
     const [rli] = getInterface({ terminal });
@@ -1027,6 +1034,19 @@ for (let i = 0; i < 12; i++) {
     const [rli] = getInterface({ terminal });
     const question = util.promisify(rli.question).bind(rli);
     question('foo?')
+    .then(common.mustCall((answer) => {
+      assert.strictEqual(answer, 'bar');
+    }));
+    rli.write('bar\n');
+    rli.close();
+  }
+
+  // Calling the promisified question with abort signal
+  {
+    const [rli] = getInterface({ terminal });
+    const question = util.promisify(rli.question).bind(rli);
+    const { signal } = new AbortController();
+    question('foo?', { signal })
     .then(common.mustCall((answer) => {
       assert.strictEqual(answer, 'bar');
     }));

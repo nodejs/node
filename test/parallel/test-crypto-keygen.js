@@ -1122,18 +1122,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   }
 }
 
-function addNumericalSeparator(val) {
-  val = String(val);
-  let res = '';
-  let i = val.length;
-  const start = val[0] === '-' ? 1 : 0;
-  for (; i >= start + 4; i -= 3) {
-    res = `_${val.slice(i - 3, i)}${res}`;
-  }
-  return `${val.slice(0, i)}${res}`;
-}
-
-
 // Test RSA parameters.
 {
   // Test invalid modulus lengths. (non-number)
@@ -1170,10 +1158,6 @@ function addNumericalSeparator(val) {
     }, common.mustNotCall()), {
       name: 'RangeError',
       code: 'ERR_OUT_OF_RANGE',
-      message:
-        'The value of "options.modulusLength" is out of range. ' +
-        'It must be >= 0 && < 4294967296. ' +
-        `Received ${addNumericalSeparator(modulusLength)}`
     });
   }
 
@@ -1214,10 +1198,6 @@ function addNumericalSeparator(val) {
     }, common.mustNotCall()), {
       name: 'RangeError',
       code: 'ERR_OUT_OF_RANGE',
-      message:
-        'The value of "options.publicExponent" is out of range. ' +
-        'It must be >= 0 && < 4294967296. ' +
-        `Received ${addNumericalSeparator(publicExponent)}`
     });
   }
 }
@@ -1244,10 +1224,6 @@ function addNumericalSeparator(val) {
     }, common.mustNotCall()), {
       name: 'RangeError',
       code: 'ERR_OUT_OF_RANGE',
-      message:
-        'The value of "options.modulusLength" is out of range. ' +
-        'It must be an integer. ' +
-        `Received ${inspect(modulusLength)}`
     });
   }
 
@@ -1258,10 +1234,6 @@ function addNumericalSeparator(val) {
     }, common.mustNotCall()), {
       name: 'RangeError',
       code: 'ERR_OUT_OF_RANGE',
-      message:
-        'The value of "options.modulusLength" is out of range. ' +
-        'It must be >= 0 && < 4294967296. ' +
-        `Received ${addNumericalSeparator(modulusLength)}`
     });
   }
 
@@ -1742,22 +1714,6 @@ generateKeyPair('rsa', {
   assert.strictEqual(typeof publicKey, 'string');
   assert.strictEqual(typeof privateKey, 'string');
 }));
-
-{
-  // Proprietary Web Cryptography API ECDH/ECDSA namedCurve parameters
-  // should not be recognized in this API.
-  // See https://github.com/nodejs/node/issues/37055
-  const curves = ['NODE-ED25519', 'NODE-ED448', 'NODE-X25519', 'NODE-X448'];
-  for (const namedCurve of curves) {
-    assert.throws(
-      () => generateKeyPair('ec', { namedCurve }, common.mustNotCall()),
-      {
-        name: 'TypeError',
-        message: 'Invalid EC curve name'
-      }
-    );
-  }
-}
 
 {
   // This test creates EC key pairs on curves without associated OIDs.

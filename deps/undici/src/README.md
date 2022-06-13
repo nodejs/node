@@ -194,6 +194,21 @@ Basic usage example:
     }
 ```
 
+You can pass an optional dispatcher to `fetch` as:
+
+```js
+import { fetch, Agent } from 'undici'
+
+const res = await fetch('https://example.com', {
+  // Mocks are also supported
+  dispatcher: new Agent({
+    keepAliveTimeout: 10,
+    keepAliveMaxTimeout: 10
+  })
+})
+const json = await res.json()
+console.log(json)
+```
 
 #### `request.body`
 
@@ -272,6 +287,15 @@ const headers = await fetch(url)
 const headers = await fetch(url)
   .then(res => res.headers)
 ```
+
+##### Forbidden and Safelisted Header Names
+
+* https://fetch.spec.whatwg.org/#cors-safelisted-response-header-name
+* https://fetch.spec.whatwg.org/#forbidden-header-name
+* https://fetch.spec.whatwg.org/#forbidden-response-header-name
+* https://github.com/wintercg/fetch/issues/6
+
+The [Fetch Standard](https://fetch.spec.whatwg.org) requires implementations to exclude certain headers from requests and responses. In browser environments, some headers are forbidden so the user agent remains in full control over them. In Undici, these constraints are removed to give more control to the user.
 
 ### `undici.upgrade([url, options]): Promise`
 
@@ -360,6 +384,7 @@ Refs: https://fetch.spec.whatwg.org/#atomic-http-redirect-handling
 * [__Daniele Belardi__](https://github.com/dnlup), <https://www.npmjs.com/~dnlup>
 * [__Ethan Arrowood__](https://github.com/ethan-arrowood), <https://www.npmjs.com/~ethan_arrowood>
 * [__Matteo Collina__](https://github.com/mcollina), <https://www.npmjs.com/~matteo.collina>
+* [__Matthew Aitken__](https://github.com/KhafraDev), <https://www.npmjs.com/~khaf>
 * [__Robert Nagy__](https://github.com/ronag), <https://www.npmjs.com/~ronag>
 * [__Szymon Marczak__](https://github.com/szmarczak), <https://www.npmjs.com/~szmarczak>
 * [__Tomas Della Vedova__](https://github.com/delvedor), <https://www.npmjs.com/~delvedor>

@@ -36,8 +36,8 @@ const loadedModules = extractModules(process.moduleLoadList);
 // Cross-compiled binaries do not have code cache, verifies that the builtins
 // are all compiled without cache and we are doing the bookkeeping right.
 if (!process.features.cached_builtins) {
-  console.log('The binary is not configured with code cache');
-  assert(!process.config.variables.node_use_node_code_cache);
+  assert(!process.config.variables.node_use_node_code_cache ||
+         process.execArgv.includes('--no-node-snapshot'));
 
   if (isMainThread) {
     assert.deepStrictEqual(compiledWithCache, new Set());
