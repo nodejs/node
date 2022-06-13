@@ -2020,19 +2020,20 @@ $ node --max-old-space-size=1536 index.js
 
 ### `--max-semi-space-size=SIZE` (in megabytes)
 
-Sets the maximum [semi-space][] size for V8's [scavenge garbage collector][] in MiB.
-Increasing the max size of a semi-space may improve throughput for Node.js at the
-cost of more memory consumption.
+Sets the maximum [semi-space][] size for V8's [scavenge garbage collector][] in
+MiB (megabytes).
+Increasing the max size of a semi-space may improve throughput for Node.js at
+the cost of more memory consumption.
 
 Since the young generation size of the V8 heap is three times (see
 [`YoungGenerationSizeFromSemiSpaceSize`][] in V8) the size of the semi-space, an
-increase of 1 MiB to semi-space applies to each of the three individual semi spaces
-and causes the heap size to increase by 3 MiB. The throughput improvement depends
-on your workload (see [#42511](https://github.com/nodejs/node/issues/42511)).
+increase of 1 MiB to semi-space applies to each of the three individual
+semi-spaces and causes the heap size to increase by 3 MiB. The throughput
+improvement depends on your workload (see [#42511][]).
 
-The default value is 16 MiB for 64-bit systems and 8 MiB for 32-bit systems. To get the
-best configuration for your application, you should try different max-semi-space-size
-values when running benchmarks for your application.
+The default value is 16 MiB for 64-bit systems and 8 MiB for 32-bit systems. To
+get the best configuration for your application, you should try different
+max-semi-space-size values when running benchmarks for your application.
 
 For example, benchmark on a 64-bit systems:
 
@@ -2040,8 +2041,6 @@ For example, benchmark on a 64-bit systems:
 for MiB in 16 32 64 128; do
     node --max-semi-space-size=$MiB index.js
 done
-```
-
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [CommonJS]: modules.md
 [ECMAScript module loader]: esm.md#loaders
