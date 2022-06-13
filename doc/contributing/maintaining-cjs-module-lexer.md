@@ -20,7 +20,7 @@ inclusion in the `deps_files` entry in
 [node.gyp](https://github.com/nodejs/node/blob/master/node.gyp).
 
 The two different versions of lexer.js are maintained in the
-[nodejs/cjs-module-lexer](https://github.com/nodejs/cjs-module-lexer) project.
+[nodejs/cjs-module-lexer][] project.
 
 In order to update the Node.js dependencies to use to a newer verion
 of cjs-module-lexer, complete the following steps:
