@@ -315,9 +315,10 @@ package. It is not a strong encapsulation since a direct require of any
 absolute subpath of the package such as
 `require('/path/to/node_modules/pkg/subpath.js')` will still load `subpath.js`.
 
-All modern JS build tools support the `"exports"` field, but if necessary for
-compatibility with specific tooling or Node.js versions < 12.7.0, the `"main"`
-field can be included alongside `"exports"`:
+All supported versions of Node.js (since 12.7.0) and modern build tools
+support the `"exports"` field. For projects using an older version of Node.js
+or a related build tool, compatibility can be achieved by including the `"main"`
+field alongside `"exports"`:
 
 ```json
 {
@@ -363,9 +364,10 @@ Even though subpaths provide an aribtrary string mapping to the package
 interface, it is recommended (but not required) to use explicit file extensions
 when defining package subpaths so that package consumers write
 `import 'pkg/subpath.js'` instead of `import 'pkg/subpath'` as this simplifies
-interoperability with other ecosystem tooling patterns such as when using import
-maps. This also mirrors the requirement of using [the full specifier path][] in
-relative and absolute import specifiers.
+interoperability with [import maps][] and also mirrors the requirement of using
+[the full specifier path][] in relative and absolute import specifiers. Import
+maps are a cross-platform standard for module resolution, already in use by some
+browsers, server-side JavaScript runtimes and build tools.
 
 ### Exports sugar
 
@@ -1299,6 +1301,7 @@ This field defines [subpath imports][] for the current package.
 [`package.json`]: #nodejs-packagejson-field-definitions
 [entry points]: #package-entry-points
 [folders as modules]: modules.md#folders-as-modules
+[import maps]: https://github.com/WICG/import-maps
 [load ECMASCript modules from CommonJS modules]: modules.md#the-mjs-extension
 [loader hooks]: esm.md#loaders
 [self-reference]: #self-referencing-a-package-using-its-name
