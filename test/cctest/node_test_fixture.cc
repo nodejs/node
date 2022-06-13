@@ -24,6 +24,11 @@ void NodeTestEnvironment::SetUp() {
 #endif
   cppgc::InitializeProcess(
       NodeZeroIsolateTestFixture::platform->GetPageAllocator());
+
+  // Before initializing V8, disable the --freeze-flags-after-init flag, so
+  // individual tests can set their own flags.
+  v8::V8::SetFlagsFromString("--no-freeze-flags-after-init");
+
   v8::V8::Initialize();
 }
 
