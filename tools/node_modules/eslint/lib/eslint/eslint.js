@@ -104,9 +104,9 @@ function isNonEmptyString(x) {
 }
 
 /**
- * Check if a given value is an array of non-empty stringss or not.
+ * Check if a given value is an array of non-empty strings or not.
  * @param {any} x The value to check.
- * @returns {boolean} `true` if `x` is an array of non-empty stringss.
+ * @returns {boolean} `true` if `x` is an array of non-empty strings.
  */
 function isArrayOfNonEmptyString(x) {
     return Array.isArray(x) && x.every(isNonEmptyString);
@@ -599,7 +599,7 @@ class ESLint {
      * The following values are allowed:
      * - `undefined` ... Load `stylish` builtin formatter.
      * - A builtin formatter name ... Load the builtin formatter.
-     * - A thirdparty formatter name:
+     * - A third-party formatter name:
      *   - `foo` → `eslint-formatter-foo`
      *   - `@foo` → `@foo/eslint-formatter`
      *   - `@foo/bar` → `@foo/eslint-formatter-bar`

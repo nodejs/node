@@ -1,7 +1,6 @@
 #include "stream_base.h"  // NOLINT(build/include_inline)
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
-#include "allocated_buffer-inl.h"
 
 #include "env-inl.h"
 #include "js_stream.h"
@@ -601,6 +600,7 @@ void ReportWritesToJSStreamListener::OnStreamAfterReqFinished(
     StreamReq* req_wrap, int status) {
   StreamBase* stream = static_cast<StreamBase*>(stream_);
   Environment* env = stream->stream_env();
+  if (env->is_stopping()) return;
   AsyncWrap* async_wrap = req_wrap->GetAsyncWrap();
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());

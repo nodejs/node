@@ -11,6 +11,7 @@ class Star extends BaseCommand {
   static params = [
     'registry',
     'unicode',
+    'otp',
   ]
 
   static ignoreImplicitWorkspace = false
@@ -23,26 +24,20 @@ class Star extends BaseCommand {
     // if we're unstarring, then show an empty star image
     // otherwise, show the full star image
     const unicode = this.npm.config.get('unicode')
-    const unstar = this.npm.config.get('star.unstar')
     const full = unicode ? '\u2605 ' : '(*)'
     const empty = unicode ? '\u2606 ' : '( )'
-    const show = unstar ? empty : full
+    const show = this.name === 'star' ? full : empty
 
     const pkgs = args.map(npa)
-    for (const pkg of pkgs) {
-      const [username, fullData] = await Promise.all([
-        getIdentity(this.npm, { ...this.npm.flatOptions }),
-        fetch.json(pkg.escapedName, {
-          ...this.npm.flatOptions,
-          spec: pkg,
-          query: { write: true },
-          preferOnline: true,
-        }),
-      ])
+    const username = await getIdentity(this.npm, this.npm.flatOptions)
 
-      if (!username) {
-        throw new Error('You need to be logged in!')
-      }
+    for (const pkg of pkgs) {
+      const fullData = await fetch.json(pkg.escapedName, {
+        ...this.npm.flatOptions,
+        spec: pkg,
+        query: { write: true },
+        preferOnline: true,
+      })
 
       const body = {
         _id: fullData._id,
@@ -50,7 +45,7 @@ class Star extends BaseCommand {
         users: fullData.users || {},
       }
 
-      if (!unstar) {
+      if (this.name === 'star') {
         log.info('star', 'starring', body._id)
         body.users[username] = true
         log.verbose('star', 'starring', body)

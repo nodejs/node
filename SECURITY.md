@@ -4,7 +4,7 @@
 
 Report security bugs in Node.js via [HackerOne](https://hackerone.com/nodejs).
 
-Your report will be acknowledged within 5 days, and you’ll receive a more
+Your report will be acknowledged within 5 days, and you'll receive a more
 detailed response to your report within 10 days indicating the next steps in
 handling your submission.
 
@@ -49,7 +49,7 @@ Here is the security disclosure policy for Node.js
 
 * This process can take some time, especially when coordination is required
   with maintainers of other projects. Every effort will be made to handle the
-  bug in as timely a manner as possible; however, it’s important that we follow
+  bug in as timely a manner as possible; however, it's important that we follow
   the release process above to ensure that the disclosure is handled in a
   consistent manner.
 

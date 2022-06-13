@@ -60,7 +60,7 @@ guidelines:
     GitHub Actions and AppVeyor are required, and they are started automatically
     whenever a PR is created or updated.
 
-    [coding style]: https://www.openssl.org/policies/codingstyle.html
+    [coding style]: https://www.openssl.org/policies/technical/coding-style.html
 
  5. When at all possible, patches should include tests. These can
     either be added to an existing test, or completely new.  Please see

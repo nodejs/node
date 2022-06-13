@@ -105,8 +105,15 @@ class FetcherBase {
       this[_readPackageJson] = readPackageJsonFast
     }
 
-    // config values: npmjs (default), never
-    this.replaceRegistryHost = opts.replaceRegistryHost === 'never' ? 'never' : 'npmjs'
+    // config values: npmjs (default), never, always
+    // we don't want to mutate the original value
+    if (opts.replaceRegistryHost !== 'never'
+      && opts.replaceRegistryHost !== 'always'
+    ) {
+      this.replaceRegistryHost = 'npmjs'
+    } else {
+      this.replaceRegistryHost = opts.replaceRegistryHost
+    }
 
     this.defaultTag = opts.defaultTag || 'latest'
     this.registry = removeTrailingSlashes(opts.registry || 'https://registry.npmjs.org')

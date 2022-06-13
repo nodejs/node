@@ -69,7 +69,7 @@ Run "npm help bin" for more info
 `
 
 exports[`test/lib/load-all-commands.js TAP load each command birthday > must match snapshot 1`] = `
-Birthday
+Birthday, deprecated
 
 Usage:
 npm birthday
@@ -81,10 +81,12 @@ exports[`test/lib/load-all-commands.js TAP load each command bugs > must match s
 Report bugs for a package in a web browser
 
 Usage:
-npm bugs [<pkgname>]
+npm bugs [<pkgname> [<pkgname> ...]]
 
 Options:
 [--no-browser|--browser <browser>] [--registry <registry>]
+[-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
+[-ws|--workspaces] [--include-workspace-root]
 
 alias: issues
 
@@ -111,7 +113,7 @@ Run "npm help cache" for more info
 `
 
 exports[`test/lib/load-all-commands.js TAP load each command ci > must match snapshot 1`] = `
-Install a project with a clean slate
+Clean install a project
 
 Usage:
 npm ci
@@ -596,6 +598,8 @@ npm owner ls [<@scope>/]<pkg>
 
 Options:
 [--registry <registry>] [--otp <otp>]
+[-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
+[-ws|--workspaces]
 
 alias: author
 
@@ -725,7 +729,7 @@ Usage:
 npm repo [<pkgname> [<pkgname> ...]]
 
 Options:
-[--no-browser|--browser <browser>]
+[--no-browser|--browser <browser>] [--registry <registry>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root]
 
@@ -798,7 +802,7 @@ Run "npm help set" for more info
 `
 
 exports[`test/lib/load-all-commands.js TAP load each command set-script > must match snapshot 1`] = `
-Set tasks in the scripts section of package.json
+Set tasks in the scripts section of package.json, deprecated
 
 Usage:
 npm set-script [<script>] [<command>]
@@ -826,7 +830,7 @@ Usage:
 npm star [<pkg>...]
 
 Options:
-[--registry <registry>] [--unicode]
+[--registry <registry>] [--unicode] [--otp <otp>]
 
 Run "npm help star" for more info
 `

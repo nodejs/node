@@ -103,10 +103,6 @@ bool Expression::IsNullLiteral() const {
   return IsLiteral() && AsLiteral()->type() == Literal::kNull;
 }
 
-bool Expression::IsBooleanLiteral() const {
-  return IsLiteral() && AsLiteral()->type() == Literal::kBoolean;
-}
-
 bool Expression::IsTheHoleLiteral() const {
   return IsLiteral() && AsLiteral()->type() == Literal::kTheHole;
 }
@@ -894,24 +890,6 @@ static bool IsVoidOfLiteral(Expression* expr) {
   UnaryOperation* maybe_unary = expr->AsUnaryOperation();
   return maybe_unary != nullptr && maybe_unary->op() == Token::VOID &&
          maybe_unary->expression()->IsLiteral();
-}
-
-static bool MatchLiteralStrictCompareBoolean(Expression* left, Token::Value op,
-                                             Expression* right,
-                                             Expression** expr,
-                                             Literal** literal) {
-  if (left->IsBooleanLiteral() && op == Token::EQ_STRICT) {
-    *expr = right;
-    *literal = left->AsLiteral();
-    return true;
-  }
-  return false;
-}
-
-bool CompareOperation::IsLiteralStrictCompareBoolean(Expression** expr,
-                                                     Literal** literal) {
-  return MatchLiteralStrictCompareBoolean(left_, op(), right_, expr, literal) ||
-         MatchLiteralStrictCompareBoolean(right_, op(), left_, expr, literal);
 }
 
 // Check for the pattern: void <literal> equals <expression> or

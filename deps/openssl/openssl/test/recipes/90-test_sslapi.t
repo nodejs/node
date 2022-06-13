@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -32,14 +32,22 @@ plan tests =>
 ok(run(test(["sslapitest", srctop_dir("test", "certs"),
              srctop_file("test", "recipes", "90-test_sslapi_data",
                          "passwd.txt"), $tmpfilename, "default",
-             srctop_file("test", "default.cnf")])),
+             srctop_file("test", "default.cnf"),
+             srctop_file("test",
+                         "recipes",
+                         "90-test_sslapi_data",
+                         "dhparams.pem")])),
              "running sslapitest");
 
 unless ($no_fips) {
     ok(run(test(["sslapitest", srctop_dir("test", "certs"),
                  srctop_file("test", "recipes", "90-test_sslapi_data",
                              "passwd.txt"), $tmpfilename, "fips",
-                 srctop_file("test", "fips-and-base.cnf")])),
+                 srctop_file("test", "fips-and-base.cnf"),
+                 srctop_file("test",
+                             "recipes",
+                             "90-test_sslapi_data",
+                             "dhparams.pem")])),
                  "running sslapitest");
 }
 

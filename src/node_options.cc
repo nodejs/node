@@ -432,6 +432,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::force_async_hooks_checks,
             kAllowedInEnvironment,
             true);
+  AddOption(
+      "--force-node-api-uncaught-exceptions-policy",
+      "enforces 'uncaughtException' event on Node API asynchronous callbacks",
+      &EnvironmentOptions::force_node_api_uncaught_exceptions_policy,
+      kAllowedInEnvironment,
+      false);
   AddOption("--addons",
             "disable loading native addons",
             &EnvironmentOptions::allow_native_addons,
@@ -862,6 +868,10 @@ PerProcessOptionsParser::PerProcessOptionsParser(
   AddOption("--openssl-legacy-provider",
             "enable OpenSSL 3.0 legacy provider",
             &PerProcessOptions::openssl_legacy_provider,
+            kAllowedInEnvironment);
+  AddOption("--openssl-shared-config",
+            "enable OpenSSL shared configuration",
+            &PerProcessOptions::openssl_shared_config,
             kAllowedInEnvironment);
 
 #endif  // OPENSSL_VERSION_MAJOR

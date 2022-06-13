@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -152,7 +152,7 @@ static int hmac_setkey(struct hmac_data_st *macctx,
 {
     const EVP_MD *digest;
 
-    if (macctx->keylen > 0)
+    if (macctx->key != NULL)
         OPENSSL_secure_clear_free(macctx->key, macctx->keylen);
     /* Keep a copy of the key in case we need it for TLS HMAC */
     macctx->key = OPENSSL_secure_malloc(keylen > 0 ? keylen : 1);
@@ -177,9 +177,11 @@ static int hmac_init(void *vmacctx, const unsigned char *key,
     if (!ossl_prov_is_running() || !hmac_set_ctx_params(macctx, params))
         return 0;
 
-    if (key != NULL && !hmac_setkey(macctx, key, keylen))
-        return 0;
-    return 1;
+    if (key != NULL)
+        return hmac_setkey(macctx, key, keylen);
+
+    /* Just reinit the HMAC context */
+    return HMAC_Init_ex(macctx->ctx, NULL, 0, NULL, NULL);
 }
 
 static int hmac_update(void *vmacctx, const unsigned char *data,
@@ -325,22 +327,10 @@ static int hmac_set_ctx_params(void *vmacctx, const OSSL_PARAM params[])
     if ((p = OSSL_PARAM_locate_const(params, OSSL_MAC_PARAM_KEY)) != NULL) {
         if (p->data_type != OSSL_PARAM_OCTET_STRING)
             return 0;
-
-        if (macctx->keylen > 0)
-            OPENSSL_secure_clear_free(macctx->key, macctx->keylen);
-        /* Keep a copy of the key if we need it for TLS HMAC */
-        macctx->key = OPENSSL_secure_malloc(p->data_size > 0 ? p->data_size : 1);
-        if (macctx->key == NULL)
+        if (!hmac_setkey(macctx, p->data, p->data_size))
             return 0;
-        memcpy(macctx->key, p->data, p->data_size);
-        macctx->keylen = p->data_size;
-
-        if (!HMAC_Init_ex(macctx->ctx, p->data, p->data_size,
-                          ossl_prov_digest_md(&macctx->digest),
-                          NULL /* ENGINE */))
-            return 0;
-
     }
+
     if ((p = OSSL_PARAM_locate_const(params,
                                      OSSL_MAC_PARAM_TLS_DATA_SIZE)) != NULL) {
         if (!OSSL_PARAM_get_size_t(p, &macctx->tls_data_size))

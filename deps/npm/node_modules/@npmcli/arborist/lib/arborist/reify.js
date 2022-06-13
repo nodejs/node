@@ -1105,7 +1105,8 @@ module.exports = cls => class Reifier extends cls {
       // skip links that only live within node_modules as they are most
       // likely managed by packages we installed, we only want to rebuild
       // unchanged links we directly manage
-      if (node.isLink && node.target.fsTop === tree) {
+      const linkedFromRoot = node.parent === tree || node.target.fsTop === tree
+      if (node.isLink && linkedFromRoot) {
         nodes.push(node)
       }
     }

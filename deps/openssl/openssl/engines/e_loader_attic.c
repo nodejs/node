@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,7 +14,6 @@
 /* We need to use some engine deprecated APIs */
 #define OPENSSL_SUPPRESS_DEPRECATED
 
-/* #include "e_os.h" */
 #include <string.h>
 #include <sys/stat.h>
 #include <ctype.h>
@@ -44,7 +43,6 @@ DEFINE_STACK_OF(OSSL_STORE_INFO)
 
 #ifdef _WIN32
 # define stat _stat
-# define strncasecmp _strnicmp
 #endif
 
 #ifndef S_ISDIR
@@ -971,12 +969,12 @@ static OSSL_STORE_LOADER_CTX *file_open_ex
      * There's a special case if the URI also contains an authority, then
      * the full URI shouldn't be used as a path anywhere.
      */
-    if (strncasecmp(uri, "file:", 5) == 0) {
+    if (OPENSSL_strncasecmp(uri, "file:", 5) == 0) {
         const char *p = &uri[5];
 
         if (strncmp(&uri[5], "//", 2) == 0) {
             path_data_n--;           /* Invalidate using the full URI */
-            if (strncasecmp(&uri[7], "localhost/", 10) == 0) {
+            if (OPENSSL_strncasecmp(&uri[7], "localhost/", 10) == 0) {
                 p = &uri[16];
             } else if (uri[7] == '/') {
                 p = &uri[7];
@@ -1466,7 +1464,8 @@ static int file_name_check(OSSL_STORE_LOADER_CTX *ctx, const char *name)
     /*
      * First, check the basename
      */
-    if (strncasecmp(name, ctx->_.dir.search_name, len) != 0 || name[len] != '.')
+    if (OPENSSL_strncasecmp(name, ctx->_.dir.search_name, len) != 0
+        || name[len] != '.')
         return 0;
     p = &name[len + 1];
 

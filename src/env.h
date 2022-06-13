@@ -34,7 +34,6 @@
 #include "handle_wrap.h"
 #include "node.h"
 #include "node_binding.h"
-#include "node_external_reference.h"
 #include "node_main_instance.h"
 #include "node_native_module.h"
 #include "node_options.h"
@@ -137,6 +136,19 @@ enum class FsStatsOffset {
 // because `fs.StatWatcher` needs room to store 2 `fs.Stats` instances.
 constexpr size_t kFsStatsBufferLength =
     static_cast<size_t>(FsStatsOffset::kFsStatsFieldsNumber) * 2;
+
+// Disables zero-filling for ArrayBuffer allocations in this scope. This is
+// similar to how we implement Buffer.allocUnsafe() in JS land.
+class NoArrayBufferZeroFillScope {
+ public:
+  inline explicit NoArrayBufferZeroFillScope(IsolateData* isolate_data);
+  inline ~NoArrayBufferZeroFillScope();
+
+ private:
+  NodeArrayBufferAllocator* node_allocator_;
+
+  friend class Environment;
+};
 
 // PER_ISOLATE_* macros: We have a lot of per-isolate properties
 // and adding and maintaining their getters and setters by hand would be
@@ -555,10 +567,9 @@ constexpr size_t kFsStatsBufferLength =
   V(wasm_streaming_object_constructor, v8::Function)
 
 class Environment;
-struct AllocatedBuffer;
 
 typedef size_t SnapshotIndex;
-class IsolateData : public MemoryRetainer {
+class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
  public:
   IsolateData(v8::Isolate* isolate,
               uv_loop_t* event_loop,
@@ -973,9 +984,22 @@ struct EnvSerializeInfo {
 };
 
 struct SnapshotData {
-  v8::StartupData blob;
+  // The result of v8::SnapshotCreator::CreateBlob() during the snapshot
+  // building process.
+  v8::StartupData v8_snapshot_blob_data;
+
+  static const size_t kNodeBaseContextIndex = 0;
+  static const size_t kNodeMainContextIndex = kNodeBaseContextIndex + 1;
+
   std::vector<size_t> isolate_data_indices;
+  // TODO(joyeecheung): there should be a vector of env_info once we snapshot
+  // the worker environments.
   EnvSerializeInfo env_info;
+  // A vector of built-in ids and v8::ScriptCompiler::CachedData, this can be
+  // shared across Node.js instances because they are supposed to share the
+  // read only space. We use native_module::CodeCacheInfo because
+  // v8::ScriptCompiler::CachedData is not copyable.
+  std::vector<native_module::CodeCacheInfo> code_cache;
 };
 
 class Environment : public MemoryRetainer {
@@ -1457,8 +1481,6 @@ class Environment : public MemoryRetainer {
   inline uv_buf_t allocate_managed_buffer(const size_t suggested_size);
   inline std::unique_ptr<v8::BackingStore> release_managed_buffer(
       const uv_buf_t& buf);
-  inline std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>*
-      released_allocated_buffers();
 
   void AddUnmanagedFd(int fd);
   void RemoveUnmanagedFd(int fd);
@@ -1632,8 +1654,8 @@ class Environment : public MemoryRetainer {
   // the source passed to LoadEnvironment() directly instead.
   std::unique_ptr<v8::String::Value> main_utf16_;
 
-  // Used by AllocatedBuffer::release() to keep track of the BackingStore for
-  // a given pointer.
+  // Used by allocate_managed_buffer() and release_managed_buffer() to keep
+  // track of the BackingStore for a given pointer.
   std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>
       released_allocated_buffers_;
 };

@@ -1,4 +1,3 @@
-#include "allocated_buffer-inl.h"
 #include "base_object-inl.h"
 #include "env-inl.h"
 #include "node_buffer.h"
@@ -53,13 +52,18 @@ static constexpr int kX509NameFlagsRFC2253WithinUtf8JSON =
     ~ASN1_STRFLGS_ESC_MSB &
     ~ASN1_STRFLGS_ESC_CTRL;
 
-bool SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer) {
+X509Pointer SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert) {
   X509_STORE* store = SSL_CTX_get_cert_store(ctx);
   DeleteFnPtr<X509_STORE_CTX, X509_STORE_CTX_free> store_ctx(
       X509_STORE_CTX_new());
-  return store_ctx.get() != nullptr &&
-         X509_STORE_CTX_init(store_ctx.get(), store, nullptr, nullptr) == 1 &&
-         X509_STORE_CTX_get1_issuer(issuer, store_ctx.get(), cert) == 1;
+  X509Pointer result;
+  X509* issuer;
+  if (store_ctx.get() != nullptr &&
+      X509_STORE_CTX_init(store_ctx.get(), store, nullptr, nullptr) == 1 &&
+      X509_STORE_CTX_get1_issuer(&issuer, store_ctx.get(), cert) == 1) {
+    result.reset(issuer);
+  }
+  return result;
 }
 
 void LogSecret(
@@ -150,7 +154,7 @@ long VerifyPeerCertificate(  // NOLINT(runtime/int)
 
 bool UseSNIContext(
     const SSLPointer& ssl, BaseObjectPtr<SecureContext> context) {
-  SSL_CTX* ctx = context->ctx_.get();
+  SSL_CTX* ctx = context->ctx().get();
   X509* x509 = SSL_CTX_get0_certificate(ctx);
   EVP_PKEY* pkey = SSL_CTX_get0_privatekey(ctx);
   STACK_OF(X509)* chain;
@@ -214,7 +218,7 @@ const char* GetServerName(SSL* ssl) {
 }
 
 bool SetGroups(SecureContext* sc, const char* groups) {
-  return SSL_CTX_set1_groups_list(**sc, groups) == 1;
+  return SSL_CTX_set1_groups_list(sc->ctx().get(), groups) == 1;
 }
 
 const char* X509ErrorCode(long err) {  // NOLINT(runtime/int)
@@ -310,28 +314,17 @@ bool Set(
   return !target->Set(context, name, value).IsNothing();
 }
 
-MaybeLocal<Value> GetCipherValue(Environment* env,
-    const SSL_CIPHER* cipher,
-    const char* (*getstr)(const SSL_CIPHER* cipher)) {
+template <const char* (*getstr)(const SSL_CIPHER* cipher)>
+MaybeLocal<Value> GetCipherValue(Environment* env, const SSL_CIPHER* cipher) {
   if (cipher == nullptr)
     return Undefined(env->isolate());
 
   return OneByteString(env->isolate(), getstr(cipher));
 }
 
-MaybeLocal<Value> GetCipherName(Environment* env, const SSL_CIPHER* cipher) {
-  return GetCipherValue(env, cipher, SSL_CIPHER_get_name);
-}
-
-MaybeLocal<Value> GetCipherStandardName(
-    Environment* env,
-    const SSL_CIPHER* cipher) {
-  return GetCipherValue(env, cipher, SSL_CIPHER_standard_name);
-}
-
-MaybeLocal<Value> GetCipherVersion(Environment* env, const SSL_CIPHER* cipher) {
-  return GetCipherValue(env, cipher, SSL_CIPHER_get_version);
-}
+constexpr auto GetCipherName = GetCipherValue<SSL_CIPHER_get_name>;
+constexpr auto GetCipherStandardName = GetCipherValue<SSL_CIPHER_standard_name>;
+constexpr auto GetCipherVersion = GetCipherValue<SSL_CIPHER_get_version>;
 
 StackOfX509 CloneSSLCerts(X509Pointer&& cert,
                           const STACK_OF(X509)* const ssl_certs) {
@@ -391,12 +384,12 @@ MaybeLocal<Object> GetLastIssuedCert(
     Environment* const env) {
   Local<Context> context = env->isolate()->GetCurrentContext();
   while (X509_check_issued(cert->get(), cert->get()) != X509_V_OK) {
-    X509* ca;
-    if (SSL_CTX_get_issuer(SSL_get_SSL_CTX(ssl.get()), cert->get(), &ca) <= 0)
+    X509Pointer ca;
+    if (!(ca = SSL_CTX_get_issuer(SSL_get_SSL_CTX(ssl.get()), cert->get())))
       break;
 
     Local<Object> ca_info;
-    MaybeLocal<Object> maybe_ca_info = X509ToObject(env, ca);
+    MaybeLocal<Object> maybe_ca_info = X509ToObject(env, ca.get());
     if (!maybe_ca_info.ToLocal(&ca_info))
       return MaybeLocal<Object>();
 
@@ -404,16 +397,14 @@ MaybeLocal<Object> GetLastIssuedCert(
       return MaybeLocal<Object>();
     issuer_chain = ca_info;
 
-    // Take the value of cert->get() before the call to cert->reset()
-    // in order to compare it to ca after and provide a way to exit this loop
-    // in case it gets stuck.
-    X509* value_before_reset = cert->get();
+    // For self-signed certificates whose keyUsage field does not include
+    // keyCertSign, X509_check_issued() will return false. Avoid going into an
+    // infinite loop by checking if SSL_CTX_get_issuer() returned the same
+    // certificate.
+    if (cert->get() == ca.get()) break;
 
     // Delete previous cert and continue aggregating issuers.
-    cert->reset(ca);
-
-    if (value_before_reset == ca)
-      break;
+    *cert = std::move(ca);
   }
   return MaybeLocal<Object>(issuer_chain);
 }
@@ -534,8 +525,7 @@ MaybeLocal<Value> GetSerialNumber(Environment* env, X509* cert) {
     if (bn) {
       char* data = BN_bn2hex(bn.get());
       ByteSource buf = ByteSource::Allocated(data, strlen(data));
-      if (buf)
-        return OneByteString(env->isolate(), buf.get());
+      if (buf) return OneByteString(env->isolate(), buf.data<unsigned char>());
     }
   }
 
@@ -1050,18 +1040,10 @@ static MaybeLocal<Value> GetX509NameObject(Environment* env, X509* cert) {
   return result;
 }
 
-MaybeLocal<Value> GetCipherName(Environment* env, const SSLPointer& ssl) {
-  return GetCipherName(env, SSL_get_current_cipher(ssl.get()));
-}
-
-MaybeLocal<Value> GetCipherStandardName(
-    Environment* env,
-    const SSLPointer& ssl) {
-  return GetCipherStandardName(env, SSL_get_current_cipher(ssl.get()));
-}
-
-MaybeLocal<Value> GetCipherVersion(Environment* env, const SSLPointer& ssl) {
-  return GetCipherVersion(env, SSL_get_current_cipher(ssl.get()));
+template <MaybeLocal<Value> (*Get)(Environment* env, const SSL_CIPHER* cipher)>
+MaybeLocal<Value> GetCurrentCipherValue(Environment* env,
+                                        const SSLPointer& ssl) {
+  return Get(env, SSL_get_current_cipher(ssl.get()));
 }
 
 MaybeLocal<Array> GetClientHelloCiphers(
@@ -1107,15 +1089,15 @@ MaybeLocal<Object> GetCipherInfo(Environment* env, const SSLPointer& ssl) {
   if (!Set<Value>(env->context(),
                   info,
                   env->name_string(),
-                  GetCipherName(env, ssl)) ||
+                  GetCurrentCipherValue<GetCipherName>(env, ssl)) ||
       !Set<Value>(env->context(),
                   info,
                   env->standard_name_string(),
-                  GetCipherStandardName(env, ssl)) ||
+                  GetCurrentCipherValue<GetCipherStandardName>(env, ssl)) ||
       !Set<Value>(env->context(),
                   info,
                   env->version_string(),
-                  GetCipherVersion(env, ssl))) {
+                  GetCurrentCipherValue<GetCipherVersion>(env, ssl))) {
     return MaybeLocal<Object>();
   }
 

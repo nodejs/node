@@ -337,7 +337,7 @@ make update-fips-checksums >&42
 if [ -n "$(git status --porcelain)" ]; then
     $VERBOSE "== Committing updates"
     git add -u
-    git commit $git_quiet -m 'make update'
+    git commit $git_quiet -m $'make update\n\nRelease: yes'
     if [ -n "$reviewers" ]; then
         addrev --nopr $reviewers
     fi
@@ -375,7 +375,7 @@ done
 
 $VERBOSE "== Comitting updates and tagging"
 git add -u
-git commit $git_quiet -m "Prepare for release of $release_text"
+git commit $git_quiet -m "Prepare for release of $release_text"$'\n\nRelease: yes'
 if [ -n "$reviewers" ]; then
     addrev --nopr $reviewers
 fi
@@ -477,7 +477,7 @@ done
 
 $VERBOSE "== Committing updates"
 git add -u
-git commit $git_quiet -m "Prepare for $release_text"
+git commit $git_quiet -m "Prepare for $release_text"$'\n\nRelease: yes'
 if [ -n "$reviewers" ]; then
     addrev --nopr $reviewers
 fi
@@ -508,7 +508,7 @@ if $do_branch; then
 
     $VERBOSE "== Committing updates"
     git add -u
-    git commit $git_quiet -m "Prepare for $release_text"
+    git commit $git_quiet -m "Prepare for $release_text"$'\n\nRelease: yes'
     if [ -n "$reviewers" ]; then
         addrev --nopr $reviewers
     fi

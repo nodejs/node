@@ -5317,12 +5317,17 @@
   {
     "input": "http://256.256.256.256.256",
     "base": "http://other.com/",
-    "failure": true
-  },
-  {
-    "input": "http://256.256.256.256.256.",
-    "base": "http://other.com/",
-    "failure": true
+    "href": "http://256.256.256.256.256/",
+    "origin": "http://256.256.256.256.256",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "256.256.256.256.256",
+    "hostname": "256.256.256.256.256",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
   },
   {
     "input": "https://0x.0x.0",

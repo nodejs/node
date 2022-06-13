@@ -120,8 +120,9 @@ This section was moved to [Modules: Packages](packages.md).
 ### Terminology
 
 The _specifier_ of an `import` statement is the string after the `from` keyword,
-e.g. `'path'` in `import { sep } from 'node:path'`. Specifiers are also used in
-`export from` statements, and as the argument to an `import()` expression.
+e.g. `'node:path'` in `import { sep } from 'node:path'`. Specifiers are also
+used in `export from` statements, and as the argument to an `import()`
+expression.
 
 There are three types of specifiers:
 
@@ -143,7 +144,7 @@ algorithm][]. All other specifier resolutions are always only resolved with
 the standard relative [URL][] resolution semantics.
 
 Like in CommonJS, module files within packages can be accessed by appending a
-path to the package name unless the package’s [`package.json`][] contains an
+path to the package name unless the package's [`package.json`][] contains an
 [`"exports"`][] field, in which case files within packages can only be accessed
 via the paths defined in [`"exports"`][].
 
@@ -178,7 +179,7 @@ import './foo.mjs?query=1'; // loads ./foo.mjs with query of "?query=1"
 import './foo.mjs?query=2'; // loads ./foo.mjs with query of "?query=2"
 ```
 
-The volume root may be referenced via `/`, `//` or `file:///`. Given the
+The volume root may be referenced via `/`, `//`, or `file:///`. Given the
 differences between [URL][] and path resolution (such as percent encoding
 details), it is recommended to use [url.pathToFileURL][] when importing a path.
 
@@ -470,7 +471,7 @@ semantics implemented.
 
 ### Differences between ES modules and CommonJS
 
-#### No `require`, `exports` or `module.exports`
+#### No `require`, `exports`, or `module.exports`
 
 In most cases, the ES module `import` can be used to load CommonJS modules.
 
@@ -719,7 +720,7 @@ Hooks are part of a chain, even if that chain consists of only one custom
 (user-provided) hook and the default hook, which is always present. Hook
 functions nest: each one must always return a plain object, and chaining happens
 as a result of each function calling `next<hookName>()`, which is a reference
-to the subsequent loader’s hook.
+to the subsequent loader's hook.
 
 A hook that returns a value lacking a required property triggers an exception.
 A hook that returns without calling `next<hookName>()` _and_ without returning
@@ -989,7 +990,7 @@ export function globalPreload({ port }) {
 ### Examples
 
 The various loader hooks can be used together to accomplish wide-ranging
-customizations of Node.js’ code loading and evaluation behaviors.
+customizations of the Node.js code loading and evaluation behaviors.
 
 #### HTTPS loader
 
@@ -1066,7 +1067,7 @@ prints the current version of CoffeeScript per the module at the URL in
 
 #### Transpiler loader
 
-Sources that are in formats Node.js doesn’t understand can be converted into
+Sources that are in formats Node.js doesn't understand can be converted into
 JavaScript using the [`load` hook][load hook]. Before that hook gets called,
 however, a [`resolve` hook][resolve hook] needs to tell Node.js not to
 throw an error on unknown file types.
@@ -1085,7 +1086,7 @@ import CoffeeScript from 'coffeescript';
 
 const baseURL = pathToFileURL(`${cwd()}/`).href;
 
-// CoffeeScript files end in .coffee, .litcoffee or .coffee.md.
+// CoffeeScript files end in .coffee, .litcoffee, or .coffee.md.
 const extensionsRegex = /\.coffee$|\.litcoffee$|\.coffee\.md$/;
 
 export async function resolve(specifier, context, nextResolve) {
@@ -1251,7 +1252,7 @@ The resolver can throw the following errors:
 > 2. If _specifier_ is a valid URL, then
 >    1. Set _resolved_ to the result of parsing and reserializing
 >       _specifier_ as a URL.
-> 3. Otherwise, if _specifier_ starts with _"/"_, _"./"_ or _"../"_, then
+> 3. Otherwise, if _specifier_ starts with _"/"_, _"./"_, or _"../"_, then
 >    1. Set _resolved_ to the URL resolution of _specifier_ relative to
 >       _parentURL_.
 > 4. Otherwise, if _specifier_ starts with _"#"_, then
@@ -1432,14 +1433,14 @@ _internal_, _conditions_)
 >          2. Return **PACKAGE\_RESOLVE**(_target_ + _subpath_,
 >             _packageURL_ + _"/"_).
 >       2. Otherwise, throw an _Invalid Package Target_ error.
->    3. If _target_ split on _"/"_ or _"\\"_ contains any _"."_, _".."_ or
+>    3. If _target_ split on _"/"_ or _"\\"_ contains any _"."_, _".."_, or
 >       _"node\_modules"_ segments after the first segment, case insensitive and
 >       including percent encoded variants, throw an _Invalid Package Target_
 >       error.
 >    4. Let _resolvedTarget_ be the URL resolution of the concatenation of
 >       _packageURL_ and _target_.
 >    5. Assert: _resolvedTarget_ is contained in _packageURL_.
->    6. If _subpath_ split on _"/"_ or _"\\"_ contains any _"."_, _".."_ or
+>    6. If _subpath_ split on _"/"_ or _"\\"_ contains any _"."_, _".."_, or
 >       _"node\_modules"_ segments, case insensitive and including percent
 >       encoded variants, throw an _Invalid Module Specifier_ error.
 >    7. If _pattern_ is **true**, then

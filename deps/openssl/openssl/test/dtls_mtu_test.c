@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -185,12 +185,58 @@ static int run_mtu_tests(void)
 
  end:
     SSL_CTX_free(ctx);
-    bio_s_mempacket_test_free();
     return ret;
+}
+
+static int test_server_mtu_larger_than_max_fragment_length(void)
+{
+    SSL_CTX *ctx = NULL;
+    SSL *srvr_ssl = NULL, *clnt_ssl = NULL;
+    int rv = 0;
+
+    if (!TEST_ptr(ctx = SSL_CTX_new(DTLS_method())))
+        goto end;
+
+    SSL_CTX_set_psk_server_callback(ctx, srvr_psk_callback);
+    SSL_CTX_set_psk_client_callback(ctx, clnt_psk_callback);
+
+#ifndef OPENSSL_NO_DH
+    if (!TEST_true(SSL_CTX_set_dh_auto(ctx, 1)))
+        goto end;
+#endif
+
+    if (!TEST_true(create_ssl_objects(ctx, ctx, &srvr_ssl, &clnt_ssl,
+                                      NULL, NULL)))
+        goto end;
+
+    SSL_set_options(srvr_ssl, SSL_OP_NO_QUERY_MTU);
+    if (!TEST_true(DTLS_set_link_mtu(srvr_ssl, 1500)))
+        goto end;
+
+    SSL_set_tlsext_max_fragment_length(clnt_ssl,
+                                       TLSEXT_max_fragment_length_512);
+
+    if (!TEST_true(create_ssl_connection(srvr_ssl, clnt_ssl,
+                                         SSL_ERROR_NONE)))
+        goto end;
+
+    rv = 1;
+
+ end:
+    SSL_free(clnt_ssl);
+    SSL_free(srvr_ssl);
+    SSL_CTX_free(ctx);
+    return rv;
 }
 
 int setup_tests(void)
 {
     ADD_TEST(run_mtu_tests);
+    ADD_TEST(test_server_mtu_larger_than_max_fragment_length);
     return 1;
+}
+
+void cleanup_tests(void)
+{
+    bio_s_mempacket_test_free();
 }

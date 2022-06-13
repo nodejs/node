@@ -812,8 +812,8 @@ The [`--trace-warnings`][] command-line flag can be used to display the
 stack trace for such warnings.
 
 The emitted warning can be inspected with [`process.on('warning')`][] and will
-have the additional `emitter`, `type` and `count` properties, referring to
-the event emitter instance, the event’s name and the number of attached
+have the additional `emitter`, `type`, and `count` properties, referring to
+the event emitter instance, the event's name and the number of attached
 listeners, respectively.
 Its `name` property is set to `'MaxListenersExceededWarning'`.
 
@@ -1587,6 +1587,10 @@ changes:
 
 <!-- YAML
 added: v14.5.0
+changes:
+  - version: v15.4.0
+    pr-url: https://github.com/nodejs/node/pull/36258
+    description: add support for `signal` option.
 -->
 
 * `type` {string}
@@ -1599,6 +1603,8 @@ added: v14.5.0
     **Default:** `false`.
   * `capture` {boolean} Not directly used by Node.js. Added for API
     completeness. **Default:** `false`.
+  * `signal` {AbortSignal} The listener will be removed when the given
+    AbortSignal object's `abort()` method is called.
 
 Adds a new handler for the `type` event. Any given `listener` is added
 only once per `type` and per `capture` option value.
@@ -1633,7 +1639,7 @@ added: v14.5.0
 -->
 
 * `event` {Event}
-* Returns: {boolean} `true` if either event’s `cancelable` attribute value is
+* Returns: {boolean} `true` if either event's `cancelable` attribute value is
   false or its `preventDefault()` method was not invoked, otherwise `false`.
 
 Dispatches the `event` to the list of handlers for `event.type`.

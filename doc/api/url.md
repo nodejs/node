@@ -660,7 +660,7 @@ added: v16.7.0
   `URL.createObjectURL()`.
 
 Removes the stored {Blob} identified by the given ID. Attempting to revoke a
-ID that isn’t registered will silently fail.
+ID that isn't registered will silently fail.
 
 ### Class: `URLSearchParams`
 

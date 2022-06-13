@@ -522,6 +522,8 @@ rather than using npm's default semver range operator.</p>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
+<li>DEPRECATED: <code>--global</code>, <code>--local</code> are deprecated. Use <code>--location=global</code>
+instead.</li>
 </ul>
 <p>Operates in "global" mode, so that packages are installed into the <code>prefix</code>
 folder instead of the current working directory. See
@@ -599,9 +601,6 @@ this warning is treated as a failure.</p>
 </ul>
 <p>If set to false, then ignore <code>package-lock.json</code> files when installing. This
 will also prevent <em>writing</em> <code>package-lock.json</code> if <code>save</code> is true.</p>
-<p>When package package-locks are disabled, automatic pruning of extraneous
-modules will also be disabled. To remove extraneous modules with
-package-locks disabled use <code>npm prune</code>.</p>
 <p>This configuration does not affect <code>npm ci</code>.</p>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->

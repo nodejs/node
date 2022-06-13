@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-SSL_CTX_set_ssl_version, SSL_set_ssl_method, SSL_get_ssl_method
+SSL_CTX_set_ssl_version, SSL_CTX_get_ssl_method, SSL_set_ssl_method, SSL_get_ssl_method
 - choose a new TLS/SSL method
 
 =head1 SYNOPSIS
@@ -10,6 +10,8 @@ SSL_CTX_set_ssl_version, SSL_set_ssl_method, SSL_get_ssl_method
  #include <openssl/ssl.h>
 
  int SSL_CTX_set_ssl_version(SSL_CTX *ctx, const SSL_METHOD *method);
+ const SSL_METHOD *SSL_CTX_get_ssl_method(const SSL_CTX *ctx);
+
  int SSL_set_ssl_method(SSL *s, const SSL_METHOD *method);
  const SSL_METHOD *SSL_get_ssl_method(const SSL *ssl);
 
@@ -22,10 +24,13 @@ which are reset to the default values.  SSL objects already created from this
 SSL_CTX with L<SSL_new(3)> are not affected, except when L<SSL_clear(3)> is
 being called, as described below.
 
+SSL_CTX_get_ssl_method() returns the SSL_METHOD which was used to construct the
+SSL_CTX.
+
 SSL_set_ssl_method() sets a new TLS/SSL B<method> for a particular B<ssl>
 object. It may be reset, when SSL_clear() is called.
 
-SSL_get_ssl_method() returns a function pointer to the TLS/SSL method
+SSL_get_ssl_method() returns a pointer to the TLS/SSL method
 set in B<ssl>.
 
 =head1 NOTES
@@ -59,6 +64,9 @@ The operation succeeded.
 
 =back
 
+SSL_CTX_get_ssl_method() and SSL_get_ssl_method() always return non-NULL
+pointers.
+
 =head1 SEE ALSO
 
 L<SSL_CTX_new(3)>, L<SSL_new(3)>,
@@ -71,7 +79,7 @@ SSL_CTX_set_ssl_version() was deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

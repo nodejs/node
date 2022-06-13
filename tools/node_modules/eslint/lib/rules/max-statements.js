@@ -126,7 +126,7 @@ module.exports = {
 
             /*
              * This rule does not apply to class static blocks, but we have to track them so
-             * that stataments in them do not count as statements in the enclosing function.
+             * that statements in them do not count as statements in the enclosing function.
              */
             if (node.type === "StaticBlock") {
                 return;

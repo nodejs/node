@@ -52,6 +52,7 @@ file a new issue.
   * [Build with a specific ICU](#build-with-a-specific-icu)
     * [Unix/macOS](#unixmacos-3)
     * [Windows](#windows-4)
+* [Configuring OpenSSL config appname](#configure-openssl-appname)
 * [Building Node.js with FIPS-compliant OpenSSL](#building-nodejs-with-fips-compliant-openssl)
 * [Building Node.js with external core modules](#building-nodejs-with-external-core-modules)
   * [Unix/macOS](#unixmacos-4)
@@ -539,7 +540,7 @@ When modifying only the JS layer in `lib`, it is possible to externally load it
 without modifying the executable:
 
 ```console
-$ ./configure --node-builtin-modules-path $(pwd)
+$ ./configure --node-builtin-modules-path "$(pwd)"
 ```
 
 The resulting binary won't include any JS files and will try to load them from
@@ -608,7 +609,7 @@ packages:
 * [NetWide Assembler](https://chocolatey.org/packages/nasm)
 
 To install Node.js prerequisites using
-[Boxstarter WebLauncher](https://boxstarter.org/WebLauncher), open
+[Boxstarter WebLauncher](https://boxstarter.org/weblauncher), open
 <https://boxstarter.org/package/nr/url?https://raw.githubusercontent.com/nodejs/node/HEAD/tools/bootstrap/windows_boxstarter>
 with Internet Explorer or Edge browser on the target machine.
 
@@ -768,6 +769,19 @@ as `deps/icu` (You'll have: `deps/icu/source/...`)
 > .\vcbuild full-icu
 ```
 
+### Configure OpenSSL appname
+
+Node.js can use an OpenSSL configuration file by specifying the environment
+variable `OPENSSL_CONF`, or using the command line option `--openssl-conf`, and
+if none of those are specified will default to reading the default OpenSSL
+configuration file `openssl.cnf`. Node.js will only read a section that is by
+default named `nodejs_conf`, but this name can be overridden using the following
+configure option:
+
+```console
+$ ./configure --openssl-conf-name=<some_conf_name>
+```
+
 ## Building Node.js with FIPS-compliant OpenSSL
 
 The current version of Node.js supports FIPS when statically and
@@ -818,6 +832,9 @@ And the FIPS module will be located in the `MODULESDIR` directory:
 $ ls out/Release/obj.target/deps/openssl/lib/openssl-modules/
 fips.so
 ```
+
+Running `configure` without `--openssl-is-fips` flag and rebuilding will reset
+the FIPS configuration.
 
 ### FIPS support when dynamically linking OpenSSL
 

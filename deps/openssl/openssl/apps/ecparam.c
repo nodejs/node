@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -229,7 +229,7 @@ int ecparam_main(int argc, char **argv)
                        point_format, 0);
         *p = OSSL_PARAM_construct_end();
 
-        if (strcasecmp(curve_name, "SM2") == 0)
+        if (OPENSSL_strcasecmp(curve_name, "SM2") == 0)
             gctx_params = EVP_PKEY_CTX_new_from_name(NULL, "sm2", NULL);
         else
             gctx_params = EVP_PKEY_CTX_new_from_name(NULL, "ec", NULL);

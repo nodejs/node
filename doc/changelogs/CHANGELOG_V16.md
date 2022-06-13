@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#16.15.1">16.15.1</a><br/>
 <a href="#16.15.0">16.15.0</a><br/>
 <a href="#16.14.2">16.14.2</a><br/>
 <a href="#16.14.1">16.14.1</a><br/>
@@ -60,6 +61,37 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="16.15.1"></a>
+
+## 2022-06-01, Version 16.15.1 'Gallium' (LTS), @BethGriggs prepared by @juanarbol
+
+### Notable Changes
+
+* **deps**:
+  * upgrade npm to 8.11.0 (<npm-cli+bot@github.com>) [#43210](https://github.com/nodejs/node/pull/43210)
+
+* **docs**:
+  * add release key for RafaelGSS (Rafael Gonzaga) [#43131](https://github.com/nodejs/node/pull/43131)
+  * add release key for Juan Arboleda (Juan José) [#42961](https://github.com/nodejs/node/pull/42961)
+
+### Commits
+
+* \[[`f7c4ce2255`](https://github.com/nodejs/node/commit/f7c4ce2255)] - **deps**: V8: cherry-pick 3ebf2052a1b2 (Liu Yu) [#43147](https://github.com/nodejs/node/pull/43147)
+* \[[`447f9a0e2e`](https://github.com/nodejs/node/commit/447f9a0e2e)] - **deps**: upgrade npm to 8.11.0 (<npm-cli+bot@github.com>) [#43210](https://github.com/nodejs/node/pull/43210)
+* \[[`68572bdea2`](https://github.com/nodejs/node/commit/68572bdea2)] - **deps**: upgrade npm to 8.10.0 (<npm-cli+bot@github.com>) [#43061](https://github.com/nodejs/node/pull/43061)
+* \[[`3dfc632f12`](https://github.com/nodejs/node/commit/3dfc632f12)] - **deps**: upgrade npm to 8.9.0 (npm-robot) [#42968](https://github.com/nodejs/node/pull/42968)
+* \[[`a746943fcb`](https://github.com/nodejs/node/commit/a746943fcb)] - **deps**: update archs files for OpenSSL-1.1.1o (RafaelGSS) [#42957](https://github.com/nodejs/node/pull/42957)
+* \[[`6efc844922`](https://github.com/nodejs/node/commit/6efc844922)] - **deps**: upgrade openssl sources to OpenSSL\_1\_1\_1o (RafaelGSS) [#42957](https://github.com/nodejs/node/pull/42957)
+* \[[`3ceeb574c3`](https://github.com/nodejs/node/commit/3ceeb574c3)] - **deps**: upgrade npm to 8.8.0 (npm-robot) [#42886](https://github.com/nodejs/node/pull/42886)
+* \[[`f8b2156e07`](https://github.com/nodejs/node/commit/f8b2156e07)] - **deps**: upgrade npm to 8.7.0 (<ops+robot@npmjs.com>) [#42744](https://github.com/nodejs/node/pull/42744)
+* \[[`898b4751e9`](https://github.com/nodejs/node/commit/898b4751e9)] - **deps**: upgrade npm to 8.6.0 (npm team) [#42550](https://github.com/nodejs/node/pull/42550)
+* \[[`617f64a1cd`](https://github.com/nodejs/node/commit/617f64a1cd)] - **doc**: add release key for RafaelGSS (Rafael Gonzaga) [#43131](https://github.com/nodejs/node/pull/43131)
+* \[[`e1b47e6e3d`](https://github.com/nodejs/node/commit/e1b47e6e3d)] - **doc**: add release key for Juan Arboleda (Juan José) [#42961](https://github.com/nodejs/node/pull/42961)
+* \[[`4185f1f466`](https://github.com/nodejs/node/commit/4185f1f466)] - **src,inspector**: fix empty MaybeLocal crash (Darshan Sen) [#42409](https://github.com/nodejs/node/pull/42409)
+* \[[`f11b3cfc6a`](https://github.com/nodejs/node/commit/f11b3cfc6a)] - **test**: delete test/pummel/test-repl-empty-maybelocal-crash.js (Darshan Sen) [#42720](https://github.com/nodejs/node/pull/42720)
+* \[[`feac215e4e`](https://github.com/nodejs/node/commit/feac215e4e)] - **tools**: disable trap handler for Windows cross-compiler (Michaël Zasso) [#40488](https://github.com/nodejs/node/pull/40488)
+* \[[`47cdddf59b`](https://github.com/nodejs/node/commit/47cdddf59b)] - **tools**: update V8 gypfiles for 9.6 (Michaël Zasso) [#40488](https://github.com/nodejs/node/pull/40488)
 
 <a id="16.15.0"></a>
 

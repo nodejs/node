@@ -184,7 +184,7 @@ changes:
       - v15.14.0
       - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37490
-    description: The `data` argument supports `AsyncIterable`, `Iterable` and `Stream`.
+    description: The `data` argument supports `AsyncIterable`, `Iterable`, and `Stream`.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31030
     description: The `data` parameter won't coerce unsupported input to
@@ -420,7 +420,7 @@ number of bytes read is zero.
 #### `filehandle.read(buffer[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
@@ -556,7 +556,7 @@ changes:
 added: v10.0.0
 -->
 
-* Returns: {Promise} Fufills with `undefined` upon success.
+* Returns: {Promise} Fulfills with `undefined` upon success.
 
 Request that all data for the open file descriptor is flushed to the storage
 device. The specific implementation is operating system and device specific.
@@ -608,7 +608,7 @@ added: v10.0.0
 Change the file system timestamps of the object referenced by the {FileHandle}
 then resolves the promise with no arguments upon success.
 
-#### `filehandle.write(buffer[, offset[, length[, position]]])`
+#### `filehandle.write(buffer, offset[, length[, position]])`
 
 <!-- YAML
 added: v10.0.0
@@ -621,7 +621,7 @@ changes:
 
 * `buffer` {Buffer|TypedArray|DataView}
 * `offset` {integer} The start position from within `buffer` where the data
-  to write begins. **Default:** `0`
+  to write begins.
 * `length` {integer} The number of bytes from `buffer` to write. **Default:**
   `buffer.byteLength - offset`
 * `position` {integer|null} The offset from the beginning of the file where the
@@ -645,6 +645,25 @@ scenario, use [`filehandle.createWriteStream()`][].
 On Linux, positional writes do not work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
+
+#### `filehandle.write(buffer[, options])`
+
+<!-- YAML
+added: v18.3.0
+-->
+
+* `buffer` {Buffer|TypedArray|DataView}
+* `options` {Object}
+  * `offset` {integer} **Default:** `0`
+  * `length` {integer} **Default:** `buffer.byteLength - offset`
+  * `position` {integer} **Default:** `null`
+* Returns: {Promise}
+
+Write `buffer` to the file.
+
+Similar to the above `filehandle.write` function, this version takes an
+optional `options` object. If no `options` object is specified, it will
+default with the above values.
 
 #### `filehandle.write(string[, position[, encoding]])`
 
@@ -690,7 +709,7 @@ changes:
       - v15.14.0
       - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37490
-    description: The `data` argument supports `AsyncIterable`, `Iterable` and `Stream`.
+    description: The `data` argument supports `AsyncIterable`, `Iterable`, and `Stream`.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31030
     description: The `data` parameter won't coerce unsupported input to
@@ -704,7 +723,7 @@ changes:
 * Returns: {Promise}
 
 Asynchronously writes data to a file, replacing the file if it already exists.
-`data` can be a string, a buffer, an {AsyncIterable} or {Iterable} object.
+`data` can be a string, a buffer, an {AsyncIterable}, or an {Iterable} object.
 The promise is resolved with no arguments upon success.
 
 If `options` is a string, then it specifies the `encoding`.
@@ -770,8 +789,7 @@ with an {Error} object. The following example checks if the file
 `/etc/passwd` can be read and written by the current process.
 
 ```mjs
-import { access } from 'node:fs/promises';
-import { constants } from 'node:fs';
+import { access, constants } from 'node:fs/promises';
 
 try {
   await access('/etc/passwd', constants.R_OK | constants.W_OK);
@@ -873,8 +891,7 @@ error occurs after the destination file has been opened for writing, an attempt
 will be made to remove the destination.
 
 ```mjs
-import { constants } from 'node:fs';
-import { copyFile } from 'node:fs/promises';
+import { copyFile, constants } from 'node:fs/promises';
 
 try {
   await copyFile('source.txt', 'destination.txt');
@@ -1037,6 +1054,34 @@ and sticky bits), or an object with a `mode` property and a `recursive`
 property indicating whether parent directories should be created. Calling
 `fsPromises.mkdir()` when `path` is a directory that exists results in a
 rejection only when `recursive` is false.
+
+```mjs
+import { mkdir } from 'node:fs/promises';
+
+try {
+  const projectFolder = new URL('./test/project/', import.meta.url);
+  const createDir = await mkdir(path, { recursive: true });
+
+  console.log(`created ${createDir}`);
+} catch (err) {
+  console.error(err.message);
+}
+```
+
+```cjs
+const { mkdir } = require('node:fs/promises');
+const { resolve, join } = require('node:path');
+
+async function makeDirectory() {
+  const projectFolder = join(__dirname, 'test', 'project');
+  const dirCreation = await mkdir(projectFolder, { recursive: true });
+
+  console.log(dirCreation);
+  return dirCreation;
+}
+
+makeDirectory().catch(console.error);
+```
 
 ### `fsPromises.mkdtemp(prefix[, options])`
 
@@ -1472,7 +1517,7 @@ The `atime` and `mtime` arguments follow these rules:
 
 * Values can be either numbers representing Unix epoch time, `Date`s, or a
   numeric string like `'123456789.0'`.
-* If the value can not be converted to a number, or is `NaN`, `Infinity` or
+* If the value can not be converted to a number, or is `NaN`, `Infinity`, or
   `-Infinity`, an `Error` will be thrown.
 
 ### `fsPromises.watch(filename[, options])`
@@ -1536,7 +1581,7 @@ changes:
       - v15.14.0
       - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37490
-    description: The `data` argument supports `AsyncIterable`, `Iterable` and `Stream`.
+    description: The `data` argument supports `AsyncIterable`, `Iterable`, and `Stream`.
   - version:
       - v15.2.0
       - v14.17.0
@@ -1559,7 +1604,7 @@ changes:
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously writes data to a file, replacing the file if it already exists.
-`data` can be a string, a buffer, an {AsyncIterable} or {Iterable} object.
+`data` can be a string, a buffer, an {AsyncIterable}, or an {Iterable} object.
 
 The `encoding` option is ignored if `data` is a buffer.
 
@@ -1604,6 +1649,14 @@ try {
 
 Aborting an ongoing request does not abort individual operating
 system requests but rather the internal buffering `fs.writeFile` performs.
+
+### `fsPromises.constants`
+
+* {Object}
+
+Returns an object containing commonly used constants for file system
+operations. The object is the same as `fs.constants`. See [FS constants][]
+for more details.
 
 ## Callback API
 
@@ -1684,7 +1737,7 @@ access(file, constants.R_OK | constants.W_OK, (err) => {
 ```
 
 Do not use `fs.access()` to check for the accessibility of a file before calling
-`fs.open()`, `fs.readFile()` or `fs.writeFile()`. Doing
+`fs.open()`, `fs.readFile()`, or `fs.writeFile()`. Doing
 so introduces a race condition, since other processes may change the file's
 state between the two calls. Instead, user code should open/read/write the
 file directly and handle the error raised if the file is not accessible.
@@ -1971,17 +2024,17 @@ specifies the permissions for others.
 
 For example, the octal value `0o765` means:
 
-* The owner may read, write and execute the file.
+* The owner may read, write, and execute the file.
 * The group may read and write the file.
 * Others may read and execute the file.
 
 When using raw numbers where file modes are expected, any value larger than
 `0o777` may result in platform-specific behaviors that are not supported to work
-consistently. Therefore constants like `S_ISVTX`, `S_ISGID` or `S_ISUID` are not
-exposed in `fs.constants`.
+consistently. Therefore constants like `S_ISVTX`, `S_ISGID`, or `S_ISUID` are
+not exposed in `fs.constants`.
 
 Caveats: on Windows only the write permission can be changed, and the
-distinction among the permissions of group, owner or others is not
+distinction among the permissions of group, owner, or others is not
 implemented.
 
 ### `fs.chown(path, uid, gid, callback)`
@@ -2354,7 +2407,7 @@ By default, the stream will emit a `'close'` event after it has been
 destroyed.  Set the `emitClose` option to `false` to change this behavior.
 
 By providing the `fs` option it is possible to override the corresponding `fs`
-implementations for `open`, `write`, `writev` and `close`. Overriding `write()`
+implementations for `open`, `write`, `writev`, and `close`. Overriding `write()`
 without `writev()` can reduce performance as some optimizations (`_writev()`)
 will be disabled. When providing the `fs` option, overrides for at least one of
 `write` and `writev` are required. If no `fd` option is supplied, an override
@@ -2409,7 +2462,7 @@ has only one boolean parameter. This is one reason `fs.access()` is recommended
 instead of `fs.exists()`.
 
 Using `fs.exists()` to check for the existence of a file before calling
-`fs.open()`, `fs.readFile()` or `fs.writeFile()` is not recommended. Doing
+`fs.open()`, `fs.readFile()`, or `fs.writeFile()` is not recommended. Doing
 so introduces a race condition, since other processes may change the file's
 state between the two calls. Instead, user code should open/read/write the
 file directly and handle the error raised if the file does not exist.
@@ -2515,7 +2568,7 @@ The "not recommended" examples above check for existence and then use the
 file; the "recommended" examples are better because they use the file directly
 and handle the error, if any.
 
-In general, check for the existence of a file only if the file won’t be
+In general, check for the existence of a file only if the file won't be
 used directly, for example when its existence is a signal from another
 process.
 
@@ -2759,7 +2812,7 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
   - version: v4.1.0
     pr-url: https://github.com/nodejs/node/pull/2387
-    description: Numeric strings, `NaN` and `Infinity` are now allowed
+    description: Numeric strings, `NaN`, and `Infinity` are now allowed
                  time specifiers.
 -->
 
@@ -2988,6 +3041,8 @@ changes:
   * `mode` {string|integer} Not supported on Windows. **Default:** `0o777`.
 * `callback` {Function}
   * `err` {Error}
+  * `path` {string|undefined} Present only if a directory is created with
+    `recursive` set to `true`.
 
 Asynchronously creates a directory.
 
@@ -3256,7 +3311,7 @@ changes:
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/31402
     description: Options object can be passed in
-                 to make Buffer, offset, length and position optional.
+                 to make buffer, offset, length, and position optional.
 -->
 
 * `fd` {integer}
@@ -3277,7 +3332,7 @@ above values.
 ### `fs.read(fd, buffer[, options], callback)`
 
 <!-- YAML
-added: REPLACEME
+added: v18.2.0
 -->
 
 * `fd` {integer}
@@ -3611,7 +3666,7 @@ changes:
   * `err` {Error}
   * `resolvedPath` {string|Buffer}
 
-Asynchronously computes the canonical pathname by resolving `.`, `..` and
+Asynchronously computes the canonical pathname by resolving `.`, `..`, and
 symbolic links.
 
 A canonical pathname is not necessarily unique. Hard links and bind mounts can
@@ -3873,7 +3928,7 @@ Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
 In case of an error, the `err.code` will be one of [Common System Errors][].
 
 Using `fs.stat()` to check for the existence of a file before calling
-`fs.open()`, `fs.readFile()` or `fs.writeFile()` is not recommended.
+`fs.open()`, `fs.readFile()`, or `fs.writeFile()` is not recommended.
 Instead, user code should open/read/write the file directly and handle the
 error raised if the file is not available.
 
@@ -3989,7 +4044,7 @@ If the `target` does not exist, `'file'` will be used. Windows junction points
 require the destination path to be absolute. When using `'junction'`, the
 `target` argument will automatically be normalized to absolute path.
 
-Relative targets are relative to the link’s parent directory.
+Relative targets are relative to the link's parent directory.
 
 ```mjs
 import { symlink } from 'node:fs';
@@ -4157,7 +4212,7 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
   - version: v4.1.0
     pr-url: https://github.com/nodejs/node/pull/2387
-    description: Numeric strings, `NaN` and `Infinity` are now allowed
+    description: Numeric strings, `NaN`, and `Infinity` are now allowed
                  time specifiers.
 -->
 
@@ -4173,7 +4228,7 @@ The `atime` and `mtime` arguments follow these rules:
 
 * Values can be either numbers representing Unix epoch time in seconds,
   `Date`s, or a numeric string like `'123456789.0'`.
-* If the value can not be converted to a number, or is `NaN`, `Infinity` or
+* If the value can not be converted to a number, or is `NaN`, `Infinity`, or
   `-Infinity`, an `Error` will be thrown.
 
 ### `fs.watch(filename[, options][, listener])`
@@ -4376,7 +4431,7 @@ This happens when:
 * the file is deleted, followed by a restore
 * the file is renamed and then renamed a second time back to its original name
 
-### `fs.write(fd, buffer[, offset[, length[, position]]], callback)`
+### `fs.write(fd, buffer, offset[, length[, position]], callback)`
 
 <!-- YAML
 added: v0.0.2
@@ -4442,6 +4497,29 @@ recommended.
 On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
+
+### `fs.write(fd, buffer[, options], callback)`
+
+<!-- YAML
+added: v18.3.0
+-->
+
+* `fd` {integer}
+* `buffer` {Buffer|TypedArray|DataView}
+* `options` {Object}
+  * `offset` {integer} **Default:** `0`
+  * `length` {integer} **Default:** `buffer.byteLength - offset`
+  * `position` {integer} **Default:** `null`
+* `callback` {Function}
+  * `err` {Error}
+  * `bytesWritten` {integer}
+  * `buffer` {Buffer|TypedArray|DataView}
+
+Write `buffer` to the file specified by `fd`.
+
+Similar to the above `fs.write` function, this version takes an
+optional `options` object. If no `options` object is specified, it will
+default with the above values.
 
 ### `fs.write(fd, string[, position[, encoding]], callback)`
 
@@ -5069,7 +5147,7 @@ added: v0.4.2
 changes:
   - version: v4.1.0
     pr-url: https://github.com/nodejs/node/pull/2387
-    description: Numeric strings, `NaN` and `Infinity` are now allowed
+    description: Numeric strings, `NaN`, and `Infinity` are now allowed
                  time specifiers.
 -->
 
@@ -5431,7 +5509,7 @@ changes:
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32460
     description: Options object can be passed in
-                 to make offset, length and position optional.
+                 to make offset, length, and position optional.
 -->
 
 * `fd` {integer}
@@ -5736,7 +5814,7 @@ changes:
                  protocol.
   - version: v4.1.0
     pr-url: https://github.com/nodejs/node/pull/2387
-    description: Numeric strings, `NaN` and `Infinity` are now allowed
+    description: Numeric strings, `NaN`, and `Infinity` are now allowed
                  time specifiers.
 -->
 
@@ -5793,7 +5871,7 @@ for more details.
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.writeFile()`][].
 
-### `fs.writeSync(fd, buffer[, offset[, length[, position]]])`
+### `fs.writeSync(fd, buffer, offset[, length[, position]])`
 
 <!-- YAML
 added: v0.1.21
@@ -5819,6 +5897,23 @@ changes:
 * `offset` {integer} **Default:** `0`
 * `length` {integer} **Default:** `buffer.byteLength - offset`
 * `position` {integer|null} **Default:** `null`
+* Returns: {number} The number of bytes written.
+
+For detailed information, see the documentation of the asynchronous version of
+this API: [`fs.write(fd, buffer...)`][].
+
+### `fs.writeSync(fd, buffer[, options])`
+
+<!-- YAML
+added: v18.3.0
+-->
+
+* `fd` {integer}
+* `buffer` {Buffer|TypedArray|DataView}
+* `options` {Object}
+  * `offset` {integer} **Default:** `0`
+  * `length` {integer} **Default:** `buffer.byteLength - offset`
+  * `position` {integer} **Default:** `null`
 * Returns: {number} The number of bytes written.
 
 For detailed information, see the documentation of the asynchronous version of
@@ -6363,7 +6458,7 @@ changes:
 
 A {fs.Stats} object provides information about a file.
 
-Objects returned from [`fs.stat()`][], [`fs.lstat()`][] and [`fs.fstat()`][] and
+Objects returned from [`fs.stat()`][], [`fs.lstat()`][], [`fs.fstat()`][], and
 their synchronous counterparts are of this type.
 If `bigint` in the `options` passed to those methods is true, the numeric values
 will be `bigint` instead of `number`, and the object will contain additional
@@ -6824,7 +6919,7 @@ operations.
 
 #### FS constants
 
-The following constants are exported by `fs.constants`.
+The following constants are exported by `fs.constants` and `fsPromises.constants`.
 
 Not every constant will be available on every operating system;
 this is especially important for Windows, where many of the POSIX specific
@@ -7010,7 +7105,7 @@ The following constants are meant for use with `fs.open()`.
 </table>
 
 On Windows, only `O_APPEND`, `O_CREAT`, `O_EXCL`, `O_RDONLY`, `O_RDWR`,
-`O_TRUNC`, `O_WRONLY` and `UV_FS_O_FILEMAP` are available.
+`O_TRUNC`, `O_WRONLY`, and `UV_FS_O_FILEMAP` are available.
 
 ##### File type constants
 
@@ -7521,7 +7616,7 @@ fs.open('<directory>', 'a+', (err, fd) => {
 ```
 
 On Windows, opening an existing hidden file using the `'w'` flag (either
-through `fs.open()` or `fs.writeFile()` or `fsPromises.open()`) will fail with
+through `fs.open()`, `fs.writeFile()`, or `fsPromises.open()`) will fail with
 `EPERM`. Existing hidden files can be opened for writing with the `'r+'` flag.
 
 A call to `fs.ftruncate()` or `filehandle.truncate()` can be used to reset
@@ -7529,6 +7624,7 @@ the file contents.
 
 [#25741]: https://github.com/nodejs/node/issues/25741
 [Common System Errors]: errors.md#common-system-errors
+[FS constants]: #fs-constants
 [File access constants]: #file-access-constants
 [MDN-Date]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
 [MDN-Number]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type

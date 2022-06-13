@@ -10,11 +10,7 @@ const jsonParse = require('json-parse-even-better-errors')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 const log = require('../utils/log-shim')
 
-const searchCachePackage = async (path, spec, cacheKeys) => {
-  const parsed = npa(spec)
-  if (parsed.rawSpec !== '' && parsed.type === 'tag') {
-    throw new Error(`Cannot list cache keys for a tagged package.`)
-  }
+const searchCachePackage = async (path, parsed, cacheKeys) => {
   /* eslint-disable-next-line max-len */
   const searchMFH = new RegExp(`^make-fetch-happen:request-cache:.*(?<!/[@a-zA-Z]+)/${parsed.name}/-/(${parsed.name}[^/]+.tgz)$`)
   const searchPack = new RegExp(`^make-fetch-happen:request-cache:.*/${parsed.escapedName}$`)
@@ -50,6 +46,7 @@ const searchCachePackage = async (path, spec, cacheKeys) => {
     if (!packument.versions || typeof packument.versions !== 'object') {
       continue
     }
+
     // assuming this is a packument
     for (const ver of Object.keys(packument.versions)) {
       if (semver.satisfies(ver, parsed.rawSpec)) {
@@ -148,6 +145,7 @@ class Cache extends BaseCommand {
       }
       this.npm.output(`Deleted: ${key}`)
       await cacache.rm.entry(cachePath, key)
+      // XXX this could leave other entries without content!
       await cacache.rm.content(cachePath, entry.integrity)
     }
   }
@@ -204,7 +202,11 @@ class Cache extends BaseCommand {
       // get results for each package spec specified
       const results = new Set()
       for (const spec of specs) {
-        const keySet = await searchCachePackage(cachePath, spec, cacheKeys)
+        const parsed = npa(spec)
+        if (parsed.rawSpec !== '' && parsed.type === 'tag') {
+          throw this.usageError('Cannot list cache keys for a tagged package.')
+        }
+        const keySet = await searchCachePackage(cachePath, parsed, cacheKeys)
         for (const key of keySet) {
           results.add(key)
         }

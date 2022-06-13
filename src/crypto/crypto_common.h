@@ -25,7 +25,7 @@ struct StackOfXASN1Deleter {
 };
 using StackOfASN1 = std::unique_ptr<STACK_OF(ASN1_OBJECT), StackOfXASN1Deleter>;
 
-bool SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert, X509** issuer);
+X509Pointer SSL_CTX_get_issuer(SSL_CTX* ctx, X509* cert);
 
 void LogSecret(
     const SSLPointer& ssl,
@@ -73,18 +73,6 @@ v8::MaybeLocal<v8::Value> GetValidationErrorReason(Environment* env, int err);
 v8::MaybeLocal<v8::Value> GetValidationErrorCode(Environment* env, int err);
 
 v8::MaybeLocal<v8::Value> GetCert(Environment* env, const SSLPointer& ssl);
-
-v8::MaybeLocal<v8::Value> GetCipherName(
-    Environment* env,
-    const SSLPointer& ssl);
-
-v8::MaybeLocal<v8::Value> GetCipherStandardName(
-    Environment* env,
-    const SSLPointer& ssl);
-
-v8::MaybeLocal<v8::Value> GetCipherVersion(
-    Environment* env,
-    const SSLPointer& ssl);
 
 v8::MaybeLocal<v8::Object> GetCipherInfo(
     Environment* env,

@@ -1,16 +1,15 @@
 const EventEmitter = require('events')
 const { resolve, dirname, join } = require('path')
 const Config = require('@npmcli/config')
+const chalk = require('chalk')
+const which = require('which')
+const fs = require('@npmcli/fs')
 
 // Patch the global fs module here at the app level
 require('graceful-fs').gracefulify(require('fs'))
 
 const { definitions, flatten, shorthands } = require('./utils/config/index.js')
 const usage = require('./utils/npm-usage.js')
-
-const which = require('which')
-const fs = require('@npmcli/fs')
-
 const LogFile = require('./utils/log-file.js')
 const Timers = require('./utils/timers.js')
 const Display = require('./utils/display.js')
@@ -37,6 +36,7 @@ class Npm extends EventEmitter {
   #tmpFolder = null
   #title = 'npm'
   #argvClean = []
+  #chalk = null
 
   #logFile = new LogFile()
   #display = new Display()
@@ -129,7 +129,6 @@ class Npm extends EventEmitter {
         })
     }
 
-    const isGlobal = this.config.get('global')
     const workspacesEnabled = this.config.get('workspaces')
     // if cwd is a workspace, the default is set to [that workspace]
     const implicitWorkspace = this.config.get('workspace', 'default').length > 0
@@ -160,7 +159,7 @@ class Npm extends EventEmitter {
       execPromise = Promise.reject(
         new Error('Can not use --no-workspaces and --workspace at the same time'))
     } else if (filterByWorkspaces) {
-      if (isGlobal) {
+      if (this.global) {
         execPromise = Promise.reject(new Error('Workspaces not supported for global packages'))
       } else {
         execPromise = command.execWorkspaces(args, workspacesFilters)
@@ -322,6 +321,21 @@ class Npm extends EventEmitter {
     return this.flatOptions.color
   }
 
+  get chalk () {
+    if (!this.#chalk) {
+      let level = chalk.level
+      if (!this.color) {
+        level = 0
+      }
+      this.#chalk = new chalk.Instance({ level })
+    }
+    return this.#chalk
+  }
+
+  get global () {
+    return this.config.get('global') || this.config.get('location') === 'global'
+  }
+
   get logColor () {
     return this.flatOptions.logColor
   }
@@ -398,7 +412,7 @@ class Npm extends EventEmitter {
   }
 
   get dir () {
-    return this.config.get('global') ? this.globalDir : this.localDir
+    return this.global ? this.globalDir : this.localDir
   }
 
   get globalBin () {
@@ -411,15 +425,15 @@ class Npm extends EventEmitter {
   }
 
   get bin () {
-    return this.config.get('global') ? this.globalBin : this.localBin
+    return this.global ? this.globalBin : this.localBin
   }
 
   get prefix () {
-    return this.config.get('global') ? this.globalPrefix : this.localPrefix
+    return this.global ? this.globalPrefix : this.localPrefix
   }
 
   set prefix (r) {
-    const k = this.config.get('global') ? 'globalPrefix' : 'localPrefix'
+    const k = this.global ? 'globalPrefix' : 'localPrefix'
     this[k] = r
   }
 

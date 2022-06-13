@@ -101,14 +101,14 @@ function binarySearch(haystack, needle, low, high) {
     return low - 1;
 }
 function upperBound(haystack, needle, index) {
-    for (let i = index + 1; i < haystack.length; i++, index++) {
+    for (let i = index + 1; i < haystack.length; index = i++) {
         if (haystack[i][COLUMN] !== needle)
             break;
     }
     return index;
 }
 function lowerBound(haystack, needle, index) {
-    for (let i = index - 1; i >= 0; i--, index--) {
+    for (let i = index - 1; i >= 0; index = i--) {
         if (haystack[i][COLUMN] !== needle)
             break;
     }
@@ -196,15 +196,7 @@ const AnyMap = function (map, mapUrl) {
     const sources = [];
     const sourcesContent = [];
     const names = [];
-    const { sections } = parsed;
-    let i = 0;
-    for (; i < sections.length - 1; i++) {
-        const no = sections[i + 1].offset;
-        addSection(sections[i], mapUrl, mappings, sources, sourcesContent, names, no.line, no.column);
-    }
-    if (sections.length > 0) {
-        addSection(sections[i], mapUrl, mappings, sources, sourcesContent, names, Infinity, Infinity);
-    }
+    recurse(parsed, mapUrl, mappings, sources, sourcesContent, names, 0, 0, Infinity, Infinity);
     const joined = {
         version: 3,
         file: parsed.file,
@@ -215,39 +207,62 @@ const AnyMap = function (map, mapUrl) {
     };
     return presortedDecodedMap(joined);
 };
-function addSection(section, mapUrl, mappings, sources, sourcesContent, names, stopLine, stopColumn) {
-    const map = AnyMap(section.map, mapUrl);
-    const { line: lineOffset, column: columnOffset } = section.offset;
+function recurse(input, mapUrl, mappings, sources, sourcesContent, names, lineOffset, columnOffset, stopLine, stopColumn) {
+    const { sections } = input;
+    for (let i = 0; i < sections.length; i++) {
+        const { map, offset } = sections[i];
+        let sl = stopLine;
+        let sc = stopColumn;
+        if (i + 1 < sections.length) {
+            const nextOffset = sections[i + 1].offset;
+            sl = Math.min(stopLine, lineOffset + nextOffset.line);
+            if (sl === stopLine) {
+                sc = Math.min(stopColumn, columnOffset + nextOffset.column);
+            }
+            else if (sl < stopLine) {
+                sc = columnOffset + nextOffset.column;
+            }
+        }
+        addSection(map, mapUrl, mappings, sources, sourcesContent, names, lineOffset + offset.line, columnOffset + offset.column, sl, sc);
+    }
+}
+function addSection(input, mapUrl, mappings, sources, sourcesContent, names, lineOffset, columnOffset, stopLine, stopColumn) {
+    if ('sections' in input)
+        return recurse(...arguments);
+    const map = new TraceMap(input, mapUrl);
     const sourcesOffset = sources.length;
     const namesOffset = names.length;
     const decoded = decodedMappings(map);
-    const { resolvedSources } = map;
+    const { resolvedSources, sourcesContent: contents } = map;
     append(sources, resolvedSources);
-    append(sourcesContent, map.sourcesContent || fillSourcesContent(resolvedSources.length));
     append(names, map.names);
-    // If this section jumps forwards several lines, we need to add lines to the output mappings catch up.
-    for (let i = mappings.length; i <= lineOffset; i++)
-        mappings.push([]);
-    // We can only add so many lines before we step into the range that the next section's map
-    // controls. When we get to the last line, then we'll start checking the segments to see if
-    // they've crossed into the column range.
-    const stopI = stopLine - lineOffset;
-    const len = Math.min(decoded.length, stopI + 1);
-    for (let i = 0; i < len; i++) {
-        const line = decoded[i];
-        // On the 0th loop, the line will already exist due to a previous section, or the line catch up
-        // loop above.
-        const out = i === 0 ? mappings[lineOffset] : (mappings[lineOffset + i] = []);
+    if (contents)
+        append(sourcesContent, contents);
+    else
+        for (let i = 0; i < resolvedSources.length; i++)
+            sourcesContent.push(null);
+    for (let i = 0; i < decoded.length; i++) {
+        const lineI = lineOffset + i;
+        // We can only add so many lines before we step into the range that the next section's map
+        // controls. When we get to the last line, then we'll start checking the segments to see if
+        // they've crossed into the column range. But it may not have any columns that overstep, so we
+        // still need to check that we don't overstep lines, too.
+        if (lineI > stopLine)
+            return;
+        // The out line may already exist in mappings (if we're continuing the line started by a
+        // previous section). Or, we may have jumped ahead several lines to start this section.
+        const out = getLine(mappings, lineI);
         // On the 0th loop, the section's column offset shifts us forward. On all other lines (since the
         // map can be multiple lines), it doesn't.
         const cOffset = i === 0 ? columnOffset : 0;
+        const line = decoded[i];
         for (let j = 0; j < line.length; j++) {
             const seg = line[j];
             const column = cOffset + seg[COLUMN];
             // If this segment steps into the column range that the next section's map controls, we need
             // to stop early.
-            if (i === stopI && column >= stopColumn)
-                break;
+            if (lineI === stopLine && column >= stopColumn)
+                return;
             if (seg.length === 1) {
                 out.push([column]);
                 continue;
@@ -255,11 +270,9 @@ function addSection(section, mapUrl, mappings, sources, sourcesContent, names, s
             const sourcesIndex = sourcesOffset + seg[SOURCES_INDEX];
             const sourceLine = seg[SOURCE_LINE];
             const sourceColumn = seg[SOURCE_COLUMN];
-            if (seg.length === 4) {
-                out.push([column, sourcesIndex, sourceLine, sourceColumn]);
-                continue;
-            }
-            out.push([column, sourcesIndex, sourceLine, sourceColumn, namesOffset + seg[NAMES_INDEX]]);
+            out.push(seg.length === 4
+                ? [column, sourcesIndex, sourceLine, sourceColumn]
+                : [column, sourcesIndex, sourceLine, sourceColumn, namesOffset + seg[NAMES_INDEX]]);
         }
     }
 }
@@ -267,27 +280,12 @@ function append(arr, other) {
     for (let i = 0; i < other.length; i++)
         arr.push(other[i]);
 }
-// Sourcemaps don't need to have sourcesContent, and if they don't, we need to create an array of
-// equal length to the sources. This is because the sources and sourcesContent are paired arrays,
-// where `sourcesContent[i]` is the content of the `sources[i]` file. If we didn't, then joined
-// sourcemap would desynchronize the sources/contents.
-function fillSourcesContent(len) {
-    const sourcesContent = [];
-    for (let i = 0; i < len; i++)
-        sourcesContent[i] = null;
-    return sourcesContent;
+function getLine(arr, index) {
+    for (let i = arr.length; i <= index; i++)
+        arr[i] = [];
+    return arr[index];
 }
 
-const INVALID_ORIGINAL_MAPPING = Object.freeze({
-    source: null,
-    line: null,
-    column: null,
-    name: null,
-});
-const INVALID_GENERATED_MAPPING = Object.freeze({
-    line: null,
-    column: null,
-});
 const LINE_GTR_ZERO = '`line` must be greater than 0 (lines start at line 1)';
 const COL_GTR_EQ_ZERO = '`column` must be greater than or equal to 0 (columns start at column 0)';
 const LEAST_UPPER_BOUND = -1;
@@ -324,6 +322,10 @@ let generatedPositionFor;
  */
 let eachMapping;
 /**
+ * Retrieves the source content for a particular source, if its found. Returns null if not.
+ */
+let sourceContentFor;
+/**
  * A helper that skips sorting of the input map's mappings array, which can be expensive for larger
  * maps.
  */
@@ -344,7 +346,7 @@ class TraceMap {
         this._bySources = undefined;
         this._bySourceMemos = undefined;
         const isString = typeof map === 'string';
-        if (!isString && map.constructor === TraceMap)
+        if (!isString && map._decodedMemo)
             return map;
         const parsed = (isString ? JSON.parse(map) : map);
         const { version, file, names, sourceRoot, sources, sourcesContent } = parsed;
@@ -354,13 +356,8 @@ class TraceMap {
         this.sourceRoot = sourceRoot;
         this.sources = sources;
         this.sourcesContent = sourcesContent;
-        if (sourceRoot || mapUrl) {
-            const from = resolve(sourceRoot || '', stripFilename(mapUrl));
-            this.resolvedSources = sources.map((s) => resolve(s || '', from));
-        }
-        else {
-            this.resolvedSources = sources.map((s) => s || '');
-        }
+        const from = resolve(sourceRoot || '', stripFilename(mapUrl));
+        this.resolvedSources = sources.map((s) => resolve(s || '', from));
         const { mappings } = parsed;
         if (typeof mappings === 'string') {
             this._encoded = mappings;
@@ -398,19 +395,14 @@ class TraceMap {
         // It's common for parent source maps to have pointers to lines that have no
         // mapping (like a "//# sourceMappingURL=") at the end of the child file.
         if (line >= decoded.length)
-            return INVALID_ORIGINAL_MAPPING;
+            return OMapping(null, null, null, null);
         const segment = traceSegmentInternal(decoded[line], map._decodedMemo, line, column, bias || GREATEST_LOWER_BOUND);
         if (segment == null)
-            return INVALID_ORIGINAL_MAPPING;
+            return OMapping(null, null, null, null);
         if (segment.length == 1)
-            return INVALID_ORIGINAL_MAPPING;
+            return OMapping(null, null, null, null);
         const { names, resolvedSources } = map;
-        return {
-            source: resolvedSources[segment[SOURCES_INDEX]],
-            line: segment[SOURCE_LINE] + 1,
-            column: segment[SOURCE_COLUMN],
-            name: segment.length === 5 ? names[segment[NAMES_INDEX]] : null,
-        };
+        return OMapping(resolvedSources[segment[SOURCES_INDEX]], segment[SOURCE_LINE] + 1, segment[SOURCE_COLUMN], segment.length === 5 ? names[segment[NAMES_INDEX]] : null);
     };
     generatedPositionFor = (map, { source, line, column, bias }) => {
         line--;
@@ -423,19 +415,16 @@ class TraceMap {
         if (sourceIndex === -1)
             sourceIndex = resolvedSources.indexOf(source);
         if (sourceIndex === -1)
-            return INVALID_GENERATED_MAPPING;
+            return GMapping(null, null);
         const generated = (map._bySources || (map._bySources = buildBySources(decodedMappings(map), (map._bySourceMemos = sources.map(memoizedState)))));
         const memos = map._bySourceMemos;
         const segments = generated[sourceIndex][line];
         if (segments == null)
-            return INVALID_GENERATED_MAPPING;
+            return GMapping(null, null);
         const segment = traceSegmentInternal(segments, memos[sourceIndex], line, column, bias || GREATEST_LOWER_BOUND);
         if (segment == null)
-            return INVALID_GENERATED_MAPPING;
-        return {
-            line: segment[REV_GENERATED_LINE] + 1,
-            column: segment[REV_GENERATED_COLUMN],
-        };
+            return GMapping(null, null);
+        return GMapping(segment[REV_GENERATED_LINE] + 1, segment[REV_GENERATED_COLUMN]);
     };
     eachMapping = (map, cb) => {
         const decoded = decodedMappings(map);
@@ -468,6 +457,15 @@ class TraceMap {
             }
         }
     };
+    sourceContentFor = (map, source) => {
+        const { sources, resolvedSources, sourcesContent } = map;
+        if (sourcesContent == null)
+            return null;
+        let index = sources.indexOf(source);
+        if (index === -1)
+            index = resolvedSources.indexOf(source);
+        return index === -1 ? null : sourcesContent[index];
+    };
     presortedDecodedMap = (map, mapUrl) => {
         const clone = Object.assign({}, map);
         clone.mappings = [];
@@ -498,6 +496,12 @@ class TraceMap {
         };
     };
 })();
+function OMapping(source, line, column, name) {
+    return { source, line, column, name };
+}
+function GMapping(line, column) {
+    return { line, column };
+}
 function traceSegmentInternal(segments, memo, line, column, bias) {
     let index = memoizedBinarySearch(segments, column, memo, line);
     if (found) {
@@ -510,5 +514,5 @@ function traceSegmentInternal(segments, memo, line, column, bias) {
     return segments[index];
 }
 
-export { AnyMap, GREATEST_LOWER_BOUND, LEAST_UPPER_BOUND, TraceMap, decodedMap, decodedMappings, eachMapping, encodedMap, encodedMappings, generatedPositionFor, originalPositionFor, presortedDecodedMap, traceSegment };
+export { AnyMap, GREATEST_LOWER_BOUND, LEAST_UPPER_BOUND, TraceMap, decodedMap, decodedMappings, eachMapping, encodedMap, encodedMappings, generatedPositionFor, originalPositionFor, presortedDecodedMap, sourceContentFor, traceSegment };
 //# sourceMappingURL=trace-mapping.mjs.map

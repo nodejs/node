@@ -39,11 +39,11 @@ onboarding session.
   * Always create a branch in your own GitHub fork for pull requests
     * Branches in the `nodejs/node` repository are only for release lines
   * Add the canonical nodejs repository as `upstream` remote:
-    * `git remote add upstream git://github.com/nodejs/node.git`
+    * `git remote add upstream git@github.com:nodejs/node.git`
   * To update from `upstream`:
     * `git checkout master`
-    * `git remote update -p` OR `git fetch --all`
-    * `git merge --ff-only upstream/master` (or `REMOTENAME/BRANCH`)
+    * `git fetch upstream HEAD`
+    * `git reset --hard FETCH_HEAD`
   * Make a new branch for each pull request you submit.
   * Membership: Consider making your membership in the Node.js GitHub
     organization public. This makes it easier to identify collaborators.
@@ -144,12 +144,12 @@ The project has a venue for real-time discussion:
 
 * Approving a change
   * Collaborators indicate that they have reviewed and approve of the changes in
-    a pull request using GitHub’s approval interface
+    a pull request using GitHub's approval interface
   * Some people like to comment `LGTM` (“Looks Good To Me”)
-  * You have the authority to approve any other collaborator’s work.
+  * You have the authority to approve any other collaborator's work.
   * You cannot approve your own pull requests.
   * When explicitly using `Changes requested`, show empathy – comments will
-    usually be addressed even if you don’t use it.
+    usually be addressed even if you don't use it.
     * If you do, it is nice if you are available later to check whether your
       comments have been addressed
     * If you see that the requested changes have been made, you can clear
@@ -158,7 +158,7 @@ The project has a venue for real-time discussion:
       comments to block the pull request from landing.
 
 * What belongs in Node.js:
-  * Opinions vary – it’s good to have a broad collaborator base for that reason!
+  * Opinions vary – it's good to have a broad collaborator base for that reason!
   * If Node.js itself needs it (due to historical reasons), then it belongs in
     Node.js.
     * That is to say, `url` is there because of `http`, `freelist` is there
@@ -203,9 +203,9 @@ needs to be pointed out separately during the onboarding.
 ## Exercise: Make a pull request adding yourself to the README
 
 * Example:
-  <https://github.com/nodejs/node/commit/b58fe52692659c0bc25ddbe6afa7f4ae2c7f14a8>
+  <https://github.com/nodejs/node/commit/6669b3857f0f43ee0296eb7ac45086cd907b9e94>
   * For raw commit message:
-    `git show --format=%B b58fe52692659c0bc25ddbe6afa7f4ae2c7f14a8`
+    `git show --format=%B 6669b3857f0f43ee0296eb7ac45086cd907b9e94`
 * Collaborators are in alphabetical order by GitHub username.
 * Optionally, include your personal pronouns.
 * Add the `Fixes: <collaborator-nomination-issue-url>` to the commit message

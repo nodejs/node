@@ -25,7 +25,7 @@ sockets on other operating systems.
 
 ### Identifying paths for IPC connections
 
-[`net.connect()`][], [`net.createConnection()`][], [`server.listen()`][] and
+[`net.connect()`][], [`net.createConnection()`][], [`server.listen()`][], and
 [`socket.connect()`][] take a `path` parameter to identify IPC endpoints.
 
 On Unix, the local domain is also known as the Unix domain. The path is a
@@ -1088,6 +1088,19 @@ added: v0.5.10
 * {integer}
 
 The numeric representation of the remote port. For example, `80` or `21`.
+
+### `socket.resetAndDestroy()`
+
+<!-- YAML
+added: v18.3.0
+-->
+
+* Returns: {net.Socket}
+
+Close the TCP connection by sending an RST packet and destroy the stream.
+If this TCP socket is in connecting status, it will send an RST packet and destroy this TCP socket once it is connected.
+Otherwise, it will call `socket.destroy` with an `ERR_SOCKET_CLOSED` Error.
+If this is not a TCP socket (for example, a pipe), calling this method will immediately throw an `ERR_INVALID_HANDLE_TYPE` Error.
 
 ### `socket.resume()`
 

@@ -56,6 +56,19 @@ class BodyTimeoutError extends UndiciError {
   }
 }
 
+class ResponseStatusCodeError extends UndiciError {
+  constructor (message, statusCode, headers) {
+    super(message)
+    Error.captureStackTrace(this, ResponseStatusCodeError)
+    this.name = 'ResponseStatusCodeError'
+    this.message = message || 'Response Status Code Error'
+    this.code = 'UND_ERR_RESPONSE_STATUS_CODE'
+    this.status = statusCode
+    this.statusCode = statusCode
+    this.headers = headers
+  }
+}
+
 class InvalidArgumentError extends UndiciError {
   constructor (message) {
     super(message)
@@ -113,16 +126,6 @@ class ResponseContentLengthMismatchError extends UndiciError {
     this.name = 'ResponseContentLengthMismatchError'
     this.message = message || 'Response body length does not match content-length header'
     this.code = 'UND_ERR_RES_CONTENT_LENGTH_MISMATCH'
-  }
-}
-
-class TrailerMismatchError extends UndiciError {
-  constructor (message) {
-    super(message)
-    Error.captureStackTrace(this, TrailerMismatchError)
-    this.name = 'TrailerMismatchError'
-    this.message = message || 'Trailers does not match trailer header'
-    this.code = 'UND_ERR_TRAILER_MISMATCH'
   }
 }
 
@@ -196,7 +199,7 @@ module.exports = {
   BodyTimeoutError,
   RequestContentLengthMismatchError,
   ConnectTimeoutError,
-  TrailerMismatchError,
+  ResponseStatusCodeError,
   InvalidArgumentError,
   InvalidReturnValueError,
   RequestAbortedError,

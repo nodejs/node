@@ -53,11 +53,11 @@ This makes the handshake suspend and return control to the calling application
 with B<SSL_ERROR_WANT_RETRY_VERIFY>.
 The application can for instance fetch further certificates or cert status
 information needed for the verification.
-Note that the handshake may still be aborted if a subsequent invocation of the
-callback (e.g. at a lower depth, or for a separate error condition) returns 0.
 Calling L<SSL_connect(3)> again resumes the connection attempt by retrying the
 server certificate verification step.
 This process may even be repeated if need be.
+Note that the handshake may still be aborted if a subsequent invocation of the
+callback (e.g., at a lower depth, or for a separate error condition) returns 0.
 
 SSL_CTX_set_verify_depth() sets the maximum B<depth> for the certificate chain
 verification that shall be allowed for B<ctx>.

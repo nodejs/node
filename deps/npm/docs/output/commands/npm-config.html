@@ -223,6 +223,8 @@ saving them to your <code>package.json</code>.</li>
 <ul>
 <li>Default: false</li>
 <li>Type: Boolean</li>
+<li>DEPRECATED: <code>--global</code>, <code>--local</code> are deprecated. Use <code>--location=global</code>
+instead.</li>
 </ul>
 <p>Operates in "global" mode, so that packages are installed into the <code>prefix</code>
 folder instead of the current working directory. See
@@ -251,6 +253,15 @@ to "global"</li>
 <li>Type: "global", "user", or "project"</li>
 </ul>
 <p>When passed to <code>npm config</code> this refers to which config file to use.</p>
+<p>When set to "global" mode, packages are installed into the <code>prefix</code> folder
+instead of the current working directory. See
+<a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
+<ul>
+<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder, instead
+of the current working directory.</li>
+<li>bin files are linked to <code>{prefix}/bin</code></li>
+<li>man pages are linked to <code>{prefix}/share/man</code></li>
+</ul>
 <!-- raw HTML omitted -->
 <!-- raw HTML omitted -->
 <h4 id="long"><code>long</code></h4>
