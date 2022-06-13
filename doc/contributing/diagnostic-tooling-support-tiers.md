@@ -137,7 +137,6 @@ The tools are currently assigned to Tiers as follows:
 | Tracing   | trace\_gc                 | No                            | Yes                     | 1           |
 | Tracing   | DTrace                    | No                            | Partial                 | 3           |
 | Tracing   | LTTng                     | No                            | Removed?                | N/A         |
-| Tracing   | ETW                       | No                            | Partial                 | 3           |
 | Tracing   | Systemtap                 | No                            | Partial                 | ?           |
 | Profiling | DTrace                    | No                            | Partial                 | 3           |
 | Profiling | Windows Xperf             | No                            | ?                       | ?           |
