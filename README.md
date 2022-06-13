@@ -328,8 +328,6 @@ For information about the governance of the Node.js project, see
   **Harshitha K P** <<harshitha014@gmail.com>> (she/her)
 * [himself65](https://github.com/himself65) -
   **Zeyu "Alex" Yang** <<himself65@outlook.com>> (he/him)
-* [hiroppy](https://github.com/hiroppy) -
-  **Yuta Hiroto** <<hello@hiroppy.me>> (he/him)
 * [iansu](https://github.com/iansu) -
   **Ian Sutherland** <<ian@iansutherland.ca>>
 * [indutny](https://github.com/indutny) -
@@ -504,6 +502,8 @@ For information about the governance of the Node.js project, see
   **Glen Keane** <<glenkeane.94@gmail.com>> (he/him)
 * [hashseed](https://github.com/hashseed) -
   **Yang Guo** <<yangguo@chromium.org>> (he/him)
+* [hiroppy](https://github.com/hiroppy) -
+  **Yuta Hiroto** <<hello@hiroppy.me>> (he/him)
 * [iarna](https://github.com/iarna) -
   **Rebecca Turner** <<me@re-becca.org>>
 * [imran-iq](https://github.com/imran-iq) -
