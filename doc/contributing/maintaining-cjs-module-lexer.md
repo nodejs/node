@@ -25,7 +25,7 @@ The two different versions of lexer.js are maintained in the
 In order to update the Node.js dependencies to use to a newer verion
 of cjs-module-lexer, complete the following steps:
 
-* Clone [nodejs/cjs-module-lexer](https://github.com/nodejs/cjs-module-lexer)
+* Clone [nodejs/cjs-module-lexer][]
   and check out the version that you want Node.js to use.
 * Follow the WASM build steps outlined in
   [wasm-build-steps](https://github.com/nodejs/cjs-module-lexer#wasm-build-steps).
