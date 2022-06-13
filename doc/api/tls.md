@@ -956,7 +956,7 @@ tlsSocket.once('session', (session) => {
 <!-- YAML
 added: v0.11.4
 changes:
-  - version: REPLACEME
+  - version: v18.4.0
     pr-url: https://github.com/nodejs/node/pull/43054
     description: The `family` property now returns a string instead of a number.
   - version: v18.0.0

@@ -286,7 +286,7 @@ Emitted when the server has been bound after calling [`server.listen()`][].
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v18.4.0
     pr-url: https://github.com/nodejs/node/pull/43054
     description: The `family` property now returns a string instead of a number.
   - version: v18.0.0
@@ -746,7 +746,7 @@ See also: [`socket.setTimeout()`][].
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v18.4.0
     pr-url: https://github.com/nodejs/node/pull/43054
     description: The `family` property now returns a string instead of a number.
   - version: v18.0.0
