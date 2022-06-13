@@ -5,5 +5,6 @@ prefix node-api
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
+test_buffer/test_finalizer : PASS,FLAKY
 
 [$system==win32]
