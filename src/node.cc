@@ -890,6 +890,11 @@ int InitializeNodeWithArgs(std::vector<std::string>* argv,
   // used in diagnostic reports.
   per_process::cli_options->cmdline = *argv;
 
+  // Node provides a "v8.setFlagsFromString" method to dynamically change flags.
+  // Hence do not freeze flags when initializing V8. In a browser setting, this
+  // is security relevant, for Node it's less important.
+  V8::SetFlagsFromString("--no-freeze-flags-after-init");
+
 #if defined(NODE_V8_OPTIONS)
   // Should come before the call to V8::SetFlagsFromCommandLine()
   // so the user can disable a flag --foo at run-time by passing
