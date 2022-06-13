@@ -233,7 +233,11 @@ MaybeLocal<Context> ContextifyContext::CreateV8Context(
                           ctx->Global());
 
   Utf8Value name_val(env->isolate(), options.name);
-  ctx->AllowCodeGenerationFromStrings(options.allow_code_gen_strings->IsTrue());
+  // Delegate the code generation validation to
+  // node::ModifyCodeGenerationFromStrings.
+  ctx->AllowCodeGenerationFromStrings(false);
+  ctx->SetEmbedderData(ContextEmbedderIndex::kAllowCodeGenerationFromStrings,
+                       options.allow_code_gen_strings);
   ctx->SetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration,
                        options.allow_code_gen_wasm);
 

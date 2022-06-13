@@ -543,6 +543,7 @@ class NoArrayBufferZeroFillScope {
   V(inspector_console_extension_installer, v8::Function)                       \
   V(inspector_disable_async_hooks, v8::Function)                               \
   V(inspector_enable_async_hooks, v8::Function)                                \
+  V(maybe_cache_generated_source_map, v8::Function)                            \
   V(messaging_deserialize_create_object, v8::Function)                         \
   V(message_port, v8::Object)                                                  \
   V(native_module_require, v8::Function)                                       \

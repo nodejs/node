@@ -29,12 +29,18 @@ namespace node {
 #define NODE_BINDING_LIST_INDEX 36
 #endif
 
+#ifndef NODE_CONTEXT_ALLOW_CODE_GENERATION_FROM_STRINGS_INDEX
+#define NODE_CONTEXT_ALLOW_CODE_GENERATION_FROM_STRINGS_INDEX 37
+#endif
+
 enum ContextEmbedderIndex {
   kEnvironment = NODE_CONTEXT_EMBEDDER_DATA_INDEX,
   kSandboxObject = NODE_CONTEXT_SANDBOX_OBJECT_INDEX,
   kAllowWasmCodeGeneration = NODE_CONTEXT_ALLOW_WASM_CODE_GENERATION_INDEX,
   kContextTag = NODE_CONTEXT_TAG,
-  kBindingListIndex = NODE_BINDING_LIST_INDEX
+  kBindingListIndex = NODE_BINDING_LIST_INDEX,
+  kAllowCodeGenerationFromStrings =
+      NODE_CONTEXT_ALLOW_CODE_GENERATION_FROM_STRINGS_INDEX
 };
 
 }  // namespace node
