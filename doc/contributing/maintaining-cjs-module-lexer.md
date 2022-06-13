@@ -55,3 +55,5 @@ If updates are needed to cjs-module-lexer for Node.js, first PR
 those updates into
 [nodejs/cjs-module-lexer][],
 request a release and then pull in the updated version once available.
+
+[nodejs/cjs-module-lexer]: https://github.com/nodejs/cjs-module-lexer
