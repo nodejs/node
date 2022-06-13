@@ -2058,7 +2058,7 @@ Since the young generation size of the V8 heap is three times (see
 [`YoungGenerationSizeFromSemiSpaceSize`][] in V8) the size of the semi-space,
 an increase of 1 MiB to semi-space applies to each of the three individual
 semi-spaces and causes the heap size to increase by 3 MiB. The throughput
-improvement depends on your workload (see \[#42511]\[]).
+improvement depends on your workload (see [#42511][]).
 
 The default value is 16 MiB for 64-bit systems and 8 MiB for 32-bit systems. To
 get the best configuration for your application, you should try different
@@ -2072,6 +2072,7 @@ for MiB in 16 32 64 128; do
 done
 ```
 
+[#42511]: https://github.com/nodejs/node/issues/42511
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [CommonJS]: modules.md
 [ECMAScript module loader]: esm.md#loaders
