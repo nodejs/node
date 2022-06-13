@@ -225,7 +225,7 @@ always `[0, 0, 0]`.
 <!-- YAML
 added: v0.6.0
 changes:
-  - version: REPLACEME
+  - version: v18.4.0
     pr-url: https://github.com/nodejs/node/pull/43054
     description: The `family` property now returns a string instead of a number.
   - version: v18.0.0

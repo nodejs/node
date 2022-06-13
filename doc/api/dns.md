@@ -179,7 +179,7 @@ section if a custom port is used.
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
+  - version: v18.4.0
     pr-url: https://github.com/nodejs/node/pull/43054
     description: For compatibility with `node:net`, when passing an option
                  object the `family` option can be the string `'IPv4'` or the
