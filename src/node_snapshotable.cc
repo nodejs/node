@@ -511,7 +511,6 @@ void Initialize(Local<Object> target,
                 Local<Context> context,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
-  Isolate* isolate = context->GetIsolate();
   env->SetMethod(target, "compileSerializeMain", CompileSerializeMain);
   env->SetMethod(target, "markBootstrapComplete", MarkBootstrapComplete);
   env->SetMethod(target, "setSerializeCallback", SetSerializeCallback);
