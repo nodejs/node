@@ -295,7 +295,7 @@ without extensioned subpaths using export patterns:
 }
 ```
 
-While the above supports good backwards-compatibility for package upgrades,
+With the above providing backwards-compatibility for any minor package versions,
 a future major change for the package can then properly restrict the exports
 to only the specific feature exports exposed:
 
@@ -309,6 +309,11 @@ to only the specific feature exports exposed:
   }
 }
 ```
+
+Where it is then recommended to pick one of supporting extensioned or
+unextensioned subpaths for consistent usage. In the above example the
+extensioned form is used (ie via `import "my-package/feature/feat.js"`), which
+can be useful to ensure [compatibility with import maps][].
 
 ### Main entry point export
 
@@ -336,7 +341,7 @@ absolute subpath of the package such as
 All supported versions of Node.js (since 12.7.0) and modern build tools
 support the `"exports"` field. For projects using an older version of Node.js
 or a related build tool, compatibility can be achieved by including the `"main"`
-field alongside `"exports"`:
+field alongside `"exports"` pointing to the same module:
 
 ```json
 {
@@ -378,14 +383,49 @@ import submodule from 'es-module-package/private-module.js';
 // Throws ERR_PACKAGE_PATH_NOT_EXPORTED
 ```
 
-Even though subpaths provide an arbitrary string mapping to the package
-interface, it is recommended (but not required) to use explicit file extensions
-when defining package subpaths so that package consumers write
-`import 'pkg/subpath.js'` instead of `import 'pkg/subpath'` as this simplifies
-interoperability with [import maps][] and also mirrors the requirement of using
-[the full specifier path][] in relative and absolute import specifiers. Import
-maps are a cross-platform standard for module resolution, already in use by some
-browsers, server-side JavaScript runtimes, and build tools.
+#### Compatibility with Import Maps
+
+[Import maps][] are a separate cross-platform standard for module resolution,
+already in use by some browsers, server-side JavaScript runtimes, and build
+tools, although not currently implemented or supported in Node.js.
+
+[Import maps][] are able to provide explicit specifier mappings for packages
+and package subpaths, and therefore all mappings defined by Node.js package
+exports and subpath exports can be mapped by a corresponding import map. In
+addition they support [folder mappings][] but not pattern mappings like
+Node.js supports.
+
+Where compatibility with import maps is desired, it is recommended to use
+explicit file extensions when defining package subpaths so that package
+consumers write `import 'pkg/subpath.js'` instead of `import 'pkg/subpath'`.
+Instead of one individual mapping for each subpath entry, the corresponding
+import map can then use a folder mapping to map all export subpaths, instead
+of being bloated with a mapping per subpath:
+
+```json
+{
+  "imports": {
+    "pkg": "/node_modules/pkg/index.js",
+    "pkg/": "/node_modules/pkg/src/"
+  }
+}
+```
+
+instead of the larger:
+
+```json
+{
+  "imports": {
+    "pkg": "/node_modules/pkg/index.js",
+    "pkg/submodule1": "/node_modules/pkg/src/submodule1.js",
+    "pkg/submodule2": "/node_modules/pkg/src/submodule2.js",
+    "pkg/submodule3": "/node_modules/pkg/src/submodule3.js",
+  }
+}
+```
+
+This also mirrors the requirement of using [the full specifier path][] in
+relative and absolute import specifiers.
 
 ### Exports sugar
 
@@ -1307,7 +1347,7 @@ added:
 
 Entries in the imports field must be strings starting with `#`.
 
-Import maps permit mapping to external packages.
+Package imports permit mapping to external packages.
 
 This field defines [subpath imports][] for the current package.
 
@@ -1317,6 +1357,7 @@ This field defines [subpath imports][] for the current package.
 [Corepack]: corepack.md
 [ES module]: esm.md
 [ES modules]: esm.md
+[Import maps]: https://github.com/WICG/import-maps
 [Node.js documentation for this section]: https://github.com/nodejs/node/blob/HEAD/doc/api/packages.md#conditions-definitions
 [`"exports"`]: #exports
 [`"imports"`]: #imports
@@ -1329,9 +1370,10 @@ This field defines [subpath imports][] for the current package.
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported
 [`esm`]: https://github.com/standard-things/esm#readme
 [`package.json`]: #nodejs-packagejson-field-definitions
+[compatibility with import maps]: #compatibility-with-import-maps
 [entry points]: #package-entry-points
 [folders as modules]: modules.md#folders-as-modules
-[import maps]: https://github.com/WICG/import-maps
+[folder mappings]: https://github.com/WICG/import-maps#extension-less-imports
 [load ECMASCript modules from CommonJS modules]: modules.md#the-mjs-extension
 [loader hooks]: esm.md#loaders
 [self-reference]: #self-referencing-a-package-using-its-name
