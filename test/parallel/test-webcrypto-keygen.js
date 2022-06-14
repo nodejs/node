@@ -210,6 +210,15 @@ const vectors = {
 // Test bad usages
 {
   async function test(name) {
+    await assert.rejects(
+      subtle.generateKey(
+        {
+          name, ...vectors[name].algorithm
+        },
+        true,
+        []),
+      { message: /Usages cannot be empty/ });
+
     const invalidUsages = [];
     allUsages.forEach((usage) => {
       if (!vectors[name].usages.includes(usage))

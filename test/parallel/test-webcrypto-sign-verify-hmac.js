@@ -153,7 +153,7 @@ async function testSign({ hash,
   }
 
   await assert.rejects(
-    subtle.generateKey({ name }, false, []), {
+    subtle.generateKey({ name }, false, ['sign', 'verify']), {
       name: 'TypeError',
       code: 'ERR_MISSING_OPTION',
       message: 'algorithm.hash is required'
