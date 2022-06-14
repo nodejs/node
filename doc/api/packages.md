@@ -284,8 +284,10 @@ patterns:
   "exports": {
     ".": "./lib/index.js",
     "./lib": "./lib/index.js",
+    "./lib/*": "./lib/*.js",
     "./lib/*.js": "./lib/*.js",
     "./feature": "./feature/index.js",
+    "./feature/*": "./feature/*.js",
     "./feature/*.js": "./feature/*.js",
     "./package.json": "./package.json"
   }
