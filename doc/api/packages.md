@@ -313,7 +313,7 @@ to only the specific feature exports exposed:
 Where it is then recommended to pick one of supporting extensioned or
 unextensioned subpaths for consistent usage. In the above example the
 extensioned form is used (ie via `import "my-package/feature/feat.js"`), which
-can be useful to ensure [compatibility with import maps][].
+can be useful for better [interoperability with import maps][].
 
 ### Main entry point export
 
@@ -383,7 +383,7 @@ import submodule from 'es-module-package/private-module.js';
 // Throws ERR_PACKAGE_PATH_NOT_EXPORTED
 ```
 
-#### Compatibility with Import Maps
+#### Interoperability with Import Maps
 
 [Import maps][] are a separate cross-platform standard for module resolution,
 already in use by some browsers, server-side JavaScript runtimes, and build
@@ -395,7 +395,7 @@ exports and subpath exports can be mapped by a corresponding import map. In
 addition they support [folder mappings][] but not pattern mappings like
 Node.js supports.
 
-Where compatibility with import maps is desired, it is recommended to use
+Where interoperability with import maps is desired, it is recommended to use
 explicit file extensions when defining package subpaths so that package
 consumers write `import 'pkg/subpath.js'` instead of `import 'pkg/subpath'`.
 Instead of one individual mapping for each subpath entry, the corresponding
@@ -1372,7 +1372,7 @@ This field defines [subpath imports][] for the current package.
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported
 [`esm`]: https://github.com/standard-things/esm#readme
 [`package.json`]: #nodejs-packagejson-field-definitions
-[compatibility with import maps]: #compatibility-with-import-maps
+[interoperability with import maps]: #interoperability-with-import-maps
 [entry points]: #package-entry-points
 [folders as modules]: modules.md#folders-as-modules
 [folder mappings]: https://github.com/WICG/import-maps#extension-less-imports
