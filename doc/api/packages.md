@@ -378,14 +378,14 @@ import submodule from 'es-module-package/private-module.js';
 // Throws ERR_PACKAGE_PATH_NOT_EXPORTED
 ```
 
-Even though subpaths provide an aribtrary string mapping to the package
+Even though subpaths provide an arbitrary string mapping to the package
 interface, it is recommended (but not required) to use explicit file extensions
 when defining package subpaths so that package consumers write
 `import 'pkg/subpath.js'` instead of `import 'pkg/subpath'` as this simplifies
 interoperability with [import maps][] and also mirrors the requirement of using
 [the full specifier path][] in relative and absolute import specifiers. Import
 maps are a cross-platform standard for module resolution, already in use by some
-browsers, server-side JavaScript runtimes and build tools.
+browsers, server-side JavaScript runtimes, and build tools.
 
 ### Exports sugar
 
