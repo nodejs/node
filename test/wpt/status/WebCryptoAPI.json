@@ -1,90 +1,126 @@
 {
-  "derive_bits_keys/ecdh_bits.https.any.js": {
-    "fail": "Derived correct bits expected true got false"
-  },
-  "derive_bits_keys/hkdf.https.any.js": {
-    "fail": "location is not defined"
-  },
-  "derive_bits_keys/pbkdf2.https.any.js": {
-    "fail": "location is not defined"
-  },
-  "digest/digest.https.any.js": {
-    "fail": "Expected NotSupportedError but got TypeError"
-  },
-  "encrypt_decrypt/aes_cbc.https.any.js": {
-    "fail": "Expected OperationError but got Error"
-  },
-  "encrypt_decrypt/rsa_oaep.https.any.js": {
-    "fail": "Expected OperationError but got Error"
-  },
-  "generateKey/failures_AES-CBC.https.any.js": {
-    "fail": "Expected OperationError but got TypeError"
-  },
-  "generateKey/failures_AES-CTR.https.any.js": {
-    "fail": "Expected OperationError but got TypeError"
-  },
-  "generateKey/failures_AES-GCM.https.any.js": {
-    "fail": "Expected OperationError but got TypeError"
-  },
-  "generateKey/failures_AES-KW.https.any.js": {
-    "fail": "Expected OperationError but got TypeError"
-  },
-  "generateKey/failures_ECDH.https.any.js": {
-    "fail": "Expected NotSupportedError but got TypeError"
-  },
-  "generateKey/failures_ECDSA.https.any.js": {
-    "fail": "Expected NotSupportedError but got TypeError"
-  },
-  "generateKey/failures_HMAC.https.any.js": {
-    "fail": "Operation succeeded, but should not have Reached unreachable code"
-  },
-  "generateKey/failures_RSA-OAEP.https.any.js": {
-    "fail": "Operation succeeded, but should not have Reached unreachable code"
-  },
-  "generateKey/failures_RSA-PSS.https.any.js": {
-    "fail": "Operation succeeded, but should not have Reached unreachable code"
-  },
-  "generateKey/failures_RSASSA-PKCS1-v1_5.https.any.js": {
-    "fail": "Operation succeeded, but should not have Reached unreachable code"
-  },
-  "generateKey/successes_AES-CBC.https.any.js": {
-    "fail": "location is not defined"
-  },
-  "generateKey/successes_AES-CTR.https.any.js": {
-    "fail": "location is not defined"
-  },
-  "generateKey/successes_AES-GCM.https.any.js": {
-    "fail": "location is not defined"
-  },
-  "generateKey/successes_AES-KW.https.any.js": {
-    "fail": "location is not defined"
-  },
-  "generateKey/successes_ECDH.https.any.js": {
-    "fail": "location is not defined"
-  },
-  "generateKey/successes_ECDSA.https.any.js": {
-    "fail": "location is not defined"
-  },
-  "generateKey/successes_HMAC.https.any.js": {
-    "fail": "location is not defined"
-  },
-  "generateKey/successes_RSA-OAEP.https.any.js": {
-    "fail": "location is not defined"
-  },
-  "generateKey/successes_RSA-PSS.https.any.js": {
-    "fail": "location is not defined"
-  },
-  "generateKey/successes_RSASSA-PKCS1-v1_5.https.any.js": {
-    "fail": "location is not defined"
-  },
-  "getRandomValues.any.js": {
-    "fail": "The data argument must be an integer-type TypedArray"
+  "algorithm-discards-context.https.window.js": {
+    "fail": "document is not defined"
   },
   "historical.any.js": {
     "fail": "expected (undefined) undefined but got..."
   },
+  "generateKey/failures_AES-CTR.https.any.js": {
+    "fail": {
+      "expected": [
+        "assert_equals: Bad algorithm property not supported expected \"OperationError\" but got \"TypeError\"",
+        "assert_equals: Bad algorithm property not supported expected \"OperationError\" but got \"SyntaxError\""
+      ]
+    }
+  },
+  "generateKey/failures_ECDH.https.any.js": {
+    "fail": {
+      "expected": [
+        "assert_equals: Bad algorithm property not supported expected \"NotSupportedError\" but got \"TypeError\"",
+        "assert_equals: Bad algorithm property not supported expected \"NotSupportedError\" but got \"SyntaxError\""
+      ]
+    }
+  },
+  "generateKey/failures_ECDSA.https.any.js": {
+    "fail": {
+      "expected": [
+        "assert_equals: Bad algorithm property not supported expected \"NotSupportedError\" but got \"TypeError\"",
+        "assert_equals: Bad algorithm property not supported expected \"NotSupportedError\" but got \"SyntaxError\""
+      ]
+    }
+  },
+  "generateKey/failures_AES-CBC.https.any.js": {
+    "fail": {
+      "expected": [
+        "assert_equals: Bad algorithm property not supported expected \"OperationError\" but got \"TypeError\"",
+        "assert_equals: Bad algorithm property not supported expected \"OperationError\" but got \"SyntaxError\""
+      ]
+    }
+  },
+  "generateKey/failures_AES-GCM.https.any.js": {
+    "fail": {
+      "expected": [
+        "assert_equals: Bad algorithm property not supported expected \"OperationError\" but got \"TypeError\"",
+        "assert_equals: Bad algorithm property not supported expected \"OperationError\" but got \"SyntaxError\""
+      ]
+    }
+  },
+  "generateKey/failures_AES-KW.https.any.js": {
+    "fail": {
+      "expected": [
+        "assert_equals: Bad algorithm property not supported expected \"OperationError\" but got \"TypeError\"",
+        "assert_equals: Bad algorithm property not supported expected \"OperationError\" but got \"SyntaxError\""
+      ]
+    }
+  },
+  "generateKey/failures_RSA-PSS.https.any.js": {
+    "fail": {
+      "expected": [
+        "assert_equals: Bad algorithm property not supported expected \"OperationError\" but got \"SyntaxError\""
+      ]
+    }
+  },
+  "generateKey/failures_RSASSA-PKCS1-v1_5.https.any.js": {
+    "fail": {
+      "expected": [
+        "assert_equals: Bad algorithm property not supported expected \"OperationError\" but got \"SyntaxError\""
+      ]
+    }
+  },
   "idlharness.https.any.js": {
     "fail": "Various non-IDL-compliant things"
+  },
+  "encrypt_decrypt/aes_cbc.https.any.js": {
+    "fail": {
+      "expected": [
+        "assert_equals: Should throw an OperationError instead of error:1C800064:Provider routines::bad decrypt expected \"OperationError\" but got \"Error\""
+      ]
+    }
+  },
+  "derive_bits_keys/hkdf.https.any.js": {
+    "fail": {
+      "expected": [
+        "assert_equals: deriveBits with null length correctly threw OperationError: The \"length\" argument must be of type number. Received null expected \"OperationError\" but got \"TypeError\"",
+        "assert_unreached: deriveBits failed with error TypeError: The \"baseKey\" argument must be an instance of CryptoKey. Received null Reached unreachable code",
+        "assert_equals: deriveBits with 0 length correctly threw OperationError: The \"baseKey\" argument must be an instance of CryptoKey. Received null expected \"OperationError\" but got \"TypeError\"",
+        "assert_unreached: deriveKey failed with error TypeError: The \"baseKey\" argument must be an instance of CryptoKey. Received null Reached unreachable code",
+        "assert_equals: deriveKey with missing deriveKey usage correctly threw InvalidAccessError: The \"baseKey\" argument must be an instance of CryptoKey. Received null expected \"InvalidAccessError\" but got \"TypeError\"",
+        "assert_equals: deriveBits with null length correctly threw OperationError: The \"baseKey\" argument must be an instance of CryptoKey. Received null expected \"OperationError\" but got \"TypeError\"",
+        "assert_equals: deriveBits with non-multiple of 8 length correctly threw OperationError: The \"baseKey\" argument must be an instance of CryptoKey. Received null expected \"OperationError\" but got \"TypeError\"",
+        "assert_equals: deriveBits with missing deriveBits usage correctly threw InvalidAccessError: The \"baseKey\" argument must be an instance of CryptoKey. Received null expected \"InvalidAccessError\" but got \"TypeError\""
+      ]
+    }
+  },
+  "derive_bits_keys/pbkdf2.https.any.js": {
+    "fail": {
+      "expected": [
+        "assert_equals: deriveBits with null length correctly threw OperationError: The \"length\" argument must be of type number. Received null expected \"OperationError\" but got \"TypeError\"",
+        "assert_equals: deriveBits with 0 iterations correctly threw OperationError: The value of \"algorithm.iterations\" is out of range. It must be >= 1 && <= 9007199254740991. Received 0 expected \"OperationError\" but got \"RangeError\"",
+        "assert_equals: derivekey with 0 iterations correctly threw OperationError: The value of \"algorithm.iterations\" is out of range. It must be >= 1 && <= 9007199254740991. Received 0 expected \"OperationError\" but got \"RangeError\"",
+        "assert_unreached: deriveBits failed with error TypeError: The \"baseKey\" argument must be an instance of CryptoKey. Received null Reached unreachable code",
+        "assert_unreached: deriveKey failed with error TypeError: The \"baseKey\" argument must be an instance of CryptoKey. Received null Reached unreachable code",
+        "assert_equals: deriveKey with missing deriveKey usage correctly threw InvalidAccessError: The \"baseKey\" argument must be an instance of CryptoKey. Received null expected \"InvalidAccessError\" but got \"TypeError\"",
+        "assert_equals: deriveBits with null length correctly threw OperationError: The \"baseKey\" argument must be an instance of CryptoKey. Received null expected \"OperationError\" but got \"TypeError\"",
+        "assert_equals: deriveBits with 0 length correctly threw OperationError: The \"baseKey\" argument must be an instance of CryptoKey. Received null expected \"OperationError\" but got \"TypeError\"",
+        "assert_equals: deriveBits with non-multiple of 8 length correctly threw OperationError: The \"baseKey\" argument must be an instance of CryptoKey. Received null expected \"OperationError\" but got \"TypeError\"",
+        "assert_equals: deriveBits with missing deriveBits usage correctly threw InvalidAccessError: The \"baseKey\" argument must be an instance of CryptoKey. Received null expected \"InvalidAccessError\" but got \"TypeError\"",
+        "assert_equals: deriveBits with 0 iterations correctly threw OperationError: The \"baseKey\" argument must be an instance of CryptoKey. Received null expected \"OperationError\" but got \"TypeError\"",
+        "assert_equals: derivekey with 0 iterations correctly threw OperationError: The \"baseKey\" argument must be an instance of CryptoKey. Received null expected \"OperationError\" but got \"TypeError\""
+      ]
+    }
+  },
+  "generateKey/failures_RSA-OAEP.https.any.js": {
+    "fail": {
+      "expected": [
+        "assert_equals: Bad algorithm property not supported expected \"OperationError\" but got \"SyntaxError\""
+      ]
+    }
+  },
+  "encrypt_decrypt/rsa_oaep.https.any.js": {
+    "fail": {
+      "expected": [
+        "assert_equals: Should throw OperationError instead of error:0200006E:rsa routines::data too large for key size expected \"OperationError\" but got \"Error\""
+      ]
+    }
   }
 }
-
