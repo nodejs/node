@@ -229,21 +229,22 @@ not ok 22 - sync throw non-error fail
   ...
 # Subtest: level 0a
     # Subtest: level 1a
-    # Subtest: level 1b
-    # Subtest: level 1c
-    # Subtest: level 1d
     ok 1 - level 1a
       ---
       duration_ms: *
       ...
+    # Subtest: level 1b
     ok 2 - level 1b
       ---
       duration_ms: *
       ...
+# Subtest: level 0a
+    # Subtest: level 1c
     ok 3 - level 1c
       ---
       duration_ms: *
       ...
+    # Subtest: level 1d
     ok 4 - level 1d
       ---
       duration_ms: *
@@ -255,8 +256,6 @@ ok 23 - level 0a
   ...
 # Subtest: top level
     # Subtest: +long running
-    # Subtest: +short running
-        # Subtest: ++short running
     not ok 1 - +long running
       ---
       duration_ms: *
@@ -264,6 +263,8 @@ ok 23 - level 0a
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
       ...
+    # Subtest: +short running
+        # Subtest: ++short running
         ok 1 - ++short running
           ---
           duration_ms: *
@@ -455,18 +456,6 @@ not ok 50 - callback called twice in future tick
     *
   ...
 # Subtest: callback async throw
-# Subtest: callback async throw after done
-# Subtest: only is set but not in only mode
-    # Subtest: running subtest 1
-    # Subtest: running subtest 2
-    # Subtest: running subtest 3
-    # Subtest: running subtest 4
-# Subtest: custom inspect symbol fail
-# Subtest: custom inspect symbol that throws fail
-# Subtest: subtest sync throw fails
-    # Subtest: sync throw fails at first
-    # Subtest: sync throw fails at second
-# Subtest: invalid subtest fail
 not ok 51 - callback async throw
   ---
   duration_ms: *
@@ -476,22 +465,28 @@ not ok 51 - callback async throw
   stack: |-
     *
   ...
+# Subtest: callback async throw after done
 ok 52 - callback async throw after done
   ---
   duration_ms: *
   ...
+# Subtest: only is set but not in only mode
+    # Subtest: running subtest 1
     ok 1 - running subtest 1
       ---
       duration_ms: *
       ...
+    # Subtest: running subtest 2
     ok 2 - running subtest 2
       ---
       duration_ms: *
       ...
+    # Subtest: running subtest 3
     ok 3 - running subtest 3
       ---
       duration_ms: *
       ...
+    # Subtest: running subtest 4
     ok 4 - running subtest 4
       ---
       duration_ms: *
@@ -501,6 +496,7 @@ ok 53 - only is set but not in only mode
   ---
   duration_ms: *
   ...
+# Subtest: custom inspect symbol fail
 not ok 54 - custom inspect symbol fail
   ---
   duration_ms: *
@@ -508,6 +504,7 @@ not ok 54 - custom inspect symbol fail
   error: 'customized'
   code: 'ERR_TEST_FAILURE'
   ...
+# Subtest: custom inspect symbol that throws fail
 not ok 55 - custom inspect symbol that throws fail
   ---
   duration_ms: *
@@ -519,6 +516,8 @@ not ok 55 - custom inspect symbol that throws fail
     }
   code: 'ERR_TEST_FAILURE'
   ...
+# Subtest: subtest sync throw fails
+    # Subtest: sync throw fails at first
     not ok 1 - sync throw fails at first
       ---
       duration_ms: *
@@ -537,6 +536,7 @@ not ok 55 - custom inspect symbol that throws fail
         *
         *
       ...
+    # Subtest: sync throw fails at second
     not ok 2 - sync throw fails at second
       ---
       duration_ms: *
@@ -563,6 +563,7 @@ not ok 56 - subtest sync throw fails
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
   ...
+# Subtest: invalid subtest fail
 not ok 57 - invalid subtest fail
   ---
   duration_ms: *
