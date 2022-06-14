@@ -238,7 +238,6 @@ not ok 22 - sync throw non-error fail
       ---
       duration_ms: *
       ...
-# Subtest: level 0a
     # Subtest: level 1c
     ok 3 - level 1c
       ---
