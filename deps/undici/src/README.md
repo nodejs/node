@@ -185,13 +185,12 @@ Help us improve the test coverage by following instructions at [nodejs/undici/#9
 Basic usage example:
 
 ```js
-    import {fetch} from 'undici';
+import { fetch } from 'undici';
 
-    async function fetchJson() {
-        const res = await fetch('https://example.com')
-        const json = await res.json()
-        console.log(json);
-    }
+
+const res = await fetch('https://example.com')
+const json = await res.json()
+console.log(json);
 ```
 
 You can pass an optional dispatcher to `fetch` as:
@@ -235,9 +234,7 @@ const data = {
   },
 };
 
-(async () => {
-  await fetch("https://example.com", { body: data, method: 'POST' });
-})();
+await fetch("https://example.com", { body: data, method: 'POST' });
 ```
 
 #### `response.body`
@@ -245,14 +242,12 @@ const data = {
 Nodejs has two kinds of streams: [web streams](https://nodejs.org/dist/latest-v16.x/docs/api/webstreams.html), which follow the API of the WHATWG web standard found in browsers, and an older Node-specific [streams API](https://nodejs.org/api/stream.html). `response.body` returns a readable web stream. If you would prefer to work with a Node stream you can convert a web stream using `.fromWeb()`.
 
 ```js
-    import {fetch} from 'undici';
-    import {Readable} from 'node:stream';
+import { fetch } from 'undici';
+import { Readable } from 'node:stream';
 
-    async function fetchStream() {
-        const response = await fetch('https://example.com')
-        const readableWebStream = response.body;
-        const readableNodeStream = Readable.fromWeb(readableWebStream);
-    }
+const response = await fetch('https://example.com')
+const readableWebStream = response.body;
+const readableNodeStream = Readable.fromWeb(readableWebStream);
 ```
 
 #### Specification Compliance
