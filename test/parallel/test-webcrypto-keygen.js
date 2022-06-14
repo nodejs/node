@@ -211,6 +211,14 @@ const vectors = {
       if (!vectors[name].usages.includes(usage))
         invalidUsages.push(usage);
     });
+    await assert.rejects(
+      subtle.generateKey(
+        {
+          name, ...vectors[name].algorithm
+        },
+        true,
+        []),
+      { message: /Usages cannot be empty/ });
     return assert.rejects(
       subtle.generateKey(
         {
@@ -340,6 +348,17 @@ const vectors = {
         hash
       }, true, usages), {
         code: 'ERR_INVALID_ARG_TYPE'
+      });
+    }));
+
+    await Promise.all([[1], [1, 0, 0]].map((publicExponent) => {
+      return assert.rejects(subtle.generateKey({
+        name,
+        modulusLength,
+        publicExponent: new Uint8Array(publicExponent),
+        hash
+      }, true, usages), {
+        name: 'OperationError',
       });
     }));
   }
