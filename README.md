@@ -637,7 +637,7 @@ For information about the governance of the Node.js project, see
 
 </details>
 
-<!--lint enable prohibited-strings-->
+<!-- lint enable prohibited-strings -->
 
 Collaborators follow the [Collaborator Guide](./doc/contributing/collaborator-guide.md) in
 maintaining the Node.js project.
