@@ -71,6 +71,25 @@ callbackFunction((err, ret) => {
 });
 ```
 
+## `util.colorText(format, text)`
+
+<!-- YAML
+added: v18.3.0
+-->
+
+* `format` {string} `format` one of the color format from `util.inspect.colors`
+* `text` {string} The text you would like to color
+* Returns: {string} colored text string
+
+Takes `format` and `text` and retuns the colored text form
+
+```js
+const util = require('node:util');
+
+console.log(util.colorText('red', 'This text shall be in red color'));
+// ^ '\u001b[31mThis text shall be in red color\u001b[39m'
+```
+
 ## `util.debuglog(section[, callback])`
 
 <!-- YAML
