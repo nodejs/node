@@ -3,6 +3,7 @@ const replaceInfo = require('../utils/replace-info.js')
 const BaseCommand = require('../base-command.js')
 const authTypes = {
   legacy: require('../auth/legacy.js'),
+  webauthn: require('../auth/legacy.js'),
   oauth: require('../auth/oauth.js'),
   saml: require('../auth/saml.js'),
   sso: require('../auth/sso.js'),
@@ -14,6 +15,7 @@ class AddUser extends BaseCommand {
   static params = [
     'registry',
     'scope',
+    'auth-type',
   ]
 
   static ignoreImplicitWorkspace = true
