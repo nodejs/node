@@ -52,7 +52,11 @@ const remoteFetch = (request, options) => {
       if (_opts.integrity && res.status === 200) {
         // we got a 200 response and the user has specified an expected
         // integrity value, so wrap the response in an ssri stream to verify it
-        const integrityStream = ssri.integrityStream({ integrity: _opts.integrity })
+        const integrityStream = ssri.integrityStream({
+          algorithms: _opts.algorithms,
+          integrity: _opts.integrity,
+          size: _opts.size,
+        })
         const pipeline = new CachingMinipassPipeline({
           events: ['integrity', 'size'],
         }, res.body, integrityStream)

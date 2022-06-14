@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "May 2022" "" ""
+.TH "PACKAGE\.JSON" "5" "June 2022" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SS Description
@@ -721,6 +721,34 @@ git+https://isaacs@github\.com/npm/cli\.git
 git://github\.com/npm/cli\.git#v1\.0\.27
 .fi
 .RE
+.P
+When installing from a \fBgit\fP repository, the presence of certain fields in the
+\fBpackage\.json\fP will cause npm to believe it needs to perform a build\. To do so
+your repository will be cloned into a temporary directory, all of its deps
+installed, relevant scripts run, and the resulting directory packed and
+installed\.
+.P
+This flow will occur if your git dependency uses \fBworkspaces\fP, or if any of the
+following scripts are present:
+.RS 0
+.IP \(bu 2
+\fBbuild\fP
+.IP \(bu 2
+\fBprepare\fP
+.IP \(bu 2
+\fBprepack\fP
+.IP \(bu 2
+\fBpreinstall\fP
+.IP \(bu 2
+\fBinstall\fP
+.IP \(bu 2
+\fBpostinstall\fP
+
+.RE
+.P
+If your git repository includes pre\-built artifacts, you will likely want to
+make sure that none of the above scripts are defined, or your dependency
+will be rebuilt for every installation\.
 .SS GitHub URLs
 .P
 As of version 1\.1\.65, you can refer to GitHub urls as just "foo":

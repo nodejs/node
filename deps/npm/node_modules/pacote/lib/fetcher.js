@@ -18,6 +18,7 @@ const removeTrailingSlashes = require('./util/trailing-slashes.js')
 const getContents = require('@npmcli/installed-package-contents')
 const readPackageJsonFast = require('read-package-json-fast')
 const readPackageJson = promisify(require('read-package-json'))
+const Minipass = require('minipass')
 
 // we only change ownership on unix platforms, and only if uid is 0
 const selfOwner = process.getuid && process.getuid() === 0 ? {
@@ -105,15 +106,10 @@ class FetcherBase {
       this[_readPackageJson] = readPackageJsonFast
     }
 
-    // config values: npmjs (default), never, always
-    // we don't want to mutate the original value
-    if (opts.replaceRegistryHost !== 'never'
-      && opts.replaceRegistryHost !== 'always'
-    ) {
-      this.replaceRegistryHost = 'npmjs'
-    } else {
-      this.replaceRegistryHost = opts.replaceRegistryHost
-    }
+    // rrh is a registry hostname or 'never' or 'always'
+    // defaults to registry.npmjs.org
+    this.replaceRegistryHost = (!opts.replaceRegistryHost || opts.replaceRegistryHost === 'npmjs') ?
+      'registry.npmjs.org' : opts.replaceRegistryHost
 
     this.defaultTag = opts.defaultTag || 'latest'
     this.registry = removeTrailingSlashes(opts.registry || 'https://registry.npmjs.org')
@@ -224,18 +220,18 @@ class FetcherBase {
   }
 
   [_istream] (stream) {
-    // everyone will need one of these, either for verifying or calculating
-    // We always set it, because we have might only have a weak legacy hex
-    // sha1 in the packument, and this MAY upgrade it to a stronger algo.
-    // If we had an integrity, and it doesn't match, then this does not
-    // override that error; the istream will raise the error before it
-    // gets to the point of re-setting the integrity.
-    const istream = ssri.integrityStream(this.opts)
-    istream.on('integrity', i => this.integrity = i)
-    stream.on('error', er => istream.emit('error', er))
-
-    // if not caching this, just pipe through to the istream and return it
+    // if not caching this, just return it
     if (!this.opts.cache || !this[_cacheFetches]) {
+      // instead of creating a new integrity stream, we only piggyback on the
+      // provided stream's events
+      if (stream.hasIntegrityEmitter) {
+        stream.on('integrity', i => this.integrity = i)
+        return stream
+      }
+
+      const istream = ssri.integrityStream(this.opts)
+      istream.on('integrity', i => this.integrity = i)
+      stream.on('error', err => istream.emit('error', err))
       return stream.pipe(istream)
     }
 
@@ -243,21 +239,23 @@ class FetcherBase {
     // but then pipe from the original tarball stream into the cache as well.
     // To do this without losing any data, and since the cacache put stream
     // is not a passthrough, we have to pipe from the original stream into
-    // the cache AFTER we pipe into the istream.  Since the cache stream
+    // the cache AFTER we pipe into the middleStream.  Since the cache stream
     // has an asynchronous flush to write its contents to disk, we need to
-    // defer the istream end until the cache stream ends.
-    stream.pipe(istream, { end: false })
+    // defer the middleStream end until the cache stream ends.
+    const middleStream = new Minipass()
+    stream.on('error', err => middleStream.emit('error', err))
+    stream.pipe(middleStream, { end: false })
     const cstream = cacache.put.stream(
       this.opts.cache,
       `pacote:tarball:${this.from}`,
       this.opts
     )
+    cstream.on('integrity', i => this.integrity = i)
+    cstream.on('error', err => stream.emit('error', err))
     stream.pipe(cstream)
-    // defer istream end until after cstream
-    // cache write errors should not crash the fetch, this is best-effort.
-    cstream.promise().catch(() => {}).then(() => istream.end())
 
-    return istream
+    cstream.promise().catch(() => {}).then(() => middleStream.end())
+    return middleStream
   }
 
   pickIntegrityAlgorithm () {

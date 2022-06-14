@@ -560,6 +560,23 @@ results in no commit being made at all.
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
 
+#### \`global\`
+
+* Default: false
+* Type: Boolean
+
+Operates in "global" mode, so that packages are installed into the \`prefix\`
+folder instead of the current working directory. See
+[folders](/configuring-npm/folders) for more on the differences in behavior.
+
+* packages are installed into the \`{prefix}/lib/node_modules\` folder, instead
+  of the current working directory.
+* bin files are linked to \`{prefix}/bin\`
+* man pages are linked to \`{prefix}/share/man\`
+
+<!-- automatically generated, do not edit manually -->
+<!-- see lib/utils/config/definitions.js -->
+
 #### \`global-style\`
 
 * Default: false
@@ -1764,11 +1781,13 @@ When set to \`dev\` or \`development\`, this is an alias for \`--include=dev\`.
 #### \`auth-type\`
 
 * Default: "legacy"
-* Type: "legacy", "sso", "saml", or "oauth"
-* DEPRECATED: This method of SSO/SAML/OAuth is deprecated and will be removed
-  in a future version of npm in favor of web-based login.
+* Type: "legacy", "webauthn", "sso", "saml", or "oauth"
+* DEPRECATED: The SSO/SAML/OAuth methods are deprecated and will be removed in
+  a future version of npm in favor of web-based login.
 
 What authentication strategy to use with \`adduser\`/\`login\`.
+
+Pass \`webauthn\` to use a web-based login.
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->
@@ -1802,25 +1821,6 @@ What authentication strategy to use with \`adduser\`/\`login\`.
 * DEPRECATED: Please use --include=dev instead.
 
 Alias for \`--include=dev\`.
-
-<!-- automatically generated, do not edit manually -->
-<!-- see lib/utils/config/definitions.js -->
-
-#### \`global\`
-
-* Default: false
-* Type: Boolean
-* DEPRECATED: \`--global\`, \`--local\` are deprecated. Use \`--location=global\`
-  instead.
-
-Operates in "global" mode, so that packages are installed into the \`prefix\`
-folder instead of the current working directory. See
-[folders](/configuring-npm/folders) for more on the differences in behavior.
-
-* packages are installed into the \`{prefix}/lib/node_modules\` folder, instead
-  of the current working directory.
-* bin files are linked to \`{prefix}/bin\`
-* man pages are linked to \`{prefix}/share/man\`
 
 <!-- automatically generated, do not edit manually -->
 <!-- see lib/utils/config/definitions.js -->

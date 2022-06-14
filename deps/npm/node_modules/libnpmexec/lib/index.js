@@ -166,7 +166,7 @@ const exec = async (opts) => {
     const add = manis
       .filter(mani => !mani[_localManifest])
       .filter(filterMissingPackagesFromInstallDir)
-      .map(mani => mani._from)
+      .map(mani => mani._id || mani._from)
       .sort((a, b) => a.localeCompare(b, 'en'))
 
     // no need to install if already present

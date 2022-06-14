@@ -1,4 +1,4 @@
-.TH "NPM\-INIT" "1" "May 2022" "" ""
+.TH "NPM\-INIT" "1" "June 2022" "" ""
 .SH "NAME"
 \fBnpm-init\fR \- Create a package\.json file
 .SS Synopsis
@@ -286,6 +286,17 @@ other things (test, exec, publish, etc\.) will operate on the root project,
 .RE
 .P
 This value is not exported to the environment for child processes\.
+.SS \fBworkspaces\-update\fP
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If set to true, the npm cli will run an update after operations that may
+possibly change the workspaces installed to the \fBnode_modules\fP folder\.
 .SS \fBinclude\-workspace\-root\fP
 .RS 0
 .IP \(bu 2

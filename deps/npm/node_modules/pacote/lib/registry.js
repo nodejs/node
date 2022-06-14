@@ -122,11 +122,12 @@ class RegistryFetcher extends Fetcher {
     }
 
     const packument = await this.packument()
-    const mani = await pickManifest(packument, this.spec.fetchSpec, {
+    let mani = await pickManifest(packument, this.spec.fetchSpec, {
       ...this.opts,
       defaultTag: this.defaultTag,
       before: this.before,
     })
+    mani = rpj.normalize(mani)
     /* XXX add ETARGET and E403 revalidation of cached packuments here */
 
     // add _resolved and _integrity from dist object
@@ -165,49 +166,53 @@ class RegistryFetcher extends Fetcher {
       mani._integrity = String(this.integrity)
       if (dist.signatures) {
         if (this.opts.verifySignatures) {
-          if (this.registryKeys) {
-            // validate and throw on error, then set _signatures
-            const message = `${mani._id}:${mani._integrity}`
-            for (const signature of dist.signatures) {
-              const publicKey = this.registryKeys.filter(key => (key.keyid === signature.keyid))[0]
-              if (!publicKey) {
-                throw Object.assign(new Error(
-                  `${mani._id} has a signature with keyid: ${signature.keyid} ` +
-                  'but no corresponding public key can be found.'
-                ), { code: 'EMISSINGSIGNATUREKEY' })
-              }
-              const validPublicKey =
-                !publicKey.expires || (Date.parse(publicKey.expires) > Date.now())
-              if (!validPublicKey) {
-                throw Object.assign(new Error(
-                  `${mani._id} has a signature with keyid: ${signature.keyid} ` +
-                  `but the corresponding public key has expired ${publicKey.expires}`
-                ), { code: 'EEXPIREDSIGNATUREKEY' })
-              }
-              const verifier = crypto.createVerify('SHA256')
-              verifier.write(message)
-              verifier.end()
-              const valid = verifier.verify(
-                publicKey.pemkey,
-                signature.sig,
-                'base64'
-              )
-              if (!valid) {
-                throw Object.assign(new Error(
-                  'Integrity checksum signature failed: ' +
-                  `key ${publicKey.keyid} signature ${signature.sig}`
-                ), { code: 'EINTEGRITYSIGNATURE' })
-              }
+          // validate and throw on error, then set _signatures
+          const message = `${mani._id}:${mani._integrity}`
+          for (const signature of dist.signatures) {
+            const publicKey = this.registryKeys &&
+              this.registryKeys.filter(key => (key.keyid === signature.keyid))[0]
+            if (!publicKey) {
+              throw Object.assign(new Error(
+                  `${mani._id} has a registry signature with keyid: ${signature.keyid} ` +
+                  'but no corresponding public key can be found'
+              ), { code: 'EMISSINGSIGNATUREKEY' })
             }
-            mani._signatures = dist.signatures
+            const validPublicKey =
+              !publicKey.expires || (Date.parse(publicKey.expires) > Date.now())
+            if (!validPublicKey) {
+              throw Object.assign(new Error(
+                  `${mani._id} has a registry signature with keyid: ${signature.keyid} ` +
+                  `but the corresponding public key has expired ${publicKey.expires}`
+              ), { code: 'EEXPIREDSIGNATUREKEY' })
+            }
+            const verifier = crypto.createVerify('SHA256')
+            verifier.write(message)
+            verifier.end()
+            const valid = verifier.verify(
+              publicKey.pemkey,
+              signature.sig,
+              'base64'
+            )
+            if (!valid) {
+              throw Object.assign(new Error(
+                  `${mani._id} has an invalid registry signature with ` +
+                  `keyid: ${publicKey.keyid} and signature: ${signature.sig}`
+              ), {
+                code: 'EINTEGRITYSIGNATURE',
+                keyid: publicKey.keyid,
+                signature: signature.sig,
+                resolved: mani._resolved,
+                integrity: mani._integrity,
+              })
+            }
           }
-          // if no keys, don't set _signatures
+          mani._signatures = dist.signatures
         } else {
           mani._signatures = dist.signatures
         }
       }
     }
-    this.package = rpj.normalize(mani)
+    this.package = mani
     return this.package
   }
 

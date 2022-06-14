@@ -33,6 +33,7 @@ npm adduser
 
 Options:
 [--registry <registry>] [--scope <@scope>]
+[--auth-type <legacy|webauthn|sso|saml|oauth>]
 
 aliases: login, add-user
 
@@ -396,7 +397,7 @@ npm init [<@scope>/]<name> (same as \`npx [<@scope>/]create-<name>\`)
 Options:
 [-y|--yes] [-f|--force]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root]
+[-ws|--workspaces] [--no-workspaces-update] [--include-workspace-root]
 
 aliases: create, innit
 
@@ -523,6 +524,7 @@ npm adduser
 
 Options:
 [--registry <registry>] [--scope <@scope>]
+[--auth-type <legacy|webauthn|sso|saml|oauth>]
 
 aliases: login, add-user
 

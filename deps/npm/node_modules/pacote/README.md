@@ -237,6 +237,7 @@ In addition to the common `package.json` fields, manifests include:
   artifact can be found.
 * `manifest._from` A normalized form of the spec passed in as an argument.
 * `manifest._integrity` The integrity value for the package artifact.
+* `manifest._id` The canonical spec of this package version: name@version.
 * `manifest.dist` Registry manifests (those included in a packument) have a
   `dist` object.  Only `tarball` is required, though at least one of
   `shasum` or `integrity` is almost always present.
@@ -274,3 +275,8 @@ For Pacote's purposes, the following fields are relevant:
   `foo@latest` gets turned into `foo@1.2.3`.
 * `time` In the full packument, an object mapping version numbers to
   publication times, for the `opts.before` functionality.
+
+Pacote adds the following fields, regardless of the accept header:
+
+* `_cached` Whether the packument was fetched from the network or the local cache.
+* `_contentLength` The size of the packument.

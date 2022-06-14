@@ -238,13 +238,15 @@ define('audit-level', {
 
 define('auth-type', {
   default: 'legacy',
-  type: ['legacy', 'sso', 'saml', 'oauth'],
+  type: ['legacy', 'webauthn', 'sso', 'saml', 'oauth'],
   deprecated: `
-    This method of SSO/SAML/OAuth is deprecated and will be removed in
+    The SSO/SAML/OAuth methods are deprecated and will be removed in
     a future version of npm in favor of web-based login.
   `,
   description: `
     What authentication strategy to use with \`adduser\`/\`login\`.
+
+    Pass \`webauthn\` to use a web-based login.
   `,
   flatten,
 })
@@ -811,9 +813,6 @@ define('global', {
   default: false,
   type: Boolean,
   short: 'g',
-  deprecated: `
-    \`--global\`, \`--local\` are deprecated. Use \`--location=global\` instead.
-  `,
   description: `
     Operates in "global" mode, so that packages are installed into the
     \`prefix\` folder instead of the current working directory.  See

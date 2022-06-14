@@ -92,7 +92,12 @@ class Edge {
       return false
     }
 
-    return depValid(node, this.spec, this.accept, this.from)
+    // NOTE: this condition means we explicitly do not support overriding
+    // bundled or shrinkwrapped dependencies
+    const spec = (node.hasShrinkwrap || node.inShrinkwrap || node.inBundle)
+      ? this.rawSpec
+      : this.spec
+    return depValid(node, spec, this.accept, this.from)
   }
 
   explain (seen = []) {

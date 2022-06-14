@@ -190,6 +190,7 @@ All commands:
 
                     Options:
                     [--registry <registry>] [--scope <@scope>]
+                    [--auth-type <legacy|webauthn|sso|saml|oauth>]
 
                     aliases: login, add-user
 
@@ -486,7 +487,7 @@ All commands:
                     Options:
                     [-y|--yes] [-f|--force]
                     [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-                    [-ws|--workspaces] [--include-workspace-root]
+                    [-ws|--workspaces] [--no-workspaces-update] [--include-workspace-root]
 
                     aliases: create, innit
 
@@ -601,6 +602,7 @@ All commands:
 
                     Options:
                     [--registry <registry>] [--scope <@scope>]
+                    [--auth-type <legacy|webauthn|sso|saml|oauth>]
 
                     aliases: login, add-user
 

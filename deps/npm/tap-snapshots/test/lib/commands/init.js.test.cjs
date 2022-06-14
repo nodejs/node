@@ -10,26 +10,53 @@ Array []
 `
 
 exports[`test/lib/commands/init.js TAP workspaces no args > should print helper info 1`] = `
+Array []
+`
+
+exports[`test/lib/commands/init.js TAP workspaces no args, existing folder > should print helper info 1`] = `
+Array []
+`
+
+exports[`test/lib/commands/init.js TAP workspaces post workspace-init reify > should print helper info 1`] = `
 Array [
   Array [
     String(
-      This utility will walk you through creating a package.json file.
-      It only covers the most common items, and tries to guess sensible defaults.
 
-      See \`npm help init\` for definitive documentation on these fields
-      and exactly what they do.
-
-      Use \`npm install <pkg>\` afterwards to install a package and
-      save it as a dependency in the package.json file.
-
-      Press ^C at any time to quit.
+      added 1 package in 100ms
     ),
   ],
 ]
 `
 
-exports[`test/lib/commands/init.js TAP workspaces no args, existing folder > should print helper info 1`] = `
-Array []
+exports[`test/lib/commands/init.js TAP workspaces post workspace-init reify > should reify tree on init ws complete 1`] = `
+{
+  "name": "top-level",
+  "lockfileVersion": 2,
+  "requires": true,
+  "packages": {
+    "": {
+      "name": "top-level",
+      "workspaces": [
+        "a"
+      ]
+    },
+    "a": {
+      "version": "1.0.0",
+      "license": "ISC",
+      "devDependencies": {}
+    },
+    "node_modules/a": {
+      "resolved": "a",
+      "link": true
+    }
+  },
+  "dependencies": {
+    "a": {
+      "version": "file:a"
+    }
+  }
+}
+
 `
 
 exports[`test/lib/commands/init.js TAP workspaces with arg but missing workspace folder > should print helper info 1`] = `
