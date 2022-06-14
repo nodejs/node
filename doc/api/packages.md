@@ -920,7 +920,7 @@ This approach is appropriate for any of the following use cases:
   refactor the package to isolate its state management. See the next section.
 
 A variant of this approach not requiring conditional exports for consumers could
-be to add an export, e.g. `"./module.mjs"`, to point to an all-ES module-syntax
+be to add an export, e.g. `"./module"`, to point to an all-ES module-syntax
 version of the package. This could be used via `import 'pkg/module'` by users
 who are certain that the CommonJS version will not be loaded anywhere in the
 application, such as by dependencies; or if the CommonJS version can be loaded
@@ -933,7 +933,7 @@ stateless):
   "type": "module",
   "exports": {
     ".": "./index.cjs",
-    "./module.mjs": "./wrapper.mjs"
+    "./module": "./wrapper.mjs"
   }
 }
 ```
@@ -1026,7 +1026,7 @@ execution between the CommonJS and ES module versions of a package.
 
 As with the previous approach, a variant of this approach not requiring
 conditional exports for consumers could be to add an export, e.g.
-`"./module.mjs"`, to point to an all-ES module-syntax version of the package:
+`"./module"`, to point to an all-ES module-syntax version of the package:
 
 ```json
 // ./node_modules/pkg/package.json
@@ -1034,7 +1034,7 @@ conditional exports for consumers could be to add an export, e.g.
   "type": "module",
   "exports": {
     ".": "./index.cjs",
-    "./module.mjs": "./index.mjs"
+    "./module": "./index.mjs"
   }
 }
 ```
