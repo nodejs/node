@@ -398,10 +398,9 @@ Node.js supports.
 Where interoperability with import maps is desired, it is recommended to use
 explicit file extensions when defining package subpaths so that package
 consumers write `import 'pkg/subpath.js'` instead of `import 'pkg/subpath'`.
-Instead of one individual mapping for each subpath entry, the corresponding
-import map can then use a folder mapping to map multiple subpaths where
-possible, instead of having the more bloated form of a separate map entry for
-each package subpath.
+The corresponding import map can then use a folder mapping to map multiple
+subpaths where possible, instead of needing the more bloated form of a separate
+map entry for each package subpath.
 
 For example with the above package, the generated import map can be taken to be:
 
