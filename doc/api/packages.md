@@ -1374,9 +1374,9 @@ This field defines [subpath imports][] for the current package.
 [`esm`]: https://github.com/standard-things/esm#readme
 [`package.json`]: #nodejs-packagejson-field-definitions
 [entry points]: #package-entry-points
-[interoperability with import maps]: #interoperability-with-import-maps
 [folder mappings]: https://github.com/WICG/import-maps#extension-less-imports
 [folders as modules]: modules.md#folders-as-modules
+[interoperability with import maps]: #interoperability-with-import-maps
 [load ECMASCript modules from CommonJS modules]: modules.md#the-mjs-extension
 [loader hooks]: esm.md#loaders
 [self-reference]: #self-referencing-a-package-using-its-name
