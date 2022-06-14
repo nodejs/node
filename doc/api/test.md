@@ -376,7 +376,8 @@ no-op.
 added: v18.0.0
 -->
 
-Exactly the same as `context.test([name][, options][, fn])`, but adds `skip: true` in the options.
+Exactly the same as `context.test([name][, options][, fn])`,
+but adds `skip: true` in the options.
 This function causes the test's output to indicate the test as skipped.
 Calling `skip()` does
 not terminate execution of the test function. This function does not return a
@@ -388,7 +389,8 @@ value.
 added: v18.0.0
 -->
 
-Exactly the same as `context.test([name][, options][, fn])`, but adds `todo: true` in the options.
+Exactly the same as `context.test([name][, options][, fn])`,
+but adds `todo: true` in the options.
 This function causes the test's output to indicate the test as skipped.
 Calling `skip()` does
 not terminate execution of the test function. This function does not return a
