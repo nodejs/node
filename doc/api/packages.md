@@ -442,6 +442,18 @@ analogous to the exports field.
 <!-- YAML
 added:
   - v14.13.0
+  - v12.20.0
+changes:
+  - version:
+    - v16.9.0
+    - v14.19.0
+    pr-url: https://github.com/nodejs/node/pull/39635
+    description: Support pattern trailers.
+  - version:
+    - v16.10.0
+    - v14.19.0
+    pr-url: https://github.com/nodejs/node/pull/40041
+    description: Support patterns in "imports" field.
 -->
 
 For packages with a small number of exports or imports, we recommend
