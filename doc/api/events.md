@@ -232,10 +232,10 @@ Setting `events.captureRejections = true` will change the default for all
 new instances of `EventEmitter`.
 
 ```mjs
-import * as events from 'node:events';
+import { EventEmitter } from 'node:events';
 
-events.captureRejections = true;
-const ee1 = new events.EventEmitter();
+EventEmitter.captureRejections = true;
+const ee1 = new EventEmitter();
 ee1.on('something', async (value) => {
   throw new Error('kaboom');
 });
