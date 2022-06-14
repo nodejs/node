@@ -62,6 +62,22 @@ const require = createRequire(import.meta.url);
 const siblingModule = require('./sibling-module');
 ```
 
+### `module.isBuiltIn(moduleName)`
+
+<!-- YAML
+added: v18.4.0
+-->
+
+* `moduleName` {string} name of the module
+* Returns: {boolean} returns true if the module is builtin else returns false
+
+```mjs
+import { isBuiltIn } from 'node:module';
+isBuiltIn('node:fs'); // true
+isBuiltIn('fs'); // true 
+isBuiltIn('wss'); // false
+```
+
 ### `module.syncBuiltinESMExports()`
 
 <!-- YAML
