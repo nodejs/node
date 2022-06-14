@@ -4,7 +4,7 @@ const assert = require('assert');
 const { spawnSync } = require('child_process');
 const { join } = require('path');
 const fixtures = require('../common/fixtures');
-const testFixtures = fixtures.path('test-runner/search-files');
+const testFixtures = fixtures.path('test-runner');
 
 {
   // File not found.
