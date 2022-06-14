@@ -310,10 +310,10 @@ to only the specific feature exports exposed:
 }
 ```
 
-Where it is then recommended to pick one of supporting extensioned or
-unextensioned subpaths for consistent usage. In the above example the
-extensioned form is used (ie via `import "my-package/feature/feat.js"`), which
-can be useful for better [interoperability with import maps][].
+It is recommended to pick one of supporting extensioned or unextensioned
+subpaths for consistent usage. In the above example the extensioned form is used
+(ie via `import "my-package/feature/feat.js"`), which can be useful for better
+[interoperability with import maps][].
 
 ### Main entry point export
 
@@ -387,7 +387,8 @@ import submodule from 'es-module-package/private-module.js';
 
 [Import maps][] are a separate cross-platform standard for module resolution,
 already in use by some browsers, server-side JavaScript runtimes, and build
-tools, although not currently implemented or supported in Node.js.
+tools. Although not currently implemented in Node.js, there are plans to provide
+import maps support in Node.js in future.
 
 [Import maps][] are able to provide explicit specifier mappings for packages
 and package subpaths, and therefore all mappings defined by Node.js package
@@ -1372,10 +1373,10 @@ This field defines [subpath imports][] for the current package.
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported
 [`esm`]: https://github.com/standard-things/esm#readme
 [`package.json`]: #nodejs-packagejson-field-definitions
-[interoperability with import maps]: #interoperability-with-import-maps
 [entry points]: #package-entry-points
-[folders as modules]: modules.md#folders-as-modules
+[interoperability with import maps]: #interoperability-with-import-maps
 [folder mappings]: https://github.com/WICG/import-maps#extension-less-imports
+[folders as modules]: modules.md#folders-as-modules
 [load ECMASCript modules from CommonJS modules]: modules.md#the-mjs-extension
 [loader hooks]: esm.md#loaders
 [self-reference]: #self-referencing-a-package-using-its-name
