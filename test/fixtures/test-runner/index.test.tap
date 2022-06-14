@@ -1,0 +1,13 @@
+TAP version 13
+# Subtest: this should pass
+ok 1 - this should pass
+  ---
+  duration_ms: 
+  ...
+1..1
+# tests 1
+# pass 1
+# fail 0
+# skipped 0
+# todo 0
+# duration_ms: 
