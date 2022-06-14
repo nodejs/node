@@ -1,16 +1,15 @@
-import { URL } from 'url'
-import { TLSSocket, TlsOptions } from 'tls'
-import { Socket } from 'net'
+import {TLSSocket, ConnectionOptions} from 'tls'
+import {IpcNetConnectOpts, Socket, TcpNetConnectOpts} from 'net'
 
 export = buildConnector
 declare function buildConnector (options?: buildConnector.BuildOptions): typeof buildConnector.connector
 
 declare namespace buildConnector {
-  export interface BuildOptions extends TlsOptions {
+  export type BuildOptions = (ConnectionOptions | TcpNetConnectOpts | IpcNetConnectOpts) & {
     maxCachedSessions?: number | null;
     socketPath?: string | null;
     timeout?: number | null;
-    servername?: string | null;
+    port?: number;
   }
 
   export interface Options {

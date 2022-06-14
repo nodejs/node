@@ -1415,6 +1415,20 @@ var require_util2 = __commonJS({
       assert(typeof result === "string");
       return result;
     }
+    var esIteratorPrototype = Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]()));
+    function makeIterator(iterator, name) {
+      const i = {
+        next() {
+          if (Object.getPrototypeOf(this) !== i) {
+            throw new TypeError(`'next' called on an object that does not implement interface ${name} Iterator.`);
+          }
+          return iterator.next();
+        },
+        [Symbol.toStringTag]: `${name} Iterator`
+      };
+      Object.setPrototypeOf(i, esIteratorPrototype);
+      return Object.setPrototypeOf({}, i);
+    }
     module2.exports = {
       isAborted,
       isCancelled,
@@ -1444,7 +1458,8 @@ var require_util2 = __commonJS({
       isValidReasonPhrase,
       sameOrigin,
       normalizeMethod,
-      serializeJavascriptValueToJSONString
+      serializeJavascriptValueToJSONString,
+      makeIterator
     };
   }
 });
@@ -1453,7 +1468,7 @@ var require_util2 = __commonJS({
 var require_formdata = __commonJS({
   "lib/fetch/formdata.js"(exports2, module2) {
     "use strict";
-    var { isBlobLike, isFileLike, toUSVString } = require_util2();
+    var { isBlobLike, isFileLike, toUSVString, makeIterator } = require_util2();
     var { kState } = require_symbols2();
     var { File, FileLike } = require_file();
     var { Blob } = require("buffer");
@@ -1558,38 +1573,42 @@ var require_formdata = __commonJS({
       get [Symbol.toStringTag]() {
         return this.constructor.name;
       }
-      *entries() {
+      entries() {
         if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
-        for (const pair of this) {
-          yield pair;
-        }
+        return makeIterator(makeIterable(this[kState], "entries"), "FormData");
       }
-      *keys() {
+      keys() {
         if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
-        for (const [key] of this) {
-          yield key;
-        }
+        return makeIterator(makeIterable(this[kState], "keys"), "FormData");
       }
-      *values() {
+      values() {
         if (!(this instanceof _FormData)) {
           throw new TypeError("Illegal invocation");
         }
-        for (const [, value] of this) {
-          yield value;
-        }
+        return makeIterator(makeIterable(this[kState], "values"), "FormData");
       }
-      *[Symbol.iterator]() {
-        for (const { name, value } of this[kState]) {
-          yield [name, value];
+      forEach(callbackFn, thisArg = globalThis) {
+        if (!(this instanceof _FormData)) {
+          throw new TypeError("Illegal invocation");
+        }
+        if (arguments.length < 1) {
+          throw new TypeError(`Failed to execute 'forEach' on 'FormData': 1 argument required, but only ${arguments.length} present.`);
+        }
+        if (typeof callbackFn !== "function") {
+          throw new TypeError("Failed to execute 'forEach' on 'FormData': parameter 1 is not of type 'Function'.");
+        }
+        for (const [key, value] of this) {
+          callbackFn.apply(thisArg, [value, key, this]);
         }
       }
     };
     var FormData = _FormData;
     __publicField(FormData, "name", "FormData");
+    FormData.prototype[Symbol.iterator] = FormData.prototype.entries;
     function makeEntry(name, value, filename) {
       const entry = {
         name: null,
@@ -1604,6 +1623,17 @@ var require_formdata = __commonJS({
       }
       entry.value = value;
       return entry;
+    }
+    function* makeIterable(entries, type) {
+      for (const { name, value } of entries) {
+        if (type === "entries") {
+          yield [name, value];
+        } else if (type === "values") {
+          yield value;
+        } else {
+          yield name;
+        }
+      }
     }
     module2.exports = { FormData };
   }
@@ -1622,7 +1652,7 @@ var require_body = __commonJS({
     var assert = require("assert");
     var { NotSupportedError } = require_errors();
     var { isErrored } = require_util();
-    var { isUint8Array } = require("util/types");
+    var { isUint8Array, isArrayBuffer } = require("util/types");
     var ReadableStream;
     async function* blobGen(blob) {
       if (blob.stream) {
@@ -1644,7 +1674,7 @@ var require_body = __commonJS({
       } else if (object instanceof URLSearchParams) {
         source = object.toString();
         contentType = "application/x-www-form-urlencoded;charset=UTF-8";
-      } else if (object instanceof ArrayBuffer || ArrayBuffer.isView(object)) {
+      } else if (isArrayBuffer(object) || ArrayBuffer.isView(object)) {
         if (object instanceof DataView) {
           object = object.buffer;
         }
@@ -1880,7 +1910,7 @@ var require_request = __commonJS({
       }, handler) {
         if (typeof path !== "string") {
           throw new InvalidArgumentError("path must be a string");
-        } else if (path[0] !== "/" && !(path.startsWith("http://") || path.startsWith("https://"))) {
+        } else if (path[0] !== "/" && !(path.startsWith("http://") || path.startsWith("https://")) && method !== "CONNECT") {
           throw new InvalidArgumentError("path must be an absolute URL or start with a slash");
         }
         if (typeof method !== "string") {
@@ -1903,12 +1933,12 @@ var require_request = __commonJS({
           this.body = null;
         } else if (util.isStream(body)) {
           this.body = body;
-        } else if (body instanceof DataView) {
-          this.body = body.buffer.byteLength ? Buffer.from(body.buffer) : null;
-        } else if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
-          this.body = body.byteLength ? Buffer.from(body) : null;
         } else if (util.isBuffer(body)) {
           this.body = body.byteLength ? body : null;
+        } else if (ArrayBuffer.isView(body)) {
+          this.body = body.buffer.byteLength ? Buffer.from(body.buffer, body.byteOffset, body.byteLength) : null;
+        } else if (body instanceof ArrayBuffer) {
+          this.body = body.byteLength ? Buffer.from(body) : null;
         } else if (typeof body === "string") {
           this.body = body.length ? Buffer.from(body) : null;
         } else if (util.isFormDataLike(body) || util.isIterable(body) || util.isBlobLike(body)) {
@@ -2221,7 +2251,7 @@ var require_connect = __commonJS({
       const sessionCache = /* @__PURE__ */ new Map();
       timeout = timeout == null ? 1e4 : timeout;
       maxCachedSessions = maxCachedSessions == null ? 100 : maxCachedSessions;
-      return function connect({ hostname, host, protocol, port, servername }, callback) {
+      return function connect({ hostname, host, protocol, port, servername, httpSocket }, callback) {
         let socket;
         if (protocol === "https:") {
           if (!tls) {
@@ -2236,6 +2266,7 @@ var require_connect = __commonJS({
             ...options,
             servername,
             session,
+            socket: httpSocket,
             port: port || 443,
             host: hostname
           });
@@ -2254,6 +2285,7 @@ var require_connect = __commonJS({
             }
           });
         } else {
+          assert(!httpSocket, "httpSocket can only be sent on TLS update");
           socket = net.connect({
             highWaterMark: 64 * 1024,
             ...options,
@@ -4205,6 +4237,7 @@ var require_headers = __commonJS({
     var { kHeadersList } = require_symbols();
     var { kGuard } = require_symbols2();
     var { kEnumerableProperty } = require_util();
+    var { makeIterator } = require_util2();
     var kHeadersMap = Symbol("headers map");
     var kHeadersSortedMap = Symbol("headers map sorted");
     function normalizeAndValidateHeaderName(name) {
@@ -4247,20 +4280,6 @@ var require_headers = __commonJS({
       } else {
         throw TypeError();
       }
-    }
-    var esIteratorPrototype = Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]()));
-    function makeHeadersIterator(iterator) {
-      const i = {
-        next() {
-          if (Object.getPrototypeOf(this) !== i) {
-            throw new TypeError("'next' called on an object that does not implement interface Headers Iterator.");
-          }
-          return iterator.next();
-        },
-        [Symbol.toStringTag]: "Headers Iterator"
-      };
-      Object.setPrototypeOf(i, esIteratorPrototype);
-      return Object.setPrototypeOf({}, i);
     }
     var HeadersList = class {
       constructor(init) {
@@ -4396,19 +4415,19 @@ var require_headers = __commonJS({
         if (!(this instanceof Headers)) {
           throw new TypeError("Illegal invocation");
         }
-        return makeHeadersIterator(this[kHeadersSortedMap].keys());
+        return makeIterator(this[kHeadersSortedMap].keys(), "Headers");
       }
       values() {
         if (!(this instanceof Headers)) {
           throw new TypeError("Illegal invocation");
         }
-        return makeHeadersIterator(this[kHeadersSortedMap].values());
+        return makeIterator(this[kHeadersSortedMap].values(), "Headers");
       }
       entries() {
         if (!(this instanceof Headers)) {
           throw new TypeError("Illegal invocation");
         }
-        return makeHeadersIterator(this[kHeadersSortedMap].entries());
+        return makeIterator(this[kHeadersSortedMap].entries(), "Headers");
       }
       forEach(callbackFn, thisArg = globalThis) {
         if (!(this instanceof Headers)) {
@@ -5950,7 +5969,7 @@ var require_fetch = __commonJS({
       if (actualResponse.status !== 303 && request.body != null && request.body.source == null) {
         return makeNetworkError();
       }
-      if ([301, 302].includes(actualResponse.status) && request.method === "POST" || actualResponse.status === 303 && !["GET", "HEADER"].includes(request.method)) {
+      if ([301, 302].includes(actualResponse.status) && request.method === "POST" || actualResponse.status === 303 && !["GET", "HEAD"].includes(request.method)) {
         request.method = "GET";
         request.body = null;
         for (const headerName of requestBodyHeader) {

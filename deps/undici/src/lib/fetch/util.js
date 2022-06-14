@@ -361,6 +361,33 @@ function serializeJavascriptValueToJSONString (value) {
   return result
 }
 
+// https://tc39.es/ecma262/#sec-%25iteratorprototype%25-object
+const esIteratorPrototype = Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]()))
+
+// https://webidl.spec.whatwg.org/#dfn-iterator-prototype-object
+function makeIterator (iterator, name) {
+  const i = {
+    next () {
+      if (Object.getPrototypeOf(this) !== i) {
+        throw new TypeError(
+          `'next' called on an object that does not implement interface ${name} Iterator.`
+        )
+      }
+
+      return iterator.next()
+    },
+    // The class string of an iterator prototype object for a given interface is the
+    // result of concatenating the identifier of the interface and the string " Iterator".
+    [Symbol.toStringTag]: `${name} Iterator`
+  }
+
+  // The [[Prototype]] internal slot of an iterator prototype object must be %IteratorPrototype%.
+  Object.setPrototypeOf(i, esIteratorPrototype)
+  // esIteratorPrototype needs to be the prototype of i
+  // which is the prototype of an empty object. Yes, it's confusing.
+  return Object.setPrototypeOf({}, i)
+}
+
 module.exports = {
   isAborted,
   isCancelled,
@@ -390,5 +417,6 @@ module.exports = {
   isValidReasonPhrase,
   sameOrigin,
   normalizeMethod,
-  serializeJavascriptValueToJSONString
+  serializeJavascriptValueToJSONString,
+  makeIterator
 }

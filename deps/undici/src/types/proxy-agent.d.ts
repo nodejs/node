@@ -1,3 +1,4 @@
+import { TlsOptions } from 'tls'
 import Agent = require('./agent')
 import Dispatcher = require('./dispatcher')
 
@@ -13,5 +14,8 @@ declare class ProxyAgent extends Dispatcher {
 declare namespace ProxyAgent {
   export interface Options extends Agent.Options {
     uri: string;
+    auth?: string;
+    requestTls?: TlsOptions & { servername?: string };
+    proxyTls?: TlsOptions & { servername?: string };
   }
 }

@@ -6,6 +6,7 @@ const { validateHeaderName, validateHeaderValue } = require('http')
 const { kHeadersList } = require('../core/symbols')
 const { kGuard } = require('./symbols')
 const { kEnumerableProperty } = require('../core/util')
+const { makeIterator } = require('./util')
 
 const kHeadersMap = Symbol('headers map')
 const kHeadersSortedMap = Symbol('headers map sorted')
@@ -71,33 +72,6 @@ function fill (headers, object) {
     // TODO: Spec doesn't define what to do here?
     throw TypeError()
   }
-}
-
-// https://tc39.es/ecma262/#sec-%25iteratorprototype%25-object
-const esIteratorPrototype = Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]()))
-
-// https://webidl.spec.whatwg.org/#dfn-iterator-prototype-object
-function makeHeadersIterator (iterator) {
-  const i = {
-    next () {
-      if (Object.getPrototypeOf(this) !== i) {
-        throw new TypeError(
-          '\'next\' called on an object that does not implement interface Headers Iterator.'
-        )
-      }
-
-      return iterator.next()
-    },
-    // The class string of an iterator prototype object for a given interface is the
-    // result of concatenating the identifier of the interface and the string " Iterator".
-    [Symbol.toStringTag]: 'Headers Iterator'
-  }
-
-  // The [[Prototype]] internal slot of an iterator prototype object must be %IteratorPrototype%.
-  Object.setPrototypeOf(i, esIteratorPrototype)
-  // esIteratorPrototype needs to be the prototype of i
-  // which is the prototype of an empty object. Yes, it's confusing.
-  return Object.setPrototypeOf({}, i)
 }
 
 class HeadersList {
@@ -306,7 +280,7 @@ class Headers {
       throw new TypeError('Illegal invocation')
     }
 
-    return makeHeadersIterator(this[kHeadersSortedMap].keys())
+    return makeIterator(this[kHeadersSortedMap].keys(), 'Headers')
   }
 
   values () {
@@ -314,7 +288,7 @@ class Headers {
       throw new TypeError('Illegal invocation')
     }
 
-    return makeHeadersIterator(this[kHeadersSortedMap].values())
+    return makeIterator(this[kHeadersSortedMap].values(), 'Headers')
   }
 
   entries () {
@@ -322,7 +296,7 @@ class Headers {
       throw new TypeError('Illegal invocation')
     }
 
-    return makeHeadersIterator(this[kHeadersSortedMap].entries())
+    return makeIterator(this[kHeadersSortedMap].entries(), 'Headers')
   }
 
   /**

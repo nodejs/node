@@ -2,6 +2,7 @@
 /// <reference types="node" />
 
 import { File } from './file'
+import { SpecIterator, SpecIterableIterator } from './fetch'
 
 /**
  * A `string` or `File` that represents a single value from a set of `FormData` key-value pairs.
@@ -73,32 +74,35 @@ export declare class FormData {
   delete(name: string): void
 
   /**
+   * Executes given callback function for each field of the FormData instance
+   */
+  forEach: (
+    callbackfn: (value: FormDataEntryValue, key: string, iterable: FormData) => void,
+    thisArg?: unknown
+  ) => void
+
+  /**
    * Returns an [`iterator`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols) allowing to go through all keys contained in this `FormData` object.
    * Each key is a `string`.
    */
-  keys(): Generator<string>
-
-  /**
-   * Returns an [`iterator`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols) allowing to go through the `FormData` key/value pairs.
-   * The key of each pair is a string; the value is a [`FormDataValue`](https://developer.mozilla.org/en-US/docs/Web/API/FormDataEntryValue).
-   */
-  entries(): Generator<[string, FormDataEntryValue]>
+  keys: () => SpecIterableIterator<string>
 
   /**
    * Returns an [`iterator`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols) allowing to go through all values contained in this object `FormData` object.
    * Each value is a [`FormDataValue`](https://developer.mozilla.org/en-US/docs/Web/API/FormDataEntryValue).
    */
-  values(): Generator<FormDataEntryValue>
+  values: () => SpecIterableIterator<FormDataEntryValue>
+
+  /**
+   * Returns an [`iterator`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols) allowing to go through the `FormData` key/value pairs.
+   * The key of each pair is a string; the value is a [`FormDataValue`](https://developer.mozilla.org/en-US/docs/Web/API/FormDataEntryValue).
+   */
+  entries: () => SpecIterableIterator<[string, FormDataEntryValue]>
 
   /**
    * An alias for FormData#entries()
    */
-  [Symbol.iterator](): Generator<[string, FormDataEntryValue], void>
-
-  /**
-   * Executes given callback function for each field of the FormData instance
-   */
-  forEach(callback: (value: FormDataEntryValue, key: string, formData: FormData) => void, thisArg?: unknown): void
+  [Symbol.iterator]: () => SpecIterableIterator<[string, FormDataEntryValue]>
 
   readonly [Symbol.toStringTag]: string
 }
