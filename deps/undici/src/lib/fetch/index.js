@@ -1164,7 +1164,7 @@ async function httpRedirectFetch (fetchParams, response) {
   if (
     ([301, 302].includes(actualResponse.status) && request.method === 'POST') ||
     (actualResponse.status === 303 &&
-      !['GET', 'HEADER'].includes(request.method))
+      !['GET', 'HEAD'].includes(request.method))
   ) {
     // then:
     // 1. Set request’s method to `GET` and request’s body to null.

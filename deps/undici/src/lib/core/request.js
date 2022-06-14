@@ -48,7 +48,11 @@ class Request {
   }, handler) {
     if (typeof path !== 'string') {
       throw new InvalidArgumentError('path must be a string')
-    } else if (path[0] !== '/' && !(path.startsWith('http://') || path.startsWith('https://'))) {
+    } else if (
+      path[0] !== '/' &&
+      !(path.startsWith('http://') || path.startsWith('https://')) &&
+      method !== 'CONNECT'
+    ) {
       throw new InvalidArgumentError('path must be an absolute URL or start with a slash')
     }
 
@@ -80,13 +84,12 @@ class Request {
       this.body = null
     } else if (util.isStream(body)) {
       this.body = body
-    } else if (body instanceof DataView) {
-      // TODO: Why is DataView special?
-      this.body = body.buffer.byteLength ? Buffer.from(body.buffer) : null
-    } else if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
-      this.body = body.byteLength ? Buffer.from(body) : null
     } else if (util.isBuffer(body)) {
       this.body = body.byteLength ? body : null
+    } else if (ArrayBuffer.isView(body)) {
+      this.body = body.buffer.byteLength ? Buffer.from(body.buffer, body.byteOffset, body.byteLength) : null
+    } else if (body instanceof ArrayBuffer) {
+      this.body = body.byteLength ? Buffer.from(body) : null
     } else if (typeof body === 'string') {
       this.body = body.length ? Buffer.from(body) : null
     } else if (util.isFormDataLike(body) || util.isIterable(body) || util.isBlobLike(body)) {

@@ -15,7 +15,7 @@ class ConnectHandler extends AsyncResource {
       throw new InvalidArgumentError('invalid callback')
     }
 
-    const { signal, opaque, responseHeaders } = opts
+    const { signal, opaque, responseHeaders, httpTunnel } = opts
 
     if (signal && typeof signal.on !== 'function' && typeof signal.addEventListener !== 'function') {
       throw new InvalidArgumentError('signal must be an EventEmitter or EventTarget')
@@ -27,6 +27,7 @@ class ConnectHandler extends AsyncResource {
     this.responseHeaders = responseHeaders || null
     this.callback = callback
     this.abort = null
+    this.httpTunnel = httpTunnel
 
     addSignal(this, signal)
   }
@@ -40,8 +41,23 @@ class ConnectHandler extends AsyncResource {
     this.context = context
   }
 
-  onHeaders () {
-    throw new SocketError('bad connect', null)
+  onHeaders (statusCode) {
+    // when httpTunnel headers are allowed
+    if (this.httpTunnel) {
+      const { callback, opaque } = this
+      if (statusCode !== 200) {
+        if (callback) {
+          this.callback = null
+          const err = new RequestAbortedError('Proxy response !== 200 when HTTP Tunneling')
+          queueMicrotask(() => {
+            this.runInAsyncScope(callback, null, err, { opaque })
+          })
+        }
+        return 1
+      }
+    } else {
+      throw new SocketError('bad connect', null)
+    }
   }
 
   onUpgrade (statusCode, rawHeaders, socket) {
