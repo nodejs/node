@@ -275,8 +275,8 @@ a project that previous exported `main`, `lib`,
 }
 ```
 
-Alternatively a project could choose to export entire folders using export
-patterns:
+Alternatively a project could choose to export entire folders both with and
+without extensioned subpaths using export patterns:
 
 ```json
 {
@@ -290,6 +290,21 @@ patterns:
     "./feature/*": "./feature/*.js",
     "./feature/*.js": "./feature/*.js",
     "./package.json": "./package.json"
+  }
+}
+```
+
+While the above supports good backwards-compatibility for package upgrades,
+a future major change for the package can then properly restrict the exports
+to only the specific feature exports exposed:
+
+```json
+{
+  "name": "my-package",
+  "exports": {
+    ".": "./lib/index.js",
+    "./feature/*.js": "./feature/*.js",
+    "./feature/internal/*": null
   }
 }
 ```
