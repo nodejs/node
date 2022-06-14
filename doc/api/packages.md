@@ -399,8 +399,8 @@ Where compatibility with import maps is desired, it is recommended to use
 explicit file extensions when defining package subpaths so that package
 consumers write `import 'pkg/subpath.js'` instead of `import 'pkg/subpath'`.
 Instead of one individual mapping for each subpath entry, the corresponding
-import map can then use a folder mapping to map all export subpaths, instead
-of being bloated with a mapping per subpath.
+import map can then use a folder mapping to map multiple subpaths where
+possible for, instead of having the more bloated form of a mapping per subpath.
 
 The generated import map can be taken to be:
 
