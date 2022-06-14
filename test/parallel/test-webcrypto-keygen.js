@@ -211,14 +211,16 @@ const vectors = {
       if (!vectors[name].usages.includes(usage))
         invalidUsages.push(usage);
     });
-    return assert.rejects(
-      subtle.generateKey(
-        {
-          name, ...vectors[name].algorithm
-        },
-        true,
-        invalidUsages),
-      { message: /Unsupported key usage/ });
+    for (const invalidUsage of invalidUsages) {
+      await assert.rejects(
+        subtle.generateKey(
+          {
+            name, ...vectors[name].algorithm
+          },
+          true,
+          [...vectors[name].usages, invalidUsage]),
+        { message: /Unsupported key usage/ });
+    }
   }
 
   const tests = Object.keys(vectors).map(test);
