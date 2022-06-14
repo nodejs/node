@@ -370,16 +370,15 @@ have the `only` option set. Otherwise, all tests are run. If Node.js was not
 started with the [`--test-only`][] command-line option, this function is a
 no-op.
 
-### `context.skip([message])`
+### `context.skip([name][, options][, fn])`
 
 <!-- YAML
 added: v18.0.0
 -->
 
-* `message` {string} Optional skip message to be displayed in TAP output.
-
-This function causes the test's output to indicate the test as skipped. If
-`message` is provided, it is included in the TAP output. Calling `skip()` does
+Exactly the same as `context.test([name][, options][, fn])`, but adds `skip: true` in the options.
+This function causes the test's output to indicate the test as skipped.
+Calling `skip()` does
 not terminate execution of the test function. This function does not return a
 value.
 
@@ -389,11 +388,11 @@ value.
 added: v18.0.0
 -->
 
-* `message` {string} Optional `TODO` message to be displayed in TAP output.
-
-This function adds a `TODO` directive to the test's output. If `message` is
-provided, it is included in the TAP output. Calling `todo()` does not terminate
-execution of the test function. This function does not return a value.
+Exactly the same as `context.test([name][, options][, fn])`, but adds `todo: true` in the options.
+This function causes the test's output to indicate the test as skipped.
+Calling `skip()` does
+not terminate execution of the test function. This function does not return a
+value.
 
 ### `context.test([name][, options][, fn])`
 
