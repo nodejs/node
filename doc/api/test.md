@@ -148,6 +148,42 @@ test('skip() method with message', (t) => {
 });
 ```
 
+## `describe`/`it` syntax
+
+Running tests can also be done using `describe` to declare a suite
+and `it` to declare a test.
+A suite is used to organize and group related tests together.
+`it` is an alias for `test`, except there is no test context passed,
+since nesting is done using suites, as demonstrated in this example
+
+```js
+describe('A thing', () => {
+  it('should work', () => {
+    assert.strictEqual(1, 1);
+  });
+
+  it('should be ok', () => {
+    assert.strictEqual(2, 2);
+  });
+
+  describe('a nested thing', () => {
+    it('should work', () => {
+      assert.strictEqual(3, 3);
+    });
+  });
+});
+```
+
+`describe` and `it` are imported from the `node:test` module
+
+```mjs
+import { describe, it } from 'node:test';
+```
+
+```cjs
+const { describe, it } = require('node:test');
+```
+
 ### `only` tests
 
 If Node.js is started with the [`--test-only`][] command-line option, it is
@@ -303,7 +339,7 @@ added: v18.0.0
   * `todo` {boolean|string} If truthy, the test marked as `TODO`. If a string
     is provided, that string is displayed in the test results as the reason why
     the test is `TODO`. **Default:** `false`.
-* `fn` {Function|AsyncFunction} The function under test. This first argument
+* `fn` {Function|AsyncFunction} The function under test. The first argument
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
   function.
@@ -334,6 +370,59 @@ test('top level test', async (t) => {
   });
 });
 ```
+
+## `describe([name][, options][, fn])`
+
+* `name` {string} The name of the suite, which is displayed when reporting test
+  results. **Default:** The `name` property of `fn`, or `'<anonymous>'` if `fn`
+  does not have a name.
+* `options` {Object} Configuration options for the suite.
+  supports the same options as `test([name][, options][, fn])`
+* `fn` {Function} The function under suite.
+  a synchronous function declaring all subtests and subsuites.
+  **Default:** A no-op function.
+* Returns: `undefined`.
+
+The `describe()` function imported from the `node:test` module. Each
+invocation of this function results in the creation of a Subtest
+and a test point in the TAP output.
+After invocation of top level `describe` functions,
+all top level tests and suites will execute
+
+## `describe.skip([name][, options][, fn])`
+
+Shorthand for skipping a suite, same as [`describe([name], { skip: true }[, fn])`][describe options].
+
+## `describe.todo([name][, options][, fn])`
+
+Shorthand for marking a suite as `TODO`, same as
+[`describe([name], { todo: true }[, fn])`][describe options].
+
+## `it([name][, options][, fn])`
+
+* `name` {string} The name of the test, which is displayed when reporting test
+  results. **Default:** The `name` property of `fn`, or `'<anonymous>'` if `fn`
+  does not have a name.
+* `options` {Object} Configuration options for the suite.
+  supports the same options as `test([name][, options][, fn])`.
+* `fn` {Function|AsyncFunction} The function under test.
+  If the test uses callbacks, the callback function is passed as an argument.
+  **Default:** A no-op function.
+* Returns: `undefined`.
+
+The `it()` function is the value imported from the `node:test` module.
+Each invocation of this function results in the creation of a test point in the
+TAP output.
+
+## `it.skip([name][, options][, fn])`
+
+Shorthand for skipping a test,
+same as [`it([name], { skip: true }[, fn])`][it options].
+
+## `it.todo([name][, options][, fn])`
+
+Shorthand for marking a test as `TODO`,
+same as [`it([name], { todo: true }[, fn])`][it options].
 
 ## Class: `TestContext`
 
@@ -449,7 +538,7 @@ added: v18.0.0
   * `todo` {boolean|string} If truthy, the test marked as `TODO`. If a string
     is provided, that string is displayed in the test results as the reason why
     the test is `TODO`. **Default:** `false`.
-* `fn` {Function|AsyncFunction} The function under test. This first argument
+* `fn` {Function|AsyncFunction} The function under test. The first argument
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
   function.
@@ -475,4 +564,6 @@ test('top level test', async (t) => {
 [`--test`]: cli.md#--test
 [`TestContext`]: #class-testcontext
 [`test()`]: #testname-options-fn
+[describe options]: #describename-options-fn
+[it options]: #testname-options-fn
 [test runner execution model]: #test-runner-execution-model
