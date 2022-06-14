@@ -133,7 +133,7 @@ async function prepareKeys() {
 
         assert.strictEqual(
           Buffer.from(bits).toString('hex'),
-          result.slice(0, -4));
+          result.slice(0, -2));
       }
     }));
 
