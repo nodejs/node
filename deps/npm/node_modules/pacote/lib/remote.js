@@ -4,8 +4,6 @@ const _tarballFromResolved = Symbol.for('pacote.Fetcher._tarballFromResolved')
 const pacoteVersion = require('../package.json').version
 const fetch = require('npm-registry-fetch')
 const Minipass = require('minipass')
-// The default registry URL is a string of great magic.
-const magicHost = 'https://registry.npmjs.org'
 
 const _cacheFetches = Symbol.for('pacote.Fetcher._cacheFetches')
 const _headers = Symbol('_headers')
@@ -14,11 +12,9 @@ class RemoteFetcher extends Fetcher {
     super(spec, opts)
     this.resolved = this.spec.fetchSpec
     const resolvedURL = new URL(this.resolved)
-    if (
-      (this.replaceRegistryHost === 'npmjs'
-        && resolvedURL.origin === magicHost)
-      || this.replaceRegistryHost === 'always'
-    ) {
+    if (this.replaceRegistryHost !== 'never'
+      && (this.replaceRegistryHost === 'always'
+      || this.replaceRegistryHost === resolvedURL.host)) {
       this.resolved = new URL(resolvedURL.pathname, this.registry).href
     }
 
@@ -35,6 +31,8 @@ class RemoteFetcher extends Fetcher {
 
   [_tarballFromResolved] () {
     const stream = new Minipass()
+    stream.hasIntegrityEmitter = true
+
     const fetchOpts = {
       ...this.opts,
       headers: this[_headers](),
@@ -42,16 +40,19 @@ class RemoteFetcher extends Fetcher {
       integrity: this.integrity,
       algorithms: [this.pickIntegrityAlgorithm()],
     }
-    fetch(this.resolved, fetchOpts).then(res => {
-      const hash = res.headers.get('x-local-cache-hash')
-      if (hash) {
-        this.integrity = decodeURIComponent(hash)
-      }
 
+    fetch(this.resolved, fetchOpts).then(res => {
       res.body.on('error',
         /* istanbul ignore next - exceedingly rare and hard to simulate */
         er => stream.emit('error', er)
-      ).pipe(stream)
+      )
+
+      res.body.on('integrity', i => {
+        this.integrity = i
+        stream.emit('integrity', i)
+      })
+
+      res.body.pipe(stream)
     }).catch(er => stream.emit('error', er))
 
     return stream

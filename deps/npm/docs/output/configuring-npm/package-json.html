@@ -629,6 +629,24 @@ git+ssh://git@github.com:npm/cli#semver:^5.0
 git+https://isaacs@github.com/npm/cli.git
 git://github.com/npm/cli.git#v1.0.27
 </code></pre>
+<p>When installing from a <code>git</code> repository, the presence of certain fields in the
+<code>package.json</code> will cause npm to believe it needs to perform a build. To do so
+your repository will be cloned into a temporary directory, all of its deps
+installed, relevant scripts run, and the resulting directory packed and
+installed.</p>
+<p>This flow will occur if your git dependency uses <code>workspaces</code>, or if any of the
+following scripts are present:</p>
+<ul>
+<li><code>build</code></li>
+<li><code>prepare</code></li>
+<li><code>prepack</code></li>
+<li><code>preinstall</code></li>
+<li><code>install</code></li>
+<li><code>postinstall</code></li>
+</ul>
+<p>If your git repository includes pre-built artifacts, you will likely want to
+make sure that none of the above scripts are defined, or your dependency
+will be rebuilt for every installation.</p>
 <h4 id="github-urls">GitHub URLs</h4>
 <p>As of version 1.1.65, you can refer to GitHub urls as just "foo":
 "user/foo-project".  Just as with git URLs, a <code>commit-ish</code> suffix can be
