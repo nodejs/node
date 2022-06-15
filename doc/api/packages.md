@@ -237,9 +237,9 @@ between environments, and **preventing any other entry points besides those
 defined in [`"exports"`][]**. This encapsulation allows module authors to
 clearly define the public interface for their package.
 
-For new packages supporting Node.js 12+ the [`"exports"`][] field is
-recommended. For existing packages or packages supporting Node.js version 12.20
-or below, the [`"main"`][] field is recommended. If both [`"exports"`][] and
+For new packages targeting the currently supported versions of Node.js, the
+[`"exports"`][] field is recommended. For packages supporting Node.js 10 and
+below, the [`"main"`][] field is required. If both [`"exports"`][] and
 [`"main"`][] are defined, the [`"exports"`][] field takes precedence over
 [`"main"`][] in supported versions of Node.js.
 
@@ -312,9 +312,7 @@ to only the specific feature exports exposed:
 
 ### Main entry point export
 
-When writing a new package supporting Node.js 12.20 and above (i.e. including
-all current Node.js LTS releases), it is recommended to use the [`"exports"`][]
-field:
+When writing a new package, it is recommended to use the [`"exports"`][] field:
 
 ```json
 {
@@ -333,10 +331,10 @@ package. It is not a strong encapsulation since a direct require of any
 absolute subpath of the package such as
 `require('/path/to/node_modules/pkg/subpath.js')` will still load `subpath.js`.
 
-All supported versions of Node.js (since 12.7.0) and modern build tools
-support the `"exports"` field. For projects using an older version of Node.js
-or a related build tool, compatibility can be achieved by including the `"main"`
-field alongside `"exports"` pointing to the same module:
+All currently supported versions of Node.js and modern build tools support the
+`"exports"` field. For projects using an older version of Node.js or a related
+build tool, compatibility can be achieved by including the `"main"` field
+alongside `"exports"` pointing to the same module:
 
 ```json
 {
@@ -380,22 +378,23 @@ import submodule from 'es-module-package/private-module.js';
 
 #### Extensioned v Extensionless Subpaths
 
-It is recommended to pick either one of providing extensioned or unextensioned
-subpaths for a package to ensure consistent usage. This keeps the package
-contract clear for consumers, simplifies package subpath completions, and
-ensures all dependent packages import with the same specifier mappings.
+Package authors should provide either extensioned (`import 'pkg/subpath.js'`) or
+extensionless (`import 'pkg/subpath'`) subpaths in their exports. This ensures
+that there is only one subpath for each exported module so that all dependents
+import the same consistent specifier, keeping the package contract clear for
+consumers and simplifying package subpath completions.
 
-Ultimately, it is the choice of the package author which form of subpath to
-support - extensionless, like `import 'pkg/subpath'`, or extensioned, like
-`import 'pkg/subpath.js'` per the exports example above. Both conventions are
-used in the Node.js ecosystem.
+Traditionally, packages tended to use the extensionless style, which has the
+benefits of readability and of masking the true path of the file within the
+package.
 
-For packages where interoperability with [import maps][] is desired, using
-explicit file extensions when defining package subpaths can be preferable since
-the corresponding import map can then use a [packages folder mapping][] to map
-multiple subpaths where possible, instead of the more bloated form of a separate
-map entry for each package subpath. This also mirrors the requirement of using
-[the full specifier path][] in relative and absolute import specifiers.
+With [import maps][] now providing a standard for package resolution in browsers
+and other server-side runtimes, using the extensionless style can result in
+bloated import map definitions. Explicit file extensions can avoid this issue by
+enabling the import map to utilize a [packages folder mapping][] to map multiple
+subpaths where possible instead of a separate map entry per package subpath
+export. This also mirrors the requirement of using [the full specifier path][]
+in relative and absolute import specifiers.
 
 ### Exports sugar
 
