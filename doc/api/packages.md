@@ -392,9 +392,9 @@ used in the Node.js ecosystem.
 
 For packages where interoperability with [import maps][] is desired, using
 explicit file extensions when defining package subpaths can be preferable since
-the corresponding import map can then use a [folder mapping][] to map multiple
-subpaths where possible, instead of the more bloated form of a separate map
-entry for each package subpath. This also mirrors the requirement of using
+the corresponding import map can then use a [packages folder mapping][] to map
+multiple subpaths where possible, instead of the more bloated form of a separate
+map entry for each package subpath. This also mirrors the requirement of using
 [the full specifier path][] in relative and absolute import specifiers.
 
 ### Exports sugar
@@ -1340,12 +1340,12 @@ This field defines [subpath imports][] for the current package.
 [`esm`]: https://github.com/standard-things/esm#readme
 [`package.json`]: #nodejs-packagejson-field-definitions
 [entry points]: #package-entry-points
-[folder mapping]: https://github.com/WICG/import-maps#extension-less-imports
 [folders as modules]: modules.md#folders-as-modules
 [import maps]: https://github.com/WICG/import-maps
 [interoperability with import maps]: #interoperability-with-import-maps
 [load ECMASCript modules from CommonJS modules]: modules.md#the-mjs-extension
 [loader hooks]: esm.md#loaders
+[packages folder mapping]: https://github.com/WICG/import-maps#packages-via-trailing-slashes
 [self-reference]: #self-referencing-a-package-using-its-name
 [subpath exports]: #subpath-exports
 [subpath imports]: #subpath-imports
