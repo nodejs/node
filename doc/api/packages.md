@@ -310,11 +310,6 @@ to only the specific feature exports exposed:
 }
 ```
 
-It is recommended to pick one of supporting extensioned or unextensioned
-subpaths for consistent usage. In the above example the extensioned form is used
-(ie via `import "my-package/feature/feat.js"`), which can be useful for better
-[interoperability with import maps][].
-
 ### Main entry point export
 
 When writing a new package supporting Node.js 12.20 and above (i.e. including
@@ -383,52 +378,24 @@ import submodule from 'es-module-package/private-module.js';
 // Throws ERR_PACKAGE_PATH_NOT_EXPORTED
 ```
 
-#### Interoperability with Import Maps
+#### Extensioned v Extensionless Subpaths
 
-[Import maps][] are a separate cross-platform standard for module resolution,
-already in use by some browsers, server-side JavaScript runtimes, and build
-tools. Although not currently implemented in Node.js, there are plans to provide
-import maps support in Node.js in future.
+It is recommended to pick either one of providing extensioned or unextensioned
+subpaths for a package to ensure consistent usage. This keeps the package
+contract clear for consumers, simplifies package subpath completions, and
+ensures all dependent packages import with the same specifier mappings.
 
-[Import maps][] are able to provide explicit specifier mappings for packages
-and package subpaths, and therefore all mappings defined by Node.js package
-exports and subpath exports can be mapped by a corresponding import map. In
-addition they support [folder mappings][] but not pattern mappings like
-Node.js supports.
+Ultimately, it is the choice of the package author which form of subpath to
+support - extensionless, like `import 'pkg/subpath'`, or extensioned, like
+`import 'pkg/subpath.js'` and per the exports example above. Both conventions
+are used in the Node.js ecosystem.
 
-Where interoperability with import maps is desired, it is recommended to use
-explicit file extensions when defining package subpaths so that package
-consumers write `import 'pkg/subpath.js'` instead of `import 'pkg/subpath'`.
-The corresponding import map can then use a folder mapping to map multiple
-subpaths where possible, instead of needing the more bloated form of a separate
-map entry for each package subpath.
-
-For example with the above package, the generated import map can be taken to be:
-
-```json
-{
-  "imports": {
-    "pkg": "/node_modules/pkg/index.js",
-    "pkg/": "/node_modules/pkg/src/"
-  }
-}
-```
-
-instead of the larger import map to handle adding each subpath file extension:
-
-```json
-{
-  "imports": {
-    "pkg": "/node_modules/pkg/index.js",
-    "pkg/submodule1": "/node_modules/pkg/src/submodule1.js",
-    "pkg/submodule2": "/node_modules/pkg/src/submodule2.js",
-    "pkg/submodule3": "/node_modules/pkg/src/submodule3.js",
-  }
-}
-```
-
-This also mirrors the requirement of using [the full specifier path][] in
-relative and absolute import specifiers.
+For packages where interoperability with [import maps][] is desired, using
+explicit file extensions when defining package subpaths can be preferable since
+the corresponding import map can then use a [folder mapping][] to map multiple
+subpaths where possible, instead of the more bloated form of a separate map
+entry for each package subpath. This also mirrors the requirement of using
+[the full specifier path][] in relative and absolute import specifiers.
 
 ### Exports sugar
 
@@ -463,11 +430,11 @@ added:
   - v12.19.0
 -->
 
-In addition to the [`"exports"`][] field, it is possible to define internal
-package import maps that only apply to import specifiers from within the package
-itself.
+In addition to the [`"exports"`][] field, there is a package `"imports"` field
+to create private mappings that only apply to import specifiers from within the
+package itself.
 
-Entries in the imports field must always start with `#` to ensure they are
+Entries in the `"imports"` field must always start with `#` to ensure they are
 disambiguated from external package specifiers.
 
 For example, the imports field can be used to gain the benefits of conditional
@@ -495,8 +462,8 @@ file `./dep-polyfill.js` relative to the package in other environments.
 Unlike the `"exports"` field, the `"imports"` field permits mapping to external
 packages.
 
-The resolution rules for the imports field are otherwise
-analogous to the exports field.
+The resolution rules for the imports field are otherwise analogous to the exports
+field.
 
 ### Subpath patterns
 
@@ -1360,7 +1327,6 @@ This field defines [subpath imports][] for the current package.
 [Corepack]: corepack.md
 [ES module]: esm.md
 [ES modules]: esm.md
-[Import maps]: https://github.com/WICG/import-maps
 [Node.js documentation for this section]: https://github.com/nodejs/node/blob/HEAD/doc/api/packages.md#conditions-definitions
 [`"exports"`]: #exports
 [`"imports"`]: #imports
@@ -1374,8 +1340,9 @@ This field defines [subpath imports][] for the current package.
 [`esm`]: https://github.com/standard-things/esm#readme
 [`package.json`]: #nodejs-packagejson-field-definitions
 [entry points]: #package-entry-points
-[folder mappings]: https://github.com/WICG/import-maps#extension-less-imports
+[folder mapping]: https://github.com/WICG/import-maps#extension-less-imports
 [folders as modules]: modules.md#folders-as-modules
+[import maps]: https://github.com/WICG/import-maps
 [interoperability with import maps]: #interoperability-with-import-maps
 [load ECMASCript modules from CommonJS modules]: modules.md#the-mjs-extension
 [loader hooks]: esm.md#loaders
