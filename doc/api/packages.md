@@ -462,8 +462,8 @@ file `./dep-polyfill.js` relative to the package in other environments.
 Unlike the `"exports"` field, the `"imports"` field permits mapping to external
 packages.
 
-The resolution rules for the imports field are otherwise analogous to the exports
-field.
+The resolution rules for the imports field are otherwise analogous to the
+exports field.
 
 ### Subpath patterns
 
@@ -1342,7 +1342,6 @@ This field defines [subpath imports][] for the current package.
 [entry points]: #package-entry-points
 [folders as modules]: modules.md#folders-as-modules
 [import maps]: https://github.com/WICG/import-maps
-[interoperability with import maps]: #interoperability-with-import-maps
 [load ECMASCript modules from CommonJS modules]: modules.md#the-mjs-extension
 [loader hooks]: esm.md#loaders
 [packages folder mapping]: https://github.com/WICG/import-maps#packages-via-trailing-slashes
