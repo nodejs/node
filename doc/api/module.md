@@ -74,7 +74,7 @@ added: v18.4.0
 ```mjs
 import { isBuiltIn } from 'node:module';
 isBuiltIn('node:fs'); // true
-isBuiltIn('fs'); // true 
+isBuiltIn('fs'); // true
 isBuiltIn('wss'); // false
 ```
 
