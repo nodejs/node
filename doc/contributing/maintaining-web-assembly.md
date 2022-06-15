@@ -2,7 +2,7 @@
 
 Support for [WebAssembly](https://webassembly.org/)
 has been identified as one of the
-[top technical priorities](https://github.com/nodejs/node/blob/master/doc/contributing/technical-priorities.md#webassembly)
+[top technical priorities](https://github.com/nodejs/node/blob/main/doc/contributing/technical-priorities.md#webassembly)
 for the future success of Node.js.
 
 This document provides an overview of our high-level strategy for
@@ -76,7 +76,7 @@ The Node.js WASI implementation is maintained in the
 [uvwasi](https://github.com/nodejs/uvwasi) repository in the
 Node.js GitHub organization. As needed, an updated copy
 is vendored into the Node.js deps in
-[deps/uvwasi](https://github.com/nodejs/node/tree/master/deps/uvwasi).
+[deps/uvwasi](https://github.com/nodejs/node/tree/main/deps/uvwasi).
 
 To update the copy of uvwasi in the Node.js deps:
 
@@ -92,6 +92,6 @@ The documentation for this API is in
 
 The implementation of the bindings and the public API is in:
 
-* [src/node\_wasi.h](https://github.com/nodejs/node/blob/master/src/node_wasi.h)
-* [src/node\_wasi.cc](https://github.com/nodejs/node/blob/master/src/node_wasi.cc)
-* [lib/wasi.js](https://github.com/nodejs/node/blob/master/lib/wasi.js)
+* [src/node\_wasi.h](https://github.com/nodejs/node/blob/main/src/node_wasi.h)
+* [src/node\_wasi.cc](https://github.com/nodejs/node/blob/main/src/node_wasi.cc)
+* [lib/wasi.js](https://github.com/nodejs/node/blob/main/lib/wasi.js)
