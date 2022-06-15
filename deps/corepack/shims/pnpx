@@ -7,6 +7,6 @@ esac
 
 if [ -x "$basedir/node" ]; then
   exec "$basedir/node"  "$basedir/../dist/pnpx.js" "$@"
-else 
+else
   exec node  "$basedir/../dist/pnpx.js" "$@"
 fi
