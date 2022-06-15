@@ -143,5 +143,45 @@ new RuleTester({
         code: 'ReflectDefineProperty({}, "key", { enumerable: true })',
         errors: [{ message: /null-prototype/ }],
       },
+      {
+        code: 'RegExpPrototypeTest(/some regex/, "some string")',
+        errors: [{ message: /looks up the "exec" property/ }],
+      },
+      {
+        code: 'RegExpPrototypeSymbolMatch(/some regex/, "some string")',
+        errors: [{ message: /looks up the "exec" property/ }],
+      },
+      {
+        code: 'RegExpPrototypeSymbolMatchAll(/some regex/, "some string")',
+        errors: [{ message: /looks up the "exec" property/ }],
+      },
+      {
+        code: 'RegExpPrototypeSymbolSearch(/some regex/, "some string")',
+        errors: [{ message: /looks up the "exec" property/ }],
+      },
+      {
+        code: 'StringPrototypeMatch("some string", /some regex/)',
+        errors: [{ message: /looks up the Symbol\.match property/ }],
+      },
+      {
+        code: 'StringPrototypeMatchAll("some string", /some regex/)',
+        errors: [{ message: /looks up the Symbol\.matchAll property/ }],
+      },
+      {
+        code: 'StringPrototypeReplace("some string", /some regex/, "some replacement")',
+        errors: [{ message: /looks up the Symbol\.replace property/ }],
+      },
+      {
+        code: 'StringPrototypeReplaceAll("some string", /some regex/, "some replacement")',
+        errors: [{ message: /looks up the Symbol\.replace property/ }],
+      },
+      {
+        code: 'StringPrototypeSearch("some string", /some regex/)',
+        errors: [{ message: /looks up the Symbol\.search property/ }],
+      },
+      {
+        code: 'StringPrototypeSplit("some string", /some regex/)',
+        errors: [{ message: /looks up the Symbol\.split property/ }],
+      },
     ]
   });
