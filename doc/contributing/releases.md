@@ -387,7 +387,7 @@ release branches to more easily be passed between members of the release team if
 necessary.
 
 Create a pull request targeting the correct release line. For example, a
-`v5.3.0-proposal` PR should target `v5.x`, not main. Paste the CHANGELOG
+`v5.3.0-proposal` PR should target `v5.x`, not `main`. Paste the CHANGELOG
 modifications into the body of the PR so that collaborators can see what is
 changing. These PRs should be left open for at least 24 hours, and can be
 updated as new commits land. If the CHANGELOG pasted into the pull request
