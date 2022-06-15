@@ -376,7 +376,7 @@ import submodule from 'es-module-package/private-module.js';
 // Throws ERR_PACKAGE_PATH_NOT_EXPORTED
 ```
 
-#### Extensions in Subpaths
+#### Extensions in subpaths
 
 Package authors should provide either extensioned (`import 'pkg/subpath.js'`) or
 extensionless (`import 'pkg/subpath'`) subpaths in their exports. This ensures
