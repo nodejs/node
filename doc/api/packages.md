@@ -387,8 +387,8 @@ ensures all dependent packages import with the same specifier mappings.
 
 Ultimately, it is the choice of the package author which form of subpath to
 support - extensionless, like `import 'pkg/subpath'`, or extensioned, like
-`import 'pkg/subpath.js'` and per the exports example above. Both conventions
-are used in the Node.js ecosystem.
+`import 'pkg/subpath.js'` per the exports example above. Both conventions are
+used in the Node.js ecosystem.
 
 For packages where interoperability with [import maps][] is desired, using
 explicit file extensions when defining package subpaths can be preferable since
