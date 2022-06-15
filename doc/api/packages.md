@@ -519,13 +519,9 @@ import internalZ from '#internal/z.js';
 // Loads ./node_modules/es-module-package/src/internal/z.js
 ```
 
-Including the `"*.js"` on both sides of the mapping allows restricting which
-file extensions can be resolved in the case of there being other files like
-source maps existing.
-
-This is a direct static replacement without any special handling for file
-extensions. In the previous example, `pkg/features/x.json` would be resolved to
-`./src/features/x.json.js` in the mapping.
+This is a direct static matching and replacement without any special handling
+for file extensions. Including the `"*.js"` on both sides of the mapping
+restricts the exposed package exports to only JS files.
 
 The property of exports being statically enumerable is maintained with exports
 patterns since the individual exports for a package can be determined by
