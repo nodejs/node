@@ -8,7 +8,7 @@ Commit Queue is an experimental feature for the project which simplifies the
 landing process by automating it via GitHub Actions. With it, collaborators can
 land pull requests by adding the `commit-queue` label to a PR. All
 checks will run via node-core-utils, and if the pull request is ready to land,
-the Action will rebase it and push to main.
+the Action will rebase it and push to `main`.
 
 This document gives an overview of how the Commit Queue works, as well as
 implementation details, reasoning for design choices, and current limitations.

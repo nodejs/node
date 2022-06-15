@@ -256,7 +256,7 @@ As an example on how to check for a possible performance improvement, the
 an example. This pull request _claims_ to improve the performance of the
 `node:string_decoder` module.
 
-First build two versions of Node.js, one from the main branch (here called
+First build two versions of Node.js, one from the `main` branch (here called
 `./node-main`) and another with the pull request applied (here called
 `./node-pr-5134`).
 

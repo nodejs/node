@@ -291,7 +291,7 @@ in the form:
   For pull requests, it will look like `refs/pull/PR_NUMBER/head`
   (e.g. for pull request #42 -> `refs/pull/42/head`).
 * `REBASE_ONTO`: Change that to `origin/main` so the pull request gets rebased
-  onto main. This can especially be important for pull requests that have been
+  onto `main`. This can especially be important for pull requests that have been
   open a while.
 
 Look at the list of jobs on the left hand side under "Build History" and copy
@@ -337,7 +337,7 @@ For undocumented APIs that are public, open a pull request documenting the API.
 ### Breaking changes
 
 At least two TSC members must approve backward-incompatible changes to the
-main branch.
+`main` branch.
 
 Examples of breaking changes include:
 
@@ -373,7 +373,7 @@ providing a Public API in such cases.
 #### Unintended breaking changes
 
 Sometimes, a change intended to be non-breaking turns out to be a breaking
-change. If such a change lands on the main branch, a collaborator can revert
+change. If such a change lands on the `main` branch, a collaborator can revert
 it. As an alternative to reverting, the TSC can apply the semver-major label
 after-the-fact.
 
@@ -462,7 +462,7 @@ duration.
 
 Communicate pending deprecations and associated mitigations with the ecosystem
 as soon as possible. If possible, do it before the pull request adding the
-deprecation lands on the main branch.
+deprecation lands on the `main` branch.
 
 Use the `notable-change` label on pull requests that add or change the
 deprecation level of an API.
@@ -670,7 +670,7 @@ for that commit. This is an opportunity to fix commit messages.
       pull request.
     * Protects against the assumption that GitHub will be around forever.
 
-Other changes might have landed on main since the successful CI run. As a
+Other changes might have landed on `main` since the successful CI run. As a
 precaution, run tests (`make -j4 test` or `vcbuild test`).
 
 Confirm that the commit message format is correct using
@@ -755,7 +755,7 @@ the branch.
 Each LTS release has a corresponding branch (v10.x, v8.x, etc.). Each also has a
 corresponding staging branch (v10.x-staging, v8.x-staging, etc.).
 
-Commits that land on main are cherry-picked to each staging branch as
+Commits that land on `main` are cherry-picked to each staging branch as
 appropriate. If a change applies only to the LTS branch, open the pull request
 against the _staging_ branch. Commits from the staging branch land on the LTS
 branch only when a release is being prepared. They might land on the LTS branch
