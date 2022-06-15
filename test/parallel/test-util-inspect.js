@@ -897,7 +897,7 @@ assert.strictEqual(util.inspect(Object.create(Date.prototype)), 'Date {}');
 
 // Test util.inspect.styles and util.inspect.colors.
 {
-  function testColorStyle(style, input, implicit) {
+  function testColorStyle(style, input) {
     const colorName = util.inspect.styles[style];
     let color = ['', ''];
     if (util.inspect.colors[colorName])
