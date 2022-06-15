@@ -343,6 +343,9 @@ command flag enabled.
 Provides a module-relative resolution function scoped to each module, returning
 the URL string.
 
+> **Caveat** This can result in synchronous file-system operations, which
+> can impact performance.
+
 <!-- eslint-skip -->
 
 ```js
@@ -765,6 +768,9 @@ changes:
   * `shortCircuit` {undefined|boolean} A signal that this hook intends to
     terminate the chain of `resolve` hooks. **Default:** `false`
   * `url` {string} The absolute URL to which this input resolves
+
+> **Caveat** The `defaultResolveHook()` contains synchronous file-system
+> operations, which can impact performance.
 
 The `resolve` hook chain is responsible for resolving file URL for a given
 module specifier and parent URL, and optionally its format (such as `'module'`)
