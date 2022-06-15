@@ -282,6 +282,35 @@ async function testImportJwk(
   }
 }
 
+async function testImportRaw({ name, publicUsages }, namedCurve) {
+  const jwk = keyData[namedCurve].jwk;
+
+  const [publicKey] = await Promise.all([
+    subtle.importKey(
+      'raw',
+      Buffer.concat([
+        Buffer.alloc(1, 0x04),
+        Buffer.from(jwk.x, 'base64url'),
+        Buffer.from(jwk.y, 'base64url'),
+      ]),
+      { name, namedCurve },
+      true, publicUsages),
+    subtle.importKey(
+      'raw',
+      Buffer.concat([
+        Buffer.alloc(1, 0x03),
+        Buffer.from(jwk.x, 'base64url'),
+      ]),
+      { name, namedCurve },
+      true, publicUsages),
+  ]);
+
+  assert.strictEqual(publicKey.type, 'public');
+  assert.deepStrictEqual(publicKey.usages, publicUsages);
+  assert.strictEqual(publicKey.algorithm.name, name);
+  assert.strictEqual(publicKey.algorithm.namedCurve, namedCurve);
+}
+
 (async function() {
   const tests = [];
   testVectors.forEach((vector) => {
@@ -291,6 +320,7 @@ async function testImportJwk(
         tests.push(testImportPkcs8(vector, namedCurve, extractable));
         tests.push(testImportJwk(vector, namedCurve, extractable));
       });
+      tests.push(testImportRaw(vector, namedCurve));
     });
   });
 
