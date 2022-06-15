@@ -259,6 +259,26 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
         message: /key is not extractable/
       });
   }
+
+  for (const crv of [undefined, name === 'Ed25519' ? 'Ed448' : 'Ed25519']) {
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, x: jwk.x, y: jwk.y, crv },
+        { name },
+        extractable,
+        publicUsages),
+      { message: /Subtype mismatch/ });
+
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, d: jwk.d, x: jwk.x, y: jwk.y, crv },
+        { name },
+        extractable,
+        publicUsages),
+      { message: /Subtype mismatch/ });
+  }
 }
 
 (async function() {
