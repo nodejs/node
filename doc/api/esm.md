@@ -361,8 +361,8 @@ from which to resolve from:
 import.meta.resolve('./dep', import.meta.url);
 ```
 
-This function is asynchronous because the ES module resolver in Node.js is
-allowed to be asynchronous.
+This function is synchronous because the ES module resolver in Node.js is
+synchronous.
 
 ## Interoperability with CommonJS
 
@@ -735,7 +735,7 @@ prevent unintentional breaks in the chain.
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/43363
-    description: Convert hook from asynchronous to asynchronous.
+    description: Convert hook from asynchronous to synchronous.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/42623
     description: Add support for chaining resolve hooks. Each hook must either
