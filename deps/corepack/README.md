@@ -8,7 +8,7 @@ Corepack is a zero-runtime-dependency Node.js script that acts as a bridge betwe
 
 ### Default Installs
 
-Corepack is distributed by default with Node.js 16.9, but is opt-in for the time being. Run `corepack enable` to install the required shims.
+Corepack is distributed by default with Node.js 14.19.0 and 16.9.0, but is opt-in for the time being. Run `corepack enable` to install the required shims.
 
 ### Manual Installs
 
@@ -104,7 +104,13 @@ This command will retrieve the given package manager from the specified archive 
 
 ## Environment Variables
 
+- `COREPACK_ENABLE_NETWORK` can be set to `0` to prevent Corepack from accessing the network (in which case you'll be responsible for hydrating the package manager versions that will be required for the projects you'll run, using `corepack hydrate`).
+
+- `COREPACK_HOME` can be set in order to define where Corepack should install the package managers. By default it is set to `$HOME/.node/corepack`.
+
 - `COREPACK_ROOT` has no functional impact on Corepack itself; it's automatically being set in your environment by Corepack when it shells out to the underlying package managers, so that they can feature-detect its presence (useful for commands like `yarn init`).
+
+- `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` are supported through [`node-proxy-agent`](https://github.com/TooTallNate/node-proxy-agent).
 
 ## Contributing
 
