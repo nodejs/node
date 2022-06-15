@@ -769,8 +769,8 @@ changes:
     terminate the chain of `resolve` hooks. **Default:** `false`
   * `url` {string} The absolute URL to which this input resolves
 
-> **Caveat** The `defaultResolveHook()` contains synchronous file-system
-> operations, which can impact performance.
+> **Caveat** A resolve hook can contain  synchronous file-system operations
+> (as `defaultResolveHook()` does), which can impact performance.
 
 The `resolve` hook chain is responsible for resolving file URL for a given
 module specifier and parent URL, and optionally its format (such as `'module'`)
