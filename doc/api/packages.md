@@ -376,7 +376,7 @@ import submodule from 'es-module-package/private-module.js';
 // Throws ERR_PACKAGE_PATH_NOT_EXPORTED
 ```
 
-#### Extensioned v Extensionless Subpaths
+#### Extensions in Subpaths
 
 Package authors should provide either extensioned (`import 'pkg/subpath.js'`) or
 extensionless (`import 'pkg/subpath'`) subpaths in their exports. This ensures
@@ -389,7 +389,7 @@ benefits of readability and of masking the true path of the file within the
 package.
 
 With [import maps][] now providing a standard for package resolution in browsers
-and other server-side runtimes, using the extensionless style can result in
+and other JavaScript runtimes, using the extensionless style can result in
 bloated import map definitions. Explicit file extensions can avoid this issue by
 enabling the import map to utilize a [packages folder mapping][] to map multiple
 subpaths where possible instead of a separate map entry per package subpath
