@@ -520,9 +520,8 @@ import internalZ from '#internal/z.js';
 ```
 
 Including the `"*.js"` on both sides of the mapping allows restricting which
-file extensions can be resolved in the case of other files like source maps
-existing, while also retaining file extensions for the consumed subpath as is
-recommended.
+file extensions can be resolved in the case of there being other files like
+source maps existing.
 
 This is a direct static replacement without any special handling for file
 extensions. In the previous example, `pkg/features/x.json` would be resolved to
