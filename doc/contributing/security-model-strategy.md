@@ -2,7 +2,7 @@
 
 A clear security model, with features like permissions and policy enforcement,
 is a
-[top technical priority](https://github.com/nodejs/node/blob/master/doc/contributing/technical-priorities.md#permissionspoliciessecurity-model)
+[top technical priority](https://github.com/nodejs/node/blob/HEAD/doc/contributing/technical-priorities.md#permissionspoliciessecurity-model)
 of Node.js.
 
 ## High-level approach
