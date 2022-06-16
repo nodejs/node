@@ -14,7 +14,7 @@ the following tiers.
   suite for the tool/API is not green. To be considered for inclusion
   in this tier it must have a good test suite and that test suite and a job
   must exist in the Node.js CI so that it can be run as part of the release
-  process.  Tests on master will be run nightly when possible to provide
+  process. Tests on `main` will be run nightly when possible to provide
   early warning of potential issues.  No commit to the current and LTS
   release branches should break this tool/API if the next major release
   is within 1 month. In addition:

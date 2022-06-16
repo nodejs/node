@@ -17,7 +17,7 @@ implementation using WebAssembly which is generated from a
 C based implementation. These two paths
 resolve to the files in `deps/cjs-module-lexer` due to their
 inclusion in the `deps_files` entry in
-[node.gyp](https://github.com/nodejs/node/blob/master/node.gyp).
+[node.gyp](https://github.com/nodejs/node/blob/main/node.gyp).
 
 The two different versions of lexer.js are maintained in the
 [nodejs/cjs-module-lexer][] project.
