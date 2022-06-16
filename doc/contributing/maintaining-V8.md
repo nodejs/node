@@ -326,12 +326,12 @@ The rough outline of the process is:
 
 ```bash
 # Assuming your fork of Node.js is checked out in $NODE_DIR
-# and you want to update the Node.js master branch.
+# and you want to update the Node.js main branch.
 # Find the current (OLD) version in
 # $NODE_DIR/deps/v8/include/v8-version.h
 cd $NODE_DIR
-git checkout master
-git merge --ff-only origin/master
+git checkout main
+git merge --ff-only origin/main
 git checkout -b V8_NEW_VERSION
 curl -L https://github.com/v8/v8/compare/${V8_OLD_VERSION}...${V8_NEW_VERSION}.patch | git apply --directory=deps/v8
 # You may want to amend the commit message to describe the nature of the update
@@ -345,13 +345,13 @@ to apply a minor update.
 
 ### Major updates
 
-We upgrade the version of V8 in Node.js master whenever a V8 release goes stable
+We upgrade the version of V8 in Node.js `main` whenever a V8 release goes stable
 upstream, that is, whenever a new release of Chrome comes out.
 
 Upgrading major versions would be much harder to do with the patch mechanism
 above. A better strategy is to
 
-1. Audit the current master branch and look at the patches that have been
+1. Audit the current `main` branch and look at the patches that have been
    floated since the last major V8 update.
 2. Replace the copy of V8 in Node.js with a fresh checkout of the latest stable
    V8 branch. Special care must be taken to recursively update the DEPS that V8
@@ -394,7 +394,7 @@ branches. This has several benefits:
 * The history of the V8 branch in `nodejs/v8` becomes purer and it would make it
   easier to pull in the V8 team for help with reviewing.
 * It would make it simpler to setup an automated build that tracks Node.js
-  master + V8 lkgr integration build.
+  `main` + V8 lkgr integration build.
 
 This would require some tooling to:
 

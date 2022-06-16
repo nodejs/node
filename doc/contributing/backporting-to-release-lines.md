@@ -10,7 +10,7 @@ For the active staging branches see the [Release Schedule][].
 
 ## What needs to be backported?
 
-If a cherry-pick from master does not land cleanly on a staging branch, the
+If a cherry-pick from `main` does not land cleanly on a staging branch, the
 releaser will mark the pull request with a particular label for that release
 line (e.g. `backport-requested-vN.x`), specifying to our tooling that this
 pull request should not be included. The releaser will then add a comment
