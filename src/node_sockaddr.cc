@@ -215,9 +215,6 @@ bool in_network_ipv4(
     const SocketAddress& ip,
     const SocketAddress& net,
     int prefix) {
-  if (prefix == 32)
-    return compare_ipv4(ip, net) == SocketAddress::CompareResult::SAME;
-
   uint32_t mask = ((1ull << prefix) - 1) << (32 - prefix);
 
   const sockaddr_in* ip_in =
