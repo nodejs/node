@@ -41,7 +41,7 @@ onboarding session.
   * Add the canonical nodejs repository as `upstream` remote:
     * `git remote add upstream git@github.com:nodejs/node.git`
   * To update from `upstream`:
-    * `git checkout master`
+    * `git checkout main`
     * `git fetch upstream HEAD`
     * `git reset --hard FETCH_HEAD`
   * Make a new branch for each pull request you submit.
