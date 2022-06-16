@@ -7,7 +7,7 @@ const { isBuiltIn } = require('module');
 assert(isBuiltIn('http'));
 assert(isBuiltIn('sys'));
 assert(isBuiltIn('node:fs'));
-assert(isBuiltIn('node:test'));
+assert(!isBuiltIn('node:test'));
 
 // Does not include internal modules
 assert(!isBuiltIn('internal'));
