@@ -513,6 +513,7 @@
       'type': 'none',
       'toolsets': ['host', 'target'],
       'dependencies': [
+        'v8_libbase',
         'v8_shared_internal_headers',
       ],
       'direct_dependent_settings': {
@@ -1657,12 +1658,12 @@
             'conditions': [
               ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
                 'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/x64/push_registers_masm.S',
+                  '<(V8_ROOT)/src/heap/base/asm/x64/push_registers_masm.asm',
                 ],
               }],
               ['_toolset == "host" and host_arch == "ia32" or _toolset == "target" and target_arch=="ia32"', {
                 'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/ia32/push_registers_masm.S',
+                  '<(V8_ROOT)/src/heap/base/asm/ia32/push_registers_masm.asm',
                 ],
               }],
               ['_toolset == "host" and host_arch == "arm64" or _toolset == "target" and target_arch=="arm64"', {
