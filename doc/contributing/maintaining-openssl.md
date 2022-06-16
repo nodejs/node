@@ -5,7 +5,7 @@ This document describes how to update `deps/openssl/`.
 If you need to provide updates across all active release lines you will
 currently need to generate four PRs as follows:
 
-* a PR for master which is generated following the instructions
+* a PR for `main` which is generated following the instructions
   below for OpenSSL 3.x.x.
 * a PR for 16.x following the instructions in the v16.x-staging version
   of this guide.
