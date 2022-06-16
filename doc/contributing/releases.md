@@ -25,7 +25,7 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
   * [10. Test the build](#10-test-the-build)
   * [11. Tag and sign the release commit](#11-tag-and-sign-the-release-commit)
   * [12. Set up for the next release](#12-set-up-for-the-next-release)
-  * [13. Cherry-pick the release commit to `master`](#13-cherry-pick-the-release-commit-to-master)
+  * [13. Cherry-pick the release commit to `main`](#13-cherry-pick-the-release-commit-to-main)
   * [14. Push the release tag](#14-push-the-release-tag)
   * [15. Promote and sign the release builds](#15-promote-and-sign-the-release-builds)
   * [16. Check the release](#16-check-the-release)
@@ -132,7 +132,7 @@ tracker][].
 
 When preparing a security release, contact Build at least two weekdays in
 advance of the expected release. To ensure that the security patch(es) can be
-properly tested, run a `node-test-pull-request` job against the `master` branch
+properly tested, run a `node-test-pull-request` job against the `main` branch
 of the `nodejs-private/node-private` repository a day or so before the
 [CI lockdown procedure][] begins. This is to confirm that Jenkins can properly
 access the private repository.
@@ -147,7 +147,7 @@ $ git checkout v1.x-staging
 $ git reset --hard upstream/v1.x-staging
 ```
 
-If the staging branch is not up to date relative to `master`, bring the
+If the staging branch is not up to date relative to `main`, bring the
 appropriate PRs and commits into it.
 
 Go through PRs with the label `vN.x`. e.g. [PRs with the `v8.x` label](https://github.com/nodejs/node/pulls?q=is%3Apr+is%3Aopen+sort%3Aupdated-desc+label%3Av8.x).
@@ -156,7 +156,7 @@ For each PR:
 
 * Run or check that there is a passing CI.
 * Check approvals (you can approve yourself).
-* Check that the commit metadata was not changed from the `master` commit.
+* Check that the commit metadata was not changed from the `main` commit.
 * If there are merge conflicts, ask the PR author to rebase.
   Simple conflicts can be resolved when landing.
 
@@ -175,7 +175,7 @@ duplicate or not.
 For a list of commits that could be landed in a patch release on v1.x:
 
 ```console
-$ branch-diff v1.x-staging master --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x,backport-blocked-v1.x,backport-open-v1.x,backported-to-v1.x --filter-release --format=simple
+$ branch-diff v1.x-staging main --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x,backport-blocked-v1.x,backport-open-v1.x,backported-to-v1.x --filter-release --format=simple
 ```
 
 Previously released commits and version bumps do not need to be
@@ -195,7 +195,7 @@ command. (For semver-minor releases, make sure to remove the `semver-minor` tag
 from `exclude-label`.)
 
 ```console
-$ branch-diff v1.x-staging master --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x,backport-blocked-v1.x,backport-open-v1.x,backported-to-v1.x --filter-release --format=sha --reverse | xargs git cherry-pick
+$ branch-diff v1.x-staging main --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x,backport-blocked-v1.x,backport-open-v1.x,backported-to-v1.x --filter-release --format=sha --reverse | xargs git cherry-pick
 ```
 
 When cherry-picking commits, if there are simple conflicts you can resolve
@@ -387,7 +387,7 @@ release branches to more easily be passed between members of the release team if
 necessary.
 
 Create a pull request targeting the correct release line. For example, a
-`v5.3.0-proposal` PR should target `v5.x`, not master. Paste the CHANGELOG
+`v5.3.0-proposal` PR should target `v5.x`, not `main`. Paste the CHANGELOG
 modifications into the body of the PR so that collaborators can see what is
 changing. These PRs should be left open for at least 24 hours, and can be
 updated as new commits land. If the CHANGELOG pasted into the pull request
@@ -540,10 +540,10 @@ $ git rebase v1.x
 $ git push upstream v1.x-staging
 ```
 
-### 13. Cherry-pick the release commit to `master`
+### 13. Cherry-pick the release commit to `main`
 
 ```console
-$ git checkout master
+$ git checkout main
 $ git cherry-pick v1.x^
 ```
 
@@ -565,10 +565,10 @@ Then finish cherry-picking and push the commit upstream:
 $ git add src/node_version.h doc
 $ git cherry-pick --continue
 $ make lint
-$ git push upstream master
+$ git push upstream main
 ```
 
-**Do not** cherry-pick the "Working on vx.y.z" commit to `master`.
+**Do not** cherry-pick the "Working on vx.y.z" commit to `main`.
 
 ### 14. Push the release tag
 
@@ -798,8 +798,8 @@ announced immediately following the release of 12.0.0).
 
 Approximately two months before a major release, new `vN.x` and
 `vN.x-staging` branches (where `N` indicates the major release) should be
-created as forks of the `master` branch. Up until one week before the release
-date, these must be kept in sync with `master`.
+created as forks of the `main` branch. Up until one week before the release
+date, these must be kept in sync with `main`.
 
 The `vN.x` and `vN.x-staging` branches must be kept in sync with one another
 up until the date of the release.
