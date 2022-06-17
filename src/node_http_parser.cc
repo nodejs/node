@@ -450,27 +450,20 @@ class Parser : public AsyncWrap, public StreamListener {
 
 
   int on_body(const char* at, size_t length) {
-    EscapableHandleScope scope(env()->isolate());
+    if (length == 0)
+      return 0;
 
-    Local<Object> obj = object();
-    Local<Value> cb = obj->Get(env()->context(), kOnBody).ToLocalChecked();
+    Environment* env = this->env();
+    HandleScope handle_scope(env->isolate());
+
+    Local<Value> cb = object()->Get(env->context(), kOnBody).ToLocalChecked();
 
     if (!cb->IsFunction())
       return 0;
 
-    // Make sure Buffer will be in parent HandleScope
-    Local<Object> current_buffer = scope.Escape(
-        Buffer::Copy(env()->isolate(), at, length).ToLocalChecked());
+    Local<Value> buffer = Buffer::Copy(env, at, length).ToLocalChecked();
 
-    Local<Value> argv[3] = {
-        current_buffer,
-        Integer::NewFromUnsigned(
-            env()->isolate(), 0),
-        Integer::NewFromUnsigned(env()->isolate(), length)};
-
-    MaybeLocal<Value> r = MakeCallback(cb.As<Function>(),
-                                       arraysize(argv),
-                                       argv);
+    MaybeLocal<Value> r = MakeCallback(cb.As<Function>(), 1, &buffer);
 
     if (r.IsEmpty()) {
       got_exception_ = true;
