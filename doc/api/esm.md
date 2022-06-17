@@ -323,6 +323,9 @@ added:
   - v13.9.0
   - v12.16.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43363
+    description: Convert from asynchronous to synchronous.
   - version:
       - v16.2.0
       - v14.18.0
@@ -341,7 +344,8 @@ command flag enabled.
 * Returns: {string}
 
 Provides a module-relative resolution function scoped to each module, returning
-the URL string.
+the URL string. In alignment with browser behaviour, this now returns
+synchronously.
 
 > **Caveat** This can result in synchronous file-system operations, which
 > can impact performance.
