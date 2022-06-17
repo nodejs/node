@@ -80,3 +80,13 @@ require(fixtures.path('resolve-paths', 'default', 'verify-paths.js'));
     assert.strictEqual(resolvedPaths.includes('/node_modules'), false);
   });
 }
+
+{
+  assert.strictEqual(require.resolve('https'), 'https');
+  assert.strictEqual(require.resolve('fs'), 'fs');
+
+  assert.throws(
+    () => require.resolve('unknown'),
+    { code: 'MODULE_NOT_FOUND' },
+  );
+}
