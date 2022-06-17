@@ -103,7 +103,7 @@ async function doReadAndCancel() {
 
   // Validate file size is within range for reading
   {
-    // Variable taken from https://github.com/nodejs/node/blob/master/lib/internal/fs/promises.js#L5
+    // Variable taken from https://github.com/nodejs/node/blob/1377163f3351/lib/internal/fs/promises.js#L5
     const kIoMaxLength = 2 ** 31 - 1;
 
     const newFile = path.resolve(tmpDir, 'dogs-running3.txt');
