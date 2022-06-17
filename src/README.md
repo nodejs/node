@@ -20,8 +20,8 @@ V8 does not provide much public API documentation beyond what is
 available in its C++ header files, most importantly `v8.h`, which can be
 accessed online in the following locations:
 
-* On GitHub: [`v8.h` in Node.js master][]
-* On GitHub: [`v8.h` in V8 master][]
+* On GitHub: [`v8.h` in Node.js][]
+* On GitHub: [`v8.h` in V8][]
 * On the Chromium project's Code Search application: [`v8.h` in Code Search][]
 
 V8 also provides an [introduction for V8 embedders][],
@@ -1047,8 +1047,8 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [`req_wrap.h`]: req_wrap.h
 [`util.h`]: util.h
 [`v8.h` in Code Search]: https://cs.chromium.org/chromium/src/v8/include/v8.h
-[`v8.h` in Node.js master]: https://github.com/nodejs/node/blob/master/deps/v8/include/v8.h
-[`v8.h` in V8 master]: https://github.com/v8/v8/blob/master/include/v8.h
+[`v8.h` in Node.js]: https://github.com/nodejs/node/blob/HEAD/deps/v8/include/v8.h
+[`v8.h` in V8]: https://github.com/v8/v8/blob/HEAD/include/v8.h
 [`vm` module]: https://nodejs.org/api/vm.html
 [binding function]: #binding-functions
 [cleanup hooks]: #cleanup-hooks
