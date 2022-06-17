@@ -7,7 +7,7 @@ REPOSITORY=$2
 shift 2
 
 UPSTREAM=origin
-DEFAULT_BRANCH=master
+DEFAULT_BRANCH=main
 
 COMMIT_QUEUE_LABEL="commit-queue"
 COMMIT_QUEUE_FAILED_LABEL="commit-queue-failed"
@@ -86,7 +86,7 @@ for pr in "$@"; do
     commit_title=$(git log -1 --pretty='format:%s')
     commit_body=$(git log -1 --pretty='format:%b')
     commit_head=$(grep 'Fetched commits as' output | cut -d. -f3 | xargs git rev-parse)
- 
+
     jq -n \
       --arg title "${commit_title}" \
       --arg body "${commit_body}" \

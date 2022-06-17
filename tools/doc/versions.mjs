@@ -32,7 +32,7 @@ const outFile = (process.argv.length > 2 ? process.argv[2] : undefined);
 
 async function versions() {
   // The CHANGELOG.md on release branches may not reference newer semver
-  // majors of Node.js so fetch and parse the version from the master branch.
+  // majors of Node.js so fetch and parse the version from the main branch.
   const url =
     'https://raw.githubusercontent.com/nodejs/node/HEAD/CHANGELOG.md';
   let changelog;

@@ -522,7 +522,7 @@ function altDocs(filename, docCreated, versions) {
 }
 
 function editOnGitHub(filename) {
-  return `<li class="edit_on_github"><a href="https://github.com/nodejs/node/edit/master/doc/api/${filename}.md">Edit on GitHub</a></li>`;
+  return `<li class="edit_on_github"><a href="https://github.com/nodejs/node/edit/main/doc/api/${filename}.md">Edit on GitHub</a></li>`;
 }
 
 function gtocPicker(id) {

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Usage:
-// git diff upstream/master...HEAD -G"pr-url:" -- "*.md" | \
+// git diff upstream/main...HEAD -G"pr-url:" -- "*.md" | \
 // ./tools/lint-pr-url.mjs <expected-pr-url>
 
 import process from 'node:process';
