@@ -167,4 +167,4 @@ In that case it needs to be marked with `skip` instead of `fail`.
 
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`test/fixtures/wpt/README.md`]: ../fixtures/wpt/README.md
-[git node wpt]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-wpt
+[git node wpt]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-wpt
