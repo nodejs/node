@@ -2,25 +2,36 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { HTTPParser } = process.binding('http_parser');
+const { request } = require('http');
+const { Duplex } = require('stream');
 
-let second = false;
-const parser = new HTTPParser(HTTPParser.RESPONSE, false);
+let socket;
 
-parser.initialize(HTTPParser.RESPONSE, {}, 0, 0);
+function createConnection(...args) {
+  socket = new Duplex({
+    read() {},
+    write(chunk, encoding, callback) {
+      if (chunk.toString().includes('\r\n\r\n')) {
+        this.push('HTTP/1.1 100 Continue\r\n\r\n');
+      }
 
-parser[HTTPParser.kOnHeadersComplete] = common.mustCall(
-  function(_versionMajor, _versionMinor, _headers, _method, _url, statusCode) {
-    if (!second) {
-      second = true;
-
-      assert.strictEqual(statusCode, 100);
-      parser.execute(Buffer.from('HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n'));
-    } else {
-      assert.strictEqual(statusCode, 200);
+      callback();
     }
-  },
-  2
-);
+  });
 
-parser.execute(Buffer.from('HTTP/1.1 100 Continue\r\n\r\n'));
+  return socket;
+}
+
+const req = request('http://localhost:8080', { createConnection });
+
+req.on('information', common.mustCall(({ statusCode }) => {
+  assert.strictEqual(statusCode, 100);
+  socket.push('HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n');
+  socket.push(null);
+}));
+
+req.on('response', common.mustCall(({ statusCode }) => {
+  assert.strictEqual(statusCode, 200);
+}));
+
+req.end();
