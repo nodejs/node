@@ -344,11 +344,11 @@ command flag enabled.
 * Returns: {string}
 
 Provides a module-relative resolution function scoped to each module, returning
-the URL string. In alignment with browser behaviour, this now returns
+the URL string. In alignment with browser behavior, this now returns
 synchronously.
 
 > **Caveat** This can result in synchronous file-system operations, which
-> can impact performance.
+> can impact performance similarly to `require.resolve`.
 
 <!-- eslint-skip -->
 
@@ -773,7 +773,7 @@ changes:
     terminate the chain of `resolve` hooks. **Default:** `false`
   * `url` {string} The absolute URL to which this input resolves
 
-> **Caveat** A resolve hook can contain  synchronous file-system operations
+> **Caveat** A resolve hook can contain synchronous file-system operations
 > (as `defaultResolveHook()` does), which can impact performance.
 
 The `resolve` hook chain is responsible for resolving file URL for a given
