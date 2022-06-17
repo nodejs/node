@@ -37,7 +37,7 @@ import { execPath } from 'process';
   child.on('close', mustCall((code, _signal) => {
     notStrictEqual(code, 0);
 
-    match(stderr, /\sError: must crash the process\n/);
+    match(stderr, /\sError: must crash the process\r?\n/);
 
     ok(!stderr.includes('must not call'));
   }));
@@ -58,7 +58,7 @@ import { execPath } from 'process';
   child.on('close', mustCall((code, _signal) => {
     notStrictEqual(code, 0);
 
-    match(stderr, /\sundefined\n/);
+    match(stderr, /\sundefined\r?\n/);
 
     ok(!stderr.includes('must not call'));
   }));
