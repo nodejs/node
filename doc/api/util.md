@@ -1101,6 +1101,80 @@ console.log(values, positionals);
 // Prints: [Object: null prototype] { foo: true, bar: 'b' } []
 ```
 
+Detailed parse information is available for adding custom behaviours by
+specifying `tokens: true` in the configuration. The returned tokens have
+properties describing:
+
+* all tokens
+  * `kind` { string } One of 'option', 'positional', or 'option-terminator'.
+  * `index` { number } Index of element in `args` containing token.
+* option tokens
+  * `name` { string } Long name of option.
+  * `rawName` { string } How option used in args, like `-f` of `--foo`.
+  * `value` { string | undefined } Option value specified in args.
+    Undefined for boolean options.
+  * `inlineValue` { boolean | undefined } Whether option value specified inline,
+    like `--foo=bar`.
+* positional tokens
+  * `value` { string } Positional value (i.e. `args[index]`).
+* option-terminator token
+
+For example, assuming the following script which uses
+automatic detection of options and no error checking:
+
+```mjs
+import { parseArgs } from 'node:util';
+console.log(parseArgs({ strict: false, tokens: true }));
+```
+
+```cjs
+const { parseArgs } = require('node:util');
+console.log(parseArgs({ strict: false, tokens: true }));
+```
+
+This call shows the three kinds of token and their properties:
+
+```console
+$ node tokens.cjs -xy --foo=BAR -- file.txt
+{
+  values: [Object: null prototype] { d: true, foo: 'BAR' },
+  positionals: [ 'file.txt' ],
+  tokens: [
+    {
+      kind: 'option',
+      name: 'x',
+      rawName: '-x',
+      index: 0,
+      value: undefined,
+      inlineValue: undefined
+    },
+    {
+      kind: 'option',
+      name: 'y',
+      rawName: '-y',
+      index: 0,
+      value: undefined,
+      inlineValue: undefined
+    },
+    {
+      kind: 'option',
+      name: 'foo',
+      rawName: '--foo',
+      index: 1,
+      value: 'BAR',
+      inlineValue: true
+    },
+    { kind: 'option-terminator', index: 2 },
+    { kind: 'positional', index: 3, value: 'file.txt' }
+  ]
+}
+```
+
+The source argument for a token is `args[token.index]`.
+Short option groups like `-xy` expand to a token for each option.
+The `x` and `y` tokens above have the same index, since
+they come from the same argument.
+
 `util.parseArgs` is experimental and behavior may change. Join the
 conversation in [pkgjs/parseargs][] to contribute to the design.
 
