@@ -45,6 +45,9 @@ new RuleTester({
       'ReflectDefineProperty({}, "key", { "__proto__": null })',
       'ObjectDefineProperty({}, "key", { \'__proto__\': null })',
       'ReflectDefineProperty({}, "key", { \'__proto__\': null })',
+      'StringPrototypeReplace("some string", "some string", "some replacement")',
+      'StringPrototypeReplaceAll("some string", "some string", "some replacement")',
+      'StringPrototypeSplit("some string", "some string")',
       'new Proxy({}, otherObject)',
       'new Proxy({}, someFactory())',
       'new Proxy({}, { __proto__: null })',
@@ -168,7 +171,19 @@ new RuleTester({
         errors: [{ message: /looks up the Symbol\.match property/ }],
       },
       {
+        code: 'let v = StringPrototypeMatch("some string", /some regex/)',
+        errors: [{ message: /looks up the Symbol\.match property/ }],
+      },
+      {
+        code: 'let v = StringPrototypeMatch("some string", new RegExp("some regex"))',
+        errors: [{ message: /looks up the Symbol\.match property/ }],
+      },
+      {
         code: 'StringPrototypeMatchAll("some string", /some regex/)',
+        errors: [{ message: /looks up the Symbol\.matchAll property/ }],
+      },
+      {
+        code: 'let v = StringPrototypeMatchAll("some string", new RegExp("some regex"))',
         errors: [{ message: /looks up the Symbol\.matchAll property/ }],
       },
       {
@@ -176,7 +191,15 @@ new RuleTester({
         errors: [{ message: /looks up the Symbol\.replace property/ }],
       },
       {
+        code: 'StringPrototypeReplace("some string", new RegExp("some regex"), "some replacement")',
+        errors: [{ message: /looks up the Symbol\.replace property/ }],
+      },
+      {
         code: 'StringPrototypeReplaceAll("some string", /some regex/, "some replacement")',
+        errors: [{ message: /looks up the Symbol\.replace property/ }],
+      },
+      {
+        code: 'StringPrototypeReplaceAll("some string", new RegExp("some regex"), "some replacement")',
         errors: [{ message: /looks up the Symbol\.replace property/ }],
       },
       {
