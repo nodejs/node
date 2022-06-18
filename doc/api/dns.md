@@ -1405,6 +1405,8 @@ Each DNS query can return one of the following error codes:
 * `dns.ADDRGETNETWORKPARAMS`: Could not find `GetNetworkParams` function.
 * `dns.CANCELLED`: DNS query cancelled.
 
+The above error codes are also exported by the `dnsPromises` API, e.g., `dnsPromises.NODATA`.
+
 ## Implementation considerations
 
 Although [`dns.lookup()`][] and the various `dns.resolve*()/dns.reverse()`
