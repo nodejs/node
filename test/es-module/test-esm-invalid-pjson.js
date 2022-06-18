@@ -18,7 +18,8 @@ describe('ESM: Package.json', { concurrency: true }, () => {
       stderr.includes(
         `[ERR_INVALID_PACKAGE_CONFIG]: Invalid package config ${invalidJson} ` +
         `while importing "invalid-pjson" from ${entry}. ` +
-        `Unexpected token } in JSON at position ${12 + checkoutEOL.length * 2}`
+        "Expected ':' after property name in JSON at position " +
+        `${12 + checkoutEOL.length * 2}`
       ),
       stderr
     );
