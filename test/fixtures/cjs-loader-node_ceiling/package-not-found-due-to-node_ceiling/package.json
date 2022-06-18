@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "#dep": {
+      "node": "renamed"
+    }
+  }
+}

@@ -403,7 +403,8 @@ spawn(...common.pwdCommand, { stdio: ['pipe'] });
 * `dir` [\<string>][<string>] default = \_\_dirname
 
 Throws an `AssertionError` if a `package.json` file exists in any ancestor
-directory above `dir`. Such files may interfere with proper test functionality.
+directory above `dir` but stops searching if a `node_ceiling` file is found
+first. Such `package.json` files may interfere with proper test functionality.
 
 ### `runWithInvalidFD(func)`
 

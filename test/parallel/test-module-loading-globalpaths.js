@@ -101,4 +101,12 @@ if (process.argv[2] === 'child') {
                                            [ path.join(localDir, 'test.js') ],
                                            { encoding: 'utf8', env: env });
   assert.strictEqual(child.trim(), 'local');
+
+  // Test module in local folder above node_ceiling is not loaded but NODE_PATH  is still loaded
+  env.HOME = env.USERPROFILE = bothHomeDir;
+  env.NODE_PATH = path.join(testFixturesDir, 'node_path');
+  const child2 = child_process.execFileSync(testExecPath,
+                                           [ path.join(localDir, 'nested-with-node_ceiling', 'test.js') ],
+                                           { encoding: 'utf8', env: env });
+  assert.strictEqual(child2.trim(), '$NODE_PATH');
 }

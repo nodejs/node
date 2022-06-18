@@ -834,6 +834,10 @@ function requireNoPackageJSONAbove(dir = __dirname) {
         'This test shouldn\'t load properties from a package.json above ' +
         `its file location. Found package.json at ${possiblePackage}.`);
     }
+    const ceilingPath = path.join(possiblePackage, '../node_ceiling');
+    if (fs.statSync(ceilingPath, { throwIfNoEntry: false })?.isFile() ?? false) {
+      break;
+    }
     lastPackage = possiblePackage;
     possiblePackage = path.join(possiblePackage, '..', '..', 'package.json');
   }
