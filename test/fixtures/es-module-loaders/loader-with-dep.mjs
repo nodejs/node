@@ -3,9 +3,9 @@ import {createRequire} from '../../common/index.mjs';
 const require = createRequire(import.meta.url);
 const dep = require('./loader-dep.js');
 
-export async function resolve(specifier, { parentURL, importAssertions }, defaultResolve) {
+export function resolve(specifier, { parentURL, importAssertions }, nextResolve) {
   return {
-    url: (await defaultResolve(specifier, { parentURL, importAssertions }, defaultResolve)).url,
+    url: (nextResolve(specifier, { parentURL, importAssertions })).url,
     format: dep.format
   };
 }

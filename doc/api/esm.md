@@ -324,6 +324,9 @@ added:
   - v13.9.0
   - v12.16.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43363
+    description: Convert from asynchronous to synchronous.
   - version:
       - v16.2.0
       - v14.18.0
@@ -339,15 +342,19 @@ command flag enabled.
 * `specifier` {string} The module specifier to resolve relative to `parent`.
 * `parent` {string|URL} The absolute parent module URL to resolve from. If none
   is specified, the value of `import.meta.url` is used as the default.
-* Returns: {Promise}
+* Returns: {string}
 
 Provides a module-relative resolution function scoped to each module, returning
-the URL string.
+the URL string. In alignment with browser behavior, this now returns
+synchronously.
+
+> **Caveat** This can result in synchronous file-system operations, which
+> can impact performance similarly to `require.resolve`.
 
 <!-- eslint-skip -->
 
 ```js
-const dependencyAsset = await import.meta.resolve('component-lib/asset.css');
+const dependencyAsset = import.meta.resolve('component-lib/asset.css');
 ```
 
 `import.meta.resolve` also accepts a second argument which is the parent module
@@ -356,11 +363,11 @@ from which to resolve from:
 <!-- eslint-skip -->
 
 ```js
-await import.meta.resolve('./dep', import.meta.url);
+import.meta.resolve('./dep', import.meta.url);
 ```
 
-This function is asynchronous because the ES module resolver in Node.js is
-allowed to be asynchronous.
+This function is synchronous because the ES module resolver in Node.js is
+synchronous.
 
 ## Interoperability with CommonJS
 
@@ -732,6 +739,9 @@ prevent unintentional breaks in the chain.
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/43363
+    description: Convert hook from asynchronous to synchronous.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/42623
     description: Add support for chaining resolve hooks. Each hook must either
       call `nextResolve()` or include a `shortCircuit` property set to `true`
@@ -764,6 +774,9 @@ changes:
     terminate the chain of `resolve` hooks. **Default:** `false`
   * `url` {string} The absolute URL to which this input resolves
 
+> **Caveat** A resolve hook can contain synchronous file-system operations
+> (as `defaultResolveHook()` does), which can impact performance.
+
 The `resolve` hook chain is responsible for resolving file URL for a given
 module specifier and parent URL, and optionally its format (such as `'module'`)
 as a hint to the `load` hook. If a format is specified, the `load` hook is
@@ -790,7 +803,7 @@ Node.js module specifier resolution behavior_ when calling `defaultResolve`, the
 `context.conditions` array originally passed into the `resolve` hook.
 
 ```js
-export async function resolve(specifier, context, nextResolve) {
+export function resolve(specifier, context, nextResolve) {
   const { parentURL = null } = context;
 
   if (Math.random() > 0.5) { // Some condition.
@@ -1089,7 +1102,7 @@ const baseURL = pathToFileURL(`${cwd()}/`).href;
 // CoffeeScript files end in .coffee, .litcoffee, or .coffee.md.
 const extensionsRegex = /\.coffee$|\.litcoffee$|\.coffee\.md$/;
 
-export async function resolve(specifier, context, nextResolve) {
+export function resolve(specifier, context, nextResolve) {
   if (extensionsRegex.test(specifier)) {
     const { parentURL = baseURL } = context;
 

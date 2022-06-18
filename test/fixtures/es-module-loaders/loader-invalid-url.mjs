@@ -1,4 +1,4 @@
-export async function resolve(specifier, { parentURL, importAssertions }, defaultResolve) {
+export function resolve(specifier, { parentURL, importAssertions }, nextResolve) {
   if (parentURL && specifier === '../fixtures/es-modules/test-esm-ok.mjs') {
     return {
       shortCircuit: true,
@@ -6,5 +6,5 @@ export async function resolve(specifier, { parentURL, importAssertions }, defaul
       importAssertions,
     };
   }
-  return defaultResolve(specifier, {parentURL, importAssertions}, defaultResolve);
+  return nextResolve(specifier, {parentURL, importAssertions});
 }
