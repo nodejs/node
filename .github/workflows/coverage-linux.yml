@@ -12,7 +12,7 @@ on:
       - '!.github/workflows/coverage-linux.yml'
   push:
     branches:
-      - $default-branch
+      - main
     paths-ignore:
       - '**.md'
       - benchmark/**
