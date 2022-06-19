@@ -166,7 +166,7 @@ doAsyncIterBreakTest().then(common.mustCall());
 async function doAsyncIterReturnTest() {
   const dir = await fs.promises.opendir(testDir);
   await (async function() {
-    for await (const dirent of dir) { // eslint-disable-line no-unused-vars
+    for await (const dirent of dir) {
       return;
     }
   })();

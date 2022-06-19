@@ -10725,10 +10725,10 @@ var typescript = (superClass => class extends superClass {
       return super.parseMaybeAssign(...args);
     }
 
+    if (!state || state === this.state) state = this.state.clone();
     let typeParameters;
-    state = state || this.state.clone();
     const arrow = this.tryParse(abort => {
-      var _expr$extra, _typeParameters, _expr$typeParameters$;
+      var _expr$extra, _typeParameters;
 
       typeParameters = this.tsParseTypeParameters();
       const expr = super.parseMaybeAssign(...args);
@@ -10742,13 +10742,6 @@ var typescript = (superClass => class extends superClass {
       }
 
       expr.typeParameters = typeParameters;
-
-      if (this.hasPlugin("jsx") && expr.typeParameters.params.length === 1 && !((_expr$typeParameters$ = expr.typeParameters.extra) != null && _expr$typeParameters$.trailingComma)) {
-        const parameter = expr.typeParameters.params[0];
-
-        if (!parameter.constraint) ;
-      }
-
       return expr;
     }, state);
 
