@@ -917,9 +917,8 @@ IdlArray.prototype.assert_type_is = function(value, type)
                 throw e;
             }
         }
-        // TODO: Is there a nice way to list the union's types in the message?
-        assert_true(false, "Attribute has value " + format_value(value)
-                    + " which doesn't match any of the types in the union");
+
+        assert_true(false, `Attribute has value ${format_value(value)} which doesn't match any of the types in the union`);
 
     }
 
