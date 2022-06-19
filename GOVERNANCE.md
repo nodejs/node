@@ -145,7 +145,7 @@ Contributions can be:
 * Helping others
 * Issues
 * Participation in other projects, teams, and working groups of the Node.js
-organization
+  organization
 * Other participation in the wider Node.js community
 
 ### Nominating a new Collaborator
