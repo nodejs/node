@@ -150,10 +150,11 @@ test('skip() method with message', (t) => {
 
 ## `describe it` syntax
 
-Running tests can also be done using `describe` to declare a suite and `it` to declare a test.
+Running tests can also be done using `describe` to declare a suite
+and `it` to declare a test.
 A suite is used to organize and group related tests together.
-`it` is an alias for `test`, except there is no test context passed, since nesting is done using suites,
-as demonstrated in this example
+`it` is an alias for `test`, except there is no test context passed,
+since nesting is done using suites, as demonstrated in this example
 
 ```js
 describe('A thing', () => {
@@ -375,15 +376,18 @@ test('top level test', async (t) => {
 * `name` {string} The name of the suite, which is displayed when reporting test
   results. **Default:** The `name` property of `fn`, or `'<anonymous>'` if `fn`
   does not have a name.
-* `options` {Object} Configuration options for the suite. supports the same options as `test([name][, options][, fn])`
-* `fn` {Function} The function under suite. a synchronous function declaring all subtests and subsuites. **Default:** A no-op
-  function.
+* `options` {Object} Configuration options for the suite.
+  supports the same options as `test([name][, options][, fn])`
+* `fn` {Function} The function under suite.
+  a synchronous function declaring all subtests and subsuites.
+  **Default:** A no-op function.
 * Returns: `undefined`.
 
 The `describe()` function imported from the `test` module. Each
-invocation of this function results in the creation of a Subtest and a test point in the TAP
-output.
-After invocation of top level `describe` functions, all top level tests and suites will execute
+invocation of this function results in the creation of a Subtest
+and a test point in the TAP output.
+After invocation of top level `describe` functions,
+all top level tests and suites will execute
 
 ## `describe.skip([name][, options][, fn])`
 
@@ -400,10 +404,11 @@ same as `describe([name], { todo: true }[, fn])`
 * `name` {string} The name of the test, which is displayed when reporting test
   results. **Default:** The `name` property of `fn`, or `'<anonymous>'` if `fn`
   does not have a name.
-* `options` {Object} Configuration options for the suite. supports the same options as `test([name][, options][, fn])`.
-* `fn` {Function|AsyncFunction} The function under test. If the test uses callbacks,
-  the callback function is passed as an argument. **Default:** A no-op
-  function.
+* `options` {Object} Configuration options for the suite.
+  supports the same options as `test([name][, options][, fn])`.
+* `fn` {Function|AsyncFunction} The function under test.
+  If the test uses callbacks, the callback function is passed as an argument.
+  **Default:** A no-op function.
 * Returns: `undefined`.
 
 The `it()` function is the value imported from the `test` module.
