@@ -68,5 +68,8 @@
   },
   "textdecoder-arguments.any.js": {
     "fail": "Does not support flushing an incomplete sequence"
+  },
+  "single-byte-decoder.window.js": {
+    "skip": "location is not defined"
   }
 }

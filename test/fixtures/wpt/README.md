@@ -14,7 +14,7 @@ Last update:
 - console: https://github.com/web-platform-tests/wpt/tree/3b1f72e99a/console
 - dom/abort: https://github.com/web-platform-tests/wpt/tree/c49cafb491/dom/abort
 - dom/events: https://github.com/web-platform-tests/wpt/tree/f8821adb28/dom/events
-- encoding: https://github.com/web-platform-tests/wpt/tree/35f70910d3/encoding
+- encoding: https://github.com/web-platform-tests/wpt/tree/0e5b126cd0/encoding
 - FileAPI: https://github.com/web-platform-tests/wpt/tree/3b279420d4/FileAPI
 - hr-time: https://github.com/web-platform-tests/wpt/tree/9910784394/hr-time
 - html/webappapis/atob: https://github.com/web-platform-tests/wpt/tree/f267e1dca6/html/webappapis/atob
@@ -23,7 +23,7 @@ Last update:
 - html/webappapis/timers: https://github.com/web-platform-tests/wpt/tree/5873f2d8f1/html/webappapis/timers
 - interfaces: https://github.com/web-platform-tests/wpt/tree/fc086c82d5/interfaces
 - performance-timeline: https://github.com/web-platform-tests/wpt/tree/17ebc3aea0/performance-timeline
-- resources: https://github.com/web-platform-tests/wpt/tree/fbee645164/resources
+- resources: https://github.com/web-platform-tests/wpt/tree/1df9d51265/resources
 - streams: https://github.com/web-platform-tests/wpt/tree/8f60d94439/streams
 - url: https://github.com/web-platform-tests/wpt/tree/77d54aa9e0/url
 - user-timing: https://github.com/web-platform-tests/wpt/tree/df24fb604e/user-timing

@@ -16,7 +16,7 @@
     "path": "dom/events"
   },
   "encoding": {
-    "commit": "35f70910d3753c8b650fdfd4c716caedfefe88c9",
+    "commit": "0e5b126cd0a8da9186b738b8c9278d19b594c51f",
     "path": "encoding"
   },
   "FileAPI": {
@@ -52,7 +52,7 @@
     "path": "performance-timeline"
   },
   "resources": {
-    "commit": "fbee645164468c030072c46a934e2c876b143f8e",
+    "commit": "1df9d512650d18e9d07c04e529404cbe4ff136ff",
     "path": "resources"
   },
   "streams": {
