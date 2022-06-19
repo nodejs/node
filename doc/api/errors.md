@@ -3449,7 +3449,7 @@ The native call from `process.cpuUsage` could not be processed.
 [Node.js error codes]: #nodejs-error-codes
 [RFC 7230 Section 3]: https://tools.ietf.org/html/rfc7230#section-3
 [Subresource Integrity specification]: https://www.w3.org/TR/SRI/#the-integrity-attribute
-[V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
+[V8's stack trace API]: https://v8.dev/docs/stack-trace-api
 [WHATWG Supported Encodings]: util.md#whatwg-supported-encodings
 [WHATWG URL API]: url.md#the-whatwg-url-api
 [`"exports"`]: packages.md#exports
