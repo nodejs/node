@@ -394,6 +394,7 @@ same as `describe([name], { skip: true }[, fn])`
 
 shorthand for marking a suite as `TODO`,
 same as `describe([name], { todo: true }[, fn])`
+
 ## `it([name][, options][, fn])`
 
 * `name` {string} The name of the test, which is displayed when reporting test
@@ -405,11 +406,10 @@ same as `describe([name], { todo: true }[, fn])`
   function.
 * Returns: `undefined`.
 
-The `it()` function is the value imported from the `test` module. 
+The `it()` function is the value imported from the `test` module.
 Each
 invocation of this function results in the creation of a test point in the TAP
 output.
-
 
 ## `it.skip([name][, options][, fn])`
 
