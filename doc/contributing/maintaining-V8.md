@@ -423,8 +423,8 @@ This would require some tooling to:
 [NodeJS-Backport-Review-V8]: https://bugs.chromium.org/p/v8/issues/list?can=1&q=label%3ANodeJS-Backport-Review
 [V8 CI]: https://ci.nodejs.org/job/node-test-commit-v8-linux/
 [V8ActiveBranches]: https://build.chromium.org/p/client.v8.branches/console
-[V8Contributing]: https://github.com/v8/v8/wiki/Contributing
-[V8MergingPatching]: https://github.com/v8/v8/wiki/Merging%20&%20Patching
+[V8Contributing]: https://v8.dev/docs/contribute
+[V8MergingPatching]: https://v8.dev/docs/merge-patch
 [V8TemplateMergeRequest]: https://bugs.chromium.org/p/v8/issues/entry?template=Node.js%20merge%20request
 [V8TemplateUpstreamBug]: https://bugs.chromium.org/p/v8/issues/entry?template=Node.js%20upstream%20bug
 [`git-node`]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-v8
