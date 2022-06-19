@@ -651,6 +651,7 @@ instead of printing to stderr.
 Equivalent to passing
 .Fl -redirect-warnings Ar file
 on the command line.
+.
 .It Ev NODE_REPL_HISTORY Ar file
 Path to the
 .Ar file
@@ -659,6 +660,10 @@ The default path is
 .Sy ~/.node_repl_history ,
 which is overridden by this variable.
 Setting the value to an empty string ("" or " ") will disable persistent REPL history.
+.
+.It Ev NODE_REPL_EXTERNAL_MODULE Ar file
+Path to a Node.js module which will be loaded in place of the built-in REPL.
+Overriding this value to an empty string (`''`) will use the built-in REPL.
 .
 .It Ev NODE_SKIP_PLATFORM_CHECK
 When set to
@@ -694,6 +699,9 @@ is enabled, this overrides and sets OpenSSL's directory containing trusted certi
 If
 .Fl -use-openssl-ca
 is enabled, this overrides and sets OpenSSL's file containing trusted certificates.
+.
+.It Ev TZ
+Specify the timezone configuration.
 .
 .It Ev UV_THREADPOOL_SIZE Ar size
 Sets the number of threads used in libuv's threadpool to
