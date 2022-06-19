@@ -63,7 +63,7 @@ async function tests() {
     });
 
     await (async () => {
-      for await (const d of readable) { // eslint-disable-line no-unused-vars
+      for await (const d of readable) {
         return;
       }
     })();

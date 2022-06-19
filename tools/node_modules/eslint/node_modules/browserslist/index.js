@@ -229,7 +229,7 @@ function mapVersions(data, map) {
   data.versions = data.versions.map(function (i) {
     return map[i] || i
   })
-  data.released = data.versions.map(function (i) {
+  data.released = data.released.map(function (i) {
     return map[i] || i
   })
   var fixedDate = {}

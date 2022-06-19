@@ -1101,7 +1101,7 @@ function runRules(sourceCode, configuredRules, ruleMapper, parserName, languageO
             )
         );
 
-        const ruleListeners = createRuleListeners(rule, ruleContext);
+        const ruleListeners = timing.enabled ? timing.time(ruleId, createRuleListeners)(rule, ruleContext) : createRuleListeners(rule, ruleContext);
 
         /**
          * Include `ruleId` in error logs
