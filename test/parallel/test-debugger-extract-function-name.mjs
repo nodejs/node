@@ -1,16 +1,15 @@
-'use strict';
-const common = require('../common');
+import { skipIfInspectorDisabled } from '../common/index.mjs';
 
-common.skipIfInspectorDisabled();
+skipIfInspectorDisabled();
 
-const fixtures = require('../common/fixtures');
-const startCLI = require('../common/debugger');
+import { path } from '../common/fixtures.mjs';
+import startCLI from '../common/debugger.js';
 
-const assert = require('assert');
+import assert from 'assert';
 
-const cli = startCLI([fixtures.path('debugger', 'three-lines.js')]);
+const cli = startCLI([path('debugger', 'three-lines.js')]);
 
-(async () => {
+try {
   await cli.waitForInitialBreak();
   await cli.waitForPrompt();
   await cli.command('exec a = function func() {}; a;');
@@ -29,6 +28,6 @@ const cli = startCLI([fixtures.path('debugger', 'three-lines.js')]);
   assert.match(cli.output, /\[GeneratorFunction: function\*func\]/);
   await cli.command('exec a = function * func() {}; a;');
   assert.match(cli.output, /\[GeneratorFunction\]/);
-})()
-.finally(() => cli.quit())
-.then(common.mustCall());
+} finally {
+  cli.quit();
+}
