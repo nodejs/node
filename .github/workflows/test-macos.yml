@@ -12,7 +12,7 @@ on:
       - '!.github/workflows/test-macos.yml'
   push:
     branches:
-      - main
+      - $default-branch
       - canary
       - v[0-9]+.x-staging
       - v[0-9]+.x

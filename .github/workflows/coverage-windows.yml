@@ -13,7 +13,7 @@ on:
       - '!.github/workflows/coverage-windows.yml'
   push:
     branches:
-      - main
+      - $default-branch
     paths-ignore:
       - '**.md'
       - benchmark/**

@@ -1,7 +1,7 @@
 on:
   push:
     branches:
-      - main
+      - $default-branch
 
 name: Notify on Force Push
 jobs:
